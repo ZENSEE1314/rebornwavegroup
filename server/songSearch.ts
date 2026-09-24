@@ -186,9 +186,6 @@ export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<
   try { appleCatalog = await searchAppleCatalog(query, limit); }
   catch (error) { console.error("[apple] search", error); }
   const combined: SongSuggestion[] = [
-    ...remote,
-    ...appleCatalog,
-    ...freeCatalog,
     ...local.map((row): SongSuggestion => ({
       id: row.id,
       source: "library",
@@ -201,6 +198,9 @@ export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<
       isHit: row.isHit,
       requestCount: row.requestCount,
     })),
+    ...remote,
+    ...appleCatalog,
+    ...freeCatalog,
   ];
   const seen = new Set<string>();
   const deduped = combined.filter((row) => {

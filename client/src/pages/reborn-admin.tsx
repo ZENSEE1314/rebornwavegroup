@@ -7,10 +7,11 @@ import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as Use
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
+import { printReceipt } from "@/lib/receipt";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
 const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff", "Leaderboard", "Feedback"] as const;
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Staff", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ export default function RebornAdmin() {
       {tab === "Products" && <Products />}
       {tab === "Inventory" && <Inventory />}
       {tab === "Accounting" && <Accounting />}
+      {tab === "Payroll" && <Payroll />}
       {tab === "Staff" && <StaffHr isAdmin={isFullAdmin} />}
       {tab === "Leaderboard" && <StaffLeaderboard />}
       {tab === "Feedback" && <CompanyFeedback />}
@@ -85,7 +87,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
   Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
-  Staff: <Clock className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />,
+  Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />,
 };
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
@@ -825,7 +827,7 @@ function MyHr() {
       </Card>
       <Card>
         <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Plane className="w-4 h-4 text-amber-300" /> Apply for leave / MC</p>
-        <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
           <select value={lv.type} onChange={(e) => setLv({ ...lv, type: e.target.value })} className={inp}><option value="leave">Leave</option><option value="mc">Medical (MC)</option></select>
           <div />
           <label className="text-xs text-white/50">From<input type="date" value={lv.startDate} onChange={(e) => setLv({ ...lv, startDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
@@ -915,7 +917,7 @@ function ManageHr() {
       </Card>
       <Card>
         <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> Add a shift</p>
-        <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
           <select value={sh.userId} onChange={(e) => setSh({ ...sh, userId: e.target.value })} className={inp + " col-span-2"}>
             <option value="">Choose worker…</option>
             {staff.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
@@ -960,13 +962,13 @@ function Products() {
       <Card>
         <p className="font-bold mb-2 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> Add product</p>
         <label className="text-xs text-white/50 block mb-2">Product name<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="e.g. Heineken" className={inp + " w-full"} /></label>
-        <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
           <label className="text-xs text-white/50">Category<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Drinks" className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Stock quantity<input type="number" value={n.stock} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Sell price (RP)<input type="number" value={n.price} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={n.cost} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
         </div>
-        <div className="mb-2 grid grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" col-span-2"}/></div>
+        <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" sm:col-span-2"}/></div>
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label="Upload photo" /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
       </Card>
@@ -989,14 +991,14 @@ function ProductRow({ p }: any) {
   return (
     <Card>
       {!edit ? (
-        <div className="flex items-center gap-3">
-          {p.imageUrl && <img src={p.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />}
+        <div className="flex items-start gap-3">
+          {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" /> : <span className="w-14 h-14 rounded-xl bg-white/5 flex-shrink-0" />}
           <div className="flex-1 min-w-0">
             <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>}</p>
-            <p className="text-xs text-white/50">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}{p.supplierName ? ` · ${p.supplierName}` : ""}</p>
+            <p className="text-xs text-white/50 break-words">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
+            {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">Supplier: {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
-          <div className="mb-2 grid grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" col-span-2"}/></div>
-          <button onClick={() => setEdit(true)} className={btnSm}><Pencil className="w-4 h-4" /></button>
+          <button onClick={() => setEdit(true)} className={btnSm + " flex-shrink-0"}><Pencil className="w-4 h-4" /></button>
         </div>
       ) : (
         <div>
@@ -1007,6 +1009,7 @@ function ProductRow({ p }: any) {
             <label className="text-xs text-white/50">Sell price (RP)<input type="number" value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={f.cost} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
           </div>
+          <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" sm:col-span-2"}/></div>
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label="Upload photo" /></div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => save.mutate()} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
@@ -1094,6 +1097,7 @@ function Accounting() {
           <p className="text-[11px] text-white/40 mt-2">Commission is paid as RP cash (recorded as an expense), not app credits.</p>
         </Card>
       )}
+      <AccountingOrders days={days} />
       <Card>
         <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Calculator className="w-4 h-4 text-amber-300" /> Add manual entry</p>
         <div className="grid grid-cols-2 gap-2 mb-2">
@@ -1124,6 +1128,27 @@ function Accounting() {
     </div>
   );
 }
+
+function AccountingOrders({ days }: { days: number }) {
+  const { toast } = useToast(); const qc=useQueryClient(); const [selected,setSelected]=useState<any>(null); const [editing,setEditing]=useState(false); const [reason,setReason]=useState("");
+  const {data:orders=[]}=useQuery<any[]>({queryKey:["/api/reborn/admin/accounting/orders",days],queryFn:()=>apiRequest("GET",`/api/reborn/admin/accounting/orders?days=${days}`).then(r=>r.json())});
+  const refresh=()=>{qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting/orders"]});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting/summary"]});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting/ledger"]});};
+  const refund=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/refund`,{reason}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setReason("");refresh()},onError:(e:any)=>toast({title:"Refund failed",description:e.message,variant:"destructive"})});
+  const save=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/edit`,{...o,reason,items:o.items.map((x:any)=>({id:x.id,qty:Number(x.qty),price:Number(x.price)})),discount:Number(o.discount),tax:Number(o.tax),cashReceived:o.paymentMethod==="cash"?Number(o.cashReceived):undefined}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setEditing(false);setReason("");refresh()},onError:(e:any)=>toast({title:"Edit failed",description:e.message,variant:"destructive"})});
+  const money=(n:any)=>"RP "+Math.round(Number(n)||0).toLocaleString();
+  return <Card><p className="mb-2 font-bold text-sm flex items-center gap-2"><Ticket className="h-4 w-4 text-amber-300"/>Paid orders and receipts</p><div className="max-h-80 space-y-2 overflow-y-auto">{orders.map((o)=><button key={o.id} onClick={()=>{setSelected(structuredClone(o));setEditing(false);setReason("")}} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-left"><span className="min-w-0"><b className="block truncate">{o.orderNo} · {o.memberName||"Walk-in"}</b><span className="text-[11px] text-white/40">{new Date(o.paidAt).toLocaleString()} · {String(o.paymentMethod).toUpperCase()}</span></span><span className={o.status==="refunded"?"font-bold text-red-300":"font-bold text-emerald-300"}>{o.status==="refunded"?"REFUNDED · ":""}{money(o.total)}</span></button>)}</div>{orders.length===0&&<p className="text-xs text-white/40">No paid orders in this period.</p>}
+  {selected&&<div className="fixed inset-0 z-[80] overflow-y-auto bg-black/80 p-3 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-lg rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={()=>setSelected(null)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10"><X className="h-5 w-5"/></button><h3 className="pr-10 text-lg font-extrabold">{selected.orderNo} receipt</h3><p className="text-xs text-white/50">{selected.memberName||"Walk-in"} · {new Date(selected.paidAt).toLocaleString()}</p><div className="my-4 space-y-2">{selected.items.filter((x:any)=>x.status!=="rejected").map((x:any,i:number)=><div key={x.id} className="grid grid-cols-[1fr_70px_110px] items-center gap-2 rounded-xl bg-white/5 p-2"><span className="truncate text-sm">{x.name}</span>{editing?<><input type="number" min={1} value={x.qty} onChange={e=>{const items=[...selected.items];items[i]={...x,qty:Number(e.target.value)};setSelected({...selected,items})}} className={inp}/><input type="number" min={0} value={x.price} onChange={e=>{const items=[...selected.items];items[i]={...x,price:Number(e.target.value)};setSelected({...selected,items})}} className={inp}/></>:<><span className="text-sm">×{x.qty}</span><span className="text-right text-sm">{money(x.lineTotal)}</span></>}</div>)}</div>{editing&&<div className="grid grid-cols-2 gap-2"><label className="text-xs text-white/50">Discount<input type="number" value={selected.discount} onChange={e=>setSelected({...selected,discount:Number(e.target.value)})} className={inp+" w-full"}/></label><label className="text-xs text-white/50">Tax<input type="number" value={selected.tax} onChange={e=>setSelected({...selected,tax:Number(e.target.value)})} className={inp+" w-full"}/></label><select value={selected.paymentMethod} onChange={e=>setSelected({...selected,paymentMethod:e.target.value})} className={inp}><option value="cash">Cash</option><option value="card">Card</option></select>{selected.paymentMethod==="card"?<input value={selected.paymentReference||""} onChange={e=>setSelected({...selected,paymentReference:e.target.value})} placeholder="Card receipt number" className={inp}/>:<input type="number" value={selected.cashReceived||""} onChange={e=>setSelected({...selected,cashReceived:e.target.value})} placeholder="Cash received" className={inp}/>}</div>}<div className="my-4 border-t border-white/10 pt-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(selected.subtotal)}</span></div><div className="flex justify-between"><span>Discount</span><span>- {money(selected.discount)}</span></div><div className="flex justify-between text-lg font-black"><span>Total</span><span>{money(selected.total)}</span></div>{selected.paymentMethod==="cash"&&<><div className="flex justify-between"><span>Cash received</span><span>{money(selected.cashReceived)}</span></div><div className="flex justify-between"><span>Change</span><span>{money(selected.changeGiven)}</span></div></>}</div>{(editing||selected.status==="paid")&&<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Required reason for edit or refund" rows={2} className={inp+" mb-3 w-full"}/>}<div className="grid grid-cols-2 gap-2"><button onClick={()=>printReceipt(selected,{clubName:"Reborn Wave Group"})} className="rounded-xl bg-white/10 px-3 py-2.5 text-sm font-bold"><Download className="mr-1 inline h-4 w-4"/>Print / export</button>{selected.status==="paid"&&!editing&&<button onClick={()=>setEditing(true)} className="rounded-xl bg-amber-400 px-3 py-2.5 text-sm font-bold text-black">Edit bill</button>}{editing&&<button onClick={()=>save.mutate(selected)} disabled={!reason.trim()||save.isPending} className="rounded-xl bg-emerald-500 px-3 py-2.5 text-sm font-bold text-black disabled:opacity-40">Save edited bill</button>}{selected.status==="paid"&&!editing&&<button onClick={()=>refund.mutate(selected)} disabled={!reason.trim()||refund.isPending} className="col-span-2 rounded-xl bg-red-500/20 px-3 py-2.5 text-sm font-bold text-red-200 disabled:opacity-40">Refund and restore stock</button>}</div>{selected.refundReason&&<p className="mt-3 rounded-xl bg-red-500/10 p-3 text-xs text-red-200">Refund reason: {selected.refundReason}</p>}</div></div>}</Card>;
+}
+
+function Payroll() {
+  const {toast}=useToast();const qc=useQueryClient();const [month,setMonth]=useState(new Date().toISOString().slice(0,7));
+  const {data}=useQuery<any>({queryKey:["/api/reborn/admin/payroll",month],queryFn:()=>apiRequest("GET",`/api/reborn/admin/payroll?month=${month}`).then(r=>r.json())});
+  const save=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/profile",{userId:s.user_id,payType:s.pay_type,employmentType:s.employment_type,baseSalary:Number(s.base_salary),hourlyRate:Number(s.hourly_rate),commissionRate:Number(s.commission_rate),salesTarget:Number(s.sales_target)}).then(r=>r.json()),onSuccess:()=>{toast({title:"Payroll settings saved"});qc.invalidateQueries({queryKey:["/api/reborn/admin/payroll"]})}});
+  const pay=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/pay",{userId:s.user_id,name:s.name,month,amount:s.total}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting"]})},onError:(e:any)=>toast({title:"Cannot record payroll",description:e.message,variant:"destructive"})});
+  const money=(v:any)=>"RP "+Math.round(Number(v)||0).toLocaleString();
+  return <div className="space-y-3"><Card><div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold">Monthly payroll</h3><p className="text-xs text-white/50">Basic pay, approved attendance hours, sales commission and targets.</p></div><input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={inp} style={{colorScheme:"dark"}}/></div></Card>{(data?.staff||[]).map((initial:any)=><PayrollRow key={initial.user_id+month} initial={initial} onSave={(s:any)=>save.mutate(s)} onPay={(s:any)=>pay.mutate(s)} money={money}/>)}<Card><p className="mb-2 font-bold text-sm">Customer referral commission</p>{(data?.referrals||[]).map((r:any)=><div key={r.introducer_id} className="flex justify-between border-b border-white/5 py-2 text-sm"><span>{r.name}<span className="block text-[11px] text-white/40">{r.referrals} purchase(s) · {money(r.referred_sales)} referred sales</span></span><b className="text-amber-300">{money(r.commission)}</b></div>)}{!(data?.referrals||[]).length&&<p className="text-xs text-white/40">No referral commission this month.</p>}<p className="mt-2 text-[11px] text-white/40">Recorded payroll becomes an Accounting expense automatically.</p></Card></div>;
+}
+function PayrollRow({initial,onSave,onPay,money}:any){const[s,setS]=useState(initial);const basic=s.pay_type==="hourly"?Number(s.hourly_rate)*Number(s.hours):Number(s.base_salary);const commission=Number(s.sales)*Number(s.commission_rate)/100;const total=basic+commission;const v={...s,basic,salesCommission:commission,total};return <Card><div className="mb-3 flex items-start justify-between gap-2"><div><b>{s.name}</b><p className="text-xs text-white/40">{Number(s.hours).toFixed(1)} approved hours · {s.tickets} sales · {money(s.sales)}</p></div><span className={`rounded-lg px-2 py-1 text-[11px] font-bold ${Number(s.sales_target)>0&&Number(s.sales)>=Number(s.sales_target)?"bg-emerald-500/20 text-emerald-300":"bg-white/5 text-white/50"}`}>{Number(s.sales_target)>0?`${Math.round(Number(s.sales)/Number(s.sales_target)*100)}% target`:"No target"}</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><label className="text-[11px] text-white/50">Pay type<select value={s.pay_type||"salary"} onChange={e=>setS({...s,pay_type:e.target.value})} className={inp+" w-full"}><option value="salary">Monthly salary</option><option value="hourly">Hourly</option></select></label><label className="text-[11px] text-white/50">Basic salary<input type="number" value={s.base_salary||0} onChange={e=>setS({...s,base_salary:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Hourly rate<input type="number" value={s.hourly_rate||0} onChange={e=>setS({...s,hourly_rate:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Sales target<input type="number" value={s.sales_target||0} onChange={e=>setS({...s,sales_target:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Commission %<input type="number" min={0} value={s.commission_rate||0} onChange={e=>setS({...s,commission_rate:e.target.value})} className={inp+" w-full"}/></label></div><div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><span className="rounded-xl bg-white/5 p-2">Basic<br/><b>{money(basic)}</b></span><span className="rounded-xl bg-white/5 p-2">Commission<br/><b>{money(commission)}</b></span><span className="rounded-xl bg-amber-400/10 p-2 text-amber-200">Payroll<br/><b>{money(total)}</b></span></div><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={()=>onSave(v)} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">Save settings</button><button onClick={()=>{if(confirm(`Record ${money(total)} payroll for ${s.name}?`))onPay(v)}} disabled={total<=0} className="rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-black disabled:opacity-40">Record paid</button></div></Card>}
 
 function Inventory() {
   const { toast } = useToast();

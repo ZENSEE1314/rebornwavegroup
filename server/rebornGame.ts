@@ -13,6 +13,7 @@ import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
 import { searchSongCatalog, textPinyin } from "./songSearch";
+import { TOP_SONGS_500 } from "./topSongs500";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, BLOCK_ALL } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -20,7 +21,7 @@ import {
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
   posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts, crmMessages, appointments,
-  staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews,
+  staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -354,14 +355,19 @@ const DEFAULT_SONGS: [string, string, string][] = [
   ["约定", "Yuē Dìng", "周蕙 Where Chou"],
   ["征服", "Zhēng Fú", "那英 Na Ying"],
 ];
+let songCatalogReady = false;
 async function seedSongsIfEmpty() {
-  const existing = await db.select({ id: songs.id }).from(songs).limit(1);
-  if (existing.length === 0) {
-    await db.insert(songs).values(DEFAULT_SONGS.map(([zh, py, artist], i) => ({
-      title: `${zh} (${py})`, artist, isHit: true, requestCount: DEFAULT_SONGS.length - i,
-      spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(zh + " " + artist.split(" ")[0])}`,
-    })));
-  }
+  if (songCatalogReady) return;
+  const existing = await db.select({ title: songs.title, artist: songs.artist }).from(songs);
+  const key = (title: unknown, artist: unknown) => `${String(title || "").trim().toLocaleLowerCase()}|${String(artist || "").trim().toLocaleLowerCase()}`;
+  const known = new Set(existing.map((row)=>key(row.title,row.artist)));
+  const missing = TOP_SONGS_500.filter((row)=>!known.has(key(row.title,row.artist))).map((row,index)=>({
+    title: row.title, titlePinyin: textPinyin(row.title), artist: row.artist, artistPinyin: textPinyin(row.artist),
+    isHit: true, requestCount: Math.max(1, 500-index), spotifyUrl: null,
+  }));
+  for (let i=0;i<missing.length;i+=100) await db.insert(songs).values(missing.slice(i,i+100));
+  if (existing.length === 0 && !missing.length) await db.insert(songs).values(DEFAULT_SONGS.map(([zh, py, artist], i) => ({ title: zh, titlePinyin: py, artist, isHit: true, requestCount: DEFAULT_SONGS.length-i })));
+  songCatalogReady = true;
 }
 
 export function registerRebornRoutes(app: Express) {
@@ -747,9 +753,10 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/kos/search", requireAuth, async (req, res) => {
     try {
       const q = String(req.query.q || "").trim();
+      const me = getUserId(req)!;
       if (q.length < 2) return res.json([]);
       const rows = await db.select({ id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl })
-        .from(users).where(or(ilike(users.username, `%${q}%`), ilike(users.firstName, `%${q}%`))).limit(20);
+        .from(users).where(and(sql`${users.id} <> ${me}`, or(ilike(users.username, `%${q}%`), ilike(users.firstName, `%${q}%`)))).limit(20);
       res.json(rows);
     } catch { res.json([]); }
   });
@@ -947,6 +954,7 @@ export function registerRebornRoutes(app: Express) {
 
   app.get("/api/reborn/songs/search", requireAuth, async (req, res) => {
     try {
+      await seedSongsIfEmpty();
       res.json(await searchSongCatalog(req.query.q, 10));
     } catch (e) {
       console.error("song search", e);
@@ -1495,10 +1503,11 @@ export function registerRebornRoutes(app: Express) {
     if (!u || !bottle?.enabled) return null;
     const name = String(bottle.name || "").trim();
     if (!name) throw new Error("Enter the bottle name before payment");
+    if (["wine", "whisky"].includes(String(bottle.type || "")) && !bottle.photoUrl) throw new Error("A bottle photo is required for wine and whisky");
     const now = new Date();
     const [row] = await db.insert(bottleKeeps).values({
       userId: u.id, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email,
-      memberCode: u.referralCode, type: ["beer", "whisky", "other"].includes(bottle.type) ? bottle.type : "beer",
+      memberCode: u.referralCode, type: ["beer", "wine", "whisky", "other"].includes(bottle.type) ? bottle.type : "beer",
       name, quantity: Math.max(1, Math.floor(Number(bottle.quantity) || 1)), photoUrl: bottle.photoUrl || null,
       note: bottle.note || null, storedByStaffId: staffId, status: "kept", storedAt: now, expiresAt: addDays(KEEP_DAYS, now),
     }).returning();
@@ -1691,13 +1700,18 @@ export function registerRebornRoutes(app: Express) {
     const discount = Math.min(subtotal, Math.max(0, Number(req.body?.discount) || 0));
     const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
     const total = subtotal - discount + tax;
+    const cashReceived = paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
+    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < total)) return res.status(400).json({ message: `Cash received must be at least RP ${total.toLocaleString()}` });
+    const changeGiven = paymentMethod === "cash" ? cashReceived! - total : null;
+    const keepType = String(req.body?.keepBottle?.type || "");
+    if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: "A bottle photo is required for wine and whisky" });
     const points = u ? Math.floor(total / await pointsSpendRp()) : 0;
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : "dine_in";
     const [row] = await db.insert(posTickets).values({
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid",
       ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null,
       subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), orderMode,
-      paymentMethod, paymentReference: paymentReference || null, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
+      paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
     }).returning();
     await appendItems(row.id, row.orderNo, clean!, getUserId(req)!);
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
@@ -1890,10 +1904,15 @@ export function registerRebornRoutes(app: Express) {
     const discount = Math.min(subtotal, Math.max(0, reqDisc || 0));
     const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
     const total = subtotal - discount + tax;
+    const cashReceived = paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
+    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < total)) return res.status(400).json({ message: `Cash received must be at least RP ${total.toLocaleString()}` });
+    const changeGiven = paymentMethod === "cash" ? cashReceived! - total : null;
+    const keepType = String(req.body?.keepBottle?.type || "");
+    if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: "A bottle photo is required for wine and whisky" });
     const points = o.memberId ? Math.floor(total / await pointsSpendRp()) : 0;
     const sales = await salesTag(req.body); // optional salesperson override at checkout
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : (o.orderMode || "dine_in");
-    await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), orderMode, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
+    await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), orderMode, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
@@ -2017,6 +2036,69 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "manual_entry", entityType: "accounting", description: `${kind} RP ${amount} (${row.category})` });
     res.json(row);
   }));
+
+  app.get("/api/reborn/admin/accounting/orders", requireAdmin(async (req, res) => {
+    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+    const since = new Date(Date.now() - days * DAY_MS);
+    const rows = await db.select().from(posTickets).where(and(inArray(posTickets.status, ["paid", "refunded"]), sql`${posTickets.paidAt} >= ${since}`)).orderBy(desc(posTickets.paidAt)).limit(300);
+    const result = await Promise.all(rows.map(async (order)=>({ ...order, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, order.id)) })));
+    res.json(result);
+  }));
+
+  app.post("/api/reborn/admin/accounting/orders/:id/refund", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id); const reason = String(req.body?.reason || "").trim();
+    if (!reason) return res.status(400).json({ message: "A refund reason is required" });
+    const [order] = await db.select().from(posTickets).where(eq(posTickets.id,id));
+    if (!order || order.status !== "paid") return res.status(400).json({ message: "Only a paid bill can be refunded" });
+    const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId,id));
+    for (const item of items.filter((x)=>x.status !== "rejected" && x.productId)) {
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${item.qty}` }).where(eq(posProducts.id,item.productId!));
+      await db.insert(stockMovements).values({ productId:item.productId!, delta:item.qty, reason:"refund", note:`Refund ${order.orderNo}: ${reason}`, userId:getUserId(req)! });
+    }
+    if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints:sql`greatest(0,${users.loyaltyPoints}-${order.pointsEarned})`, lifetimePoints:sql`greatest(0,${users.lifetimePoints}-${order.pointsEarned})`, updatedAt:new Date() }).where(eq(users.id,order.memberId));
+    const [updated] = await db.update(posTickets).set({ status:"refunded", refundReason:reason, refundedBy:getUserId(req)!, refundedAt:new Date() }).where(eq(posTickets.id,id)).returning();
+    await db.insert(ledgerEntries).values({ kind:"expense", category:"refund", amount:String(order.total), note:`Refund ${order.orderNo}: ${reason}`, refType:"pos_refund", refId:String(id), userId:order.memberId || null });
+    await logAdmin(req,{ targetType:"pos_order",targetId:String(id),action:"refund",entityType:"accounting",description:`Refunded ${order.orderNo} RP ${Number(order.total)}: ${reason}` });
+    res.json({ message:`${order.orderNo} refunded and stock restored`, order:{...updated,items} });
+  }));
+
+  app.post("/api/reborn/admin/accounting/orders/:id/edit", requireAdmin(async (req, res) => {
+    const id=Number(req.params.id); const reason=String(req.body?.reason||"").trim();
+    if (!reason) return res.status(400).json({message:"A dispute/edit reason is required"});
+    const [order]=await db.select().from(posTickets).where(eq(posTickets.id,id));
+    if (!order || order.status!=="paid") return res.status(400).json({message:"Only a paid bill can be edited"});
+    const current=await db.select().from(posTicketItems).where(eq(posTicketItems.orderId,id));
+    const requested=Array.isArray(req.body?.items)?req.body.items:[];
+    for (const change of requested) {
+      const old=current.find((x)=>x.id===Number(change.id)); if(!old || old.status==="rejected") continue;
+      const qty=Math.max(1,Math.floor(Number(change.qty)||1)); const price=Math.max(0,Number(change.price)||0); const delta=qty-old.qty;
+      if(delta>0 && old.productId){ const [p]=await db.select().from(posProducts).where(eq(posProducts.id,old.productId)); if(!p || p.stock<delta) return res.status(400).json({message:`Not enough ${old.name} stock for that edit`}); }
+      if(delta!==0 && old.productId){ await db.update(posProducts).set({stock:sql`${posProducts.stock}-${delta}`}).where(eq(posProducts.id,old.productId)); await db.insert(stockMovements).values({productId:old.productId,delta:-delta,reason:"bill_edit",note:`${order.orderNo}: ${reason}`,userId:getUserId(req)!}); }
+      await db.update(posTicketItems).set({qty,price:String(price),lineTotal:String(qty*price)}).where(eq(posTicketItems.id,old.id));
+    }
+    const freshItems=await db.select().from(posTicketItems).where(eq(posTicketItems.orderId,id));
+    const subtotal=freshItems.filter((x)=>x.status!=="rejected").reduce((s,x)=>s+Number(x.lineTotal),0);
+    const discount=Math.min(subtotal,Math.max(0,Number(req.body?.discount ?? order.discount)||0));
+    const tax=Math.max(0,Number(req.body?.tax ?? order.tax)||0); const total=subtotal-discount+tax;
+    const method=req.body?.paymentMethod==="card"?"card":req.body?.paymentMethod==="cash"?"cash":order.paymentMethod;
+    const ref=String(req.body?.paymentReference ?? order.paymentReference ?? "").trim(); if(method==="card"&&!ref)return res.status(400).json({message:"Card receipt/reference number is required"});
+    const cash=method==="cash"?Number(req.body?.cashReceived ?? order.cashReceived ?? total):null; if(method==="cash"&&cash!<total)return res.status(400).json({message:"Cash received cannot be below the edited total"});
+    const diff=total-Number(order.total); if(diff!==0)await db.insert(ledgerEntries).values({kind:diff>0?"income":"expense",category:"bill_adjustment",amount:String(Math.abs(diff)),note:`Bill edit ${order.orderNo}: ${reason}`,refType:"pos_adjustment",refId:String(id),userId:order.memberId||null});
+    const [updated]=await db.update(posTickets).set({subtotal:String(subtotal),discount:String(discount),tax:String(tax),total:String(total),paymentMethod:method,paymentReference:ref||null,cashReceived:cash===null?null:String(cash),changeGiven:cash===null?null:String(cash-total),adjustmentReason:reason}).where(eq(posTickets.id,id)).returning();
+    await logAdmin(req,{targetType:"pos_order",targetId:String(id),action:"edit_paid_bill",entityType:"accounting",description:`Edited ${order.orderNo}: ${reason}; RP ${Number(order.total)} → ${total}`});
+    res.json({message:"Bill updated with an audit record",order:{...updated,items:freshItems}});
+  }));
+
+  app.get("/api/reborn/admin/payroll", requireAdmin(async (req,res)=>{
+    const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
+    const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,"reborn-wave-group")).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,COALESCE(a.hours,0) hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(extract(epoch from(check_out_at-check_in_at))/3600) hours FROM staff_attendance WHERE status='approved' AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
+    const staff=((result.rows||result) as any[]).map((x)=>{const basic=x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary);const salesCommission=Number(x.sales)*Number(x.commission_rate)/100;return{...x,basic,salesCommission,total:basic+salesCommission,targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
+    const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
+    res.json({month,from,to,staff,referrals:refs.rows||refs});
+  }));
+  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,"reborn-wave-group")).limit(1))[0];if(!reborn)return res.status(404).json({message:"Company not found"});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
+  app.post("/api/reborn/admin/payroll/pay", requireAdmin(async(req,res)=>{const b=req.body||{};const amount=Math.max(0,Number(b.amount)||0);const month=String(b.month||"");const userId=String(b.userId||"");if(!amount||!month||!userId)return res.status(400).json({message:"Staff, month and amount are required"});const existing=await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType,"payroll"),eq(ledgerEntries.refId,`${userId}:${month}`))).limit(1);if(existing.length)return res.status(409).json({message:"This staff payroll has already been recorded for the month"});const[row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(amount),note:`Payroll ${b.name||userId} · ${month} (basic + commission)`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();res.json({message:"Payroll recorded as an expense",row});}));
 
   // ── HR: attendance, schedule, leave ──────────────────────────────────
   // Worker self-service (any staff/admin account)

@@ -12,7 +12,7 @@ import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt,
 
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; }
 interface Staff { id: string; name: string; role: string; }
-interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; subtotal?: string; discount?: string; tax?: string; paidAt?: string; }
+interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "stock" | "bottles";
 const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
 
@@ -211,19 +211,27 @@ function TablesTab() {
 
 const emptyBottle = () => ({ enabled: false, type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
 const isDrink = (category = "", name = "") => /drink|beverage|beer|lager|ale|wine|whisky|whiskey|spirit|vodka|gin|rum|tequila|cocktail|bottle/i.test(`${category} ${name}`);
-const bottleType = (category = "", name = "") => /whisky|whiskey|spirit|vodka|gin|rum/i.test(`${category} ${name}`) ? "whisky" : /beer|lager|ale/i.test(`${category} ${name}`) ? "beer" : "other";
+const bottleType = (category = "", name = "") => /whisky|whiskey|spirit|vodka|gin|rum/i.test(`${category} ${name}`) ? "whisky" : /wine/i.test(`${category} ${name}`) ? "wine" : /beer|lager|ale/i.test(`${category} ${name}`) ? "beer" : "other";
 function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [] }: { value: any; onChange: (value: any) => void; hasMember: boolean; drinkOptions?: Array<{ name: string; category?: string }> }) {
   const input = "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white";
+  const unique = Array.from(new Map(drinkOptions.map((x)=>[x.name,x])).values());
+  const availableTypes = Array.from(new Set(unique.map((x)=>bottleType(x.category,x.name))));
+  const filtered = unique.filter((x)=>bottleType(x.category,x.name)===value.type);
+  useEffect(() => {
+    if (!value.enabled || availableTypes.length === 0 || availableTypes.includes(value.type)) return;
+    onChange({ ...value, type: availableTypes[0], name: "", photoUrl: "" });
+  }, [value.enabled, value.type, availableTypes.join("|")]);
   return <div className="mb-2 rounded-xl border border-white/10 bg-black/20 p-3">
     <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.enabled} onChange={(e) => onChange({ ...value, enabled: e.target.checked })}/><Wine className="h-4 w-4 text-amber-300"/> Keep unfinished bottle with this checkout</label>
     {value.enabled && <div className="mt-3 space-y-2">
       {!hasMember && <p className="rounded-lg bg-red-500/10 p-2 text-xs text-red-200">Select or tag a member first.</p>}
-      <div className="grid grid-cols-[1fr_80px] gap-2"><select className={input} value={value.type} onChange={(e)=>onChange({...value,type:e.target.value})}><option value="beer">Beer</option><option value="whisky">Whisky</option><option value="other">Other</option></select><input className={input} type="number" min={1} value={value.quantity} onChange={(e)=>onChange({...value,quantity:Number(e.target.value)})}/></div>
-      <select className={input} value={value.name} onChange={(e)=>{const option=drinkOptions.find((x)=>x.name===e.target.value);onChange({...value,name:e.target.value,type:bottleType(option?.category,e.target.value)})}}>
-        <option value="">Select a drink from this order</option>
-        {Array.from(new Map(drinkOptions.map((x)=>[x.name,x])).values()).map((x)=><option key={x.name} value={x.name}>{x.name}</option>)}
+      <div className="grid grid-cols-[1fr_80px] gap-2"><select className={input} value={value.type} onChange={(e)=>onChange({...value,type:e.target.value,name:"",photoUrl:""})}>{availableTypes.map((type)=><option key={type} value={type}>{type === "whisky" ? "Whisky / spirits" : type.charAt(0).toUpperCase()+type.slice(1)}</option>)}</select><input className={input} type="number" min={1} value={value.quantity} onChange={(e)=>onChange({...value,quantity:Number(e.target.value)})}/></div>
+      <select className={input} value={value.name} onChange={(e)=>onChange({...value,name:e.target.value})}>
+        <option value="">Select {value.type} from this order</option>
+        {filtered.map((x)=><option key={x.name} value={x.name}>{x.name}</option>)}
       </select>
       {drinkOptions.length === 0 && <p className="text-xs text-amber-200">Add a drink to the order before keeping it.</p>}
+      {(value.type === "wine" || value.type === "whisky") && <div><p className="mb-1 text-xs text-white/50">Photo of the remaining bottle level (required)</p><ImageUpload value={value.photoUrl} onChange={(photoUrl)=>onChange({...value,photoUrl})} label="Take / upload bottle photo" /></div>}
       <input className={input} value={value.note} onChange={(e)=>onChange({...value,note:e.target.value})} placeholder="Note (optional)"/>
     </div>}
   </div>;
@@ -234,6 +242,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const qc = useQueryClient();
   const [pay, setPay] = useState<"cash" | "card">("cash");
   const [paymentReference, setPaymentReference] = useState("");
+  const [cashReceived, setCashReceived] = useState("");
   const [receiptResult, setReceiptResult] = useState<any>(null);
   const { data: products = [] } = useProducts();
   const productById = useMemo(() => new Map(products.map((p)=>[p.id,p])), [products]);
@@ -257,7 +266,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: "Not found", description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: "Drawer not opened", description: "Check Cash drawer setup." }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
@@ -385,8 +394,9 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               ))}
             </div>
             {pay === "card" && <label className="mb-2 block text-xs text-white/60">Card approval / receipt number<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder="Required for card payment" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
+            {pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">Cash received<input type="number" min={Math.max(0,total-discount)} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(Math.max(0,total-discount))} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">Change</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-Math.max(0,total-discount)))}</p></div></div>}
             <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks}/>
-            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (pay === "card" && !paymentReference.trim()) || (keepBottle.enabled && !keepBottle.name)} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(Math.max(0, total - discount))} {pay}</button>
+            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < Math.max(0,total-discount)) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(Math.max(0, total - discount))} {pay}</button>
             <button onClick={() => { if (confirm("Cancel this ticket and restore stock?")) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">Cancel ticket</button>
           </div>
         </div>
@@ -404,6 +414,7 @@ function QuickSaleTab() {
   const [member, setMember] = useState<any>(null);
   const [pay, setPay] = useState<"cash" | "card">("cash");
   const [paymentReference, setPaymentReference] = useState("");
+  const [cashReceived, setCashReceived] = useState("");
   const [receiptResult, setReceiptResult] = useState<any>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [sales, setSales] = useState("");
@@ -415,18 +426,18 @@ function QuickSaleTab() {
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: "Member found", description: d.name }); } else toast({ title: "Not found", description: d.message, variant: "destructive" }); },
   });
   const sell = useMutation({
-    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items }),
+    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items }),
     onSuccess: async (d) => {
       if (pay === "cash") await openCashDrawer();
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
-      toast({ title: "Sale complete", description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setPaymentReference(""); setKeepBottle(emptyBottle()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+      toast({ title: "Sale complete", description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setPaymentReference(""); setCashReceived(""); setKeepBottle(emptyBottle()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   return (
     <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
       <div className="order-2 lg:order-1">
-        <ProductPicker label={`Charge ${pay}`} busy={sell.isPending || (pay === "card" && !paymentReference.trim()) || (keepBottle.enabled && !keepBottle.name)} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
+        <ProductPicker label={`Charge ${pay}`} busy={sell.isPending || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < Math.max(0,cartItems.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)-discount)) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
       </div>
       <div className="order-1 lg:order-2 mb-3 lg:mb-0 space-y-3 h-fit">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -457,6 +468,7 @@ function QuickSaleTab() {
           ))}
         </div>
         {pay === "card" && <label className="block text-xs text-white/60">Card approval / receipt number<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder="Required for card payment" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
+        {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">Cash received<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder="Required" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">Change</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-Math.max(0,cartItems.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)-discount)))}</p></div></div>}
         <p className="text-[11px] text-white/40 text-center">The receipt appears after payment. Printing follows the admin setting.</p>
       </div>
       {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>setReceiptResult(null)} />}
@@ -553,6 +565,10 @@ function BottlesTab() {
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   const inp = "w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm";
+  const drinks = products.filter((p)=>isDrink(p.category,p.name));
+  const drinkTypes = Array.from(new Set(drinks.map((p)=>bottleType(p.category,p.name))));
+  const drinksForType = drinks.filter((p)=>bottleType(p.category,p.name)===f.type);
+  useEffect(()=>{ if(drinkTypes.length && !drinkTypes.includes(f.type)) setF((current)=>({...current,type:drinkTypes[0],name:"",photoUrl:""})); },[drinkTypes.join("|"),f.type]);
   return (
     <div className="lg:grid lg:grid-cols-[360px_1fr] lg:gap-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-3 mb-4 lg:mb-0 h-fit">
@@ -562,20 +578,20 @@ function BottlesTab() {
         </div>
         {selectedMember && <div className="mb-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-2 text-sm text-emerald-200"><UserCheck className="mr-1 inline h-4 w-4"/> {selectedMember.name}</div>}
         <div className="grid grid-cols-2 gap-2 mb-2">
-          <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className={inp}>
-            <option value="beer">Beer</option><option value="whisky">Whisky</option><option value="other">Other</option>
+          <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value, name: "", photoUrl: "" })} className={inp}>
+            {drinkTypes.map((type)=><option key={type} value={type}>{type === "whisky" ? "Whisky / spirits" : type.charAt(0).toUpperCase()+type.slice(1)}</option>)}
           </select>
           <input type="number" min={1} value={f.quantity} onChange={(e) => setF({ ...f, quantity: Number(e.target.value) })} placeholder="Qty" className={inp} />
         </div>
         <select value={f.name} onChange={(e) => { const p=products.find((x)=>x.name===e.target.value); setF({ ...f, name:e.target.value, type:bottleType(p?.category,e.target.value) }); }} className={inp + " mb-2"}>
           <option value="">Select drink from products</option>
-          {products.filter((p)=>isDrink(p.category,p.name)).map((p)=><option key={p.id} value={p.name}>{p.name} · {p.category}</option>)}
+          {drinksForType.map((p)=><option key={p.id} value={p.name}>{p.name} · {p.category}</option>)}
         </select>
-        {f.type !== "beer" && (
-          <div className="mb-2"><p className="text-xs text-white/50 mb-1">Photo of remaining level</p><ImageUpload value={f.photoUrl} onChange={(v) => setF({ ...f, photoUrl: v })} label="Take / upload photo" /></div>
+        {(f.type === "wine" || f.type === "whisky") && (
+          <div className="mb-2"><p className="text-xs text-white/50 mb-1">Photo of remaining level (required)</p><ImageUpload value={f.photoUrl} onChange={(v) => setF({ ...f, photoUrl: v })} label="Take / upload photo" /></div>
         )}
         <input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="Note (optional)" className={inp + " mb-2"} />
-        <button onClick={() => store.mutate()} disabled={store.isPending || !f.name.trim() || !f.memberCode.trim()} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Keep bottle (30 days)</button>
+        <button onClick={() => store.mutate()} disabled={store.isPending || !f.name.trim() || !f.memberCode.trim() || ((f.type === "wine" || f.type === "whisky") && !f.photoUrl)} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Keep bottle (30 days)</button>
       </div>
       <div>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search kept bottles by member or name" className={inp + " mb-3"} />
@@ -607,7 +623,8 @@ function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone
     if (!printReceipt(order, meta || {})) toast({ title: "Receipt ready", description: "Use Print from a counter computer or your phone's share/print menu." });
   };
   return <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
-    <div className="mx-auto my-4 w-full max-w-sm rounded-3xl border border-white/15 bg-[#f7f2e8] p-5 text-black shadow-2xl">
+    <div className="relative mx-auto my-4 w-full max-w-sm rounded-3xl border border-white/15 bg-[#f7f2e8] p-5 text-black shadow-2xl">
+      <button onClick={onDone} aria-label="Close receipt" className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/10"><X className="h-5 w-5"/></button>
       <div className="text-center">
         {meta?.logoUrl && <img src={meta.logoUrl} alt="" className="mx-auto mb-2 max-h-16 max-w-32 object-contain" />}
         <h2 className="text-xl font-black">{meta?.clubName || "Reborn Wave Group"}</h2>
@@ -631,6 +648,7 @@ function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone
         <div className="flex justify-between text-lg font-black"><span>TOTAL</span><span>{rp(Number(order.total))}</span></div>
         <div className="flex justify-between"><span>Paid</span><b>{String(order.paymentMethod || "").toUpperCase()}</b></div>
         {order.paymentReference && <div className="flex justify-between gap-3"><span>Card / receipt ref.</span><b className="text-right">{order.paymentReference}</b></div>}
+        {order.paymentMethod === "cash" && <><div className="flex justify-between"><span>Cash received</span><b>{rp(Number(order.cashReceived))}</b></div><div className="flex justify-between"><span>Change</span><b>{rp(Number(order.changeGiven))}</b></div></>}
       </div>
       <p className="mt-4 border-t border-dashed border-black/50 pt-4 text-center text-xs">{meta?.footer || "Thank you!"}</p>
       <div className="mt-5 grid grid-cols-2 gap-2">

@@ -6,6 +6,7 @@ interface Order {
   orderNo: string; tableNumber?: string; memberName?: string; salesStaffName?: string;
   orderMode?: string; paymentMethod?: string; subtotal?: string | number; discount?: string | number;
   paymentReference?: string;
+  cashReceived?: string | number; changeGiven?: string | number; status?: string;
   tax?: string | number; total?: string | number; items?: Item[]; createdAt?: string; paidAt?: string;
 }
 interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; taxPercent?: number; }
@@ -55,6 +56,8 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
     <div class="row big"><span>TOTAL</span><span>${rp(o.total)}</span></div>
     ${o.paymentMethod ? `<div class="row"><span>Paid</span><span class="b">${esc(String(o.paymentMethod).toUpperCase())}</span></div>` : ""}
     ${o.paymentReference ? `<div class="row"><span>Card / receipt ref.</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
+    ${o.paymentMethod === "cash" ? `<div class="row"><span>Cash received</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>Change</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
+    ${o.status === "refunded" ? `<div class="c b" style="font-size:18px;margin-top:6px;">REFUNDED</div>` : ""}
     <hr/>
     <div class="c muted">${esc(m.footer || "Thank you!")}</div>
     <div class="c muted b" style="margin-top:4px;">— ${copyLabel} —</div>
