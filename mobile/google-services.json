@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "942168077589",
+    "project_id": "reborn-wave-group",
+    "storage_bucket": "reborn-wave-group.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:942168077589:android:67d6a8500cc5fda496e51c",
+        "android_client_info": {
+          "package_name": "com.zensee.rebornwavegroup"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9i5NLYQzWZHmt4t2cjoEs_uW44d5o3co"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

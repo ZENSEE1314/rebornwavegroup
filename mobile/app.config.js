@@ -24,6 +24,7 @@ module.exports = () => {
   android: {
     ...base.android,
     package: process.env.EXPO_ANDROID_PACKAGE || base.android.package,
+    googleServicesFile: process.env.EXPO_GOOGLE_SERVICES_FILE || "./google-services.json",
   },
   extra: {
     ...base.extra,
