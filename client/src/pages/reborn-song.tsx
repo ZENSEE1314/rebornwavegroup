@@ -13,7 +13,7 @@ function useDebounced(value: string, delay = 250) {
   return debounced;
 }
 
-type SearchResponse = { songs: any[]; spotifyConnected: boolean };
+type SearchResponse = { songs: any[]; spotifyConnected: boolean; freeCatalogConnected: boolean };
 
 function ModePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-2">{[["self","Self sing"],["singer","By singer"]].map(([id,label])=><button key={id} type="button" onClick={()=>onChange(id)} className={`rounded-xl px-3 py-2 text-sm font-semibold ${value===id?"bg-amber-400 text-black":"bg-black/20 text-white/60"}`}>{label}</button>)}</div>;
@@ -42,7 +42,7 @@ function SongRow({ s, onRequest, pending }: any) {
         : <span className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(201,168,76,0.15)" }}><Music2 className="w-5 h-5 text-amber-300" /></span>}
       <div className="flex-1 min-w-0">
         <p className="font-semibold truncate flex items-center gap-1">{s.title}{s.titlePinyin && <span className="text-[11px] font-normal text-white/40">{s.titlePinyin}</span>}{s.isHit && <span className="text-[10px] font-bold text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded">HIT</span>}</p>
-        <p className="text-xs text-white/50 truncate">{s.artist || "Singer optional"}{s.artistPinyin && <span className="text-white/30"> · {s.artistPinyin}</span>}{s.spotifyUrl && <a href={s.spotifyUrl} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-0.5 text-emerald-400"><ExternalLink className="w-3 h-3" /> Spotify</a>}</p>
+        <p className="text-xs text-white/50 truncate">{s.artist || "Singer optional"}{s.artistPinyin && <span className="text-white/30"> · {s.artistPinyin}</span>}{s.spotifyUrl && <a href={s.spotifyUrl} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-0.5 text-emerald-400"><ExternalLink className="w-3 h-3" /> Spotify</a>}{!s.spotifyUrl && s.catalogUrl && <a href={s.catalogUrl} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-0.5 text-cyan-300"><ExternalLink className="w-3 h-3" /> MusicBrainz</a>}</p>
       </div>
       <button onClick={() => onRequest(s)} disabled={pending} className="px-3 py-1.5 rounded-full text-xs font-bold text-black flex-shrink-0" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Request</button>
     </div>
@@ -75,7 +75,7 @@ function TopList() {
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a song, singer, Chinese or pinyin…" className="w-full pl-9 pr-4 py-3 rounded-full bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60" />
       </div>
-      {search && <p className="mb-3 text-xs text-white/40">{isFetching ? "Searching songs…" : searchResult?.spotifyConnected ? "Reborn library + Spotify results" : "Reborn library results"}</p>}
+      {search && <p className="mb-3 text-xs text-white/40">{isFetching ? "Searching the music catalog…" : searchResult?.spotifyConnected ? "Reborn + MusicBrainz + Spotify results" : "Reborn + free MusicBrainz results"}</p>}
       {filtered.length === 0 && <div className="text-center py-10 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No songs yet. Be the first to request one!</p></div>}
       <div className="space-y-2">{filtered.map((s) => <SongRow key={`${s.source || "library"}-${s.id || s.externalId || `${s.title}-${s.artist}`}`} s={s} onRequest={(x: any) => req.mutate(x)} pending={req.isPending} />)}</div>
     </div>
@@ -114,6 +114,7 @@ function NewRequest() {
             <Music2 className="h-4 w-4 shrink-0 text-amber-300" />
             <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{song.title}</span><span className="block truncate text-xs text-white/50">{song.artist || "Singer not listed"}{song.titlePinyin ? ` · ${song.titlePinyin}` : ""}</span></span>
             {song.source === "spotify" && <span className="text-[10px] font-bold text-emerald-400">SPOTIFY</span>}
+            {song.source === "musicbrainz" && <span className="text-[10px] font-bold text-cyan-300">MUSICBRAINZ</span>}
           </button>)}
           {!isFetching && searchResult?.songs?.length === 0 && <p className="p-3 text-sm text-white/50">No match. Keep the title and send it manually.</p>}
         </div>}
