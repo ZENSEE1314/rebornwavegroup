@@ -12,7 +12,7 @@ import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt,
 
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; }
 interface Staff { id: string; name: string; role: string; }
-interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; }
+interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; subtotal?: string; discount?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "stock" | "bottles";
 const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
 
@@ -82,11 +82,13 @@ function SalesPicker({ value, onChange }: { value: string; onChange: (id: string
 }
 
 // ── Product picker: pending cart → onCommit(items) ──────────────────────────
-function ProductPicker({ label, onCommit, busy }: { label: string; onCommit: (items: any[]) => void; busy?: boolean }) {
+function ProductPicker({ label, onCommit, onCartChange, busy }: { label: string; onCommit: (items: any[]) => void; onCartChange?: (items: any[]) => void; busy?: boolean }) {
   const { data: products = [] } = useProducts();
   const [cart, setCart] = useState<Record<number, number>>({});
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const lines = Object.entries(cart).filter(([, q]) => q > 0);
+  const cartItems = useMemo(() => Object.entries(cart).filter(([, q]) => q > 0).map(([id, qty]) => ({ ...byId.get(Number(id))!, qty })), [cart, byId]);
+  useEffect(() => { onCartChange?.(cartItems); }, [cartItems, onCartChange]);
   const total = lines.reduce((s, [id, q]) => s + Number(byId.get(Number(id))?.price || 0) * q, 0);
   const add = (id: number) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
   const sub = (id: number) => setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) - 1) }));
@@ -208,14 +210,20 @@ function TablesTab() {
 }
 
 const emptyBottle = () => ({ enabled: false, type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
-function KeepBottleCheckout({ value, onChange, hasMember }: { value: any; onChange: (value: any) => void; hasMember: boolean }) {
+const isDrink = (category = "", name = "") => /drink|beverage|beer|lager|ale|wine|whisky|whiskey|spirit|vodka|gin|rum|tequila|cocktail|bottle/i.test(`${category} ${name}`);
+const bottleType = (category = "", name = "") => /whisky|whiskey|spirit|vodka|gin|rum/i.test(`${category} ${name}`) ? "whisky" : /beer|lager|ale/i.test(`${category} ${name}`) ? "beer" : "other";
+function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [] }: { value: any; onChange: (value: any) => void; hasMember: boolean; drinkOptions?: Array<{ name: string; category?: string }> }) {
   const input = "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white";
   return <div className="mb-2 rounded-xl border border-white/10 bg-black/20 p-3">
     <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.enabled} onChange={(e) => onChange({ ...value, enabled: e.target.checked })}/><Wine className="h-4 w-4 text-amber-300"/> Keep unfinished bottle with this checkout</label>
     {value.enabled && <div className="mt-3 space-y-2">
       {!hasMember && <p className="rounded-lg bg-red-500/10 p-2 text-xs text-red-200">Select or tag a member first.</p>}
       <div className="grid grid-cols-[1fr_80px] gap-2"><select className={input} value={value.type} onChange={(e)=>onChange({...value,type:e.target.value})}><option value="beer">Beer</option><option value="whisky">Whisky</option><option value="other">Other</option></select><input className={input} type="number" min={1} value={value.quantity} onChange={(e)=>onChange({...value,quantity:Number(e.target.value)})}/></div>
-      <input className={input} value={value.name} onChange={(e)=>onChange({...value,name:e.target.value})} placeholder="Bottle name"/>
+      <select className={input} value={value.name} onChange={(e)=>{const option=drinkOptions.find((x)=>x.name===e.target.value);onChange({...value,name:e.target.value,type:bottleType(option?.category,e.target.value)})}}>
+        <option value="">Select a drink from this order</option>
+        {Array.from(new Map(drinkOptions.map((x)=>[x.name,x])).values()).map((x)=><option key={x.name} value={x.name}>{x.name}</option>)}
+      </select>
+      {drinkOptions.length === 0 && <p className="text-xs text-amber-200">Add a drink to the order before keeping it.</p>}
       <input className={input} value={value.note} onChange={(e)=>onChange({...value,note:e.target.value})} placeholder="Note (optional)"/>
     </div>}
   </div>;
@@ -225,6 +233,11 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [pay, setPay] = useState<"cash" | "card">("cash");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [receiptResult, setReceiptResult] = useState<any>(null);
+  const { data: products = [] } = useProducts();
+  const productById = useMemo(() => new Map(products.map((p)=>[p.id,p])), [products]);
+  const orderDrinks = (order.items || []).filter((item:any)=>item.status !== "rejected").map((item:any)=>({ name:item.name, category:productById.get(item.productId)?.category || "" })).filter((item:any)=>isDrink(item.category,item.name));
   const [code, setCode] = useState("");
   const [sales, setSales] = useState("");
   const [discount, setDiscount] = useState(Number((order as any).discount) || 0);
@@ -244,11 +257,11 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: "Not found", description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, salesStaffId: sales || undefined, discount, orderMode, keepBottle }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: "Drawer not opened", description: "Check Cash drawer setup." }); }
-      if (d.order && !printReceipt(d.order, d.receipt || {})) toast({ title: "Payment complete", description: "Receipt printing is available from the counter browser." });
-      toast({ title: "Paid", description: d.message }); invalidate(); onBack();
+      if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
+      toast({ title: "Paid", description: d.message }); setReceiptResult(d);
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
@@ -371,12 +384,14 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m}</button>
               ))}
             </div>
-            <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName}/>
-            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(Math.max(0, total - discount))} {pay} · print</button>
+            {pay === "card" && <label className="mb-2 block text-xs text-white/60">Card approval / receipt number<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder="Required for card payment" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
+            <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks}/>
+            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (pay === "card" && !paymentReference.trim()) || (keepBottle.enabled && !keepBottle.name)} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(Math.max(0, total - discount))} {pay}</button>
             <button onClick={() => { if (confirm("Cancel this ticket and restore stock?")) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">Cancel ticket</button>
           </div>
         </div>
       </div>
+      {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>{setReceiptResult(null);invalidate();onBack();}} />}
     </div>
   );
 }
@@ -388,6 +403,9 @@ function QuickSaleTab() {
   const [code, setCode] = useState("");
   const [member, setMember] = useState<any>(null);
   const [pay, setPay] = useState<"cash" | "card">("cash");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [receiptResult, setReceiptResult] = useState<any>(null);
+  const [cartItems, setCartItems] = useState<any[]>([]);
   const [sales, setSales] = useState("");
   const [discount, setDiscount] = useState(0);
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">("dine_in");
@@ -397,18 +415,18 @@ function QuickSaleTab() {
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: "Member found", description: d.name }); } else toast({ title: "Not found", description: d.message, variant: "destructive" }); },
   });
   const sell = useMutation({
-    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items }),
+    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items }),
     onSuccess: async (d) => {
       if (pay === "cash") await openCashDrawer();
-      if (d.order && !printReceipt(d.order, d.receipt || {})) toast({ title: "Sale complete", description: "Receipt printing is available from the counter browser." });
-      toast({ title: "Sale complete", description: d.message }); setMember(null); setCode(""); setDiscount(0); setKeepBottle(emptyBottle()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+      if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
+      toast({ title: "Sale complete", description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setPaymentReference(""); setKeepBottle(emptyBottle()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   return (
     <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
       <div className="order-2 lg:order-1">
-        <ProductPicker label={`Charge ${pay}`} busy={sell.isPending} onCommit={(items) => sell.mutate(items)} />
+        <ProductPicker label={`Charge ${pay}`} busy={sell.isPending || (pay === "card" && !paymentReference.trim()) || (keepBottle.enabled && !keepBottle.name)} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
       </div>
       <div className="order-1 lg:order-2 mb-3 lg:mb-0 space-y-3 h-fit">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -432,14 +450,16 @@ function QuickSaleTab() {
         </div>
         <SalesPicker value={sales} onChange={setSales} />
         <label className="text-xs text-white/50 block">Discount (RP)<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
-        <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member}/>
+        <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
         <div className="grid grid-cols-2 gap-2">
           {(["cash", "card"] as const).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m}</button>
           ))}
         </div>
-        <p className="text-[11px] text-white/40 text-center">A receipt prints automatically on charge.</p>
+        {pay === "card" && <label className="block text-xs text-white/60">Card approval / receipt number<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder="Required for card payment" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
+        <p className="text-[11px] text-white/40 text-center">The receipt appears after payment. Printing follows the admin setting.</p>
       </div>
+      {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>setReceiptResult(null)} />}
     </div>
   );
 }
@@ -511,6 +531,7 @@ function BottlesTab() {
   const [f, setF] = useState({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [q, setQ] = useState("");
+  const { data: products = [] } = useProducts();
   const { data: kept = [] } = useQuery<any[]>({
     queryKey: ["/api/reborn/pos/bottle-keeps", q],
     queryFn: () => apiRequest("GET", `/api/reborn/pos/bottle-keeps${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()),
@@ -546,7 +567,10 @@ function BottlesTab() {
           </select>
           <input type="number" min={1} value={f.quantity} onChange={(e) => setF({ ...f, quantity: Number(e.target.value) })} placeholder="Qty" className={inp} />
         </div>
-        <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Bottle name (e.g. Chivas 12)" className={inp + " mb-2"} />
+        <select value={f.name} onChange={(e) => { const p=products.find((x)=>x.name===e.target.value); setF({ ...f, name:e.target.value, type:bottleType(p?.category,e.target.value) }); }} className={inp + " mb-2"}>
+          <option value="">Select drink from products</option>
+          {products.filter((p)=>isDrink(p.category,p.name)).map((p)=><option key={p.id} value={p.name}>{p.name} · {p.category}</option>)}
+        </select>
         {f.type !== "beer" && (
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">Photo of remaining level</p><ImageUpload value={f.photoUrl} onChange={(v) => setF({ ...f, photoUrl: v })} label="Take / upload photo" /></div>
         )}
@@ -574,6 +598,47 @@ function BottlesTab() {
       </div>
     </div>
   );
+}
+
+function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone: () => void }) {
+  const { toast } = useToast();
+  const paidAt = new Date(order.paidAt || order.createdAt || Date.now()).toLocaleString();
+  const print = () => {
+    if (!printReceipt(order, meta || {})) toast({ title: "Receipt ready", description: "Use Print from a counter computer or your phone's share/print menu." });
+  };
+  return <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
+    <div className="mx-auto my-4 w-full max-w-sm rounded-3xl border border-white/15 bg-[#f7f2e8] p-5 text-black shadow-2xl">
+      <div className="text-center">
+        {meta?.logoUrl && <img src={meta.logoUrl} alt="" className="mx-auto mb-2 max-h-16 max-w-32 object-contain" />}
+        <h2 className="text-xl font-black">{meta?.clubName || "Reborn Wave Group"}</h2>
+        <span className="mt-2 inline-block border-2 border-black px-3 py-1 text-xs font-black">{order.orderMode === "take_away" ? "TAKE AWAY" : "DINE IN"}</span>
+      </div>
+      <div className="my-4 border-t border-dashed border-black/50" />
+      <div className="space-y-1 text-sm">
+        <div className="flex justify-between gap-4"><span>Order</span><b>{order.orderNo}</b></div>
+        {order.tableNumber && <div className="flex justify-between gap-4"><span>Table</span><span>{order.tableNumber}</span></div>}
+        {order.memberName && <div className="flex justify-between gap-4"><span>Member</span><span className="text-right">{order.memberName}</span></div>}
+        {order.salesStaffName && <div className="flex justify-between gap-4"><span>Served by</span><span className="text-right">{order.salesStaffName}</span></div>}
+        <div className="flex justify-between gap-4"><span>Date</span><span className="text-right">{paidAt}</span></div>
+      </div>
+      <div className="my-4 border-t border-dashed border-black/50" />
+      <div className="space-y-2 text-sm">{(order.items || []).filter((x:any)=>x.status!=="rejected").map((item:any)=><div key={item.id || `${item.name}-${item.qty}`} className="flex justify-between gap-3"><span>{item.qty}× {item.name}</span><span>{rp(Number(item.lineTotal ?? item.price * item.qty))}</span></div>)}</div>
+      <div className="my-4 border-t border-dashed border-black/50" />
+      <div className="space-y-1 text-sm">
+        <div className="flex justify-between"><span>Subtotal</span><span>{rp(Number(order.subtotal ?? order.total))}</span></div>
+        {Number(order.discount)>0 && <div className="flex justify-between"><span>Discount</span><span>- {rp(Number(order.discount))}</span></div>}
+        {Number(order.tax)>0 && <div className="flex justify-between"><span>Tax</span><span>{rp(Number(order.tax))}</span></div>}
+        <div className="flex justify-between text-lg font-black"><span>TOTAL</span><span>{rp(Number(order.total))}</span></div>
+        <div className="flex justify-between"><span>Paid</span><b>{String(order.paymentMethod || "").toUpperCase()}</b></div>
+        {order.paymentReference && <div className="flex justify-between gap-3"><span>Card / receipt ref.</span><b className="text-right">{order.paymentReference}</b></div>}
+      </div>
+      <p className="mt-4 border-t border-dashed border-black/50 pt-4 text-center text-xs">{meta?.footer || "Thank you!"}</p>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button onClick={print} className="flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 font-bold text-white"><Printer className="h-4 w-4"/> Print</button>
+        <button onClick={onDone} className="rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white">Done</button>
+      </div>
+    </div>
+  </div>;
 }
 
 // ── Cash drawer setup ───────────────────────────────────────────────────────

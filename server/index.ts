@@ -172,6 +172,15 @@ app.use((req, res, next) => {
                 updatedAt: now,
               })
               .where(eq(pets.id, pet.id));
+            if (currentHunger > 25 && newHunger <= 25) {
+              const { sendRebornUserNotification } = await import("./bridgeX.js");
+              await sendRebornUserNotification(pet.userId, {
+                type: "pet_hungry",
+                title: `${pet.name || "Your pet"} is hungry`,
+                body: "Open Pet Care and feed your pet now.",
+                data: { path: "/pet", petId: pet.id },
+              });
+            }
             changed = true;
 
             console.log(

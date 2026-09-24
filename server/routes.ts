@@ -6689,7 +6689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
-      const { rewardId, pointsCost } = req.body;
+      const { rewardId } = req.body;
       
       // Get user and reward data
       const user = await storage.getUser(userId);
@@ -6702,6 +6702,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!reward) {
         return res.status(404).json({ message: 'Reward not found' });
       }
+
+      if (reward.isActive === false) {
+        return res.status(400).json({ message: 'Reward is not active' });
+      }
+      const pointsCost = Math.max(0, Number(reward.pointsCost) || 0);
 
       // Check if user has enough points
       if (user.loyaltyPoints < pointsCost) {
