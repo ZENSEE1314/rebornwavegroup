@@ -5,6 +5,7 @@ interface Item { name: string; qty: number; price: string | number; lineTotal: s
 interface Order {
   orderNo: string; tableNumber?: string; memberName?: string; salesStaffName?: string;
   orderMode?: string; paymentMethod?: string; subtotal?: string | number; discount?: string | number;
+  paymentReference?: string;
   tax?: string | number; total?: string | number; items?: Item[]; createdAt?: string; paidAt?: string;
 }
 interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; taxPercent?: number; }
@@ -53,6 +54,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
     ${disc}${tax}
     <div class="row big"><span>TOTAL</span><span>${rp(o.total)}</span></div>
     ${o.paymentMethod ? `<div class="row"><span>Paid</span><span class="b">${esc(String(o.paymentMethod).toUpperCase())}</span></div>` : ""}
+    ${o.paymentReference ? `<div class="row"><span>Card / receipt ref.</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
     <hr/>
     <div class="c muted">${esc(m.footer || "Thank you!")}</div>
     <div class="c muted b" style="margin-top:4px;">— ${copyLabel} —</div>
@@ -74,6 +76,12 @@ function kitchenHtml(o: Order) {
 }
 
 function printDoc(inner: string): boolean {
+  const fullHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Receipt</title><style>${CSS}</style></head><body>${inner}</body></html>`;
+  const nativeBridge = (window as any).ReactNativeWebView;
+  if (nativeBridge?.postMessage) {
+    nativeBridge.postMessage(JSON.stringify({ type: "PRINT_HTML", html: fullHtml }));
+    return true;
+  }
   if (/Android|iPhone|iPad|iPod|; wv\)/i.test(navigator.userAgent)) return false;
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
@@ -82,7 +90,7 @@ function printDoc(inner: string): boolean {
   const doc = frame.contentDocument;
   if (!doc) { frame.remove(); return false; }
   doc.open();
-  doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title><style>${CSS}</style></head><body>${inner}</body></html>`);
+  doc.write(fullHtml);
   doc.close();
   frame.onload = () => {
     frame.contentWindow?.focus();

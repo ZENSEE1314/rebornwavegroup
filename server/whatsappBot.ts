@@ -236,9 +236,9 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "Hai {name}! 🍾 Simpanan {item} Anda (sisa {qty}) menunggu di Reborn Wave — kedaluwarsa dalam {days} hari. Yuk habiskan sebelum hangus! 💜",
     },
     menu: {
-      en: "How can I help? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3.",
-      zh: "有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2 或 3。",
-      id: "Ada yang bisa dibantu? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2 atau 3.",
+      en: "Hello {name}, how can I help you today? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3, or ask anything you need.",
+      zh: "你好 {name}，今天有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2、3，或直接提出任何问题。",
+      id: "Halo {name}, apa yang bisa saya bantu hari ini? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2, 3, atau tanyakan apa saja yang Anda perlukan.",
     },
     songAskName: {
       en: "🎤 What's the song name? (Chinese or pinyin — or both)",
@@ -364,6 +364,10 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
   let s = (T[key]?.[lang]) || T[key]?.en || "";
   for (const k in vars) s = s.replaceAll(`{${k}}`, vars[k]);
   return s;
+}
+
+function memberMenu(lang: Lang, contact: Contact): string {
+  return L(lang, "menu", { name: (contact.name || "there").split(" ")[0] });
 }
 
 async function createMemberFromContact(c: Contact): Promise<{ email: string; created: boolean }> {
@@ -522,7 +526,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     const { email, created } = await createMemberFromContact({ ...c, email: m[0].toLowerCase() } as Contact); // sets stage=member
     await say(created ? L(lang, "ready", { url: APP_BASE_URL, email, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBack", { url: APP_BASE_URL, email }));
     // Second message: the WhatsApp menu shortcuts.
-    await say(L(lang, "menu"));
+    await say(memberMenu(lang, { ...c, name: c.name || "there" } as Contact));
     return patchContact(c.id, { waState: { flow: null } });
   }
 
@@ -543,7 +547,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   if (intent === "book") return handleBookIntent(c, lang, from, body, say);
   if (intent === "song") { await say(L(lang, "songAskName")); return patchContact(c.id, { waState: { flow: "song", step: "name" } }); }
   if (intent === "bottle") return showBottles(c, lang, say);
-  if (intent === "menu") { await say(L(lang, "menu")); return; }
+  if (intent === "menu") { await say(memberMenu(lang, c)); return; }
 
   // --- No recognized command ---
   if (c.stage === "member" || c.stage === "active") {
@@ -562,7 +566,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     return;
   }
   // Still onboarding-ish → nudge with the menu (capped).
-  if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await say(L(lang, "menu")); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }
+  if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await say(memberMenu(lang, c)); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }
 }
 
 // Find an existing app account by phone number (digit-normalised, endsWith either way).
@@ -645,6 +649,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         await pushWhatsAppBooking(row, c, area, date, label, party);
         await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
         await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
+        await say(memberMenu(lang, c));
         return patchContact(c.id, { waState: { flow: null } });
       }
       // Area needs a table but none named → ask, keeping the parsed date/slot/party.
@@ -658,6 +663,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
     await pushWhatsAppBooking(row, c, area, date, label, party);
     await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · ${party} pax — confirm in the app.`);
+    await say(memberMenu(lang, c));
     return patchContact(c.id, { waState: { flow: null } });
   }
   // Not enough detail → run the guided flow.
@@ -737,6 +743,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
     await say(L(lang, "bookDone", { day: wa.date, time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
+    await say(memberMenu(lang, c));
     return patchContact(c.id, { waState: { flow: null } });
   }
 }
@@ -838,13 +845,14 @@ async function finishWhatsAppSongRequest(c: Contact, lang: Lang, selected: SongS
   });
   await say(L(lang, "songDone", { title, artist: artist ? ` - ${artist}` : "" }));
   await notifyAdmin(`🎤 WhatsApp song request from ${c.name || c.phone}: ${title}${artist ? " - " + artist : ""} · ${performanceMode === "singer" ? "By singer" : "Self sing"}`);
+  await say(memberMenu(lang, c));
   return patchContact(c.id, { waState: { flow: null } });
 }
 
 async function showBottles(c: Contact, lang: Lang, say: (m: string) => Promise<void>) {
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
   const rows = await db.select().from(bottleKeeps).where(and(eq(bottleKeeps.userId, c.userId), eq(bottleKeeps.status, "kept")));
-  if (!rows.length) { await say(L(lang, "bottlesNone")); return; }
+  if (!rows.length) { await say(L(lang, "bottlesNone")); await say(memberMenu(lang, c)); return; }
   const list = rows.map((b) => {
     const days = b.expiresAt ? Math.max(0, Math.ceil((new Date(b.expiresAt).getTime() - Date.now()) / DAY_MS)) : 0;
     const emoji = b.type === "whisky" ? "🥃" : b.type === "beer" ? "🍺" : "🍾";
@@ -852,6 +860,7 @@ async function showBottles(c: Contact, lang: Lang, say: (m: string) => Promise<v
     return `• ${emoji} ${typeLabel} — ${b.name}${b.type === "beer" ? ` (${b.quantity} left)` : ""} · ${days} day(s) left`;
   }).join("\n");
   await say(L(lang, "bottlesList", { n: String(rows.length), list }));
+  await say(memberMenu(lang, c));
 }
 
 // Post-payment: ask for feedback + a Google review. Called from the app after a paid order/top-up.

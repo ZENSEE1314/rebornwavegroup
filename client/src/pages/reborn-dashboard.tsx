@@ -118,7 +118,7 @@ export default function RebornDashboard() {
           {livePet ? (
             <>
               <p className="font-bold">{livePet.name} · {livePet.daysLeft} days left</p>
-              <p className="text-sm text-white/60">Fed {livePet.feedsToday}/{livePet.feedsNeeded} today {livePet.tokenEarnedToday ? "· token earned ✓" : "· feed 3× for a token"}</p>
+              <p className="text-sm text-white/60">Fed {livePet.feedsToday}/{livePet.feedsNeeded} today {livePet.tokenEarnedToday ? "· token earned ✓" : "· feed 2× for a token"}</p>
             </>
           ) : (
             <>

@@ -834,6 +834,7 @@ export const posTickets = pgTable("pos_tickets", {
   total: decimal("total", { precision: 10, scale: 2 }).default("0").notNull(),
   orderMode: varchar("order_mode").default("dine_in"), // 'dine_in' | 'take_away'
   paymentMethod: varchar("payment_method"), // 'cash' | 'card'
+  paymentReference: varchar("payment_reference"), // card approval / terminal receipt number
   pointsEarned: integer("points_earned").default(0).notNull(),
   staffId: varchar("staff_id"),
   salesStaffId: varchar("sales_staff_id"),   // staff credited with the sale (commission)

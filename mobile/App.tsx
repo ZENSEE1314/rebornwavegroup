@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
+import * as Print from "expo-print";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,7 +18,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { WebView, type WebViewNavigation } from "react-native-webview";
+import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
 
 const configuredAppUrl = process.env.EXPO_PUBLIC_APP_URL || "https://rebornwave.group/login";
 const APP_URL = /\/login(?:[?#]|$)/i.test(configuredAppUrl)
@@ -133,6 +134,9 @@ function RebornApp() {
         }
         registerPushToken();
         window.__bridgeXPushTimer = setInterval(registerPushToken, 10000);
+        fetch('/api/auth/user', {credentials:'include'}).then(function (response) {
+          if (response.ok && /^\/login\/?$/.test(location.pathname)) location.replace('/');
+        }).catch(function () {});
       })(); true;
     `);
   }, [pushToken]);
@@ -152,6 +156,15 @@ function RebornApp() {
     if (/^(https?:|about:blank)/i.test(url)) return true;
     Linking.openURL(url).catch(() => undefined);
     return false;
+  }, []);
+
+  const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
+    try {
+      const message = JSON.parse(event.nativeEvent.data || "{}");
+      if (message.type === "PRINT_HTML" && typeof message.html === "string") await Print.printAsync({ html: message.html });
+    } catch {
+      Alert.alert("Printing unavailable", "Please check that a printer is available on this device and try again.");
+    }
   }, []);
 
   return (
@@ -175,6 +188,7 @@ function RebornApp() {
         allowsInlineMediaPlayback
         onNavigationStateChange={handleNavigation}
         onShouldStartLoadWithRequest={handleRequest}
+        onMessage={handleMessage}
         onLoadProgress={({ nativeEvent }) => {
           if (nativeEvent.progress >= 0.9) setLoading(false);
         }}

@@ -5,7 +5,7 @@ import { songs } from "@shared/schema";
 
 export type SongSuggestion = {
   id?: number;
-  source: "library" | "spotify" | "musicbrainz";
+  source: "library" | "spotify" | "musicbrainz" | "apple";
   externalId?: string;
   title: string;
   titlePinyin: string;
@@ -22,6 +22,7 @@ let spotifyToken = "";
 let spotifyTokenExpiresAt = 0;
 const musicBrainzCache = new Map<string, { expiresAt: number; rows: SongSuggestion[] }>();
 const musicBrainzInflight = new Map<string, Promise<SongSuggestion[]>>();
+const appleSearchCache = new Map<string, { expiresAt: number; rows: SongSuggestion[] }>();
 let musicBrainzLastRequestAt = 0;
 let musicBrainzQueue: Promise<unknown> = Promise.resolve();
 
@@ -130,6 +131,38 @@ async function searchMusicBrainz(query: string, limit: number): Promise<SongSugg
   }
 }
 
+function normalizedSearchText(value: string): string {
+  return value.toLocaleLowerCase().normalize("NFKD").replace(/[^a-z0-9\u3400-\u9fff]+/g, "");
+}
+
+async function searchAppleCatalog(query: string, limit: number): Promise<SongSuggestion[]> {
+  const key = `${query.toLocaleLowerCase()}|${limit}`;
+  const cached = appleSearchCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.rows;
+  const params = new URLSearchParams({ term: query, country: "US", media: "music", entity: "song", limit: String(Math.min(50, Math.max(20, limit * 3))) });
+  const response = await fetch(`https://itunes.apple.com/search?${params}`, { signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) throw new Error(`Apple catalog search failed (${response.status})`);
+  const body = await response.json() as any;
+  const queryKey = normalizedSearchText(query);
+  const rows: SongSuggestion[] = (body?.results || []).map((track: any) => {
+    const title = String(track?.trackName || "").trim();
+    const artist = String(track?.artistName || "").trim();
+    return {
+      source: "apple" as const,
+      externalId: String(track?.trackId || ""),
+      title,
+      titlePinyin: textPinyin(title),
+      artist,
+      artistPinyin: textPinyin(artist),
+      catalogUrl: track?.trackViewUrl || null,
+      _score: (/[\u3400-\u9fff]/.test(title) ? 100 : 0) + (normalizedSearchText(title).includes(queryKey) ? 80 : 0) + (/[\u3400-\u9fff]/.test(artist) ? 20 : 0),
+    } as SongSuggestion & { _score: number };
+  }).filter((row: SongSuggestion) => row.title).sort((a: any, b: any) => b._score - a._score).slice(0, limit).map(({ _score, ...row }: any) => row);
+  appleSearchCache.set(key, { expiresAt: Date.now() + 60 * 60 * 1000, rows });
+  if (appleSearchCache.size > 500) appleSearchCache.delete(appleSearchCache.keys().next().value!);
+  return rows;
+}
+
 export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<{ songs: SongSuggestion[]; spotifyConnected: boolean; freeCatalogConnected: boolean }> {
   const query = String(rawQuery || "").trim().slice(0, 120);
   if (!query) return { songs: [], spotifyConnected: spotifySearchConfigured(), freeCatalogConnected: true };
@@ -149,8 +182,12 @@ export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<
   let freeCatalog: SongSuggestion[] = [];
   try { freeCatalog = await searchMusicBrainz(query, limit); }
   catch (error) { console.error("[musicbrainz] search", error); }
+  let appleCatalog: SongSuggestion[] = [];
+  try { appleCatalog = await searchAppleCatalog(query, limit); }
+  catch (error) { console.error("[apple] search", error); }
   const combined: SongSuggestion[] = [
     ...remote,
+    ...appleCatalog,
     ...freeCatalog,
     ...local.map((row): SongSuggestion => ({
       id: row.id,

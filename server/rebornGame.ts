@@ -10,7 +10,7 @@ import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot"
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
-import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
+import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
 import { searchSongCatalog, textPinyin } from "./songSearch";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, BLOCK_ALL } from "./booking";
@@ -34,6 +34,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   clubName: "Reborn Wave Group",
   receiptLogoUrl: "",       // data URL / image for receipts
   receiptFooter: "Thank you — see you again!",
+  posAutoPrint: "false",    // open browser print dialog immediately after payment
   bookingImageUrl: "",      // legacy single floor-plan image (kept for back-compat)
   bookingNote: "",          // optional extra note shown with booking timings
   bookingTables: "V1,V2,1,2,3,4,5,T6,T7,T8,T9", // legacy single table list (back-compat)
@@ -65,6 +66,7 @@ async function getSettings() {
     clubName: map.clubName || "Reborn Wave Group",
     receiptLogoUrl: map.receiptLogoUrl || "",
     receiptFooter: map.receiptFooter || "",
+    posAutoPrint: map.posAutoPrint === "true",
     bookingImageUrl: map.bookingImageUrl || "",
     bookingNote: map.bookingNote || "",
     bookingTables: map.bookingTables || "V1,V2,1,2,3,4,5,T6,T7,T8,T9",
@@ -130,12 +132,12 @@ async function seedGiftTypesIfEmpty() {
 }
 
 const LIFE_DAYS = 15;
-const FEEDS_PER_DAY = 3;
+const FEEDS_PER_DAY = 2;
 const EGG_HATCH_DAYS = 15;
 const SPIN_COST = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FEED_GAP_MS = 4 * 60 * 60 * 1000;    // pet gets hungry ~every 4h; feeds must be spaced
-const TOKEN_CYCLE_MS = 24 * 60 * 60 * 1000; // 3 feeds within this rolling window = 1 token
+const TOKEN_CYCLE_MS = 24 * 60 * 60 * 1000; // 2 feeds within this rolling window = 1 token
 const MAX_PETS = 2;                 // living pets a member can hold at once
 const DECAY_PER_MIN = 100 / 240;    // stats fall 100 → 0 over 4 hours
 const ENERGY_REGEN_PER_MIN = 0.1;   // sleeping: +1 energy per 10 min
@@ -270,7 +272,7 @@ const DEFAULT_PRIZES = [
 
 const DEFAULT_FAQ = [
   { question: "How do I activate my pet?", answer: "Buy a blindbox package at the club, then open Pet Care and enter the activation code printed on your package. Your Doluruu will come to life for 15 days.", keywords: "activate,activation,code,package,start pet,new pet" },
-  { question: "How do I earn tokens?", answer: "Feed your pet 3 times a day. Each full day of feeding (3 feeds) earns you 1 token. Tokens can be spent on the Spin the Wheel game for prizes.", keywords: "token,earn,feed,feeding,reward" },
+  { question: "How do I earn tokens?", answer: "Feed your pet 2 times a day. Each full day of feeding (2 feeds) earns you 1 token. Tokens can be spent on the Spin the Wheel game for prizes.", keywords: "token,earn,feed,feeding,reward" },
   { question: "Why did my pet get sick?", answer: "A pet lives for 15 days. After that it gets sick and stops earning tokens. Visit us and spend 300,000 RP to receive a free revival pill from staff — it extends your pet another 15 days.", keywords: "sick,dead,expired,pill,revive,extend,15 days" },
   { question: "What is the Doluruu egg?", answer: "If you win a Doluruu egg on the wheel, it hatches into a brand-new pet after 15 days, which you can then feed for another 15 days of tokens.", keywords: "egg,hatch,new pet" },
   { question: "How do I claim a prize I won?", answer: "Prizes you win on the wheel appear under 'My Prizes'. Show it to our staff at the club — an admin will confirm and hand over your prize.", keywords: "prize,redeem,claim,voucher,wheel,spin" },
@@ -394,7 +396,7 @@ export function registerRebornRoutes(app: Express) {
         happiness: 60, hunger: 60, cleanliness: 60, energy: 60,
       }).returning();
       await db.update(activationCodes).set({ used: true, usedByUserId: userId, usedAt: now }).where(eq(activationCodes.id, row.id));
-      res.json({ message: "Your Doluruu is alive! Feed it 3 times a day to earn tokens.", pet: petView(pet) });
+      res.json({ message: "Your Doluruu is alive! Feed it 2 times a day to earn tokens.", pet: petView(pet) });
     } catch (e) { console.error("reborn activate", e); res.status(500).json({ message: "Activation failed" }); }
   });
 
@@ -410,7 +412,7 @@ export function registerRebornRoutes(app: Express) {
 
       const today = wibDay();
       let feeds = pet.lastFeedDay === today ? (pet.feedsToday || 0) : 0;
-      if (feeds >= FEEDS_PER_DAY) return res.status(400).json({ message: "You've already fed your pet 3 times today. Come back tomorrow!" });
+      if (feeds >= FEEDS_PER_DAY) return res.status(400).json({ message: "You've already fed your pet 2 times today. Come back tomorrow!" });
       feeds += 1;
 
       const now = new Date();
@@ -466,7 +468,7 @@ export function registerRebornRoutes(app: Express) {
         const nowMs = now.getTime();
         if (hunger >= 100) return res.status(400).json({ message: "Your pet is full — no need to feed right now." });
         if (energy <= 0) return res.status(400).json({ message: "Too tired! Tap Sleep to recover energy first." });
-        // Feed the belly any time it's hungry (+50%); the token still needs 3 feeds spaced ~4h apart within 24h.
+        // Feed the belly any time it's hungry (+50%); the token needs 2 feeds spaced ~4h apart within 24h.
         hunger = clamp(hunger + FEED_GAIN); energy = clamp(energy - ACTION_ENERGY_COST);
         const lastCounted = pet.lastFedAt ? new Date(pet.lastFedAt).getTime() : 0; // last feed that counted toward a token
         const spaced = !lastCounted || nowMs - lastCounted >= FEED_GAP_MS;
@@ -824,6 +826,7 @@ export function registerRebornRoutes(app: Express) {
       await db.update(users).set({ kgold: sql`${users.kgold} - ${cost}`, updatedAt: now }).where(eq(users.id, fromUserId));
       await db.update(users).set({ kgold: sql`${users.kgold} + ${recipientKgold}`, updatedAt: now }).where(eq(users.id, toUserId));
       await db.insert(kosGifts).values({ fromUserId, toUserId, giftTypeId, giftName: gt.name, kgoldCost: cost, recipientKgold, seen: false });
+      await sendRebornUserNotification(toUserId, { type: "kos_gift", title: `${giver.firstName || giver.username || "Someone"} sent you ${gt.name}`, body: `You received ${recipientKgold.toLocaleString()} KGOLD`, data: { path: "/kos" } });
       const fresh = await storage.getUser(fromUserId);
       res.json({ message: `Sent a ${gt.name}!`, kgold: fresh?.kgold ?? 0 });
     } catch (e) { console.error("kos gift", e); res.status(500).json({ message: "Gift failed" }); }
@@ -865,6 +868,8 @@ export function registerRebornRoutes(app: Express) {
       ));
       if (existing.length) return res.json({ message: existing[0].status === "accepted" ? "You're already friends" : "Request already pending" });
       await db.insert(friendships).values({ requesterId: me, addresseeId: toUserId, status: "pending" });
+      const sender = await storage.getUser(me);
+      await sendRebornUserNotification(toUserId, { type: "friend_request", title: "New friend request", body: `${sender?.firstName || sender?.username || "A member"} wants to connect`, data: { path: "/chat" } });
       res.json({ message: "Friend request sent!" });
     } catch (e) { console.error("chat req", e); res.status(500).json({ message: "Request failed" }); }
   });
@@ -925,6 +930,8 @@ export function registerRebornRoutes(app: Express) {
       if (!content) return res.status(400).json({ message: "Empty message" });
       if (!(await areFriends(me, toUserId))) return res.status(403).json({ message: "You're not friends yet" });
       await db.insert(chatMessages).values({ senderId: me, receiverId: toUserId, content });
+      const sender = await storage.getUser(me);
+      await sendRebornUserNotification(toUserId, { type: "chat_message", title: sender?.firstName || sender?.username || "New message", body: content.slice(0, 140), data: { path: "/chat", fromUserId: me } });
       res.json({ message: "sent" });
     } catch (e) { console.error("chat send", e); res.status(500).json({ message: "Send failed" }); }
   });
@@ -1090,6 +1097,7 @@ export function registerRebornRoutes(app: Express) {
       question: b.question || "", answer: b.answer || "", keywords: b.keywords || "",
       sortOrder: Number(b.sortOrder) || 0, active: b.active !== false,
     }).returning();
+    if (row.active) await sendRebornAllNotification({ type: "new_faq", title: "New help answer", body: row.question, data: { path: "/support", faqId: row.id } });
     res.json(row);
   }));
   app.put("/api/reborn/admin/faq/:id", requireAdmin(async (req, res) => {
@@ -1178,7 +1186,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -1358,6 +1366,7 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     const [row] = await db.insert(events).values({ title: b.title || "New event", body: b.body || "", imageUrl: b.imageUrl || null, showOnLogin: b.showOnLogin !== false, active: b.active !== false, sortOrder: Number(b.sortOrder) || 0, createdBy: getUserId(req)! }).returning();
     await logAdmin(req, { targetType: "event", targetId: row.id, action: "create", entityType: "event", description: `Posted event "${row.title}"` });
+    if (row.active) await sendRebornAllNotification({ type: "new_event", title: row.title, body: row.body?.slice(0, 140) || "A new event was posted", data: { path: "/", eventId: row.id } });
     res.json(row);
   }));
   app.put("/api/reborn/admin/events/:id", requireStaff(async (req, res) => {
@@ -1418,6 +1427,7 @@ export function registerRebornRoutes(app: Express) {
       }
     }
     await logAdmin(req, { targetType: "broadcast", action: "send", entityType: "broadcast", description: `Broadcast "${subject}" · ${inapp} in-app, ${emails} emails${emailFail ? `, ${emailFail} failed` : ""}` });
+    await sendRebornAllNotification({ type: "admin_broadcast", title: subject, body: body.slice(0, 160), data: { path: "/support" } });
     res.json({ message: `Sent — ${inapp} in-app message(s), ${emails} email(s)${emailFail ? `, ${emailFail} email(s) failed` : ""}.`, inapp, emails, emailFail });
   }));
 
@@ -1574,8 +1584,11 @@ export function registerRebornRoutes(app: Express) {
     for (const it of items) {
       await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source });
       if (it.productId) {
+        const [before] = await db.select().from(posProducts).where(eq(posProducts.id, it.productId));
         await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${it.qty}` }).where(eq(posProducts.id, it.productId));
         await db.insert(stockMovements).values({ productId: it.productId, delta: -it.qty, reason: "sale", note: `Ticket ${orderNo}`, userId });
+        const remaining = (before?.stock ?? 0) - it.qty;
+        if ((before?.stock ?? 0) > 5 && remaining <= 5) await sendRebornStaffNotification({ type: "low_stock", title: "Low stock warning", body: `${it.name}: ${Math.max(0, remaining)} left`, data: { path: "/reborn-pos", productId: it.productId } });
       }
     }
     return recalcTicket(orderId);
@@ -1668,6 +1681,8 @@ export function registerRebornRoutes(app: Express) {
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: "No items" });
     const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
+    const paymentReference = String(req.body?.paymentReference || "").trim();
+    if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: "Enter the card approval or receipt number" });
     const u = await findMemberByCode(req.body?.memberCode || "");
     if (req.body?.keepBottle?.enabled && !u) return res.status(400).json({ message: "Select a member before keeping a bottle at checkout" });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: "Enter the bottle name before payment" });
@@ -1682,7 +1697,7 @@ export function registerRebornRoutes(app: Express) {
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid",
       ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null,
       subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), orderMode,
-      paymentMethod, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
+      paymentMethod, paymentReference: paymentReference || null, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
     }).returning();
     await appendItems(row.id, row.orderNo, clean!, getUserId(req)!);
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
@@ -1696,7 +1711,7 @@ export function registerRebornRoutes(app: Express) {
     }
     contributeSpinPoolIfUnreferred(u?.id ?? null, total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
-    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}${keptBottle ? " · bottle stored for 30 days" : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
+    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}${keptBottle ? " · bottle stored for 30 days" : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
 
   // Member orders from the app — merges into their table's open ticket (or opens one).
@@ -1741,6 +1756,12 @@ export function registerRebornRoutes(app: Express) {
     if (status === "served") patch.servedAt = new Date();
     await db.update(posTicketItems).set(patch).where(eq(posTicketItems.id, id));
     await recalcTicket(it.orderId);
+    const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, it.orderId));
+    if (ticket?.memberId) await sendRebornUserNotification(ticket.memberId, {
+      type: "order_status", title: status === "served" ? "Your order is served" : status === "accepted" ? "Order confirmed" : "Order item unavailable",
+      body: status === "rejected" ? `${it.name}: ${patch.rejectReason}` : `${it.name} · ${status}`,
+      data: { path: "/shop", ticketId: ticket.id, itemId: id, status },
+    });
     res.json({ message: status === "rejected" ? `Rejected: ${patch.rejectReason}` : status === "served" ? "Marked served" : "Accepted" });
   }));
   // Edit an item's price and/or qty (adjusts stock for qty change; logs reason).
@@ -1856,6 +1877,8 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.post("/api/reborn/pos/orders/:id/pay", requireStaff(async (req, res) => {
     const id = Number(req.params.id); const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
+    const paymentReference = String(req.body?.paymentReference || "").trim();
+    if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: "Enter the card approval or receipt number" });
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: "Order not open" });
     if (req.body?.keepBottle?.enabled && !o.memberId) return res.status(400).json({ message: "Tag a member before keeping a bottle at checkout" });
@@ -1870,7 +1893,7 @@ export function registerRebornRoutes(app: Express) {
     const points = o.memberId ? Math.floor(total / await pointsSpendRp()) : 0;
     const sales = await salesTag(req.body); // optional salesperson override at checkout
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : (o.orderMode || "dine_in");
-    await db.update(posTickets).set({ status: "paid", paymentMethod, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), orderMode, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
+    await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), orderMode, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
@@ -1884,7 +1907,7 @@ export function registerRebornRoutes(app: Express) {
     contributeSpinPoolIfUnreferred(o?.memberId ?? null, total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
-    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}${keptBottle ? " · bottle stored for 30 days" : ""}`, order: { ...fresh, items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
+    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}${keptBottle ? " · bottle stored for 30 days" : ""}`, order: { ...fresh, items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
   app.post("/api/reborn/pos/orders/:id/cancel", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
@@ -2003,6 +2026,8 @@ export function registerRebornRoutes(app: Express) {
     const open = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, wd))).limit(1);
     if (open[0] && !open[0].checkOutAt) return res.status(400).json({ message: "You are already checked in today." });
     const [row] = await db.insert(staffAttendance).values({ userId: uid, workDate: wd }).returning();
+    const staff = await storage.getUser(uid);
+    await sendRebornStaffNotification({ type: "attendance", title: "Staff checked in", body: `${staff?.firstName || staff?.username || "Staff"} checked in`, data: { path: "/reborn-admin", attendanceId: row.id } });
     res.json(row);
   }));
   app.post("/api/reborn/staff/check-out", requireStaff(async (req, res) => {
@@ -2011,6 +2036,8 @@ export function registerRebornRoutes(app: Express) {
     const row = rows[0];
     if (!row || row.checkOutAt) return res.status(400).json({ message: "No open check-in to close." });
     const [upd] = await db.update(staffAttendance).set({ checkOutAt: new Date() }).where(eq(staffAttendance.id, row.id)).returning();
+    const staff = await storage.getUser(uid);
+    await sendRebornStaffNotification({ type: "attendance", title: "Staff checked out", body: `${staff?.firstName || staff?.username || "Staff"} checked out`, data: { path: "/reborn-admin", attendanceId: row.id } });
     res.json(upd);
   }));
   app.get("/api/reborn/staff/my-attendance", requireStaff(async (req, res) => {
@@ -2028,6 +2055,8 @@ export function registerRebornRoutes(app: Express) {
       userId: getUserId(req)!, type: b.type === "mc" ? "mc" : "leave",
       startDate: b.startDate, endDate: b.endDate, reason: String(b.reason).trim(), attachmentUrl: b.attachmentUrl || null,
     }).returning();
+    const staff = await storage.getUser(row.userId);
+    await sendRebornStaffNotification({ type: "leave_request", title: row.type === "mc" ? "New medical leave" : "New leave request", body: `${staff?.firstName || staff?.username || "Staff"} · ${row.startDate} to ${row.endDate}`, data: { path: "/reborn-admin", leaveId: row.id } });
     res.json(row);
   }));
   app.get("/api/reborn/staff/my-leave", requireStaff(async (req, res) => {
@@ -2067,6 +2096,7 @@ export function registerRebornRoutes(app: Express) {
     const approve = !!req.body?.approve;
     const [row] = await db.update(staffAttendance).set({ status: approve ? "approved" : "rejected", decidedBy: getUserId(req)!, decisionNote: req.body?.note || null }).where(eq(staffAttendance.id, Number(req.params.id))).returning();
     if (!row) return res.status(404).json({ message: "Not found" });
+    await sendRebornUserNotification(row.userId, { type: "attendance_decision", title: `Attendance ${row.status}`, body: `${row.workDate}${row.decisionNote ? ` · ${row.decisionNote}` : ""}`, data: { path: "/staff", attendanceId: row.id } });
     res.json(row);
   }));
   app.get("/api/reborn/admin/shifts", requireAdmin(async (req, res) => {
@@ -2083,6 +2113,7 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     if (!b.userId || !b.shiftDate || !b.startTime || !b.endTime) return res.status(400).json({ message: "Worker, date and times are required." });
     const [row] = await db.insert(workerShifts).values({ userId: b.userId, shiftDate: b.shiftDate, startTime: b.startTime, endTime: b.endTime, role: b.role || null, note: b.note || null, createdBy: getUserId(req)! }).returning();
+    await sendRebornUserNotification(row.userId, { type: "shift", title: "New work shift", body: `${row.shiftDate} · ${row.startTime}–${row.endTime}`, data: { path: "/staff", shiftId: row.id } });
     res.json(row);
   }));
   app.delete("/api/reborn/admin/shifts/:id", requireAdmin(async (req, res) => {
@@ -2105,6 +2136,7 @@ export function registerRebornRoutes(app: Express) {
       decidedBy: getUserId(req)!, decisionNote: req.body?.note || null,
     }).where(eq(leaveRequests.id, Number(req.params.id))).returning();
     if (!row) return res.status(404).json({ message: "Not found" });
+    await sendRebornUserNotification(row.userId, { type: "leave_decision", title: `${row.type === "mc" ? "Medical leave" : "Leave"} ${row.status}`, body: `${row.startDate} to ${row.endDate}${row.decisionNote ? ` · ${row.decisionNote}` : ""}`, data: { path: "/staff", leaveId: row.id } });
     res.json(row);
   }));
 
@@ -2163,6 +2195,7 @@ export function registerRebornRoutes(app: Express) {
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const [u] = await db.select().from(users).where(eq(users.id, userId));
     await notifyAdmins(`📅 New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
+    await sendRebornStaffNotification({ type: "new_booking", title: "New booking request", body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Member"} · ${date} ${label}`, data: { path: "/reborn-admin", bookingId: row.id } });
     await logAdmin(req, { targetUserId: userId, targetType: "appointment", targetId: row.id, action: "book", entityType: "booking", description: `Booked ${date} ${label}` });
     res.json({ message: `Booked ${date} at ${label}. We'll confirm shortly.`, appointment: row });
   });
@@ -2224,6 +2257,7 @@ export function registerRebornRoutes(app: Express) {
       }
     }
     await logAdmin(req, { targetUserId: row.userId, targetType: "appointment", targetId: id, action: status, entityType: "booking", description: `Booking #${id} → ${status}${note ? ` (${note})` : ""}` });
+    await sendRebornUserNotification(row.userId, { type: "booking_status", title: `Booking ${status}`, body: `${row.title}${note ? ` · ${note}` : ""}`, data: { path: "/booking", bookingId: row.id, status } });
     res.json(row);
   }));
   // Admin blocks a date/time (whole area, or one table/room) so guests can't book it.
