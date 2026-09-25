@@ -163,6 +163,7 @@ export function setupAuthRoutes(app: Express) {
         if (err) {
           return res.status(500).json({ message: 'Registration successful but login failed' });
         }
+        if (/RebornWaveGroupApp/i.test(String(req.headers['user-agent'] || ''))) req.session.cookie.maxAge = 10 * 365 * 24 * 60 * 60 * 1000;
         res.json({
           id: newUser.id,
           email: newUser.email,
@@ -203,9 +204,12 @@ export function setupAuthRoutes(app: Express) {
         }
 
         const rememberMe = req.body?.rememberMe === true;
-        req.session.cookie.maxAge = rememberMe
-          ? 30 * 24 * 60 * 60 * 1000
-          : 8 * 60 * 60 * 1000;
+        const nativeApp = /RebornWaveGroupApp/i.test(String(req.headers['user-agent'] || ''));
+        req.session.cookie.maxAge = nativeApp
+          ? 10 * 365 * 24 * 60 * 60 * 1000
+          : rememberMe
+            ? 30 * 24 * 60 * 60 * 1000
+            : 8 * 60 * 60 * 1000;
 
         
         res.json({
