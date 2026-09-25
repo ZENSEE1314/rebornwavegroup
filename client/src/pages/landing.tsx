@@ -164,7 +164,7 @@ const MAPS_URL = "https://www.google.com/maps/search/?api=1&query=" + encodeURIC
 const INSTAGRAM_URL = "https://www.instagram.com/rebornwavegroup/";
 const TIKTOK_URL = "https://www.tiktok.com/@reborn.wave.group";
 const SERVICES = "KTV · Game House · Beauty · Pet Cafe · Live House · Blindbox Rewards";
-const ANDROID_APP_URL = "https://expo.dev/accounts/zensee/projects/reborn-wave-group/builds/38ea0806-1abc-434e-8597-920b115a1416";
+const ANDROID_APP_URL = "https://expo.dev/accounts/zensee/projects/reborn-wave-group/builds/c0731562-e3bd-4268-a4aa-8d31b2a2b5f9";
 
 const AUDIENCE = [
   { icon: "🧳", title: "Tourists", desc: "A clear Batam destination for singing, food, pet cafe content, sea-view nightlife, and live performances." },
