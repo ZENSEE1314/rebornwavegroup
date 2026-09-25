@@ -25,6 +25,7 @@ const APP_URL = /\/login(?:[?#]|$)/i.test(configuredAppUrl)
   ? configuredAppUrl
   : `${configuredAppUrl.replace(/\/$/, "")}/login`;
 const APP_NAME = process.env.EXPO_PUBLIC_APP_NAME || "Reborn Wave Group";
+const PUSH_DIAGNOSTIC_URL = "https://rebornwave.group/api/v1/app/push-diagnostics";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true }),
@@ -43,6 +44,16 @@ async function getPushToken() {
   return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
 }
 
+async function reportPushDiagnostic(status: string, detail?: string) {
+  try {
+    await fetch(PUSH_DIAGNOSTIC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, detail: detail?.slice(0, 500), platform: Platform.OS, appVersion: Constants.expoConfig?.version || "unknown", buildVersion: Constants.nativeBuildVersion || "unknown" }),
+    });
+  } catch {}
+}
+
 function RebornApp() {
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
@@ -52,6 +63,7 @@ function RebornApp() {
   const [reloadKey, setReloadKey] = useState(0);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [notificationIssue, setNotificationIssue] = useState<"permission" | "token" | null>(null);
+  const [notificationDetail, setNotificationDetail] = useState("");
   const notificationSetupRunning = useRef(false);
 
   useEffect(() => {
@@ -66,16 +78,26 @@ function RebornApp() {
   const setupNotifications = useCallback(async () => {
     if (notificationSetupRunning.current) return;
     notificationSetupRunning.current = true;
+    reportPushDiagnostic("setup_started");
     try {
       const token = await getPushToken();
       setPushToken(token);
-      if (token) setNotificationIssue(null);
+      if (token) {
+        setNotificationIssue(null);
+        setNotificationDetail("");
+        reportPushDiagnostic("expo_token_ready");
+      }
       else {
         const permission = await Notifications.getPermissionsAsync();
         setNotificationIssue(permission.status === "granted" ? "token" : "permission");
+        setNotificationDetail(permission.status === "granted" ? "Waiting for Google Play notification service." : "Android notification permission is off.");
+        reportPushDiagnostic(permission.status === "granted" ? "token_missing" : "permission_denied", permission.status);
       }
-    } catch {
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
       setNotificationIssue("token");
+      setNotificationDetail(detail);
+      reportPushDiagnostic("setup_error", detail);
     } finally {
       notificationSetupRunning.current = false;
     }
@@ -268,12 +290,13 @@ function RebornApp() {
       )}
 
       {notificationIssue && !failed && (
-        <View style={[styles.notificationBanner, { bottom: Math.max(insets.bottom, 10) + 10 }]}>
-          <View style={styles.notificationCopy}>
-            <Text style={styles.notificationTitle}>Phone alerts are off</Text>
-            <Text style={styles.notificationBody}>{notificationIssue === "permission" ? "Allow notifications so orders, bookings, songs and admin updates pop up on this phone." : "This phone is not connected to push alerts yet. Tap Enable; the app will keep retrying automatically."}</Text>
-          </View>
-          <Pressable accessibilityRole="button" onPress={enableNotifications} style={styles.notificationButton}><Text style={styles.notificationButtonText}>Enable</Text></Pressable>
+        <View style={styles.notificationOverlay}>
+          <Image source={require("./assets/icon.png")} style={styles.logo} />
+          <Text style={styles.notificationRequiredTitle}>Phone notifications required</Text>
+          <Text style={styles.notificationRequiredBody}>{notificationIssue === "permission" ? "Allow notifications to use the Reborn app. Admins receive food orders, song requests, bookings and staff updates on every screen and while the phone is locked." : "This phone is not connected to Reborn alerts yet. The app is retrying automatically."}</Text>
+          {!!notificationDetail && <Text selectable style={styles.notificationDetail}>{notificationDetail}</Text>}
+          <Pressable accessibilityRole="button" onPress={enableNotifications} style={styles.notificationRequiredButton}><Text style={styles.notificationRequiredButtonText}>{notificationIssue === "permission" ? "Allow phone notifications" : "Retry connection"}</Text></Pressable>
+          <Text style={styles.notificationBuild}>Reborn Android build {Constants.nativeBuildVersion || "12"}</Text>
         </View>
       )}
     </View>
@@ -361,4 +384,11 @@ const styles = StyleSheet.create({
   notificationBody: { color: "#c9c2d4", fontSize: 11, lineHeight: 16, marginTop: 2 },
   notificationButton: { borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#f0d787" },
   notificationButtonText: { color: "#171020", fontSize: 12, fontWeight: "900" },
+  notificationOverlay: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 50, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "#080612" },
+  notificationRequiredTitle: { color: "#ffffff", fontSize: 26, lineHeight: 32, textAlign: "center", fontWeight: "900", marginTop: 22 },
+  notificationRequiredBody: { color: "#d0c9dc", fontSize: 15, lineHeight: 23, textAlign: "center", marginTop: 12, maxWidth: 440 },
+  notificationDetail: { color: "#f0d787", fontSize: 12, lineHeight: 17, textAlign: "center", marginTop: 14, maxWidth: 440 },
+  notificationRequiredButton: { width: "100%", maxWidth: 420, borderRadius: 18, paddingHorizontal: 18, paddingVertical: 16, marginTop: 24, backgroundColor: "#f0d787" },
+  notificationRequiredButtonText: { color: "#171020", fontSize: 16, textAlign: "center", fontWeight: "900" },
+  notificationBuild: { color: "#746d80", fontSize: 11, marginTop: 16 },
 });
