@@ -173,10 +173,15 @@ export async function sendBridgeXNotifications(companyId: number, userIds: strin
     body: payload.body,
     data: { type: payload.type, companyId, ...(payload.data || {}) },
   }));
+  // When the Expo project has "Enhanced Security for push" on (set once you
+  // create an access token), sends must be authenticated or Expo rejects them.
+  const expoToken = process.env.EXPO_ACCESS_TOKEN;
+  const pushHeaders: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json" };
+  if (expoToken) pushHeaders["Authorization"] = `Bearer ${expoToken}`;
   try {
     const tickets: any[] = [];
     for (let start = 0; start < messages.length; start += 100) {
-      const response = await fetch("https://exp.host/--/api/v2/push/send", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(messages.slice(start, start + 100)) });
+      const response = await fetch("https://exp.host/--/api/v2/push/send", { method: "POST", headers: pushHeaders, body: JSON.stringify(messages.slice(start, start + 100)) });
       if (!response.ok) throw new Error(`Expo push rejected ${response.status}: ${await response.text()}`);
       const result: any = await response.json();
       tickets.push(...(Array.isArray(result?.data) ? result.data : [result?.data]));
