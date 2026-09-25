@@ -374,6 +374,14 @@ function Settings() {
         <ImageUpload value={cur.receiptLogoUrl} onChange={(v) => setStr("receiptLogoUrl", v)} label="Upload logo" />
       </Card>
       <Card>
+        <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> Operations</h3>
+        <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.allowNegativeStock === true} onChange={(e) => setStr("allowNegativeStock", e.target.checked)} /> Allow selling when stock is 0 (stock can go negative)</label>
+        <p className="-mt-2 mb-3 text-[11px] text-white/40">Turn on when there's real stock but it wasn't keyed in. Turn off to block sold-out items.</p>
+        <Field label="Bottle keep — days until it expires" value={cur.bottleExpiryDays} onChange={(v: any) => set("bottleExpiryDays", v)} />
+        <Field label="Payroll day of month (1–28)" value={cur.payrollDay} onChange={(v: any) => set("payrollDay", v)} />
+        <Field label="Overtime pay per hour (RP) — past scheduled shift end" value={cur.overtimeHourlyRate} onChange={(v: any) => set("overtimeHourlyRate", v)} />
+      </Card>
+      <Card>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Star className="w-4 h-4 text-amber-300" /> Loyalty settings</h3>
         <p className="mb-3 text-[11px] text-white/50">Points are added automatically at checkout. Set tiers, discounts and store gifts here.</p>
         <Field label="RP spending needed to earn 1 point" value={loyalty.pointsSpendRp || 1000} onChange={(v:any)=>setLoyalty({pointsSpendRp:Math.max(1,Number(v)||1)})}/>
@@ -644,9 +652,27 @@ function Prizes() {
   const save = useMutation({ mutationFn: (p: any) => apiRequest("PUT", `/api/reborn/admin/prizes/${p.id}`, p).then((r) => r.json()), onSuccess: () => { toast({ title: "Saved" }); inv(); } });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/prizes/${id}`), onSuccess: inv });
   const totalWeight = prizes.reduce((s, p) => s + (p.active ? Number(p.weight) || 0 : 0), 0) || 1;
+  const [award, setAward] = useState({ username: "", prizeId: 0 });
+  const giveAward = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/prizes/award", award).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { toast({ title: ok ? d.message : "Failed", description: ok ? undefined : d.message, variant: ok ? undefined : "destructive" }); if (ok) setAward({ username: "", prizeId: 0 }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
   return (
     <div>
-      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add prize</button>
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Disc3 className="w-4 h-4 text-amber-300" /> Give a prize to a member</p>
+        <p className="text-[11px] text-white/50 mb-2">Hand a prize directly to a member (no spin, no tokens). They'll be notified and can redeem with staff.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+          <input value={award.username} onChange={(e) => setAward({ ...award, username: e.target.value })} placeholder="Username / member code / email" className={inp} />
+          <select value={award.prizeId} onChange={(e) => setAward({ ...award, prizeId: Number(e.target.value) })} className={inp}>
+            <option value={0}>Choose prize…</option>
+            {prizes.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+        </div>
+        <button onClick={() => giveAward.mutate()} disabled={!award.username.trim() || !award.prizeId || giveAward.isPending} className={btn + " disabled:opacity-50"}><Gift className="w-4 h-4" /> Give prize</button>
+      </Card>
+      <button onClick={() => add.mutate()} className={btn + " my-4"}><Plus className="w-4 h-4" /> Add prize</button>
       <div className="space-y-3">
         {prizes.map((p) => <PrizeRow key={p.id} p={p} totalWeight={totalWeight} onSave={save.mutate} onDelete={del.mutate} />)}
       </div>
@@ -970,10 +996,10 @@ function Products() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
-  const [n, setN] = useState({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "" });
+  const [n, setN] = useState<any>({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true });
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   return (
@@ -988,6 +1014,7 @@ function Products() {
           <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={n.cost} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
         </div>
         <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" sm:col-span-2"}/></div>
+        <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> Sellable in POS <span className="text-white/40 text-xs">(uncheck for raw items like meat)</span></label>
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label="Upload photo" /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
       </Card>
@@ -1001,7 +1028,7 @@ function ProductRow({ p }: any) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({ name: p.name, category: p.category, price: Number(p.price), cost: Number(p.cost), active: p.active, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "" });
+  const [f, setF] = useState({ name: p.name, category: p.category, price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "" });
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -1013,7 +1040,7 @@ function ProductRow({ p }: any) {
         <div className="flex items-start gap-3">
           {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" /> : <span className="w-14 h-14 rounded-xl bg-white/5 flex-shrink-0" />}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>}</p>
+            <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>} {p.posVisible === false && <span className="text-xs text-amber-400">(not in POS)</span>}</p>
             <p className="text-xs text-white/50 break-words">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
             {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">Supplier: {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
@@ -1028,6 +1055,7 @@ function ProductRow({ p }: any) {
             <label className="text-xs text-white/50">Sell price (RP)<input type="number" value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={f.cost} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
           </div>
+          <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> Sellable in POS <span className="text-white/40 text-xs">(uncheck for raw items like meat that must be prepared first — still tracked in inventory)</span></label>
           <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" sm:col-span-2"}/></div>
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label="Upload photo" /></div>
           <div className="flex gap-2 justify-end">
@@ -1185,7 +1213,7 @@ function Inventory() {
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/inventory"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory").then((r) => r.json()) });
   const adjust = useMutation({
-    mutationFn: (v: { productId: number; qty: number; unitCost?: number }) => apiRequest("POST", "/api/reborn/pos/stock-in", v).then((r) => r.json()),
+    mutationFn: (v: { productId: number; qty: number; unitCost?: number; supplier?: string }) => apiRequest("POST", "/api/reborn/pos/stock-in", v).then((r) => r.json()),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); },
     onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
   });
@@ -1193,7 +1221,7 @@ function Inventory() {
   const items: any[] = data?.items || [];
   const cats = Array.from(new Set(items.map((i) => i.category)));
   const step = (it: any, delta: number) => {
-    if (delta > 0) { const c = prompt(`Add how many "${it.name}"?`, "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; const uc = prompt("Unit cost (RP) — leave blank to skip expense", ""); adjust.mutate({ productId: it.id, qty: q, unitCost: uc ? Number(uc) : undefined }); }
+    if (delta > 0) { const c = prompt(`Add how many "${it.name}"?`, "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; const supplier = prompt("Supplier for this batch (optional — same item can come from many suppliers)", it.suppliers?.[0] || "") || undefined; const uc = prompt("Unit cost (RP) — leave blank to skip expense", ""); adjust.mutate({ productId: it.id, qty: q, unitCost: uc ? Number(uc) : undefined, supplier }); }
     else { const c = prompt(`Deduct how many "${it.name}"? (spoilage / adjustment)`, "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; adjust.mutate({ productId: it.id, qty: -Math.abs(q) }); }
   };
   const exportCsv = () => {
@@ -1220,8 +1248,8 @@ function Inventory() {
             <div key={it.id} className="flex items-center gap-2 py-2 border-b border-white/5 last:border-0">
               {it.imageUrl ? <img src={it.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" /> : <span className="w-9 h-9 rounded-lg bg-white/5 flex-shrink-0" />}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate flex items-center gap-1.5">{it.name}{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">LOW</span>}</p>
-                <p className="text-[11px] text-white/40">cost {money(it.cost)} · value {money(it.stockValue)}</p>
+                <p className="text-sm font-semibold truncate flex items-center gap-1.5">{it.name}{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">LOW</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">NOT IN POS</span>}</p>
+                <p className="text-[11px] text-white/40">cost {money(it.cost)} · value {money(it.stockValue)}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
               </div>
               <button onClick={() => step(it, -1)} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center" style={{ fontSize: 16 }}>−</button>
               <span className={`w-10 text-center font-extrabold ${it.low ? "text-red-300" : "text-white"}`}>{it.stock}</span>

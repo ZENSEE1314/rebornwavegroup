@@ -1,6 +1,6 @@
 // Reborn Wave gamified economy: pet lifecycle, spin-the-wheel, support/FAQ, admin config.
 import type { Express, Request, Response } from "express";
-import { and, desc, eq, sql, inArray } from "drizzle-orm";
+import { and, desc, eq, sql, inArray, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
@@ -31,7 +31,7 @@ import { ilike, or } from "drizzle-orm";
 // KGOLD economy defaults (admin-editable via app_settings)
 const SETTINGS_DEFAULTS: Record<string, string> = {
   giftFeePercent: "30",     // % kept by the club; recipient gets the rest
-  kgoldPerRp: "100",        // 100 KGOLD = 1 RP
+  kgoldPerRp: "10",         // 10 KGOLD = 1 RP (1 RP → 10 KGOLD)
   minBuyKgold: "1000000",   // minimum KGOLD purchase
   minCashoutRp: "1000",     // minimum RP a member can cash out
   taxPercent: "0",          // POS sales tax %
@@ -55,6 +55,10 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   spinAssumedBill: "500000", // representative bill used to estimate a %-voucher's pool cost
   mainAdminPassword: "",    // required to run the "reset numbers" action (set by the main admin)
   songRequestModeEnabled: "true",
+  bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
+  payrollDay: "1",          // day of month payroll is recorded/paid
+  overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
+  allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -88,6 +92,10 @@ async function getSettings() {
     spinAssumedBill: Math.max(0, Number(map.spinAssumedBill) || 500000),
     mainAdminPassword: map.mainAdminPassword || "",
     songRequestModeEnabled: map.songRequestModeEnabled !== "false",
+    bottleExpiryDays: Math.max(1, Number(map.bottleExpiryDays) || 90),
+    payrollDay: Math.min(28, Math.max(1, Number(map.payrollDay) || 1)),
+    overtimeHourlyRate: Math.max(0, Number(map.overtimeHourlyRate) || 0),
+    allowNegativeStock: map.allowNegativeStock === "true",
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
 }
@@ -1219,6 +1227,23 @@ export function registerRebornRoutes(app: Express) {
     await db.delete(spinPrizes).where(eq(spinPrizes.id, Number(req.params.id)));
     res.json({ message: "Deleted" });
   }));
+  // Admin hands a specific prize to a member by username/code — no spin needed.
+  app.post("/api/reborn/admin/prizes/award", requireAdmin(async (req, res) => {
+    const prizeId = Number(req.body?.prizeId);
+    const u = await findMemberByCode(String(req.body?.username || ""));
+    if (!u) return res.status(404).json({ message: "Member not found (username / code / email)" });
+    const [prize] = await db.select().from(spinPrizes).where(eq(spinPrizes.id, prizeId));
+    if (!prize) return res.status(404).json({ message: "Prize not found" });
+    const now = new Date();
+    if (prize.prizeType === "pill") await db.insert(petPills).values({ userId: u.id, grantedBy: "admin", note: "Awarded by admin" });
+    else if (prize.prizeType === "egg") await db.insert(pets).values({ userId: u.id, toyId: 0, name: "Doluruu Egg", type: "virtual", gender: Math.random() < 0.5 ? "male" : "female", isActive: true, isEgg: true, hatchAt: addDays(EGG_HATCH_DAYS, now), lifeStatus: "active" });
+    const status = ["nothing", "free_spin", "pill", "egg"].includes(prize.prizeType || "") ? "won" : "unused";
+    const [result] = await db.insert(spinResults).values({ userId: u.id, prizeId: prize.id, prizeLabel: prize.label, prizeType: prize.prizeType, tokensSpent: 0, status }).returning();
+    await sendRebornUserNotification(u.id, { type: "prize", title: "🎉 You won a prize!", body: `${prize.label} — from ${(await getSettings()).clubName}`, data: { path: "/spin" } });
+    sendPushToUser(u.id, { title: "🎉 You won a prize!", body: `${prize.label} — show it to staff to redeem`, url: "/spin", tag: `award-${result.id}` }).catch(() => {});
+    await logAdmin(req, { targetUserId: u.id, targetType: "spin_result", targetId: result.id, action: "award_prize", entityType: "prize", description: `Awarded "${prize.label}" to ${u.username || u.email}` });
+    res.json({ message: `Awarded ${prize.label} to ${u.username || u.email || u.id}` });
+  }));
 
   app.get("/api/reborn/admin/redemptions", requireStaff(async (_req, res) => {
     const rows = await db.select().from(spinResults).where(eq(spinResults.status, "redeeming")).orderBy(desc(spinResults.createdAt)).limit(200);
@@ -1335,7 +1360,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -1643,18 +1668,18 @@ export function registerRebornRoutes(app: Express) {
     return Math.max(1, Number((result.rows || result as any)[0]?.value) || 1000);
   }
 
-  const KEEP_DAYS = 30;
   async function storeBottleForMember(u: any, bottle: any, staffId: string) {
     if (!u || !bottle?.enabled) return null;
     const name = String(bottle.name || "").trim();
     if (!name) throw new Error("Enter the bottle name before payment");
     if (["wine", "whisky"].includes(String(bottle.type || "")) && !bottle.photoUrl) throw new Error("A bottle photo is required for wine and whisky");
     const now = new Date();
+    const keepDays = (await getSettings()).bottleExpiryDays;
     const [row] = await db.insert(bottleKeeps).values({
       userId: u.id, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email,
       memberCode: u.referralCode, type: ["beer", "wine", "whisky", "other"].includes(bottle.type) ? bottle.type : "beer",
       name, quantity: Math.max(1, Math.floor(Number(bottle.quantity) || 1)), photoUrl: bottle.photoUrl || null,
-      note: bottle.note || null, storedByStaffId: staffId, status: "kept", storedAt: now, expiresAt: addDays(KEEP_DAYS, now),
+      note: bottle.note || null, storedByStaffId: staffId, status: "kept", storedAt: now, expiresAt: addDays(keepDays, now),
     }).returning();
     return row;
   }
@@ -1665,8 +1690,9 @@ export function registerRebornRoutes(app: Express) {
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (_req, res) => {
-    const rows = await db.select().from(posProducts).where(eq(posProducts.active, true)).orderBy(posProducts.sortOrder, posProducts.name);
-    res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: (p.stock ?? 0) <= 0 })));
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.active, true), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
+    const allowNegative = (await getSettings()).allowNegativeStock;
+    res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: !allowNegative && (p.stock ?? 0) <= 0 })));
   });
   app.post("/api/reborn/admin/pos/products", requireAdmin(async (req, res) => {
     const b = req.body || {};
@@ -1675,9 +1701,9 @@ export function registerRebornRoutes(app: Express) {
       name: String(b.name).trim(), category: b.category || "General", price: String(Number(b.price) || 0),
       cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
-      active: b.active !== false, sortOrder: Number(b.sortOrder) || 0,
+      active: b.active !== false, posVisible: b.posVisible !== false, sortOrder: Number(b.sortOrder) || 0,
     }).returning();
-    if ((row.stock ?? 0) > 0) await db.insert(stockMovements).values({ productId: row.id, delta: row.stock, reason: "stock_in", note: "Initial stock", userId: getUserId(req)! });
+    if ((row.stock ?? 0) > 0) await db.insert(stockMovements).values({ productId: row.id, delta: row.stock, reason: "stock_in", supplier: b.supplierName || null, note: "Initial stock", userId: getUserId(req)! });
     await logAdmin(req, { targetType: "pos_product", targetId: row.id, action: "create", entityType: "product", description: `Added product "${row.name}" @ RP ${row.price}` });
     res.json(row);
   }));
@@ -1690,6 +1716,7 @@ export function registerRebornRoutes(app: Express) {
     for (const k of ["price", "cost"]) if (b[k] !== undefined) patch[k] = String(Number(b[k]) || 0);
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
+    if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     const [row] = await db.update(posProducts).set(patch).where(eq(posProducts.id, id)).returning();
     if (b.price !== undefined && String(prev.price) !== String(row.price))
       await logAdmin(req, { targetType: "pos_product", targetId: id, action: "edit_price", entityType: "product", oldValues: { price: prev.price }, newValues: { price: row.price }, description: `Price of "${row.name}" RP ${prev.price} → RP ${row.price}` });
@@ -1703,11 +1730,12 @@ export function registerRebornRoutes(app: Express) {
     if (!id || qty === 0) return res.status(400).json({ message: "Product and quantity required" });
     const [p] = await db.select().from(posProducts).where(eq(posProducts.id, id));
     if (!p) return res.status(404).json({ message: "Product not found" });
-    await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}` }).where(eq(posProducts.id, id));
-    await db.insert(stockMovements).values({ productId: id, delta: qty, reason: qty > 0 ? "stock_in" : "adjustment", note: req.body?.note || null, userId: getUserId(req)! });
+    const supplier = String(req.body?.supplier || "").trim() || null;
+    await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}`, ...(supplier ? { supplierName: supplier } : {}) }).where(eq(posProducts.id, id));
+    await db.insert(stockMovements).values({ productId: id, delta: qty, reason: qty > 0 ? "stock_in" : "adjustment", supplier, unitCost: unitCost > 0 ? String(unitCost) : null, note: req.body?.note || null, userId: getUserId(req)! });
     if (qty > 0 && unitCost > 0)
-      await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}`, refType: "stock_movement", refId: String(id), userId: getUserId(req)! });
-    await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"` });
+      await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}`, refType: "stock_movement", refId: String(id), userId: getUserId(req)! });
+    await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"${supplier ? ` (${supplier})` : ""}` });
     res.json({ message: "Stock updated" });
   }));
   app.get("/api/reborn/pos/stock", requireStaff(async (_req, res) => {
@@ -1760,12 +1788,13 @@ export function registerRebornRoutes(app: Express) {
     const ids = items.map((it) => Number(it.productId)).filter(Boolean);
     const products = ids.length ? await db.select().from(posProducts).where(or(...ids.map((i: number) => eq(posProducts.id, i)))) : [];
     const byId = new Map(products.map((p) => [p.id, p]));
+    const allowNegative = (await getSettings()).allowNegativeStock;
     const clean: any[] = [];
     for (const it of items) {
       const p = byId.get(Number(it.productId));
       if (!p || !p.active) return { error: "An item is no longer available" };
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
-      if ((p.stock ?? 0) < qty) return { error: `${p.name} is sold out` };
+      if (!allowNegative && (p.stock ?? 0) < qty) return { error: `${p.name} is sold out` };
       clean.push({ productId: p.id, name: p.name, price: Number(p.price), qty });
     }
     return { clean };
@@ -2597,13 +2626,19 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const rows = await db.select().from(posProducts).orderBy(posProducts.category, posProducts.name);
+    // Distinct suppliers each product has been restocked from (one item, many suppliers).
+    const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier })
+      .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));
+    const supByProduct = new Map<number, Set<string>>();
+    for (const r of supRows) { if (!r.supplier) continue; (supByProduct.get(r.productId) || supByProduct.set(r.productId, new Set()).get(r.productId)!).add(r.supplier); }
     const items = rows.map((p) => {
       const stock = p.stock ?? 0;
       const cost = Number(p.cost) || 0;
       const price = Number(p.price) || 0;
       return {
-        id: p.id, name: p.name, category: p.category, active: p.active,
+        id: p.id, name: p.name, category: p.category, active: p.active, posVisible: p.posVisible,
         stock, cost, price, imageUrl: p.imageUrl,
+        suppliers: Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set())),
         stockValue: Math.round(stock * cost),
         retailValue: Math.round(stock * price),
         low: stock <= lowAt,

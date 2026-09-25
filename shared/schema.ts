@@ -838,6 +838,7 @@ export const posProducts = pgTable("pos_products", {
   supplierAddress: text("supplier_address"),
   supplierPhone: varchar("supplier_phone"),
   active: boolean("active").default(true).notNull(),
+  posVisible: boolean("pos_visible").default(true).notNull(), // false = tracked in inventory but not sellable in POS (e.g. raw meat)
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -950,6 +951,8 @@ export const stockMovements = pgTable("stock_movements", {
   productId: integer("product_id").notNull(),
   delta: integer("delta").notNull(), // + in, - out
   reason: varchar("reason").notNull(), // 'stock_in' | 'sale' | 'adjustment' | 'order_cancel'
+  supplier: varchar("supplier"), // supplier this batch came from (same product can restock from many)
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }), // per-unit cost for this batch
   note: text("note"),
   userId: varchar("user_id"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -990,7 +993,12 @@ export const staffAttendance = pgTable("staff_attendance", {
   workDate: varchar("work_date").notNull(), // YYYY-MM-DD (local)
   checkInAt: timestamp("check_in_at").defaultNow(),
   checkOutAt: timestamp("check_out_at"),
-  status: varchar("status").notNull().default("pending"), // pending | approved | rejected
+  checkInPhoto: text("check_in_photo"), // webp data URL: date-on-hand + shop background proof
+  onBreak: boolean("on_break").default(false).notNull(),
+  breakStartedAt: timestamp("break_started_at"),
+  breakSeconds: integer("break_seconds").default(0).notNull(), // accumulated break time
+  overtimeSeconds: integer("overtime_seconds").default(0).notNull(), // past scheduled shift end
+  status: varchar("status").notNull().default("present"), // present (auto) — no approval needed
   decidedBy: varchar("decided_by"),
   decisionNote: text("decision_note"),
   createdAt: timestamp("created_at").defaultNow(),
