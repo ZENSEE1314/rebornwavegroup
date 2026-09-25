@@ -16,7 +16,7 @@ import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, sendPushToAdmins } from "./push";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, BLOCK_ALL } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, BLOCK_ALL } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -2495,6 +2495,9 @@ export function registerRebornRoutes(app: Express) {
     // Prevent double-booking the same table/room at the same time.
     if (table && await isTableTaken(area, table, whenDt))
       return res.status(409).json({ message: `${table} is already booked for that time. Please pick another.` });
+    const party = Math.max(1, Number(b.partySize) || 2);
+    const cap = tableCap(area, table);
+    if (party > cap) return res.status(400).json({ message: `${table || "This area"} seats up to ${cap} pax. Please reduce the party size or pick a bigger ${table ? "table/room" : "spot"}.` });
     const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
     const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: b.note, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date) });
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
@@ -2514,7 +2517,11 @@ export function registerRebornRoutes(app: Express) {
     const values = areaSlotsForDate(area, date);
     const labels = areaSlotLabelsForDate(area, date);
     const slots = values.map((v, i) => ({ value: v, label: labels[i] }));
-    res.json({ slots, hours: areaHoursTextForDate(area, date), closed: values.length === 0, taken: await takenTablesForDate(area, date) });
+    const taken = await takenTablesForDate(area, date);
+    const fullyBooked = values.length > 0 && (await isDateFullyBooked(area, date));
+    const caps: Record<string, number> = {};
+    for (const t of area.tables) caps[t] = tableCap(area, t);
+    res.json({ slots, hours: areaHoursTextForDate(area, date), closed: values.length === 0, fullyBooked, taken, caps, maxPax: area.maxPax || 0 });
   });
   // A member's own bookings (includes ones made over WhatsApp — same account).
   app.get("/api/reborn/my-bookings", requireAuth, async (req, res) => {
@@ -2610,8 +2617,10 @@ export function registerRebornRoutes(app: Express) {
     const when = bookingWhen(areaOpenHourForDate(area, date), date, slot);
     if (await isAreaBlocked(area, when)) return res.status(409).json({ message: "That time is blocked" });
     if (table && await isTableTaken(area, table, when)) return res.status(409).json({ message: `${table} is already booked for that time` });
+    const manualParty = Math.max(1, Number(b.partySize) || 2);
+    if (manualParty > tableCap(area, table)) return res.status(400).json({ message: `${table || "This area"} seats up to ${tableCap(area, table)} pax.` });
     const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
-    const row = await createBooking({ userId: u.id, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date) });
+    const row = await createBooking({ userId: u.id, dateStr: date, slot, partySize: manualParty, hours, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date) });
     await db.update(appointments).set({ status: "confirmed" }).where(eq(appointments.id, row.id)); // admin booking = confirmed
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;

@@ -17,7 +17,7 @@ import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
 import { sendRebornStaffNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, type BookingArea } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser } from "./push";
 
@@ -475,11 +475,34 @@ function parseMenuIntent(s: string): "book" | "song" | "bottle" | "menu" | null 
   if (/^(menu|hi|hello|hey|start|help|0|你好|嗨|halo|hai)$/.test(t)) return "menu";
   return null;
 }
+const isoFrom = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+// Display a YYYY-MM-DD date as "Mon 30-09-2025" for members.
+function fmtDMY(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.getDay()];
+  return `${wd} ${String(d).padStart(2, "0")}-${String(m).padStart(2, "0")}-${y}`;
+}
+// Accepts DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD, today/tomorrow, and
+// "next monday"…"next sunday" plus "next next monday" (two weeks out).
 function parseBookDate(s: string): string | null {
   const t = s.trim().toLowerCase();
   if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const dmy = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+  if (dmy) { let [_, d, m, y] = dmy; const yy = y.length === 2 ? "20" + y : y; return `${yy}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`; }
   if (/today|hari ini|今天|tonight|今晚/.test(t)) return todayStr();
-  if (/tomorrow|besok|明天|tmr/.test(t)) { const d = new Date(); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+  if (/tomorrow|besok|明天|tmr/.test(t)) { const d = new Date(); d.setDate(d.getDate() + 1); return isoFrom(d); }
+  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  for (let i = 0; i < 7; i++) {
+    const re = new RegExp(`\\b${days[i]}\\b|\\b${days[i].slice(0, 3)}\\b`);
+    if (re.test(t)) {
+      const today = new Date().getDay();
+      let delta = (i - today + 7) % 7; if (delta === 0) delta = 7; // the coming <weekday>
+      // "next next <day>" (or "next 2"/"2 weeks") → add another week
+      if (/next\s+next|next\s*2|2\s*weeks?|minggu depan.*depan/.test(t)) delta += 7;
+      const d = new Date(); d.setDate(d.getDate() + delta); return isoFrom(d);
+    }
+  }
   return null;
 }
 function weekdayOf(dateStr: string): number { const [y, m, d] = dateStr.split("-").map(Number); return new Date(y, m - 1, d).getDay(); }
@@ -706,19 +729,23 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
       const table = nlTable(body, area);
       if (table) {
         if (await isTableTaken(area, table, bookingWhen(openH, date, slot))) {
-          const list = area.tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
-          await say(`Sorry, ${table} is already booked for ${label} on ${date}. Pick another:\n${list}`);
+          const free = await freeTablesForDateSlot(area, date, slot);
+          const list = free.map((t, i) => `${i + 1}. ${t} (up to ${tableCap(area, t)} pax)`).join("\n");
+          await say(`Sorry, ${table} is already booked for ${label} on ${fmtDMY(date)}. Pick another:\n${list}`);
           return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
         }
+        const cap = tableCap(area, table);
+        if (party > cap) { await say(`${table} seats up to ${cap} pax, but you asked for ${party}. Let me help you pick a suitable spot 👇`); return startBooking(c, lang, from, say); }
         const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH });
         await pushWhatsAppBooking(row, c, area, date, label, party);
-        await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
-        await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
+        await say(L(lang, "bookDone", { day: fmtDMY(date), time: label, n: String(party), url: APP_BASE_URL }));
+        await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
         await sendMemberMenu(from, c, lang);
         return patchContact(c.id, { waState: { flow: null } });
       }
-      // Area needs a table but none named → ask, keeping the parsed date/slot/party.
-      const list = area.tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
+      // Area needs a table but none named → ask, showing only free tables + caps.
+      const free = await freeTablesForDateSlot(area, date, slot);
+      const list = free.map((t, i) => `${i + 1}. ${t} (up to ${tableCap(area, t)} pax)`).join("\n");
       const caption = L(lang, "bookAskTable", { list });
       if (area.image) await sendWhatsAppImage(from, area.image, caption); else await say(caption);
       await logMsg(c.id, c.phone, "out", caption, true);
@@ -726,8 +753,8 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
     }
     const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: openH });
     await pushWhatsAppBooking(row, c, area, date, label, party);
-    await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
-    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · ${party} pax — confirm in the app.`);
+    await say(L(lang, "bookDone", { day: fmtDMY(date), time: label, n: String(party), url: APP_BASE_URL }));
+    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · ${party} pax — confirm in the app.`);
     await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
   }
@@ -755,45 +782,53 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
   if (!area) { await say(L(lang, "bookAskArea", { list: areas.map((a, i) => `${i + 1}. ${a.name} (${a.level})`).join("\n") })); return patchContact(c.id, { waState: { flow: "book", step: "area" } }); }
   const slots = wa.date ? areaSlotsForDate(area, wa.date) : [];
   const labels = wa.date ? areaSlotLabelsForDate(area, wa.date) : [];
+  const labelFor = (slot: string) => labels[slots.indexOf(slot)] || slot;
   if (wa.step === "date") {
     const date = parseBookDate(body);
     if (!date) { await say(L(lang, "bookAskDate")); return; }
-    const daySlots = areaSlotsForDate(area, date);
-    if (!daySlots.length) { await say(`Sorry, ${area.name} is closed that day. Please reply another date.`); return; }
-    const dayLabels = areaSlotLabelsForDate(area, date);
-    const list = dayLabels.map((t, i) => `${i + 1}. ${t}`).join("\n");
-    const caption = L(lang, "bookAskSlot", { day: `${area.name} · ${date}`, hours: areaHoursTextForDate(area, date), list });
+    if (!areaSlotsForDate(area, date).length) { await say(`📅 ${fmtDMY(date)}: sorry, ${area.name} is closed that day. Please reply another date (e.g. ${fmtDMY(todayStr())} or "next friday").`); return; }
+    const avail = await availableSlotsForDate(area, date);
+    if (!avail.length) { await say(`📅 ${fmtDMY(date)}: sorry, ${area.name} is fully booked that day. Please reply another date.`); return; }
+    // Confirm the resolved date, then list only the times that still have space.
+    const list = avail.map((s, i) => `${i + 1}. ${labelFor(s)}`).join("\n");
+    const caption = `✅ Date: *${fmtDMY(date)}*\n\n${L(lang, "bookAskSlot", { day: `${area.name}`, hours: areaHoursTextForDate(area, date), list })}`;
     await say(caption);
     return patchContact(c.id, { waState: { flow: "book", step: "slot", areaId: area.id, date } });
   }
   if (wa.step === "slot") {
+    const avail = await availableSlotsForDate(area, wa.date);
     const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
-    if (idx < 0 || idx >= slots.length) { await say(`Reply a number 1-${slots.length}.`); return; }
+    if (idx < 0 || idx >= avail.length) { await say(`Reply a number 1-${avail.length}.`); return; }
+    const picked = avail[idx];
     if (area.tables.length) {
-      const list = area.tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
+      const free = await freeTablesForDateSlot(area, wa.date, picked);
+      if (!free.length) { await say(`Sorry, that time just filled up. Reply another number 1-${avail.length}.`); return; }
+      const list = free.map((t, i) => `${i + 1}. ${t} (up to ${tableCap(area, t)} pax)`).join("\n");
       const caption = L(lang, "bookAskTable", { list });
       if (area.image) await sendWhatsAppImage(from, area.image, caption); else await say(caption);
       await logMsg(c.id, c.phone, "out", caption, true);
-      return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date: wa.date, slot: slots[idx] } });
+      return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date: wa.date, slot: picked } });
     }
     await say(L(lang, "bookAskParty"));
-    return patchContact(c.id, { waState: { flow: "book", step: "party", areaId: area.id, date: wa.date, slot: slots[idx] } });
+    return patchContact(c.id, { waState: { flow: "book", step: "party", areaId: area.id, date: wa.date, slot: picked } });
   }
   if (wa.step === "table") {
+    const free = await freeTablesForDateSlot(area, wa.date, wa.slot);
     const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
-    if (idx < 0 || idx >= area.tables.length) { await say(`Reply a number 1-${area.tables.length}.`); return; }
-    const picked = area.tables[idx];
-    if (await isTableTaken(area, picked, bookingWhen(areaOpenHourForDate(area, wa.date), wa.date, wa.slot))) {
-      const list = area.tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
-      await say(`Sorry, ${picked} is already booked for that time. Pick another:\n${list}`);
-      return;
+    if (idx < 0 || idx >= free.length) { await say(`Reply a number 1-${free.length}.`); return; }
+    const picked = free[idx];
+    const cap = tableCap(area, picked);
+    if (wa.party) {
+      if (wa.party > cap) { await say(`${picked} seats up to ${cap} pax, but you have ${wa.party}. Reply a smaller table number, or reply "book" to restart.`); return; }
+      await say(L(lang, "bookAskHours")); return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: picked, party: wa.party } });
     }
-    if (wa.party) { await say(L(lang, "bookAskHours")); return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: picked, party: wa.party } }); }
-    await say(L(lang, "bookAskParty"));
+    await say(`👥 How many pax? (${picked} seats up to ${cap})`);
     return patchContact(c.id, { waState: { flow: "book", step: "party", areaId: area.id, date: wa.date, slot: wa.slot, table: picked } });
   }
   if (wa.step === "party") {
-    const n = Math.max(1, Math.min(50, Number((body.match(/\d+/) || [])[0] || 2)));
+    const cap = tableCap(area, wa.table);
+    const n = Math.max(1, Number((body.match(/\d+/) || [])[0] || 2));
+    if (n > cap) { await say(`Sorry, ${wa.table ? wa.table + " seats" : "that seats"} up to ${cap} pax. Please reply a number up to ${cap}.`); return; }
     await say(L(lang, "bookAskHours"));
     return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: wa.table, party: n } });
   }
@@ -804,9 +839,9 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
       return patchContact(c.id, { waState: { flow: null } });
     }
     const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date) });
-    const label = labels[slots.indexOf(wa.slot)] || wa.slot;
+    const label = labelFor(wa.slot);
     await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
-    await say(L(lang, "bookDone", { day: wa.date, time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
+    await say(L(lang, "bookDone", { day: fmtDMY(wa.date), time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
     await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });

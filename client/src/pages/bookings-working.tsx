@@ -100,6 +100,9 @@ function TableBookingCard() {
   });
   const areaSlots: any[] = avail?.slots || []; // [{value,label}]
   const takenForSlot: string[] = (slot && avail?.taken?.[slot]) || [];
+  const caps: Record<string, number> = avail?.caps || {};
+  const capFor = (tb: string) => caps[tb] || avail?.maxPax || 50;
+  const partyCap = table ? capFor(table) : (avail?.maxPax || 50);
   const book = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => {
@@ -139,6 +142,8 @@ function TableBookingCard() {
         <p className="text-xs text-white/50 mb-1">Start time <span className="text-white/30">· {avail?.hours || area.hours}</span></p>
         {avail?.closed ? (
           <p className="text-sm text-amber-300 mb-3">Closed on this day — please pick another date.</p>
+        ) : avail?.fullyBooked ? (
+          <p className="text-sm text-red-300 mb-3 font-semibold">Fully booked on this day — please pick another date.</p>
         ) : (
           <div className="grid grid-cols-3 gap-2 mb-3">
             {areaSlots.map((s: any) => (
@@ -154,7 +159,7 @@ function TableBookingCard() {
             {area.tables.map((tb: string) => {
               const taken = takenForSlot.includes(tb);
               return (
-                <button key={tb} disabled={taken} onClick={() => setTable(tb)} className={`py-2.5 rounded-xl text-sm font-bold ${taken ? "bg-white/5 text-white/25 line-through cursor-not-allowed" : table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}</button>
+                <button key={tb} disabled={taken} onClick={() => { setTable(tb); setParty((p) => Math.min(p, capFor(tb))); }} className={`py-2 rounded-xl text-xs font-bold leading-tight ${taken ? "bg-white/5 text-white/25 line-through cursor-not-allowed" : table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}<span className="block text-[9px] font-normal opacity-70">≤{capFor(tb)} pax</span></button>
               );
             })}
           </div>
@@ -162,10 +167,10 @@ function TableBookingCard() {
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-4">
           <div className="flex items-center gap-3">
-            <span className="text-xs text-white/50">Party</span>
+            <span className="text-xs text-white/50">Party <span className="text-white/30">(max {partyCap})</span></span>
             <button onClick={() => setParty((p) => Math.max(1, p - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
             <span className="w-8 text-center font-extrabold text-white">{party}</span>
-            <button onClick={() => setParty((p) => Math.min(50, p + 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>+</button>
+            <button onClick={() => setParty((p) => Math.min(partyCap, p + 1))} disabled={party >= partyCap} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold disabled:opacity-40" style={{ fontSize: 18 }}>+</button>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-white/50">Hours</span>

@@ -70,7 +70,14 @@ export function parseTables(raw?: string): string[] {
 // open/close are "HH:MM" (close may be after midnight, e.g. "03:00"). When omitted the
 // area uses the default nightlife hours (5pm → 2am weekday / 3am weekend).
 export interface DaySchedule { enabled?: boolean; open?: string; close?: string; }
-export interface BookingArea { id: string; name: string; level: string; image?: string; tables: string[]; enabled?: boolean; open?: string; close?: string; schedule?: Record<string, DaySchedule>; }
+export interface BookingArea { id: string; name: string; level: string; image?: string; tables: string[]; tableCaps?: Record<string, number>; maxPax?: number; enabled?: boolean; open?: string; close?: string; schedule?: Record<string, DaySchedule>; }
+
+// Max pax allowed for a table (per-table cap → area default → generous fallback).
+export function tableCap(a: BookingArea, table?: string): number {
+  if (table && a.tableCaps && a.tableCaps[table] > 0) return a.tableCaps[table];
+  if (a.maxPax && a.maxPax > 0) return a.maxPax;
+  return 50;
+}
 export const DEFAULT_AREAS: BookingArea[] = [
   { id: "l1-game", name: "Game House", level: "Level 1", image: "", tables: [], enabled: true },
   { id: "l1-ktv", name: "KTV Lounge", level: "Level 1", image: "", tables: ["V1", "V2", "1", "2", "3", "4", "5", "T6", "T7", "T8", "T9"], enabled: true },
@@ -216,6 +223,38 @@ export async function takenTablesForDate(a: BookingArea, dateStr: string): Promi
     if (!(out[slots[idx]] || []).includes(BLOCK_ALL)) (out[slots[idx]] ||= []).push(table);
   }
   return out;
+}
+
+// Slots that still have at least one free table (or, for tableless areas, aren't blocked).
+export async function availableSlotsForDate(a: BookingArea, dateStr: string): Promise<string[]> {
+  const slots = areaSlotsForDate(a, dateStr);
+  if (!slots.length) return [];
+  const openHour = areaOpenHourForDate(a, dateStr);
+  if (!a.tables.length) {
+    const out: string[] = [];
+    for (const s of slots) if (!(await isAreaBlocked(a, bookingWhen(openHour, dateStr, s)))) out.push(s);
+    return out;
+  }
+  const taken = await takenTablesForDate(a, dateStr);
+  return slots.filter((s) => {
+    const t = taken[s] || [];
+    if (t.includes(BLOCK_ALL)) return false;
+    return a.tables.some((tb) => !t.includes(tb));
+  });
+}
+
+// Free tables for a given date+slot.
+export async function freeTablesForDateSlot(a: BookingArea, dateStr: string, slot: string): Promise<string[]> {
+  if (!a.tables.length) return [];
+  const taken = (await takenTablesForDate(a, dateStr))[slot] || [];
+  if (taken.includes(BLOCK_ALL)) return [];
+  return a.tables.filter((tb) => !taken.includes(tb));
+}
+
+// A date is fully booked when no slot has any availability.
+export async function isDateFullyBooked(a: BookingArea, dateStr: string): Promise<boolean> {
+  if (!areaSlotsForDate(a, dateStr).length) return false; // closed ≠ full
+  return (await availableSlotsForDate(a, dateStr)).length === 0;
 }
 
 // Create a pending appointment (used by app + WhatsApp bot). Staff confirm in-app.

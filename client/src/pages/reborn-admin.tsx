@@ -501,6 +501,20 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
           <p className="text-[10px] text-white/35 mb-2">Default hours above. Set per-day below to override or close a day (applies to app + WhatsApp).</p>
           <WeeklySchedule area={a} onChange={(schedule: any) => upd(i, { schedule })} />
           <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder="Tables/rooms (comma) — leave empty for none" className={inp + " w-full mb-2 mt-2"} />
+          <label className="text-[11px] text-white/50 block mb-2">Default max pax {(a.tables || []).length ? "(tables without their own cap)" : "(whole area)"}<input type="number" min={1} value={a.maxPax || ""} onChange={(e) => upd(i, { maxPax: Math.max(0, Number(e.target.value) || 0) })} placeholder="e.g. 10" className={inp + " w-full"} /></label>
+          {(a.tables || []).length > 0 && (
+            <div className="mb-2">
+              <p className="text-[11px] text-white/50 mb-1">Max pax per table/room</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(a.tables || []).map((tb: string) => (
+                  <label key={tb} className="flex items-center gap-1.5 text-[11px] text-white/60 bg-black/20 rounded-lg px-2 py-1">
+                    <span className="truncate flex-1">{tb}</span>
+                    <input type="number" min={1} value={(a.tableCaps || {})[tb] || ""} onChange={(e) => upd(i, { tableCaps: { ...(a.tableCaps || {}), [tb]: Math.max(0, Number(e.target.value) || 0) } })} placeholder="max" className="w-14 px-1.5 py-1 rounded bg-black/30 border border-white/10 text-white text-xs" />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2">
             <ImageUpload value={a.image} onChange={(v) => upd(i, { image: v })} label="Layout image" output="jpeg" maxDim={900} />
             <div className="flex items-center gap-2">
