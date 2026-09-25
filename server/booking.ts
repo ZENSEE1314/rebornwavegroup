@@ -11,6 +11,36 @@ import { appointments } from "@shared/schema";
 const ACTIVE_BOOKING = ["pending", "scheduled", "confirmed", "blocked"];
 export const BLOCK_ALL = "*ALL*"; // whole-area block marker (admin closes a slot)
 
+// --- Venue timezone (admin-set) -----------------------------------------
+// All booking wall-clock times (slots, "today", reminders) are interpreted in
+// the club's country timezone, not the server's. Set from the `timezone`
+// setting at boot and whenever settings change. Defaults to Indonesia (WIB).
+let VENUE_TZ = "Asia/Jakarta";
+export function setBookingTimezone(tz?: string) { if (tz && isValidTz(tz)) VENUE_TZ = tz; }
+export function getBookingTimezone(): string { return VENUE_TZ; }
+function isValidTz(tz: string): boolean {
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return true; } catch { return false; }
+}
+// Offset (ms) of VENUE_TZ vs UTC at a given instant (DST-safe).
+function tzOffsetMs(at: Date, tz: string): number {
+  const dtf = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const m: any = {}; for (const p of dtf.formatToParts(at)) m[p.type] = p.value;
+  const asUtc = Date.UTC(Number(m.year), Number(m.month) - 1, Number(m.day), Number(m.hour === "24" ? 0 : m.hour), Number(m.minute), Number(m.second));
+  return asUtc - at.getTime();
+}
+// Wall-clock (y,mo,d,h,mi) in the venue timezone → absolute Date (UTC instant).
+function venueWallToDate(y: number, mo: number, d: number, h: number, mi: number): Date {
+  const guess = Date.UTC(y, mo - 1, d, h, mi, 0, 0);
+  const off = tzOffsetMs(new Date(guess), VENUE_TZ);
+  return new Date(guess - off);
+}
+// YYYY-MM-DD / weekday of an instant, read in the venue timezone.
+function venueYmd(at: Date = new Date()): { y: number; mo: number; d: number } {
+  const dtf = new Intl.DateTimeFormat("en-CA", { timeZone: VENUE_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+  const m: any = {}; for (const p of dtf.formatToParts(at)) m[p.type] = p.value;
+  return { y: Number(m.year), mo: Number(m.month), d: Number(m.day) };
+}
+
 const OPEN_HOUR = 17; // 5pm
 export const SLOT_TIMES = ["17:00", "19:00", "21:00", "23:00", "01:00"]; // 2-hour intervals
 
@@ -49,14 +79,14 @@ export function slotLabels(dateStr: string): string[] {
 export function slotToDate(dateStr: string, hhmm: string): Date {
   const [y, mo, d] = dateStr.split("-").map(Number);
   const [h, mi] = hhmm.split(":").map(Number);
-  const base = new Date(y, (mo || 1) - 1, d || 1, h, mi, 0, 0);
-  if (h < OPEN_HOUR) base.setDate(base.getDate() + 1); // after-midnight slot
-  return base;
+  let day = d || 1;
+  if (h < OPEN_HOUR) day += 1; // after-midnight slot belongs to the next calendar day
+  return venueWallToDate(y, mo || 1, day, h, mi);
 }
 
 export function todayStr(): string {
-  const n = new Date();
-  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  const { y, mo, d } = venueYmd();
+  return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 // Default table labels — match the Level 1 floor plan (VIP sofas, round tables, booths).
@@ -94,6 +124,8 @@ export function parseAreas(raw?: string): BookingArea[] {
       if (Array.isArray(a) && a.length) return a.map((x: any, i: number) => ({
         id: String(x.id || `area-${i}`), name: String(x.name || `Area ${i + 1}`), level: String(x.level || ""),
         image: x.image || "", tables: Array.isArray(x.tables) ? x.tables.map(String) : [],
+        tableCaps: (x.tableCaps && typeof x.tableCaps === "object") ? x.tableCaps : undefined,
+        maxPax: Number(x.maxPax) > 0 ? Number(x.maxPax) : undefined,
         enabled: x.enabled !== false, open: x.open || "", close: x.close || "",
         schedule: (x.schedule && typeof x.schedule === "object") ? x.schedule : undefined,
       }));
@@ -163,9 +195,9 @@ export function areaOpenHourForDate(a: BookingArea, dateStr: string): number {
 export function areaSlotToDate(a: BookingArea, dateStr: string, hhmm: string): Date {
   const [y, mo, d] = dateStr.split("-").map(Number);
   const [h, mi] = hhmm.split(":").map(Number);
-  const base = new Date(y, (mo || 1) - 1, d || 1, h, mi, 0, 0);
-  if (h < areaOpenHour(a)) base.setDate(base.getDate() + 1);
-  return base;
+  let day = d || 1;
+  if (h < areaOpenHour(a)) day += 1;
+  return venueWallToDate(y, mo || 1, day, h, mi);
 }
 
 // The exact appointmentDate for an area/date/slot (after-midnight slots roll over).
@@ -173,9 +205,9 @@ export function bookingWhen(areaLabelOrOpenHour: BookingArea | number, dateStr: 
   const openHour = typeof areaLabelOrOpenHour === "number" ? areaLabelOrOpenHour : areaOpenHour(areaLabelOrOpenHour);
   const [y, mo, d] = dateStr.split("-").map(Number);
   const [h, mi] = hhmm.split(":").map(Number);
-  const base = new Date(y, (mo || 1) - 1, d || 1, h, mi, 0, 0);
-  if (h < openHour) base.setDate(base.getDate() + 1);
-  return base;
+  let day = d || 1;
+  if (h < openHour) day += 1;
+  return venueWallToDate(y, mo || 1, day, h, mi);
 }
 function areaLabel(a: BookingArea): string { return `${a.name} (${a.level})`; }
 
@@ -264,9 +296,9 @@ export async function createBooking(opts: {
   const when = (() => {
     const [y, mo, d] = opts.dateStr.split("-").map(Number);
     const [h, mi] = opts.slot.split(":").map(Number);
-    const base = new Date(y, (mo || 1) - 1, d || 1, h, mi, 0, 0);
-    if (h < (opts.openHour ?? OPEN_HOUR)) base.setDate(base.getDate() + 1);
-    return base;
+    let day = d || 1;
+    if (h < (opts.openHour ?? OPEN_HOUR)) day += 1;
+    return venueWallToDate(y, mo || 1, day, h, mi);
   })();
   const party = opts.partySize || 2;
   const bits = [opts.area, opts.table ? `Table ${opts.table}` : "", `Party of ${party}`, opts.note].filter(Boolean);

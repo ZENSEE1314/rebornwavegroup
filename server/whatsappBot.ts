@@ -17,7 +17,7 @@ import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
 import { sendRebornStaffNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, type BookingArea } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, getBookingTimezone, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser } from "./push";
 
@@ -1105,7 +1105,7 @@ export async function runBookingReminders(): Promise<number> {
       const phone = (u?.phoneNumber || "").replace(/\D/g, "");
       const markSet = Array.from(new Set([...already, ...REMINDER_ORDER.slice(0, REMINDER_ORDER.indexOf(tag) + 1)]));
       const d = new Date(a.appointmentDate);
-      const when = d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+      const when = d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
       const where = a.notes ? ` (${a.notes})` : "";
       // Real phone push — fires even when WhatsApp is offline or the member has no phone on file.
       await sendPushToUser(a.userId, { title: `⏰ ${club} in ${left}`, body: `${a.title || "Your booking"} — ${when}${where}`, url: "/bookings", tag: `remind-${a.id}-${tag}` }).catch(() => {});

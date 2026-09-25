@@ -375,6 +375,25 @@ function Settings() {
       </Card>
       <Card>
         <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> Operations</h3>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Club country timezone <span className="text-white/40">(booking times & WhatsApp reminders follow this)</span></span>
+          <select value={cur.timezone || "Asia/Jakarta"} onChange={(e) => setStr("timezone", e.target.value)} className={inp + " w-full"}>
+            <option value="Asia/Jakarta">Indonesia — Jakarta / Batam (WIB, UTC+7)</option>
+            <option value="Asia/Makassar">Indonesia — Bali / Makassar (WITA, UTC+8)</option>
+            <option value="Asia/Jayapura">Indonesia — Papua (WIT, UTC+9)</option>
+            <option value="Asia/Singapore">Singapore (UTC+8)</option>
+            <option value="Asia/Kuala_Lumpur">Malaysia (UTC+8)</option>
+            <option value="Asia/Bangkok">Thailand (UTC+7)</option>
+            <option value="Asia/Manila">Philippines (UTC+8)</option>
+            <option value="Asia/Ho_Chi_Minh">Vietnam (UTC+7)</option>
+            <option value="Asia/Hong_Kong">Hong Kong (UTC+8)</option>
+            <option value="Asia/Shanghai">China (UTC+8)</option>
+            <option value="Asia/Tokyo">Japan (UTC+9)</option>
+            <option value="Asia/Dubai">UAE — Dubai (UTC+4)</option>
+            <option value="Australia/Sydney">Australia — Sydney</option>
+            <option value="Europe/London">UK — London</option>
+            <option value="America/New_York">USA — New York</option>
+          </select>
+        </label>
         <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.allowNegativeStock === true} onChange={(e) => setStr("allowNegativeStock", e.target.checked)} /> Allow selling when stock is 0 (stock can go negative)</label>
         <p className="-mt-2 mb-3 text-[11px] text-white/40">Turn on when there's real stock but it wasn't keyed in. Turn off to block sold-out items.</p>
         <Field label="Bottle keep — days until it expires" value={cur.bottleExpiryDays} onChange={(v: any) => set("bottleExpiryDays", v)} />

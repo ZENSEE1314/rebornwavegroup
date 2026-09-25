@@ -16,7 +16,7 @@ import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, sendPushToAdmins } from "./push";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, BLOCK_ALL } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, setBookingTimezone, getBookingTimezone, BLOCK_ALL } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -55,6 +55,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   spinAssumedBill: "500000", // representative bill used to estimate a %-voucher's pool cost
   mainAdminPassword: "",    // required to run the "reset numbers" action (set by the main admin)
   songRequestModeEnabled: "true",
+  timezone: "Asia/Jakarta", // club country timezone — booking slots, "today" and WhatsApp reminders use this
   bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
   payrollDay: "1",          // day of month payroll is recorded/paid
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
@@ -92,6 +93,7 @@ async function getSettings() {
     spinAssumedBill: Math.max(0, Number(map.spinAssumedBill) || 500000),
     mainAdminPassword: map.mainAdminPassword || "",
     songRequestModeEnabled: map.songRequestModeEnabled !== "false",
+    timezone: map.timezone || "Asia/Jakarta",
     bottleExpiryDays: Math.max(1, Number(map.bottleExpiryDays) || 90),
     payrollDay: Math.min(28, Math.max(1, Number(map.payrollDay) || 1)),
     overtimeHourlyRate: Math.max(0, Number(map.overtimeHourlyRate) || 0),
@@ -448,6 +450,8 @@ async function seedSongsIfEmpty() {
 
 export function registerRebornRoutes(app: Express) {
   console.log("*** REBORN GAME ROUTES REGISTERED");
+  // Apply the club's saved timezone to booking/reminder time math at boot.
+  getSettings().then((s) => setBookingTimezone(s.timezone)).catch(() => {});
 
   // ── Pets ────────────────────────────────────────────────────────────────
   app.get("/api/reborn/pets", requireAuth, async (req, res) => {
@@ -1360,7 +1364,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -1379,6 +1383,7 @@ export function registerRebornRoutes(app: Express) {
       };
       await db.execute(sql`UPDATE bridge_company_settings s SET config=jsonb_set(COALESCE(s.config,'{}'::jsonb),'{loyalty}',${JSON.stringify(clean)}::jsonb,true), updated_at=now() FROM bridge_companies c WHERE s.company_id=c.id AND c.slug='reborn-wave-group'`);
     }
+    if (req.body?.timezone !== undefined) setBookingTimezone(String(req.body.timezone));
     res.json(await getSettings());
   }));
   // Prize pool status + manual adjust (top-up or set).
@@ -2600,7 +2605,7 @@ export function registerRebornRoutes(app: Express) {
     if ((status === "confirmed" || status === "cancelled") && row.userId) {
       const [u] = await db.select().from(users).where(eq(users.id, row.userId));
       if (u?.phoneNumber) {
-        const when = new Date(row.appointmentDate).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+        const when = new Date(row.appointmentDate).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
         const msg = status === "confirmed"
           ? `✅ Your booking is confirmed: ${row.title} on ${when}. See you! 💜`
           : `😔 Sorry, your booking (${row.title} on ${when}) has been cancelled${note ? `: ${note}` : "."} Please rebook a new date by typing "booking". 💜`;
@@ -2608,7 +2613,7 @@ export function registerRebornRoutes(app: Express) {
       }
       sendPushToUser(row.userId, {
         title: status === "confirmed" ? "✅ Booking confirmed" : "😔 Booking cancelled",
-        body: status === "confirmed" ? `${row.title} — ${new Date(row.appointmentDate).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true })}` : `${row.title}${note ? ` — ${note}` : ""}. Tap to rebook.`,
+        body: status === "confirmed" ? `${row.title} — ${new Date(row.appointmentDate).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() })}` : `${row.title}${note ? ` — ${note}` : ""}. Tap to rebook.`,
         url: "/bookings", tag: `booking-${id}`,
       }).catch(() => {});
     }
@@ -2661,7 +2666,7 @@ export function registerRebornRoutes(app: Express) {
     await db.update(appointments).set({ status: "confirmed" }).where(eq(appointments.id, row.id)); // admin booking = confirmed
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
-    const whenTxt = when.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+    const whenTxt = when.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
     if (u.phoneNumber) sendWhatsApp(u.phoneNumber, `✅ We've booked you at ${s.clubName || "Reborn Wave"}: ${area.name} on ${whenTxt}${table ? ` · ${table}` : ""}. See you! 💜`).catch(() => {});
     sendPushToUser(u.id, { title: "✅ You're booked", body: `${area.name} — ${whenTxt}${table ? ` · ${table}` : ""}`, url: "/bookings", tag: `booking-${row.id}` }).catch(() => {});
     await logAdmin(req, { targetUserId: u.id, targetType: "appointment", targetId: row.id, action: "manual_book", entityType: "booking", description: `Booked ${name} · ${area.name} ${date} ${label}` });
