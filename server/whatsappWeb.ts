@@ -9,7 +9,7 @@
 // redeploys (Railway's filesystem is ephemeral).
 import makeWASocket, {
   initAuthCreds, BufferJSON, proto, DisconnectReason,
-  fetchLatestBaileysVersion, makeCacheableSignalKeyStore, type AuthenticationState,
+  fetchLatestBaileysVersion, makeCacheableSignalKeyStore, generateWAMessageFromContent, type AuthenticationState,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
@@ -140,7 +140,15 @@ export async function startWhatsAppWeb(): Promise<void> {
         const phoneJid = [chatJid, alt].find((j) => j && j.endsWith("@s.whatsapp.net"));
         const phone = (phoneJid ? phoneJid.split("@")[0] : chatJid.split("@")[0]).replace(/\D/g, "");
         if (phone) jidForPhone.set(phone, chatJid);            // remember how to reach them
-        const text = m.message.conversation
+        let nativeReply = "";
+        const nativeParams = m.message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+        if (nativeParams) {
+          try { nativeReply = String(JSON.parse(nativeParams)?.id || ""); } catch {}
+        }
+        const text = nativeReply
+          || m.message.buttonsResponseMessage?.selectedButtonId
+          || m.message.listResponseMessage?.singleSelectReply?.selectedRowId
+          || m.message.conversation
           || m.message.extendedTextMessage?.text
           || m.message.imageMessage?.caption
           || m.message.videoMessage?.caption
@@ -170,6 +178,41 @@ export async function sendWhatsAppWeb(to: string, text: string): Promise<boolean
     await sock.sendMessage(jid, { text });
     return true;
   } catch (e) { console.error("[wa-web] send error", e); return false; }
+}
+
+export async function sendWhatsAppWebChoices(to: string, text: string, choices: Array<{ id: string; title: string }>): Promise<boolean> {
+  if (!isWebConnected() || !sock) return false;
+  const digits = String(to).replace(/\D/g, "");
+  let jid = jidForPhone.get(digits);
+  try {
+    if (!jid) {
+      const res = await sock.onWhatsApp(digits).catch(() => null);
+      jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`;
+    }
+    const interactive = proto.Message.InteractiveMessage.create({
+      body: proto.Message.InteractiveMessage.Body.create({ text }),
+      footer: proto.Message.InteractiveMessage.Footer.create({ text: "Tap a button to choose" }),
+      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+        buttons: choices.slice(0, 3).map((choice) => ({
+          name: "quick_reply",
+          buttonParamsJson: JSON.stringify({ display_text: choice.title.slice(0, 20), id: choice.id.slice(0, 256) }),
+        })),
+      }),
+    });
+    const message = generateWAMessageFromContent(jid, {
+      viewOnceMessage: {
+        message: {
+          messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+          interactiveMessage: interactive,
+        },
+      },
+    }, { userJid: sock.user?.id || jid });
+    await sock.relayMessage(jid, message.message!, { messageId: message.key.id! });
+    return true;
+  } catch (e) {
+    console.error("[wa-web] interactive send error", e);
+    return false;
+  }
 }
 
 export async function sendWhatsAppWebImage(to: string, image: Buffer, caption: string): Promise<boolean> {

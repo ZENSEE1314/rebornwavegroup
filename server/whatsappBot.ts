@@ -72,6 +72,42 @@ export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
     return false;
   }
 }
+
+type WhatsAppChoice = { id: string; title: string };
+
+// WhatsApp supports up to three quick-reply buttons. Cloud API receives the
+// official interactive payload; QR-linked WhatsApp Web uses the matching
+// Baileys native-flow message and falls back to numbered text when unavailable.
+export async function sendWhatsAppChoices(to: string, text: string, choices: WhatsAppChoice[]): Promise<boolean> {
+  const c = cfg();
+  const num = String(to).replace(/\D/g, "");
+  const buttons = choices.slice(0, 3).map((choice) => ({ id: choice.id.slice(0, 256), title: choice.title.slice(0, 20) }));
+  try {
+    const web = await import("./whatsappWeb");
+    if (web.isWebConnected() && await web.sendWhatsAppWebChoices(num, text, buttons)) return true;
+  } catch { /* use Cloud API or text fallback */ }
+  if (whatsappConfigured()) {
+    try {
+      const r = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${c.phoneId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${c.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: num,
+          type: "interactive",
+          interactive: {
+            type: "button",
+            body: { text },
+            action: { buttons: buttons.map((button) => ({ type: "reply", reply: button })) },
+          },
+        }),
+      });
+      if (r.ok) return true;
+      console.error(`[wa] interactive send failed ${r.status}: ${await r.text()}`);
+    } catch (e) { console.error("[wa] interactive send error", e); }
+  }
+  return sendWhatsApp(num, `${text}\n\n${buttons.map((button, index) => `${index + 1}️⃣ ${button.title}`).join("\n")}`);
+}
 async function notifyAdmin(text: string) {
   const c = cfg();
   if (c.adminNumber) await sendWhatsApp(c.adminNumber, text);
@@ -182,9 +218,9 @@ const WELCOME_TRILINGUAL =
 
 function parseLang(s: string): Lang | null {
   const t = s.trim().toLowerCase();
-  if (/^1\b|english|eng/.test(t)) return "en";
-  if (/^2\b|中文|中国|chinese|zh|华语|华文/.test(t)) return "zh";
-  if (/^3\b|bahasa|indonesia|indo|melayu|malay|id/.test(t)) return "id";
+  if (/^lang_en$|^1\b|english|eng/.test(t)) return "en";
+  if (/^lang_zh$|^2\b|中文|中国|chinese|zh|华语|华文/.test(t)) return "zh";
+  if (/^lang_id$|^3\b|bahasa|indonesia|indo|melayu|malay|id/.test(t)) return "id";
   return null;
 }
 
@@ -370,6 +406,19 @@ function memberMenu(lang: Lang, contact: Contact): string {
   return L(lang, "menu", { name: (contact.name || "there").split(" ")[0] });
 }
 
+function memberMenuChoices(lang: Lang): WhatsAppChoice[] {
+  if (lang === "zh") return [{ id: "menu_book", title: "📅 预订" }, { id: "menu_song", title: "🎤 点歌" }, { id: "menu_bottle", title: "🍾 我的寄存酒" }];
+  if (lang === "id") return [{ id: "menu_book", title: "📅 Booking" }, { id: "menu_song", title: "🎤 Minta lagu" }, { id: "menu_bottle", title: "🍾 Botol saya" }];
+  return [{ id: "menu_book", title: "📅 Booking" }, { id: "menu_song", title: "🎤 Request song" }, { id: "menu_bottle", title: "🍾 Kept bottles" }];
+}
+
+async function sendMemberMenu(from: string, contact: Contact, lang: Lang, welcomeBack = false) {
+  const name = (contact.name || "there").split(" ")[0];
+  const text = welcomeBack ? L(lang, "welcomeBackMenu", { name }) : memberMenu(lang, contact);
+  await sendWhatsAppChoices(from, text, memberMenuChoices(lang));
+  await logMsg(contact.id, contact.phone, "out", text, true);
+}
+
 async function createMemberFromContact(c: Contact): Promise<{ email: string; created: boolean }> {
   const email = (c.email || "").toLowerCase();
   const existing = await storage.getUserByEmail(email);
@@ -411,9 +460,9 @@ const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bo
 
 function parseMenuIntent(s: string): "book" | "song" | "bottle" | "menu" | null {
   const t = s.trim().toLowerCase();
-  if (/^1$|book|table|reserv|appoint|预订|订位|meja|pesan meja/.test(t)) return "book";
-  if (/^2$|song|sing|request a song|点歌|唱歌|lagu/.test(t)) return "song";
-  if (/^3$|bottle|my drink|keep|寄存|存酒|botol|simpan/.test(t)) return "bottle";
+  if (/^menu_book$|^1$|book|table|reserv|appoint|预订|订位|meja|pesan meja/.test(t)) return "book";
+  if (/^menu_song$|^2$|song|sing|request a song|点歌|唱歌|lagu/.test(t)) return "song";
+  if (/^menu_bottle$|^3$|bottle|my drink|keep|寄存|存酒|botol|simpan/.test(t)) return "bottle";
   if (/^(menu|hi|hello|hey|start|help|0|你好|嗨|halo|hai)$/.test(t)) return "menu";
   return null;
 }
@@ -431,7 +480,7 @@ const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frida
 function dateFor(delta: number): string { const d = new Date(); d.setDate(d.getDate() + delta); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 function nlDate(body: string): string | null {
   const t = body.toLowerCase();
-  if (/\b\d{4}-\d{2}-\d{2}\b/.test(t)) return (t.match(/\b\d{4}-\d{2}-\d{2}\b/) || [])[0];
+  if (/\b\d{4}-\d{2}-\d{2}\b/.test(t)) return t.match(/\b\d{4}-\d{2}-\d{2}\b/)?.[0] || null;
   if (/tonight|today|hari ini|今晚|今天/.test(t)) return dateFor(0);
   if (/tomorrow|besok|明天|tmr/.test(t)) return dateFor(1);
   for (let i = 0; i < 7; i++) {
@@ -501,8 +550,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
       const uLang = (["en", "zh", "id"].includes((u as any).preferredLanguage) ? (u as any).preferredLanguage : c.lang) as Lang;
       await patchContact(c.id, { userId: u.id, name, stage: "member", lang: uLang });
       c = { ...c, userId: u.id, name, stage: "member", lang: uLang } as Contact;
-      await sendWhatsApp(from, L(uLang, "welcomeBackMenu", { name: name.split(" ")[0] }));
-      await logMsg(c.id, c.phone, "out", "welcome-back menu", true);
+      await sendMemberMenu(from, c, uLang, true);
       return;
     }
   }
@@ -512,7 +560,15 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   const wa: any = (c.waState as any) || {};
 
   // --- ONBOARDING (new numbers) ---
-  if (c.stage === "new") { await say(WELCOME_TRILINGUAL); return patchContact(c.id, { stage: "await_lang" }); }
+  if (c.stage === "new") {
+    await sendWhatsAppChoices(from, WELCOME_TRILINGUAL, [
+      { id: "lang_en", title: "English" },
+      { id: "lang_zh", title: "中文" },
+      { id: "lang_id", title: "Bahasa Indonesia" },
+    ]);
+    await logMsg(c.id, c.phone, "out", WELCOME_TRILINGUAL, true);
+    return patchContact(c.id, { stage: "await_lang" });
+  }
   if (c.stage === "await_lang") { const picked = parseLang(body) || "en"; await say(L(picked, "askName")); return patchContact(c.id, { lang: picked, stage: "await_name" }); }
   if (c.stage === "await_name") {
     if (!looksLikeName(body)) { await say(L(lang, "askName")); return; }
@@ -526,7 +582,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     const { email, created } = await createMemberFromContact({ ...c, email: m[0].toLowerCase() } as Contact); // sets stage=member
     await say(created ? L(lang, "ready", { url: APP_BASE_URL, email, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBack", { url: APP_BASE_URL, email }));
     // Second message: the WhatsApp menu shortcuts.
-    await say(memberMenu(lang, { ...c, name: c.name || "there" } as Contact));
+    await sendMemberMenu(from, { ...c, name: c.name || "there" } as Contact, lang);
     return patchContact(c.id, { waState: { flow: null } });
   }
 
@@ -547,7 +603,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   if (intent === "book") return handleBookIntent(c, lang, from, body, say);
   if (intent === "song") { await say(L(lang, "songAskName")); return patchContact(c.id, { waState: { flow: "song", step: "name" } }); }
   if (intent === "bottle") return showBottles(c, lang, say);
-  if (intent === "menu") { await say(memberMenu(lang, c)); return; }
+  if (intent === "menu") { await sendMemberMenu(from, c, lang); return; }
 
   // --- No recognized command ---
   if (c.stage === "member" || c.stage === "active") {
@@ -556,7 +612,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     if (ans) { await say(ans); return; }
     // Greeting with no FAQ hit → show the menu.
     if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu)\b/i.test(body)) {
-      await say(L(lang, "welcomeBackMenu", { name: (c.name || "there").split(" ")[0] }));
+      await sendMemberMenu(from, c, lang, true);
       return;
     }
     // Unknown → acknowledge, log a pending FAQ for admin, and hand to staff.
@@ -566,7 +622,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     return;
   }
   // Still onboarding-ish → nudge with the menu (capped).
-  if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await say(memberMenu(lang, c)); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }
+  if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await sendMemberMenu(from, c, lang); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }
 }
 
 // Find an existing app account by phone number (digit-normalised, endsWith either way).
@@ -603,7 +659,7 @@ async function createPendingFaq(question: string) {
     const q = question.slice(0, 200);
     const existing = await db.select().from(faqItems).where(ilike(faqItems.question, q));
     if (existing.length) return;
-    const kws = Array.from(new Set(q.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 3))).slice(0, 8).join(",");
+    const kws = Array.from(new Set(q.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff\s]/gi, " ").split(/\s+/).filter((w) => w.length > 3))).slice(0, 8).join(",");
     await db.insert(faqItems).values({ question: q, answer: "", keywords: kws, active: false, sortOrder: 200 });
   } catch (e) { console.error("[wa] pending faq", e); }
 }
@@ -649,7 +705,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         await pushWhatsAppBooking(row, c, area, date, label, party);
         await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
         await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
-        await say(memberMenu(lang, c));
+        await sendMemberMenu(from, c, lang);
         return patchContact(c.id, { waState: { flow: null } });
       }
       // Area needs a table but none named → ask, keeping the parsed date/slot/party.
@@ -663,7 +719,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
     await pushWhatsAppBooking(row, c, area, date, label, party);
     await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · ${party} pax — confirm in the app.`);
-    await say(memberMenu(lang, c));
+    await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
   }
   // Not enough detail → run the guided flow.
@@ -743,7 +799,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
     await say(L(lang, "bookDone", { day: wa.date, time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
-    await say(memberMenu(lang, c));
+    await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
   }
 }
@@ -845,14 +901,14 @@ async function finishWhatsAppSongRequest(c: Contact, lang: Lang, selected: SongS
   });
   await say(L(lang, "songDone", { title, artist: artist ? ` - ${artist}` : "" }));
   await notifyAdmin(`🎤 WhatsApp song request from ${c.name || c.phone}: ${title}${artist ? " - " + artist : ""} · ${performanceMode === "singer" ? "By singer" : "Self sing"}`);
-  await say(memberMenu(lang, c));
+  await sendMemberMenu(c.phone, c, lang);
   return patchContact(c.id, { waState: { flow: null } });
 }
 
 async function showBottles(c: Contact, lang: Lang, say: (m: string) => Promise<void>) {
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
   const rows = await db.select().from(bottleKeeps).where(and(eq(bottleKeeps.userId, c.userId), eq(bottleKeeps.status, "kept")));
-  if (!rows.length) { await say(L(lang, "bottlesNone")); await say(memberMenu(lang, c)); return; }
+  if (!rows.length) { await say(L(lang, "bottlesNone")); await sendMemberMenu(c.phone, c, lang); return; }
   const list = rows.map((b) => {
     const days = b.expiresAt ? Math.max(0, Math.ceil((new Date(b.expiresAt).getTime() - Date.now()) / DAY_MS)) : 0;
     const emoji = b.type === "whisky" ? "🥃" : b.type === "beer" ? "🍺" : "🍾";
@@ -860,7 +916,7 @@ async function showBottles(c: Contact, lang: Lang, say: (m: string) => Promise<v
     return `• ${emoji} ${typeLabel} — ${b.name}${b.type === "beer" ? ` (${b.quantity} left)` : ""} · ${days} day(s) left`;
   }).join("\n");
   await say(L(lang, "bottlesList", { n: String(rows.length), list }));
-  await say(memberMenu(lang, c));
+  await sendMemberMenu(c.phone, c, lang);
 }
 
 // Post-payment: ask for feedback + a Google review. Called from the app after a paid order/top-up.
@@ -902,10 +958,15 @@ export function registerWhatsAppBot(app: Express) {
           const value = change.value || {};
           const contacts = value.contacts || [];
           for (const msg of value.messages || []) {
-            if (msg.type !== "text") continue;
+            if (msg.type !== "text" && msg.type !== "interactive" && msg.type !== "button") continue;
             const from = msg.from;
             const profileName = contacts.find((x: any) => x.wa_id === from)?.profile?.name;
-            await handleInboundText(from, msg.text?.body || "", profileName);
+            const selected = msg.interactive?.button_reply?.id
+              || msg.interactive?.list_reply?.id
+              || msg.button?.payload
+              || msg.text?.body
+              || "";
+            await handleInboundText(from, selected, profileName);
           }
         }
       }
