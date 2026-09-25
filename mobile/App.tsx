@@ -31,25 +31,15 @@ Notifications.setNotificationHandler({
 });
 
 async function getPushToken() {
-  if (!Device.isDevice) return null;
+  if (!Device.isDevice) throw new Error("Push notifications require a physical phone.");
   if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("bridgex", { name: "BridgeXPOS alerts", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250] });
   const current = await Notifications.getPermissionsAsync();
-  if (current.status !== "granted" && current.canAskAgain) {
-    const accepted = await new Promise<boolean>((resolve) => Alert.alert(
-      "Enable instant updates",
-      "Allow notifications to receive new orders, bookings, song requests, meetings and staff updates immediately.",
-      [
-        { text: "Not now", style: "cancel", onPress: () => resolve(false) },
-        { text: "Allow notifications", onPress: () => resolve(true) },
-      ],
-      { cancelable: false },
-    ));
-    if (!accepted) return null;
-  }
+  // Show Android/iOS's real permission sheet immediately. The earlier custom
+  // pre-prompt could be dismissed without ever opening the system permission.
   const permission = current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
   if (permission.status !== "granted") return null;
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
-  if (!projectId) return null;
+  if (Platform.OS === "android") await Notifications.getDevicePushTokenAsync();
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId || "e1d4fa37-5438-4cee-8f00-0b9796bc0f1d";
   return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
 }
 
@@ -62,6 +52,7 @@ function RebornApp() {
   const [reloadKey, setReloadKey] = useState(0);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [notificationIssue, setNotificationIssue] = useState<"permission" | "token" | null>(null);
+  const notificationSetupRunning = useRef(false);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -73,6 +64,8 @@ function RebornApp() {
   }, [canGoBack]);
 
   const setupNotifications = useCallback(async () => {
+    if (notificationSetupRunning.current) return;
+    notificationSetupRunning.current = true;
     try {
       const token = await getPushToken();
       setPushToken(token);
@@ -83,10 +76,21 @@ function RebornApp() {
       }
     } catch {
       setNotificationIssue("token");
+    } finally {
+      notificationSetupRunning.current = false;
     }
   }, []);
 
   useEffect(() => { setupNotifications(); }, [setupNotifications]);
+
+  // Token creation needs the phone, Google Play services and Expo's endpoint.
+  // Retry while any one of those is temporarily unavailable instead of
+  // leaving the installation permanently disconnected after one failure.
+  useEffect(() => {
+    if (pushToken) return;
+    const timer = setInterval(setupNotifications, 15000);
+    return () => clearInterval(timer);
+  }, [pushToken, setupNotifications]);
 
   const refreshWebData = useCallback(() => {
     webViewRef.current?.injectJavaScript(`
@@ -267,7 +271,7 @@ function RebornApp() {
         <View style={[styles.notificationBanner, { bottom: Math.max(insets.bottom, 10) + 10 }]}>
           <View style={styles.notificationCopy}>
             <Text style={styles.notificationTitle}>Phone alerts are off</Text>
-            <Text style={styles.notificationBody}>{notificationIssue === "permission" ? "Allow notifications so orders, bookings, messages and updates arrive immediately." : "Notification setup did not finish. Tap to try connecting this phone again."}</Text>
+            <Text style={styles.notificationBody}>{notificationIssue === "permission" ? "Allow notifications so orders, bookings, songs and admin updates pop up on this phone." : "This phone is not connected to push alerts yet. Tap Enable; the app will keep retrying automatically."}</Text>
           </View>
           <Pressable accessibilityRole="button" onPress={enableNotifications} style={styles.notificationButton}><Text style={styles.notificationButtonText}>Enable</Text></Pressable>
         </View>
