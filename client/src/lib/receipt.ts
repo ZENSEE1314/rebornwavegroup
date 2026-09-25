@@ -7,9 +7,9 @@ interface Order {
   orderMode?: string; paymentMethod?: string; subtotal?: string | number; discount?: string | number;
   paymentReference?: string;
   cashReceived?: string | number; changeGiven?: string | number; status?: string;
-  tax?: string | number; total?: string | number; items?: Item[]; createdAt?: string; paidAt?: string;
+  serviceFee?: string | number; tax?: string | number; total?: string | number; items?: Item[]; createdAt?: string; paidAt?: string;
 }
-interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; taxPercent?: number; }
+interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; serviceFeePercent?: number; taxPercent?: number; }
 
 const rp = (n: any) => "RP " + Math.round(Number(n) || 0).toLocaleString("en-US");
 const mode = (m?: string) => (m === "take_away" ? "TAKE AWAY" : "DINE IN");
@@ -35,6 +35,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
   const when = new Date(o.paidAt || o.createdAt || Date.now()).toLocaleString();
   const items = (o.items || []).map((it) => `<div class="row"><span>${it.qty}× ${esc(it.name)}</span><span>${rp(it.lineTotal)}</span></div>`).join("");
   const disc = Number(o.discount) > 0 ? `<div class="row"><span>Discount</span><span>- ${rp(o.discount)}</span></div>` : "";
+  const service = Number(o.serviceFee) > 0 ? `<div class="row"><span>Service fee${m.serviceFeePercent ? ` (${m.serviceFeePercent}%)` : ""}</span><span>${rp(o.serviceFee)}</span></div>` : "";
   const tax = Number(o.tax) > 0 ? `<div class="row"><span>Tax${m.taxPercent ? ` (${m.taxPercent}%)` : ""}</span><span>${rp(o.tax)}</span></div>` : "";
   return `
     <div class="c">
@@ -52,7 +53,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
     ${items}
     <hr/>
     <div class="row"><span>Subtotal</span><span>${rp(o.subtotal ?? o.total)}</span></div>
-    ${disc}${tax}
+    ${disc}${service}${tax}
     <div class="row big"><span>TOTAL</span><span>${rp(o.total)}</span></div>
     ${o.paymentMethod ? `<div class="row"><span>Paid</span><span class="b">${esc(String(o.paymentMethod).toUpperCase())}</span></div>` : ""}
     ${o.paymentReference ? `<div class="row"><span>Card / receipt ref.</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
@@ -109,4 +110,10 @@ export function printReceipt(order: Order, meta: ReceiptMeta) {
 }
 export function printKitchen(order: Order) {
   return printDoc(kitchenHtml(order));
+}
+
+export function printClosingReport(report: any, meta: ReceiptMeta = {}) {
+  const items = (report.items || []).map((item: any) => `<div class="row"><span>${item.quantity}× ${esc(item.name)}</span><span>${rp(item.sales)}</span></div>`).join("");
+  const t = report.totals || {};
+  return printDoc(`<div class="c">${meta.logoUrl ? `<img class="logo" src="${meta.logoUrl}" />` : ""}<div class="name">${esc(meta.clubName || "Reborn Wave Group")}</div><div class="mode">END OF DAY</div><div class="muted">${esc(report.day || "")}</div></div><hr/><div class="row"><span>Paid orders</span><span>${Number(report.ticketCount || 0)}</span></div><hr/>${items || '<div class="c muted">No items sold</div>'}<hr/><div class="row"><span>Gross sales</span><span>${rp(t.subtotal)}</span></div><div class="row"><span>Discounts</span><span>- ${rp(t.discount)}</span></div><div class="row"><span>Service fee</span><span>${rp(t.serviceFee)}</span></div><div class="row"><span>Tax</span><span>${rp(t.tax)}</span></div><div class="row big"><span>TOTAL REVENUE</span><span>${rp(t.revenue)}</span></div><div class="row"><span>Cash</span><span>${rp(t.cash)}</span></div><div class="row"><span>Card</span><span>${rp(t.card)}</span></div><hr/><div class="row"><span>Product cost</span><span>- ${rp(t.cost)}</span></div><div class="row big"><span>GROSS PROFIT</span><span>${rp(t.profit)}</span></div><hr/><div class="c muted">Closed ${esc(new Date(report.closedAt || Date.now()).toLocaleString())}</div>`);
 }

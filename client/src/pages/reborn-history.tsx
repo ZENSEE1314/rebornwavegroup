@@ -23,6 +23,7 @@ export default function RebornHistory() {
           <div className="mt-3 space-y-1 border-t border-white/10 pt-3 text-sm">
             <div className="flex justify-between text-white/65"><span>Subtotal</span><span>RP {fmt(t.subtotal ?? t.total)}</span></div>
             {Number(t.discount) > 0 && <div className="flex justify-between text-white/65"><span>Discount</span><span>− RP {fmt(t.discount)}</span></div>}
+            {Number(t.serviceFee) > 0 && <div className="flex justify-between text-white/65"><span>Service fee</span><span>RP {fmt(t.serviceFee)}</span></div>}
             {Number(t.tax) > 0 && <div className="flex justify-between text-white/65"><span>Tax</span><span>RP {fmt(t.tax)}</span></div>}
             <div className="flex justify-between font-extrabold text-amber-300"><span>Total</span><span>RP {fmt(t.total)}</span></div>
             {t.paymentMethod && <div className="flex justify-between text-white/65"><span>Paid by</span><span className="uppercase">{t.paymentMethod}</span></div>}

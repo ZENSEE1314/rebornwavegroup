@@ -6,13 +6,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
-import { printReceipt, printKitchen } from "@/lib/receipt";
+import { printClosingReport, printReceipt, printKitchen } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer } from "lucide-react";
 
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; }
 interface Staff { id: string; name: string; role: string; }
-interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; tax?: string; paidAt?: string; }
+interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "stock" | "bottles";
 const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
 
@@ -57,6 +57,7 @@ export default function RebornPos() {
         <h1 className="text-xl font-extrabold">Point of Sale</h1>
         <button onClick={() => setShowDrawer(true)} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70"><Settings className="w-4 h-4" /> Cash drawer</button>
       </div>
+      {role === "admin" && <ClosePosDay />}
       <div className="grid grid-cols-4 gap-2 mb-4 max-w-2xl">
         {([["tables", "Tables", <LayoutGrid className="w-4 h-4" />], ["sell", "Quick sale", <Receipt className="w-4 h-4" />], ["stock", "Stock", <PackagePlus className="w-4 h-4" />], ["bottles", "Bottles", <Wine className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
           <button key={k} onClick={() => setTab(k as Tab)} className={`py-2.5 rounded-xl border font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 ${tab === k ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-white/5 text-white/60"}`}>{ic}<span className="hidden sm:inline">{l}</span><span className="sm:hidden">{l.split(" ")[0]}</span></button>
@@ -70,6 +71,43 @@ export default function RebornPos() {
     </RebornLayout>
   );
 }
+function usePosSettings() {
+  return useQuery<any>({ queryKey: ["/api/reborn/pos/settings"], queryFn: () => apiRequest("GET", "/api/reborn/pos/settings").then((r) => r.json()) });
+}
+function billTotals(subtotal: number, discount: number, settings: any) {
+  const taxable = Math.max(0, subtotal - Math.min(subtotal, Math.max(0, discount || 0)));
+  const serviceFee = Math.round(taxable * (Number(settings?.serviceFeePercent) || 0) / 100);
+  const tax = Math.round(taxable * (Number(settings?.taxPercent) || 0) / 100);
+  return { taxable, serviceFee, tax, total: taxable + serviceFee + tax };
+}
+
+function ClosePosDay() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [report, setReport] = useState<any>(null);
+  const close = useMutation({
+    mutationFn: () => post("/api/reborn/admin/venue/close"),
+    onSuccess: (d) => {
+      setReport(d.report);
+      toast({ title: "POS day closed", description: d.message });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/admin/venue/session"] });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/kos/checked-in"] });
+    },
+    onError: (e: any) => toast({ title: "Could not close POS day", description: e.message, variant: "destructive" }),
+  });
+  const confirmClose = () => {
+    if (window.confirm("Close the POS day now? This will clear every checked-in guest and create a new QR code for the next day.")) close.mutate();
+  };
+  return <><div className="mb-4 max-w-2xl rounded-2xl border border-red-400/25 bg-red-500/5 p-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
+    <div className="mb-3 sm:mb-0"><p className="text-sm font-bold text-red-100">End of day</p><p className="text-xs text-white/45">Clears today’s checked-in guests and creates a new venue QR.</p></div>
+    <button onClick={confirmClose} disabled={close.isPending} className="w-full rounded-xl border border-red-400/40 bg-red-500/15 px-4 py-2.5 text-sm font-bold text-red-100 disabled:opacity-50 sm:w-auto">{close.isPending ? "Closing…" : "Close POS day"}</button>
+  </div>{report && <ClosingReport report={report} onClose={()=>setReport(null)} />}</>;
+}
+
+function ClosingReport({ report, onClose }: { report: any; onClose: () => void }) {
+  const t=report.totals||{};
+  return <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/85 p-4 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-md rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={onClose} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10" aria-label="Close report"><X className="h-5 w-5"/></button><h2 className="pr-10 text-xl font-black">End-of-day report</h2><p className="text-sm text-white/50">{report.day} · {report.ticketCount} paid order(s)</p><div className="my-4 max-h-56 space-y-2 overflow-y-auto border-y border-white/10 py-3">{(report.items||[]).map((item:any)=><div key={item.name} className="flex justify-between gap-3 text-sm"><span>{item.quantity}× {item.name}</span><span>{rp(item.sales)}</span></div>)}{!(report.items||[]).length&&<p className="text-sm text-white/40">No items sold.</p>}</div><div className="space-y-1 text-sm"><div className="flex justify-between"><span>Gross sales</span><span>{rp(t.subtotal)}</span></div><div className="flex justify-between"><span>Discounts</span><span>- {rp(t.discount)}</span></div><div className="flex justify-between"><span>Service fee</span><span>{rp(t.serviceFee)}</span></div><div className="flex justify-between"><span>Tax</span><span>{rp(t.tax)}</span></div><div className="flex justify-between text-lg font-black text-amber-300"><span>Total revenue</span><span>{rp(t.revenue)}</span></div><div className="flex justify-between text-white/60"><span>Cash / Card</span><span>{rp(t.cash)} / {rp(t.card)}</span></div><div className="mt-2 flex justify-between border-t border-white/10 pt-2"><span>Product cost</span><span>- {rp(t.cost)}</span></div><div className="flex justify-between text-lg font-black text-emerald-300"><span>Gross profit</span><span>{rp(t.profit)}</span></div></div><div className="mt-5 grid grid-cols-2 gap-2"><button onClick={()=>printClosingReport(report,{clubName:"Reborn Wave Group"})} className="flex items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-bold text-black"><Printer className="h-4 w-4"/> Print</button><button onClick={onClose} className="rounded-xl bg-white/10 px-4 py-3 font-bold">Done</button></div><p className="mt-3 text-center text-xs text-white/40">Saved in Admin › Accounting</p></div></div>;
+}
 
 function SalesPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const { data: staff = [] } = useStaff();
@@ -82,7 +120,7 @@ function SalesPicker({ value, onChange }: { value: string; onChange: (id: string
 }
 
 // ── Product picker: pending cart → onCommit(items) ──────────────────────────
-function ProductPicker({ label, onCommit, onCartChange, busy }: { label: string; onCommit: (items: any[]) => void; onCartChange?: (items: any[]) => void; busy?: boolean }) {
+function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { label: string; onCommit: (items: any[]) => void; onCartChange?: (items: any[]) => void; busy?: boolean; displayTotal?: number }) {
   const { data: products = [] } = useProducts();
   const [cart, setCart] = useState<Record<number, number>>({});
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
@@ -139,7 +177,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy }: { label: string;
             <button onClick={() => setCart({})} className="text-xs text-red-400 flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Clear</button>
             <span className="text-lg font-extrabold text-amber-300">{rp(total)}</span>
           </div>
-          <button onClick={commit} disabled={busy} className="w-full py-3 rounded-xl font-bold text-black mt-2 disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{label} · {rp(total)}</button>
+          <button onClick={commit} disabled={busy} className="w-full py-3 rounded-xl font-bold text-black mt-2 disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{label} · {rp(displayTotal ?? total)}</button>
         </div>
       )}
     </div>
@@ -254,6 +292,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const [discReason, setDiscReason] = useState((order as any).discountReason || "");
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
+  const { data: posSettings } = usePosSettings();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] });
   const addItems = useMutation({
     mutationFn: (items: any[]) => post(`/api/reborn/pos/orders/${order.id}/items`, { items }),
@@ -302,7 +341,9 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSuccess: (d: any) => { toast({ title: d.message }); invalidate(); onBack(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   const { data: openTickets = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/orders"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=open").then((r) => r.json()) });
-  const total = Number(order.total);
+  const subtotal = Number(order.subtotal ?? order.total);
+  const due = billTotals(subtotal, discount, posSettings);
+  const total = due.total;
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1 text-white/60 text-sm mb-3"><ChevronLeft className="w-4 h-4" /> All tables</button>
@@ -393,10 +434,11 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m}</button>
               ))}
             </div>
+            <div className="mb-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs"><div className="flex justify-between"><span>Subtotal after discount</span><span>{rp(due.taxable)}</span></div><div className="flex justify-between"><span>Service fee ({Number(posSettings?.serviceFeePercent)||0}%)</span><span>{rp(due.serviceFee)}</span></div><div className="flex justify-between"><span>Tax ({Number(posSettings?.taxPercent)||0}%)</span><span>{rp(due.tax)}</span></div><div className="flex justify-between text-sm font-black text-amber-300"><span>Total</span><span>{rp(total)}</span></div></div>
             {pay === "card" && <label className="mb-2 block text-xs text-white/60">Card approval / receipt number<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder="Required for card payment" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
-            {pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">Cash received<input type="number" min={Math.max(0,total-discount)} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(Math.max(0,total-discount))} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">Change</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-Math.max(0,total-discount)))}</p></div></div>}
+            {pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">Cash received<input type="number" min={total} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(total)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">Change</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-total))}</p></div></div>}
             <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks}/>
-            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < Math.max(0,total-discount)) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(Math.max(0, total - discount))} {pay}</button>
+            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < total) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(total)} {pay}</button>
             <button onClick={() => { if (confirm("Cancel this ticket and restore stock?")) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">Cancel ticket</button>
           </div>
         </div>
@@ -421,6 +463,9 @@ function QuickSaleTab() {
   const [discount, setDiscount] = useState(0);
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">("dine_in");
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
+  const { data: posSettings } = usePosSettings();
+  const cartSubtotal = cartItems.reduce((sum,item)=>sum+Number(item.price)*Number(item.qty),0);
+  const due = billTotals(cartSubtotal, discount, posSettings);
   const lookup = useMutation({
     mutationFn: () => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent(code.trim())}`).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: "Member found", description: d.name }); } else toast({ title: "Not found", description: d.message, variant: "destructive" }); },
@@ -437,7 +482,7 @@ function QuickSaleTab() {
   return (
     <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
       <div className="order-2 lg:order-1">
-        <ProductPicker label={`Charge ${pay}`} busy={sell.isPending || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < Math.max(0,cartItems.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)-discount)) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
+        <ProductPicker label={`Charge ${pay}`} displayTotal={due.total} busy={sell.isPending || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < due.total) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
       </div>
       <div className="order-1 lg:order-2 mb-3 lg:mb-0 space-y-3 h-fit">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -461,6 +506,7 @@ function QuickSaleTab() {
         </div>
         <SalesPicker value={sales} onChange={setSales} />
         <label className="text-xs text-white/50 block">Discount (RP)<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
+        {cartSubtotal>0&&<div className="space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs"><div className="flex justify-between"><span>Subtotal after discount</span><span>{rp(due.taxable)}</span></div><div className="flex justify-between"><span>Service fee ({Number(posSettings?.serviceFeePercent)||0}%)</span><span>{rp(due.serviceFee)}</span></div><div className="flex justify-between"><span>Tax ({Number(posSettings?.taxPercent)||0}%)</span><span>{rp(due.tax)}</span></div><div className="flex justify-between text-sm font-black text-amber-300"><span>Total</span><span>{rp(due.total)}</span></div></div>}
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
         <div className="grid grid-cols-2 gap-2">
           {(["cash", "card"] as const).map((m) => (
@@ -468,7 +514,7 @@ function QuickSaleTab() {
           ))}
         </div>
         {pay === "card" && <label className="block text-xs text-white/60">Card approval / receipt number<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder="Required for card payment" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
-        {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">Cash received<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder="Required" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">Change</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-Math.max(0,cartItems.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0)-discount)))}</p></div></div>}
+        {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">Cash received<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder="Required" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">Change</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-due.total))}</p></div></div>}
         <p className="text-[11px] text-white/40 text-center">The receipt appears after payment. Printing follows the admin setting.</p>
       </div>
       {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>setReceiptResult(null)} />}
@@ -644,6 +690,7 @@ function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone
       <div className="space-y-1 text-sm">
         <div className="flex justify-between"><span>Subtotal</span><span>{rp(Number(order.subtotal ?? order.total))}</span></div>
         {Number(order.discount)>0 && <div className="flex justify-between"><span>Discount</span><span>- {rp(Number(order.discount))}</span></div>}
+        {Number(order.serviceFee)>0 && <div className="flex justify-between"><span>Service fee{meta?.serviceFeePercent?` (${meta.serviceFeePercent}%)`:""}</span><span>{rp(Number(order.serviceFee))}</span></div>}
         {Number(order.tax)>0 && <div className="flex justify-between"><span>Tax</span><span>{rp(Number(order.tax))}</span></div>}
         <div className="flex justify-between text-lg font-black"><span>TOTAL</span><span>{rp(Number(order.total))}</span></div>
         <div className="flex justify-between"><span>Paid</span><b>{String(order.paymentMethod || "").toUpperCase()}</b></div>
