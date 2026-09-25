@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
-import { printReceipt } from "@/lib/receipt";
-import { ReceiptText, Coins, Gift, CreditCard, ChevronDown, Printer } from "lucide-react";
+import { ReceiptText, Coins, Gift, CreditCard, ChevronDown } from "lucide-react";
 
 const fmt = (n: any) => Math.abs(Number(n) || 0).toLocaleString("en-US");
 const when = (v: any) => v ? new Date(v).toLocaleString() : "";
@@ -19,7 +18,19 @@ export default function RebornHistory() {
     <Section icon={<ReceiptText />} title="Orders & receipts" empty={!data?.tickets?.length}>
       {data?.tickets?.map((t: any) => <div key={t.id} className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
         <button onClick={() => setOpen(open === t.id ? null : t.id)} className="w-full p-4 flex items-center gap-3 text-left"><div className="flex-1"><p className="font-bold">{t.orderNo}</p><p className="text-xs text-white/45">{when(t.paidAt || t.createdAt)} · {t.status}</p></div><p className="font-bold text-amber-300">RP {fmt(t.total)}</p><ChevronDown className={`w-4 h-4 transition-transform ${open === t.id ? "rotate-180" : ""}`} /></button>
-        {open === t.id && <div className="border-t border-white/10 p-4 space-y-2">{t.items?.map((i: any) => <div key={i.id} className="flex justify-between text-sm"><span>{i.qty}× {i.name}</span><span>RP {fmt(i.lineTotal)}</span></div>)}<button onClick={() => printReceipt(t, { clubName: "Reborn Wave Group", footer: "Thank you — see you again!" })} className="mt-2 w-full py-2.5 rounded-xl bg-amber-300 text-black font-bold flex items-center justify-center gap-2"><Printer className="w-4 h-4" /> Print receipt</button></div>}
+        {open === t.id && <div className="border-t border-white/10 p-4 space-y-2">
+          {t.items?.map((i: any) => <div key={i.id} className="flex justify-between text-sm"><span>{i.qty}× {i.name}</span><span>RP {fmt(i.lineTotal)}</span></div>)}
+          <div className="mt-3 space-y-1 border-t border-white/10 pt-3 text-sm">
+            <div className="flex justify-between text-white/65"><span>Subtotal</span><span>RP {fmt(t.subtotal ?? t.total)}</span></div>
+            {Number(t.discount) > 0 && <div className="flex justify-between text-white/65"><span>Discount</span><span>− RP {fmt(t.discount)}</span></div>}
+            {Number(t.tax) > 0 && <div className="flex justify-between text-white/65"><span>Tax</span><span>RP {fmt(t.tax)}</span></div>}
+            <div className="flex justify-between font-extrabold text-amber-300"><span>Total</span><span>RP {fmt(t.total)}</span></div>
+            {t.paymentMethod && <div className="flex justify-between text-white/65"><span>Paid by</span><span className="uppercase">{t.paymentMethod}</span></div>}
+            {t.paymentReference && <div className="flex justify-between gap-3 text-white/65"><span>Card / receipt ref.</span><span className="text-right">{t.paymentReference}</span></div>}
+            {t.paymentMethod === "cash" && <><div className="flex justify-between text-white/65"><span>Cash received</span><span>RP {fmt(t.cashReceived)}</span></div><div className="flex justify-between text-white/65"><span>Change</span><span>RP {fmt(t.changeGiven)}</span></div></>}
+          </div>
+          <p className="pt-2 text-center text-xs text-white/40">Receipt saved in your account</p>
+        </div>}
       </div>)}
     </Section>
 
