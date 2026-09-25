@@ -9,6 +9,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { useTranslation } from "@/lib/i18n";
 import { COUNTRIES, DIAL_CODES } from "@/lib/countries";
 import { User, Lock, Globe, Copy, CreditCard, Bell, ReceiptText } from "lucide-react";
+import { NotificationToggle } from "@/components/NotificationToggle";
 
 const LANGS: { code: "en" | "zh" | "id"; label: string; flag: string }[] = [
   { code: "en", label: "English", flag: "🇬🇧" },
@@ -102,11 +103,7 @@ export default function RebornProfile() {
 
       <a href="/history" className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 mb-4 flex items-center gap-3"><ReceiptText className="w-5 h-5 text-amber-300" /><span className="flex-1"><b className="block">My payments & history</b><span className="text-xs text-white/50">Receipts, top-ups, KGOLD, gifts and rewards</span></span></a>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">
-        <p className="font-bold flex items-center gap-2"><Bell className="w-4 h-4 text-amber-300" /> Phone notifications</p>
-        <p className={`text-sm mt-1 ${pushStatus?.registered ? "text-emerald-300" : "text-amber-200"}`}>{pushStatus?.registered ? "This phone is connected for instant alerts." : "No phone is connected yet. Open this page in the latest Reborn app and allow notifications."}</p>
-        <div className="grid grid-cols-2 gap-2 mt-3"><button onClick={() => refetchPush()} className="py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm font-bold">Check again</button><button onClick={() => testPush.mutate()} disabled={!pushStatus?.registered || testPush.isPending} className="py-2.5 rounded-xl bg-amber-300 text-black text-sm font-bold disabled:opacity-40">Send test alert</button></div>
-      </div>
+      <NotificationToggle />
 
       {/* Language */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">

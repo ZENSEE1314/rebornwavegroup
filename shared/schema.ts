@@ -970,6 +970,17 @@ export const ledgerEntries = pgTable("ledger_entries", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Web Push subscriptions (one row per device/browser a member enabled push on)
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // HR — worker attendance (check-in/out, needs admin/manager approval)
 export const staffAttendance = pgTable("staff_attendance", {
   id: serial("id").primaryKey(),

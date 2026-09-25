@@ -19,6 +19,7 @@ import { sendRebornStaffNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
+import { sendPushToUser } from "./push";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -1048,9 +1049,9 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
 // Booking reminders — sent at ~3h, ~1h and ~10min before the appointment start.
 const REMINDER_ORDER = ["3h", "1h", "10m"];
 export async function runBookingReminders(): Promise<number> {
-  if (!(await whatsappAvailable())) return 0;
   const now = Date.now();
   let sent = 0;
+  const waAvail = await whatsappAvailable();
   try {
     const soon = new Date(now + 3 * 60 * 60_000 + 15 * 60_000); // up to ~3h15m ahead
     const rows = await db.select().from(appointments).where(and(gt(appointments.appointmentDate, new Date(now)), lte(appointments.appointmentDate, soon)));
@@ -1065,18 +1066,20 @@ export async function runBookingReminders(): Promise<number> {
       if (!tag) continue;
       const already = (a.remindersSent || "").split(",").filter(Boolean);
       if (already.includes(tag)) continue;
-      // Resolve the member's phone + language.
       const [u] = await db.select().from(users).where(eq(users.id, a.userId));
       const phone = (u?.phoneNumber || "").replace(/\D/g, "");
       const markSet = Array.from(new Set([...already, ...REMINDER_ORDER.slice(0, REMINDER_ORDER.indexOf(tag) + 1)]));
-      if (!phone) { await db.update(appointments).set({ remindersSent: markSet.join(",") }).where(eq(appointments.id, a.id)); continue; }
-      const lang = await langForPhone(phone);
       const d = new Date(a.appointmentDate);
       const when = d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
       const where = a.notes ? ` (${a.notes})` : "";
-      const ok = await sendWhatsApp(phone, L(lang, "bookReminder", { club, when, left, where }));
+      // Real phone push — fires even when WhatsApp is offline or the member has no phone on file.
+      await sendPushToUser(a.userId, { title: `⏰ ${club} in ${left}`, body: `${a.title || "Your booking"} — ${when}${where}`, url: "/bookings", tag: `remind-${a.id}-${tag}` }).catch(() => {});
+      if (waAvail && phone) {
+        const lang = await langForPhone(phone);
+        const ok = await sendWhatsApp(phone, L(lang, "bookReminder", { club, when, left, where }));
+        if (ok) sent++;
+      }
       await db.update(appointments).set({ remindersSent: markSet.join(",") }).where(eq(appointments.id, a.id));
-      if (ok) sent++;
     }
   } catch (e) { console.error("[wa] booking reminders", e); }
   return sent;
