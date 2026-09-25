@@ -2291,8 +2291,9 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/payroll", requireAdmin(async (req,res)=>{
     const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,"reborn-wave-group")).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
-    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,COALESCE(a.hours,0) hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(extract(epoch from(check_out_at-check_in_at))/3600) hours FROM staff_attendance WHERE status='approved' AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
-    const staff=((result.rows||result) as any[]).map((x)=>{const basic=x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary);const salesCommission=Number(x.sales)*Number(x.commission_rate)/100;return{...x,basic,salesCommission,total:basic+salesCommission,targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
+    const otRate=(await getSettings()).overtimeHourlyRate;
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
+    const staff=((result.rows||result) as any[]).map((x)=>{const basic=x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary);const salesCommission=Number(x.sales)*Number(x.commission_rate)/100;const overtimePay=Number(x.ot_hours)*otRate;return{...x,basic,salesCommission,overtimePay,otRate,total:basic+salesCommission+overtimePay,targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
     res.json({month,from,to,staff,referrals:refs.rows||refs});
   }));
@@ -2324,19 +2325,50 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/staff/check-in", requireStaff(async (req, res) => {
     const uid = getUserId(req)!;
     const wd = todayStr();
+    const photo = String(req.body?.photo || "");
+    if (!photo) return res.status(400).json({ message: "A check-in photo is required (today's date on your hand with the shop behind you)." });
     const open = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, wd))).limit(1);
     if (open[0] && !open[0].checkOutAt) return res.status(400).json({ message: "You are already checked in today." });
-    const [row] = await db.insert(staffAttendance).values({ userId: uid, workDate: wd }).returning();
+    const [row] = await db.insert(staffAttendance).values({ userId: uid, workDate: wd, checkInPhoto: photo, status: "present" }).returning();
     const staff = await storage.getUser(uid);
     await sendRebornStaffNotification({ type: "attendance", title: "Staff checked in", body: `${staff?.firstName || staff?.username || "Staff"} checked in`, data: { path: "/reborn-admin", attendanceId: row.id } });
     res.json(row);
+  }));
+  // Break in / out — accumulates break time; a member can't check out while on break.
+  app.post("/api/reborn/staff/break", requireStaff(async (req, res) => {
+    const uid = getUserId(req)!;
+    const rows = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, todayStr()))).orderBy(desc(staffAttendance.id)).limit(1);
+    const row = rows[0];
+    if (!row || row.checkOutAt) return res.status(400).json({ message: "Check in first." });
+    const start = req.body?.start !== false;
+    if (start) {
+      if (row.onBreak) return res.status(400).json({ message: "Already on break." });
+      const [upd] = await db.update(staffAttendance).set({ onBreak: true, breakStartedAt: new Date() }).where(eq(staffAttendance.id, row.id)).returning();
+      return res.json(upd);
+    }
+    if (!row.onBreak) return res.status(400).json({ message: "You're not on a break." });
+    const add = row.breakStartedAt ? Math.floor((Date.now() - new Date(row.breakStartedAt).getTime()) / 1000) : 0;
+    const [upd] = await db.update(staffAttendance).set({ onBreak: false, breakStartedAt: null, breakSeconds: sql`${staffAttendance.breakSeconds} + ${add}` }).where(eq(staffAttendance.id, row.id)).returning();
+    res.json(upd);
   }));
   app.post("/api/reborn/staff/check-out", requireStaff(async (req, res) => {
     const uid = getUserId(req)!;
     const rows = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, todayStr()))).orderBy(desc(staffAttendance.id)).limit(1);
     const row = rows[0];
     if (!row || row.checkOutAt) return res.status(400).json({ message: "No open check-in to close." });
-    const [upd] = await db.update(staffAttendance).set({ checkOutAt: new Date() }).where(eq(staffAttendance.id, row.id)).returning();
+    const now = new Date();
+    // Close an in-progress break into the accumulator.
+    let breakSeconds = row.breakSeconds || 0;
+    if (row.onBreak && row.breakStartedAt) breakSeconds += Math.floor((now.getTime() - new Date(row.breakStartedAt).getTime()) / 1000);
+    // Overtime = time worked past today's scheduled shift end (if any).
+    let overtimeSeconds = 0;
+    const shift = (await db.select().from(workerShifts).where(and(eq(workerShifts.userId, uid), eq(workerShifts.shiftDate, row.workDate))).limit(1))[0];
+    if (shift?.endTime) {
+      const [eh, em] = shift.endTime.split(":").map(Number);
+      const end = new Date(row.workDate + "T00:00:00"); end.setHours(eh || 0, em || 0, 0, 0);
+      if (now.getTime() > end.getTime()) overtimeSeconds = Math.floor((now.getTime() - end.getTime()) / 1000);
+    }
+    const [upd] = await db.update(staffAttendance).set({ checkOutAt: now, onBreak: false, breakStartedAt: null, breakSeconds, overtimeSeconds }).where(eq(staffAttendance.id, row.id)).returning();
     const staff = await storage.getUser(uid);
     await sendRebornStaffNotification({ type: "attendance", title: "Staff checked out", body: `${staff?.firstName || staff?.username || "Staff"} checked out`, data: { path: "/reborn-admin", attendanceId: row.id } });
     res.json(upd);
@@ -2392,6 +2424,11 @@ export function registerRebornRoutes(app: Express) {
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
     res.json(rows.map((r) => ({ ...r, staffName: map.get(r.userId) || r.userId })));
+  }));
+  // Delete a check-in photo to save storage (keeps the attendance record).
+  app.delete("/api/reborn/admin/attendance/:id/photo", requireAdmin(async (req, res) => {
+    await db.update(staffAttendance).set({ checkInPhoto: null }).where(eq(staffAttendance.id, Number(req.params.id)));
+    res.json({ ok: true });
   }));
   app.post("/api/reborn/admin/attendance/:id/decide", requireAdmin(async (req, res) => {
     const approve = !!req.body?.approve;

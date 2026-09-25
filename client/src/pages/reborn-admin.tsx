@@ -843,9 +843,10 @@ function MyHr() {
   const { data: leave = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-leave"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-leave").then((r) => r.json()) });
   const today = new Date().toISOString().slice(0, 10);
   const openToday = att.find((a) => a.workDate === today && !a.checkOutAt);
+  const [photo, setPhoto] = useState("");
   const doAct = useMutation({
-    mutationFn: (path: string) => apiRequest("POST", path, {}).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Done" }); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-attendance"] }); },
+    mutationFn: (v: { path: string; body?: any }) => apiRequest("POST", v.path, v.body || {}).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Done" }); setPhoto(""); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-attendance"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   const [lv, setLv] = useState<any>({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" });
@@ -858,10 +859,24 @@ function MyHr() {
     <div className="space-y-3">
       <Card>
         <h3 className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> Attendance</h3>
-        {openToday
-          ? <button onClick={() => doAct.mutate("/api/reborn/staff/check-out")} disabled={doAct.isPending} className={btn + " w-full justify-center bg-red-400 hover:bg-red-300"}><LogOut className="w-4 h-4" /> Check out (in since {timeStr(openToday.checkInAt)})</button>
-          : <button onClick={() => doAct.mutate("/api/reborn/staff/check-in")} disabled={doAct.isPending} className={btn + " w-full justify-center"}><LogIn className="w-4 h-4" /> Check in</button>}
-        <p className="text-[11px] text-white/40 mt-2">Your manager approves each day's attendance.</p>
+        {openToday ? (
+          <div className="space-y-2">
+            <p className="text-[11px] text-white/50">Checked in since {timeStr(openToday.checkInAt)}{openToday.onBreak ? " · on break ☕" : ""}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {openToday.onBreak
+                ? <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/break", body: { start: false } })} disabled={doAct.isPending} className="py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black">▶ Back from break</button>
+                : <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/break", body: { start: true } })} disabled={doAct.isPending} className="py-2.5 rounded-xl text-sm font-bold bg-white/5 border border-white/10 text-white/80">☕ Break</button>}
+              <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-out" })} disabled={doAct.isPending || openToday.onBreak} className="py-2.5 rounded-xl text-sm font-bold bg-red-400 text-black disabled:opacity-50 inline-flex items-center justify-center gap-1"><LogOut className="w-4 h-4" /> Check out</button>
+            </div>
+            {openToday.onBreak && <p className="text-[11px] text-amber-300/80">End your break before checking out.</p>}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-[11px] text-white/50">Take a photo showing <b>today's date written on your hand</b> with the <b>shop in the background</b>, then check in.</p>
+            <ImageUpload value={photo} onChange={(v: any) => setPhoto(v)} label="📸 Take check-in photo" output="webp" maxDim={1000} />
+            <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-in", body: { photo } })} disabled={!photo || doAct.isPending} className={btn + " w-full justify-center disabled:opacity-50"}><LogIn className="w-4 h-4" /> Check in</button>
+          </div>
+        )}
       </Card>
       <Card>
         <p className="font-bold mb-2 text-sm">Recent days</p>
@@ -869,8 +884,8 @@ function MyHr() {
         {att.slice(0, 14).map((a) => (
           <div key={a.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
             <span className="text-white/70">{a.workDate}</span>
-            <span className="text-white/50 text-xs">{timeStr(a.checkInAt)} – {timeStr(a.checkOutAt)}</span>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full ${HR_STATUS[a.status]}`}>{a.status}</span>
+            <span className="text-white/50 text-xs">{timeStr(a.checkInAt)} – {timeStr(a.checkOutAt)}{a.overtimeSeconds > 0 ? ` · OT ${(a.overtimeSeconds / 3600).toFixed(1)}h` : ""}</span>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full ${HR_STATUS[a.status] || HR_STATUS.approved}`}>{a.status}</span>
           </div>
         ))}
       </Card>
@@ -916,12 +931,12 @@ function MyHr() {
 function ManageHr() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { data: pendAtt = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/attendance", "pending"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance?status=pending").then((r) => r.json()) });
+  const { data: attendance = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/attendance"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance").then((r) => r.json()) });
   const { data: staff = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-list"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-list").then((r) => r.json()) });
   const { data: leave = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/leave", "pending"], queryFn: () => apiRequest("GET", "/api/reborn/admin/leave?status=pending").then((r) => r.json()) });
-  const decideAtt = useMutation({
-    mutationFn: (v: { id: number; approve: boolean }) => apiRequest("POST", `/api/reborn/admin/attendance/${v.id}/decide`, v).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Updated" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/attendance", "pending"] }); },
+  const delPhoto = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/attendance/${id}/photo`, {}).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Photo deleted" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/attendance"] }); },
   });
   const decideLeave = useMutation({
     mutationFn: (v: any) => apiRequest("POST", `/api/reborn/admin/leave/${v.id}/decide`, v).then((r) => r.json()),
@@ -943,15 +958,19 @@ function ManageHr() {
   return (
     <div className="space-y-3">
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> Attendance to approve</p>
-        {pendAtt.length === 0 && <p className="text-xs text-white/40">Nothing pending.</p>}
-        {pendAtt.map((a) => (
-          <div key={a.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b border-white/5 last:border-0">
-            <div className="min-w-0"><p className="truncate text-white/80">{a.staffName}</p><p className="text-[11px] text-white/40">{a.workDate} · {timeStr(a.checkInAt)}–{timeStr(a.checkOutAt)}</p></div>
-            <div className="flex gap-1.5 flex-shrink-0">
-              <button onClick={() => decideAtt.mutate({ id: a.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /></button>
-              <button onClick={() => decideAtt.mutate({ id: a.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> Attendance</p>
+        <p className="text-[11px] text-white/40 mb-2">Staff check in with a dated photo — no approval needed. Delete a photo to free space (the record stays).</p>
+        {attendance.length === 0 && <p className="text-xs text-white/40">No check-ins yet.</p>}
+        {attendance.slice(0, 60).map((a) => (
+          <div key={a.id} className="flex items-center gap-2 text-sm py-2 border-b border-white/5 last:border-0">
+            {a.checkInPhoto
+              ? <a href={a.checkInPhoto} target="_blank" rel="noreferrer"><img src={a.checkInPhoto} alt="check-in" className="w-11 h-11 rounded-lg object-cover border border-white/10 flex-shrink-0" /></a>
+              : <span className="w-11 h-11 rounded-lg bg-white/5 flex-shrink-0 flex items-center justify-center text-[9px] text-white/30">no photo</span>}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-white/80">{a.staffName}{a.onBreak ? " ☕" : ""}</p>
+              <p className="text-[11px] text-white/40">{a.workDate} · {timeStr(a.checkInAt)}–{timeStr(a.checkOutAt)}{a.overtimeSeconds > 0 ? ` · OT ${(a.overtimeSeconds / 3600).toFixed(1)}h` : ""}{a.breakSeconds > 0 ? ` · break ${Math.round(a.breakSeconds / 60)}m` : ""}</p>
             </div>
+            {a.checkInPhoto && <button onClick={() => { if (confirm("Delete this check-in photo?")) delPhoto.mutate(a.id); }} className={btnSm + " flex-shrink-0"} title="Delete photo"><Trash2 className="w-4 h-4" /></button>}
           </div>
         ))}
       </Card>
@@ -1220,7 +1239,7 @@ function Payroll() {
   const money=(v:any)=>"RP "+Math.round(Number(v)||0).toLocaleString();
   return <div className="space-y-3"><Card><div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold">Monthly payroll</h3><p className="text-xs text-white/50">Basic pay, approved attendance hours, sales commission and targets.</p></div><input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={inp} style={{colorScheme:"dark"}}/></div></Card>{(data?.staff||[]).map((initial:any)=><PayrollRow key={initial.user_id+month} initial={initial} onSave={(s:any)=>save.mutate(s)} onPay={(s:any)=>pay.mutate(s)} money={money}/>)}<Card><p className="mb-2 font-bold text-sm">Customer referral commission</p>{(data?.referrals||[]).map((r:any)=><div key={r.introducer_id} className="flex justify-between border-b border-white/5 py-2 text-sm"><span>{r.name}<span className="block text-[11px] text-white/40">{r.referrals} purchase(s) · {money(r.referred_sales)} referred sales</span></span><b className="text-amber-300">{money(r.commission)}</b></div>)}{!(data?.referrals||[]).length&&<p className="text-xs text-white/40">No referral commission this month.</p>}<p className="mt-2 text-[11px] text-white/40">Recorded payroll becomes an Accounting expense automatically.</p></Card></div>;
 }
-function PayrollRow({initial,onSave,onPay,money}:any){const[s,setS]=useState(initial);const basic=s.pay_type==="hourly"?Number(s.hourly_rate)*Number(s.hours):Number(s.base_salary);const commission=Number(s.sales)*Number(s.commission_rate)/100;const total=basic+commission;const v={...s,basic,salesCommission:commission,total};return <Card><div className="mb-3 flex items-start justify-between gap-2"><div><b>{s.name}</b><p className="text-xs text-white/40">{Number(s.hours).toFixed(1)} approved hours · {s.tickets} sales · {money(s.sales)}</p></div><span className={`rounded-lg px-2 py-1 text-[11px] font-bold ${Number(s.sales_target)>0&&Number(s.sales)>=Number(s.sales_target)?"bg-emerald-500/20 text-emerald-300":"bg-white/5 text-white/50"}`}>{Number(s.sales_target)>0?`${Math.round(Number(s.sales)/Number(s.sales_target)*100)}% target`:"No target"}</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><label className="text-[11px] text-white/50">Pay type<select value={s.pay_type||"salary"} onChange={e=>setS({...s,pay_type:e.target.value})} className={inp+" w-full"}><option value="salary">Monthly salary</option><option value="hourly">Hourly</option></select></label><label className="text-[11px] text-white/50">Basic salary<input type="number" value={s.base_salary||0} onChange={e=>setS({...s,base_salary:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Hourly rate<input type="number" value={s.hourly_rate||0} onChange={e=>setS({...s,hourly_rate:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Sales target<input type="number" value={s.sales_target||0} onChange={e=>setS({...s,sales_target:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Commission %<input type="number" min={0} value={s.commission_rate||0} onChange={e=>setS({...s,commission_rate:e.target.value})} className={inp+" w-full"}/></label></div><div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><span className="rounded-xl bg-white/5 p-2">Basic<br/><b>{money(basic)}</b></span><span className="rounded-xl bg-white/5 p-2">Commission<br/><b>{money(commission)}</b></span><span className="rounded-xl bg-amber-400/10 p-2 text-amber-200">Payroll<br/><b>{money(total)}</b></span></div><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={()=>onSave(v)} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">Save settings</button><button onClick={()=>{if(confirm(`Record ${money(total)} payroll for ${s.name}?`))onPay(v)}} disabled={total<=0} className="rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-black disabled:opacity-40">Record paid</button></div></Card>}
+function PayrollRow({initial,onSave,onPay,money}:any){const[s,setS]=useState(initial);const basic=s.pay_type==="hourly"?Number(s.hourly_rate)*Number(s.hours):Number(s.base_salary);const commission=Number(s.sales)*Number(s.commission_rate)/100;const overtimePay=Number(s.ot_hours||0)*Number(s.otRate||0);const total=basic+commission+overtimePay;const v={...s,basic,salesCommission:commission,overtimePay,total};return <Card><div className="mb-3 flex items-start justify-between gap-2"><div><b>{s.name}</b><p className="text-xs text-white/40">{Number(s.hours).toFixed(1)} worked hours{Number(s.ot_hours)>0?` · ${Number(s.ot_hours).toFixed(1)} OT`:""} · {s.tickets} sales · {money(s.sales)}</p></div><span className={`rounded-lg px-2 py-1 text-[11px] font-bold ${Number(s.sales_target)>0&&Number(s.sales)>=Number(s.sales_target)?"bg-emerald-500/20 text-emerald-300":"bg-white/5 text-white/50"}`}>{Number(s.sales_target)>0?`${Math.round(Number(s.sales)/Number(s.sales_target)*100)}% target`:"No target"}</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><label className="text-[11px] text-white/50">Pay type<select value={s.pay_type||"salary"} onChange={e=>setS({...s,pay_type:e.target.value})} className={inp+" w-full"}><option value="salary">Monthly salary</option><option value="hourly">Hourly</option></select></label><label className="text-[11px] text-white/50">Basic salary<input type="number" value={s.base_salary||0} onChange={e=>setS({...s,base_salary:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Hourly rate<input type="number" value={s.hourly_rate||0} onChange={e=>setS({...s,hourly_rate:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Sales target<input type="number" value={s.sales_target||0} onChange={e=>setS({...s,sales_target:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Commission %<input type="number" min={0} value={s.commission_rate||0} onChange={e=>setS({...s,commission_rate:e.target.value})} className={inp+" w-full"}/></label></div><div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs"><span className="rounded-xl bg-white/5 p-2">Basic<br/><b>{money(basic)}</b></span><span className="rounded-xl bg-white/5 p-2">Commission<br/><b>{money(commission)}</b></span><span className="rounded-xl bg-white/5 p-2">Overtime<br/><b>{money(overtimePay)}</b></span><span className="rounded-xl bg-amber-400/10 p-2 text-amber-200">Payroll<br/><b>{money(total)}</b></span></div><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={()=>onSave(v)} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">Save settings</button><button onClick={()=>{if(confirm(`Record ${money(total)} payroll for ${s.name}?`))onPay(v)}} disabled={total<=0} className="rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-black disabled:opacity-40">Record paid</button></div></Card>}
 
 function Inventory() {
   const { toast } = useToast();

@@ -9,8 +9,12 @@ const SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@rebornwave.group";
 
 let configured = false;
 if (PUBLIC_KEY && PRIVATE_KEY) {
-  webpush.setVapidDetails(SUBJECT, PUBLIC_KEY, PRIVATE_KEY);
-  configured = true;
+  try {
+    webpush.setVapidDetails(SUBJECT, PUBLIC_KEY, PRIVATE_KEY);
+    configured = true;
+  } catch (e: any) {
+    console.warn("VAPID keys invalid — push notifications disabled:", e?.message);
+  }
 } else {
   console.log("VAPID keys not set — push notifications disabled");
 }
