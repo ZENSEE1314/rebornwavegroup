@@ -162,7 +162,17 @@ export async function sendBridgeXNotifications(companyId: number, userIds: strin
     await db.update(bridgeNotifications).set({ pushStatus: "no_device" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
     return;
   }
-  const messages = tokens.map((token) => ({ to: token.expoPushToken, sound: "default", priority: "high", channelId: "bridgex", title: payload.title, body: payload.body, data: { type: payload.type, companyId, ...(payload.data || {}) } }));
+  const messages = tokens.map((token) => ({
+    to: token.expoPushToken,
+    sound: "default",
+    priority: "high",
+    channelId: "bridgex",
+    badge: 1,
+    ttl: 86400,
+    title: payload.title,
+    body: payload.body,
+    data: { type: payload.type, companyId, ...(payload.data || {}) },
+  }));
   try {
     const tickets: any[] = [];
     for (let start = 0; start < messages.length; start += 100) {
@@ -174,6 +184,7 @@ export async function sendBridgeXNotifications(companyId: number, userIds: strin
     const invalid = tokens.filter((_, index) => tickets[index]?.details?.error === "DeviceNotRegistered");
     if (invalid.length) await db.update(bridgeDeviceTokens).set({ active: false, updatedAt: new Date() }).where(inArray(bridgeDeviceTokens.id, invalid.map((token) => token.id)));
     await db.update(bridgeNotifications).set({ pushStatus: tickets.some((ticket: any) => ticket?.status === "ok") ? "sent" : "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
+    console.info("Expo push result", { type: payload.type, recipients: targets.length, devices: tokens.length, accepted: tickets.filter((ticket: any) => ticket?.status === "ok").length });
   } catch (error) {
     await db.update(bridgeNotifications).set({ pushStatus: "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
     console.warn("Expo push unavailable", error);
@@ -669,8 +680,18 @@ export function registerBridgeXRoutes(app: Express) {
   app.post("/api/v1/app/device-tokens", route(async (req, res) => {
     const user = await requireUser(req, res); if (!user) return;
     const token = String(req.body?.expoPushToken || ""); if (!/^(ExponentPushToken|ExpoPushToken)/.test(token)) return res.status(400).json({ message: "Valid Expo push token required" });
+    const existing = await db.select({ id: bridgeDeviceTokens.id, userId: bridgeDeviceTokens.userId, active: bridgeDeviceTokens.active }).from(bridgeDeviceTokens).where(eq(bridgeDeviceTokens.expoPushToken, token)).limit(1);
     const [row] = await db.insert(bridgeDeviceTokens).values({ userId: user.id, companyId: requestedCompanyId(req), expoPushToken: token, platform: req.body?.platform || "unknown", deviceId: req.body?.deviceId || null }).onConflictDoUpdate({ target: bridgeDeviceTokens.expoPushToken, set: { userId: user.id, companyId: requestedCompanyId(req), platform: req.body?.platform || "unknown", deviceId: req.body?.deviceId || null, active: true, updatedAt: new Date() } }).returning();
+    console.info("Mobile push device registered", { userId: user.id, role: user.role, platform: row.platform, newDevice: existing.length === 0 });
     res.json(row);
+    if (!existing.length || existing[0].userId !== user.id || !existing[0].active) {
+      await sendRebornUserNotification(user.id, {
+        type: "notifications_enabled",
+        title: user.role === "admin" || user.role === "staff" ? "Admin phone alerts enabled" : "Phone alerts enabled",
+        body: user.role === "admin" || user.role === "staff" ? "New food orders, song requests and staff updates will pop up on this phone." : "Bookings, orders, messages and account updates will pop up on this phone.",
+        data: { path: user.role === "admin" || user.role === "staff" ? "/reborn-admin" : "/profile" },
+      });
+    }
   }));
   app.get("/api/v1/app/device-tokens/status", route(async (req, res) => {
     const user = await requireUser(req, res); if (!user) return;
