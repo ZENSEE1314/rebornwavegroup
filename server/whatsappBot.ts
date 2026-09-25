@@ -84,7 +84,15 @@ export async function sendWhatsAppChoices(to: string, text: string, choices: Wha
   const buttons = choices.slice(0, 3).map((choice) => ({ id: choice.id.slice(0, 256), title: choice.title.slice(0, 20) }));
   try {
     const web = await import("./whatsappWeb");
-    if (web.isWebConnected() && await web.sendWhatsAppWebChoices(num, text, buttons)) return true;
+    if (web.isWebConnected()) {
+      // Linked-device accounts can acknowledge an interactive native-flow
+      // message without actually delivering it. Send the normal menu first so
+      // the customer always receives an immediate response, then add buttons
+      // as a progressive enhancement for WhatsApp clients that accept them.
+      const textOk = await web.sendWhatsAppWeb(num, text);
+      const buttonsOk = await web.sendWhatsAppWebChoices(num, "Tap a button to choose:", buttons);
+      return textOk || buttonsOk;
+    }
   } catch { /* use Cloud API or text fallback */ }
   if (whatsappConfigured()) {
     try {
