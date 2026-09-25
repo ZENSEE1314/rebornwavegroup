@@ -34,9 +34,10 @@ export const BRIDGEX_MODULES = [
   "song_requests", "bottle_keep", "faq_automation",
 ] as const;
 export const BRIDGEX_NOTIFICATION_EVENTS = [
-  "new_order", "low_stock", "booking", "shift", "attendance_exception", "leave_request",
-  "leave_decision", "staff_review", "meeting", "payroll_published", "subscription_renewal",
-  "loyalty_reward", "pet_care", "song_request", "song_request_update", "feedback",
+  "new_order", "order_status", "order_paid", "payment_completed", "low_stock", "new_booking", "booking_status", "booking_cancelled",
+  "shift", "attendance", "attendance_decision", "leave_request", "leave_decision", "staff_review", "meeting",
+  "payroll_published", "subscription_renewal", "loyalty_reward", "pet_hungry", "kos_gift", "chat_message", "friend_request",
+  "new_event", "admin_broadcast", "new_faq", "song_request", "song_request_update", "feedback",
 ] as const;
 
 const MANAGEMENT_ROLES = new Set(["owner", "admin", "manager"]);
@@ -193,7 +194,8 @@ export async function sendRebornStaffNotification(payload: { type: string; title
     eq(bridgeCompanyMembers.status, "active"),
     inArray(bridgeCompanyMembers.role, ["owner", "admin", "manager", "staff"]),
   ));
-  await sendBridgeXNotifications(company.id, members.map((member) => member.userId), payload);
+  const roleUsers = await db.select({ id: users.id }).from(users).where(inArray(users.role, ["admin", "staff"]));
+  await sendBridgeXNotifications(company.id, [...members.map((member) => member.userId), ...roleUsers.map((user) => user.id)], payload);
   emitCompanyChange(company.id, String(payload.data?.path || "notifications"));
 }
 

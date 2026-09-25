@@ -1857,6 +1857,8 @@ export function registerRebornRoutes(app: Express) {
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
+    await sendRebornStaffNotification({ type: "payment_completed", title: `Payment completed · ${row.orderNo}`, body: `RP ${total.toLocaleString()} · ${paymentMethod.toUpperCase()}`, data: { path: "/reborn-admin", ticketId: row.id } });
+    if (u?.id) await sendRebornUserNotification(u.id, { type: "order_paid", title: "Payment completed", body: `${row.orderNo} · RP ${total.toLocaleString()}. Your receipt is ready.`, data: { path: "/history", ticketId: row.id } });
     const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, getUserId(req)!) : null;
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
     if (u) {
@@ -2057,6 +2059,8 @@ export function registerRebornRoutes(app: Express) {
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
+    await sendRebornStaffNotification({ type: "payment_completed", title: `Payment completed · ${o.orderNo}`, body: `RP ${total.toLocaleString()} · ${paymentMethod.toUpperCase()}`, data: { path: "/reborn-admin", ticketId: id } });
+    if (o.memberId) await sendRebornUserNotification(o.memberId, { type: "order_paid", title: "Payment completed", body: `${o.orderNo} · RP ${total.toLocaleString()}. Your receipt is ready.`, data: { path: "/history", ticketId: id } });
     const [member] = o.memberId ? await db.select().from(users).where(eq(users.id, o.memberId)).limit(1) : [];
     const keptBottle = member ? await storeBottleForMember(member, req.body?.keepBottle, getUserId(req)!) : null;
     await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${points ? ` · ${points} pts` : ""}` });
@@ -2456,6 +2460,7 @@ export function registerRebornRoutes(app: Express) {
     if (!a) return res.status(404).json({ message: "Booking not found" });
     if (a.status === "cancelled" || a.status === "completed") return res.status(400).json({ message: "Can't cancel this booking" });
     await db.update(appointments).set({ status: "cancelled", updatedAt: new Date() }).where(eq(appointments.id, id));
+    await sendRebornStaffNotification({ type: "booking_cancelled", title: "Booking cancelled by member", body: `${a.title} · booking #${a.id}`, data: { path: "/reborn-admin", bookingId: a.id } });
     res.json({ message: "Booking cancelled" });
   });
   // Admin — all bookings (recent + upcoming) with member name/phone.

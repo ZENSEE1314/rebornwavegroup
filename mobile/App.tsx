@@ -61,6 +61,7 @@ function RebornApp() {
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [pushToken, setPushToken] = useState<string | null>(null);
+  const [notificationIssue, setNotificationIssue] = useState<"permission" | "token" | null>(null);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -71,9 +72,21 @@ function RebornApp() {
     return () => subscription.remove();
   }, [canGoBack]);
 
-  useEffect(() => {
-    getPushToken().then(setPushToken).catch(() => undefined);
+  const setupNotifications = useCallback(async () => {
+    try {
+      const token = await getPushToken();
+      setPushToken(token);
+      if (token) setNotificationIssue(null);
+      else {
+        const permission = await Notifications.getPermissionsAsync();
+        setNotificationIssue(permission.status === "granted" ? "token" : "permission");
+      }
+    } catch {
+      setNotificationIssue("token");
+    }
   }, []);
+
+  useEffect(() => { setupNotifications(); }, [setupNotifications]);
 
   const refreshWebData = useCallback(() => {
     webViewRef.current?.injectJavaScript(`
@@ -95,7 +108,7 @@ function RebornApp() {
   }, []);
 
   useEffect(() => {
-    const received = Notifications.addNotificationReceivedListener(() => refreshWebData());
+    const received = Notifications.addNotificationReceivedListener(() => { Notifications.setBadgeCountAsync(0).catch(() => undefined); refreshWebData(); });
     const responded = Notifications.addNotificationResponseReceivedListener((response) => {
       openNotification(response.notification.request.content.data as Record<string, unknown>);
     });
@@ -103,14 +116,23 @@ function RebornApp() {
       if (response) openNotification(response.notification.request.content.data as Record<string, unknown>);
     }).catch(() => undefined);
     const appState = AppState.addEventListener("change", (state) => {
-      if (state === "active") refreshWebData();
+      if (state === "active") { Notifications.setBadgeCountAsync(0).catch(() => undefined); refreshWebData(); if (!pushToken) setupNotifications(); }
     });
     return () => {
       received.remove();
       responded.remove();
       appState.remove();
     };
-  }, [openNotification, refreshWebData]);
+  }, [openNotification, pushToken, refreshWebData, setupNotifications]);
+
+  const enableNotifications = useCallback(async () => {
+    const permission = await Notifications.getPermissionsAsync();
+    if (permission.status !== "granted" && !permission.canAskAgain) {
+      await Linking.openSettings();
+      return;
+    }
+    await setupNotifications();
+  }, [setupNotifications]);
 
   const syncPushToken = useCallback(() => {
     if (!pushToken) return;
@@ -185,6 +207,8 @@ function RebornApp() {
         originWhitelist={["*"]}
         javaScriptEnabled
         domStorageEnabled
+        applicationNameForUserAgent="RebornWaveGroupApp/1.0"
+        injectedJavaScriptBeforeContentLoaded="window.__REBORN_NATIVE_APP__=true;localStorage.setItem('reborn.nativeApp','true');true;"
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
         cacheEnabled
@@ -236,6 +260,16 @@ function RebornApp() {
           <Pressable accessibilityRole="button" onPress={retry} style={styles.retryButton}>
             <Text style={styles.retryText}>Try again</Text>
           </Pressable>
+        </View>
+      )}
+
+      {notificationIssue && !failed && (
+        <View style={[styles.notificationBanner, { bottom: Math.max(insets.bottom, 10) + 10 }]}>
+          <View style={styles.notificationCopy}>
+            <Text style={styles.notificationTitle}>Phone alerts are off</Text>
+            <Text style={styles.notificationBody}>{notificationIssue === "permission" ? "Allow notifications so orders, bookings, messages and updates arrive immediately." : "Notification setup did not finish. Tap to try connecting this phone again."}</Text>
+          </View>
+          <Pressable accessibilityRole="button" onPress={enableNotifications} style={styles.notificationButton}><Text style={styles.notificationButtonText}>Enable</Text></Pressable>
         </View>
       )}
     </View>
@@ -305,4 +339,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
+  notificationBanner: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "rgba(240,215,135,0.45)",
+    borderRadius: 18,
+    padding: 13,
+    backgroundColor: "#20172f",
+  },
+  notificationCopy: { flex: 1 },
+  notificationTitle: { color: "#f8e7aa", fontSize: 14, fontWeight: "800" },
+  notificationBody: { color: "#c9c2d4", fontSize: 11, lineHeight: 16, marginTop: 2 },
+  notificationButton: { borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#f0d787" },
+  notificationButtonText: { color: "#171020", fontSize: 12, fontWeight: "900" },
 });
