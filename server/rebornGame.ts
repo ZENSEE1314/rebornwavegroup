@@ -1251,7 +1251,10 @@ export function registerRebornRoutes(app: Express) {
 
   app.get("/api/reborn/admin/redemptions", requireStaff(async (_req, res) => {
     const rows = await db.select().from(spinResults).where(eq(spinResults.status, "redeeming")).orderBy(desc(spinResults.createdAt)).limit(200);
-    res.json(rows);
+    const ids = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean))) as string[];
+    const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
+    const nameOf = new Map(us.map((u: any) => [u.id, [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email || u.id]));
+    res.json(rows.map((r) => ({ ...r, memberName: nameOf.get(r.userId) || "Member" })));
   }));
   app.post("/api/reborn/admin/redemptions/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
@@ -1810,6 +1813,21 @@ export function registerRebornRoutes(app: Express) {
     const [u] = await db.select().from(users).where(or(ilike(users.referralCode, c), ilike(users.membershipCardNumber, c), ilike(users.username, c), ilike(users.email, c), eq(users.id, c))).limit(1);
     return u || null;
   }
+  // Type-ahead member search — powers the username dropdowns (prize award, manual booking, etc.)
+  app.get("/api/reborn/admin/user-search", requireStaff(async (req, res) => {
+    const q = String(req.query.q || "").trim();
+    if (q.length < 1) return res.json([]);
+    const like = `%${q}%`;
+    const rows = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, referralCode: users.referralCode, membershipCardNumber: users.membershipCardNumber })
+      .from(users)
+      .where(or(ilike(users.firstName, like), ilike(users.lastName, like), ilike(users.username, like), ilike(users.email, like), ilike(users.referralCode, like), ilike(users.membershipCardNumber, like)))
+      .limit(12);
+    res.json(rows.map((u: any) => ({
+      id: u.id,
+      name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email || u.id,
+      username: u.username || "", email: u.email || "", code: u.referralCode || u.membershipCardNumber || u.username || u.email || u.id,
+    })));
+  }));
   const memberTag = (u: any) => u ? { memberId: u.id, memberCode: u.referralCode, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email } : {};
 
   // Staff accounts (for the salesperson / commission dropdown)

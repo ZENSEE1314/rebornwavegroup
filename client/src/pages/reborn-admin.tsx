@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -127,7 +127,7 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
           <button key={i} onClick={() => onGo(c.tab)} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10 active:scale-95 transition-all">
             <div className="flex items-center justify-between">
               <span className={`text-3xl font-extrabold ${c.warn && c.count > 0 ? "text-red-400" : c.hot && c.count > 0 ? "text-amber-300" : "text-white"}`}>{c.count ?? "—"}</span>
-              {c.hot && c.count > 0 && <span className="text-[10px] font-bold text-black bg-amber-300 px-1.5 py-0.5 rounded-full">TO DO</span>}
+              {c.hot && c.count > 0 && <span className="text-[10px] font-bold text-black bg-amber-300 px-1.5 py-0.5 rounded-full">{c.count} PENDING</span>}
             </div>
             <p className="text-sm text-white/60 mt-1">{c.label}</p>
           </button>
@@ -306,11 +306,12 @@ function Logs() {
 
 function GiftTypes() {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/gifttypes"], queryFn: () => apiRequest("GET", "/api/reborn/admin/gifttypes").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/gifttypes"] });
-  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/gifttypes", { name: "New gift", emoji: "🎁", kgoldCost: 1000 }).then((r) => r.json()), onSuccess: inv });
-  const save = useMutation({ mutationFn: (g: any) => apiRequest("PUT", `/api/reborn/admin/gifttypes/${g.id}`, g).then((r) => r.json()), onSuccess: inv });
-  const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/gifttypes/${id}`), onSuccess: inv });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/gifttypes", { name: "New gift", emoji: "🎁", kgoldCost: 1000 }).then((r) => r.json()), onSuccess: () => { toast({ title: "Gift added" }); inv(); } });
+  const save = useMutation({ mutationFn: (g: any) => apiRequest("PUT", `/api/reborn/admin/gifttypes/${g.id}`, g).then((r) => r.json()), onSuccess: () => { toast({ title: "Gift saved ✓" }); inv(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
+  const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/gifttypes/${id}`), onSuccess: () => { toast({ title: "Gift deleted" }); inv(); } });
   return (
     <div>
       <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add gift</button>
@@ -329,7 +330,7 @@ function GiftRow({ g, onSave, onDelete }: any) {
       </div>
       <div className="mb-2"><p className="text-xs text-white/50 mb-1">Gift image (optional — falls back to emoji)</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label="Upload image" /></div>
       <div className="flex flex-wrap gap-2 items-center">
-        <label className="text-xs text-white/50">KGOLD<input type="number" value={e.kgoldCost} onChange={(x) => setE({ ...e, kgoldCost: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
+        <label className="text-xs text-white/50">KGOLD<input type="number" inputMode="numeric" value={e.kgoldCost || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, kgoldCost: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
         <select value={e.animation} onChange={(x) => setE({ ...e, animation: x.target.value })} className={inp}>{["pop", "float", "zoom", "rain"].map((a) => <option key={a} value={a}>{a}</option>)}</select>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
       </div>
@@ -461,7 +462,9 @@ function Settings() {
   );
 }
 function Field({ label, value, onChange }: any) {
-  return <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{label}</span><input type="number" value={value} onChange={(e) => onChange(e.target.value)} className={inp + " w-full"} /></label>;
+  // Show blank instead of a lone 0 and select-on-focus, so typing a value
+  // never leaves a leading zero (e.g. "05000").
+  return <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{label}</span><input type="number" inputMode="numeric" value={value === 0 || value === undefined || value === null ? "" : value} onFocus={(e) => e.currentTarget.select()} onChange={(e) => onChange(e.target.value)} className={inp + " w-full"} /></label>;
 }
 
 function SpinPool() {
@@ -697,7 +700,7 @@ function Prizes() {
         <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Disc3 className="w-4 h-4 text-amber-300" /> Give a prize to a member</p>
         <p className="text-[11px] text-white/50 mb-2">Hand a prize directly to a member (no spin, no tokens). They'll be notified and can redeem with staff.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-          <input value={award.username} onChange={(e) => setAward({ ...award, username: e.target.value })} placeholder="Username / member code / email" className={inp} />
+          <UserPicker value={award.username} onChange={(code) => setAward({ ...award, username: code })} placeholder="Search member by name…" />
           <select value={award.prizeId} onChange={(e) => setAward({ ...award, prizeId: Number(e.target.value) })} className={inp}>
             <option value={0}>Choose prize…</option>
             {prizes.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -726,11 +729,11 @@ function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
         <select value={e.prizeType} onChange={(x) => setE({ ...e, prizeType: x.target.value })} className={inp}>
           {["item", "voucher_percent", "voucher_amount", "pill", "free_spin", "nothing"].map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <label className="text-xs text-white/50" title="For % voucher: the discount %. For RP voucher: the RP amount.">value<input type="number" value={e.value} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
+        <label className="text-xs text-white/50" title="For % voucher: the discount %. For RP voucher: the RP amount.">value<input type="number" inputMode="numeric" value={e.value || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
         {e.prizeType === "voucher_percent"
           ? <span className="text-[11px] text-white/40" title="Cost is auto = value% × the assumed bill (Settings)">cost: auto {e.value || 0}% of bill</span>
-          : <label className="text-xs text-white/50" title="RP drawn from the prize pool when won (0 = free outcome)">cost RP<input type="number" value={e.costRp || 0} onChange={(x) => setE({ ...e, costRp: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>}
-        <label className="text-xs text-white/50">win rate<input type="number" value={e.weight} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
+          : <label className="text-xs text-white/50" title="RP drawn from the prize pool when won (0 = free outcome)">cost RP<input type="number" inputMode="numeric" value={e.costRp || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, costRp: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>}
+        <label className="text-xs text-white/50">win rate<input type="number" inputMode="numeric" value={e.weight || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
         <span className="text-xs font-bold text-amber-300" title="Chance of winning this prize">≈{pct}%</span>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
       </div>
@@ -746,16 +749,20 @@ function Redemptions() {
   const qc = useQueryClient();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/redemptions"], queryFn: () => apiRequest("GET", "/api/reborn/admin/redemptions").then((r) => r.json()) });
   const act = useMutation({ mutationFn: ({ id, approve }: any) => apiRequest("POST", `/api/reborn/admin/redemptions/${id}`, { approve }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/redemptions"] }) });
-  if (rows.length === 0) return <Empty text="No prizes waiting to be redeemed." />;
   return (
     <div className="space-y-2">
+      <Card>
+        <p className="font-bold text-sm flex items-center gap-2"><Gift className="w-4 h-4 text-amber-300" /> Prize redemptions</p>
+        <p className="text-[11px] text-white/50 mt-1">When a member wins on the Lucky Spin and taps "Use", the prize lands here. <b>Approve</b> once you've given them the reward in person, or <b>reject</b> if it can't be honoured.</p>
+      </Card>
+      {rows.length === 0 && <Empty text="No prizes waiting to be redeemed right now." />}
       {rows.map((r) => (
         <Card key={r.id}>
           <div className="flex items-center gap-3">
             <Gift className="w-5 h-5 text-amber-300" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">{r.prizeLabel}</p>
-              <p className="text-xs text-white/40">user {r.userId?.slice(0, 8)} · {new Date(r.createdAt).toLocaleString()}</p>
+              <p className="text-xs text-white/40">{r.memberName || "Member"} · {new Date(r.createdAt).toLocaleString()}</p>
             </div>
             <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Approve</button>
             <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
@@ -823,6 +830,45 @@ const btnSave = "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm fon
 const btnDel = "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-red-200 bg-red-500/15 border border-red-400/40 hover:bg-red-500/25";
 function Card({ children }: any) { return <div className="rounded-2xl bg-white/5 border border-white/10 p-4">{children}</div>; }
 function Empty({ text }: any) { return <div className="text-center py-12 text-white/40">{text}</div>; }
+
+// Type-ahead member picker — type a name/username and pick from a dropdown of
+// real users. `value` is the chosen code (referral/username/email); onChange
+// receives the code, onPick gives the full row (id + name).
+function UserPicker({ value, onChange, onPick, placeholder }: { value: string; onChange: (code: string) => void; onPick?: (u: any) => void; placeholder?: string }) {
+  const [q, setQ] = useState(value || "");
+  const [open, setOpen] = useState(false);
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => { setQ(value || ""); }, [value]);
+  useEffect(() => { const t = setTimeout(() => setDebounced(q), 200); return () => clearTimeout(t); }, [q]);
+  const { data: results = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/admin/user-search", debounced],
+    queryFn: () => apiRequest("GET", `/api/reborn/admin/user-search?q=${encodeURIComponent(debounced)}`).then((r) => r.json()),
+    enabled: open && debounced.trim().length >= 1,
+  });
+  return (
+    <div className="relative">
+      <input
+        value={q}
+        onChange={(e) => { setQ(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder || "Type a name, username or code…"}
+        className={inp + " w-full"}
+      />
+      {open && results.length > 0 && (
+        <div className="absolute z-20 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-xl bg-[#0a1e26] border border-white/15 shadow-xl">
+          {results.map((u) => (
+            <button key={u.id} type="button" onMouseDown={(e) => { e.preventDefault(); setQ(u.code); onChange(u.code); onPick?.(u); setOpen(false); }}
+              className="w-full text-left px-3 py-2.5 hover:bg-white/10 border-b border-white/5 last:border-0">
+              <p className="text-sm text-white font-semibold truncate">{u.name}</p>
+              <p className="text-[11px] text-white/40 truncate">{[u.username && "@" + u.username, u.email, u.code].filter(Boolean).join(" · ")}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── HR: attendance, schedule, leave ──────────────────────────────────
 const HR_STATUS: Record<string, string> = {
@@ -1061,9 +1107,9 @@ function Products() {
         <label className="text-xs text-white/50 block mb-2">Product name<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="e.g. Heineken" className={inp + " w-full"} /></label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
           <label className="text-xs text-white/50">Category<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Drinks" className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Stock quantity<input type="number" value={n.stock} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Sell price (RP)<input type="number" value={n.price} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={n.cost} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Stock quantity<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={n.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
         </div>
         <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" sm:col-span-2"}/></div>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> Sellable in POS <span className="text-white/40 text-xs">(uncheck for raw items like meat)</span></label>
@@ -1096,7 +1142,7 @@ function ProductRow({ p }: any) {
             <p className="text-xs text-white/50 break-words">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
             {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">Supplier: {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
-          <button onClick={() => setEdit(true)} className={btnSm + " flex-shrink-0"}><Pencil className="w-4 h-4" /></button>
+          <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> Edit</button>
         </div>
       ) : (
         <div>
@@ -1104,8 +1150,8 @@ function ProductRow({ p }: any) {
           <div className="grid grid-cols-2 gap-2 mb-2">
             <label className="text-xs text-white/50">Category<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
             <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active</label>
-            <label className="text-xs text-white/50">Sell price (RP)<input type="number" value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={f.cost} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> Sellable in POS <span className="text-white/40 text-xs">(uncheck for raw items like meat that must be prepared first — still tracked in inventory)</span></label>
           <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" sm:col-span-2"}/></div>
@@ -1416,7 +1462,7 @@ function ManualBooking({ onDone }: { onDone: () => void }) {
   return (
     <Card>
       <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-sm">Book for a member</h3><button onClick={() => setOpen(false)} className={btnSm}><X className="w-4 h-4" /></button></div>
-      <input value={memberCode} onChange={(e) => setMemberCode(e.target.value)} placeholder="Member code / card / username / email" className={inp + " w-full mb-2"} />
+      <div className="mb-2"><UserPicker value={memberCode} onChange={setMemberCode} placeholder="Search member by name / code…" /></div>
       <select value={areaId} onChange={(e) => { setAreaId(e.target.value); setSlot(""); setTable(""); }} className={inp + " w-full mb-2"}>
         <option value="">Select area…</option>
         {areas.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.level})</option>)}
