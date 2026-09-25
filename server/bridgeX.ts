@@ -677,6 +677,20 @@ export function registerBridgeXRoutes(app: Express) {
     await sendBridgeXNotifications(access.companyId, [leave.userId], { type: "leave_decision", title: `Leave ${status}`, body: `${leave.startDate} to ${leave.endDate}`, data: { leaveId: leave.id } }); res.json(leave);
   }));
 
+  app.post("/api/v1/app/push-diagnostics", route(async (req, res) => {
+    const allowed = new Set(["setup_started", "permission_denied", "token_missing", "setup_error", "expo_token_ready"]);
+    const status = String(req.body?.status || "unknown");
+    if (!allowed.has(status)) return res.status(400).json({ message: "Invalid diagnostic status" });
+    console.info("Mobile push diagnostic", {
+      status,
+      detail: String(req.body?.detail || "").slice(0, 500),
+      platform: String(req.body?.platform || "unknown").slice(0, 20),
+      appVersion: String(req.body?.appVersion || "unknown").slice(0, 30),
+      buildVersion: String(req.body?.buildVersion || "unknown").slice(0, 30),
+    });
+    res.status(204).end();
+  }));
+
   app.post("/api/v1/app/device-tokens", route(async (req, res) => {
     const user = await requireUser(req, res); if (!user) return;
     const token = String(req.body?.expoPushToken || ""); if (!/^(ExponentPushToken|ExpoPushToken)/.test(token)) return res.status(400).json({ message: "Valid Expo push token required" });
