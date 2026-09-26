@@ -32,7 +32,7 @@ interface Room {
 const rooms = new Map<string, Room>();
 const MAX_PLAYERS = 20;
 const CARDS_MAX = 5;
-const RPS_SECONDS = 5;
+const RPS_SECONDS = 20;
 const TAP_SECONDS = 60;
 
 function code4(): string {
@@ -312,7 +312,7 @@ function cardsTie(room: Room) {
   scheduleCleanup(room);
 }
 
-const CARD_TURN_SECONDS = 10;
+const CARD_TURN_SECONDS = 20;
 // Arm the 10s turn clock; if the player doesn't act it auto-plays for them.
 function armCardTimer(room: Room) {
   clearTimers(room);
@@ -388,7 +388,7 @@ function cardAction(room: Room, uid: string, body: any): { error?: string } {
 
 // ── Liar's Dice (Perudo-style) ──────────────────────────────────────────
 const DICE_PER_PLAYER = 5;
-const DICE_TURN_SECONDS = 15;
+const DICE_TURN_SECONDS = 20;
 const diceAlive = (room: Room) => room.players.filter((p) => p.alive);
 const minOpenBid = (room: Room) => 1 + diceAlive(room).length;
 const rollDie = () => 1 + Math.floor(Math.random() * 6);
@@ -461,7 +461,7 @@ function applyDiceBid(room: Room, uid: string, face: number, qty: number, strike
   if (idx !== room.turnIdx) return "Not your turn";
   face = Math.max(1, Math.min(6, Math.floor(face))); qty = Math.floor(qty);
   if (!room.bid) { if (qty < minOpenBid(room)) return `Opening bid must be at least ${minOpenBid(room)} dice`; }
-  else { if (!(qty > room.bid.qty || (qty === room.bid.qty && face > room.bid.face))) return "Bid must be higher (more dice, or same dice with a higher number)"; }
+  else { if (!(qty > room.bid.qty || (qty === room.bid.qty && face > room.bid.face))) return `Too low! The call is ${room.bid.qty} × ${room.bid.face === 1 ? "①" : room.bid.face}. You must raise the number, or bid more total dice (above ${room.bid.qty}).`; }
   // Re-enable joker if this bid reaches the threshold, THEN a 1s-bid or strike disables it.
   if (!room.jokerActive && room.jokerReenableAt && qty >= room.jokerReenableAt) { room.jokerActive = true; room.jokerReenableAt = undefined; }
   if (face === 1 || strike) { room.jokerActive = false; room.jokerReenableAt = Math.floor(qty * 1.5) + 1; }

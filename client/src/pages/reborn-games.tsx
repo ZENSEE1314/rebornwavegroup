@@ -10,7 +10,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { useRankConfig, useMyRank, computeRank } from "@/lib/rank";
 
 const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
-  rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "5s to throw · no pick = out · last one standing wins" },
+  rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "60s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
@@ -19,7 +19,7 @@ const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌
 
 const RULES: Record<string, string[]> = {
   rps: [
-    "Everyone throws ✊ ✋ ✌️ within 5 seconds.",
+    "Everyone throws ✊ ✋ ✌️ within 20 seconds.",
     "Didn't pick in time? You're out instantly.",
     "The losing sign is knocked out each round.",
     "Last player standing wins 🏆 — the last one out is the loser (drink!).",
@@ -32,16 +32,16 @@ const RULES: Record<string, string[]> = {
   ],
   cards: [
     "Goal: hold 3 matching pairs — A+9, 2+8, 3+7, 4+6, 5+5, J+J, Q+Q, K+K.",
-    "On your turn (10s): take the face-up discard OR draw the deck, then discard 1.",
+    "On your turn (20s): take the face-up discard OR draw the deck, then discard 1.",
     "If someone discards the card that completes your 3 pairs, you WIN and they lose.",
     "Draw your winning card from the deck = BIG WIN — everyone else loses!",
-    "Take too long (10s) and a card is auto-picked & discarded for you.",
+    "Take too long (20s) and a card is auto-picked & discarded for you.",
     "Deck runs out with no winner = tie.",
   ],
   dice: [
     "Everyone rolls 5 hidden dice. Bid how many of a number are on the table across ALL players.",
     "① (ones) are wild — they count as any number.",
-    "Each turn you have 15s to raise the bid (more dice, or same dice with a higher number) OR catch. Run out of time = you lose!",
+    "Each turn you have 20s to raise the bid (more dice, or same dice with a higher number) OR catch. Run out of time = you lose!",
     "Anyone can Catch (you'll confirm first). If the real count is LESS than the bid, the bidder loses. If it's enough, the catcher loses.",
     "Bid on ① or hit Strike → ones stop being wild, until a bid reaches 1.5× that amount.",
     "The round ends the moment someone loses — they drink 🍻; whoever called it right wins 🏆.",
@@ -123,27 +123,18 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
       {/* Rank header — Mobile-Legends style ladder */}
       {rankCfg?.tiers && (
         <div className="rounded-2xl p-4 border border-amber-400/20" style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.18),rgba(201,168,76,0.12))" }}>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-[11px] text-white/50 uppercase tracking-wider">Your rank · Season {rankCfg.season}</p>
-              <div className="mt-1"><RankBadge stars={myRank?.stars || 0} tiers={rankCfg.tiers} size="lg" /></div>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-black text-amber-300">{myRank?.stars || 0}★</p>
-              <p className="text-[10px] text-white/40">peak {myRank?.peakStars || 0}</p>
-            </div>
+          <div className="mb-3">
+            <p className="text-[11px] text-white/50 uppercase tracking-wider mb-1">Your rank · Season {rankCfg.season}</p>
+            <RankBadge stars={myRank?.stars || 0} tiers={rankCfg.tiers} size="lg" />
           </div>
           <div className="rounded-xl bg-black/25 p-2">
             <p className="text-[11px] font-bold text-white/60 mb-1 flex items-center gap-1"><Medal className="w-3.5 h-3.5 text-amber-300" /> Top ranked players</p>
             {rankLb.length === 0 && <p className="text-[11px] text-white/40">Win a game to climb the ladder!</p>}
             {rankLb.slice(0, 5).map((r, i) => (
-              <div key={r.userId} className="flex items-center justify-between py-1">
-                <span className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs w-4 text-white/50">{i + 1}</span>
-                  <RankBadge stars={r.stars} tiers={rankCfg.tiers!} size="sm" />
-                  <span className="text-xs text-white/70 truncate">{r.name}</span>
-                </span>
-                <span className="text-xs font-bold text-amber-300 shrink-0">{r.stars}★</span>
+              <div key={r.userId} className="flex items-center gap-2 py-1">
+                <span className="text-xs w-4 text-white/50 shrink-0">{i + 1}</span>
+                <RankBadge stars={r.stars} tiers={rankCfg.tiers!} size="sm" />
+                <span className="text-xs text-white/70 truncate">{r.name}</span>
               </div>
             ))}
           </div>
@@ -523,6 +514,7 @@ function DiceRow({ vals, size = 54, faceHi }: { vals: number[]; size?: number; f
   return <div className="flex flex-wrap justify-center gap-1.5">{vals.map((v, i) => <Die key={i} v={v} size={size} highlight={faceHi != null && (v === faceHi || (faceHi !== 1 && v === 1))} />)}</div>;
 }
 function DiceGame({ room, code, me }: any) {
+  const { toast } = useToast();
   const d = room.dice || {};
   const myDice: number[] = Array.isArray(d.dice?.[me]) ? d.dice[me] : [];
   const meP = room.players.find((p: any) => p.id === me);
@@ -590,7 +582,10 @@ function DiceGame({ room, code, me }: any) {
       {alive ? (
         <>
           <p className="text-[11px] text-white/50 mb-2 text-center">🎲 Your dice</p>
-          <div className="mb-4 rounded-2xl bg-black/20 border border-white/10 py-3"><DiceRow vals={myDice} size={58} faceHi={bid?.face} /></div>
+          <div className="mb-4 rounded-2xl bg-black/20 border border-white/10 py-3 space-y-2">
+            <DiceRow vals={myDice.slice(0, 3)} size={56} faceHi={bid?.face} />
+            {myDice.length > 3 && <DiceRow vals={myDice.slice(3)} size={56} faceHi={bid?.face} />}
+          </div>
         </>
       ) : <p className="text-center text-white/40 text-sm mb-3">You're out — watch the rest play!</p>}
 
@@ -619,12 +614,12 @@ function DiceGame({ room, code, me }: any) {
             <span className="text-xs text-white/50">dice</span>
           </div>
           <label className="flex items-center justify-center gap-2 text-xs text-white/60 mb-2"><input type="checkbox" checked={strike} onChange={(e) => setStrike(e.target.checked)} /> Strike (make ① not wild)</label>
-          <button onClick={() => act({ act: "bid", face, qty, strike })} className="cbtn cbtn-gold w-full py-3">{bid ? "Raise bid" : "Open bid"}</button>
+          <button onClick={async () => { const { ok, d: r } = await act({ act: "bid", face, qty, strike }); if (!ok) toast({ title: "Can't bid", description: r?.message, variant: "destructive" }); }} className="cbtn cbtn-gold w-full py-3">{bid ? "Raise bid" : "Open bid"}</button>
         </div>
       )}
 
       {canCatch && (
-        <button onClick={() => { if (confirm(`Catch this bid (${bid.qty} × ${bid.face === 1 ? "①" : DIE_FACE[bid.face]})?\n\nIf you're WRONG, you lose. If it's a bluff, they lose.`)) act({ act: "catch" }); }} className="cbtn cbtn-red w-full py-3.5">🫵 CATCH! (call their bluff)</button>
+        <button onClick={async () => { if (confirm(`Catch this bid (${bid.qty} × ${bid.face === 1 ? "①" : DIE_FACE[bid.face]})?\n\nIf you're WRONG, you lose. If it's a bluff, they lose.`)) { const { ok, d: r } = await act({ act: "catch" }); if (!ok) toast({ title: "Can't catch", description: r?.message, variant: "destructive" }); } }} className="cbtn cbtn-red w-full py-3.5">🫵 CATCH! (call their bluff)</button>
       )}
       {!myTurn && !canCatch && room.status === "playing" && <p className="text-center text-white/40 text-sm">Waiting…</p>}
     </div>

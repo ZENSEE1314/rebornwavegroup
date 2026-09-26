@@ -17,11 +17,11 @@ export function RankBadge({ stars, tiers, size = "md" }: { stars: number; tiers:
         {!r.isLegend ? (
           <div className="flex gap-0.5 mt-0.5">
             {Array.from({ length: r.perDiv }).map((_, i) => (
-              <span key={i} style={{ color: i < r.starsInDiv ? "#f0d787" : "rgba(255,255,255,0.2)", fontSize: big ? 14 : 10 }}>★</span>
+              <span key={i} style={{ color: i < r.starsInDiv ? "#f0d787" : "rgba(255,255,255,0.2)", fontSize: big ? 16 : 11 }}>★</span>
             ))}
           </div>
         ) : (
-          <p className="text-[10px] text-white/50 leading-tight">{r.totalStars} career stars</p>
+          <p className="text-[10px] text-white/50 leading-tight">Legend {r.legendLevel}★</p>
         )}
       </div>
     </div>
