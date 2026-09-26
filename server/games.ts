@@ -8,9 +8,10 @@ import { users, pvpScores, appSettings } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards";
+type GameKind = "rps" | "tap" | "cards" | "dice";
 interface Card { id: string; v: string; s: string; }
-interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; }
+interface Bid { face: number; qty: number; by: string; strike?: boolean }
+interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; }
 interface Room {
   code: string; game: GameKind; hostId: string; password: string;
   status: "lobby" | "playing" | "reveal" | "done";
@@ -22,6 +23,8 @@ interface Room {
   // cards-only
   deck?: Card[]; discardTop?: Card | null; discardBy?: string | null;
   turnIdx?: number; phase?: "draw" | "discard"; drawnFrom?: "deck" | "discard" | null;
+  // dice-only
+  bid?: Bid | null; jokerActive?: boolean; jokerReenableAt?: number; diceReveal?: any;
 }
 
 const rooms = new Map<string, Room>();
@@ -50,6 +53,7 @@ function view(room: Room, forUserId?: string) {
       choice: reveal || p.id === forUserId ? p.choice || null : null,
     })),
     ...(room.game === "cards" ? { cards: cardView(room, forUserId) } : {}),
+    ...(room.game === "dice" ? { dice: diceView(room, forUserId) } : {}),
   };
 }
 
@@ -174,7 +178,8 @@ function resetRoom(room: Room) {
   room.round = 1; room.deadline = 0; room.message = "Waiting for players…";
   room.eliminatedThisRound = []; room.winnerId = undefined; room.lastLoserId = undefined;
   room.deck = undefined; room.discardTop = null; room.discardBy = null; room.turnIdx = undefined; room.phase = undefined; room.drawnFrom = null;
-  for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; }
+  room.bid = null; room.jokerActive = true; room.jokerReenableAt = undefined; room.diceReveal = null;
+  for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; }
   broadcast(room);
 }
 
@@ -337,8 +342,129 @@ function cardAction(room: Room, uid: string, body: any): { error?: string } {
   return { error: "Not now" };
 }
 
+// ── Liar's Dice (Perudo-style) ──────────────────────────────────────────
+const DICE_PER_PLAYER = 5;
+const DICE_TURN_SECONDS = 15;
+const diceAlive = (room: Room) => room.players.filter((p) => p.alive);
+const minOpenBid = (room: Room) => 4 + diceAlive(room).length;
+const rollDie = () => 1 + Math.floor(Math.random() * 6);
+
+function rollAllDice(room: Room) {
+  for (const p of room.players) p.dice = p.alive ? Array.from({ length: DICE_PER_PLAYER }, rollDie) : [];
+}
+// Count of a face across all alive dice (1s are wild when jokerActive & face!=1).
+function countFace(room: Room, face: number): number {
+  let n = 0;
+  for (const p of diceAlive(room)) for (const d of p.dice || []) {
+    if (d === face) n++;
+    else if (face !== 1 && d === 1 && room.jokerActive) n++;
+  }
+  return n;
+}
+function armDiceTimer(room: Room) {
+  clearTimers(room);
+  room.deadline = Date.now() + DICE_TURN_SECONDS * 1000 + 300;
+  room.timer = setTimeout(() => diceTimeout(room), DICE_TURN_SECONDS * 1000 + 300);
+}
+function diceTimeout(room: Room) {
+  if (room.status !== "playing" || room.game !== "dice") return;
+  const p = room.players[room.turnIdx ?? 0];
+  if (!p) return;
+  if (!room.bid) { // opening player stalled — auto-open minimum
+    applyDiceBid(room, p.id, 2, minOpenBid(room), false);
+  } else {
+    resolveDiceCatch(room, p.id); // stalled — auto-catch
+  }
+}
+function startDiceRound(room: Room, starterId?: string) {
+  clearTimers(room);
+  rollAllDice(room);
+  room.bid = null; room.jokerActive = true; room.jokerReenableAt = undefined; room.diceReveal = null;
+  const alive = diceAlive(room);
+  let idx = starterId ? room.players.findIndex((p) => p.id === starterId && p.alive) : -1;
+  if (idx < 0) idx = room.players.indexOf(alive[Math.floor(Math.random() * alive.length)]);
+  room.turnIdx = idx;
+  room.status = "playing";
+  room.message = `${room.players[idx].name} opens — bid at least ${minOpenBid(room)} dice`;
+  armDiceTimer(room);
+  broadcast(room);
+}
+function nextAliveIdx(room: Room, from: number): number {
+  for (let i = 1; i <= room.players.length; i++) { const j = (from + i) % room.players.length; if (room.players[j].alive) return j; }
+  return from;
+}
+// Validate + apply a bid. Returns error string or "".
+function applyDiceBid(room: Room, uid: string, face: number, qty: number, strike: boolean): string {
+  const idx = room.players.findIndex((p) => p.id === uid);
+  if (idx !== room.turnIdx) return "Not your turn";
+  face = Math.max(1, Math.min(6, Math.floor(face))); qty = Math.floor(qty);
+  if (!room.bid) { if (qty < minOpenBid(room)) return `Opening bid must be at least ${minOpenBid(room)} dice`; }
+  else { if (!(qty > room.bid.qty || (qty === room.bid.qty && face > room.bid.face))) return "Bid must be higher (more dice, or same dice with a higher number)"; }
+  // Re-enable joker if this bid reaches the threshold, THEN a 1s-bid or strike disables it.
+  if (!room.jokerActive && room.jokerReenableAt && qty >= room.jokerReenableAt) { room.jokerActive = true; room.jokerReenableAt = undefined; }
+  if (face === 1 || strike) { room.jokerActive = false; room.jokerReenableAt = Math.floor(qty * 1.5) + 1; }
+  room.bid = { face, qty, by: uid, strike };
+  room.turnIdx = nextAliveIdx(room, idx);
+  room.message = `${room.players[idx].name} bid ${qty}× ${face === 1 ? "①(ones)" : face}${strike ? " · strike" : ""} — ${room.players[room.turnIdx].name}'s turn`;
+  armDiceTimer(room);
+  broadcast(room);
+  return "";
+}
+function resolveDiceCatch(room: Room, challengerId: string) {
+  if (!room.bid) return;
+  clearTimers(room);
+  const bid = room.bid;
+  const actual = countFace(room, bid.face);
+  const lie = actual < bid.qty;
+  const loserId = lie ? bid.by : challengerId;
+  const loser = room.players.find((p) => p.id === loserId);
+  const challenger = room.players.find((p) => p.id === challengerId);
+  room.diceReveal = {
+    bid, actual, jokerActive: room.jokerActive, loserId,
+    challengerName: challenger?.name,
+    hands: diceAlive(room).map((p) => ({ id: p.id, name: p.name, dice: p.dice })),
+    verdict: lie ? "lie" : "true",
+  };
+  if (loser) loser.alive = false;
+  room.lastLoserId = loserId;
+  room.status = "reveal";
+  room.message = lie
+    ? `Caught the bluff! Only ${actual}× ${bid.face} — ${loser?.name} is out! 💀`
+    : `There were ${actual}× ${bid.face} — ${loser?.name} guessed wrong and is out! 💀`;
+  broadcast(room);
+  const remaining = diceAlive(room);
+  room.timer = setTimeout(() => {
+    if (remaining.length <= 1) {
+      room.status = "done"; room.winnerId = remaining[0]?.id;
+      room.message = remaining[0] ? `${remaining[0].name} wins the dice game! 🏆` : "No winner";
+      broadcast(room);
+      const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [];
+      if (remaining[0]) rows.push({ userId: remaining[0].id, name: remaining[0].name, score: 1, result: "win" });
+      if (loser && loser.id !== remaining[0]?.id) rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" });
+      saveScores(room, rows);
+      scheduleCleanup(room);
+    } else {
+      // The challenge winner starts the next round.
+      const starter = loserId === bid.by ? challengerId : bid.by;
+      startDiceRound(room, room.players.find((p) => p.id === starter && p.alive) ? starter : undefined);
+    }
+  }, 5000);
+}
+function diceView(room: Room, forUserId?: string) {
+  const done = room.status === "done" || room.status === "reveal";
+  return {
+    bid: room.bid || null,
+    jokerActive: room.jokerActive !== false,
+    minOpen: minOpenBid(room),
+    turnId: room.players[room.turnIdx ?? 0]?.id,
+    totalDice: diceAlive(room).reduce((s, p) => s + (p.dice?.length || 0), 0),
+    reveal: room.diceReveal || null,
+    dice: room.players.reduce((acc: any, p) => { acc[p.id] = (p.id === forUserId || done) ? (p.dice || []) : (p.alive ? (p.dice?.length || 0) : 0); return acc; }, {}),
+  };
+}
+
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "cards"] as const;
+const GAME_KEYS = ["rps", "tap", "cards", "dice"] as const;
 async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days: number[] }>> {
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "gamesConfig"));
   let cfg: any = {};
@@ -396,7 +522,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     if (!availableToday(cfg)[game]) return res.status(400).json({ message: "That game isn't available today." });
     const name = await nameFor(uid);
@@ -435,6 +561,7 @@ export function registerGameRoutes(app: Express) {
     if (room.players.length < 2) return res.status(400).json({ message: "Need at least 2 players." });
     if (room.game === "rps") { room.round = 1; startRpsRound(room); }
     else if (room.game === "cards") startCards(room);
+    else if (room.game === "dice") startDiceRound(room);
     else startTap(room);
     res.json({ ok: true });
   });
@@ -456,6 +583,23 @@ export function registerGameRoutes(app: Express) {
     const p = room.players.find((x) => x.id === getUserId(req));
     if (!p) return res.status(403).json({ message: "You're not in this room." });
     if (room.status !== "playing") return res.json({ ok: false });
+    if (room.game === "dice") {
+      const uid = getUserId(req)!;
+      const act = req.body?.act;
+      if (act === "catch") {
+        if (!room.bid) return res.status(400).json({ message: "No bid to catch yet." });
+        if (uid === room.bid.by) return res.status(400).json({ message: "You can't catch your own bid." });
+        if (!p.alive) return res.status(400).json({ message: "You're out." });
+        resolveDiceCatch(room, uid);
+        return res.json({ ok: true });
+      }
+      if (act === "bid") {
+        const err = applyDiceBid(room, uid, Number(req.body?.face), Number(req.body?.qty), !!req.body?.strike);
+        if (err) return res.status(400).json({ message: err });
+        return res.json({ ok: true });
+      }
+      return res.status(400).json({ message: "Bad action" });
+    }
     if (room.game === "cards") {
       const r = cardAction(room, getUserId(req)!, req.body || {});
       if (r.error) return res.status(400).json({ message: r.error });

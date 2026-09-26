@@ -10,6 +10,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "5s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "60s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
+  dice: { name: "Liar's Dice", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
 
@@ -33,6 +34,14 @@ const RULES: Record<string, string[]> = {
     "Draw your winning card from the deck = BIG WIN — everyone else loses!",
     "Take too long (10s) and a card is auto-picked & discarded for you.",
     "Deck runs out with no winner = tie.",
+  ],
+  dice: [
+    "Everyone rolls 5 hidden dice. Bid how many of a number are on the table across ALL players.",
+    "① (ones) are wild — they count as any number.",
+    "Each turn (15s): raise the bid (more dice, or same dice with a higher number) OR catch the current bidder.",
+    "Anyone can Catch! If the real count is LESS than the bid, the bidder is out. If it's enough, the catcher is out.",
+    "Bid on ① or hit Strike → ones stop being wild, until a bid reaches 1.5× that amount.",
+    "Last player standing wins 🏆.",
   ],
 };
 
@@ -69,11 +78,11 @@ export default function RebornGames() {
 function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
-  const [game, setGame] = useState<"rps" | "tap" | "cards">("rps");
+  const [game, setGame] = useState<"rps" | "tap" | "cards" | "dice">("rps");
   const [password, setPassword] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [joinPw, setJoinPw] = useState("");
-  const [lbGame, setLbGame] = useState<"rps" | "tap" | "cards">("rps");
+  const [lbGame, setLbGame] = useState<"rps" | "tap" | "cards" | "dice">("rps");
   const [lb, setLb] = useState<any[]>([]);
   const [help, setHelp] = useState<string | null>(null);
 
@@ -111,7 +120,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
       <div className="rwg-card p-4">
         <p className="text-xs text-white/50 mb-2">Pick a game</p>
         <div className="grid grid-cols-1 gap-2">
-          {(Object.keys(GAMES) as ("rps" | "tap" | "cards")[]).map((g) => {
+          {(Object.keys(GAMES) as ("rps" | "tap" | "cards" | "dice")[]).map((g) => {
             const on = today[g];
             return (
               <button key={g} disabled={!on} onClick={() => setGame(g)}
@@ -169,7 +178,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
         <div className="flex items-center justify-between mb-2">
           <p className="font-bold text-white flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" /> Leaderboard</p>
           <div className="flex gap-1">
-            {(["rps", "tap", "cards"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
+            {(["rps", "tap", "cards", "dice"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
           </div>
         </div>
         {lb.length === 0 && <p className="text-xs text-white/40">No scores yet — be the first!</p>}
@@ -234,6 +243,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "rps" && <RpsGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
 
       {room.status === "done" && (
         <div className="space-y-2">
@@ -400,6 +410,111 @@ function PlayingCard({ c, onClick, selectable }: { c: any; onClick?: () => void;
       <span className={red ? "text-red-600" : "text-slate-900"} style={{ fontSize: 18, lineHeight: 1 }}>{c.v}</span>
       <span className={red ? "text-red-600" : "text-slate-900"} style={{ fontSize: 18 }}>{c.s}</span>
     </button>
+  );
+}
+
+const DIE_FACE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+function DiceGame({ room, code, me }: any) {
+  const d = room.dice || {};
+  const myDice: number[] = Array.isArray(d.dice?.[me]) ? d.dice[me] : [];
+  const meP = room.players.find((p: any) => p.id === me);
+  const alive = meP?.alive;
+  const myTurn = d.turnId === me && room.status === "playing";
+  const bid = d.bid;
+  const canCatch = alive && room.status === "playing" && bid && bid.by !== me;
+  const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
+  const secs = useLocalCountdown(room.secondsLeft, `${d.turnId}-${bid?.qty}-${bid?.face}-${room.status}`);
+
+  const [qty, setQty] = useState<number>(0);
+  const [face, setFace] = useState<number>(2);
+  const [strike, setStrike] = useState(false);
+  useEffect(() => { setQty(bid ? bid.qty : (d.minOpen || 5)); if (bid) setFace(bid.face); }, [bid?.qty, bid?.face, d.minOpen, d.turnId]);
+
+  if (room.status === "done") {
+    const iWon = room.winnerId === me;
+    return (
+      <div className="rwg-card p-6 text-center">
+        <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "🎲"}</div>
+        <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-white/70"}`}>{iWon ? "YOU WIN!" : "You're out"}</p>
+        <p className="text-white/60 text-sm mt-2">{room.message}</p>
+      </div>
+    );
+  }
+
+  const reveal = room.status === "reveal" && d.reveal;
+
+  return (
+    <div className="rwg-card p-4">
+      <p className="text-sm text-amber-200 text-center mb-1">{room.message}</p>
+      {room.status === "playing" && secs > 0 && <p className={`text-center font-black mb-2 tabular-nums ${secs <= 4 ? "text-red-400" : "text-white/60"}`}>⏱ {secs}s{myTurn ? " — your turn!" : ""}</p>}
+
+      {/* current bid + joker status */}
+      <div className="flex items-center justify-center gap-4 mb-3">
+        <div className="text-center px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+          <p className="text-[10px] text-white/40">Current bid</p>
+          <p className="text-xl font-black text-white">{bid ? `${bid.qty} × ${bid.face === 1 ? "①" : DIE_FACE[bid.face]}` : "—"}</p>
+        </div>
+        <div className="text-center">
+          <p className={`text-xs font-bold ${d.jokerActive ? "text-emerald-300" : "text-white/40"}`}>① {d.jokerActive ? "WILD" : "not wild"}</p>
+          <p className="text-[10px] text-white/40">{d.totalDice} dice on table</p>
+        </div>
+      </div>
+
+      {/* reveal */}
+      {reveal && (
+        <div className="mb-3 rounded-xl bg-black/30 border border-white/10 p-3">
+          <p className="text-center text-sm text-white/70 mb-2">Bid was {reveal.bid.qty} × {reveal.bid.face === 1 ? "①" : DIE_FACE[reveal.bid.face]} — actually <b className="text-amber-300">{reveal.actual}</b> on the table</p>
+          {reveal.hands.map((h: any) => (
+            <div key={h.id} className="flex items-center justify-between text-sm py-0.5">
+              <span className={h.id === reveal.loserId ? "text-red-300 font-bold" : "text-white/70"}>{h.name}{h.id === reveal.loserId ? " 💀" : ""}</span>
+              <span className="text-lg tracking-tight">{h.dice.map((x: number, i: number) => <span key={i} className={x === reveal.bid.face || (reveal.jokerActive && reveal.bid.face !== 1 && x === 1) ? "text-amber-300" : "text-white/60"}>{DIE_FACE[x]}</span>)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* my dice */}
+      {alive ? (
+        <>
+          <p className="text-[11px] text-white/50 mb-1 text-center">Your dice</p>
+          <p className="text-center text-4xl mb-3 tracking-tight">{myDice.map((x, i) => <span key={i} className={x === 1 ? "text-amber-300" : "text-white"}>{DIE_FACE[x]}</span>)}</p>
+        </>
+      ) : <p className="text-center text-white/40 text-sm mb-3">You're out — watch the rest play!</p>}
+
+      {/* players */}
+      <div className="flex flex-wrap justify-center gap-2 mb-3">
+        {room.players.map((p: any) => (
+          <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs ${!p.alive ? "bg-white/5 text-white/30 line-through" : d.turnId === p.id ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>
+            {p.id === me ? "You" : p.name} · {Array.isArray(d.dice?.[p.id]) ? d.dice[p.id].length : d.dice?.[p.id] || 0}🎲{d.turnId === p.id ? " ⏳" : ""}
+          </span>
+        ))}
+      </div>
+
+      {/* controls */}
+      {myTurn && room.status === "playing" && (
+        <div className="rounded-xl bg-black/30 border border-white/10 p-3 mb-2">
+          <p className="text-[11px] text-white/50 mb-2">Your bid — pick a number & how many dice total (min {bid ? "higher than now" : d.minOpen})</p>
+          <div className="flex flex-wrap gap-1.5 justify-center mb-2">
+            {[1, 2, 3, 4, 5, 6].map((f) => (
+              <button key={f} onClick={() => setFace(f)} className={`w-11 h-11 rounded-lg text-2xl flex items-center justify-center ${face === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{f === 1 ? "①" : DIE_FACE[f]}</button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 justify-center mb-2">
+            <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 text-white text-xl font-bold">−</button>
+            <input type="number" inputMode="numeric" value={qty || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setQty(Number(e.target.value))} className="w-20 text-center rounded-lg bg-black/40 border border-white/10 py-2 text-white font-extrabold text-lg" />
+            <button onClick={() => setQty((q) => q + 1)} className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 text-white text-xl font-bold">+</button>
+            <span className="text-xs text-white/50">dice</span>
+          </div>
+          <label className="flex items-center justify-center gap-2 text-xs text-white/60 mb-2"><input type="checkbox" checked={strike} onChange={(e) => setStrike(e.target.checked)} /> Strike (make ① not wild)</label>
+          <button onClick={() => act({ act: "bid", face, qty, strike })} className="w-full py-2.5 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{bid ? "Raise bid" : "Open bid"}</button>
+        </div>
+      )}
+
+      {canCatch && (
+        <button onClick={() => act({ act: "catch" })} className="w-full py-3 rounded-xl font-black text-white bg-red-500 hover:bg-red-400">🫵 CATCH! (call their bluff)</button>
+      )}
+      {!myTurn && !canCatch && room.status === "playing" && <p className="text-center text-white/40 text-sm">Waiting…</p>}
+    </div>
   );
 }
 
