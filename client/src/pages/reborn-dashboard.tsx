@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout, MENU_ITEMS } from "@/components/RebornLayout";
+import { useModules, moduleEnabled, NAV_MODULE } from "@/lib/modules";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import { useTranslation } from "@/lib/i18n";
 import {
@@ -33,6 +34,7 @@ function formatRp(n: number) { return "RP " + (n || 0).toLocaleString("en-US"); 
 
 export default function RebornDashboard() {
   const [, navigate] = useLocation();
+  const modules = useModules();
   const { user } = useAuth();
   const { t } = useTranslation();
   const isAdmin = (user as any)?.role === "admin" || (user as any)?.role === "staff";
@@ -134,7 +136,7 @@ export default function RebornDashboard() {
       {/* All feature buttons */}
       <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1">{t("nav.allFeatures")}</h2>
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
-        {TILES.map((t) => (
+        {TILES.filter((t) => moduleEnabled(modules, NAV_MODULE[t.path])).map((t) => (
           <button key={t.label} onClick={() => navigate(t.path)} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all">
             <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `${t.color}22`, color: t.color }}>{t.icon}</span>
             <span className="text-xs font-semibold text-center leading-tight">{t.label}</span>

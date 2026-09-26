@@ -7,6 +7,7 @@ import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Use
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
+import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
 import { printClosingReport, printReceipt } from "@/lib/receipt";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
@@ -16,7 +17,9 @@ const ADMIN_TABS = ["Overview", "Venue", "Bookings", "Requests", "Redemptions", 
 export default function RebornAdmin() {
   const { user } = useAuth();
   const isFullAdmin = (user as any)?.role === "admin";
-  const TABS = (isFullAdmin ? ADMIN_TABS : STAFF_TABS) as readonly string[];
+  const modules = useModules();
+  const ALL_TABS = (isFullAdmin ? ADMIN_TABS : STAFF_TABS) as readonly string[];
+  const TABS = ALL_TABS.filter((t) => moduleEnabled(modules, ADMIN_TAB_MODULE[t]));
   const [tab, setTab] = useState<string>("Overview");
   return (
     <RebornLayout active="/reborn-admin" title="ADMIN">

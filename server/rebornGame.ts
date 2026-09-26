@@ -2323,6 +2323,18 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,"reborn-wave-group")).limit(1))[0];if(!reborn)return res.status(404).json({message:"Company not found"});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
   app.post("/api/reborn/admin/payroll/pay", requireAdmin(async(req,res)=>{const b=req.body||{};const amount=Math.max(0,Number(b.amount)||0);const month=String(b.month||"");const userId=String(b.userId||"");if(!amount||!month||!userId)return res.status(400).json({message:"Staff, month and amount are required"});const existing=await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType,"payroll"),eq(ledgerEntries.refId,`${userId}:${month}`))).limit(1);if(existing.length)return res.status(409).json({message:"This staff payroll has already been recorded for the month"});const[row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(amount),note:`Payroll ${b.name||userId} · ${month} (basic + commission)`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();res.json({message:"Payroll recorded as an expense",row});}));
 
+  // White-label feature flags — read the club's enabled modules from the
+  // BridgeX company config so the app/admin only show ticked functions.
+  app.get("/api/reborn/modules", async (_req, res) => {
+    try {
+      const rows: any = await db.execute(sql`SELECT m.module_key, m.enabled FROM bridge_company_modules m JOIN bridge_companies c ON c.id = m.company_id WHERE c.slug = 'reborn-wave-group'`);
+      const list = rows.rows || rows;
+      const modules: Record<string, boolean> = {};
+      for (const r of list) modules[r.module_key] = r.enabled !== false;
+      res.json({ modules });
+    } catch { res.json({ modules: {} }); }
+  });
+
   // ── Web Push (mobile pop-up notifications) ───────────────────────────
   app.get("/api/reborn/push/public-key", (_req, res) => {
     res.json({ key: getVapidPublicKey(), enabled: pushEnabled() });
