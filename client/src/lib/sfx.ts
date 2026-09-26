@@ -44,6 +44,7 @@ export const sfx = {
   win() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.2, "triangle", 0.22, i * 0.09)); },
   lose() { [420, 330, 250].forEach((f, i) => tone(f, 0.28, "sawtooth", 0.2, i * 0.13)); },
   wolf() { tone(180, 0.45, "sawtooth", 0.26); tone(130, 0.55, "sawtooth", 0.2, 0.12); },
+  laugh() { [660, 560, 660, 520, 620, 460].forEach((f, i) => tone(f, 0.1, "square", 0.16, i * 0.11)); },
   rankUp() { [659, 784, 988, 1319].forEach((f, i) => tone(f, 0.16, "triangle", 0.22, i * 0.08)); },
   rankDown() { [520, 400, 300].forEach((f, i) => tone(f, 0.22, "sawtooth", 0.2, i * 0.1)); },
   tick() { tone(1000, 0.03, "square", 0.1); },

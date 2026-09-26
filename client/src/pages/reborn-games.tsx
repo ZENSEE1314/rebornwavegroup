@@ -16,7 +16,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
   wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "spin for a drink dare — ½ up to 5 cups" },
-  riding: { name: "Red Riding Hood", emoji: "👵", blurb: "flip faces · dodge the laughing granny · 🐺 = double" },
+  riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
 
@@ -56,11 +56,11 @@ const RULES: Record<string, string[]> = {
     "Everyone spins once, then the round ends.",
   ],
   riding: [
-    "The board is full of granny faces, all face-down.",
-    "On your turn, flip the number of faces the host set (1–4).",
-    "😆 Flip the LAUGHING granny → you lose and drink, game over!",
-    "🐺 Flip a Wolf → drink DOUBLE, but the game keeps going.",
-    "Survive by flipping only safe grannies 👵.",
+    "Every tile is a granny face 👵 — but wolves are hiding among them!",
+    "On your turn, tap the number of grannies the host set (1–4).",
+    "🐺 Tap a wolf in granny's clothes → you lose and drink 1 cup, game over.",
+    "🧙 Tap the witch → you lose and drink DOUBLE, game over.",
+    "Tap only real grannies to stay safe!",
   ],
 };
 
@@ -693,13 +693,17 @@ function WheelGame({ room, code, me }: any) {
   const prizes: any[] = w.prizes || [];
   const myTurn = w.turnId === me && room.status === "playing";
   const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
-  const seg = prizes.length ? 360 / prizes.length : 60;
+  const N = prizes.length || 1;
+  const seg = 360 / N;
   const resultIdx = w.result?.index ?? -1;
   useEffect(() => { if (room.status === "reveal" && w.result) sfx.ding(); }, [room.status, w.result?.playerId, w.result?.index]);
   // Spin so the winning segment lands at the top pointer (with a few full turns).
   const rotation = resultIdx >= 0 ? 360 * 5 - (resultIdx * seg + seg / 2) : 0;
-  const colors = ["#f0d787", "#ff8ab5", "#66e2ff", "#c49bff", "#ffd27a", "#8be28b"];
-  const conic = prizes.map((_, i) => `${colors[i % colors.length]} ${i * seg}deg ${(i + 1) * seg}deg`).join(", ");
+  const colors = ["#f0d787", "#ff8ab5", "#66e2ff", "#c49bff", "#8be28b", "#ffd27a"];
+  const R = 96, C = 100;
+  const rad = (deg: number) => (deg - 90) * Math.PI / 180;
+  const pt = (deg: number, r: number) => [C + r * Math.cos(rad(deg)), C + r * Math.sin(rad(deg))];
+  const slice = (a0: number, a1: number) => { const [x0, y0] = pt(a0, R); const [x1, y1] = pt(a1, R); return `M${C},${C} L${x0.toFixed(2)},${y0.toFixed(2)} A${R},${R} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z`; };
 
   if (room.status === "done") {
     return <div className="rwg-card p-6 text-center"><div className="text-6xl mb-2">🍻</div><p className="text-xl font-black text-amber-300">Round done — cheers!</p><p className="text-white/60 text-sm mt-1">{room.message}</p></div>;
@@ -707,12 +711,22 @@ function WheelGame({ room, code, me }: any) {
   return (
     <div className="rwg-card p-5 text-center">
       <p className="text-sm text-amber-200 mb-3">{room.message}</p>
-      <div className="relative mx-auto mb-4" style={{ width: 240, height: 240 }}>
-        <div className="absolute left-1/2 -translate-x-1/2 -top-1 text-3xl z-10">🔻</div>
-        <div style={{ width: 240, height: 240, borderRadius: "50%", background: `conic-gradient(${conic})`, transition: resultIdx >= 0 ? "transform 3.5s cubic-bezier(.17,.67,.2,1)" : "none", transform: `rotate(${rotation}deg)`, boxShadow: "0 8px 30px rgba(0,0,0,.5), inset 0 0 0 6px rgba(255,255,255,.15)" }} />
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="rounded-full bg-black/60 border border-white/20" style={{ width: 70, height: 70 }} />
-        </div>
+      <div className="relative mx-auto mb-4" style={{ width: 260, maxWidth: "80vw" }}>
+        <div className="absolute left-1/2 -translate-x-1/2 -top-2 text-3xl z-10">🔻</div>
+        <svg viewBox="0 0 200 200" style={{ width: "100%", transition: resultIdx >= 0 ? "transform 3.6s cubic-bezier(.17,.67,.2,1)" : "none", transform: `rotate(${rotation}deg)`, filter: "drop-shadow(0 8px 24px rgba(0,0,0,.5))" }}>
+          <circle cx="100" cy="100" r="99" fill="#1a1030" />
+          {prizes.map((p: any, i: number) => {
+            const a0 = i * seg, a1 = (i + 1) * seg, mid = a0 + seg / 2;
+            const [lx, ly] = pt(mid, R * 0.62);
+            return (
+              <g key={i}>
+                <path d={slice(a0, a1)} fill={colors[i % colors.length]} stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
+                <text x={lx} y={ly} fill="#1a1030" fontSize={N > 6 ? 8 : 11} fontWeight="800" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${mid}, ${lx.toFixed(2)}, ${ly.toFixed(2)})`}>{p.label}</text>
+              </g>
+            );
+          })}
+          <circle cx="100" cy="100" r="16" fill="#0a0714" stroke="rgba(255,255,255,0.25)" strokeWidth="3" />
+        </svg>
       </div>
       {room.status === "reveal" && w.result && <p className="text-2xl font-black text-amber-300 mb-3" style={{ animation: "rwgPop .5s ease-out" }}>{w.result.name}: {w.result.label} {w.result.emoji}</p>}
       {myTurn ? (
@@ -727,41 +741,55 @@ function WheelGame({ room, code, me }: any) {
   );
 }
 
-const FACE = { grandma: "👵", laughing: "😆", wolf: "🐺" } as const;
+const FACE = { grandma: "👵", wolf: "🐺", witch: "🧙" } as const;
 function RidingGame({ room, code, me }: any) {
   const r = room.riding || {};
   const tiles: any[] = r.tiles || [];
+  const cols = Math.round(Math.sqrt(tiles.length)) || 4;
   const myTurn = r.turnId === me && room.status === "playing";
   const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
   const secs = useLocalCountdown(room.secondsLeft, `${r.turnId}-${r.flippedThisTurn}-${room.status}`);
-  const myWolves = r.wolfCounts?.[me] || 0;
-  useEffect(() => { if (room.message && room.message.includes("Wolf")) sfx.wolf(); }, [room.message]);
-  useEffect(() => { if (room.status === "reveal") sfx.lose(); }, [room.status]);
+  // On a loss the wolf/witch is revealed — cackle + howl + lose sting.
+  useEffect(() => { if (room.status === "reveal") { sfx.laugh(); sfx.wolf(); sfx.lose(); } }, [room.status]);
 
   if (room.status === "done") {
     const iLost = room.lastLoserId === me;
-    return <div className="rwg-card p-6 text-center"><div className="text-7xl mb-2">{iLost ? "😆🍻" : "👵"}</div><p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-white/70"}`}>{iLost ? "YOU LOSE — DRINK!" : "Game over"}</p><p className="text-white/60 text-sm mt-2">{room.message}</p></div>;
+    return <div className="rwg-card p-6 text-center"><div className="text-7xl mb-2">{iLost ? "🐺🍻" : "👵"}</div><p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-white/70"}`}>{iLost ? "YOU LOSE — DRINK!" : "Safe! 👵"}</p><p className="text-white/60 text-sm mt-2">{room.message}</p></div>;
   }
   return (
     <div className="rwg-card p-4">
       <p className="text-sm text-amber-200 text-center mb-1">{room.message}</p>
-      {room.status === "playing" && secs > 0 && <p className={`text-center font-black mb-2 tabular-nums ${secs <= 5 ? "text-red-400" : "text-white/60"}`}>⏱ {secs}s{myTurn ? ` — flip ${r.clicks - r.flippedThisTurn} more` : ""}</p>}
-      {myWolves > 0 && <p className="text-center text-[11px] text-orange-300 mb-2">🐺 You've hit {myWolves} wolf/wolves — drink double each!</p>}
+      {room.status === "playing" && secs > 0 && <p className={`text-center font-black mb-2 tabular-nums ${secs <= 5 ? "text-red-400" : "text-white/60"}`}>⏱ {secs}s{myTurn ? ` — tap ${r.clicks - r.flippedThisTurn} more` : ""}</p>}
+      <p className="text-center text-[11px] text-white/50 mb-2">Tap a granny 👵 — but a 🐺 wolf (or 🧙 witch!) is hiding among them…</p>
 
-      <div className="grid gap-2 mb-3 mx-auto" style={{ gridTemplateColumns: `repeat(${Math.round(Math.sqrt(tiles.length)) || 4}, 1fr)`, maxWidth: 380 }}>
-        {tiles.map((t: any) => (
-          <button key={t.id} disabled={!myTurn || t.flipped} onClick={() => { sfx.flip(); act({ act: "flip", tileId: t.id }); }}
-            className="aspect-square rounded-xl flex items-center justify-center transition active:scale-95"
-            style={{ fontSize: 30, background: t.flipped ? (t.kind === "laughing" ? "#7f1d1d" : t.kind === "wolf" ? "#7c2d12" : "rgba(255,255,255,0.9)") : "linear-gradient(135deg,#d1402a,#8a1f13)", border: t.flipped ? "2px solid rgba(255,255,255,.3)" : "2px solid rgba(255,255,255,.15)", boxShadow: t.flipped ? "none" : "inset 0 2px 0 rgba(255,255,255,.2), 0 3px 6px rgba(0,0,0,.4)" }}>
-            {t.flipped ? FACE[t.kind as keyof typeof FACE] : "🎀"}
-          </button>
-        ))}
+      <div className="grid gap-1.5 mb-3 mx-auto w-full" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, maxWidth: Math.min(360, cols * 68) }}>
+        {tiles.map((t: any) => {
+          const bomb = t.kind === "wolf" || t.kind === "witch";
+          const revealed = t.flipped || room.ridingReveal;
+          const face = revealed && t.kind ? FACE[t.kind as keyof typeof FACE] : "👵";
+          const isLoserTile = bomb && t.by === room.lastLoserId;
+          return (
+            <button key={t.id} disabled={!myTurn || t.flipped} onClick={() => { sfx.flip(); act({ act: "flip", tileId: t.id }); }}
+              className="aspect-square rounded-xl flex items-center justify-center transition active:scale-95 overflow-hidden"
+              style={{
+                fontSize: `min(${cols <= 4 ? 30 : 22}px, 8vw)`,
+                background: revealed && bomb ? (t.kind === "witch" ? "#4c1d95" : "#7f1d1d") : t.flipped ? "rgba(255,255,255,0.12)" : "linear-gradient(135deg,#ffe0b0,#e6a866)",
+                opacity: t.flipped && !bomb ? 0.55 : 1,
+                border: "2px solid rgba(255,255,255,.18)",
+                boxShadow: t.flipped ? "none" : "inset 0 2px 0 rgba(255,255,255,.35), 0 3px 6px rgba(0,0,0,.4)",
+                transform: isLoserTile ? "scale(1.12)" : "none",
+                animation: isLoserTile ? "rwgPop .5s ease-out" : undefined,
+              }}>
+              {face}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex flex-wrap justify-center gap-1.5">
-        {room.players.map((p: any) => <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs ${r.turnId === p.id ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>{p.id === me ? "You" : p.name}{r.turnId === p.id ? " ⏳" : ""}{r.wolfCounts?.[p.id] ? ` 🐺${r.wolfCounts[p.id]}` : ""}</span>)}
+        {room.players.map((p: any) => <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs ${r.turnId === p.id ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>{p.id === me ? "You" : p.name}{r.turnId === p.id ? " ⏳" : ""}</span>)}
       </div>
-      {!myTurn && room.status === "playing" && <p className="text-center text-white/40 text-sm mt-2">Watch {room.players.find((p: any) => p.id === r.turnId)?.name || "…"} flip…</p>}
+      {!myTurn && room.status === "playing" && <p className="text-center text-white/40 text-sm mt-2">Watch {room.players.find((p: any) => p.id === r.turnId)?.name || "…"} tap…</p>}
     </div>
   );
 }

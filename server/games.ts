@@ -533,12 +533,9 @@ function diceView(room: Room, forUserId?: string) {
 
 // ── Spin the Wheel (random punishment) ──────────────────────────────────
 const WHEEL_PRIZES = [
-  { label: "Half cup", cups: 0.5, w: 4, emoji: "🥤" },
-  { label: "1 cup", cups: 1, w: 4, emoji: "🍺" },
-  { label: "2 cups", cups: 2, w: 2, emoji: "🍺🍺" },
-  { label: "3 cups", cups: 3, w: 1, emoji: "🍺🍺🍺" },
-  { label: "4 cups", cups: 4, w: 1, emoji: "🍻🍻" },
-  { label: "5 cups", cups: 5, w: 1, emoji: "😵" },
+  { label: "Half cup", cups: 0.5, w: 3, emoji: "🥤" },
+  { label: "1 cup", cups: 1, w: 2, emoji: "🍺" },
+  { label: "2 cups", cups: 2, w: 1, emoji: "🍺🍺" },
 ];
 const WHEEL_TURN_SECONDS = 20;
 const wheelPrizesOf = (room: Room) => (room.wheelPrizes && room.wheelPrizes.length ? room.wheelPrizes : WHEEL_PRIZES);
@@ -593,8 +590,10 @@ const RIDING_TURN_SECONDS = 20;
 function startRiding(room: Room) {
   clearTimers(room);
   const n = Math.max(9, Math.min(36, room.facesCount || 16));
-  const wolves = Math.max(1, Math.floor(n / 8));
-  const kinds: ("grandma" | "laughing" | "wolf")[] = ["laughing"];
+  // Every tile looks like a granny. Some are wolves in disguise (lose, drink 1),
+  // and 1 is a witch (lose, drink double). The rest are real grannies (safe).
+  const wolves = Math.max(1, Math.floor(n / 9));
+  const kinds: ("grandma" | "wolf" | "witch")[] = ["witch"];
   for (let i = 0; i < wolves; i++) kinds.push("wolf");
   while (kinds.length < n) kinds.push("grandma");
   for (let i = kinds.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [kinds[i], kinds[j]] = [kinds[j], kinds[i]]; }
@@ -602,7 +601,7 @@ function startRiding(room: Room) {
   room.wolfCounts = {}; room.flippedThisTurn = 0; room.ridingReveal = false;
   room.turnIdx = Math.floor(Math.random() * room.players.length);
   room.status = "playing";
-  room.message = `${room.players[room.turnIdx].name}, flip ${room.ridingClicks} face${(room.ridingClicks || 1) > 1 ? "s" : ""}!`;
+  room.message = `${room.players[room.turnIdx].name}, tap ${room.ridingClicks} granny${(room.ridingClicks || 1) > 1 ? "s" : ""}!`;
   armRidingTimer(room);
   broadcast(room);
 }
@@ -630,27 +629,30 @@ function ridingFlip(room: Room, uid: string, tileId: number, auto = false): bool
   if (!t || t.flipped) return false;
   t.flipped = true; t.by = uid;
   const p = room.players[idx];
-  if (t.kind === "laughing") {
+  // Wolf (disguised granny) → lose, drink 1. Witch → lose, drink double. Both end the game.
+  if (t.kind === "wolf" || t.kind === "witch") {
     clearTimers(room);
     room.lastLoserId = uid;
     room.ridingReveal = true;
     room.status = "reveal";
-    room.message = `😆 ${p.name} flipped the laughing granny — you LOSE, drink! 🍻`;
+    room.message = t.kind === "witch"
+      ? `🧙 It's the WITCH! ${p.name} loses — drink DOUBLE! 🍻🍻`
+      : `🐺 A WOLF in granny's clothes! ${p.name} loses — drink 1 cup! 🍻`;
     broadcast(room);
     room.timer = setTimeout(async () => {
-      room.status = "done"; room.message = `${p.name} loses! 🍻`;
+      room.status = "done"; room.message = `${p.name} loses!`;
       broadcast(room);
       await saveScores(room, [{ userId: uid, name: p.name, score: 0, result: "lose" }]);
       scheduleCleanup(room);
     }, 4500);
     return true;
   }
-  if (t.kind === "wolf") { room.wolfCounts![uid] = (room.wolfCounts![uid] || 0) + 1; room.message = `🐺 Wolf! ${p.name} drinks DOUBLE!`; }
+  // Safe granny — keep going until you've tapped your quota.
   room.flippedThisTurn = (room.flippedThisTurn || 0) + 1;
   if ((room.flippedThisTurn || 0) >= (room.ridingClicks || 1) || room.tiles!.every((x) => x.flipped)) {
     room.flippedThisTurn = 0;
     room.turnIdx = nextAliveIdx(room, idx);
-    if (t.kind !== "wolf") room.message = `${room.players[room.turnIdx].name}, flip ${room.ridingClicks} face${(room.ridingClicks || 1) > 1 ? "s" : ""}!`;
+    room.message = `${room.players[room.turnIdx].name}, tap ${room.ridingClicks} granny${(room.ridingClicks || 1) > 1 ? "s" : ""}!`;
     armRidingTimer(room);
   }
   broadcast(room);
