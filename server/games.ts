@@ -592,7 +592,7 @@ function wheelView(room: Room) {
 const RIDING_TURN_SECONDS = 20;
 function startRiding(room: Room) {
   clearTimers(room);
-  const n = Math.max(16, Math.min(32, room.facesCount || 16));
+  const n = Math.max(9, Math.min(36, room.facesCount || 16));
   const wolves = Math.max(1, Math.floor(n / 8));
   const kinds: ("grandma" | "laughing" | "wolf")[] = ["laughing"];
   for (let i = 0; i < wolves; i++) kinds.push("wolf");
@@ -785,7 +785,7 @@ export function registerGameRoutes(app: Express) {
       round: 1, deadline: 0, message: "Waiting for players…", eliminatedThisRound: [],
       winTarget: Math.max(1, Math.min(10, Math.floor(Number(req.body?.winTarget) || 1))), seriesScore: {},
       ridingClicks: Math.max(1, Math.min(4, Math.floor(Number(req.body?.ridingClicks) || 1))),
-      facesCount: Math.max(16, Math.min(32, Math.floor(Number(req.body?.facesCount) || 16))),
+      facesCount: Math.max(9, Math.min(36, Math.floor(Number(req.body?.facesCount) || 16))),
       wheelPrizes: Array.isArray(req.body?.wheelPrizes)
         ? req.body.wheelPrizes.map((s: any) => String(s).trim()).filter(Boolean).slice(0, 12).map((label: string) => ({ label, w: 1, emoji: "🍺" }))
         : undefined,

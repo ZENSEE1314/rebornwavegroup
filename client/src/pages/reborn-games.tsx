@@ -204,7 +204,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
           <div className="mt-3 space-y-2">
             <div>
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Faces on the board</p>
-              <div className="flex gap-2">{[16, 20, 24, 28, 32].map((n) => <button key={n} onClick={() => setFacesCount(n)} className={`cbtn flex-1 py-2 text-xs ${facesCount === n ? "cbtn-gold" : "cbtn-dark"}`}>{n}</button>)}</div>
+              <div className="flex gap-2">{[9, 16, 25, 36].map((n) => <button key={n} onClick={() => setFacesCount(n)} className={`cbtn flex-1 py-2 text-xs ${facesCount === n ? "cbtn-gold" : "cbtn-dark"}`}>{n}</button>)}</div>
             </div>
             <div>
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Faces to flip each turn</p>
@@ -748,7 +748,7 @@ function RidingGame({ room, code, me }: any) {
       {room.status === "playing" && secs > 0 && <p className={`text-center font-black mb-2 tabular-nums ${secs <= 5 ? "text-red-400" : "text-white/60"}`}>⏱ {secs}s{myTurn ? ` — flip ${r.clicks - r.flippedThisTurn} more` : ""}</p>}
       {myWolves > 0 && <p className="text-center text-[11px] text-orange-300 mb-2">🐺 You've hit {myWolves} wolf/wolves — drink double each!</p>}
 
-      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))" }}>
+      <div className="grid gap-2 mb-3 mx-auto" style={{ gridTemplateColumns: `repeat(${Math.round(Math.sqrt(tiles.length)) || 4}, 1fr)`, maxWidth: 380 }}>
         {tiles.map((t: any) => (
           <button key={t.id} disabled={!myTurn || t.flipped} onClick={() => { sfx.flip(); act({ act: "flip", tileId: t.id }); }}
             className="aspect-square rounded-xl flex items-center justify-center transition active:scale-95"
