@@ -79,6 +79,7 @@ const RebornDashboard      = lazy(() => import("@/pages/reborn-dashboard"));
 const RebornPet            = lazy(() => import("@/pages/reborn-pet"));
 const RebornSpin           = lazy(() => import("@/pages/reborn-spin"));
 const RebornGames          = lazy(() => import("@/pages/reborn-games"));
+const RebornAttend         = lazy(() => import("@/pages/reborn-attend"));
 const RebornSupport        = lazy(() => import("@/pages/reborn-support"));
 const RebornAdmin          = lazy(() => import("@/pages/reborn-admin"));
 const RebornKos            = lazy(() => import("@/pages/reborn-kos"));
@@ -226,6 +227,7 @@ function Router() {
             <Route path="/pet" component={RebornPet} />
             <Route path="/spin" component={RebornSpin} />
             <Route path="/games" component={RebornGames} />
+            <Route path="/attend" component={RebornAttend} />
             <Route path="/support" component={RebornSupport} />
             <Route path="/kos" component={RebornKos} />
             <Route path="/songs" component={RebornSong} />

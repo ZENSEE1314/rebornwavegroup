@@ -106,6 +106,19 @@ async function rebornCompany() {
   return (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0] || null;
 }
 
+// Workplace attendance QR code (staff scan to clock in). Persisted; admin can rotate.
+async function currentAttendCode(): Promise<string> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "attendCode"));
+  if (row?.value) return row.value;
+  return rotateAttendCode();
+}
+async function rotateAttendCode(): Promise<string> {
+  const code = randomVenueCode() + randomVenueCode();
+  await db.insert(appSettings).values({ key: "attendCode", value: code, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: code, updatedAt: new Date() } });
+  return code;
+}
+
 async function ensureVenueSession(rotate = false) {
   const day = wibDay();
   const rows = await db.select().from(appSettings).where(inArray(appSettings.key, ["venueSessionDay", "venueSessionCode"]));
@@ -2355,16 +2368,33 @@ export function registerRebornRoutes(app: Express) {
     res.json({ sent: n });
   });
 
+  // ── Attendance QR — main admin posts this at the workplace; staff scan to clock in ──
+  app.get("/api/reborn/admin/attendance/code", requireAdmin(async (req, res) => {
+    const code = await currentAttendCode();
+    res.json({ code, url: `${req.protocol}://${req.get("host")}/attend?c=${code}` });
+  }));
+  app.post("/api/reborn/admin/attendance/rotate", requireAdmin(async (_req, res) => {
+    const code = await rotateAttendCode();
+    res.json({ code });
+  }));
+  app.get("/api/reborn/admin/attendance/qr", requireAdmin(async (req, res) => {
+    const code = await currentAttendCode();
+    const svg = await QRCode.toString(`${req.protocol}://${req.get("host")}/attend?c=${code}`, { type: "svg", width: 720, margin: 2, color: { dark: "#120b20", light: "#ffffff" } });
+    res.type("image/svg+xml").send(svg);
+  }));
+
   // ── HR: attendance, schedule, leave ──────────────────────────────────
   // Worker self-service (any staff/admin account)
   app.post("/api/reborn/staff/check-in", requireStaff(async (req, res) => {
     const uid = getUserId(req)!;
     const wd = todayStr();
     const photo = String(req.body?.photo || "");
-    if (!photo) return res.status(400).json({ message: "A check-in photo is required (today's date on your hand with the shop behind you)." });
+    const code = String(req.body?.code || "").trim();
+    const validCode = code && code === (await currentAttendCode());
+    if (!validCode && !photo) return res.status(400).json({ message: "Scan the workplace attendance QR, or take a check-in photo." });
     const open = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, wd))).limit(1);
     if (open[0] && !open[0].checkOutAt) return res.status(400).json({ message: "You are already checked in today." });
-    const [row] = await db.insert(staffAttendance).values({ userId: uid, workDate: wd, checkInPhoto: photo, status: "present" }).returning();
+    const [row] = await db.insert(staffAttendance).values({ userId: uid, workDate: wd, checkInPhoto: photo || null, status: "present", decisionNote: validCode ? "QR check-in" : null }).returning();
     const staff = await storage.getUser(uid);
     await sendRebornStaffNotification({ type: "attendance", title: "Staff checked in", body: `${staff?.firstName || staff?.username || "Staff"} checked in`, data: { path: "/reborn-admin", attendanceId: row.id } });
     res.json(row);

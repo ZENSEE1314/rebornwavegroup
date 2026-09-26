@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2 } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
@@ -1123,11 +1123,27 @@ function ManageHr() {
     mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/shifts/${id}`, {}).then((r) => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/shifts", schedFrom] }),
   });
+  const { data: attendCode } = useQuery<any>({ queryKey: ["/api/reborn/admin/attendance/code"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance/code").then((r) => r.json()) });
+  const rotateCode = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/attendance/rotate", {}).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "New QR generated", description: "Re-print and post it. The old one no longer works." }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/attendance/code"] }); },
+  });
   return (
     <div className="space-y-3">
       <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><QrCode className="w-4 h-4 text-amber-300" /> Workplace attendance QR</p>
+        <p className="text-[11px] text-white/40 mb-3">Print this and post it at the workplace. Staff scan it (or open the app and go to Attendance) to check in — no photo needed.</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="bg-white rounded-2xl p-3 w-44"><img src={`/api/reborn/admin/attendance/qr?v=${encodeURIComponent(attendCode?.code || "")}`} alt="Workplace attendance QR" className="w-full aspect-square" /></div>
+          <div className="flex gap-2 w-full">
+            <button onClick={() => window.open(`/api/reborn/admin/attendance/qr?v=${encodeURIComponent(attendCode?.code || "")}`, "_blank")} className={btnSm + " flex-1 justify-center"}>Open / print</button>
+            <button onClick={() => { if (confirm("Generate a new QR? The current printed QR will stop working until you re-post the new one.")) rotateCode.mutate(); }} disabled={rotateCode.isPending} className={btnSm + " flex-1 justify-center disabled:opacity-50"}><RefreshCw className="w-4 h-4" /> New QR</button>
+          </div>
+        </div>
+      </Card>
+      <Card>
         <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> Attendance</p>
-        <p className="text-[11px] text-white/40 mb-2">Staff check in with a dated photo — no approval needed. Delete a photo to free space (the record stays).</p>
+        <p className="text-[11px] text-white/40 mb-2">Staff check in by scanning the workplace QR (or with a dated photo) — no approval needed. Delete a photo to free space (the record stays).</p>
         {attendance.length === 0 && <p className="text-xs text-white/40">No check-ins yet.</p>}
         {attendance.slice(0, 60).map((a) => (
           <div key={a.id} className="flex items-center gap-2 text-sm py-2 border-b border-white/5 last:border-0">
