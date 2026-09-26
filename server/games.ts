@@ -425,29 +425,25 @@ function resolveDiceCatch(room: Room, challengerId: string) {
     hands: diceAlive(room).map((p) => ({ id: p.id, name: p.name, dice: p.dice })),
     verdict: lie ? "lie" : "true",
   };
-  if (loser) loser.alive = false;
   room.lastLoserId = loserId;
+  const winnerId = lie ? challengerId : bid.by; // the one who was right
+  const winner = room.players.find((p) => p.id === winnerId);
   room.status = "reveal";
   room.message = lie
-    ? `Caught the bluff! Only ${actual}× ${bid.face} — ${loser?.name} is out! 💀`
-    : `There were ${actual}× ${bid.face} — ${loser?.name} guessed wrong and is out! 💀`;
+    ? `Caught the bluff! Only ${actual}× ${bid.face} — ${loser?.name} LOSES! 💀`
+    : `There were ${actual}× ${bid.face} — ${loser?.name} caught wrong and LOSES! 💀`;
   broadcast(room);
-  const remaining = diceAlive(room);
+  // Game ends on the first loss.
   room.timer = setTimeout(() => {
-    if (remaining.length <= 1) {
-      room.status = "done"; room.winnerId = remaining[0]?.id;
-      room.message = remaining[0] ? `${remaining[0].name} wins the dice game! 🏆` : "No winner";
-      broadcast(room);
-      const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [];
-      if (remaining[0]) rows.push({ userId: remaining[0].id, name: remaining[0].name, score: 1, result: "win" });
-      if (loser && loser.id !== remaining[0]?.id) rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" });
-      saveScores(room, rows);
-      scheduleCleanup(room);
-    } else {
-      // The challenge winner starts the next round.
-      const starter = loserId === bid.by ? challengerId : bid.by;
-      startDiceRound(room, room.players.find((p) => p.id === starter && p.alive) ? starter : undefined);
-    }
+    room.status = "done";
+    room.winnerId = winnerId;
+    room.message = `${loser?.name} loses! 🍻  ${winner ? winner.name + " called it right 🏆" : ""}`;
+    broadcast(room);
+    const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [];
+    if (winner) rows.push({ userId: winner.id, name: winner.name, score: 1, result: "win" });
+    if (loser && loser.id !== winnerId) rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" });
+    saveScores(room, rows);
+    scheduleCleanup(room);
   }, 5000);
 }
 function diceView(room: Room, forUserId?: string) {

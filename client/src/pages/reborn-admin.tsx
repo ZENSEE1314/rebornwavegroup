@@ -327,7 +327,8 @@ function GiftTypes() {
 const GAME_META: Record<string, { name: string; emoji: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️" },
-  cards: { name: "Card Match (coming soon)", emoji: "🃏" },
+  cards: { name: "Card Match", emoji: "🃏" },
+  dice: { name: "Dice Bluffing Game", emoji: "🎲" },
 };
 const WDAYS = [["1", "Mon"], ["2", "Tue"], ["3", "Wed"], ["4", "Thu"], ["5", "Fri"], ["6", "Sat"], ["0", "Sun"]];
 function GamesAdmin() {

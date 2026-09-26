@@ -10,7 +10,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "5s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "60s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
-  dice: { name: "Liar's Dice", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
+  dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
 
@@ -39,9 +39,9 @@ const RULES: Record<string, string[]> = {
     "Everyone rolls 5 hidden dice. Bid how many of a number are on the table across ALL players.",
     "① (ones) are wild — they count as any number.",
     "Each turn (15s): raise the bid (more dice, or same dice with a higher number) OR catch the current bidder.",
-    "Anyone can Catch! If the real count is LESS than the bid, the bidder is out. If it's enough, the catcher is out.",
+    "Anyone can Catch! If the real count is LESS than the bid, the bidder loses. If it's enough, the catcher loses.",
     "Bid on ① or hit Strike → ones stop being wild, until a bid reaches 1.5× that amount.",
-    "Last player standing wins 🏆.",
+    "The round ends the moment someone loses — they drink 🍻; whoever called it right wins 🏆.",
   ],
 };
 
@@ -432,10 +432,11 @@ function DiceGame({ room, code, me }: any) {
 
   if (room.status === "done") {
     const iWon = room.winnerId === me;
+    const iLost = room.lastLoserId === me;
     return (
       <div className="rwg-card p-6 text-center">
-        <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "🎲"}</div>
-        <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-white/70"}`}>{iWon ? "YOU WIN!" : "You're out"}</p>
+        <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : iLost ? "🍻" : "🎲"}</div>
+        <p className={`text-2xl font-black ${iWon ? "text-amber-300" : iLost ? "text-red-300" : "text-white/70"}`}>{iWon ? "YOU CALLED IT!" : iLost ? "YOU LOSE — DRINK!" : "Game over"}</p>
         <p className="text-white/60 text-sm mt-2">{room.message}</p>
       </div>
     );
