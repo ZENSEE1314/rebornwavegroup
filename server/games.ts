@@ -364,6 +364,20 @@ export function registerGameRoutes(app: Express) {
     res.json((rows.rows || rows).map((r: any) => ({ userId: r.user_id, name: r.name, score: Number(r.best ?? r.wins ?? 0), plays: Number(r.plays || 0) })));
   });
 
+  // Browse all open rooms (in the lobby, not yet started)
+  app.get("/api/reborn/games/rooms", requireAuth, async (_req, res) => {
+    const list = Array.from(rooms.values())
+      .filter((r) => r.status === "lobby")
+      .map((r) => ({
+        code: r.code, game: r.game,
+        hostName: r.players.find((p) => p.id === r.hostId)?.name || "Host",
+        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : MAX_PLAYERS,
+        hasPassword: !!r.password, createdAt: r.createdAt,
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+    res.json(list);
+  });
+
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;

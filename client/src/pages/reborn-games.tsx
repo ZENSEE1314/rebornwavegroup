@@ -77,8 +77,11 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   const [lb, setLb] = useState<any[]>([]);
   const [help, setHelp] = useState<string | null>(null);
 
+  const [openRooms, setOpenRooms] = useState<any[]>([]);
   useEffect(() => { apiRequest("GET", "/api/reborn/games/config").then((r) => r.json()).then((d) => setToday(d.today || {})).catch(() => {}); }, []);
   useEffect(() => { apiRequest("GET", `/api/reborn/games/leaderboard?game=${lbGame}`).then((r) => r.json()).then(setLb).catch(() => {}); }, [lbGame]);
+  const loadRooms = () => apiRequest("GET", "/api/reborn/games/rooms").then((r) => r.json()).then(setOpenRooms).catch(() => {});
+  useEffect(() => { loadRooms(); const t = setInterval(loadRooms, 4000); return () => clearInterval(t); }, []);
 
   const create = async () => {
     const { ok, d } = await post("/api/reborn/games/rooms", { game, password });
@@ -87,6 +90,13 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   };
   const join = async () => {
     const { ok, d } = await post(`/api/reborn/games/rooms/${joinCode.trim().toUpperCase()}/join`, { password: joinPw });
+    if (!ok) return toast({ title: "Can't join", description: d.message, variant: "destructive" });
+    onEnter(d.code);
+  };
+  const joinRoom = async (r: any) => {
+    const pw = r.hasPassword ? (prompt(`"${r.hostName}"'s room is locked 🔒 — enter the password:`) ?? "") : "";
+    if (r.hasPassword && !pw) return;
+    const { ok, d } = await post(`/api/reborn/games/rooms/${r.code}/join`, { password: pw });
     if (!ok) return toast({ title: "Can't join", description: d.message, variant: "destructive" });
     onEnter(d.code);
   };
@@ -127,7 +137,27 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
       {help && <HowToPlay game={help} onClose={() => setHelp(null)} />}
 
       <div className="rwg-card p-4">
-        <p className="text-xs text-white/50 mb-2">Join a friend's room</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-bold text-white flex items-center gap-2"><Users className="w-4 h-4 text-amber-300" /> Open rooms</p>
+          <button onClick={loadRooms} className="text-xs text-white/50">↻ Refresh</button>
+        </div>
+        {openRooms.length === 0 && <p className="text-xs text-white/40">No open rooms — create one above and invite friends!</p>}
+        <div className="space-y-2">
+          {openRooms.map((r) => (
+            <div key={r.code} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
+              <span className="text-2xl">{GAMES[r.game]?.emoji || "🎮"}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-white truncate">{GAMES[r.game]?.name || r.game} {r.hasPassword ? "🔒" : ""}</p>
+                <p className="text-[11px] text-white/50 truncate">{r.hostName}'s room · <b className="text-amber-300">{r.code}</b> · {r.players}/{r.max} players</p>
+              </div>
+              <button onClick={() => joinRoom(r)} disabled={r.players >= r.max} className="px-4 py-2 rounded-lg text-sm font-bold text-black disabled:opacity-40" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{r.players >= r.max ? "Full" : "Join"}</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rwg-card p-4">
+        <p className="text-xs text-white/50 mb-2">Or join by code</p>
         <div className="flex gap-2">
           <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={4} placeholder="CODE" className="w-24 text-center tracking-widest font-extrabold rounded-xl bg-black/30 border border-white/10 py-2.5 text-white focus:outline-none" />
           <input value={joinPw} onChange={(e) => setJoinPw(e.target.value)} placeholder="Password (if any)" className="flex-1 rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
