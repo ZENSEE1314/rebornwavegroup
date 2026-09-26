@@ -25,6 +25,8 @@ interface Room {
   turnIdx?: number; phase?: "draw" | "discard"; drawnFrom?: "deck" | "discard" | null;
   // dice-only
   bid?: Bid | null; jokerActive?: boolean; jokerReenableAt?: number; diceReveal?: any;
+  // series (best-of / play to N wins)
+  winTarget?: number; seriesScore?: Record<string, number>; seriesChampionId?: string;
 }
 
 const rooms = new Map<string, Room>();
@@ -46,6 +48,7 @@ function view(room: Room, forUserId?: string) {
     hasPassword: !!room.password, round: room.round, message: room.message,
     secondsLeft: room.deadline ? Math.max(0, Math.ceil((room.deadline - Date.now()) / 1000)) : 0,
     winnerId: room.winnerId, lastLoserId: room.lastLoserId, eliminatedThisRound: room.eliminatedThisRound,
+    winTarget: room.winTarget || 1, seriesScore: room.seriesScore || {}, seriesChampionId: room.seriesChampionId,
     you: forUserId,
     players: room.players.map((p) => ({
       id: p.id, name: p.name, alive: p.alive, taps: p.taps,
@@ -74,6 +77,15 @@ async function nameFor(userId: string): Promise<string> {
 async function saveScores(room: Room, rows: { userId: string; name: string; score: number; result: "win" | "lose" }[]) {
   if (!rows.length) return;
   await db.insert(pvpScores).values(rows.map((r) => ({ game: room.game, userId: r.userId, userName: r.name, score: r.score, result: r.result, roomCode: room.code }))).catch(() => {});
+}
+
+// Series scoring: +1 to the round winner; mark champion when they hit the target.
+function bumpSeries(room: Room, winnerId?: string) {
+  if (!winnerId) return;
+  room.seriesScore = room.seriesScore || {};
+  room.seriesScore[winnerId] = (room.seriesScore[winnerId] || 0) + 1;
+  if ((room.winTarget || 1) > 1 && room.seriesScore[winnerId] >= (room.winTarget || 1)) room.seriesChampionId = winnerId;
+  broadcast(room); // reflect the updated tally in the done screen
 }
 
 function clearTimers(room: Room) {
@@ -127,6 +139,7 @@ function resolveRps(room: Room) {
     const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [];
     if (survivors[0]) rows.push({ userId: survivors[0].id, name: survivors[0].name, score: 1, result: "win" });
     if (room.lastLoserId) { const l = room.players.find((p) => p.id === room.lastLoserId); if (l && l.id !== survivors[0]?.id) rows.push({ userId: l.id, name: l.name, score: 0, result: "lose" }); }
+    bumpSeries(room, survivors[0]?.id);
     saveScores(room, rows);
     scheduleCleanup(room);
     return;
@@ -159,6 +172,7 @@ function finishTap(room: Room) {
   room.lastLoserId = ranked[ranked.length - 1]?.id;
   room.message = top ? `${top.name} struck gold — ${top.taps} coins! 🏆` : "Game over";
   broadcast(room);
+  bumpSeries(room, top?.id);
   saveScores(room, ranked.map((p, i) => ({ userId: p.id, name: p.name, score: p.taps, result: i === 0 ? "win" : "lose" })));
   scheduleCleanup(room);
 }
@@ -179,6 +193,8 @@ function resetRoom(room: Room) {
   room.eliminatedThisRound = []; room.winnerId = undefined; room.lastLoserId = undefined;
   room.deck = undefined; room.discardTop = null; room.discardBy = null; room.turnIdx = undefined; room.phase = undefined; room.drawnFrom = null;
   room.bid = null; room.jokerActive = true; room.jokerReenableAt = undefined; room.diceReveal = null;
+  // A finished series resets the tally for a fresh one; mid-series keeps it.
+  if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; }
   broadcast(room);
 }
@@ -256,6 +272,7 @@ async function cardsWin(room: Room, winnerId: string, via: "deck" | "discard") {
     if (loser && loser.id !== winnerId) { rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" }); room.lastLoserId = loser.id; }
   }
   broadcast(room);
+  bumpSeries(room, winnerId);
   await saveScores(room, rows);
   scheduleCleanup(room);
 }
@@ -387,6 +404,7 @@ function diceTimeout(room: Room) {
     const winner = room.players.find((x) => x.id === winnerId);
     room.message = `${p.name} ran out of time and loses! 🍻${winner ? "  " + winner.name + " wins 🏆" : ""}`;
     broadcast(room);
+    bumpSeries(room, winnerId);
     const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [{ userId: loserId, name: p.name, score: 0, result: "lose" }];
     if (winner && winner.id !== loserId) rows.push({ userId: winner.id, name: winner.name, score: 1, result: "win" });
     saveScores(room, rows);
@@ -456,6 +474,7 @@ function resolveDiceCatch(room: Room, challengerId: string) {
     room.winnerId = winnerId;
     room.message = `${loser?.name} loses! 🍻  ${winner ? winner.name + " called it right 🏆" : ""}`;
     broadcast(room);
+    bumpSeries(room, winnerId);
     const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [];
     if (winner) rows.push({ userId: winner.id, name: winner.name, score: 1, result: "win" });
     if (loser && loser.id !== winnerId) rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" });
@@ -543,6 +562,7 @@ export function registerGameRoutes(app: Express) {
       code: code4(), game, hostId: uid, password: String(req.body?.password || "").trim(),
       status: "lobby", players: [{ id: uid, name, alive: true, taps: 0, connected: true }],
       round: 1, deadline: 0, message: "Waiting for players…", eliminatedThisRound: [],
+      winTarget: Math.max(1, Math.min(10, Math.floor(Number(req.body?.winTarget) || 1))), seriesScore: {},
       createdAt: Date.now(), subs: new Set(),
     };
     rooms.set(room.code, room);

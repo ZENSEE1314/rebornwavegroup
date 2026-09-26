@@ -80,6 +80,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   const [today, setToday] = useState<Record<string, boolean>>({});
   const [game, setGame] = useState<"rps" | "tap" | "cards" | "dice">("rps");
   const [password, setPassword] = useState("");
+  const [winTarget, setWinTarget] = useState(1);
   const [joinCode, setJoinCode] = useState("");
   const [joinPw, setJoinPw] = useState("");
   const [lbGame, setLbGame] = useState<"rps" | "tap" | "cards" | "dice">("rps");
@@ -93,7 +94,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   useEffect(() => { loadRooms(); const t = setInterval(loadRooms, 4000); return () => clearInterval(t); }, []);
 
   const create = async () => {
-    const { ok, d } = await post("/api/reborn/games/rooms", { game, password });
+    const { ok, d } = await post("/api/reborn/games/rooms", { game, password, winTarget });
     if (!ok) return toast({ title: "Can't create", description: d.message, variant: "destructive" });
     onEnter(d.code);
   };
@@ -136,6 +137,14 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
           <div className="flex-1 flex items-center gap-2 rounded-xl bg-black/30 border border-white/10 px-3">
             <Lock className="w-4 h-4 text-white/40" />
             <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Room password (optional)" className="flex-1 bg-transparent py-2.5 text-white text-sm focus:outline-none" />
+          </div>
+        </div>
+        <div className="mt-2">
+          <p className="text-xs text-white/50 mb-1">Play to how many wins?</p>
+          <div className="flex gap-2">
+            {[[1, "Single game"], [3, "Best of / 3 wins"], [5, "5 wins"]].map(([v, l]) => (
+              <button key={v} onClick={() => setWinTarget(v as number)} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${winTarget === v ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{l}</button>
+            ))}
           </div>
         </div>
         <div className="mt-3 flex gap-2">
@@ -239,7 +248,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
         </div>
       </div>
 
-      {room.status === "lobby" && <LobbyRoom room={room} code={code} isHost={isHost} />}
+      {room.status === "lobby" && <><SeriesBoard room={room} /><LobbyRoom room={room} code={code} isHost={isHost} /></>}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "rps" && <RpsGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
@@ -247,11 +256,18 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
 
       {room.status === "done" && (
         <div className="space-y-2">
+          {room.seriesChampionId && (
+            <div className="rwg-card p-4 text-center" style={{ animation: "rwgPop .5s ease-out" }}>
+              <p className="text-4xl mb-1">👑</p>
+              <p className="text-xl font-black text-amber-300">Series champion: {room.players.find((p: any) => p.id === room.seriesChampionId)?.name}</p>
+            </div>
+          )}
+          <SeriesBoard room={room} />
           {isHost ? (
             <button onClick={async () => { const { ok, d } = await post(`/api/reborn/games/rooms/${code}/restart`); if (!ok) toast({ title: "Can't restart", description: d.message, variant: "destructive" }); }}
-              className="w-full py-3 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>🔄 Play again</button>
+              className="w-full py-3 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{room.seriesChampionId ? "🎉 New series" : room.winTarget > 1 ? "▶ Next round" : "🔄 Play again"}</button>
           ) : (
-            <p className="text-center text-white/50 text-sm py-2">Waiting for the host to start another round… you can stay or leave.</p>
+            <p className="text-center text-white/50 text-sm py-2">Waiting for the host to start {room.winTarget > 1 && !room.seriesChampionId ? "the next round" : "another game"}… you can stay or leave.</p>
           )}
           <button onClick={leave} className="w-full py-3 rounded-xl font-bold bg-white/5 border border-white/10 text-white/80">Leave room</button>
         </div>
@@ -281,6 +297,25 @@ function LobbyRoom({ room, code, isHost }: any) {
         </button>
       ) : <p className="text-center text-white/50 text-sm py-3">Waiting for the host to start…</p>}
       <p className="text-center text-[11px] text-white/40 mt-3">Share code <b className="text-amber-300">{room.code}</b>{room.hasPassword ? " + the password" : ""} with friends to join.</p>
+    </div>
+  );
+}
+
+function SeriesBoard({ room }: any) {
+  if (!room.winTarget || room.winTarget <= 1) return null;
+  const score = room.seriesScore || {};
+  const sorted = [...room.players].sort((a: any, b: any) => (score[b.id] || 0) - (score[a.id] || 0));
+  return (
+    <div className="rwg-card p-3">
+      <p className="text-xs font-bold text-amber-200 mb-1.5">🏆 Series — first to {room.winTarget} wins</p>
+      <div className="space-y-1">
+        {sorted.map((p: any) => (
+          <div key={p.id} className="flex items-center justify-between text-sm">
+            <span className="text-white/70">{p.id === room.seriesChampionId ? "👑 " : ""}{p.name}</span>
+            <span className="font-bold text-amber-300">{score[p.id] || 0}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
