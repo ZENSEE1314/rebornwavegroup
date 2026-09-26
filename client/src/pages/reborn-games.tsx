@@ -14,6 +14,8 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "60s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
+  wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "spin for a drink dare — ½ up to 5 cups" },
+  riding: { name: "Red Riding Hood", emoji: "👵", blurb: "flip faces · dodge the laughing granny · 🐺 = double" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
 
@@ -45,6 +47,19 @@ const RULES: Record<string, string[]> = {
     "Anyone can Catch (you'll confirm first). If the real count is LESS than the bid, the bidder loses. If it's enough, the catcher loses.",
     "Bid on ① or hit Strike → ones stop being wild, until a bid reaches 1.5× that amount.",
     "The round ends the moment someone loses — they drink 🍻; whoever called it right wins 🏆.",
+  ],
+  wheel: [
+    "Take turns spinning the wheel.",
+    "It lands on a random dare: from half a cup up to 5 cups 🍺.",
+    "Drink whatever you land on — cheers!",
+    "Everyone spins once, then the round ends.",
+  ],
+  riding: [
+    "The board is full of granny faces, all face-down.",
+    "On your turn, flip the number of faces the host set (1–4).",
+    "😆 Flip the LAUGHING granny → you lose and drink, game over!",
+    "🐺 Flip a Wolf → drink DOUBLE, but the game keeps going.",
+    "Survive by flipping only safe grannies 👵.",
   ],
 };
 
@@ -86,12 +101,15 @@ export default function RebornGames() {
 function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
-  const [game, setGame] = useState<"rps" | "tap" | "cards" | "dice">("rps");
+  const [game, setGame] = useState<"rps" | "tap" | "cards" | "dice" | "wheel" | "riding">("rps");
   const [password, setPassword] = useState("");
   const [winTarget, setWinTarget] = useState(1);
+  const [ridingClicks, setRidingClicks] = useState(2);
+  const [facesCount, setFacesCount] = useState(16);
+  const [wheelText, setWheelText] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [joinPw, setJoinPw] = useState("");
-  const [lbGame, setLbGame] = useState<"rps" | "tap" | "cards" | "dice">("rps");
+  const [lbGame, setLbGame] = useState<"rps" | "tap" | "cards" | "dice" | "wheel" | "riding">("rps");
   const [lb, setLb] = useState<any[]>([]);
   const [help, setHelp] = useState<string | null>(null);
 
@@ -106,7 +124,8 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   useEffect(() => { loadRooms(); const t = setInterval(loadRooms, 4000); return () => clearInterval(t); }, []);
 
   const create = async () => {
-    const { ok, d } = await post("/api/reborn/games/rooms", { game, password, winTarget });
+    const wheelPrizes = wheelText.split("\n").map((s) => s.trim()).filter(Boolean);
+    const { ok, d } = await post("/api/reborn/games/rooms", { game, password, winTarget, ridingClicks, facesCount, wheelPrizes: wheelPrizes.length ? wheelPrizes : undefined });
     if (!ok) return toast({ title: "Can't create", description: d.message, variant: "destructive" });
     onEnter(d.code);
   };
@@ -154,9 +173,9 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
       <div className="gcard p-4">
         <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Pick a game</p>
         <div className="grid grid-cols-1 gap-3">
-          {(Object.keys(GAMES) as ("rps" | "tap" | "cards" | "dice")[]).map((g) => {
+          {(Object.keys(GAMES) as ("rps" | "tap" | "cards" | "dice" | "wheel" | "riding")[]).map((g) => {
             const on = today[g];
-            const grad: Record<string, string> = { rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)", cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)" };
+            const grad: Record<string, string> = { rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)", cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)", wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)" };
             return (
               <button key={g} disabled={!on} onClick={() => setGame(g)}
                 className={`flex items-center gap-3 p-3 rounded-2xl text-left transition ${game === g && on ? "gcard-sel" : "border border-white/10"} ${!on ? "opacity-40" : "active:scale-[.98]"}`}
@@ -177,6 +196,25 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
             <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Room password (optional)" className="flex-1 bg-transparent py-2.5 text-white text-sm focus:outline-none" />
           </div>
         </div>
+        {game === "riding" && (
+          <div className="mt-3 space-y-2">
+            <div>
+              <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Faces on the board</p>
+              <div className="flex gap-2">{[16, 20, 24, 28, 32].map((n) => <button key={n} onClick={() => setFacesCount(n)} className={`cbtn flex-1 py-2 text-xs ${facesCount === n ? "cbtn-gold" : "cbtn-dark"}`}>{n}</button>)}</div>
+            </div>
+            <div>
+              <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Faces to flip each turn</p>
+              <div className="flex gap-2">{[1, 2, 3, 4].map((n) => <button key={n} onClick={() => setRidingClicks(n)} className={`cbtn flex-1 py-2 text-xs ${ridingClicks === n ? "cbtn-gold" : "cbtn-dark"}`}>{n}</button>)}</div>
+            </div>
+          </div>
+        )}
+        {game === "wheel" && (
+          <div className="mt-3">
+            <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Punishments <span className="text-white/40 normal-case">— one per line, or leave blank for the default drink dares</span></p>
+            <textarea value={wheelText} onChange={(e) => setWheelText(e.target.value)} rows={4} placeholder={"Default:\nHalf cup\n1 cup\n2 cups\n… (leave blank to use these)"} className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
+          </div>
+        )}
+        {game !== "wheel" && game !== "riding" && (
         <div className="mt-3">
           <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
           <div className="flex gap-2">
@@ -185,6 +223,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
             ))}
           </div>
         </div>
+        )}
         <div className="mt-4 flex gap-2">
           <button onClick={() => setHelp(game)} className="cbtn cbtn-dark px-4 py-3.5 text-sm">How to play</button>
           <button onClick={create} disabled={!today[game]} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🎮 Create room</button>
@@ -295,6 +334,8 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
 
       {room.status === "done" && (
         <div className="space-y-2">
@@ -631,6 +672,81 @@ function DiceGame({ room, code, me }: any) {
         <button onClick={async () => { if (confirm(`Catch this bid (${bid.qty} × ${bid.face === 1 ? "①" : DIE_FACE[bid.face]})?\n\nIf you're WRONG, you lose. If it's a bluff, they lose.`)) { const { ok, d: r } = await act({ act: "catch" }); if (!ok) toast({ title: "Can't catch", description: r?.message, variant: "destructive" }); } }} className="cbtn cbtn-red w-full py-3.5">🫵 CATCH! (call their bluff)</button>
       )}
       {!myTurn && !canCatch && room.status === "playing" && <p className="text-center text-white/40 text-sm">Waiting…</p>}
+    </div>
+  );
+}
+
+function WheelGame({ room, code, me }: any) {
+  const w = room.wheel || {};
+  const prizes: any[] = w.prizes || [];
+  const myTurn = w.turnId === me && room.status === "playing";
+  const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
+  const seg = prizes.length ? 360 / prizes.length : 60;
+  const resultIdx = w.result?.index ?? -1;
+  // Spin so the winning segment lands at the top pointer (with a few full turns).
+  const rotation = resultIdx >= 0 ? 360 * 5 - (resultIdx * seg + seg / 2) : 0;
+  const colors = ["#f0d787", "#ff8ab5", "#66e2ff", "#c49bff", "#ffd27a", "#8be28b"];
+  const conic = prizes.map((_, i) => `${colors[i % colors.length]} ${i * seg}deg ${(i + 1) * seg}deg`).join(", ");
+
+  if (room.status === "done") {
+    return <div className="rwg-card p-6 text-center"><div className="text-6xl mb-2">🍻</div><p className="text-xl font-black text-amber-300">Round done — cheers!</p><p className="text-white/60 text-sm mt-1">{room.message}</p></div>;
+  }
+  return (
+    <div className="rwg-card p-5 text-center">
+      <p className="text-sm text-amber-200 mb-3">{room.message}</p>
+      <div className="relative mx-auto mb-4" style={{ width: 240, height: 240 }}>
+        <div className="absolute left-1/2 -translate-x-1/2 -top-1 text-3xl z-10">🔻</div>
+        <div style={{ width: 240, height: 240, borderRadius: "50%", background: `conic-gradient(${conic})`, transition: resultIdx >= 0 ? "transform 3.5s cubic-bezier(.17,.67,.2,1)" : "none", transform: `rotate(${rotation}deg)`, boxShadow: "0 8px 30px rgba(0,0,0,.5), inset 0 0 0 6px rgba(255,255,255,.15)" }} />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="rounded-full bg-black/60 border border-white/20" style={{ width: 70, height: 70 }} />
+        </div>
+      </div>
+      {room.status === "reveal" && w.result && <p className="text-2xl font-black text-amber-300 mb-3" style={{ animation: "rwgPop .5s ease-out" }}>{w.result.name}: {w.result.label} {w.result.emoji}</p>}
+      {myTurn ? (
+        <button onClick={() => act({ act: "spin" })} className="cbtn cbtn-gold w-full py-4 text-lg">🎡 SPIN!</button>
+      ) : room.status === "playing" ? (
+        <p className="text-white/50 text-sm">Waiting for {room.players.find((p: any) => p.id === w.turnId)?.name || "…"} to spin…</p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+        {room.players.map((p: any) => <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs ${w.spun?.includes(p.id) ? "bg-white/5 text-white/40" : w.turnId === p.id ? "bg-amber-400/20 text-amber-200" : "bg-white/5 text-white/60"}`}>{p.id === me ? "You" : p.name}{w.spun?.includes(p.id) ? " ✓" : ""}</span>)}
+      </div>
+    </div>
+  );
+}
+
+const FACE = { grandma: "👵", laughing: "😆", wolf: "🐺" } as const;
+function RidingGame({ room, code, me }: any) {
+  const r = room.riding || {};
+  const tiles: any[] = r.tiles || [];
+  const myTurn = r.turnId === me && room.status === "playing";
+  const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
+  const secs = useLocalCountdown(room.secondsLeft, `${r.turnId}-${r.flippedThisTurn}-${room.status}`);
+  const myWolves = r.wolfCounts?.[me] || 0;
+
+  if (room.status === "done") {
+    const iLost = room.lastLoserId === me;
+    return <div className="rwg-card p-6 text-center"><div className="text-7xl mb-2">{iLost ? "😆🍻" : "👵"}</div><p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-white/70"}`}>{iLost ? "YOU LOSE — DRINK!" : "Game over"}</p><p className="text-white/60 text-sm mt-2">{room.message}</p></div>;
+  }
+  return (
+    <div className="rwg-card p-4">
+      <p className="text-sm text-amber-200 text-center mb-1">{room.message}</p>
+      {room.status === "playing" && secs > 0 && <p className={`text-center font-black mb-2 tabular-nums ${secs <= 5 ? "text-red-400" : "text-white/60"}`}>⏱ {secs}s{myTurn ? ` — flip ${r.clicks - r.flippedThisTurn} more` : ""}</p>}
+      {myWolves > 0 && <p className="text-center text-[11px] text-orange-300 mb-2">🐺 You've hit {myWolves} wolf/wolves — drink double each!</p>}
+
+      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))" }}>
+        {tiles.map((t: any) => (
+          <button key={t.id} disabled={!myTurn || t.flipped} onClick={() => act({ act: "flip", tileId: t.id })}
+            className="aspect-square rounded-xl flex items-center justify-center transition active:scale-95"
+            style={{ fontSize: 30, background: t.flipped ? (t.kind === "laughing" ? "#7f1d1d" : t.kind === "wolf" ? "#7c2d12" : "rgba(255,255,255,0.9)") : "linear-gradient(135deg,#d1402a,#8a1f13)", border: t.flipped ? "2px solid rgba(255,255,255,.3)" : "2px solid rgba(255,255,255,.15)", boxShadow: t.flipped ? "none" : "inset 0 2px 0 rgba(255,255,255,.2), 0 3px 6px rgba(0,0,0,.4)" }}>
+            {t.flipped ? FACE[t.kind as keyof typeof FACE] : "🎀"}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {room.players.map((p: any) => <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs ${r.turnId === p.id ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>{p.id === me ? "You" : p.name}{r.turnId === p.id ? " ⏳" : ""}{r.wolfCounts?.[p.id] ? ` 🐺${r.wolfCounts[p.id]}` : ""}</span>)}
+      </div>
+      {!myTurn && room.status === "playing" && <p className="text-center text-white/40 text-sm mt-2">Watch {room.players.find((p: any) => p.id === r.turnId)?.name || "…"} flip…</p>}
     </div>
   );
 }

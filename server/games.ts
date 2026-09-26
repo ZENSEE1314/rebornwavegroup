@@ -8,7 +8,7 @@ import { users, pvpScores, appSettings, gameRanks } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; }
@@ -27,6 +27,12 @@ interface Room {
   bid?: Bid | null; jokerActive?: boolean; jokerReenableAt?: number; diceReveal?: any;
   // series (best-of / play to N wins)
   winTarget?: number; seriesScore?: Record<string, number>; seriesChampionId?: string;
+  // wheel-only
+  wheelResult?: any; wheelSpun?: string[]; wheelPrizes?: { label: string; cups?: number; w: number; emoji?: string }[];
+  // riding (Red Riding Hood) only
+  tiles?: { id: number; kind: "grandma" | "laughing" | "wolf"; flipped: boolean; by?: string }[];
+  ridingClicks?: number; flippedThisTurn?: number; wolfCounts?: Record<string, number>; ridingReveal?: boolean;
+  facesCount?: number;
 }
 
 const rooms = new Map<string, Room>();
@@ -57,6 +63,8 @@ function view(room: Room, forUserId?: string) {
     })),
     ...(room.game === "cards" ? { cards: cardView(room, forUserId) } : {}),
     ...(room.game === "dice" ? { dice: diceView(room, forUserId) } : {}),
+    ...(room.game === "wheel" ? { wheel: wheelView(room) } : {}),
+    ...(room.game === "riding" ? { riding: ridingView(room) } : {}),
   };
 }
 
@@ -203,6 +211,7 @@ function resetRoom(room: Room) {
   room.eliminatedThisRound = []; room.winnerId = undefined; room.lastLoserId = undefined;
   room.deck = undefined; room.discardTop = null; room.discardBy = null; room.turnIdx = undefined; room.phase = undefined; room.drawnFrom = null; room.cardReveal = null;
   room.bid = null; room.jokerActive = true; room.jokerReenableAt = undefined; room.diceReveal = null;
+  room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; }
@@ -522,8 +531,143 @@ function diceView(room: Room, forUserId?: string) {
   };
 }
 
+// ── Spin the Wheel (random punishment) ──────────────────────────────────
+const WHEEL_PRIZES = [
+  { label: "Half cup", cups: 0.5, w: 4, emoji: "🥤" },
+  { label: "1 cup", cups: 1, w: 4, emoji: "🍺" },
+  { label: "2 cups", cups: 2, w: 2, emoji: "🍺🍺" },
+  { label: "3 cups", cups: 3, w: 1, emoji: "🍺🍺🍺" },
+  { label: "4 cups", cups: 4, w: 1, emoji: "🍻🍻" },
+  { label: "5 cups", cups: 5, w: 1, emoji: "😵" },
+];
+const WHEEL_TURN_SECONDS = 20;
+const wheelPrizesOf = (room: Room) => (room.wheelPrizes && room.wheelPrizes.length ? room.wheelPrizes : WHEEL_PRIZES);
+function startWheel(room: Room) {
+  clearTimers(room);
+  room.wheelSpun = []; room.wheelResult = null;
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  room.status = "playing";
+  room.message = `${room.players[room.turnIdx].name}'s turn — spin the wheel!`;
+  room.deadline = Date.now() + WHEEL_TURN_SECONDS * 1000 + 300;
+  room.timer = setTimeout(() => wheelSpin(room, room.players[room.turnIdx ?? 0]?.id), WHEEL_TURN_SECONDS * 1000 + 300);
+  broadcast(room);
+}
+function wheelSpin(room: Room, uid: string) {
+  if (room.status !== "playing" || room.game !== "wheel") return;
+  const idx = room.players.findIndex((p) => p.id === uid);
+  if (idx !== room.turnIdx) return;
+  clearTimers(room);
+  const PRIZES = wheelPrizesOf(room);
+  const total = PRIZES.reduce((s, p) => s + p.w, 0);
+  let r = Math.random() * total, pi = 0;
+  for (let i = 0; i < PRIZES.length; i++) { r -= PRIZES[i].w; if (r <= 0) { pi = i; break; } }
+  const prize = PRIZES[pi];
+  const p = room.players[idx];
+  room.wheelSpun = Array.from(new Set([...(room.wheelSpun || []), uid]));
+  room.wheelResult = { playerId: uid, name: p.name, index: pi, label: prize.label, cups: prize.cups, emoji: prize.emoji };
+  room.status = "reveal";
+  room.message = `${p.name} must drink ${prize.label}! ${prize.emoji}`;
+  broadcast(room);
+  room.timer = setTimeout(() => {
+    if ((room.wheelSpun || []).length >= room.players.length) {
+      room.status = "done"; room.message = "Everyone's spun — cheers! 🍻"; broadcast(room); scheduleCleanup(room);
+    } else {
+      room.turnIdx = nextAliveIdx(room, room.turnIdx ?? 0);
+      // skip players who already spun
+      let guard = 0;
+      while ((room.wheelSpun || []).includes(room.players[room.turnIdx].id) && guard++ < room.players.length) room.turnIdx = (room.turnIdx + 1) % room.players.length;
+      room.status = "playing"; room.wheelResult = null;
+      room.message = `${room.players[room.turnIdx].name}'s turn — spin!`;
+      room.deadline = Date.now() + WHEEL_TURN_SECONDS * 1000 + 300;
+      room.timer = setTimeout(() => wheelSpin(room, room.players[room.turnIdx ?? 0]?.id), WHEEL_TURN_SECONDS * 1000 + 300);
+      broadcast(room);
+    }
+  }, 4500);
+}
+function wheelView(room: Room) {
+  return { prizes: wheelPrizesOf(room), result: room.wheelResult || null, turnId: room.players[room.turnIdx ?? 0]?.id, spun: room.wheelSpun || [] };
+}
+
+// ── Red Riding Hood (flip grandma faces, avoid the laughing one; wolves = drink double) ──
+const RIDING_TURN_SECONDS = 20;
+function startRiding(room: Room) {
+  clearTimers(room);
+  const n = Math.max(16, Math.min(32, room.facesCount || 16));
+  const wolves = Math.max(1, Math.floor(n / 8));
+  const kinds: ("grandma" | "laughing" | "wolf")[] = ["laughing"];
+  for (let i = 0; i < wolves; i++) kinds.push("wolf");
+  while (kinds.length < n) kinds.push("grandma");
+  for (let i = kinds.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [kinds[i], kinds[j]] = [kinds[j], kinds[i]]; }
+  room.tiles = kinds.map((k, i) => ({ id: i, kind: k, flipped: false }));
+  room.wolfCounts = {}; room.flippedThisTurn = 0; room.ridingReveal = false;
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  room.status = "playing";
+  room.message = `${room.players[room.turnIdx].name}, flip ${room.ridingClicks} face${(room.ridingClicks || 1) > 1 ? "s" : ""}!`;
+  armRidingTimer(room);
+  broadcast(room);
+}
+function armRidingTimer(room: Room) {
+  clearTimers(room);
+  room.deadline = Date.now() + RIDING_TURN_SECONDS * 1000 + 300;
+  room.timer = setTimeout(() => ridingTimeout(room), RIDING_TURN_SECONDS * 1000 + 300);
+}
+function ridingTimeout(room: Room) {
+  if (room.status !== "playing" || room.game !== "riding") return;
+  // Auto-flip random remaining tiles for the current player.
+  const uid = room.players[room.turnIdx ?? 0]?.id; if (!uid) return;
+  const need = (room.ridingClicks || 1) - (room.flippedThisTurn || 0);
+  const free = room.tiles!.filter((t) => !t.flipped);
+  for (let i = 0; i < need && free.length; i++) {
+    const t = free.splice(Math.floor(Math.random() * free.length), 1)[0];
+    if (ridingFlip(room, uid, t.id, true)) return; // ended on laughing
+  }
+}
+// returns true if the game ended
+function ridingFlip(room: Room, uid: string, tileId: number, auto = false): boolean {
+  const idx = room.players.findIndex((p) => p.id === uid);
+  if (idx !== room.turnIdx) return false;
+  const t = room.tiles!.find((x) => x.id === tileId);
+  if (!t || t.flipped) return false;
+  t.flipped = true; t.by = uid;
+  const p = room.players[idx];
+  if (t.kind === "laughing") {
+    clearTimers(room);
+    room.lastLoserId = uid;
+    room.ridingReveal = true;
+    room.status = "reveal";
+    room.message = `😆 ${p.name} flipped the laughing granny — you LOSE, drink! 🍻`;
+    broadcast(room);
+    room.timer = setTimeout(async () => {
+      room.status = "done"; room.message = `${p.name} loses! 🍻`;
+      broadcast(room);
+      await saveScores(room, [{ userId: uid, name: p.name, score: 0, result: "lose" }]);
+      scheduleCleanup(room);
+    }, 4500);
+    return true;
+  }
+  if (t.kind === "wolf") { room.wolfCounts![uid] = (room.wolfCounts![uid] || 0) + 1; room.message = `🐺 Wolf! ${p.name} drinks DOUBLE!`; }
+  room.flippedThisTurn = (room.flippedThisTurn || 0) + 1;
+  if ((room.flippedThisTurn || 0) >= (room.ridingClicks || 1) || room.tiles!.every((x) => x.flipped)) {
+    room.flippedThisTurn = 0;
+    room.turnIdx = nextAliveIdx(room, idx);
+    if (t.kind !== "wolf") room.message = `${room.players[room.turnIdx].name}, flip ${room.ridingClicks} face${(room.ridingClicks || 1) > 1 ? "s" : ""}!`;
+    armRidingTimer(room);
+  }
+  broadcast(room);
+  return false;
+}
+function ridingView(room: Room) {
+  return {
+    clicks: room.ridingClicks || 1,
+    flippedThisTurn: room.flippedThisTurn || 0,
+    turnId: room.players[room.turnIdx ?? 0]?.id,
+    wolfCounts: room.wolfCounts || {},
+    tiles: (room.tiles || []).map((t) => ({ id: t.id, flipped: t.flipped, by: t.by, kind: t.flipped || room.ridingReveal ? t.kind : undefined })),
+  };
+}
+
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "cards", "dice"] as const;
+const GAME_KEYS = ["rps", "tap", "cards", "dice", "wheel", "riding"] as const;
 async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days: number[] }>> {
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "gamesConfig"));
   let cfg: any = {};
@@ -631,7 +775,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     if (!availableToday(cfg)[game]) return res.status(400).json({ message: "That game isn't available today." });
     const name = await nameFor(uid);
@@ -640,6 +784,11 @@ export function registerGameRoutes(app: Express) {
       status: "lobby", players: [{ id: uid, name, alive: true, taps: 0, connected: true }],
       round: 1, deadline: 0, message: "Waiting for players…", eliminatedThisRound: [],
       winTarget: Math.max(1, Math.min(10, Math.floor(Number(req.body?.winTarget) || 1))), seriesScore: {},
+      ridingClicks: Math.max(1, Math.min(4, Math.floor(Number(req.body?.ridingClicks) || 1))),
+      facesCount: Math.max(16, Math.min(32, Math.floor(Number(req.body?.facesCount) || 16))),
+      wheelPrizes: Array.isArray(req.body?.wheelPrizes)
+        ? req.body.wheelPrizes.map((s: any) => String(s).trim()).filter(Boolean).slice(0, 12).map((label: string) => ({ label, w: 1, emoji: "🍺" }))
+        : undefined,
       createdAt: Date.now(), subs: new Set(),
     };
     rooms.set(room.code, room);
@@ -674,6 +823,8 @@ export function registerGameRoutes(app: Express) {
     if (room.game === "rps") { room.round = 1; startRpsRound(room); }
     else if (room.game === "cards") startCards(room);
     else if (room.game === "dice") startDiceRound(room);
+    else if (room.game === "wheel") startWheel(room);
+    else if (room.game === "riding") startRiding(room);
     else startTap(room);
     res.json({ ok: true });
   });
@@ -695,6 +846,18 @@ export function registerGameRoutes(app: Express) {
     const p = room.players.find((x) => x.id === getUserId(req));
     if (!p) return res.status(403).json({ message: "You're not in this room." });
     if (room.status !== "playing") return res.json({ ok: false });
+    if (room.game === "wheel") {
+      if (req.body?.act === "spin") wheelSpin(room, getUserId(req)!);
+      return res.json({ ok: true });
+    }
+    if (room.game === "riding") {
+      if (req.body?.act === "flip") {
+        const uid = getUserId(req)!;
+        if (room.players[room.turnIdx ?? 0]?.id !== uid) return res.status(400).json({ message: "Not your turn" });
+        ridingFlip(room, uid, Number(req.body?.tileId));
+      }
+      return res.json({ ok: true });
+    }
     if (room.game === "dice") {
       const uid = getUserId(req)!;
       const act = req.body?.act;
