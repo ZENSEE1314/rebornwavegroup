@@ -9,6 +9,7 @@ import MobileBackButton from "@/components/mobile-back-button";
 const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "5s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "60s dig — most gold coins wins" },
+  cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
 
@@ -29,11 +30,11 @@ export default function RebornGames() {
 function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
-  const [game, setGame] = useState<"rps" | "tap">("rps");
+  const [game, setGame] = useState<"rps" | "tap" | "cards">("rps");
   const [password, setPassword] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [joinPw, setJoinPw] = useState("");
-  const [lbGame, setLbGame] = useState<"rps" | "tap">("rps");
+  const [lbGame, setLbGame] = useState<"rps" | "tap" | "cards">("rps");
   const [lb, setLb] = useState<any[]>([]);
 
   useEffect(() => { apiRequest("GET", "/api/reborn/games/config").then((r) => r.json()).then((d) => setToday(d.today || {})).catch(() => {}); }, []);
@@ -60,7 +61,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
       <div className="rwg-card p-4">
         <p className="text-xs text-white/50 mb-2">Pick a game</p>
         <div className="grid grid-cols-1 gap-2">
-          {(Object.keys(GAMES) as ("rps" | "tap")[]).map((g) => {
+          {(Object.keys(GAMES) as ("rps" | "tap" | "cards")[]).map((g) => {
             const on = today[g];
             return (
               <button key={g} disabled={!on} onClick={() => setGame(g)}
@@ -94,7 +95,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
         <div className="flex items-center justify-between mb-2">
           <p className="font-bold text-white flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" /> Leaderboard</p>
           <div className="flex gap-1">
-            {(["rps", "tap"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
+            {(["rps", "tap", "cards"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
           </div>
         </div>
         {lb.length === 0 && <p className="text-xs text-white/40">No scores yet — be the first!</p>}
@@ -143,6 +144,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {room.status === "lobby" && <LobbyRoom room={room} code={code} isHost={isHost} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "rps" && <RpsGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
 
       {room.status === "done" && (
         <button onClick={leave} className="w-full py-3 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Back to games</button>
@@ -289,6 +291,87 @@ function TapGame({ room, code, me }: any) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function PlayingCard({ c, onClick, selectable }: { c: any; onClick?: () => void; selectable?: boolean }) {
+  const red = c.s === "♥" || c.s === "♦";
+  return (
+    <button onClick={onClick} disabled={!selectable} className={`w-12 h-16 rounded-lg bg-white flex flex-col items-center justify-center font-black shadow ${selectable ? "hover:-translate-y-1 active:scale-95 ring-2 ring-amber-400/0 hover:ring-amber-400" : "cursor-default"} transition`} style={{ animation: "rwgPop .3s ease-out" }}>
+      <span className={red ? "text-red-600" : "text-slate-900"} style={{ fontSize: 18, lineHeight: 1 }}>{c.v}</span>
+      <span className={red ? "text-red-600" : "text-slate-900"} style={{ fontSize: 18 }}>{c.s}</span>
+    </button>
+  );
+}
+
+function CardGame({ room, code, me }: any) {
+  const cards = room.cards || {};
+  const myHand: any[] = Array.isArray(cards.hands?.[me]) ? cards.hands[me] : [];
+  const myTurn = cards.turnId === me;
+  const iWon = room.status === "done" && room.winnerId === me;
+  const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
+
+  if (room.status === "done") {
+    return (
+      <div className="rwg-card p-6 text-center">
+        <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "🃏"}</div>
+        <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-white/70"}`}>{iWon ? "YOU WIN!" : (room.winnerId ? "You lost" : "Tie")}</p>
+        <p className="text-white/60 text-sm mt-2">{room.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rwg-card p-4">
+      <p className="text-sm text-amber-200 text-center mb-3">{room.message}</p>
+
+      {/* opponents */}
+      <div className="flex flex-wrap justify-center gap-3 mb-4">
+        {room.players.filter((p: any) => p.id !== me).map((p: any) => (
+          <div key={p.id} className={`text-center ${cards.turnId === p.id ? "" : "opacity-60"}`}>
+            <div className="flex -space-x-3 justify-center">
+              {Array.from({ length: Math.min(6, Number(cards.hands?.[p.id]) || 0) }).map((_, i) => (
+                <div key={i} className="w-7 h-10 rounded bg-gradient-to-br from-violet-700 to-blue-800 border border-white/20" />
+              ))}
+            </div>
+            <p className="text-[11px] text-white/60 mt-1">{p.name}{cards.turnId === p.id ? " ⏳" : ""}{p.id === room.hostId ? " 👑" : ""}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* deck + discard */}
+      <div className="flex items-center justify-center gap-6 mb-4">
+        <div className="text-center">
+          <div className="w-12 h-16 rounded-lg bg-gradient-to-br from-violet-700 to-blue-800 border border-white/20 flex items-center justify-center text-white/70 text-xs font-bold">{cards.deckLeft}</div>
+          <p className="text-[10px] text-white/40 mt-1">Deck</p>
+        </div>
+        <div className="text-center">
+          {cards.discardTop ? <PlayingCard c={cards.discardTop} /> : <div className="w-12 h-16 rounded-lg border-2 border-dashed border-white/15" />}
+          <p className="text-[10px] text-white/40 mt-1">Discard</p>
+        </div>
+      </div>
+
+      {/* my hand */}
+      <p className="text-[11px] text-white/50 mb-1 text-center">Your hand — make 3 pairs (A+9, 2+8, 3+7, 4+6, 5+5, J+J, Q+Q, K+K)</p>
+      <div className="flex flex-wrap justify-center gap-1.5 mb-3">
+        {myHand.map((c: any) => (
+          <PlayingCard key={c.id} c={c} selectable={myTurn && cards.phase === "discard"} onClick={() => act({ act: "discard", cardId: c.id })} />
+        ))}
+      </div>
+
+      {myTurn ? (
+        cards.phase === "draw" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => act({ act: "take" })} disabled={!cards.discardTop} className="py-3 rounded-xl bg-white/10 border border-white/15 text-white font-bold disabled:opacity-40">Take discard {cards.discardTop ? `${cards.discardTop.v}${cards.discardTop.s}` : ""}</button>
+            <button onClick={() => act({ act: "drawDeck" })} className="py-3 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Draw deck</button>
+          </div>
+        ) : (
+          <p className="text-center text-emerald-300 font-bold text-sm">Tap a card above to discard</p>
+        )
+      ) : (
+        <p className="text-center text-white/40 text-sm">Waiting for {room.players.find((p: any) => p.id === cards.turnId)?.name || "…"}</p>
+      )}
     </div>
   );
 }

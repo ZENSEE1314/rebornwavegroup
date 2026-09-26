@@ -8,19 +8,25 @@ import { users, pvpScores, appSettings } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
 
 type Choice = "rock" | "paper" | "scissors";
-interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; }
+type GameKind = "rps" | "tap" | "cards";
+interface Card { id: string; v: string; s: string; }
+interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; }
 interface Room {
-  code: string; game: "rps" | "tap"; hostId: string; password: string;
+  code: string; game: GameKind; hostId: string; password: string;
   status: "lobby" | "playing" | "reveal" | "done";
   players: Player[];
   round: number; deadline: number; message: string;
   eliminatedThisRound: string[]; winnerId?: string; lastLoserId?: string;
   createdAt: number; timer?: NodeJS.Timeout; ticker?: NodeJS.Timeout;
   subs: Set<Response>;
+  // cards-only
+  deck?: Card[]; discardTop?: Card | null; discardBy?: string | null;
+  turnIdx?: number; phase?: "draw" | "discard"; drawnFrom?: "deck" | "discard" | null;
 }
 
 const rooms = new Map<string, Room>();
 const MAX_PLAYERS = 20;
+const CARDS_MAX = 5;
 const RPS_SECONDS = 5;
 const TAP_SECONDS = 60;
 
@@ -43,6 +49,7 @@ function view(room: Room, forUserId?: string) {
       chose: !!p.choice, // whether they've locked a choice this round
       choice: reveal || p.id === forUserId ? p.choice || null : null,
     })),
+    ...(room.game === "cards" ? { cards: cardView(room, forUserId) } : {}),
   };
 }
 
@@ -156,6 +163,135 @@ function scheduleCleanup(room: Room) {
   setTimeout(() => { clearTimers(room); for (const r of room.subs) { try { r.end(); } catch {} } rooms.delete(room.code); }, 60_000);
 }
 
+// ── Card Match (3 pairs to 10 / like faces) ─────────────────────────────
+// Pairs: A+9, 2+8, 3+7, 4+6, 5+5, J+J, Q+Q, K+K. 3 matched pairs (6 cards) win.
+const CARD_VALUES = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "J", "Q", "K"];
+const CARD_SUITS = ["♠", "♥", "♦", "♣"];
+const PARTNER: Record<string, string> = { A: "9", "9": "A", "2": "8", "8": "2", "3": "7", "7": "3", "4": "6", "6": "4", "5": "5", J: "J", Q: "Q", K: "K" };
+function buildDeck(): Card[] {
+  const d: Card[] = [];
+  for (const v of CARD_VALUES) for (const s of CARD_SUITS) d.push({ id: `${v}${s}-${Math.random().toString(36).slice(2, 7)}`, v, s });
+  for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+  return d;
+}
+// Can these values be split into perfect pairs? (recursive matching)
+function canPairAll(vals: string[]): boolean {
+  if (vals.length === 0) return true;
+  const [first, ...rest] = vals;
+  const need = PARTNER[first];
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === need) { const remain = rest.slice(0, i).concat(rest.slice(i + 1)); if (canPairAll(remain)) return true; }
+  }
+  return false;
+}
+const hasThreePairs = (hand: Card[]) => hand.length === 6 && canPairAll(hand.map((c) => c.v));
+// Would a 5-card hand complete 3 pairs if this card were added?
+const completesWith = (hand5: Card[], card: Card) => hand5.length === 5 && canPairAll([...hand5.map((c) => c.v), card.v]);
+
+function startCards(room: Room) {
+  clearTimers(room);
+  room.deck = buildDeck();
+  const order = room.players.map((p) => p.id);
+  const hostIdx = Math.floor(Math.random() * order.length);
+  room.hostId = order[hostIdx]; // random host holds 6
+  for (let i = 0; i < room.players.length; i++) {
+    const count = room.players[i].id === room.hostId ? 6 : 5;
+    room.players[i].hand = room.deck!.splice(0, count);
+  }
+  room.turnIdx = hostIdx;
+  room.discardTop = null; room.discardBy = null; room.drawnFrom = null;
+  room.status = "playing";
+  const host = room.players[hostIdx];
+  // Host may already have 3 pairs on the deal.
+  if (hasThreePairs(host.hand!)) return cardsWin(room, host.id, "deck");
+  room.phase = "discard"; // host discards to open
+  room.message = `${host.name}'s turn — discard a card to open`;
+  broadcast(room);
+}
+
+function cardView(room: Room, forUserId?: string) {
+  const done = room.status === "done";
+  return {
+    deckLeft: room.deck?.length || 0,
+    discardTop: room.discardTop || null,
+    turnId: room.players[room.turnIdx ?? 0]?.id,
+    phase: room.phase,
+    hands: room.players.reduce((acc: any, p) => { acc[p.id] = (p.id === forUserId || done) ? (p.hand || []) : (p.hand?.length || 0); return acc; }, {}),
+  };
+}
+
+async function cardsWin(room: Room, winnerId: string, via: "deck" | "discard") {
+  clearTimers(room);
+  room.status = "done";
+  room.winnerId = winnerId;
+  const winner = room.players.find((p) => p.id === winnerId)!;
+  const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [{ userId: winner.id, name: winner.name, score: 1, result: "win" }];
+  if (via === "deck") {
+    room.message = `${winner.name} drew the winning card — BIG WIN, everyone else loses! 🏆`;
+    for (const p of room.players) if (p.id !== winnerId) rows.push({ userId: p.id, name: p.name, score: 0, result: "lose" });
+  } else {
+    const loser = room.players.find((p) => p.id === room.discardBy);
+    room.message = `${winner.name} matched ${room.discardBy && loser ? loser.name + "'s" : "the"} discard and wins! 🏆`;
+    if (loser && loser.id !== winnerId) { rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" }); room.lastLoserId = loser.id; }
+  }
+  broadcast(room);
+  await saveScores(room, rows);
+  scheduleCleanup(room);
+}
+
+function cardsTie(room: Room) {
+  clearTimers(room);
+  room.status = "done";
+  room.message = "Deck ran out — it's a tie, no winner.";
+  broadcast(room);
+  scheduleCleanup(room);
+}
+
+function nextCardTurn(room: Room) {
+  // After a discard, check every OTHER player for an instant claim win.
+  const claimant = room.players.find((p) => p.id !== room.discardBy && completesWith(p.hand!, room.discardTop!));
+  if (claimant) { claimant.hand!.push(room.discardTop!); room.discardTop = null; return cardsWin(room, claimant.id, "discard"); }
+  // Advance to next player, who must draw.
+  room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length;
+  room.phase = "draw"; room.drawnFrom = null;
+  if (!room.deck!.length && !room.discardTop) return cardsTie(room);
+  room.message = `${room.players[room.turnIdx].name}'s turn — take the discard or draw`;
+  broadcast(room);
+}
+
+function cardAction(room: Room, uid: string, body: any): { error?: string } {
+  const idx = room.players.findIndex((p) => p.id === uid);
+  if (idx !== room.turnIdx) return { error: "Not your turn" };
+  const p = room.players[idx];
+  const act = body?.act;
+  if (room.phase === "draw") {
+    if (act === "take") {
+      if (!room.discardTop) return { error: "No discard to take" };
+      p.hand!.push(room.discardTop); room.drawnFrom = "discard"; room.discardTop = null;
+    } else if (act === "drawDeck") {
+      if (!room.deck!.length) { if (!room.discardTop) { cardsTie(room); return {}; } return { error: "Deck empty — take the discard" }; }
+      p.hand!.push(room.deck!.shift()!); room.drawnFrom = "deck";
+    } else return { error: "Choose take or draw" };
+    // Completed on pickup?
+    if (hasThreePairs(p.hand!)) { cardsWin(room, p.id, room.drawnFrom === "deck" ? "deck" : "discard"); return {}; }
+    room.phase = "discard";
+    room.message = `${p.name} — discard a card`;
+    broadcast(room);
+    return {};
+  }
+  if (room.phase === "discard") {
+    const cardId = body?.cardId;
+    const ci = p.hand!.findIndex((c) => c.id === cardId);
+    if (ci < 0) return { error: "Pick a card to discard" };
+    if (p.hand!.length < 6) return { error: "Draw first" };
+    const [card] = p.hand!.splice(ci, 1);
+    room.discardTop = card; room.discardBy = p.id;
+    nextCardTurn(room);
+    return {};
+  }
+  return { error: "Not now" };
+}
+
 // ── Config: which game is available which weekday ───────────────────────
 const GAME_KEYS = ["rps", "tap", "cards"] as const;
 async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days: number[] }>> {
@@ -201,7 +337,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game = req.body?.game === "tap" ? "tap" : "rps";
+    const game: GameKind = ["tap", "cards"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     if (!availableToday(cfg)[game]) return res.status(400).json({ message: "That game isn't available today." });
     const name = await nameFor(uid);
@@ -223,7 +359,8 @@ export function registerGameRoutes(app: Express) {
     if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: "Wrong room password." });
     const uid = getUserId(req)!;
     if (!room.players.find((p) => p.id === uid)) {
-      if (room.players.length >= MAX_PLAYERS) return res.status(400).json({ message: "Room is full (20 players)." });
+      const cap = room.game === "cards" ? CARDS_MAX : MAX_PLAYERS;
+      if (room.players.length >= cap) return res.status(400).json({ message: `Room is full (${cap} players).` });
       room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
       broadcast(room);
     }
@@ -237,7 +374,9 @@ export function registerGameRoutes(app: Express) {
     if (getUserId(req) !== room.hostId) return res.status(403).json({ message: "Only the host can start." });
     if (room.status !== "lobby") return res.status(400).json({ message: "Already started." });
     if (room.players.length < 2) return res.status(400).json({ message: "Need at least 2 players." });
-    if (room.game === "rps") { room.round = 1; startRpsRound(room); } else startTap(room);
+    if (room.game === "rps") { room.round = 1; startRpsRound(room); }
+    else if (room.game === "cards") startCards(room);
+    else startTap(room);
     res.json({ ok: true });
   });
 
@@ -248,6 +387,11 @@ export function registerGameRoutes(app: Express) {
     const p = room.players.find((x) => x.id === getUserId(req));
     if (!p) return res.status(403).json({ message: "You're not in this room." });
     if (room.status !== "playing") return res.json({ ok: false });
+    if (room.game === "cards") {
+      const r = cardAction(room, getUserId(req)!, req.body || {});
+      if (r.error) return res.status(400).json({ message: r.error });
+      return res.json({ ok: true });
+    }
     if (room.game === "rps") {
       const choice = req.body?.choice as Choice;
       if (!["rock", "paper", "scissors"].includes(choice)) return res.status(400).json({ message: "Bad choice" });
