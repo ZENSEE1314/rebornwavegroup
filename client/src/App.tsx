@@ -217,6 +217,7 @@ function Router() {
         <Route path="/investor/login" component={InvestorLogin} />
         <Route path="/investor" component={InvestorLanding} />
         <Route path="/lux" component={LuxExperience} />
+        <Route path="/attend" component={RebornAttend} />
 
         {!isAuthenticated ? (
           <Route path="/" component={bridgeXHost ? BridgeXLanding : Landing} />
@@ -227,7 +228,6 @@ function Router() {
             <Route path="/pet" component={RebornPet} />
             <Route path="/spin" component={RebornSpin} />
             <Route path="/games" component={RebornGames} />
-            <Route path="/attend" component={RebornAttend} />
             <Route path="/support" component={RebornSupport} />
             <Route path="/kos" component={RebornKos} />
             <Route path="/songs" component={RebornSong} />

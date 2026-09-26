@@ -3,15 +3,27 @@ import { apiRequest } from "@/lib/queryClient";
 
 // Landing page when a worker scans the workplace attendance QR (/attend?c=CODE).
 export default function RebornAttend() {
-  const [state, setState] = useState<"checking" | "ok" | "err" | "login">("checking");
+  const [state, setState] = useState<"checking" | "ok" | "err">("checking");
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    const c = new URLSearchParams(window.location.search).get("c") || "";
+    // Keep the scanned code across a login round-trip: if we were sent to log in
+    // and came back, the URL no longer has ?c=, so fall back to the stored code.
+    const fromUrl = new URLSearchParams(window.location.search).get("c") || "";
+    let c = fromUrl;
+    try {
+      if (fromUrl) localStorage.setItem("rw_attend_code", fromUrl);
+      else c = localStorage.getItem("rw_attend_code") || "";
+    } catch {}
     apiRequest("POST", "/api/reborn/staff/check-in", { code: c })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
-        if (r.status === 401 || r.status === 403) { setState("login"); return; }
+        if (r.status === 401 || r.status === 403) {
+          // Not signed in on this phone — log in, then bounce straight back here.
+          window.location.replace("/login?next=" + encodeURIComponent("/attend"));
+          return;
+        }
+        try { localStorage.removeItem("rw_attend_code"); } catch {}
         if (!r.ok) { setMsg(d?.message || "Check-in failed."); setState("err"); return; }
         setState("ok");
       })
@@ -28,12 +40,6 @@ export default function RebornAttend() {
           <h1 className="text-2xl font-extrabold text-emerald-300">Checked in!</h1>
           <p className="text-white/60 mt-2">{now}</p>
           <a href="/reborn-admin" className="inline-block mt-6 px-5 py-3 rounded-xl font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Open app</a>
-        </>)}
-        {state === "login" && (<>
-          <div className="text-6xl mb-3">🔒</div>
-          <h1 className="text-xl font-extrabold">Please log in first</h1>
-          <p className="text-white/60 mt-2 text-sm">Log in to your staff account, then scan the QR again.</p>
-          <a href="/login" className="inline-block mt-6 px-5 py-3 rounded-xl font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Log in</a>
         </>)}
         {state === "err" && (<>
           <div className="text-6xl mb-3">⚠️</div>

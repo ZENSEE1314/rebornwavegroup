@@ -221,7 +221,8 @@ export default function Login() {
       }
       queryClient.setQueryData(["/api/auth/user"], user);
       toast({ title: "Welcome back!", description: "Logged in successfully." });
-      window.location.replace("/");
+      const next = new URLSearchParams(window.location.search).get("next");
+      window.location.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
     },
     onError: (err: any) => setError(err.message || "Login failed. Please try again."),
   });

@@ -134,6 +134,44 @@ async function runAdmin() {
     expect(enabled.includes("restaurant") && enabled.includes("pos"), `expected restaurant+pos, got ${enabled.join(",")}`);
     return `${enabled.length} enabled`;
   });
+  // Inventory + Purchasing (restaurant preset enables these)
+  await step("inventory: create item + list", async () => {
+    const item = ok(await api("POST", "/api/v1/company/inventory/items", { name: `${TAG} Beans`, unit: "kg", costPrice: 100, sellPrice: 250, lowStockThreshold: 5 }, withCo()), "POST item");
+    ctx.itemId = item.id; expect(ctx.itemId, "no item id");
+    const items = ok(await api("GET", "/api/v1/company/inventory/items", undefined, withCo()), "GET items");
+    expect(items.some((i) => i.id === ctx.itemId), "item not listed");
+    return `item #${ctx.itemId}`;
+  });
+  await step("inventory: adjust stock", async () => {
+    const r = ok(await api("POST", "/api/v1/company/inventory/adjust", { itemId: ctx.itemId, quantity: 12, type: "in" }, withCo()), "POST adjust");
+    expect(Number(r.stock) === 12, `expected stock 12, got ${r.stock}`);
+    return `stock ${r.stock}`;
+  });
+  await step("purchasing: supplier → PO → receive", async () => {
+    const sup = ok(await api("POST", "/api/v1/company/inventory/suppliers", { name: `${TAG} Supplier` }, withCo()), "POST supplier");
+    const po = ok(await api("POST", "/api/v1/company/inventory/purchase-orders", { supplierId: sup.id, items: [{ itemId: ctx.itemId, quantity: 8, unitCost: 90 }] }, withCo()), "POST po");
+    ok(await api("POST", `/api/v1/company/inventory/purchase-orders/${po.id}/receive`, {}, withCo()), "receive po");
+    const items = ok(await api("GET", "/api/v1/company/inventory/items", undefined, withCo()), "GET items");
+    const it = items.find((i) => i.id === ctx.itemId);
+    expect(Number(it.stock) === 20, `expected stock 20 after receiving 8, got ${it?.stock}`);
+    expect(Number(it.cost_price) === 90, `expected cost updated to 90, got ${it?.cost_price}`);
+    return `stock ${it.stock}, cost ${it.cost_price}`;
+  });
+  // CRM
+  await step("crm: create customer + segments", async () => {
+    const c = ok(await api("POST", "/api/v1/company/crm/customers", { name: `${TAG} Regular`, phone: "0800000000" }, withCo()), "POST customer");
+    ok(await api("POST", `/api/v1/company/crm/customers/${c.id}/visit`, { amount: 250000 }, withCo()), "record visit");
+    const seg = ok(await api("GET", "/api/v1/company/crm/segments", undefined, withCo()), "GET segments");
+    expect(Number(seg.total) >= 1, "expected at least 1 customer in segments");
+    return `total ${seg.total}`;
+  });
+  await step("module gate blocks disabled module", async () => {
+    // Turn CRM off, expect 403 MODULE_DISABLED, then turn it back on.
+    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "inventory"] }, withCo()), "disable crm");
+    const blocked = await api("GET", "/api/v1/company/crm/customers", undefined, withCo());
+    expect(blocked.status === 403, `expected 403 when module disabled, got ${blocked.status}`);
+    return "gate works";
+  });
   await step("update modules", async () => {
     ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory"] }, withCo()), "PUT modules");
     return "saved";

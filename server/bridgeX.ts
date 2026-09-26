@@ -41,10 +41,10 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "analytics", name: "Owner Dashboard", category: "Core", status: "planned", desc: "Today-at-a-glance revenue, profit, top products, comparisons." },
   { key: "audit", name: "Fraud & Staff Control", category: "Core", status: "planned", desc: "Track voids, refunds, discounts, drawer opens; flag anomalies." },
   // Inventory
-  { key: "inventory", name: "Inventory & Stock", category: "Inventory", status: "planned", desc: "Real-time stock, multi-warehouse, transfers, expiry, low-stock alerts." },
-  { key: "purchasing", name: "Purchasing & Suppliers", category: "Inventory", status: "planned", desc: "Suppliers, purchase orders, goods received, cost history, reorder." },
+  { key: "inventory", name: "Inventory & Stock", category: "Inventory", status: "live", desc: "Real-time stock, low-stock alerts, adjustments, movement history." },
+  { key: "purchasing", name: "Purchasing & Suppliers", category: "Inventory", status: "live", desc: "Suppliers, purchase orders, goods received, auto cost & stock update." },
   // Customers
-  { key: "crm", name: "CRM & Segments", category: "Customers", status: "planned", desc: "Profiles, spend/visit history, tags, VIP/new/lost/birthday segments." },
+  { key: "crm", name: "CRM & Segments", category: "Customers", status: "live", desc: "Profiles, spend/visit history, tags, VIP/new/lost/birthday segments." },
   { key: "loyalty", name: "Loyalty & Rewards", category: "Customers", status: "live", desc: "Points, cashback, stamp cards, vouchers, referral rewards." },
   { key: "membership", name: "Membership Tiers", category: "Customers", status: "live", desc: "Tiers, member pricing, paid subscriptions, milestones." },
   { key: "marketing", name: "Marketing Engine", category: "Customers", status: "planned", desc: "Campaigns, segment blasts, birthday/win-back, coupons, flash sales." },
@@ -188,6 +188,21 @@ async function companyAccess(req: Request, res: Response, management = false) {
     return null;
   }
   return { user, companyId, role: member.role, branchId: member.branchId };
+}
+
+async function moduleEnabled(companyId: number, key: string) {
+  const rows = (await db.execute(sql`SELECT enabled FROM bridge_company_modules WHERE company_id=${companyId} AND module_key=${key} LIMIT 1`)).rows as any[];
+  return rows.length ? !!rows[0].enabled : false;
+}
+// Like companyAccess, but also requires the given module to be enabled for the company.
+async function requireModule(req: Request, res: Response, key: string, management = false) {
+  const access = await companyAccess(req, res, management);
+  if (!access) return null;
+  if (access.role !== "platform_admin" && !(await moduleEnabled(access.companyId, key))) {
+    res.status(403).json({ message: `The ${key} module is not enabled for this business.`, code: "MODULE_DISABLED" });
+    return null;
+  }
+  return access;
 }
 
 async function ensureUser(email: string, name: string, password?: string) {
@@ -356,6 +371,21 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE worker_shifts ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE worker_shifts ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE events ADD COLUMN IF NOT EXISTS branch_id integer;
+    -- Inventory & Purchasing module
+    CREATE TABLE IF NOT EXISTS bridge_suppliers (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, phone varchar, email varchar, address text, note text, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_suppliers_company ON bridge_suppliers(company_id);
+    CREATE TABLE IF NOT EXISTS bridge_inventory_items (id serial PRIMARY KEY, company_id integer NOT NULL, sku varchar, name varchar NOT NULL, category varchar, unit varchar NOT NULL DEFAULT 'unit', cost_price numeric(14,2) NOT NULL DEFAULT 0, sell_price numeric(14,2) NOT NULL DEFAULT 0, track_stock boolean NOT NULL DEFAULT true, low_stock_threshold numeric(14,3) NOT NULL DEFAULT 0, supplier_id integer, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_inventory_items_company ON bridge_inventory_items(company_id);
+    CREATE TABLE IF NOT EXISTS bridge_stock_levels (company_id integer NOT NULL, item_id integer NOT NULL, branch_id integer NOT NULL DEFAULT 0, quantity numeric(14,3) NOT NULL DEFAULT 0, updated_at timestamp NOT NULL DEFAULT now(), PRIMARY KEY(item_id, branch_id));
+    CREATE TABLE IF NOT EXISTS bridge_stock_movements (id serial PRIMARY KEY, company_id integer NOT NULL, item_id integer NOT NULL, branch_id integer NOT NULL DEFAULT 0, type varchar NOT NULL, quantity numeric(14,3) NOT NULL, unit_cost numeric(14,2) NOT NULL DEFAULT 0, reference varchar, note text, user_id varchar, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_stock_movements_company ON bridge_stock_movements(company_id, created_at);
+    CREATE TABLE IF NOT EXISTS bridge_purchase_orders (id serial PRIMARY KEY, company_id integer NOT NULL, supplier_id integer, branch_id integer NOT NULL DEFAULT 0, status varchar NOT NULL DEFAULT 'draft', total numeric(14,2) NOT NULL DEFAULT 0, note text, created_by varchar, created_at timestamp NOT NULL DEFAULT now(), received_at timestamp);
+    CREATE INDEX IF NOT EXISTS bridge_purchase_orders_company ON bridge_purchase_orders(company_id, created_at);
+    CREATE TABLE IF NOT EXISTS bridge_purchase_order_items (id serial PRIMARY KEY, po_id integer NOT NULL, item_id integer NOT NULL, quantity numeric(14,3) NOT NULL DEFAULT 0, unit_cost numeric(14,2) NOT NULL DEFAULT 0, received_qty numeric(14,3) NOT NULL DEFAULT 0);
+    CREATE INDEX IF NOT EXISTS bridge_po_items_po ON bridge_purchase_order_items(po_id);
+    -- CRM module
+    CREATE TABLE IF NOT EXISTS bridge_customers (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, phone varchar, email varchar, birthday varchar, gender varchar, tags jsonb NOT NULL DEFAULT '[]', note text, wallet_balance numeric(14,2) NOT NULL DEFAULT 0, store_credit numeric(14,2) NOT NULL DEFAULT 0, total_spend numeric(14,2) NOT NULL DEFAULT 0, visit_count integer NOT NULL DEFAULT 0, last_visit_at timestamp, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_customers_company ON bridge_customers(company_id);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -534,6 +564,185 @@ export function registerBridgeXRoutes(app: Express) {
     const config = req.body?.config || {};
     const result = await db.execute(sql`INSERT INTO bridge_company_settings (company_id, config, updated_at) VALUES (${access.companyId}, ${JSON.stringify(config)}::jsonb, now()) ON CONFLICT (company_id) DO UPDATE SET config=EXCLUDED.config, updated_at=now() RETURNING *`);
     res.json((result.rows || result as any)[0]);
+  }));
+
+  // ── Inventory & Purchasing module ────────────────────────────────────────
+  app.get("/api/v1/company/inventory/suppliers", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_suppliers WHERE company_id=${a.companyId} ORDER BY active DESC, name`)).rows || []);
+  }));
+  app.post("/api/v1/company/inventory/suppliers", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Supplier name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_suppliers (company_id, name, phone, email, address, note) VALUES (${a.companyId}, ${name}, ${req.body?.phone || null}, ${req.body?.email || null}, ${req.body?.address || null}, ${req.body?.note || null}) RETURNING *`)).rows[0]);
+  }));
+  app.put("/api/v1/company/inventory/suppliers/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    const r = await db.execute(sql`UPDATE bridge_suppliers SET name=COALESCE(${req.body?.name ?? null},name), phone=${req.body?.phone ?? null}, email=${req.body?.email ?? null}, address=${req.body?.address ?? null}, note=${req.body?.note ?? null}, active=COALESCE(${req.body?.active ?? null},active) WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Supplier not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/inventory/suppliers/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_suppliers WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+
+  app.get("/api/v1/company/inventory/items", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory"); if (!a) return;
+    res.json((await db.execute(sql`
+      SELECT i.*, s.name supplier_name, COALESCE(l.stock,0) stock,
+             (i.track_stock AND COALESCE(l.stock,0) <= i.low_stock_threshold) low_stock
+      FROM bridge_inventory_items i
+      LEFT JOIN bridge_suppliers s ON s.id=i.supplier_id
+      LEFT JOIN (SELECT item_id, SUM(quantity) stock FROM bridge_stock_levels GROUP BY item_id) l ON l.item_id=i.id
+      WHERE i.company_id=${a.companyId} ORDER BY i.active DESC, i.name`)).rows || []);
+  }));
+  app.post("/api/v1/company/inventory/items", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Item name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_inventory_items (company_id, sku, name, category, unit, cost_price, sell_price, track_stock, low_stock_threshold, supplier_id)
+      VALUES (${a.companyId}, ${req.body?.sku || null}, ${name}, ${req.body?.category || null}, ${req.body?.unit || "unit"}, ${Number(req.body?.costPrice) || 0}, ${Number(req.body?.sellPrice) || 0}, ${req.body?.trackStock !== false}, ${Number(req.body?.lowStockThreshold) || 0}, ${req.body?.supplierId || null}) RETURNING *`)).rows[0]);
+  }));
+  app.put("/api/v1/company/inventory/items/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    const r = await db.execute(sql`UPDATE bridge_inventory_items SET
+      sku=${req.body?.sku ?? null}, name=COALESCE(${req.body?.name ?? null},name), category=${req.body?.category ?? null}, unit=COALESCE(${req.body?.unit ?? null},unit),
+      cost_price=COALESCE(${req.body?.costPrice ?? null},cost_price), sell_price=COALESCE(${req.body?.sellPrice ?? null},sell_price),
+      track_stock=COALESCE(${req.body?.trackStock ?? null},track_stock), low_stock_threshold=COALESCE(${req.body?.lowStockThreshold ?? null},low_stock_threshold),
+      supplier_id=${req.body?.supplierId ?? null}, active=COALESCE(${req.body?.active ?? null},active), updated_at=now()
+      WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Item not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/inventory/items/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_inventory_items WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`);
+    await db.execute(sql`DELETE FROM bridge_stock_levels WHERE item_id=${Number(req.params.id)}`);
+    res.json({ ok: true });
+  }));
+
+  app.post("/api/v1/company/inventory/adjust", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    const itemId = Number(req.body?.itemId); const delta = Number(req.body?.quantity);
+    const branchId = Number(req.body?.branchId) || 0; const type = String(req.body?.type || "adjust");
+    if (!itemId || !Number.isFinite(delta) || delta === 0) return res.status(400).json({ message: "Item and a non-zero quantity are required" });
+    const owns = (await db.execute(sql`SELECT id FROM bridge_inventory_items WHERE id=${itemId} AND company_id=${a.companyId} LIMIT 1`)).rows;
+    if (!owns.length) return res.status(404).json({ message: "Item not found" });
+    await db.execute(sql`INSERT INTO bridge_stock_levels (company_id, item_id, branch_id, quantity, updated_at) VALUES (${a.companyId}, ${itemId}, ${branchId}, ${delta}, now())
+      ON CONFLICT (item_id, branch_id) DO UPDATE SET quantity=bridge_stock_levels.quantity + ${delta}, updated_at=now()`);
+    await db.execute(sql`INSERT INTO bridge_stock_movements (company_id, item_id, branch_id, type, quantity, unit_cost, reference, note, user_id) VALUES (${a.companyId}, ${itemId}, ${branchId}, ${type}, ${delta}, ${Number(req.body?.unitCost) || 0}, ${req.body?.reference || null}, ${req.body?.note || null}, ${a.user.id})`);
+    const [level] = (await db.execute(sql`SELECT COALESCE(SUM(quantity),0) stock FROM bridge_stock_levels WHERE item_id=${itemId}`)).rows as any[];
+    res.json({ ok: true, stock: Number(level?.stock || 0) });
+  }));
+  app.get("/api/v1/company/inventory/movements", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory"); if (!a) return;
+    const itemId = Number(req.query.itemId) || 0;
+    const rows = itemId
+      ? (await db.execute(sql`SELECT m.*, i.name item_name FROM bridge_stock_movements m JOIN bridge_inventory_items i ON i.id=m.item_id WHERE m.company_id=${a.companyId} AND m.item_id=${itemId} ORDER BY m.id DESC LIMIT 200`)).rows
+      : (await db.execute(sql`SELECT m.*, i.name item_name FROM bridge_stock_movements m JOIN bridge_inventory_items i ON i.id=m.item_id WHERE m.company_id=${a.companyId} ORDER BY m.id DESC LIMIT 200`)).rows;
+    res.json(rows || []);
+  }));
+
+  app.get("/api/v1/company/inventory/purchase-orders", route(async (req, res) => {
+    const a = await requireModule(req, res, "purchasing"); if (!a) return;
+    res.json((await db.execute(sql`SELECT p.*, s.name supplier_name, (SELECT COUNT(*) FROM bridge_purchase_order_items pi WHERE pi.po_id=p.id) item_count FROM bridge_purchase_orders p LEFT JOIN bridge_suppliers s ON s.id=p.supplier_id WHERE p.company_id=${a.companyId} ORDER BY p.id DESC LIMIT 200`)).rows || []);
+  }));
+  app.get("/api/v1/company/inventory/purchase-orders/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "purchasing"); if (!a) return;
+    const id = Number(req.params.id);
+    const [po] = (await db.execute(sql`SELECT p.*, s.name supplier_name FROM bridge_purchase_orders p LEFT JOIN bridge_suppliers s ON s.id=p.supplier_id WHERE p.id=${id} AND p.company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!po) return res.status(404).json({ message: "PO not found" });
+    const items = (await db.execute(sql`SELECT pi.*, i.name item_name, i.unit FROM bridge_purchase_order_items pi JOIN bridge_inventory_items i ON i.id=pi.item_id WHERE pi.po_id=${id}`)).rows;
+    res.json({ ...po, items });
+  }));
+  app.post("/api/v1/company/inventory/purchase-orders", route(async (req, res) => {
+    const a = await requireModule(req, res, "purchasing", true); if (!a) return;
+    const items = Array.isArray(req.body?.items) ? req.body.items.filter((x: any) => Number(x.itemId) && Number(x.quantity) > 0) : [];
+    if (!items.length) return res.status(400).json({ message: "Add at least one line item" });
+    const total = items.reduce((sum: number, x: any) => sum + Number(x.quantity) * Number(x.unitCost || 0), 0);
+    const branchId = Number(req.body?.branchId) || 0;
+    const [po] = (await db.execute(sql`INSERT INTO bridge_purchase_orders (company_id, supplier_id, branch_id, status, total, note, created_by) VALUES (${a.companyId}, ${req.body?.supplierId || null}, ${branchId}, 'ordered', ${total}, ${req.body?.note || null}, ${a.user.id}) RETURNING *`)).rows as any[];
+    for (const x of items) await db.execute(sql`INSERT INTO bridge_purchase_order_items (po_id, item_id, quantity, unit_cost) VALUES (${po.id}, ${Number(x.itemId)}, ${Number(x.quantity)}, ${Number(x.unitCost) || 0})`);
+    res.status(201).json(po);
+  }));
+  app.post("/api/v1/company/inventory/purchase-orders/:id/receive", route(async (req, res) => {
+    const a = await requireModule(req, res, "purchasing", true); if (!a) return;
+    const id = Number(req.params.id);
+    const [po] = (await db.execute(sql`SELECT * FROM bridge_purchase_orders WHERE id=${id} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!po) return res.status(404).json({ message: "PO not found" });
+    if (po.status === "received") return res.status(400).json({ message: "This purchase order is already received" });
+    if (po.status === "cancelled") return res.status(400).json({ message: "This purchase order was cancelled" });
+    const items = (await db.execute(sql`SELECT * FROM bridge_purchase_order_items WHERE po_id=${id}`)).rows as any[];
+    for (const it of items) {
+      const qty = Number(it.quantity);
+      await db.execute(sql`INSERT INTO bridge_stock_levels (company_id, item_id, branch_id, quantity, updated_at) VALUES (${a.companyId}, ${it.item_id}, ${po.branch_id}, ${qty}, now())
+        ON CONFLICT (item_id, branch_id) DO UPDATE SET quantity=bridge_stock_levels.quantity + ${qty}, updated_at=now()`);
+      await db.execute(sql`INSERT INTO bridge_stock_movements (company_id, item_id, branch_id, type, quantity, unit_cost, reference, user_id) VALUES (${a.companyId}, ${it.item_id}, ${po.branch_id}, 'purchase', ${qty}, ${Number(it.unit_cost) || 0}, ${"PO#" + id}, ${a.user.id})`);
+      await db.execute(sql`UPDATE bridge_purchase_order_items SET received_qty=quantity WHERE id=${it.id}`);
+      if (Number(it.unit_cost) > 0) await db.execute(sql`UPDATE bridge_inventory_items SET cost_price=${Number(it.unit_cost)}, updated_at=now() WHERE id=${it.item_id} AND company_id=${a.companyId}`);
+    }
+    const [updated] = (await db.execute(sql`UPDATE bridge_purchase_orders SET status='received', received_at=now() WHERE id=${id} RETURNING *`)).rows as any[];
+    res.json(updated);
+  }));
+  app.patch("/api/v1/company/inventory/purchase-orders/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "purchasing", true); if (!a) return;
+    const status = String(req.body?.status || ""); if (!["cancelled", "ordered", "draft"].includes(status)) return res.status(400).json({ message: "Invalid status" });
+    const r = await db.execute(sql`UPDATE bridge_purchase_orders SET status=${status} WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} AND status<>'received' RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "PO not found or already received" }); res.json(r.rows[0]);
+  }));
+
+  // ── CRM module ────────────────────────────────────────────────────────────
+  app.get("/api/v1/company/crm/customers", route(async (req, res) => {
+    const a = await requireModule(req, res, "crm"); if (!a) return;
+    const q = `%${String(req.query.q || "").trim()}%`;
+    const rows = (await db.execute(sql`
+      SELECT *,
+        (total_spend >= 5000000) is_vip,
+        (created_at > now() - interval '30 days') is_new,
+        (last_visit_at IS NOT NULL AND last_visit_at < now() - interval '90 days') is_lost,
+        (birthday IS NOT NULL AND substring(birthday from 6 for 2) = to_char(now(),'MM')) is_birthday
+      FROM bridge_customers
+      WHERE company_id=${a.companyId} AND (${String(req.query.q || "").trim() === ""} OR name ILIKE ${q} OR phone ILIKE ${q} OR email ILIKE ${q})
+      ORDER BY last_visit_at DESC NULLS LAST, id DESC LIMIT 500`)).rows || [];
+    res.json(rows);
+  }));
+  app.get("/api/v1/company/crm/segments", route(async (req, res) => {
+    const a = await requireModule(req, res, "crm"); if (!a) return;
+    const [row] = (await db.execute(sql`SELECT
+      COUNT(*) total,
+      COUNT(*) FILTER (WHERE total_spend >= 5000000) vip,
+      COUNT(*) FILTER (WHERE created_at > now() - interval '30 days') new,
+      COUNT(*) FILTER (WHERE last_visit_at IS NOT NULL AND last_visit_at < now() - interval '90 days') lost,
+      COUNT(*) FILTER (WHERE last_visit_at >= now() - interval '30 days') active,
+      COUNT(*) FILTER (WHERE birthday IS NOT NULL AND substring(birthday from 6 for 2) = to_char(now(),'MM')) birthday
+      FROM bridge_customers WHERE company_id=${a.companyId}`)).rows as any[];
+    res.json(row || {});
+  }));
+  app.post("/api/v1/company/crm/customers", route(async (req, res) => {
+    const a = await requireModule(req, res, "crm", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Customer name is required" });
+    const tags = Array.isArray(req.body?.tags) ? req.body.tags : [];
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_customers (company_id, name, phone, email, birthday, gender, tags, note) VALUES (${a.companyId}, ${name}, ${req.body?.phone || null}, ${req.body?.email || null}, ${req.body?.birthday || null}, ${req.body?.gender || null}, ${JSON.stringify(tags)}::jsonb, ${req.body?.note || null}) RETURNING *`)).rows[0]);
+  }));
+  app.put("/api/v1/company/crm/customers/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "crm", true); if (!a) return;
+    const tags = req.body?.tags !== undefined ? JSON.stringify(Array.isArray(req.body.tags) ? req.body.tags : []) : null;
+    const r = await db.execute(sql`UPDATE bridge_customers SET name=COALESCE(${req.body?.name ?? null},name), phone=${req.body?.phone ?? null}, email=${req.body?.email ?? null}, birthday=${req.body?.birthday ?? null}, gender=${req.body?.gender ?? null}, tags=COALESCE(${tags}::jsonb,tags), note=${req.body?.note ?? null}, updated_at=now() WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Customer not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/crm/customers/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "crm", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_customers WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.post("/api/v1/company/crm/customers/:id/visit", route(async (req, res) => {
+    const a = await requireModule(req, res, "crm", true); if (!a) return;
+    const amount = Number(req.body?.amount) || 0;
+    const r = await db.execute(sql`UPDATE bridge_customers SET total_spend=total_spend + ${amount}, visit_count=visit_count + 1, last_visit_at=now(), updated_at=now() WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Customer not found" }); res.json(r.rows[0]);
+  }));
+  app.post("/api/v1/company/crm/customers/:id/wallet", route(async (req, res) => {
+    const a = await requireModule(req, res, "crm", true); if (!a) return;
+    const wallet = Number(req.body?.walletDelta) || 0; const credit = Number(req.body?.creditDelta) || 0;
+    const r = await db.execute(sql`UPDATE bridge_customers SET wallet_balance=wallet_balance + ${wallet}, store_credit=store_credit + ${credit}, updated_at=now() WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Customer not found" }); res.json(r.rows[0]);
   }));
 
   app.get("/api/v1/company/feedback", route(async (req, res) => {
