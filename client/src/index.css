@@ -1962,3 +1962,29 @@ button, .interactive {
 @keyframes rwgPulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: .7; } }
 @keyframes rwgPop { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
 @keyframes rwgCoin { 0% { transform: translateY(0) scale(0.6); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-70px) scale(1.2); opacity: 0; } }
+
+/* ── Cartoon game UI (Games page) ───────────────────────────── */
+.cbtn { position: relative; border: none; border-radius: 18px; font-weight: 800; letter-spacing: .2px;
+  box-shadow: 0 5px 0 rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.45); transition: transform .08s ease, box-shadow .08s ease;
+  -webkit-tap-highlight-color: transparent; }
+.cbtn::after { content:""; position:absolute; left:8%; right:8%; top:6px; height:34%; border-radius:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,0)); pointer-events:none; }
+.cbtn:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.35); }
+.cbtn:disabled { opacity:.5; }
+.cbtn-gold { background: linear-gradient(180deg,#f9e79a,#e0af35); color:#3a2a00; }
+.cbtn-cyan { background: linear-gradient(180deg,#66e2ff,#17b3e6); color:#053642; box-shadow:0 5px 0 #0d6f92, inset 0 2px 0 rgba(255,255,255,.5); }
+.cbtn-cyan:active { box-shadow:0 1px 0 #0d6f92, inset 0 2px 0 rgba(255,255,255,.4); }
+.cbtn-purple { background: linear-gradient(180deg,#c49bff,#7c3aed); color:#fff; box-shadow:0 5px 0 #4c1d95, inset 0 2px 0 rgba(255,255,255,.35); }
+.cbtn-purple:active { box-shadow:0 1px 0 #4c1d95, inset 0 2px 0 rgba(255,255,255,.3); }
+.cbtn-red { background: linear-gradient(180deg,#ff8a8a,# e23b3b); color:#fff; box-shadow:0 5px 0 #991b1b, inset 0 2px 0 rgba(255,255,255,.35); }
+.cbtn-red { background: linear-gradient(180deg,#ff8a8a,#e23b3b); }
+.cbtn-red:active { box-shadow:0 1px 0 #991b1b, inset 0 2px 0 rgba(255,255,255,.3); }
+.cbtn-dark { background: linear-gradient(180deg,#39405c,#232840); color:#fff; box-shadow:0 5px 0 rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.10); }
+.cbtn-dark::after { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0)); }
+.cbtn-dark:active { box-shadow:0 1px 0 rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.08); }
+/* glossy game card */
+.gcard { border-radius: 22px; background: linear-gradient(160deg, rgba(60,66,110,.55), rgba(20,22,40,.75));
+  border: 1px solid rgba(255,255,255,.10); box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08); }
+.gcard-sel { border-color: rgba(240,215,135,.7); box-shadow: 0 0 0 2px rgba(240,215,135,.5), 0 10px 30px rgba(240,180,60,.25); }
+.gem { border-radius: 16px; display:flex; align-items:center; justify-content:center;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 4px 8px rgba(0,0,0,.4); }

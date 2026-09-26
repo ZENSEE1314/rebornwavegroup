@@ -58,7 +58,7 @@ function HowToPlay({ game, onClose }: { game: string; onClose: () => void }) {
             <li key={i} className="flex gap-2 text-sm text-white/80"><span className="text-amber-300 font-bold">{i + 1}.</span><span>{line}</span></li>
           ))}
         </ol>
-        <button onClick={onClose} className="mt-4 w-full py-2.5 rounded-xl font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Got it!</button>
+        <button onClick={onClose} className="cbtn cbtn-gold mt-4 w-full py-3">Got it!</button>
       </div>
     </div>
   );
@@ -155,17 +155,22 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
         <p className="text-white/50 text-sm">Create a room, share the code, play head-to-head.</p>
       </div>
 
-      <div className="rwg-card p-4">
-        <p className="text-xs text-white/50 mb-2">Pick a game</p>
-        <div className="grid grid-cols-1 gap-2">
+      <div className="gcard p-4">
+        <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Pick a game</p>
+        <div className="grid grid-cols-1 gap-3">
           {(Object.keys(GAMES) as ("rps" | "tap" | "cards" | "dice")[]).map((g) => {
             const on = today[g];
+            const grad: Record<string, string> = { rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)", cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)" };
             return (
               <button key={g} disabled={!on} onClick={() => setGame(g)}
-                className={`p-3 rounded-2xl text-left border transition ${game === g && on ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/5"} ${!on ? "opacity-40" : ""}`}>
-                <span className="text-lg font-bold text-white">{GAMES[g].emoji} {GAMES[g].name}</span>
-                <span className="block text-[11px] text-white/50">{GAMES[g].blurb}</span>
-                {!on && <span className="block text-[11px] text-amber-300 mt-0.5">Not scheduled today</span>}
+                className={`flex items-center gap-3 p-3 rounded-2xl text-left transition ${game === g && on ? "gcard-sel" : "border border-white/10"} ${!on ? "opacity-40" : "active:scale-[.98]"}`}
+                style={{ background: game === g && on ? "rgba(240,215,135,0.08)" : "rgba(255,255,255,0.04)" }}>
+                <span className="gem shrink-0" style={{ width: 48, height: 48, fontSize: 26, background: grad[g] }}>{GAMES[g].emoji}</span>
+                <span className="min-w-0">
+                  <span className="block text-lg font-extrabold text-white leading-tight">{GAMES[g].name}</span>
+                  <span className="block text-[11px] text-white/55">{GAMES[g].blurb}</span>
+                  {!on && <span className="block text-[11px] text-amber-300 mt-0.5">Not scheduled today</span>}
+                </span>
               </button>
             );
           })}
@@ -176,53 +181,53 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
             <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Room password (optional)" className="flex-1 bg-transparent py-2.5 text-white text-sm focus:outline-none" />
           </div>
         </div>
-        <div className="mt-2">
-          <p className="text-xs text-white/50 mb-1">Play to how many wins?</p>
+        <div className="mt-3">
+          <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
           <div className="flex gap-2">
-            {[[1, "Single game"], [3, "Best of / 3 wins"], [5, "5 wins"]].map(([v, l]) => (
-              <button key={v} onClick={() => setWinTarget(v as number)} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${winTarget === v ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{l}</button>
+            {[[1, "Single game"], [3, "Best of 3"], [5, "5 wins"]].map(([v, l]) => (
+              <button key={v} onClick={() => setWinTarget(v as number)} className={`cbtn flex-1 py-2.5 text-xs ${winTarget === v ? "cbtn-gold" : "cbtn-dark"}`}>{l}</button>
             ))}
           </div>
         </div>
-        <div className="mt-3 flex gap-2">
-          <button onClick={() => setHelp(game)} className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/80 font-bold text-sm">How to play</button>
-          <button onClick={create} disabled={!today[game]} className="flex-1 py-3 rounded-xl font-extrabold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Create room</button>
+        <div className="mt-4 flex gap-2">
+          <button onClick={() => setHelp(game)} className="cbtn cbtn-dark px-4 py-3.5 text-sm">How to play</button>
+          <button onClick={create} disabled={!today[game]} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🎮 Create room</button>
         </div>
       </div>
       {help && <HowToPlay game={help} onClose={() => setHelp(null)} />}
 
-      <div className="rwg-card p-4">
+      <div className="gcard p-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="font-bold text-white flex items-center gap-2"><Users className="w-4 h-4 text-amber-300" /> Open rooms</p>
+          <p className="font-extrabold text-white flex items-center gap-2"><Users className="w-4 h-4 text-amber-300" /> Open rooms</p>
           <button onClick={loadRooms} className="text-xs text-white/50">↻ Refresh</button>
         </div>
         {openRooms.length === 0 && <p className="text-xs text-white/40">No open rooms — create one above and invite friends!</p>}
         <div className="space-y-2">
           {openRooms.map((r) => (
-            <div key={r.code} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
+            <div key={r.code} className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5">
               <span className="text-2xl">{GAMES[r.game]?.emoji || "🎮"}</span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-white truncate">{GAMES[r.game]?.name || r.game} {r.hasPassword ? "🔒" : ""}</p>
                 <p className="text-[11px] text-white/50 truncate">{r.hostName}'s room · <b className="text-amber-300">{r.code}</b> · {r.players}/{r.max} players</p>
               </div>
-              <button onClick={() => joinRoom(r)} disabled={r.players >= r.max} className="px-4 py-2 rounded-lg text-sm font-bold text-black disabled:opacity-40" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{r.players >= r.max ? "Full" : "Join"}</button>
+              <button onClick={() => joinRoom(r)} disabled={r.players >= r.max} className="cbtn cbtn-cyan px-4 py-2 text-sm shrink-0">{r.players >= r.max ? "Full" : "Join"}</button>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="rwg-card p-4">
-        <p className="text-xs text-white/50 mb-2">Or join by code</p>
+      <div className="gcard p-4">
+        <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Or join by code</p>
         <div className="flex flex-wrap gap-2">
           <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={4} placeholder="CODE" className="w-20 text-center tracking-widest font-extrabold rounded-xl bg-black/30 border border-white/10 py-2.5 text-white focus:outline-none" />
           <input value={joinPw} onChange={(e) => setJoinPw(e.target.value)} placeholder="Password (if any)" className="flex-1 min-w-0 rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
-          <button onClick={join} className="shrink-0 px-4 py-2.5 rounded-xl bg-white/10 border border-white/15 text-white font-bold">Join</button>
+          <button onClick={join} className="cbtn cbtn-cyan shrink-0 px-5 py-2.5">Join</button>
         </div>
       </div>
 
-      <div className="rwg-card p-4">
+      <div className="gcard p-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="font-bold text-white flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" /> Leaderboard</p>
+          <p className="font-extrabold text-white flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" /> Leaderboard</p>
           <div className="flex gap-1">
             {(["rps", "tap", "cards", "dice"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
           </div>
@@ -303,11 +308,11 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
           <SeriesBoard room={room} />
           {isHost ? (
             <button onClick={async () => { const { ok, d } = await post(`/api/reborn/games/rooms/${code}/restart`); if (!ok) toast({ title: "Can't restart", description: d.message, variant: "destructive" }); }}
-              className="w-full py-3 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{room.seriesChampionId ? "🎉 New series" : room.winTarget > 1 ? "▶ Next round" : "🔄 Play again"}</button>
+              className="cbtn cbtn-gold w-full py-4 text-lg">{room.seriesChampionId ? "🎉 New series" : room.winTarget > 1 ? "▶ Next round" : "🔄 Play again"}</button>
           ) : (
             <p className="text-center text-white/50 text-sm py-2">Waiting for the host to start {room.winTarget > 1 && !room.seriesChampionId ? "the next round" : "another game"}… you can stay or leave.</p>
           )}
-          <button onClick={leave} className="w-full py-3 rounded-xl font-bold bg-white/5 border border-white/10 text-white/80">Leave room</button>
+          <button onClick={leave} className="cbtn cbtn-dark w-full py-3">Leave room</button>
         </div>
       )}
     </div>
@@ -330,7 +335,7 @@ function LobbyRoom({ room, code, isHost }: any) {
         ))}
       </div>
       {isHost ? (
-        <button onClick={start} disabled={room.players.length < 2} className="w-full py-3 rounded-xl font-extrabold text-black disabled:opacity-50 inline-flex items-center justify-center gap-2" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
+        <button onClick={start} disabled={room.players.length < 2} className="cbtn cbtn-gold w-full py-4 text-lg inline-flex items-center justify-center gap-2">
           <Play className="w-5 h-5" /> {room.players.length < 2 ? "Waiting for players…" : "Start game"}
         </button>
       ) : <p className="text-center text-white/50 text-sm py-3">Waiting for the host to start…</p>}
@@ -411,9 +416,9 @@ function RpsGame({ room, code, me }: any) {
           {canPick ? (
             <div className="grid grid-cols-3 gap-3 mt-2">
               {(["rock", "paper", "scissors"] as const).map((c) => (
-                <button key={c} onClick={() => pick(c)} className="py-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition">
+                <button key={c} onClick={() => pick(c)} className="cbtn cbtn-dark py-5">
                   <span className="text-4xl block">{HAND[c]}</span>
-                  <span className="text-[11px] text-white/50 capitalize">{c}</span>
+                  <span className="text-[11px] text-white/60 capitalize">{c}</span>
                 </button>
               ))}
             </div>
@@ -614,12 +619,12 @@ function DiceGame({ room, code, me }: any) {
             <span className="text-xs text-white/50">dice</span>
           </div>
           <label className="flex items-center justify-center gap-2 text-xs text-white/60 mb-2"><input type="checkbox" checked={strike} onChange={(e) => setStrike(e.target.checked)} /> Strike (make ① not wild)</label>
-          <button onClick={() => act({ act: "bid", face, qty, strike })} className="w-full py-2.5 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{bid ? "Raise bid" : "Open bid"}</button>
+          <button onClick={() => act({ act: "bid", face, qty, strike })} className="cbtn cbtn-gold w-full py-3">{bid ? "Raise bid" : "Open bid"}</button>
         </div>
       )}
 
       {canCatch && (
-        <button onClick={() => { if (confirm(`Catch this bid (${bid.qty} × ${bid.face === 1 ? "①" : DIE_FACE[bid.face]})?\n\nIf you're WRONG, you lose. If it's a bluff, they lose.`)) act({ act: "catch" }); }} className="w-full py-3 rounded-xl font-black text-white bg-red-500 hover:bg-red-400">🫵 CATCH! (call their bluff)</button>
+        <button onClick={() => { if (confirm(`Catch this bid (${bid.qty} × ${bid.face === 1 ? "①" : DIE_FACE[bid.face]})?\n\nIf you're WRONG, you lose. If it's a bluff, they lose.`)) act({ act: "catch" }); }} className="cbtn cbtn-red w-full py-3.5">🫵 CATCH! (call their bluff)</button>
       )}
       {!myTurn && !canCatch && room.status === "playing" && <p className="text-center text-white/40 text-sm">Waiting…</p>}
     </div>
@@ -716,8 +721,8 @@ function CardGame({ room, code, me }: any) {
       {myTurn ? (
         cards.phase === "draw" ? (
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => act({ act: "take" })} disabled={!cards.discardTop} className="py-3 rounded-xl bg-white/10 border border-white/15 text-white font-bold disabled:opacity-40">Take discard {cards.discardTop ? `${cards.discardTop.v}${cards.discardTop.s}` : ""}</button>
-            <button onClick={() => act({ act: "drawDeck" })} className="py-3 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Draw deck</button>
+            <button onClick={() => act({ act: "take" })} disabled={!cards.discardTop} className="cbtn cbtn-dark py-3 text-sm">Take discard {cards.discardTop ? `${cards.discardTop.v}${cards.discardTop.s}` : ""}</button>
+            <button onClick={() => act({ act: "drawDeck" })} className="cbtn cbtn-gold py-3">Draw deck</button>
           </div>
         ) : (
           <p className="text-center text-emerald-300 font-bold text-sm">Tap a card above to discard</p>
