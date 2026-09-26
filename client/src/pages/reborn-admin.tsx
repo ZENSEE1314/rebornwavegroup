@@ -369,7 +369,58 @@ function GamesAdmin() {
         </Card>
       ))}
       <button onClick={() => save.mutate()} className={btn}>Save schedule</button>
+      <RankAdmin />
     </div>
+  );
+}
+function RankAdmin() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/rank/config"], queryFn: () => apiRequest("GET", "/api/reborn/rank/config").then((r) => r.json()) });
+  const [cfg, setCfg] = useState<any>(null);
+  const cur = cfg || data;
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/rank/config", { seasonStarDrop: cur.seasonStarDrop, tiers: cur.tiers }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Rank ladder saved ✓" }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/config"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const newSeason = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/rank/new-season", {}).then((r) => r.json()),
+    onSuccess: (d: any) => { toast({ title: `Season ${d.season} started`, description: `Everyone dropped ${d.dropped}★` }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/config"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  if (!cur) return null;
+  const setTier = (i: number, patch: any) => setCfg({ ...cur, tiers: cur.tiers.map((t: any, j: number) => (j === i ? { ...t, ...patch } : t)) });
+  const addTier = () => setCfg({ ...cur, tiers: [...cur.tiers, { name: "New tier", perDiv: 6 }] });
+  const delTier = (i: number) => setCfg({ ...cur, tiers: cur.tiers.filter((_: any, j: number) => j !== i) });
+  return (
+    <>
+      <Card>
+        <h3 className="font-bold text-sm flex items-center gap-2"><Sparkles className="w-4 h-4 text-amber-300" /> Rank ladder & season <span className="text-white/40 text-xs">(Season {cur.season})</span></h3>
+        <p className="text-[11px] text-white/50 mt-1 mb-2">Each game win = 1 star. Each tier has 3 colour divisions (Bronze→Silver→Gold); "stars per division" is how many wins to climb each colour.</p>
+        <Field label="Season reset — stars dropped when a new season starts" value={cur.seasonStarDrop} onChange={(v: any) => setCfg({ ...cur, seasonStarDrop: Math.max(0, Number(v) || 0) })} />
+        <p className="text-xs text-white/60 mb-1 mt-2">Tiers (low → high, then Legend is automatic)</p>
+        <div className="space-y-2">
+          {cur.tiers.map((t: any, i: number) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-white/30 text-xs w-5">{i + 1}</span>
+              <input value={t.name} onChange={(e) => setTier(i, { name: e.target.value })} className={inp + " flex-1"} />
+              <input type="number" value={t.perDiv || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setTier(i, { perDiv: Math.max(1, Number(e.target.value) || 1) })} className={inp + " w-16"} title="stars per division" />
+              <button onClick={() => delTier(i)} className={btnSm}><Trash2 className="w-4 h-4" /></button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addTier} className="mt-2 text-xs text-amber-300 font-semibold">+ Add tier</button>
+        <div className="mt-3 flex gap-2">
+          <button onClick={() => save.mutate()} className={btn + " flex-1 justify-center"}>Save ladder</button>
+        </div>
+      </Card>
+      <Card>
+        <h3 className="font-bold text-sm text-red-200">⚠️ Start new season</h3>
+        <p className="text-[11px] text-white/50 mt-1 mb-2">Drops every player by {cur.seasonStarDrop}★ and advances the season. Do this monthly.</p>
+        <button onClick={() => { if (confirm(`Start a new season? Everyone loses ${cur.seasonStarDrop}★.`)) newSeason.mutate(); }} disabled={newSeason.isPending} className={btnDel}>Start new season</button>
+      </Card>
+    </>
   );
 }
 function GiftRow({ g, onSave, onDelete }: any) {

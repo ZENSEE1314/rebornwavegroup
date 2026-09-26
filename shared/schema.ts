@@ -973,6 +973,16 @@ export const ledgerEntries = pgTable("ledger_entries", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Career rank stars for the games ladder (Mobile-Legends style).
+export const gameRanks = pgTable("game_ranks", {
+  userId: varchar("user_id").primaryKey(),
+  userName: varchar("user_name"),
+  stars: integer("stars").default(0).notNull(),      // career stars this season
+  peakStars: integer("peak_stars").default(0).notNull(),
+  season: integer("season").default(1).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Live PvP mini-games — persisted results for per-game leaderboards.
 export const pvpScores = pgTable("pvp_game_scores", {
   id: serial("id").primaryKey(),

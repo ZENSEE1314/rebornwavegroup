@@ -4,7 +4,7 @@
 import type { Express, Request, Response } from "express";
 import { and, desc, eq, sql, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { users, pvpScores, appSettings } from "@shared/schema";
+import { users, pvpScores, appSettings, gameRanks } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
 
 type Choice = "rock" | "paper" | "scissors";
@@ -77,6 +77,13 @@ async function nameFor(userId: string): Promise<string> {
 async function saveScores(room: Room, rows: { userId: string; name: string; score: number; result: "win" | "lose" }[]) {
   if (!rows.length) return;
   await db.insert(pvpScores).values(rows.map((r) => ({ game: room.game, userId: r.userId, userName: r.name, score: r.score, result: r.result, roomCode: room.code }))).catch(() => {});
+  // Award +1 career rank star to each winner (Mobile-Legends style ladder).
+  const season = (await getRankConfig()).season;
+  for (const r of rows.filter((x) => x.result === "win")) {
+    await db.insert(gameRanks).values({ userId: r.userId, userName: r.name, stars: 1, peakStars: 1, season })
+      .onConflictDoUpdate({ target: gameRanks.userId, set: { stars: sql`${gameRanks.stars} + 1`, peakStars: sql`greatest(${gameRanks.peakStars}, ${gameRanks.stars} + 1)`, userName: r.name, updatedAt: new Date() } })
+      .catch(() => {});
+  }
 }
 
 // Series scoring: +1 to the round winner; mark champion when they hit the target.
@@ -512,7 +519,57 @@ function availableToday(cfg: Record<string, { enabled: boolean; days: number[] }
   return out;
 }
 
+// ── Rank ladder config (admin-editable) ─────────────────────────────────
+const DEFAULT_TIERS = [
+  { name: "Rookie", perDiv: 3 }, { name: "Warrior", perDiv: 3 }, { name: "Fighter", perDiv: 4 },
+  { name: "Elite", perDiv: 4 }, { name: "Master", perDiv: 5 }, { name: "Grandmaster", perDiv: 5 },
+  { name: "Epic", perDiv: 6 }, { name: "Champion", perDiv: 6 },
+];
+async function getRankConfig(): Promise<{ seasonStarDrop: number; season: number; tiers: { name: string; perDiv: number }[] }> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "rankConfig"));
+  let cfg: any = {};
+  try { cfg = row?.value ? JSON.parse(row.value) : {}; } catch { cfg = {}; }
+  return {
+    seasonStarDrop: Number(cfg.seasonStarDrop) >= 0 ? Number(cfg.seasonStarDrop) : 20,
+    season: Number(cfg.season) || 1,
+    tiers: Array.isArray(cfg.tiers) && cfg.tiers.length ? cfg.tiers.map((t: any) => ({ name: String(t.name || "Tier"), perDiv: Math.max(1, Number(t.perDiv) || 3) })) : DEFAULT_TIERS,
+  };
+}
+async function saveRankConfig(cfg: any) {
+  await db.insert(appSettings).values({ key: "rankConfig", value: JSON.stringify(cfg), updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(cfg), updatedAt: new Date() } });
+}
+
 export function registerGameRoutes(app: Express) {
+  // Rank ladder: config, my rank, and the rank leaderboard shown atop /games.
+  app.get("/api/reborn/rank/config", async (_req, res) => res.json(await getRankConfig()));
+  app.get("/api/reborn/rank/me", requireAuth, async (req, res) => {
+    const uid = getUserId(req)!;
+    const [r] = await db.select().from(gameRanks).where(eq(gameRanks.userId, uid));
+    res.json({ stars: r?.stars || 0, peakStars: r?.peakStars || 0 });
+  });
+  app.get("/api/reborn/rank/leaderboard", async (_req, res) => {
+    const rows = await db.select().from(gameRanks).orderBy(desc(gameRanks.stars)).limit(50);
+    res.json(rows.map((r) => ({ userId: r.userId, name: r.userName || "Player", stars: r.stars, peakStars: r.peakStars })));
+  });
+  app.post("/api/reborn/rank/config", requireAuth, async (req, res) => {
+    const uid = getUserId(req); const [u] = uid ? await db.select().from(users).where(eq(users.id, uid)) : [];
+    if (!u || u.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    const cur = await getRankConfig();
+    const tiers = Array.isArray(req.body?.tiers) && req.body.tiers.length ? req.body.tiers : cur.tiers;
+    await saveRankConfig({ season: cur.season, seasonStarDrop: Math.max(0, Number(req.body?.seasonStarDrop) ?? cur.seasonStarDrop), tiers });
+    res.json(await getRankConfig());
+  });
+  app.post("/api/reborn/rank/new-season", requireAuth, async (req, res) => {
+    const uid = getUserId(req); const [u] = uid ? await db.select().from(users).where(eq(users.id, uid)) : [];
+    if (!u || u.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    const cfg = await getRankConfig();
+    const drop = cfg.seasonStarDrop;
+    await db.update(gameRanks).set({ stars: sql`greatest(0, ${gameRanks.stars} - ${drop})`, season: cfg.season + 1, updatedAt: new Date() });
+    await saveRankConfig({ ...cfg, season: cfg.season + 1 });
+    res.json({ ok: true, season: cfg.season + 1, dropped: drop });
+  });
+
   // Config (members see today's availability; admin edits schedule)
   app.get("/api/reborn/games/config", async (_req, res) => {
     const cfg = await getGamesConfig();

@@ -3,8 +3,10 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Trophy, Users, Lock, Play, LogOut, Crown, Pickaxe } from "lucide-react";
+import { Trophy, Users, Lock, Play, LogOut, Crown, Pickaxe, Medal } from "lucide-react";
 import MobileBackButton from "@/components/mobile-back-button";
+import { RankBadge } from "@/components/RankBadge";
+import { useRankConfig, useMyRank, computeRank } from "@/lib/rank";
 
 const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "5s to throw · no pick = out · last one standing wins" },
@@ -88,6 +90,10 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   const [help, setHelp] = useState<string | null>(null);
 
   const [openRooms, setOpenRooms] = useState<any[]>([]);
+  const rankCfg = useRankConfig();
+  const myRank = useMyRank();
+  const [rankLb, setRankLb] = useState<any[]>([]);
+  useEffect(() => { apiRequest("GET", "/api/reborn/rank/leaderboard").then((r) => r.json()).then(setRankLb).catch(() => {}); }, []);
   useEffect(() => { apiRequest("GET", "/api/reborn/games/config").then((r) => r.json()).then((d) => setToday(d.today || {})).catch(() => {}); }, []);
   useEffect(() => { apiRequest("GET", `/api/reborn/games/leaderboard?game=${lbGame}`).then((r) => r.json()).then(setLb).catch(() => {}); }, [lbGame]);
   const loadRooms = () => apiRequest("GET", "/api/reborn/games/rooms").then((r) => r.json()).then(setOpenRooms).catch(() => {});
@@ -113,6 +119,36 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
 
   return (
     <div className="space-y-4">
+      {/* Rank header — Mobile-Legends style ladder */}
+      {rankCfg?.tiers && (
+        <div className="rounded-2xl p-4 border border-amber-400/20" style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.18),rgba(201,168,76,0.12))" }}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[11px] text-white/50 uppercase tracking-wider">Your rank · Season {rankCfg.season}</p>
+              <div className="mt-1"><RankBadge stars={myRank?.stars || 0} tiers={rankCfg.tiers} size="lg" /></div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-black text-amber-300">{myRank?.stars || 0}★</p>
+              <p className="text-[10px] text-white/40">peak {myRank?.peakStars || 0}</p>
+            </div>
+          </div>
+          <div className="rounded-xl bg-black/25 p-2">
+            <p className="text-[11px] font-bold text-white/60 mb-1 flex items-center gap-1"><Medal className="w-3.5 h-3.5 text-amber-300" /> Top ranked players</p>
+            {rankLb.length === 0 && <p className="text-[11px] text-white/40">Win a game to climb the ladder!</p>}
+            {rankLb.slice(0, 5).map((r, i) => (
+              <div key={r.userId} className="flex items-center justify-between py-1">
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs w-4 text-white/50">{i + 1}</span>
+                  <RankBadge stars={r.stars} tiers={rankCfg.tiers!} size="sm" />
+                  <span className="text-xs text-white/70 truncate">{r.name}</span>
+                </span>
+                <span className="text-xs font-bold text-amber-300 shrink-0">{r.stars}★</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-extrabold text-white">Live Games 🎮</h1>
         <p className="text-white/50 text-sm">Create a room, share the code, play head-to-head.</p>
@@ -176,10 +212,10 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
 
       <div className="rwg-card p-4">
         <p className="text-xs text-white/50 mb-2">Or join by code</p>
-        <div className="flex gap-2">
-          <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={4} placeholder="CODE" className="w-24 text-center tracking-widest font-extrabold rounded-xl bg-black/30 border border-white/10 py-2.5 text-white focus:outline-none" />
-          <input value={joinPw} onChange={(e) => setJoinPw(e.target.value)} placeholder="Password (if any)" className="flex-1 rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
-          <button onClick={join} className="px-4 rounded-xl bg-white/10 border border-white/15 text-white font-bold">Join</button>
+        <div className="flex flex-wrap gap-2">
+          <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={4} placeholder="CODE" className="w-20 text-center tracking-widest font-extrabold rounded-xl bg-black/30 border border-white/10 py-2.5 text-white focus:outline-none" />
+          <input value={joinPw} onChange={(e) => setJoinPw(e.target.value)} placeholder="Password (if any)" className="flex-1 min-w-0 rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
+          <button onClick={join} className="shrink-0 px-4 py-2.5 rounded-xl bg-white/10 border border-white/15 text-white font-bold">Join</button>
         </div>
       </div>
 
