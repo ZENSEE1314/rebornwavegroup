@@ -165,6 +165,31 @@ async function runAdmin() {
     expect(Number(seg.total) >= 1, "expected at least 1 customer in segments");
     return `total ${seg.total}`;
   });
+  // Deep POS + payments
+  await step("pos: product → split-payment sale", async () => {
+    const p = ok(await api("POST", "/api/v1/company/pos/products", { name: `${TAG} Burger`, price: 50000, stock: 100 }, withCo()), "POST product");
+    ctx.productId = p.id;
+    const sale = await api("POST", "/api/v1/company/pos/tickets", { items: [{ productId: p.id, qty: 2 }], tax: 10000, serviceCharge: 5000, tip: 5000, payments: [{ method: "cash", amount: 100000 }, { method: "card", amount: 30000 }] }, withCo());
+    if (!sale.ok && sale.status === 402) throw new Error("SUBSCRIPTION_REQUIRED (activate trial to test POS)");
+    const t = ok(sale, "POST sale");
+    ctx.ticketId = t.id;
+    // due = 100000 + 10000 + 5000 + 5000 tip = 120000; paid 130000 → change 10000, status paid
+    expect(t.status === "paid", `expected paid, got ${t.status}`);
+    expect(Number(t.change_given) === 10000, `expected change 10000, got ${t.change_given}`);
+    return `${t.orderNo} paid, change ${t.change_given}`;
+  }, { soft: true });
+  await step("pos: partial payment → status partial", async () => {
+    if (!ctx.productId) throw new Error("no product");
+    const t = ok(await api("POST", "/api/v1/company/pos/tickets", { items: [{ productId: ctx.productId, qty: 1 }], payments: [{ method: "cash", amount: 20000 }] }, withCo()), "POST partial");
+    expect(t.status === "partial", `expected partial, got ${t.status}`);
+    return t.status;
+  }, { soft: true });
+  await step("pos: refund full sale", async () => {
+    if (!ctx.ticketId) throw new Error("no ticket");
+    const r = ok(await api("POST", `/api/v1/company/pos/tickets/${ctx.ticketId}/refund`, { reason: "test" }, withCo()), "refund");
+    expect(r.status === "refunded", `expected refunded, got ${r.status}`);
+    return `refunded ${r.refunded}`;
+  }, { soft: true });
   await step("module gate blocks disabled module", async () => {
     // Turn CRM off, expect 403 MODULE_DISABLED, then turn it back on.
     ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "inventory"] }, withCo()), "disable crm");

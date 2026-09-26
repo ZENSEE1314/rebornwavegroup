@@ -22,6 +22,7 @@ import {
   posProducts,
   posTicketItems,
   posTickets,
+  bridgePayments,
   staffAttendance,
   users,
   workerShifts,
@@ -35,8 +36,8 @@ export interface ModuleDef { key: string; name: string; category: string; status
 export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   // Core — almost every business
   { key: "pos", name: "Point of Sale", category: "Core", status: "live", desc: "Sales, cart, discounts, tax, service charge, tips." },
-  { key: "payments", name: "Payments", category: "Core", status: "planned", desc: "Cash, card, QR, transfer, e-wallet, split & partial payment." },
-  { key: "refunds", name: "Refunds & Voids", category: "Core", status: "planned", desc: "Full/partial refund, void, return, exchange, reason tracking." },
+  { key: "payments", name: "Payments", category: "Core", status: "live", desc: "Cash, card, QR, transfer, e-wallet, split & partial payment, change." },
+  { key: "refunds", name: "Refunds & Voids", category: "Core", status: "live", desc: "Full/partial refund, void, auto restock, reason tracking." },
   { key: "pricing", name: "Pricing & Price Lists", category: "Core", status: "planned", desc: "Multiple price lists, member pricing, happy hour, wholesale." },
   { key: "analytics", name: "Owner Dashboard", category: "Core", status: "planned", desc: "Today-at-a-glance revenue, profit, top products, comparisons." },
   { key: "audit", name: "Fraud & Staff Control", category: "Core", status: "planned", desc: "Track voids, refunds, discounts, drawer opens; flag anomalies." },
@@ -386,6 +387,15 @@ export async function ensureBridgeXSchema() {
     -- CRM module
     CREATE TABLE IF NOT EXISTS bridge_customers (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, phone varchar, email varchar, birthday varchar, gender varchar, tags jsonb NOT NULL DEFAULT '[]', note text, wallet_balance numeric(14,2) NOT NULL DEFAULT 0, store_credit numeric(14,2) NOT NULL DEFAULT 0, total_spend numeric(14,2) NOT NULL DEFAULT 0, visit_count integer NOT NULL DEFAULT 0, last_visit_at timestamp, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_customers_company ON bridge_customers(company_id);
+    -- Deep POS + payments
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS tip numeric(10,2) NOT NULL DEFAULT 0;
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS paid_total numeric(10,2) NOT NULL DEFAULT 0;
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS customer_id integer;
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS void_reason text;
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS voided_by varchar;
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS voided_at timestamp;
+    CREATE TABLE IF NOT EXISTS bridge_payments (id serial PRIMARY KEY, company_id integer NOT NULL, ticket_id integer NOT NULL, method varchar NOT NULL, amount numeric(14,2) NOT NULL, reference varchar, is_refund boolean NOT NULL DEFAULT false, created_by varchar, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_payments_ticket ON bridge_payments(ticket_id);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -922,6 +932,15 @@ export function registerBridgeXRoutes(app: Express) {
     const condition = status ? and(eq(posTickets.companyId, access.companyId), eq(posTickets.status, status)) : eq(posTickets.companyId, access.companyId);
     res.json(await db.select().from(posTickets).where(condition).orderBy(desc(posTickets.id)).limit(200));
   }));
+  app.get("/api/v1/company/pos/tickets/:id", route(async (req, res) => {
+    const access = await companyAccess(req, res); if (!access) return;
+    const id = Number(req.params.id);
+    const [ticket] = await db.select().from(posTickets).where(and(eq(posTickets.id, id), eq(posTickets.companyId, access.companyId))).limit(1);
+    if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+    const its = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
+    const pays = await db.select().from(bridgePayments).where(eq(bridgePayments.ticketId, id));
+    res.json({ ...ticket, items: its, payments: pays });
+  }));
   app.post("/api/v1/company/pos/tickets", route(async (req, res) => {
     const access = await companyAccess(req, res); if (!access) return;
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -929,16 +948,74 @@ export function registerBridgeXRoutes(app: Express) {
     const productIds = items.map((item:any) => Number(item.productId)).filter(Boolean);
     const products = productIds.length ? await db.select().from(posProducts).where(and(eq(posProducts.companyId, access.companyId), inArray(posProducts.id, productIds))) : [];
     const lines = items.map((item:any) => { const product = products.find((row) => row.id === Number(item.productId)); if (!product) throw new Error("A product does not belong to this company"); const qty = Math.max(1, Number(item.qty || 1)); return { product, qty, total: Number(product.price) * qty }; });
-    const subtotal = lines.reduce((sum:number, line:any) => sum + line.total, 0); const discount = Math.max(0, Number(req.body?.discount || 0)); const tax = Math.max(0, Number(req.body?.tax || 0)); const total = Math.max(0, subtotal - discount + tax);
-    const [ticket] = await db.insert(posTickets).values({ companyId: access.companyId, branchId: req.body?.branchId || access.branchId, orderNo: `BX-${Date.now().toString(36).toUpperCase()}`, source: req.body?.source || "pos", status: req.body?.paymentMethod ? "paid" : "open", subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), paymentMethod: req.body?.paymentMethod || null, tableNumber: req.body?.tableNumber || null, orderMode: req.body?.orderMode || "dine_in", staffId: access.user.id, salesStaffId: req.body?.salesStaffId || access.user.id, paidAt: req.body?.paymentMethod ? new Date() : null }).returning();
+    const subtotal = lines.reduce((sum:number, line:any) => sum + line.total, 0);
+    const discount = Math.max(0, Number(req.body?.discount || 0));
+    const tax = Math.max(0, Number(req.body?.tax || 0));
+    const serviceCharge = Math.max(0, Number(req.body?.serviceCharge ?? req.body?.serviceFee ?? 0));
+    const tip = Math.max(0, Number(req.body?.tip || 0));
+    const total = Math.max(0, subtotal - discount + tax + serviceCharge);
+    const due = total + tip;
+    // Payments: an array of tenders (split/partial) or a legacy single paymentMethod.
+    let payments = Array.isArray(req.body?.payments)
+      ? req.body.payments.map((p:any) => ({ method: String(p.method || "cash"), amount: Math.max(0, Number(p.amount || 0)), reference: p.reference || null })).filter((p:any) => p.amount > 0)
+      : [];
+    if (!payments.length && req.body?.paymentMethod) payments = [{ method: String(req.body.paymentMethod), amount: due, reference: req.body?.paymentReference || null }];
+    const paidTotal = payments.reduce((s:number, p:any) => s + p.amount, 0);
+    const cashPaid = payments.filter((p:any) => p.method === "cash").reduce((s:number, p:any) => s + p.amount, 0);
+    const changeGiven = Math.max(0, paidTotal - due);
+    const status = (paidTotal >= due && due > 0) ? "paid" : paidTotal > 0 ? "partial" : "open";
+    const [ticket] = await db.insert(posTickets).values({
+      companyId: access.companyId, branchId: req.body?.branchId || access.branchId,
+      orderNo: `BX-${Date.now().toString(36).toUpperCase()}`, source: req.body?.source || "pos", status,
+      subtotal: String(subtotal), discount: String(discount), tax: String(tax), serviceFee: String(serviceCharge), tip: String(tip),
+      total: String(total), paidTotal: String(Math.min(paidTotal, due)),
+      paymentMethod: payments.length === 1 ? payments[0].method : payments.length > 1 ? "split" : null,
+      cashReceived: cashPaid ? String(cashPaid) : null, changeGiven: changeGiven ? String(changeGiven) : null,
+      customerId: req.body?.customerId ? Number(req.body.customerId) : null,
+      tableNumber: req.body?.tableNumber || null, orderMode: req.body?.orderMode || "dine_in",
+      staffId: access.user.id, salesStaffId: req.body?.salesStaffId || access.user.id, paidAt: status === "paid" ? new Date() : null,
+    }).returning();
     await db.insert(posTicketItems).values(lines.map((line:any) => ({ orderId: ticket.id, productId: line.product.id, name: line.product.name, price: line.product.price, qty: line.qty, lineTotal: String(line.total), source: req.body?.source || "pos" })));
+    if (payments.length) await db.insert(bridgePayments).values(payments.map((p:any) => ({ companyId: access.companyId, ticketId: ticket.id, method: p.method, amount: String(p.amount), reference: p.reference, createdBy: access.user.id })));
     for (const line of lines) await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${line.qty}` }).where(and(eq(posProducts.id, line.product.id), eq(posProducts.companyId, access.companyId)));
+    if (ticket.customerId && (status === "paid" || status === "partial") && await moduleEnabled(access.companyId, "crm")) {
+      await db.execute(sql`UPDATE bridge_customers SET total_spend=total_spend + ${total}, visit_count=visit_count + 1, last_visit_at=now(), updated_at=now() WHERE id=${ticket.customerId} AND company_id=${access.companyId}`);
+    }
     const kitchenResult = await db.execute(sql`SELECT DISTINCT m.user_id FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${access.companyId} AND m.status='active' AND (p.code IN ('chef','kitchen') OR m.role IN ('owner','admin','manager'))`);
     const kitchenIds = ((kitchenResult.rows || kitchenResult) as any[]).map((row) => row.user_id);
     await sendBridgeXNotifications(access.companyId, kitchenIds, { type: "new_order", title: `New order ${ticket.orderNo}`, body: `${lines.length} item${lines.length === 1 ? "" : "s"}${ticket.tableNumber ? ` · Table ${ticket.tableNumber}` : ""}`, data: { ticketId: ticket.id } });
     const lowStock = lines.filter((line:any) => Number(line.product.stock) - line.qty <= 5).map((line:any) => line.product.name);
     if (lowStock.length) await sendBridgeXNotifications(access.companyId, kitchenIds, { type: "low_stock", title: "Low stock warning", body: lowStock.slice(0, 4).join(", "), data: { productIds: lines.filter((line:any) => lowStock.includes(line.product.name)).map((line:any) => line.product.id) } });
     res.status(201).json(ticket);
+  }));
+  app.post("/api/v1/company/pos/tickets/:id/refund", route(async (req, res) => {
+    const access = await companyAccess(req, res, true); if (!access) return;
+    const id = Number(req.params.id);
+    const [t] = await db.select().from(posTickets).where(and(eq(posTickets.id, id), eq(posTickets.companyId, access.companyId))).limit(1);
+    if (!t) return res.status(404).json({ message: "Ticket not found" });
+    if (t.status === "refunded" || t.status === "voided") return res.status(400).json({ message: "This ticket is already refunded or voided" });
+    const paid = Number(t.paidTotal || 0);
+    const amount = req.body?.amount != null ? Math.min(Math.max(0, Number(req.body.amount)), paid) : paid;
+    if (!(amount > 0)) return res.status(400).json({ message: "Nothing to refund" });
+    const newPaid = Math.max(0, paid - amount); const full = newPaid <= 0;
+    await db.insert(bridgePayments).values({ companyId: access.companyId, ticketId: id, method: String(req.body?.method || t.paymentMethod || "cash"), amount: String(amount), reference: req.body?.reference || null, isRefund: true, createdBy: access.user.id });
+    await db.update(posTickets).set({ paidTotal: String(newPaid), status: full ? "refunded" : t.status, refundReason: String(req.body?.reason || t.refundReason || ""), refundedBy: access.user.id, refundedAt: new Date() }).where(eq(posTickets.id, id));
+    const restock = req.body?.restock ?? full;
+    if (restock) { const its = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id)); for (const it of its) if (it.productId) await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(and(eq(posProducts.id, it.productId), eq(posProducts.companyId, access.companyId))); }
+    if (t.customerId && await moduleEnabled(access.companyId, "crm")) await db.execute(sql`UPDATE bridge_customers SET total_spend=GREATEST(0, total_spend - ${amount}), updated_at=now() WHERE id=${t.customerId} AND company_id=${access.companyId}`);
+    res.json({ ok: true, refunded: amount, status: full ? "refunded" : t.status });
+  }));
+  app.post("/api/v1/company/pos/tickets/:id/void", route(async (req, res) => {
+    const access = await companyAccess(req, res, true); if (!access) return;
+    const id = Number(req.params.id);
+    const [t] = await db.select().from(posTickets).where(and(eq(posTickets.id, id), eq(posTickets.companyId, access.companyId))).limit(1);
+    if (!t) return res.status(404).json({ message: "Ticket not found" });
+    if (t.status === "voided") return res.status(400).json({ message: "Already voided" });
+    const its = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
+    for (const it of its) if (it.productId) await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(and(eq(posProducts.id, it.productId), eq(posProducts.companyId, access.companyId)));
+    await db.update(posTickets).set({ status: "voided", voidReason: String(req.body?.reason || ""), voidedBy: access.user.id, voidedAt: new Date() }).where(eq(posTickets.id, id));
+    if (t.customerId && Number(t.total) > 0 && await moduleEnabled(access.companyId, "crm")) await db.execute(sql`UPDATE bridge_customers SET total_spend=GREATEST(0, total_spend - ${Number(t.total)}), updated_at=now() WHERE id=${t.customerId} AND company_id=${access.companyId}`);
+    res.json({ ok: true, status: "voided" });
   }));
 
   // Attendance, shifts and leave are scoped by tenant and generate native alerts.

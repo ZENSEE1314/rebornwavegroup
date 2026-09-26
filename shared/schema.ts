@@ -871,6 +871,12 @@ export const posTickets = pgTable("pos_tickets", {
   refundedBy: varchar("refunded_by"),
   refundedAt: timestamp("refunded_at"),
   pointsEarned: integer("points_earned").default(0).notNull(),
+  tip: decimal("tip", { precision: 10, scale: 2 }).default("0").notNull(),
+  paidTotal: decimal("paid_total", { precision: 10, scale: 2 }).default("0").notNull(),
+  customerId: integer("customer_id"),           // links to bridge_customers (CRM)
+  voidReason: text("void_reason"),
+  voidedBy: varchar("voided_by"),
+  voidedAt: timestamp("voided_at"),
   staffId: varchar("staff_id"),
   salesStaffId: varchar("sales_staff_id"),   // staff credited with the sale (commission)
   salesStaffName: varchar("sales_staff_name"),
@@ -891,6 +897,19 @@ export const posTicketItems = pgTable("pos_ticket_items", {
   rejectReason: varchar("reject_reason"),
   source: varchar("source").default("pos"), // 'pos' | 'app'
   servedAt: timestamp("served_at"),
+});
+
+// BridgeX POS payments — one row per tender (supports split & partial payments and refunds)
+export const bridgePayments = pgTable("bridge_payments", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  ticketId: integer("ticket_id").notNull(),
+  method: varchar("method").notNull(), // cash | card | qr | transfer | ewallet
+  amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+  reference: varchar("reference"),
+  isRefund: boolean("is_refund").default(false).notNull(),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Bottle keep — members leave unfinished bottles; staff store them (beer count / whisky photo of level), 1-month keep

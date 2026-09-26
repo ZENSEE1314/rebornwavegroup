@@ -119,7 +119,7 @@ export default function BridgeXAdmin() {
       </section>
       {message && <div className="mb-5 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-3 text-sm text-cyan-100">{message}</div>}
       {companyId&&<div className={`mb-5 rounded-xl border p-3 text-sm ${access.allowed?"border-emerald-400/30 bg-emerald-400/10 text-emerald-200":"border-red-400/40 bg-red-500/10 text-red-200"}`}><b>{access.allowed?"App access enabled":"App access locked"}</b> · {access.subscriptionStatus||selected?.subscriptionStatus}{access.trialEndsAt&&` · trial ends ${new Date(access.trialEndsAt).toLocaleDateString()}`}</div>}
-      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
+      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("pos")?[["register","Register / Sales"]]:[]),...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
 
       {tab === "company" && <Panel title="Company accounts" subtitle="Create a tenant, owner login, first branch and billing agreement.">
         <div className="grid gap-3 md:grid-cols-3">{["name","appName","adminEmail","branchName","price"].map((key) => <input key={key} className={field} placeholder={({name:"Company name",appName:"Customer-facing app name",adminEmail:"Owner email",branchName:"First branch",price:"Price"} as Record<string,string>)[key]} value={(companyForm as any)[key]} onChange={(e)=>setCompanyForm({...companyForm,[key]:e.target.value})}/>)}</div>
@@ -146,6 +146,8 @@ export default function BridgeXAdmin() {
         </div>)}
         <button className={button+" mt-2"} disabled={busy} onClick={()=>act(()=>request("/api/v1/company/modules",{method:"PUT",body:JSON.stringify({modules})},companyId),"Services updated")}>Save modules</button>
       </Panel>}
+
+      {tab === "register" && companyId && <PosPanel companyId={companyId} customers={customers} crmOn={modules.includes("crm")} onMsg={setMessage} />}
 
       {tab === "inventory" && <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="Stock items" subtitle="Track quantity on hand. Items at or below their low-stock level are flagged red.">
@@ -209,6 +211,83 @@ function Panel({title,subtitle,children}:{title:string;subtitle:string;children:
 function Stat({icon,label,value}:{icon:any;label:string;value:any}) { return <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4"><div className="mb-3 text-cyan-300">{icon}</div><b className="text-2xl">{value}</b><p className="text-xs text-slate-500">{label}</p></div> }
 function Mini({title,detail}:{title:string;detail:string}) { return <div className="rounded-xl border border-white/10 bg-white/[.03] p-4"><b>{title}</b><p className="mt-1 text-xs text-slate-400">{detail}</p></div> }
 function Badge({t,c}:{t:string;c:string}) { return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c}`}>{t}</span> }
+
+type Cart = Record<number,{product:Row;qty:number}>;
+function PosPanel({companyId,customers,crmOn,onMsg}:{companyId:number;customers:Row[];crmOn:boolean;onMsg:(m:string)=>void}) {
+  const [products,setProducts] = useState<Row[]>([]);
+  const [tickets,setTickets] = useState<Row[]>([]);
+  const [cart,setCart] = useState<Cart>({});
+  const [charges,setCharges] = useState({discount:"0",tax:"0",serviceCharge:"0",tip:"0"});
+  const [pays,setPays] = useState<{method:string;amount:string}[]>([{method:"cash",amount:""}]);
+  const [customerId,setCustomerId] = useState("");
+  const [prodForm,setProdForm] = useState({name:"",price:"",category:"General",stock:"0"});
+  const [busy,setBusy] = useState(false);
+  const [detail,setDetail] = useState<Row|null>(null);
+  const load = () => { request("/api/v1/company/pos/products",{},companyId).then(setProducts).catch(()=>{}); request("/api/v1/company/pos/tickets",{},companyId).then(setTickets).catch(()=>{}); };
+  useEffect(load,[companyId]);
+
+  const addToCart = (p:Row) => setCart(c=>({...c,[p.id]:{product:p,qty:(c[p.id]?.qty||0)+1}}));
+  const setQty = (id:number,qty:number) => setCart(c=>{const n={...c}; if(qty<=0)delete n[id]; else n[id]={...n[id],qty}; return n;});
+  const lines = Object.values(cart);
+  const subtotal = lines.reduce((s,l)=>s+Number(l.product.price)*l.qty,0);
+  const num = (v:string)=>Math.max(0,Number(v)||0);
+  const total = Math.max(0, subtotal - num(charges.discount) + num(charges.tax) + num(charges.serviceCharge));
+  const due = total + num(charges.tip);
+  const paid = pays.reduce((s,p)=>s+num(p.amount),0);
+  const change = Math.max(0, paid - due);
+
+  async function checkout() {
+    if(!lines.length){onMsg("Add at least one item");return;}
+    setBusy(true); onMsg("");
+    try {
+      const payments = pays.map(p=>({method:p.method,amount:num(p.amount)})).filter(p=>p.amount>0);
+      const body = { items: lines.map(l=>({productId:l.product.id,qty:l.qty})), discount:num(charges.discount), tax:num(charges.tax), serviceCharge:num(charges.serviceCharge), tip:num(charges.tip), payments, customerId: customerId?Number(customerId):null };
+      const t = await request("/api/v1/company/pos/tickets",{method:"POST",body:JSON.stringify(body)},companyId);
+      onMsg(`Sale ${t.orderNo} · ${t.status}${Number(t.changeGiven)>0?` · change ${Number(t.changeGiven).toLocaleString()}`:""}`);
+      setCart({}); setCharges({discount:"0",tax:"0",serviceCharge:"0",tip:"0"}); setPays([{method:"cash",amount:""}]); setCustomerId(""); load();
+    } catch(e:any){ onMsg(e.message); } finally { setBusy(false); }
+  }
+  async function act(run:()=>Promise<any>,msg:string){ setBusy(true); onMsg(""); try{await run(); onMsg(msg); load(); if(detail)setDetail(null);}catch(e:any){onMsg(e.message);}finally{setBusy(false);} }
+
+  return <div className="grid gap-5 lg:grid-cols-[1.3fr,1fr]">
+    <Panel title="Register" subtitle="Tap products to build the sale. Supports discount, tax, service charge, tip, split & partial payment, and change.">
+      <div className="mb-3 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/[.03] p-3">
+        <input className={field+" flex-1 min-w-[120px]"} placeholder="Quick add product" value={prodForm.name} onChange={e=>setProdForm({...prodForm,name:e.target.value})}/>
+        <input className={field+" w-24"} type="number" placeholder="Price" value={prodForm.price} onChange={e=>setProdForm({...prodForm,price:e.target.value})}/>
+        <input className={field+" w-20"} type="number" placeholder="Stock" value={prodForm.stock} onChange={e=>setProdForm({...prodForm,stock:e.target.value})}/>
+        <button className={button} disabled={busy||!prodForm.name||!prodForm.price} onClick={()=>act(async()=>{await request("/api/v1/company/pos/products",{method:"POST",body:JSON.stringify(prodForm)},companyId);setProdForm({name:"",price:"",category:"General",stock:"0"});},"Product added")}>Add</button>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{products.length===0&&<p className="col-span-full text-sm text-slate-500">No products yet — add one above.</p>}{products.filter(p=>p.active!==false).map(p=><button key={p.id} onClick={()=>addToCart(p)} className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-left hover:border-cyan-400/50"><b className="block truncate text-sm">{p.name}</b><span className="text-xs text-cyan-300">{Number(p.price).toLocaleString()}</span><span className="ml-2 text-[11px] text-slate-500">stk {p.stock}</span></button>)}</div>
+    </Panel>
+
+    <Panel title="Current sale" subtitle="">
+      <div className="max-h-56 space-y-2 overflow-auto">{lines.length===0&&<p className="text-sm text-slate-500">Cart is empty.</p>}{lines.map(l=><div key={l.product.id} className="flex items-center gap-2 text-sm"><span className="min-w-0 flex-1 truncate">{l.product.name}</span><button className="h-6 w-6 rounded bg-white/10" onClick={()=>setQty(l.product.id,l.qty-1)}>−</button><span className="w-6 text-center">{l.qty}</span><button className="h-6 w-6 rounded bg-white/10" onClick={()=>setQty(l.product.id,l.qty+1)}>+</button><span className="w-20 text-right">{(Number(l.product.price)*l.qty).toLocaleString()}</span></div>)}</div>
+      <div className="mt-3 grid grid-cols-2 gap-2">{([["discount","Discount"],["tax","Tax"],["serviceCharge","Service"],["tip","Tip"]] as const).map(([k,label])=><label key={k} className="text-xs text-slate-400">{label}<input className={field+" mt-1"} type="number" value={(charges as any)[k]} onChange={e=>setCharges({...charges,[k]:e.target.value})}/></label>)}</div>
+      {crmOn&&<select className={field+" mt-3"} value={customerId} onChange={e=>setCustomerId(e.target.value)}><option value="">Walk-in (no customer)</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?` · ${c.phone}`:""}</option>)}</select>}
+      <div className="mt-3 space-y-2">{pays.map((p,i)=><div key={i} className="flex gap-2"><select className={field} value={p.method} onChange={e=>setPays(pays.map((x,n)=>n===i?{...x,method:e.target.value}:x))}>{["cash","card","qr","transfer","ewallet"].map(m=><option key={m} value={m}>{m}</option>)}</select><input className={field} type="number" placeholder="Amount" value={p.amount} onChange={e=>setPays(pays.map((x,n)=>n===i?{...x,amount:e.target.value}:x))}/>{pays.length>1&&<button className="rounded-xl border border-white/10 px-3 text-red-300" onClick={()=>setPays(pays.filter((_,n)=>n!==i))}>×</button>}</div>)}</div>
+      <div className="mt-1 flex justify-between text-xs"><button className="text-cyan-300" onClick={()=>setPays([...pays,{method:"card",amount:""}])}>+ Split payment</button><button className="text-slate-300" onClick={()=>setPays(pays.map((p,i)=>i===0?{...p,amount:String(due)}:p))}>Exact cash</button></div>
+      <div className="mt-3 rounded-xl bg-white/5 p-3 text-sm"><Row2 l="Subtotal" v={subtotal}/><Row2 l="Total due" v={due} bold/>{paid>0&&<Row2 l="Paid" v={paid}/>}{change>0&&<Row2 l="Change" v={change}/>}</div>
+      <button className={button+" mt-3 w-full justify-center"} disabled={busy||!lines.length} onClick={checkout}>Charge {due.toLocaleString()}</button>
+    </Panel>
+
+    <div className="lg:col-span-2"><Panel title="Recent sales" subtitle="Tap a sale to see items, payments, and to refund or void it.">
+      <div className="grid gap-2">{tickets.length===0&&<p className="text-sm text-slate-500">No sales yet.</p>}{tickets.slice(0,40).map(t=><button key={t.id} onClick={()=>request(`/api/v1/company/pos/tickets/${t.id}`,{},companyId).then(setDetail).catch(()=>{})} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-3 text-left"><div><b>{t.orderNo}</b><p className="text-xs text-slate-400">{new Date(t.createdAt).toLocaleString()} · {t.paymentMethod||"unpaid"}</p></div><div className="text-right"><b>{Number(t.total).toLocaleString()}</b><p className={`text-xs ${t.status==="paid"?"text-emerald-300":t.status==="refunded"||t.status==="voided"?"text-red-300":"text-amber-300"}`}>{t.status}</p></div></button>)}</div>
+    </Panel></div>
+
+    {detail&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={()=>setDetail(null)}><div className="absolute inset-0 bg-black/70"/><div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-5" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><b className="text-lg">{detail.orderNo}</b><span className={`text-xs ${detail.status==="paid"?"text-emerald-300":detail.status==="refunded"||detail.status==="voided"?"text-red-300":"text-amber-300"}`}>{detail.status}</span></div>
+      <div className="mt-3 space-y-1 text-sm">{(detail.items||[]).map((it:Row)=><div key={it.id} className="flex justify-between"><span>{it.qty}× {it.name}</span><span>{Number(it.lineTotal).toLocaleString()}</span></div>)}</div>
+      <div className="mt-3 border-t border-white/10 pt-2 text-sm"><Row2 l="Subtotal" v={Number(detail.subtotal)}/>{Number(detail.discount)>0&&<Row2 l="Discount" v={-Number(detail.discount)}/>}{Number(detail.tax)>0&&<Row2 l="Tax" v={Number(detail.tax)}/>}{Number(detail.serviceFee)>0&&<Row2 l="Service" v={Number(detail.serviceFee)}/>}{Number(detail.tip)>0&&<Row2 l="Tip" v={Number(detail.tip)}/>}<Row2 l="Total" v={Number(detail.total)} bold/><Row2 l="Paid" v={Number(detail.paidTotal)}/></div>
+      {(detail.payments||[]).length>0&&<div className="mt-2 text-xs text-slate-400">{(detail.payments||[]).map((p:Row)=><div key={p.id}>{p.is_refund||p.isRefund?"↩ refund":"•"} {p.method}: {Number(p.amount).toLocaleString()}</div>)}</div>}
+      {detail.status!=="voided"&&detail.status!=="refunded"&&<div className="mt-4 flex gap-2">
+        <button className="flex-1 rounded-xl bg-amber-400/90 py-2.5 text-sm font-bold text-slate-950" disabled={busy} onClick={()=>{const r=prompt("Refund reason (leave blank for full refund)");act(()=>request(`/api/v1/company/pos/tickets/${detail.id}/refund`,{method:"POST",body:JSON.stringify({reason:r||""})},companyId),"Refunded")}}>Refund</button>
+        <button className="flex-1 rounded-xl bg-red-500/90 py-2.5 text-sm font-bold text-white" disabled={busy} onClick={()=>{const r=prompt("Void reason");if(r!==null)act(()=>request(`/api/v1/company/pos/tickets/${detail.id}/void`,{method:"POST",body:JSON.stringify({reason:r})},companyId),"Voided")}}>Void</button>
+      </div>}
+      <button className="mt-3 w-full text-sm text-slate-400" onClick={()=>setDetail(null)}>Close</button>
+    </div></div>}
+  </div>;
+}
+function Row2({l,v,bold}:{l:string;v:number;bold?:boolean}) { return <div className={`flex justify-between ${bold?"font-bold":""}`}><span className="text-slate-400">{l}</span><span>{v.toLocaleString()}</span></div> }
 function Leaderboard({rows}:{rows:Row[]}) { return <div className="grid gap-3">{rows.length===0&&<p className="text-sm text-slate-500">No ranked staff yet.</p>}{rows.map(l=><div key={l.user_id} className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${l.redFlag?"border-red-500/60 bg-red-500/10":"border-white/10 bg-white/[.03]"}`}><div className="flex items-center gap-3"><span className="text-xl font-black">#{l.rank}</span><div><b>{l.name}</b><p className="text-xs text-slate-400">{l.position||"Staff"}</p></div></div><div className="flex gap-5 text-right"><div><b>{Number(l.weekly_sales).toLocaleString()}</b><p className="text-xs text-slate-500">weekly sales</p></div><div><b><Star className="inline h-4 w-4 fill-amber-400 text-amber-400"/> {Number(l.rating).toFixed(1)}</b><p className="text-xs text-slate-500">{l.review_count} reviews</p></div></div></div>)}</div> }
 function OperationsPanel({settings,setSettings,onSave}:{settings:any;setSettings:(v:any)=>void;onSave:()=>void}) {
   const loyalty=settings.loyalty||{pointsSpendRp:1000,rewardsEnabled:true,tiers:[]}; const services=settings.services||{}; const booking=settings.booking||{areas:[]};
