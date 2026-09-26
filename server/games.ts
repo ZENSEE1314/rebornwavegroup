@@ -17,8 +17,8 @@ interface Room {
   players: Player[];
   round: number; deadline: number; message: string;
   eliminatedThisRound: string[]; winnerId?: string; lastLoserId?: string;
-  createdAt: number; timer?: NodeJS.Timeout; ticker?: NodeJS.Timeout;
-  subs: Set<Response>;
+  createdAt: number; timer?: NodeJS.Timeout; ticker?: NodeJS.Timeout; cleanupTimer?: NodeJS.Timeout;
+  subs: Set<{ res: Response; uid?: string }>;
   // cards-only
   deck?: Card[]; discardTop?: Card | null; discardBy?: string | null;
   turnIdx?: number; phase?: "draw" | "discard"; drawnFrom?: "deck" | "discard" | null;
@@ -54,10 +54,10 @@ function view(room: Room, forUserId?: string) {
 }
 
 function broadcast(room: Room) {
-  const dead: Response[] = [];
-  for (const res of room.subs) {
-    try { res.write(`data: ${JSON.stringify(view(room))}\n\n`); }
-    catch { dead.push(res); }
+  const dead: { res: Response; uid?: string }[] = [];
+  for (const s of room.subs) {
+    try { s.res.write(`data: ${JSON.stringify(view(room, s.uid))}\n\n`); } // personalized per viewer
+    catch { dead.push(s); }
   }
   for (const d of dead) room.subs.delete(d);
 }
@@ -159,8 +159,23 @@ function finishTap(room: Room) {
   scheduleCleanup(room);
 }
 
+// Keep a finished room around so the host can "play again"; auto-delete only
+// after a long idle so abandoned rooms don't linger forever.
 function scheduleCleanup(room: Room) {
-  setTimeout(() => { clearTimers(room); for (const r of room.subs) { try { r.end(); } catch {} } rooms.delete(room.code); }, 60_000);
+  if (room.cleanupTimer) clearTimeout(room.cleanupTimer);
+  room.cleanupTimer = setTimeout(() => { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } rooms.delete(room.code); }, 10 * 60_000);
+}
+
+// Recycle a finished room back to the lobby for another round.
+function resetRoom(room: Room) {
+  clearTimers(room);
+  if (room.cleanupTimer) { clearTimeout(room.cleanupTimer); room.cleanupTimer = undefined; }
+  room.status = "lobby";
+  room.round = 1; room.deadline = 0; room.message = "Waiting for players…";
+  room.eliminatedThisRound = []; room.winnerId = undefined; room.lastLoserId = undefined;
+  room.deck = undefined; room.discardTop = null; room.discardBy = null; room.turnIdx = undefined; room.phase = undefined; room.drawnFrom = null;
+  for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; }
+  broadcast(room);
 }
 
 // ── Card Match (3 pairs to 10 / like faces) ─────────────────────────────
@@ -424,6 +439,16 @@ export function registerGameRoutes(app: Express) {
     res.json({ ok: true });
   });
 
+  // Play again — host recycles the finished room back to the lobby.
+  app.post("/api/reborn/games/rooms/:code/restart", requireAuth, async (req, res) => {
+    const room = rooms.get(String(req.params.code).toUpperCase());
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (getUserId(req) !== room.hostId) return res.status(403).json({ message: "Only the host can restart." });
+    if (room.status !== "done") return res.status(400).json({ message: "Game still in progress." });
+    resetRoom(room);
+    res.json({ ok: true });
+  });
+
   // Player action: {choice} for rps, {tap:true} for tap
   app.post("/api/reborn/games/rooms/:code/action", requireAuth, async (req, res) => {
     const room = rooms.get(String(req.params.code).toUpperCase());
@@ -457,7 +482,7 @@ export function registerGameRoutes(app: Express) {
     if (room) {
       const uid = getUserId(req);
       room.players = room.players.filter((p) => p.id !== uid);
-      if (!room.players.length || uid === room.hostId) { clearTimers(room); for (const r of room.subs) { try { r.end(); } catch {} } rooms.delete(room.code); }
+      if (!room.players.length || uid === room.hostId) { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } rooms.delete(room.code); }
       else broadcast(room);
     }
     res.json({ ok: true });
@@ -468,9 +493,10 @@ export function registerGameRoutes(app: Express) {
     const room = rooms.get(String(req.params.code).toUpperCase());
     if (!room) return res.status(404).end();
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" });
-    res.write(`data: ${JSON.stringify(view(room, getUserId(req) || undefined))}\n\n`);
-    room.subs.add(res);
+    const sub = { res, uid: getUserId(req) || undefined };
+    res.write(`data: ${JSON.stringify(view(room, sub.uid))}\n\n`);
+    room.subs.add(sub);
     const ping = setInterval(() => { try { res.write(": ping\n\n"); } catch {} }, 25_000);
-    req.on("close", () => { clearInterval(ping); room.subs.delete(res); });
+    req.on("close", () => { clearInterval(ping); room.subs.delete(sub); });
   });
 }

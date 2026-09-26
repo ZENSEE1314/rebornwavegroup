@@ -236,7 +236,15 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
 
       {room.status === "done" && (
-        <button onClick={leave} className="w-full py-3 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Back to games</button>
+        <div className="space-y-2">
+          {isHost ? (
+            <button onClick={async () => { const { ok, d } = await post(`/api/reborn/games/rooms/${code}/restart`); if (!ok) toast({ title: "Can't restart", description: d.message, variant: "destructive" }); }}
+              className="w-full py-3 rounded-xl font-extrabold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>🔄 Play again</button>
+          ) : (
+            <p className="text-center text-white/50 text-sm py-2">Waiting for the host to start another round… you can stay or leave.</p>
+          )}
+          <button onClick={leave} className="w-full py-3 rounded-xl font-bold bg-white/5 border border-white/10 text-white/80">Leave room</button>
+        </div>
       )}
     </div>
   );
