@@ -749,12 +749,26 @@ function RidingGame({ room, code, me }: any) {
   const myTurn = r.turnId === me && room.status === "playing";
   const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
   const secs = useLocalCountdown(room.secondsLeft, `${r.turnId}-${r.flippedThisTurn}-${room.status}`);
-  // On a loss the wolf/witch is revealed — cackle + howl + lose sting.
-  useEffect(() => { if (room.status === "reveal") { sfx.laugh(); sfx.wolf(); sfx.lose(); } }, [room.status]);
+  const lossKind: string | undefined = (r.tiles || []).find((t: any) => t.by === room.lastLoserId && (t.kind === "wolf" || t.kind === "witch"))?.kind;
+  const loserName = room.players.find((p: any) => p.id === room.lastLoserId)?.name;
+  // On a loss, zoom the wolf/witch full-screen with its sound.
+  useEffect(() => { if (room.status === "reveal") { if (lossKind === "witch") sfx.witch(); else sfx.wolf(); sfx.lose(); } }, [room.status]);
+
+  // Full-screen wolf/witch reveal
+  if (room.status === "reveal" && lossKind) {
+    const witch = lossKind === "witch";
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6 text-center" style={{ background: witch ? "radial-gradient(circle, #3b1466 0%, #0a0714 80%)" : "radial-gradient(circle, #5c1111 0%, #0a0714 80%)" }}>
+        <div style={{ fontSize: "42vw", lineHeight: 1, animation: "rwgZoom 1s ease-out forwards", filter: "drop-shadow(0 0 30px rgba(0,0,0,.6))" }}>{witch ? "🧙" : "🐺"}</div>
+        <p className={`text-5xl font-black mt-2 ${witch ? "text-purple-300" : "text-red-300"}`} style={{ animation: "rwgPop .6s ease-out" }}>{witch ? "WITCH!" : "WOLF!"}</p>
+        <p className="text-white text-lg font-bold mt-3">{loserName} loses — drink {witch ? "DOUBLE 🍻🍻" : "1 cup 🍻"}!</p>
+      </div>
+    );
+  }
 
   if (room.status === "done") {
     const iLost = room.lastLoserId === me;
-    return <div className="rwg-card p-6 text-center"><div className="text-7xl mb-2">{iLost ? "🐺🍻" : "👵"}</div><p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-white/70"}`}>{iLost ? "YOU LOSE — DRINK!" : "Safe! 👵"}</p><p className="text-white/60 text-sm mt-2">{room.message}</p></div>;
+    return <div className="rwg-card p-6 text-center"><div className="text-7xl mb-2">{iLost ? (lossKind === "witch" ? "🧙🍻" : "🐺🍻") : "👵"}</div><p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-white/70"}`}>{iLost ? "YOU LOSE — DRINK!" : "Safe! 👵"}</p><p className="text-white/60 text-sm mt-2">{room.message}</p></div>;
   }
   return (
     <div className="rwg-card p-4">

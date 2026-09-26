@@ -592,7 +592,8 @@ function startRiding(room: Room) {
   const n = Math.max(9, Math.min(36, room.facesCount || 16));
   // Every tile looks like a granny. Some are wolves in disguise (lose, drink 1),
   // and 1 is a witch (lose, drink double). The rest are real grannies (safe).
-  const wolves = Math.max(1, Math.floor(n / 9));
+  // Sparse bombs so the game lasts longer before someone loses.
+  const wolves = Math.max(1, Math.round(n / 16));
   const kinds: ("grandma" | "wolf" | "witch")[] = ["witch"];
   for (let i = 0; i < wolves; i++) kinds.push("wolf");
   while (kinds.length < n) kinds.push("grandma");

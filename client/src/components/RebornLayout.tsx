@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/lib/i18n";
@@ -67,6 +67,36 @@ function ForcePasswordChange() {
   );
 }
 
+// Pull-to-refresh: drag down from the very top to reload (works in the app WebView + browser).
+function PullToRefresh() {
+  const [disp, setDisp] = useState(0);
+  const pull = useRef(0); const start = useRef<number | null>(null); const busy = useRef(false);
+  useEffect(() => {
+    const atTop = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+    const onStart = (e: TouchEvent) => { start.current = atTop() ? e.touches[0].clientY : null; pull.current = 0; };
+    const onMove = (e: TouchEvent) => {
+      if (start.current == null || busy.current || !atTop()) return;
+      const dy = e.touches[0].clientY - start.current;
+      if (dy > 0) { pull.current = Math.min(90, dy * 0.5); setDisp(pull.current); }
+    };
+    const onEnd = () => {
+      if (pull.current > 60) { busy.current = true; setDisp(70); window.location.reload(); }
+      else { pull.current = 0; setDisp(0); }
+      start.current = null;
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd);
+    return () => { window.removeEventListener("touchstart", onStart); window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onEnd); };
+  }, []);
+  if (disp <= 0) return null;
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 60, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+      <div style={{ marginTop: Math.max(6, disp - 34), transform: `rotate(${disp * 4}deg)` }} className="w-9 h-9 rounded-full bg-black/70 border border-white/20 flex items-center justify-center text-lg">{disp > 60 ? "🔄" : "⬇️"}</div>
+    </div>
+  );
+}
+
 export function RebornLayout({ children, title, active, wide, hideNav }: { children: ReactNode; title?: string; active?: string; wide?: boolean; hideNav?: boolean }) {
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -82,6 +112,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
 
   return (
     <div className="min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
+      <PullToRefresh />
       {/* Top bar */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-white/10 backdrop-blur-md" style={{ background: "rgba(10,7,20,0.75)" }}>
         <button onClick={() => go("/")} className="flex items-center gap-2 font-extrabold tracking-widest text-sm">
