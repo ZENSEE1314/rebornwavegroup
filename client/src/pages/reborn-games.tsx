@@ -8,6 +8,7 @@ import { Trophy, Users, Lock, Play, LogOut, Crown, Pickaxe, Medal } from "lucide
 import MobileBackButton from "@/components/mobile-back-button";
 import { RankBadge } from "@/components/RankBadge";
 import { useRankConfig, useMyRank, computeRank } from "@/lib/rank";
+import { sfx } from "@/lib/sfx";
 
 const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
@@ -165,9 +166,12 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
         </div>
       )}
 
-      <div>
-        <h1 className="text-2xl font-extrabold text-white">Live Games 🎮</h1>
-        <p className="text-white/50 text-sm">Create a room, share the code, play head-to-head.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-white">Live Games 🎮</h1>
+          <p className="text-white/50 text-sm">Create a room, share the code, play head-to-head.</p>
+        </div>
+        <MuteToggle />
       </div>
 
       <div className="gcard p-4">
@@ -324,6 +328,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
           <p className="text-3xl font-black tracking-[0.3em] text-amber-300">{room.code}</p>
         </div>
         <div className="flex gap-2">
+          <MuteToggle />
           <button onClick={() => setHelp(true)} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/70 font-bold" title="How to play">?</button>
           <button onClick={leave} className="px-3 py-2 rounded-xl bg-red-500/15 border border-red-400/40 text-red-200 text-sm font-bold inline-flex items-center gap-1.5"><LogOut className="w-4 h-4" /> Leave</button>
         </div>
@@ -385,9 +390,14 @@ function LobbyRoom({ room, code, isHost }: any) {
   );
 }
 
+function MuteToggle({ className = "" }: { className?: string }) {
+  const [m, setM] = useState(sfx.isMuted());
+  return <button onClick={() => { const nm = !m; sfx.setMuted(nm); setM(nm); }} className={`w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/70 ${className}`} title="Sound on/off">{m ? "🔇" : "🔊"}</button>;
+}
+
 function RankFlash({ win, lose }: { win: boolean; lose: boolean }) {
   const qc = useQueryClient();
-  useEffect(() => { qc.invalidateQueries({ queryKey: ["/api/reborn/rank/me"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/leaderboard"] }); }, [qc]);
+  useEffect(() => { qc.invalidateQueries({ queryKey: ["/api/reborn/rank/me"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/leaderboard"] }); if (win) sfx.rankUp(); else if (lose) sfx.rankDown(); }, [qc, win, lose]);
   if (!win && !lose) return null;
   return (
     <div className="rounded-2xl p-4 text-center border" style={{ animation: "rwgPop .5s ease-out", borderColor: win ? "rgba(240,215,135,0.4)" : "rgba(248,113,113,0.4)", background: win ? "linear-gradient(135deg,rgba(240,215,135,0.18),rgba(52,211,153,0.12))" : "rgba(248,113,113,0.1)" }}>
@@ -420,7 +430,7 @@ function RpsGame({ room, code, me }: any) {
   const meP = room.players.find((p: any) => p.id === me);
   const alive = meP?.alive;
   const canPick = room.status === "playing" && alive && !meP?.choice;
-  const pick = (choice: string) => post(`/api/reborn/games/rooms/${code}/action`, { choice });
+  const pick = (choice: string) => { sfx.click(); return post(`/api/reborn/games/rooms/${code}/action`, { choice }); };
   const iWon = room.status === "done" && room.winnerId === me;
   const iLost = room.status === "done" && room.winnerId !== me;
   const eliminatedMe = room.status === "reveal" && room.eliminatedThisRound?.includes(me);
@@ -491,6 +501,7 @@ function TapGame({ room, code, me }: any) {
 
   const tap = () => {
     if (room.status !== "playing") return;
+    sfx.coin();
     pending.current += 1; setLocalTaps((v) => v + 1);
     const id = Date.now() + Math.random(); setCoins((c) => [...c.slice(-8), id]);
     setTimeout(() => setCoins((c) => c.filter((x) => x !== id)), 700);
@@ -579,6 +590,7 @@ function DiceGame({ room, code, me }: any) {
   const [face, setFace] = useState<number>(2);
   const [strike, setStrike] = useState(false);
   useEffect(() => { setQty(bid ? bid.qty : (d.minOpen || 5)); if (bid) setFace(bid.face); }, [bid?.qty, bid?.face, d.minOpen, d.turnId]);
+  useEffect(() => { sfx.roll(); }, []); // dice tumble when the game opens
 
   if (room.status === "done") {
     const iWon = room.winnerId === me;
@@ -664,7 +676,7 @@ function DiceGame({ room, code, me }: any) {
             <span className="text-xs text-white/50">dice</span>
           </div>
           <label className="flex items-center justify-center gap-2 text-xs text-white/60 mb-2"><input type="checkbox" checked={strike} onChange={(e) => setStrike(e.target.checked)} /> Strike (make ① not wild)</label>
-          <button onClick={async () => { const { ok, d: r } = await act({ act: "bid", face, qty, strike }); if (!ok) toast({ title: "Can't bid", description: r?.message, variant: "destructive" }); }} className="cbtn cbtn-gold w-full py-3">{bid ? "Raise bid" : "Open bid"}</button>
+          <button onClick={async () => { sfx.click(); const { ok, d: r } = await act({ act: "bid", face, qty, strike }); if (!ok) toast({ title: "Can't bid", description: r?.message, variant: "destructive" }); }} className="cbtn cbtn-gold w-full py-3">{bid ? "Raise bid" : "Open bid"}</button>
         </div>
       )}
 
@@ -683,6 +695,7 @@ function WheelGame({ room, code, me }: any) {
   const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
   const seg = prizes.length ? 360 / prizes.length : 60;
   const resultIdx = w.result?.index ?? -1;
+  useEffect(() => { if (room.status === "reveal" && w.result) sfx.ding(); }, [room.status, w.result?.playerId, w.result?.index]);
   // Spin so the winning segment lands at the top pointer (with a few full turns).
   const rotation = resultIdx >= 0 ? 360 * 5 - (resultIdx * seg + seg / 2) : 0;
   const colors = ["#f0d787", "#ff8ab5", "#66e2ff", "#c49bff", "#ffd27a", "#8be28b"];
@@ -703,7 +716,7 @@ function WheelGame({ room, code, me }: any) {
       </div>
       {room.status === "reveal" && w.result && <p className="text-2xl font-black text-amber-300 mb-3" style={{ animation: "rwgPop .5s ease-out" }}>{w.result.name}: {w.result.label} {w.result.emoji}</p>}
       {myTurn ? (
-        <button onClick={() => act({ act: "spin" })} className="cbtn cbtn-gold w-full py-4 text-lg">🎡 SPIN!</button>
+        <button onClick={() => { sfx.spin(); act({ act: "spin" }); }} className="cbtn cbtn-gold w-full py-4 text-lg">🎡 SPIN!</button>
       ) : room.status === "playing" ? (
         <p className="text-white/50 text-sm">Waiting for {room.players.find((p: any) => p.id === w.turnId)?.name || "…"} to spin…</p>
       ) : null}
@@ -722,6 +735,8 @@ function RidingGame({ room, code, me }: any) {
   const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
   const secs = useLocalCountdown(room.secondsLeft, `${r.turnId}-${r.flippedThisTurn}-${room.status}`);
   const myWolves = r.wolfCounts?.[me] || 0;
+  useEffect(() => { if (room.message && room.message.includes("Wolf")) sfx.wolf(); }, [room.message]);
+  useEffect(() => { if (room.status === "reveal") sfx.lose(); }, [room.status]);
 
   if (room.status === "done") {
     const iLost = room.lastLoserId === me;
@@ -735,7 +750,7 @@ function RidingGame({ room, code, me }: any) {
 
       <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(60px, 1fr))" }}>
         {tiles.map((t: any) => (
-          <button key={t.id} disabled={!myTurn || t.flipped} onClick={() => act({ act: "flip", tileId: t.id })}
+          <button key={t.id} disabled={!myTurn || t.flipped} onClick={() => { sfx.flip(); act({ act: "flip", tileId: t.id }); }}
             className="aspect-square rounded-xl flex items-center justify-center transition active:scale-95"
             style={{ fontSize: 30, background: t.flipped ? (t.kind === "laughing" ? "#7f1d1d" : t.kind === "wolf" ? "#7c2d12" : "rgba(255,255,255,0.9)") : "linear-gradient(135deg,#d1402a,#8a1f13)", border: t.flipped ? "2px solid rgba(255,255,255,.3)" : "2px solid rgba(255,255,255,.15)", boxShadow: t.flipped ? "none" : "inset 0 2px 0 rgba(255,255,255,.2), 0 3px 6px rgba(0,0,0,.4)" }}>
             {t.flipped ? FACE[t.kind as keyof typeof FACE] : "🎀"}
@@ -770,7 +785,7 @@ function CardGame({ room, code, me }: any) {
   const myTurn = cards.turnId === me;
   const iWon = room.status === "done" && room.winnerId === me;
   const iLost = room.status === "done" && room.lastLoserId === me;
-  const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
+  const act = (body: any) => { sfx.flip(); return post(`/api/reborn/games/rooms/${code}/action`, body); };
   const secs = useLocalCountdown(room.secondsLeft, `${cards.turnId}-${cards.phase}-${room.message}`);
 
   // Winner reveal — show the completed hand to everyone before the win screen.
