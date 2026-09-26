@@ -650,15 +650,17 @@ export function registerGameRoutes(app: Express) {
   app.post("/api/reborn/games/rooms/:code/join", requireAuth, async (req, res) => {
     const room = rooms.get(String(req.params.code).toUpperCase());
     if (!room) return res.status(404).json({ message: "Room not found (it may have ended)." });
+    const uid = getUserId(req)!;
+    const existing = room.players.find((p) => p.id === uid);
+    // Already in this room → allow rejoin/reconnect any time (after backgrounding
+    // the app, etc.), even mid-game, so you never lose control of your room.
+    if (existing) return res.json({ code: room.code });
     if (room.status !== "lobby") return res.status(400).json({ message: "This game has already started." });
     if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: "Wrong room password." });
-    const uid = getUserId(req)!;
-    if (!room.players.find((p) => p.id === uid)) {
-      const cap = room.game === "cards" ? CARDS_MAX : MAX_PLAYERS;
-      if (room.players.length >= cap) return res.status(400).json({ message: `Room is full (${cap} players).` });
-      room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
-      broadcast(room);
-    }
+    const cap = room.game === "cards" ? CARDS_MAX : MAX_PLAYERS;
+    if (room.players.length >= cap) return res.status(400).json({ message: `Room is full (${cap} players).` });
+    room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
+    broadcast(room);
     res.json({ code: room.code });
   });
 

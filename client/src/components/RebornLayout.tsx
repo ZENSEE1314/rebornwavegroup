@@ -67,7 +67,7 @@ function ForcePasswordChange() {
   );
 }
 
-export function RebornLayout({ children, title, active, wide }: { children: ReactNode; title?: string; active?: string; wide?: boolean }) {
+export function RebornLayout({ children, title, active, wide, hideNav }: { children: ReactNode; title?: string; active?: string; wide?: boolean; hideNav?: boolean }) {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -103,22 +103,24 @@ export function RebornLayout({ children, title, active, wide }: { children: Reac
       </header>
 
       {/* Content */}
-      <main className={`${wide ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 pt-4 pb-28`}>{children}</main>
+      <main className={`${wide ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 pt-4 ${hideNav ? "pb-6" : "pb-28"}`}>{children}</main>
 
-      {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 backdrop-blur-md" style={{ background: "rgba(10,7,20,0.9)" }}>
-        <div className="max-w-2xl mx-auto grid grid-cols-5">
-          {MAIN_NAV.map((it) => {
-            const isActive = active === it.path || active === it.label.toLowerCase();
-            return (
-              <button key={it.path} onClick={() => go(it.path)} className={`flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? "text-amber-300" : "text-white/50 hover:text-white/80"}`}>
-                {it.icon}
-                <span className="text-[11px] font-medium">{t(it.tkey)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Bottom nav — hidden while inside a live game so you can't tap out by accident */}
+      {!hideNav && (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 backdrop-blur-md" style={{ background: "rgba(10,7,20,0.9)" }}>
+          <div className="max-w-2xl mx-auto grid grid-cols-5">
+            {MAIN_NAV.map((it) => {
+              const isActive = active === it.path || active === it.label.toLowerCase();
+              return (
+                <button key={it.path} onClick={() => go(it.path)} className={`flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? "text-amber-300" : "text-white/50 hover:text-white/80"}`}>
+                  {it.icon}
+                  <span className="text-[11px] font-medium">{t(it.tkey)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {(user as any)?.mustChangePassword && <ForcePasswordChange />}
 

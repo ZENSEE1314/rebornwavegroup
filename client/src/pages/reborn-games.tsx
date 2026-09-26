@@ -66,13 +66,18 @@ function HowToPlay({ game, onClose }: { game: string; onClose: () => void }) {
 
 const post = (path: string, body?: any) => apiRequest("POST", path, body || {}).then(async (r) => ({ ok: r.ok, d: await r.json().catch(() => ({})) }));
 
+const ROOM_KEY = "rw_game_room";
 export default function RebornGames() {
-  const [code, setCode] = useState<string>("");
+  // Persist the room code so closing/backgrounding the app doesn't strand you
+  // out of your open room — on reopen we drop you straight back in.
+  const [code, setCode] = useState<string>(() => { try { return localStorage.getItem(ROOM_KEY) || ""; } catch { return ""; } });
+  const enter = (c: string) => { try { localStorage.setItem(ROOM_KEY, c); } catch {} setCode(c); };
+  const exit = () => { try { localStorage.removeItem(ROOM_KEY); } catch {} setCode(""); };
   return (
-    <RebornLayout active="/games" title="GAMES">
+    <RebornLayout active="/games" title="GAMES" hideNav={!!code}>
       <div className="max-w-2xl mx-auto">
-        <MobileBackButton className="mb-4" />
-        {code ? <Room code={code} onLeave={() => setCode("")} /> : <Lobby onEnter={setCode} />}
+        {!code && <MobileBackButton className="mb-4" />}
+        {code ? <Room code={code} onLeave={exit} /> : <Lobby onEnter={enter} />}
       </div>
     </RebornLayout>
   );
@@ -245,19 +250,23 @@ function useLocalCountdown(serverSeconds: number, resetKey: any) {
   return Math.max(0, Math.ceil((endsAt.current - now) / 1000));
 }
 
-function useRoom(code: string) {
+function useRoom(code: string, onGone?: () => void) {
   const [room, setRoom] = useState<any>(null);
   useEffect(() => {
+    let got = false;
     const es = new EventSource(`/api/reborn/games/rooms/${code}/stream`, { withCredentials: true } as any);
-    es.onmessage = (e) => { try { setRoom(JSON.parse(e.data)); } catch {} };
+    es.onmessage = (e) => { got = true; try { setRoom(JSON.parse(e.data)); } catch {} };
     es.onerror = () => {};
-    return () => es.close();
+    // If the room no longer exists (e.g. reopened after it ended), the stream
+    // never sends a snapshot — bail back to the lobby instead of hanging.
+    const gone = setTimeout(() => { if (!got) onGone?.(); }, 5000);
+    return () => { clearTimeout(gone); es.close(); };
   }, [code]);
   return room;
 }
 
 function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
-  const room = useRoom(code);
+  const room = useRoom(code, onLeave);
   const { user } = useAuth();
   const me = (user as any)?.id;
   const { toast } = useToast();
