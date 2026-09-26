@@ -11,7 +11,7 @@ import { useTranslation } from "@/lib/i18n";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
-  Utensils, Store, Wine, Mic2, ReceiptText,
+  Utensils, Store, Wine, Mic2, ReceiptText, Gamepad2,
 } from "lucide-react";
 
 const TILES = [
@@ -19,6 +19,7 @@ const TILES = [
   { label: "Order to Table", desc: "Drinks & food to your seat", icon: <Utensils className="w-6 h-6" />, path: "/order", color: "#4ecdc4" },
   { label: "Bottle Keep", desc: "Your kept drinks", icon: <Wine className="w-6 h-6" />, path: "/bottles", color: "#c9a84c" },
   { label: "Spin & Win", desc: "Spend tokens for prizes", icon: <Disc3 className="w-6 h-6" />, path: "/spin", color: "#c9a84c" },
+  { label: "Live Games", desc: "PvP — RPS & Gold Rush", icon: <Gamepad2 className="w-6 h-6" />, path: "/games", color: "#f59e0b" },
   { label: "My Prizes", desc: "Claim what you won", icon: <Gift className="w-6 h-6" />, path: "/spin?tab=prizes", color: "#22c55e" },
   { label: "Bookings", desc: "Reserve your visit", icon: <Calendar className="w-6 h-6" />, path: "/bookings", color: "#4ecdc4" },
   { label: "Loyalty", desc: "Rewards & perks", icon: <Trophy className="w-6 h-6" />, path: "/loyalty-program", color: "#a855f7" },

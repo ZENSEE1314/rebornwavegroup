@@ -1958,3 +1958,7 @@ button, .interactive {
   width: var(--rwg-w, 0%);
   transition: width 0.5s ease;
 }
+/* Live games (RPS / Tap) animations */
+@keyframes rwgPulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: .7; } }
+@keyframes rwgPop { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes rwgCoin { 0% { transform: translateY(0) scale(0.6); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-70px) scale(1.2); opacity: 0; } }

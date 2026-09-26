@@ -3,6 +3,7 @@ import compression from "compression";
 import { registerRoutes } from "./routes";
 import { registerStarRoutes } from "./star-routes";
 import { registerRebornRoutes } from "./rebornGame";
+import { registerGameRoutes } from "./games";
 import { ensureBridgeXSchema, registerBridgeXRoutes } from "./bridgeX";
 import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
@@ -96,6 +97,7 @@ app.use((req, res, next) => {
 
   // Reborn game routes need the session/passport middleware that registerRoutes sets up
   registerRebornRoutes(app);
+  registerGameRoutes(app);
 
   // WhatsApp CRM bot + reminder scheduler (activates when WHATSAPP_* env vars are set)
   const bridgeXPortalOnly = process.env.BRIDGEX_PORTAL_ONLY === "true";

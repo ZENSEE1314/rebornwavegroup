@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +12,7 @@ import { printClosingReport, printReceipt } from "@/lib/receipt";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
 const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff", "Leaderboard", "Feedback"] as const;
-const ADMIN_TABS = ["Overview", "Venue", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const ADMIN_TABS = ["Overview", "Venue", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -49,6 +49,7 @@ export default function RebornAdmin() {
       {tab === "Products" && <Products />}
       {tab === "Inventory" && <Inventory />}
       {tab === "Accounting" && <Accounting />}
+      {tab === "Games" && <GamesAdmin />}
       {tab === "Payroll" && <Payroll />}
       {tab === "Staff" && <StaffHr isAdmin={isFullAdmin} />}
       {tab === "Leaderboard" && <StaffLeaderboard />}
@@ -91,7 +92,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
   Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
-  Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />,
+  Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />, Games: <Gamepad2 className="w-4 h-4" />,
   Venue: <QrCode className="w-4 h-4" />,
 };
 
@@ -320,6 +321,53 @@ function GiftTypes() {
       <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add gift</button>
       <div className="space-y-3">{rows.map((g) => <GiftRow key={g.id} g={g} onSave={save.mutate} onDelete={del.mutate} />)}</div>
       <p className="text-xs text-white/40 mt-3">Set the KGOLD cost per gift. Animation: pop, float, zoom, or rain. Image URL is optional (falls back to the emoji).</p>
+    </div>
+  );
+}
+const GAME_META: Record<string, { name: string; emoji: string }> = {
+  rps: { name: "Rock Paper Scissors", emoji: "✊" },
+  tap: { name: "Gold Rush (Tap)", emoji: "⛏️" },
+  cards: { name: "Card Match (coming soon)", emoji: "🃏" },
+};
+const WDAYS = [["1", "Mon"], ["2", "Tue"], ["3", "Wed"], ["4", "Thu"], ["5", "Fri"], ["6", "Sat"], ["0", "Sun"]];
+function GamesAdmin() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/games/config"], queryFn: () => apiRequest("GET", "/api/reborn/games/config").then((r) => r.json()) });
+  const [cfg, setCfg] = useState<any>(null);
+  const cur = cfg || data?.config;
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/games/config", { config: cur }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Games schedule saved ✓" }); qc.invalidateQueries({ queryKey: ["/api/reborn/games/config"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  if (!cur) return <Empty text="Loading…" />;
+  const setGame = (k: string, patch: any) => setCfg({ ...cur, [k]: { ...cur[k], ...patch } });
+  const toggleDay = (k: string, d: number) => {
+    const days: number[] = cur[k]?.days || [];
+    setGame(k, { days: days.includes(d) ? days.filter((x) => x !== d) : [...days, d] });
+  };
+  return (
+    <div className="space-y-3">
+      <Card>
+        <h3 className="font-bold text-sm flex items-center gap-2"><Gamepad2 className="w-4 h-4 text-amber-300" /> Live games schedule</h3>
+        <p className="text-[11px] text-white/50 mt-1">Turn each game on/off and pick which weekdays members can play it. Members create rooms; the host starts and up to 20 play live.</p>
+      </Card>
+      {Object.keys(GAME_META).map((k) => (
+        <Card key={k}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-bold">{GAME_META[k].emoji} {GAME_META[k].name}</p>
+            <label className="flex items-center gap-2 text-sm text-white/70"><input type="checkbox" checked={cur[k]?.enabled !== false} onChange={(e) => setGame(k, { enabled: e.target.checked })} /> {cur[k]?.enabled !== false ? "On" : "Off"}</label>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {WDAYS.map(([d, lbl]) => {
+              const on = (cur[k]?.days || []).includes(Number(d));
+              return <button key={d} onClick={() => toggleDay(k, Number(d))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${on ? "bg-amber-400 text-black" : "bg-white/5 text-white/50"}`}>{lbl}</button>;
+            })}
+          </div>
+        </Card>
+      ))}
+      <button onClick={() => save.mutate()} className={btn}>Save schedule</button>
     </div>
   );
 }

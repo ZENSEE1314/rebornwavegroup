@@ -973,6 +973,18 @@ export const ledgerEntries = pgTable("ledger_entries", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Live PvP mini-games — persisted results for per-game leaderboards.
+export const pvpScores = pgTable("pvp_game_scores", {
+  id: serial("id").primaryKey(),
+  game: varchar("game").notNull(),           // 'rps' | 'tap' | 'cards'
+  userId: varchar("user_id").notNull(),
+  userName: varchar("user_name"),
+  score: integer("score").default(0).notNull(), // taps, wins, coins…
+  result: varchar("result"),                 // 'win' | 'lose'
+  roomCode: varchar("room_code"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Web Push subscriptions (one row per device/browser a member enabled push on)
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),
