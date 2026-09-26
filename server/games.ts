@@ -366,15 +366,32 @@ function armDiceTimer(room: Room) {
   room.deadline = Date.now() + DICE_TURN_SECONDS * 1000 + 300;
   room.timer = setTimeout(() => diceTimeout(room), DICE_TURN_SECONDS * 1000 + 300);
 }
+// Ran out of time on your turn → you lose. The standing bidder wins.
 function diceTimeout(room: Room) {
   if (room.status !== "playing" || room.game !== "dice") return;
+  clearTimers(room);
   const p = room.players[room.turnIdx ?? 0];
   if (!p) return;
-  if (!room.bid) { // opening player stalled — auto-open minimum
-    applyDiceBid(room, p.id, 2, minOpenBid(room), false);
-  } else {
-    resolveDiceCatch(room, p.id); // stalled — auto-catch
-  }
+  const loserId = p.id;
+  const winnerId = room.bid?.by; // whoever's bid was standing
+  const handsSnapshot = room.players.filter((x) => x.dice && x.dice.length).map((x) => ({ id: x.id, name: x.name, dice: x.dice }));
+  p.alive = false;
+  room.lastLoserId = loserId;
+  room.diceReveal = { timeout: true, bid: room.bid || null, loserId, hands: handsSnapshot };
+  room.status = "reveal";
+  room.message = `${p.name} ran out of time — LOSES! 🍻`;
+  broadcast(room);
+  room.timer = setTimeout(() => {
+    room.status = "done";
+    room.winnerId = winnerId;
+    const winner = room.players.find((x) => x.id === winnerId);
+    room.message = `${p.name} ran out of time and loses! 🍻${winner ? "  " + winner.name + " wins 🏆" : ""}`;
+    broadcast(room);
+    const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [{ userId: loserId, name: p.name, score: 0, result: "lose" }];
+    if (winner && winner.id !== loserId) rows.push({ userId: winner.id, name: winner.name, score: 1, result: "win" });
+    saveScores(room, rows);
+    scheduleCleanup(room);
+  }, 5000);
 }
 function startDiceRound(room: Room, starterId?: string) {
   clearTimers(room);

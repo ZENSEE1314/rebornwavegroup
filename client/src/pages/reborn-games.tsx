@@ -38,8 +38,8 @@ const RULES: Record<string, string[]> = {
   dice: [
     "Everyone rolls 5 hidden dice. Bid how many of a number are on the table across ALL players.",
     "① (ones) are wild — they count as any number.",
-    "Each turn (15s): raise the bid (more dice, or same dice with a higher number) OR catch the current bidder.",
-    "Anyone can Catch! If the real count is LESS than the bid, the bidder loses. If it's enough, the catcher loses.",
+    "Each turn you have 15s to raise the bid (more dice, or same dice with a higher number) OR catch. Run out of time = you lose!",
+    "Anyone can Catch (you'll confirm first). If the real count is LESS than the bid, the bidder loses. If it's enough, the catcher loses.",
     "Bid on ① or hit Strike → ones stop being wild, until a bid reaches 1.5× that amount.",
     "The round ends the moment someone loses — they drink 🍻; whoever called it right wins 🏆.",
   ],
@@ -464,11 +464,15 @@ function DiceGame({ room, code, me }: any) {
       {/* reveal */}
       {reveal && (
         <div className="mb-3 rounded-xl bg-black/30 border border-white/10 p-3">
-          <p className="text-center text-sm text-white/70 mb-2">Bid was {reveal.bid.qty} × {reveal.bid.face === 1 ? "①" : DIE_FACE[reveal.bid.face]} — actually <b className="text-amber-300">{reveal.actual}</b> on the table</p>
+          <p className="text-center text-sm text-white/70 mb-2">
+            {reveal.timeout
+              ? "⏱ Ran out of time!"
+              : <>Bid was {reveal.bid.qty} × {reveal.bid.face === 1 ? "①" : DIE_FACE[reveal.bid.face]} — actually <b className="text-amber-300">{reveal.actual}</b> on the table</>}
+          </p>
           {reveal.hands.map((h: any) => (
             <div key={h.id} className="flex items-center justify-between text-sm py-0.5">
               <span className={h.id === reveal.loserId ? "text-red-300 font-bold" : "text-white/70"}>{h.name}{h.id === reveal.loserId ? " 💀" : ""}</span>
-              <span className="text-lg tracking-tight">{h.dice.map((x: number, i: number) => <span key={i} className={x === reveal.bid.face || (reveal.jokerActive && reveal.bid.face !== 1 && x === 1) ? "text-amber-300" : "text-white/60"}>{DIE_FACE[x]}</span>)}</span>
+              <span className="text-lg tracking-tight">{h.dice.map((x: number, i: number) => <span key={i} className={reveal.bid && (x === reveal.bid.face || (reveal.jokerActive && reveal.bid.face !== 1 && x === 1)) ? "text-amber-300" : "text-white/60"}>{DIE_FACE[x]}</span>)}</span>
             </div>
           ))}
         </div>
@@ -512,7 +516,7 @@ function DiceGame({ room, code, me }: any) {
       )}
 
       {canCatch && (
-        <button onClick={() => act({ act: "catch" })} className="w-full py-3 rounded-xl font-black text-white bg-red-500 hover:bg-red-400">🫵 CATCH! (call their bluff)</button>
+        <button onClick={() => { if (confirm(`Catch this bid (${bid.qty} × ${bid.face === 1 ? "①" : DIE_FACE[bid.face]})?\n\nIf you're WRONG, you lose. If it's a bluff, they lose.`)) act({ act: "catch" }); }} className="w-full py-3 rounded-xl font-black text-white bg-red-500 hover:bg-red-400">🫵 CATCH! (call their bluff)</button>
       )}
       {!myTurn && !canCatch && room.status === "playing" && <p className="text-center text-white/40 text-sm">Waiting…</p>}
     </div>
