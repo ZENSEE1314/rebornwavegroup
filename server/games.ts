@@ -22,7 +22,7 @@ interface Room {
   subs: Set<{ res: Response; uid?: string }>;
   // cards-only
   deck?: Card[]; discardTop?: Card | null; discardBy?: string | null;
-  turnIdx?: number; phase?: "draw" | "discard"; drawnFrom?: "deck" | "discard" | null;
+  turnIdx?: number; phase?: "draw" | "discard"; drawnFrom?: "deck" | "discard" | null; cardReveal?: any;
   // dice-only
   bid?: Bid | null; jokerActive?: boolean; jokerReenableAt?: number; diceReveal?: any;
   // series (best-of / play to N wins)
@@ -77,12 +77,15 @@ async function nameFor(userId: string): Promise<string> {
 async function saveScores(room: Room, rows: { userId: string; name: string; score: number; result: "win" | "lose" }[]) {
   if (!rows.length) return;
   await db.insert(pvpScores).values(rows.map((r) => ({ game: room.game, userId: r.userId, userName: r.name, score: r.score, result: r.result, roomCode: room.code }))).catch(() => {});
-  // Award +1 career rank star to each winner (Mobile-Legends style ladder).
+  // Award +1 career rank star to each winner; the round's loser drops 1 star.
   const season = (await getRankConfig()).season;
   for (const r of rows.filter((x) => x.result === "win")) {
     await db.insert(gameRanks).values({ userId: r.userId, userName: r.name, stars: 1, peakStars: 1, season })
       .onConflictDoUpdate({ target: gameRanks.userId, set: { stars: sql`${gameRanks.stars} + 1`, peakStars: sql`greatest(${gameRanks.peakStars}, ${gameRanks.stars} + 1)`, userName: r.name, updatedAt: new Date() } })
       .catch(() => {});
+  }
+  if (room.lastLoserId) {
+    await db.update(gameRanks).set({ stars: sql`greatest(0, ${gameRanks.stars} - 1)`, updatedAt: new Date() }).where(eq(gameRanks.userId, room.lastLoserId)).catch(() => {});
   }
 }
 
@@ -198,7 +201,7 @@ function resetRoom(room: Room) {
   room.status = "lobby";
   room.round = 1; room.deadline = 0; room.message = "Waiting for players…";
   room.eliminatedThisRound = []; room.winnerId = undefined; room.lastLoserId = undefined;
-  room.deck = undefined; room.discardTop = null; room.discardBy = null; room.turnIdx = undefined; room.phase = undefined; room.drawnFrom = null;
+  room.deck = undefined; room.discardTop = null; room.discardBy = null; room.turnIdx = undefined; room.phase = undefined; room.drawnFrom = null; room.cardReveal = null;
   room.bid = null; room.jokerActive = true; room.jokerReenableAt = undefined; room.diceReveal = null;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
@@ -253,35 +256,52 @@ function startCards(room: Room) {
   broadcast(room);
 }
 
+// A 5-card hand is "one card away" if 4 of its 5 cards already form 2 pairs.
+function cardsOneAway(hand?: Card[]): boolean {
+  if (!hand || hand.length !== 5) return false;
+  for (let i = 0; i < 5; i++) { const four = hand.filter((_, j) => j !== i).map((c) => c.v); if (canPairAll(four)) return true; }
+  return false;
+}
 function cardView(room: Room, forUserId?: string) {
-  const done = room.status === "done";
+  const shown = room.status === "done" || room.status === "reveal";
   return {
     deckLeft: room.deck?.length || 0,
     discardTop: room.discardTop || null,
     turnId: room.players[room.turnIdx ?? 0]?.id,
     phase: room.phase,
-    hands: room.players.reduce((acc: any, p) => { acc[p.id] = (p.id === forUserId || done) ? (p.hand || []) : (p.hand?.length || 0); return acc; }, {}),
+    reveal: room.cardReveal || null,
+    hands: room.players.reduce((acc: any, p) => { acc[p.id] = (p.id === forUserId || shown) ? (p.hand || []) : (p.hand?.length || 0); return acc; }, {}),
+    // public "on their last card" flag so everyone knows who's one win away
+    oneAway: room.players.reduce((acc: any, p) => { acc[p.id] = cardsOneAway(p.hand); return acc; }, {}),
   };
 }
 
-async function cardsWin(room: Room, winnerId: string, via: "deck" | "discard") {
+function cardsWin(room: Room, winnerId: string, via: "deck" | "discard") {
   clearTimers(room);
-  room.status = "done";
-  room.winnerId = winnerId;
   const winner = room.players.find((p) => p.id === winnerId)!;
-  const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [{ userId: winner.id, name: winner.name, score: 1, result: "win" }];
-  if (via === "deck") {
-    room.message = `${winner.name} drew the winning card — BIG WIN, everyone else loses! 🏆`;
-    for (const p of room.players) if (p.id !== winnerId) rows.push({ userId: p.id, name: p.name, score: 0, result: "lose" });
-  } else {
-    const loser = room.players.find((p) => p.id === room.discardBy);
-    room.message = `${winner.name} matched ${room.discardBy && loser ? loser.name + "'s" : "the"} discard and wins! 🏆`;
-    if (loser && loser.id !== winnerId) { rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" }); room.lastLoserId = loser.id; }
-  }
+  const loser = via === "discard" ? room.players.find((p) => p.id === room.discardBy) : undefined;
+  if (loser && loser.id !== winnerId) room.lastLoserId = loser.id;
+  // Reveal the winning hand to everyone first (don't pop the win instantly).
+  room.status = "reveal";
+  room.cardReveal = { winnerId, winnerName: winner.name, hand: winner.hand, via, loserId: loser?.id || null, winCard: via === "discard" ? undefined : (winner.hand || [])[winner.hand!.length - 1] };
+  room.message = `${winner.name} completed 3 pairs — take a look! 🃏`;
   broadcast(room);
-  bumpSeries(room, winnerId);
-  await saveScores(room, rows);
-  scheduleCleanup(room);
+  room.timer = setTimeout(async () => {
+    room.status = "done";
+    room.winnerId = winnerId;
+    const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [{ userId: winner.id, name: winner.name, score: 1, result: "win" }];
+    if (via === "deck") {
+      room.message = `${winner.name} drew the winning card — BIG WIN, everyone else loses! 🏆`;
+      for (const p of room.players) if (p.id !== winnerId) rows.push({ userId: p.id, name: p.name, score: 0, result: "lose" });
+    } else {
+      room.message = `${winner.name} matched ${loser ? loser.name + "'s" : "the"} discard and wins! 🏆`;
+      if (loser && loser.id !== winnerId) rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" });
+    }
+    broadcast(room);
+    bumpSeries(room, winnerId);
+    await saveScores(room, rows);
+    scheduleCleanup(room);
+  }, 5000);
 }
 
 function cardsTie(room: Room) {
@@ -370,7 +390,7 @@ function cardAction(room: Room, uid: string, body: any): { error?: string } {
 const DICE_PER_PLAYER = 5;
 const DICE_TURN_SECONDS = 15;
 const diceAlive = (room: Room) => room.players.filter((p) => p.alive);
-const minOpenBid = (room: Room) => 4 + diceAlive(room).length;
+const minOpenBid = (room: Room) => 1 + diceAlive(room).length;
 const rollDie = () => 1 + Math.floor(Math.random() * 6);
 
 function rollAllDice(room: Room) {

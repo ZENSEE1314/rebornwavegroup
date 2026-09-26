@@ -403,10 +403,10 @@ function RankAdmin() {
         <div className="space-y-2">
           {cur.tiers.map((t: any, i: number) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-white/30 text-xs w-5">{i + 1}</span>
-              <input value={t.name} onChange={(e) => setTier(i, { name: e.target.value })} className={inp + " flex-1"} />
-              <input type="number" value={t.perDiv || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setTier(i, { perDiv: Math.max(1, Number(e.target.value) || 1) })} className={inp + " w-16"} title="stars per division" />
-              <button onClick={() => delTier(i)} className={btnSm}><Trash2 className="w-4 h-4" /></button>
+              <span className="text-white/30 text-xs w-4 shrink-0">{i + 1}</span>
+              <input value={t.name} onChange={(e) => setTier(i, { name: e.target.value })} className={inp + " flex-1 min-w-0"} />
+              <input type="number" value={t.perDiv || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setTier(i, { perDiv: Math.max(1, Number(e.target.value) || 1) })} className={inp + " w-14 shrink-0"} title="stars per division" />
+              <button onClick={() => delTier(i)} className={btnSm + " shrink-0"}><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
         </div>

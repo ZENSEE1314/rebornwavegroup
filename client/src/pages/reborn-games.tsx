@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { RebornLayout } from "@/components/RebornLayout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -287,11 +288,12 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {room.status === "lobby" && <><SeriesBoard room={room} /><LobbyRoom room={room} code={code} isHost={isHost} /></>}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "rps" && <RpsGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
-      {(room.status === "playing" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
 
       {room.status === "done" && (
         <div className="space-y-2">
+          <RankFlash win={room.winnerId === me} lose={room.lastLoserId === me} />
           {room.seriesChampionId && (
             <div className="rwg-card p-4 text-center" style={{ animation: "rwgPop .5s ease-out" }}>
               <p className="text-4xl mb-1">👑</p>
@@ -333,6 +335,18 @@ function LobbyRoom({ room, code, isHost }: any) {
         </button>
       ) : <p className="text-center text-white/50 text-sm py-3">Waiting for the host to start…</p>}
       <p className="text-center text-[11px] text-white/40 mt-3">Share code <b className="text-amber-300">{room.code}</b>{room.hasPassword ? " + the password" : ""} with friends to join.</p>
+    </div>
+  );
+}
+
+function RankFlash({ win, lose }: { win: boolean; lose: boolean }) {
+  const qc = useQueryClient();
+  useEffect(() => { qc.invalidateQueries({ queryKey: ["/api/reborn/rank/me"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/leaderboard"] }); }, [qc]);
+  if (!win && !lose) return null;
+  return (
+    <div className="rounded-2xl p-4 text-center border" style={{ animation: "rwgPop .5s ease-out", borderColor: win ? "rgba(240,215,135,0.4)" : "rgba(248,113,113,0.4)", background: win ? "linear-gradient(135deg,rgba(240,215,135,0.18),rgba(52,211,153,0.12))" : "rgba(248,113,113,0.1)" }}>
+      <p className="text-4xl mb-1" style={{ animation: win ? "rwgPop .6s ease-out" : "rwgPulse 1s" }}>{win ? "⭐" : "🔻"}</p>
+      <p className={`text-lg font-black ${win ? "text-amber-300" : "text-red-300"}`}>{win ? "RANK UP  +1★" : "RANK DOWN  −1★"}</p>
     </div>
   );
 }
@@ -474,10 +488,11 @@ function TapGame({ room, code, me }: any) {
   );
 }
 
-function PlayingCard({ c, onClick, selectable }: { c: any; onClick?: () => void; selectable?: boolean }) {
+function PlayingCard({ c, onClick, selectable, paired, highlight }: { c: any; onClick?: () => void; selectable?: boolean; paired?: boolean; highlight?: boolean }) {
   const red = c.s === "♥" || c.s === "♦";
   return (
-    <button onClick={onClick} disabled={!selectable} className={`w-12 h-16 rounded-lg bg-white flex flex-col items-center justify-center font-black shadow ${selectable ? "hover:-translate-y-1 active:scale-95 ring-2 ring-amber-400/0 hover:ring-amber-400" : "cursor-default"} transition`} style={{ animation: "rwgPop .3s ease-out" }}>
+    <button onClick={onClick} disabled={!selectable} className={`w-12 h-16 rounded-lg bg-white flex flex-col items-center justify-center font-black shadow ${selectable ? "hover:-translate-y-1 active:scale-95 hover:ring-2 hover:ring-amber-400" : "cursor-default"} transition`}
+      style={{ animation: "rwgPop .3s ease-out", outline: highlight ? "3px solid #f0d787" : paired ? "2px solid #34d399" : "none", outlineOffset: 1, boxShadow: paired ? "0 0 8px rgba(52,211,153,0.5)" : undefined }}>
       <span className={red ? "text-red-600" : "text-slate-900"} style={{ fontSize: 18, lineHeight: 1 }}>{c.v}</span>
       <span className={red ? "text-red-600" : "text-slate-900"} style={{ fontSize: 18 }}>{c.s}</span>
     </button>
@@ -611,19 +626,48 @@ function DiceGame({ room, code, me }: any) {
   );
 }
 
+const CARD_PARTNER: Record<string, string> = { A: "9", "9": "A", "2": "8", "8": "2", "3": "7", "7": "3", "4": "6", "6": "4", "5": "5", J: "J", Q: "Q", K: "K" };
+// Group matched pairs first (shown on the left), singles after.
+function orderHand(hand: any[]): any[] {
+  const used = new Array(hand.length).fill(false); const out: any[] = [];
+  for (let i = 0; i < hand.length; i++) {
+    if (used[i]) continue; const need = CARD_PARTNER[hand[i].v];
+    for (let j = i + 1; j < hand.length; j++) { if (!used[j] && hand[j].v === need) { used[i] = used[j] = true; out.push({ ...hand[i], pair: true }, { ...hand[j], pair: true }); break; } }
+  }
+  for (let i = 0; i < hand.length; i++) if (!used[i]) out.push({ ...hand[i], pair: false });
+  return out;
+}
+
 function CardGame({ room, code, me }: any) {
   const cards = room.cards || {};
   const myHand: any[] = Array.isArray(cards.hands?.[me]) ? cards.hands[me] : [];
+  const ordered = orderHand(myHand);
   const myTurn = cards.turnId === me;
   const iWon = room.status === "done" && room.winnerId === me;
+  const iLost = room.status === "done" && room.lastLoserId === me;
   const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
   const secs = useLocalCountdown(room.secondsLeft, `${cards.turnId}-${cards.phase}-${room.message}`);
+
+  // Winner reveal — show the completed hand to everyone before the win screen.
+  if (room.status === "reveal" && cards.reveal) {
+    const rv = cards.reveal;
+    return (
+      <div className="rwg-card p-6 text-center">
+        <p className="text-lg font-black text-amber-200 mb-1">🃏 {rv.winnerName} completed 3 pairs!</p>
+        <p className="text-white/50 text-xs mb-4">{rv.via === "deck" ? "Drew the winning card from the deck — big win!" : "Matched the discard to win!"}</p>
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {orderHand(rv.hand || []).map((c: any) => <PlayingCard key={c.id} c={c} highlight={rv.winCard && c.id === rv.winCard.id} paired={c.pair} />)}
+        </div>
+        <p className="text-white/40 text-xs mt-4">Everyone can see the winning hand…</p>
+      </div>
+    );
+  }
 
   if (room.status === "done") {
     return (
       <div className="rwg-card p-6 text-center">
-        <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "🃏"}</div>
-        <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-white/70"}`}>{iWon ? "YOU WIN!" : (room.winnerId ? "You lost" : "Tie")}</p>
+        <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : iLost ? "🍻" : "🃏"}</div>
+        <p className={`text-2xl font-black ${iWon ? "text-amber-300" : iLost ? "text-red-300" : "text-white/70"}`}>{iWon ? "YOU WIN!" : iLost ? "YOU LOSE — DRINK!" : (room.winnerId ? "Game over" : "Tie")}</p>
         <p className="text-white/60 text-sm mt-2">{room.message}</p>
       </div>
     );
@@ -644,6 +688,7 @@ function CardGame({ room, code, me }: any) {
               ))}
             </div>
             <p className="text-[11px] text-white/60 mt-1">{p.name}{cards.turnId === p.id ? " ⏳" : ""}{p.id === room.hostId ? " 👑" : ""}</p>
+            {cards.oneAway?.[p.id] && <p className="text-[10px] font-bold text-red-300 animate-pulse">🔥 last card!</p>}
           </div>
         ))}
       </div>
@@ -660,11 +705,11 @@ function CardGame({ room, code, me }: any) {
         </div>
       </div>
 
-      {/* my hand */}
-      <p className="text-[11px] text-white/50 mb-1 text-center">Your hand — make 3 pairs (A+9, 2+8, 3+7, 4+6, 5+5, J+J, Q+Q, K+K)</p>
+      {/* my hand — matched pairs grouped on the left (green), singles on the right */}
+      <p className="text-[11px] text-white/50 mb-1 text-center">Your hand — matched pairs shown left {cards.oneAway?.[me] ? "· 🔥 you're 1 card from winning!" : ""}</p>
       <div className="flex flex-wrap justify-center gap-1.5 mb-3">
-        {myHand.map((c: any) => (
-          <PlayingCard key={c.id} c={c} selectable={myTurn && cards.phase === "discard"} onClick={() => act({ act: "discard", cardId: c.id })} />
+        {ordered.map((c: any) => (
+          <PlayingCard key={c.id} c={c} paired={c.pair} selectable={myTurn && cards.phase === "discard"} onClick={() => act({ act: "discard", cardId: c.id })} />
         ))}
       </div>
 
