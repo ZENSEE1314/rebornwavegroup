@@ -485,6 +485,23 @@ function PlayingCard({ c, onClick, selectable }: { c: any; onClick?: () => void;
 }
 
 const DIE_FACE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+// Cartoon SVG die with pips. wild=true tints it gold (the ① joker).
+const PIP_POS: Record<string, [number, number]> = { tl: [30, 30], tr: [70, 30], ml: [30, 50], mr: [70, 50], c: [50, 50], bl: [30, 70], br: [70, 70] };
+const PIP_LAYOUT: Record<number, string[]> = { 1: ["c"], 2: ["tl", "br"], 3: ["tl", "c", "br"], 4: ["tl", "tr", "bl", "br"], 5: ["tl", "tr", "c", "bl", "br"], 6: ["tl", "tr", "ml", "mr", "bl", "br"] };
+function Die({ v, size = 54, wild = false, highlight = false }: { v: number; size?: number; wild?: boolean; highlight?: boolean }) {
+  const pips = PIP_LAYOUT[v] || [];
+  const isWild = wild || v === 1;
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: highlight ? "drop-shadow(0 0 6px #f0d787)" : "drop-shadow(0 3px 4px rgba(0,0,0,0.45))" }}>
+      <rect x="7" y="7" width="86" height="86" rx="22" fill={isWild ? "#fff4d6" : "#ffffff"} stroke={isWild ? "#e0a92e" : "#cfd3da"} strokeWidth="4" />
+      <rect x="7" y="7" width="86" height="43" rx="22" fill="rgba(255,255,255,0.5)" />
+      {pips.map((k, i) => { const [x, y] = PIP_POS[k]; return <circle key={i} cx={x} cy={y} r="9.5" fill={isWild ? "#c9871a" : "#2b2b2b"} />; })}
+    </svg>
+  );
+}
+function DiceRow({ vals, size = 54, faceHi }: { vals: number[]; size?: number; faceHi?: number }) {
+  return <div className="flex flex-wrap justify-center gap-1.5">{vals.map((v, i) => <Die key={i} v={v} size={size} highlight={faceHi != null && (v === faceHi || (faceHi !== 1 && v === 1))} />)}</div>;
+}
 function DiceGame({ room, code, me }: any) {
   const d = room.dice || {};
   const myDice: number[] = Array.isArray(d.dice?.[me]) ? d.dice[me] : [];
@@ -523,8 +540,8 @@ function DiceGame({ room, code, me }: any) {
       {/* current bid + joker status */}
       <div className="flex items-center justify-center gap-4 mb-3">
         <div className="text-center px-4 py-2 rounded-xl bg-white/5 border border-white/10">
-          <p className="text-[10px] text-white/40">Current bid</p>
-          <p className="text-xl font-black text-white">{bid ? `${bid.qty} × ${bid.face === 1 ? "①" : DIE_FACE[bid.face]}` : "—"}</p>
+          <p className="text-[10px] text-white/40 mb-0.5">Current bid</p>
+          {bid ? <div className="flex items-center gap-2 justify-center"><span className="text-2xl font-black text-white">{bid.qty} ×</span><Die v={bid.face} size={34} /></div> : <p className="text-xl font-black text-white">—</p>}
         </div>
         <div className="text-center">
           <p className={`text-xs font-bold ${d.jokerActive ? "text-emerald-300" : "text-white/40"}`}>① {d.jokerActive ? "WILD" : "not wild"}</p>
@@ -541,9 +558,9 @@ function DiceGame({ room, code, me }: any) {
               : <>Bid was {reveal.bid.qty} × {reveal.bid.face === 1 ? "①" : DIE_FACE[reveal.bid.face]} — actually <b className="text-amber-300">{reveal.actual}</b> on the table</>}
           </p>
           {reveal.hands.map((h: any) => (
-            <div key={h.id} className="flex items-center justify-between text-sm py-0.5">
-              <span className={h.id === reveal.loserId ? "text-red-300 font-bold" : "text-white/70"}>{h.name}{h.id === reveal.loserId ? " 💀" : ""}</span>
-              <span className="text-lg tracking-tight">{h.dice.map((x: number, i: number) => <span key={i} className={reveal.bid && (x === reveal.bid.face || (reveal.jokerActive && reveal.bid.face !== 1 && x === 1)) ? "text-amber-300" : "text-white/60"}>{DIE_FACE[x]}</span>)}</span>
+            <div key={h.id} className="flex items-center justify-between gap-2 py-1">
+              <span className={`text-sm shrink-0 ${h.id === reveal.loserId ? "text-red-300 font-bold" : "text-white/70"}`}>{h.name}{h.id === reveal.loserId ? " 💀" : ""}</span>
+              <span className="flex gap-1">{h.dice.map((x: number, i: number) => <Die key={i} v={x} size={26} highlight={reveal.bid && (x === reveal.bid.face || (reveal.jokerActive && reveal.bid.face !== 1 && x === 1))} />)}</span>
             </div>
           ))}
         </div>
@@ -552,8 +569,8 @@ function DiceGame({ room, code, me }: any) {
       {/* my dice */}
       {alive ? (
         <>
-          <p className="text-[11px] text-white/50 mb-1 text-center">Your dice</p>
-          <p className="text-center text-4xl mb-3 tracking-tight">{myDice.map((x, i) => <span key={i} className={x === 1 ? "text-amber-300" : "text-white"}>{DIE_FACE[x]}</span>)}</p>
+          <p className="text-[11px] text-white/50 mb-2 text-center">🎲 Your dice</p>
+          <div className="mb-4 rounded-2xl bg-black/20 border border-white/10 py-3"><DiceRow vals={myDice} size={58} faceHi={bid?.face} /></div>
         </>
       ) : <p className="text-center text-white/40 text-sm mb-3">You're out — watch the rest play!</p>}
 
@@ -570,9 +587,9 @@ function DiceGame({ room, code, me }: any) {
       {myTurn && room.status === "playing" && (
         <div className="rounded-xl bg-black/30 border border-white/10 p-3 mb-2">
           <p className="text-[11px] text-white/50 mb-2">Your bid — pick a number & how many dice total (min {bid ? "higher than now" : d.minOpen})</p>
-          <div className="flex flex-wrap gap-1.5 justify-center mb-2">
+          <div className="flex flex-wrap gap-2 justify-center mb-2">
             {[1, 2, 3, 4, 5, 6].map((f) => (
-              <button key={f} onClick={() => setFace(f)} className={`w-11 h-11 rounded-lg text-2xl flex items-center justify-center ${face === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{f === 1 ? "①" : DIE_FACE[f]}</button>
+              <button key={f} onClick={() => setFace(f)} className={`p-1 rounded-xl transition ${face === f ? "bg-amber-400 ring-2 ring-amber-300 scale-105" : "bg-white/5 border border-white/10"}`}><Die v={f} size={44} /></button>
             ))}
           </div>
           <div className="flex items-center gap-2 justify-center mb-2">
