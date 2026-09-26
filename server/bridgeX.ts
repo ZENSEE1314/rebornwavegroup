@@ -27,12 +27,98 @@ import {
   workerShifts,
 } from "../shared/schema";
 
-export const BRIDGEX_MODULES = [
-  "pos", "restaurant", "ktv", "beauty", "booking", "inventory", "employees",
-  "payroll", "membership", "loyalty", "qr_ordering", "kitchen_display",
-  "accounting", "analytics", "retail", "ai_whatsapp", "ai_telegram",
-  "song_requests", "bottle_keep", "faq_automation", "games",
-] as const;
+// Full module catalogue. Existing keys are kept (tenant rows reference them); new
+// keys are added as we build each engine. `status` is honest: "live" gates a real
+// feature today, "beta" is partial/config-only, "planned" is on the roadmap.
+export type ModuleStatus = "live" | "beta" | "planned";
+export interface ModuleDef { key: string; name: string; category: string; status: ModuleStatus; desc: string; }
+export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
+  // Core — almost every business
+  { key: "pos", name: "Point of Sale", category: "Core", status: "live", desc: "Sales, cart, discounts, tax, service charge, tips." },
+  { key: "payments", name: "Payments", category: "Core", status: "planned", desc: "Cash, card, QR, transfer, e-wallet, split & partial payment." },
+  { key: "refunds", name: "Refunds & Voids", category: "Core", status: "planned", desc: "Full/partial refund, void, return, exchange, reason tracking." },
+  { key: "pricing", name: "Pricing & Price Lists", category: "Core", status: "planned", desc: "Multiple price lists, member pricing, happy hour, wholesale." },
+  { key: "analytics", name: "Owner Dashboard", category: "Core", status: "planned", desc: "Today-at-a-glance revenue, profit, top products, comparisons." },
+  { key: "audit", name: "Fraud & Staff Control", category: "Core", status: "planned", desc: "Track voids, refunds, discounts, drawer opens; flag anomalies." },
+  // Inventory
+  { key: "inventory", name: "Inventory & Stock", category: "Inventory", status: "planned", desc: "Real-time stock, multi-warehouse, transfers, expiry, low-stock alerts." },
+  { key: "purchasing", name: "Purchasing & Suppliers", category: "Inventory", status: "planned", desc: "Suppliers, purchase orders, goods received, cost history, reorder." },
+  // Customers
+  { key: "crm", name: "CRM & Segments", category: "Customers", status: "planned", desc: "Profiles, spend/visit history, tags, VIP/new/lost/birthday segments." },
+  { key: "loyalty", name: "Loyalty & Rewards", category: "Customers", status: "live", desc: "Points, cashback, stamp cards, vouchers, referral rewards." },
+  { key: "membership", name: "Membership Tiers", category: "Customers", status: "live", desc: "Tiers, member pricing, paid subscriptions, milestones." },
+  { key: "marketing", name: "Marketing Engine", category: "Customers", status: "planned", desc: "Campaigns, segment blasts, birthday/win-back, coupons, flash sales." },
+  { key: "reviews", name: "Reviews & Reputation", category: "Customers", status: "beta", desc: "Post-payment ratings routed to management or public review." },
+  // People
+  { key: "employees", name: "Staff & HR", category: "People", status: "live", desc: "Roles, positions, attendance, shifts, leave, meetings, QR attendance." },
+  { key: "payroll", name: "Payroll", category: "People", status: "beta", desc: "Salary, commission, tips, deductions, payroll runs, payslips." },
+  // Finance
+  { key: "accounting", name: "Accounting", category: "Finance", status: "planned", desc: "Income/expenses, P&L, cash flow, AR/AP, settlements." },
+  // Booking
+  { key: "booking", name: "Universal Booking", category: "Booking", status: "beta", desc: "One engine for tables, rooms, stylists, bays, assets, classes." },
+  // Industry packs
+  { key: "restaurant", name: "Restaurant / Café", category: "Industry", status: "planned", desc: "Table floor plan, split/merge bills, dine-in/takeaway/delivery." },
+  { key: "kitchen_display", name: "Kitchen Display (KDS)", category: "Industry", status: "planned", desc: "Route orders to kitchen/bar/dessert; new→preparing→ready→served." },
+  { key: "qr_ordering", name: "QR Ordering", category: "Industry", status: "planned", desc: "Scan → menu → order → kitchen → serve → pay → review." },
+  { key: "foodcourt", name: "Food Court", category: "Industry", status: "planned", desc: "One payment across stalls, revenue allocation, stall settlement." },
+  { key: "ktv", name: "KTV / Rooms", category: "Industry", status: "planned", desc: "Room map, hourly timers, minimum spend, packages, reservations." },
+  { key: "bottle_keep", name: "Bottle Keep", category: "Industry", status: "beta", desc: "Customer bottle storage & balance, host/waiter assignment." },
+  { key: "beauty", name: "Beauty / Spa / Salon", category: "Industry", status: "planned", desc: "Appointments, chair/room resources, staff commission, treatment history." },
+  { key: "retail", name: "Retail / Fashion", category: "Industry", status: "planned", desc: "Barcode, variants (size/colour/SKU), returns, gift receipts, layaway." },
+  { key: "grocery", name: "Supermarket / Grocery", category: "Industry", status: "planned", desc: "Weight products, scale integration, batch/expiry, fast checkout." },
+  { key: "hotel", name: "Hotel / Homestay", category: "Industry", status: "planned", desc: "Rooms, reservations, check-in/out, housekeeping, room account." },
+  { key: "gym", name: "Gym / Fitness", category: "Industry", status: "planned", desc: "Memberships, QR access, class & trainer booking, locker rental." },
+  { key: "pet", name: "Pet Shop / Grooming", category: "Industry", status: "planned", desc: "Pet & owner profiles, grooming/hotel booking, vaccination tracking." },
+  { key: "workshop", name: "Car Workshop / Wash", category: "Industry", status: "planned", desc: "Vehicle profiles, job cards, mechanic assignment, parts, reminders." },
+  { key: "repair", name: "Repair Shop", category: "Industry", status: "planned", desc: "Repair tickets, IMEI/serial, diagnosis, quote, status, warranty." },
+  { key: "laundry", name: "Laundry", category: "Industry", status: "planned", desc: "Weight/pieces, wash→dry→iron→ready, pickup/delivery, subscriptions." },
+  { key: "rental", name: "Rental", category: "Industry", status: "planned", desc: "Availability calendar, deposits, agreements, late/damage charges." },
+  { key: "education", name: "Education / Tuition", category: "Industry", status: "planned", desc: "Students, classes, timetable, attendance, fees, teacher commission." },
+  { key: "events", name: "Events / Ticketing", category: "Industry", status: "planned", desc: "Ticket sales, QR tickets, capacity, guest lists, promoter commission." },
+  { key: "wholesale", name: "Wholesale / B2B", category: "Industry", status: "planned", desc: "Customer pricing tiers, MOQ, credit limits, delivery orders, statements." },
+  { key: "professional", name: "Professional Services", category: "Industry", status: "planned", desc: "Leads, quotes, projects, timesheets, recurring invoices, client portal." },
+  // Engagement
+  { key: "games", name: "Mini-Games / PvP", category: "Engagement", status: "beta", desc: "Spin, scratch, dice, PvP & party games awarding points/coupons." },
+  { key: "live_gifts", name: "Live Gifts", category: "Engagement", status: "planned", desc: "Virtual gifts to singers/DJs/hosts with performer & house share." },
+  { key: "lucky_draw", name: "Lucky Draw Pool", category: "Engagement", status: "planned", desc: "Spend-based tickets, shared prize pool, countdown & winners." },
+  { key: "song_requests", name: "Song Requests", category: "Engagement", status: "beta", desc: "Live song request queue for KTV/bar/lounge." },
+  // AI & channels
+  { key: "ai_whatsapp", name: "AI WhatsApp", category: "AI & Channels", status: "beta", desc: "Event-driven WhatsApp + AI replies (booking, order ready, birthday)." },
+  { key: "ai_telegram", name: "AI Telegram", category: "AI & Channels", status: "beta", desc: "Telegram channel with AI replies and campaigns." },
+  { key: "faq_automation", name: "FAQ Automation", category: "AI & Channels", status: "beta", desc: "Auto-answer common questions, hand over to staff when needed." },
+];
+export const BRIDGEX_MODULES = BRIDGEX_MODULE_REGISTRY.map((m) => m.key) as unknown as readonly string[];
+
+// Industry → default enabled modules. Picking an industry at signup turns the
+// right system on automatically; the owner can still tick more.
+const BASE_MODULES = ["pos", "employees", "crm", "loyalty", "analytics"];
+export const BRIDGEX_INDUSTRIES: { key: string; name: string; modules: string[] }[] = [
+  { key: "restaurant", name: "Restaurant / Café", modules: [...BASE_MODULES, "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "booking", "payments", "refunds", "pricing"] },
+  { key: "bar", name: "Bar / Lounge", modules: [...BASE_MODULES, "inventory", "restaurant", "booking", "bottle_keep", "song_requests", "games", "payments"] },
+  { key: "nightclub", name: "Nightclub", modules: [...BASE_MODULES, "inventory", "booking", "bottle_keep", "live_gifts", "games", "lucky_draw", "events", "payments"] },
+  { key: "ktv", name: "KTV / Karaoke", modules: [...BASE_MODULES, "inventory", "ktv", "booking", "bottle_keep", "song_requests", "payments"] },
+  { key: "foodcourt", name: "Food Court", modules: [...BASE_MODULES, "inventory", "foodcourt", "qr_ordering", "kitchen_display", "payments", "refunds"] },
+  { key: "beauty", name: "Beauty / Spa / Salon", modules: [...BASE_MODULES, "inventory", "beauty", "booking", "payroll", "marketing"] },
+  { key: "retail", name: "Retail / Fashion", modules: [...BASE_MODULES, "inventory", "purchasing", "retail", "pricing", "refunds", "payments", "marketing"] },
+  { key: "grocery", name: "Supermarket / Grocery", modules: [...BASE_MODULES, "inventory", "purchasing", "grocery", "pricing", "payments"] },
+  { key: "hotel", name: "Hotel / Homestay", modules: [...BASE_MODULES, "inventory", "hotel", "booking", "restaurant", "payments"] },
+  { key: "gym", name: "Gym / Fitness", modules: [...BASE_MODULES, "gym", "booking", "membership", "marketing"] },
+  { key: "pet", name: "Pet Shop / Grooming", modules: [...BASE_MODULES, "inventory", "pet", "booking", "retail"] },
+  { key: "workshop", name: "Car Workshop / Wash", modules: [...BASE_MODULES, "inventory", "purchasing", "workshop", "booking"] },
+  { key: "repair", name: "Repair Shop", modules: [...BASE_MODULES, "inventory", "purchasing", "repair", "booking"] },
+  { key: "laundry", name: "Laundry", modules: [...BASE_MODULES, "laundry", "booking", "payments"] },
+  { key: "rental", name: "Rental", modules: [...BASE_MODULES, "inventory", "rental", "booking", "payments"] },
+  { key: "education", name: "Education / Tuition", modules: [...BASE_MODULES, "education", "booking", "payroll"] },
+  { key: "events", name: "Events / Attractions", modules: [...BASE_MODULES, "events", "booking", "marketing"] },
+  { key: "wholesale", name: "Wholesale / B2B", modules: [...BASE_MODULES, "inventory", "purchasing", "wholesale", "accounting", "pricing"] },
+  { key: "professional", name: "Professional Services", modules: [...BASE_MODULES, "professional", "booking", "accounting"] },
+  { key: "clinic", name: "Clinic / Wellness", modules: [...BASE_MODULES, "inventory", "booking", "payroll"] },
+  { key: "other", name: "Other", modules: BASE_MODULES },
+];
+export function modulesForIndustry(industry: string): string[] {
+  const preset = BRIDGEX_INDUSTRIES.find((i) => i.key === industry);
+  return (preset?.modules || BASE_MODULES).filter((key) => (BRIDGEX_MODULES as string[]).includes(key));
+}
 export const BRIDGEX_NOTIFICATION_EVENTS = [
   "new_order", "order_status", "order_paid", "payment_completed", "low_stock", "new_booking", "booking_status", "booking_cancelled",
   "shift", "attendance", "attendance_decision", "leave_request", "leave_decision", "staff_review", "meeting",
@@ -147,7 +233,10 @@ async function createCompany(req: Request, ownerUserId: string, body: any) {
     companyId: company.id, name: name[0].toUpperCase() + name.slice(1), code: name,
     permissions: name === "admin" ? ["*"] : [],
   }))).returning();
-  const selected = Array.isArray(body.modules) ? body.modules.filter((key: string) => BRIDGEX_MODULES.includes(key as any)) : ["pos", "inventory", "employees"];
+  const industryKey = String(body.industry || "other");
+  const selected = Array.isArray(body.modules) && body.modules.length
+    ? body.modules.filter((key: string) => (BRIDGEX_MODULES as string[]).includes(key))
+    : modulesForIndustry(industryKey);
   if (selected.length) await db.insert(bridgeCompanyModules).values(selected.map((moduleKey: string) => ({ companyId: company.id, moduleKey })));
   await db.insert(bridgeCompanyMembers).values({ companyId: company.id, userId: ownerUserId, branchId: branch.id, positionId: positions[0]?.id, role: "owner" });
   return { company, branch, modules: selected };
@@ -303,6 +392,8 @@ export function registerBridgeXRoutes(app: Express) {
       next();
     } catch (error) { next(error); }
   });
+  app.get("/api/v1/meta/modules", route(async (_req, res) => { res.json(BRIDGEX_MODULE_REGISTRY); }));
+  app.get("/api/v1/meta/industries", route(async (_req, res) => { res.json(BRIDGEX_INDUSTRIES); }));
   app.post("/api/v1/merchant/apply", route(async (req, res) => {
     const body = req.body || {};
     const email = String(body.email || "").trim().toLowerCase(); const password = String(body.password || "");
