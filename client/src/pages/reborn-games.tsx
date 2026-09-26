@@ -13,6 +13,45 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
 
+const RULES: Record<string, string[]> = {
+  rps: [
+    "Everyone throws ✊ ✋ ✌️ within 5 seconds.",
+    "Didn't pick in time? You're out instantly.",
+    "The losing sign is knocked out each round.",
+    "Last player standing wins 🏆 — the last one out is the loser (drink!).",
+  ],
+  tap: [
+    "When it says DIG, tap the button as fast as you can.",
+    "Every tap = 1 gold coin ⛏️🪙.",
+    "You have 60 seconds — most coins wins.",
+    "Lowest score buys the round 😄.",
+  ],
+  cards: [
+    "Goal: hold 3 matching pairs — A+9, 2+8, 3+7, 4+6, 5+5, J+J, Q+Q, K+K.",
+    "On your turn (10s): take the face-up discard OR draw the deck, then discard 1.",
+    "If someone discards the card that completes your 3 pairs, you WIN and they lose.",
+    "Draw your winning card from the deck = BIG WIN — everyone else loses!",
+    "Take too long (10s) and a card is auto-picked & discarded for you.",
+    "Deck runs out with no winner = tie.",
+  ],
+};
+
+function HowToPlay({ game, onClose }: { game: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+      <div className="rwg-card p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-extrabold text-white mb-3">{GAMES[game]?.emoji} How to play — {GAMES[game]?.name}</h3>
+        <ol className="space-y-2">
+          {(RULES[game] || []).map((line, i) => (
+            <li key={i} className="flex gap-2 text-sm text-white/80"><span className="text-amber-300 font-bold">{i + 1}.</span><span>{line}</span></li>
+          ))}
+        </ol>
+        <button onClick={onClose} className="mt-4 w-full py-2.5 rounded-xl font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Got it!</button>
+      </div>
+    </div>
+  );
+}
+
 const post = (path: string, body?: any) => apiRequest("POST", path, body || {}).then(async (r) => ({ ok: r.ok, d: await r.json().catch(() => ({})) }));
 
 export default function RebornGames() {
@@ -36,6 +75,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   const [joinPw, setJoinPw] = useState("");
   const [lbGame, setLbGame] = useState<"rps" | "tap" | "cards">("rps");
   const [lb, setLb] = useState<any[]>([]);
+  const [help, setHelp] = useState<string | null>(null);
 
   useEffect(() => { apiRequest("GET", "/api/reborn/games/config").then((r) => r.json()).then((d) => setToday(d.today || {})).catch(() => {}); }, []);
   useEffect(() => { apiRequest("GET", `/api/reborn/games/leaderboard?game=${lbGame}`).then((r) => r.json()).then(setLb).catch(() => {}); }, [lbGame]);
@@ -79,8 +119,12 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
             <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Room password (optional)" className="flex-1 bg-transparent py-2.5 text-white text-sm focus:outline-none" />
           </div>
         </div>
-        <button onClick={create} disabled={!today[game]} className="mt-3 w-full py-3 rounded-xl font-extrabold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Create room</button>
+        <div className="mt-3 flex gap-2">
+          <button onClick={() => setHelp(game)} className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/80 font-bold text-sm">How to play</button>
+          <button onClick={create} disabled={!today[game]} className="flex-1 py-3 rounded-xl font-extrabold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Create room</button>
+        </div>
       </div>
+      {help && <HowToPlay game={help} onClose={() => setHelp(null)} />}
 
       <div className="rwg-card p-4">
         <p className="text-xs text-white/50 mb-2">Join a friend's room</p>
@@ -110,6 +154,16 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   );
 }
 
+// Local ticking countdown that re-seeds from the server whenever `resetKey`
+// changes (SSE only pushes on state change, so we tick between messages).
+function useLocalCountdown(serverSeconds: number, resetKey: any) {
+  const endsAt = useRef(0);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { endsAt.current = Date.now() + (serverSeconds || 0) * 1000; setNow(Date.now()); }, [resetKey]);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 400); return () => clearInterval(t); }, []);
+  return Math.max(0, Math.ceil((endsAt.current - now) / 1000));
+}
+
 function useRoom(code: string) {
   const [room, setRoom] = useState<any>(null);
   useEffect(() => {
@@ -126,6 +180,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
   const { user } = useAuth();
   const me = (user as any)?.id;
   const { toast } = useToast();
+  const [help, setHelp] = useState(true); // show the tutorial when you enter
   const leave = async () => { await post(`/api/reborn/games/rooms/${code}/leave`); onLeave(); };
 
   if (!room) return <div className="rwg-card p-8 text-center text-white/50">Connecting to room {code}…</div>;
@@ -133,12 +188,16 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
 
   return (
     <div className="space-y-4">
+      {help && <HowToPlay game={room.game} onClose={() => setHelp(false)} />}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-white/40">Room code</p>
           <p className="text-3xl font-black tracking-[0.3em] text-amber-300">{room.code}</p>
         </div>
-        <button onClick={leave} className="px-3 py-2 rounded-xl bg-red-500/15 border border-red-400/40 text-red-200 text-sm font-bold inline-flex items-center gap-1.5"><LogOut className="w-4 h-4" /> Leave</button>
+        <div className="flex gap-2">
+          <button onClick={() => setHelp(true)} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/70 font-bold" title="How to play">?</button>
+          <button onClick={leave} className="px-3 py-2 rounded-xl bg-red-500/15 border border-red-400/40 text-red-200 text-sm font-bold inline-flex items-center gap-1.5"><LogOut className="w-4 h-4" /> Leave</button>
+        </div>
       </div>
 
       {room.status === "lobby" && <LobbyRoom room={room} code={code} isHost={isHost} />}
@@ -186,11 +245,12 @@ function RpsGame({ room, code, me }: any) {
   const iWon = room.status === "done" && room.winnerId === me;
   const iLost = room.status === "done" && room.winnerId !== me;
   const eliminatedMe = room.status === "reveal" && room.eliminatedThisRound?.includes(me);
+  const secs = useLocalCountdown(room.secondsLeft, `${room.round}-${room.status}`);
 
   return (
     <div className="rwg-card p-5 text-center">
       <p className="text-sm text-white/60 mb-1">{room.message}</p>
-      {room.status === "playing" && <p className="text-5xl font-black text-amber-300 mb-3 tabular-nums" style={{ animation: "rwgPulse 1s infinite" }}>{room.secondsLeft}</p>}
+      {room.status === "playing" && <p className="text-5xl font-black text-amber-300 mb-3 tabular-nums" style={{ animation: "rwgPulse 1s infinite" }}>{secs}</p>}
 
       {room.status === "done" ? (
         <div className="py-6">
@@ -311,6 +371,7 @@ function CardGame({ room, code, me }: any) {
   const myTurn = cards.turnId === me;
   const iWon = room.status === "done" && room.winnerId === me;
   const act = (body: any) => post(`/api/reborn/games/rooms/${code}/action`, body);
+  const secs = useLocalCountdown(room.secondsLeft, `${cards.turnId}-${cards.phase}-${room.message}`);
 
   if (room.status === "done") {
     return (
@@ -324,7 +385,8 @@ function CardGame({ room, code, me }: any) {
 
   return (
     <div className="rwg-card p-4">
-      <p className="text-sm text-amber-200 text-center mb-3">{room.message}</p>
+      <p className="text-sm text-amber-200 text-center mb-1">{room.message}</p>
+      {secs > 0 && <p className={`text-center font-black mb-3 tabular-nums ${secs <= 3 ? "text-red-400" : "text-white/60"}`}>⏱ {secs}s{myTurn ? " — your move!" : ""}</p>}
 
       {/* opponents */}
       <div className="flex flex-wrap justify-center gap-3 mb-4">

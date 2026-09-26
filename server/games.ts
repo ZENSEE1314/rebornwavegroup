@@ -206,6 +206,7 @@ function startCards(room: Room) {
   if (hasThreePairs(host.hand!)) return cardsWin(room, host.id, "deck");
   room.phase = "discard"; // host discards to open
   room.message = `${host.name}'s turn — discard a card to open`;
+  armCardTimer(room);
   broadcast(room);
 }
 
@@ -247,6 +248,33 @@ function cardsTie(room: Room) {
   scheduleCleanup(room);
 }
 
+const CARD_TURN_SECONDS = 10;
+// Arm the 10s turn clock; if the player doesn't act it auto-plays for them.
+function armCardTimer(room: Room) {
+  clearTimers(room);
+  room.deadline = Date.now() + CARD_TURN_SECONDS * 1000 + 300;
+  room.timer = setTimeout(() => autoPlayCards(room), CARD_TURN_SECONDS * 1000 + 300);
+}
+// Timeout fallback — random pick/discard so the game never stalls.
+function autoPlayCards(room: Room) {
+  if (room.status !== "playing" || room.game !== "cards") return;
+  const p = room.players[room.turnIdx ?? 0];
+  if (!p) return;
+  if (room.phase === "draw") {
+    if (room.deck!.length) { p.hand!.push(room.deck!.shift()!); room.drawnFrom = "deck"; }
+    else if (room.discardTop) { p.hand!.push(room.discardTop); room.drawnFrom = "discard"; room.discardTop = null; }
+    else return cardsTie(room);
+    if (hasThreePairs(p.hand!)) return void cardsWin(room, p.id, room.drawnFrom === "deck" ? "deck" : "discard");
+    room.phase = "discard";
+  }
+  // Discard a random card and pass on.
+  const rIdx = Math.floor(Math.random() * p.hand!.length);
+  const [card] = p.hand!.splice(rIdx, 1);
+  room.discardTop = card; room.discardBy = p.id;
+  room.message = `${p.name} ran out of time — auto-discarded`;
+  nextCardTurn(room);
+}
+
 function nextCardTurn(room: Room) {
   // After a discard, check every OTHER player for an instant claim win.
   const claimant = room.players.find((p) => p.id !== room.discardBy && completesWith(p.hand!, room.discardTop!));
@@ -256,6 +284,7 @@ function nextCardTurn(room: Room) {
   room.phase = "draw"; room.drawnFrom = null;
   if (!room.deck!.length && !room.discardTop) return cardsTie(room);
   room.message = `${room.players[room.turnIdx].name}'s turn — take the discard or draw`;
+  armCardTimer(room);
   broadcast(room);
 }
 
@@ -276,6 +305,7 @@ function cardAction(room: Room, uid: string, body: any): { error?: string } {
     if (hasThreePairs(p.hand!)) { cardsWin(room, p.id, room.drawnFrom === "deck" ? "deck" : "discard"); return {}; }
     room.phase = "discard";
     room.message = `${p.name} — discard a card`;
+    armCardTimer(room);
     broadcast(room);
     return {};
   }

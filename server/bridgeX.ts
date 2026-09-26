@@ -31,7 +31,7 @@ export const BRIDGEX_MODULES = [
   "pos", "restaurant", "ktv", "beauty", "booking", "inventory", "employees",
   "payroll", "membership", "loyalty", "qr_ordering", "kitchen_display",
   "accounting", "analytics", "retail", "ai_whatsapp", "ai_telegram",
-  "song_requests", "bottle_keep", "faq_automation",
+  "song_requests", "bottle_keep", "faq_automation", "games",
 ] as const;
 export const BRIDGEX_NOTIFICATION_EVENTS = [
   "new_order", "order_status", "order_paid", "payment_completed", "low_stock", "new_booking", "booking_status", "booking_cancelled",

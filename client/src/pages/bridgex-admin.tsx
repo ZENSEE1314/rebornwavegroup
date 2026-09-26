@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Building2, ChevronLeft, Plus, ShieldCheck, Smartphone, Star, Users, WandSparkles } from "lucide-react";
 import { Link } from "wouter";
 
-const MODULES = ["pos", "restaurant", "retail", "ktv", "beauty", "booking", "inventory", "employees", "payroll", "membership", "loyalty", "qr_ordering", "kitchen_display", "accounting", "analytics", "ai_whatsapp", "ai_telegram", "song_requests", "bottle_keep", "faq_automation"];
+const MODULES = ["pos", "restaurant", "retail", "ktv", "beauty", "booking", "inventory", "employees", "payroll", "membership", "loyalty", "qr_ordering", "kitchen_display", "accounting", "analytics", "ai_whatsapp", "ai_telegram", "song_requests", "bottle_keep", "faq_automation", "games"];
 type Company = { id:number; name:string; appName:string; industry:string; status:string; logoUrl?:string; websiteDomain?:string; subscriptionPlan:string; subscriptionStatus:string; trialEndsAt?:string; billingModel?:string; billingCycle?:string; price?:string; currency?:string; theme?:any };
 type Row = Record<string, any>;
 

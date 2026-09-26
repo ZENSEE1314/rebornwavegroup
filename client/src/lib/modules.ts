@@ -21,6 +21,7 @@ export const NAV_MODULE: Record<string, string> = {
   "/bottles": "bottle_keep",
   "/bookings": "booking",
   "/songs": "song_requests",
+  "/games": "games",
 };
 
 // default: a module is ON unless explicitly disabled. If we have no data yet
