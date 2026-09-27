@@ -128,6 +128,9 @@ export const BRIDGEX_NOTIFICATION_EVENTS = [
 ] as const;
 
 const MANAGEMENT_ROLES = new Set(["owner", "admin", "manager"]);
+// Who may use the BridgeX merchant console at all. Plain app customers (role
+// "member") belong to a tenant for notifications but must NOT see or operate it.
+const STAFF_ROLES = new Set(["owner", "admin", "manager", "staff"]);
 const bridgeStripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-06-30.basil" }) : null;
 const PLATFORM_EMAILS = () => new Set(
   (process.env.BRIDGEX_SUPER_ADMIN_EMAILS || process.env.ADMIN_EMAIL || "zensee1314@gmail.com")
@@ -184,7 +187,7 @@ async function companyAccess(req: Request, res: Response, management = false) {
     eq(bridgeCompanyMembers.userId, user.id),
     eq(bridgeCompanyMembers.status, "active"),
   )).limit(1))[0];
-  if (!member || (management && !MANAGEMENT_ROLES.has(member.role))) {
+  if (!member || !STAFF_ROLES.has(member.role) || (management && !MANAGEMENT_ROLES.has(member.role))) {
     res.status(403).json({ message: management ? "Company management access required" : "Company access denied" });
     return null;
   }
@@ -656,10 +659,28 @@ export function registerBridgeXRoutes(app: Express) {
   app.get("/api/v1/companies", route(async (req, res) => {
     const user = await requireUser(req, res); if (!user) return;
     if (await isPlatformAdmin(req)) return res.json(await db.select().from(bridgeCompanies).orderBy(bridgeCompanies.name));
-    const memberships = await db.select().from(bridgeCompanyMembers).where(and(eq(bridgeCompanyMembers.userId, user.id), eq(bridgeCompanyMembers.status, "active")));
+    const memberships = (await db.select().from(bridgeCompanyMembers).where(and(eq(bridgeCompanyMembers.userId, user.id), eq(bridgeCompanyMembers.status, "active"))))
+      .filter((row) => STAFF_ROLES.has(row.role)); // customers (role 'member') don't get the merchant console
     const ids = memberships.map((row) => row.companyId);
     const companies = ids.length ? await db.select().from(bridgeCompanies).where(inArray(bridgeCompanies.id, ids)) : [];
     res.json(companies.map((company) => ({ ...company, membership: memberships.find((row) => row.companyId === company.id) })));
+  }));
+
+  // Super-admin cross-company overview: revenue per company + totals + MoM comparison.
+  app.get("/api/v1/platform/overview", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const rows = (await db.execute(sql`
+      SELECT c.id, c.name, c.industry, c.subscription_status,
+        COALESCE(SUM(t.total) FILTER (WHERE t.status='paid' AND t.created_at >= date_trunc('month', now())),0) rev_month,
+        COALESCE(SUM(t.total) FILTER (WHERE t.status='paid' AND t.created_at >= date_trunc('month', now()) - interval '1 month' AND t.created_at < date_trunc('month', now())),0) rev_prev,
+        COUNT(t.id) FILTER (WHERE t.status='paid' AND t.created_at >= date_trunc('month', now())) orders_month
+      FROM bridge_companies c LEFT JOIN pos_tickets t ON t.company_id=c.id
+      GROUP BY c.id ORDER BY rev_month DESC`)).rows as any[];
+    const companies = rows.map((r) => { const revMonth = Number(r.rev_month), revPrev = Number(r.rev_prev); return { id: r.id, name: r.name, industry: r.industry, subscriptionStatus: r.subscription_status, revMonth, revPrev, ordersMonth: Number(r.orders_month), deltaPct: revPrev ? Math.round(((revMonth - revPrev) / revPrev) * 100) : null }; });
+    const totalMonth = companies.reduce((s, c) => s + c.revMonth, 0);
+    const totalPrev = companies.reduce((s, c) => s + c.revPrev, 0);
+    const totalOrders = companies.reduce((s, c) => s + c.ordersMonth, 0);
+    res.json({ companies, totals: { companies: companies.length, revMonth: totalMonth, revPrev: totalPrev, orders: totalOrders, deltaPct: totalPrev ? Math.round(((totalMonth - totalPrev) / totalPrev) * 100) : null } });
   }));
 
   app.patch("/api/v1/platform/companies/:id", route(async (req, res) => {

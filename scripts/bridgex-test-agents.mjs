@@ -116,6 +116,12 @@ async function runAdmin() {
     ctx.platformAdmin = !!boot.platformAdmin;
     return boot.platformAdmin ? "platform admin" : "company user";
   });
+  await step("platform overview (super admin)", async () => {
+    if (!ctx.platformAdmin) throw new Error("skipped — not platform admin");
+    const o = ok(await api("GET", "/api/v1/platform/overview"), "overview");
+    expect(o.totals && Array.isArray(o.companies), "unexpected overview shape");
+    return `${o.totals.companies} companies, month rev ${o.totals.revMonth}`;
+  }, { soft: !ctx.platformAdmin });
 
   await step("create company (restaurant preset)", async () => {
     const path = ctx.platformAdmin ? "/api/v1/platform/companies" : "/api/v1/companies";
@@ -408,6 +414,11 @@ async function runUser() {
     const me = ok(await api("GET", "/api/auth/user"), "whoami");
     return me?.email || "ok";
   });
+  await step("isolation: new member has no merchant console companies", async () => {
+    const list = ok(await api("GET", "/api/v1/companies"), "companies");
+    expect(Array.isArray(list) && list.length === 0, `a new customer should see 0 companies, saw ${list.length}`);
+    return "isolated";
+  }, { soft: true });
   // A few member-facing reads (soft: depend on Reborn tenant being present)
   for (const [name, path] of [["reborn profile", "/api/reborn/profile"], ["games list", "/api/reborn/games"], ["my attendance", "/api/reborn/staff/my-attendance"]]) {
     await step(`read ${name}`, async () => { ok(await api("GET", path), `GET ${name}`); return "ok"; }, { soft: true });

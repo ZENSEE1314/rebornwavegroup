@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -114,6 +114,21 @@ function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   const bridgeXHost = /bridgexpos/i.test(window.location.hostname) || (import.meta.env.VITE_BRIDGEX_DOMAIN && window.location.hostname === import.meta.env.VITE_BRIDGEX_DOMAIN);
+  const [brandLoc] = useLocation();
+
+  // BridgeX platform pages carry BridgeX branding (tab title + favicon), not the tenant's.
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (link && !(link as any)._orig) { (link as any)._orig = link.href; (link as any)._origTitle = document.title; }
+    const onBridge = bridgeXHost || /^\/bridgex/i.test(brandLoc);
+    if (onBridge) {
+      document.title = "BridgeXPOS — Business Operating System";
+      if (link) link.href = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#22d3ee'/><text x='32' y='45' font-family='Arial,Helvetica,sans-serif' font-size='32' font-weight='bold' text-anchor='middle' fill='#06121d'>BX</text></svg>");
+    } else if (link && (link as any)._orig) {
+      document.title = (link as any)._origTitle || document.title;
+      link.href = (link as any)._orig;
+    }
+  }, [brandLoc, bridgeXHost]);
 
   // Keep every active screen current. Server-sent events update immediately;
   // the timer covers mobile networks that temporarily suspend the stream.
