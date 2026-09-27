@@ -50,7 +50,7 @@ export default function BridgeXAdmin() {
   const [poForm,setPoForm] = useState<{supplierId:string;note:string;lines:{itemId:string;quantity:string;unitCost:string}[]}>({supplierId:"",note:"",lines:[{itemId:"",quantity:"1",unitCost:"0"}]});
   const [access,setAccess] = useState<Row>({});
   const [settings,setSettings] = useState<any>({ loyalty:{pointsSpendRp:1000,rewardsEnabled:true,tiers:[]}, services:{}, booking:{areas:[]}, automation:{reminders:[],faq:[]} });
-  const [tab,setTab] = useState("company");
+  const [tab,setTab] = useState(() => { try { return new URLSearchParams(location.search).get("tab") || "company"; } catch { return "company"; } });
   const [loaded,setLoaded] = useState(false);
   const [message,setMessage] = useState("");
   const [busy,setBusy] = useState(false);

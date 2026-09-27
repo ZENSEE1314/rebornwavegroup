@@ -24,6 +24,7 @@ export default function RebornAdmin() {
   return (
     <RebornLayout active="/reborn-admin" title="ADMIN">
       {isFullAdmin && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">Full business console (all modules)</b><span className="text-xs text-cyan-100/60">POS, inventory, purchasing, CRM, bookings, payroll, accounting, marketing, events, branches & business types, white-label — enable/disable per branch</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">Open</span></a>}
+      {isFullAdmin && <ModuleLauncher modules={modules} />}
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === t ? "text-black" : "text-white/60"}`} style={tab === t ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[t]}{t}</button>
@@ -1818,3 +1819,52 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
 
 // apply gold gradient to primary buttons via style since Tailwind class can't hold gradient var here
 // (btn uses text-black; background set inline where used would be ideal, but keep simple)
+
+// Launcher for every add-on/industry module, opening its section in the full
+// business console. Shows only modules enabled for this company (untick in the
+// super admin › Services to hide one). Lets you test all industries from Reborn.
+const MODULE_TAB: Record<string, string> = {
+  pos: "register", pricing: "pricing", payments: "register", refunds: "register",
+  restaurant: "tables", kitchen_display: "kds", foodcourt: "foodcourt", qr_ordering: "tables",
+  ktv: "tables", bottle_keep: "bottles", beauty: "booking", booking: "booking",
+  inventory: "inventory", purchasing: "purchasing", crm: "crm", marketing: "marketing",
+  events: "events", repair: "repair", wholesale: "wholesale", professional: "projects",
+  retail: "register", grocery: "register", hotel: "booking", gym: "booking", pet: "booking",
+  workshop: "booking", rental: "booking", laundry: "booking", education: "booking",
+  live_gifts: "gifts", lucky_draw: "draws", payroll: "payroll", accounting: "accounting",
+  analytics: "dashboard", audit: "audit", employees: "staff",
+};
+const MODULE_LABEL: Record<string, string> = {
+  pos: "POS / Register", pricing: "Pricing & Happy Hour", restaurant: "Restaurant Tables",
+  kitchen_display: "Kitchen Display", foodcourt: "Food Court", ktv: "KTV Rooms",
+  beauty: "Beauty / Spa Booking", booking: "Bookings", inventory: "Inventory",
+  purchasing: "Purchasing", crm: "Customers (CRM)", marketing: "Marketing",
+  events: "Events / Tickets", repair: "Repair Shop", wholesale: "Wholesale / B2B",
+  professional: "Projects", retail: "Retail", grocery: "Grocery", hotel: "Hotel Rooms",
+  gym: "Gym / Classes", pet: "Pet Grooming", workshop: "Workshop", rental: "Rental",
+  laundry: "Laundry", live_gifts: "Live Gifts", lucky_draw: "Lucky Draw",
+  payroll: "Payroll", accounting: "Accounting", analytics: "Owner Dashboard", audit: "Audit / Log",
+};
+function ModuleLauncher({ modules }: { modules: Record<string, boolean> | undefined }) {
+  const [open, setOpen] = useState(false);
+  // Show industry/add-on modules that are enabled and have a console section.
+  const keys = Object.keys(MODULE_TAB).filter((k) => moduleEnabled(modules, k));
+  const seen = new Set<string>();
+  const items = keys.filter((k) => { const label = MODULE_LABEL[k] || k; if (seen.has(label)) return false; seen.add(label); return true; });
+  return (
+    <div className="mb-4 rounded-2xl border border-white/10 bg-white/[.03] p-4">
+      <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between text-left">
+        <span><b className="block text-white/90">Business modules ({items.length})</b><span className="text-xs text-white/50">Every enabled industry/module — tap to open & test. Hide any from super admin › Services.</span></span>
+        <span className="text-white/40">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {items.map((k) => (
+          <a key={k} href={`/bridgex?tab=${MODULE_TAB[k]}`} className="rounded-xl border border-white/10 bg-white/[.04] px-3 py-2.5 text-sm text-white/80 hover:border-cyan-400/40 hover:bg-cyan-400/5">
+            {MODULE_LABEL[k] || k}
+          </a>
+        ))}
+        {items.length === 0 && <p className="col-span-full text-sm text-white/40">No add-on modules enabled.</p>}
+      </div>}
+    </div>
+  );
+}
