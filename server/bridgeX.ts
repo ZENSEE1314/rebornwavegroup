@@ -54,7 +54,7 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "employees", name: "Staff & HR", category: "People", status: "live", desc: "Roles, positions, attendance, shifts, leave, meetings, QR attendance." },
   { key: "payroll", name: "Payroll", category: "People", status: "live", desc: "Payroll summary: base pay + booking commission per staff for a period." },
   // Finance
-  { key: "accounting", name: "Accounting", category: "Finance", status: "planned", desc: "Income/expenses, P&L, cash flow, AR/AP, settlements." },
+  { key: "accounting", name: "Accounting", category: "Finance", status: "live", desc: "Income (from POS), expenses by category, refunds, net P&L for any period." },
   // Booking
   { key: "booking", name: "Universal Booking", category: "Booking", status: "live", desc: "Resources (staff/room/chair/bay/asset) + bookings, clash-check, deposits, staff commission." },
   // Industry packs
@@ -479,6 +479,9 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS bridge_draws (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, pool numeric(14,2) NOT NULL DEFAULT 0, status varchar NOT NULL DEFAULT 'open', winner_name varchar, created_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS bridge_draw_entries (id serial PRIMARY KEY, draw_id integer NOT NULL, company_id integer NOT NULL, name varchar NOT NULL, tickets integer NOT NULL DEFAULT 1);
     CREATE INDEX IF NOT EXISTS bridge_draw_entries_draw ON bridge_draw_entries(draw_id);
+    -- Accounting: expenses (income is derived from paid POS tickets)
+    CREATE TABLE IF NOT EXISTS bridge_expenses (id serial PRIMARY KEY, company_id integer NOT NULL, category varchar NOT NULL DEFAULT 'other', amount numeric(14,2) NOT NULL DEFAULT 0, note text, spent_on varchar, created_by varchar, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_expenses_company ON bridge_expenses(company_id, spent_on);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -1240,6 +1243,31 @@ export function registerBridgeXRoutes(app: Express) {
     else await db.execute(sql`UPDATE pos_ticket_items SET status=${status} WHERE id=${Number(req.params.itemId)}`);
     emitCompanyChange(a.companyId, "kds");
     res.json({ ok: true });
+  }));
+
+  // ── Accounting (income from POS + manual expenses → P&L) ───────────────────
+  app.get("/api/v1/company/accounting/expenses", route(async (req, res) => {
+    const a = await requireModule(req, res, "accounting", true); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_expenses WHERE company_id=${a.companyId} ORDER BY COALESCE(spent_on, to_char(created_at,'YYYY-MM-DD')) DESC, id DESC LIMIT 300`)).rows || []);
+  }));
+  app.post("/api/v1/company/accounting/expenses", route(async (req, res) => {
+    const a = await requireModule(req, res, "accounting", true); if (!a) return;
+    const amount = Number(req.body?.amount) || 0; if (!(amount > 0)) return res.status(400).json({ message: "Amount must be greater than 0" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_expenses (company_id, category, amount, note, spent_on, created_by) VALUES (${a.companyId}, ${req.body?.category || "other"}, ${amount}, ${req.body?.note || null}, ${req.body?.spentOn || new Date().toISOString().slice(0, 10)}, ${a.user.id}) RETURNING *`)).rows[0]);
+  }));
+  app.delete("/api/v1/company/accounting/expenses/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "accounting", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_expenses WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/accounting/summary", route(async (req, res) => {
+    const a = await requireModule(req, res, "accounting", true); if (!a) return;
+    const from = String(req.query.from || ""); const to = String(req.query.to || "");
+    const range = (col: string) => sql`${from ? sql`AND ${sql.raw(col)} >= ${from}::date` : sql``} ${to ? sql`AND ${sql.raw(col)} < (${to}::date + interval '1 day')` : sql``}`;
+    const [inc] = (await db.execute(sql`SELECT COALESCE(SUM(total) FILTER (WHERE status='paid'),0) income, COALESCE(SUM(total) FILTER (WHERE status='refunded'),0) refunds FROM pos_tickets WHERE company_id=${a.companyId} ${range("created_at")}`)).rows as any[];
+    const [exp] = (await db.execute(sql`SELECT COALESCE(SUM(amount),0) total FROM bridge_expenses WHERE company_id=${a.companyId} ${range("COALESCE(spent_on::date, created_at::date)")}`)).rows as any[];
+    const byCategory = (await db.execute(sql`SELECT category, COALESCE(SUM(amount),0) amount FROM bridge_expenses WHERE company_id=${a.companyId} ${range("COALESCE(spent_on::date, created_at::date)")} GROUP BY category ORDER BY amount DESC`)).rows;
+    const income = Number(inc.income), refunds = Number(inc.refunds), expenses = Number(exp.total);
+    res.json({ income, refunds, expenses, net: income - refunds - expenses, byCategory: byCategory.map((c: any) => ({ category: c.category, amount: Number(c.amount) })) });
   }));
 
   // ── Analytics / owner dashboard ───────────────────────────────────────────

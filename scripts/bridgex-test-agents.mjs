@@ -241,7 +241,7 @@ async function runAdmin() {
     return `${act.percentOff}%`;
   }, { soft: true });
   await step("audit report", async () => {
-    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds", "booking", "events", "repair", "marketing", "wholesale", "professional", "foodcourt", "live_gifts", "lucky_draw", "payroll"] }, withCo()), "enable all test modules");
+    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds", "booking", "events", "repair", "marketing", "wholesale", "professional", "foodcourt", "live_gifts", "lucky_draw", "payroll", "accounting"] }, withCo()), "enable all test modules");
     const rep = ok(await api("GET", "/api/v1/company/audit", undefined, withCo()), "audit");
     expect(Array.isArray(rep.events) && Array.isArray(rep.staff), "unexpected audit shape");
     return `${rep.events.length} events`;
@@ -309,6 +309,12 @@ async function runAdmin() {
     const rows = ok(await api("GET", "/api/v1/company/payroll/summary", undefined, withCo()), "payroll");
     expect(Array.isArray(rows), "payroll not an array");
     return `${rows.length} staff`;
+  }, { soft: true });
+  await step("accounting: expense + P&L summary", async () => {
+    ok(await api("POST", "/api/v1/company/accounting/expenses", { category: "rent", amount: 500000, note: TAG }, withCo()), "expense");
+    const s = ok(await api("GET", "/api/v1/company/accounting/summary", undefined, withCo()), "summary");
+    expect(Number(s.expenses) >= 500000 && typeof s.net === "number", `unexpected summary: ${JSON.stringify(s)}`);
+    return `net ${s.net}`;
   }, { soft: true });
   await step("module gate blocks disabled module", async () => {
     // Turn CRM off, expect 403 MODULE_DISABLED, then turn it back on.
