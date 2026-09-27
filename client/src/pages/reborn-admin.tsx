@@ -312,6 +312,7 @@ const GAME_META: Record<string, { name: string; emoji: string }> = {
   cards: { name: "Card Match", emoji: "🃏" },
   poker3: { name: "3-Card Poker", emoji: "🂡" },
   frog: { name: "Frog Jump", emoji: "🐸" },
+  rlgl: { name: "Red Light, Green Light", emoji: "🚦" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲" },
   wheel: { name: "Spin the Wheel", emoji: "🎡" },
   riding: { name: "Red Riding Hood", emoji: "👵" },

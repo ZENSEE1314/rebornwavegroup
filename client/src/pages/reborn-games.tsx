@@ -14,6 +14,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "30s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
+  rlgl: { name: "Red Light, Green Light", emoji: "🚦", blurb: "tap left-right to walk on green · freeze on red · 3 min to cross" },
   frog: { name: "Frog Jump", emoji: "🐸", blurb: "tap a frog in 5s · same frog as the turn player = ½ cup" },
   poker3: { name: "3-Card Poker", emoji: "🂡", blurb: "play blind, raise ½ cup · look = pay double · worst hand drinks the pot" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
@@ -30,7 +31,7 @@ const GAME_GRAD: Record<string, string> = {
   rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)",
   cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)",
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
-  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)",
+  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)",
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
 };
 // Games grouped into categories for the lobby.
@@ -38,7 +39,7 @@ const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
   { name: "Guessing game", emoji: "🧠", games: ["number", "rps"] },
   { name: "Dice game", emoji: "🎲", games: ["dice", "789"] },
   { name: "Card game", emoji: "🃏", games: ["cards", "poker3"] },
-  { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer", "stack"] },
+  { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"] },
   { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding", "frog"] },
 ];
 
@@ -54,6 +55,13 @@ const RULES: Record<string, string[]> = {
     "Every tap = 1 gold coin ⛏️🪙.",
     "You have 30 seconds — most coins wins.",
     "Lowest score buys the round 😄.",
+  ],
+  rlgl: [
+    "Everyone gets a player number and starts at the bottom of the field.",
+    "🟢 GREEN LIGHT: tap LEFT, RIGHT, LEFT, RIGHT… in order to walk (wrong order doesn't count).",
+    "🔴 RED LIGHT: freeze! Tap while it's red and you're OUT.",
+    "500 steps (250 left + 250 right) reaches the finish line. You have 3 minutes.",
+    "Everyone who crosses wins 🏁 — the rest drink 🍺.",
   ],
   frog: [
     "Three frogs 🐸🐸🐸. On your turn press START.",
@@ -167,7 +175,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
+type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
@@ -374,7 +382,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                 </div>
               </div>
             )}
-            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && (
+            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && game !== "rlgl" && (
             <div className="mt-3">
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
               <div className="flex gap-2">
@@ -488,6 +496,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "poker3" && <PokerGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "frog" && <FrogGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && room.game === "rlgl" && <RlglGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
@@ -1100,6 +1109,105 @@ function FrogGame({ room, code, me }: any) {
             <span className="font-bold tabular-nums">🍺 {((f.drinks?.[p.id] || 0) / 2).toString()}</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+const RL_COLORS = ["#10b981", "#f43f5e", "#3b82f6", "#f59e0b", "#a855f7", "#14b8a6", "#ec4899", "#84cc16"];
+function RlglGame({ room, code, me }: any) {
+  const r = room.rlgl || {};
+  const st = r.st || {};
+  const my = st[me] || { steps: 0 };
+  const goal = r.goal || 500;
+  const offset = useRef(0);
+  useEffect(() => { if (r.serverNow) offset.current = r.serverNow - Date.now(); }, [r.serverNow]);
+  const [, tick] = useState(0);
+  useEffect(() => { if (room.status !== "playing") return; const t = setInterval(() => tick((x) => x + 1), 200); return () => clearInterval(t); }, [room.status]);
+  const now = Date.now() + offset.current;
+  const counting = now < (r.startAt || 0);
+  const green = r.light === "green" && !counting;
+  // local, optimistic steps; flushed to the server in small batches
+  const next = useRef<"L" | "R">("L");
+  const pending = useRef(0);
+  const [local, setLocal] = useState(0);
+  const [wrong, setWrong] = useState(false);
+  useEffect(() => { setLocal((l) => Math.max(l, my.steps || 0)); }, [my.steps]);
+  useEffect(() => {
+    if (room.status !== "playing") return;
+    const t = setInterval(() => {
+      if (!pending.current) return;
+      const n = pending.current; pending.current = 0;
+      post(`/api/reborn/games/rooms/${code}/action`, { act: "step", n }).catch(() => {});
+    }, 180);
+    return () => clearInterval(t);
+  }, [room.status, code]);
+  const tap = (side: "L" | "R") => {
+    if (room.status !== "playing" || my.out || my.done || counting) return; // ignore taps during the countdown
+    if (side !== next.current) { setWrong(true); setTimeout(() => setWrong(false), 250); return; }
+    next.current = side === "L" ? "R" : "L";
+    pending.current += 1; setLocal((l) => Math.min(goal, l + 1));
+    if (!green) { // moving on red = out; send now so the server sees it
+      const n = pending.current; pending.current = 0;
+      post(`/api/reborn/games/rooms/${code}/action`, { act: "step", n }).catch(() => {});
+    }
+  };
+  const secs = Math.max(0, Math.ceil(((counting ? r.startAt : r.endsAt) - now) / 1000));
+  const players = room.players.map((p: any, i: number) => ({ ...p, color: RL_COLORS[i % RL_COLORS.length], s: st[p.id] || { steps: 0 } }));
+  if (room.status === "done") {
+    const iWon = !!st[me]?.done;
+    return (
+      <div className="rwg-card p-5 text-center">
+        <div className="text-6xl mb-1">{iWon ? "🏁" : "🍺"}</div>
+        <p className={`text-2xl font-black ${iWon ? "text-emerald-300" : "text-red-300"}`}>{iWon ? "You made it!" : "You drink!"}</p>
+        <p className="text-white/60 text-sm mt-1 mb-4">{room.message}</p>
+        <div className="space-y-1.5 text-left">
+          {players.sort((a: any, b: any) => (b.s.done ? 1e9 - (b.s.ms || 0) : b.s.steps) - (a.s.done ? 1e9 - (a.s.ms || 0) : a.s.steps)).map((p: any) => (
+            <div key={p.id} className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${p.s.done ? "bg-emerald-500/15" : "bg-red-500/10"}`}>
+              <span className="font-bold">{String(p.s.num || 0).padStart(3, "0")} · {p.id === me ? "You" : p.name}</span>
+              <span className={p.s.done ? "text-emerald-300" : "text-red-300"}>{p.s.done ? `🏁 ${((p.s.ms || 0) / 1000).toFixed(1)}s` : p.s.out ? "💥 moved on red" : `${p.s.steps}/${goal} · ⏰`}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rwg-card overflow-hidden p-0 text-center select-none">
+      {/* light + timer */}
+      <div className="flex items-center justify-between px-4 py-3 transition-colors" style={{ background: counting ? "#374151" : green ? "#059669" : "#dc2626" }}>
+        <span className="text-lg font-black text-white">{counting ? `Get ready… ${secs}` : green ? "🟢 GREEN LIGHT" : "🔴 RED LIGHT"}</span>
+        <span className="rounded-full bg-black/30 px-3 py-1 text-sm font-bold tabular-nums text-white">⏱ {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}</span>
+      </div>
+      {/* the field: doll at the finish, players walking up */}
+      <div className="relative mx-auto h-64 w-full" style={{ background: "linear-gradient(180deg,#fde68a 0%,#f5d08a 12%,#e9c58f 100%)" }}>
+        <div className="absolute inset-x-0 top-[14%] h-1 bg-red-600/80" />
+        <div className="absolute left-1/2 top-1 -translate-x-1/2 text-4xl transition-transform duration-300" style={{ transform: `translateX(-50%) scaleX(${green ? -1 : 1})` }}>{green ? "🧍‍♀️" : "👧"}</div>
+        <span className="absolute right-2 top-[15%] text-[10px] font-black text-red-700">FINISH</span>
+        {players.map((p: any, i: number) => {
+          const steps = p.id === me ? local : p.s.steps;
+          const x = ((i + 0.5) / players.length) * 100;
+          const y = 92 - (Math.min(steps, goal) / goal) * 76;
+          return (
+            <div key={p.id} className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-all duration-200" style={{ left: `${x}%`, top: `${y}%`, opacity: p.s.out ? 0.35 : 1 }}>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-[10px] font-black text-white shadow" style={{ background: p.color, outline: p.id === me ? "3px solid #111" : "none" }}>{p.s.out ? "💥" : p.s.done ? "🏁" : String(p.s.num || 0).padStart(3, "0")}</div>
+              <span className="mt-0.5 max-w-[60px] truncate rounded bg-black/40 px-1 text-[9px] font-bold text-white">{p.id === me ? "You" : p.name}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="p-4">
+        <p className="mb-2 text-sm text-white/70">{my.out ? "💥 You moved on red — you're out!" : my.done ? "🏁 You crossed! Watch the others…" : `${local}/${goal} steps · tap LEFT, RIGHT, LEFT, RIGHT…`}</p>
+        <div className="mb-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${(local / goal) * 100}%` }} /></div>
+        <div className={`grid gap-3 ${wrong ? "animate-pulse" : ""}`} style={{ gridTemplateColumns: "1fr 1fr" }}>
+          {(["L", "R"] as const).map((side) => (
+            <button key={side} onPointerDown={(e) => { e.preventDefault(); tap(side); }} disabled={my.out || my.done}
+              className={`h-28 rounded-2xl text-2xl font-black text-white transition active:scale-95 disabled:opacity-40 ${next.current === side && !my.out && !my.done ? "ring-4 ring-white/70" : ""}`}
+              style={{ background: side === "L" ? "linear-gradient(135deg,#ec4899,#be185d)" : "linear-gradient(135deg,#0ea5e9,#0369a1)", touchAction: "manipulation" }}>
+              {side === "L" ? "👣 LEFT" : "RIGHT 👣"}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
