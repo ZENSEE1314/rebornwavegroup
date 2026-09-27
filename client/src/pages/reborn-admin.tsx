@@ -980,8 +980,12 @@ const HR_STATUS: Record<string, string> = {
 const timeStr = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "—";
 
 function StaffLeaderboard() {
-  const { data: rows=[] }=useQuery<any[]>({queryKey:["/api/reborn/staff/leaderboard"],queryFn:()=>apiRequest("GET","/api/reborn/staff/leaderboard").then(r=>r.json()),refetchInterval:5000});
-  return <div className="space-y-3">{rows.length===0&&<Empty text="No ranked staff yet."/>}{rows.map((r:any)=><Card key={r.user_id}><div className={`flex items-center justify-between ${r.redFlag?"text-red-300":""}`}><div><b>#{r.rank} · {r.name}</b><p className="text-xs text-white/45">{r.position||"Staff"}</p></div><div className="text-right"><b>⭐ {Number(r.rating).toFixed(1)}</b><p className="text-xs text-white/45">RP {Number(r.weekly_sales).toLocaleString()} · {r.review_count} review(s)</p></div></div>{r.redFlag&&<p className="mt-2 text-xs text-red-300">Needs management attention because of repeated low reviews.</p>}</Card>)}</div>;
+  const [industry,setIndustry]=useState("");
+  const { data: industries=[] }=useQuery<string[]>({queryKey:["/api/reborn/industries"],queryFn:()=>apiRequest("GET","/api/reborn/industries").then(r=>r.json())});
+  const { data: rows=[] }=useQuery<any[]>({queryKey:["/api/reborn/staff/leaderboard",industry],queryFn:()=>apiRequest("GET",`/api/reborn/staff/leaderboard${industry?`?industry=${encodeURIComponent(industry)}`:""}`).then(r=>r.json()),refetchInterval:5000});
+  return <div className="space-y-3">
+    {industries.length>0&&<div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["",...industries].map((d)=><button key={d||"all"} onClick={()=>setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry===d?"bg-amber-400 text-black font-bold":"bg-white/5 text-white/60"}`}>{d||"All sales"}</button>)}</div>}
+    {rows.length===0&&<Empty text="No ranked staff yet."/>}{rows.map((r:any)=><Card key={r.user_id}><div className={`flex items-center justify-between ${r.redFlag?"text-red-300":""}`}><div><b>#{r.rank} · {r.name}</b><p className="text-xs text-white/45">{r.position||"Staff"}</p></div><div className="text-right"><b>⭐ {Number(r.rating).toFixed(1)}</b><p className="text-xs text-white/45">RP {Number(r.weekly_sales).toLocaleString()}{industry?` · ${industry}`:""} · {r.review_count} review(s)</p></div></div>{r.redFlag&&<p className="mt-2 text-xs text-red-300">Needs management attention because of repeated low reviews.</p>}</Card>)}</div>;
 }
 function CompanyFeedback() {
   const { data: rows=[] }=useQuery<any[]>({queryKey:["/api/reborn/staff/feedback"],queryFn:()=>apiRequest("GET","/api/reborn/staff/feedback").then(r=>r.json()),refetchInterval:5000});

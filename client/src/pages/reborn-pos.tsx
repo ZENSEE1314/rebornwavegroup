@@ -10,7 +10,7 @@ import { printClosingReport, printReceipt, printKitchen } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer } from "lucide-react";
 
-interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; }
+interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; imageUrl?: string; }
 interface Staff { id: string; name: string; role: string; }
 interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "stock" | "bottles";
@@ -131,13 +131,16 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const add = (id: number) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
   const sub = (id: number) => setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) - 1) }));
   const commit = () => { onCommit(lines.map(([id, q]) => { const p = byId.get(Number(id))!; return { productId: p.id, name: p.name, price: Number(p.price), qty: q }; })); setCart({}); };
+  const [industry, setIndustry] = useState("");
+  const industries = useMemo(() => Array.from(new Set(products.map((p) => p.department).filter(Boolean))).sort() as string[], [products]);
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
-    for (const p of products) (g[p.category || "Other"] ||= []).push(p);
+    for (const p of products) { if (industry && (p.department || "") !== industry) continue; (g[p.category || "Other"] ||= []).push(p); }
     return Object.entries(g);
-  }, [products]);
+  }, [products, industry]);
   return (
     <div>
+      {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap mb-3"><span className="text-xs text-white/50">Industry:</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || "All"}</button>)}</div>}
       {groups.map(([cat, items]) => (
         <div key={cat} className="mb-4">
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat}</p>
@@ -532,11 +535,13 @@ function StockTab() {
   const [unitCost, setUnitCost] = useState(0);
   const [note, setNote] = useState("");
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()) });
+  const [industry, setIndustry] = useState("");
+  const industries = useMemo(() => Array.from(new Set(products.map((p) => p.department).filter(Boolean))).sort() as string[], [products]);
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
-    for (const p of products) (g[p.category || "Other"] ||= []).push(p);
+    for (const p of products) { if (industry && (p.department || "") !== industry) continue; (g[p.category || "Other"] ||= []).push(p); }
     return Object.entries(g);
-  }, [products]);
+  }, [products, industry]);
   const adjust = useMutation({
     mutationFn: () => post("/api/reborn/pos/stock-in", { productId: sel, qty: dir === "add" ? qty : -qty, unitCost: dir === "add" ? unitCost : 0, note: note || (dir === "deduct" ? "Manual deduct" : "Manual add") }),
     onSuccess: (d) => { toast({ title: "Stock updated", description: d.message }); setSel(null); setQty(10); setUnitCost(0); setNote(""); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/stock"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -544,6 +549,7 @@ function StockTab() {
   });
   return (
     <div className="space-y-4">
+      {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || "All"}</button>)}</div>}
       {groups.map(([cat, items]) => (
         <div key={cat}>
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat}</p>
