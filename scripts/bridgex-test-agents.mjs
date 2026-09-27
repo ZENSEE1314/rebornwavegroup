@@ -217,6 +217,17 @@ async function runAdmin() {
     expect(order.orderNo, "no order number returned");
     return order.orderNo;
   }, { soft: true });
+  // Booking engine
+  await step("booking: resource → book → complete → clash", async () => {
+    const r = ok(await api("POST", "/api/v1/company/booking/resources", { name: `${TAG} Chair`, type: "chair" }, withCo()), "resource");
+    const start = new Date(Date.now() + 3600000).toISOString();
+    const b = ok(await api("POST", "/api/v1/company/booking/bookings", { resourceId: r.id, service: "Haircut", customerName: "Test", startsAt: start, durationMin: 60, price: 100000 }, withCo()), "create booking");
+    const done = ok(await api("PATCH", `/api/v1/company/booking/bookings/${b.id}`, { status: "completed" }, withCo()), "complete");
+    expect(done.status === "completed", `expected completed, got ${done.status}`);
+    const clash = await api("POST", "/api/v1/company/booking/bookings", { resourceId: r.id, service: "X", startsAt: start, durationMin: 60 }, withCo());
+    expect(clash.status === 409, `expected 409 clash, got ${clash.status}`);
+    return "book cycle + clash-check ok";
+  }, { soft: true });
   // Analytics / pricing / audit
   await step("analytics summary", async () => {
     const s = ok(await api("GET", "/api/v1/company/analytics/summary", undefined, withCo()), "analytics");

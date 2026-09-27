@@ -56,7 +56,7 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   // Finance
   { key: "accounting", name: "Accounting", category: "Finance", status: "planned", desc: "Income/expenses, P&L, cash flow, AR/AP, settlements." },
   // Booking
-  { key: "booking", name: "Universal Booking", category: "Booking", status: "beta", desc: "One engine for tables, rooms, stylists, bays, assets, classes." },
+  { key: "booking", name: "Universal Booking", category: "Booking", status: "live", desc: "Resources (staff/room/chair/bay/asset) + bookings, clash-check, deposits, staff commission." },
   // Industry packs
   { key: "restaurant", name: "Restaurant / Café", category: "Industry", status: "live", desc: "Table floor plan, running tabs, open→add→settle, dine-in service." },
   { key: "kitchen_display", name: "Kitchen Display (KDS)", category: "Industry", status: "live", desc: "Route orders to kitchen/bar/dessert; new→preparing→ready→served." },
@@ -64,7 +64,7 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "foodcourt", name: "Food Court", category: "Industry", status: "planned", desc: "One payment across stalls, revenue allocation, stall settlement." },
   { key: "ktv", name: "KTV / Rooms", category: "Industry", status: "planned", desc: "Room map, hourly timers, minimum spend, packages, reservations." },
   { key: "bottle_keep", name: "Bottle Keep", category: "Industry", status: "beta", desc: "Customer bottle storage & balance, host/waiter assignment." },
-  { key: "beauty", name: "Beauty / Spa / Salon", category: "Industry", status: "planned", desc: "Appointments, chair/room resources, staff commission, treatment history." },
+  { key: "beauty", name: "Beauty / Spa / Salon", category: "Industry", status: "live", desc: "Appointments + chair/room resources + staff commission (via Booking)." },
   { key: "retail", name: "Retail / Fashion", category: "Industry", status: "planned", desc: "Barcode, variants (size/colour/SKU), returns, gift receipts, layaway." },
   { key: "grocery", name: "Supermarket / Grocery", category: "Industry", status: "planned", desc: "Weight products, scale integration, batch/expiry, fast checkout." },
   { key: "hotel", name: "Hotel / Homestay", category: "Industry", status: "planned", desc: "Rooms, reservations, check-in/out, housekeeping, room account." },
@@ -441,6 +441,11 @@ export async function ensureBridgeXSchema() {
     -- Pricing rules (happy hour / member / category discounts)
     CREATE TABLE IF NOT EXISTS bridge_price_rules (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, type varchar NOT NULL DEFAULT 'happy_hour', scope_category varchar, percent_off numeric(6,2) NOT NULL DEFAULT 0, days jsonb NOT NULL DEFAULT '[]', start_time varchar, end_time varchar, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_price_rules_company ON bridge_price_rules(company_id);
+    -- Universal booking engine (staff/room/chair/bay/asset) + bookings
+    CREATE TABLE IF NOT EXISTS bridge_resources (id serial PRIMARY KEY, company_id integer NOT NULL, type varchar NOT NULL DEFAULT 'staff', name varchar NOT NULL, meta jsonb NOT NULL DEFAULT '{}', active boolean NOT NULL DEFAULT true, sort integer NOT NULL DEFAULT 0, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_resources_company ON bridge_resources(company_id);
+    CREATE TABLE IF NOT EXISTS bridge_bookings (id serial PRIMARY KEY, company_id integer NOT NULL, branch_id integer NOT NULL DEFAULT 0, resource_id integer, customer_id integer, customer_name varchar, customer_phone varchar, service varchar, starts_at timestamp NOT NULL, ends_at timestamp, status varchar NOT NULL DEFAULT 'booked', price numeric(14,2) NOT NULL DEFAULT 0, deposit numeric(14,2) NOT NULL DEFAULT 0, commission numeric(14,2) NOT NULL DEFAULT 0, staff_user_id varchar, note text, created_by varchar, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_bookings_company_time ON bridge_bookings(company_id, starts_at);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -1293,6 +1298,81 @@ export function registerBridgeXRoutes(app: Express) {
     const active = rules.filter(applies);
     const best = active.reduce((m: number, r: any) => Math.max(m, Number(r.percent_off)), 0);
     res.json({ percentOff: best, rules: active.map((r: any) => ({ id: r.id, name: r.name, percentOff: Number(r.percent_off), scopeCategory: r.scope_category })) });
+  }));
+
+  // ── Universal booking engine (beauty/gym/hotel/clinic/workshop/rental/…) ───
+  app.get("/api/v1/company/booking/resources", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_resources WHERE company_id=${a.companyId} ORDER BY sort, name`)).rows || []);
+  }));
+  app.post("/api/v1/company/booking/resources", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Resource name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_resources (company_id, type, name, meta) VALUES (${a.companyId}, ${req.body?.type || "staff"}, ${name}, ${JSON.stringify(req.body?.meta || {})}::jsonb) RETURNING *`)).rows[0]);
+  }));
+  app.put("/api/v1/company/booking/resources/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking", true); if (!a) return;
+    const meta = req.body?.meta !== undefined ? JSON.stringify(req.body.meta) : null;
+    const r = await db.execute(sql`UPDATE bridge_resources SET name=COALESCE(${req.body?.name ?? null},name), type=COALESCE(${req.body?.type ?? null},type), meta=COALESCE(${meta}::jsonb,meta), active=COALESCE(${req.body?.active ?? null},active), sort=COALESCE(${req.body?.sort ?? null},sort) WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Resource not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/booking/resources/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_resources WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/booking/bookings", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking"); if (!a) return;
+    const date = String(req.query.date || "");
+    const rows = date
+      ? (await db.execute(sql`SELECT b.*, r.name resource_name, r.type resource_type, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name FROM bridge_bookings b LEFT JOIN bridge_resources r ON r.id=b.resource_id LEFT JOIN users u ON u.id=b.staff_user_id WHERE b.company_id=${a.companyId} AND b.starts_at::date = ${date}::date ORDER BY b.starts_at`)).rows
+      : (await db.execute(sql`SELECT b.*, r.name resource_name, r.type resource_type, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name FROM bridge_bookings b LEFT JOIN bridge_resources r ON r.id=b.resource_id LEFT JOIN users u ON u.id=b.staff_user_id WHERE b.company_id=${a.companyId} AND b.starts_at >= now() - interval '1 day' ORDER BY b.starts_at LIMIT 300`)).rows;
+    res.json(rows || []);
+  }));
+  app.post("/api/v1/company/booking/bookings", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking"); if (!a) return;
+    const startsAt = req.body?.startsAt ? new Date(req.body.startsAt) : null;
+    if (!startsAt || isNaN(startsAt.getTime())) return res.status(400).json({ message: "A valid start time is required" });
+    const durationMin = Math.max(0, Number(req.body?.durationMin) || 0);
+    const endsAt = req.body?.endsAt ? new Date(req.body.endsAt) : durationMin ? new Date(startsAt.getTime() + durationMin * 60000) : null;
+    const resourceId = req.body?.resourceId ? Number(req.body.resourceId) : null;
+    if (resourceId && endsAt) {
+      const clash = (await db.execute(sql`SELECT id FROM bridge_bookings WHERE company_id=${a.companyId} AND resource_id=${resourceId} AND status NOT IN ('cancelled','no_show') AND starts_at < ${endsAt.toISOString()} AND COALESCE(ends_at, starts_at + interval '30 min') > ${startsAt.toISOString()} LIMIT 1`)).rows;
+      if (clash.length) return res.status(409).json({ message: "That resource is already booked for this time" });
+    }
+    const [b] = (await db.execute(sql`INSERT INTO bridge_bookings (company_id, branch_id, resource_id, customer_id, customer_name, customer_phone, service, starts_at, ends_at, status, price, deposit, staff_user_id, note, created_by)
+      VALUES (${a.companyId}, ${a.branchId || 0}, ${resourceId}, ${req.body?.customerId || null}, ${req.body?.customerName || null}, ${req.body?.customerPhone || null}, ${req.body?.service || null}, ${startsAt.toISOString()}, ${endsAt ? endsAt.toISOString() : null}, ${req.body?.status || "booked"}, ${Number(req.body?.price) || 0}, ${Number(req.body?.deposit) || 0}, ${req.body?.staffUserId || null}, ${req.body?.note || null}, ${a.user.id}) RETURNING *`)).rows as any[];
+    if (b.staff_user_id) await sendBridgeXNotifications(a.companyId, [b.staff_user_id], { type: "new_booking", title: "New booking", body: `${b.service || "Booking"} · ${new Date(b.starts_at).toLocaleString()}`, data: { bookingId: b.id } });
+    res.status(201).json(b);
+  }));
+  app.patch("/api/v1/company/booking/bookings/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking"); if (!a) return;
+    const id = Number(req.params.id);
+    const [b] = (await db.execute(sql`SELECT * FROM bridge_bookings WHERE id=${id} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!b) return res.status(404).json({ message: "Booking not found" });
+    const status = req.body?.status ? String(req.body.status) : b.status;
+    let commission = Number(b.commission);
+    if (status === "completed" && b.status !== "completed") {
+      if (b.staff_user_id) { const [sp] = (await db.execute(sql`SELECT commission_rate FROM bridge_staff_profiles WHERE company_id=${a.companyId} AND user_id=${b.staff_user_id} LIMIT 1`)).rows as any[]; commission = Number(b.price) * (Number(sp?.commission_rate || 0) / 100); }
+      if (b.customer_id && await moduleEnabled(a.companyId, "crm")) await db.execute(sql`UPDATE bridge_customers SET total_spend=total_spend + ${Number(b.price)}, visit_count=visit_count + 1, last_visit_at=now(), updated_at=now() WHERE id=${b.customer_id} AND company_id=${a.companyId}`);
+    }
+    const [upd] = (await db.execute(sql`UPDATE bridge_bookings SET status=${status}, price=COALESCE(${req.body?.price ?? null}, price), note=COALESCE(${req.body?.note ?? null}, note), staff_user_id=COALESCE(${req.body?.staffUserId ?? null}, staff_user_id), commission=${commission} WHERE id=${id} AND company_id=${a.companyId} RETURNING *`)).rows as any[];
+    res.json(upd);
+  }));
+  app.delete("/api/v1/company/booking/bookings/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_bookings WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/booking/commissions", route(async (req, res) => {
+    const a = await requireModule(req, res, "booking", true); if (!a) return;
+    const from = String(req.query.from || ""); const to = String(req.query.to || "");
+    const rows = (await db.execute(sql`
+      SELECT COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name, b.staff_user_id,
+        COUNT(*) jobs, COALESCE(SUM(b.price),0) revenue, COALESCE(SUM(b.commission),0) commission
+      FROM bridge_bookings b LEFT JOIN users u ON u.id=b.staff_user_id
+      WHERE b.company_id=${a.companyId} AND b.status='completed' AND b.staff_user_id IS NOT NULL
+        ${from ? sql`AND b.starts_at >= ${from}::date` : sql``} ${to ? sql`AND b.starts_at < (${to}::date + interval '1 day')` : sql``}
+      GROUP BY b.staff_user_id, staff_name ORDER BY commission DESC`)).rows;
+    res.json(rows.map((r: any) => ({ ...r, jobs: Number(r.jobs), revenue: Number(r.revenue), commission: Number(r.commission) })));
   }));
 
   // Attendance, shifts and leave are scoped by tenant and generate native alerts.
