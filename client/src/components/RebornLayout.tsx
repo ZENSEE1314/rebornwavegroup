@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -101,6 +102,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
+  const brand = useTenantBrand();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const tokens = (user as any)?.tokens ?? 0;
 
@@ -116,10 +118,12 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
       {/* Top bar */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-white/10 backdrop-blur-md" style={{ background: "rgba(10,7,20,0.75)" }}>
         <button onClick={() => go("/")} className="flex items-center gap-2 font-extrabold tracking-widest text-sm">
-          <span className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>
-            <Sparkles className="w-4 h-4" />
-          </span>
-          {title || "REBORN WAVE"}
+          {brand.logoUrl
+            ? <img src={brand.logoUrl} alt="" className="w-7 h-7 rounded-xl object-cover" />
+            : <span className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: brand.primary ? `linear-gradient(135deg,${brand.primary},${brand.accent || brand.primary})` : "linear-gradient(135deg,#c9a84c,#a855f7)" }}>
+                <Sparkles className="w-4 h-4" />
+              </span>}
+          {title || brand.appName || "REBORN WAVE"}
         </button>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
