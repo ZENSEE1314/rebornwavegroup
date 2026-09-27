@@ -1213,27 +1213,43 @@ function ManageHr() {
   );
 }
 
+const INDUSTRY_LABELS: Record<string, string> = { restaurant: "Restaurant", bar: "Bar", nightclub: "Nightclub", ktv: "KTV", foodcourt: "Food Court", beauty: "Beauty/Spa", retail: "Retail", grocery: "Grocery", hotel: "Hotel", gym: "Gym", pet: "Pet", workshop: "Workshop", repair: "Repair", laundry: "Laundry", rental: "Rental", education: "Education" };
+
 function Products() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const modules = useModules();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
   const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true });
   const [industry, setIndustry] = useState("");
+  const [mode, setMode] = useState<"new" | "restock">("new");
+  const [rs, setRs] = useState<any>({ productId: "", supplier: "", qty: 1, unitCost: 0 });
   const industries = Array.from(new Set(products.map((p) => p.department).filter(Boolean))).sort();
+  // Industry dropdown options = enabled industry modules + any existing departments.
+  const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...industries])).sort();
   const shown = industry ? products.filter((p) => (p.department || "") === industry) : products;
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
+  const restock = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/pos/stock-in", { productId: Number(rs.productId), qty: Number(rs.qty), unitCost: rs.unitCost ? Number(rs.unitCost) : undefined, supplier: rs.supplier || undefined }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Batch added" }); setRs({ productId: "", supplier: "", qty: 1, unitCost: 0 }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
   return (
     <div className="space-y-3">
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> Add product</p>
+        <div className="mb-3 flex gap-2">
+          <button onClick={() => setMode("new")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${mode === "new" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>New product</button>
+          <button onClick={() => setMode("restock")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${mode === "restock" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>Same item · new supplier</button>
+        </div>
+        {mode === "new" ? <>
         <label className="text-xs text-white/50 block mb-2">Product name<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="e.g. Heineken" className={inp + " w-full"} /></label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
           <label className="text-xs text-white/50">Category<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Drinks" className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Industry / department<input value={n.department} onChange={(e) => setN({ ...n, department: e.target.value })} placeholder="e.g. KTV, Beauty, Restaurant, Retail" className={inp + " w-full"} list="rw-industries" /></label>
+          <label className="text-xs text-white/50">Industry / department<select value={n.department} onChange={(e) => setN({ ...n, department: e.target.value })} className={inp + " w-full"}><option value="">— none —</option>{industryOptions.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
           <label className="text-xs text-white/50">Stock quantity<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={n.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
@@ -1242,8 +1258,17 @@ function Products() {
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> Sellable in POS <span className="text-white/40 text-xs">(uncheck for raw items like meat)</span></label>
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label="Upload photo" /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
+        </> : <>
+        <p className="text-xs text-white/50 mb-2">Restock an existing item from a different supplier — adds stock without creating a duplicate product.</p>
+        <label className="text-xs text-white/50 block mb-2">Item<select value={rs.productId} onChange={(e) => setRs({ ...rs, productId: e.target.value })} className={inp + " w-full"}><option value="">Select existing item</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}{p.department ? ` · ${p.department}` : ""} (stock {p.stock})</option>)}</select></label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+          <label className="text-xs text-white/50">Supplier<input value={rs.supplier} onChange={(e) => setRs({ ...rs, supplier: e.target.value })} placeholder="Supplier name" className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Quantity<input type="number" inputMode="numeric" value={rs.qty || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, qty: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={rs.unitCost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, unitCost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+        </div>
+        <button onClick={() => restock.mutate()} disabled={!rs.productId || !Number(rs.qty) || restock.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add batch</button>
+        </>}
       </Card>
-      <datalist id="rw-industries">{industries.map((d) => <option key={d} value={d} />)}</datalist>
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || "All"}</button>)}</div>}
       {shown.map((p) => <ProductRow key={p.id} p={p} />)}
       {shown.length === 0 && <Empty text="No products in this industry yet." />}
@@ -1254,8 +1279,10 @@ function Products() {
 function ProductRow({ p }: any) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const modules = useModules();
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "" });
+  const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...(p.department ? [p.department] : [])])).sort();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -1278,7 +1305,7 @@ function ProductRow({ p }: any) {
           <label className="text-xs text-white/50">Name<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} /></label>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <label className="text-xs text-white/50">Category<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50">Industry / department<input value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })} placeholder="KTV, Beauty…" className={inp + " w-full"} list="rw-industries" /></label>
+            <label className="text-xs text-white/50">Industry / department<select value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })} className={inp + " w-full"}><option value="">— none —</option>{industryOptions.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
             <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active</label>
             <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
