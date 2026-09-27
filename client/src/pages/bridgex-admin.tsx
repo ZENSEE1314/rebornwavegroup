@@ -6,8 +6,9 @@ const MODULES = ["pos", "restaurant", "retail", "ktv", "beauty", "booking", "inv
 type Company = { id:number; name:string; appName:string; industry:string; status:string; logoUrl?:string; websiteDomain?:string; subscriptionPlan:string; subscriptionStatus:string; trialEndsAt?:string; billingModel?:string; billingCycle?:string; price?:string; currency?:string; theme?:any };
 type Row = Record<string, any>;
 
+let activeBranchId: number | undefined; // selected outlet; sent on every scoped request
 async function request(path:string, options:RequestInit = {}, companyId?:number) {
-  const response = await fetch(path, { ...options, credentials:"include", headers:{ "Content-Type":"application/json", ...(companyId ? { "X-Company-Id":String(companyId) } : {}), ...(options.headers || {}) } });
+  const response = await fetch(path, { ...options, credentials:"include", headers:{ "Content-Type":"application/json", ...(companyId ? { "X-Company-Id":String(companyId) } : {}), ...(activeBranchId ? { "X-Branch-Id":String(activeBranchId) } : {}), ...(options.headers || {}) } });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.message || `Request failed (${response.status})`);
   return body;
@@ -19,6 +20,7 @@ const button = "rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-
 export default function BridgeXAdmin() {
   const [companies,setCompanies] = useState<Company[]>([]);
   const [companyId,setCompanyId] = useState<number>();
+  const [branchId,setBranchId] = useState<number|undefined>();
   const [platformAdmin,setPlatformAdmin] = useState(false);
   const [registry,setRegistry] = useState<{key:string;name:string;category:string;status:string;desc:string}[]>([]);
   const [industries,setIndustries] = useState<{key:string;name:string;modules:string[]}[]>([]);
@@ -47,9 +49,10 @@ export default function BridgeXAdmin() {
   const [access,setAccess] = useState<Row>({});
   const [settings,setSettings] = useState<any>({ loyalty:{pointsSpendRp:1000,rewardsEnabled:true,tiers:[]}, services:{}, booking:{areas:[]}, automation:{reminders:[],faq:[]} });
   const [tab,setTab] = useState("company");
+  const [loaded,setLoaded] = useState(false);
   const [message,setMessage] = useState("");
   const [busy,setBusy] = useState(false);
-  const [companyForm,setCompanyForm] = useState({ name:"", appName:"", adminEmail:"", industry:"restaurant", branchName:"Main Outlet", subscriptionPlan:"starter", billingModel:"subscription", billingCycle:"monthly", price:"0", modules:["pos","inventory","employees"] });
+  const [companyForm,setCompanyForm] = useState({ name:"", appName:"", adminEmail:"", websiteDomain:"", industry:"restaurant", branchName:"Main Outlet", subscriptionPlan:"starter", billingModel:"subscription", billingCycle:"monthly", price:"0", modules:["pos","inventory","employees"] });
   const [branchForm,setBranchForm] = useState({ name:"", address:"" });
   const [positionName,setPositionName] = useState("");
   const [staffForm,setStaffForm] = useState({ userId:"", name:"", email:"", role:"staff", branchId:"", positionId:"", employmentType:"full_time", payType:"salary", baseSalary:"0", hourlyRate:"0", hireDate:"" });
@@ -69,7 +72,7 @@ export default function BridgeXAdmin() {
 
   async function loadCompanies() {
     const [boot,list] = await Promise.all([request("/api/v1/platform/bootstrap"),request("/api/v1/companies")]);
-    setPlatformAdmin(boot.platformAdmin); setCompanies(list); setCompanyId((current) => current || list[0]?.id);
+    setPlatformAdmin(boot.platformAdmin); setCompanies(list); setCompanyId((current) => current || list[0]?.id); setLoaded(true);
     if (boot.platformAdmin) setApplications(await request("/api/v1/platform/applications"));
   }
   async function loadTenant(id:number, hydrateForms=true) {
@@ -103,15 +106,27 @@ export default function BridgeXAdmin() {
       if (saved) act(() => request("/api/v1/company/billing/confirm", { method:"POST", body:JSON.stringify({sessionId}) }, saved), "Payment confirmed and subscription activated").finally(() => history.replaceState({}, "", "/bridgex"));
     } else if (params.get("checkout") === "cancelled") { setMessage("Checkout cancelled"); history.replaceState({}, "", "/bridgex"); }
   },[]);
-  useEffect(() => { if (companyId) { localStorage.setItem("bridgexCompanyId", String(companyId)); loadTenant(companyId).catch((e) => setMessage(e.message)); } },[companyId]);
+  useEffect(() => { activeBranchId = branchId; },[branchId]);
+  useEffect(() => { // reset outlet when switching company, restoring any saved choice
+    if (!companyId) return;
+    const saved = Number(localStorage.getItem(`bridgexBranch:${companyId}`)) || undefined;
+    activeBranchId = saved; setBranchId(saved);
+  },[companyId]);
+  const selectBranch = (id?:number) => { setBranchId(id); activeBranchId = id; if (companyId) { if (id) localStorage.setItem(`bridgexBranch:${companyId}`, String(id)); else localStorage.removeItem(`bridgexBranch:${companyId}`); loadTenant(companyId, false).catch(()=>{}); } };
+  useEffect(() => { if (companyId) { localStorage.setItem("bridgexCompanyId", String(companyId)); loadTenant(companyId).catch((e) => setMessage(e.message)); } },[companyId,branchId]);
   useEffect(() => { if(!companyId)return; const refresh=()=>loadTenant(companyId,false).catch(()=>{}); const timer=setInterval(refresh,5000); const stream=new EventSource(`/api/v1/company/live?companyId=${companyId}`); stream.addEventListener("change",refresh); return()=>{clearInterval(timer);stream.close()}; },[companyId]);
   useEffect(() => { if(!companyId)return; const timer=setTimeout(()=>request(`/api/v1/company/users?q=${encodeURIComponent(userSearch)}`,{},companyId).then(setTenantUsers).catch(()=>{}),250); return()=>clearTimeout(timer); },[companyId,userSearch]);
   async function act(run:()=>Promise<any>, success:string) { setBusy(true); setMessage(""); try { await run(); setMessage(success); if(companyId) await loadTenant(companyId); await loadCompanies(); } catch(e:any) { setMessage(e.message); } finally { setBusy(false); } }
 
+  if (loaded && !platformAdmin && companies.length === 0) return <div className="grid min-h-screen place-items-center bg-[#07101f] p-6 text-center text-slate-100"><div className="max-w-sm"><div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-cyan-400 font-black text-slate-950">BX</div><h1 className="text-xl font-black">No business console access</h1><p className="mt-2 text-sm text-slate-400">Your account isn't an owner or staff member of any BridgeXPOS business. If you manage a business, ask your platform admin to add you, or open your business app instead.</p><Link href="/" className="mt-5 inline-block rounded-xl bg-cyan-400 px-4 py-2 text-sm font-bold text-slate-950">Back to app</Link></div></div>;
+
   return <div className="min-h-screen overflow-x-hidden bg-[#07101f] text-slate-100">
     <header className="border-b border-white/10 bg-slate-950/70 px-5 py-4 backdrop-blur"><div className="mx-auto flex max-w-7xl flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="flex items-center gap-3"><Link href="/"><ChevronLeft className="h-5 w-5" /></Link><div className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-400 font-black text-slate-950">BX</div><div><h1 className="font-black tracking-tight">BridgeXPOS</h1><p className="text-xs text-slate-400">Multi-company control centre</p></div></div>
-      <select className={field+" w-full sm:max-w-xs"} value={companyId || ""} onChange={(e) => setCompanyId(Number(e.target.value))}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      <div className="flex w-full gap-2 sm:w-auto">
+        <select className={field+" w-full sm:max-w-xs"} value={companyId || ""} onChange={(e) => setCompanyId(Number(e.target.value))}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        {branches.length>0 && <select className={field+" w-40"} value={branchId || ""} onChange={(e)=>selectBranch(e.target.value?Number(e.target.value):undefined)} title="Outlet / branch"><option value="">All outlets</option>{branches.map((b)=><option key={b.id} value={b.id}>{b.name}</option>)}</select>}
+      </div>
     </div></header>
     <main className="mx-auto min-w-0 max-w-7xl p-3 sm:p-5">
       <section className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -121,11 +136,13 @@ export default function BridgeXAdmin() {
       {companyId&&<div className={`mb-5 rounded-xl border p-3 text-sm ${access.allowed?"border-emerald-400/30 bg-emerald-400/10 text-emerald-200":"border-red-400/40 bg-red-500/10 text-red-200"}`}><b>{access.allowed?"App access enabled":"App access locked"}</b> · {access.subscriptionStatus||selected?.subscriptionStatus}{access.trialEndsAt&&` · trial ends ${new Date(access.trialEndsAt).toLocaleDateString()}`}</div>}
       <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["overview","All companies"]]:[]),...(modules.includes("analytics")?[["dashboard","Dashboard"]]:[]),...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("pos")?[["register","Register / Sales"]]:[]),...(modules.includes("pricing")?[["pricing","Pricing"]]:[]),...(modules.includes("restaurant")?[["tables","Tables"]]:[]),...(modules.includes("kitchen_display")?[["kds","Kitchen"]]:[]),...(modules.includes("foodcourt")?[["foodcourt","Food court"]]:[]),...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),...(modules.includes("booking")?[["booking","Bookings"]]:[]),...(modules.includes("events")?[["events","Events"]]:[]),...(modules.includes("repair")?[["repair","Repair"]]:[]),...(modules.includes("wholesale")?[["wholesale","Wholesale"]]:[]),...(modules.includes("professional")?[["projects","Projects"]]:[]),...(modules.includes("marketing")?[["marketing","Marketing"]]:[]),...(modules.includes("live_gifts")?[["gifts","Live gifts"]]:[]),...(modules.includes("lucky_draw")?[["draws","Lucky draw"]]:[]),...(modules.includes("payroll")?[["payroll","Payroll"]]:[]),...(modules.includes("accounting")?[["accounting","Accounting"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],...(modules.includes("audit")?[["audit","Audit"]]:[]),["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
 
-      {tab === "company" && <Panel title="Company accounts" subtitle="Create a tenant, owner login, first branch and billing agreement.">
-        <div className="grid gap-3 md:grid-cols-3">{["name","appName","adminEmail","branchName","price"].map((key) => <input key={key} className={field} placeholder={({name:"Company name",appName:"Customer-facing app name",adminEmail:"Owner email",branchName:"First branch",price:"Price"} as Record<string,string>)[key]} value={(companyForm as any)[key]} onChange={(e)=>setCompanyForm({...companyForm,[key]:e.target.value})}/>)}</div>
+      {tab === "company" && <Panel title={platformAdmin?"Company accounts":"Your business"} subtitle={platformAdmin?"Create a business, its owner login, first branch, domain and billing.":"Businesses you own or manage."}>
+        {platformAdmin && <>
+        <div className="grid gap-3 md:grid-cols-3">{["name","appName","adminEmail","websiteDomain","branchName","price"].map((key) => <input key={key} className={field} placeholder={({name:"Company name",appName:"Customer-facing app name",adminEmail:"Owner email",websiteDomain:"App domain (e.g. company.com)",branchName:"First branch",price:"Price"} as Record<string,string>)[key]} value={(companyForm as any)[key]} onChange={(e)=>setCompanyForm({...companyForm,[key]:e.target.value})}/>)}</div>
         <div className="mt-3 grid gap-3 md:grid-cols-4"><select className={field} value={companyForm.industry} onChange={(e)=>{const ind=e.target.value;const preset=industries.find(i=>i.key===ind);setCompanyForm({...companyForm,industry:ind,modules:preset?preset.modules:companyForm.modules});}}>{(industries.length?industries:[{key:"other",name:"Other"}]).map(x=><option key={x.key} value={x.key}>{x.name}</option>)}</select><select className={field} value={companyForm.billingModel} onChange={(e)=>setCompanyForm({...companyForm,billingModel:e.target.value,billingCycle:e.target.value==="one_time"?"one_time":"monthly"})}><option value="subscription">Subscription</option><option value="one_time">One-time payment</option></select><select className={field} value={companyForm.billingCycle} disabled={companyForm.billingModel==="one_time"} onChange={(e)=>setCompanyForm({...companyForm,billingCycle:e.target.value})}><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="one_time">One time</option></select><select className={field} value={companyForm.subscriptionPlan} onChange={(e)=>setCompanyForm({...companyForm,subscriptionPlan:e.target.value})}><option>starter</option><option>growth</option><option>enterprise</option><option>custom</option></select></div>
         <div className="mt-3 rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="mb-2 text-xs text-slate-400">This industry turns on {companyForm.modules.length} module(s) automatically (editable later in Services):</p><div className="flex flex-wrap gap-1.5">{companyForm.modules.map(k=><span key={k} className="rounded-full bg-cyan-400/10 px-2.5 py-1 text-[11px] text-cyan-200">{registry.find(r=>r.key===k)?.name||k}</span>)}</div></div>
-        <button disabled={busy || !companyForm.name} className={button+" mt-4"} onClick={()=>act(async()=>{const result=await request(platformAdmin?"/api/v1/platform/companies":"/api/v1/companies",{method:"POST",body:JSON.stringify(companyForm)}); if(result.temporaryPassword) setMessage(`Company created. Temporary owner password: ${result.temporaryPassword}`); setCompanyForm({...companyForm,name:"",appName:"",adminEmail:""});},"Company created") }><Plus className="mr-1 inline h-4 w-4"/>Create company</button>
+        <button disabled={busy || !companyForm.name} className={button+" mt-4"} onClick={()=>act(async()=>{const result=await request("/api/v1/platform/companies",{method:"POST",body:JSON.stringify(companyForm)}); if(result.temporaryPassword) setMessage(`Company created. Temporary owner password: ${result.temporaryPassword}`); setCompanyForm({...companyForm,name:"",appName:"",adminEmail:"",websiteDomain:""});},"Company created") }><Plus className="mr-1 inline h-4 w-4"/>Create company</button>
+        </>}
         <div className="mt-5 grid gap-3 md:grid-cols-2">{companies.map(c=><div key={c.id} className={`rounded-xl border p-4 ${c.id===companyId?"border-cyan-400/60 bg-cyan-400/5":"border-white/10 bg-white/[.03]"}`}><button className="w-full text-left" onClick={()=>setCompanyId(c.id)}><div className="flex justify-between"><b>{c.name}</b><span className={`text-xs uppercase ${c.subscriptionStatus==="active"?"text-emerald-300":c.subscriptionStatus==="trialing"?"text-amber-300":"text-red-300"}`}>{c.subscriptionStatus||c.status}</span></div><p className="mt-1 text-sm text-slate-400">{c.appName} · {c.industry} · {c.billingCycle || "monthly"}</p>{c.trialEndsAt&&<p className="mt-1 text-xs text-slate-500">Trial ends {new Date(c.trialEndsAt).toLocaleDateString()}</p>}</button>{platformAdmin&&<div className="mt-3 flex flex-wrap gap-3"><button className="text-xs text-emerald-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({subscriptionStatus:"active"})}),"Merchant marked paid and activated")}>Mark paid</button><button className="text-xs text-amber-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({trialDays:7})}),"Seven-day trial started")}>Give 7-day trial</button><button className="text-xs text-red-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({subscriptionStatus:"unpaid"})}),"Merchant marked unpaid and app locked")}>Mark unpaid</button></div>}</div>)}</div>
       </Panel>}
 

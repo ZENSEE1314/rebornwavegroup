@@ -172,6 +172,17 @@ function requestedCompanyId(req: Request) {
   const value = Number(raw);
   return Number.isInteger(value) && value > 0 ? value : null;
 }
+// Selected outlet/branch (top-right dropdown). Null = all branches.
+function requestedBranchId(req: Request): number | null {
+  const raw = req.header("x-branch-id") || req.query.branchId;
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+// SQL fragment that scopes a query to the selected branch, or nothing when "all".
+function branchClause(req: Request, col: string) {
+  const bid = requestedBranchId(req);
+  return bid ? sql`AND ${sql.raw(col)}=${bid}` : sql``;
+}
 
 async function companyAccess(req: Request, res: Response, management = false) {
   const user = await requireUser(req, res);
@@ -652,8 +663,12 @@ export function registerBridgeXRoutes(app: Express) {
   }));
 
   app.post("/api/v1/companies", route(async (req, res) => {
-    const user = await requireUser(req, res); if (!user) return;
-    res.status(201).json(await createCompany(req, user.id, req.body || {}));
+    // Only the platform super admin creates businesses (and assigns each an owner).
+    const admin = await requireUser(req, res); if (!admin) return;
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Only the BridgeX platform admin can create a business." });
+    let ownerId = admin.id, credentials: string | null = null;
+    if (req.body?.adminEmail) { const ensured = await ensureUser(req.body.adminEmail, req.body.adminName || "Company Admin", req.body.adminPassword); ownerId = ensured.user.id; credentials = ensured.temporaryPassword; }
+    res.status(201).json({ ...(await createCompany(req, ownerId, req.body || {})), temporaryPassword: credentials });
   }));
 
   app.get("/api/v1/companies", route(async (req, res) => {
@@ -1110,9 +1125,11 @@ export function registerBridgeXRoutes(app: Express) {
   }));
   app.get("/api/v1/company/pos/tickets", route(async (req, res) => {
     const access = await companyAccess(req, res); if (!access) return;
-    const status = String(req.query.status || "");
-    const condition = status ? and(eq(posTickets.companyId, access.companyId), eq(posTickets.status, status)) : eq(posTickets.companyId, access.companyId);
-    res.json(await db.select().from(posTickets).where(condition).orderBy(desc(posTickets.id)).limit(200));
+    const status = String(req.query.status || ""); const bid = requestedBranchId(req);
+    const parts = [eq(posTickets.companyId, access.companyId)];
+    if (status) parts.push(eq(posTickets.status, status));
+    if (bid) parts.push(eq(posTickets.branchId, bid));
+    res.json(await db.select().from(posTickets).where(and(...parts)).orderBy(desc(posTickets.id)).limit(200));
   }));
   app.get("/api/v1/company/pos/tickets/:id", route(async (req, res) => {
     const access = await companyAccess(req, res); if (!access) return;
@@ -1246,7 +1263,7 @@ export function registerBridgeXRoutes(app: Express) {
   // ── Restaurant: tables & floor plan ───────────────────────────────────────
   app.get("/api/v1/company/restaurant/tables", route(async (req, res) => {
     const a = await requireModule(req, res, "restaurant"); if (!a) return;
-    res.json((await db.execute(sql`SELECT t.*, tk.total open_total, tk.order_no open_order_no, tk.status open_status, (SELECT COUNT(*) FROM pos_ticket_items pi WHERE pi.order_id=t.current_ticket_id) open_items FROM bridge_tables t LEFT JOIN pos_tickets tk ON tk.id=t.current_ticket_id WHERE t.company_id=${a.companyId} ORDER BY t.sort, t.name`)).rows || []);
+    res.json((await db.execute(sql`SELECT t.*, tk.total open_total, tk.order_no open_order_no, tk.status open_status, (SELECT COUNT(*) FROM pos_ticket_items pi WHERE pi.order_id=t.current_ticket_id) open_items FROM bridge_tables t LEFT JOIN pos_tickets tk ON tk.id=t.current_ticket_id WHERE t.company_id=${a.companyId} ${branchClause(req, "t.branch_id")} ORDER BY t.sort, t.name`)).rows || []);
   }));
   app.post("/api/v1/company/restaurant/tables", route(async (req, res) => {
     const a = await requireModule(req, res, "restaurant", true); if (!a) return;
@@ -1296,8 +1313,8 @@ export function registerBridgeXRoutes(app: Express) {
     const a = await requireModule(req, res, "kitchen_display"); if (!a) return;
     const station = String(req.query.station || "");
     const rows = station
-      ? (await db.execute(sql`SELECT pi.id, pi.order_id, pi.name, pi.qty, pi.status, pi.station, pi.created_at, tk.order_no, tk.table_number FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${a.companyId} AND pi.status IN ('new','preparing','ready') AND pi.station=${station} ORDER BY pi.created_at ASC LIMIT 300`)).rows
-      : (await db.execute(sql`SELECT pi.id, pi.order_id, pi.name, pi.qty, pi.status, pi.station, pi.created_at, tk.order_no, tk.table_number FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${a.companyId} AND pi.status IN ('new','preparing','ready') ORDER BY pi.created_at ASC LIMIT 300`)).rows;
+      ? (await db.execute(sql`SELECT pi.id, pi.order_id, pi.name, pi.qty, pi.status, pi.station, pi.created_at, tk.order_no, tk.table_number FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${a.companyId} AND pi.status IN ('new','preparing','ready') AND pi.station=${station} ${branchClause(req, "tk.branch_id")} ORDER BY pi.created_at ASC LIMIT 300`)).rows
+      : (await db.execute(sql`SELECT pi.id, pi.order_id, pi.name, pi.qty, pi.status, pi.station, pi.created_at, tk.order_no, tk.table_number FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${a.companyId} AND pi.status IN ('new','preparing','ready') ${branchClause(req, "tk.branch_id")} ORDER BY pi.created_at ASC LIMIT 300`)).rows;
     res.json(rows || []);
   }));
   app.patch("/api/v1/company/restaurant/kds/:itemId", route(async (req, res) => {
@@ -1332,7 +1349,7 @@ export function registerBridgeXRoutes(app: Express) {
     const range = (col: string) => sql`${from ? sql`AND ${sql.raw(col)} >= ${from}::date` : sql``} ${to ? sql`AND ${sql.raw(col)} < (${to}::date + interval '1 day')` : sql``}`;
     const locD = sql`((created_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date)`;
     const incRange = sql`${from ? sql`AND ${locD} >= ${from}::date` : sql``} ${to ? sql`AND ${locD} <= ${to}::date` : sql``}`;
-    const [inc] = (await db.execute(sql`SELECT COALESCE(SUM(total) FILTER (WHERE status='paid'),0) income, COALESCE(SUM(total) FILTER (WHERE status='refunded'),0) refunds FROM pos_tickets WHERE company_id=${a.companyId} ${incRange}`)).rows as any[];
+    const [inc] = (await db.execute(sql`SELECT COALESCE(SUM(total) FILTER (WHERE status='paid'),0) income, COALESCE(SUM(total) FILTER (WHERE status='refunded'),0) refunds FROM pos_tickets WHERE company_id=${a.companyId} ${incRange} ${branchClause(req, "branch_id")}`)).rows as any[];
     const [exp] = (await db.execute(sql`SELECT COALESCE(SUM(amount),0) total FROM bridge_expenses WHERE company_id=${a.companyId} ${range("COALESCE(spent_on::date, created_at::date)")}`)).rows as any[];
     const byCategory = (await db.execute(sql`SELECT category, COALESCE(SUM(amount),0) amount FROM bridge_expenses WHERE company_id=${a.companyId} ${range("COALESCE(spent_on::date, created_at::date)")} GROUP BY category ORDER BY amount DESC`)).rows;
     const income = Number(inc.income), refunds = Number(inc.refunds), expenses = Number(exp.total);
@@ -1356,15 +1373,15 @@ export function registerBridgeXRoutes(app: Express) {
         COALESCE(SUM(total) FILTER (WHERE ${loc} >= date_trunc('month', ${nl})),0) rev_month,
         COUNT(*) FILTER (WHERE ${loc} >= date_trunc('month', ${nl})) orders_month,
         COALESCE(SUM(total) FILTER (WHERE ${loc} >= date_trunc('day', ${nl}) - interval '1 day' AND ${loc} < date_trunc('day', ${nl})),0) rev_yesterday
-      FROM pos_tickets WHERE company_id=${cid} AND status='paid'`)).rows as any[];
-    const paymentSplit = (await db.execute(sql`SELECT payment_method method, COALESCE(SUM(total),0) amount FROM pos_tickets WHERE company_id=${cid} AND status='paid' AND ${loc} >= date_trunc('month', ${nl}) GROUP BY payment_method ORDER BY amount DESC`)).rows;
-    const topProducts = (await db.execute(sql`SELECT pi.name, SUM(pi.qty) qty, SUM(pi.line_total) revenue FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${cid} AND tk.status='paid' AND ${tloc} >= date_trunc('month', ${nl}) GROUP BY pi.name ORDER BY qty DESC LIMIT 8`)).rows;
+      FROM pos_tickets WHERE company_id=${cid} AND status='paid' ${branchClause(req, "branch_id")}`)).rows as any[];
+    const paymentSplit = (await db.execute(sql`SELECT payment_method method, COALESCE(SUM(total),0) amount FROM pos_tickets WHERE company_id=${cid} AND status='paid' AND ${loc} >= date_trunc('month', ${nl}) ${branchClause(req, "branch_id")} GROUP BY payment_method ORDER BY amount DESC`)).rows;
+    const topProducts = (await db.execute(sql`SELECT pi.name, SUM(pi.qty) qty, SUM(pi.line_total) revenue FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${cid} AND tk.status='paid' AND ${tloc} >= date_trunc('month', ${nl}) ${branchClause(req, "tk.branch_id")} GROUP BY pi.name ORDER BY qty DESC LIMIT 8`)).rows;
     const [extra] = (await db.execute(sql`
       SELECT
         COALESCE(SUM(discount) FILTER (WHERE ${loc} >= date_trunc('month', ${nl})),0) discount_month,
         COALESCE(SUM(total) FILTER (WHERE status='refunded' AND ${loc} >= date_trunc('month', ${nl})),0) refunds_month,
         COUNT(*) FILTER (WHERE status='voided' AND ${loc} >= date_trunc('month', ${nl})) voids_month
-      FROM pos_tickets WHERE company_id=${cid}`)).rows as any[];
+      FROM pos_tickets WHERE company_id=${cid} ${branchClause(req, "branch_id")}`)).rows as any[];
     let lowStock = 0, customersTotal = 0, customersNew = 0;
     if (await moduleEnabled(cid, "inventory")) { const [r] = (await db.execute(sql`SELECT COUNT(*) c FROM bridge_inventory_items i LEFT JOIN (SELECT item_id, SUM(quantity) s FROM bridge_stock_levels GROUP BY item_id) l ON l.item_id=i.id WHERE i.company_id=${cid} AND i.track_stock AND COALESCE(l.s,0) <= i.low_stock_threshold`)).rows as any[]; lowStock = Number(r?.c || 0); }
     if (await moduleEnabled(cid, "crm")) { const [r] = (await db.execute(sql`SELECT COUNT(*) total, COUNT(*) FILTER (WHERE created_at >= date_trunc('month', now())) new FROM bridge_customers WHERE company_id=${cid}`)).rows as any[]; customersTotal = Number(r?.total || 0); customersNew = Number(r?.new || 0); }
@@ -1464,8 +1481,8 @@ export function registerBridgeXRoutes(app: Express) {
     const a = await requireModule(req, res, "booking"); if (!a) return;
     const date = String(req.query.date || "");
     const rows = date
-      ? (await db.execute(sql`SELECT b.*, r.name resource_name, r.type resource_type, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name FROM bridge_bookings b LEFT JOIN bridge_resources r ON r.id=b.resource_id LEFT JOIN users u ON u.id=b.staff_user_id WHERE b.company_id=${a.companyId} AND b.starts_at::date = ${date}::date ORDER BY b.starts_at`)).rows
-      : (await db.execute(sql`SELECT b.*, r.name resource_name, r.type resource_type, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name FROM bridge_bookings b LEFT JOIN bridge_resources r ON r.id=b.resource_id LEFT JOIN users u ON u.id=b.staff_user_id WHERE b.company_id=${a.companyId} AND b.starts_at >= now() - interval '1 day' ORDER BY b.starts_at LIMIT 300`)).rows;
+      ? (await db.execute(sql`SELECT b.*, r.name resource_name, r.type resource_type, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name FROM bridge_bookings b LEFT JOIN bridge_resources r ON r.id=b.resource_id LEFT JOIN users u ON u.id=b.staff_user_id WHERE b.company_id=${a.companyId} AND b.starts_at::date = ${date}::date ${branchClause(req, "b.branch_id")} ORDER BY b.starts_at`)).rows
+      : (await db.execute(sql`SELECT b.*, r.name resource_name, r.type resource_type, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name FROM bridge_bookings b LEFT JOIN bridge_resources r ON r.id=b.resource_id LEFT JOIN users u ON u.id=b.staff_user_id WHERE b.company_id=${a.companyId} AND b.starts_at >= now() - interval '1 day' ${branchClause(req, "b.branch_id")} ORDER BY b.starts_at LIMIT 300`)).rows;
     res.json(rows || []);
   }));
   app.post("/api/v1/company/booking/bookings", route(async (req, res) => {
@@ -1837,8 +1854,11 @@ export function registerBridgeXRoutes(app: Express) {
   app.get("/api/v1/company/attendance", route(async (req, res) => {
     const access = await companyAccess(req, res); if (!access) return;
     const userId = MANAGEMENT_ROLES.has(access.role) ? (req.query.userId ? String(req.query.userId) : null) : access.user.id;
-    const condition = userId ? and(eq(staffAttendance.companyId, access.companyId), eq(staffAttendance.userId, userId)) : eq(staffAttendance.companyId, access.companyId);
-    res.json(await db.select().from(staffAttendance).where(condition).orderBy(desc(staffAttendance.id)).limit(200));
+    const bid = requestedBranchId(req);
+    const parts = [eq(staffAttendance.companyId, access.companyId)];
+    if (userId) parts.push(eq(staffAttendance.userId, userId));
+    if (bid) parts.push(eq(staffAttendance.branchId, bid));
+    res.json(await db.select().from(staffAttendance).where(and(...parts)).orderBy(desc(staffAttendance.id)).limit(200));
   }));
   app.post("/api/v1/company/attendance/check-in", route(async (req, res) => {
     const access = await companyAccess(req, res); if (!access) return;
