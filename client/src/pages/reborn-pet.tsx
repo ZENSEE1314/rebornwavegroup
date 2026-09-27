@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -10,19 +10,26 @@ import eggImg from "@assets/doluruu-blindbox-box.jpeg";
 import { ItemArt, COSTUME_FIT, PET_ART } from "@/components/pet-art";
 
 const WALK_CSS = `
-@keyframes rwpetWalk{0%{left:6%}46%{left:60%}50%{left:60%}96%{left:6%}100%{left:6%}}
-@keyframes rwpetFace{0%,47%{transform:scaleX(1)}48%,97%{transform:scaleX(-1)}98%,100%{transform:scaleX(1)}}
-@keyframes rwpetStep{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}
+@keyframes rwpetWaddle{0%{transform:translateY(0) rotate(-5deg) scale(1.03,.97)}25%{transform:translateY(-7%) rotate(0) scale(.98,1.03)}50%{transform:translateY(0) rotate(5deg) scale(1.03,.97)}75%{transform:translateY(-7%) rotate(0) scale(.98,1.03)}100%{transform:translateY(0) rotate(-5deg) scale(1.03,.97)}}
+@keyframes rwpetShadowStep{0%,50%,100%{transform:translateX(-50%) scale(1);opacity:.32}25%,75%{transform:translateX(-50%) scale(.78);opacity:.2}}
+@keyframes rwpetIdle{0%,100%{transform:scale(1,1)}50%{transform:scale(1.025,.975)}}
+@keyframes rwpetHop{0%,100%{transform:translateY(0) scale(1,1)}15%{transform:translateY(0) scale(1.1,.88)}45%{transform:translateY(-26%) scale(.94,1.08)}75%{transform:translateY(0) scale(1.08,.92)}}
+@keyframes rwpetLook{0%,100%{transform:rotate(0)}30%{transform:rotate(-7deg)}70%{transform:rotate(7deg)}}
 @keyframes rwpetBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 @keyframes rwpetPop{0%{transform:scale(1) rotate(0)}35%{transform:scale(1.15) rotate(-6deg)}70%{transform:scale(.96) rotate(4deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes rwpetHeart{0%{transform:translate(-50%,0) scale(.6);opacity:0}20%{opacity:1}100%{transform:translate(-50%,-46px) scale(1.1);opacity:0}}
 @keyframes rwpetCloud{0%{transform:translateX(-30px)}100%{transform:translateX(90px)}}
 @keyframes rwpetTwinkle{0%,100%{opacity:.35}50%{opacity:1}}
 @keyframes rwpetBubble{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-.rwpet-walker{position:absolute;bottom:14%;width:30%;aspect-ratio:1;animation:rwpetWalk 16s linear infinite;cursor:pointer;z-index:5;}
-.rwpet-shadow{position:absolute;left:50%;bottom:2%;width:62%;height:9%;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.28);filter:blur(3px);}
-.rwpet-face{position:relative;width:100%;height:100%;animation:rwpetFace 16s steps(1) infinite;}
-.rwpet-step{position:relative;width:100%;height:100%;animation:rwpetStep .55s ease-in-out infinite;transform-origin:bottom center;}
+.rwpet-walker{position:absolute;bottom:11%;width:34%;aspect-ratio:1;cursor:pointer;z-index:5;will-change:left;}
+.rwpet-shadow{position:absolute;left:50%;bottom:1%;width:56%;height:8%;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.32);filter:blur(3px);}
+.rwpet-face{position:relative;width:100%;height:100%;transition:transform .28s ease;}
+.rwpet-step{position:relative;width:100%;height:100%;transform-origin:50% 100%;}
+.rwpet-m-walk .rwpet-step{animation:rwpetWaddle .6s linear infinite;}
+.rwpet-m-walk .rwpet-shadow{animation:rwpetShadowStep .6s linear infinite;}
+.rwpet-m-idle .rwpet-step{animation:rwpetIdle 2.2s ease-in-out infinite;}
+.rwpet-m-look .rwpet-step{animation:rwpetLook 1.6s ease-in-out infinite;}
+.rwpet-m-hop .rwpet-step{animation:rwpetHop .7s ease-out 2;}
 .rwpet-pop{animation:rwpetPop .55s ease !important;}
 .rwpet-sleep .rwpet-step{animation:rwpetBreathe 2.6s ease-in-out infinite;}
 .rwpet-sleep img{filter:brightness(.85) saturate(.8);}
@@ -260,6 +267,7 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
   const worn: Record<string, string> = home?.costumes?.[String(pet.id)] || {};
   const slot = (s: string) => itemById(home, placed[s]);
   const asleep = pet.isSleeping || sick;
+  const wander = useWander(!asleep && !pet.isEgg);
   // Doluruu walks in its clothing (shirtless by default) with its footwear on top
   // (barefoot by default); both are layers on the same canvas.
   const layers = outfitLayers(home, worn);
@@ -315,9 +323,9 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
           <p className="text-xs text-white flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" /> Hatches in {pet.hatchDaysLeft} day(s)</p>
         </div>
       ) : (
-        <button onClick={onPoke} className={`rwpet-walker ${asleep ? "rwpet-sleep" : ""}`} style={asleep ? { animationPlayState: "paused", left: "36%" } : undefined} aria-label="Play with your pet">
+        <button ref={wander.ref} onClick={onPoke} className={`rwpet-walker ${asleep ? "rwpet-sleep" : `rwpet-m-${wander.mode}`}`} style={{ left: `${asleep ? 36 : wander.startX}%` }} aria-label="Play with your pet">
           <div className="rwpet-shadow" />
-          <div className="rwpet-face" style={asleep ? { animation: "none" } : undefined}>
+          <div className="rwpet-face" style={{ transform: `scaleX(${wander.facing})` }}>
             <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
               {layers
                 ? <DressedPet home={home} worn={worn} alt={pet.name} className={sick ? "grayscale opacity-70" : ""} />
@@ -459,4 +467,40 @@ function OutfitCard({ pet, home }: any) {
       </div>
     </div>
   );
+}
+
+// Doluruu wanders around the room: walk to a random spot (waddling, shadow
+// bobbing), then idle, look around or hop before choosing the next spot.
+function useWander(active: boolean) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [mode, setMode] = useState<"walk" | "idle" | "look" | "hop">("idle");
+  const [facing, setFacing] = useState(1);
+  const startX = 30;
+  useEffect(() => {
+    if (!active) return;
+    let x = startX, target = x, raf = 0, last = performance.now(), until = last + 1500, m: string = "idle";
+    const set = (nm: any) => { m = nm; setMode(nm); };
+    const pick = (now: number) => {
+      if (m === "walk") { // arrived: pause and do something cute
+        const n = Math.random(), next = n < 0.55 ? "idle" : n < 0.8 ? "look" : "hop";
+        set(next); until = now + (next === "hop" ? 1400 : 1800 + Math.random() * 2600);
+        return;
+      }
+      target = 2 + Math.random() * 60;
+      if (Math.abs(target - x) < 8) target = x > 35 ? x - 20 : x + 20;
+      setFacing(target > x ? 1 : -1); set("walk");
+    };
+    const tick = (now: number) => {
+      const dt = Math.min(64, now - last) / 1000; last = now;
+      if (m === "walk") {
+        const step = 9 * dt, d = target - x;
+        if (Math.abs(d) <= step) { x = target; pick(now); } else x += Math.sign(d) * step;
+        if (ref.current) ref.current.style.left = `${x}%`;
+      } else if (now > until) pick(now);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+  return { ref, mode, facing, startX };
 }
