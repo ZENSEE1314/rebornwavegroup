@@ -10,7 +10,7 @@ import { resolveCompanyId } from "./tenant";
 import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -42,6 +42,8 @@ interface Room {
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
   // stack (tower stacking) only
   stackWinners?: string[];
+  // rlgl (Red Light, Green Light) only
+  rl?: { light: "green" | "red"; lightAt: number; endsAt: number; startAt: number; st: Record<string, { steps: number; out?: boolean; done?: boolean; ms?: number; num: number; last?: number }> };
   // frog (Frog Jump) only
   frog?: { phase: "wait" | "pick" | "reveal"; picks: Record<string, number>; last?: any; drinks: Record<string, number>; turnNo: number };
   // poker3 (3-card blind poker drinking game) only
@@ -86,6 +88,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "stack" ? { stack: stackView(room) } : {}),
     ...(room.game === "poker3" ? { poker: pokerView(room, forUserId) } : {}),
     ...(room.game === "frog" ? { frog: frogView(room, forUserId) } : {}),
+    ...(room.game === "rlgl" ? { rlgl: rlView(room) } : {}),
   };
 }
 
@@ -495,6 +498,10 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       if (leavingWasTurn) { armDiceTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; }
       return broadcast(room);
     }
+    case "rlgl": {
+      if (room.rl) rlCheckEnd(room);
+      return broadcast(room);
+    }
     case "frog": {
       if (room.players.length < 2) return soloWin();
       if (leavingWasTurn && room.frog?.phase === "wait") frogWait(room);
@@ -562,7 +569,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1135,6 +1142,80 @@ function pokerView(room: Room, forUserId?: string) {
   };
 }
 
+// ── Red Light, Green Light ────────────────────────────────────────────────
+// Tap LEFT, RIGHT, LEFT, RIGHT… to walk while the light is GREEN; 500 steps
+// reach the finish. Tap while it's RED (after a short reaction grace) and
+// you're out. 3 minutes to finish. Everyone who crosses wins; the rest drink.
+const RL_GOAL = 500, RL_TIME_MS = 180_000, RL_GRACE_MS = 450, RL_MAX_RATE = 16; // steps/s cap
+function rlSchedule(room: Room) {
+  const r = room.rl!;
+  if (room.status !== "playing") return;
+  const next = r.light === "green" ? "red" : "green";
+  const dur = next === "green" ? 2500 + Math.random() * 4000 : 2000 + Math.random() * 2500;
+  room.ticker = setTimeout(() => {
+    if (room.status !== "playing" || !room.rl) return;
+    room.rl.light = next; room.rl.lightAt = Date.now();
+    room.message = next === "green" ? "🟢 GREEN LIGHT — walk!" : "🔴 RED LIGHT — freeze!";
+    broadcast(room); rlSchedule(room);
+  }, r.light === "green" ? dur : dur) as any;
+}
+function startRlgl(room: Room) {
+  clearTimers(room);
+  const now = Date.now();
+  const nums = room.players.map(() => 1 + Math.floor(Math.random() * 456));
+  room.status = "playing";
+  room.rl = { light: "red", lightAt: now, startAt: now + 3000, endsAt: now + 3000 + RL_TIME_MS, st: Object.fromEntries(room.players.map((p, i) => [p.id, { steps: 0, num: nums[i] }])) };
+  room.deadline = room.rl.endsAt;
+  room.message = "Get ready… 🔴 (don't move!)";
+  broadcast(room);
+  // first green after the 3s countdown, then random red/green cycles
+  room.ticker = setTimeout(() => { if (!room.rl) return; room.rl.light = "green"; room.rl.lightAt = Date.now(); room.message = "🟢 GREEN LIGHT — walk!"; broadcast(room); rlSchedule(room); }, 3000) as any;
+  room.timer = setTimeout(() => finishRlgl(room), 3000 + RL_TIME_MS);
+}
+function rlStep(room: Room, uid: string, n: number) {
+  const r = room.rl;
+  if (room.status !== "playing" || !r) return;
+  const s = r.st[uid];
+  if (!s || s.out || s.done) return;
+  const now = Date.now();
+  n = Math.max(0, Math.floor(n) || 0);
+  if (!n) return;
+  if (now < r.startAt || (r.light === "red" && now - r.lightAt > RL_GRACE_MS)) {
+    s.out = true; room.message = `💥 ${room.players.find((p) => p.id === uid)?.name} moved on RED — eliminated!`;
+    broadcast(room); return rlCheckEnd(room);
+  }
+  const cap = s.last ? Math.ceil(((now - s.last) / 1000) * RL_MAX_RATE) + 2 : 10; // anti-autoclicker
+  s.last = now;
+  s.steps = Math.min(RL_GOAL, s.steps + Math.min(n, cap));
+  if (s.steps >= RL_GOAL) { s.done = true; s.ms = now - r.startAt; room.message = `🏁 ${room.players.find((p) => p.id === uid)?.name} crossed the line!`; broadcast(room); return rlCheckEnd(room); }
+  broadcast(room);
+}
+function rlCheckEnd(room: Room) {
+  const r = room.rl!;
+  if (room.players.every((p) => r.st[p.id]?.out || r.st[p.id]?.done)) finishRlgl(room);
+}
+function finishRlgl(room: Room) {
+  const r = room.rl;
+  if (!r || room.status !== "playing") return;
+  clearTimers(room);
+  room.status = "done";
+  const winners = room.players.filter((p) => r.st[p.id]?.done);
+  const losers = room.players.filter((p) => !r.st[p.id]?.done);
+  room.winnerId = winners.sort((a, b) => (r.st[a.id].ms || 0) - (r.st[b.id].ms || 0))[0]?.id;
+  room.lastLoserId = losers[0]?.id;
+  room.message = losers.length
+    ? `${winners.length ? `${winners.length} made it 🏁 · ` : "Nobody made it! "}${losers.map((p) => p.name).join(", ")} drink 🍺`
+    : "Everybody made it — nobody drinks! 🎉";
+  broadcast(room);
+  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: r.st[p.id]?.steps || 0, result: (r.st[p.id]?.done ? "win" : "lose") as "win" | "lose" })));
+  scheduleCleanup(room);
+}
+function rlView(room: Room) {
+  const r = room.rl;
+  if (!r) return null;
+  return { light: r.light, lightAt: r.lightAt, startAt: r.startAt, endsAt: r.endsAt, serverNow: Date.now(), goal: RL_GOAL, st: r.st };
+}
+
 // ── Frog Jump (non-stop party game) ─────────────────────────────────────
 // Three frogs. The turn player presses START, then EVERYONE (turn player too)
 // has 5 seconds to tap one frog. Nobody sees the others' picks until time's up.
@@ -1214,13 +1295,13 @@ function frogView(room: Room, forUserId?: string) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "cards", "poker3", "frog", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "frog", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
   number: "Guessing game", rps: "Guessing game",
   dice: "Dice game", "789": "Dice game",
   cards: "Card game", poker3: "Card game",
-  tap: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
+  tap: "Who's the fastest", rlgl: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
   wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game",
 };
 const CATEGORY_ORDER = ["Guessing game", "Dice game", "Card game", "Who's the fastest", "Lucky game"];
@@ -1441,7 +1522,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
@@ -1500,6 +1581,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "cards") startCards(room);
     else if (room.game === "poker3") startPoker(room);
     else if (room.game === "frog") startFrog(room);
+    else if (room.game === "rlgl") startRlgl(room);
     else if (room.game === "dice") startDiceRound(room);
     else if (room.game === "wheel") startWheel(room);
     else if (room.game === "riding") startRiding(room);
@@ -1569,6 +1651,10 @@ export function registerGameRoutes(app: Express) {
         return res.json({ ok: true });
       }
       return res.status(400).json({ message: "Bad action" });
+    }
+    if (room.game === "rlgl") {
+      if (req.body?.act === "step") rlStep(room, getUserId(req)!, Number(req.body?.n));
+      return res.json({ ok: true });
     }
     if (room.game === "frog") {
       const uid = getUserId(req)!;
