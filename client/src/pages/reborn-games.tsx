@@ -240,7 +240,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
               const n = c.games.filter((g) => today[g]).length;
               return (
                 <button key={c.name} onClick={() => setCat(c.name)}
-                  className="flex items-center gap-3 p-3 rounded-2xl text-left border border-white/10 active:scale-[.98] transition"
+                  className="w-full min-w-0 flex items-center gap-3 p-3 rounded-2xl text-left border border-white/10 active:scale-[.98] transition"
                   style={{ background: "rgba(255,255,255,0.04)" }}>
                   <span className="gem shrink-0" style={{ width: 52, height: 52, fontSize: 28, background: "linear-gradient(135deg,#f0d787,#c9a44c)" }}>{c.emoji}</span>
                   <span className="min-w-0 flex-1">
@@ -263,7 +263,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
           <div className="grid grid-cols-1 gap-2.5">
             {(curCat.games.filter((g) => today[g]) as GK[]).map((g) => (
               <button key={g} onClick={() => pickGame(g)}
-                className="flex items-center gap-3 p-3 rounded-2xl text-left border border-white/10 active:scale-[.98] transition"
+                className="w-full min-w-0 flex items-center gap-3 p-3 rounded-2xl text-left border border-white/10 active:scale-[.98] transition"
                 style={{ background: "rgba(255,255,255,0.04)" }}>
                 <span className="gem shrink-0" style={{ width: 48, height: 48, fontSize: 26, background: GAME_GRAD[g] }}>{GAMES[g].emoji}</span>
                 <span className="min-w-0 flex-1">
@@ -886,8 +886,8 @@ function NumberGame({ onLeave }: { onLeave: () => void }) {
           <div className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${feedback.correct ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30" : "bg-white/5 text-white/80 border border-white/10"}`} style={{ animation: "rwgPop .4s ease-out" }}>{feedback.message}</div>
         )}
         <div className="mt-4 flex gap-2">
-          <input value={guess} onChange={(e) => setGuess(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))} onKeyDown={(e) => e.key === "Enter" && submit()} disabled={state?.remaining === 0} inputMode="numeric" placeholder="0000" className="flex-1 text-center text-2xl font-black tracking-[0.3em] rounded-xl bg-black/30 border border-white/10 py-3 text-white focus:outline-none focus:border-amber-400/60 disabled:opacity-50" />
-          <button onClick={submit} disabled={busy || !guess || state?.remaining === 0} className="cbtn cbtn-gold px-6 py-3 text-base disabled:opacity-50">Guess</button>
+          <input value={guess} onChange={(e) => setGuess(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))} onKeyDown={(e) => e.key === "Enter" && submit()} disabled={state?.remaining === 0} inputMode="numeric" placeholder="0000" className="flex-1 min-w-0 w-0 text-center text-2xl font-black tracking-[0.3em] rounded-xl bg-black/30 border border-white/10 py-3 text-white focus:outline-none focus:border-amber-400/60 disabled:opacity-50" />
+          <button onClick={submit} disabled={busy || !guess || state?.remaining === 0} className="cbtn cbtn-gold shrink-0 px-6 py-3 text-base disabled:opacity-50">Guess</button>
         </div>
         {typeof state?.dailyLimit === "number" && state.dailyLimit > 0 && (
           <p className={`mt-2 text-[11px] ${state.remaining === 0 ? "text-amber-300" : "text-white/50"}`}>{state.remaining > 0 ? `${state.remaining} of ${state.dailyLimit} guesses left today` : "No guesses left today — come back tomorrow 🌙"}</p>
