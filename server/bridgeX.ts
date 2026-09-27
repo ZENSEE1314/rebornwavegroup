@@ -48,7 +48,7 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "crm", name: "CRM & Segments", category: "Customers", status: "live", desc: "Profiles, spend/visit history, tags, VIP/new/lost/birthday segments." },
   { key: "loyalty", name: "Loyalty & Rewards", category: "Customers", status: "live", desc: "Points, cashback, stamp cards, vouchers, referral rewards." },
   { key: "membership", name: "Membership Tiers", category: "Customers", status: "live", desc: "Tiers, member pricing, paid subscriptions, milestones." },
-  { key: "marketing", name: "Marketing Engine", category: "Customers", status: "planned", desc: "Campaigns, segment blasts, birthday/win-back, coupons, flash sales." },
+  { key: "marketing", name: "Marketing Engine", category: "Customers", status: "live", desc: "Campaigns, segment audiences (VIP/new/lost/birthday), recipient export." },
   { key: "reviews", name: "Reviews & Reputation", category: "Customers", status: "beta", desc: "Post-payment ratings routed to management or public review." },
   // People
   { key: "employees", name: "Staff & HR", category: "People", status: "live", desc: "Roles, positions, attendance, shifts, leave, meetings, QR attendance." },
@@ -76,8 +76,8 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "rental", name: "Rental", category: "Industry", status: "live", desc: "Assets + availability & deposits (Booking)." },
   { key: "education", name: "Education / Tuition", category: "Industry", status: "live", desc: "Classes/teachers + bookings + teacher commission (Booking)." },
   { key: "events", name: "Events / Ticketing", category: "Industry", status: "live", desc: "Events, ticket types, QR tickets, capacity, scan-in check." },
-  { key: "wholesale", name: "Wholesale / B2B", category: "Industry", status: "planned", desc: "Customer pricing tiers, MOQ, credit limits, delivery orders, statements." },
-  { key: "professional", name: "Professional Services", category: "Industry", status: "planned", desc: "Leads, quotes, projects, timesheets, recurring invoices, client portal." },
+  { key: "wholesale", name: "Wholesale / B2B", category: "Industry", status: "live", desc: "B2B accounts, price tiers, credit limits & running balances/statements." },
+  { key: "professional", name: "Professional Services", category: "Industry", status: "live", desc: "Projects, hourly rate, timesheets, billable totals." },
   // Engagement
   { key: "games", name: "Mini-Games / PvP", category: "Engagement", status: "beta", desc: "Spin, scratch, dice, PvP & party games awarding points/coupons." },
   { key: "live_gifts", name: "Live Gifts", category: "Engagement", status: "planned", desc: "Virtual gifts to singers/DJs/hosts with performer & house share." },
@@ -456,6 +456,17 @@ export async function ensureBridgeXSchema() {
     -- Repair shop tickets
     CREATE TABLE IF NOT EXISTS bridge_repairs (id serial PRIMARY KEY, company_id integer NOT NULL, ticket_no varchar, customer_name varchar, customer_phone varchar, device varchar, serial_imei varchar, problem text, diagnosis text, quote numeric(14,2) NOT NULL DEFAULT 0, deposit numeric(14,2) NOT NULL DEFAULT 0, status varchar NOT NULL DEFAULT 'received', assigned_user_id varchar, note text, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_repairs_company ON bridge_repairs(company_id);
+    -- Marketing campaigns
+    CREATE TABLE IF NOT EXISTS bridge_campaigns (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, channel varchar NOT NULL DEFAULT 'whatsapp', segment varchar NOT NULL DEFAULT 'all', message text, status varchar NOT NULL DEFAULT 'draft', sent_count integer NOT NULL DEFAULT 0, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_campaigns_company ON bridge_campaigns(company_id);
+    -- Wholesale / B2B accounts
+    CREATE TABLE IF NOT EXISTS bridge_wholesale_accounts (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, contact varchar, phone varchar, price_tier varchar NOT NULL DEFAULT 'standard', discount_pct numeric(6,2) NOT NULL DEFAULT 0, credit_limit numeric(14,2) NOT NULL DEFAULT 0, balance numeric(14,2) NOT NULL DEFAULT 0, note text, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_wholesale_company ON bridge_wholesale_accounts(company_id);
+    -- Professional services: projects + time entries
+    CREATE TABLE IF NOT EXISTS bridge_projects (id serial PRIMARY KEY, company_id integer NOT NULL, client varchar, name varchar NOT NULL, status varchar NOT NULL DEFAULT 'active', budget numeric(14,2) NOT NULL DEFAULT 0, rate numeric(14,2) NOT NULL DEFAULT 0, note text, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_projects_company ON bridge_projects(company_id);
+    CREATE TABLE IF NOT EXISTS bridge_time_entries (id serial PRIMARY KEY, company_id integer NOT NULL, project_id integer NOT NULL, user_id varchar, work_date varchar, hours numeric(8,2) NOT NULL DEFAULT 0, note text, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_time_entries_project ON bridge_time_entries(project_id);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -1471,6 +1482,102 @@ export function registerBridgeXRoutes(app: Express) {
   app.delete("/api/v1/company/repair/tickets/:id", route(async (req, res) => {
     const a = await requireModule(req, res, "repair", true); if (!a) return;
     await db.execute(sql`DELETE FROM bridge_repairs WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+
+  // ── Marketing campaigns ───────────────────────────────────────────────────
+  const SEGMENT_SQL: Record<string, any> = {
+    all: sql``,
+    vip: sql`AND total_spend >= 5000000`,
+    new: sql`AND created_at >= now() - interval '30 days'`,
+    lost: sql`AND last_visit_at IS NOT NULL AND last_visit_at < now() - interval '90 days'`,
+    birthday: sql`AND birthday IS NOT NULL AND substring(birthday from 6 for 2) = to_char(now(),'MM')`,
+  };
+  app.get("/api/v1/company/marketing/campaigns", route(async (req, res) => {
+    const a = await requireModule(req, res, "marketing"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_campaigns WHERE company_id=${a.companyId} ORDER BY id DESC`)).rows || []);
+  }));
+  app.post("/api/v1/company/marketing/campaigns", route(async (req, res) => {
+    const a = await requireModule(req, res, "marketing", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Campaign name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_campaigns (company_id, name, channel, segment, message) VALUES (${a.companyId}, ${name}, ${req.body?.channel || "whatsapp"}, ${req.body?.segment || "all"}, ${req.body?.message || null}) RETURNING *`)).rows[0]);
+  }));
+  app.delete("/api/v1/company/marketing/campaigns/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "marketing", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_campaigns WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  // Build the recipient list for a segment (CRM customers with a contact).
+  app.get("/api/v1/company/marketing/audience", route(async (req, res) => {
+    const a = await requireModule(req, res, "marketing"); if (!a) return;
+    const seg = String(req.query.segment || "all"); const filter = SEGMENT_SQL[seg] ?? SEGMENT_SQL.all;
+    if (!(await moduleEnabled(a.companyId, "crm"))) return res.json({ count: 0, recipients: [], note: "Enable CRM to build audiences from customers." });
+    const rows = (await db.execute(sql`SELECT name, phone, email FROM bridge_customers WHERE company_id=${a.companyId} ${filter} ORDER BY name LIMIT 1000`)).rows as any[];
+    res.json({ count: rows.length, recipients: rows });
+  }));
+  // Record a send (channel delivery is done via WhatsApp/email once connected).
+  app.post("/api/v1/company/marketing/campaigns/:id/send", route(async (req, res) => {
+    const a = await requireModule(req, res, "marketing", true); if (!a) return;
+    const [c] = (await db.execute(sql`SELECT * FROM bridge_campaigns WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!c) return res.status(404).json({ message: "Campaign not found" });
+    let count = 0;
+    if (await moduleEnabled(a.companyId, "crm")) { const filter = SEGMENT_SQL[c.segment] ?? SEGMENT_SQL.all; const [r] = (await db.execute(sql`SELECT COUNT(*) c FROM bridge_customers WHERE company_id=${a.companyId} ${filter}`)).rows as any[]; count = Number(r?.c || 0); }
+    const [upd] = (await db.execute(sql`UPDATE bridge_campaigns SET status='sent', sent_count=${count} WHERE id=${c.id} RETURNING *`)).rows as any[];
+    res.json({ ...upd, note: "Audience captured. Connect WhatsApp/email to auto-deliver; for now export the audience and send." });
+  }));
+
+  // ── Wholesale / B2B accounts ──────────────────────────────────────────────
+  app.get("/api/v1/company/wholesale/accounts", route(async (req, res) => {
+    const a = await requireModule(req, res, "wholesale"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_wholesale_accounts WHERE company_id=${a.companyId} ORDER BY name`)).rows || []);
+  }));
+  app.post("/api/v1/company/wholesale/accounts", route(async (req, res) => {
+    const a = await requireModule(req, res, "wholesale", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Account name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_wholesale_accounts (company_id, name, contact, phone, price_tier, discount_pct, credit_limit, note) VALUES (${a.companyId}, ${name}, ${req.body?.contact || null}, ${req.body?.phone || null}, ${req.body?.priceTier || "standard"}, ${Number(req.body?.discountPct) || 0}, ${Number(req.body?.creditLimit) || 0}, ${req.body?.note || null}) RETURNING *`)).rows[0]);
+  }));
+  app.put("/api/v1/company/wholesale/accounts/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "wholesale", true); if (!a) return;
+    const r = await db.execute(sql`UPDATE bridge_wholesale_accounts SET name=COALESCE(${req.body?.name ?? null},name), contact=${req.body?.contact ?? null}, phone=${req.body?.phone ?? null}, price_tier=COALESCE(${req.body?.priceTier ?? null},price_tier), discount_pct=COALESCE(${req.body?.discountPct ?? null},discount_pct), credit_limit=COALESCE(${req.body?.creditLimit ?? null},credit_limit), note=${req.body?.note ?? null} WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Account not found" }); res.json(r.rows[0]);
+  }));
+  app.post("/api/v1/company/wholesale/accounts/:id/charge", route(async (req, res) => {
+    const a = await requireModule(req, res, "wholesale", true); if (!a) return;
+    const delta = Number(req.body?.amount) || 0; // +charge, -payment
+    const r = await db.execute(sql`UPDATE bridge_wholesale_accounts SET balance=balance + ${delta} WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Account not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/wholesale/accounts/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "wholesale", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_wholesale_accounts WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+
+  // ── Professional services: projects + timesheets ──────────────────────────
+  app.get("/api/v1/company/projects", route(async (req, res) => {
+    const a = await requireModule(req, res, "professional"); if (!a) return;
+    res.json((await db.execute(sql`SELECT p.*, COALESCE((SELECT SUM(hours) FROM bridge_time_entries te WHERE te.project_id=p.id),0) hours, COALESCE((SELECT SUM(hours) FROM bridge_time_entries te WHERE te.project_id=p.id),0)*p.rate billable FROM bridge_projects p WHERE p.company_id=${a.companyId} ORDER BY p.id DESC`)).rows || []);
+  }));
+  app.post("/api/v1/company/projects", route(async (req, res) => {
+    const a = await requireModule(req, res, "professional", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Project name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_projects (company_id, client, name, budget, rate, note) VALUES (${a.companyId}, ${req.body?.client || null}, ${name}, ${Number(req.body?.budget) || 0}, ${Number(req.body?.rate) || 0}, ${req.body?.note || null}) RETURNING *`)).rows[0]);
+  }));
+  app.patch("/api/v1/company/projects/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "professional", true); if (!a) return;
+    const r = await db.execute(sql`UPDATE bridge_projects SET status=COALESCE(${req.body?.status ?? null},status), budget=COALESCE(${req.body?.budget ?? null},budget), rate=COALESCE(${req.body?.rate ?? null},rate), note=${req.body?.note ?? null} WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Project not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/projects/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "professional", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_time_entries WHERE project_id=${Number(req.params.id)} AND company_id=${a.companyId}`);
+    await db.execute(sql`DELETE FROM bridge_projects WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/projects/:id/time", route(async (req, res) => {
+    const a = await requireModule(req, res, "professional"); if (!a) return;
+    res.json((await db.execute(sql`SELECT te.*, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name FROM bridge_time_entries te LEFT JOIN users u ON u.id=te.user_id WHERE te.project_id=${Number(req.params.id)} AND te.company_id=${a.companyId} ORDER BY te.id DESC LIMIT 200`)).rows || []);
+  }));
+  app.post("/api/v1/company/projects/:id/time", route(async (req, res) => {
+    const a = await requireModule(req, res, "professional"); if (!a) return;
+    const hours = Number(req.body?.hours) || 0; if (!(hours > 0)) return res.status(400).json({ message: "Hours must be greater than 0" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_time_entries (company_id, project_id, user_id, work_date, hours, note) VALUES (${a.companyId}, ${Number(req.params.id)}, ${a.user.id}, ${req.body?.workDate || new Date().toISOString().slice(0, 10)}, ${hours}, ${req.body?.note || null}) RETURNING *`)).rows[0]);
   }));
 
   // Attendance, shifts and leave are scoped by tenant and generate native alerts.

@@ -241,7 +241,7 @@ async function runAdmin() {
     return `${act.percentOff}%`;
   }, { soft: true });
   await step("audit report", async () => {
-    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds", "booking", "events", "repair"] }, withCo()), "enable audit+events+repair");
+    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds", "booking", "events", "repair", "marketing", "wholesale", "professional"] }, withCo()), "enable all test modules");
     const rep = ok(await api("GET", "/api/v1/company/audit", undefined, withCo()), "audit");
     expect(Array.isArray(rep.events) && Array.isArray(rep.staff), "unexpected audit shape");
     return `${rep.events.length} events`;
@@ -262,6 +262,28 @@ async function runAdmin() {
     const upd = ok(await api("PATCH", `/api/v1/company/repair/tickets/${r.id}`, { status: "repairing", diagnosis: "screen replacement" }, withCo()), "advance");
     expect(upd.status === "repairing", `expected repairing, got ${upd.status}`);
     return upd.ticket_no;
+  }, { soft: true });
+  await step("marketing: campaign + audience", async () => {
+    const c = ok(await api("POST", "/api/v1/company/marketing/campaigns", { name: `${TAG} Blast`, segment: "all", message: "Hi!" }, withCo()), "campaign");
+    const aud = ok(await api("GET", "/api/v1/company/marketing/audience?segment=all", undefined, withCo()), "audience");
+    expect(typeof aud.count === "number", "no audience count");
+    ok(await api("POST", `/api/v1/company/marketing/campaigns/${c.id}/send`, {}, withCo()), "capture send");
+    return `audience ${aud.count}`;
+  }, { soft: true });
+  await step("wholesale: account + charge/payment", async () => {
+    const acc = ok(await api("POST", "/api/v1/company/wholesale/accounts", { name: `${TAG} Trade`, creditLimit: 1000000 }, withCo()), "account");
+    ok(await api("POST", `/api/v1/company/wholesale/accounts/${acc.id}/charge`, { amount: 250000 }, withCo()), "charge");
+    const paid = ok(await api("POST", `/api/v1/company/wholesale/accounts/${acc.id}/charge`, { amount: -100000 }, withCo()), "payment");
+    expect(Number(paid.balance) === 150000, `expected balance 150000, got ${paid.balance}`);
+    return `balance ${paid.balance}`;
+  }, { soft: true });
+  await step("professional: project + timesheet", async () => {
+    const p = ok(await api("POST", "/api/v1/company/projects", { name: `${TAG} Build`, rate: 100 }, withCo()), "project");
+    ok(await api("POST", `/api/v1/company/projects/${p.id}/time`, { hours: 5, note: "work" }, withCo()), "time");
+    const list = ok(await api("GET", "/api/v1/company/projects", undefined, withCo()), "projects");
+    const mine = list.find((x) => x.id === p.id);
+    expect(Number(mine.billable) === 500, `expected billable 500, got ${mine.billable}`);
+    return `billable ${mine.billable}`;
   }, { soft: true });
   await step("module gate blocks disabled module", async () => {
     // Turn CRM off, expect 403 MODULE_DISABLED, then turn it back on.
