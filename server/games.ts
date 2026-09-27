@@ -7,6 +7,7 @@ import { db } from "./db";
 import { users, pvpScores, appSettings, gameRanks } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
 import { resolveCompanyId } from "./tenant";
+import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 
 type Choice = "rock" | "paper" | "scissors";
 type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack";
@@ -95,6 +96,8 @@ async function nameFor(userId: string): Promise<string> {
 async function saveScores(room: Room, rows: { userId: string; name: string; score: number; result: "win" | "lose" }[]) {
   if (!rows.length) return;
   await db.insert(pvpScores).values(rows.map((r) => ({ companyId: room.companyId ?? null, game: room.game, userId: r.userId, userName: r.name, score: r.score, result: r.result, roomCode: room.code }))).catch(() => {});
+  // Pet coins: everyone who played earns a little, winners earn more (daily cap in petHome).
+  for (const r of rows) await awardPetCoins(r.userId, r.result === "win" ? COINS_PER_WIN : COINS_PER_PLAY);
   // Award +1 career rank star to each winner; the round's loser drops 1 star.
   const season = (await getRankConfig()).season;
   for (const r of rows.filter((x) => x.result === "win")) {
@@ -1143,6 +1146,7 @@ export function registerGameRoutes(app: Express) {
       const wonRound = g.round;
       const solved = g.secret;
       await db.insert(pvpScores).values({ companyId: cid, game: "number", userId: uid, userName: name, score: wonRound, result: "win", roomCode: `R${wonRound}` }).catch(() => {});
+      await awardPetCoins(uid, COINS_NUMBER_CRACK);
       const season = (await getRankConfig()).season;
       await db.insert(gameRanks).values({ userId: uid, userName: name, stars: 1, peakStars: 1, season })
         .onConflictDoUpdate({ target: gameRanks.userId, set: { stars: sql`${gameRanks.stars} + 1`, peakStars: sql`greatest(${gameRanks.peakStars}, ${gameRanks.stars} + 1)`, userName: name, updatedAt: new Date() } }).catch(() => {});
