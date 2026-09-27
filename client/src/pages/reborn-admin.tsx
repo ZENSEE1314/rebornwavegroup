@@ -1322,9 +1322,71 @@ function Products() {
         </>}
       </Card>
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || "All"}</button>)}</div>}
-      {shown.map((p) => <ProductRow key={p.id} p={p} />)}
+      {/* Desktop: editable spreadsheet view */}
+      {shown.length > 0 && <div className="hidden lg:block"><ProductsTable products={shown} industryOptions={industryOptions} /></div>}
+      {/* Mobile / tablet: card view */}
+      <div className="lg:hidden space-y-3">{shown.map((p) => <ProductRow key={p.id} p={p} />)}</div>
       {shown.length === 0 && <Empty text="No products in this industry yet." />}
     </div>
+  );
+}
+
+// Shared spreadsheet cell input styling.
+const cell = "w-full bg-transparent border border-transparent rounded px-1.5 py-1 text-sm outline-none hover:border-white/15 focus:border-amber-400/60 focus:bg-black/20";
+
+function ProductsTable({ products, industryOptions }: { products: any[]; industryOptions: string[] }) {
+  return (
+    <Card>
+      <div className="overflow-x-auto -mx-3 sm:mx-0">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
+              <th className="py-2 px-2 font-semibold">Item</th>
+              <th className="py-2 px-2 font-semibold">Category</th>
+              <th className="py-2 px-2 font-semibold min-w-[180px]">Industries</th>
+              <th className="py-2 px-2 font-semibold text-right">Sell (RP)</th>
+              <th className="py-2 px-2 font-semibold text-right">Cost (RP)</th>
+              <th className="py-2 px-2 font-semibold text-right">Stock</th>
+              <th className="py-2 px-2 font-semibold">Supplier</th>
+              <th className="py-2 px-2 font-semibold text-center">POS</th>
+              <th className="py-2 px-2 font-semibold text-center">Active</th>
+              <th className="py-2 px-2 font-semibold text-right"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => <ProductTableRow key={p.id} p={p} industryOptions={industryOptions} />)}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[11px] text-white/40 mt-2">Edit any cell, then press <b>Save</b> on that row. Stock quantities are adjusted in the Inventory tab.</p>
+    </Card>
+  );
+}
+
+function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: string[] }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, supplierName: p.supplierName || "" };
+  const [f, setF] = useState(base);
+  const dirty = JSON.stringify(f) !== JSON.stringify(base);
+  const save = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Saved" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  return (
+    <tr className={`border-b border-white/5 hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
+      <td className="px-2 py-1"><div className="flex items-center gap-2">{p.imageUrl ? <img src={p.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
+      <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
+      <td className="px-2 py-1"><IndustryPicker value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
+      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={cell + " text-right w-24"} /></td>
+      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={cell + " text-right w-24"} /></td>
+      <td className={`px-2 py-1 text-right font-semibold tabular-nums ${p.stock <= (p.lowStock ?? 0) ? "text-red-300" : "text-white/70"}`}>{p.stock}</td>
+      <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
+      <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
+      <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
+      <td className="px-2 py-1 text-right"><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> Save</button></td>
+    </tr>
   );
 }
 
@@ -1566,6 +1628,10 @@ function Inventory() {
         {(data?.totals?.low || 0) > 0 && <span className="inline-flex items-center gap-1 text-xs text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-2.5 py-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {data.totals.low} low-stock item(s)</span>}
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Export CSV</button>
       </div>
+      {/* Desktop: spreadsheet view */}
+      {items.length > 0 && <div className="hidden lg:block"><InventoryTable items={items} money={money} step={step} /></div>}
+      {/* Mobile / tablet: grouped cards */}
+      <div className="lg:hidden space-y-3">
       {cats.map((cat) => (
         <Card key={cat}>
           <p className="font-bold mb-2 text-sm flex items-center gap-2"><Boxes className="w-4 h-4 text-amber-300" /> {cat}</p>
@@ -1583,8 +1649,47 @@ function Inventory() {
           ))}
         </Card>
       ))}
+      </div>
       {items.length === 0 && <Empty text="No products yet. Add products in the Products tab." />}
     </div>
+  );
+}
+
+function InventoryTable({ items, money, step }: { items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void }) {
+  const rows = [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
+  return (
+    <Card>
+      <div className="overflow-x-auto -mx-3 sm:mx-0">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
+              <th className="py-2 px-2 font-semibold">Item</th>
+              <th className="py-2 px-2 font-semibold">Category</th>
+              <th className="py-2 px-2 font-semibold">Industry</th>
+              <th className="py-2 px-2 font-semibold">Supplier(s)</th>
+              <th className="py-2 px-2 font-semibold text-right">Unit cost</th>
+              <th className="py-2 px-2 font-semibold text-right">Stock value</th>
+              <th className="py-2 px-2 font-semibold text-right">Retail value</th>
+              <th className="py-2 px-2 font-semibold text-center min-w-[130px]">Stock</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((it) => (
+              <tr key={it.id} className={`border-b border-white/5 hover:bg-white/[0.03] ${it.low ? "bg-red-500/5" : ""}`}>
+                <td className="px-2 py-1.5"><div className="flex items-center gap-2">{it.imageUrl ? <img src={it.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<span className="font-medium">{it.name}</span>{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">LOW</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">NOT IN POS</span>}</div></td>
+                <td className="px-2 py-1.5 text-white/60">{it.category}</td>
+                <td className="px-2 py-1.5 text-white/60">{deptLabel(it.department) || "—"}</td>
+                <td className="px-2 py-1.5 text-white/50 text-xs">{it.suppliers?.length ? it.suppliers.join(", ") : "—"}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-white/70">{money(it.cost)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-amber-300">{money(it.stockValue)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-emerald-300">{money(it.retailValue)}</td>
+                <td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><span className={`w-10 text-center font-extrabold tabular-nums ${it.low ? "text-red-300" : "text-white"}`}>{it.stock}</span><button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 
