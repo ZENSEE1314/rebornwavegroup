@@ -1,5 +1,6 @@
 // Reborn Wave gamified economy: pet lifecycle, spin-the-wheel, support/FAQ, admin config.
 import type { Express, Request, Response } from "express";
+import { accrueEnergy } from "./petEnergy";
 import { and, desc, eq, sql, inArray, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
@@ -271,7 +272,6 @@ const FEED_GAP_MS = 4 * 60 * 60 * 1000;    // pet gets hungry ~every 4h; feeds m
 const TOKEN_CYCLE_MS = 24 * 60 * 60 * 1000; // 2 feeds within this rolling window = 1 token
 const MAX_PETS = 2;                 // living pets a member can hold at once
 const DECAY_PER_MIN = 100 / 240;    // stats fall 100 → 0 over 4 hours
-const ENERGY_REGEN_PER_MIN = 0.1;   // sleeping: +1 energy per 10 min
 const ACTION_ENERGY_COST = 10;      // feed/play/clean each cost energy
 const STAT_GAIN = 30;               // play/clean raise their bar by 30%
 const FEED_GAIN = 50;               // each feed raises hunger by 50% (feed to full any time)
@@ -347,17 +347,20 @@ async function refreshPet(pet: any) {
 
   const anchor = pet.lastDecayTime ? new Date(pet.lastDecayTime) : new Date(pet.updatedAt || now);
   const mins = Math.max(0, (now.getTime() - anchor.getTime()) / 60000);
-  let hunger = pet.hunger ?? 60, happiness = pet.happiness ?? 60, cleanliness = pet.cleanliness ?? 60, energy = pet.energy ?? 60;
+  let hunger = pet.hunger ?? 60, happiness = pet.happiness ?? 60, cleanliness = pet.cleanliness ?? 60;
+  // Energy has its own clock (see petEnergy.ts): +5/hour resting, +5/10 min asleep.
+  const acc = accrueEnergy(pet.energy ?? 60, !!pet.isSleeping, pet.lastEnergyUpdate, now);
+  const energy = acc.energy;
+  const energyChanged = energy !== pet.energy || !pet.lastEnergyUpdate || acc.anchor.getTime() !== new Date(pet.lastEnergyUpdate).getTime();
   if (mins >= 1) {
     hunger = clamp(hunger - mins * DECAY_PER_MIN);
     happiness = clamp(happiness - mins * DECAY_PER_MIN);
     cleanliness = clamp(cleanliness - mins * DECAY_PER_MIN);
-    energy = pet.isSleeping ? clamp(energy + mins * ENERGY_REGEN_PER_MIN) : clamp(energy - mins * DECAY_PER_MIN);
-    await db.update(pets).set({ hunger, happiness, cleanliness, energy, lifeStatus, lastDecayTime: now, updatedAt: now }).where(eq(pets.id, pet.id));
-  } else if (lifeStatus !== pet.lifeStatus) {
-    await db.update(pets).set({ lifeStatus, updatedAt: now }).where(eq(pets.id, pet.id));
+    await db.update(pets).set({ hunger, happiness, cleanliness, energy, lastEnergyUpdate: acc.anchor, lifeStatus, lastDecayTime: now, updatedAt: now }).where(eq(pets.id, pet.id));
+  } else if (lifeStatus !== pet.lifeStatus || energyChanged) {
+    await db.update(pets).set({ lifeStatus, energy, lastEnergyUpdate: acc.anchor, updatedAt: now }).where(eq(pets.id, pet.id));
   }
-  return { ...pet, hunger, happiness, cleanliness, energy, lifeStatus };
+  return { ...pet, hunger, happiness, cleanliness, energy, lastEnergyUpdate: acc.anchor, lifeStatus };
 }
 
 function petView(pet: any) {
@@ -598,6 +601,8 @@ export function registerRebornRoutes(app: Express) {
       const update: any = { updatedAt: now, lastDecayTime: now, isSleeping: false };
       let tokenAwarded = false; let message = "";
 
+      // Switching between awake/asleep changes the energy rate; restart its clock.
+      if (action === "sleep" || action === "wake") update.lastEnergyUpdate = now;
       if (action === "sleep") {
         update.isSleeping = true; update.sleepStartTime = now;
         message = "Zzz… your pet is sleeping and will regain energy over time.";

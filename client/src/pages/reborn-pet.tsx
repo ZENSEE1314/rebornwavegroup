@@ -193,7 +193,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-white/35 text-center mt-1.5">Tap your pet to play (free) · buttons use 10 energy · Sleep restores it</p>
+            <p className="text-[10px] text-white/35 text-center mt-1.5">Tap your pet to play (free) · buttons use 10 energy · resting +5 energy/hour · sleeping +5 every 10 min</p>
 
             {/* daily token timer */}
             <div className="mt-3 rounded-xl bg-black/20 p-3">
