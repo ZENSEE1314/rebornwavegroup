@@ -20,6 +20,7 @@ import { emitLiveUpdate } from "./liveUpdates";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, getBookingTimezone, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser } from "./push";
+import { defaultCompanyId } from "./tenant";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -486,9 +487,9 @@ const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bo
 
 function parseMenuIntent(s: string): "book" | "song" | "bottle" | "menu" | null {
   const t = s.trim().toLowerCase();
-  if (/^menu_book$|^1$|book|table|reserv|appoint|预订|订位|meja|pesan meja/.test(t)) return "book";
-  if (/^menu_song$|^2$|song|sing|request a song|点歌|唱歌|lagu/.test(t)) return "song";
-  if (/^menu_bottle$|^3$|bottle|my drink|keep|寄存|存酒|botol|simpan/.test(t)) return "bottle";
+  if (/^menu_book$|^1$|\bbook(ing)?\b|\btables?\b|\breserv|\bappointment|预订|订位|\bmeja\b|\bpesan meja\b/.test(t)) return "book";
+  if (/^menu_song$|^2$|\bsongs?\b|^sing\b|\brequest a song\b|点歌|唱歌|\blagu\b/.test(t)) return "song";
+  if (/^menu_bottle$|^3$|\bbottles?\b|\bmy drinks?\b|\bkept\b|\bkeep\b|寄存|存酒|\bbotol\b|\bsimpan\b/.test(t)) return "bottle";
   if (/^(menu|hi|hello|hey|start|help|0|你好|嗨|halo|hai)$/.test(t)) return "menu";
   return null;
 }
@@ -663,6 +664,12 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   }
 
   // --- ACTIVE FLOWS ---
+  // "menu" / "cancel" always leaves a booking or song flow.
+  if ((wa.flow === "book" || wa.flow === "song") && /^(menu|cancel|stop|0|batal|取消|菜单)$/i.test(body)) {
+    await patchContact(c.id, { waState: { flow: null } });
+    await sendMemberMenu(from, c, lang);
+    return;
+  }
   if (wa.flow === "book") return bookingStep(c, lang, from, body, wa, say);
   if (wa.flow === "song") return songStep(c, lang, from, body, wa, say);
 
@@ -772,7 +779,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         }
         const cap = tableCap(area, table);
         if (party > cap) { await say(`${table} seats up to ${cap} pax, but you asked for ${party}. Let me help you pick a suitable spot 👇`); return startBooking(c, lang, from, say); }
-        const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH });
+        const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH, companyId: (await defaultCompanyId()) ?? undefined });
         await pushWhatsAppBooking(row, c, area, date, label, party);
         await say(L(lang, "bookDone", { day: fmtDMY(date), time: label, n: String(party), url: APP_BASE_URL }));
         await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
@@ -874,7 +881,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
       await say(`Sorry, ${wa.table} was just booked for that time. Reply "book" to try another.`);
       return patchContact(c.id, { waState: { flow: null } });
     }
-    const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date) });
+    const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date), companyId: (await defaultCompanyId()) ?? undefined });
     const label = labelFor(wa.slot);
     await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
     await say(L(lang, "bookDone", { day: fmtDMY(wa.date), time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
@@ -971,7 +978,7 @@ async function finishWhatsAppSongRequest(c: Contact, lang: Lang, selected: SongS
       }
     }
   } catch (e) { console.error("[wa] song upsert", e); }
-  await db.insert(songRequests).values({ userId: c.userId!, songId, title, artist, performanceMode, status: "pending" });
+  await db.insert(songRequests).values({ companyId: await defaultCompanyId(), userId: c.userId!, songId, title, artist, performanceMode, status: "pending" });
   emitLiveUpdate("/api/reborn/admin/song-requests", { action: "WHATSAPP_SONG_REQUEST" });
   await sendRebornStaffNotification({
     type: "song_request",
@@ -1020,6 +1027,16 @@ export async function sendReviewRequest(opts: { phone?: string | null; userId?: 
 
 // --- Webhook -------------------------------------------------------------
 export function registerWhatsAppBot(app: Express) {
+  // WhatsApp bookings/song requests used to be saved without a company, so the
+  // app (which lists per company) never showed them. Attach them to the default.
+  (async () => {
+    try {
+      const cid = await defaultCompanyId();
+      if (!cid) return;
+      await db.update(appointments).set({ companyId: cid }).where(sql`${appointments.companyId} IS NULL`);
+      await db.update(songRequests).set({ companyId: cid }).where(sql`${songRequests.companyId} IS NULL`);
+    } catch (e) { console.error("[wa] company backfill", e); }
+  })();
   app.get("/api/whatsapp/webhook", (req: Request, res: Response) => {
     const c = cfg();
     const mode = req.query["hub.mode"];
