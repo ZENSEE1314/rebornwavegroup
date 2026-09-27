@@ -14,6 +14,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "30s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
+  frog: { name: "Frog Jump", emoji: "🐸", blurb: "tap a frog in 5s · same frog as the turn player = ½ cup" },
   poker3: { name: "3-Card Poker", emoji: "🂡", blurb: "play blind, raise ½ cup · look = pay double · worst hand drinks the pot" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
   wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "½ cup · 1 cup · 2 cups — or land on PASS 😎" },
@@ -29,7 +30,7 @@ const GAME_GRAD: Record<string, string> = {
   rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)",
   cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)",
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
-  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)",
+  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)",
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
 };
 // Games grouped into categories for the lobby.
@@ -38,7 +39,7 @@ const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
   { name: "Dice game", emoji: "🎲", games: ["dice", "789"] },
   { name: "Card game", emoji: "🃏", games: ["cards", "poker3"] },
   { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer", "stack"] },
-  { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding"] },
+  { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding", "frog"] },
 ];
 
 const RULES: Record<string, string[]> = {
@@ -53,6 +54,13 @@ const RULES: Record<string, string[]> = {
     "Every tap = 1 gold coin ⛏️🪙.",
     "You have 30 seconds — most coins wins.",
     "Lowest score buys the round 😄.",
+  ],
+  frog: [
+    "Three frogs 🐸🐸🐸. On your turn press START.",
+    "Then EVERYONE (you too) has 5 seconds to tap one frog — nobody sees the others' picks.",
+    "Tapped the same frog as the turn player? Drink ½ cup 🍺.",
+    "Didn't tap in time? Drink ½ cup too (the turn player included).",
+    "Then it's the next player's turn — keeps going until everyone leaves.",
   ],
   poker3: [
     "Everyone gets 3 cards FACE-DOWN and starts blind — you can't see your own cards. Everyone's in for the host's minimum cup.",
@@ -159,7 +167,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "poker3" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
+type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
@@ -366,7 +374,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                 </div>
               </div>
             )}
-            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && (
+            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && (
             <div className="mt-3">
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
               <div className="flex gap-2">
@@ -479,6 +487,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "poker3" && <PokerGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && room.game === "frog" && <FrogGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
@@ -1026,6 +1035,70 @@ function PokerGame({ room, code, me }: any) {
           <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs ${p.id === pk.turnId ? "bg-emerald-400/20 text-emerald-200" : "bg-white/5 text-white/60"}`}>
             {p.id === me ? "You" : p.name} · {pk.seen?.[p.id] ? "👀 seen" : "🙈 blind"}
           </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const FROG_TINT = ["#34d399", "#60a5fa", "#f472b6"];
+function FrogGame({ room, code, me }: any) {
+  const f = room.frog || {};
+  const { toast } = useToast();
+  const myTurn = f.turnId === me;
+  const turnName = room.players.find((p: any) => p.id === f.turnId)?.name;
+  const act = async (body: any) => {
+    try {
+      const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, body);
+      if (!ok) toast({ title: "Can't do that", description: d.message, variant: "destructive" });
+    } catch (e: any) { toast({ title: "Can't do that", description: String(e?.message || e).replace(/^\d+:\s*/, ""), variant: "destructive" }); }
+  };
+  // smooth local countdown for the 5-second pick window
+  const [, tick] = useState(0);
+  useEffect(() => { if (f.phase !== "pick") return; const t = setInterval(() => tick((x) => x + 1), 100); return () => clearInterval(t); }, [f.phase, f.turnNo]);
+  const endsAt = useRef(0);
+  useEffect(() => { endsAt.current = Date.now() + (room.secondsLeft || 0) * 1000; }, [f.phase, f.turnNo]);
+  const left = Math.max(0, (endsAt.current - Date.now()) / 1000);
+  const last = f.last;
+  const drinkerIds = new Set((last?.drinkers || []).map((d: any) => d.id));
+  return (
+    <div className="rwg-card p-5 text-center">
+      <p className="text-sm text-white/70 mb-3 min-h-[20px]">{room.message}</p>
+      {f.phase === "pick" && (
+        <div className="mx-auto mb-3 h-2 max-w-xs overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${(left / 5) * 100}%` }} /></div>
+      )}
+      {/* the pond */}
+      <div className="relative mx-auto mb-4 grid max-w-sm gap-2 rounded-3xl p-4" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", background: "radial-gradient(ellipse at 50% 30%, #38bdf8, #0e7490)" }}>
+        {[0, 1, 2].map((i) => {
+          const mine = f.myPick === i;
+          const leaderPick = f.phase === "reveal" && last?.leaderPick === i;
+          const who = f.phase === "reveal" ? room.players.filter((p: any) => last?.picks?.[p.id] === i) : [];
+          return (
+            <button key={i} disabled={f.phase !== "pick" || f.myPick !== null} onClick={() => act({ act: "pick", frog: i })}
+              className={`relative flex aspect-square flex-col items-center justify-center rounded-full transition ${f.phase === "pick" && f.myPick === null ? "active:scale-90 hover:scale-105" : ""}`}
+              style={{ background: "radial-gradient(circle at 40% 35%, #86efac, #15803d)", boxShadow: mine ? `0 0 0 4px #fff, 0 0 18px ${FROG_TINT[i]}` : leaderPick ? "0 0 0 4px #f59e0b" : "inset 0 -6px 0 rgba(0,0,0,.2)" }}>
+              <span className="text-5xl leading-none" style={{ animation: f.phase === "pick" && f.myPick === null ? `rwgPop ${0.9 + i * 0.2}s ease-in-out infinite alternate` : undefined }}>🐸</span>
+              <span className="mt-0.5 text-[11px] font-black text-white/90">Frog {i + 1}</span>
+              {who.length > 0 && <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">{who.map((p: any) => (p.id === me ? "You" : p.name)).join(", ")}</span>}
+              {leaderPick && <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-black">👑 {last.leaderId === me ? "You" : turnName}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {f.phase === "wait" && (myTurn
+        ? <button onClick={() => act({ act: "start" })} className="cbtn cbtn-gold w-full py-4 text-lg">🐸 START</button>
+        : <p className="text-white/60 text-sm">Waiting for {turnName || "…"} to press START ({room.secondsLeft}s)</p>)}
+      {f.phase === "pick" && <p className={`text-sm font-bold ${f.myPick === null ? "text-emerald-300" : "text-white/60"}`}>{f.myPick === null ? `Tap a frog! ${left.toFixed(1)}s` : `Locked in Frog ${f.myPick + 1} · ${(f.picked || []).length}/${room.players.length} picked`}</p>}
+      {f.phase === "reveal" && (
+        <p className={`text-lg font-black ${drinkerIds.has(me) ? "text-red-300" : "text-emerald-300"}`}>{drinkerIds.has(me) ? "🍺 You drink ½ cup!" : "😎 You're safe!"}</p>
+      )}
+      <div className="mt-4 text-left">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-white/40 mb-1">Cups drunk so far</p>
+        {room.players.map((p: any) => (
+          <div key={p.id} className={`flex items-center justify-between py-1 text-sm border-b border-white/5 last:border-0 ${p.id === f.turnId ? "text-amber-200" : "text-white/70"}`}>
+            <span>{p.id === f.turnId ? "👑 " : ""}{p.id === me ? "You" : p.name}{f.phase === "pick" && (f.picked || []).includes(p.id) ? " ✓" : ""}</span>
+            <span className="font-bold tabular-nums">🍺 {((f.drinks?.[p.id] || 0) / 2).toString()}</span>
+          </div>
         ))}
       </div>
     </div>
