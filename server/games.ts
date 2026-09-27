@@ -1,5 +1,5 @@
 // Live PvP mini-games — ephemeral in-memory rooms synced to clients over SSE.
-// Games: rps (rock-paper-scissors elimination), tap (60s tap/mining race).
+// Games: rps (rock-paper-scissors elimination), tap (30s tap/mining race).
 // Leaderboards + which-game-on-which-day config persist in Postgres.
 import type { Express, Request, Response } from "express";
 import { and, desc, eq, sql, inArray } from "drizzle-orm";
@@ -35,19 +35,22 @@ interface Room {
   tiles?: { id: number; kind: "grandma" | "laughing" | "wolf"; flipped: boolean; by?: string }[];
   ridingClicks?: number; flippedThisTurn?: number; wolfCounts?: Record<string, number>; ridingReveal?: boolean;
   facesCount?: number;
-  // timer (Stop at 10:00) only
+  // timer (Stop the Clock) only
   timerStart?: number; timerWinners?: string[];
+  timerMode?: "fixed" | "random"; timerTargetMs?: number;
   // 789 (two-dice drinking) only
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
   // stack (tower stacking) only
   stackWinners?: string[];
+  stackTower?: { left: number; width: number; by?: string }[];
+  stackMove?: { width: number; fromLeft: boolean; t0: number; speed: number };
 }
 
 const rooms = new Map<string, Room>();
 const MAX_PLAYERS = 20;
 const CARDS_MAX = 5;
 const RPS_SECONDS = 20;
-const TAP_SECONDS = 60;
+const TAP_SECONDS = 30;
 
 function code4(): string {
   let c = ""; do { c = Math.random().toString(36).slice(2, 6).toUpperCase(); } while (rooms.has(c));
@@ -182,7 +185,7 @@ function resolveRps(room: Room) {
   room.timer = setTimeout(() => startRpsRound(room), 2600);
 }
 
-// ── Tap / Mining race (60s) ─────────────────────────────────────────────
+// ── Tap / Mining race (30s) ─────────────────────────────────────────────
 function startTap(room: Room) {
   clearTimers(room);
   room.status = "playing";
@@ -209,8 +212,9 @@ function finishTap(room: Room) {
 }
 
 // ── Stop the Timer (10s target) ───────────────────────────────────────────
-const TIMER_TARGET_MS = 10_000;
-const TIMER_CAP_MS = 20_000; // hard stop so a non-clicker can't stall the room
+const TIMER_TARGET_MS = 10_000; // default target; host can pick "random" (5–20 s)
+const TIMER_EXTRA_MS = 10_000; // hard stop this long after the target so a non-clicker can't stall the room
+const timerTarget = (room: Room) => room.timerTargetMs || TIMER_TARGET_MS;
 function fmtMs(ms: number) {
   const s = Math.floor(ms / 1000), cs = Math.floor((ms % 1000) / 10);
   return `${s}:${String(cs).padStart(2, "0")}`;
@@ -221,10 +225,12 @@ function startTimer(room: Room) {
   for (const p of room.players) p.stopMs = null;
   room.timerStart = Date.now();
   room.timerWinners = [];
-  room.deadline = 0; // clock is hidden — players must FEEL when 10:00 hits
-  room.message = "GO! Hit STOP when you think it's exactly 10:00 ⏱️";
+  // Random mode picks a fresh whole-second target (5–20 s) every round.
+  room.timerTargetMs = room.timerMode === "random" ? (5 + Math.floor(Math.random() * 16)) * 1000 : TIMER_TARGET_MS;
+  room.deadline = 0;
+  room.message = `GO! Hit STOP at exactly ${fmtMs(room.timerTargetMs)} ⏱️`;
   broadcast(room);
-  room.timer = setTimeout(() => finishTimer(room), TIMER_CAP_MS);
+  room.timer = setTimeout(() => finishTimer(room), room.timerTargetMs + TIMER_EXTRA_MS);
 }
 function stopTimer(room: Room, uid: string) {
   if (room.status !== "playing" || room.game !== "timer" || !room.timerStart) return;
@@ -237,7 +243,7 @@ function stopTimer(room: Room, uid: string) {
 function finishTimer(room: Room) {
   clearTimers(room);
   room.status = "done";
-  const dist = (p: Player) => (p.stopMs == null ? Infinity : Math.abs(p.stopMs - TIMER_TARGET_MS));
+  const dist = (p: Player) => (p.stopMs == null ? Infinity : Math.abs(p.stopMs - timerTarget(room)));
   const stoppers = room.players.filter((p) => p.stopMs != null);
   const min = stoppers.length ? Math.min(...stoppers.map(dist)) : Infinity;
   const winners = stoppers.filter((p) => dist(p) === min);
@@ -252,7 +258,7 @@ function finishTimer(room: Room) {
     : "Nobody hit stop — no winner!";
   broadcast(room);
   const rows = stoppers.map((p) => ({
-    userId: p.id, name: p.name, score: Math.max(0, TIMER_TARGET_MS - Math.round(dist(p))),
+    userId: p.id, name: p.name, score: Math.max(0, timerTarget(room) - Math.round(dist(p))),
     result: (room.timerWinners!.includes(p.id) ? "win" : "lose") as "win" | "lose",
   }));
   saveScores(room, rows);
@@ -261,7 +267,8 @@ function finishTimer(room: Room) {
 function timerView(room: Room, forUserId?: string) {
   const done = room.status === "done";
   return {
-    target: 60,
+    targetMs: timerTarget(room),
+    mode: room.timerMode || "fixed",
     startedAt: room.timerStart || null,
     serverNow: Date.now(),
     yourMs: room.players.find((p) => p.id === forUserId)?.stopMs ?? null,
@@ -269,7 +276,7 @@ function timerView(room: Room, forUserId?: string) {
     total: room.players.length,
     winners: room.timerWinners || [],
     stopped: room.players.reduce((acc: any, p) => { acc[p.id] = p.stopMs != null; return acc; }, {}),
-    results: done ? [...room.players].map((p) => ({ id: p.id, name: p.name, ms: p.stopMs ?? null, dist: p.stopMs == null ? null : Math.abs(p.stopMs - TIMER_TARGET_MS) })).sort((a, b) => (a.dist ?? Infinity) - (b.dist ?? Infinity)) : null,
+    results: done ? [...room.players].map((p) => ({ id: p.id, name: p.name, ms: p.stopMs ?? null, dist: p.stopMs == null ? null : Math.abs(p.stopMs - timerTarget(room)) })).sort((a, b) => (a.dist ?? Infinity) - (b.dist ?? Infinity)) : null,
   };
 }
 
@@ -355,53 +362,83 @@ function sevenView(room: Room) {
   };
 }
 
-// ── Tower Stack (parallel skill game) ────────────────────────────────────
-// Each player stacks their own tower: a block slides, tap to drop it. Overhang
-// falls and the block shrinks; miss completely and you're out. Last one standing
-// (or the tallest tower when time's up) wins. Client runs the animation and
-// reports its height/out, like the tap game.
-const STACK_MAX_MS = 150_000;
-function startStack(room: Room) {
+// ── Tower Stack (shared tower, take turns) ───────────────────────────────
+// One tower for the whole room. Players take turns dropping the sliding block;
+// overhang is sliced off, and whoever misses the tower (or runs out of time)
+// knocks it over and loses — everyone else wins. The block's motion is a
+// deterministic back-and-forth from the server's clock so every player sees the
+// same block; the dropper reports where it was when they tapped.
+const STACK_W = 240, STACK_BASE = 120, STACK_TURN_MS = 10_000;
+function stackTop(room: Room) { const t = room.stackTower || []; return t[t.length - 1]; }
+function stackPos(m: NonNullable<Room["stackMove"]>, now: number) {
+  const L = STACK_W - m.width;
+  if (L <= 0) return 0;
+  const d = Math.max(0, now - m.t0) * m.speed, ph = d % (2 * L);
+  const x = ph <= L ? ph : 2 * L - ph;
+  return m.fromLeft ? x : L - x;
+}
+function armStack(room: Room) {
   clearTimers(room);
+  const h = (room.stackTower?.length || 1) - 1;
+  const top = stackTop(room)!;
+  room.stackMove = { width: top.width, fromLeft: h % 2 === 0, t0: Date.now() + 700, speed: Math.min(0.36, 0.12 + h * 0.012) };
+  const p = room.players[room.turnIdx ?? 0];
+  room.deadline = Date.now() + STACK_TURN_MS + 700;
+  room.message = `${p?.name}'s turn — tap to drop! 🧱`;
+  broadcast(room);
+  room.timer = setTimeout(() => finishStack(room, p?.id, "ran out of time"), STACK_TURN_MS + 700);
+}
+function startStack(room: Room) {
   room.status = "playing";
   room.stackWinners = [];
   for (const p of room.players) { p.alive = true; p.stackHeight = 0; }
-  room.deadline = Date.now() + STACK_MAX_MS;
-  room.message = "Stack the tower — tap to drop each block! 🧱";
-  broadcast(room);
-  room.ticker = setInterval(() => broadcast(room), 700); // live scoreboard
-  room.timer = setTimeout(() => finishStack(room), STACK_MAX_MS);
+  room.stackTower = [{ left: (STACK_W - STACK_BASE) / 2, width: STACK_BASE }];
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  armStack(room);
 }
-function finishStack(room: Room) {
+function finishStack(room: Room, loserId?: string, why = "missed the tower") {
   clearTimers(room);
   room.status = "done";
-  const ranked = [...room.players].sort((a, b) => (b.stackHeight || 0) - (a.stackHeight || 0));
-  const top = ranked[0]?.stackHeight || 0;
-  const winners = ranked.filter((p) => (p.stackHeight || 0) === top && top > 0);
+  room.stackMove = undefined;
+  const height = (room.stackTower?.length || 1) - 1;
+  const loser = room.players.find((p) => p.id === loserId);
+  room.lastLoserId = loser?.id;
+  const winners = room.players.filter((p) => p.id !== loser?.id);
   room.stackWinners = winners.map((p) => p.id);
   room.winnerId = winners[0]?.id;
-  room.lastLoserId = ranked.length ? ranked[ranked.length - 1].id : undefined;
-  room.message = winners.length
-    ? (winners.length === 1 ? `${winners[0].name} stacked ${top} high! 🏆` : `${winners.map((p) => p.name).join(" & ")} tied at ${top} blocks 🏆`)
-    : "Game over — nobody got a block down!";
+  room.message = loser ? `${loser.name} ${why} — the tower fell at ${height} blocks! 💥` : `Tower stands at ${height} blocks!`;
   broadcast(room);
-  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: p.stackHeight || 0, result: (room.stackWinners!.includes(p.id) ? "win" : "lose") as "win" | "lose" })));
+  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: height, result: (p.id === loser?.id ? "lose" : "win") as "win" | "lose" })));
   scheduleCleanup(room);
 }
-function stackAction(room: Room, uid: string, height: number, out: boolean) {
-  if (room.status !== "playing" || room.game !== "stack") return;
-  const p = room.players.find((x) => x.id === uid);
-  if (!p || !p.alive) return;
-  p.stackHeight = Math.max(p.stackHeight || 0, Math.floor(height) || 0);
-  if (out) p.alive = false;
-  const aliveN = room.players.filter((x) => x.alive).length;
-  if (aliveN === 0 || (room.players.length > 1 && aliveN <= 1)) return finishStack(room);
-  broadcast(room);
+function stackDrop(room: Room, uid: string, reportedLeft: number) {
+  if (room.status !== "playing" || room.game !== "stack" || !room.stackMove) return;
+  const p = room.players[room.turnIdx ?? 0];
+  if (!p || p.id !== uid) return;
+  const m = room.stackMove, top = stackTop(room)!;
+  if (Date.now() < m.t0) return; // block hasn't started moving yet
+  const L = STACK_W - m.width;
+  const left = Number.isFinite(reportedLeft) ? Math.max(0, Math.min(L, reportedLeft)) : stackPos(m, Date.now());
+  const ol = Math.max(left, top.left), or = Math.min(left + m.width, top.left + top.width);
+  const overlap = or - ol;
+  if (overlap < 1) return finishStack(room, uid);
+  room.stackTower!.push({ left: ol, width: overlap, by: p.name });
+  p.stackHeight = (p.stackHeight || 0) + 1;
+  room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length;
+  armStack(room);
 }
 function stackView(room: Room) {
+  const t = room.stackTower || [];
   return {
+    width: STACK_W,
     winners: room.stackWinners || [],
-    heights: room.players.reduce((acc: any, p) => { acc[p.id] = { h: p.stackHeight || 0, alive: p.alive }; return acc; }, {}),
+    tower: t,
+    height: Math.max(0, t.length - 1),
+    move: room.stackMove || null,
+    turnId: room.status === "playing" ? room.players[room.turnIdx ?? 0]?.id : null,
+    loserId: room.status === "done" ? room.lastLoserId || null : null,
+    serverNow: Date.now(),
+    heights: room.players.reduce((acc: any, p) => { acc[p.id] = { h: p.stackHeight || 0, alive: true }; return acc; }, {}),
   };
 }
 
@@ -480,7 +517,8 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       return broadcast(room);
     }
     case "stack":
-      if (room.players.filter((p) => p.alive).length <= 1 && room.players.length) return finishStack(room);
+      if (room.players.length <= 1) return soloWin();
+      if (leavingWasTurn) return armStack(room);
       return broadcast(room);
     default:
       return broadcast(room);
@@ -506,7 +544,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = [];
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1200,6 +1238,11 @@ export function registerGameRoutes(app: Express) {
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
     const name = await nameFor(uid);
     const companyId = await resolveCompanyId(req);
+    // Double/triple taps on "Create room" must not open several rooms: reuse the
+    // lobby room this host already has for this game. (No await between this
+    // check and rooms.set, so concurrent requests can't both pass it.)
+    const already = Array.from(rooms.values()).find((r) => r.hostId === uid && r.game === game && r.status === "lobby");
+    if (already) return res.json({ code: already.code });
     const room: Room = {
       code: code4(), game, hostId: uid, password: String(req.body?.password || "").trim(), companyId,
       status: "lobby", players: [{ id: uid, name, alive: true, taps: 0, connected: true }],
@@ -1210,6 +1253,7 @@ export function registerGameRoutes(app: Express) {
       wheelPrizes: Array.isArray(req.body?.wheelPrizes)
         ? req.body.wheelPrizes.map((s: any) => String(s).trim()).filter(Boolean).slice(0, 12).map((label: string) => ({ label, w: 1, emoji: "🍺" }))
         : undefined,
+      timerMode: req.body?.timerMode === "random" ? "random" : "fixed",
       createdAt: Date.now(), subs: new Set(),
     };
     rooms.set(room.code, room);
@@ -1285,7 +1329,7 @@ export function registerGameRoutes(app: Express) {
       return res.json({ ok: true });
     }
     if (room.game === "stack") {
-      if (req.body?.act === "stack") stackAction(room, getUserId(req)!, Number(req.body?.height), !!req.body?.out);
+      if (req.body?.act === "drop") stackDrop(room, getUserId(req)!, Number(req.body?.left));
       return res.json({ ok: true });
     }
     if (room.game === "riding") {
