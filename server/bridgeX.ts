@@ -469,6 +469,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE events ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE appointments ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE appointments ADD COLUMN IF NOT EXISTS branch_id integer;
+    ALTER TABLE spin_prizes ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE spin_results ADD COLUMN IF NOT EXISTS company_id integer;
     -- Inventory & Purchasing module
     CREATE TABLE IF NOT EXISTS bridge_suppliers (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, phone varchar, email varchar, address text, note text, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_suppliers_company ON bridge_suppliers(company_id);
@@ -562,6 +563,10 @@ export async function ensureBridgeXSchema() {
   await db.execute(sql`INSERT INTO bridge_company_members (company_id, user_id, branch_id, role) SELECT ${reborn.id}, id, ${branch.id}, CASE WHEN role='admin' THEN 'admin' WHEN role='staff' THEN 'staff' ELSE 'member' END FROM users ON CONFLICT (company_id, user_id) DO NOTHING`);
   for (const table of ["pos_products", "pos_tickets", "stock_movements", "ledger_entries", "staff_attendance", "worker_shifts", "leave_requests", "events", "appointments"]) {
     await db.execute(sql.raw(`UPDATE ${table} SET company_id=${reborn.id}, branch_id=${branch.id} WHERE company_id IS NULL`));
+  }
+  // company-only backfill (these tables have no branch_id)
+  for (const table of ["spin_prizes", "spin_results"]) {
+    await db.execute(sql.raw(`UPDATE ${table} SET company_id=${reborn.id} WHERE company_id IS NULL`));
   }
 }
 

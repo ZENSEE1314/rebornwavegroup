@@ -718,6 +718,7 @@ export const petPills = pgTable("pet_pills", {
 // Spin-the-wheel prize configuration (admin editable)
 export const spinPrizes = pgTable("spin_prizes", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"), // owning business (multi-tenant wheel)
   label: varchar("label").notNull(),
   description: text("description"),
   // voucher_percent | voucher_amount | item | egg | free_spin | nothing
@@ -735,6 +736,7 @@ export const spinPrizes = pgTable("spin_prizes", {
 // Every spin result; prizes (except free_spin/nothing) await admin redemption
 export const spinResults = pgTable("spin_results", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"), // business the spin happened at
   userId: varchar("user_id").notNull(),
   prizeId: integer("prize_id"),
   prizeLabel: varchar("prize_label"),

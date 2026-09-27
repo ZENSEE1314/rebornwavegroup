@@ -408,10 +408,11 @@ const DEFAULT_FAQ = [
   { question: "How do I claim a prize I won?", answer: "Prizes you win on the wheel appear under 'My Prizes'. Show it to our staff at the club — an admin will confirm and hand over your prize.", keywords: "prize,redeem,claim,voucher,wheel,spin" },
 ];
 
-async function seedPrizesIfEmpty() {
-  const existing = await db.select({ id: spinPrizes.id }).from(spinPrizes).limit(1);
+async function seedPrizesIfEmpty(companyId?: number) {
+  const cond = companyId ? eq(spinPrizes.companyId, companyId) : undefined;
+  const existing = await db.select({ id: spinPrizes.id }).from(spinPrizes).where(cond as any).limit(1);
   if (existing.length === 0) {
-    await db.insert(spinPrizes).values(DEFAULT_PRIZES.map((p, i) => ({ ...p, sortOrder: i })));
+    await db.insert(spinPrizes).values(DEFAULT_PRIZES.map((p, i) => ({ ...p, companyId: companyId ?? null, sortOrder: i })));
   }
 }
 async function seedFaqIfEmpty() {
@@ -671,10 +672,11 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // ── Spin the wheel ───────────────────────────────────────────────────────
-  app.get("/api/reborn/spin/prizes", async (_req, res) => {
+  app.get("/api/reborn/spin/prizes", async (req, res) => {
     try {
-      await seedPrizesIfEmpty();
-      const rows = await db.select().from(spinPrizes).where(eq(spinPrizes.active, true)).orderBy(spinPrizes.sortOrder);
+      const cid = await rebornCompanyId(req);
+      await seedPrizesIfEmpty(cid);
+      const rows = await db.select().from(spinPrizes).where(and(eq(spinPrizes.companyId, cid), eq(spinPrizes.active, true))).orderBy(spinPrizes.sortOrder);
       res.json({ cost: (await getSettings()).spinTokenCost, prizes: rows });
     } catch (e) { console.error("spin prizes", e); res.status(500).json({ message: "Failed to load prizes" }); }
   });
@@ -682,13 +684,14 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/spin", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
-      await seedPrizesIfEmpty();
+      const cid = await rebornCompanyId(req);
+      await seedPrizesIfEmpty(cid);
       const spinSettings = await getSettings();
       const spinCost = spinSettings.spinTokenCost;
       const user = await storage.getUser(userId);
       if (!user || (user.tokens || 0) < spinCost) return res.status(400).json({ message: `Not enough tokens (need ${spinCost}). Feed your pet to earn more.` });
 
-      const prizes = await db.select().from(spinPrizes).where(eq(spinPrizes.active, true)).orderBy(spinPrizes.sortOrder);
+      const prizes = await db.select().from(spinPrizes).where(and(eq(spinPrizes.companyId, cid), eq(spinPrizes.active, true))).orderBy(spinPrizes.sortOrder);
       if (prizes.length === 0) return res.status(400).json({ message: "The wheel isn't set up yet. Please check back soon." });
       // Prize pool gating: real prizes can only be won when the pool is funded and can
       // afford them. Below the minimum (or empty) only free outcomes (nothing/free spin).
@@ -731,7 +734,7 @@ export function registerRebornRoutes(app: Express) {
       }
 
       const [result] = await db.insert(spinResults).values({
-        userId, prizeId: picked.id, prizeLabel: picked.label, prizeType: picked.prizeType,
+        userId, companyId: cid, prizeId: picked.id, prizeLabel: picked.label, prizeType: picked.prizeType,
         tokensSpent: spinCost, status,
       }).returning();
 
@@ -760,7 +763,8 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/spin/history", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
-      const rows = await db.select().from(spinResults).where(eq(spinResults.userId, userId)).orderBy(desc(spinResults.createdAt)).limit(50);
+      const cid = await rebornCompanyId(req);
+      const rows = await db.select().from(spinResults).where(and(eq(spinResults.companyId, cid), eq(spinResults.userId, userId))).orderBy(desc(spinResults.createdAt)).limit(50);
       res.json(rows);
     } catch { res.json([]); }
   });
@@ -769,8 +773,9 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/prizes", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
+      const cid = await rebornCompanyId(req);
       const rows = await db.select().from(spinResults)
-        .where(and(eq(spinResults.userId, userId), sql`${spinResults.status} in ('unused','redeeming','redeemed')`))
+        .where(and(eq(spinResults.companyId, cid), eq(spinResults.userId, userId), sql`${spinResults.status} in ('unused','redeeming','redeemed')`))
         .orderBy(desc(spinResults.createdAt));
       const last = rows.filter((r) => r.redeemedAt).sort((a, b) => new Date(b.redeemedAt!).getTime() - new Date(a.redeemedAt!).getTime())[0];
       const lastUsedMs = last?.redeemedAt ? new Date(last.redeemedAt).getTime() : 0;
@@ -1255,14 +1260,16 @@ export function registerRebornRoutes(app: Express) {
     res.json({ message: "Pill granted" });
   }));
 
-  app.get("/api/reborn/admin/prizes", requireAdmin(async (_req, res) => {
-    await seedPrizesIfEmpty();
-    const rows = await db.select().from(spinPrizes).orderBy(spinPrizes.sortOrder);
+  app.get("/api/reborn/admin/prizes", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    await seedPrizesIfEmpty(cid);
+    const rows = await db.select().from(spinPrizes).where(eq(spinPrizes.companyId, cid)).orderBy(spinPrizes.sortOrder);
     res.json(rows);
   }));
   app.post("/api/reborn/admin/prizes", requireAdmin(async (req, res) => {
     const b = req.body || {};
     const [row] = await db.insert(spinPrizes).values({
+      companyId: await rebornCompanyId(req),
       label: b.label || "New prize", description: b.description || "", prizeType: b.prizeType || "item",
       value: Number(b.value) || 0, costRp: Number(b.costRp) || 0, weight: Number(b.weight) || 10, colorHex: b.colorHex || "#c9a84c",
       active: b.active !== false, sortOrder: Number(b.sortOrder) || 0,
@@ -1271,29 +1278,32 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.put("/api/reborn/admin/prizes/:id", requireAdmin(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {};
+    const cid = await rebornCompanyId(req);
     const patch: any = { updatedAt: new Date() };
     for (const k of ["label", "description", "prizeType", "colorHex"]) if (b[k] !== undefined) patch[k] = b[k];
     for (const k of ["value", "costRp", "weight", "sortOrder"]) if (b[k] !== undefined) patch[k] = Number(b[k]);
     if (b.active !== undefined) patch.active = !!b.active;
-    const [row] = await db.update(spinPrizes).set(patch).where(eq(spinPrizes.id, id)).returning();
+    const [row] = await db.update(spinPrizes).set(patch).where(and(eq(spinPrizes.id, id), eq(spinPrizes.companyId, cid))).returning();
     res.json(row);
   }));
   app.delete("/api/reborn/admin/prizes/:id", requireAdmin(async (req, res) => {
-    await db.delete(spinPrizes).where(eq(spinPrizes.id, Number(req.params.id)));
+    const cid = await rebornCompanyId(req);
+    await db.delete(spinPrizes).where(and(eq(spinPrizes.id, Number(req.params.id)), eq(spinPrizes.companyId, cid)));
     res.json({ message: "Deleted" });
   }));
   // Admin hands a specific prize to a member by username/code — no spin needed.
   app.post("/api/reborn/admin/prizes/award", requireAdmin(async (req, res) => {
     const prizeId = Number(req.body?.prizeId);
+    const cid = await rebornCompanyId(req);
     const u = await findMemberByCode(String(req.body?.username || ""));
     if (!u) return res.status(404).json({ message: "Member not found (username / code / email)" });
-    const [prize] = await db.select().from(spinPrizes).where(eq(spinPrizes.id, prizeId));
+    const [prize] = await db.select().from(spinPrizes).where(and(eq(spinPrizes.id, prizeId), eq(spinPrizes.companyId, cid)));
     if (!prize) return res.status(404).json({ message: "Prize not found" });
     const now = new Date();
     if (prize.prizeType === "pill") await db.insert(petPills).values({ userId: u.id, grantedBy: "admin", note: "Awarded by admin" });
     else if (prize.prizeType === "egg") await db.insert(pets).values({ userId: u.id, toyId: 0, name: "Doluruu Egg", type: "virtual", gender: Math.random() < 0.5 ? "male" : "female", isActive: true, isEgg: true, hatchAt: addDays(EGG_HATCH_DAYS, now), lifeStatus: "active" });
     const status = ["nothing", "free_spin", "pill", "egg"].includes(prize.prizeType || "") ? "won" : "unused";
-    const [result] = await db.insert(spinResults).values({ userId: u.id, prizeId: prize.id, prizeLabel: prize.label, prizeType: prize.prizeType, tokensSpent: 0, status }).returning();
+    const [result] = await db.insert(spinResults).values({ userId: u.id, companyId: cid, prizeId: prize.id, prizeLabel: prize.label, prizeType: prize.prizeType, tokensSpent: 0, status }).returning();
     await sendRebornUserNotification(u.id, { type: "prize", title: "🎉 You won a prize!", body: `${prize.label} — from ${(await getSettings()).clubName}`, data: { path: "/spin" } });
     sendPushToUser(u.id, { title: "🎉 You won a prize!", body: `${prize.label} — show it to staff to redeem`, url: "/spin", tag: `award-${result.id}` }).catch(() => {});
     await logAdmin(req, { targetUserId: u.id, targetType: "spin_result", targetId: result.id, action: "award_prize", entityType: "prize", description: `Awarded "${prize.label}" to ${u.username || u.email}` });
