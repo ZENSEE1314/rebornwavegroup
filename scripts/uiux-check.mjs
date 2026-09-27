@@ -37,6 +37,7 @@ const FLOWS = [
   ["games › Lucky game", "/games", ["Lucky game"]],
   ["games › Dice game", "/games", ["Dice game"]],
   ["pet › costumes", "/pet", ["Costumes"]],
+  ["pet › costumes › body", "/pet", ["Costumes", "👕 Body"]],
   ["kos › venue QR (admin)", "/kos", ["Venue check-in QR"]],
   ["kos › buy KGOLD", "/kos", ["Buy KGOLD"]],
   ["kos › cash out", "/kos", ["Cash out"]],
@@ -61,13 +62,14 @@ function mock(url) {
   if (p === "/api/reborn/venue/status") return { checkedIn: false };
   if (p === "/api/reborn/pets") return [{ id: 7, name: "Doluruu", gender: process.env.UIUX_GENDER || "male", isEgg: false, lifeStatus: "active", daysLeft: 3, hunger: 70, happiness: 80, cleanliness: 25, energy: 60, canFeed: true, feedsNeeded: 2, feedsInCycle: 1, cycleActive: true, cycleHoursLeft: 10, nextFeedMinutes: 0 }];
   if (p === "/api/reborn/pet-home") return {
-    coins: 140, owned: ["plant_fern", "art_landscape", "sofa_pink", "hat_crown", "glasses_cool", "scarf_red", "lamp_floor", "toy_teddy"], lightOn: process.env.UIUX_LIGHT !== "off",
+    coins: 340, owned: ["w2", "w41", "w71", "w21", "plant_fern", "art_landscape", "sofa_pink", "hat_crown", "glasses_cool", "scarf_red", "lamp_floor", "toy_teddy"], lightOn: process.env.UIUX_LIGHT !== "off",
     placed: { plant: process.env.UIUX_PLANT || "plant_fern", art: "art_landscape", sofa: "sofa_pink", lamp: "lamp_floor", toy: "toy_teddy" },
-    costumes: { 7: Object.fromEntries((process.env.UIUX_WEAR || "head:hat_crown,face:glasses_cool,neck:scarf_red").split(",").map((x) => x.split(":"))) },
+    costumes: { 7: Object.fromEntries((process.env.UIUX_WEAR || "head:w2,body:w41,back:w71,face:w21").split(",").map((x) => x.split(":"))) },
     earnedToday: 25, dailyCap: 300, rewards: { play: 5, win: 20, numberCrack: 50 }, timezone: process.env.UIUX_TZ || "Asia/Jakarta",
     catalog: [["sofa_pink", "Pink sofa", "🛋️", 120, "furniture", "sofa"], ["sofa_chair", "Armchair", "🪑", 60, "furniture", "sofa"], ["plant_fern", "Fern pot", "🪴", 30, "furniture", "plant"], ["plant_tulip", "Tulip pot", "🌷", 45, "furniture", "plant"], ["plant_sunflower", "Sunflower pot", "🌻", 60, "furniture", "plant"], ["plant_cactus", "Cactus", "🌵", 40, "furniture", "plant"], ["plant_blossom", "Cherry blossom", "🌸", 90, "furniture", "plant"], ["lamp_floor", "Floor lamp", "🪔", 50, "furniture", "lamp"], ["lamp_candle", "Candles", "🕯️", 35, "furniture", "lamp"], ["art_landscape", "Landscape", "🖼️", 40, "furniture", "art"], ["art_rainbow", "Rainbow poster", "🌈", 55, "furniture", "art"], ["art_clock", "Wall clock", "🕰️", 70, "furniture", "art"], ["toy_ball", "Beach ball", "🏐", 25, "furniture", "toy"], ["toy_teddy", "Teddy bear", "🧸", 60, "furniture", "toy"], ["toy_gift", "Gift box", "🎁", 40, "furniture", "toy"],
       ["hat_party", "Party hat", "🥳", 50, "costume", "head"], ["hat_crown", "Crown", "👑", 200, "costume", "head"], ["hat_cap", "Cap", "🧢", 60, "costume", "head"], ["hat_top", "Top hat", "🎩", 90, "costume", "head"], ["hat_bow", "Ribbon", "🎀", 45, "costume", "head"], ["glasses_cool", "Sunglasses", "🕶️", 70, "costume", "face"], ["scarf_red", "Scarf", "🧣", 55, "costume", "neck"]]
-      .map(([id, name, emoji, price, kind, slot]) => ({ id, name, emoji, price, kind, slot })),
+      .map(([id, name, emoji, price, kind, slot]) => ({ id, name, emoji, price, kind, slot, hidden: kind === "costume" }))
+      .concat(Array.from({ length: 100 }, (_, i) => ({ id: `w${i + 1}`, name: `Wearable ${i + 1}`, emoji: "🎩", price: 50 + i * 5, kind: "costume", slot: ["head", "face", "neck", "body", "back", "aura", "hands", "feet", "tail", "shell"][i < 20 ? 0 : i < 30 ? 1 : i < 40 ? 2 : i < 70 ? 3 : i < 77 ? 4 : i < 86 ? 5 : i < 90 ? 6 : i < 94 ? 7 : i < 97 ? 8 : 9], image: `/pet-items/${i + 1}.webp`, ...([5, 16, 25, 34, 46, 55, 65].includes(i + 1) ? {} : { figure: `/pet-items/fig-${i + 1}.webp`, sprite: ![95, 96].includes(i + 1) }) }))),
   };
   if (p === "/api/reborn/chat/friends") return { friends: [], incoming: [], outgoing: [] };
   return [];
