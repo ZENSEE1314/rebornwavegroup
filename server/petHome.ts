@@ -7,7 +7,35 @@ import { db } from "./db";
 import { requireAuth, getUserId } from "./multiAuth";
 import { getBookingTimezone } from "./booking";
 
-export type PetItem = { id: string; name: string; emoji: string; price: number; kind: "furniture" | "costume"; slot: string };
+export type PetItem = { id: string; name: string; emoji: string; price: number; kind: "furniture" | "costume"; slot: string; image?: string; figure?: string; sprite?: boolean; hidden?: boolean };
+
+// The 100 wearables from the "Customize your Doluruu" sheet. Pictures live in
+// client/public/pet-items/<n>.webp (cut from the sheet). [name, price]
+const WEAR_SLOTS: [string, string, [string, number][]][] = [
+  ["head", "🎩", [["Crown", 150], ["Diamond Crown", 300], ["King Crown", 250], ["Prince Crown", 180], ["Party Hat", 50], ["Birthday Crown", 120], ["Santa Hat", 80], ["Witch Hat", 90], ["Wizard Hat", 110], ["Chef Hat", 70],
+    ["Cowboy Hat", 90], ["Pirate Hat", 110], ["Samurai Helmet", 220], ["Viking Helmet", 200], ["Knight Helmet", 220], ["Baseball Cap", 60], ["Bucket Hat", 60], ["Beanie", 50], ["Straw Hat", 60], ["Halo", 200]]],
+  ["face", "🕶️", [["Round Sunglasses", 70], ["Heart Glasses", 80], ["Cyber Visor", 150], ["Aviator Glasses", 90], ["Nerd Glasses", 50], ["Star Glasses", 80], ["Monocle", 100], ["Eye Patch", 60], ["Superhero Mask", 120], ["Ninja Mask", 120]]],
+  ["neck", "📿", [["Gold Chain", 150], ["Diamond Chain", 250], ["Bell Collar", 60], ["Bow Tie", 50], ["Red Scarf", 60], ["Winter Scarf", 70], ["Hawaiian Lei", 80], ["Pearl Necklace", 150], ["Magic Amulet", 180], ["Dragon Medallion", 250]]],
+  ["body", "👕", [["King Robe", 350], ["Tuxedo", 250], ["Business Suit", 220], ["Hoodie", 120], ["Varsity Jacket", 150], ["Leather Jacket", 180], ["Hawaiian Shirt", 120], ["Basketball Jersey", 130], ["Football Jersey", 130], ["Baseball Jersey", 130],
+    ["Superhero Suit", 300], ["Ninja Outfit", 250], ["Samurai Armor", 400], ["Knight Armor", 400], ["Pirate Coat", 280], ["Wizard Robe", 280], ["Vampire Cape", 300], ["Angel Robe", 300], ["Devil Costume", 300], ["Astronaut Suit", 450],
+    ["Firefighter Suit", 220], ["Police Costume", 220], ["Doctor Coat", 180], ["Chef Uniform", 180], ["Construction Vest", 150], ["Explorer Outfit", 200], ["Rock Star Jacket", 250], ["K-Pop Outfit", 250], ["Chinese New Year", 280], ["Batik Outfit", 220]]],
+  ["back", "🪽", [["Angel Wings", 400], ["Devil Wings", 400], ["Fairy Wings", 350], ["Dragon Wings", 450], ["Jetpack", 500], ["Rocket Pack", 500], ["Cyber Wings", 450]]],
+  ["aura", "✨", [["Rainbow Aura", 500], ["Fire Aura", 550], ["Ice Aura", 550], ["Lightning Aura", 550], ["Heart Aura", 450], ["Star Aura", 450], ["Money Aura", 600], ["Galaxy Aura", 600], ["Golden Aura", 650]]],
+  ["hands", "🧤", [["Gold Bracelet", 150], ["Diamond Watch", 250], ["Boxing Gloves", 120], ["Magic Gloves", 200]]],
+  ["feet", "👟", [["Sneakers", 100], ["Gold Sneakers", 200], ["Bunny Slippers", 90], ["Roller Skates", 150]]],
+  ["tail", "🎀", [["Rainbow Tail Ring", 120], ["Gold Tail Ring", 150], ["Tail Bow", 70]]],
+  ["shell", "🐢", [["Shell Jewel Set", 300], ["Neon Shell Trim", 350], ["Royal Shell Armor", 500]]],
+];
+// Full-body transparent figures of Doluruu wearing the item (fig-<n>.webp) exist
+// for all but these; tail rings are close-ups, so they can't be the walking pet.
+const NO_FIGURE = new Set([5, 16, 25, 34, 46, 55, 65]);
+const NOT_SPRITE = new Set([95, 96]);
+let n = 0;
+const WEARABLES: PetItem[] = WEAR_SLOTS.flatMap(([slot, emoji, items]) => items.map(([name, price]) => {
+  n += 1;
+  const figure = NO_FIGURE.has(n) ? undefined : `/pet-items/fig-${n}.webp`;
+  return { id: `w${n}`, name, emoji, price, kind: "costume" as const, slot, image: `/pet-items/${n}.webp`, figure, sprite: !!figure && !NOT_SPRITE.has(n) };
+}));
 
 // Furniture goes in one slot of the room; costumes are worn on the pet's head/face/neck.
 export const PET_CATALOG: PetItem[] = [
@@ -26,13 +54,14 @@ export const PET_CATALOG: PetItem[] = [
   { id: "toy_ball", name: "Beach ball", emoji: "🏐", price: 25, kind: "furniture", slot: "toy" },
   { id: "toy_teddy", name: "Teddy bear", emoji: "🧸", price: 60, kind: "furniture", slot: "toy" },
   { id: "toy_gift", name: "Gift box", emoji: "🎁", price: 40, kind: "furniture", slot: "toy" },
-  { id: "hat_party", name: "Party hat", emoji: "🥳", price: 50, kind: "costume", slot: "head" },
-  { id: "hat_crown", name: "Crown", emoji: "👑", price: 200, kind: "costume", slot: "head" },
-  { id: "hat_cap", name: "Cap", emoji: "🧢", price: 60, kind: "costume", slot: "head" },
-  { id: "hat_top", name: "Top hat", emoji: "🎩", price: 90, kind: "costume", slot: "head" },
-  { id: "hat_bow", name: "Ribbon", emoji: "🎀", price: 45, kind: "costume", slot: "head" },
-  { id: "glasses_cool", name: "Sunglasses", emoji: "🕶️", price: 70, kind: "costume", slot: "face" },
-  { id: "scarf_red", name: "Scarf", emoji: "🧣", price: 55, kind: "costume", slot: "neck" },
+  { id: "hat_party", name: "Party hat", emoji: "🥳", price: 50, kind: "costume", slot: "head", hidden: true },
+  { id: "hat_crown", name: "Crown", emoji: "👑", price: 200, kind: "costume", slot: "head", hidden: true },
+  { id: "hat_cap", name: "Cap", emoji: "🧢", price: 60, kind: "costume", slot: "head", hidden: true },
+  { id: "hat_top", name: "Top hat", emoji: "🎩", price: 90, kind: "costume", slot: "head", hidden: true },
+  { id: "hat_bow", name: "Ribbon", emoji: "🎀", price: 45, kind: "costume", slot: "head", hidden: true },
+  { id: "glasses_cool", name: "Sunglasses", emoji: "🕶️", price: 70, kind: "costume", slot: "face", hidden: true },
+  { id: "scarf_red", name: "Scarf", emoji: "🧣", price: 55, kind: "costume", slot: "neck", hidden: true },
+  ...WEARABLES,
 ];
 // Everyone starts with these so a new room isn't empty.
 const STARTER_ITEMS = ["plant_fern", "art_landscape"];
@@ -105,7 +134,7 @@ export function registerPetHomeRoutes(app: Express) {
     try {
       const userId = getUserId(req)!;
       const item = PET_CATALOG.find((i) => i.id === req.body?.itemId);
-      if (!item) return res.status(404).json({ message: "Item not found" });
+      if (!item || item.hidden) return res.status(404).json({ message: "Item not found" });
       const home = await getHome(userId);
       if (home.owned.includes(item.id)) return res.status(400).json({ message: "You already own this" });
       // Atomic: only succeeds if the balance still covers the price.
