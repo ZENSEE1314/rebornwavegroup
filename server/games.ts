@@ -43,6 +43,7 @@ interface Room {
   // stack (tower stacking) only
   stackWinners?: string[];
   // poker3 (3-card blind poker drinking game) only
+  pkMin?: number; pkMax?: number; // half-cup units, host-set
   pk?: { hands: Record<string, PkCard[]>; seen: Record<string, boolean>; stake: number; pot: number; lastBy?: string; reveal?: any };
   stackTower?: { left: number; width: number; by?: string }[];
   stackMove?: { width: number; fromLeft: boolean; t0: number; speed: number };
@@ -1019,12 +1020,14 @@ function ridingView(room: Room) {
 // or Look at your cards. Once you've looked you're SEEN and pay double: Follow
 // (add 2× stake) forces a showdown — everyone opens and the WORST hand drinks
 // the whole pot — or Fold, which means you drink the whole pot yourself.
-// Ranks: Trail (AAA best) > Straight flush > Straight > Flush > Pair > High card.
+// Ranks: Straight flush > Trail (AAA best) > Flush > Straight > Pair > High card.
+// Host sets the minimum (starting stake, per player) and maximum (pot cap) cups.
 type PkCard = { r: number; s: string };
 const PK_SUITS = ["♠", "♥", "♦", "♣"];
 const PK_TURN_SECONDS = 30;
-const PK_POT_CAP = 20; // 10 cups → automatic showdown so an all-blind table can't loop forever
-const PK_CATS = ["High card", "Pair", "Flush", "Straight", "Straight flush", "Trail"];
+const PK_POT_CAP = 20; // default cap: 10 cups → automatic showdown so an all-blind table can't loop forever
+const pkCap = (room: Room) => room.pkMax || PK_POT_CAP;
+const PK_CATS = ["High card", "Pair", "Straight", "Flush", "Trail", "Straight flush"];
 function pkScore(h: PkCard[]): { score: number; cat: string } {
   const r = h.map((c) => c.r).sort((a, b) => b - a);
   const flush = h.every((c) => c.s === h[0].s);
@@ -1032,10 +1035,10 @@ function pkScore(h: PkCard[]): { score: number; cat: string } {
   const straight = (r[0] - r[1] === 1 && r[1] - r[2] === 1) || isA23;
   const hi = isA23 ? 3 : r[0];
   let cat = 0, tb = [r[0], r[1], r[2]];
-  if (r[0] === r[1] && r[1] === r[2]) cat = 5;
-  else if (straight && flush) { cat = 4; tb = [hi, 0, 0]; }
-  else if (straight) { cat = 3; tb = [hi, 0, 0]; }
-  else if (flush) cat = 2;
+  if (straight && flush) { cat = 5; tb = [hi, 0, 0]; }
+  else if (r[0] === r[1] && r[1] === r[2]) cat = 4;
+  else if (flush) cat = 3;
+  else if (straight) { cat = 2; tb = [hi, 0, 0]; }
   else if (r[0] === r[1] || r[1] === r[2]) { cat = 1; const pr = r[1], k = r[0] === r[1] ? r[2] : r[0]; tb = [pr, k, 0]; }
   return { score: cat * 1e6 + tb[0] * 1e4 + tb[1] * 100 + tb[2], cat: PK_CATS[cat] };
 }
@@ -1056,17 +1059,18 @@ function startPoker(room: Room) {
   for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
   const hands: Record<string, PkCard[]> = {}, seen: Record<string, boolean> = {};
   for (const p of room.players) { hands[p.id] = deck.splice(0, 3); seen[p.id] = false; p.alive = true; }
-  room.pk = { hands, seen, stake: 1, pot: room.players.length, reveal: null };
+  const min = room.pkMin || 1;
+  room.pk = { hands, seen, stake: min, pot: room.players.length * min, reveal: null };
   room.status = "playing";
   room.turnIdx = Math.floor(Math.random() * room.players.length);
-  room.message = `Cards dealt face-down 🂠 — ${room.players[room.turnIdx].name} starts. Everyone's in for ½ cup.`;
+  room.message = `Cards dealt face-down 🂠 — ${room.players[room.turnIdx].name} starts. Everyone's in for ${cupsText(min)}.`;
   armPoker(room); broadcast(room);
 }
 const cupsText = (u: number) => (u % 2 ? (u === 1 ? "½" : `${Math.floor(u / 2)}½`) : `${u / 2}`) + (u <= 2 ? " cup" : " cups");
 function finishPoker(room: Room, loserIds: string[], why: string) {
   clearTimers(room);
   const pk = room.pk!;
-  pk.pot = Math.min(pk.pot, PK_POT_CAP); // never more than 10 cups
+  pk.pot = Math.min(pk.pot, pkCap(room)); // never more than the host's max
   room.status = "done";
   room.lastLoserId = loserIds[0];
   const winners = room.players.filter((p) => !loserIds.includes(p.id));
@@ -1095,7 +1099,7 @@ function pokerAction(room: Room, uid: string, act: string) {
   const p = room.players[idx], seen = !!pk.seen[uid];
   const advance = (msg: string) => {
     pk.lastBy = uid;
-    if (pk.pot >= PK_POT_CAP) return pokerShowdown(room, `The pot hit ${cupsText(PK_POT_CAP)} — everybody opens`);
+    if (pk.pot >= pkCap(room)) return pokerShowdown(room, `The pot hit the ${cupsText(pkCap(room))} max — everybody opens`);
     room.turnIdx = (idx + 1) % room.players.length;
     const n = room.players[room.turnIdx];
     room.message = `${msg} · ${n.name}'s turn${pk.seen[n.id] ? " (seen — pays double)" : ""}`;
@@ -1114,7 +1118,7 @@ function pokerView(room: Room, forUserId?: string) {
   const mine = forUserId ? pk.hands[forUserId] : undefined;
   return {
     turnId: room.status === "playing" ? room.players[room.turnIdx ?? 0]?.id : null,
-    stake: pk.stake, pot: pk.pot, cap: PK_POT_CAP,
+    stake: pk.stake, pot: pk.pot, cap: pkCap(room), min: room.pkMin || 1,
     seen: pk.seen,
     myCards: mine && (pk.seen[forUserId!] || done) ? mine.map((c) => ({ ...c, label: pkLabel(c) })) : null,
     myHand: mine && (pk.seen[forUserId!] || done) ? pkScore(mine).cat : null,
@@ -1372,6 +1376,8 @@ export function registerGameRoutes(app: Express) {
         ? req.body.wheelPrizes.map((s: any) => String(s).trim()).filter(Boolean).slice(0, 12).map((label: string) => ({ label, w: 1, emoji: "🍺" }))
         : undefined,
       timerMode: req.body?.timerMode === "random" ? "random" : "fixed",
+      pkMin: Math.max(1, Math.min(4, Math.floor(Number(req.body?.pkMin) || 1))),
+      pkMax: Math.max(4, Math.min(40, Math.floor(Number(req.body?.pkMax) || 20))),
       createdAt: Date.now(), subs: new Set(),
     };
     rooms.set(room.code, room);
