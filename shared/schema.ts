@@ -272,6 +272,8 @@ export const referrals = pgTable("referrals", {
 // Appointments table
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"), // owning business (multi-tenant)
+  branchId: integer("branch_id"),
   userId: varchar("user_id").notNull(),
   title: varchar("title").notNull(),
   service: varchar("service").notNull(),

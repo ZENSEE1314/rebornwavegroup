@@ -2656,7 +2656,7 @@ export function registerRebornRoutes(app: Express) {
     const cap = tableCap(area, table);
     if (party > cap) return res.status(400).json({ message: `${table || "This area"} seats up to ${cap} pax. Please reduce the party size or pick a bigger ${table ? "table/room" : "spot"}.` });
     const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
-    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: b.note, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date) });
+    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: b.note, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const [u] = await db.select().from(users).where(eq(users.id, userId));
     await notifyAdmins(`📅 New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
@@ -2683,7 +2683,8 @@ export function registerRebornRoutes(app: Express) {
   // A member's own bookings (includes ones made over WhatsApp — same account).
   app.get("/api/reborn/my-bookings", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
-    const rows = await db.select().from(appointments).where(eq(appointments.userId, userId)).orderBy(desc(appointments.appointmentDate)).limit(50);
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select().from(appointments).where(and(eq(appointments.companyId, cid), eq(appointments.userId, userId))).orderBy(desc(appointments.appointmentDate)).limit(50);
     res.json(rows);
   });
   app.post("/api/reborn/my-bookings/:id/cancel", requireAuth, async (req, res) => {
@@ -2698,7 +2699,8 @@ export function registerRebornRoutes(app: Express) {
   });
   // Admin — all bookings (recent + upcoming) with member name/phone.
   app.get("/api/reborn/admin/bookings", requireStaff(async (req, res) => {
-    const rows = await db.select().from(appointments).orderBy(desc(appointments.appointmentDate)).limit(300);
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select().from(appointments).where(eq(appointments.companyId, cid)).orderBy(desc(appointments.appointmentDate)).limit(300);
     const ids = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids as string[])) : [];
     const umap = new Map(us.map((u) => [u.id, u]));
@@ -2749,7 +2751,7 @@ export function registerRebornRoutes(app: Express) {
     const table = b.table && area.tables.includes(String(b.table)) ? String(b.table) : BLOCK_ALL;
     const when = bookingWhen(areaOpenHourForDate(area, date), date, slot);
     const [row] = await db.insert(appointments).values({
-      userId: getUserId(req)!, title: "BLOCKED", service: `${area.name} (${area.level})`,
+      userId: getUserId(req)!, companyId: await rebornCompanyId(req), title: "BLOCKED", service: `${area.name} (${area.level})`,
       description: `Blocked by admin${b.reason ? `: ${b.reason}` : ""}`, notes: `${area.name} (${area.level}) / ${table}`,
       appointmentDate: when, duration: 120, cost: "0", status: "blocked", adminNote: b.reason || null,
     }).returning();
@@ -2777,7 +2779,7 @@ export function registerRebornRoutes(app: Express) {
     const manualParty = Math.max(1, Number(b.partySize) || 2);
     if (manualParty > tableCap(area, table)) return res.status(400).json({ message: `${table || "This area"} seats up to ${tableCap(area, table)} pax.` });
     const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
-    const row = await createBooking({ userId: u.id, dateStr: date, slot, partySize: manualParty, hours, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date) });
+    const row = await createBooking({ userId: u.id, dateStr: date, slot, partySize: manualParty, hours, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
     await db.update(appointments).set({ status: "confirmed" }).where(eq(appointments.id, row.id)); // admin booking = confirmed
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;

@@ -291,7 +291,7 @@ export async function isDateFullyBooked(a: BookingArea, dateStr: string): Promis
 
 // Create a pending appointment (used by app + WhatsApp bot). Staff confirm in-app.
 export async function createBooking(opts: {
-  userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number; table?: string; area?: string; openHour?: number;
+  userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number; table?: string; area?: string; openHour?: number; companyId?: number; branchId?: number;
 }) {
   const when = (() => {
     const [y, mo, d] = opts.dateStr.split("-").map(Number);
@@ -304,6 +304,8 @@ export async function createBooking(opts: {
   const bits = [opts.area, opts.table ? `Table ${opts.table}` : "", `Party of ${party}`, opts.note].filter(Boolean);
   const [row] = await db.insert(appointments).values({
     userId: opts.userId,
+    companyId: opts.companyId ?? null,
+    branchId: opts.branchId ?? null,
     title: [opts.area, opts.table && `Table ${opts.table}`].filter(Boolean).join(" · ") || "Booking",
     service: opts.area || "booking",
     description: bits.join(" · "),

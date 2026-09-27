@@ -468,6 +468,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE worker_shifts ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE worker_shifts ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE events ADD COLUMN IF NOT EXISTS branch_id integer;
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE appointments ADD COLUMN IF NOT EXISTS branch_id integer;
     -- Inventory & Purchasing module
     CREATE TABLE IF NOT EXISTS bridge_suppliers (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, phone varchar, email varchar, address text, note text, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_suppliers_company ON bridge_suppliers(company_id);
@@ -559,7 +560,7 @@ export async function ensureBridgeXSchema() {
   await db.execute(sql.raw(`INSERT INTO bridge_company_modules (company_id, module_key, enabled) SELECT ${reborn.id}, module_key, true FROM unnest(ARRAY[${BRIDGEX_MODULES.map((key) => `'${key}'`).join(",")}]::text[]) module_key ON CONFLICT (company_id, module_key) DO NOTHING`));
   await db.execute(sql`INSERT INTO bridge_company_settings (company_id, config) VALUES (${reborn.id}, ${JSON.stringify({ loyalty: { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [{ name: "Bronze", minPoints: 0, discountPercent: 0, freeRp: 0, benefits: ["Member access"] }, { name: "Silver", minPoints: 500, discountPercent: 2, freeRp: 0, benefits: ["Priority booking"] }, { name: "Gold", minPoints: 2000, discountPercent: 5, freeRp: 50000, benefits: ["5% discount", "RP 50,000 store gift"] }] }, services: { booking: true, faq: true, songRequests: true, bottleKeep: true, aiWhatsApp: true, aiTelegram: false }, booking: { areas: [] }, automation: { reminders: [], faq: [] }, provision: { domainStatus: "live", backendStatus: "live", appStyle: "reborn" } })}::jsonb) ON CONFLICT (company_id) DO NOTHING`);
   await db.execute(sql`INSERT INTO bridge_company_members (company_id, user_id, branch_id, role) SELECT ${reborn.id}, id, ${branch.id}, CASE WHEN role='admin' THEN 'admin' WHEN role='staff' THEN 'staff' ELSE 'member' END FROM users ON CONFLICT (company_id, user_id) DO NOTHING`);
-  for (const table of ["pos_products", "pos_tickets", "stock_movements", "ledger_entries", "staff_attendance", "worker_shifts", "leave_requests", "events"]) {
+  for (const table of ["pos_products", "pos_tickets", "stock_movements", "ledger_entries", "staff_attendance", "worker_shifts", "leave_requests", "events", "appointments"]) {
     await db.execute(sql.raw(`UPDATE ${table} SET company_id=${reborn.id}, branch_id=${branch.id} WHERE company_id IS NULL`));
   }
 }
