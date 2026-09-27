@@ -1,28 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { PawPrint, Egg, HeartPulse, Pill, Clock, Check, Coins } from "lucide-react";
+import { PawPrint, Egg, HeartPulse, Pill, Clock, Check, Coins, Sofa, Shirt } from "lucide-react";
 import petMale from "@assets/Doluruu Boy_1749664545355.png";
 import petFemale from "@assets/doluruu-female-transparent.png";
 import eggImg from "@assets/doluruu-blindbox-box.jpeg";
 
 const WALK_CSS = `
-@keyframes rwpetWalk{0%{left:6%}50%{left:52%}100%{left:6%}}
-@keyframes rwpetFace{0%,49%{transform:scaleX(1)}50%,100%{transform:scaleX(-1)}}
-@keyframes rwpetHop{0%,100%{transform:translateY(0) scaleY(1) scaleX(1)}20%{transform:translateY(-12px) scaleY(1.08) scaleX(.96)}45%{transform:translateY(0) scaleY(.9) scaleX(1.08)}60%{transform:translateY(-7px) scaleY(1.04)}}
-@keyframes rwpetBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
-@keyframes rwpetPop{0%{transform:scale(1) rotate(0)}35%{transform:scale(1.22) rotate(-9deg)}70%{transform:scale(.94) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
-@keyframes rwpetShadow{0%,100%{transform:translateX(-50%) scaleX(1);opacity:.4}30%{transform:translateX(-50%) scaleX(.6);opacity:.18}}
-.rwpet-walker{position:absolute;bottom:30px;width:124px;height:124px;animation:rwpetWalk 9s ease-in-out infinite;cursor:pointer;}
-.rwpet-shadow{position:absolute;left:50%;bottom:-8px;width:82px;height:15px;border-radius:50%;background:#000;filter:blur(3px);animation:rwpetShadow 1s ease-in-out infinite;}
-.rwpet-face{width:100%;height:100%;animation:rwpetFace 9s steps(1) infinite;}
-.rwpet-hop{width:100%;height:100%;animation:rwpetHop 1s ease-in-out infinite;transform-origin:bottom center;}
+@keyframes rwpetWalk{0%{left:6%}46%{left:60%}50%{left:60%}96%{left:6%}100%{left:6%}}
+@keyframes rwpetFace{0%,47%{transform:scaleX(1)}48%,97%{transform:scaleX(-1)}98%,100%{transform:scaleX(1)}}
+@keyframes rwpetStep{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}
+@keyframes rwpetBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+@keyframes rwpetPop{0%{transform:scale(1) rotate(0)}35%{transform:scale(1.15) rotate(-6deg)}70%{transform:scale(.96) rotate(4deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes rwpetHeart{0%{transform:translate(-50%,0) scale(.6);opacity:0}20%{opacity:1}100%{transform:translate(-50%,-46px) scale(1.1);opacity:0}}
+@keyframes rwpetCloud{0%{transform:translateX(-30px)}100%{transform:translateX(90px)}}
+@keyframes rwpetTwinkle{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes rwpetBubble{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.rwpet-walker{position:absolute;bottom:14%;width:30%;aspect-ratio:1;animation:rwpetWalk 16s linear infinite;cursor:pointer;z-index:5;}
+.rwpet-shadow{position:absolute;left:50%;bottom:2%;width:62%;height:9%;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.28);filter:blur(3px);}
+.rwpet-face{position:relative;width:100%;height:100%;animation:rwpetFace 16s steps(1) infinite;}
+.rwpet-step{position:relative;width:100%;height:100%;animation:rwpetStep .55s ease-in-out infinite;transform-origin:bottom center;}
 .rwpet-pop{animation:rwpetPop .55s ease !important;}
-.rwpet-sleep .rwpet-hop{animation:rwpetBreathe 2.6s ease-in-out infinite;}
-.rwpet-sleep img{filter:brightness(.82) saturate(.75);}
-.rwpet-glow{position:absolute;left:50%;bottom:20px;width:120px;height:60px;transform:translateX(-50%);background:radial-gradient(ellipse,rgba(201,168,76,.18),transparent 70%);pointer-events:none;}
+.rwpet-sleep .rwpet-step{animation:rwpetBreathe 2.6s ease-in-out infinite;}
+.rwpet-sleep img{filter:brightness(.85) saturate(.8);}
+.rwpet-heart{position:absolute;left:50%;top:0;font-size:20px;animation:rwpetHeart 1s ease-out forwards;pointer-events:none;}
 `;
 
 const STAT_META: Record<string, { label: string; color: string; emoji: string }> = {
@@ -47,6 +50,20 @@ export default function RebornPet() {
     queryFn: () => apiRequest("GET", "/api/reborn/pills").then((r) => r.json()),
     refetchInterval: 15000, refetchOnWindowFocus: true,
   });
+  const { data: home } = useQuery<any>({
+    queryKey: ["/api/reborn/pet-home"],
+    queryFn: () => apiRequest("GET", "/api/reborn/pet-home").then((r) => r.json()),
+    refetchInterval: 30000,
+  });
+  const homeCall = useMutation({
+    mutationFn: (v: { path: string; body: any }) => apiRequest("POST", `/api/reborn/pet-home/${v.path}`, v.body).then((r) => r.json()),
+    onSuccess: (d) => { qc.setQueryData(["/api/reborn/pet-home"], d); if (d.message) toast({ title: d.message }); },
+    onError: (e: any) => toast({ title: "Can't do that", description: e.message, variant: "destructive" }),
+  });
+  const setLight = (on: boolean) => {
+    qc.setQueryData(["/api/reborn/pet-home"], (h: any) => h && { ...h, lightOn: on }); // flip instantly
+    homeCall.mutate({ path: "light", body: { on } });
+  };
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["/api/reborn/pets"] });
     qc.invalidateQueries({ queryKey: ["/api/reborn/pills"] });
@@ -98,14 +115,22 @@ export default function RebornPet() {
         {pets.map((pet) => (
           <PetCard key={pet.id} pet={pet}
             onAction={(action: string) => act.mutate({ petId: pet.id, action })} busy={act.isPending}
-            onPill={() => usePill.mutate(pet.id)} pilling={usePill.isPending} pillsAvailable={pills?.available || 0} />
+            onPill={() => usePill.mutate(pet.id)} pilling={usePill.isPending} pillsAvailable={pills?.available || 0}
+            home={home} onLight={setLight} />
         ))}
       </div>
+
+      {home && pets.some((p) => !p.isEgg) && (
+        <PetShop home={home} pets={pets.filter((p) => !p.isEgg)} busy={homeCall.isPending}
+          onBuy={(itemId: string) => homeCall.mutate({ path: "buy", body: { itemId } })}
+          onPlace={(slot: string, itemId: string | null) => homeCall.mutate({ path: "place", body: { slot, itemId } })}
+          onWear={(petId: number, itemId: string) => homeCall.mutate({ path: "wear", body: { petId, itemId } })} />
+      )}
     </RebornLayout>
   );
 }
 
-function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable }: any) {
+function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, onLight }: any) {
   const img = pet.isEgg ? eggImg : pet.gender === "female" ? petFemale : petMale;
   const sick = pet.lifeStatus === "sick";
   const [pop, setPop] = useState(false);
@@ -124,38 +149,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable }: any) 
         {!pet.isEgg && <span className="text-xs text-white/50 flex items-center gap-1"><Clock className="w-3 h-3" /> {pet.daysLeft}d left</span>}
       </div>
 
-      {/* the room — compact square box, bigger Doluruu */}
-      <div className="relative mx-auto mt-3 rounded-2xl overflow-hidden w-full max-w-[300px] aspect-square" style={{ background: "linear-gradient(180deg,#2a1f4d 0%,#1d1436 60%,#140d26 100%)" }}>
-        {/* wall décor */}
-        <div className="absolute left-4 top-4 w-16 h-14 rounded-lg border-2 border-white/15 overflow-hidden" style={{ background: "linear-gradient(180deg,#3b2f7a,#1b2a5a)" }}>
-          <span className="absolute right-1 top-0.5 text-sm">🌙</span>
-          <span className="absolute left-1.5 bottom-1 text-[9px] text-white/50">✦ ✧</span>
-          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/15" /><div className="absolute top-1/2 left-0 right-0 h-px bg-white/15" />
-        </div>
-        <span className="absolute right-5 top-4 text-2xl">🖼️</span>
-        <span className="absolute left-1/2 -translate-x-1/2 top-1 text-lg">💡</span>
-        {/* floor + rug */}
-        <div className="absolute inset-x-0 bottom-0 h-10" style={{ background: "linear-gradient(180deg,#3a2c5e,#281d45)", borderTop: "2px solid rgba(255,255,255,0.12)" }} />
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-7 w-32 h-3 rounded-[50%]" style={{ background: "radial-gradient(ellipse, rgba(201,168,76,0.35), transparent 70%)" }} />
-        <span className="absolute right-3 bottom-9 text-2xl">🪴</span>
-        <div className="rwpet-glow" />
-        {pet.isEgg ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <img src={img} alt="egg" className="w-28 h-28 object-contain" style={{ animation: "rwpetBreathe 2.4s ease-in-out infinite" }} />
-            <p className="text-xs text-white/70 flex items-center gap-1 bg-black/30 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" /> Hatches in {pet.hatchDaysLeft} day(s)</p>
-          </div>
-        ) : (
-          <button onClick={poke} className={`rwpet-walker ${pet.isSleeping || sick ? "rwpet-sleep" : ""}`} style={sick || pet.isSleeping ? { animationPlayState: "paused", left: "42%" } : undefined} aria-label="Play with your pet">
-            <div className="rwpet-shadow" />
-            <div className="rwpet-face" style={sick || pet.isSleeping ? { animation: "none" } : undefined}>
-              <div className={`rwpet-hop ${pop ? "rwpet-pop" : ""}`}>
-                <img src={img} alt={pet.name} className={`w-full h-full object-contain ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />
-              </div>
-            </div>
-          </button>
-        )}
-        {pet.isSleeping && !pet.isEgg && <span className="absolute left-1/2 top-4 text-xl" style={{ animation: "rwpetBreathe 1.6s ease-in-out infinite" }}>💤</span>}
-      </div>
+      <PetRoom pet={pet} img={img} sick={sick} home={home} onLight={onLight} pop={pop} onPoke={poke} />
 
       {/* body */}
       <div className="p-4">
@@ -228,4 +222,158 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable }: any) 
 
 function Badge({ children, color }: any) {
   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold" style={{ background: `${color}22`, color }}>{children}</span>;
+}
+
+// ── Pet room ─────────────────────────────────────────────────────────────
+type Phase = "dawn" | "day" | "dusk" | "night";
+// Hour in the venue's time zone, re-read every minute so day turns to night live.
+function useVenueHour(tz?: string) {
+  const read = () => { try { return Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: tz || undefined }).format(new Date())); } catch { return new Date().getHours(); } };
+  const [h, setH] = useState(read);
+  useEffect(() => { setH(read()); const t = setInterval(() => setH(read()), 60000); return () => clearInterval(t); }, [tz]);
+  return h;
+}
+const phaseOf = (h: number): Phase => (h >= 6 && h < 8 ? "dawn" : h >= 8 && h < 17 ? "day" : h >= 17 && h < 19 ? "dusk" : "night");
+const SKY: Record<Phase, string> = {
+  dawn: "linear-gradient(180deg,#ffb88c 0%,#ffd6a5 55%,#fff1c1 100%)",
+  day: "linear-gradient(180deg,#5ec3ff 0%,#9edcff 60%,#d6f1ff 100%)",
+  dusk: "linear-gradient(180deg,#5b3a8c 0%,#e8698a 55%,#ffb36b 100%)",
+  night: "linear-gradient(180deg,#0b1030 0%,#1b2356 70%,#2a2f6b 100%)",
+};
+const WALL: Record<Phase, string> = {
+  dawn: "linear-gradient(180deg,#ffe8d9,#ffd9c7)",
+  day: "linear-gradient(180deg,#fff4e6,#ffe7cf)",
+  dusk: "linear-gradient(180deg,#f6d4d8,#e9c0cf)",
+  night: "linear-gradient(180deg,#f3e3d3,#e7d2bf)",
+};
+const itemById = (home: any, id?: string) => (home?.catalog || []).find((i: any) => i.id === id);
+
+function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
+  const phase = phaseOf(useVenueHour(home?.timezone));
+  const dark = phase === "night" || phase === "dusk";
+  const lightOn = home?.lightOn ?? true;
+  // Night + light off → dim room; light on → warm glow. Daytime is naturally bright.
+  const dim = dark ? (lightOn ? 0.12 : 0.62) : lightOn ? 0 : 0.18;
+  const placed = home?.placed || {};
+  const worn: Record<string, string> = home?.costumes?.[String(pet.id)] || {};
+  const slot = (s: string) => itemById(home, placed[s]);
+  const asleep = pet.isSleeping || sick;
+  const stats = ["hunger", "happiness", "cleanliness", "energy"].map((k) => pet[k] ?? 0);
+  const lowest = Math.min(...stats);
+  const need = lowest >= 30 ? null : ["🍖", "🎾", "🧼", "😴"][stats.indexOf(lowest)];
+  const mood = stats.reduce((a: number, b: number) => a + b, 0) / 4 >= 60 ? "😊" : lowest < 20 ? "😢" : null;
+
+  return (
+    <div className="relative mx-3 mt-3 rounded-2xl overflow-hidden aspect-[4/3] select-none" style={{ background: WALL[phase] }}>
+      {/* wallpaper stripes */}
+      <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,.55) 0 14px, transparent 14px 28px)" }} />
+      {/* window with the real sky for the venue's time */}
+      <div className="absolute left-[7%] top-[9%] w-[30%] aspect-[5/4] rounded-lg overflow-hidden border-[5px] border-white shadow-md" style={{ background: SKY[phase] }}>
+        {phase === "night" && ["12% 20%", "62% 16%", "38% 52%", "78% 58%", "22% 72%"].map((pos, i) => (
+          <span key={i} className="absolute text-[8px] text-white" style={{ left: pos.split(" ")[0], top: pos.split(" ")[1], animation: `rwpetTwinkle ${1.6 + i * 0.4}s ease-in-out infinite` }}>✦</span>
+        ))}
+        <span className="absolute text-xl" style={phase === "night" ? { right: "10%", top: "8%" } : phase === "day" ? { right: "12%", top: "10%" } : { right: "38%", bottom: "4%" }}>{phase === "night" ? "🌙" : "☀️"}</span>
+        {phase === "day" && <span className="absolute top-[42%] left-0 text-base" style={{ animation: "rwpetCloud 14s linear infinite" }}>☁️</span>}
+        <div className="absolute left-1/2 top-0 bottom-0 w-[4px] -translate-x-1/2 bg-white" /><div className="absolute top-1/2 left-0 right-0 h-[4px] -translate-y-1/2 bg-white" />
+      </div>
+      {/* curtains */}
+      <div className="absolute left-[4%] top-[6%] w-[6%] h-[42%] rounded-b-xl" style={{ background: "linear-gradient(90deg,#f28ab2,#f7b3cd)" }} />
+      <div className="absolute left-[34%] top-[6%] w-[6%] h-[42%] rounded-b-xl" style={{ background: "linear-gradient(90deg,#f7b3cd,#f28ab2)" }} />
+      <div className="absolute left-[3%] top-[5%] w-[38%] h-[3%] rounded-full bg-[#b07a4f]" />
+
+      {/* ceiling lamp + wall switch */}
+      <div className="absolute left-[58%] top-0 w-[2px] h-[10%] bg-[#6b4f3a]" />
+      <div className="absolute left-[58%] top-[9%] -translate-x-1/2 w-9 h-5 rounded-t-full" style={{ background: lightOn ? "#ffd86b" : "#c9b8a0", boxShadow: lightOn ? "0 10px 40px 18px rgba(255,214,107,.45)" : "none" }} />
+      <button onClick={() => onLight?.(!lightOn)} aria-label={lightOn ? "Turn light off" : "Turn light on"}
+        className="absolute right-[3%] top-[30%] z-10 flex flex-col items-center justify-center gap-0.5 rounded-lg border border-black/10 bg-white shadow-md"
+        style={{ width: 34, height: 48 }}>
+        <span style={{ fontSize: 14, lineHeight: 1, filter: lightOn ? "none" : "grayscale(1) opacity(.5)" }}>💡</span>
+        <span className="rounded-sm transition-all" style={{ width: 10, height: 14, background: lightOn ? "#22c55e" : "#64748b", transform: lightOn ? "translateY(-2px)" : "translateY(2px)" }} />
+      </button>
+
+      {/* wall art slot */}
+      {slot("art") && <span className="absolute right-[18%] top-[12%] text-[2.6rem] leading-none drop-shadow">{slot("art").emoji}</span>}
+
+      {/* wooden floor */}
+      <div className="absolute inset-x-0 bottom-0 h-[26%]" style={{ background: "repeating-linear-gradient(90deg,#c98f5a 0 38px,#bf8450 38px 40px)", borderTop: "6px solid #8a5a33" }} />
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-[6%] w-[46%] h-[11%] rounded-[50%]" style={{ background: "radial-gradient(ellipse,#f6c1d6 0 55%,#e89ab8 56% 70%,transparent 71%)" }} />
+
+      {/* floor slots */}
+      {slot("lamp") && <span className="absolute left-[1%] bottom-[20%] text-[2.8rem] leading-none">{slot("lamp").emoji}</span>}
+      {slot("sofa") && <span className="absolute left-[10%] bottom-[15%] text-[4.4rem] leading-none drop-shadow">{slot("sofa").emoji}</span>}
+      {slot("toy") && <span className="absolute left-[70%] bottom-[7%] text-[2.2rem] leading-none">{slot("toy").emoji}</span>}
+      {slot("plant") && <span className="absolute right-[2%] bottom-[18%] text-[3.2rem] leading-none drop-shadow">{slot("plant").emoji}</span>}
+
+      {pet.isEgg ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10">
+          <img src={img} alt="egg" className="w-28 h-28 object-contain rounded-xl" style={{ animation: "rwpetBreathe 2.4s ease-in-out infinite" }} />
+          <p className="text-xs text-white flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" /> Hatches in {pet.hatchDaysLeft} day(s)</p>
+        </div>
+      ) : (
+        <button onClick={onPoke} className={`rwpet-walker ${asleep ? "rwpet-sleep" : ""}`} style={asleep ? { animationPlayState: "paused", left: "36%" } : undefined} aria-label="Play with your pet">
+          <div className="rwpet-shadow" />
+          <div className="rwpet-face" style={asleep ? { animation: "none" } : undefined}>
+            <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
+              <img src={img} alt={pet.name} className={`w-full h-full object-contain ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />
+              {worn.neck && <span className="absolute left-1/2 top-[52%] -translate-x-1/2 text-[1.4rem] leading-none">{itemById(home, worn.neck)?.emoji}</span>}
+              {worn.face && <span className="absolute left-1/2 top-[22%] -translate-x-1/2 text-[1.5rem] leading-none">{itemById(home, worn.face)?.emoji}</span>}
+              {worn.head && <span className="absolute left-1/2 -top-[8%] -translate-x-1/2 text-[1.7rem] leading-none">{itemById(home, worn.head)?.emoji}</span>}
+            </div>
+          </div>
+          {pop && <span className="rwpet-heart">💖</span>}
+          {!asleep && (need || mood) && <span className="absolute -top-[18%] right-[-6%] bg-white rounded-full px-1.5 py-0.5 text-sm shadow" style={{ animation: "rwpetBubble 1.8s ease-in-out infinite" }}>{need || mood}</span>}
+        </button>
+      )}
+      {pet.isSleeping && !pet.isEgg && <span className="absolute left-1/2 top-[30%] text-xl z-10" style={{ animation: "rwpetBreathe 1.6s ease-in-out infinite" }}>💤</span>}
+
+      {/* lighting overlay */}
+      <div className="absolute inset-0 pointer-events-none transition-colors duration-700" style={{ background: `rgba(10,14,45,${dim})` }} />
+      {lightOn && dark && <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 58% 12%, rgba(255,214,107,.28), transparent 60%)" }} />}
+      <span className="absolute left-2 bottom-2 z-10 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">
+        {phase === "night" ? "🌙 Night" : phase === "dusk" ? "🌇 Evening" : phase === "dawn" ? "🌅 Morning" : "☀️ Day"} · light {lightOn ? "on" : "off"}
+      </span>
+    </div>
+  );
+}
+
+// ── Shop: spend pet coins on furniture & costumes ────────────────────────
+function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
+  const [tab, setTab] = useState<"furniture" | "costume">("furniture");
+  const [petId, setPetId] = useState<number>(pets[0]?.id);
+  const items = (home.catalog || []).filter((i: any) => i.kind === tab);
+  const worn = home.costumes?.[String(petId)] || {};
+  return (
+    <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <h3 className="font-bold flex items-center gap-2">🏠 Decorate &amp; dress up</h3>
+        <span className="shrink-0 rounded-full bg-amber-400/15 px-3 py-1 text-sm font-extrabold text-amber-300">🐾 {home.coins}</span>
+      </div>
+      <p className="text-[11px] text-white/50 mb-3">Earn pet coins in Games: +{home.rewards?.play} per game, +{home.rewards?.win} per win, +{home.rewards?.numberCrack} for cracking Guess the Number · today {home.earnedToday}/{home.dailyCap}</p>
+      <div className="grid gap-1 p-1 rounded-xl bg-black/25 mb-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        {([["furniture", "Room", Sofa], ["costume", "Costumes", Shirt]] as const).map(([k, label, Icon]) => (
+          <button key={k} onClick={() => setTab(k)} className={`py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-1.5 ${tab === k ? "bg-amber-400 text-black" : "text-white/60"}`}><Icon className="w-4 h-4" />{label}</button>
+        ))}
+      </div>
+      {tab === "costume" && pets.length > 1 && (
+        <div className="flex gap-2 mb-3">{pets.map((p: any) => <button key={p.id} onClick={() => setPetId(p.id)} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${petId === p.id ? "bg-white/15 text-white" : "bg-white/5 text-white/50"}`}>{p.name}</button>)}</div>
+      )}
+      {/* inline columns: index.css forces grid-cols-* to 1 column on phones */}
+      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        {items.map((it: any) => {
+          const owned = (home.owned || []).includes(it.id);
+          const active = tab === "furniture" ? home.placed?.[it.slot] === it.id : worn[it.slot] === it.id;
+          const label = !owned ? `🐾 ${it.price}` : tab === "furniture" ? (active ? "In room ✓" : "Place") : (active ? "Wearing ✓" : "Wear");
+          const onClick = () => !owned ? onBuy(it.id) : tab === "furniture" ? onPlace(it.slot, active ? null : it.id) : onWear(petId, it.id);
+          return (
+            <button key={it.id} onClick={onClick} disabled={busy || (!owned && home.coins < it.price)}
+              className={`min-w-0 flex flex-col items-center gap-1 rounded-2xl border p-2.5 transition active:scale-95 disabled:opacity-40 ${active ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 bg-black/20"}`}>
+              <span className="text-3xl leading-none">{it.emoji}</span>
+              <span className="text-[11px] font-semibold text-center leading-tight truncate w-full">{it.name}</span>
+              <span className={`text-[11px] font-bold ${owned ? (active ? "text-amber-300" : "text-emerald-300") : "text-white/70"}`}>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

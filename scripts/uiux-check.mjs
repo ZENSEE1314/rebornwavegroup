@@ -36,6 +36,7 @@ const FLOWS = [
   ["games › Who's the fastest", "/games", ["Who's the fastest"]],
   ["games › Lucky game", "/games", ["Lucky game"]],
   ["games › Dice game", "/games", ["Dice game"]],
+  ["pet › costumes", "/pet", ["Costumes"]],
   ["kos › venue QR (admin)", "/kos", ["Venue check-in QR"]],
   ["kos › buy KGOLD", "/kos", ["Buy KGOLD"]],
   ["kos › cash out", "/kos", ["Cash out"]],
@@ -58,6 +59,14 @@ function mock(url) {
   if (p === "/api/reborn/kos/wallet") return { kgold: 39172800, starsReceived: 703500, kgoldPerRp: 10, feePercent: 30 };
   if (p === "/api/reborn/kos/leaderboard") return [{ id: "x", username: "Hihta", stars: 42000000 }, { id: "u1", username: "tester", stars: 350000 }];
   if (p === "/api/reborn/venue/status") return { checkedIn: false };
+  if (p === "/api/reborn/pets") return [{ id: 7, name: "Doluruu", gender: "male", isEgg: false, lifeStatus: "active", daysLeft: 3, hunger: 70, happiness: 80, cleanliness: 25, energy: 60, canFeed: true, feedsNeeded: 2, feedsInCycle: 1, cycleActive: true, cycleHoursLeft: 10, nextFeedMinutes: 0 }];
+  if (p === "/api/reborn/pet-home") return {
+    coins: 140, owned: ["plant_fern", "art_landscape", "sofa_pink", "hat_crown", "lamp_floor", "toy_teddy"], lightOn: process.env.UIUX_LIGHT !== "off",
+    placed: { plant: "plant_fern", art: "art_landscape", sofa: "sofa_pink", lamp: "lamp_floor", toy: "toy_teddy" }, costumes: { 7: { head: "hat_crown" } },
+    earnedToday: 25, dailyCap: 300, rewards: { play: 5, win: 20, numberCrack: 50 }, timezone: process.env.UIUX_TZ || "Asia/Jakarta",
+    catalog: [["sofa_pink", "Pink sofa", "🛋️", 120, "furniture", "sofa"], ["plant_fern", "Fern pot", "🪴", 30, "furniture", "plant"], ["plant_tulip", "Tulip pot", "🌷", 45, "furniture", "plant"], ["lamp_floor", "Floor lamp", "🪔", 50, "furniture", "lamp"], ["art_landscape", "Landscape", "🖼️", 40, "furniture", "art"], ["toy_teddy", "Teddy bear", "🧸", 60, "furniture", "toy"], ["hat_crown", "Crown", "👑", 200, "costume", "head"], ["glasses_cool", "Sunglasses", "🕶️", 70, "costume", "face"]]
+      .map(([id, name, emoji, price, kind, slot]) => ({ id, name, emoji, price, kind, slot })),
+  };
   if (p === "/api/reborn/chat/friends") return { friends: [], incoming: [], outgoing: [] };
   return [];
 }
