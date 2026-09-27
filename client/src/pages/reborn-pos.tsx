@@ -55,7 +55,8 @@ export default function RebornPos() {
       <div className="flex items-center gap-2 mb-4">
         <span className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "rgba(201,168,76,0.15)", color: "#c9a84c" }}><Store className="w-5 h-5" /></span>
         <h1 className="text-xl font-extrabold">Point of Sale</h1>
-        <button onClick={() => setShowDrawer(true)} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70"><Settings className="w-4 h-4" /> Cash drawer</button>
+        <button onClick={() => navigate("/reborn-modules")} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-400/15 border border-cyan-400/30 text-sm font-semibold text-cyan-200"><LayoutGrid className="w-4 h-4" /> All industries</button>
+        <button onClick={() => setShowDrawer(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70"><Settings className="w-4 h-4" /> Cash drawer</button>
       </div>
       {role === "admin" && <ClosePosDay />}
       <div className="grid grid-cols-4 gap-2 mb-4 max-w-2xl">

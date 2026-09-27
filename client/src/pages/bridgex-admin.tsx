@@ -7,15 +7,15 @@ type Company = { id:number; name:string; appName:string; industry:string; status
 type Row = Record<string, any>;
 
 let activeBranchId: number | undefined; // selected outlet; sent on every scoped request
-async function request(path:string, options:RequestInit = {}, companyId?:number) {
+export async function request(path:string, options:RequestInit = {}, companyId?:number) {
   const response = await fetch(path, { ...options, credentials:"include", headers:{ "Content-Type":"application/json", ...(companyId ? { "X-Company-Id":String(companyId) } : {}), ...(activeBranchId ? { "X-Branch-Id":String(activeBranchId) } : {}), ...(options.headers || {}) } });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.message || `Request failed (${response.status})`);
   return body;
 }
 
-const field = "w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400";
-const button = "rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-cyan-300 disabled:opacity-50";
+export const field = "w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400";
+export const button = "rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-cyan-300 disabled:opacity-50";
 
 export default function BridgeXAdmin() {
   const [companies,setCompanies] = useState<Company[]>([]);
@@ -267,13 +267,13 @@ export default function BridgeXAdmin() {
   </div>;
 }
 
-function Panel({title,subtitle,children}:{title:string;subtitle:string;children:any}) { return <section className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 p-4 sm:p-5"><h2 className="text-xl font-black">{title}</h2><p className="mb-5 mt-1 text-sm text-slate-400">{subtitle}</p>{children}</section> }
+export function Panel({title,subtitle,children}:{title:string;subtitle:string;children:any}) { return <section className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 p-4 sm:p-5"><h2 className="text-xl font-black">{title}</h2><p className="mb-5 mt-1 text-sm text-slate-400">{subtitle}</p>{children}</section> }
 function Stat({icon,label,value}:{icon:any;label:string;value:any}) { return <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4"><div className="mb-3 text-cyan-300">{icon}</div><b className="text-2xl">{value}</b><p className="text-xs text-slate-500">{label}</p></div> }
-function Mini({title,detail}:{title:string;detail:string}) { return <div className="rounded-xl border border-white/10 bg-white/[.03] p-4"><b>{title}</b><p className="mt-1 text-xs text-slate-400">{detail}</p></div> }
-function Badge({t,c}:{t:string;c:string}) { return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c}`}>{t}</span> }
+export function Mini({title,detail}:{title:string;detail:string}) { return <div className="rounded-xl border border-white/10 bg-white/[.03] p-4"><b>{title}</b><p className="mt-1 text-xs text-slate-400">{detail}</p></div> }
+export function Badge({t,c}:{t:string;c:string}) { return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c}`}>{t}</span> }
 
 type Cart = Record<number,{product:Row;qty:number}>;
-function PosPanel({companyId,customers,crmOn,pricingOn,onMsg}:{companyId:number;customers:Row[];crmOn:boolean;pricingOn:boolean;onMsg:(m:string)=>void}) {
+export function PosPanel({companyId,customers,crmOn,pricingOn,onMsg}:{companyId:number;customers:Row[];crmOn:boolean;pricingOn:boolean;onMsg:(m:string)=>void}) {
   const [products,setProducts] = useState<Row[]>([]);
   const [tickets,setTickets] = useState<Row[]>([]);
   const [cart,setCart] = useState<Cart>({});
@@ -349,7 +349,7 @@ function PosPanel({companyId,customers,crmOn,pricingOn,onMsg}:{companyId:number;
     </div></div>}
   </div>;
 }
-function Row2({l,v,bold}:{l:string;v:number;bold?:boolean}) { return <div className={`flex justify-between ${bold?"font-bold":""}`}><span className="text-slate-400">{l}</span><span>{v.toLocaleString()}</span></div> }
+export function Row2({l,v,bold}:{l:string;v:number;bold?:boolean}) { return <div className={`flex justify-between ${bold?"font-bold":""}`}><span className="text-slate-400">{l}</span><span>{v.toLocaleString()}</span></div> }
 
 function TeamPanel({onMsg}:{onMsg:(m:string)=>void}) {
   const [admins,setAdmins] = useState<Row[]>([]);
@@ -382,7 +382,7 @@ function OverviewPanel() {
   </div>;
 }
 
-function DashboardPanel({companyId}:{companyId:number}) {
+export function DashboardPanel({companyId}:{companyId:number}) {
   const [d,setD] = useState<Row|null>(null);
   useEffect(()=>{ const load=()=>request("/api/v1/company/analytics/summary",{},companyId).then(setD).catch(()=>{}); load(); const t=setInterval(load,15000); return ()=>clearInterval(t); },[companyId]);
   if(!d) return <Panel title="Owner dashboard" subtitle="Loading…"><p className="text-sm text-slate-500">Crunching numbers…</p></Panel>;
@@ -404,7 +404,7 @@ function DashboardPanel({companyId}:{companyId:number}) {
   </div>;
 }
 
-function PricingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function PricingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [rules,setRules] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",type:"happy_hour",scopeCategory:"",percentOff:"10",startTime:"17:00",endTime:"19:00",days:[] as number[]});
   const load = () => request("/api/v1/company/pricing/rules",{},companyId).then(setRules).catch(()=>{});
@@ -421,7 +421,7 @@ function PricingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void
   </Panel>;
 }
 
-function AuditPanel({companyId}:{companyId:number}) {
+export function AuditPanel({companyId}:{companyId:number}) {
   const [d,setD] = useState<{events:Row[];staff:Row[]}>({events:[],staff:[]});
   useEffect(()=>{ request("/api/v1/company/audit",{},companyId).then(setD).catch(()=>{}); },[companyId]);
   return <div className="grid gap-5 lg:grid-cols-2">
@@ -444,7 +444,7 @@ function BranchBusinessCard({companyId,branch,companyModules,registry,onMsg}:{co
   </Panel>;
 }
 
-function RecipePanel({companyId,items,onMsg}:{companyId:number;items:Row[];onMsg:(m:string)=>void}) {
+export function RecipePanel({companyId,items,onMsg}:{companyId:number;items:Row[];onMsg:(m:string)=>void}) {
   const [products,setProducts] = useState<Row[]>([]);
   const [productId,setProductId] = useState("");
   const [lines,setLines] = useState<Row[]>([]);
@@ -461,7 +461,7 @@ function RecipePanel({companyId,items,onMsg}:{companyId:number;items:Row[];onMsg
   </Panel>;
 }
 
-function AccountingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function AccountingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const first = new Date(); first.setDate(1);
   const [from,setFrom] = useState(first.toISOString().slice(0,10));
   const [to,setTo] = useState(new Date().toISOString().slice(0,10));
@@ -490,7 +490,7 @@ function AccountingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>v
   </div>;
 }
 
-function FoodcourtPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function FoodcourtPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [stalls,setStalls] = useState<Row[]>([]);
   const [products,setProducts] = useState<Row[]>([]);
   const [settle,setSettle] = useState<Row[]>([]);
@@ -510,7 +510,7 @@ function FoodcourtPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>vo
   </div>;
 }
 
-function GiftsPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[];onMsg:(m:string)=>void}) {
+export function GiftsPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[];onMsg:(m:string)=>void}) {
   const [catalog,setCatalog] = useState<Row[]>([]);
   const [board,setBoard] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",emoji:"🎁",price:"0",sharePct:"50"});
@@ -528,7 +528,7 @@ function GiftsPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[];onMsg:
   </div>;
 }
 
-function DrawsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function DrawsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [draws,setDraws] = useState<Row[]>([]);
   const [sel,setSel] = useState<Row|null>(null); const [entries,setEntries] = useState<Row[]>([]);
   const [name,setName] = useState(""); const [pool,setPool] = useState("0");
@@ -550,7 +550,7 @@ function DrawsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void})
   </div>;
 }
 
-function PayrollPanel({companyId}:{companyId:number}) {
+export function PayrollPanel({companyId}:{companyId:number}) {
   const [rows,setRows] = useState<Row[]>([]);
   const first = new Date(); first.setDate(1);
   const [from,setFrom] = useState(first.toISOString().slice(0,10));
@@ -564,7 +564,7 @@ function PayrollPanel({companyId}:{companyId:number}) {
   </Panel>;
 }
 
-function WholesalePanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function WholesalePanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [accts,setAccts] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",contact:"",phone:"",priceTier:"standard",discountPct:"0",creditLimit:"0"});
   const load = () => request("/api/v1/company/wholesale/accounts",{},companyId).then(setAccts).catch(()=>{});
@@ -576,7 +576,7 @@ function WholesalePanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>vo
   </Panel>;
 }
 
-function ProjectsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function ProjectsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [projects,setProjects] = useState<Row[]>([]);
   const [sel,setSel] = useState<Row|null>(null); const [entries,setEntries] = useState<Row[]>([]);
   const [form,setForm] = useState({client:"",name:"",budget:"0",rate:"0"});
@@ -599,7 +599,7 @@ function ProjectsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>voi
 }
 
 const MKT_SEGMENTS = [["all","Everyone"],["vip","VIP"],["new","New (30d)"],["lost","Lost (90d)"],["birthday","Birthday"]];
-function MarketingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function MarketingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [campaigns,setCampaigns] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",channel:"whatsapp",segment:"all",message:""});
   const [aud,setAud] = useState<Row|null>(null);
@@ -616,7 +616,7 @@ function MarketingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>vo
   </Panel>;
 }
 
-function EventsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function EventsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [events,setEvents] = useState<Row[]>([]);
   const [sel,setSel] = useState<Row|null>(null);
   const [types,setTypes] = useState<Row[]>([]);
@@ -655,7 +655,7 @@ function EventsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}
 }
 
 const REPAIR_FLOW = ["received","diagnosing","quoted","approved","repairing","testing","ready","collected","cancelled"];
-function RepairPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[];onMsg:(m:string)=>void}) {
+export function RepairPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[];onMsg:(m:string)=>void}) {
   const [tickets,setTickets] = useState<Row[]>([]);
   const [form,setForm] = useState({customerName:"",customerPhone:"",device:"",serialImei:"",problem:"",quote:"0",deposit:"0",assignedUserId:""});
   const load = () => request("/api/v1/company/repair/tickets",{},companyId).then(setTickets).catch(()=>{});
@@ -672,7 +672,7 @@ function RepairPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[];onMsg
 }
 
 const BOOKING_STATUS:Record<string,string> = { booked:"text-cyan-300", confirmed:"text-cyan-300", seated:"text-amber-300", completed:"text-emerald-300", cancelled:"text-red-300", no_show:"text-red-300" };
-function BookingPanel({companyId,staff,customers,onMsg}:{companyId:number;staff:Row[];customers:Row[];onMsg:(m:string)=>void}) {
+export function BookingPanel({companyId,staff,customers,onMsg}:{companyId:number;staff:Row[];customers:Row[];onMsg:(m:string)=>void}) {
   const today = new Date().toISOString().slice(0,10);
   const [resources,setResources] = useState<Row[]>([]);
   const [bookings,setBookings] = useState<Row[]>([]);
@@ -715,7 +715,7 @@ function BookingPanel({companyId,staff,customers,onMsg}:{companyId:number;staff:
 }
 
 const TABLE_COLOR:Record<string,string> = { available:"border-emerald-400/50 bg-emerald-400/5", occupied:"border-amber-400/60 bg-amber-400/10", reserved:"border-cyan-400/50 bg-cyan-400/5" };
-function TablesPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function TablesPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [tables,setTables] = useState<Row[]>([]);
   const [products,setProducts] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",area:"",seats:"2"});
@@ -753,7 +753,7 @@ function TablesPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}
 
 const KDS_NEXT:Record<string,string> = { new:"preparing", preparing:"ready", ready:"served" };
 const KDS_LABEL:Record<string,string> = { new:"Start", preparing:"Ready", ready:"Serve" };
-function KdsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+export function KdsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const [items,setItems] = useState<Row[]>([]);
   const [station,setStation] = useState("");
   const load = () => request(`/api/v1/company/restaurant/kds${station?`?station=${station}`:""}`,{},companyId).then(setItems).catch(()=>{});
