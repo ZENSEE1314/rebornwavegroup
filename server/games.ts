@@ -10,7 +10,7 @@ import { resolveCompanyId } from "./tenant";
 import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -42,6 +42,8 @@ interface Room {
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
   // stack (tower stacking) only
   stackWinners?: string[];
+  // frog (Frog Jump) only
+  frog?: { phase: "wait" | "pick" | "reveal"; picks: Record<string, number>; last?: any; drinks: Record<string, number>; turnNo: number };
   // poker3 (3-card blind poker drinking game) only
   pkMin?: number; pkMax?: number; // half-cup units, host-set
   pk?: { hands: Record<string, PkCard[]>; seen: Record<string, boolean>; stake: number; pot: number; lastBy?: string; reveal?: any };
@@ -83,6 +85,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "789" ? { seven: sevenView(room) } : {}),
     ...(room.game === "stack" ? { stack: stackView(room) } : {}),
     ...(room.game === "poker3" ? { poker: pokerView(room, forUserId) } : {}),
+    ...(room.game === "frog" ? { frog: frogView(room, forUserId) } : {}),
   };
 }
 
@@ -492,6 +495,12 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       if (leavingWasTurn) { armDiceTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; }
       return broadcast(room);
     }
+    case "frog": {
+      if (room.players.length < 2) return soloWin();
+      if (leavingWasTurn && room.frog?.phase === "wait") frogWait(room);
+      else if (room.frog?.phase === "pick" && room.players.every((p) => room.frog!.picks[p.id] !== undefined)) frogReveal(room);
+      return broadcast(room);
+    }
     case "poker3": {
       if (room.players.length < 2) return soloWin();
       if (room.pk) { room.pk.pot = Math.max(room.pk.pot, 1); if (leavingWasTurn) { room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; armPoker(room); } }
@@ -553,7 +562,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1126,15 +1135,93 @@ function pokerView(room: Room, forUserId?: string) {
   };
 }
 
+// ── Frog Jump (non-stop party game) ─────────────────────────────────────
+// Three frogs. The turn player presses START, then EVERYONE (turn player too)
+// has 5 seconds to tap one frog. Nobody sees the others' picks until time's up.
+// Anyone who picked the same frog as the turn player drinks ½ cup; anyone who
+// didn't tap in time drinks ½ cup too (the turn player included). Then the next
+// player's turn. Runs until players leave.
+const FROG_PICK_MS = 5000, FROG_WAIT_MS = 20_000, FROG_REVEAL_MS = 4500;
+function frogWait(room: Room) {
+  clearTimers(room);
+  const f = room.frog!;
+  f.phase = "wait"; f.picks = {};
+  const p = room.players[room.turnIdx ?? 0];
+  room.deadline = Date.now() + FROG_WAIT_MS;
+  room.message = `${p.name}'s turn — press START 🐸`;
+  broadcast(room);
+  room.timer = setTimeout(() => frogStart(room, p.id, true), FROG_WAIT_MS);
+}
+function startFrog(room: Room) {
+  room.status = "playing";
+  room.frog = { phase: "wait", picks: {}, drinks: Object.fromEntries(room.players.map((p) => [p.id, 0])), turnNo: 0 };
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  frogWait(room);
+}
+function frogStart(room: Room, uid: string, auto = false) {
+  const f = room.frog;
+  if (room.status !== "playing" || !f || f.phase !== "wait") return "Not now";
+  const p = room.players[room.turnIdx ?? 0];
+  if (!p || (p.id !== uid && !auto)) return "Only the turn player can start";
+  clearTimers(room);
+  f.phase = "pick"; f.picks = {}; f.turnNo += 1;
+  room.deadline = Date.now() + FROG_PICK_MS;
+  room.message = `GO! Everyone tap a frog in 5 seconds 🐸🐸🐸${auto ? " (auto-started)" : ""}`;
+  broadcast(room);
+  room.timer = setTimeout(() => frogReveal(room), FROG_PICK_MS + 250);
+  return "";
+}
+function frogPick(room: Room, uid: string, frog: number) {
+  const f = room.frog;
+  if (room.status !== "playing" || !f || f.phase !== "pick") return "Wait for START";
+  if (!(frog >= 0 && frog <= 2)) return "Pick a frog";
+  if (f.picks[uid] !== undefined) return "You already picked";
+  f.picks[uid] = frog;
+  broadcast(room);
+  if (room.players.every((p) => f.picks[p.id] !== undefined)) frogReveal(room);
+  return "";
+}
+function frogReveal(room: Room) {
+  const f = room.frog;
+  if (!f || f.phase !== "pick") return;
+  clearTimers(room);
+  const leader = room.players[room.turnIdx ?? 0];
+  const lp = leader ? f.picks[leader.id] : undefined;
+  const drinkers: { id: string; name: string; why: string }[] = [];
+  for (const p of room.players) {
+    const pick = f.picks[p.id];
+    if (pick === undefined) drinkers.push({ id: p.id, name: p.name, why: "too slow" });
+    else if (p.id !== leader?.id && lp !== undefined && pick === lp) drinkers.push({ id: p.id, name: p.name, why: "same frog as " + leader.name });
+  }
+  for (const d of drinkers) f.drinks[d.id] = (f.drinks[d.id] || 0) + 1;
+  f.phase = "reveal";
+  f.last = { leaderId: leader?.id, leaderPick: lp ?? null, picks: { ...f.picks }, drinkers };
+  room.message = drinkers.length ? `${drinkers.map((d) => d.name).join(", ")} drink${drinkers.length > 1 ? "" : "s"} ½ cup 🍺` : "Nobody matched — safe! 🎉";
+  room.deadline = Date.now() + FROG_REVEAL_MS;
+  broadcast(room);
+  room.timer = setTimeout(() => { if (room.status !== "playing") return; room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length; frogWait(room); }, FROG_REVEAL_MS);
+}
+function frogView(room: Room, forUserId?: string) {
+  const f = room.frog;
+  if (!f) return null;
+  return {
+    phase: f.phase, turnId: room.players[room.turnIdx ?? 0]?.id, turnNo: f.turnNo,
+    myPick: forUserId !== undefined ? f.picks[forUserId] ?? null : null,
+    picked: room.players.filter((p) => f.picks[p.id] !== undefined).map((p) => p.id),
+    last: f.phase === "reveal" ? f.last : null,
+    drinks: f.drinks,
+  };
+}
+
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "cards", "poker3", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "cards", "poker3", "frog", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
   number: "Guessing game", rps: "Guessing game",
   dice: "Dice game", "789": "Dice game",
   cards: "Card game", poker3: "Card game",
   tap: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
-  wheel: "Lucky game", riding: "Lucky game",
+  wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game",
 };
 const CATEGORY_ORDER = ["Guessing game", "Dice game", "Card game", "Who's the fastest", "Lucky game"];
 async function getCategoryConfig(): Promise<Record<string, { days: number[] }>> {
@@ -1354,7 +1441,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
@@ -1412,6 +1499,7 @@ export function registerGameRoutes(app: Express) {
     if (room.game === "rps") { room.round = 1; startRpsRound(room); }
     else if (room.game === "cards") startCards(room);
     else if (room.game === "poker3") startPoker(room);
+    else if (room.game === "frog") startFrog(room);
     else if (room.game === "dice") startDiceRound(room);
     else if (room.game === "wheel") startWheel(room);
     else if (room.game === "riding") startRiding(room);
@@ -1481,6 +1569,11 @@ export function registerGameRoutes(app: Express) {
         return res.json({ ok: true });
       }
       return res.status(400).json({ message: "Bad action" });
+    }
+    if (room.game === "frog") {
+      const uid = getUserId(req)!;
+      const err = req.body?.act === "start" ? frogStart(room, uid) : req.body?.act === "pick" ? frogPick(room, uid, Number(req.body?.frog)) : "Unknown action";
+      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
     }
     if (room.game === "poker3") {
       const err = pokerAction(room, getUserId(req)!, String(req.body?.act || ""));
