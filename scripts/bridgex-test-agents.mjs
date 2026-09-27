@@ -217,6 +217,24 @@ async function runAdmin() {
     expect(order.orderNo, "no order number returned");
     return order.orderNo;
   }, { soft: true });
+  // Analytics / pricing / audit
+  await step("analytics summary", async () => {
+    const s = ok(await api("GET", "/api/v1/company/analytics/summary", undefined, withCo()), "analytics");
+    expect(typeof s.revMonth === "number" && Array.isArray(s.topProducts), "unexpected analytics shape");
+    return `rev month ${s.revMonth}, ${s.topProducts.length} top products`;
+  }, { soft: true });
+  await step("pricing rule + active discount", async () => {
+    ok(await api("POST", "/api/v1/company/pricing/rules", { name: `${TAG} HH`, percentOff: 20, days: [] }, withCo()), "rule");
+    const act = ok(await api("GET", "/api/v1/company/pricing/active", undefined, withCo()), "active");
+    expect(act.percentOff >= 20, `expected >=20%, got ${act.percentOff}`);
+    return `${act.percentOff}%`;
+  }, { soft: true });
+  await step("audit report", async () => {
+    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds"] }, withCo()), "enable audit");
+    const rep = ok(await api("GET", "/api/v1/company/audit", undefined, withCo()), "audit");
+    expect(Array.isArray(rep.events) && Array.isArray(rep.staff), "unexpected audit shape");
+    return `${rep.events.length} events`;
+  }, { soft: true });
   await step("module gate blocks disabled module", async () => {
     // Turn CRM off, expect 403 MODULE_DISABLED, then turn it back on.
     ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "inventory"] }, withCo()), "disable crm");

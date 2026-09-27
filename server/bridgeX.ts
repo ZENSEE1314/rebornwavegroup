@@ -38,9 +38,9 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "pos", name: "Point of Sale", category: "Core", status: "live", desc: "Sales, cart, discounts, tax, service charge, tips." },
   { key: "payments", name: "Payments", category: "Core", status: "live", desc: "Cash, card, QR, transfer, e-wallet, split & partial payment, change." },
   { key: "refunds", name: "Refunds & Voids", category: "Core", status: "live", desc: "Full/partial refund, void, auto restock, reason tracking." },
-  { key: "pricing", name: "Pricing & Price Lists", category: "Core", status: "planned", desc: "Multiple price lists, member pricing, happy hour, wholesale." },
-  { key: "analytics", name: "Owner Dashboard", category: "Core", status: "planned", desc: "Today-at-a-glance revenue, profit, top products, comparisons." },
-  { key: "audit", name: "Fraud & Staff Control", category: "Core", status: "planned", desc: "Track voids, refunds, discounts, drawer opens; flag anomalies." },
+  { key: "pricing", name: "Pricing & Price Lists", category: "Core", status: "live", desc: "Happy hour, member & category discounts with day/time windows." },
+  { key: "analytics", name: "Owner Dashboard", category: "Core", status: "live", desc: "Today-at-a-glance revenue, top products, payment split, comparisons." },
+  { key: "audit", name: "Fraud & Staff Control", category: "Core", status: "live", desc: "Track voids, refunds, discounts per staff; flag anomalies." },
   // Inventory
   { key: "inventory", name: "Inventory & Stock", category: "Inventory", status: "live", desc: "Real-time stock, low-stock alerts, adjustments, movement history." },
   { key: "purchasing", name: "Purchasing & Suppliers", category: "Inventory", status: "live", desc: "Suppliers, purchase orders, goods received, auto cost & stock update." },
@@ -438,6 +438,9 @@ export async function ensureBridgeXSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_tables_qr_token ON bridge_tables(qr_token) WHERE qr_token IS NOT NULL;
     CREATE INDEX IF NOT EXISTS bridge_tables_company ON bridge_tables(company_id);
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS station varchar;
+    -- Pricing rules (happy hour / member / category discounts)
+    CREATE TABLE IF NOT EXISTS bridge_price_rules (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, type varchar NOT NULL DEFAULT 'happy_hour', scope_category varchar, percent_off numeric(6,2) NOT NULL DEFAULT 0, days jsonb NOT NULL DEFAULT '[]', start_time varchar, end_time varchar, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_price_rules_company ON bridge_price_rules(company_id);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -1193,6 +1196,103 @@ export function registerBridgeXRoutes(app: Express) {
     else await db.execute(sql`UPDATE pos_ticket_items SET status=${status} WHERE id=${Number(req.params.itemId)}`);
     emitCompanyChange(a.companyId, "kds");
     res.json({ ok: true });
+  }));
+
+  // ── Analytics / owner dashboard ───────────────────────────────────────────
+  app.get("/api/v1/company/analytics/summary", route(async (req, res) => {
+    const a = await requireModule(req, res, "analytics"); if (!a) return;
+    const cid = a.companyId;
+    const [totals] = (await db.execute(sql`
+      SELECT
+        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('day', now())),0) rev_today,
+        COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now())) orders_today,
+        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('week', now())),0) rev_week,
+        COUNT(*) FILTER (WHERE created_at >= date_trunc('week', now())) orders_week,
+        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('month', now())),0) rev_month,
+        COUNT(*) FILTER (WHERE created_at >= date_trunc('month', now())) orders_month,
+        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('day', now()) - interval '1 day' AND created_at < date_trunc('day', now())),0) rev_yesterday
+      FROM pos_tickets WHERE company_id=${cid} AND status='paid'`)).rows as any[];
+    const paymentSplit = (await db.execute(sql`SELECT payment_method method, COALESCE(SUM(total),0) amount FROM pos_tickets WHERE company_id=${cid} AND status='paid' AND created_at >= date_trunc('month', now()) GROUP BY payment_method ORDER BY amount DESC`)).rows;
+    const topProducts = (await db.execute(sql`SELECT pi.name, SUM(pi.qty) qty, SUM(pi.line_total) revenue FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${cid} AND tk.status='paid' AND tk.created_at >= date_trunc('month', now()) GROUP BY pi.name ORDER BY qty DESC LIMIT 8`)).rows;
+    const [extra] = (await db.execute(sql`
+      SELECT
+        COALESCE(SUM(discount) FILTER (WHERE created_at >= date_trunc('month', now())),0) discount_month,
+        COALESCE(SUM(total) FILTER (WHERE status='refunded' AND created_at >= date_trunc('month', now())),0) refunds_month,
+        COUNT(*) FILTER (WHERE status='voided' AND created_at >= date_trunc('month', now())) voids_month
+      FROM pos_tickets WHERE company_id=${cid}`)).rows as any[];
+    let lowStock = 0, customersTotal = 0, customersNew = 0;
+    if (await moduleEnabled(cid, "inventory")) { const [r] = (await db.execute(sql`SELECT COUNT(*) c FROM bridge_inventory_items i LEFT JOIN (SELECT item_id, SUM(quantity) s FROM bridge_stock_levels GROUP BY item_id) l ON l.item_id=i.id WHERE i.company_id=${cid} AND i.track_stock AND COALESCE(l.s,0) <= i.low_stock_threshold`)).rows as any[]; lowStock = Number(r?.c || 0); }
+    if (await moduleEnabled(cid, "crm")) { const [r] = (await db.execute(sql`SELECT COUNT(*) total, COUNT(*) FILTER (WHERE created_at >= date_trunc('month', now())) new FROM bridge_customers WHERE company_id=${cid}`)).rows as any[]; customersTotal = Number(r?.total || 0); customersNew = Number(r?.new || 0); }
+    const revToday = Number(totals.rev_today), revYesterday = Number(totals.rev_yesterday);
+    res.json({
+      revToday, ordersToday: Number(totals.orders_today), revWeek: Number(totals.rev_week), ordersWeek: Number(totals.orders_week),
+      revMonth: Number(totals.rev_month), ordersMonth: Number(totals.orders_month),
+      avgBillMonth: Number(totals.orders_month) ? Number(totals.rev_month) / Number(totals.orders_month) : 0,
+      revYesterday, dayDeltaPct: revYesterday ? Math.round(((revToday - revYesterday) / revYesterday) * 100) : null,
+      discountMonth: Number(extra.discount_month), refundsMonth: Number(extra.refunds_month), voidsMonth: Number(extra.voids_month),
+      lowStock, customersTotal, customersNew,
+      paymentSplit: paymentSplit.map((p: any) => ({ method: p.method || "unpaid", amount: Number(p.amount) })),
+      topProducts: topProducts.map((p: any) => ({ name: p.name, qty: Number(p.qty), revenue: Number(p.revenue) })),
+    });
+  }));
+
+  // ── Audit / fraud & staff control ─────────────────────────────────────────
+  app.get("/api/v1/company/audit", route(async (req, res) => {
+    const a = await requireModule(req, res, "audit", true); if (!a) return;
+    const events = (await db.execute(sql`
+      SELECT tk.id, tk.order_no, tk.status, tk.total, tk.discount, tk.discount_reason, tk.refund_reason, tk.void_reason, tk.created_at,
+             COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name
+      FROM pos_tickets tk LEFT JOIN users u ON u.id=COALESCE(tk.voided_by, tk.refunded_by, tk.staff_id)
+      WHERE tk.company_id=${a.companyId} AND (tk.status IN ('voided','refunded') OR tk.discount > 0)
+      ORDER BY tk.id DESC LIMIT 100`)).rows;
+    const staff = (await db.execute(sql`
+      SELECT COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) staff_name,
+             COUNT(*) FILTER (WHERE tk.status='voided') voids,
+             COUNT(*) FILTER (WHERE tk.status='refunded') refunds,
+             COALESCE(SUM(tk.discount),0) discounts
+      FROM pos_tickets tk LEFT JOIN users u ON u.id=tk.staff_id
+      WHERE tk.company_id=${a.companyId} AND tk.created_at >= now() - interval '7 days'
+      GROUP BY 1 HAVING COUNT(*) FILTER (WHERE tk.status IN ('voided','refunded')) > 0 ORDER BY voids + refunds DESC`)).rows;
+    res.json({ events, staff: staff.map((s: any) => ({ ...s, voids: Number(s.voids), refunds: Number(s.refunds), discounts: Number(s.discounts), flag: Number(s.voids) + Number(s.refunds) >= 5 })) });
+  }));
+
+  // ── Pricing rules (happy hour / member / category discounts) ───────────────
+  app.get("/api/v1/company/pricing/rules", route(async (req, res) => {
+    const a = await requireModule(req, res, "pricing"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_price_rules WHERE company_id=${a.companyId} ORDER BY id DESC`)).rows || []);
+  }));
+  app.post("/api/v1/company/pricing/rules", route(async (req, res) => {
+    const a = await requireModule(req, res, "pricing", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Rule name is required" });
+    const days = Array.isArray(req.body?.days) ? req.body.days : [];
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_price_rules (company_id, name, type, scope_category, percent_off, days, start_time, end_time) VALUES (${a.companyId}, ${name}, ${req.body?.type || "happy_hour"}, ${req.body?.scopeCategory || null}, ${Number(req.body?.percentOff) || 0}, ${JSON.stringify(days)}::jsonb, ${req.body?.startTime || null}, ${req.body?.endTime || null}) RETURNING *`)).rows[0]);
+  }));
+  app.put("/api/v1/company/pricing/rules/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "pricing", true); if (!a) return;
+    const days = req.body?.days !== undefined ? JSON.stringify(Array.isArray(req.body.days) ? req.body.days : []) : null;
+    const r = await db.execute(sql`UPDATE bridge_price_rules SET name=COALESCE(${req.body?.name ?? null},name), type=COALESCE(${req.body?.type ?? null},type), scope_category=${req.body?.scopeCategory ?? null}, percent_off=COALESCE(${req.body?.percentOff ?? null},percent_off), days=COALESCE(${days}::jsonb,days), start_time=${req.body?.startTime ?? null}, end_time=${req.body?.endTime ?? null}, active=COALESCE(${req.body?.active ?? null},active) WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Rule not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/pricing/rules/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "pricing", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_price_rules WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  // Which discount % applies right now (server clock), best rule wins.
+  app.get("/api/v1/company/pricing/active", route(async (req, res) => {
+    const a = await requireModule(req, res, "pricing"); if (!a) return;
+    const member = String(req.query.member || "") === "1";
+    const rules = (await db.execute(sql`SELECT * FROM bridge_price_rules WHERE company_id=${a.companyId} AND active=true`)).rows as any[];
+    const now = new Date(); const day = now.getDay(); const hhmm = now.toTimeString().slice(0, 5);
+    const applies = (r: any) => {
+      if (r.type === "member" && !member) return false;
+      const days = Array.isArray(r.days) ? r.days : [];
+      if (days.length && !days.includes(day)) return false;
+      if (r.start_time && r.end_time) { if (hhmm < r.start_time || hhmm > r.end_time) return false; }
+      return true;
+    };
+    const active = rules.filter(applies);
+    const best = active.reduce((m: number, r: any) => Math.max(m, Number(r.percent_off)), 0);
+    res.json({ percentOff: best, rules: active.map((r: any) => ({ id: r.id, name: r.name, percentOff: Number(r.percent_off), scopeCategory: r.scope_category })) });
   }));
 
   // Attendance, shifts and leave are scoped by tenant and generate native alerts.

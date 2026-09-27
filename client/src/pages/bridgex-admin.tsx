@@ -119,7 +119,7 @@ export default function BridgeXAdmin() {
       </section>
       {message && <div className="mb-5 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-3 text-sm text-cyan-100">{message}</div>}
       {companyId&&<div className={`mb-5 rounded-xl border p-3 text-sm ${access.allowed?"border-emerald-400/30 bg-emerald-400/10 text-emerald-200":"border-red-400/40 bg-red-500/10 text-red-200"}`}><b>{access.allowed?"App access enabled":"App access locked"}</b> · {access.subscriptionStatus||selected?.subscriptionStatus}{access.trialEndsAt&&` · trial ends ${new Date(access.trialEndsAt).toLocaleDateString()}`}</div>}
-      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("pos")?[["register","Register / Sales"]]:[]),...(modules.includes("restaurant")?[["tables","Tables"]]:[]),...(modules.includes("kitchen_display")?[["kds","Kitchen"]]:[]),...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
+      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(modules.includes("analytics")?[["dashboard","Dashboard"]]:[]),...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("pos")?[["register","Register / Sales"]]:[]),...(modules.includes("pricing")?[["pricing","Pricing"]]:[]),...(modules.includes("restaurant")?[["tables","Tables"]]:[]),...(modules.includes("kitchen_display")?[["kds","Kitchen"]]:[]),...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],...(modules.includes("audit")?[["audit","Audit"]]:[]),["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
 
       {tab === "company" && <Panel title="Company accounts" subtitle="Create a tenant, owner login, first branch and billing agreement.">
         <div className="grid gap-3 md:grid-cols-3">{["name","appName","adminEmail","branchName","price"].map((key) => <input key={key} className={field} placeholder={({name:"Company name",appName:"Customer-facing app name",adminEmail:"Owner email",branchName:"First branch",price:"Price"} as Record<string,string>)[key]} value={(companyForm as any)[key]} onChange={(e)=>setCompanyForm({...companyForm,[key]:e.target.value})}/>)}</div>
@@ -147,7 +147,13 @@ export default function BridgeXAdmin() {
         <button className={button+" mt-2"} disabled={busy} onClick={()=>act(()=>request("/api/v1/company/modules",{method:"PUT",body:JSON.stringify({modules})},companyId),"Services updated")}>Save modules</button>
       </Panel>}
 
-      {tab === "register" && companyId && <PosPanel companyId={companyId} customers={customers} crmOn={modules.includes("crm")} onMsg={setMessage} />}
+      {tab === "dashboard" && companyId && <DashboardPanel companyId={companyId} />}
+
+      {tab === "pricing" && companyId && <PricingPanel companyId={companyId} onMsg={setMessage} />}
+
+      {tab === "audit" && companyId && <AuditPanel companyId={companyId} />}
+
+      {tab === "register" && companyId && <PosPanel companyId={companyId} customers={customers} crmOn={modules.includes("crm")} pricingOn={modules.includes("pricing")} onMsg={setMessage} />}
 
       {tab === "tables" && companyId && <TablesPanel companyId={companyId} onMsg={setMessage} />}
 
@@ -217,7 +223,7 @@ function Mini({title,detail}:{title:string;detail:string}) { return <div classNa
 function Badge({t,c}:{t:string;c:string}) { return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c}`}>{t}</span> }
 
 type Cart = Record<number,{product:Row;qty:number}>;
-function PosPanel({companyId,customers,crmOn,onMsg}:{companyId:number;customers:Row[];crmOn:boolean;onMsg:(m:string)=>void}) {
+function PosPanel({companyId,customers,crmOn,pricingOn,onMsg}:{companyId:number;customers:Row[];crmOn:boolean;pricingOn:boolean;onMsg:(m:string)=>void}) {
   const [products,setProducts] = useState<Row[]>([]);
   const [tickets,setTickets] = useState<Row[]>([]);
   const [cart,setCart] = useState<Cart>({});
@@ -252,6 +258,7 @@ function PosPanel({companyId,customers,crmOn,onMsg}:{companyId:number;customers:
     } catch(e:any){ onMsg(e.message); } finally { setBusy(false); }
   }
   async function act(run:()=>Promise<any>,msg:string){ setBusy(true); onMsg(""); try{await run(); onMsg(msg); load(); if(detail)setDetail(null);}catch(e:any){onMsg(e.message);}finally{setBusy(false);} }
+  async function applyPricing() { try { const r=await request(`/api/v1/company/pricing/active${customerId?"?member=1":""}`,{},companyId); if(!r.percentOff){onMsg("No pricing rule active right now");return;} setCharges(c=>({...c,discount:String(Math.round(subtotal*r.percentOff/100))})); onMsg(`Applied ${r.percentOff}% (${r.rules.map((x:Row)=>x.name).join(", ")})`); } catch(e:any){onMsg(e.message);} }
 
   return <div className="grid gap-5 lg:grid-cols-[1.3fr,1fr]">
     <Panel title="Register" subtitle="Tap products to build the sale. Supports discount, tax, service charge, tip, split & partial payment, and change.">
@@ -267,6 +274,7 @@ function PosPanel({companyId,customers,crmOn,onMsg}:{companyId:number;customers:
     <Panel title="Current sale" subtitle="">
       <div className="max-h-56 space-y-2 overflow-auto">{lines.length===0&&<p className="text-sm text-slate-500">Cart is empty.</p>}{lines.map(l=><div key={l.product.id} className="flex items-center gap-2 text-sm"><span className="min-w-0 flex-1 truncate">{l.product.name}</span><button className="h-6 w-6 rounded bg-white/10" onClick={()=>setQty(l.product.id,l.qty-1)}>−</button><span className="w-6 text-center">{l.qty}</span><button className="h-6 w-6 rounded bg-white/10" onClick={()=>setQty(l.product.id,l.qty+1)}>+</button><span className="w-20 text-right">{(Number(l.product.price)*l.qty).toLocaleString()}</span></div>)}</div>
       <div className="mt-3 grid grid-cols-2 gap-2">{([["discount","Discount"],["tax","Tax"],["serviceCharge","Service"],["tip","Tip"]] as const).map(([k,label])=><label key={k} className="text-xs text-slate-400">{label}<input className={field+" mt-1"} type="number" value={(charges as any)[k]} onChange={e=>setCharges({...charges,[k]:e.target.value})}/></label>)}</div>
+      {pricingOn&&<button className="mt-2 text-xs font-bold text-cyan-300" onClick={applyPricing}>✨ Apply happy hour / auto price</button>}
       {crmOn&&<select className={field+" mt-3"} value={customerId} onChange={e=>setCustomerId(e.target.value)}><option value="">Walk-in (no customer)</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?` · ${c.phone}`:""}</option>)}</select>}
       <div className="mt-3 space-y-2">{pays.map((p,i)=><div key={i} className="flex gap-2"><select className={field} value={p.method} onChange={e=>setPays(pays.map((x,n)=>n===i?{...x,method:e.target.value}:x))}>{["cash","card","qr","transfer","ewallet"].map(m=><option key={m} value={m}>{m}</option>)}</select><input className={field} type="number" placeholder="Amount" value={p.amount} onChange={e=>setPays(pays.map((x,n)=>n===i?{...x,amount:e.target.value}:x))}/>{pays.length>1&&<button className="rounded-xl border border-white/10 px-3 text-red-300" onClick={()=>setPays(pays.filter((_,n)=>n!==i))}>×</button>}</div>)}</div>
       <div className="mt-1 flex justify-between text-xs"><button className="text-cyan-300" onClick={()=>setPays([...pays,{method:"card",amount:""}])}>+ Split payment</button><button className="text-slate-300" onClick={()=>setPays(pays.map((p,i)=>i===0?{...p,amount:String(due)}:p))}>Exact cash</button></div>
@@ -292,6 +300,54 @@ function PosPanel({companyId,customers,crmOn,onMsg}:{companyId:number;customers:
   </div>;
 }
 function Row2({l,v,bold}:{l:string;v:number;bold?:boolean}) { return <div className={`flex justify-between ${bold?"font-bold":""}`}><span className="text-slate-400">{l}</span><span>{v.toLocaleString()}</span></div> }
+
+function DashboardPanel({companyId}:{companyId:number}) {
+  const [d,setD] = useState<Row|null>(null);
+  useEffect(()=>{ const load=()=>request("/api/v1/company/analytics/summary",{},companyId).then(setD).catch(()=>{}); load(); const t=setInterval(load,15000); return ()=>clearInterval(t); },[companyId]);
+  if(!d) return <Panel title="Owner dashboard" subtitle="Loading…"><p className="text-sm text-slate-500">Crunching numbers…</p></Panel>;
+  const money=(n:number)=>Number(n).toLocaleString();
+  const tiles = [["Revenue today",money(d.revToday),d.dayDeltaPct!=null?`${d.dayDeltaPct>=0?"▲":"▼"} ${Math.abs(d.dayDeltaPct)}% vs yesterday`:""],["Orders today",d.ordersToday,""],["Revenue this week",money(d.revWeek),`${d.ordersWeek} orders`],["Revenue this month",money(d.revMonth),`avg bill ${money(Math.round(d.avgBillMonth))}`]];
+  return <div className="space-y-5">
+    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">{tiles.map(([l,v,s],i)=><div key={i} className="rounded-2xl border border-white/10 bg-white/[.04] p-4"><p className="text-xs text-slate-500">{l}</p><b className="text-2xl">{v}</b>{s&&<p className={`mt-1 text-xs ${String(s).startsWith("▼")?"text-red-300":"text-emerald-300"}`}>{s}</p>}</div>)}</section>
+    <div className="grid gap-5 lg:grid-cols-2">
+      <Panel title="Top products this month" subtitle="By quantity sold."><div className="space-y-2">{d.topProducts.length===0&&<p className="text-sm text-slate-500">No sales yet.</p>}{d.topProducts.map((p:Row,i:number)=><div key={i} className="flex items-center justify-between text-sm"><span className="min-w-0 flex-1 truncate">{i+1}. {p.name}</span><span className="text-slate-400">{p.qty} sold · {money(p.revenue)}</span></div>)}</div></Panel>
+      <Panel title="This month at a glance" subtitle="Payments, refunds and customers.">
+        <div className="mb-3 space-y-1">{d.paymentSplit.map((p:Row,i:number)=><Row2 key={i} l={p.method} v={p.amount}/>)}</div>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <Mini title={money(d.discountMonth)} detail="Discounts given"/><Mini title={money(d.refundsMonth)} detail="Refunded"/>
+          <Mini title={String(d.voidsMonth)} detail="Voids"/><Mini title={String(d.lowStock)} detail="Low-stock items"/>
+          <Mini title={String(d.customersTotal)} detail="Customers"/><Mini title={`+${d.customersNew}`} detail="New this month"/>
+        </div>
+      </Panel>
+    </div>
+  </div>;
+}
+
+function PricingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+  const [rules,setRules] = useState<Row[]>([]);
+  const [form,setForm] = useState({name:"",type:"happy_hour",scopeCategory:"",percentOff:"10",startTime:"17:00",endTime:"19:00",days:[] as number[]});
+  const load = () => request("/api/v1/company/pricing/rules",{},companyId).then(setRules).catch(()=>{});
+  useEffect(load,[companyId]);
+  const DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const toggleDay=(i:number)=>setForm(f=>({...f,days:f.days.includes(i)?f.days.filter(x=>x!==i):[...f.days,i]}));
+  return <Panel title="Pricing rules" subtitle="Happy hour, member and category discounts. Rules apply automatically in the register during their day/time window (server clock).">
+    <div className="rounded-xl border border-white/10 bg-white/[.03] p-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"><input className={field} placeholder="Rule name (e.g. Happy Hour)" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><select className={field} value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option value="happy_hour">Happy hour (time)</option><option value="member">Member only</option><option value="category">Category</option></select><input className={field} placeholder="Category (blank = all)" value={form.scopeCategory} onChange={e=>setForm({...form,scopeCategory:e.target.value})}/><label className="text-xs text-slate-400">% off<input className={field+" mt-1"} type="number" value={form.percentOff} onChange={e=>setForm({...form,percentOff:e.target.value})}/></label><label className="text-xs text-slate-400">From<input className={field+" mt-1"} type="time" value={form.startTime} onChange={e=>setForm({...form,startTime:e.target.value})}/></label><label className="text-xs text-slate-400">To<input className={field+" mt-1"} type="time" value={form.endTime} onChange={e=>setForm({...form,endTime:e.target.value})}/></label></div>
+      <div className="mt-2 flex flex-wrap gap-1.5">{DAYS.map((d,i)=><button key={i} onClick={()=>toggleDay(i)} className={`rounded-full px-2.5 py-1 text-xs ${form.days.includes(i)?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{d}</button>)}<span className="self-center text-[11px] text-slate-500">{form.days.length?"":"blank = every day"}</span></div>
+      <button className={button+" mt-3"} disabled={!form.name} onClick={async()=>{try{await request("/api/v1/company/pricing/rules",{method:"POST",body:JSON.stringify(form)},companyId);setForm({...form,name:""});onMsg("Rule added");load();}catch(e:any){onMsg(e.message);}}}><Plus className="mr-1 inline h-4 w-4"/>Add rule</button>
+    </div>
+    <div className="mt-4 grid gap-2">{rules.length===0&&<p className="text-sm text-slate-500">No rules yet.</p>}{rules.map(r=><div key={r.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-3"><div><b>{r.name}</b> <span className="text-xs text-cyan-300">{Number(r.percent_off)}% off</span><p className="text-xs text-slate-400">{r.type}{r.scope_category?` · ${r.scope_category}`:" · all items"}{r.start_time?` · ${r.start_time}–${r.end_time}`:""}{(r.days||[]).length?` · ${(r.days as number[]).map((d:number)=>DAYS[d]).join(",")}`:""}</p></div><div className="flex items-center gap-3"><span className={`text-xs ${r.active?"text-emerald-300":"text-slate-500"}`}>{r.active?"on":"off"}</span><button className="text-xs text-slate-300" onClick={()=>request(`/api/v1/company/pricing/rules/${r.id}`,{method:"PUT",body:JSON.stringify({active:!r.active})},companyId).then(load)}>toggle</button><button className="text-xs text-red-300" onClick={()=>{if(confirm("Delete rule?"))request(`/api/v1/company/pricing/rules/${r.id}`,{method:"DELETE"},companyId).then(load)}}>del</button></div></div>)}</div>
+  </Panel>;
+}
+
+function AuditPanel({companyId}:{companyId:number}) {
+  const [d,setD] = useState<{events:Row[];staff:Row[]}>({events:[],staff:[]});
+  useEffect(()=>{ request("/api/v1/company/audit",{},companyId).then(setD).catch(()=>{}); },[companyId]);
+  return <div className="grid gap-5 lg:grid-cols-2">
+    <Panel title="Staff control (last 7 days)" subtitle="Voids, refunds and discounts per staff. Rows flagged red are unusually high and worth a look."><div className="space-y-2">{d.staff.length===0&&<p className="text-sm text-slate-500">Nothing to report.</p>}{d.staff.map((s,i)=><div key={i} className={`flex items-center justify-between rounded-xl border p-3 ${s.flag?"border-red-500/60 bg-red-500/10":"border-white/10 bg-white/[.03]"}`}><b>{s.staff_name||"Unknown"}</b><span className="text-xs text-slate-400">{s.voids} voids · {s.refunds} refunds · {Number(s.discounts).toLocaleString()} disc{s.flag?" ⚠️":""}</span></div>)}</div></Panel>
+    <Panel title="Recent voids, refunds & discounts" subtitle="Every reversal and manual discount, newest first."><div className="max-h-[28rem] space-y-2 overflow-auto">{d.events.length===0&&<p className="text-sm text-slate-500">No events.</p>}{d.events.map(e=><div key={e.id} className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-sm"><div className="flex justify-between"><b>{e.order_no}</b><span className={e.status==="voided"||e.status==="refunded"?"text-red-300":"text-amber-300"}>{e.status==="paid"&&Number(e.discount)>0?"discount":e.status}</span></div><p className="text-xs text-slate-400">{Number(e.total).toLocaleString()}{Number(e.discount)>0?` · disc ${Number(e.discount).toLocaleString()}`:""} · {e.staff_name||"—"} · {new Date(e.created_at).toLocaleString()}</p>{(e.void_reason||e.refund_reason||e.discount_reason)&&<p className="mt-1 text-xs text-slate-500">"{e.void_reason||e.refund_reason||e.discount_reason}"</p>}</div>)}</div></Panel>
+  </div>;
+}
 
 const TABLE_COLOR:Record<string,string> = { available:"border-emerald-400/50 bg-emerald-400/5", occupied:"border-amber-400/60 bg-amber-400/10", reserved:"border-cyan-400/50 bg-cyan-400/5" };
 function TablesPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
