@@ -15,6 +15,12 @@ async function rebornDefault() {
   return row;
 }
 
+// Default business id for work that has no HTTP request (e.g. WhatsApp bot).
+export async function defaultCompanyId(): Promise<number | null> {
+  const row = await rebornDefault();
+  return row?.id ?? null;
+}
+
 export async function resolveCompany(req: Request) {
   const slug = String(req.header("x-tenant-slug") || "").toLowerCase().trim();
   const idHdr = Number(req.header("x-tenant-id")) || 0;

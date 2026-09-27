@@ -154,7 +154,7 @@ export async function startWhatsAppWeb(): Promise<void> {
           || m.message.videoMessage?.caption
           || "";
         const name = m.pushName || undefined;
-        if (phone && text) { try { await handleInboundText(phone, text, name); } catch (e) { console.error("[wa-web] inbound", e); } }
+        if (phone && text) { try { await handleInboundText(phone, text, name, m.key.id || undefined); } catch (e) { console.error("[wa-web] inbound", e); } }
       }
     });
   } catch (e) {
