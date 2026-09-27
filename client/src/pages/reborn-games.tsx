@@ -17,7 +17,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
   wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "spin for a drink dare — ½ up to 5 cups" },
   riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
-  timer: { name: "Stop at 1:00", emoji: "⏱️", blurb: "stop the clock closest to 1 min wins · up to 20" },
+  timer: { name: "Stop at 0:10", emoji: "⏱️", blurb: "stop the clock closest to 10 sec wins · up to 20" },
   "789": { name: "789 Dice", emoji: "🎯", blurb: "2 dice · 7 top-up · 8 half · 9 whole cup 🍺" },
   stack: { name: "Tower Stack", emoji: "🧱", blurb: "tap to drop blocks · overhang falls · tallest wins" },
   number: { name: "Guess the Number", emoji: "🔢", blurb: "one 4-digit number, guess any time · no host, runs 24/7" },
@@ -84,8 +84,8 @@ const RULES: Record<string, string[]> = {
   ],
   timer: [
     "The host starts the stopwatch — it counts up from 0:00:00.",
-    "Hit STOP as close to exactly 1:00:00 as you can; your time locks in instantly.",
-    "Whoever stops closest to 1:00 wins 🏆; everyone else loses.",
+    "Hit STOP as close to exactly 0:10:00 as you can; your time locks in instantly.",
+    "Whoever stops closest to 0:10 wins 🏆; everyone else loses.",
     "Same time = shared win (2 or 3 winners is fine). Up to 20 players.",
   ],
   stack: [
@@ -656,6 +656,7 @@ const fmtClock = (ms: number | null) => {
   const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), cs = Math.floor((ms % 1000) / 10);
   return `${m}:${String(s).padStart(2, "0")}:${String(cs).padStart(2, "0")}`;
 };
+const TIMER_TARGET_MS = 10_000; // must match server/games.ts
 function TimerGame({ room, code, me }: any) {
   const t = room.timer || {};
   const iStopped = !!t.stopped?.[me];
@@ -672,21 +673,21 @@ function TimerGame({ room, code, me }: any) {
   }, [room.status, iStopped, t.startedAt]);
   const liveMs = t.startedAt ? Math.max(0, Date.now() + offsetRef.current - t.startedAt) : 0;
   const shown = iStopped ? (t.yourMs ?? 0) : liveMs;
-  const near = shown >= 58000 && shown <= 62000;
+  const near = shown >= TIMER_TARGET_MS - 1000 && shown <= TIMER_TARGET_MS + 1000;
   return (
     <div className="rwg-card p-5 text-center">
       <p className="text-sm text-white/60 mb-3">{room.message}</p>
       {room.status === "done" ? (
         <>
           <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "⏱️"}</div>
-          <p className={`text-2xl font-black mb-3 ${iWon ? "text-emerald-300" : "text-white/70"}`}>{iWon ? "CLOSEST TO 1:00!" : "Game over"}</p>
+          <p className={`text-2xl font-black mb-3 ${iWon ? "text-emerald-300" : "text-white/70"}`}>{iWon ? "CLOSEST TO 0:10!" : "Game over"}</p>
           <div className="text-left">
             {(t.results || []).map((r: any, i: number) => {
               const win = (t.winners || []).includes(r.id);
               return (
                 <div key={r.id} className={`flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 ${win ? "text-emerald-300 font-bold" : "text-white/70"}`}>
                   <span>{win ? "🏆" : `${i + 1}.`} {r.id === me ? "You" : r.name}</span>
-                  <span className="tabular-nums">{fmtClock(r.ms)}{r.dist != null && <span className="text-white/40 ml-2">({r.ms != null && r.ms > 60000 ? "+" : "−"}{fmtClock(r.dist)})</span>}</span>
+                  <span className="tabular-nums">{fmtClock(r.ms)}{r.dist != null && <span className="text-white/40 ml-2">({r.ms != null && r.ms > TIMER_TARGET_MS ? "+" : "−"}{fmtClock(r.dist)})</span>}</span>
                 </div>
               );
             })}
@@ -694,7 +695,7 @@ function TimerGame({ room, code, me }: any) {
         </>
       ) : (
         <div className="my-4 select-none">
-          <p className="text-white/50 text-xs mb-2">Stop the clock as close to <b className="text-amber-300">1:00:00</b> as you can!</p>
+          <p className="text-white/50 text-xs mb-2">Stop the clock as close to <b className="text-amber-300">0:10:00</b> as you can!</p>
           <p className={`text-5xl font-black tabular-nums mb-4 ${iStopped ? "text-white/70" : near ? "text-emerald-300" : "text-amber-300"}`} style={{ letterSpacing: "0.05em" }}>{fmtClock(shown)}</p>
           <button onClick={stop} disabled={iStopped} className={`w-44 h-44 mx-auto rounded-full flex flex-col items-center justify-center text-3xl font-black transition-transform ${iStopped ? "opacity-60" : "active:scale-90"}`} style={{ background: iStopped ? "rgba(255,255,255,0.08)" : "radial-gradient(circle at 30% 30%, #ff8a8a, #e0398b)", boxShadow: iStopped ? "none" : "0 10px 30px rgba(224,57,139,0.4)", color: iStopped ? "#f5b8d4" : "#1a0410" }}>
             {iStopped ? <><span className="text-4xl mb-1">✓</span><span className="text-lg">Locked</span></> : "STOP"}
