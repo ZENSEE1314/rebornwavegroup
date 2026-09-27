@@ -2424,12 +2424,12 @@ function EnhancedAdminDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900">
       <div className="container mx-auto p-6">
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-8 flex flex-wrap gap-4 justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold text-white mb-2">Admin Dashboard</h1>
             <p className="text-gray-300">Comprehensive system management and reporting</p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-3">
             <Button 
               onClick={() => window.location.href = '/'}
               className="bg-blue-600 hover:bg-blue-700 text-white"

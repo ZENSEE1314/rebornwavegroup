@@ -9,7 +9,8 @@
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "test": "tsx --test server/**/*.test.ts",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "uiux": "node scripts/uiux-check.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -126,6 +127,7 @@
     "cross-env": "^10.1.0",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
+    "playwright-core": "^1.63.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",

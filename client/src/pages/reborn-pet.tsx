@@ -81,8 +81,8 @@ export default function RebornPet() {
           <p className="text-sm text-white/60 mb-3">Enter the code on your blindbox package (you can keep up to 2 pets).</p>
           <div className="flex gap-2">
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="RW-XXXXXX"
-              className="flex-1 px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60 uppercase tracking-wider" />
-            <button onClick={() => activate.mutate()} disabled={!code.trim() || activate.isPending} className="px-5 py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
+              className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60 uppercase tracking-wider" />
+            <button onClick={() => activate.mutate()} disabled={!code.trim() || activate.isPending} className="shrink-0 px-5 py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
               {activate.isPending ? "..." : "Activate"}
             </button>
           </div>
