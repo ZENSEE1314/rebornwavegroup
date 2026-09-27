@@ -7,6 +7,14 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Tell the server which business this app instance is for (set by /t/<slug>).
+// Domain-based tenants resolve server-side from the host, so this is only needed
+// for the shared host + slug access; absent = the default (Reborn) company.
+function tenantHeaders(): Record<string, string> {
+  try { const slug = localStorage.getItem("bridgexTenantSlug"); if (slug) return { "X-Tenant-Slug": slug }; } catch {}
+  return {};
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -15,9 +23,10 @@ export async function apiRequest(
   const headers: Record<string, string> = {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
-    'Expires': '0'
+    'Expires': '0',
+    ...tenantHeaders(),
   };
-  
+
   if (data) {
     headers['Content-Type'] = 'application/json';
   }
@@ -44,7 +53,8 @@ export const getQueryFn: <T>(options: {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
-        'Expires': '0'
+        'Expires': '0',
+        ...tenantHeaders(),
       }
     });
 

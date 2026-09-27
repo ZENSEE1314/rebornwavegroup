@@ -102,8 +102,46 @@ async function getSettings() {
   };
 }
 
-async function rebornCompany() {
-  return (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0] || null;
+// ── Multi-tenant resolver ────────────────────────────────────────────────────
+// Resolves which business a request belongs to, so the same app serves every
+// company. Order: explicit tenant header → request host (custom domain) →
+// the flagship Reborn company as the default. Cached briefly to avoid a lookup
+// on every call. When nothing matches (localhost, railway host, no header) it
+// returns Reborn, so existing behaviour is unchanged.
+const _tenantCache = new Map<string, { row: any; at: number }>();
+let _rebornCache: { row: any; at: number } | null = null;
+async function rebornDefault() {
+  if (_rebornCache && Date.now() - _rebornCache.at < 60000) return _rebornCache.row;
+  const row = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0] || null;
+  _rebornCache = { row, at: Date.now() };
+  return row;
+}
+async function companyForReq(req: Request) {
+  const slug = String(req.header("x-tenant-slug") || "").toLowerCase().trim();
+  const idHdr = Number(req.header("x-tenant-id")) || 0;
+  const host = String(req.hostname || "").toLowerCase().split(":")[0];
+  // The platform's own hosts are never a tenant domain → use the default.
+  const isPlatformHost = !host || host === "localhost" || host.endsWith("railway.app") || host.endsWith("rebornwave.group");
+  const key = idHdr ? `id:${idHdr}` : slug ? `slug:${slug}` : `host:${host}`;
+  const hit = _tenantCache.get(key);
+  if (hit && Date.now() - hit.at < 60000) return hit.row;
+  let row: any = null;
+  if (idHdr) row = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, idHdr)).limit(1))[0];
+  if (!row && slug) row = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, slug)).limit(1))[0];
+  if (!row && host && !isPlatformHost) row = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.websiteDomain, host)).limit(1))[0];
+  if (!row) row = await rebornDefault();
+  _tenantCache.set(key, { row, at: Date.now() });
+  return row || null;
+}
+// Company row for a request (tenant-aware); pass req to scope, omit for default.
+async function rebornCompany(req?: Request) {
+  if (req) return companyForReq(req);
+  return rebornDefault();
+}
+// Convenience: the resolved company id for a request (0 if none).
+async function rebornCompanyId(req?: Request): Promise<number> {
+  const c = await rebornCompany(req);
+  return c?.id || 0;
 }
 
 // Workplace attendance QR code (staff scan to clock in). Persisted; admin can rotate.
@@ -2340,12 +2378,8 @@ export function registerRebornRoutes(app: Express) {
   // BridgeX company config so the app/admin only show ticked functions.
   app.get("/api/reborn/modules", async (req, res) => {
     try {
-      // Tenant-aware: resolve the business by domain or ?slug (default = Reborn),
-      // so every company's app shows only the features it has enabled.
-      const host = String(req.query.host || req.hostname || "").toLowerCase().split(":")[0];
-      const slug = String(req.query.slug || "").toLowerCase();
-      let company = (await db.execute(sql`SELECT id FROM bridge_companies WHERE (${host} <> '' AND website_domain=${host}) OR (${slug} <> '' AND slug=${slug}) LIMIT 1`)).rows?.[0] as any;
-      if (!company) company = (await db.execute(sql`SELECT id FROM bridge_companies WHERE slug='reborn-wave-group' LIMIT 1`)).rows?.[0] as any;
+      // Tenant-aware: resolve the business for this request (header/domain, default Reborn).
+      const company = await rebornCompany(req);
       const rows: any = company ? await db.execute(sql`SELECT module_key, enabled FROM bridge_company_modules WHERE company_id=${company.id}`) : { rows: [] };
       const list = rows.rows || rows;
       const modules: Record<string, boolean> = {};
