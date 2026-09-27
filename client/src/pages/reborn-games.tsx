@@ -55,12 +55,12 @@ const RULES: Record<string, string[]> = {
     "Lowest score buys the round 😄.",
   ],
   poker3: [
-    "Everyone gets 3 cards FACE-DOWN and starts blind — you can't see your own cards. Everyone's in for ½ cup.",
+    "Everyone gets 3 cards FACE-DOWN and starts blind — you can't see your own cards. Everyone's in for the host's minimum cup.",
     "Your turn while blind: CALL (add the stake), RAISE (+½ cup to the stake) or LOOK at your cards.",
     "Scared? Look — but once you've seen your cards you pay DOUBLE.",
     "Seen player: FOLLOW (pay double) → everyone must open their cards, the WORST hand drinks the whole pot. Or FOLD → you drink the whole pot yourself.",
-    "Hands, best first: Trail (AAA is the top) › Straight flush › Straight (e.g. 2-3-4) › Flush › Pair (e.g. 4-4-3) › High card.",
-    "Pot reaches 10 cups → everyone opens automatically. 30s per turn (blind auto-calls, seen auto-folds).",
+    "Hands, best first: Straight flush › Trail / three of a kind (AAA is the top) › Flush › Straight (e.g. 2-3-4) › Pair (e.g. 4-4-3) › High card.",
+    "Pot reaches the host's maximum → everyone opens automatically, and nobody drinks more than the max. 30s per turn (blind auto-calls, seen auto-folds).",
   ],
   cards: [
     "Goal: hold 3 matching pairs — A+9, 2+8, 3+7, 4+6, 5+5, J+J, Q+Q, K+K.",
@@ -192,12 +192,14 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
 
   const [creating, setCreating] = useState(false);
   const [timerMode, setTimerMode] = useState<"fixed" | "random">("fixed");
+  const [pkMin, setPkMin] = useState(1); // half-cups
+  const [pkMax, setPkMax] = useState(10); // half-cups
   const create = async () => {
     if (!game || creating) return; // ignore double/triple taps while the room is being made
     setCreating(true);
     try {
       const wheelPrizes = wheelText.split("\n").map((s) => s.trim()).filter(Boolean);
-      const { ok, d } = await post("/api/reborn/games/rooms", { game, password, winTarget, ridingClicks, facesCount, timerMode, wheelPrizes: wheelPrizes.length ? wheelPrizes : undefined });
+      const { ok, d } = await post("/api/reborn/games/rooms", { game, password, winTarget, ridingClicks, facesCount, timerMode, pkMin, pkMax, wheelPrizes: wheelPrizes.length ? wheelPrizes : undefined });
       if (!ok) return toast({ title: "Can't create", description: d.message, variant: "destructive" });
       onEnter(d.code);
     } finally { setCreating(false); }
@@ -343,6 +345,18 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                 <textarea value={wheelText} onChange={(e) => setWheelText(e.target.value)} rows={4} placeholder={"Default: ½ cup ×4, 1 cup ×2, 2 cups ×1\nwith a PASS between every drink\n(leave blank to use this)"} className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
               </div>
             )}
+            {game === "poker3" && (
+              <div className="mt-3 space-y-2">
+                <div>
+                  <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Min cup (everyone's in for)</p>
+                  <div className="flex gap-2">{[1, 2, 3, 4].map((u) => <button key={u} onClick={() => { setPkMin(u); if (pkMax < u * 4) setPkMax(u * 4); }} className={`cbtn flex-1 py-2 text-xs ${pkMin === u ? "cbtn-gold" : "cbtn-dark"}`}>{cupsLabel(u)}</button>)}</div>
+                </div>
+                <div>
+                  <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Max cup (pot limit — loser never drinks more)</p>
+                  <div className="flex gap-2">{[4, 6, 10, 20].filter((u) => u >= pkMin * 4 || u === 20).map((u) => <button key={u} onClick={() => setPkMax(u)} className={`cbtn flex-1 py-2 text-xs ${pkMax === u ? "cbtn-gold" : "cbtn-dark"}`}>{cupsLabel(u)}</button>)}</div>
+                </div>
+              </div>
+            )}
             {game === "timer" && (
               <div className="mt-3">
                 <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Target time</p>
@@ -352,7 +366,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                 </div>
               </div>
             )}
-            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && (
+            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && (
             <div className="mt-3">
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
               <div className="flex gap-2">
@@ -984,6 +998,7 @@ function PokerGame({ room, code, me }: any) {
       <div className="flex justify-center gap-3 mb-4">
         <div className="rounded-2xl bg-amber-400/15 border border-amber-300/30 px-4 py-2"><p className="text-[11px] text-amber-200/70 uppercase font-bold">Pot</p><p className="text-xl font-black text-amber-300">🍺 {cupsLabel(pk.pot || 0)}</p></div>
         <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-2"><p className="text-[11px] text-white/50 uppercase font-bold">Stake</p><p className="text-xl font-black">{cupsLabel(pk.stake || 1)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-2"><p className="text-[11px] text-white/50 uppercase font-bold">Max</p><p className="text-xl font-black">{cupsLabel(pk.cap || 20)}</p></div>
       </div>
       <p className="text-[11px] font-bold uppercase tracking-wider text-white/50 mb-2">Your cards {iSeen ? `· ${pk.myHand}` : "· blind 🙈"}</p>
       <div className="flex justify-center gap-2 mb-4">{[0, 1, 2].map((i) => <PokerCard key={i} hidden={!iSeen} c={pk.myCards?.[i]} />)}</div>
