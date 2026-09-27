@@ -49,10 +49,10 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "loyalty", name: "Loyalty & Rewards", category: "Customers", status: "live", desc: "Points, cashback, stamp cards, vouchers, referral rewards." },
   { key: "membership", name: "Membership Tiers", category: "Customers", status: "live", desc: "Tiers, member pricing, paid subscriptions, milestones." },
   { key: "marketing", name: "Marketing Engine", category: "Customers", status: "live", desc: "Campaigns, segment audiences (VIP/new/lost/birthday), recipient export." },
-  { key: "reviews", name: "Reviews & Reputation", category: "Customers", status: "beta", desc: "Post-payment ratings routed to management or public review." },
+  { key: "reviews", name: "Reviews & Reputation", category: "Customers", status: "live", desc: "Customer feedback + staff reviews with sentiment, surfaced on the leaderboard." },
   // People
   { key: "employees", name: "Staff & HR", category: "People", status: "live", desc: "Roles, positions, attendance, shifts, leave, meetings, QR attendance." },
-  { key: "payroll", name: "Payroll", category: "People", status: "beta", desc: "Salary, commission, tips, deductions, payroll runs, payslips." },
+  { key: "payroll", name: "Payroll", category: "People", status: "live", desc: "Payroll summary: base pay + booking commission per staff for a period." },
   // Finance
   { key: "accounting", name: "Accounting", category: "Finance", status: "planned", desc: "Income/expenses, P&L, cash flow, AR/AP, settlements." },
   // Booking
@@ -61,7 +61,7 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "restaurant", name: "Restaurant / Café", category: "Industry", status: "live", desc: "Table floor plan, running tabs, open→add→settle, dine-in service." },
   { key: "kitchen_display", name: "Kitchen Display (KDS)", category: "Industry", status: "live", desc: "Route orders to kitchen/bar/dessert; new→preparing→ready→served." },
   { key: "qr_ordering", name: "QR Ordering", category: "Industry", status: "live", desc: "Scan table QR → menu → order → straight to the kitchen." },
-  { key: "foodcourt", name: "Food Court", category: "Industry", status: "planned", desc: "One payment across stalls, revenue allocation, stall settlement." },
+  { key: "foodcourt", name: "Food Court", category: "Industry", status: "live", desc: "Stalls, product→stall allocation, per-stall revenue & commission settlement." },
   { key: "ktv", name: "KTV / Rooms", category: "Industry", status: "live", desc: "Rooms & reservations (Booking), running tabs (Tables), bottle keep." },
   { key: "bottle_keep", name: "Bottle Keep", category: "Industry", status: "beta", desc: "Customer bottle storage & balance, host/waiter assignment." },
   { key: "beauty", name: "Beauty / Spa / Salon", category: "Industry", status: "live", desc: "Appointments + chair/room resources + staff commission (via Booking)." },
@@ -80,8 +80,8 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "professional", name: "Professional Services", category: "Industry", status: "live", desc: "Projects, hourly rate, timesheets, billable totals." },
   // Engagement
   { key: "games", name: "Mini-Games / PvP", category: "Engagement", status: "beta", desc: "Spin, scratch, dice, PvP & party games awarding points/coupons." },
-  { key: "live_gifts", name: "Live Gifts", category: "Engagement", status: "planned", desc: "Virtual gifts to singers/DJs/hosts with performer & house share." },
-  { key: "lucky_draw", name: "Lucky Draw Pool", category: "Engagement", status: "planned", desc: "Spend-based tickets, shared prize pool, countdown & winners." },
+  { key: "live_gifts", name: "Live Gifts", category: "Engagement", status: "live", desc: "Virtual gift catalog, send to performers with share split + leaderboard." },
+  { key: "lucky_draw", name: "Lucky Draw Pool", category: "Engagement", status: "live", desc: "Prize pool, weighted ticket entries, one-tap random winner draw." },
   { key: "song_requests", name: "Song Requests", category: "Engagement", status: "beta", desc: "Live song request queue for KTV/bar/lounge." },
   // AI & channels
   { key: "ai_whatsapp", name: "AI WhatsApp", category: "AI & Channels", status: "beta", desc: "Event-driven WhatsApp + AI replies (booking, order ready, birthday)." },
@@ -467,6 +467,18 @@ export async function ensureBridgeXSchema() {
     CREATE INDEX IF NOT EXISTS bridge_projects_company ON bridge_projects(company_id);
     CREATE TABLE IF NOT EXISTS bridge_time_entries (id serial PRIMARY KEY, company_id integer NOT NULL, project_id integer NOT NULL, user_id varchar, work_date varchar, hours numeric(8,2) NOT NULL DEFAULT 0, note text, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_time_entries_project ON bridge_time_entries(project_id);
+    -- Food court: stalls + revenue allocation
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS stall_id integer;
+    CREATE TABLE IF NOT EXISTS bridge_stalls (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, commission_pct numeric(6,2) NOT NULL DEFAULT 0, contact varchar, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_stalls_company ON bridge_stalls(company_id);
+    -- Live gifts
+    CREATE TABLE IF NOT EXISTS bridge_gift_catalog (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, emoji varchar, price numeric(14,2) NOT NULL DEFAULT 0, share_pct numeric(6,2) NOT NULL DEFAULT 50, active boolean NOT NULL DEFAULT true);
+    CREATE TABLE IF NOT EXISTS bridge_gift_sends (id serial PRIMARY KEY, company_id integer NOT NULL, gift_id integer, from_name varchar, to_user_id varchar, amount numeric(14,2) NOT NULL DEFAULT 0, performer_share numeric(14,2) NOT NULL DEFAULT 0, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_gift_sends_company ON bridge_gift_sends(company_id, created_at);
+    -- Lucky draw
+    CREATE TABLE IF NOT EXISTS bridge_draws (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, pool numeric(14,2) NOT NULL DEFAULT 0, status varchar NOT NULL DEFAULT 'open', winner_name varchar, created_at timestamp NOT NULL DEFAULT now());
+    CREATE TABLE IF NOT EXISTS bridge_draw_entries (id serial PRIMARY KEY, draw_id integer NOT NULL, company_id integer NOT NULL, name varchar NOT NULL, tickets integer NOT NULL DEFAULT 1);
+    CREATE INDEX IF NOT EXISTS bridge_draw_entries_draw ON bridge_draw_entries(draw_id);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -1024,7 +1036,7 @@ export function registerBridgeXRoutes(app: Express) {
   }));
   app.patch("/api/v1/company/pos/products/:id", route(async (req, res) => {
     const access = await companyAccess(req, res, true); if (!access) return;
-    const update: any = {}; for (const key of ["name", "category", "price", "cost", "stock", "imageUrl", "active", "sortOrder", "branchId", "station"]) if (req.body?.[key] !== undefined) update[key] = req.body[key];
+    const update: any = {}; for (const key of ["name", "category", "price", "cost", "stock", "imageUrl", "active", "sortOrder", "branchId", "station", "stallId"]) if (req.body?.[key] !== undefined) update[key] = req.body[key];
     const [product] = await db.update(posProducts).set(update).where(and(eq(posProducts.id, Number(req.params.id)), eq(posProducts.companyId, access.companyId))).returning();
     if (!product) return res.status(404).json({ message: "Product not found" }); res.json(product);
   }));
@@ -1578,6 +1590,126 @@ export function registerBridgeXRoutes(app: Express) {
     const a = await requireModule(req, res, "professional"); if (!a) return;
     const hours = Number(req.body?.hours) || 0; if (!(hours > 0)) return res.status(400).json({ message: "Hours must be greater than 0" });
     res.status(201).json((await db.execute(sql`INSERT INTO bridge_time_entries (company_id, project_id, user_id, work_date, hours, note) VALUES (${a.companyId}, ${Number(req.params.id)}, ${a.user.id}, ${req.body?.workDate || new Date().toISOString().slice(0, 10)}, ${hours}, ${req.body?.note || null}) RETURNING *`)).rows[0]);
+  }));
+
+  // ── Food court: stalls + revenue allocation ───────────────────────────────
+  app.get("/api/v1/company/foodcourt/stalls", route(async (req, res) => {
+    const a = await requireModule(req, res, "foodcourt"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_stalls WHERE company_id=${a.companyId} ORDER BY name`)).rows || []);
+  }));
+  app.post("/api/v1/company/foodcourt/stalls", route(async (req, res) => {
+    const a = await requireModule(req, res, "foodcourt", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Stall name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_stalls (company_id, name, commission_pct, contact) VALUES (${a.companyId}, ${name}, ${Number(req.body?.commissionPct) || 0}, ${req.body?.contact || null}) RETURNING *`)).rows[0]);
+  }));
+  app.put("/api/v1/company/foodcourt/stalls/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "foodcourt", true); if (!a) return;
+    const r = await db.execute(sql`UPDATE bridge_stalls SET name=COALESCE(${req.body?.name ?? null},name), commission_pct=COALESCE(${req.body?.commissionPct ?? null},commission_pct), contact=${req.body?.contact ?? null}, active=COALESCE(${req.body?.active ?? null},active) WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Stall not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/foodcourt/stalls/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "foodcourt", true); if (!a) return;
+    await db.execute(sql`UPDATE pos_products SET stall_id=NULL WHERE stall_id=${Number(req.params.id)} AND company_id=${a.companyId}`);
+    await db.execute(sql`DELETE FROM bridge_stalls WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.post("/api/v1/company/foodcourt/assign", route(async (req, res) => {
+    const a = await requireModule(req, res, "foodcourt", true); if (!a) return;
+    await db.execute(sql`UPDATE pos_products SET stall_id=${req.body?.stallId || null} WHERE id=${Number(req.body?.productId)} AND company_id=${a.companyId}`);
+    res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/foodcourt/settlement", route(async (req, res) => {
+    const a = await requireModule(req, res, "foodcourt"); if (!a) return;
+    const rows = (await db.execute(sql`
+      SELECT s.id, s.name, s.commission_pct, COALESCE(SUM(pi.line_total),0) gross
+      FROM bridge_stalls s
+      LEFT JOIN pos_products p ON p.stall_id=s.id
+      LEFT JOIN pos_ticket_items pi ON pi.product_id=p.id
+      LEFT JOIN pos_tickets tk ON tk.id=pi.order_id AND tk.status='paid' AND tk.created_at >= date_trunc('month', now())
+      WHERE s.company_id=${a.companyId} GROUP BY s.id ORDER BY gross DESC`)).rows as any[];
+    res.json(rows.map((r) => { const gross = Number(r.gross); const commission = gross * Number(r.commission_pct) / 100; return { id: r.id, name: r.name, commissionPct: Number(r.commission_pct), gross, commission, net: gross - commission }; }));
+  }));
+
+  // ── Live gifts ────────────────────────────────────────────────────────────
+  app.get("/api/v1/company/live-gifts/catalog", route(async (req, res) => {
+    const a = await requireModule(req, res, "live_gifts"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_gift_catalog WHERE company_id=${a.companyId} ORDER BY price`)).rows || []);
+  }));
+  app.post("/api/v1/company/live-gifts/catalog", route(async (req, res) => {
+    const a = await requireModule(req, res, "live_gifts", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Gift name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_gift_catalog (company_id, name, emoji, price, share_pct) VALUES (${a.companyId}, ${name}, ${req.body?.emoji || null}, ${Number(req.body?.price) || 0}, ${req.body?.sharePct != null ? Number(req.body.sharePct) : 50}) RETURNING *`)).rows[0]);
+  }));
+  app.delete("/api/v1/company/live-gifts/catalog/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "live_gifts", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_gift_catalog WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.post("/api/v1/company/live-gifts/send", route(async (req, res) => {
+    const a = await requireModule(req, res, "live_gifts"); if (!a) return;
+    const [g] = (await db.execute(sql`SELECT * FROM bridge_gift_catalog WHERE id=${Number(req.body?.giftId)} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!g) return res.status(404).json({ message: "Gift not found" });
+    const toUserId = req.body?.toUserId || null;
+    const share = Number(g.price) * Number(g.share_pct) / 100;
+    const [s] = (await db.execute(sql`INSERT INTO bridge_gift_sends (company_id, gift_id, from_name, to_user_id, amount, performer_share) VALUES (${a.companyId}, ${g.id}, ${req.body?.fromName || null}, ${toUserId}, ${Number(g.price)}, ${share}) RETURNING *`)).rows as any[];
+    if (toUserId) await sendBridgeXNotifications(a.companyId, [toUserId], { type: "kos_gift", title: `${g.emoji || "🎁"} You received ${g.name}!`, body: `${req.body?.fromName || "A guest"} sent you ${g.name}`, data: {} });
+    res.status(201).json(s);
+  }));
+  app.get("/api/v1/company/live-gifts/leaderboard", route(async (req, res) => {
+    const a = await requireModule(req, res, "live_gifts"); if (!a) return;
+    const rows = (await db.execute(sql`
+      SELECT COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) performer, gs.to_user_id,
+        COUNT(*) gifts, COALESCE(SUM(gs.amount),0) total, COALESCE(SUM(gs.performer_share),0) earned
+      FROM bridge_gift_sends gs LEFT JOIN users u ON u.id=gs.to_user_id
+      WHERE gs.company_id=${a.companyId} AND gs.to_user_id IS NOT NULL AND gs.created_at >= date_trunc('month', now())
+      GROUP BY gs.to_user_id, performer ORDER BY total DESC LIMIT 50`)).rows as any[];
+    res.json(rows.map((r) => ({ ...r, gifts: Number(r.gifts), total: Number(r.total), earned: Number(r.earned) })));
+  }));
+
+  // ── Lucky draw ────────────────────────────────────────────────────────────
+  app.get("/api/v1/company/draws", route(async (req, res) => {
+    const a = await requireModule(req, res, "lucky_draw"); if (!a) return;
+    res.json((await db.execute(sql`SELECT d.*, (SELECT COALESCE(SUM(tickets),0) FROM bridge_draw_entries e WHERE e.draw_id=d.id) total_tickets FROM bridge_draws d WHERE d.company_id=${a.companyId} ORDER BY d.id DESC`)).rows || []);
+  }));
+  app.post("/api/v1/company/draws", route(async (req, res) => {
+    const a = await requireModule(req, res, "lucky_draw", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Draw name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_draws (company_id, name, pool) VALUES (${a.companyId}, ${name}, ${Number(req.body?.pool) || 0}) RETURNING *`)).rows[0]);
+  }));
+  app.delete("/api/v1/company/draws/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "lucky_draw", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_draw_entries WHERE draw_id=${Number(req.params.id)} AND company_id=${a.companyId}`);
+    await db.execute(sql`DELETE FROM bridge_draws WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/draws/:id/entries", route(async (req, res) => {
+    const a = await requireModule(req, res, "lucky_draw"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_draw_entries WHERE draw_id=${Number(req.params.id)} AND company_id=${a.companyId} ORDER BY id DESC`)).rows || []);
+  }));
+  app.post("/api/v1/company/draws/:id/entries", route(async (req, res) => {
+    const a = await requireModule(req, res, "lucky_draw", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Entrant name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_draw_entries (draw_id, company_id, name, tickets) VALUES (${Number(req.params.id)}, ${a.companyId}, ${name}, ${Math.max(1, Number(req.body?.tickets) || 1)}) RETURNING *`)).rows[0]);
+  }));
+  app.post("/api/v1/company/draws/:id/draw", route(async (req, res) => {
+    const a = await requireModule(req, res, "lucky_draw", true); if (!a) return;
+    const id = Number(req.params.id);
+    const entries = (await db.execute(sql`SELECT * FROM bridge_draw_entries WHERE draw_id=${id} AND company_id=${a.companyId}`)).rows as any[];
+    const pooled: string[] = []; for (const e of entries) for (let i = 0; i < Number(e.tickets); i++) pooled.push(e.name);
+    if (!pooled.length) return res.status(400).json({ message: "No entries to draw from" });
+    const winner = pooled[Math.floor(Math.random() * pooled.length)];
+    const [d] = (await db.execute(sql`UPDATE bridge_draws SET status='drawn', winner_name=${winner} WHERE id=${id} AND company_id=${a.companyId} RETURNING *`)).rows as any[];
+    res.json(d);
+  }));
+
+  // ── Payroll summary (base pay + booking commission) ───────────────────────
+  app.get("/api/v1/company/payroll/summary", route(async (req, res) => {
+    const a = await requireModule(req, res, "payroll", true); if (!a) return;
+    const from = String(req.query.from || ""); const to = String(req.query.to || "");
+    const rows = (await db.execute(sql`
+      SELECT sp.user_id, sp.pay_type, sp.base_salary, sp.hourly_rate, sp.commission_rate,
+        COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,
+        COALESCE((SELECT SUM(b.commission) FROM bridge_bookings b WHERE b.company_id=${a.companyId} AND b.staff_user_id=sp.user_id AND b.status='completed' ${from ? sql`AND b.starts_at >= ${from}::date` : sql``} ${to ? sql`AND b.starts_at < (${to}::date + interval '1 day')` : sql``}),0) commission
+      FROM bridge_staff_profiles sp LEFT JOIN users u ON u.id=sp.user_id
+      WHERE sp.company_id=${a.companyId} AND sp.status='active' ORDER BY name`)).rows as any[];
+    res.json(rows.map((r) => { const base = r.pay_type === "salary" ? Number(r.base_salary) : 0; const commission = Number(r.commission); return { userId: r.user_id, name: r.name, payType: r.pay_type, baseSalary: Number(r.base_salary), hourlyRate: Number(r.hourly_rate), base, commission, total: base + commission }; }));
   }));
 
   // Attendance, shifts and leave are scoped by tenant and generate native alerts.

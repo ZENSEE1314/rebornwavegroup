@@ -840,6 +840,7 @@ export const posProducts = pgTable("pos_products", {
   active: boolean("active").default(true).notNull(),
   posVisible: boolean("pos_visible").default(true).notNull(), // false = tracked in inventory but not sellable in POS (e.g. raw meat)
   station: varchar("station"), // KDS routing override: 'kitchen' | 'bar' | 'dessert' (else derived from category)
+  stallId: integer("stall_id"), // food-court stall this product belongs to
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });

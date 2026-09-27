@@ -241,7 +241,7 @@ async function runAdmin() {
     return `${act.percentOff}%`;
   }, { soft: true });
   await step("audit report", async () => {
-    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds", "booking", "events", "repair", "marketing", "wholesale", "professional"] }, withCo()), "enable all test modules");
+    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds", "booking", "events", "repair", "marketing", "wholesale", "professional", "foodcourt", "live_gifts", "lucky_draw", "payroll"] }, withCo()), "enable all test modules");
     const rep = ok(await api("GET", "/api/v1/company/audit", undefined, withCo()), "audit");
     expect(Array.isArray(rep.events) && Array.isArray(rep.staff), "unexpected audit shape");
     return `${rep.events.length} events`;
@@ -284,6 +284,31 @@ async function runAdmin() {
     const mine = list.find((x) => x.id === p.id);
     expect(Number(mine.billable) === 500, `expected billable 500, got ${mine.billable}`);
     return `billable ${mine.billable}`;
+  }, { soft: true });
+  await step("foodcourt: stall + assign + settlement", async () => {
+    const s = ok(await api("POST", "/api/v1/company/foodcourt/stalls", { name: `${TAG} Stall`, commissionPct: 10 }, withCo()), "stall");
+    if (ctx.productId) ok(await api("POST", "/api/v1/company/foodcourt/assign", { productId: ctx.productId, stallId: s.id }, withCo()), "assign");
+    const settle = ok(await api("GET", "/api/v1/company/foodcourt/settlement", undefined, withCo()), "settlement");
+    expect(Array.isArray(settle) && settle.some((x) => x.id === s.id), "stall missing from settlement");
+    return `${settle.length} stall(s)`;
+  }, { soft: true });
+  await step("live gifts: catalog + send + leaderboard", async () => {
+    const g = ok(await api("POST", "/api/v1/company/live-gifts/catalog", { name: "Rose", emoji: "🌹", price: 10000, sharePct: 50 }, withCo()), "gift");
+    if (ctx.staffUserId) { const sent = ok(await api("POST", "/api/v1/company/live-gifts/send", { giftId: g.id, toUserId: ctx.staffUserId, fromName: "Guest" }, withCo()), "send"); expect(Number(sent.performer_share) === 5000, `expected share 5000, got ${sent.performer_share}`); }
+    ok(await api("GET", "/api/v1/company/live-gifts/leaderboard", undefined, withCo()), "leaderboard");
+    return "gift sent";
+  }, { soft: true });
+  await step("lucky draw: entries + draw winner", async () => {
+    const d = ok(await api("POST", "/api/v1/company/draws", { name: `${TAG} Draw`, pool: 1000000 }, withCo()), "draw");
+    ok(await api("POST", `/api/v1/company/draws/${d.id}/entries`, { name: "Alice", tickets: 3 }, withCo()), "entry");
+    const drawn = ok(await api("POST", `/api/v1/company/draws/${d.id}/draw`, {}, withCo()), "draw winner");
+    expect(drawn.status === "drawn" && drawn.winner_name, "no winner drawn");
+    return `winner ${drawn.winner_name}`;
+  }, { soft: true });
+  await step("payroll summary", async () => {
+    const rows = ok(await api("GET", "/api/v1/company/payroll/summary", undefined, withCo()), "payroll");
+    expect(Array.isArray(rows), "payroll not an array");
+    return `${rows.length} staff`;
   }, { soft: true });
   await step("module gate blocks disabled module", async () => {
     // Turn CRM off, expect 403 MODULE_DISABLED, then turn it back on.

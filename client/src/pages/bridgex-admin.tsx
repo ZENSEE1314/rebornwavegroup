@@ -119,7 +119,7 @@ export default function BridgeXAdmin() {
       </section>
       {message && <div className="mb-5 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-3 text-sm text-cyan-100">{message}</div>}
       {companyId&&<div className={`mb-5 rounded-xl border p-3 text-sm ${access.allowed?"border-emerald-400/30 bg-emerald-400/10 text-emerald-200":"border-red-400/40 bg-red-500/10 text-red-200"}`}><b>{access.allowed?"App access enabled":"App access locked"}</b> · {access.subscriptionStatus||selected?.subscriptionStatus}{access.trialEndsAt&&` · trial ends ${new Date(access.trialEndsAt).toLocaleDateString()}`}</div>}
-      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(modules.includes("analytics")?[["dashboard","Dashboard"]]:[]),...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("pos")?[["register","Register / Sales"]]:[]),...(modules.includes("pricing")?[["pricing","Pricing"]]:[]),...(modules.includes("restaurant")?[["tables","Tables"]]:[]),...(modules.includes("kitchen_display")?[["kds","Kitchen"]]:[]),...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),...(modules.includes("booking")?[["booking","Bookings"]]:[]),...(modules.includes("events")?[["events","Events"]]:[]),...(modules.includes("repair")?[["repair","Repair"]]:[]),...(modules.includes("wholesale")?[["wholesale","Wholesale"]]:[]),...(modules.includes("professional")?[["projects","Projects"]]:[]),...(modules.includes("marketing")?[["marketing","Marketing"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],...(modules.includes("audit")?[["audit","Audit"]]:[]),["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
+      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(modules.includes("analytics")?[["dashboard","Dashboard"]]:[]),...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("pos")?[["register","Register / Sales"]]:[]),...(modules.includes("pricing")?[["pricing","Pricing"]]:[]),...(modules.includes("restaurant")?[["tables","Tables"]]:[]),...(modules.includes("kitchen_display")?[["kds","Kitchen"]]:[]),...(modules.includes("foodcourt")?[["foodcourt","Food court"]]:[]),...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),...(modules.includes("booking")?[["booking","Bookings"]]:[]),...(modules.includes("events")?[["events","Events"]]:[]),...(modules.includes("repair")?[["repair","Repair"]]:[]),...(modules.includes("wholesale")?[["wholesale","Wholesale"]]:[]),...(modules.includes("professional")?[["projects","Projects"]]:[]),...(modules.includes("marketing")?[["marketing","Marketing"]]:[]),...(modules.includes("live_gifts")?[["gifts","Live gifts"]]:[]),...(modules.includes("lucky_draw")?[["draws","Lucky draw"]]:[]),...(modules.includes("payroll")?[["payroll","Payroll"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],...(modules.includes("audit")?[["audit","Audit"]]:[]),["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
 
       {tab === "company" && <Panel title="Company accounts" subtitle="Create a tenant, owner login, first branch and billing agreement.">
         <div className="grid gap-3 md:grid-cols-3">{["name","appName","adminEmail","branchName","price"].map((key) => <input key={key} className={field} placeholder={({name:"Company name",appName:"Customer-facing app name",adminEmail:"Owner email",branchName:"First branch",price:"Price"} as Record<string,string>)[key]} value={(companyForm as any)[key]} onChange={(e)=>setCompanyForm({...companyForm,[key]:e.target.value})}/>)}</div>
@@ -164,6 +164,14 @@ export default function BridgeXAdmin() {
       {tab === "projects" && companyId && <ProjectsPanel companyId={companyId} onMsg={setMessage} />}
 
       {tab === "marketing" && companyId && <MarketingPanel companyId={companyId} onMsg={setMessage} />}
+
+      {tab === "foodcourt" && companyId && <FoodcourtPanel companyId={companyId} onMsg={setMessage} />}
+
+      {tab === "gifts" && companyId && <GiftsPanel companyId={companyId} staff={staff} onMsg={setMessage} />}
+
+      {tab === "draws" && companyId && <DrawsPanel companyId={companyId} onMsg={setMessage} />}
+
+      {tab === "payroll" && companyId && <PayrollPanel companyId={companyId} />}
 
       {tab === "register" && companyId && <PosPanel companyId={companyId} customers={customers} crmOn={modules.includes("crm")} pricingOn={modules.includes("pricing")} onMsg={setMessage} />}
 
@@ -359,6 +367,80 @@ function AuditPanel({companyId}:{companyId:number}) {
     <Panel title="Staff control (last 7 days)" subtitle="Voids, refunds and discounts per staff. Rows flagged red are unusually high and worth a look."><div className="space-y-2">{d.staff.length===0&&<p className="text-sm text-slate-500">Nothing to report.</p>}{d.staff.map((s,i)=><div key={i} className={`flex items-center justify-between rounded-xl border p-3 ${s.flag?"border-red-500/60 bg-red-500/10":"border-white/10 bg-white/[.03]"}`}><b>{s.staff_name||"Unknown"}</b><span className="text-xs text-slate-400">{s.voids} voids · {s.refunds} refunds · {Number(s.discounts).toLocaleString()} disc{s.flag?" ⚠️":""}</span></div>)}</div></Panel>
     <Panel title="Recent voids, refunds & discounts" subtitle="Every reversal and manual discount, newest first."><div className="max-h-[28rem] space-y-2 overflow-auto">{d.events.length===0&&<p className="text-sm text-slate-500">No events.</p>}{d.events.map(e=><div key={e.id} className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-sm"><div className="flex justify-between"><b>{e.order_no}</b><span className={e.status==="voided"||e.status==="refunded"?"text-red-300":"text-amber-300"}>{e.status==="paid"&&Number(e.discount)>0?"discount":e.status}</span></div><p className="text-xs text-slate-400">{Number(e.total).toLocaleString()}{Number(e.discount)>0?` · disc ${Number(e.discount).toLocaleString()}`:""} · {e.staff_name||"—"} · {new Date(e.created_at).toLocaleString()}</p>{(e.void_reason||e.refund_reason||e.discount_reason)&&<p className="mt-1 text-xs text-slate-500">"{e.void_reason||e.refund_reason||e.discount_reason}"</p>}</div>)}</div></Panel>
   </div>;
+}
+
+function FoodcourtPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+  const [stalls,setStalls] = useState<Row[]>([]);
+  const [products,setProducts] = useState<Row[]>([]);
+  const [settle,setSettle] = useState<Row[]>([]);
+  const [form,setForm] = useState({name:"",commissionPct:"10",contact:""});
+  const load = () => { request("/api/v1/company/foodcourt/stalls",{},companyId).then(setStalls).catch(()=>{}); request("/api/v1/company/pos/products",{},companyId).then(setProducts).catch(()=>{}); request("/api/v1/company/foodcourt/settlement",{},companyId).then(setSettle).catch(()=>{}); };
+  useEffect(load,[companyId]);
+  return <div className="grid gap-5 lg:grid-cols-2">
+    <Panel title="Stalls" subtitle="Each stall gets a commission %. Assign products to a stall; sales are allocated automatically.">
+      <div className="grid gap-2 sm:grid-cols-3"><input className={field} placeholder="Stall name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><label className="text-xs text-slate-400">Commission %<input className={field+" mt-1"} type="number" value={form.commissionPct} onChange={e=>setForm({...form,commissionPct:e.target.value})}/></label><input className={field} placeholder="Contact" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/></div>
+      <button className={button+" mt-3"} disabled={!form.name} onClick={async()=>{try{await request("/api/v1/company/foodcourt/stalls",{method:"POST",body:JSON.stringify(form)},companyId);setForm({name:"",commissionPct:"10",contact:""});onMsg("Stall added");load();}catch(e:any){onMsg(e.message);}}}><Plus className="mr-1 inline h-4 w-4"/>Add stall</button>
+      <div className="mt-4 grid gap-2">{stalls.map(s=><div key={s.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-3"><div><b>{s.name}</b> <span className="text-xs text-slate-400">{Number(s.commission_pct)}% · {s.contact||"—"}</span></div><button className="text-xs text-red-300" onClick={()=>{if(confirm("Delete stall?"))request(`/api/v1/company/foodcourt/stalls/${s.id}`,{method:"DELETE"},companyId).then(load)}}>del</button></div>)}</div>
+      <div className="mt-5 border-t border-white/10 pt-4"><p className="mb-2 text-sm font-bold">Assign products to stalls</p><div className="max-h-56 space-y-2 overflow-auto">{products.map(p=><div key={p.id} className="flex items-center justify-between text-sm"><span className="min-w-0 flex-1 truncate">{p.name}</span><select className={field+" w-40"} value={p.stall_id||""} onChange={e=>request("/api/v1/company/foodcourt/assign",{method:"POST",body:JSON.stringify({productId:p.id,stallId:e.target.value?Number(e.target.value):null})},companyId).then(load)}><option value="">— no stall —</option>{stalls.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>)}</div></div>
+    </Panel>
+    <Panel title="Settlement (this month)" subtitle="Gross sales, platform commission and net payable per stall.">
+      <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="text-slate-500"><tr><th>Stall</th><th className="text-right">Gross</th><th className="text-right">Comm</th><th className="text-right">Net</th></tr></thead><tbody>{settle.length===0&&<tr><td colSpan={4} className="py-3 text-slate-500">No stalls / sales yet.</td></tr>}{settle.map(s=><tr key={s.id} className="border-t border-white/10"><td className="py-2">{s.name} <span className="text-xs text-slate-500">{s.commissionPct}%</span></td><td className="text-right">{Number(s.gross).toLocaleString()}</td><td className="text-right text-amber-300">{Number(s.commission).toLocaleString()}</td><td className="text-right text-emerald-300">{Number(s.net).toLocaleString()}</td></tr>)}</tbody></table></div>
+    </Panel>
+  </div>;
+}
+
+function GiftsPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[];onMsg:(m:string)=>void}) {
+  const [catalog,setCatalog] = useState<Row[]>([]);
+  const [board,setBoard] = useState<Row[]>([]);
+  const [form,setForm] = useState({name:"",emoji:"🎁",price:"0",sharePct:"50"});
+  const [send,setSend] = useState({giftId:"",toUserId:"",fromName:""});
+  const load = () => { request("/api/v1/company/live-gifts/catalog",{},companyId).then(setCatalog).catch(()=>{}); request("/api/v1/company/live-gifts/leaderboard",{},companyId).then(setBoard).catch(()=>{}); };
+  useEffect(load,[companyId]);
+  return <div className="grid gap-5 lg:grid-cols-2">
+    <Panel title="Gift catalog & send" subtitle="Virtual gifts guests buy for performers. Performer gets the share %; the house keeps the rest.">
+      <div className="grid gap-2 sm:grid-cols-4"><input className={field} placeholder="Gift" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input className={field} placeholder="Emoji" value={form.emoji} onChange={e=>setForm({...form,emoji:e.target.value})}/><input className={field} type="number" placeholder="Price" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/><input className={field} type="number" placeholder="Share %" value={form.sharePct} onChange={e=>setForm({...form,sharePct:e.target.value})}/></div>
+      <button className={button+" mt-3"} disabled={!form.name} onClick={async()=>{try{await request("/api/v1/company/live-gifts/catalog",{method:"POST",body:JSON.stringify(form)},companyId);setForm({name:"",emoji:"🎁",price:"0",sharePct:"50"});onMsg("Gift added");load();}catch(e:any){onMsg(e.message);}}}><Plus className="mr-1 inline h-4 w-4"/>Add gift</button>
+      <div className="mt-3 flex flex-wrap gap-2">{catalog.map(g=><span key={g.id} className="rounded-full bg-white/5 px-3 py-1 text-xs">{g.emoji} {g.name} · {Number(g.price).toLocaleString()} · {Number(g.share_pct)}% <button className="text-red-300" onClick={()=>request(`/api/v1/company/live-gifts/catalog/${g.id}`,{method:"DELETE"},companyId).then(load)}>×</button></span>)}</div>
+      <div className="mt-5 border-t border-white/10 pt-4"><p className="mb-2 text-sm font-bold">Send a gift</p><div className="grid gap-2 sm:grid-cols-3"><select className={field} value={send.giftId} onChange={e=>setSend({...send,giftId:e.target.value})}><option value="">Gift</option>{catalog.map(g=><option key={g.id} value={g.id}>{g.emoji} {g.name}</option>)}</select><select className={field} value={send.toUserId} onChange={e=>setSend({...send,toUserId:e.target.value})}><option value="">To performer</option>{staff.map(s=><option key={s.user_id} value={s.user_id}>{[s.first_name,s.last_name].filter(Boolean).join(" ")||s.email}</option>)}</select><input className={field} placeholder="From (guest)" value={send.fromName} onChange={e=>setSend({...send,fromName:e.target.value})}/></div><button className={button+" mt-2"} disabled={!send.giftId||!send.toUserId} onClick={async()=>{try{await request("/api/v1/company/live-gifts/send",{method:"POST",body:JSON.stringify(send)},companyId);onMsg("Gift sent 🎉");setSend({giftId:"",toUserId:"",fromName:""});load();}catch(e:any){onMsg(e.message);}}}>Send gift</button></div>
+    </Panel>
+    <Panel title="Performer leaderboard (this month)" subtitle="Total gift value received and performer earnings."><div className="space-y-2">{board.length===0&&<p className="text-sm text-slate-500">No gifts yet.</p>}{board.map((b,i)=><div key={i} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-3"><div className="flex items-center gap-2"><span className="text-lg font-black">#{i+1}</span><b>{b.performer}</b></div><span className="text-xs text-slate-400">{b.gifts} gifts · {Number(b.total).toLocaleString()} · earned {Number(b.earned).toLocaleString()}</span></div>)}</div></Panel>
+  </div>;
+}
+
+function DrawsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+  const [draws,setDraws] = useState<Row[]>([]);
+  const [sel,setSel] = useState<Row|null>(null); const [entries,setEntries] = useState<Row[]>([]);
+  const [name,setName] = useState(""); const [pool,setPool] = useState("0");
+  const [ent,setEnt] = useState({name:"",tickets:"1"});
+  const load = () => request("/api/v1/company/draws",{},companyId).then(setDraws).catch(()=>{});
+  useEffect(load,[companyId]);
+  const openD = async (d:Row) => { setSel(d); setEntries(await request(`/api/v1/company/draws/${d.id}/entries`,{},companyId)); };
+  return <div className="grid gap-5 lg:grid-cols-2">
+    <Panel title="Lucky draws" subtitle="Create a prize pool, add entrants with ticket counts, then draw a weighted random winner.">
+      <div className="flex gap-2"><input className={field} placeholder="Draw name" value={name} onChange={e=>setName(e.target.value)}/><input className={field+" w-28"} type="number" placeholder="Pool" value={pool} onChange={e=>setPool(e.target.value)}/><button className={button} disabled={!name} onClick={async()=>{await request("/api/v1/company/draws",{method:"POST",body:JSON.stringify({name,pool:Number(pool)})},companyId);setName("");setPool("0");onMsg("Draw created");load();}}>Add</button></div>
+      <div className="mt-4 grid gap-2">{draws.map(d=><button key={d.id} onClick={()=>openD(d)} className={`rounded-xl border p-3 text-left ${sel?.id===d.id?"border-cyan-400/60 bg-cyan-400/5":"border-white/10 bg-white/[.03]"}`}><div className="flex justify-between"><b>{d.name}</b><span className={`text-xs ${d.status==="drawn"?"text-emerald-300":"text-cyan-300"}`}>{d.status}</span></div><p className="text-xs text-slate-400">Pool {Number(d.pool).toLocaleString()} · {Number(d.total_tickets)} tickets{d.winner_name?` · 🏆 ${d.winner_name}`:""}</p></button>)}</div>
+    </Panel>
+    <Panel title={sel?sel.name:"Select a draw"} subtitle={sel?"Add entrants and draw the winner.":"Pick a draw."}>
+      {sel&&<><div className="flex gap-2"><input className={field} placeholder="Entrant name" value={ent.name} onChange={e=>setEnt({...ent,name:e.target.value})}/><input className={field+" w-20"} type="number" placeholder="Tickets" value={ent.tickets} onChange={e=>setEnt({...ent,tickets:e.target.value})}/><button className={button} disabled={!ent.name} onClick={async()=>{await request(`/api/v1/company/draws/${sel.id}/entries`,{method:"POST",body:JSON.stringify({name:ent.name,tickets:Number(ent.tickets)})},companyId);setEnt({name:"",tickets:"1"});openD(sel);}}>Add</button></div>
+      <button className={button+" mt-3 w-full justify-center"} disabled={sel.status==="drawn"} onClick={async()=>{try{const d=await request(`/api/v1/company/draws/${sel.id}/draw`,{method:"POST",body:"{}"},companyId);onMsg(`🏆 Winner: ${d.winner_name}`);setSel(d);load();}catch(e:any){onMsg(e.message);}}}>{sel.status==="drawn"?`Winner: ${sel.winner_name}`:"🎲 Draw winner"}</button>
+      <div className="mt-3 max-h-72 space-y-1 overflow-auto text-sm">{entries.map(e=><div key={e.id} className="flex justify-between border-b border-white/5 py-1.5"><span>{e.name}</span><span className="text-slate-400">{e.tickets} 🎟️</span></div>)}</div></>}
+      {!sel&&<p className="text-sm text-slate-500">No draw selected.</p>}
+    </Panel>
+  </div>;
+}
+
+function PayrollPanel({companyId}:{companyId:number}) {
+  const [rows,setRows] = useState<Row[]>([]);
+  const first = new Date(); first.setDate(1);
+  const [from,setFrom] = useState(first.toISOString().slice(0,10));
+  const [to,setTo] = useState(new Date().toISOString().slice(0,10));
+  const load = () => request(`/api/v1/company/payroll/summary?from=${from}&to=${to}`,{},companyId).then(setRows).catch(()=>{});
+  useEffect(load,[companyId,from,to]);
+  const total = rows.reduce((s,r)=>s+Number(r.total),0);
+  return <Panel title="Payroll summary" subtitle="Base pay (salaried) plus booking commission for the period. Hourly staff show their rate — log hours via attendance.">
+    <div className="mb-3 flex gap-2"><label className="text-xs text-slate-400">From<input className={field+" mt-1"} type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="text-xs text-slate-400">To<input className={field+" mt-1"} type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div>
+    <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="text-slate-500"><tr><th>Staff</th><th>Type</th><th className="text-right">Base</th><th className="text-right">Commission</th><th className="text-right">Total</th></tr></thead><tbody>{rows.length===0&&<tr><td colSpan={5} className="py-3 text-slate-500">No active staff.</td></tr>}{rows.map((r,i)=><tr key={i} className="border-t border-white/10"><td className="py-2">{r.name}</td><td>{r.payType==="hourly"?`hourly ${Number(r.hourlyRate).toLocaleString()}/h`:"salary"}</td><td className="text-right">{Number(r.base).toLocaleString()}</td><td className="text-right text-cyan-300">{Number(r.commission).toLocaleString()}</td><td className="text-right font-bold">{Number(r.total).toLocaleString()}</td></tr>)}</tbody><tfoot><tr className="border-t border-white/20"><td colSpan={4} className="py-2 text-right font-bold">Total payroll</td><td className="text-right font-black text-emerald-300">{total.toLocaleString()}</td></tr></tfoot></table></div>
+  </Panel>;
 }
 
 function WholesalePanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
