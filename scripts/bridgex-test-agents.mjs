@@ -241,10 +241,27 @@ async function runAdmin() {
     return `${act.percentOff}%`;
   }, { soft: true });
   await step("audit report", async () => {
-    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds"] }, withCo()), "enable audit");
+    ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "crm", "loyalty", "inventory", "purchasing", "restaurant", "kitchen_display", "qr_ordering", "pricing", "analytics", "audit", "payments", "refunds", "booking", "events", "repair"] }, withCo()), "enable audit+events+repair");
     const rep = ok(await api("GET", "/api/v1/company/audit", undefined, withCo()), "audit");
     expect(Array.isArray(rep.events) && Array.isArray(rep.staff), "unexpected audit shape");
     return `${rep.events.length} events`;
+  }, { soft: true });
+  await step("events: event → type → issue → scan", async () => {
+    const ev = ok(await api("POST", "/api/v1/company/events", { name: `${TAG} Party`, venue: "Main Hall" }, withCo()), "event");
+    const tt = ok(await api("POST", `/api/v1/company/events/${ev.id}/types`, { name: "GA", price: 50000, quantity: 100 }, withCo()), "type");
+    const issued = ok(await api("POST", `/api/v1/company/events/${ev.id}/issue`, { ticketTypeId: tt.id, buyerName: "Tester", qty: 2 }, withCo()), "issue");
+    expect(issued.length === 2 && issued[0].code, "expected 2 tickets with codes");
+    const first = ok(await api("POST", "/api/v1/company/events/scan", { code: issued[0].code }, withCo()), "scan1");
+    expect(first.ok === true, "first scan should be valid");
+    const again = ok(await api("POST", "/api/v1/company/events/scan", { code: issued[0].code }, withCo()), "scan2");
+    expect(again.already === true, "second scan should report already used");
+    return "issue + double-scan guard ok";
+  }, { soft: true });
+  await step("repair: ticket lifecycle", async () => {
+    const r = ok(await api("POST", "/api/v1/company/repair/tickets", { device: "iPhone 13", problem: "cracked screen", quote: 300000 }, withCo()), "create");
+    const upd = ok(await api("PATCH", `/api/v1/company/repair/tickets/${r.id}`, { status: "repairing", diagnosis: "screen replacement" }, withCo()), "advance");
+    expect(upd.status === "repairing", `expected repairing, got ${upd.status}`);
+    return upd.ticket_no;
   }, { soft: true });
   await step("module gate blocks disabled module", async () => {
     // Turn CRM off, expect 403 MODULE_DISABLED, then turn it back on.

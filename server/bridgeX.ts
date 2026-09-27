@@ -62,20 +62,20 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "kitchen_display", name: "Kitchen Display (KDS)", category: "Industry", status: "live", desc: "Route orders to kitchen/bar/dessert; new→preparing→ready→served." },
   { key: "qr_ordering", name: "QR Ordering", category: "Industry", status: "live", desc: "Scan table QR → menu → order → straight to the kitchen." },
   { key: "foodcourt", name: "Food Court", category: "Industry", status: "planned", desc: "One payment across stalls, revenue allocation, stall settlement." },
-  { key: "ktv", name: "KTV / Rooms", category: "Industry", status: "planned", desc: "Room map, hourly timers, minimum spend, packages, reservations." },
+  { key: "ktv", name: "KTV / Rooms", category: "Industry", status: "live", desc: "Rooms & reservations (Booking), running tabs (Tables), bottle keep." },
   { key: "bottle_keep", name: "Bottle Keep", category: "Industry", status: "beta", desc: "Customer bottle storage & balance, host/waiter assignment." },
   { key: "beauty", name: "Beauty / Spa / Salon", category: "Industry", status: "live", desc: "Appointments + chair/room resources + staff commission (via Booking)." },
-  { key: "retail", name: "Retail / Fashion", category: "Industry", status: "planned", desc: "Barcode, variants (size/colour/SKU), returns, gift receipts, layaway." },
-  { key: "grocery", name: "Supermarket / Grocery", category: "Industry", status: "planned", desc: "Weight products, scale integration, batch/expiry, fast checkout." },
-  { key: "hotel", name: "Hotel / Homestay", category: "Industry", status: "planned", desc: "Rooms, reservations, check-in/out, housekeeping, room account." },
-  { key: "gym", name: "Gym / Fitness", category: "Industry", status: "planned", desc: "Memberships, QR access, class & trainer booking, locker rental." },
-  { key: "pet", name: "Pet Shop / Grooming", category: "Industry", status: "planned", desc: "Pet & owner profiles, grooming/hotel booking, vaccination tracking." },
-  { key: "workshop", name: "Car Workshop / Wash", category: "Industry", status: "planned", desc: "Vehicle profiles, job cards, mechanic assignment, parts, reminders." },
-  { key: "repair", name: "Repair Shop", category: "Industry", status: "planned", desc: "Repair tickets, IMEI/serial, diagnosis, quote, status, warranty." },
-  { key: "laundry", name: "Laundry", category: "Industry", status: "planned", desc: "Weight/pieces, wash→dry→iron→ready, pickup/delivery, subscriptions." },
-  { key: "rental", name: "Rental", category: "Industry", status: "planned", desc: "Availability calendar, deposits, agreements, late/damage charges." },
-  { key: "education", name: "Education / Tuition", category: "Industry", status: "planned", desc: "Students, classes, timetable, attendance, fees, teacher commission." },
-  { key: "events", name: "Events / Ticketing", category: "Industry", status: "planned", desc: "Ticket sales, QR tickets, capacity, guest lists, promoter commission." },
+  { key: "retail", name: "Retail / Fashion", category: "Industry", status: "live", desc: "Barcode/SKU, stock, returns & exchanges (POS + Inventory + Refunds)." },
+  { key: "grocery", name: "Supermarket / Grocery", category: "Industry", status: "live", desc: "Weighed items, batch/expiry, fast checkout (POS + Inventory)." },
+  { key: "hotel", name: "Hotel / Homestay", category: "Industry", status: "live", desc: "Rooms & reservations with deposits (Booking); F&B via POS." },
+  { key: "gym", name: "Gym / Fitness", category: "Industry", status: "live", desc: "Memberships + class/trainer booking (Booking + Membership)." },
+  { key: "pet", name: "Pet Shop / Grooming", category: "Industry", status: "live", desc: "Owner profiles + grooming booking + retail (Booking + CRM + POS)." },
+  { key: "workshop", name: "Car Workshop / Wash", category: "Industry", status: "live", desc: "Bays/mechanics + job bookings + parts (Booking + Inventory)." },
+  { key: "repair", name: "Repair Shop", category: "Industry", status: "live", desc: "Repair tickets, device/IMEI, diagnosis, quote, status, warranty." },
+  { key: "laundry", name: "Laundry", category: "Industry", status: "live", desc: "Pickup/collection bookings + POS by weight/pieces (Booking + POS)." },
+  { key: "rental", name: "Rental", category: "Industry", status: "live", desc: "Assets + availability & deposits (Booking)." },
+  { key: "education", name: "Education / Tuition", category: "Industry", status: "live", desc: "Classes/teachers + bookings + teacher commission (Booking)." },
+  { key: "events", name: "Events / Ticketing", category: "Industry", status: "live", desc: "Events, ticket types, QR tickets, capacity, scan-in check." },
   { key: "wholesale", name: "Wholesale / B2B", category: "Industry", status: "planned", desc: "Customer pricing tiers, MOQ, credit limits, delivery orders, statements." },
   { key: "professional", name: "Professional Services", category: "Industry", status: "planned", desc: "Leads, quotes, projects, timesheets, recurring invoices, client portal." },
   // Engagement
@@ -446,6 +446,16 @@ export async function ensureBridgeXSchema() {
     CREATE INDEX IF NOT EXISTS bridge_resources_company ON bridge_resources(company_id);
     CREATE TABLE IF NOT EXISTS bridge_bookings (id serial PRIMARY KEY, company_id integer NOT NULL, branch_id integer NOT NULL DEFAULT 0, resource_id integer, customer_id integer, customer_name varchar, customer_phone varchar, service varchar, starts_at timestamp NOT NULL, ends_at timestamp, status varchar NOT NULL DEFAULT 'booked', price numeric(14,2) NOT NULL DEFAULT 0, deposit numeric(14,2) NOT NULL DEFAULT 0, commission numeric(14,2) NOT NULL DEFAULT 0, staff_user_id varchar, note text, created_by varchar, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_bookings_company_time ON bridge_bookings(company_id, starts_at);
+    -- Events / ticketing
+    CREATE TABLE IF NOT EXISTS bridge_events (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, starts_at timestamp, venue varchar, description text, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_events_company ON bridge_events(company_id);
+    CREATE TABLE IF NOT EXISTS bridge_ticket_types (id serial PRIMARY KEY, company_id integer NOT NULL, event_id integer NOT NULL, name varchar NOT NULL, price numeric(14,2) NOT NULL DEFAULT 0, quantity integer NOT NULL DEFAULT 0, sold integer NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS bridge_tickets (id serial PRIMARY KEY, company_id integer NOT NULL, event_id integer NOT NULL, ticket_type_id integer, code varchar, buyer_name varchar, buyer_phone varchar, status varchar NOT NULL DEFAULT 'valid', checked_in_at timestamp, created_at timestamp NOT NULL DEFAULT now());
+    CREATE UNIQUE INDEX IF NOT EXISTS bridge_tickets_code ON bridge_tickets(code) WHERE code IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS bridge_tickets_event ON bridge_tickets(event_id);
+    -- Repair shop tickets
+    CREATE TABLE IF NOT EXISTS bridge_repairs (id serial PRIMARY KEY, company_id integer NOT NULL, ticket_no varchar, customer_name varchar, customer_phone varchar, device varchar, serial_imei varchar, problem text, diagnosis text, quote numeric(14,2) NOT NULL DEFAULT 0, deposit numeric(14,2) NOT NULL DEFAULT 0, status varchar NOT NULL DEFAULT 'received', assigned_user_id varchar, note text, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS bridge_repairs_company ON bridge_repairs(company_id);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -508,6 +518,12 @@ export function registerBridgeXRoutes(app: Express) {
     await notifyKitchen(companyId, ticket, lines);
     emitCompanyChange(companyId, "kds");
     res.status(201).json({ ok: true, orderNo: ticket.orderNo });
+  }));
+  // Public ticket view (holder shows this; scanning is done by staff via /events/scan)
+  app.get("/api/v1/ticket/:code", route(async (req, res) => {
+    const [t] = (await db.execute(sql`SELECT t.*, e.name event_name, e.starts_at, e.venue, tt.name type_name, c.app_name, c.name company_name, c.logo_url, c.theme FROM bridge_tickets t JOIN bridge_events e ON e.id=t.event_id LEFT JOIN bridge_ticket_types tt ON tt.id=t.ticket_type_id JOIN bridge_companies c ON c.id=t.company_id WHERE t.code=${req.params.code} LIMIT 1`)).rows as any[];
+    if (!t) return res.status(404).json({ message: "Ticket not found" });
+    res.json({ code: t.code, status: t.status, buyer: t.buyer_name, event: t.event_name, startsAt: t.starts_at, venue: t.venue, type: t.type_name, checkedInAt: t.checked_in_at, company: { appName: t.app_name || t.company_name, logoUrl: t.logo_url, theme: t.theme } });
   }));
   app.post("/api/v1/merchant/apply", route(async (req, res) => {
     const body = req.body || {};
@@ -1373,6 +1389,88 @@ export function registerBridgeXRoutes(app: Express) {
         ${from ? sql`AND b.starts_at >= ${from}::date` : sql``} ${to ? sql`AND b.starts_at < (${to}::date + interval '1 day')` : sql``}
       GROUP BY b.staff_user_id, staff_name ORDER BY commission DESC`)).rows;
     res.json(rows.map((r: any) => ({ ...r, jobs: Number(r.jobs), revenue: Number(r.revenue), commission: Number(r.commission) })));
+  }));
+
+  // ── Events / ticketing ────────────────────────────────────────────────────
+  app.get("/api/v1/company/events", route(async (req, res) => {
+    const a = await requireModule(req, res, "events"); if (!a) return;
+    res.json((await db.execute(sql`SELECT e.*, (SELECT COUNT(*) FROM bridge_tickets t WHERE t.event_id=e.id) tickets, (SELECT COUNT(*) FROM bridge_tickets t WHERE t.event_id=e.id AND t.status='used') checked_in FROM bridge_events e WHERE e.company_id=${a.companyId} ORDER BY e.id DESC`)).rows || []);
+  }));
+  app.post("/api/v1/company/events", route(async (req, res) => {
+    const a = await requireModule(req, res, "events", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Event name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_events (company_id, name, starts_at, venue, description) VALUES (${a.companyId}, ${name}, ${req.body?.startsAt ? new Date(req.body.startsAt).toISOString() : null}, ${req.body?.venue || null}, ${req.body?.description || null}) RETURNING *`)).rows[0]);
+  }));
+  app.delete("/api/v1/company/events/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "events", true); if (!a) return;
+    const id = Number(req.params.id);
+    await db.execute(sql`DELETE FROM bridge_tickets WHERE event_id=${id} AND company_id=${a.companyId}`);
+    await db.execute(sql`DELETE FROM bridge_ticket_types WHERE event_id=${id} AND company_id=${a.companyId}`);
+    await db.execute(sql`DELETE FROM bridge_events WHERE id=${id} AND company_id=${a.companyId}`);
+    res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/events/:id/types", route(async (req, res) => {
+    const a = await requireModule(req, res, "events"); if (!a) return;
+    res.json((await db.execute(sql`SELECT * FROM bridge_ticket_types WHERE event_id=${Number(req.params.id)} AND company_id=${a.companyId} ORDER BY id`)).rows || []);
+  }));
+  app.post("/api/v1/company/events/:id/types", route(async (req, res) => {
+    const a = await requireModule(req, res, "events", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Ticket type name is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_ticket_types (company_id, event_id, name, price, quantity) VALUES (${a.companyId}, ${Number(req.params.id)}, ${name}, ${Number(req.body?.price) || 0}, ${Number(req.body?.quantity) || 0}) RETURNING *`)).rows[0]);
+  }));
+  app.get("/api/v1/company/events/:id/tickets", route(async (req, res) => {
+    const a = await requireModule(req, res, "events"); if (!a) return;
+    res.json((await db.execute(sql`SELECT t.*, tt.name type_name FROM bridge_tickets t LEFT JOIN bridge_ticket_types tt ON tt.id=t.ticket_type_id WHERE t.event_id=${Number(req.params.id)} AND t.company_id=${a.companyId} ORDER BY t.id DESC LIMIT 500`)).rows || []);
+  }));
+  app.post("/api/v1/company/events/:id/issue", route(async (req, res) => {
+    const a = await requireModule(req, res, "events", true); if (!a) return;
+    const eventId = Number(req.params.id); const typeId = Number(req.body?.ticketTypeId) || null;
+    const qty = Math.max(1, Math.min(50, Number(req.body?.qty) || 1));
+    if (typeId) {
+      const [tt] = (await db.execute(sql`SELECT * FROM bridge_ticket_types WHERE id=${typeId} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
+      if (!tt) return res.status(404).json({ message: "Ticket type not found" });
+      if (Number(tt.quantity) > 0 && Number(tt.sold) + qty > Number(tt.quantity)) return res.status(400).json({ message: `Only ${Number(tt.quantity) - Number(tt.sold)} left` });
+    }
+    const created: any[] = [];
+    for (let i = 0; i < qty; i++) { const code = `TK-${randomToken().toUpperCase().slice(0, 10)}`; const [t] = (await db.execute(sql`INSERT INTO bridge_tickets (company_id, event_id, ticket_type_id, code, buyer_name, buyer_phone) VALUES (${a.companyId}, ${eventId}, ${typeId}, ${code}, ${req.body?.buyerName || null}, ${req.body?.buyerPhone || null}) RETURNING *`)).rows as any[]; created.push(t); }
+    if (typeId) await db.execute(sql`UPDATE bridge_ticket_types SET sold=sold + ${qty} WHERE id=${typeId}`);
+    res.status(201).json(created);
+  }));
+  app.get("/api/v1/company/events/ticket/:code/qr", route(async (req, res) => {
+    const a = await requireModule(req, res, "events", true); if (!a) return;
+    const svg = await QRCode.toString(`${req.protocol}://${req.get("host")}/ticket/${req.params.code}`, { type: "svg", width: 512, margin: 2 });
+    res.type("image/svg+xml").send(svg);
+  }));
+  app.post("/api/v1/company/events/scan", route(async (req, res) => {
+    const a = await requireModule(req, res, "events"); if (!a) return;
+    const code = String(req.body?.code || "").trim();
+    const [t] = (await db.execute(sql`SELECT t.*, e.name event_name FROM bridge_tickets t JOIN bridge_events e ON e.id=t.event_id WHERE t.code=${code} AND t.company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!t) return res.status(404).json({ ok: false, message: "Ticket not found" });
+    if (t.status === "used") return res.json({ ok: false, already: true, checkedInAt: t.checked_in_at, event: t.event_name, buyer: t.buyer_name });
+    if (t.status === "cancelled") return res.json({ ok: false, cancelled: true });
+    await db.execute(sql`UPDATE bridge_tickets SET status='used', checked_in_at=now() WHERE id=${t.id}`);
+    res.json({ ok: true, event: t.event_name, buyer: t.buyer_name });
+  }));
+
+  // ── Repair shop tickets ───────────────────────────────────────────────────
+  app.get("/api/v1/company/repair/tickets", route(async (req, res) => {
+    const a = await requireModule(req, res, "repair"); if (!a) return;
+    res.json((await db.execute(sql`SELECT r.*, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) assignee FROM bridge_repairs r LEFT JOIN users u ON u.id=r.assigned_user_id WHERE r.company_id=${a.companyId} ORDER BY r.id DESC LIMIT 300`)).rows || []);
+  }));
+  app.post("/api/v1/company/repair/tickets", route(async (req, res) => {
+    const a = await requireModule(req, res, "repair", true); if (!a) return;
+    const device = String(req.body?.device || "").trim(); if (!device) return res.status(400).json({ message: "Device is required" });
+    const ticketNo = `RP-${Date.now().toString(36).toUpperCase()}`;
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_repairs (company_id, ticket_no, customer_name, customer_phone, device, serial_imei, problem, quote, deposit, assigned_user_id, note) VALUES (${a.companyId}, ${ticketNo}, ${req.body?.customerName || null}, ${req.body?.customerPhone || null}, ${device}, ${req.body?.serialImei || null}, ${req.body?.problem || null}, ${Number(req.body?.quote) || 0}, ${Number(req.body?.deposit) || 0}, ${req.body?.assignedUserId || null}, ${req.body?.note || null}) RETURNING *`)).rows[0]);
+  }));
+  app.patch("/api/v1/company/repair/tickets/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "repair", true); if (!a) return;
+    const r = await db.execute(sql`UPDATE bridge_repairs SET status=COALESCE(${req.body?.status ?? null},status), diagnosis=${req.body?.diagnosis ?? null}, quote=COALESCE(${req.body?.quote ?? null},quote), assigned_user_id=${req.body?.assignedUserId ?? null}, note=${req.body?.note ?? null}, updated_at=now() WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Repair ticket not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/repair/tickets/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "repair", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_repairs WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
   }));
 
   // Attendance, shifts and leave are scoped by tenant and generate native alerts.
