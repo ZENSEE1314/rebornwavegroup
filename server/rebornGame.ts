@@ -1744,19 +1744,23 @@ export function registerRebornRoutes(app: Express) {
   }
 
   // Products — staff can read (to sell); admin manages catalogue/prices/stock.
-  app.get("/api/reborn/pos/products", requireStaff(async (_req, res) => {
-    res.json(await db.select().from(posProducts).orderBy(posProducts.sortOrder, posProducts.name));
+  app.get("/api/reborn/pos/products", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    res.json(await db.select().from(posProducts).where(eq(posProducts.companyId, cid)).orderBy(posProducts.sortOrder, posProducts.name));
   }));
   // Members browse the active menu to order in-app.
-  app.get("/api/reborn/shop/products", requireAuth, async (_req, res) => {
-    const rows = await db.select().from(posProducts).where(and(eq(posProducts.active, true), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
+  app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
     const allowNegative = (await getSettings()).allowNegativeStock;
     res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: !allowNegative && (p.stock ?? 0) <= 0 })));
   });
   app.post("/api/reborn/admin/pos/products", requireAdmin(async (req, res) => {
     const b = req.body || {};
     if (!String(b.name || "").trim()) return res.status(400).json({ message: "Name required" });
+    const cid = await rebornCompanyId(req);
     const [row] = await db.insert(posProducts).values({
+      companyId: cid,
       name: String(b.name).trim(), category: b.category || "General", price: String(Number(b.price) || 0),
       cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
@@ -1768,7 +1772,8 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.patch("/api/reborn/admin/pos/products/:id", requireAdmin(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {};
-    const [prev] = await db.select().from(posProducts).where(eq(posProducts.id, id));
+    const cid = await rebornCompanyId(req);
+    const [prev] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
     if (!prev) return res.status(404).json({ message: "Not found" });
     const patch: any = {};
     for (const k of ["name", "category", "imageUrl", "supplierName", "supplierAddress", "supplierPhone"]) if (b[k] !== undefined) patch[k] = b[k] || null;
@@ -1776,7 +1781,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
-    const [row] = await db.update(posProducts).set(patch).where(eq(posProducts.id, id)).returning();
+    const [row] = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning();
     if (b.price !== undefined && String(prev.price) !== String(row.price))
       await logAdmin(req, { targetType: "pos_product", targetId: id, action: "edit_price", entityType: "product", oldValues: { price: prev.price }, newValues: { price: row.price }, description: `Price of "${row.name}" RP ${prev.price} → RP ${row.price}` });
     res.json(row);
@@ -1787,7 +1792,8 @@ export function registerRebornRoutes(app: Express) {
     const id = Number(req.body?.productId); const qty = Math.floor(Number(req.body?.qty) || 0);
     const unitCost = Number(req.body?.unitCost);
     if (!id || qty === 0) return res.status(400).json({ message: "Product and quantity required" });
-    const [p] = await db.select().from(posProducts).where(eq(posProducts.id, id));
+    const cid = await rebornCompanyId(req);
+    const [p] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
     if (!p) return res.status(404).json({ message: "Product not found" });
     const supplier = String(req.body?.supplier || "").trim() || null;
     await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}`, ...(supplier ? { supplierName: supplier } : {}) }).where(eq(posProducts.id, id));
@@ -1797,8 +1803,9 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"${supplier ? ` (${supplier})` : ""}` });
     res.json({ message: "Stock updated" });
   }));
-  app.get("/api/reborn/pos/stock", requireStaff(async (_req, res) => {
-    res.json(await db.select().from(posProducts).orderBy(posProducts.stock));
+  app.get("/api/reborn/pos/stock", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    res.json(await db.select().from(posProducts).where(eq(posProducts.companyId, cid)).orderBy(posProducts.stock));
   }));
 
   // Member lookup by member code (referral code), email, or phone — for POS key-in.
@@ -1898,10 +1905,12 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/pos/orders", requireStaff(async (req, res) => {
     const tableNumber = String(req.body?.tableNumber || "").trim();
     if (!tableNumber) return res.status(400).json({ message: "Enter a table number" });
-    const [existing] = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
+    const cid = await rebornCompanyId(req);
+    const [existing] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
     if (existing) return res.json({ message: `Table ${tableNumber} already has an open ticket`, order: existing });
     const u = await findMemberByCode(req.body?.memberCode || "");
     const [row] = await db.insert(posTickets).values({
+      companyId: cid,
       orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open",
       ...memberTag(u), ...(await salesTag(req.body)), tableNumber, orderMode: req.body?.orderMode === "take_away" ? "take_away" : "dine_in",
       subtotal: "0", total: "0", staffId: getUserId(req)!,
@@ -1957,6 +1966,7 @@ export function registerRebornRoutes(app: Express) {
     const points = u ? Math.floor(total / await pointsSpendRp()) : 0;
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : "dine_in";
     const [row] = await db.insert(posTickets).values({
+      companyId: await rebornCompanyId(req),
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid",
       ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null,
       subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), orderMode,
@@ -1987,10 +1997,12 @@ export function registerRebornRoutes(app: Express) {
     const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : []);
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: "Your order is empty" });
+    const cid = await rebornCompanyId(req);
     const [u] = await db.select().from(users).where(eq(users.id, userId));
-    let [order] = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
+    let [order] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
     if (!order) {
       [order] = await db.insert(posTickets).values({
+        companyId: cid,
         orderNo: "A" + Date.now().toString(36).toUpperCase(), source: "app", status: "open",
         memberId: userId, memberCode: u?.referralCode || null,
         memberName: [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || null,
@@ -2137,7 +2149,8 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/shop/my-orders", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
-    const rows = await db.select().from(posTickets).where(eq(posTickets.memberId, userId)).orderBy(desc(posTickets.createdAt)).limit(20);
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.memberId, userId))).orderBy(desc(posTickets.createdAt)).limit(20);
     const withItems = await Promise.all(rows.map(async (o) => ({ ...o, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id)) })));
     res.json(withItems);
   });
@@ -2145,7 +2158,8 @@ export function registerRebornRoutes(app: Express) {
   // Open tickets (app orders awaiting payment) for staff to close.
   app.get("/api/reborn/pos/orders", requireStaff(async (req, res) => {
     const status = String(req.query.status || "open");
-    const rows = await db.select().from(posTickets).where(eq(posTickets.status, status)).orderBy(desc(posTickets.createdAt)).limit(100);
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, status))).orderBy(desc(posTickets.createdAt)).limit(100);
     const withItems = await Promise.all(rows.map(async (o) => ({ ...o, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id)) })));
     res.json(withItems);
   }));
@@ -2313,7 +2327,8 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/accounting/orders", requireAdmin(async (req, res) => {
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY_MS);
-    const rows = await db.select().from(posTickets).where(and(inArray(posTickets.status, ["paid", "refunded"]), sql`${posTickets.paidAt} >= ${since}`)).orderBy(desc(posTickets.paidAt)).limit(300);
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), inArray(posTickets.status, ["paid", "refunded"]), sql`${posTickets.paidAt} >= ${since}`)).orderBy(desc(posTickets.paidAt)).limit(300);
     const result = await Promise.all(rows.map(async (order)=>({ ...order, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, order.id)) })));
     res.json(result);
   }));
