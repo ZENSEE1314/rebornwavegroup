@@ -2387,21 +2387,44 @@ export function registerRebornRoutes(app: Express) {
     res.json((rows.rows || rows as any[]).map((r: any) => ({ industry: r.industry, revenue: Number(r.revenue), orders: Number(r.orders), items: Number(r.items) })));
   }));
 
+  // Shared refund core: restores stock, reverses loyalty points, marks the ticket refunded
+  // and books the expense. Returns the HTTP status + body plus the order for the audit log.
+  const doPosRefund = async (id: number, reason: string, actorId: string) => {
+    const [order] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!order || order.status !== "paid") return { status: 400 as const, body: { message: "Only a paid bill can be refunded" }, order: null as any };
+    const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
+    for (const item of items.filter((x) => x.status !== "rejected" && x.productId)) {
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${item.qty}` }).where(eq(posProducts.id, item.productId!));
+      await db.insert(stockMovements).values({ productId: item.productId!, delta: item.qty, reason: "refund", note: `Refund ${order.orderNo}: ${reason}`, userId: actorId });
+    }
+    if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints: sql`greatest(0,${users.loyaltyPoints}-${order.pointsEarned})`, lifetimePoints: sql`greatest(0,${users.lifetimePoints}-${order.pointsEarned})`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
+    const [updated] = await db.update(posTickets).set({ status: "refunded", refundReason: reason, refundedBy: actorId, refundedAt: new Date() }).where(eq(posTickets.id, id)).returning();
+    await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(order.total), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
+    return { status: 200 as const, body: { message: `${order.orderNo} refunded and stock restored`, order: { ...updated, items } }, order };
+  };
   app.post("/api/reborn/admin/accounting/orders/:id/refund", requireAdmin(async (req, res) => {
     const id = Number(req.params.id); const reason = String(req.body?.reason || "").trim();
     if (!reason) return res.status(400).json({ message: "A refund reason is required" });
-    const [order] = await db.select().from(posTickets).where(eq(posTickets.id,id));
+    const r = await doPosRefund(id, reason, getUserId(req)!);
+    if (r.status !== 200) return res.status(r.status).json(r.body);
+    await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "refund", entityType: "accounting", description: `Refunded ${r.order.orderNo} RP ${Number(r.order.total)}: ${reason}` });
+    res.json(r.body);
+  }));
+  // POS-floor refund: staff can refund a paid bill from POS while its business day is still open.
+  app.post("/api/reborn/pos/orders/:id/refund", requireStaff(async (req, res) => {
+    const id = Number(req.params.id); const reason = String(req.body?.reason || "").trim();
+    if (!reason) return res.status(400).json({ message: "A refund reason is required" });
+    const cid = await rebornCompanyId(req);
+    const [order] = await db.select().from(posTickets).where(and(eq(posTickets.id, id), eq(posTickets.companyId, cid)));
     if (!order || order.status !== "paid") return res.status(400).json({ message: "Only a paid bill can be refunded" });
-    const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId,id));
-    for (const item of items.filter((x)=>x.status !== "rejected" && x.productId)) {
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${item.qty}` }).where(eq(posProducts.id,item.productId!));
-      await db.insert(stockMovements).values({ productId:item.productId!, delta:item.qty, reason:"refund", note:`Refund ${order.orderNo}: ${reason}`, userId:getUserId(req)! });
-    }
-    if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints:sql`greatest(0,${users.loyaltyPoints}-${order.pointsEarned})`, lifetimePoints:sql`greatest(0,${users.lifetimePoints}-${order.pointsEarned})`, updatedAt:new Date() }).where(eq(users.id,order.memberId));
-    const [updated] = await db.update(posTickets).set({ status:"refunded", refundReason:reason, refundedBy:getUserId(req)!, refundedAt:new Date() }).where(eq(posTickets.id,id)).returning();
-    await db.insert(ledgerEntries).values({ kind:"expense", category:"refund", amount:String(order.total), note:`Refund ${order.orderNo}: ${reason}`, refType:"pos_refund", refId:String(id), userId:order.memberId || null });
-    await logAdmin(req,{ targetType:"pos_order",targetId:String(id),action:"refund",entityType:"accounting",description:`Refunded ${order.orderNo} RP ${Number(order.total)}: ${reason}` });
-    res.json({ message:`${order.orderNo} refunded and stock restored`, order:{...updated,items} });
+    const day = wibDay(new Date(order.paidAt || order.createdAt || Date.now()));
+    const [closed] = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType, "pos_closing"), eq(ledgerEntries.refId, day))).limit(1);
+    if (closed) return res.status(400).json({ message: "That day is already closed — ask an admin to refund it from Accounting." });
+    const r = await doPosRefund(id, reason, getUserId(req)!);
+    if (r.status !== 200) return res.status(r.status).json(r.body);
+    await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "refund", entityType: "accounting", description: `POS refund ${r.order.orderNo} RP ${Number(r.order.total)}: ${reason}` });
+    emitLiveUpdate("/api/reborn/pos/orders", { action: "REFUND", resource: String(id) });
+    res.json(r.body);
   }));
 
   app.post("/api/reborn/admin/accounting/orders/:id/edit", requireAdmin(async (req, res) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -1007,9 +1007,43 @@ function StaffHr({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
+// Live camera QR scanner overlay — reads the workplace attendance QR and returns its code.
+function QrScanOverlay({ onDetect, onClose }: { onDetect: (code: string) => void; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    let scanner: any; let cancelled = false;
+    (async () => {
+      try {
+        const QrScanner = (await import("qr-scanner")).default;
+        if (!videoRef.current || cancelled) return;
+        scanner = new QrScanner(videoRef.current, (result: any) => {
+          const data = typeof result === "string" ? result : result?.data;
+          if (!data) return;
+          let code = data;
+          try { code = new URL(data).searchParams.get("c") || data; } catch { /* raw code, not a URL */ }
+          try { scanner?.stop(); } catch {}
+          onDetect(code);
+        }, { returnDetailedScanResult: true, highlightScanRegion: true, preferredCamera: "environment" });
+        await scanner.start();
+      } catch (e: any) { setErr(e?.message || "Cannot open camera — allow camera access and try again."); }
+    })();
+    return () => { cancelled = true; try { scanner?.stop(); scanner?.destroy(); } catch {} };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-4">
+      <video ref={videoRef} className="w-full max-w-sm rounded-2xl aspect-square object-cover bg-black" muted playsInline />
+      <p className="text-white/70 text-sm mt-3 text-center">Point at the workplace attendance QR</p>
+      {err && <p className="text-red-400 text-sm mt-2 text-center max-w-sm">{err}</p>}
+      <button onClick={onClose} className="mt-4 px-6 py-2.5 rounded-xl font-bold bg-white/10 text-white">Cancel</button>
+    </div>
+  );
+}
+
 function MyHr() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [scan, setScan] = useState(false);
   const { data: att = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-attendance"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-attendance").then((r) => r.json()) });
   const { data: shifts = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-shifts"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-shifts").then((r) => r.json()) });
   const { data: leave = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-leave"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-leave").then((r) => r.json()) });
@@ -1044,12 +1078,15 @@ function MyHr() {
           </div>
         ) : (
           <div className="space-y-2">
+            <button onClick={() => setScan(true)} className="w-full justify-center inline-flex items-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black"><QrCode className="w-4 h-4" /> Scan QR to check in</button>
+            <p className="text-[11px] text-white/40 text-center">— or check in with a photo —</p>
             <p className="text-[11px] text-white/50">Take a photo showing <b>today's date written on your hand</b> with the <b>shop in the background</b>, then check in.</p>
             <ImageUpload value={photo} onChange={(v: any) => setPhoto(v)} label="📸 Take check-in photo" output="webp" maxDim={1000} />
             <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-in", body: { photo } })} disabled={!photo || doAct.isPending} className={btn + " w-full justify-center disabled:opacity-50"}><LogIn className="w-4 h-4" /> Check in</button>
           </div>
         )}
       </Card>
+      {scan && <QrScanOverlay onClose={() => setScan(false)} onDetect={(code) => { setScan(false); doAct.mutate({ path: "/api/reborn/staff/check-in", body: { code } }); }} />}
       <Card>
         <p className="font-bold mb-2 text-sm">Recent days</p>
         {att.length === 0 && <p className="text-xs text-white/40">No records yet.</p>}

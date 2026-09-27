@@ -8,7 +8,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
 import { printClosingReport, printReceipt, printKitchen } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
-import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer } from "lucide-react";
+import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw } from "lucide-react";
 
 interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; imageUrl?: string; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
@@ -16,7 +16,7 @@ const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) =
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
 interface Staff { id: string; name: string; role: string; }
 interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
-type Tab = "tables" | "sell" | "stock" | "bottles";
+type Tab = "tables" | "sell" | "sales" | "stock" | "bottles";
 const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
 
 async function post(url: string, body?: any) {
@@ -61,13 +61,14 @@ export default function RebornPos() {
         <button onClick={() => setShowDrawer(true)} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70"><Settings className="w-4 h-4" /> Cash drawer</button>
       </div>
       {role === "admin" && <ClosePosDay />}
-      <div className="grid grid-cols-4 gap-2 mb-4 max-w-2xl">
-        {([["tables", "Tables", <LayoutGrid className="w-4 h-4" />], ["sell", "Quick sale", <Receipt className="w-4 h-4" />], ["stock", "Stock", <PackagePlus className="w-4 h-4" />], ["bottles", "Bottles", <Wine className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
+      <div className="grid grid-cols-5 gap-2 mb-4 max-w-2xl">
+        {([["tables", "Tables", <LayoutGrid className="w-4 h-4" />], ["sell", "Quick sale", <Receipt className="w-4 h-4" />], ["sales", "Sales", <History className="w-4 h-4" />], ["stock", "Stock", <PackagePlus className="w-4 h-4" />], ["bottles", "Bottles", <Wine className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
           <button key={k} onClick={() => setTab(k as Tab)} className={`py-2.5 rounded-xl border font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 ${tab === k ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-white/5 text-white/60"}`}>{ic}<span className="hidden sm:inline">{l}</span><span className="sm:hidden">{l.split(" ")[0]}</span></button>
         ))}
       </div>
       {tab === "tables" && <TablesTab />}
       {tab === "sell" && <QuickSaleTab />}
+      {tab === "sales" && <SalesTodayTab />}
       {tab === "stock" && <StockTab />}
       {tab === "bottles" && <BottlesTab />}
       {showDrawer && <DrawerSetup onClose={() => setShowDrawer(false)} />}
@@ -529,6 +530,59 @@ function QuickSaleTab() {
 }
 
 // ── Stock ─────────────────────────────────────────────────────────────────
+// Today's paid bills with same-day refund (before the POS day is closed).
+function SalesTodayTab() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: orders = [], isLoading } = useQuery<Order[]>({ queryKey: ["/api/reborn/pos/orders", "paid"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=paid").then((r) => r.json()) });
+  const { data: refunded = [] } = useQuery<Order[]>({ queryKey: ["/api/reborn/pos/orders", "refunded"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=refunded").then((r) => r.json()) });
+  const today = new Date().toDateString();
+  const isToday = (o: any) => new Date(o.paidAt || (o as any).createdAt || Date.now()).toDateString() === today;
+  const paidToday = orders.filter(isToday);
+  const refundedToday = refunded.filter(isToday);
+  const all = [...paidToday, ...refundedToday].sort((a: any, b: any) => new Date(b.paidAt || b.createdAt).getTime() - new Date(a.paidAt || a.createdAt).getTime());
+  const totalSales = paidToday.reduce((s, o) => s + Number(o.total), 0);
+  const totalRefunded = refundedToday.reduce((s, o) => s + Number(o.total), 0);
+  const refund = useMutation({
+    mutationFn: (v: { id: number; reason: string }) => apiRequest("POST", `/api/reborn/pos/orders/${v.id}/refund`, { reason: v.reason }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Cannot refund", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const doRefund = (o: any) => { const reason = prompt(`Refund ${o.orderNo} (${rp(Number(o.total))})?\nThis restores stock and reverses points.\n\nReason:`, "customer request"); if (reason && reason.trim()) refund.mutate({ id: o.id, reason: reason.trim() }); };
+  return (
+    <div className="max-w-2xl space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">Today's sales</p><p className="text-lg font-extrabold text-emerald-300">{rp(totalSales)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">Bills</p><p className="text-lg font-extrabold">{paidToday.length}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">Refunded</p><p className="text-lg font-extrabold text-red-300">{rp(totalRefunded)}</p></div>
+      </div>
+      <p className="text-[11px] text-white/40">Refund a bill here while today is still open. Once an admin closes the POS day, refunds move to Accounting.</p>
+      {isLoading && <p className="text-sm text-white/40">Loading…</p>}
+      {!isLoading && all.length === 0 && <p className="text-sm text-white/40 py-8 text-center">No sales yet today.</p>}
+      {all.map((o: any) => {
+        const isRef = o.status === "refunded";
+        const items = (o.items || []).filter((it: any) => it.status !== "rejected");
+        return (
+          <div key={o.id} className={`rounded-2xl border p-3 ${isRef ? "border-red-400/30 bg-red-500/5" : "border-white/10 bg-white/5"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-bold text-sm">{o.orderNo}{o.tableNumber ? ` · Table ${o.tableNumber}` : ""}{isRef && <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-200">Refunded</span>}</p>
+                <p className="text-[11px] text-white/45">{new Date(o.paidAt || o.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · {o.paymentMethod || "cash"}{o.salesStaffName ? ` · ${o.salesStaffName}` : ""}{o.memberName ? ` · ${o.memberName}` : ""}</p>
+                <p className="text-[11px] text-white/40 truncate">{items.map((it: any) => `${it.qty}× ${it.name}`).join(", ")}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className={`font-extrabold ${isRef ? "text-white/40 line-through" : ""}`}>{rp(Number(o.total))}</p>
+                {!isRef && <button onClick={() => doRefund(o)} disabled={refund.isPending} className="mt-1 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-200 border border-red-400/40 disabled:opacity-50"><RotateCcw className="w-3 h-3" /> Refund</button>}
+              </div>
+            </div>
+            {isRef && o.refundReason && <p className="text-[11px] text-red-300/80 mt-1">Reason: {o.refundReason}</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function StockTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
