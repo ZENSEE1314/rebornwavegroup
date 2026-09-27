@@ -14,6 +14,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "30s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
+  poker3: { name: "3-Card Poker", emoji: "🂡", blurb: "play blind, raise ½ cup · look = pay double · worst hand drinks the pot" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
   wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "½ cup · 1 cup · 2 cups — or land on PASS 😎" },
   riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
@@ -28,14 +29,14 @@ const GAME_GRAD: Record<string, string> = {
   rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)",
   cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)",
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
-  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)",
+  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)",
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
 };
 // Games grouped into categories for the lobby.
 const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
   { name: "Guessing game", emoji: "🧠", games: ["number", "rps"] },
   { name: "Dice game", emoji: "🎲", games: ["dice", "789"] },
-  { name: "Card game", emoji: "🃏", games: ["cards"] },
+  { name: "Card game", emoji: "🃏", games: ["cards", "poker3"] },
   { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer", "stack"] },
   { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding"] },
 ];
@@ -52,6 +53,14 @@ const RULES: Record<string, string[]> = {
     "Every tap = 1 gold coin ⛏️🪙.",
     "You have 30 seconds — most coins wins.",
     "Lowest score buys the round 😄.",
+  ],
+  poker3: [
+    "Everyone gets 3 cards FACE-DOWN and starts blind — you can't see your own cards. Everyone's in for ½ cup.",
+    "Your turn while blind: CALL (add the stake), RAISE (+½ cup to the stake) or LOOK at your cards.",
+    "Scared? Look — but once you've seen your cards you pay DOUBLE.",
+    "Seen player: FOLLOW (pay double) → everyone must open their cards, the WORST hand drinks the whole pot. Or FOLD → you drink the whole pot yourself.",
+    "Hands, best first: Trail (AAA is the top) › Straight flush › Straight (e.g. 2-3-4) › Flush › Pair (e.g. 4-4-3) › High card.",
+    "Pot reaches 10 cups → everyone opens automatically. 30s per turn (blind auto-calls, seen auto-folds).",
   ],
   cards: [
     "Goal: hold 3 matching pairs — A+9, 2+8, 3+7, 4+6, 5+5, J+J, Q+Q, K+K.",
@@ -150,7 +159,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
+type GK = "rps" | "tap" | "cards" | "poker3" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
@@ -455,6 +464,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "rps" && <RpsGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && room.game === "poker3" && <PokerGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
@@ -925,6 +935,85 @@ function PlayingCard({ c, onClick, selectable, paired, highlight }: { c: any; on
       <span className={red ? "text-red-600" : "text-slate-900"} style={{ fontSize: 18, lineHeight: 1 }}>{c.v}</span>
       <span className={red ? "text-red-600" : "text-slate-900"} style={{ fontSize: 18 }}>{c.s}</span>
     </button>
+  );
+}
+
+const cupsLabel = (u: number) => (u % 2 ? (u === 1 ? "½" : `${Math.floor(u / 2)}½`) : `${u / 2}`) + (u <= 2 ? " cup" : " cups");
+const PK_RANK: Record<number, string> = { 11: "J", 12: "Q", 13: "K", 14: "A" };
+function PokerCard({ c, hidden, small }: { c?: any; hidden?: boolean; small?: boolean }) {
+  const cls = small ? "w-9 h-12 text-sm" : "w-16 h-24 text-2xl";
+  if (hidden || !c) return <div className={`${cls} rounded-lg border-2 border-white/80 shadow-lg`} style={{ background: "repeating-linear-gradient(45deg,#7c3aed 0 6px,#5b21b6 6px 12px)" }} />;
+  const red = c.s === "♥" || c.s === "♦";
+  return <div className={`${cls} rounded-lg bg-white shadow-lg flex flex-col items-center justify-center font-black ${red ? "text-red-600" : "text-slate-900"}`} style={{ animation: "rwgPop .35s ease-out" }}><span className="leading-none">{PK_RANK[c.r] || c.r}</span><span className="leading-none">{c.s}</span></div>;
+}
+function PokerGame({ room, code, me }: any) {
+  const pk = room.poker || {};
+  const { toast } = useToast();
+  const myTurn = room.status === "playing" && pk.turnId === me;
+  const iSeen = !!pk.seen?.[me];
+  const act = async (a: string) => {
+    try {
+      const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, { act: a });
+      if (!ok) toast({ title: "Can't do that", description: d.message, variant: "destructive" });
+    } catch (e: any) { toast({ title: "Can't do that", description: String(e?.message || e).replace(/^\d+:\s*/, ""), variant: "destructive" }); }
+  };
+  const turnName = room.players.find((p: any) => p.id === pk.turnId)?.name;
+  if (room.status === "done" && pk.reveal) {
+    const iLost = pk.reveal.results.find((r: any) => r.id === me)?.loser;
+    return (
+      <div className="rwg-card p-5 text-center">
+        <div className="text-6xl mb-1">{iLost ? "🍺" : "🏆"}</div>
+        <p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-emerald-300"}`}>{iLost ? `You drink ${cupsLabel(pk.reveal.pot)}!` : "You're safe!"}</p>
+        <p className="text-white/60 text-sm mt-1 mb-4">{room.message}</p>
+        <div className="space-y-2 text-left">
+          {pk.reveal.results.map((r: any, i: number) => (
+            <div key={r.id} className={`flex items-center gap-3 rounded-xl p-2.5 ${r.loser ? "bg-red-500/15 border border-red-400/40" : "bg-white/5 border border-white/10"}`}>
+              <span className="w-5 text-center text-sm text-white/50">{i + 1}</span>
+              <div className="flex gap-1">{r.cards.map((c: any, j: number) => <PokerCard key={j} small c={c} />)}</div>
+              <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{r.id === me ? "You" : r.name}</p><p className="text-[11px] text-white/55">{r.cat}</p></div>
+              {r.loser && <span className="shrink-0 text-sm font-black text-red-300">🍺 drinks</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rwg-card p-5 text-center">
+      <p className="text-sm text-white/60 mb-3">{room.message}</p>
+      <div className="flex justify-center gap-3 mb-4">
+        <div className="rounded-2xl bg-amber-400/15 border border-amber-300/30 px-4 py-2"><p className="text-[11px] text-amber-200/70 uppercase font-bold">Pot</p><p className="text-xl font-black text-amber-300">🍺 {cupsLabel(pk.pot || 0)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-2"><p className="text-[11px] text-white/50 uppercase font-bold">Stake</p><p className="text-xl font-black">{cupsLabel(pk.stake || 1)}</p></div>
+      </div>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-white/50 mb-2">Your cards {iSeen ? `· ${pk.myHand}` : "· blind 🙈"}</p>
+      <div className="flex justify-center gap-2 mb-4">{[0, 1, 2].map((i) => <PokerCard key={i} hidden={!iSeen} c={pk.myCards?.[i]} />)}</div>
+      {room.status === "playing" && (myTurn ? (
+        iSeen ? (
+          <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            <button onClick={() => act("follow")} className="cbtn cbtn-gold py-3 text-sm leading-tight">💪 Follow ×2<br /><span className="text-[11px] opacity-80">add {cupsLabel((pk.stake || 1) * 2)} · all open</span></button>
+            <button onClick={() => act("fold")} className="cbtn cbtn-dark py-3 text-sm leading-tight">😱 Fold<br /><span className="text-[11px] opacity-80">drink the pot</span></button>
+          </div>
+        ) : (
+          <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+            <button onClick={() => act("call")} className="cbtn cbtn-cyan py-3 text-sm leading-tight">Call<br /><span className="text-[11px] opacity-80">+{cupsLabel(pk.stake || 1)}</span></button>
+            <button onClick={() => act("raise")} className="cbtn cbtn-gold py-3 text-sm leading-tight">Raise 😈<br /><span className="text-[11px] opacity-80">+{cupsLabel((pk.stake || 1) + 1)}</span></button>
+            <button onClick={() => act("look")} className="cbtn cbtn-dark py-3 text-sm leading-tight">👀 Look<br /><span className="text-[11px] opacity-80">then ×2</span></button>
+          </div>
+        )
+      ) : (
+        <div>
+          <p className="text-white/50 text-sm">Waiting for {turnName || "…"} ({room.secondsLeft}s)</p>
+          {!iSeen && <button onClick={() => act("look")} className="mt-2 cbtn cbtn-dark px-5 py-2 text-xs">👀 Look at my cards (then pay ×2)</button>}
+        </div>
+      ))}
+      <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+        {room.players.map((p: any) => (
+          <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs ${p.id === pk.turnId ? "bg-emerald-400/20 text-emerald-200" : "bg-white/5 text-white/60"}`}>
+            {p.id === me ? "You" : p.name} · {pk.seen?.[p.id] ? "👀 seen" : "🙈 blind"}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 

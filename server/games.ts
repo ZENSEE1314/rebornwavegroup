@@ -10,7 +10,7 @@ import { resolveCompanyId } from "./tenant";
 import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -42,6 +42,8 @@ interface Room {
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
   // stack (tower stacking) only
   stackWinners?: string[];
+  // poker3 (3-card blind poker drinking game) only
+  pk?: { hands: Record<string, PkCard[]>; seen: Record<string, boolean>; stake: number; pot: number; lastBy?: string; reveal?: any };
   stackTower?: { left: number; width: number; by?: string }[];
   stackMove?: { width: number; fromLeft: boolean; t0: number; speed: number };
 }
@@ -79,6 +81,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "timer" ? { timer: timerView(room, forUserId) } : {}),
     ...(room.game === "789" ? { seven: sevenView(room) } : {}),
     ...(room.game === "stack" ? { stack: stackView(room) } : {}),
+    ...(room.game === "poker3" ? { poker: pokerView(room, forUserId) } : {}),
   };
 }
 
@@ -488,6 +491,11 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       if (leavingWasTurn) { armDiceTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; }
       return broadcast(room);
     }
+    case "poker3": {
+      if (room.players.length < 2) return soloWin();
+      if (room.pk) { room.pk.pot = Math.max(room.pk.pot, 1); if (leavingWasTurn) { room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; armPoker(room); } }
+      return broadcast(room);
+    }
     case "cards": {
       if (room.players.length < 2) return soloWin();
       if (leavingWasTurn) { room.phase = "draw"; room.drawnFrom = null; room.message = `${room.players[room.turnIdx ?? 0].name}'s turn — take the discard or draw`; armCardTimer(room); }
@@ -544,7 +552,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1004,13 +1012,123 @@ function ridingView(room: Room) {
   };
 }
 
+// ── 3-Card Poker (blind drinking poker) ──────────────────────────────────
+// Everyone gets 3 face-down cards and plays BLIND (can't see them). Drinks are
+// counted in half-cups. The pot starts at ½ cup per player and the stake at ½.
+// On your turn, blind: Call (add the stake), Raise (+½ to the stake, then add),
+// or Look at your cards. Once you've looked you're SEEN and pay double: Follow
+// (add 2× stake) forces a showdown — everyone opens and the WORST hand drinks
+// the whole pot — or Fold, which means you drink the whole pot yourself.
+// Ranks: Trail (AAA best) > Straight flush > Straight > Flush > Pair > High card.
+type PkCard = { r: number; s: string };
+const PK_SUITS = ["♠", "♥", "♦", "♣"];
+const PK_TURN_SECONDS = 30;
+const PK_POT_CAP = 20; // 10 cups → automatic showdown so an all-blind table can't loop forever
+const PK_CATS = ["High card", "Pair", "Flush", "Straight", "Straight flush", "Trail"];
+function pkScore(h: PkCard[]): { score: number; cat: string } {
+  const r = h.map((c) => c.r).sort((a, b) => b - a);
+  const flush = h.every((c) => c.s === h[0].s);
+  const isA23 = r[0] === 14 && r[1] === 3 && r[2] === 2;
+  const straight = (r[0] - r[1] === 1 && r[1] - r[2] === 1) || isA23;
+  const hi = isA23 ? 3 : r[0];
+  let cat = 0, tb = [r[0], r[1], r[2]];
+  if (r[0] === r[1] && r[1] === r[2]) cat = 5;
+  else if (straight && flush) { cat = 4; tb = [hi, 0, 0]; }
+  else if (straight) { cat = 3; tb = [hi, 0, 0]; }
+  else if (flush) cat = 2;
+  else if (r[0] === r[1] || r[1] === r[2]) { cat = 1; const pr = r[1], k = r[0] === r[1] ? r[2] : r[0]; tb = [pr, k, 0]; }
+  return { score: cat * 1e6 + tb[0] * 1e4 + tb[1] * 100 + tb[2], cat: PK_CATS[cat] };
+}
+const pkLabel = (c: PkCard) => `${({ 11: "J", 12: "Q", 13: "K", 14: "A" } as any)[c.r] || c.r}${c.s}`;
+function armPoker(room: Room) {
+  clearTimers(room);
+  room.deadline = Date.now() + PK_TURN_SECONDS * 1000 + 300;
+  room.timer = setTimeout(() => {
+    const p = room.players[room.turnIdx ?? 0]; if (!p || room.status !== "playing") return;
+    // Out of time: blind players auto-call; seen players didn't dare → fold.
+    pokerAction(room, p.id, room.pk?.seen[p.id] ? "fold" : "call");
+  }, PK_TURN_SECONDS * 1000 + 300);
+}
+function startPoker(room: Room) {
+  clearTimers(room);
+  const deck: PkCard[] = [];
+  for (let r = 2; r <= 14; r++) for (const s of PK_SUITS) deck.push({ r, s });
+  for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+  const hands: Record<string, PkCard[]> = {}, seen: Record<string, boolean> = {};
+  for (const p of room.players) { hands[p.id] = deck.splice(0, 3); seen[p.id] = false; p.alive = true; }
+  room.pk = { hands, seen, stake: 1, pot: room.players.length, reveal: null };
+  room.status = "playing";
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  room.message = `Cards dealt face-down 🂠 — ${room.players[room.turnIdx].name} starts. Everyone's in for ½ cup.`;
+  armPoker(room); broadcast(room);
+}
+const cupsText = (u: number) => (u % 2 ? (u === 1 ? "½" : `${Math.floor(u / 2)}½`) : `${u / 2}`) + (u <= 2 ? " cup" : " cups");
+function finishPoker(room: Room, loserIds: string[], why: string) {
+  clearTimers(room);
+  const pk = room.pk!;
+  pk.pot = Math.min(pk.pot, PK_POT_CAP); // never more than 10 cups
+  room.status = "done";
+  room.lastLoserId = loserIds[0];
+  const winners = room.players.filter((p) => !loserIds.includes(p.id));
+  room.winnerId = winners[0]?.id;
+  const results = room.players.map((p) => { const sc = pkScore(pk.hands[p.id]); return { id: p.id, name: p.name, cards: pk.hands[p.id], cat: sc.cat, score: sc.score, loser: loserIds.includes(p.id) }; })
+    .sort((a, b) => b.score - a.score);
+  pk.reveal = { results, why, pot: pk.pot };
+  const names = room.players.filter((p) => loserIds.includes(p.id)).map((p) => p.name).join(" & ");
+  room.message = `${why} — ${names} drink${loserIds.length > 1 ? "" : "s"} the whole pot: ${cupsText(pk.pot)} 🍻`;
+  broadcast(room);
+  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: loserIds.includes(p.id) ? 0 : 1, result: (loserIds.includes(p.id) ? "lose" : "win") as "win" | "lose" })));
+  scheduleCleanup(room);
+}
+function pokerShowdown(room: Room, why: string) {
+  const pk = room.pk!;
+  const scores = room.players.map((p) => ({ id: p.id, score: pkScore(pk.hands[p.id]).score }));
+  const low = Math.min(...scores.map((x) => x.score));
+  finishPoker(room, scores.filter((x) => x.score === low).map((x) => x.id), why);
+}
+function pokerAction(room: Room, uid: string, act: string) {
+  if (room.status !== "playing" || room.game !== "poker3" || !room.pk) return "Not playing";
+  const pk = room.pk, idx = room.players.findIndex((p) => p.id === uid);
+  if (idx < 0) return "Not in this room";
+  if (act === "look") { pk.seen[uid] = true; broadcast(room); return ""; } // looking is allowed any time
+  if (idx !== room.turnIdx) return "Not your turn";
+  const p = room.players[idx], seen = !!pk.seen[uid];
+  const advance = (msg: string) => {
+    pk.lastBy = uid;
+    if (pk.pot >= PK_POT_CAP) return pokerShowdown(room, `The pot hit ${cupsText(PK_POT_CAP)} — everybody opens`);
+    room.turnIdx = (idx + 1) % room.players.length;
+    const n = room.players[room.turnIdx];
+    room.message = `${msg} · ${n.name}'s turn${pk.seen[n.id] ? " (seen — pays double)" : ""}`;
+    armPoker(room); broadcast(room);
+  };
+  if (!seen && act === "call") { pk.pot += pk.stake; advance(`${p.name} stays blind and calls ${cupsText(pk.stake)}`); return ""; }
+  if (!seen && act === "raise") { pk.stake += 1; pk.pot += pk.stake; advance(`${p.name} raises blind to ${cupsText(pk.stake)} 😈`); return ""; }
+  if (seen && act === "follow") { pk.pot += pk.stake * 2; pokerShowdown(room, `${p.name} looked and dared to follow (double ${cupsText(pk.stake * 2)}) — cards open!`); return ""; }
+  if (seen && act === "fold") { finishPoker(room, [uid], `${p.name} looked and didn't dare 😱`); return ""; }
+  return seen ? "You've seen your cards — follow (double) or fold" : "Call, raise or look";
+}
+function pokerView(room: Room, forUserId?: string) {
+  const pk = room.pk;
+  if (!pk) return null;
+  const done = room.status === "done";
+  const mine = forUserId ? pk.hands[forUserId] : undefined;
+  return {
+    turnId: room.status === "playing" ? room.players[room.turnIdx ?? 0]?.id : null,
+    stake: pk.stake, pot: pk.pot, cap: PK_POT_CAP,
+    seen: pk.seen,
+    myCards: mine && (pk.seen[forUserId!] || done) ? mine.map((c) => ({ ...c, label: pkLabel(c) })) : null,
+    myHand: mine && (pk.seen[forUserId!] || done) ? pkScore(mine).cat : null,
+    reveal: done ? pk.reveal : null,
+  };
+}
+
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "cards", "poker3", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
   number: "Guessing game", rps: "Guessing game",
   dice: "Dice game", "789": "Dice game",
-  cards: "Card game",
+  cards: "Card game", poker3: "Card game",
   tap: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
   wheel: "Lucky game", riding: "Lucky game",
 };
@@ -1222,7 +1340,7 @@ export function registerGameRoutes(app: Express) {
       .map((r) => ({
         code: r.code, game: r.game,
         hostName: r.players.find((p) => p.id === r.hostId)?.name || "Host",
-        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : MAX_PLAYERS,
+        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : r.game === "poker3" ? 8 : MAX_PLAYERS,
         hasPassword: !!r.password, createdAt: r.createdAt,
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -1232,7 +1350,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
@@ -1271,7 +1389,7 @@ export function registerGameRoutes(app: Express) {
     if (existing) return res.json({ code: room.code });
     if (room.status !== "lobby") return res.status(400).json({ message: "This game has already started." });
     if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: "Wrong room password." });
-    const cap = room.game === "cards" ? CARDS_MAX : MAX_PLAYERS;
+    const cap = room.game === "cards" ? CARDS_MAX : room.game === "poker3" ? 8 : MAX_PLAYERS;
     if (room.players.length >= cap) return res.status(400).json({ message: `Room is full (${cap} players).` });
     room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
     broadcast(room);
@@ -1287,6 +1405,7 @@ export function registerGameRoutes(app: Express) {
     if (room.players.length < 2) return res.status(400).json({ message: "Need at least 2 players." });
     if (room.game === "rps") { room.round = 1; startRpsRound(room); }
     else if (room.game === "cards") startCards(room);
+    else if (room.game === "poker3") startPoker(room);
     else if (room.game === "dice") startDiceRound(room);
     else if (room.game === "wheel") startWheel(room);
     else if (room.game === "riding") startRiding(room);
@@ -1356,6 +1475,10 @@ export function registerGameRoutes(app: Express) {
         return res.json({ ok: true });
       }
       return res.status(400).json({ message: "Bad action" });
+    }
+    if (room.game === "poker3") {
+      const err = pokerAction(room, getUserId(req)!, String(req.body?.act || ""));
+      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
     }
     if (room.game === "cards") {
       const r = cardAction(room, getUserId(req)!, req.body || {});
