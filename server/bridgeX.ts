@@ -156,9 +156,22 @@ async function currentUser(req: Request) {
   return (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0] || null;
 }
 
-async function isPlatformAdmin(req: Request) {
+// The one super admin (by email) can manage the platform team + billing.
+async function isSuperAdmin(req: Request) {
   const user = await currentUser(req);
   return !!user?.email && PLATFORM_EMAILS().has(user.email.toLowerCase());
+}
+// Platform staff = the super admin OR a sub-admin (sales/accountant/partner) he created.
+// All of them can use the platform console (dashboard, companies, branches, business types).
+async function platformRole(req: Request): Promise<string | null> {
+  const user = await currentUser(req);
+  if (!user) return null;
+  if (user.email && PLATFORM_EMAILS().has(user.email.toLowerCase())) return "super";
+  const [row] = (await db.execute(sql`SELECT role FROM bridge_platform_admins WHERE user_id=${user.id} LIMIT 1`)).rows as any[];
+  return row?.role || null;
+}
+async function isPlatformAdmin(req: Request) {
+  return (await platformRole(req)) !== null;
 }
 
 async function requireUser(req: Request, res: Response) {
@@ -528,6 +541,8 @@ export async function ensureBridgeXSchema() {
     -- Which business types (modules) each branch runs. No rows = inherit all company modules.
     CREATE TABLE IF NOT EXISTS bridge_branch_modules (company_id integer NOT NULL, branch_id integer NOT NULL, module_key varchar NOT NULL, PRIMARY KEY(branch_id, module_key));
     CREATE INDEX IF NOT EXISTS bridge_branch_modules_branch ON bridge_branch_modules(branch_id);
+    -- Platform team: sub-admins the super admin creates (sales/accountant/partner/admin).
+    CREATE TABLE IF NOT EXISTS bridge_platform_admins (user_id varchar PRIMARY KEY, role varchar NOT NULL DEFAULT 'sales', created_at timestamp NOT NULL DEFAULT now());
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -642,7 +657,27 @@ export function registerBridgeXRoutes(app: Express) {
 
   app.get("/api/v1/platform/bootstrap", route(async (req, res) => {
     const user = await requireUser(req, res); if (!user) return;
-    res.json({ brand: "BridgeXPOS", platformAdmin: await isPlatformAdmin(req), modules: BRIDGEX_MODULES, notificationEvents: BRIDGEX_NOTIFICATION_EVENTS });
+    const role = await platformRole(req);
+    res.json({ brand: "BridgeXPOS", platformAdmin: role !== null, superAdmin: role === "super", platformRole: role, modules: BRIDGEX_MODULES, notificationEvents: BRIDGEX_NOTIFICATION_EVENTS });
+  }));
+
+  // Platform team management — super admin only.
+  app.get("/api/v1/platform/admins", route(async (req, res) => {
+    if (!(await isSuperAdmin(req))) return res.status(403).json({ message: "Super admin only" });
+    res.json((await db.execute(sql`SELECT a.user_id, a.role, a.created_at, u.email, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name FROM bridge_platform_admins a JOIN users u ON u.id=a.user_id ORDER BY a.created_at DESC`)).rows || []);
+  }));
+  app.post("/api/v1/platform/admins", route(async (req, res) => {
+    if (!(await isSuperAdmin(req))) return res.status(403).json({ message: "Super admin only" });
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const role = ["sales", "accountant", "partner", "admin"].includes(req.body?.role) ? req.body.role : "sales";
+    if (!email || !email.includes("@")) return res.status(400).json({ message: "A valid email is required" });
+    const ensured = await ensureUser(email, req.body?.name || "BridgeX Team", req.body?.password);
+    await db.execute(sql`INSERT INTO bridge_platform_admins (user_id, role) VALUES (${ensured.user.id}, ${role}) ON CONFLICT (user_id) DO UPDATE SET role=${role}`);
+    res.status(201).json({ userId: ensured.user.id, email, role, temporaryPassword: ensured.temporaryPassword });
+  }));
+  app.delete("/api/v1/platform/admins/:userId", route(async (req, res) => {
+    if (!(await isSuperAdmin(req))) return res.status(403).json({ message: "Super admin only" });
+    await db.execute(sql`DELETE FROM bridge_platform_admins WHERE user_id=${req.params.userId}`); res.json({ ok: true });
   }));
 
   app.get("/api/v1/platform/companies", route(async (req, res) => {

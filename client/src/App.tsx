@@ -82,6 +82,7 @@ const RebornGames          = lazy(() => import("@/pages/reborn-games"));
 const RebornAttend         = lazy(() => import("@/pages/reborn-attend"));
 const OrderTable           = lazy(() => import("@/pages/order-table"));
 const TicketView           = lazy(() => import("@/pages/ticket-view"));
+const TenantEntry          = lazy(() => import("@/pages/tenant-entry"));
 const RebornSupport        = lazy(() => import("@/pages/reborn-support"));
 const RebornAdmin          = lazy(() => import("@/pages/reborn-admin"));
 const RebornKos            = lazy(() => import("@/pages/reborn-kos"));
@@ -237,6 +238,7 @@ function Router() {
         <Route path="/attend" component={RebornAttend} />
         <Route path="/order/t/:token" component={OrderTable} />
         <Route path="/ticket/:code" component={TicketView} />
+        <Route path="/t/:slug" component={TenantEntry} />
 
         {!isAuthenticated ? (
           <Route path="/" component={bridgeXHost ? BridgeXLanding : Landing} />
