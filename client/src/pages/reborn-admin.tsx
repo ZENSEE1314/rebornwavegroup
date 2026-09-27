@@ -1214,6 +1214,21 @@ function ManageHr() {
 }
 
 const INDUSTRY_LABELS: Record<string, string> = { restaurant: "Restaurant", bar: "Bar", nightclub: "Nightclub", ktv: "KTV", foodcourt: "Food Court", beauty: "Beauty/Spa", retail: "Retail", grocery: "Grocery", hotel: "Hotel", gym: "Gym", pet: "Pet", workshop: "Workshop", repair: "Repair", laundry: "Laundry", rental: "Rental", education: "Education" };
+// A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar,Restaurant").
+const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
+const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
+const deptLabel = (d?: string | null): string => deptList(d).join(" · ");
+
+function IndustryPicker({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const sel = new Set(deptList(value));
+  const toggle = (o: string) => { const s = new Set(sel); s.has(o) ? s.delete(o) : s.add(o); onChange(Array.from(s).join(",")); };
+  return (
+    <div className="mt-1 flex flex-wrap gap-1.5">
+      {options.length === 0 && <span className="text-xs text-white/30">No industry modules enabled</span>}
+      {options.map((o) => <button type="button" key={o} onClick={() => toggle(o)} className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${sel.has(o) ? "bg-amber-400 text-black border-amber-400" : "bg-white/5 text-white/60 border-white/10"}`}>{o}</button>)}
+    </div>
+  );
+}
 
 function Products() {
   const { toast } = useToast();
@@ -1224,10 +1239,10 @@ function Products() {
   const [industry, setIndustry] = useState("");
   const [mode, setMode] = useState<"new" | "restock">("new");
   const [rs, setRs] = useState<any>({ productId: "", supplier: "", qty: 1, unitCost: 0 });
-  const industries = Array.from(new Set(products.map((p) => p.department).filter(Boolean))).sort();
-  // Industry dropdown options = enabled industry modules + any existing departments.
+  const industries = Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort();
+  // Industry options = enabled industry modules + any industries already in use.
   const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...industries])).sort();
-  const shown = industry ? products.filter((p) => (p.department || "") === industry) : products;
+  const shown = industry ? products.filter((p) => deptHas(p.department, industry)) : products;
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -1249,7 +1264,7 @@ function Products() {
         <label className="text-xs text-white/50 block mb-2">Product name<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="e.g. Heineken" className={inp + " w-full"} /></label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
           <label className="text-xs text-white/50">Category<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Drinks" className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Industry / department<select value={n.department} onChange={(e) => setN({ ...n, department: e.target.value })} className={inp + " w-full"}><option value="">— none —</option>{industryOptions.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
+          <div className="text-xs text-white/50 sm:col-span-2">Industries <span className="text-white/30">(tick all that apply — an item like beer can be in KTV, Bar &amp; Restaurant)</span><IndustryPicker value={n.department} options={industryOptions} onChange={(v) => setN({ ...n, department: v })} /></div>
           <label className="text-xs text-white/50">Stock quantity<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={n.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
@@ -1260,7 +1275,7 @@ function Products() {
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
         </> : <>
         <p className="text-xs text-white/50 mb-2">Restock an existing item from a different supplier — adds stock without creating a duplicate product.</p>
-        <label className="text-xs text-white/50 block mb-2">Item<select value={rs.productId} onChange={(e) => setRs({ ...rs, productId: e.target.value })} className={inp + " w-full"}><option value="">Select existing item</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}{p.department ? ` · ${p.department}` : ""} (stock {p.stock})</option>)}</select></label>
+        <label className="text-xs text-white/50 block mb-2">Item<select value={rs.productId} onChange={(e) => setRs({ ...rs, productId: e.target.value })} className={inp + " w-full"}><option value="">Select existing item</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}{p.department ? ` · ${deptLabel(p.department)}` : ""} (stock {p.stock})</option>)}</select></label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
           <label className="text-xs text-white/50">Supplier<input value={rs.supplier} onChange={(e) => setRs({ ...rs, supplier: e.target.value })} placeholder="Supplier name" className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Quantity<input type="number" inputMode="numeric" value={rs.qty || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, qty: Number(e.target.value) })} className={inp + " w-full"} /></label>
@@ -1282,7 +1297,7 @@ function ProductRow({ p }: any) {
   const modules = useModules();
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "" });
-  const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...(p.department ? [p.department] : [])])).sort();
+  const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...deptList(p.department)])).sort();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -1295,7 +1310,7 @@ function ProductRow({ p }: any) {
           {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" /> : <span className="w-14 h-14 rounded-xl bg-white/5 flex-shrink-0" />}
           <div className="flex-1 min-w-0">
             <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>} {p.posVisible === false && <span className="text-xs text-amber-400">(not in POS)</span>}</p>
-            <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${p.department}` : ""} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
+            <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
             {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">Supplier: {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
           <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> Edit</button>
@@ -1303,9 +1318,9 @@ function ProductRow({ p }: any) {
       ) : (
         <div>
           <label className="text-xs text-white/50">Name<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} /></label>
+          <div className="text-xs text-white/50 mb-2">Industries <span className="text-white/30">(tick all that apply)</span><IndustryPicker value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></div>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <label className="text-xs text-white/50">Category<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50">Industry / department<select value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })} className={inp + " w-full"}><option value="">— none —</option>{industryOptions.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
             <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active</label>
             <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
@@ -1456,8 +1471,8 @@ function AccountingOrders({ days }: { days: number }) {
   const save=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/edit`,{...o,reason,items:o.items.map((x:any)=>({id:x.id,qty:Number(x.qty),price:Number(x.price)})),discount:Number(o.discount),tax:Number(o.tax),cashReceived:o.paymentMethod==="cash"?Number(o.cashReceived):undefined}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setEditing(false);setReason("");refresh()},onError:(e:any)=>toast({title:"Edit failed",description:e.message,variant:"destructive"})});
   const money=(n:any)=>"RP "+Math.round(Number(n)||0).toLocaleString();
   const [industry,setIndustry]=useState("");
-  const industries=Array.from(new Set(orders.flatMap((o:any)=>(o.items||[]).map((it:any)=>it.department).filter(Boolean)))).sort();
-  const shown=industry?orders.filter((o:any)=>(o.items||[]).some((it:any)=>(it.department||"")===industry)):orders;
+  const industries=Array.from(new Set(orders.flatMap((o:any)=>(o.items||[]).flatMap((it:any)=>deptList(it.department))))).sort();
+  const shown=industry?orders.filter((o:any)=>(o.items||[]).some((it:any)=>deptHas(it.department,industry))):orders;
   const taxRate=(o:any)=>{const taxable=Number(o.subtotal)-Number(o.discount);return taxable>0&&Number(o.tax)>0?Number((Number(o.tax)/taxable*100).toFixed(2)):0};
   const serviceRate=(o:any)=>{const taxable=Number(o.subtotal)-Number(o.discount);return taxable>0&&Number(o.serviceFee)>0?Number((Number(o.serviceFee)/taxable*100).toFixed(2)):0};
   return <Card><p className="mb-2 font-bold text-sm flex items-center gap-2"><Ticket className="h-4 w-4 text-amber-300"/>Paid orders and receipts</p>{industries.length>0&&<div className="mb-2 flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["",...industries].map((d)=><button key={d||"all"} onClick={()=>setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry===d?"bg-amber-400 text-black font-bold":"bg-white/5 text-white/60"}`}>{d||"All"}</button>)}</div>}<div className="max-h-80 space-y-2 overflow-y-auto">{shown.map((o)=><button key={o.id} onClick={()=>{setSelected(structuredClone(o));setEditing(false);setReason("")}} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-left"><span className="min-w-0"><b className="block truncate">{o.orderNo} · {o.memberName||"Walk-in"}</b><span className="text-[11px] text-white/40">{new Date(o.paidAt).toLocaleString()} · {String(o.paymentMethod).toUpperCase()}</span></span><span className={o.status==="refunded"?"font-bold text-red-300":"font-bold text-emerald-300"}>{o.status==="refunded"?"REFUNDED · ":""}{money(o.total)}</span></button>)}</div>{shown.length===0&&<p className="text-xs text-white/40">No paid orders in this period.</p>}
@@ -1486,8 +1501,8 @@ function Inventory() {
   const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
   const allItems: any[] = data?.items || [];
   const [industry, setIndustry] = useState("");
-  const industries = Array.from(new Set(allItems.map((i) => i.department).filter(Boolean))).sort();
-  const items = industry ? allItems.filter((i) => (i.department || "") === industry) : allItems;
+  const industries = Array.from(new Set(allItems.flatMap((i) => deptList(i.department)))).sort();
+  const items = industry ? allItems.filter((i) => deptHas(i.department, industry)) : allItems;
   const cats = Array.from(new Set(items.map((i) => i.category)));
   const totals = industry
     ? items.reduce((a, it) => ({ units: a.units + it.stock, cost: a.cost + it.stockValue, retail: a.retail + it.retailValue, low: a.low + (it.low ? 1 : 0) }), { units: 0, cost: 0, retail: 0, low: 0 })

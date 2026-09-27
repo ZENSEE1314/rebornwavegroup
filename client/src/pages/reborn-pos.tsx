@@ -11,6 +11,9 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer } from "lucide-react";
 
 interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; imageUrl?: string; }
+// A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
+const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
+const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
 interface Staff { id: string; name: string; role: string; }
 interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "stock" | "bottles";
@@ -132,10 +135,10 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const sub = (id: number) => setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) - 1) }));
   const commit = () => { onCommit(lines.map(([id, q]) => { const p = byId.get(Number(id))!; return { productId: p.id, name: p.name, price: Number(p.price), qty: q }; })); setCart({}); };
   const [industry, setIndustry] = useState("");
-  const industries = useMemo(() => Array.from(new Set(products.map((p) => p.department).filter(Boolean))).sort() as string[], [products]);
+  const industries = useMemo(() => Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort() as string[], [products]);
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
-    for (const p of products) { if (industry && (p.department || "") !== industry) continue; (g[p.category || "Other"] ||= []).push(p); }
+    for (const p of products) { if (industry && !deptHas(p.department, industry)) continue; (g[p.category || "Other"] ||= []).push(p); }
     return Object.entries(g);
   }, [products, industry]);
   return (
@@ -536,10 +539,10 @@ function StockTab() {
   const [note, setNote] = useState("");
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()) });
   const [industry, setIndustry] = useState("");
-  const industries = useMemo(() => Array.from(new Set(products.map((p) => p.department).filter(Boolean))).sort() as string[], [products]);
+  const industries = useMemo(() => Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort() as string[], [products]);
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
-    for (const p of products) { if (industry && (p.department || "") !== industry) continue; (g[p.category || "Other"] ||= []).push(p); }
+    for (const p of products) { if (industry && !deptHas(p.department, industry)) continue; (g[p.category || "Other"] ||= []).push(p); }
     return Object.entries(g);
   }, [products, industry]);
   const adjust = useMutation({

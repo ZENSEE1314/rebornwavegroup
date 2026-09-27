@@ -2374,12 +2374,15 @@ export function registerRebornRoutes(app: Express) {
     const cid = await rebornCompanyId(req);
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY_MS).toISOString();
+    // A product can belong to several industries (comma-separated department), so unnest it —
+    // a shared item's revenue is credited to each industry it serves.
     const rows = await db.execute(sql`
-      SELECT COALESCE(NULLIF(p.department,''),'Unassigned') industry,
+      SELECT COALESCE(NULLIF(TRIM(ind),''),'Unassigned') industry,
              COALESCE(SUM(pi.line_total),0) revenue, COUNT(DISTINCT tk.id) orders, COALESCE(SUM(pi.qty),0) items
       FROM pos_ticket_items pi
       JOIN pos_tickets tk ON tk.id=pi.order_id AND tk.status='paid' AND tk.company_id=${cid} AND tk.paid_at >= ${since}
       LEFT JOIN pos_products p ON p.id=pi.product_id
+      LEFT JOIN LATERAL unnest(CASE WHEN COALESCE(p.department,'')='' THEN ARRAY['Unassigned'] ELSE string_to_array(p.department, ',') END) AS ind ON true
       GROUP BY 1 ORDER BY revenue DESC`);
     res.json((rows.rows || rows as any[]).map((r: any) => ({ industry: r.industry, revenue: Number(r.revenue), orders: Number(r.orders), items: Number(r.items) })));
   }));
@@ -2585,7 +2588,7 @@ export function registerRebornRoutes(app: Express) {
     // Weekly sales credited to each salesperson — either the whole ticket, or (when
     // an industry is chosen) only the line items of products in that industry.
     const salesExpr = industry
-      ? sql`COALESCE((SELECT SUM(pi.line_total) FROM pos_ticket_items pi JOIN pos_tickets t ON t.id=pi.order_id LEFT JOIN pos_products p2 ON p2.id=pi.product_id WHERE t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid' AND t.paid_at >= now()-interval '7 days' AND COALESCE(p2.department,'')=${industry}),0)`
+      ? sql`COALESCE((SELECT SUM(pi.line_total) FROM pos_ticket_items pi JOIN pos_tickets t ON t.id=pi.order_id LEFT JOIN pos_products p2 ON p2.id=pi.product_id WHERE t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid' AND t.paid_at >= now()-interval '7 days' AND ${industry} = ANY(string_to_array(COALESCE(p2.department,''), ','))),0)`
       : sql`COALESCE(sum(t.total::numeric) FILTER (WHERE t.paid_at >= now()-interval '7 days'),0)`;
     const salesJoin = industry ? sql`` : sql`LEFT JOIN pos_tickets t ON t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid'`;
     const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name, p.name position, ${salesExpr} weekly_sales, COALESCE(avg(r.rating),0)::numeric(3,2) rating, count(DISTINCT r.id) review_count, count(DISTINCT r.id) FILTER (WHERE r.rating <= 2) bad_reviews FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id ${salesJoin} LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') GROUP BY m.user_id,u.first_name,u.last_name,u.email,p.name ORDER BY weekly_sales DESC, rating DESC`);
@@ -2594,8 +2597,8 @@ export function registerRebornRoutes(app: Express) {
   // Distinct industries (product departments) for filters.
   app.get("/api/reborn/industries", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const rows = await db.execute(sql`SELECT DISTINCT department FROM pos_products WHERE company_id=${cid} AND department IS NOT NULL AND department <> '' ORDER BY department`);
-    res.json((rows.rows || rows as any[]).map((r: any) => r.department));
+    const rows = await db.execute(sql`SELECT DISTINCT TRIM(dep) dep FROM pos_products, unnest(string_to_array(department, ',')) AS dep WHERE company_id=${cid} AND COALESCE(department,'') <> '' AND TRIM(dep) <> '' ORDER BY dep`);
+    res.json((rows.rows || rows as any[]).map((r: any) => r.dep));
   }));
   app.get("/api/reborn/staff/feedback", requireStaff(async (_req, res) => {
     const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]; if (!reborn) return res.json([]);
