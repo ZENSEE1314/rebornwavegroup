@@ -470,6 +470,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE events ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE appointments ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE appointments ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE spin_prizes ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE spin_results ADD COLUMN IF NOT EXISTS company_id integer;
+    ALTER TABLE songs ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE kos_gift_types ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE kos_gifts ADD COLUMN IF NOT EXISTS company_id integer;
     -- Inventory & Purchasing module
     CREATE TABLE IF NOT EXISTS bridge_suppliers (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, phone varchar, email varchar, address text, note text, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_suppliers_company ON bridge_suppliers(company_id);
@@ -565,7 +566,7 @@ export async function ensureBridgeXSchema() {
     await db.execute(sql.raw(`UPDATE ${table} SET company_id=${reborn.id}, branch_id=${branch.id} WHERE company_id IS NULL`));
   }
   // company-only backfill (these tables have no branch_id)
-  for (const table of ["spin_prizes", "spin_results"]) {
+  for (const table of ["spin_prizes", "spin_results", "songs", "song_requests", "kos_gift_types", "kos_gifts"]) {
     await db.execute(sql.raw(`UPDATE ${table} SET company_id=${reborn.id} WHERE company_id IS NULL`));
   }
 }

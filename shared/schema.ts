@@ -759,6 +759,7 @@ export const appSettings = pgTable("app_settings", {
 // Admin-managed KOS gift catalog (name, KGOLD cost, image, animation)
 export const kosGiftTypes = pgTable("kos_gift_types", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
   name: varchar("name").notNull(),
   emoji: varchar("emoji").default("🎁"),
   imageUrl: varchar("image_url"),
@@ -772,6 +773,7 @@ export const kosGiftTypes = pgTable("kos_gift_types", {
 // KOS (Kings of Singers) — KGOLD gifting between members
 export const kosGifts = pgTable("kos_gifts", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
   fromUserId: varchar("from_user_id").notNull(),
   toUserId: varchar("to_user_id").notNull(),
   giftTypeId: integer("gift_type_id"),
@@ -785,6 +787,7 @@ export const kosGifts = pgTable("kos_gifts", {
 // Song library (hit songs + previously requested), shown as a Top 500 list
 export const songs = pgTable("songs", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
   title: varchar("title").notNull(), // song name (Chinese characters)
   titlePinyin: varchar("title_pinyin").default(""), // song name in pinyin for search
   artist: varchar("artist").default(""), // singer (Chinese characters)

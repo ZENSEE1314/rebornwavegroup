@@ -256,9 +256,10 @@ const DEFAULT_GIFT_TYPES = [
   { name: "Crown", emoji: "👑", animation: "zoom", kgoldCost: 100000, sortOrder: 4 },
   { name: "Sports Car", emoji: "🏎️", animation: "float", kgoldCost: 500000, sortOrder: 5 },
 ];
-async function seedGiftTypesIfEmpty() {
-  const existing = await db.select({ id: kosGiftTypes.id }).from(kosGiftTypes).limit(1);
-  if (existing.length === 0) await db.insert(kosGiftTypes).values(DEFAULT_GIFT_TYPES);
+async function seedGiftTypesIfEmpty(companyId?: number) {
+  const cond = companyId ? eq(kosGiftTypes.companyId, companyId) : undefined;
+  const existing = await db.select({ id: kosGiftTypes.id }).from(kosGiftTypes).where(cond as any).limit(1);
+  if (existing.length === 0) await db.insert(kosGiftTypes).values(DEFAULT_GIFT_TYPES.map((g) => ({ ...g, companyId: companyId ?? null })));
 }
 
 const LIFE_DAYS = 15;
@@ -874,12 +875,13 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // ── KOS (Kings of Singers) — KGOLD gifting + leaderboard ─────────────────
-  app.get("/api/reborn/kos/leaderboard", requireAuth, async (_req, res) => {
+  app.get("/api/reborn/kos/leaderboard", requireAuth, async (req, res) => {
     try {
       const session = await ensureVenueSession();
+      const cid = await rebornCompanyId(req);
       const result = await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::int AS stars
         FROM venue_checkins v JOIN users u ON u.id=v.user_id
-        LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at
+        LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at AND g.company_id=${cid}
         WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL
         GROUP BY u.id,u.first_name,u.username,u.profile_image_url,v.checked_in_at ORDER BY stars DESC,v.checked_in_at ASC LIMIT 100`);
       res.json(result.rows || result);
@@ -899,10 +901,11 @@ export function registerRebornRoutes(app: Express) {
     } catch { res.json([]); }
   });
 
-  app.get("/api/reborn/kos/gifttypes", async (_req, res) => {
+  app.get("/api/reborn/kos/gifttypes", async (req, res) => {
     try {
-      await seedGiftTypesIfEmpty();
-      const rows = await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.active, true)).orderBy(kosGiftTypes.sortOrder);
+      const cid = await rebornCompanyId(req);
+      await seedGiftTypesIfEmpty(cid);
+      const rows = await db.select().from(kosGiftTypes).where(and(eq(kosGiftTypes.companyId, cid), eq(kosGiftTypes.active, true))).orderBy(kosGiftTypes.sortOrder);
       res.json(rows);
     } catch (e) { console.error("gifttypes", e); res.status(500).json({ message: "Failed" }); }
   });
@@ -912,7 +915,8 @@ export function registerRebornRoutes(app: Express) {
       const userId = getUserId(req)!;
       const u = await storage.getUser(userId);
       const s = await getSettings();
-      const [got] = await db.select({ stars: sql<number>`coalesce(sum(${kosGifts.recipientKgold}),0)` }).from(kosGifts).where(eq(kosGifts.toUserId, userId));
+      const cid = await rebornCompanyId(req);
+      const [got] = await db.select({ stars: sql<number>`coalesce(sum(${kosGifts.recipientKgold}),0)` }).from(kosGifts).where(and(eq(kosGifts.companyId, cid), eq(kosGifts.toUserId, userId)));
       res.json({
         kgold: u?.kgold ?? 0, credits: Number(u?.credits || 0), starsReceived: Number(got?.stars || 0),
         kgoldPerRp: s.kgoldPerRp, minBuyKgold: s.minBuyKgold, minCashoutRp: s.minCashoutRp, feePercent: s.giftFeePercent,
@@ -965,7 +969,8 @@ export function registerRebornRoutes(app: Express) {
       const session = await ensureVenueSession();
       const [present] = await db.select({ id: venueCheckins.id }).from(venueCheckins).where(and(eq(venueCheckins.userId, toUserId), eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`)).limit(1);
       if (!present) return res.status(400).json({ message: "This member is not checked in at the venue." });
-      const [gt] = await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.id, giftTypeId));
+      const cid = await rebornCompanyId(req);
+      const [gt] = await db.select().from(kosGiftTypes).where(and(eq(kosGiftTypes.id, giftTypeId), eq(kosGiftTypes.companyId, cid)));
       if (!gt || !gt.active) return res.status(404).json({ message: "Gift not found" });
       const giver = await storage.getUser(fromUserId);
       const cost = gt.kgoldCost || 0;
@@ -975,7 +980,7 @@ export function registerRebornRoutes(app: Express) {
       const now = new Date();
       await db.update(users).set({ kgold: sql`${users.kgold} - ${cost}`, updatedAt: now }).where(eq(users.id, fromUserId));
       await db.update(users).set({ kgold: sql`${users.kgold} + ${recipientKgold}`, updatedAt: now }).where(eq(users.id, toUserId));
-      const [giftRow] = await db.insert(kosGifts).values({ fromUserId, toUserId, giftTypeId, giftName: gt.name, kgoldCost: cost, recipientKgold, seen: false }).returning();
+      const [giftRow] = await db.insert(kosGifts).values({ companyId: cid, fromUserId, toUserId, giftTypeId, giftName: gt.name, kgoldCost: cost, recipientKgold, seen: false }).returning();
       await db.insert(memberWalletTransactions).values([
         { userId: fromUserId, type: "kgold_gift_sent", kgoldAmount: -cost, description: `Sent ${gt.name}`, referenceType: "kos_gift", referenceId: String(giftRow.id) },
         { userId: toUserId, type: "kgold_gift_received", kgoldAmount: recipientKgold, description: `Received ${gt.name}`, referenceType: "kos_gift", referenceId: String(giftRow.id) },
@@ -998,7 +1003,7 @@ export function registerRebornRoutes(app: Express) {
       }).from(kosGifts)
         .leftJoin(users, eq(users.id, kosGifts.fromUserId))
         .leftJoin(kosGiftTypes, eq(kosGiftTypes.id, kosGifts.giftTypeId))
-        .where(and(eq(kosGifts.toUserId, userId), eq(kosGifts.seen, false)))
+        .where(and(eq(kosGifts.companyId, await rebornCompanyId(req)), eq(kosGifts.toUserId, userId), eq(kosGifts.seen, false)))
         .orderBy(desc(kosGifts.createdAt)).limit(20);
       res.json(rows);
     } catch { res.json([]); }
@@ -1006,7 +1011,7 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/kos/notifications/seen", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
-      await db.update(kosGifts).set({ seen: true }).where(and(eq(kosGifts.toUserId, userId), eq(kosGifts.seen, false)));
+      await db.update(kosGifts).set({ seen: true }).where(and(eq(kosGifts.companyId, await rebornCompanyId(req)), eq(kosGifts.toUserId, userId), eq(kosGifts.seen, false)));
       res.json({ ok: true });
     } catch { res.json({ ok: false }); }
   });
@@ -1208,7 +1213,7 @@ export function registerRebornRoutes(app: Express) {
         }
         songId = song.id;
       }
-      const [reqRow] = await db.insert(songRequests).values({ userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, status: "pending" }).returning();
+      const [reqRow] = await db.insert(songRequests).values({ companyId: await rebornCompanyId(req), userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, status: "pending" }).returning();
       await sendRebornStaffNotification({
         type: "song_request",
         title: "New app song request",
@@ -1222,7 +1227,8 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/songs/my-requests", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
-      const rows = await db.select().from(songRequests).where(eq(songRequests.userId, userId)).orderBy(desc(songRequests.createdAt)).limit(100);
+      const cid = await rebornCompanyId(req);
+      const rows = await db.select().from(songRequests).where(and(eq(songRequests.companyId, cid), eq(songRequests.userId, userId))).orderBy(desc(songRequests.createdAt)).limit(100);
       res.json(rows);
     } catch { res.json([]); }
   });
@@ -1357,8 +1363,9 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Admin: song requests + song library
-  app.get("/api/reborn/admin/song-requests", requireStaff(async (_req, res) => {
-    const rows = await db.select().from(songRequests).where(eq(songRequests.status, "pending")).orderBy(desc(songRequests.createdAt)).limit(200);
+  app.get("/api/reborn/admin/song-requests", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select().from(songRequests).where(and(eq(songRequests.companyId, cid), eq(songRequests.status, "pending"))).orderBy(desc(songRequests.createdAt)).limit(200);
     res.json(rows);
   }));
   app.post("/api/reborn/admin/song-requests/:id", requireStaff(async (req, res) => {
@@ -1398,13 +1405,15 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Admin: KOS gift catalog + KGOLD settings
-  app.get("/api/reborn/admin/gifttypes", requireAdmin(async (_req, res) => {
-    await seedGiftTypesIfEmpty();
-    res.json(await db.select().from(kosGiftTypes).orderBy(kosGiftTypes.sortOrder));
+  app.get("/api/reborn/admin/gifttypes", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    await seedGiftTypesIfEmpty(cid);
+    res.json(await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.companyId, cid)).orderBy(kosGiftTypes.sortOrder));
   }));
   app.post("/api/reborn/admin/gifttypes", requireAdmin(async (req, res) => {
     const b = req.body || {};
     const [row] = await db.insert(kosGiftTypes).values({
+      companyId: await rebornCompanyId(req),
       name: b.name || "New gift", emoji: b.emoji || "🎁", imageUrl: b.imageUrl || null,
       animation: b.animation || "pop", kgoldCost: Number(b.kgoldCost) || 100, active: b.active !== false, sortOrder: Number(b.sortOrder) || 0,
     }).returning();
@@ -1412,15 +1421,17 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.put("/api/reborn/admin/gifttypes/:id", requireAdmin(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {}; const patch: any = {};
+    const cid = await rebornCompanyId(req);
     for (const k of ["name", "emoji", "imageUrl", "animation"]) if (b[k] !== undefined) patch[k] = b[k];
     if (b.kgoldCost !== undefined) patch.kgoldCost = Number(b.kgoldCost);
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
-    const [row] = await db.update(kosGiftTypes).set(patch).where(eq(kosGiftTypes.id, id)).returning();
+    const [row] = await db.update(kosGiftTypes).set(patch).where(and(eq(kosGiftTypes.id, id), eq(kosGiftTypes.companyId, cid))).returning();
     res.json(row);
   }));
   app.delete("/api/reborn/admin/gifttypes/:id", requireAdmin(async (req, res) => {
-    await db.delete(kosGiftTypes).where(eq(kosGiftTypes.id, Number(req.params.id)));
+    const cid = await rebornCompanyId(req);
+    await db.delete(kosGiftTypes).where(and(eq(kosGiftTypes.id, Number(req.params.id)), eq(kosGiftTypes.companyId, cid)));
     res.json({ message: "Deleted" });
   }));
 
