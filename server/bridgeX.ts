@@ -233,9 +233,35 @@ async function appendTicketItems(companyId: number, ticketId: number, rawItems: 
   if (!lines.length) throw new Error("No valid items");
   await db.insert(posTicketItems).values(lines.map((l) => ({ orderId: ticketId, productId: l.product.id, name: l.product.name, price: l.product.price, qty: l.qty, lineTotal: String(l.total), source, status: "new", station: stationFor(l.product.category, l.product.station) })));
   for (const l of lines) await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${l.qty}` }).where(and(eq(posProducts.id, l.product.id), eq(posProducts.companyId, companyId)));
+  await maybeDeductRecipes(companyId, lines, null);
   await recomputeTicket(ticketId);
   return lines;
 }
+// A company's local timezone (from its first branch) for day/week/month bucketing.
+const _tzCache = new Map<number, string>();
+async function companyTimezone(companyId: number): Promise<string> {
+  if (_tzCache.has(companyId)) return _tzCache.get(companyId)!;
+  const [b] = (await db.execute(sql`SELECT timezone FROM bridge_branches WHERE company_id=${companyId} ORDER BY id LIMIT 1`)).rows as any[];
+  const tz = b?.timezone || "Asia/Jakarta";
+  _tzCache.set(companyId, tz);
+  return tz;
+}
+// When a product with a recipe is sold, consume its inventory items (branch 0) + log movements.
+async function deductRecipe(companyId: number, productId: number, saleQty: number, userId: string | null) {
+  const recipe = (await db.execute(sql`SELECT item_id, qty FROM bridge_product_recipes WHERE company_id=${companyId} AND product_id=${productId}`)).rows as any[];
+  if (!recipe.length) return;
+  for (const line of recipe) {
+    const consume = Number(line.qty) * saleQty;
+    await db.execute(sql`INSERT INTO bridge_stock_levels (company_id, item_id, branch_id, quantity, updated_at) VALUES (${companyId}, ${line.item_id}, 0, ${-consume}, now())
+      ON CONFLICT (item_id, branch_id) DO UPDATE SET quantity=bridge_stock_levels.quantity - ${consume}, updated_at=now()`);
+    await db.execute(sql`INSERT INTO bridge_stock_movements (company_id, item_id, branch_id, type, quantity, reference, user_id) VALUES (${companyId}, ${line.item_id}, 0, 'sale', ${-consume}, ${"product#" + productId}, ${userId})`);
+  }
+}
+async function maybeDeductRecipes(companyId: number, lines: any[], userId: string | null) {
+  if (!(await moduleEnabled(companyId, "inventory"))) return;
+  for (const l of lines) await deductRecipe(companyId, l.product.id, l.qty, userId);
+}
+
 async function notifyKitchen(companyId: number, ticket: any, lines: any[]) {
   const result = await db.execute(sql`SELECT DISTINCT m.user_id FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${companyId} AND m.status='active' AND (p.code IN ('chef','kitchen','bartender','bar') OR m.role IN ('owner','admin','manager'))`);
   const ids = ((result.rows || result) as any[]).map((r) => r.user_id);
@@ -482,6 +508,9 @@ export async function ensureBridgeXSchema() {
     -- Accounting: expenses (income is derived from paid POS tickets)
     CREATE TABLE IF NOT EXISTS bridge_expenses (id serial PRIMARY KEY, company_id integer NOT NULL, category varchar NOT NULL DEFAULT 'other', amount numeric(14,2) NOT NULL DEFAULT 0, note text, spent_on varchar, created_by varchar, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_expenses_company ON bridge_expenses(company_id, spent_on);
+    -- Recipe / BOM: a POS product consumes inventory items when sold
+    CREATE TABLE IF NOT EXISTS bridge_product_recipes (id serial PRIMARY KEY, company_id integer NOT NULL, product_id integer NOT NULL, item_id integer NOT NULL, qty numeric(14,3) NOT NULL DEFAULT 1);
+    CREATE INDEX IF NOT EXISTS bridge_product_recipes_product ON bridge_product_recipes(product_id);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -746,6 +775,21 @@ export function registerBridgeXRoutes(app: Express) {
     res.json({ ok: true });
   }));
 
+  // Recipe / BOM: which inventory items a POS product consumes when sold
+  app.get("/api/v1/company/inventory/recipe/:productId", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory"); if (!a) return;
+    res.json((await db.execute(sql`SELECT r.id, r.item_id, r.qty, i.name item_name, i.unit FROM bridge_product_recipes r JOIN bridge_inventory_items i ON i.id=r.item_id WHERE r.company_id=${a.companyId} AND r.product_id=${Number(req.params.productId)} ORDER BY r.id`)).rows || []);
+  }));
+  app.post("/api/v1/company/inventory/recipe/:productId", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    const itemId = Number(req.body?.itemId); const qty = Number(req.body?.qty) || 0;
+    if (!itemId || !(qty > 0)) return res.status(400).json({ message: "Item and a positive quantity are required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_product_recipes (company_id, product_id, item_id, qty) VALUES (${a.companyId}, ${Number(req.params.productId)}, ${itemId}, ${qty}) RETURNING *`)).rows[0]);
+  }));
+  app.delete("/api/v1/company/inventory/recipe/line/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "inventory", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_product_recipes WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
   app.post("/api/v1/company/inventory/adjust", route(async (req, res) => {
     const a = await requireModule(req, res, "inventory", true); if (!a) return;
     const itemId = Number(req.body?.itemId); const delta = Number(req.body?.quantity);
@@ -1095,6 +1139,7 @@ export function registerBridgeXRoutes(app: Express) {
     await db.insert(posTicketItems).values(lines.map((line:any) => ({ orderId: ticket.id, productId: line.product.id, name: line.product.name, price: line.product.price, qty: line.qty, lineTotal: String(line.total), source: req.body?.source || "pos", station: stationFor(line.product.category, line.product.station) })));
     if (payments.length) await db.insert(bridgePayments).values(payments.map((p:any) => ({ companyId: access.companyId, ticketId: ticket.id, method: p.method, amount: String(p.amount), reference: p.reference, createdBy: access.user.id })));
     for (const line of lines) await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${line.qty}` }).where(and(eq(posProducts.id, line.product.id), eq(posProducts.companyId, access.companyId)));
+    await maybeDeductRecipes(access.companyId, lines, access.user.id);
     if (ticket.customerId && (status === "paid" || status === "partial") && await moduleEnabled(access.companyId, "crm")) {
       await db.execute(sql`UPDATE bridge_customers SET total_spend=total_spend + ${total}, visit_count=visit_count + 1, last_visit_at=now(), updated_at=now() WHERE id=${ticket.customerId} AND company_id=${access.companyId}`);
     }
@@ -1262,8 +1307,11 @@ export function registerBridgeXRoutes(app: Express) {
   app.get("/api/v1/company/accounting/summary", route(async (req, res) => {
     const a = await requireModule(req, res, "accounting", true); if (!a) return;
     const from = String(req.query.from || ""); const to = String(req.query.to || "");
+    const tz = await companyTimezone(a.companyId);
     const range = (col: string) => sql`${from ? sql`AND ${sql.raw(col)} >= ${from}::date` : sql``} ${to ? sql`AND ${sql.raw(col)} < (${to}::date + interval '1 day')` : sql``}`;
-    const [inc] = (await db.execute(sql`SELECT COALESCE(SUM(total) FILTER (WHERE status='paid'),0) income, COALESCE(SUM(total) FILTER (WHERE status='refunded'),0) refunds FROM pos_tickets WHERE company_id=${a.companyId} ${range("created_at")}`)).rows as any[];
+    const locD = sql`((created_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date)`;
+    const incRange = sql`${from ? sql`AND ${locD} >= ${from}::date` : sql``} ${to ? sql`AND ${locD} <= ${to}::date` : sql``}`;
+    const [inc] = (await db.execute(sql`SELECT COALESCE(SUM(total) FILTER (WHERE status='paid'),0) income, COALESCE(SUM(total) FILTER (WHERE status='refunded'),0) refunds FROM pos_tickets WHERE company_id=${a.companyId} ${incRange}`)).rows as any[];
     const [exp] = (await db.execute(sql`SELECT COALESCE(SUM(amount),0) total FROM bridge_expenses WHERE company_id=${a.companyId} ${range("COALESCE(spent_on::date, created_at::date)")}`)).rows as any[];
     const byCategory = (await db.execute(sql`SELECT category, COALESCE(SUM(amount),0) amount FROM bridge_expenses WHERE company_id=${a.companyId} ${range("COALESCE(spent_on::date, created_at::date)")} GROUP BY category ORDER BY amount DESC`)).rows;
     const income = Number(inc.income), refunds = Number(inc.refunds), expenses = Number(exp.total);
@@ -1273,24 +1321,28 @@ export function registerBridgeXRoutes(app: Express) {
   // ── Analytics / owner dashboard ───────────────────────────────────────────
   app.get("/api/v1/company/analytics/summary", route(async (req, res) => {
     const a = await requireModule(req, res, "analytics"); if (!a) return;
-    const cid = a.companyId;
+    const cid = a.companyId; const tz = await companyTimezone(cid);
+    // Local-time buckets: convert stored UTC timestamps to the company's timezone.
+    const loc = sql`(created_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})`;
+    const tloc = sql`(tk.created_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})`;
+    const nl = sql`(now() AT TIME ZONE ${tz})`;
     const [totals] = (await db.execute(sql`
       SELECT
-        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('day', now())),0) rev_today,
-        COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now())) orders_today,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('week', now())),0) rev_week,
-        COUNT(*) FILTER (WHERE created_at >= date_trunc('week', now())) orders_week,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('month', now())),0) rev_month,
-        COUNT(*) FILTER (WHERE created_at >= date_trunc('month', now())) orders_month,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('day', now()) - interval '1 day' AND created_at < date_trunc('day', now())),0) rev_yesterday
+        COALESCE(SUM(total) FILTER (WHERE ${loc} >= date_trunc('day', ${nl})),0) rev_today,
+        COUNT(*) FILTER (WHERE ${loc} >= date_trunc('day', ${nl})) orders_today,
+        COALESCE(SUM(total) FILTER (WHERE ${loc} >= date_trunc('week', ${nl})),0) rev_week,
+        COUNT(*) FILTER (WHERE ${loc} >= date_trunc('week', ${nl})) orders_week,
+        COALESCE(SUM(total) FILTER (WHERE ${loc} >= date_trunc('month', ${nl})),0) rev_month,
+        COUNT(*) FILTER (WHERE ${loc} >= date_trunc('month', ${nl})) orders_month,
+        COALESCE(SUM(total) FILTER (WHERE ${loc} >= date_trunc('day', ${nl}) - interval '1 day' AND ${loc} < date_trunc('day', ${nl})),0) rev_yesterday
       FROM pos_tickets WHERE company_id=${cid} AND status='paid'`)).rows as any[];
-    const paymentSplit = (await db.execute(sql`SELECT payment_method method, COALESCE(SUM(total),0) amount FROM pos_tickets WHERE company_id=${cid} AND status='paid' AND created_at >= date_trunc('month', now()) GROUP BY payment_method ORDER BY amount DESC`)).rows;
-    const topProducts = (await db.execute(sql`SELECT pi.name, SUM(pi.qty) qty, SUM(pi.line_total) revenue FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${cid} AND tk.status='paid' AND tk.created_at >= date_trunc('month', now()) GROUP BY pi.name ORDER BY qty DESC LIMIT 8`)).rows;
+    const paymentSplit = (await db.execute(sql`SELECT payment_method method, COALESCE(SUM(total),0) amount FROM pos_tickets WHERE company_id=${cid} AND status='paid' AND ${loc} >= date_trunc('month', ${nl}) GROUP BY payment_method ORDER BY amount DESC`)).rows;
+    const topProducts = (await db.execute(sql`SELECT pi.name, SUM(pi.qty) qty, SUM(pi.line_total) revenue FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${cid} AND tk.status='paid' AND ${tloc} >= date_trunc('month', ${nl}) GROUP BY pi.name ORDER BY qty DESC LIMIT 8`)).rows;
     const [extra] = (await db.execute(sql`
       SELECT
-        COALESCE(SUM(discount) FILTER (WHERE created_at >= date_trunc('month', now())),0) discount_month,
-        COALESCE(SUM(total) FILTER (WHERE status='refunded' AND created_at >= date_trunc('month', now())),0) refunds_month,
-        COUNT(*) FILTER (WHERE status='voided' AND created_at >= date_trunc('month', now())) voids_month
+        COALESCE(SUM(discount) FILTER (WHERE ${loc} >= date_trunc('month', ${nl})),0) discount_month,
+        COALESCE(SUM(total) FILTER (WHERE status='refunded' AND ${loc} >= date_trunc('month', ${nl})),0) refunds_month,
+        COUNT(*) FILTER (WHERE status='voided' AND ${loc} >= date_trunc('month', ${nl})) voids_month
       FROM pos_tickets WHERE company_id=${cid}`)).rows as any[];
     let lowStock = 0, customersTotal = 0, customersNew = 0;
     if (await moduleEnabled(cid, "inventory")) { const [r] = (await db.execute(sql`SELECT COUNT(*) c FROM bridge_inventory_items i LEFT JOIN (SELECT item_id, SUM(quantity) s FROM bridge_stock_levels GROUP BY item_id) l ON l.item_id=i.id WHERE i.company_id=${cid} AND i.track_stock AND COALESCE(l.s,0) <= i.low_stock_threshold`)).rows as any[]; lowStock = Number(r?.c || 0); }
@@ -1553,15 +1605,29 @@ export function registerBridgeXRoutes(app: Express) {
     const rows = (await db.execute(sql`SELECT name, phone, email FROM bridge_customers WHERE company_id=${a.companyId} ${filter} ORDER BY name LIMIT 1000`)).rows as any[];
     res.json({ count: rows.length, recipients: rows });
   }));
-  // Record a send (channel delivery is done via WhatsApp/email once connected).
+  // Send the campaign to the segment via its channel (email/WhatsApp), capped for safety.
   app.post("/api/v1/company/marketing/campaigns/:id/send", route(async (req, res) => {
     const a = await requireModule(req, res, "marketing", true); if (!a) return;
     const [c] = (await db.execute(sql`SELECT * FROM bridge_campaigns WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
     if (!c) return res.status(404).json({ message: "Campaign not found" });
-    let count = 0;
-    if (await moduleEnabled(a.companyId, "crm")) { const filter = SEGMENT_SQL[c.segment] ?? SEGMENT_SQL.all; const [r] = (await db.execute(sql`SELECT COUNT(*) c FROM bridge_customers WHERE company_id=${a.companyId} ${filter}`)).rows as any[]; count = Number(r?.c || 0); }
-    const [upd] = (await db.execute(sql`UPDATE bridge_campaigns SET status='sent', sent_count=${count} WHERE id=${c.id} RETURNING *`)).rows as any[];
-    res.json({ ...upd, note: "Audience captured. Connect WhatsApp/email to auto-deliver; for now export the audience and send." });
+    if (!(await moduleEnabled(a.companyId, "crm"))) return res.status(400).json({ message: "Enable CRM to send to customer segments." });
+    const filter = SEGMENT_SQL[c.segment] ?? SEGMENT_SQL.all;
+    const recipients = (await db.execute(sql`SELECT name, phone, email FROM bridge_customers WHERE company_id=${a.companyId} ${filter} LIMIT 1000`)).rows as any[];
+    const [company] = await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, a.companyId)).limit(1);
+    const brand = company?.appName || company?.name || "Us";
+    const personalize = (msg: string, name: string) => String(msg || "").replace(/\{name\}/gi, name || "there");
+    let delivered = 0, attempted = 0; let channelReady = true;
+    if (c.channel === "email") {
+      const { sendEmail } = await import("./emailService");
+      for (const r of recipients) { if (!r.email) continue; attempted++; try { if (await sendEmail({ to: r.email, subject: c.name, text: personalize(c.message, r.name), html: `<p>${personalize(c.message, r.name).replace(/\n/g, "<br>")}</p>` })) delivered++; } catch {} }
+    } else if (c.channel === "whatsapp") {
+      const { sendWhatsApp, whatsappConfigured } = await import("./whatsappBot");
+      channelReady = whatsappConfigured();
+      if (channelReady) for (const r of recipients) { if (!r.phone) continue; attempted++; try { if (await sendWhatsApp(r.phone, `*${brand}*\n\n${personalize(c.message, r.name)}`)) delivered++; } catch {} }
+    } else { channelReady = false; }
+    const [upd] = (await db.execute(sql`UPDATE bridge_campaigns SET status='sent', sent_count=${delivered} WHERE id=${c.id} RETURNING *`)).rows as any[];
+    const note = !channelReady ? `The ${c.channel} channel isn't connected — audience of ${recipients.length} captured. Connect the channel to deliver.` : `Delivered ${delivered}/${attempted} via ${c.channel}.`;
+    res.json({ ...upd, audience: recipients.length, attempted, delivered, note });
   }));
 
   // ── Wholesale / B2B accounts ──────────────────────────────────────────────
@@ -1734,10 +1800,16 @@ export function registerBridgeXRoutes(app: Express) {
     const rows = (await db.execute(sql`
       SELECT sp.user_id, sp.pay_type, sp.base_salary, sp.hourly_rate, sp.commission_rate,
         COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,
-        COALESCE((SELECT SUM(b.commission) FROM bridge_bookings b WHERE b.company_id=${a.companyId} AND b.staff_user_id=sp.user_id AND b.status='completed' ${from ? sql`AND b.starts_at >= ${from}::date` : sql``} ${to ? sql`AND b.starts_at < (${to}::date + interval '1 day')` : sql``}),0) commission
+        COALESCE((SELECT SUM(b.commission) FROM bridge_bookings b WHERE b.company_id=${a.companyId} AND b.staff_user_id=sp.user_id AND b.status='completed' ${from ? sql`AND b.starts_at >= ${from}::date` : sql``} ${to ? sql`AND b.starts_at < (${to}::date + interval '1 day')` : sql``}),0) commission,
+        COALESCE((SELECT SUM(GREATEST(0, EXTRACT(EPOCH FROM (att.check_out_at - att.check_in_at))/3600 - att.break_seconds/3600.0)) FROM staff_attendance att WHERE att.company_id=${a.companyId} AND att.user_id=sp.user_id AND att.check_out_at IS NOT NULL ${from ? sql`AND att.work_date >= ${from}` : sql``} ${to ? sql`AND att.work_date <= ${to}` : sql``}),0) hours
       FROM bridge_staff_profiles sp LEFT JOIN users u ON u.id=sp.user_id
       WHERE sp.company_id=${a.companyId} AND sp.status='active' ORDER BY name`)).rows as any[];
-    res.json(rows.map((r) => { const base = r.pay_type === "salary" ? Number(r.base_salary) : 0; const commission = Number(r.commission); return { userId: r.user_id, name: r.name, payType: r.pay_type, baseSalary: Number(r.base_salary), hourlyRate: Number(r.hourly_rate), base, commission, total: base + commission }; }));
+    res.json(rows.map((r) => {
+      const hours = Math.round(Number(r.hours) * 100) / 100;
+      const base = r.pay_type === "salary" ? Number(r.base_salary) : hours * Number(r.hourly_rate);
+      const commission = Number(r.commission);
+      return { userId: r.user_id, name: r.name, payType: r.pay_type, baseSalary: Number(r.base_salary), hourlyRate: Number(r.hourly_rate), hours, base, commission, total: base + commission };
+    }));
   }));
 
   // Attendance, shifts and leave are scoped by tenant and generate native alerts.

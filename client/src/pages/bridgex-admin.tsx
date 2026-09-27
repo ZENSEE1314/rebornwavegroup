@@ -192,6 +192,7 @@ export default function BridgeXAdmin() {
           <button className={button+" mt-3"} disabled={busy||!supForm.name} onClick={()=>act(async()=>{await request("/api/v1/company/inventory/suppliers",{method:"POST",body:JSON.stringify(supForm)},companyId);setSupForm({name:"",phone:"",email:""});},"Supplier added")}><Plus className="mr-1 inline h-4 w-4"/>Add supplier</button>
           <div className="mt-4 grid gap-2">{suppliers.length===0&&<p className="text-sm text-slate-500">No suppliers yet.</p>}{suppliers.map(s=><div key={s.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-3"><div><b>{s.name}</b><p className="text-xs text-slate-400">{s.phone||"—"} · {s.email||"—"}</p></div><button className="text-xs text-red-300" onClick={()=>{if(confirm(`Delete ${s.name}?`))act(()=>request(`/api/v1/company/inventory/suppliers/${s.id}`,{method:"DELETE"},companyId),"Supplier deleted")}}>del</button></div>)}</div>
         </Panel>
+        <div className="lg:col-span-2"><RecipePanel companyId={companyId} items={items} onMsg={setMessage} /></div>
       </div>}
 
       {tab === "purchasing" && <Panel title="Purchase orders" subtitle="Order stock from a supplier, then mark it received to add it to inventory and update cost prices.">
@@ -371,6 +372,23 @@ function AuditPanel({companyId}:{companyId:number}) {
   </div>;
 }
 
+function RecipePanel({companyId,items,onMsg}:{companyId:number;items:Row[];onMsg:(m:string)=>void}) {
+  const [products,setProducts] = useState<Row[]>([]);
+  const [productId,setProductId] = useState("");
+  const [lines,setLines] = useState<Row[]>([]);
+  const [add,setAdd] = useState({itemId:"",qty:"1"});
+  useEffect(()=>{ request("/api/v1/company/pos/products",{},companyId).then(setProducts).catch(()=>{}); },[companyId]);
+  const loadLines = (pid:string) => { if(pid) request(`/api/v1/company/inventory/recipe/${pid}`,{},companyId).then(setLines).catch(()=>setLines([])); else setLines([]); };
+  useEffect(()=>loadLines(productId),[productId,companyId]);
+  return <Panel title="Recipes — auto-deduct stock on sale" subtitle="Link a menu product to the inventory items it uses. Selling it (POS, table tab or QR) automatically deducts those items.">
+    <select className={field} value={productId} onChange={e=>setProductId(e.target.value)}><option value="">Select a product…</option>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
+    {productId&&<>
+      <div className="mt-3 flex gap-2"><select className={field} value={add.itemId} onChange={e=>setAdd({...add,itemId:e.target.value})}><option value="">Inventory item</option>{items.map(i=><option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}</select><input className={field+" w-24"} type="number" step="0.001" placeholder="Qty" value={add.qty} onChange={e=>setAdd({...add,qty:e.target.value})}/><button className={button} disabled={!add.itemId||!Number(add.qty)} onClick={async()=>{try{await request(`/api/v1/company/inventory/recipe/${productId}`,{method:"POST",body:JSON.stringify({itemId:Number(add.itemId),qty:Number(add.qty)})},companyId);setAdd({itemId:"",qty:"1"});loadLines(productId);}catch(e:any){onMsg(e.message);}}}>Add</button></div>
+      <div className="mt-3 grid gap-1">{lines.length===0&&<p className="text-sm text-slate-500">No recipe — this product doesn't deduct stock.</p>}{lines.map(l=><div key={l.id} className="flex items-center justify-between border-b border-white/5 py-1.5 text-sm"><span>{Number(l.qty)} {l.unit} · {l.item_name}</span><button className="text-xs text-red-300" onClick={()=>request(`/api/v1/company/inventory/recipe/line/${l.id}`,{method:"DELETE"},companyId).then(()=>loadLines(productId))}>remove</button></div>)}</div>
+    </>}
+  </Panel>;
+}
+
 function AccountingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
   const first = new Date(); first.setDate(1);
   const [from,setFrom] = useState(first.toISOString().slice(0,10));
@@ -470,7 +488,7 @@ function PayrollPanel({companyId}:{companyId:number}) {
   const total = rows.reduce((s,r)=>s+Number(r.total),0);
   return <Panel title="Payroll summary" subtitle="Base pay (salaried) plus booking commission for the period. Hourly staff show their rate — log hours via attendance.">
     <div className="mb-3 flex gap-2"><label className="text-xs text-slate-400">From<input className={field+" mt-1"} type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="text-xs text-slate-400">To<input className={field+" mt-1"} type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div>
-    <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="text-slate-500"><tr><th>Staff</th><th>Type</th><th className="text-right">Base</th><th className="text-right">Commission</th><th className="text-right">Total</th></tr></thead><tbody>{rows.length===0&&<tr><td colSpan={5} className="py-3 text-slate-500">No active staff.</td></tr>}{rows.map((r,i)=><tr key={i} className="border-t border-white/10"><td className="py-2">{r.name}</td><td>{r.payType==="hourly"?`hourly ${Number(r.hourlyRate).toLocaleString()}/h`:"salary"}</td><td className="text-right">{Number(r.base).toLocaleString()}</td><td className="text-right text-cyan-300">{Number(r.commission).toLocaleString()}</td><td className="text-right font-bold">{Number(r.total).toLocaleString()}</td></tr>)}</tbody><tfoot><tr className="border-t border-white/20"><td colSpan={4} className="py-2 text-right font-bold">Total payroll</td><td className="text-right font-black text-emerald-300">{total.toLocaleString()}</td></tr></tfoot></table></div>
+    <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="text-slate-500"><tr><th>Staff</th><th>Type</th><th className="text-right">Hours</th><th className="text-right">Base</th><th className="text-right">Commission</th><th className="text-right">Total</th></tr></thead><tbody>{rows.length===0&&<tr><td colSpan={6} className="py-3 text-slate-500">No active staff.</td></tr>}{rows.map((r,i)=><tr key={i} className="border-t border-white/10"><td className="py-2">{r.name}</td><td>{r.payType==="hourly"?`hourly ${Number(r.hourlyRate).toLocaleString()}/h`:"salary"}</td><td className="text-right">{r.payType==="hourly"?Number(r.hours||0):"—"}</td><td className="text-right">{Number(r.base).toLocaleString()}</td><td className="text-right text-cyan-300">{Number(r.commission).toLocaleString()}</td><td className="text-right font-bold">{Number(r.total).toLocaleString()}</td></tr>)}</tbody><tfoot><tr className="border-t border-white/20"><td colSpan={5} className="py-2 text-right font-bold">Total payroll</td><td className="text-right font-black text-emerald-300">{total.toLocaleString()}</td></tr></tfoot></table></div>
   </Panel>;
 }
 
@@ -522,7 +540,7 @@ function MarketingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>vo
     <textarea className={field+" mt-2"} rows={3} placeholder="Message" value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/>
     <button className={button+" mt-3"} disabled={!form.name} onClick={async()=>{try{await request("/api/v1/company/marketing/campaigns",{method:"POST",body:JSON.stringify(form)},companyId);setForm({...form,name:"",message:""});onMsg("Campaign saved");load();}catch(e:any){onMsg(e.message);}}}><Plus className="mr-1 inline h-4 w-4"/>Save campaign</button>
     {aud?.note&&<p className="mt-2 text-xs text-amber-300">{aud.note}</p>}
-    <div className="mt-4 grid gap-2">{campaigns.map(c=><div key={c.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-3"><div><b>{c.name}</b> <span className="text-xs text-slate-400">{c.channel} · {c.segment}</span><p className="text-xs text-slate-500">{c.status}{c.sent_count?` · ${c.sent_count} sent`:""}</p></div><div className="flex gap-3 text-xs">{c.status!=="sent"&&<button className="text-emerald-300" onClick={()=>request(`/api/v1/company/marketing/campaigns/${c.id}/send`,{method:"POST",body:"{}"},companyId).then((r)=>{onMsg(r.note||"Marked sent");load();})}>capture audience</button>}<button className="text-red-300" onClick={()=>{if(confirm("Delete campaign?"))request(`/api/v1/company/marketing/campaigns/${c.id}`,{method:"DELETE"},companyId).then(load)}}>del</button></div></div>)}</div>
+    <div className="mt-4 grid gap-2">{campaigns.map(c=><div key={c.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-3"><div><b>{c.name}</b> <span className="text-xs text-slate-400">{c.channel} · {c.segment}</span><p className="text-xs text-slate-500">{c.status}{c.sent_count?` · ${c.sent_count} sent`:""}</p></div><div className="flex gap-3 text-xs">{c.status!=="sent"&&<button className="text-emerald-300" onClick={()=>{if(confirm(`Send "${c.name}" to the ${c.segment} segment via ${c.channel}?`))request(`/api/v1/company/marketing/campaigns/${c.id}/send`,{method:"POST",body:"{}"},companyId).then((r)=>{onMsg(r.note||"Sent");load();})}}>send now</button>}<button className="text-red-300" onClick={()=>{if(confirm("Delete campaign?"))request(`/api/v1/company/marketing/campaigns/${c.id}`,{method:"DELETE"},companyId).then(load)}}>del</button></div></div>)}</div>
   </Panel>;
 }
 

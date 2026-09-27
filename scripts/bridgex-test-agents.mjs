@@ -157,6 +157,19 @@ async function runAdmin() {
     expect(Number(it.cost_price) === 90, `expected cost updated to 90, got ${it?.cost_price}`);
     return `stock ${it.stock}, cost ${it.cost_price}`;
   });
+  await step("recipe: sale auto-deducts inventory", async () => {
+    if (!ctx.itemId) throw new Error("no inventory item");
+    await api("POST", "/api/v1/company/inventory/adjust", { itemId: ctx.itemId, quantity: 100, type: "in" }, withCo());
+    const prod = ok(await api("POST", "/api/v1/company/pos/products", { name: `${TAG} Combo`, price: 30000, stock: 100 }, withCo()), "product");
+    ok(await api("POST", `/api/v1/company/inventory/recipe/${prod.id}`, { itemId: ctx.itemId, qty: 2 }, withCo()), "recipe");
+    const before = ok(await api("GET", "/api/v1/company/inventory/items", undefined, withCo()), "items").find((i) => i.id === ctx.itemId);
+    const sale = await api("POST", "/api/v1/company/pos/tickets", { items: [{ productId: prod.id, qty: 3 }], payments: [{ method: "cash", amount: 90000 }] }, withCo());
+    if (!sale.ok && sale.status === 402) throw new Error("SUBSCRIPTION_REQUIRED");
+    ok(sale, "sale");
+    const after = ok(await api("GET", "/api/v1/company/inventory/items", undefined, withCo()), "items").find((i) => i.id === ctx.itemId);
+    expect(Number(before.stock) - Number(after.stock) === 6, `expected -6 (2×3), before ${before.stock} after ${after.stock}`);
+    return `deducted ${Number(before.stock) - Number(after.stock)}`;
+  }, { soft: true });
   // CRM
   await step("crm: create customer + segments", async () => {
     const c = ok(await api("POST", "/api/v1/company/crm/customers", { name: `${TAG} Regular`, phone: "0800000000" }, withCo()), "POST customer");
