@@ -227,9 +227,9 @@ const WELCOME_TRILINGUAL =
 
 function parseLang(s: string): Lang | null {
   const t = s.trim().toLowerCase();
-  if (/^lang_en$|^1\b|english|eng/.test(t)) return "en";
-  if (/^lang_zh$|^2\b|中文|中国|chinese|zh|华语|华文/.test(t)) return "zh";
-  if (/^lang_id$|^3\b|bahasa|indonesia|indo|melayu|malay|id/.test(t)) return "id";
+  if (/^lang_en$|^1\b|\benglish\b|^(en|eng)$/.test(t)) return "en";
+  if (/^lang_zh$|^2\b|中文|中国|\bchinese\b|^zh$|华语|华文/.test(t)) return "zh";
+  if (/^lang_id$|^3\b|\bbahasa\b|\bindonesia\b|^(id|indo)$|\bmelayu\b|\bmalay\b/.test(t)) return "id";
   return null;
 }
 
@@ -455,7 +455,24 @@ async function createMemberFromContact(c: Contact): Promise<{ email: string; cre
 }
 
 // Public entry used by both the Cloud API webhook and the QR-linked Web session.
-export async function handleInboundText(from: string, text: string, profileName?: string) {
+// Meta retries webhooks and the linked Web session can re-emit messages, so drop
+// repeats by message id, and handle one message per number at a time so a second
+// message can't race the first and read a stale onboarding stage.
+const seenMsgIds = new Map<string, number>();
+const phoneQueues = new Map<string, Promise<unknown>>();
+export async function handleInboundText(from: string, text: string, profileName?: string, msgId?: string) {
+  if (msgId) {
+    if (seenMsgIds.has(msgId)) return;
+    seenMsgIds.set(msgId, Date.now());
+    if (seenMsgIds.size > 5000) for (const k of Array.from(seenMsgIds.keys()).slice(0, 1000)) seenMsgIds.delete(k);
+  }
+  const key = from.replace(/\D/g, "");
+  const prev = phoneQueues.get(key) || Promise.resolve();
+  const run = prev.catch(() => {}).then(() => handleInboundOnce(from, text, profileName));
+  phoneQueues.set(key, run);
+  try { return await run; } finally { if (phoneQueues.get(key) === run) phoneQueues.delete(key); }
+}
+async function handleInboundOnce(from: string, text: string, profileName?: string) {
   try {
     return await handleInbound(from, text, profileName);
   } finally {
@@ -601,8 +618,27 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     await logMsg(c.id, c.phone, "out", WELCOME_TRILINGUAL, true);
     return patchContact(c.id, { stage: "await_lang" });
   }
-  if (c.stage === "await_lang") { const picked = parseLang(body) || "en"; await say(L(picked, "askName")); return patchContact(c.id, { lang: picked, stage: "await_name" }); }
+  if (c.stage === "await_lang") {
+    const picked = parseLang(body);
+    if (!picked) { // not a language answer — show the language menu again instead of guessing
+      await sendWhatsAppChoices(from, WELCOME_TRILINGUAL, [
+        { id: "lang_en", title: "English" },
+        { id: "lang_zh", title: "中文" },
+        { id: "lang_id", title: "Bahasa Indonesia" },
+      ]);
+      await logMsg(c.id, c.phone, "out", WELCOME_TRILINGUAL, true);
+      return;
+    }
+    await say(L(picked, "askName"));
+    return patchContact(c.id, { lang: picked, stage: "await_name" });
+  }
   if (c.stage === "await_name") {
+    // A bare 1/2/3 here is a late language pick — switch language, then ask the name in it.
+    if (/^[123]$|^lang_(en|zh|id)$/.test(body.toLowerCase())) {
+      const picked = parseLang(body)!;
+      await say(L(picked, "askName"));
+      return patchContact(c.id, { lang: picked });
+    }
     if (!looksLikeName(body)) { await say(L(lang, "askName")); return; }
     await say(L(lang, "askEmail", { name: body }));
     return patchContact(c.id, { name: body, stage: "await_email" });
@@ -1010,7 +1046,7 @@ export function registerWhatsAppBot(app: Express) {
               || msg.button?.payload
               || msg.text?.body
               || "";
-            await handleInboundText(from, selected, profileName);
+            await handleInboundText(from, selected, profileName, msg.id);
           }
         }
       }
