@@ -7,7 +7,7 @@ import { db } from "./db";
 import { requireAuth, getUserId } from "./multiAuth";
 import { getBookingTimezone } from "./booking";
 
-export type PetItem = { id: string; name: string; emoji: string; price: number; kind: "furniture" | "costume"; slot: string; image?: string; figure?: string; sprite?: boolean; layer?: string; hidden?: boolean };
+export type PetItem = { id: string; name: string; emoji: string; price: number; kind: "furniture" | "costume"; slot: string; image?: string; figure?: string; sprite?: boolean; layer?: string; eyes?: number[]; overlay?: string; anchor?: number[]; hidden?: boolean };
 
 // The 100 wearables from the "Customize your Doluruu" sheet. Pictures live in
 // client/public/pet-items/<n>.webp (cut from the sheet). [name, price]
@@ -30,12 +30,18 @@ const WEAR_SLOTS: [string, string, [string, number][]][] = [
 // shared 300x360 canvas; each footwear item is a shoes-only layer on the same
 // canvas, so the client stacks clothing (or the shirtless base) + footwear.
 export const BASE_LAYER = "/pet-items/cloth-1.webp"; // shirtless, barefoot
+// Eye centre + eye distance on each clothing canvas (300x360), measured from the art.
+// Head/face items are drawn as overlays (ov-<n>.webp) scaled/placed by these.
+const CLOTH_EYES: Record<number, number[]> = {"1": [167.9, 133.6, 96.5], "2": [145.0, 134.8, 94.5], "3": [147.3, 135.3, 94.3], "4": [146.1, 132.9, 92.8], "5": [140.8, 135.4, 91.8], "6": [148.9, 133.8, 95.0], "7": [143.9, 136.4, 93.1], "8": [146.8, 136.5, 92.5], "9": [137.5, 135.9, 92.6], "10": [132.9, 134.6, 94.1], "11": [156.3, 135.7, 95.7], "12": [140.4, 137.3, 93.6], "13": [135.9, 144.8, 88.3], "14": [137.2, 138.2, 93.6], "15": [139.7, 139.0, 88.7], "16": [134.9, 144.2, 92.9], "17": [135.6, 142.3, 90.6], "18": [140.6, 139.0, 87.7], "19": [146.6, 137.0, 92.7], "20": [135.0, 133.7, 94.9], "21": [149.9, 145.3, 82.8], "22": [135.3, 139.4, 85.7], "23": [147.8, 151.7, 82.8], "24": [145.0, 148.4, 80.9], "25": [148.2, 155.2, 82.5], "26": [137.8, 142.0, 91.7], "27": [127.4, 125.1, 92.8], "28": [143.4, 137.3, 94.9], "29": [137.5, 136.4, 94.6], "30": [137.8, 133.9, 93.6]};
+export const BASE_EYES = CLOTH_EYES[1];
+// Overlay anchor per head/face item: [eyeX, eyeY, eyeDist, width, height] in overlay px.
+const OVERLAY_ANCHOR: Record<number, number[]> = {"1": [89.6, 130.1, 79.0, 214, 109], "2": [91.5, 137.3, 77.7, 222, 117], "3": [77.3, 141.4, 74.4, 208, 122], "4": [70.8, 145.5, 69.0, 198, 128], "5": [92, 160, 75, 225, 141], "6": [82.0, 145.1, 73.9, 220, 126], "7": [78.9, 130.1, 73.6, 222, 111], "8": [70.1, 136.3, 73.5, 222, 117], "9": [78.9, 138.4, 75.0, 242, 119], "10": [80, 128, 65, 222, 111], "11": [94.7, 118.2, 77.3, 220, 98], "12": [84.7, 121.5, 72.4, 218, 103], "13": [79.8, 123.0, 72.8, 212, 104], "14": [79.6, 121.9, 76.2, 214, 102], "15": [77, 113, 69, 216, 95], "16": [98, 142, 87, 225, 120], "17": [74.6, 100.9, 75.9, 222, 81], "18": [74, 106, 70, 216, 88], "19": [89.6, 110.7, 72.7, 224, 92], "20": [74.7, 126.1, 78.0, 210, 106], "21": [88, 41, 73, 175, 81], "22": [81, 44, 80, 177, 88], "23": [90, 42, 75, 180, 83], "24": [92.8, 48.0, 87.2, 197, 96], "25": [90, 53, 95, 204, 105], "26": [89, 44, 79, 183, 87], "27": [71, 46, 83, 170, 91], "28": [86, 48, 86, 189, 95], "29": [85.2, 46.8, 84.4, 186, 93], "30": [70, 32, 58, 139, 63]};
 const CLOTHING_LIST: [string, number][] = [["T-Shirt", 80], ["Hoodie", 120], ["Jacket", 150], ["Leather Jacket", 180], ["Bomber Jacket", 170], ["Denim Jacket", 150],
   ["Sports Jersey", 130], ["Football Jersey", 130], ["Baseball Jersey", 130], ["Suit & Tie", 220], ["Tuxedo", 250], ["Chef Outfit", 180], ["Doctor Coat", 180],
   ["Police Uniform", 220], ["Firefighter", 220], ["Construction", 160], ["Explorer", 200], ["Adventurer", 220], ["Ninja Outfit", 250], ["Samurai Armor", 400],
   ["Knight Armor", 400], ["Wizard Robe", 300], ["King Robe", 380], ["Angel Outfit", 320], ["Devil Outfit", 320], ["Astronaut Suit", 450], ["Chinese Outfit", 280],
   ["K-Pop Outfit", 260], ["Hawaiian Shirt", 120]];
-const CLOTHING: PetItem[] = CLOTHING_LIST.map(([name, price], i) => ({ id: `c${i + 2}`, name, emoji: "👕", price, kind: "costume", slot: "clothing", figure: `/pet-items/cloth-${i + 2}.webp`, layer: `/pet-items/cloth-${i + 2}.webp` }));
+const CLOTHING: PetItem[] = CLOTHING_LIST.map(([name, price], i) => ({ id: `c${i + 2}`, name, emoji: "👕", price, kind: "costume", slot: "clothing", figure: `/pet-items/cloth-${i + 2}.webp`, layer: `/pet-items/cloth-${i + 2}.webp`, eyes: CLOTH_EYES[i + 2] }));
 const FOOTWEAR_LIST: [string, number][] = [["Classic Sneakers", 80], ["Sport Sneakers", 90], ["Gold Sneakers", 250], ["Silver Sneakers", 200], ["Black Sneakers", 90],
   ["Red Sneakers", 90], ["Green Sneakers", 90], ["Rainbow Sneakers", 150], ["LED Sneakers", 220], ["Basketball Shoes", 130],
   ["Football Cleats", 120], ["Roller Skates", 180], ["Bunny Slippers", 90], ["Bear Slippers", 90], ["Panda Slippers", 90],
@@ -54,7 +60,8 @@ const WEARABLES: PetItem[] = WEAR_SLOTS.flatMap(([slot, emoji, items]) => items.
   const figure = NO_FIGURE.has(n) ? undefined : `/pet-items/fig-${n}.webp`;
   // Body and feet from the first sheet are replaced by the clothing/footwear sets.
   const hidden = slot === "body" || slot === "feet";
-  return { id: `w${n}`, name, emoji, price, kind: "costume" as const, slot, image: `/pet-items/${n}.webp`, figure, sprite: !!figure && !NOT_SPRITE.has(n), ...(hidden ? { hidden: true } : {}) };
+  const ov = OVERLAY_ANCHOR[n] ? { overlay: `/pet-items/ov-${n}.webp`, anchor: OVERLAY_ANCHOR[n] } : {};
+  return { id: `w${n}`, name, emoji, price, kind: "costume" as const, slot, image: `/pet-items/${n}.webp`, figure, sprite: !!figure && !NOT_SPRITE.has(n), ...ov, ...(hidden ? { hidden: true } : {}) };
 }));
 
 // Furniture goes in one slot of the room; costumes are worn on the pet's head/face/neck.
@@ -143,7 +150,7 @@ function view(h: Home) {
     coins: h.coins, owned: h.owned, placed: h.placed, costumes: h.costumes, lightOn: h.lightOn,
     earnedToday: h.earnedDay === day ? h.earnedToday : 0, dailyCap: DAILY_COIN_CAP,
     rewards: { play: COINS_PER_PLAY, win: COINS_PER_WIN, numberCrack: COINS_NUMBER_CRACK },
-    timezone: getBookingTimezone(), catalog: PET_CATALOG, baseLayer: BASE_LAYER,
+    timezone: getBookingTimezone(), catalog: PET_CATALOG, baseLayer: BASE_LAYER, baseEyes: BASE_EYES,
   };
 }
 

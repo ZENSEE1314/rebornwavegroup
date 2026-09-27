@@ -320,7 +320,7 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
           <div className="rwpet-face" style={asleep ? { animation: "none" } : undefined}>
             <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
               {layers
-                ? layers.map((src, i) => <img key={src} src={src} alt={i === 0 ? pet.name : ""} className={`absolute inset-0 w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />)
+                ? <DressedPet home={home} worn={worn} alt={pet.name} className={sick ? "grayscale opacity-70" : ""} />
                 : <img src={img} alt={pet.name} className={`w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />}
               {(["neck", "face", "head"] as const).map((part) => {
                 const it = worn[part] && itemById(home, worn[part]);
@@ -408,6 +408,25 @@ const WEAR_SLOTS: [string, string, string][] = [
 ];
 // Which worn item's picture best shows the whole look (full-body shots first).
 const PORTRAIT_ORDER = ["clothing", "footwear", "aura", "back", "head", "face", "neck", "hands", "shell", "tail"];
+// Doluruu drawn from layers on a 300x360 canvas: clothing (or shirtless base),
+// footwear, then face and head items placed by matching the eyes.
+const CANVAS_W = 300, CANVAS_H = 360;
+function DressedPet({ home, worn, alt, className = "" }: any) {
+  const layers = outfitLayers(home, worn) || [];
+  const cloth = worn.clothing && itemById(home, worn.clothing);
+  const eyes: number[] | undefined = cloth?.eyes || home?.baseEyes;
+  const extras = ["face", "head"].map((k) => worn[k] && itemById(home, worn[k])).filter((i: any) => i?.overlay && i.anchor);
+  return (
+    <div className="absolute bottom-0 left-1/2 h-full -translate-x-1/2" style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}>
+      {layers.map((src, i) => <img key={src} src={src} alt={i === 0 ? alt : ""} className={`absolute inset-0 h-full w-full ${className}`} draggable={false} />)}
+      {eyes && extras.map((it: any) => {
+        const [ax, ay, d, ow] = it.anchor; const s = eyes[2] / d;
+        return <img key={it.id} src={it.overlay} alt="" draggable={false} className={`absolute max-w-none ${className}`}
+          style={{ left: `${((eyes[0] - ax * s) / CANVAS_W) * 100}%`, top: `${((eyes[1] - ay * s) / CANVAS_H) * 100}%`, width: `${((ow * s) / CANVAS_W) * 100}%` }} />;
+      })}
+    </div>
+  );
+}
 // Image layers for the walking pet: clothing (or the shirtless base) + footwear.
 function outfitLayers(home: any, worn: Record<string, string>): string[] | null {
   if (!home?.baseLayer) return null;
@@ -428,7 +447,7 @@ function OutfitCard({ pet, home }: any) {
     <div className="mx-3 mt-3 flex items-center gap-3 rounded-2xl border border-amber-300/25 bg-gradient-to-r from-amber-300/10 to-fuchsia-400/10 p-2.5">
       <div className="h-20 w-20 shrink-0 rounded-xl shadow-lg ring-2 ring-amber-300/60" style={{ background: "radial-gradient(circle at 50% 40%, #fff3d6, #f3c98b)" }}>
         {layers
-          ? <div className="relative h-full w-full">{layers.map((src) => <img key={src} src={src} alt="" className="absolute inset-0 h-full w-full object-contain object-bottom p-1" />)}</div>
+          ? <div className="relative h-full w-full p-1"><DressedPet home={home} worn={worn} alt="" /></div>
           : <img src={main.figure || main.image} alt={main.name} className={`h-full w-full ${main.figure ? "object-contain object-bottom p-1" : "rounded-xl object-cover"}`} />}
       </div>
       <div className="min-w-0 flex-1">
