@@ -2338,9 +2338,15 @@ export function registerRebornRoutes(app: Express) {
 
   // White-label feature flags — read the club's enabled modules from the
   // BridgeX company config so the app/admin only show ticked functions.
-  app.get("/api/reborn/modules", async (_req, res) => {
+  app.get("/api/reborn/modules", async (req, res) => {
     try {
-      const rows: any = await db.execute(sql`SELECT m.module_key, m.enabled FROM bridge_company_modules m JOIN bridge_companies c ON c.id = m.company_id WHERE c.slug = 'reborn-wave-group'`);
+      // Tenant-aware: resolve the business by domain or ?slug (default = Reborn),
+      // so every company's app shows only the features it has enabled.
+      const host = String(req.query.host || req.hostname || "").toLowerCase().split(":")[0];
+      const slug = String(req.query.slug || "").toLowerCase();
+      let company = (await db.execute(sql`SELECT id FROM bridge_companies WHERE (${host} <> '' AND website_domain=${host}) OR (${slug} <> '' AND slug=${slug}) LIMIT 1`)).rows?.[0] as any;
+      if (!company) company = (await db.execute(sql`SELECT id FROM bridge_companies WHERE slug='reborn-wave-group' LIMIT 1`)).rows?.[0] as any;
+      const rows: any = company ? await db.execute(sql`SELECT module_key, enabled FROM bridge_company_modules WHERE company_id=${company.id}`) : { rows: [] };
       const list = rows.rows || rows;
       const modules: Record<string, boolean> = {};
       for (const r of list) modules[r.module_key] = r.enabled !== false;

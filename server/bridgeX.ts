@@ -750,10 +750,12 @@ export function registerBridgeXRoutes(app: Express) {
   app.get("/api/v1/tenant/resolve", route(async (req, res) => {
     const host = String(req.query.host || req.hostname).toLowerCase().split(":")[0];
     const slug = String(req.query.slug || "").toLowerCase();
-    const result = await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status FROM bridge_companies WHERE status IN ('active','trial') AND (${host} <> '' AND website_domain=${host} OR ${slug} <> '' AND slug=${slug}) LIMIT 1`);
-    const tenant = (result.rows || result as any)[0];
+    let tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status FROM bridge_companies WHERE (${host} <> '' AND website_domain=${host}) OR (${slug} <> '' AND slug=${slug}) LIMIT 1`)).rows?.[0] as any;
+    // Default host (no domain/slug match) is the flagship Reborn app.
+    if (!tenant) tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status FROM bridge_companies WHERE slug='reborn-wave-group' LIMIT 1`)).rows?.[0] as any;
     if (!tenant) return res.status(404).json({ message: "Company not found" });
-    res.json(tenant);
+    const modules = (await db.execute(sql`SELECT module_key FROM bridge_company_modules WHERE company_id=${tenant.id} AND enabled=true`)).rows.map((m: any) => m.module_key);
+    res.json({ ...tenant, modules });
   }));
 
   app.get("/api/v1/company/white-label", route(async (req, res) => {
