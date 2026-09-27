@@ -34,7 +34,7 @@ interface Room {
   tiles?: { id: number; kind: "grandma" | "laughing" | "wolf"; flipped: boolean; by?: string }[];
   ridingClicks?: number; flippedThisTurn?: number; wolfCounts?: Record<string, number>; ridingReveal?: boolean;
   facesCount?: number;
-  // timer (Stop at 0:10) only
+  // timer (Stop at 10:00) only
   timerStart?: number; timerWinners?: string[];
   // 789 (two-dice drinking) only
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
@@ -210,7 +210,7 @@ const TIMER_TARGET_MS = 10_000;
 const TIMER_CAP_MS = 20_000; // hard stop so a non-clicker can't stall the room
 function fmtMs(ms: number) {
   const s = Math.floor(ms / 1000), cs = Math.floor((ms % 1000) / 10);
-  return `${s}.${String(cs).padStart(2, "0")}s`;
+  return `${s}:${String(cs).padStart(2, "0")}`;
 }
 function startTimer(room: Room) {
   clearTimers(room);
@@ -218,8 +218,8 @@ function startTimer(room: Room) {
   for (const p of room.players) p.stopMs = null;
   room.timerStart = Date.now();
   room.timerWinners = [];
-  room.deadline = 0; // clock is hidden — players must FEEL when 0:10 hits
-  room.message = "GO! Hit STOP when you think it's exactly 0:10 ⏱️";
+  room.deadline = 0; // clock is hidden — players must FEEL when 10:00 hits
+  room.message = "GO! Hit STOP when you think it's exactly 10:00 ⏱️";
   broadcast(room);
   room.timer = setTimeout(() => finishTimer(room), TIMER_CAP_MS);
 }
