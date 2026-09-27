@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
-import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins } from "lucide-react";
+import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, Camera, QrCode, CheckCircle2 } from "lucide-react";
 
 const ANIM_CSS = `
 @keyframes kgPop{0%{transform:scale(.2);opacity:0}40%{transform:scale(1.25);opacity:1}70%{transform:scale(.95)}100%{transform:scale(1);opacity:1}}
@@ -33,18 +33,31 @@ export default function RebornKos() {
   const [target, setTarget] = useState<any>(null);
   const [modal, setModal] = useState<null | "buy" | "cashout">(null);
   const [showNotif, setShowNotif] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [venueOpen, setVenueOpen] = useState(false);
+  const isAdmin = (user as any)?.role === "admin";
 
-  useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("venue");
-    if (!code) return;
+  const checkIn = (code: string) => {
     apiRequest("POST", "/api/reborn/venue/checkin", { code }).then(async (response) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Check-in failed");
       toast({ title: "Venue check-in complete", description: data.message });
       qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] });
-      window.history.replaceState({}, "", "/kos");
+      qc.invalidateQueries({ queryKey: ["/api/reborn/venue/status"] });
     }).catch((error) => toast({ title: "Check-in failed", description: error.message, variant: "destructive" }));
-  }, [qc, toast]);
+  };
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("venue");
+    if (!code) return;
+    window.history.replaceState({}, "", "/kos");
+    checkIn(code);
+  }, []);
+
+  const { data: venue } = useQuery<any>({ queryKey: ["/api/reborn/venue/status"], queryFn: () => apiRequest("GET", "/api/reborn/venue/status").then((r) => r.json()), refetchInterval: 30000 });
+  const { data: friendData } = useQuery<any>({ queryKey: ["/api/reborn/chat/friends"], queryFn: () => apiRequest("GET", "/api/reborn/chat/friends").then((r) => r.json()) });
+  const friendIds = new Set<string>((friendData?.friends || []).map((f: any) => f.user?.id));
+  const pendingIds = new Set<string>([...(friendData?.outgoing || []), ...(friendData?.incoming || [])].map((f: any) => f.user?.id));
 
   const { data: wallet } = useQuery<any>({ queryKey: ["/api/reborn/kos/wallet"], queryFn: () => apiRequest("GET", "/api/reborn/kos/wallet").then((r) => r.json()), refetchInterval: 20000 });
   const { data: board = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/leaderboard"], queryFn: () => apiRequest("GET", "/api/reborn/kos/leaderboard").then((r) => r.json()), refetchInterval: 15000 });
@@ -68,7 +81,7 @@ export default function RebornKos() {
   });
   const addFriend = useMutation({
     mutationFn: (toUserId: string) => apiRequest("POST", "/api/reborn/chat/request", { toUserId }).then((r) => r.json()),
-    onSuccess: (d) => toast({ title: d.message }),
+    onSuccess: (d) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/chat/friends"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
 
@@ -84,10 +97,15 @@ export default function RebornKos() {
             <div className="text-3xl font-extrabold flex items-center gap-2">🪙 {fmt(wallet?.kgold ?? 0)}</div>
             <p className="text-white/50 text-xs mt-1">Received {fmt(wallet?.starsReceived ?? 0)} KGOLD in gifts</p>
           </div>
+          <div className="flex items-center gap-2">
+          <button onClick={() => setScanning(true)} title="Scan venue QR" aria-label="Scan venue QR" className="w-10 h-10 rounded-full bg-black/25 flex items-center justify-center">
+            <Camera className="w-5 h-5 text-amber-300" />
+          </button>
           <button onClick={() => { setShowNotif(true); }} className="relative w-10 h-10 rounded-full bg-black/25 flex items-center justify-center">
             <Bell className="w-5 h-5 text-amber-300" />
             {notifs.length > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-[11px] font-bold flex items-center justify-center">{notifs.length}</span>}
           </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
           <button onClick={() => setModal("buy")} className="py-2.5 rounded-xl font-bold text-black flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}><Plus className="w-4 h-4" /> Buy KGOLD</button>
@@ -95,6 +113,21 @@ export default function RebornKos() {
         </div>
         <p className="text-white/40 text-[11px] mt-2 text-center">{wallet?.kgoldPerRp ?? 100} KGOLD = 1 RP · gifts give the receiver {100 - (wallet?.feePercent ?? 30)}%</p>
       </div>
+
+      {/* Venue check-in */}
+      {venue && !venue.checkedIn && (
+        <button onClick={() => setScanning(true)} className="w-full mb-4 flex items-center gap-3 p-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-left">
+          <span className="w-11 h-11 rounded-full bg-amber-400 flex items-center justify-center text-black shrink-0"><Camera className="w-5 h-5" /></span>
+          <span className="min-w-0"><span className="block font-bold">Scan venue QR</span><span className="block text-xs text-white/55">Check in at the venue to appear in the ranking and receive gifts.</span></span>
+        </button>
+      )}
+      {venue?.checkedIn && <p className="mb-4 flex items-center gap-1.5 text-xs text-emerald-300"><CheckCircle2 className="w-4 h-4" /> Checked in at the venue today</p>}
+      {isAdmin && (
+        <button onClick={() => setVenueOpen(true)} className="w-full mb-4 flex items-center gap-3 p-3 rounded-2xl border border-white/10 bg-white/5 text-left">
+          <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center shrink-0"><QrCode className="w-5 h-5 text-amber-300" /></span>
+          <span className="min-w-0"><span className="block font-bold">Venue check-in QR <span className="text-[10px] font-bold text-black bg-amber-300 rounded px-1.5 py-0.5 ml-1 align-middle">ADMIN</span></span><span className="block text-xs text-white/55">Show today's QR at the entrance</span></span>
+        </button>
+      )}
 
       {/* Search */}
       <div className="relative mb-5">
@@ -118,7 +151,7 @@ export default function RebornKos() {
             <span className={`w-7 text-center font-extrabold ${i === 0 ? "text-amber-300" : i === 1 ? "text-slate-300" : i === 2 ? "text-orange-400" : "text-white/40"}`}>{i + 1}</span>
             <Avatar u={u} />
             <div className="flex-1 min-w-0"><p className="font-semibold truncate">{nameOf(u)}</p><p className="text-xs text-amber-300">🪙 {fmt(u.stars)}</p></div>
-            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">You</span> : <><button onClick={() => addFriend.mutate(u.id)} title="Add friend" aria-label={`Add ${nameOf(u)} as friend`} className="w-11 h-11 rounded-full bg-amber-400 border border-amber-200 shadow-lg flex items-center justify-center text-black"><UserPlus className="w-5 h-5" /></button><button onClick={() => setTarget(u)} className="px-4 py-2 rounded-full text-sm font-bold text-black" style={{ background: "linear-gradient(90deg,#ec4899,#c9a84c)" }}>Gift</button></>}
+            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">You</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title="Add friend" aria-label={`Add ${nameOf(u)} as friend`} className="w-11 h-11 rounded-full bg-amber-400 border border-amber-200 shadow-lg flex items-center justify-center text-black"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">Pending</span>}<button onClick={() => setTarget(u)} className="px-4 py-2 rounded-full text-sm font-bold text-black" style={{ background: "linear-gradient(90deg,#ec4899,#c9a84c)" }}>Gift</button></>}
           </div>
         ))}
       </div>
@@ -136,15 +169,66 @@ export default function RebornKos() {
               </button>
             ))}
           </div>
-          <button onClick={() => addFriend.mutate(target.id)} className="mt-4 w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 flex items-center justify-center gap-2 text-sm font-semibold"><UserPlus className="w-4 h-4" /> Add friend to chat</button>
+          {!friendIds.has(target.id) && !pendingIds.has(target.id) && <button onClick={() => addFriend.mutate(target.id)} className="mt-4 w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 flex items-center justify-center gap-2 text-sm font-semibold"><UserPlus className="w-4 h-4" /> Add friend to chat</button>}
         </Overlay>
       )}
 
+      {scanning && <VenueScanner onClose={() => setScanning(false)} onDetect={(code) => { setScanning(false); checkIn(code); }} />}
+      {venueOpen && <Overlay onClose={() => setVenueOpen(false)}><VenueQr /></Overlay>}
       {modal === "buy" && <BuyModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} onTopup={() => navigate("/?topup=1")} />}
       {modal === "cashout" && <CashoutModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} />}
       {showNotif && <GiftInbox notifs={notifs} onClose={() => { setShowNotif(false); apiRequest("POST", "/api/reborn/kos/notifications/seen").then(() => qc.invalidateQueries({ queryKey: ["/api/reborn/kos/notifications"] })); }} />}
     </RebornLayout>
   );
+}
+
+// Live camera scanner for the venue check-in QR (encodes /kos?venue=CODE).
+function VenueScanner({ onDetect, onClose }: { onDetect: (code: string) => void; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    let scanner: any; let cancelled = false; let done = false;
+    (async () => {
+      try {
+        const QrScanner = (await import("qr-scanner")).default;
+        if (!videoRef.current || cancelled) return;
+        scanner = new QrScanner(videoRef.current, (result: any) => {
+          const data = typeof result === "string" ? result : result?.data;
+          if (!data || done) return;
+          let code = data;
+          try { code = new URL(data).searchParams.get("venue") || data; } catch { /* raw code, not a URL */ }
+          done = true;
+          try { scanner?.stop(); } catch {}
+          onDetect(code);
+        }, { returnDetailedScanResult: true, highlightScanRegion: true, preferredCamera: "environment" });
+        await scanner.start();
+      } catch (e: any) { setErr(e?.message || "Cannot open camera — allow camera access and try again."); }
+    })();
+    return () => { cancelled = true; try { scanner?.stop(); scanner?.destroy(); } catch {} };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-4">
+      <video ref={videoRef} className="w-full max-w-sm rounded-2xl aspect-square object-cover bg-black" muted playsInline />
+      <p className="text-white/70 text-sm mt-3 text-center">Point at the venue check-in QR</p>
+      {err && <p className="text-red-400 text-sm mt-2 text-center max-w-sm">{err}</p>}
+      <button onClick={onClose} className="mt-4 px-6 py-2.5 rounded-xl font-bold bg-white/10 text-white">Cancel</button>
+    </div>
+  );
+}
+
+// Admin-only: today's venue QR and live check-in count.
+function VenueQr() {
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/venue/session"], queryFn: () => apiRequest("GET", "/api/reborn/admin/venue/session").then((r) => r.json()), refetchInterval: 5000 });
+  return <div>
+    <h3 className="font-bold text-lg flex items-center gap-2 pr-8"><QrCode className="w-5 h-5 text-amber-300" /> Daily venue check-in</h3>
+    <p className="text-sm text-white/55 mt-1 mb-4">Show this QR at the entrance. Checked-in members appear in Kings of Singers and can receive gifts.</p>
+    <div className="bg-white rounded-2xl p-3"><img src={`/api/reborn/admin/venue/qr?v=${encodeURIComponent(data?.code || "")}`} alt="Daily venue check-in QR" className="w-full aspect-square" /></div>
+    <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+      <div><p className="text-[11px] text-white/45">Today</p><p className="font-bold text-sm">{data?.day || "—"}</p></div>
+      <div><p className="text-[11px] text-white/45">Checked in</p><p className="font-extrabold text-2xl text-amber-300">{data?.count ?? 0}</p></div>
+      <div><p className="text-[11px] text-white/45">Code</p><p className="font-mono tracking-[0.2em] font-bold text-sm">{data?.code || "—"}</p></div>
+    </div>
+  </div>;
 }
 
 function Overlay({ children, onClose }: any) {
