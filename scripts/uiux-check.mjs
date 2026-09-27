@@ -6,6 +6,8 @@
 //   • page crashes         — uncaught errors while rendering
 // Usage: npm run uiux            (all pages)
 //        npm run uiux -- /games  (only paths containing "/games")
+//        UIUX_URL=https://rebornwave.group npm run uiux   (check the deployed build;
+//          the API is still mocked so every logged-in screen can be opened)
 // Screenshots go to .uiux/ (git-ignored).
 import { createServer } from "vite";
 import { chromium } from "playwright-core";
@@ -107,8 +109,9 @@ function audit(width) {
   return out.slice(0, 25);
 }
 
-const server = await createServer({ configFile: path.resolve("vite.config.ts"), server: { port: PORT, strictPort: true }, logLevel: "error" });
-await server.listen();
+const BASE = (process.env.UIUX_URL || "").replace(/\/$/, "") || `http://localhost:${PORT}`;
+const server = process.env.UIUX_URL ? null : await createServer({ configFile: path.resolve("vite.config.ts"), server: { port: PORT, strictPort: true }, logLevel: "error" });
+await server?.listen();
 fs.mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
@@ -120,7 +123,7 @@ async function check(name, url, clicks = []) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(`page error: ${String(e.message).slice(0, 120)}`));
   try {
-    await page.goto(`http://localhost:${PORT}${url}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.goto(`${BASE}${url}`, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForTimeout(1500);
     for (const text of clicks) {
       const target = text.startsWith("tab:")
@@ -137,11 +140,11 @@ async function check(name, url, clicks = []) {
   } finally { await page.close(); }
 }
 
-console.log(`UI/UX check at ${WIDTH}×${HEIGHT} (screenshots in .uiux/)`);
+console.log(`UI/UX check of ${BASE} at ${WIDTH}×${HEIGHT} (screenshots in .uiux/)`);
 let total = 0;
 for (const r of ROUTES) if (r.includes(filter)) total += await check(r, r);
 for (const [name, url, clicks] of FLOWS) if (url.includes(filter) || name.includes(filter)) total += await check(name, url, clicks);
 await browser.close();
-await server.close();
+await server?.close();
 console.log(total ? `\n${total} issue(s) found.` : "\nNo issues found.");
 process.exit(total ? 1 : 0);
