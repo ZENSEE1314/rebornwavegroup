@@ -329,6 +329,10 @@ const GAME_META: Record<string, { name: string; emoji: string }> = {
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️" },
   cards: { name: "Card Match", emoji: "🃏" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲" },
+  wheel: { name: "Spin the Wheel", emoji: "🎡" },
+  riding: { name: "Red Riding Hood", emoji: "👵" },
+  timer: { name: "Stop at 1:00", emoji: "⏱️" },
+  number: { name: "Guess the Number", emoji: "🔢" },
 };
 const WDAYS = [["1", "Mon"], ["2", "Tue"], ["3", "Wed"], ["4", "Thu"], ["5", "Fri"], ["6", "Sat"], ["0", "Sun"]];
 function GamesAdmin() {

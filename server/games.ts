@@ -9,10 +9,10 @@ import { requireAuth, getUserId } from "./multiAuth";
 import { resolveCompanyId } from "./tenant";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
-interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; }
+interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; }
 interface Room {
   code: string; game: GameKind; hostId: string; password: string; companyId?: number;
   status: "lobby" | "playing" | "reveal" | "done";
@@ -34,6 +34,8 @@ interface Room {
   tiles?: { id: number; kind: "grandma" | "laughing" | "wolf"; flipped: boolean; by?: string }[];
   ridingClicks?: number; flippedThisTurn?: number; wolfCounts?: Record<string, number>; ridingReveal?: boolean;
   facesCount?: number;
+  // timer (Stop at 1:00) only
+  timerStart?: number; timerWinners?: string[];
 }
 
 const rooms = new Map<string, Room>();
@@ -66,6 +68,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "dice" ? { dice: diceView(room, forUserId) } : {}),
     ...(room.game === "wheel" ? { wheel: wheelView(room) } : {}),
     ...(room.game === "riding" ? { riding: ridingView(room) } : {}),
+    ...(room.game === "timer" ? { timer: timerView(room, forUserId) } : {}),
   };
 }
 
@@ -196,6 +199,69 @@ function finishTap(room: Room) {
   scheduleCleanup(room);
 }
 
+// ── Stop the Timer (blind 60s) ───────────────────────────────────────────
+const TIMER_TARGET_MS = 60_000;
+const TIMER_CAP_MS = 90_000; // hard stop so a non-clicker can't stall the room
+function fmtMs(ms: number) {
+  const s = Math.floor(ms / 1000), cs = Math.floor((ms % 1000) / 10);
+  return `${s}.${String(cs).padStart(2, "0")}s`;
+}
+function startTimer(room: Room) {
+  clearTimers(room);
+  room.status = "playing";
+  for (const p of room.players) p.stopMs = null;
+  room.timerStart = Date.now();
+  room.timerWinners = [];
+  room.deadline = 0; // clock is hidden — players must FEEL when 1:00 hits
+  room.message = "GO! Hit STOP when you think it's exactly 1:00 ⏱️";
+  broadcast(room);
+  room.timer = setTimeout(() => finishTimer(room), TIMER_CAP_MS);
+}
+function stopTimer(room: Room, uid: string) {
+  if (room.status !== "playing" || room.game !== "timer" || !room.timerStart) return;
+  const p = room.players.find((x) => x.id === uid);
+  if (!p || p.stopMs != null) return;
+  p.stopMs = Math.max(0, Date.now() - room.timerStart);
+  broadcast(room);
+  if (room.players.every((x) => x.stopMs != null)) finishTimer(room);
+}
+function finishTimer(room: Room) {
+  clearTimers(room);
+  room.status = "done";
+  const dist = (p: Player) => (p.stopMs == null ? Infinity : Math.abs(p.stopMs - TIMER_TARGET_MS));
+  const stoppers = room.players.filter((p) => p.stopMs != null);
+  const min = stoppers.length ? Math.min(...stoppers.map(dist)) : Infinity;
+  const winners = stoppers.filter((p) => dist(p) === min);
+  room.timerWinners = winners.map((p) => p.id);
+  room.winnerId = winners[0]?.id;
+  const ranked = [...room.players].sort((a, b) => dist(a) - dist(b));
+  room.lastLoserId = ranked.length ? ranked[ranked.length - 1].id : undefined;
+  room.message = winners.length
+    ? (winners.length === 1
+        ? `${winners[0].name} nailed it at ${fmtMs(winners[0].stopMs!)} 🏆`
+        : `${winners.map((p) => p.name).join(" & ")} tied at ${fmtMs(winners[0].stopMs!)} — ${winners.length} winners! 🏆`)
+    : "Nobody hit stop — no winner!";
+  broadcast(room);
+  const rows = stoppers.map((p) => ({
+    userId: p.id, name: p.name, score: Math.max(0, TIMER_TARGET_MS - Math.round(dist(p))),
+    result: (room.timerWinners!.includes(p.id) ? "win" : "lose") as "win" | "lose",
+  }));
+  saveScores(room, rows);
+  scheduleCleanup(room);
+}
+function timerView(room: Room, forUserId?: string) {
+  const done = room.status === "done";
+  return {
+    target: 60,
+    yourMs: room.players.find((p) => p.id === forUserId)?.stopMs ?? null,
+    stoppedCount: room.players.filter((p) => p.stopMs != null).length,
+    total: room.players.length,
+    winners: room.timerWinners || [],
+    stopped: room.players.reduce((acc: any, p) => { acc[p.id] = p.stopMs != null; return acc; }, {}),
+    results: done ? [...room.players].map((p) => ({ id: p.id, name: p.name, ms: p.stopMs ?? null, dist: p.stopMs == null ? null : Math.abs(p.stopMs - TIMER_TARGET_MS) })).sort((a, b) => (a.dist ?? Infinity) - (b.dist ?? Infinity)) : null,
+  };
+}
+
 // Keep a finished room around so the host can "play again"; auto-delete only
 // after a long idle so abandoned rooms don't linger forever.
 function scheduleCleanup(room: Room) {
@@ -213,9 +279,10 @@ function resetRoom(room: Room) {
   room.deck = undefined; room.discardTop = null; room.discardBy = null; room.turnIdx = undefined; room.phase = undefined; room.drawnFrom = null; room.cardReveal = null;
   room.bid = null; room.jokerActive = true; room.jokerReenableAt = undefined; room.diceReveal = null;
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
+  room.timerStart = undefined; room.timerWinners = [];
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
-  for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; }
+  for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; }
   broadcast(room);
 }
 
@@ -671,7 +738,7 @@ function ridingView(room: Room) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "cards", "dice", "wheel", "riding"] as const;
+const GAME_KEYS = ["rps", "tap", "cards", "dice", "wheel", "riding", "timer", "number"] as const;
 async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days: number[] }>> {
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "gamesConfig"));
   let cfg: any = {};
@@ -685,6 +752,40 @@ function availableToday(cfg: Record<string, { enabled: boolean; days: number[] }
   const out: Record<string, boolean> = {};
   for (const k of GAME_KEYS) out[k] = cfg[k].enabled && cfg[k].days.includes(wd);
   return out;
+}
+
+// ── Guess the Number (persistent, host-less, per company) ────────────────
+// A 4-digit secret runs continuously; anyone can guess any time. First correct
+// guess ends the round and a fresh number auto-generates. State + capped guess
+// history live in app_settings so the game survives restarts and lasts for days.
+const NUM_MAX = 9999;
+const NUM_HISTORY = 40;
+const newSecret = () => Math.floor(Math.random() * (NUM_MAX + 1));
+async function loadNumberGame(cid: number) {
+  const key = `numberGame:${cid}`;
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, key));
+  let g: any = null;
+  try { g = row?.value ? JSON.parse(row.value) : null; } catch { g = null; }
+  if (!g || typeof g.secret !== "number") {
+    g = { round: 1, secret: newSecret(), startedAt: Date.now(), low: 0, high: NUM_MAX, history: [], lastWinner: null };
+    await saveNumberGame(cid, g);
+  }
+  if (!Array.isArray(g.history)) g.history = [];
+  return g;
+}
+async function saveNumberGame(cid: number, g: any) {
+  const key = `numberGame:${cid}`;
+  await db.insert(appSettings).values({ key, value: JSON.stringify(g), updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(g), updatedAt: new Date() } });
+}
+function numberPublic(g: any) {
+  return {
+    round: g.round, startedAt: g.startedAt, digits: 4, min: 0, max: NUM_MAX,
+    range: { low: g.low, high: g.high },
+    guessCount: g.history.length,
+    history: g.history.slice(-NUM_HISTORY).reverse(),
+    lastWinner: g.lastWinner || null,
+  };
 }
 
 // ── Rank ladder config (admin-editable) ─────────────────────────────────
@@ -752,6 +853,46 @@ export function registerGameRoutes(app: Express) {
     res.json({ ok: true, config: await getGamesConfig() });
   });
 
+  // Guess the Number — read current round + guess history
+  app.get("/api/reborn/games/number", requireAuth, async (req, res) => {
+    const cfg = await getGamesConfig();
+    if (!availableToday(cfg).number) return res.json({ available: false });
+    const cid = await resolveCompanyId(req);
+    const g = await loadNumberGame(cid);
+    res.json({ available: true, ...numberPublic(g) });
+  });
+  // Submit a guess; first correct one ends the round and rolls a new secret.
+  app.post("/api/reborn/games/number/guess", requireAuth, async (req, res) => {
+    const cfg = await getGamesConfig();
+    if (!availableToday(cfg).number) return res.status(400).json({ message: "The number game isn't available today." });
+    const cid = await resolveCompanyId(req);
+    const uid = getUserId(req)!;
+    const guess = Math.floor(Number(req.body?.guess));
+    if (!Number.isFinite(guess) || guess < 0 || guess > NUM_MAX) return res.status(400).json({ message: "Enter a number from 0 to 9999." });
+    const g = await loadNumberGame(cid);
+    const name = await nameFor(uid);
+    const at = Date.now();
+    if (guess === g.secret) {
+      const wonRound = g.round;
+      const solved = g.secret;
+      await db.insert(pvpScores).values({ companyId: cid, game: "number", userId: uid, userName: name, score: wonRound, result: "win", roomCode: `R${wonRound}` }).catch(() => {});
+      const season = (await getRankConfig()).season;
+      await db.insert(gameRanks).values({ userId: uid, userName: name, stars: 1, peakStars: 1, season })
+        .onConflictDoUpdate({ target: gameRanks.userId, set: { stars: sql`${gameRanks.stars} + 1`, peakStars: sql`greatest(${gameRanks.peakStars}, ${gameRanks.stars} + 1)`, userName: name, updatedAt: new Date() } }).catch(() => {});
+      g.round += 1; g.secret = newSecret(); g.startedAt = at; g.low = 0; g.high = NUM_MAX; g.history = [];
+      g.lastWinner = { name, guess: solved, round: wonRound, at };
+      await saveNumberGame(cid, g);
+      return res.json({ correct: true, solved, message: `🎉 ${name} cracked ${solved}! A new number is ready — keep guessing.`, ...numberPublic(g) });
+    }
+    const hint = guess < g.secret ? "higher" : "lower";
+    if (guess < g.secret) g.low = Math.max(g.low, guess + 1);
+    else g.high = Math.min(g.high, guess - 1);
+    g.history.push({ userId: uid, name, guess, hint, at });
+    if (g.history.length > NUM_HISTORY) g.history = g.history.slice(-NUM_HISTORY);
+    await saveNumberGame(cid, g);
+    res.json({ correct: false, hint, guess, message: hint === "higher" ? `Higher than ${guess} ⬆️` : `Lower than ${guess} ⬇️`, ...numberPublic(g) });
+  });
+
   // Leaderboard per game
   app.get("/api/reborn/games/leaderboard", async (req, res) => {
     const game = String(req.query.game || "rps");
@@ -780,7 +921,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     if (!availableToday(cfg)[game]) return res.status(400).json({ message: "That game isn't available today." });
     const name = await nameFor(uid);
@@ -831,6 +972,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "dice") startDiceRound(room);
     else if (room.game === "wheel") startWheel(room);
     else if (room.game === "riding") startRiding(room);
+    else if (room.game === "timer") startTimer(room);
     else startTap(room);
     res.json({ ok: true });
   });
@@ -854,6 +996,10 @@ export function registerGameRoutes(app: Express) {
     if (room.status !== "playing") return res.json({ ok: false });
     if (room.game === "wheel") {
       if (req.body?.act === "spin") wheelSpin(room, getUserId(req)!);
+      return res.json({ ok: true });
+    }
+    if (room.game === "timer") {
+      if (req.body?.act === "stop") stopTimer(room, getUserId(req)!);
       return res.json({ ok: true });
     }
     if (room.game === "riding") {

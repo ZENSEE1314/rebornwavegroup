@@ -17,6 +17,8 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
   wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "spin for a drink dare — ½ up to 5 cups" },
   riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
+  timer: { name: "Stop at 1:00", emoji: "⏱️", blurb: "blind stopwatch — stop closest to 1 min wins · up to 20" },
+  number: { name: "Guess the Number", emoji: "🔢", blurb: "one 4-digit number, guess any time · no host, runs 24/7" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
 
@@ -62,6 +64,20 @@ const RULES: Record<string, string[]> = {
     "🧙 Tap the witch → you lose and drink DOUBLE, game over.",
     "Tap only real grannies to stay safe!",
   ],
+  timer: [
+    "The host starts a hidden stopwatch that runs from 0:00 up toward 1:00.",
+    "You can't see the clock — feel when a minute has passed and hit STOP.",
+    "Whoever stops closest to exactly 1:00 wins 🏆; everyone else loses.",
+    "Same time = shared win (2 or 3 winners is fine). Up to 20 players.",
+    "Don't stop in time and you're out of the running.",
+  ],
+  number: [
+    "One secret 4-digit number (0–9999) runs for everyone — no host needed.",
+    "Guess any time. After each guess you're told to go higher ⬆️ or lower ⬇️.",
+    "The live range and everyone's guess history help you close in.",
+    "First person to hit the exact number wins 🏆 and the round ends.",
+    "A fresh number auto-generates instantly — it never stops, day or night.",
+  ],
 };
 
 function HowToPlay({ game, onClose }: { game: string; onClose: () => void }) {
@@ -89,20 +105,24 @@ export default function RebornGames() {
   const [code, setCode] = useState<string>(() => { try { return localStorage.getItem(ROOM_KEY) || ""; } catch { return ""; } });
   const enter = (c: string) => { try { localStorage.setItem(ROOM_KEY, c); } catch {} setCode(c); };
   const exit = () => { try { localStorage.removeItem(ROOM_KEY); } catch {} setCode(""); };
+  const [numberMode, setNumberMode] = useState(false);
   return (
-    <RebornLayout active="/games" title="GAMES" hideNav={!!code}>
+    <RebornLayout active="/games" title="GAMES" hideNav={!!code || numberMode}>
       <div className="max-w-2xl mx-auto">
-        {!code && <MobileBackButton className="mb-4" />}
-        {code ? <Room code={code} onLeave={exit} /> : <Lobby onEnter={enter} />}
+        {!code && !numberMode && <MobileBackButton className="mb-4" />}
+        {code ? <Room code={code} onLeave={exit} />
+          : numberMode ? <NumberGame onLeave={() => setNumberMode(false)} />
+          : <Lobby onEnter={enter} onOpenNumber={() => setNumberMode(true)} />}
       </div>
     </RebornLayout>
   );
 }
 
-function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
+type GK = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "number";
+function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
-  const [game, setGame] = useState<"rps" | "tap" | "cards" | "dice" | "wheel" | "riding">("rps");
+  const [game, setGame] = useState<GK>("rps");
   const [password, setPassword] = useState("");
   const [winTarget, setWinTarget] = useState(1);
   const [ridingClicks, setRidingClicks] = useState(2);
@@ -110,7 +130,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
   const [wheelText, setWheelText] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [joinPw, setJoinPw] = useState("");
-  const [lbGame, setLbGame] = useState<"rps" | "tap" | "cards" | "dice" | "wheel" | "riding">("rps");
+  const [lbGame, setLbGame] = useState<GK>("rps");
   const [lb, setLb] = useState<any[]>([]);
   const [help, setHelp] = useState<string | null>(null);
 
@@ -177,9 +197,9 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
       <div className="gcard p-4">
         <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Pick a game</p>
         <div className="grid grid-cols-1 gap-3">
-          {(Object.keys(GAMES) as ("rps" | "tap" | "cards" | "dice" | "wheel" | "riding")[]).map((g) => {
+          {(Object.keys(GAMES) as GK[]).map((g) => {
             const on = today[g];
-            const grad: Record<string, string> = { rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)", cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)", wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)" };
+            const grad: Record<string, string> = { rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)", cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)", wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)", timer: "linear-gradient(135deg,#7affc0,#12b36a)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)" };
             return (
               <button key={g} disabled={!on} onClick={() => setGame(g)}
                 className={`flex items-center gap-3 p-3 rounded-2xl text-left transition ${game === g && on ? "gcard-sel" : "border border-white/10"} ${!on ? "opacity-40" : "active:scale-[.98]"}`}
@@ -194,12 +214,14 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
             );
           })}
         </div>
+        {game !== "number" && (
         <div className="mt-3 flex items-center gap-2">
           <div className="flex-1 flex items-center gap-2 rounded-xl bg-black/30 border border-white/10 px-3">
             <Lock className="w-4 h-4 text-white/40" />
             <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Room password (optional)" className="flex-1 bg-transparent py-2.5 text-white text-sm focus:outline-none" />
           </div>
         </div>
+        )}
         {game === "riding" && (
           <div className="mt-3 space-y-2">
             <div>
@@ -218,7 +240,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
             <textarea value={wheelText} onChange={(e) => setWheelText(e.target.value)} rows={4} placeholder={"Default:\nHalf cup\n1 cup\n2 cups\n… (leave blank to use these)"} className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
           </div>
         )}
-        {game !== "wheel" && game !== "riding" && (
+        {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && (
         <div className="mt-3">
           <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
           <div className="flex gap-2">
@@ -228,9 +250,12 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
           </div>
         </div>
         )}
+        {game === "number" && <p className="mt-3 text-[11px] text-white/50">No room needed — one 4-digit number runs for everyone. Guess any time; first to crack it wins and a fresh number rolls automatically, 24/7.</p>}
         <div className="mt-4 flex gap-2">
           <button onClick={() => setHelp(game)} className="cbtn cbtn-dark px-4 py-3.5 text-sm">How to play</button>
-          <button onClick={create} disabled={!today[game]} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🎮 Create room</button>
+          {game === "number"
+            ? <button onClick={onOpenNumber} disabled={!today.number} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🔢 Play now</button>
+            : <button onClick={create} disabled={!today[game]} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🎮 Create room</button>}
         </div>
       </div>
       {help && <HowToPlay game={help} onClose={() => setHelp(null)} />}
@@ -268,7 +293,7 @@ function Lobby({ onEnter }: { onEnter: (c: string) => void }) {
         <div className="flex items-center justify-between mb-2">
           <p className="font-extrabold text-white flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" /> Leaderboard</p>
           <div className="flex gap-1">
-            {(["rps", "tap", "cards", "dice"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
+            {(["rps", "tap", "cards", "dice", "timer", "number"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
           </div>
         </div>
         {lb.length === 0 && <p className="text-xs text-white/40">No scores yet — be the first!</p>}
@@ -341,6 +366,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "timer" && <TimerGame room={room} code={code} me={me} />}
 
       {room.status === "done" && (
         <div className="space-y-2">
@@ -538,6 +564,112 @@ function TapGame({ room, code, me }: any) {
           <div key={p.id} className="flex items-center justify-between text-sm py-1 border-b border-white/5 last:border-0">
             <span className="text-white/70">{i === 0 ? "🥇" : `${i + 1}.`} {p.id === me ? "You" : p.name}</span>
             <span className="text-amber-300 font-bold tabular-nums">{p.id === me ? Math.max(p.taps, localTaps) : p.taps} 🪙</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TimerGame({ room, code, me }: any) {
+  const t = room.timer || {};
+  const iStopped = !!t.stopped?.[me];
+  const iWon = room.status === "done" && (t.winners || []).includes(me);
+  const fmt = (ms: number | null) => ms == null ? "—" : `${Math.floor(ms / 1000)}.${String(Math.floor((ms % 1000) / 10)).padStart(2, "0")}s`;
+  const stop = () => { if (room.status === "playing" && !iStopped) { sfx.coin?.(); post(`/api/reborn/games/rooms/${code}/action`, { act: "stop" }); } };
+  return (
+    <div className="rwg-card p-5 text-center">
+      <p className="text-sm text-white/60 mb-3">{room.message}</p>
+      {room.status === "done" ? (
+        <>
+          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "⏱️"}</div>
+          <p className={`text-2xl font-black mb-3 ${iWon ? "text-emerald-300" : "text-white/70"}`}>{iWon ? "CLOSEST TO 1:00!" : "Game over"}</p>
+          <div className="text-left">
+            {(t.results || []).map((r: any, i: number) => {
+              const win = (t.winners || []).includes(r.id);
+              return (
+                <div key={r.id} className={`flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 ${win ? "text-emerald-300 font-bold" : "text-white/70"}`}>
+                  <span>{win ? "🏆" : `${i + 1}.`} {r.id === me ? "You" : r.name}</span>
+                  <span className="tabular-nums">{fmt(r.ms)}{r.dist != null && <span className="text-white/40 ml-2">({r.ms != null ? (r.ms > 60000 ? "+" : "−") : ""}{fmt(r.dist)})</span>}</span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <div className="my-4 select-none">
+          <p className="text-white/40 text-xs mb-3">🙈 The clock is hidden — stop when you feel it's exactly one minute.</p>
+          <button onClick={stop} disabled={iStopped} className={`w-48 h-48 mx-auto rounded-full flex flex-col items-center justify-center text-3xl font-black transition-transform ${iStopped ? "opacity-60" : "active:scale-90"}`} style={{ background: iStopped ? "rgba(255,255,255,0.08)" : "radial-gradient(circle at 30% 30%, #7affc0, #12b36a)", boxShadow: iStopped ? "none" : "0 10px 30px rgba(18,179,106,0.4)", color: iStopped ? "#9fe8c4" : "#04120b" }}>
+            {iStopped ? <><span className="text-4xl mb-1">✓</span><span className="text-lg">Locked</span><span className="text-sm font-semibold mt-1">{fmt(t.yourMs ?? null)}</span></> : "STOP"}
+          </button>
+          <p className="text-white/60 text-sm mt-4">{t.stoppedCount || 0}/{t.total || room.players.length} players stopped</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const numGet = (path: string) => apiRequest("GET", path).then((r) => r.json());
+function NumberGame({ onLeave }: { onLeave: () => void }) {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const me = (user as any)?.id;
+  const [state, setState] = useState<any>(null);
+  const [guess, setGuess] = useState("");
+  const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => numGet("/api/reborn/games/number").then(setState).catch(() => {}), []);
+  useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, [load]);
+  const submit = async () => {
+    const g = Math.floor(Number(guess));
+    if (!Number.isFinite(g) || g < 0 || g > 9999) return toast({ title: "Enter 0–9999", variant: "destructive" });
+    setBusy(true);
+    const { ok, d } = await post("/api/reborn/games/number/guess", { guess: g });
+    setBusy(false);
+    if (!ok) return toast({ title: "Can't guess", description: d.message, variant: "destructive" });
+    setFeedback({ correct: !!d.correct, message: d.message });
+    if (d.correct) sfx.rankUp?.(); else sfx.coin?.();
+    setGuess("");
+    setState(d);
+  };
+  if (state && state.available === false) {
+    return (
+      <div className="space-y-4">
+        <button onClick={onLeave} className="text-sm text-white/60">← Back to games</button>
+        <div className="rwg-card p-6 text-center text-white/60">The number game isn't scheduled today.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <button onClick={onLeave} className="text-sm text-white/60 inline-flex items-center gap-1"><LogOut className="w-4 h-4" /> Back</button>
+        <MuteToggle />
+      </div>
+      <div className="rwg-card p-5 text-center">
+        <p className="text-5xl mb-1">🔢</p>
+        <h2 className="text-xl font-black text-white">Guess the Number</h2>
+        <p className="text-white/50 text-sm">Round #{state?.round ?? "—"} · a secret 4-digit number (0–9999)</p>
+        {state?.range && <p className="mt-2 inline-block rounded-full bg-white/5 border border-white/10 px-3 py-1 text-sm text-amber-300 font-bold tabular-nums">It's between {state.range.low} and {state.range.high}</p>}
+        {feedback && (
+          <div className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${feedback.correct ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30" : "bg-white/5 text-white/80 border border-white/10"}`} style={{ animation: "rwgPop .4s ease-out" }}>{feedback.message}</div>
+        )}
+        <div className="mt-4 flex gap-2">
+          <input value={guess} onChange={(e) => setGuess(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))} onKeyDown={(e) => e.key === "Enter" && submit()} inputMode="numeric" placeholder="0000" className="flex-1 text-center text-2xl font-black tracking-[0.3em] rounded-xl bg-black/30 border border-white/10 py-3 text-white focus:outline-none focus:border-amber-400/60" />
+          <button onClick={submit} disabled={busy || !guess} className="cbtn cbtn-gold px-6 py-3 text-base disabled:opacity-50">Guess</button>
+        </div>
+      </div>
+      {state?.lastWinner && (
+        <div className="rwg-card p-3 text-center text-sm text-emerald-300">🎉 {state.lastWinner.name} cracked {state.lastWinner.guess} in round #{state.lastWinner.round}</div>
+      )}
+      <div className="gcard p-4">
+        <p className="font-extrabold text-white flex items-center gap-2 mb-2"><Trophy className="w-4 h-4 text-amber-300" /> Recent guesses</p>
+        {(!state?.history || state.history.length === 0) && <p className="text-xs text-white/40">No guesses yet this round — be the first!</p>}
+        {(state?.history || []).map((h: any, i: number) => (
+          <div key={i} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0 text-sm">
+            <span className="text-white/70 truncate">{h.userId === me ? "You" : h.name}</span>
+            <span className="tabular-nums font-bold text-white">{h.guess}</span>
+            <span className={`text-xs font-semibold ${h.hint === "higher" ? "text-emerald-300" : "text-sky-300"}`}>{h.hint === "higher" ? "go higher ⬆️" : "go lower ⬇️"}</span>
           </div>
         ))}
       </div>
