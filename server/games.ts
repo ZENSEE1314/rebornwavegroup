@@ -9,7 +9,7 @@ import { requireAuth, getUserId } from "./multiAuth";
 import { resolveCompanyId } from "./tenant";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; }
@@ -36,6 +36,8 @@ interface Room {
   facesCount?: number;
   // timer (Stop at 1:00) only
   timerStart?: number; timerWinners?: string[];
+  // 789 (two-dice drinking) only
+  dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
 }
 
 const rooms = new Map<string, Room>();
@@ -69,6 +71,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "wheel" ? { wheel: wheelView(room) } : {}),
     ...(room.game === "riding" ? { riding: ridingView(room) } : {}),
     ...(room.game === "timer" ? { timer: timerView(room, forUserId) } : {}),
+    ...(room.game === "789" ? { seven: sevenView(room) } : {}),
   };
 }
 
@@ -262,6 +265,167 @@ function timerView(room: Room, forUserId?: string) {
   };
 }
 
+// ── 789 (two-dice drinking party game) ───────────────────────────────────
+// Roll 2 dice: 7 = top up the cup, 8 = drink half, 9 = drink whole. Those three
+// let you roll AGAIN. Doubles reverse the turn direction; snake eyes (1,1) let
+// you pick anyone to down the cup and it becomes their turn. No winner — a party
+// game that runs until players leave.
+const SEVEN_TURN_SECONDS = 40;
+const rollD = () => 1 + Math.floor(Math.random() * 6);
+function arm789(room: Room) {
+  clearTimers(room);
+  room.deadline = Date.now() + SEVEN_TURN_SECONDS * 1000 + 300;
+  room.timer = setTimeout(() => seven789Timeout(room), SEVEN_TURN_SECONDS * 1000 + 300);
+}
+function start789(room: Room) {
+  clearTimers(room);
+  room.status = "playing";
+  room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  room.message = `${room.players[room.turnIdx].name} starts — roll the dice! 🎲`;
+  arm789(room);
+  broadcast(room);
+}
+const stepIdx789 = (room: Room, from: number) => { const n = room.players.length; return ((from + (room.dir || 1)) % n + n) % n; };
+function seven789Timeout(room: Room) {
+  if (room.status !== "playing" || room.game !== "789") return;
+  if (room.chooseFor) {
+    const others = room.players.filter((p) => p.id !== room.chooseFor);
+    const t = others.length ? others[Math.floor(Math.random() * others.length)] : room.players[room.turnIdx ?? 0];
+    seven789Choose(room, room.chooseFor, t.id);
+  } else {
+    const cur = room.players[room.turnIdx ?? 0]; if (cur) seven789Roll(room, cur.id);
+  }
+}
+function seven789Roll(room: Room, uid: string) {
+  if (room.status !== "playing" || room.game !== "789" || room.chooseFor) return;
+  const idx = room.players.findIndex((p) => p.id === uid);
+  if (idx !== room.turnIdx) return;
+  clearTimers(room);
+  const d1 = rollD(), d2 = rollD(), sum = d1 + d2;
+  const p = room.players[idx];
+  let action = "none", text = "", rollAgain = false, reverse = false, chooseNow = false;
+  if (d1 === 1 && d2 === 1) {
+    chooseNow = true; action = "choose";
+    text = `🎯 Snake eyes! ${p.name} picks anyone to down the whole cup`;
+  } else {
+    if (sum === 7) { room.cupUnits = (room.cupUnits || 0) + 1; action = "add"; text = `${p.name} rolled 7 — top up the cup 🍺 (+1)`; }
+    else if (sum === 8) { room.cupUnits = Math.floor((room.cupUnits || 0) / 2); action = "half"; text = `${p.name} rolled 8 — drink HALF the cup 🍺`; }
+    else if (sum === 9) { room.cupUnits = 0; action = "whole"; text = `${p.name} rolled 9 — DOWN the whole cup 🍺🍺`; }
+    if (d1 === d2) { reverse = true; text = text ? `${text} · doubles reverse 🔄` : `${p.name} rolled doubles (${d1}+${d2}) — turn reverses 🔄`; }
+    else if (sum === 7 || sum === 8 || sum === 9) { rollAgain = true; text += " — roll again!"; }
+    if (!text) text = `${p.name} rolled ${sum}`;
+  }
+  room.lastRoll = { d1, d2, sum, by: uid, byName: p.name, action, text };
+  if (chooseNow) { room.chooseFor = uid; room.message = text; arm789(room); broadcast(room); return; }
+  if (reverse) { room.dir = (room.dir || 1) * -1; room.turnIdx = stepIdx789(room, idx); room.message = `${text} — ${room.players[room.turnIdx].name}'s turn`; }
+  else if (rollAgain) { room.message = text; }
+  else { room.turnIdx = stepIdx789(room, idx); room.message = `${text} — ${room.players[room.turnIdx].name}'s turn`; }
+  arm789(room);
+  broadcast(room);
+}
+function seven789Choose(room: Room, roller: string, targetId: string) {
+  if (room.status !== "playing" || room.game !== "789" || room.chooseFor !== roller) return;
+  const ti = room.players.findIndex((p) => p.id === targetId);
+  if (ti < 0) return;
+  const t = room.players[ti];
+  room.cupUnits = 0;
+  room.chooseFor = null;
+  room.turnIdx = ti;
+  room.lastRoll = { ...(room.lastRoll || { d1: 1, d2: 1, sum: 2 }), action: "chosen", text: `${t.name} downs the whole cup 🍺 — their turn now` };
+  room.message = `${t.name} downs the whole cup 🍺 — ${t.name}'s turn`;
+  arm789(room);
+  broadcast(room);
+}
+function sevenView(room: Room) {
+  return {
+    turnId: room.players[room.turnIdx ?? 0]?.id,
+    dir: room.dir || 1,
+    cupUnits: room.cupUnits || 0,
+    last: room.lastRoll || null,
+    chooseFor: room.chooseFor || null,
+  };
+}
+
+// Remove a player from a room; the game keeps running for whoever's left. The
+// room is only torn down when the last player leaves. Host passes to another.
+function removePlayer(room: Room, uid?: string) {
+  if (!uid) return;
+  const wasIdx = room.players.findIndex((p) => p.id === uid);
+  if (wasIdx < 0) return;
+  const curTurnId = room.players[room.turnIdx ?? 0]?.id;
+  const leavingWasTurn = curTurnId === uid;
+  room.players = room.players.filter((p) => p.id !== uid);
+  if (!room.players.length) { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } rooms.delete(room.code); return; }
+  if (room.hostId === uid) room.hostId = room.players[0].id;
+  // Keep the turn pointer on the same live player (or the slot the leaver held).
+  if (room.turnIdx != null) {
+    let idx = room.players.findIndex((p) => p.id === curTurnId);
+    if (idx < 0) idx = wasIdx % room.players.length;
+    room.turnIdx = idx;
+  }
+  if (room.status === "playing") onPlayerLeftMidGame(room, leavingWasTurn);
+  else broadcast(room);
+}
+
+function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
+  const soloWin = () => {
+    clearTimers(room); room.status = "done";
+    const w = room.players.find((p) => p.alive) || room.players[0];
+    room.winnerId = w?.id;
+    room.message = w ? `${w.name} wins — everyone else left! 🏆` : "Everyone left.";
+    broadcast(room);
+    if (w) saveScores(room, [{ userId: w.id, name: w.name, score: 1, result: "win" }]);
+    scheduleCleanup(room);
+  };
+  switch (room.game) {
+    case "rps": {
+      const alive = room.players.filter((p) => p.alive);
+      if (alive.length <= 1) return resolveRps(room);
+      if (alive.every((p) => p.choice)) return resolveRps(room);
+      return broadcast(room);
+    }
+    case "timer":
+      if (room.players.every((p) => p.stopMs != null)) return finishTimer(room);
+      return broadcast(room);
+    case "dice": {
+      if (diceAlive(room).length <= 1) return soloWin();
+      if (leavingWasTurn) { armDiceTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; }
+      return broadcast(room);
+    }
+    case "cards": {
+      if (room.players.length < 2) return soloWin();
+      if (leavingWasTurn) { room.phase = "draw"; room.drawnFrom = null; room.message = `${room.players[room.turnIdx ?? 0].name}'s turn — take the discard or draw`; armCardTimer(room); }
+      return broadcast(room);
+    }
+    case "wheel": {
+      if ((room.wheelSpun || []).length >= room.players.length) { clearTimers(room); room.status = "done"; room.message = "Everyone's spun — cheers! 🍻"; broadcast(room); scheduleCleanup(room); return; }
+      if (leavingWasTurn) {
+        let guard = 0;
+        while ((room.wheelSpun || []).includes(room.players[room.turnIdx ?? 0].id) && guard++ < room.players.length) room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length;
+        room.status = "playing"; room.wheelResult = null;
+        room.message = `${room.players[room.turnIdx ?? 0].name}'s turn — spin!`;
+        room.deadline = Date.now() + WHEEL_TURN_SECONDS * 1000 + 300;
+        clearTimers(room);
+        room.timer = setTimeout(() => wheelSpin(room, room.players[room.turnIdx ?? 0]?.id), WHEEL_TURN_SECONDS * 1000 + 300);
+      }
+      return broadcast(room);
+    }
+    case "riding": {
+      if (leavingWasTurn) { room.flippedThisTurn = 0; armRidingTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}, tap ${room.ridingClicks} granny${(room.ridingClicks || 1) > 1 ? "s" : ""}!`; }
+      return broadcast(room);
+    }
+    case "789": {
+      if (room.chooseFor && !room.players.find((p) => p.id === room.chooseFor)) { room.chooseFor = null; arm789(room); }
+      else if (leavingWasTurn) arm789(room);
+      room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`;
+      return broadcast(room);
+    }
+    default:
+      return broadcast(room);
+  }
+}
+
 // Keep a finished room around so the host can "play again"; auto-delete only
 // after a long idle so abandoned rooms don't linger forever.
 function scheduleCleanup(room: Room) {
@@ -280,6 +444,7 @@ function resetRoom(room: Room) {
   room.bid = null; room.jokerActive = true; room.jokerReenableAt = undefined; room.diceReveal = null;
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
+  room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; }
@@ -738,13 +903,15 @@ function ridingView(room: Room) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "cards", "dice", "wheel", "riding", "timer", "number"] as const;
-async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days: number[] }>> {
+const GAME_KEYS = ["rps", "tap", "cards", "dice", "wheel", "riding", "timer", "789", "number"] as const;
+async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days: number[]; dailyLimit?: number }>> {
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "gamesConfig"));
   let cfg: any = {};
   try { cfg = row?.value ? JSON.parse(row.value) : {}; } catch { cfg = {}; }
   const out: any = {};
   for (const k of GAME_KEYS) out[k] = { enabled: cfg[k]?.enabled !== false, days: Array.isArray(cfg[k]?.days) ? cfg[k].days : [0, 1, 2, 3, 4, 5, 6] };
+  // Guess-the-Number: 0 = unlimited daily guesses per player.
+  out.number.dailyLimit = Math.max(0, Math.floor(Number(cfg?.number?.dailyLimit) || 0));
   return out;
 }
 function availableToday(cfg: Record<string, { enabled: boolean; days: number[] }>) {
@@ -858,8 +1025,12 @@ export function registerGameRoutes(app: Express) {
     const cfg = await getGamesConfig();
     if (!availableToday(cfg).number) return res.json({ available: false });
     const cid = await resolveCompanyId(req);
+    const uid = getUserId(req)!;
     const g = await loadNumberGame(cid);
-    res.json({ available: true, ...numberPublic(g) });
+    const limit = cfg.number.dailyLimit || 0;
+    const day = new Date().toISOString().slice(0, 10);
+    const used = (g.counts && g.counts.day === day) ? (g.counts.byUser?.[uid] || 0) : 0;
+    res.json({ available: true, dailyLimit: limit, used, remaining: limit > 0 ? Math.max(0, limit - used) : null, ...numberPublic(g) });
   });
   // Submit a guess; first correct one ends the round and rolls a new secret.
   app.post("/api/reborn/games/number/guess", requireAuth, async (req, res) => {
@@ -870,6 +1041,13 @@ export function registerGameRoutes(app: Express) {
     const guess = Math.floor(Number(req.body?.guess));
     if (!Number.isFinite(guess) || guess < 0 || guess > NUM_MAX) return res.status(400).json({ message: "Enter a number from 0 to 9999." });
     const g = await loadNumberGame(cid);
+    const limit = cfg.number.dailyLimit || 0;
+    const day = new Date().toISOString().slice(0, 10);
+    if (!g.counts || g.counts.day !== day) g.counts = { day, byUser: {} };
+    const used = g.counts.byUser[uid] || 0;
+    if (limit > 0 && used >= limit) return res.status(429).json({ message: `You've used all ${limit} guess${limit === 1 ? "" : "es"} for today — come back tomorrow!` });
+    g.counts.byUser[uid] = used + 1;
+    const remaining = limit > 0 ? Math.max(0, limit - g.counts.byUser[uid]) : null;
     const name = await nameFor(uid);
     const at = Date.now();
     if (guess === g.secret) {
@@ -882,7 +1060,7 @@ export function registerGameRoutes(app: Express) {
       g.round += 1; g.secret = newSecret(); g.startedAt = at; g.low = 0; g.high = NUM_MAX; g.history = [];
       g.lastWinner = { name, guess: solved, round: wonRound, at };
       await saveNumberGame(cid, g);
-      return res.json({ correct: true, solved, message: `🎉 ${name} cracked ${solved}! A new number is ready — keep guessing.`, ...numberPublic(g) });
+      return res.json({ correct: true, solved, message: `🎉 ${name} cracked ${solved}! A new number is ready — keep guessing.`, dailyLimit: limit, used: g.counts.byUser[uid], remaining, ...numberPublic(g) });
     }
     const hint = guess < g.secret ? "higher" : "lower";
     if (guess < g.secret) g.low = Math.max(g.low, guess + 1);
@@ -890,7 +1068,7 @@ export function registerGameRoutes(app: Express) {
     g.history.push({ userId: uid, name, guess, hint, at });
     if (g.history.length > NUM_HISTORY) g.history = g.history.slice(-NUM_HISTORY);
     await saveNumberGame(cid, g);
-    res.json({ correct: false, hint, guess, message: hint === "higher" ? `Higher than ${guess} ⬆️` : `Lower than ${guess} ⬇️`, ...numberPublic(g) });
+    res.json({ correct: false, hint, guess, message: hint === "higher" ? `Higher than ${guess} ⬆️` : `Lower than ${guess} ⬇️`, dailyLimit: limit, used: g.counts.byUser[uid], remaining, ...numberPublic(g) });
   });
 
   // Leaderboard per game
@@ -921,7 +1099,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     if (!availableToday(cfg)[game]) return res.status(400).json({ message: "That game isn't available today." });
     const name = await nameFor(uid);
@@ -973,6 +1151,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "wheel") startWheel(room);
     else if (room.game === "riding") startRiding(room);
     else if (room.game === "timer") startTimer(room);
+    else if (room.game === "789") start789(room);
     else startTap(room);
     res.json({ ok: true });
   });
@@ -1000,6 +1179,12 @@ export function registerGameRoutes(app: Express) {
     }
     if (room.game === "timer") {
       if (req.body?.act === "stop") stopTimer(room, getUserId(req)!);
+      return res.json({ ok: true });
+    }
+    if (room.game === "789") {
+      const uid = getUserId(req)!;
+      if (req.body?.act === "roll") seven789Roll(room, uid);
+      else if (req.body?.act === "choose") seven789Choose(room, uid, String(req.body?.targetId));
       return res.json({ ok: true });
     }
     if (room.game === "riding") {
@@ -1050,12 +1235,9 @@ export function registerGameRoutes(app: Express) {
   // Leave / close
   app.post("/api/reborn/games/rooms/:code/leave", requireAuth, async (req, res) => {
     const room = rooms.get(String(req.params.code).toUpperCase());
-    if (room) {
-      const uid = getUserId(req);
-      room.players = room.players.filter((p) => p.id !== uid);
-      if (!room.players.length || uid === room.hostId) { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } rooms.delete(room.code); }
-      else broadcast(room);
-    }
+    // A player leaving no longer ends the game — it keeps running for whoever's
+    // left, and the host role passes on. The room only closes when it's empty.
+    if (room) removePlayer(room, getUserId(req) || undefined);
     res.json({ ok: true });
   });
 

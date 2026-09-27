@@ -18,6 +18,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "spin for a drink dare — ½ up to 5 cups" },
   riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
   timer: { name: "Stop at 1:00", emoji: "⏱️", blurb: "blind stopwatch — stop closest to 1 min wins · up to 20" },
+  "789": { name: "789 Dice", emoji: "🎯", blurb: "2 dice · 7 top-up · 8 half · 9 whole cup 🍺" },
   number: { name: "Guess the Number", emoji: "🔢", blurb: "one 4-digit number, guess any time · no host, runs 24/7" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
@@ -65,11 +66,18 @@ const RULES: Record<string, string[]> = {
     "Tap only real grannies to stay safe!",
   ],
   timer: [
-    "The host starts a hidden stopwatch that runs from 0:00 up toward 1:00.",
-    "You can't see the clock — feel when a minute has passed and hit STOP.",
+    "The host starts a hidden stopwatch — there's no clock to watch.",
+    "Feel when a minute has passed and hit STOP; your time locks in instantly.",
     "Whoever stops closest to exactly 1:00 wins 🏆; everyone else loses.",
     "Same time = shared win (2 or 3 winners is fine). Up to 20 players.",
-    "Don't stop in time and you're out of the running.",
+  ],
+  "789": [
+    "On your turn, roll the 2 dice 🎲🎲.",
+    "Sum = 7 → top up the communal cup 🍺. Sum = 8 → drink HALF. Sum = 9 → drink the WHOLE cup.",
+    "Roll a 7, 8 or 9 and you roll AGAIN — keep going until you roll something else, then it passes on.",
+    "Doubles (two of the same) reverse the turn direction 🔄.",
+    "Snake eyes (1 + 1) → pick anyone to down the whole cup, and it becomes their turn.",
+    "A party game — it just keeps going. Leave any time; the rest play on.",
   ],
   number: [
     "One secret 4-digit number (0–9999) runs for everyone — no host needed.",
@@ -118,7 +126,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "number";
+type GK = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "number";
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
@@ -199,7 +207,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
         <div className="grid grid-cols-1 gap-3">
           {(Object.keys(GAMES) as GK[]).map((g) => {
             const on = today[g];
-            const grad: Record<string, string> = { rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)", cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)", wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)", timer: "linear-gradient(135deg,#7affc0,#12b36a)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)" };
+            const grad: Record<string, string> = { rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)", cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)", wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)", timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)" };
             return (
               <button key={g} disabled={!on} onClick={() => setGame(g)}
                 className={`flex items-center gap-3 p-3 rounded-2xl text-left transition ${game === g && on ? "gcard-sel" : "border border-white/10"} ${!on ? "opacity-40" : "active:scale-[.98]"}`}
@@ -367,6 +375,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "timer" && <TimerGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "789" && <SevenGame room={room} code={code} me={me} />}
 
       {room.status === "done" && (
         <div className="space-y-2">
@@ -609,6 +618,57 @@ function TimerGame({ room, code, me }: any) {
   );
 }
 
+function SevenGame({ room, code, me }: any) {
+  const s = room.seven || {};
+  const myTurn = s.turnId === me;
+  const choosing = s.chooseFor === me;
+  const last = s.last;
+  const cur = room.players.find((p: any) => p.id === s.turnId);
+  const roll = () => { if (myTurn && !s.chooseFor) { (sfx as any).dice?.(); post(`/api/reborn/games/rooms/${code}/action`, { act: "roll" }); } };
+  const choose = (targetId: string) => post(`/api/reborn/games/rooms/${code}/action`, { act: "choose", targetId });
+  return (
+    <div className="rwg-card p-5 text-center">
+      <p className="text-sm text-white/70 mb-3">{room.message}</p>
+      <div className="mb-4">
+        <p className="text-xs text-white/40 mb-1">The Cup{s.dir === -1 ? " · 🔄 reversed" : ""}</p>
+        <div className="text-3xl leading-none">{s.cupUnits > 0 ? "🍺".repeat(Math.min(10, s.cupUnits)) : "🫙"}</div>
+        <p className="text-[11px] text-white/40 mt-1">{s.cupUnits > 0 ? `${s.cupUnits} pour${s.cupUnits === 1 ? "" : "s"} waiting` : "empty"}</p>
+      </div>
+      {last && (
+        <div className="flex items-center justify-center gap-3 mb-4" style={{ animation: "rwgPop .35s ease-out" }}>
+          <Die v={last.d1} size={56} />
+          <Die v={last.d2} size={56} />
+          <span className="text-2xl font-black text-amber-300">= {last.sum}</span>
+        </div>
+      )}
+      {choosing ? (
+        <div>
+          <p className="text-sm font-bold text-amber-300 mb-2">🎯 Pick who downs the whole cup 🍺</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {room.players.filter((p: any) => p.id !== me).map((p: any) => (
+              <button key={p.id} onClick={() => choose(p.id)} className="cbtn cbtn-gold px-4 py-2 text-sm">{p.name}</button>
+            ))}
+            {room.players.length === 1 && <button onClick={() => choose(me)} className="cbtn cbtn-gold px-4 py-2 text-sm">Myself</button>}
+          </div>
+        </div>
+      ) : s.chooseFor ? (
+        <p className="text-white/50 text-sm py-2">Waiting for {room.players.find((p: any) => p.id === s.chooseFor)?.name || "someone"} to pick…</p>
+      ) : myTurn ? (
+        <button onClick={roll} className="cbtn cbtn-gold w-full py-5 text-xl">🎲 Roll the dice</button>
+      ) : (
+        <p className="text-white/50 text-sm py-3">{cur ? `${cur.name}'s turn…` : "Waiting…"}</p>
+      )}
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {room.players.map((p: any) => (
+          <span key={p.id} className={`px-3 py-1.5 rounded-full text-sm ${p.id === s.turnId ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>
+            {p.id === s.turnId && "🎲 "}{p.id === me ? "You" : p.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const numGet = (path: string) => apiRequest("GET", path).then((r) => r.json());
 function NumberGame({ onLeave }: { onLeave: () => void }) {
   const { toast } = useToast();
@@ -655,9 +715,12 @@ function NumberGame({ onLeave }: { onLeave: () => void }) {
           <div className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${feedback.correct ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30" : "bg-white/5 text-white/80 border border-white/10"}`} style={{ animation: "rwgPop .4s ease-out" }}>{feedback.message}</div>
         )}
         <div className="mt-4 flex gap-2">
-          <input value={guess} onChange={(e) => setGuess(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))} onKeyDown={(e) => e.key === "Enter" && submit()} inputMode="numeric" placeholder="0000" className="flex-1 text-center text-2xl font-black tracking-[0.3em] rounded-xl bg-black/30 border border-white/10 py-3 text-white focus:outline-none focus:border-amber-400/60" />
-          <button onClick={submit} disabled={busy || !guess} className="cbtn cbtn-gold px-6 py-3 text-base disabled:opacity-50">Guess</button>
+          <input value={guess} onChange={(e) => setGuess(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))} onKeyDown={(e) => e.key === "Enter" && submit()} disabled={state?.remaining === 0} inputMode="numeric" placeholder="0000" className="flex-1 text-center text-2xl font-black tracking-[0.3em] rounded-xl bg-black/30 border border-white/10 py-3 text-white focus:outline-none focus:border-amber-400/60 disabled:opacity-50" />
+          <button onClick={submit} disabled={busy || !guess || state?.remaining === 0} className="cbtn cbtn-gold px-6 py-3 text-base disabled:opacity-50">Guess</button>
         </div>
+        {typeof state?.dailyLimit === "number" && state.dailyLimit > 0 && (
+          <p className={`mt-2 text-[11px] ${state.remaining === 0 ? "text-amber-300" : "text-white/50"}`}>{state.remaining > 0 ? `${state.remaining} of ${state.dailyLimit} guesses left today` : "No guesses left today — come back tomorrow 🌙"}</p>
+        )}
       </div>
       {state?.lastWinner && (
         <div className="rwg-card p-3 text-center text-sm text-emerald-300">🎉 {state.lastWinner.name} cracked {state.lastWinner.guess} in round #{state.lastWinner.round}</div>

@@ -332,6 +332,7 @@ const GAME_META: Record<string, { name: string; emoji: string }> = {
   wheel: { name: "Spin the Wheel", emoji: "🎡" },
   riding: { name: "Red Riding Hood", emoji: "👵" },
   timer: { name: "Stop at 1:00", emoji: "⏱️" },
+  "789": { name: "789 Dice", emoji: "🎯" },
   number: { name: "Guess the Number", emoji: "🔢" },
 };
 const WDAYS = [["1", "Mon"], ["2", "Tue"], ["3", "Wed"], ["4", "Thu"], ["5", "Fri"], ["6", "Sat"], ["0", "Sun"]];
@@ -370,6 +371,11 @@ function GamesAdmin() {
               return <button key={d} onClick={() => toggleDay(k, Number(d))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${on ? "bg-amber-400 text-black" : "bg-white/5 text-white/50"}`}>{lbl}</button>;
             })}
           </div>
+          {k === "number" && (
+            <label className="mt-3 block text-xs text-white/50">Guesses per player per day <span className="text-white/30">(0 = unlimited)</span>
+              <input type="number" inputMode="numeric" min={0} value={cur.number?.dailyLimit ?? 0} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setGame("number", { dailyLimit: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} className={inp + " w-full mt-1"} />
+            </label>
+          )}
         </Card>
       ))}
       <button onClick={() => save.mutate()} className={btn}>Save schedule</button>
