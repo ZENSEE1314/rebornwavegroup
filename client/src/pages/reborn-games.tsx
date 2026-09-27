@@ -23,6 +23,22 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
 
+const GAME_GRAD: Record<string, string> = {
+  rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)",
+  cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)",
+  wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
+  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)",
+  number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
+};
+// Games grouped into categories for the lobby.
+const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
+  { name: "Guessing game", emoji: "🧠", games: ["number", "rps"] },
+  { name: "Dice game", emoji: "🎲", games: ["dice", "789"] },
+  { name: "Card game", emoji: "🃏", games: ["cards"] },
+  { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer"] },
+  { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding"] },
+];
+
 const RULES: Record<string, string[]> = {
   rps: [
     "Everyone throws ✊ ✋ ✌️ within 20 seconds.",
@@ -204,23 +220,29 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
 
       <div className="gcard p-4">
         <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Pick a game</p>
-        <div className="grid grid-cols-1 gap-3">
-          {(Object.keys(GAMES) as GK[]).map((g) => {
-            const on = today[g];
-            const grad: Record<string, string> = { rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)", cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)", wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)", timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)" };
-            return (
-              <button key={g} disabled={!on} onClick={() => setGame(g)}
-                className={`flex items-center gap-3 p-3 rounded-2xl text-left transition ${game === g && on ? "gcard-sel" : "border border-white/10"} ${!on ? "opacity-40" : "active:scale-[.98]"}`}
-                style={{ background: game === g && on ? "rgba(240,215,135,0.08)" : "rgba(255,255,255,0.04)" }}>
-                <span className="gem shrink-0" style={{ width: 48, height: 48, fontSize: 26, background: grad[g] }}>{GAMES[g].emoji}</span>
-                <span className="min-w-0">
-                  <span className="block text-lg font-extrabold text-white leading-tight">{GAMES[g].name}</span>
-                  <span className="block text-[11px] text-white/55">{GAMES[g].blurb}</span>
-                  {!on && <span className="block text-[11px] text-amber-300 mt-0.5">Not scheduled today</span>}
-                </span>
-              </button>
-            );
-          })}
+        <div className="space-y-4">
+          {GAME_CATEGORIES.map((cat) => (
+            <div key={cat.name}>
+              <p className="text-[11px] font-bold text-amber-300/80 uppercase tracking-wider mb-2">{cat.emoji} {cat.name}</p>
+              <div className="grid grid-cols-1 gap-2.5">
+                {(cat.games as GK[]).map((g) => {
+                  const on = today[g];
+                  return (
+                    <button key={g} disabled={!on} onClick={() => setGame(g)}
+                      className={`flex items-center gap-3 p-3 rounded-2xl text-left transition ${game === g && on ? "gcard-sel" : "border border-white/10"} ${!on ? "opacity-40" : "active:scale-[.98]"}`}
+                      style={{ background: game === g && on ? "rgba(240,215,135,0.08)" : "rgba(255,255,255,0.04)" }}>
+                      <span className="gem shrink-0" style={{ width: 48, height: 48, fontSize: 26, background: GAME_GRAD[g] }}>{GAMES[g].emoji}</span>
+                      <span className="min-w-0">
+                        <span className="block text-lg font-extrabold text-white leading-tight">{GAMES[g].name}</span>
+                        <span className="block text-[11px] text-white/55">{GAMES[g].blurb}</span>
+                        {!on && <span className="block text-[11px] text-amber-300 mt-0.5">Not scheduled today</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
         {game !== "number" && (
         <div className="mt-3 flex items-center gap-2">
