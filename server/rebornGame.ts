@@ -1787,7 +1787,7 @@ export function registerRebornRoutes(app: Express) {
     const cid = await rebornCompanyId(req);
     const [row] = await db.insert(posProducts).values({
       companyId: cid,
-      name: String(b.name).trim(), category: b.category || "General", price: String(Number(b.price) || 0),
+      name: String(b.name).trim(), category: b.category || "General", department: b.department || null, price: String(Number(b.price) || 0),
       cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
       active: b.active !== false, posVisible: b.posVisible !== false, sortOrder: Number(b.sortOrder) || 0,
@@ -1802,7 +1802,7 @@ export function registerRebornRoutes(app: Express) {
     const [prev] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
     if (!prev) return res.status(404).json({ message: "Not found" });
     const patch: any = {};
-    for (const k of ["name", "category", "imageUrl", "supplierName", "supplierAddress", "supplierPhone"]) if (b[k] !== undefined) patch[k] = b[k] || null;
+    for (const k of ["name", "category", "department", "imageUrl", "supplierName", "supplierAddress", "supplierPhone"]) if (b[k] !== undefined) patch[k] = b[k] || null;
     for (const k of ["price", "cost"]) if (b[k] !== undefined) patch[k] = String(Number(b[k]) || 0);
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
@@ -2363,6 +2363,20 @@ export function registerRebornRoutes(app: Express) {
     const rows = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), inArray(posTickets.status, ["paid", "refunded"]), sql`${posTickets.paidAt} >= ${since}`)).orderBy(desc(posTickets.paidAt)).limit(300);
     const result = await Promise.all(rows.map(async (order)=>({ ...order, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, order.id)) })));
     res.json(result);
+  }));
+  // Revenue split per industry/department (product.department) for the period.
+  app.get("/api/reborn/admin/accounting/by-industry", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+    const since = new Date(Date.now() - days * DAY_MS).toISOString();
+    const rows = await db.execute(sql`
+      SELECT COALESCE(NULLIF(p.department,''),'Unassigned') industry,
+             COALESCE(SUM(pi.line_total),0) revenue, COUNT(DISTINCT tk.id) orders, COALESCE(SUM(pi.qty),0) items
+      FROM pos_ticket_items pi
+      JOIN pos_tickets tk ON tk.id=pi.order_id AND tk.status='paid' AND tk.company_id=${cid} AND tk.paid_at >= ${since}
+      LEFT JOIN pos_products p ON p.id=pi.product_id
+      GROUP BY 1 ORDER BY revenue DESC`);
+    res.json((rows.rows || rows as any[]).map((r: any) => ({ industry: r.industry, revenue: Number(r.revenue), orders: Number(r.orders), items: Number(r.items) })));
   }));
 
   app.post("/api/reborn/admin/accounting/orders/:id/refund", requireAdmin(async (req, res) => {

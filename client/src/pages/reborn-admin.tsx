@@ -1213,10 +1213,13 @@ function Products() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
-  const [n, setN] = useState<any>({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true });
+  const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true });
+  const [industry, setIndustry] = useState("");
+  const industries = Array.from(new Set(products.map((p) => p.department).filter(Boolean))).sort();
+  const shown = industry ? products.filter((p) => (p.department || "") === industry) : products;
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   return (
@@ -1226,6 +1229,7 @@ function Products() {
         <label className="text-xs text-white/50 block mb-2">Product name<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="e.g. Heineken" className={inp + " w-full"} /></label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
           <label className="text-xs text-white/50">Category<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Drinks" className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Industry / department<input value={n.department} onChange={(e) => setN({ ...n, department: e.target.value })} placeholder="e.g. KTV, Beauty, Restaurant, Retail" className={inp + " w-full"} list="rw-industries" /></label>
           <label className="text-xs text-white/50">Stock quantity<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={n.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
@@ -1235,8 +1239,10 @@ function Products() {
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label="Upload photo" /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
       </Card>
-      {products.map((p) => <ProductRow key={p.id} p={p} />)}
-      {products.length === 0 && <Empty text="No products yet." />}
+      <datalist id="rw-industries">{industries.map((d) => <option key={d} value={d} />)}</datalist>
+      {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || "All"}</button>)}</div>}
+      {shown.map((p) => <ProductRow key={p.id} p={p} />)}
+      {shown.length === 0 && <Empty text="No products in this industry yet." />}
     </div>
   );
 }
@@ -1245,7 +1251,7 @@ function ProductRow({ p }: any) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({ name: p.name, category: p.category, price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "" });
+  const [f, setF] = useState({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "" });
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -1258,7 +1264,7 @@ function ProductRow({ p }: any) {
           {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" /> : <span className="w-14 h-14 rounded-xl bg-white/5 flex-shrink-0" />}
           <div className="flex-1 min-w-0">
             <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>} {p.posVisible === false && <span className="text-xs text-amber-400">(not in POS)</span>}</p>
-            <p className="text-xs text-white/50 break-words">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
+            <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${p.department}` : ""} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
             {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">Supplier: {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
           <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> Edit</button>
@@ -1268,6 +1274,7 @@ function ProductRow({ p }: any) {
           <label className="text-xs text-white/50">Name<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} /></label>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <label className="text-xs text-white/50">Category<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">Industry / department<input value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })} placeholder="KTV, Beauty…" className={inp + " w-full"} list="rw-industries" /></label>
             <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active</label>
             <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
@@ -1296,6 +1303,7 @@ function Accounting() {
   const { data: sum } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/summary", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/summary?days=${days}`).then((r) => r.json()) });
   const { data: commission } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/commission", days, rate], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/commission?days=${days}&rate=${rate}`).then((r) => r.json()) });
   const { data: ledger = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/ledger"], queryFn: () => apiRequest("GET", "/api/reborn/admin/accounting/ledger?limit=100").then((r) => r.json()) });
+  const { data: byIndustry = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/by-industry", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/by-industry?days=${days}`).then((r) => r.json()) });
   const [e, setE] = useState<any>({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" });
   const normalLedger = ledger.filter((entry) => entry.refType !== "pos_closing");
   const addEntry = useMutation({
@@ -1323,6 +1331,13 @@ function Accounting() {
         {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{d}d</button>)}
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Export CSV</button>
       </div>
+      {byIndustry.length > 0 && <Card>
+        <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> Sales by industry ({days}d)</p>
+        <div className="space-y-1.5">{byIndustry.map((r) => (
+          <div key={r.industry} className="flex items-center justify-between text-sm"><span className="text-white/80">{r.industry}</span><span className="text-white/50">{r.orders} orders · <b className="text-amber-200">{money(r.revenue)}</b></span></div>
+        ))}</div>
+        <p className="mt-2 text-[11px] text-white/40">Tag each product with an Industry (Products tab) to split revenue per business.</p>
+      </Card>}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Income</p><p className="text-base font-extrabold text-emerald-300">{money(sum?.income || 0)}</p></div>
         <div className="rounded-2xl bg-red-500/10 border border-red-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Expense</p><p className="text-base font-extrabold text-red-300">{money(sum?.expense || 0)}</p></div>

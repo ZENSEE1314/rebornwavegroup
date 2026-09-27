@@ -502,6 +502,7 @@ export async function ensureBridgeXSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_tables_qr_token ON bridge_tables(qr_token) WHERE qr_token IS NOT NULL;
     CREATE INDEX IF NOT EXISTS bridge_tables_company ON bridge_tables(company_id);
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS station varchar;
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS department varchar;
     -- Pricing rules (happy hour / member / category discounts)
     CREATE TABLE IF NOT EXISTS bridge_price_rules (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, type varchar NOT NULL DEFAULT 'happy_hour', scope_category varchar, percent_off numeric(6,2) NOT NULL DEFAULT 0, days jsonb NOT NULL DEFAULT '[]', start_time varchar, end_time varchar, active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_price_rules_company ON bridge_price_rules(company_id);
