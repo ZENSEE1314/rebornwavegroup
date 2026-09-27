@@ -12,14 +12,14 @@ import { sfx } from "@/lib/sfx";
 
 const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
-  tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "60s dig — most gold coins wins" },
+  tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "30s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
   wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "½ cup · 1 cup · 2 cups — or land on PASS 😎" },
   riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
-  timer: { name: "Stop at 10:00", emoji: "⏱️", blurb: "stop the clock closest to 10 sec wins · up to 20" },
+  timer: { name: "Stop the Clock", emoji: "⏱️", blurb: "stop closest to the target (10s or random 5–20s) · up to 20" },
   "789": { name: "789 Dice", emoji: "🎯", blurb: "2 dice · 7 top-up · 8 half · 9 whole cup 🍺" },
-  stack: { name: "Tower Stack", emoji: "🧱", blurb: "tap to drop blocks · overhang falls · tallest wins" },
+  stack: { name: "Tower Stack", emoji: "🧱", blurb: "one tower, take turns · whoever knocks it over loses" },
   number: { name: "Guess the Number", emoji: "🔢", blurb: "one 4-digit number, guess any time · no host, runs 24/7" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
@@ -50,7 +50,7 @@ const RULES: Record<string, string[]> = {
   tap: [
     "When it says DIG, tap the button as fast as you can.",
     "Every tap = 1 gold coin ⛏️🪙.",
-    "You have 60 seconds — most coins wins.",
+    "You have 30 seconds — most coins wins.",
     "Lowest score buys the round 😄.",
   ],
   cards: [
@@ -84,16 +84,16 @@ const RULES: Record<string, string[]> = {
   ],
   timer: [
     "The host starts the stopwatch — it counts up from 00:00.",
-    "Hit STOP as close to exactly 10:00 as you can; your time locks in instantly.",
-    "Whoever stops closest to 10:00 wins 🏆; everyone else loses.",
+    "The target is 10:00 — or, if the host picked Random, a surprise time from 5:00 to 20:00 shown when the game starts.",
+    "Hit STOP as close to the target as you can; your time locks in instantly.",
+    "Whoever stops closest wins 🏆; everyone else loses.",
     "Same time = shared win (2 or 3 winners is fine). Up to 20 players.",
   ],
   stack: [
-    "A block slides back and forth — tap to drop it onto the tower.",
-    "Land it dead-on and the block keeps its size.",
-    "Overhang gets sliced off and falls — your block (and next ones) get smaller.",
-    "Miss completely and your tower topples — you're out.",
-    "Last one standing wins 🏆; if time's up, the tallest tower takes it.",
+    "Everyone builds ONE tower together — take turns, one block each.",
+    "On your turn a block slides back and forth; tap to drop it (10 seconds).",
+    "Overhang gets sliced off, so the next player's block is smaller.",
+    "Miss the tower (or run out of time) and it falls — YOU lose, everyone else wins 🏆.",
   ],
   "789": [
     "On your turn, roll the 2 dice 🎲🎲.",
@@ -181,12 +181,17 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
   const pickGame = (g: GK) => { setGame(g); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const shownRooms = game ? openRooms.filter((r) => r.game === game) : openRooms;
 
+  const [creating, setCreating] = useState(false);
+  const [timerMode, setTimerMode] = useState<"fixed" | "random">("fixed");
   const create = async () => {
-    if (!game) return;
-    const wheelPrizes = wheelText.split("\n").map((s) => s.trim()).filter(Boolean);
-    const { ok, d } = await post("/api/reborn/games/rooms", { game, password, winTarget, ridingClicks, facesCount, wheelPrizes: wheelPrizes.length ? wheelPrizes : undefined });
-    if (!ok) return toast({ title: "Can't create", description: d.message, variant: "destructive" });
-    onEnter(d.code);
+    if (!game || creating) return; // ignore double/triple taps while the room is being made
+    setCreating(true);
+    try {
+      const wheelPrizes = wheelText.split("\n").map((s) => s.trim()).filter(Boolean);
+      const { ok, d } = await post("/api/reborn/games/rooms", { game, password, winTarget, ridingClicks, facesCount, timerMode, wheelPrizes: wheelPrizes.length ? wheelPrizes : undefined });
+      if (!ok) return toast({ title: "Can't create", description: d.message, variant: "destructive" });
+      onEnter(d.code);
+    } finally { setCreating(false); }
   };
   const join = async () => {
     const { ok, d } = await post(`/api/reborn/games/rooms/${joinCode.trim().toUpperCase()}/join`, { password: joinPw });
@@ -329,6 +334,15 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                 <textarea value={wheelText} onChange={(e) => setWheelText(e.target.value)} rows={4} placeholder={"Default: ½ cup ×4, 1 cup ×2, 2 cups ×1\nwith a PASS between every drink\n(leave blank to use this)"} className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
               </div>
             )}
+            {game === "timer" && (
+              <div className="mt-3">
+                <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Target time</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setTimerMode("fixed")} className={`cbtn flex-1 py-2.5 text-xs ${timerMode === "fixed" ? "cbtn-gold" : "cbtn-dark"}`}>10:00 (10 sec)</button>
+                  <button onClick={() => setTimerMode("random")} className={`cbtn flex-1 py-2.5 text-xs ${timerMode === "random" ? "cbtn-gold" : "cbtn-dark"}`}>🎲 Random 5–20 sec</button>
+                </div>
+              </div>
+            )}
             {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && (
             <div className="mt-3">
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
@@ -344,7 +358,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
               <button onClick={() => setHelp(game)} className="cbtn cbtn-dark px-4 py-3.5 text-sm">How to play</button>
               {game === "number"
                 ? <button onClick={onOpenNumber} disabled={!today.number} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🔢 Play now</button>
-                : <button onClick={create} disabled={!today[game]} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🎮 Create room</button>}
+                : <button onClick={create} disabled={!today[game] || creating} className="cbtn cbtn-gold flex-1 py-3.5 text-base">{creating ? "Creating…" : "🎮 Create room"}</button>}
             </div>
           </div>
         </>
@@ -657,9 +671,9 @@ const fmtClock = (ms: number | null) => {
   const s = Math.floor(ms / 1000), cs = Math.floor((ms % 1000) / 10);
   return `${s}:${String(cs).padStart(2, "0")}`;
 };
-const TIMER_TARGET_MS = 10_000; // must match server/games.ts
 function TimerGame({ room, code, me }: any) {
   const t = room.timer || {};
+  const TIMER_TARGET_MS: number = t.targetMs || 10_000;
   const iStopped = !!t.stopped?.[me];
   const iWon = room.status === "done" && (t.winners || []).includes(me);
   const stop = () => { if (room.status === "playing" && !iStopped) { sfx.coin?.(); post(`/api/reborn/games/rooms/${code}/action`, { act: "stop" }); } };
@@ -681,7 +695,7 @@ function TimerGame({ room, code, me }: any) {
       {room.status === "done" ? (
         <>
           <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "⏱️"}</div>
-          <p className={`text-2xl font-black mb-3 ${iWon ? "text-emerald-300" : "text-white/70"}`}>{iWon ? "CLOSEST TO 10:00!" : "Game over"}</p>
+          <p className={`text-2xl font-black mb-3 ${iWon ? "text-emerald-300" : "text-white/70"}`}>{iWon ? `CLOSEST TO ${fmtClock(TIMER_TARGET_MS)}!` : "Game over"}</p>
           <div className="text-left">
             {(t.results || []).map((r: any, i: number) => {
               const win = (t.winners || []).includes(r.id);
@@ -696,7 +710,7 @@ function TimerGame({ room, code, me }: any) {
         </>
       ) : (
         <div className="my-4 select-none">
-          <p className="text-white/50 text-xs mb-2">Stop the clock as close to <b className="text-amber-300">10:00</b> as you can!</p>
+          <p className="text-white/50 text-xs mb-2">{t.mode === "random" ? "🎲 Random target: stop" : "Stop"} the clock as close to <b className="text-amber-300 text-base">{fmtClock(TIMER_TARGET_MS)}</b> as you can!</p>
           <p className={`text-5xl font-black tabular-nums mb-4 ${iStopped ? "text-white/70" : near ? "text-emerald-300" : "text-amber-300"}`} style={{ letterSpacing: "0.05em" }}>{fmtClock(shown)}</p>
           <button onClick={stop} disabled={iStopped} className={`w-44 h-44 mx-auto rounded-full flex flex-col items-center justify-center text-3xl font-black transition-transform ${iStopped ? "opacity-60" : "active:scale-90"}`} style={{ background: iStopped ? "rgba(255,255,255,0.08)" : "radial-gradient(circle at 30% 30%, #ff8a8a, #e0398b)", boxShadow: iStopped ? "none" : "0 10px 30px rgba(224,57,139,0.4)", color: iStopped ? "#f5b8d4" : "#1a0410" }}>
             {iStopped ? <><span className="text-4xl mb-1">✓</span><span className="text-lg">Locked</span></> : "STOP"}
@@ -759,82 +773,73 @@ function SevenGame({ room, code, me }: any) {
   );
 }
 
+// Shared tower: the server owns the tower and whose turn it is; the sliding block's
+// position is a back-and-forth computed from the server clock, so every player
+// sees the same block. The player whose turn it is taps to drop it.
 function StackGame({ room, code, me }: any) {
-  const W = 240, BH = 20, BASE = 120, WINDOW = 12;
+  const st = room.stack || {};
+  const W: number = st.width || 240, BH = 20, WINDOW = 12;
+  const tower: any[] = st.tower || [];
+  const move = st.move;
+  const myTurn = room.status === "playing" && st.turnId === me;
+  const offsetRef = useRef(0);
+  useEffect(() => { if (st.serverNow) offsetRef.current = st.serverNow - Date.now(); }, [st.serverNow]);
   const [, tick] = useState(0);
-  const st = useRef<any>(null);
-  const rafRef = useRef<number>(0);
-  const doneRef = useRef(false);
   useEffect(() => {
     if (room.status !== "playing") return;
-    if (!st.current) st.current = { placed: [{ left: (W - BASE) / 2, width: BASE }], moving: { left: 0, width: BASE, dir: 1 }, speed: 2, over: false, height: 0 };
-    const loop = () => {
-      const s = st.current;
-      if (s && !s.over && !doneRef.current) {
-        const m = s.moving;
-        m.left += m.dir * s.speed;
-        if (m.left <= 0) { m.left = 0; m.dir = 1; }
-        if (m.left + m.width >= W) { m.left = W - m.width; m.dir = -1; }
-        tick((x) => x + 1);
-      }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
+    let raf = 0; const loop = () => { tick((x) => x + 1); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, [room.status]);
-  const drop = () => {
-    const s = st.current;
-    if (!s || s.over || doneRef.current || room.status !== "playing") return;
-    const top = s.placed[s.placed.length - 1], m = s.moving;
-    const ol = Math.max(m.left, top.left), or = Math.min(m.left + m.width, top.left + top.width);
-    const overlap = or - ol;
-    if (overlap <= 0) {
-      s.over = true; doneRef.current = true; (sfx as any).rankDown?.();
-      post(`/api/reborn/games/rooms/${code}/action`, { act: "stack", height: s.height, out: true });
-      tick((x) => x + 1); return;
-    }
-    s.placed.push({ left: ol, width: overlap });
-    s.height += 1; (sfx as any).coin?.();
-    post(`/api/reborn/games/rooms/${code}/action`, { act: "stack", height: s.height });
-    s.speed = Math.min(6.5, 2 + s.height * 0.18);
-    const fromLeft = s.height % 2 === 0;
-    s.moving = { left: fromLeft ? 0 : W - overlap, width: overlap, dir: fromLeft ? 1 : -1 };
-    tick((x) => x + 1);
+  const now = Date.now() + offsetRef.current;
+  const posOf = (m: any) => {
+    const L = W - m.width; if (L <= 0) return 0;
+    const d = Math.max(0, now - m.t0) * m.speed, ph = d % (2 * L);
+    const x = ph <= L ? ph : 2 * L - ph;
+    return m.fromLeft ? x : L - x;
   };
-  const s = st.current;
-  const placed: any[] = s?.placed || [];
-  const startI = Math.max(0, placed.length - WINDOW);
+  const sentRef = useRef("");
+  const drop = () => {
+    if (!myTurn || !move || now < move.t0) return;
+    const key = `${tower.length}`; if (sentRef.current === key) return; // one drop per turn
+    sentRef.current = key; (sfx as any).coin?.();
+    setTimeout(() => { if (sentRef.current === key) sentRef.current = ""; }, 1500); // allow a retry if the tap was too early
+    post(`/api/reborn/games/rooms/${code}/action`, { act: "drop", left: posOf(move) });
+  };
   const done = room.status === "done";
-  const iWon = done && (room.stack?.winners || []).includes(me);
-  const iOut = !!s?.over;
-  const heights = room.stack?.heights || {};
-  const board = room.players.map((p: any) => ({ id: p.id, name: p.name, h: heights[p.id]?.h || 0, alive: heights[p.id]?.alive !== false })).sort((a: any, b: any) => b.h - a.h);
+  const iWon = done && (st.winners || []).includes(me);
+  const loser = room.players.find((p: any) => p.id === st.loserId);
+  const turnName = room.players.find((p: any) => p.id === st.turnId)?.name;
+  const startI = Math.max(0, tower.length - WINDOW);
+  const secsLeft = room.deadline ? Math.max(0, Math.ceil((room.deadline - now) / 1000)) : 0;
   return (
     <div className="rwg-card p-5 text-center">
       <p className="text-sm text-white/60 mb-1">{room.message}</p>
-      <p className="text-3xl font-black text-amber-300 mb-2 tabular-nums">{s?.height || 0} <span className="text-sm text-white/50">blocks</span></p>
+      <p className="text-3xl font-black text-amber-300 mb-2 tabular-nums">{st.height || 0} <span className="text-sm text-white/50">blocks high</span></p>
       {done ? (
         <div className="py-4">
-          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "🧱"}</div>
-          <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-white/70"}`}>{iWon ? "TALLEST TOWER!" : "Game over"}</p>
+          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "💥"}</div>
+          <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-red-300"}`}>{iWon ? "You survived!" : "You knocked it over!"}</p>
+          {loser && <p className="text-white/60 text-sm mt-1">{loser.id === me ? "You" : loser.name} lose{loser.id === me ? "" : "s"} — drink up 🍻</p>}
         </div>
       ) : (
-        <div className="relative mx-auto rounded-xl overflow-hidden select-none touch-none cursor-pointer" style={{ width: W, height: (WINDOW + 1) * BH, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }} onPointerDown={drop}>
-          {placed.slice(startI).map((b, i) => {
-            const idx = startI + i;
-            return <div key={idx} className="absolute rounded-sm" style={{ left: b.left, width: b.width, height: BH - 2, bottom: i * BH, background: `hsl(${(idx * 28) % 360} 70% 60%)` }} />;
-          })}
-          {s && !s.over && <div className="absolute rounded-sm" style={{ left: s.moving.left, width: s.moving.width, height: BH - 2, bottom: (placed.length - startI) * BH, background: `hsl(${(placed.length * 28) % 360} 82% 66%)`, boxShadow: "0 0 12px rgba(255,255,255,0.35)" }} />}
-          {iOut && <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-red-300 font-black text-xl">Toppled! ⛔</div>}
-        </div>
-      )}
-      {!done && <p className="text-white/50 text-xs mt-3">{iOut ? "You're out — waiting for the others…" : "Tap the tower to drop each block"}</p>}
-      <div className="mt-4 text-left">
-        {board.map((p: any, i: number) => (
-          <div key={p.id} className="flex items-center justify-between text-sm py-1 border-b border-white/5 last:border-0">
-            <span className={p.alive ? "text-white/70" : "text-white/35 line-through"}>{i === 0 ? "🥇" : `${i + 1}.`} {p.id === me ? "You" : p.name}{!p.alive && " ⛔"}</span>
-            <span className="text-amber-300 font-bold tabular-nums">{p.h} 🧱</span>
+        <>
+          <p className={`text-sm font-bold mb-2 ${myTurn ? "text-emerald-300" : "text-white/60"}`}>{myTurn ? `Your turn — tap to drop! (${secsLeft}s)` : `${turnName || "…"}'s turn (${secsLeft}s)`}</p>
+          <div className={`relative mx-auto rounded-xl overflow-hidden select-none touch-none ${myTurn ? "cursor-pointer ring-2 ring-emerald-400/60" : ""}`} style={{ width: W, height: (WINDOW + 1) * BH, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }} onPointerDown={drop}>
+            {tower.slice(startI).map((b: any, i: number) => {
+              const idx = startI + i;
+              return <div key={idx} className="absolute rounded-sm" style={{ left: b.left, width: b.width, height: BH - 2, bottom: i * BH, background: `hsl(${(idx * 28) % 360} 70% 60%)` }} />;
+            })}
+            {move && <div className="absolute rounded-sm" style={{ left: posOf(move), width: move.width, height: BH - 2, bottom: (tower.length - startI) * BH, background: `hsl(${(tower.length * 28) % 360} 82% 66%)`, boxShadow: "0 0 12px rgba(255,255,255,0.35)", opacity: now < move.t0 ? 0.5 : 1 }} />}
           </div>
+          <p className="text-white/50 text-xs mt-3">{myTurn ? "Miss the tower and you lose!" : "Watch out — whoever misses loses 🧱"}</p>
+        </>
+      )}
+      <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+        {room.players.map((p: any) => (
+          <span key={p.id} className={`px-2.5 py-1 rounded-full text-xs ${p.id === st.loserId ? "bg-red-500/20 text-red-300" : p.id === st.turnId ? "bg-emerald-400/20 text-emerald-200" : "bg-white/5 text-white/60"}`}>
+            {p.id === me ? "You" : p.name} · {st.heights?.[p.id]?.h || 0}🧱{p.id === st.loserId ? " 💥" : ""}
+          </span>
         ))}
       </div>
     </div>

@@ -313,7 +313,7 @@ const GAME_META: Record<string, { name: string; emoji: string }> = {
   dice: { name: "Dice Bluffing Game", emoji: "🎲" },
   wheel: { name: "Spin the Wheel", emoji: "🎡" },
   riding: { name: "Red Riding Hood", emoji: "👵" },
-  timer: { name: "Stop at 10:00", emoji: "⏱️" },
+  timer: { name: "Stop the Clock", emoji: "⏱️" },
   "789": { name: "789 Dice", emoji: "🎯" },
   stack: { name: "Tower Stack", emoji: "🧱" },
   number: { name: "Guess the Number", emoji: "🔢" },
