@@ -1485,17 +1485,19 @@ export function registerRebornRoutes(app: Express) {
     const q = String(req.query.q || "").trim();
     const filter = String(req.query.filter || "all"); // all | active | admin
     const sort = String(req.query.sort || "recent"); // recent | tokens
+    const cid = await rebornCompanyId(req);
+    // Only members of THIS business (bridge_company_members). Reborn has every user enrolled.
+    const memberOf = sql`${users.id} IN (SELECT user_id FROM bridge_company_members WHERE company_id=${cid})`;
     let rows = q.length >= 1
-      ? await db.select(userCols).from(users).where(or(ilike(users.username, `${q}%`), ilike(users.firstName, `${q}%`), ilike(users.lastName, `${q}%`), ilike(users.email, `${q}%`), ilike(users.membershipCardNumber, `${q}%`), ilike(users.referralCode, `${q}%`))).orderBy(users.firstName).limit(60)
-      : await db.select(userCols).from(users).orderBy(sort === "tokens" ? desc(users.tokens) : desc(users.createdAt)).limit(200);
+      ? await db.select(userCols).from(users).where(and(memberOf, or(ilike(users.username, `${q}%`), ilike(users.firstName, `${q}%`), ilike(users.lastName, `${q}%`), ilike(users.email, `${q}%`), ilike(users.membershipCardNumber, `${q}%`), ilike(users.referralCode, `${q}%`)))).orderBy(users.firstName).limit(60)
+      : await db.select(userCols).from(users).where(memberOf).orderBy(sort === "tokens" ? desc(users.tokens) : desc(users.createdAt)).limit(200);
     if (filter === "active") rows = rows.filter((u: any) => (u.tokens || 0) > 0 || (u.loyaltyPoints || 0) > 0 || Number(u.credits || 0) > 0 || (u.kgold || 0) > 0);
     if (filter === "admin") rows = rows.filter((u: any) => u.role === "admin" || u.role === "staff");
     if (sort === "tokens") rows = [...rows].sort((a: any, b: any) => (b.tokens || 0) - (a.tokens || 0));
-    // Whole-base summary (independent of the current page/filter).
-    const [agg] = await db.select({ count: sql<number>`count(*)`, tokens: sql<number>`coalesce(sum(${users.tokens}),0)`, points: sql<number>`coalesce(sum(${users.loyaltyPoints}),0)` }).from(users);
-    const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
-    let positionRows: any[] = [];
-    if (reborn) { const result = await db.execute(sql`SELECT m.user_id, m.position_id, m.branch_id, p.name position_name FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${reborn.id}`); positionRows = (result.rows || result) as any[]; }
+    // Whole-base summary (independent of the current page/filter) — scoped to this company.
+    const [agg] = await db.select({ count: sql<number>`count(*)`, tokens: sql<number>`coalesce(sum(${users.tokens}),0)`, points: sql<number>`coalesce(sum(${users.loyaltyPoints}),0)` }).from(users).where(memberOf);
+    const result = await db.execute(sql`SELECT m.user_id, m.position_id, m.branch_id, p.name position_name FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${cid}`);
+    const positionRows = (result.rows || result) as any[];
     res.json({ users: rows.map((u:any) => ({ ...u, ...(positionRows.find(p => p.user_id === u.id) || {}) })), summary: { totalUsers: Number(agg?.count) || 0, totalTokens: Number(agg?.tokens) || 0, totalPoints: Number(agg?.points) || 0 } });
   }));
   // Delete a user (admin only; not yourself).
@@ -1836,8 +1838,10 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/pos/member/:code", requireStaff(async (req, res) => {
     const code = String(req.params.code || "").trim();
     if (!code) return res.status(400).json({ message: "Enter a member code" });
-    const [u] = await db.select().from(users).where(
-      or(ilike(users.referralCode, code), ilike(users.membershipCardNumber, code), ilike(users.username, code), ilike(users.email, code), eq(users.phoneNumber, code), eq(users.id, code))
+    const cid = await rebornCompanyId(req);
+    const memberOf = sql`${users.id} IN (SELECT user_id FROM bridge_company_members WHERE company_id=${cid})`;
+    const [u] = await db.select().from(users).where(and(memberOf,
+      or(ilike(users.referralCode, code), ilike(users.membershipCardNumber, code), ilike(users.username, code), ilike(users.email, code), eq(users.phoneNumber, code), eq(users.id, code)))
     ).limit(1);
     if (!u) return res.status(404).json({ message: "Member not found" });
     res.json({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email, code: u.referralCode, membershipCardNumber: u.membershipCardNumber, credits: u.credits, loyaltyPoints: u.loyaltyPoints, tokens: u.tokens });
@@ -1845,9 +1849,11 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/pos/members", requireStaff(async (req, res) => {
     const q = String(req.query.q || "").trim();
     if (!q) return res.json([]);
-    const rows = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, phone: users.phoneNumber, code: users.referralCode, card: users.membershipCardNumber }).from(users).where(or(
+    const cid = await rebornCompanyId(req);
+    const memberOf = sql`${users.id} IN (SELECT user_id FROM bridge_company_members WHERE company_id=${cid})`;
+    const rows = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, phone: users.phoneNumber, code: users.referralCode, card: users.membershipCardNumber }).from(users).where(and(memberOf, or(
       ilike(users.firstName, `%${q}%`), ilike(users.lastName, `%${q}%`), ilike(users.username, `%${q}%`), ilike(users.email, `%${q}%`), ilike(users.referralCode, `%${q}%`), ilike(users.membershipCardNumber, `%${q}%`)
-    )).orderBy(users.firstName).limit(12);
+    ))).orderBy(users.firstName).limit(12);
     res.json(rows.map((u) => ({ ...u, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email })));
   }));
 
@@ -1900,9 +1906,11 @@ export function registerRebornRoutes(app: Express) {
     const q = String(req.query.q || "").trim();
     if (q.length < 1) return res.json([]);
     const like = `%${q}%`;
+    const cid = await rebornCompanyId(req);
+    const memberOf = sql`${users.id} IN (SELECT user_id FROM bridge_company_members WHERE company_id=${cid})`;
     const rows = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, referralCode: users.referralCode, membershipCardNumber: users.membershipCardNumber })
       .from(users)
-      .where(or(ilike(users.firstName, like), ilike(users.lastName, like), ilike(users.username, like), ilike(users.email, like), ilike(users.referralCode, like), ilike(users.membershipCardNumber, like)))
+      .where(and(memberOf, or(ilike(users.firstName, like), ilike(users.lastName, like), ilike(users.username, like), ilike(users.email, like), ilike(users.referralCode, like), ilike(users.membershipCardNumber, like))))
       .limit(12);
     res.json(rows.map((u: any) => ({
       id: u.id,
@@ -2473,7 +2481,7 @@ export function registerRebornRoutes(app: Express) {
     if (!validCode && !photo) return res.status(400).json({ message: "Scan the workplace attendance QR, or take a check-in photo." });
     const open = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, wd))).limit(1);
     if (open[0] && !open[0].checkOutAt) return res.status(400).json({ message: "You are already checked in today." });
-    const [row] = await db.insert(staffAttendance).values({ userId: uid, workDate: wd, checkInPhoto: photo || null, status: "present", decisionNote: validCode ? "QR check-in" : null }).returning();
+    const [row] = await db.insert(staffAttendance).values({ userId: uid, companyId: await rebornCompanyId(req), workDate: wd, checkInPhoto: photo || null, status: "present", decisionNote: validCode ? "QR check-in" : null }).returning();
     const staff = await storage.getUser(uid);
     await sendRebornStaffNotification({ type: "attendance", title: "Staff checked in", body: `${staff?.firstName || staff?.username || "Staff"} checked in`, data: { path: "/reborn-admin", attendanceId: row.id } });
     res.json(row);
@@ -2529,7 +2537,7 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     if (!b.startDate || !b.endDate || !String(b.reason || "").trim()) return res.status(400).json({ message: "Dates and a reason are required." });
     const [row] = await db.insert(leaveRequests).values({
-      userId: getUserId(req)!, type: b.type === "mc" ? "mc" : "leave",
+      userId: getUserId(req)!, companyId: await rebornCompanyId(req), type: b.type === "mc" ? "mc" : "leave",
       startDate: b.startDate, endDate: b.endDate, reason: String(b.reason).trim(), attachmentUrl: b.attachmentUrl || null,
     }).returning();
     const staff = await storage.getUser(row.userId);
@@ -2543,17 +2551,18 @@ export function registerRebornRoutes(app: Express) {
 
   // Admin/manager (full admin)
   const nameOf = (u: any) => u ? (`${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || u.email || u.id) : "Unknown";
-  app.get("/api/reborn/admin/staff-list", requireAdmin(async (_req, res) => {
-    const rows = await db.select().from(users).where(inArray(users.role, ["staff", "admin"]));
-    res.json(rows.map((u: any) => ({ id: u.id, name: nameOf(u), role: u.role })));
+  app.get("/api/reborn/admin/staff-list", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const result = await db.execute(sql`SELECT m.user_id AS id, m.role, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,u.email,u.id) name FROM bridge_company_members m JOIN users u ON u.id=m.user_id WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
+    res.json((result.rows || result as any[]).map((x: any) => ({ id: x.id, name: x.name, role: x.role })));
   }));
-  app.get("/api/reborn/admin/staff-positions", requireAdmin(async (_req, res) => {
-    const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
-    res.json(reborn ? await db.select().from(bridgePositions).where(eq(bridgePositions.companyId, reborn.id)).orderBy(bridgePositions.name) : []);
+  app.get("/api/reborn/admin/staff-positions", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    res.json(await db.select().from(bridgePositions).where(eq(bridgePositions.companyId, cid)).orderBy(bridgePositions.name));
   }));
-  app.get("/api/reborn/staff/leaderboard", requireStaff(async (_req, res) => {
-    const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]; if (!reborn) return res.json([]);
-    const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name, p.name position, COALESCE(sum(t.total::numeric) FILTER (WHERE t.paid_at >= now()-interval '7 days'),0) weekly_sales, COALESCE(avg(r.rating),0)::numeric(3,2) rating, count(DISTINCT r.id) review_count, count(DISTINCT r.id) FILTER (WHERE r.rating <= 2) bad_reviews FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id LEFT JOIN pos_tickets t ON t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid' LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') GROUP BY m.user_id,u.first_name,u.last_name,u.email,p.name ORDER BY weekly_sales DESC, rating DESC`);
+  app.get("/api/reborn/staff/leaderboard", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req); if (!cid) return res.json([]);
+    const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name, p.name position, COALESCE(sum(t.total::numeric) FILTER (WHERE t.paid_at >= now()-interval '7 days'),0) weekly_sales, COALESCE(avg(r.rating),0)::numeric(3,2) rating, count(DISTINCT r.id) review_count, count(DISTINCT r.id) FILTER (WHERE r.rating <= 2) bad_reviews FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id LEFT JOIN pos_tickets t ON t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid' LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') GROUP BY m.user_id,u.first_name,u.last_name,u.email,p.name ORDER BY weekly_sales DESC, rating DESC`);
     const rows=(result.rows||result) as any[]; res.json(rows.map((x,i)=>({...x,rank:i+1,redFlag:(Number(x.rating)>0&&Number(x.rating)<2.5)||Number(x.bad_reviews)>=3})));
   }));
   app.get("/api/reborn/staff/feedback", requireStaff(async (_req, res) => {
@@ -2562,8 +2571,9 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/admin/attendance", requireAdmin(async (req, res) => {
     const status = String(req.query.status || "");
-    const base = db.select().from(staffAttendance).orderBy(desc(staffAttendance.id)).limit(200);
-    const rows = status ? await db.select().from(staffAttendance).where(eq(staffAttendance.status, status)).orderBy(desc(staffAttendance.id)).limit(200) : await base;
+    const cid = await rebornCompanyId(req);
+    const cond = status ? and(eq(staffAttendance.companyId, cid), eq(staffAttendance.status, status)) : eq(staffAttendance.companyId, cid);
+    const rows = await db.select().from(staffAttendance).where(cond).orderBy(desc(staffAttendance.id)).limit(200);
     const ids = Array.from(new Set(rows.map((r) => r.userId)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
@@ -2584,9 +2594,10 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/admin/shifts", requireAdmin(async (req, res) => {
     const from = String(req.query.from || ""), to = String(req.query.to || "");
+    const cid = await rebornCompanyId(req);
     let rows;
-    if (from && to) rows = await db.select().from(workerShifts).where(and(sql`${workerShifts.shiftDate} >= ${from}`, sql`${workerShifts.shiftDate} <= ${to}`)).orderBy(workerShifts.shiftDate);
-    else rows = await db.select().from(workerShifts).orderBy(desc(workerShifts.shiftDate)).limit(300);
+    if (from && to) rows = await db.select().from(workerShifts).where(and(eq(workerShifts.companyId, cid), sql`${workerShifts.shiftDate} >= ${from}`, sql`${workerShifts.shiftDate} <= ${to}`)).orderBy(workerShifts.shiftDate);
+    else rows = await db.select().from(workerShifts).where(eq(workerShifts.companyId, cid)).orderBy(desc(workerShifts.shiftDate)).limit(300);
     const ids = Array.from(new Set(rows.map((r) => r.userId)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
@@ -2595,7 +2606,7 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/shifts", requireAdmin(async (req, res) => {
     const b = req.body || {};
     if (!b.userId || !b.shiftDate || !b.startTime || !b.endTime) return res.status(400).json({ message: "Worker, date and times are required." });
-    const [row] = await db.insert(workerShifts).values({ userId: b.userId, shiftDate: b.shiftDate, startTime: b.startTime, endTime: b.endTime, role: b.role || null, note: b.note || null, createdBy: getUserId(req)! }).returning();
+    const [row] = await db.insert(workerShifts).values({ userId: b.userId, companyId: await rebornCompanyId(req), shiftDate: b.shiftDate, startTime: b.startTime, endTime: b.endTime, role: b.role || null, note: b.note || null, createdBy: getUserId(req)! }).returning();
     await sendRebornUserNotification(row.userId, { type: "shift", title: "New work shift", body: `${row.shiftDate} · ${row.startTime}–${row.endTime}`, data: { path: "/staff", shiftId: row.id } });
     res.json(row);
   }));
@@ -2605,7 +2616,9 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/admin/leave", requireAdmin(async (req, res) => {
     const status = String(req.query.status || "");
-    const rows = status ? await db.select().from(leaveRequests).where(eq(leaveRequests.status, status)).orderBy(desc(leaveRequests.id)).limit(200) : await db.select().from(leaveRequests).orderBy(desc(leaveRequests.id)).limit(200);
+    const cid = await rebornCompanyId(req);
+    const cond = status ? and(eq(leaveRequests.companyId, cid), eq(leaveRequests.status, status)) : eq(leaveRequests.companyId, cid);
+    const rows = await db.select().from(leaveRequests).where(cond).orderBy(desc(leaveRequests.id)).limit(200);
     const ids = Array.from(new Set(rows.map((r) => r.userId)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
