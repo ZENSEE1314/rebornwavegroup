@@ -4,7 +4,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Trophy, Users, Lock, Play, LogOut, Crown, Pickaxe, Medal } from "lucide-react";
+import { Trophy, Users, Lock, Play, LogOut, Crown, Pickaxe, Medal, ChevronLeft, ChevronRight } from "lucide-react";
 import MobileBackButton from "@/components/mobile-back-button";
 import { RankBadge } from "@/components/RankBadge";
 import { useRankConfig, useMyRank, computeRank } from "@/lib/rank";
@@ -154,7 +154,8 @@ type GK = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
-  const [game, setGame] = useState<GK>("rps");
+  const [cat, setCat] = useState<string | null>(null);
+  const [game, setGame] = useState<GK | null>(null);
   const [password, setPassword] = useState("");
   const [winTarget, setWinTarget] = useState(1);
   const [ridingClicks, setRidingClicks] = useState(2);
@@ -162,7 +163,6 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
   const [wheelText, setWheelText] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [joinPw, setJoinPw] = useState("");
-  const [lbGame, setLbGame] = useState<GK>("rps");
   const [lb, setLb] = useState<any[]>([]);
   const [help, setHelp] = useState<string | null>(null);
 
@@ -172,11 +172,17 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
   const [rankLb, setRankLb] = useState<any[]>([]);
   useEffect(() => { apiRequest("GET", "/api/reborn/rank/leaderboard").then((r) => r.json()).then(setRankLb).catch(() => {}); }, []);
   useEffect(() => { apiRequest("GET", "/api/reborn/games/config").then((r) => r.json()).then((d) => setToday(d.today || {})).catch(() => {}); }, []);
-  useEffect(() => { apiRequest("GET", `/api/reborn/games/leaderboard?game=${lbGame}`).then((r) => r.json()).then(setLb).catch(() => {}); }, [lbGame]);
+  useEffect(() => { setLb([]); if (game) apiRequest("GET", `/api/reborn/games/leaderboard?game=${game}`).then((r) => r.json()).then(setLb).catch(() => {}); }, [game]);
   const loadRooms = () => apiRequest("GET", "/api/reborn/games/rooms").then((r) => r.json()).then(setOpenRooms).catch(() => {});
   useEffect(() => { loadRooms(); const t = setInterval(loadRooms, 4000); return () => clearInterval(t); }, []);
 
+  const cats = GAME_CATEGORIES.filter((c) => c.games.some((g) => today[g]));
+  const curCat = cats.find((c) => c.name === cat) || null;
+  const pickGame = (g: GK) => { setGame(g); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const shownRooms = game ? openRooms.filter((r) => r.game === game) : openRooms;
+
   const create = async () => {
+    if (!game) return;
     const wheelPrizes = wheelText.split("\n").map((s) => s.trim()).filter(Boolean);
     const { ok, d } = await post("/api/reborn/games/rooms", { game, password, winTarget, ridingClicks, facesCount, wheelPrizes: wheelPrizes.length ? wheelPrizes : undefined });
     if (!ok) return toast({ title: "Can't create", description: d.message, variant: "destructive" });
@@ -226,86 +232,134 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
         <MuteToggle />
       </div>
 
-      <div className="gcard p-4">
-        <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Pick a game</p>
-        <div className="space-y-4">
-          {GAME_CATEGORIES.filter((cat) => cat.games.some((g) => today[g])).map((cat) => (
-            <div key={cat.name}>
-              <p className="text-[11px] font-bold text-amber-300/80 uppercase tracking-wider mb-2">{cat.emoji} {cat.name}</p>
-              <div className="grid grid-cols-1 gap-2.5">
-                {(cat.games.filter((g) => today[g]) as GK[]).map((g) => {
-                  const on = today[g];
-                  return (
-                    <button key={g} disabled={!on} onClick={() => setGame(g)}
-                      className={`flex items-center gap-3 p-3 rounded-2xl text-left transition ${game === g && on ? "gcard-sel" : "border border-white/10"} ${!on ? "opacity-40" : "active:scale-[.98]"}`}
-                      style={{ background: game === g && on ? "rgba(240,215,135,0.08)" : "rgba(255,255,255,0.04)" }}>
-                      <span className="gem shrink-0" style={{ width: 48, height: 48, fontSize: 26, background: GAME_GRAD[g] }}>{GAMES[g].emoji}</span>
-                      <span className="min-w-0">
-                        <span className="block text-lg font-extrabold text-white leading-tight">{GAMES[g].name}</span>
-                        <span className="block text-[11px] text-white/55">{GAMES[g].blurb}</span>
-                        {!on && <span className="block text-[11px] text-amber-300 mt-0.5">Not scheduled today</span>}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-        {game !== "number" && (
-        <div className="mt-3 flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2 rounded-xl bg-black/30 border border-white/10 px-3">
-            <Lock className="w-4 h-4 text-white/40" />
-            <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Room password (optional)" className="flex-1 bg-transparent py-2.5 text-white text-sm focus:outline-none" />
+      {!cat && (
+        <div className="gcard p-4">
+          <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Pick a category</p>
+          <div className="grid grid-cols-1 gap-2.5">
+            {cats.map((c) => {
+              const n = c.games.filter((g) => today[g]).length;
+              return (
+                <button key={c.name} onClick={() => setCat(c.name)}
+                  className="flex items-center gap-3 p-3 rounded-2xl text-left border border-white/10 active:scale-[.98] transition"
+                  style={{ background: "rgba(255,255,255,0.04)" }}>
+                  <span className="gem shrink-0" style={{ width: 52, height: 52, fontSize: 28, background: "linear-gradient(135deg,#f0d787,#c9a44c)" }}>{c.emoji}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-lg font-extrabold text-white leading-tight">{c.name}</span>
+                    <span className="block text-[11px] text-white/55 truncate">{n} game{n === 1 ? "" : "s"} · {c.games.filter((g) => today[g]).map((g) => GAMES[g].name).join(" · ")}</span>
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-white/40 shrink-0" />
+                </button>
+              );
+            })}
+            {cats.length === 0 && <p className="text-xs text-white/40">No games scheduled today — check back tomorrow!</p>}
           </div>
         </div>
-        )}
-        {game === "riding" && (
-          <div className="mt-3 space-y-2">
-            <div>
-              <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Faces on the board</p>
-              <div className="flex gap-2">{[9, 16, 25, 36].map((n) => <button key={n} onClick={() => setFacesCount(n)} className={`cbtn flex-1 py-2 text-xs ${facesCount === n ? "cbtn-gold" : "cbtn-dark"}`}>{n}</button>)}</div>
-            </div>
-            <div>
-              <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Faces to flip each turn</p>
-              <div className="flex gap-2">{[1, 2, 3, 4].map((n) => <button key={n} onClick={() => setRidingClicks(n)} className={`cbtn flex-1 py-2 text-xs ${ridingClicks === n ? "cbtn-gold" : "cbtn-dark"}`}>{n}</button>)}</div>
-            </div>
-          </div>
-        )}
-        {game === "wheel" && (
-          <div className="mt-3">
-            <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Punishments <span className="text-white/40 normal-case">— one per line, or leave blank for the default drink dares</span></p>
-            <textarea value={wheelText} onChange={(e) => setWheelText(e.target.value)} rows={4} placeholder={"Default:\nHalf cup\n1 cup\n2 cups\n… (leave blank to use these)"} className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
-          </div>
-        )}
-        {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && (
-        <div className="mt-3">
-          <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
-          <div className="flex gap-2">
-            {[[1, "Single game"], [3, "Best of 3"], [5, "5 wins"]].map(([v, l]) => (
-              <button key={v} onClick={() => setWinTarget(v as number)} className={`cbtn flex-1 py-2.5 text-xs ${winTarget === v ? "cbtn-gold" : "cbtn-dark"}`}>{l}</button>
+      )}
+
+      {curCat && !game && (
+        <div className="gcard p-4">
+          <button onClick={() => setCat(null)} className="flex items-center gap-1 text-sm text-white/60 mb-3"><ChevronLeft className="w-4 h-4" /> Back</button>
+          <p className="text-[11px] font-bold text-amber-300/80 uppercase tracking-wider mb-2">{curCat.emoji} {curCat.name}</p>
+          <div className="grid grid-cols-1 gap-2.5">
+            {(curCat.games.filter((g) => today[g]) as GK[]).map((g) => (
+              <button key={g} onClick={() => pickGame(g)}
+                className="flex items-center gap-3 p-3 rounded-2xl text-left border border-white/10 active:scale-[.98] transition"
+                style={{ background: "rgba(255,255,255,0.04)" }}>
+                <span className="gem shrink-0" style={{ width: 48, height: 48, fontSize: 26, background: GAME_GRAD[g] }}>{GAMES[g].emoji}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-lg font-extrabold text-white leading-tight">{GAMES[g].name}</span>
+                  <span className="block text-[11px] text-white/55">{GAMES[g].blurb}</span>
+                </span>
+                <ChevronRight className="w-5 h-5 text-white/40 shrink-0" />
+              </button>
             ))}
           </div>
         </div>
-        )}
-        {game === "number" && <p className="mt-3 text-[11px] text-white/50">No room needed — one 4-digit number runs for everyone. Guess any time; first to crack it wins and a fresh number rolls automatically, 24/7.</p>}
-        <div className="mt-4 flex gap-2">
-          <button onClick={() => setHelp(game)} className="cbtn cbtn-dark px-4 py-3.5 text-sm">How to play</button>
-          {game === "number"
-            ? <button onClick={onOpenNumber} disabled={!today.number} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🔢 Play now</button>
-            : <button onClick={create} disabled={!today[game]} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🎮 Create room</button>}
-        </div>
-      </div>
+      )}
+
+      {game && (
+        <>
+          <div className="gcard p-4">
+            <button onClick={() => setGame(null)} className="flex items-center gap-1 text-sm text-white/60 mb-3"><ChevronLeft className="w-4 h-4" /> Back</button>
+            <div className="flex items-center gap-3">
+              <span className="gem shrink-0" style={{ width: 52, height: 52, fontSize: 28, background: GAME_GRAD[game] }}>{GAMES[game].emoji}</span>
+              <span className="min-w-0">
+                <span className="block text-xl font-extrabold text-white leading-tight">{GAMES[game].name}</span>
+                <span className="block text-[11px] text-white/55">{GAMES[game].blurb}</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="gcard p-4">
+            <p className="font-extrabold text-white flex items-center gap-2 mb-2"><Trophy className="w-4 h-4 text-amber-300" /> Leaderboard</p>
+            {lb.length === 0 && <p className="text-xs text-white/40">No scores yet — be the first!</p>}
+            {lb.map((r, i) => (
+              <div key={r.userId} className="flex items-center justify-between gap-2 py-1.5 border-b border-white/5 last:border-0 text-sm">
+                <span className="text-white/80 truncate min-w-0">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {r.name}</span>
+                <span className="text-amber-300 font-bold shrink-0">{r.score}{game === "tap" ? " coins" : game === "stack" ? " high" : " wins"}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="gcard p-4">
+            <p className="text-xs text-white/50 mb-1 font-bold uppercase tracking-wider">{game === "number" ? "Play" : "Create a room"}</p>
+            {game !== "number" && (
+            <div className="mt-3 flex items-center gap-2">
+              <div className="flex-1 flex items-center gap-2 rounded-xl bg-black/30 border border-white/10 px-3">
+                <Lock className="w-4 h-4 text-white/40" />
+                <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Room password (optional)" className="flex-1 bg-transparent py-2.5 text-white text-sm focus:outline-none" />
+              </div>
+            </div>
+            )}
+            {game === "riding" && (
+              <div className="mt-3 space-y-2">
+                <div>
+                  <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Faces on the board</p>
+                  <div className="flex gap-2">{[9, 16, 25, 36].map((n) => <button key={n} onClick={() => setFacesCount(n)} className={`cbtn flex-1 py-2 text-xs ${facesCount === n ? "cbtn-gold" : "cbtn-dark"}`}>{n}</button>)}</div>
+                </div>
+                <div>
+                  <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Faces to flip each turn</p>
+                  <div className="flex gap-2">{[1, 2, 3, 4].map((n) => <button key={n} onClick={() => setRidingClicks(n)} className={`cbtn flex-1 py-2 text-xs ${ridingClicks === n ? "cbtn-gold" : "cbtn-dark"}`}>{n}</button>)}</div>
+                </div>
+              </div>
+            )}
+            {game === "wheel" && (
+              <div className="mt-3">
+                <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Punishments <span className="text-white/40 normal-case">— one per line, or leave blank for the default drink dares</span></p>
+                <textarea value={wheelText} onChange={(e) => setWheelText(e.target.value)} rows={4} placeholder={"Default:\nHalf cup\n1 cup\n2 cups\n… (leave blank to use these)"} className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
+              </div>
+            )}
+            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && (
+            <div className="mt-3">
+              <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
+              <div className="flex gap-2">
+                {[[1, "Single game"], [3, "Best of 3"], [5, "5 wins"]].map(([v, l]) => (
+                  <button key={v} onClick={() => setWinTarget(v as number)} className={`cbtn flex-1 py-2.5 text-xs ${winTarget === v ? "cbtn-gold" : "cbtn-dark"}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+            )}
+            {game === "number" && <p className="mt-3 text-[11px] text-white/50">No room needed — one 4-digit number runs for everyone. Guess any time; first to crack it wins and a fresh number rolls automatically, 24/7.</p>}
+            <div className="mt-4 flex gap-2">
+              <button onClick={() => setHelp(game)} className="cbtn cbtn-dark px-4 py-3.5 text-sm">How to play</button>
+              {game === "number"
+                ? <button onClick={onOpenNumber} disabled={!today.number} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🔢 Play now</button>
+                : <button onClick={create} disabled={!today[game]} className="cbtn cbtn-gold flex-1 py-3.5 text-base">🎮 Create room</button>}
+            </div>
+          </div>
+        </>
+      )}
       {help && <HowToPlay game={help} onClose={() => setHelp(null)} />}
 
+      {game !== "number" && (
       <div className="gcard p-4">
         <div className="flex items-center justify-between mb-2">
           <p className="font-extrabold text-white flex items-center gap-2"><Users className="w-4 h-4 text-amber-300" /> Open rooms</p>
           <button onClick={loadRooms} className="text-xs text-white/50">↻ Refresh</button>
         </div>
-        {openRooms.length === 0 && <p className="text-xs text-white/40">No open rooms — create one above and invite friends!</p>}
+        {shownRooms.length === 0 && <p className="text-xs text-white/40">No open rooms — create one and invite friends!</p>}
         <div className="space-y-2">
-          {openRooms.map((r) => (
+          {shownRooms.map((r) => (
             <div key={r.code} className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5">
               <span className="text-2xl">{GAMES[r.game]?.emoji || "🎮"}</span>
               <div className="min-w-0 flex-1">
@@ -317,6 +371,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
           ))}
         </div>
       </div>
+      )}
 
       <div className="gcard p-4">
         <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Or join by code</p>
@@ -327,21 +382,6 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
         </div>
       </div>
 
-      <div className="gcard p-4">
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-extrabold text-white flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" /> Leaderboard</p>
-          <div className="flex gap-1">
-            {(["rps", "tap", "stack", "cards", "dice", "timer", "number"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
-          </div>
-        </div>
-        {lb.length === 0 && <p className="text-xs text-white/40">No scores yet — be the first!</p>}
-        {lb.map((r, i) => (
-          <div key={r.userId} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0 text-sm">
-            <span className="text-white/80">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {r.name}</span>
-            <span className="text-amber-300 font-bold">{r.score}{lbGame === "tap" ? " coins" : lbGame === "stack" ? " high" : " wins"}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
