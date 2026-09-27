@@ -525,6 +525,9 @@ export async function ensureBridgeXSchema() {
     -- Recipe / BOM: a POS product consumes inventory items when sold
     CREATE TABLE IF NOT EXISTS bridge_product_recipes (id serial PRIMARY KEY, company_id integer NOT NULL, product_id integer NOT NULL, item_id integer NOT NULL, qty numeric(14,3) NOT NULL DEFAULT 1);
     CREATE INDEX IF NOT EXISTS bridge_product_recipes_product ON bridge_product_recipes(product_id);
+    -- Which business types (modules) each branch runs. No rows = inherit all company modules.
+    CREATE TABLE IF NOT EXISTS bridge_branch_modules (company_id integer NOT NULL, branch_id integer NOT NULL, module_key varchar NOT NULL, PRIMARY KEY(branch_id, module_key));
+    CREATE INDEX IF NOT EXISTS bridge_branch_modules_branch ON bridge_branch_modules(branch_id);
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -1021,6 +1024,27 @@ export function registerBridgeXRoutes(app: Express) {
     await db.delete(bridgeCompanyModules).where(eq(bridgeCompanyModules.companyId, access.companyId));
     if (selected.length) await db.insert(bridgeCompanyModules).values(selected.map((moduleKey: string) => ({ companyId: access.companyId, moduleKey })));
     res.json({ modules: selected });
+  }));
+
+  // Per-branch business types. A branch can run any subset of the company's modules;
+  // no rows means it inherits everything the company has enabled.
+  app.get("/api/v1/company/branch-modules", route(async (req, res) => {
+    const access = await companyAccess(req, res); if (!access) return;
+    const branchId = Number(req.query.branchId) || 0;
+    const companyKeys = (await db.select().from(bridgeCompanyModules).where(and(eq(bridgeCompanyModules.companyId, access.companyId), eq(bridgeCompanyModules.enabled, true)))).map((m) => m.moduleKey);
+    if (!branchId) return res.json({ branchId: 0, configured: false, modules: companyKeys });
+    const rows = (await db.execute(sql`SELECT module_key FROM bridge_branch_modules WHERE branch_id=${branchId} AND company_id=${access.companyId}`)).rows as any[];
+    if (!rows.length) return res.json({ branchId, configured: false, modules: companyKeys });
+    const keys = rows.map((r) => r.module_key).filter((k) => companyKeys.includes(k));
+    res.json({ branchId, configured: true, modules: keys });
+  }));
+  app.put("/api/v1/company/branch-modules", route(async (req, res) => {
+    const access = await companyAccess(req, res, true); if (!access) return;
+    const branchId = Number(req.body?.branchId); if (!branchId) return res.status(400).json({ message: "branchId is required" });
+    const selected = Array.isArray(req.body?.modules) ? req.body.modules.filter((k: string) => (BRIDGEX_MODULES as string[]).includes(k)) : [];
+    await db.execute(sql`DELETE FROM bridge_branch_modules WHERE branch_id=${branchId} AND company_id=${access.companyId}`);
+    for (const k of selected) await db.execute(sql`INSERT INTO bridge_branch_modules (company_id, branch_id, module_key) VALUES (${access.companyId}, ${branchId}, ${k}) ON CONFLICT DO NOTHING`);
+    res.json({ branchId, configured: selected.length > 0, modules: selected });
   }));
 
   app.get("/api/v1/company/branches", route(async (req, res) => { const access = await companyAccess(req, res); if (access) res.json(await db.select().from(bridgeBranches).where(eq(bridgeBranches.companyId, access.companyId)).orderBy(bridgeBranches.name)); }));
