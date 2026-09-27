@@ -2361,7 +2361,12 @@ export function registerRebornRoutes(app: Express) {
     const since = new Date(Date.now() - days * DAY_MS);
     const cid = await rebornCompanyId(req);
     const rows = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), inArray(posTickets.status, ["paid", "refunded"]), sql`${posTickets.paidAt} >= ${since}`)).orderBy(desc(posTickets.paidAt)).limit(300);
-    const result = await Promise.all(rows.map(async (order)=>({ ...order, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, order.id)) })));
+    const prodRows = await db.select({ id: posProducts.id, department: posProducts.department }).from(posProducts).where(eq(posProducts.companyId, cid));
+    const depMap = new Map(prodRows.map((p) => [p.id, p.department]));
+    const result = await Promise.all(rows.map(async (order) => {
+      const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, order.id));
+      return { ...order, items: items.map((it) => ({ ...it, department: it.productId ? (depMap.get(it.productId) || null) : null })) };
+    }));
     res.json(result);
   }));
   // Revenue split per industry/department (product.department) for the period.
@@ -2844,7 +2849,8 @@ export function registerRebornRoutes(app: Express) {
   // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.
   app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
-    const rows = await db.select().from(posProducts).orderBy(posProducts.category, posProducts.name);
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select().from(posProducts).where(eq(posProducts.companyId, cid)).orderBy(posProducts.category, posProducts.name);
     // Distinct suppliers each product has been restocked from (one item, many suppliers).
     const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier })
       .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));
@@ -2855,7 +2861,7 @@ export function registerRebornRoutes(app: Express) {
       const cost = Number(p.cost) || 0;
       const price = Number(p.price) || 0;
       return {
-        id: p.id, name: p.name, category: p.category, active: p.active, posVisible: p.posVisible,
+        id: p.id, name: p.name, category: p.category, department: p.department || null, active: p.active, posVisible: p.posVisible,
         stock, cost, price, imageUrl: p.imageUrl,
         suppliers: Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set())),
         stockValue: Math.round(stock * cost),
