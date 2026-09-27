@@ -260,8 +260,9 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
   const worn: Record<string, string> = home?.costumes?.[String(pet.id)] || {};
   const slot = (s: string) => itemById(home, placed[s]);
   const asleep = pet.isSleeping || sick;
-  // Wearing something with a full-body picture? Doluruu walks around in that outfit.
-  const outfit = outfitSprite(home, worn);
+  // Doluruu walks in its clothing (shirtless by default) with its footwear on top
+  // (barefoot by default); both are layers on the same canvas.
+  const layers = outfitLayers(home, worn);
   const stats = ["hunger", "happiness", "cleanliness", "energy"].map((k) => pet[k] ?? 0);
   const lowest = Math.min(...stats);
   const need = lowest >= 30 ? null : ["🍖", "🎾", "🧼", "😴"][stats.indexOf(lowest)];
@@ -318,10 +319,12 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
           <div className="rwpet-shadow" />
           <div className="rwpet-face" style={asleep ? { animation: "none" } : undefined}>
             <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
-              <img src={outfit?.figure || img} alt={outfit ? `${pet.name} in ${outfit.name}` : pet.name} className={`w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />
+              {layers
+                ? layers.map((src, i) => <img key={src} src={src} alt={i === 0 ? pet.name : ""} className={`absolute inset-0 w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />)
+                : <img src={img} alt={pet.name} className={`w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />}
               {(["neck", "face", "head"] as const).map((part) => {
                 const it = worn[part] && itemById(home, worn[part]);
-                if (!it || !PET_ART[it.id] || outfit) return null; // drawn legacy costumes only
+                if (!it || !PET_ART[it.id] || layers) return null; // drawn legacy costumes only
                 const f = COSTUME_FIT[part];
                 return <ItemArt key={part} id={it.id} emoji={it.emoji} className="absolute pointer-events-none"
                   style={{ left: `${f.left}%`, top: `${f.top}%`, width: `${f.width}%`, aspectRatio: "1", transform: `translate(-50%, ${f.anchor === "bottom" ? "-100%" : "-50%"})`, filter: "drop-shadow(0 2px 2px rgba(0,0,0,.25))" }} />;
@@ -348,7 +351,7 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
 function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
   const [tab, setTab] = useState<"furniture" | "costume">("furniture");
   const [petId, setPetId] = useState<number>(pets[0]?.id);
-  const [slot, setSlot] = useState("head");
+  const [slot, setSlot] = useState("clothing");
   const items = (home.catalog || []).filter((i: any) => i.kind === tab && !i.hidden && (tab === "furniture" || i.slot === slot));
   const worn = home.costumes?.[String(petId)] || {};
   return (
@@ -384,7 +387,7 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
             <button key={it.id} onClick={onClick} disabled={busy || (!owned && home.coins < it.price)}
               className={`min-w-0 flex flex-col items-center gap-1 rounded-2xl border ${it.image ? "p-1.5" : "p-2.5"} transition active:scale-95 ${it.image ? "disabled:opacity-60" : "disabled:opacity-40"} ${active ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 bg-black/20"}`}>
               {it.figure
-                ? <div className="w-full aspect-square rounded-xl" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><img src={it.figure} alt={it.name} loading="lazy" className="h-full w-full object-contain object-bottom p-1" /></div>
+                ? <div className="relative w-full aspect-square overflow-hidden rounded-xl" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><img src={it.figure} alt={it.name} loading="lazy" className={`absolute inset-0 h-full w-full object-contain p-1 ${it.slot === "footwear" ? "object-center" : "object-bottom"}`} /></div>
                 : it.image
                 ? <img src={it.image} alt={it.name} loading="lazy" className="w-full aspect-square rounded-xl object-cover" />
                 : <ItemArt id={it.id} emoji={it.emoji} className="text-3xl leading-none" style={{ width: 52, height: 52 }} />}
@@ -400,15 +403,17 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
 
 // Wardrobe sections, in the order of the "Customize your Doluruu" sheet.
 const WEAR_SLOTS: [string, string, string][] = [
-  ["head", "Head", "👑"], ["face", "Face", "🕶️"], ["neck", "Neck", "📿"], ["body", "Body", "👕"], ["back", "Back", "🪽"],
-  ["aura", "Aura", "✨"], ["hands", "Hands", "🧤"], ["feet", "Feet", "👟"], ["tail", "Tail", "🎀"], ["shell", "Shell", "🐢"],
+  ["clothing", "Clothing", "👕"], ["footwear", "Footwear", "👟"], ["head", "Head", "👑"], ["face", "Face", "🕶️"], ["neck", "Neck", "📿"],
+  ["back", "Back", "🪽"], ["aura", "Aura", "✨"], ["hands", "Hands", "🧤"], ["tail", "Tail", "🎀"], ["shell", "Shell", "🐢"],
 ];
 // Which worn item's picture best shows the whole look (full-body shots first).
-const PORTRAIT_ORDER = ["aura", "back", "body", "head", "face", "neck", "hands", "feet", "shell", "tail"];
-// The worn item whose full-body picture Doluruu walks around in (one at a time).
-function outfitSprite(home: any, worn: Record<string, string>) {
-  for (const k of PORTRAIT_ORDER) { const it = worn[k] && itemById(home, worn[k]); if (it?.sprite && it.figure) return it; }
-  return null;
+const PORTRAIT_ORDER = ["clothing", "footwear", "aura", "back", "head", "face", "neck", "hands", "shell", "tail"];
+// Image layers for the walking pet: clothing (or the shirtless base) + footwear.
+function outfitLayers(home: any, worn: Record<string, string>): string[] | null {
+  if (!home?.baseLayer) return null;
+  const cloth = worn.clothing && itemById(home, worn.clothing);
+  const shoes = worn.footwear && itemById(home, worn.footwear);
+  return [cloth?.layer || home.baseLayer, ...(shoes?.layer ? [shoes.layer] : [])];
 }
 
 // Shows the pet's current outfit using the item artwork: a big portrait of the
@@ -417,17 +422,20 @@ function OutfitCard({ pet, home }: any) {
   const worn: Record<string, string> = home?.costumes?.[String(pet.id)] || {};
   const items = WEAR_SLOTS.map(([k]) => worn[k] && itemById(home, worn[k])).filter((i: any) => i && (i.figure || i.image));
   if (!items.length) return null;
-  const main = outfitSprite(home, worn) || PORTRAIT_ORDER.map((k) => items.find((i: any) => i.slot === k)).find(Boolean) || items[0];
+  const layers = outfitLayers(home, worn);
+  const main = PORTRAIT_ORDER.map((k) => items.find((i: any) => i.slot === k)).find(Boolean) || items[0];
   return (
     <div className="mx-3 mt-3 flex items-center gap-3 rounded-2xl border border-amber-300/25 bg-gradient-to-r from-amber-300/10 to-fuchsia-400/10 p-2.5">
       <div className="h-20 w-20 shrink-0 rounded-xl shadow-lg ring-2 ring-amber-300/60" style={{ background: "radial-gradient(circle at 50% 40%, #fff3d6, #f3c98b)" }}>
-        <img src={main.figure || main.image} alt={main.name} className={`h-full w-full ${main.figure ? "object-contain object-bottom p-1" : "rounded-xl object-cover"}`} />
+        {layers
+          ? <div className="relative h-full w-full">{layers.map((src) => <img key={src} src={src} alt="" className="absolute inset-0 h-full w-full object-contain object-bottom p-1" />)}</div>
+          : <img src={main.figure || main.image} alt={main.name} className={`h-full w-full ${main.figure ? "object-contain object-bottom p-1" : "rounded-xl object-cover"}`} />}
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-bold uppercase tracking-wider text-amber-200/80">Today's outfit</p>
         <p className="truncate text-sm font-extrabold">{items.map((i: any) => i.name).join(" · ")}</p>
         <div className="mt-1.5 flex gap-1.5 overflow-x-auto">
-          {items.filter((i: any) => i.id !== main.id).map((i: any) => <img key={i.id} src={i.figure || i.image} alt={i.name} title={i.name} className={`h-9 w-9 shrink-0 rounded-lg ring-1 ring-white/15 ${i.figure ? "bg-white/10 object-contain" : "object-cover"}`} />)}
+          {items.filter((i: any) => layers || i.id !== main.id).map((i: any) => <img key={i.id} src={i.figure || i.image} alt={i.name} title={i.name} className={`h-9 w-9 shrink-0 rounded-lg ring-1 ring-white/15 ${i.figure ? "bg-white/10 object-contain" : "object-cover"}`} />)}
         </div>
       </div>
     </div>
