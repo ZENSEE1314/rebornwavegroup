@@ -10,7 +10,7 @@ import { resolveCompanyId } from "./tenant";
 import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -42,6 +42,8 @@ interface Room {
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
   // stack (tower stacking) only
   stackWinners?: string[];
+  // memory (Memory Match) only
+  mem?: { tiles: { v: number; by?: string }[]; open: number[]; score: Record<string, number>; busy?: boolean };
   // rlgl (Red Light, Green Light) only
   rl?: { light: "green" | "red"; lightAt: number; endsAt: number; startAt: number; st: Record<string, { steps: number; out?: boolean; done?: boolean; ms?: number; num: number; last?: number }> };
   // frog (Frog Jump) only
@@ -89,6 +91,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "poker3" ? { poker: pokerView(room, forUserId) } : {}),
     ...(room.game === "frog" ? { frog: frogView(room, forUserId) } : {}),
     ...(room.game === "rlgl" ? { rlgl: rlView(room) } : {}),
+    ...(room.game === "memory" ? { memory: memView(room) } : {}),
   };
 }
 
@@ -498,6 +501,10 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       if (leavingWasTurn) { armDiceTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; }
       return broadcast(room);
     }
+    case "memory": {
+      if (room.players.length < 2) return soloWin();
+      return broadcast(room);
+    }
     case "rlgl": {
       if (room.rl) rlCheckEnd(room);
       return broadcast(room);
@@ -569,7 +576,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1142,6 +1149,92 @@ function pokerView(room: Room, forUserId?: string) {
   };
 }
 
+// ── Memory Match (2 players) ────────────────────────────────────────────
+// 30 face-down cards (6×5) = 15 pairs. On your turn flip 2: same number = +1
+// point and flip again; different = they flip back and it's the other
+// player's turn. When every pair is found, most pairs wins — the loser drinks
+// (a tie means both drink).
+const MEM_PAIRS = 15, MEM_TURN_SECONDS = 20, MEM_PEEK_MS = 1300;
+function armMem(room: Room) {
+  clearTimers(room);
+  room.deadline = Date.now() + MEM_TURN_SECONDS * 1000;
+  room.timer = setTimeout(() => {
+    const m = room.mem; if (!m || room.status !== "playing") return;
+    // out of time: flip random cards for them
+    const p = room.players[room.turnIdx ?? 0];
+    const choices = m.tiles.map((t, i) => i).filter((i) => !m.tiles[i].by && !m.open.includes(i));
+    if (choices.length) memFlip(room, p.id, choices[Math.floor(Math.random() * choices.length)], true);
+  }, MEM_TURN_SECONDS * 1000);
+}
+function startMemory(room: Room) {
+  const vals: number[] = [];
+  for (let v = 1; v <= MEM_PAIRS; v++) vals.push(v, v);
+  for (let i = vals.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [vals[i], vals[j]] = [vals[j], vals[i]]; }
+  room.mem = { tiles: vals.map((v) => ({ v })), open: [], score: Object.fromEntries(room.players.map((p) => [p.id, 0])) };
+  room.status = "playing";
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  room.message = `${room.players[room.turnIdx].name} goes first — flip 2 cards 🃏`;
+  armMem(room); broadcast(room);
+}
+function memFlip(room: Room, uid: string, idx: number, auto = false): string {
+  const m = room.mem;
+  if (room.status !== "playing" || !m) return "Not playing";
+  const p = room.players[room.turnIdx ?? 0];
+  if (!p || p.id !== uid) return "Not your turn";
+  if (m.busy) return "Wait…";
+  if (!(idx >= 0 && idx < m.tiles.length) || m.tiles[idx].by || m.open.includes(idx)) return "Pick a face-down card";
+  m.open.push(idx);
+  if (m.open.length < 2) { armMem(room); broadcast(room); if (auto) memFlipAgain(room, uid); return ""; }
+  const [a, b] = m.open;
+  if (m.tiles[a].v === m.tiles[b].v) {
+    m.tiles[a].by = m.tiles[b].by = uid; m.open = [];
+    m.score[uid] = (m.score[uid] || 0) + 1;
+    if (m.tiles.every((t) => t.by)) return finishMemory(room), "";
+    room.message = `✨ ${p.name} matched ${m.tiles[a].v}! +1 — go again`;
+    armMem(room); broadcast(room); return "";
+  }
+  m.busy = true; clearTimers(room);
+  room.message = `${p.name} missed (${m.tiles[a].v} ≠ ${m.tiles[b].v})`;
+  broadcast(room);
+  room.timer = setTimeout(() => {
+    if (!room.mem) return;
+    room.mem.open = []; room.mem.busy = false;
+    room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length;
+    room.message = `${room.players[room.turnIdx].name}'s turn — flip 2 cards`;
+    armMem(room); broadcast(room);
+  }, MEM_PEEK_MS);
+  return "";
+}
+function memFlipAgain(room: Room, uid: string) {
+  const m = room.mem!; const choices = m.tiles.map((t, i) => i).filter((i) => !m.tiles[i].by && !m.open.includes(i));
+  if (choices.length) memFlip(room, uid, choices[Math.floor(Math.random() * choices.length)]);
+}
+function finishMemory(room: Room) {
+  clearTimers(room);
+  const m = room.mem!;
+  room.status = "done";
+  const top = Math.max(...room.players.map((p) => m.score[p.id] || 0));
+  const winners = room.players.filter((p) => (m.score[p.id] || 0) === top);
+  const tie = winners.length === room.players.length;
+  const losers = tie ? room.players : room.players.filter((p) => !winners.includes(p));
+  room.winnerId = tie ? undefined : winners[0]?.id;
+  room.lastLoserId = losers[0]?.id;
+  room.message = tie ? `Tie at ${top} pairs — both drink 🍻` : `${winners.map((p) => p.name).join(" & ")} wins with ${top} pairs 🏆 — ${losers.map((p) => p.name).join(", ")} drinks 🍺`;
+  broadcast(room);
+  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: m.score[p.id] || 0, result: (losers.includes(p) ? "lose" : "win") as "win" | "lose" })));
+  scheduleCleanup(room);
+}
+function memView(room: Room) {
+  const m = room.mem;
+  if (!m) return null;
+  const done = room.status === "done";
+  return {
+    turnId: room.status === "playing" ? room.players[room.turnIdx ?? 0]?.id : null,
+    tiles: m.tiles.map((t, i) => ({ v: t.by || m.open.includes(i) || done ? t.v : null, by: t.by || null, open: m.open.includes(i) })),
+    score: m.score, busy: !!m.busy,
+  };
+}
+
 // ── Red Light, Green Light ────────────────────────────────────────────────
 // Tap LEFT, RIGHT, LEFT, RIGHT… to walk while the light is GREEN; 500 steps
 // reach the finish. Tap while it's RED (after a short reaction grace) and
@@ -1295,12 +1388,12 @@ function frogView(room: Room, forUserId?: string) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "frog", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "frog", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
   number: "Guessing game", rps: "Guessing game",
   dice: "Dice game", "789": "Dice game",
-  cards: "Card game", poker3: "Card game",
+  cards: "Card game", poker3: "Card game", memory: "Card game",
   tap: "Who's the fastest", rlgl: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
   wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game",
 };
@@ -1512,7 +1605,7 @@ export function registerGameRoutes(app: Express) {
       .map((r) => ({
         code: r.code, game: r.game,
         hostName: r.players.find((p) => p.id === r.hostId)?.name || "Host",
-        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : r.game === "poker3" ? 8 : MAX_PLAYERS,
+        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : r.game === "poker3" ? 8 : r.game === "memory" ? 2 : MAX_PLAYERS,
         hasPassword: !!r.password, createdAt: r.createdAt,
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -1522,7 +1615,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
@@ -1563,7 +1656,7 @@ export function registerGameRoutes(app: Express) {
     if (existing) return res.json({ code: room.code });
     if (room.status !== "lobby") return res.status(400).json({ message: "This game has already started." });
     if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: "Wrong room password." });
-    const cap = room.game === "cards" ? CARDS_MAX : room.game === "poker3" ? 8 : MAX_PLAYERS;
+    const cap = room.game === "cards" ? CARDS_MAX : room.game === "poker3" ? 8 : room.game === "memory" ? 2 : MAX_PLAYERS;
     if (room.players.length >= cap) return res.status(400).json({ message: `Room is full (${cap} players).` });
     room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
     broadcast(room);
@@ -1582,6 +1675,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "poker3") startPoker(room);
     else if (room.game === "frog") startFrog(room);
     else if (room.game === "rlgl") startRlgl(room);
+    else if (room.game === "memory") startMemory(room);
     else if (room.game === "dice") startDiceRound(room);
     else if (room.game === "wheel") startWheel(room);
     else if (room.game === "riding") startRiding(room);
@@ -1651,6 +1745,10 @@ export function registerGameRoutes(app: Express) {
         return res.json({ ok: true });
       }
       return res.status(400).json({ message: "Bad action" });
+    }
+    if (room.game === "memory") {
+      const err = memFlip(room, getUserId(req)!, Number(req.body?.idx));
+      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
     }
     if (room.game === "rlgl") {
       if (req.body?.act === "step") rlStep(room, getUserId(req)!, Number(req.body?.n));

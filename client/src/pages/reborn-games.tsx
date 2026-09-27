@@ -14,6 +14,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "30s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
+  memory: { name: "Memory Match", emoji: "🧠", blurb: "2 players · flip 2 cards, same number = point & go again" },
   rlgl: { name: "Red Light, Green Light", emoji: "🚦", blurb: "tap left-right to walk on green · freeze on red · 3 min to cross" },
   frog: { name: "Frog Jump", emoji: "🐸", blurb: "tap a frog in 5s · same frog as the turn player = ½ cup" },
   poker3: { name: "3-Card Poker", emoji: "🂡", blurb: "play blind, raise ½ cup · look = pay double · worst hand drinks the pot" },
@@ -31,14 +32,14 @@ const GAME_GRAD: Record<string, string> = {
   rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)",
   cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)",
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
-  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)",
+  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)", memory: "linear-gradient(135deg,#a78bfa,#6d28d9)",
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
 };
 // Games grouped into categories for the lobby.
 const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
   { name: "Guessing game", emoji: "🧠", games: ["number", "rps"] },
   { name: "Dice game", emoji: "🎲", games: ["dice", "789"] },
-  { name: "Card game", emoji: "🃏", games: ["cards", "poker3"] },
+  { name: "Card game", emoji: "🃏", games: ["cards", "poker3", "memory"] },
   { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"] },
   { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding", "frog"] },
 ];
@@ -55,6 +56,13 @@ const RULES: Record<string, string[]> = {
     "Every tap = 1 gold coin ⛏️🪙.",
     "You have 30 seconds — most coins wins.",
     "Lowest score buys the round 😄.",
+  ],
+  memory: [
+    "2 players. 30 cards face-down (6 × 5) — 15 pairs of numbers.",
+    "On your turn flip any 2 cards.",
+    "Same number = +1 point and you flip 2 more!",
+    "Different = they flip back and it's the other player's turn. Remember where they were 🧠",
+    "When all pairs are found, most pairs wins — the loser drinks 🍺 (tie = both drink). 20s per flip.",
   ],
   rlgl: [
     "Everyone gets a player number and starts at the bottom of the field.",
@@ -175,7 +183,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
+type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
@@ -382,7 +390,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                 </div>
               </div>
             )}
-            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && game !== "rlgl" && (
+            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && game !== "rlgl" && game !== "memory" && (
             <div className="mt-3">
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
               <div className="flex gap-2">
@@ -497,6 +505,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "done") && room.game === "poker3" && <PokerGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "frog" && <FrogGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "rlgl" && <RlglGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && room.game === "memory" && <MemoryGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
@@ -1209,6 +1218,58 @@ function RlglGame({ room, code, me }: any) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function MemoryGame({ room, code, me }: any) {
+  const m = room.memory || {};
+  const { toast } = useToast();
+  const myTurn = room.status === "playing" && m.turnId === me && !m.busy;
+  const turnName = room.players.find((p: any) => p.id === m.turnId)?.name;
+  const flip = async (idx: number) => {
+    try {
+      const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, { idx });
+      if (!ok) toast({ title: "Can't flip", description: d.message, variant: "destructive" });
+    } catch (e: any) { toast({ title: "Can't flip", description: String(e?.message || e).replace(/^\d+:\s*/, ""), variant: "destructive" }); }
+  };
+  const me0 = room.players.find((p: any) => p.id === me);
+  const colorOf = (id: string) => (room.players.findIndex((p: any) => p.id === id) === 0 ? "#22c55e" : "#3b82f6");
+  const done = room.status === "done";
+  const iLost = done && room.lastLoserId && (m.score?.[me] || 0) <= Math.min(...room.players.map((p: any) => m.score?.[p.id] || 0));
+  return (
+    <div className="rwg-card p-4 text-center">
+      {/* scoreboard */}
+      <div className="mb-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${room.players.length}, minmax(0, 1fr))` }}>
+        {room.players.map((p: any) => (
+          <div key={p.id} className={`rounded-2xl border px-3 py-2 ${m.turnId === p.id ? "border-white/60 bg-white/10" : "border-white/10 bg-white/5"}`}>
+            <p className="truncate text-xs font-bold" style={{ color: colorOf(p.id) }}>{m.turnId === p.id ? "▶ " : ""}{p.id === me ? "You" : p.name}</p>
+            <p className="text-2xl font-black tabular-nums">{m.score?.[p.id] || 0}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mb-3 min-h-[20px] text-sm text-white/70">{done ? room.message : myTurn ? `Your turn — flip 2 cards (${room.secondsLeft}s)` : m.busy ? room.message : `${turnName || "…"}'s turn (${room.secondsLeft}s)`}</p>
+      {done && <p className={`mb-3 text-2xl font-black ${iLost ? "text-red-300" : "text-emerald-300"}`}>{iLost ? "🍺 You drink!" : "🏆 You win!"}</p>}
+      {/* 6 × 5 board */}
+      <div className="mx-auto grid max-w-sm gap-1.5" style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}>
+        {(m.tiles || []).map((t: any, i: number) => {
+          const up = t.v !== null;
+          return (
+            <button key={i} disabled={!myTurn || up} onClick={() => flip(i)}
+              className={`relative aspect-[3/4] rounded-lg text-xl font-black shadow transition-transform duration-300 ${myTurn && !up ? "active:scale-90" : ""}`}
+              style={{
+                background: up ? "#fff" : "repeating-linear-gradient(45deg,#7c3aed 0 5px,#5b21b6 5px 10px)",
+                color: "#1e1b4b",
+                border: t.by ? `3px solid ${colorOf(t.by)}` : t.open ? "3px solid #f59e0b" : "2px solid rgba(255,255,255,.7)",
+                opacity: t.by && !done ? 0.55 : 1,
+                animation: t.open ? "rwgPop .3s ease-out" : undefined,
+              }}>
+              {up ? t.v : ""}
+            </button>
+          );
+        })}
+      </div>
+      {!me0 && <p className="mt-2 text-xs text-white/40">Watching</p>}
     </div>
   );
 }
