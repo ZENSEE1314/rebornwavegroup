@@ -256,6 +256,8 @@ function timerView(room: Room, forUserId?: string) {
   const done = room.status === "done";
   return {
     target: 60,
+    startedAt: room.timerStart || null,
+    serverNow: Date.now(),
     yourMs: room.players.find((p) => p.id === forUserId)?.stopMs ?? null,
     stoppedCount: room.players.filter((p) => p.stopMs != null).length,
     total: room.players.length,
