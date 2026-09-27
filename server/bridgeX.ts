@@ -32,7 +32,10 @@ import {
 // keys are added as we build each engine. `status` is honest: "live" gates a real
 // feature today, "beta" is partial/config-only, "planned" is on the roadmap.
 export type ModuleStatus = "live" | "beta" | "planned";
-export interface ModuleDef { key: string; name: string; category: string; status: ModuleStatus; desc: string; }
+export interface ModuleDef { key: string; name: string; category: string; status: ModuleStatus; desc: string; core?: boolean; }
+// Core modules are the basic system every company gets — always on, cannot be
+// disabled. Everything else is an add-on the super admin ticks per company.
+export const CORE_MODULES = new Set<string>(["crm", "events", "marketing", "reviews", "faq_automation", "analytics", "audit"]);
 export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   // Core — almost every business
   { key: "pos", name: "Point of Sale", category: "Core", status: "live", desc: "Sales, cart, discounts, tax, service charge, tips." },
@@ -88,6 +91,7 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   { key: "ai_telegram", name: "AI Telegram", category: "AI & Channels", status: "beta", desc: "Telegram channel with AI replies and campaigns." },
   { key: "faq_automation", name: "FAQ Automation", category: "AI & Channels", status: "beta", desc: "Auto-answer common questions, hand over to staff when needed." },
 ];
+BRIDGEX_MODULE_REGISTRY.forEach((m) => { m.core = CORE_MODULES.has(m.key); });
 export const BRIDGEX_MODULES = BRIDGEX_MODULE_REGISTRY.map((m) => m.key) as unknown as readonly string[];
 
 // Industry → default enabled modules. Picking an industry at signup turns the
@@ -229,6 +233,7 @@ function stationFor(category?: string | null, override?: string | null): string 
 function randomToken() { return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 
 async function moduleEnabled(companyId: number, key: string) {
+  if (CORE_MODULES.has(key)) return true; // core is always on for every company
   const rows = (await db.execute(sql`SELECT enabled FROM bridge_company_modules WHERE company_id=${companyId} AND module_key=${key} LIMIT 1`)).rows as any[];
   return rows.length ? !!rows[0].enabled : false;
 }
@@ -339,9 +344,11 @@ async function createCompany(req: Request, ownerUserId: string, body: any) {
     permissions: name === "admin" ? ["*"] : [],
   }))).returning();
   const industryKey = String(body.industry || "other");
-  const selected = Array.isArray(body.modules) && body.modules.length
+  const chosen = Array.isArray(body.modules) && body.modules.length
     ? body.modules.filter((key: string) => (BRIDGEX_MODULES as string[]).includes(key))
     : modulesForIndustry(industryKey);
+  // Core modules are always included for every company.
+  const selected = Array.from(new Set([...chosen, ...CORE_MODULES]));
   if (selected.length) await db.insert(bridgeCompanyModules).values(selected.map((moduleKey: string) => ({ companyId: company.id, moduleKey })));
   await db.insert(bridgeCompanyMembers).values({ companyId: company.id, userId: ownerUserId, branchId: branch.id, positionId: positions[0]?.id, role: "owner" });
   return { company, branch, modules: selected };
@@ -1057,7 +1064,8 @@ export function registerBridgeXRoutes(app: Express) {
   app.get("/api/v1/company/modules", route(async (req, res) => { const access = await companyAccess(req, res); if (access) res.json(await db.select().from(bridgeCompanyModules).where(eq(bridgeCompanyModules.companyId, access.companyId))); }));
   app.put("/api/v1/company/modules", route(async (req, res) => {
     const access = await companyAccess(req, res, true); if (!access) return;
-    const selected = Array.isArray(req.body?.modules) ? req.body.modules.filter((key: string) => BRIDGEX_MODULES.includes(key as any)) : [];
+    const chosen = Array.isArray(req.body?.modules) ? req.body.modules.filter((key: string) => BRIDGEX_MODULES.includes(key as any)) : [];
+    const selected = Array.from(new Set([...chosen, ...CORE_MODULES])); // core cannot be turned off
     await db.delete(bridgeCompanyModules).where(eq(bridgeCompanyModules.companyId, access.companyId));
     if (selected.length) await db.insert(bridgeCompanyModules).values(selected.map((moduleKey: string) => ({ companyId: access.companyId, moduleKey })));
     res.json({ modules: selected });

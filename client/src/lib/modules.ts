@@ -24,10 +24,16 @@ export const NAV_MODULE: Record<string, string> = {
   "/games": "games",
 };
 
+// Core modules are the basic system every company always has (kept in sync with
+// server CORE_MODULES). They can never be turned off.
+export const CORE_MODULES = new Set(["crm", "events", "marketing", "reviews", "faq_automation", "analytics", "audit"]);
+
 // default: a module is ON unless explicitly disabled. If we have no data yet
 // (undefined), treat everything as on so nothing flickers/hides during load.
 export function moduleEnabled(modules: Record<string, boolean> | undefined, key?: string): boolean {
-  if (!key || !modules) return true;
+  if (!key) return true;
+  if (CORE_MODULES.has(key)) return true;
+  if (!modules) return true;
   return modules[key] !== false;
 }
 
