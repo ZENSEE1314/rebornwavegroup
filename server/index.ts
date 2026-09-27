@@ -127,8 +127,17 @@ app.use((req, res, next) => {
         );
 
         let changed = false;
+        const { accrueEnergy } = await import("./petEnergy.js");
         for (const pet of allPets) {
           const now = new Date();
+          // Energy on its own clock: +5/hour resting, +5/10 min asleep.
+          if (!pet.isEgg) {
+            const acc = accrueEnergy(pet.energy ?? 60, !!pet.isSleeping, pet.lastEnergyUpdate, now);
+            if (acc.energy !== pet.energy || !pet.lastEnergyUpdate || acc.anchor.getTime() !== new Date(pet.lastEnergyUpdate).getTime()) {
+              await db.update(pets).set({ energy: acc.energy, lastEnergyUpdate: acc.anchor }).where(eq(pets.id, pet.id));
+              if (acc.energy !== pet.energy) changed = true;
+            }
+          }
           const lastDecayTime = pet.lastDecayTime
             ? new Date(pet.lastDecayTime)
             : new Date(pet.createdAt || now);

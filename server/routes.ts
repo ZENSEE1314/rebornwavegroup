@@ -350,8 +350,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
-  // Initialize real-time energy timers for currently sleeping pets
+  // Initialize real-time energy timers for currently sleeping pets.
+  // Disabled: pet energy is now accrued by server/petEnergy.ts (+5/hour resting,
+  // +5/10 min asleep); these legacy boot timers would add energy on top of it.
   setTimeout(async () => {
+    if (process.env.LEGACY_PET_ENERGY_TIMERS !== "true") return;
     try {
       const sleepingPets = await db.select().from(schema.pets);
       for (const pet of sleepingPets) {
