@@ -1061,12 +1061,15 @@ export function registerRebornRoutes(app: Express) {
 
   app.get("/api/reborn/history", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
+    const cid = await rebornCompanyId(req);
     const [wallet, topups, tickets, prizes, gifts] = await Promise.all([
+      // wallet + top-ups are the user's overall money wallet (user-level, global)
       db.select().from(memberWalletTransactions).where(eq(memberWalletTransactions.userId, userId)).orderBy(desc(memberWalletTransactions.createdAt)).limit(300),
       db.select().from(topUpRequests).where(eq(topUpRequests.userId, userId)).orderBy(desc(topUpRequests.createdAt)).limit(100),
-      db.select().from(posTickets).where(eq(posTickets.memberId, userId)).orderBy(desc(posTickets.createdAt)).limit(100),
-      db.select().from(spinResults).where(eq(spinResults.userId, userId)).orderBy(desc(spinResults.createdAt)).limit(100),
-      db.select().from(kosGifts).where(or(eq(kosGifts.fromUserId, userId), eq(kosGifts.toUserId, userId))).orderBy(desc(kosGifts.createdAt)).limit(200),
+      // tickets / prizes / gifts are this-business activity → scoped to the company
+      db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.memberId, userId))).orderBy(desc(posTickets.createdAt)).limit(100),
+      db.select().from(spinResults).where(and(eq(spinResults.companyId, cid), eq(spinResults.userId, userId))).orderBy(desc(spinResults.createdAt)).limit(100),
+      db.select().from(kosGifts).where(and(eq(kosGifts.companyId, cid), or(eq(kosGifts.fromUserId, userId), eq(kosGifts.toUserId, userId)))).orderBy(desc(kosGifts.createdAt)).limit(200),
     ]);
     const ticketIds = tickets.map((ticket) => ticket.id);
     const items = ticketIds.length ? await db.select().from(posTicketItems).where(inArray(posTicketItems.orderId, ticketIds)) : [];
