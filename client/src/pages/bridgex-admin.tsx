@@ -119,7 +119,7 @@ export default function BridgeXAdmin() {
       </section>
       {message && <div className="mb-5 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-3 text-sm text-cyan-100">{message}</div>}
       {companyId&&<div className={`mb-5 rounded-xl border p-3 text-sm ${access.allowed?"border-emerald-400/30 bg-emerald-400/10 text-emerald-200":"border-red-400/40 bg-red-500/10 text-red-200"}`}><b>{access.allowed?"App access enabled":"App access locked"}</b> · {access.subscriptionStatus||selected?.subscriptionStatus}{access.trialEndsAt&&` · trial ends ${new Date(access.trialEndsAt).toLocaleDateString()}`}</div>}
-      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("pos")?[["register","Register / Sales"]]:[]),...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
+      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["applications","Applications"]]:[]),["brand","White label & billing"],["modules","Services"],...(modules.includes("pos")?[["register","Register / Sales"]]:[]),...(modules.includes("restaurant")?[["tables","Tables"]]:[]),...(modules.includes("kitchen_display")?[["kds","Kitchen"]]:[]),...(modules.includes("inventory")?[["inventory","Inventory"]]:[]),...(modules.includes("purchasing")?[["purchasing","Purchasing"]]:[]),...(modules.includes("crm")?[["crm","Customers"]]:[]),["operations","Loyalty & automation"],["branches","Branches"],["staff","Staff & leaderboard"],["hr","Attendance & shifts"],["feedback","Feedback"],["performance","Leaderboard"],["meetings","Meetings"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
 
       {tab === "company" && <Panel title="Company accounts" subtitle="Create a tenant, owner login, first branch and billing agreement.">
         <div className="grid gap-3 md:grid-cols-3">{["name","appName","adminEmail","branchName","price"].map((key) => <input key={key} className={field} placeholder={({name:"Company name",appName:"Customer-facing app name",adminEmail:"Owner email",branchName:"First branch",price:"Price"} as Record<string,string>)[key]} value={(companyForm as any)[key]} onChange={(e)=>setCompanyForm({...companyForm,[key]:e.target.value})}/>)}</div>
@@ -148,6 +148,10 @@ export default function BridgeXAdmin() {
       </Panel>}
 
       {tab === "register" && companyId && <PosPanel companyId={companyId} customers={customers} crmOn={modules.includes("crm")} onMsg={setMessage} />}
+
+      {tab === "tables" && companyId && <TablesPanel companyId={companyId} onMsg={setMessage} />}
+
+      {tab === "kds" && companyId && <KdsPanel companyId={companyId} onMsg={setMessage} />}
 
       {tab === "inventory" && <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="Stock items" subtitle="Track quantity on hand. Items at or below their low-stock level are flagged red.">
@@ -288,6 +292,58 @@ function PosPanel({companyId,customers,crmOn,onMsg}:{companyId:number;customers:
   </div>;
 }
 function Row2({l,v,bold}:{l:string;v:number;bold?:boolean}) { return <div className={`flex justify-between ${bold?"font-bold":""}`}><span className="text-slate-400">{l}</span><span>{v.toLocaleString()}</span></div> }
+
+const TABLE_COLOR:Record<string,string> = { available:"border-emerald-400/50 bg-emerald-400/5", occupied:"border-amber-400/60 bg-amber-400/10", reserved:"border-cyan-400/50 bg-cyan-400/5" };
+function TablesPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+  const [tables,setTables] = useState<Row[]>([]);
+  const [products,setProducts] = useState<Row[]>([]);
+  const [form,setForm] = useState({name:"",area:"",seats:"2"});
+  const [open,setOpen] = useState<Row|null>(null);
+  const [pay,setPay] = useState({method:"cash"});
+  const [busy,setBusy] = useState(false);
+  const load = () => { request("/api/v1/company/restaurant/tables",{},companyId).then(setTables).catch(()=>{}); request("/api/v1/company/pos/products",{},companyId).then(setProducts).catch(()=>{}); };
+  useEffect(load,[companyId]);
+  const openTable = async (t:Row) => { setBusy(true); try { const tk = await request(`/api/v1/company/restaurant/tables/${t.id}/open`,{method:"POST",body:"{}"},companyId); await refreshDrawer(t.id); load(); } catch(e:any){onMsg(e.message);} finally{setBusy(false);} };
+  const refreshDrawer = async (id:number) => { const d = await request(`/api/v1/company/restaurant/tables/${id}`,{},companyId); setOpen(d); };
+  const addItem = async (productId:number) => { if(!open?.ticket) return; setBusy(true); try { await request(`/api/v1/company/pos/tickets/${open.ticket.id}/items`,{method:"POST",body:JSON.stringify({items:[{productId,qty:1}]})},companyId); await refreshDrawer(open.id); } catch(e:any){onMsg(e.message);} finally{setBusy(false);} };
+  const settle = async () => { if(!open?.ticket) return; setBusy(true); try { const due = Number(open.ticket.total); await request(`/api/v1/company/pos/tickets/${open.ticket.id}/settle`,{method:"POST",body:JSON.stringify({payments:[{method:pay.method,amount:due}]})},companyId); onMsg(`Table ${open.name} settled (${due.toLocaleString()})`); setOpen(null); load(); } catch(e:any){onMsg(e.message);} finally{setBusy(false);} };
+  const freeTable = async () => { if(!open) return; setBusy(true); try { await request(`/api/v1/company/restaurant/tables/${open.id}/close`,{method:"POST",body:"{}"},companyId); setOpen(null); load(); } catch(e:any){onMsg(e.message);} finally{setBusy(false);} };
+
+  return <Panel title="Tables & floor plan" subtitle="Green = free, amber = occupied. Tap a table to open a tab, add items (they fire to the kitchen), then settle. Print each table's QR for self-ordering.">
+    <div className="mb-4 flex flex-wrap gap-2"><input className={field+" w-32"} placeholder="Table name/no." value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input className={field+" w-28"} placeholder="Area" value={form.area} onChange={e=>setForm({...form,area:e.target.value})}/><input className={field+" w-20"} type="number" placeholder="Seats" value={form.seats} onChange={e=>setForm({...form,seats:e.target.value})}/><button className={button} disabled={busy||!form.name} onClick={async()=>{try{await request("/api/v1/company/restaurant/tables",{method:"POST",body:JSON.stringify(form)},companyId);setForm({name:"",area:"",seats:"2"});onMsg("Table added");load();}catch(e:any){onMsg(e.message);}}}><Plus className="mr-1 inline h-4 w-4"/>Add table</button></div>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{tables.length===0&&<p className="col-span-full text-sm text-slate-500">No tables yet.</p>}{tables.map(t=><button key={t.id} onClick={()=>refreshDrawer(t.id)} className={`rounded-2xl border p-4 text-left ${TABLE_COLOR[t.status]||"border-white/10 bg-white/[.03]"}`}><div className="flex items-center justify-between"><b className="text-lg">{t.name}</b><span className="text-[11px] uppercase text-slate-400">{t.status}</span></div><p className="mt-1 text-xs text-slate-400">{t.area||"—"} · {t.seats} seats</p>{t.current_ticket_id&&<p className="mt-2 text-sm text-amber-200">{Number(t.open_items||0)} item(s) · {Number(t.open_total||0).toLocaleString()}</p>}</button>)}</div>
+
+    {open&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={()=>setOpen(null)}><div className="absolute inset-0 bg-black/70"/><div className="relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-white/10 bg-slate-900 p-5" onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between"><b className="text-lg">Table {open.name}</b><a className="text-xs text-cyan-300 underline" href={`/api/v1/company/restaurant/tables/${open.id}/qr`} target="_blank" rel="noreferrer">Print QR</a></div>
+      {!open.ticket&&<button className={button+" mt-4"} disabled={busy} onClick={()=>openTable(open)}>Open tab for this table</button>}
+      {open.ticket&&<>
+        <p className="mt-1 text-xs text-slate-400">{open.ticket.orderNo} · {open.ticket.status}</p>
+        <div className="mt-3 max-h-40 space-y-1 overflow-auto text-sm">{(open.ticket.items||[]).length===0&&<p className="text-slate-500">No items yet.</p>}{(open.ticket.items||[]).map((it:Row)=><div key={it.id} className="flex justify-between"><span>{it.qty}× {it.name} <span className="text-[10px] text-slate-500">{it.station}·{it.status}</span></span><span>{Number(it.lineTotal).toLocaleString()}</span></div>)}</div>
+        <div className="mt-3 border-t border-white/10 pt-2"><Row2 l="Total" v={Number(open.ticket.total)} bold/></div>
+        <p className="mt-3 text-xs text-slate-400">Add items:</p>
+        <div className="mt-1 grid max-h-40 grid-cols-2 gap-2 overflow-auto sm:grid-cols-3">{products.filter(p=>p.active!==false).map(p=><button key={p.id} disabled={busy} onClick={()=>addItem(p.id)} className="rounded-lg border border-white/10 bg-white/[.03] p-2 text-left text-xs hover:border-cyan-400/50"><b className="block truncate">{p.name}</b><span className="text-cyan-300">{Number(p.price).toLocaleString()}</span></button>)}</div>
+        <div className="mt-4 flex items-center gap-2"><select className={field+" w-32"} value={pay.method} onChange={e=>setPay({method:e.target.value})}>{["cash","card","qr","transfer","ewallet"].map(m=><option key={m} value={m}>{m}</option>)}</select><button className={button+" flex-1 justify-center"} disabled={busy||!(open.ticket.items||[]).length} onClick={settle}>Settle {Number(open.ticket.total).toLocaleString()}</button></div>
+        <button className="mt-2 text-xs text-red-300" onClick={freeTable}>Free table without charge</button>
+      </>}
+      <button className="mt-3 text-sm text-slate-400" onClick={()=>setOpen(null)}>Close</button>
+    </div></div>}
+  </Panel>;
+}
+
+const KDS_NEXT:Record<string,string> = { new:"preparing", preparing:"ready", ready:"served" };
+const KDS_LABEL:Record<string,string> = { new:"Start", preparing:"Ready", ready:"Serve" };
+function KdsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=>void}) {
+  const [items,setItems] = useState<Row[]>([]);
+  const [station,setStation] = useState("");
+  const load = () => request(`/api/v1/company/restaurant/kds${station?`?station=${station}`:""}`,{},companyId).then(setItems).catch(()=>{});
+  useEffect(()=>{ load(); const t=setInterval(load,4000); const es=new EventSource(`/api/v1/company/live?companyId=${companyId}`); es.addEventListener("change",load); return ()=>{clearInterval(t);es.close();}; },[companyId,station]);
+  const advance = async (it:Row) => { const next=KDS_NEXT[it.status]; if(!next) return; try{ await request(`/api/v1/company/restaurant/kds/${it.id}`,{method:"PATCH",body:JSON.stringify({status:next})},companyId); load(); }catch(e:any){onMsg(e.message);} };
+  const cols = ["new","preparing","ready"];
+  return <Panel title="Kitchen display" subtitle="Live order queue. Tap a ticket to move it new → preparing → ready → served. Drinks route to Bar, desserts to Dessert.">
+    <div className="mb-4 flex gap-2">{[["","All"],["kitchen","Kitchen"],["bar","Bar"],["dessert","Dessert"]].map(([k,label])=><button key={k} onClick={()=>setStation(k)} className={`rounded-full px-3 py-1.5 text-sm ${station===k?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</div>
+    <div className="grid gap-3 sm:grid-cols-3">{cols.map(col=><div key={col}><h3 className="mb-2 text-sm font-black uppercase tracking-wider text-slate-400">{col} <span className="text-slate-600">({items.filter(i=>i.status===col).length})</span></h3><div className="space-y-2">{items.filter(i=>i.status===col).map(it=><button key={it.id} onClick={()=>advance(it)} className={`w-full rounded-xl border p-3 text-left ${col==="new"?"border-red-400/40 bg-red-500/5":col==="preparing"?"border-amber-400/40 bg-amber-400/5":"border-emerald-400/40 bg-emerald-400/5"}`}><div className="flex justify-between"><b className="text-sm">{it.qty}× {it.name}</b><span className="text-[10px] uppercase text-slate-500">{it.station}</span></div><p className="mt-1 text-xs text-slate-400">{it.order_no}{it.table_number?` · T${it.table_number}`:""}</p><span className="mt-2 inline-block rounded bg-white/10 px-2 py-0.5 text-[11px]">{KDS_LABEL[it.status]||"Done"} →</span></button>)}{items.filter(i=>i.status===col).length===0&&<p className="text-xs text-slate-600">Empty</p>}</div></div>)}</div>
+  </Panel>;
+}
 function Leaderboard({rows}:{rows:Row[]}) { return <div className="grid gap-3">{rows.length===0&&<p className="text-sm text-slate-500">No ranked staff yet.</p>}{rows.map(l=><div key={l.user_id} className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${l.redFlag?"border-red-500/60 bg-red-500/10":"border-white/10 bg-white/[.03]"}`}><div className="flex items-center gap-3"><span className="text-xl font-black">#{l.rank}</span><div><b>{l.name}</b><p className="text-xs text-slate-400">{l.position||"Staff"}</p></div></div><div className="flex gap-5 text-right"><div><b>{Number(l.weekly_sales).toLocaleString()}</b><p className="text-xs text-slate-500">weekly sales</p></div><div><b><Star className="inline h-4 w-4 fill-amber-400 text-amber-400"/> {Number(l.rating).toFixed(1)}</b><p className="text-xs text-slate-500">{l.review_count} reviews</p></div></div></div>)}</div> }
 function OperationsPanel({settings,setSettings,onSave}:{settings:any;setSettings:(v:any)=>void;onSave:()=>void}) {
   const loyalty=settings.loyalty||{pointsSpendRp:1000,rewardsEnabled:true,tiers:[]}; const services=settings.services||{}; const booking=settings.booking||{areas:[]};

@@ -839,6 +839,7 @@ export const posProducts = pgTable("pos_products", {
   supplierPhone: varchar("supplier_phone"),
   active: boolean("active").default(true).notNull(),
   posVisible: boolean("pos_visible").default(true).notNull(), // false = tracked in inventory but not sellable in POS (e.g. raw meat)
+  station: varchar("station"), // KDS routing override: 'kitchen' | 'bar' | 'dessert' (else derived from category)
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -893,9 +894,10 @@ export const posTicketItems = pgTable("pos_ticket_items", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   qty: integer("qty").default(1).notNull(),
   lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
-  status: varchar("status").default("accepted").notNull(), // 'pending' | 'accepted' | 'rejected' | 'served'
+  status: varchar("status").default("accepted").notNull(), // 'pending' | 'accepted' | 'rejected' | 'served' | 'new' | 'preparing' | 'ready'
   rejectReason: varchar("reject_reason"),
-  source: varchar("source").default("pos"), // 'pos' | 'app'
+  source: varchar("source").default("pos"), // 'pos' | 'app' | 'qr'
+  station: varchar("station").default("kitchen").notNull(), // KDS routing: 'kitchen' | 'bar' | 'dessert'
   servedAt: timestamp("served_at"),
 });
 

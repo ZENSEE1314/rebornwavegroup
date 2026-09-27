@@ -190,6 +190,33 @@ async function runAdmin() {
     expect(r.status === "refunded", `expected refunded, got ${r.status}`);
     return `refunded ${r.refunded}`;
   }, { soft: true });
+  // Restaurant pack: table → open tab → add item → KDS → settle
+  await step("restaurant: table open → add → KDS → settle", async () => {
+    const tbl = ok(await api("POST", "/api/v1/company/restaurant/tables", { name: `${TAG}-T1`, seats: 4 }, withCo()), "create table");
+    ctx.tableToken = tbl.qr_token;
+    const prod = ok(await api("POST", "/api/v1/company/pos/products", { name: `${TAG} Fries`, price: 20000, stock: 100, category: "Food" }, withCo()), "product");
+    const opened = await api("POST", `/api/v1/company/restaurant/tables/${tbl.id}/open`, {}, withCo());
+    if (!opened.ok && opened.status === 402) throw new Error("SUBSCRIPTION_REQUIRED (activate trial to test)");
+    const ticket = ok(opened, "open table");
+    ok(await api("POST", `/api/v1/company/pos/tickets/${ticket.id}/items`, { items: [{ productId: prod.id, qty: 3 }] }, withCo()), "add items");
+    const kds = ok(await api("GET", "/api/v1/company/restaurant/kds", undefined, withCo()), "kds");
+    const item = kds.find((k) => k.order_id === ticket.id);
+    expect(item && item.status === "new", "item not showing as new on KDS");
+    ok(await api("PATCH", `/api/v1/company/restaurant/kds/${item.id}`, { status: "preparing" }, withCo()), "advance kds");
+    const settled = ok(await api("POST", `/api/v1/company/pos/tickets/${ticket.id}/settle`, { payments: [{ method: "cash", amount: 60000 }] }, withCo()), "settle");
+    expect(settled.status === "paid", `expected paid, got ${settled.status}`);
+    const tables = ok(await api("GET", "/api/v1/company/restaurant/tables", undefined, withCo()), "tables");
+    expect(tables.find((x) => x.id === tbl.id)?.status === "available", "table not freed after settle");
+    return "full table cycle ok";
+  }, { soft: true });
+  await step("qr ordering: public menu + order", async () => {
+    if (!ctx.tableToken) throw new Error("no table token from previous step");
+    const menu = ok(await api("GET", `/api/v1/order/${ctx.tableToken}`), "public menu");
+    const prodId = menu.menu[0]?.id; expect(prodId, "menu is empty");
+    const order = ok(await api("POST", `/api/v1/order/${ctx.tableToken}`, { items: [{ productId: prodId, qty: 1 }] }), "public order");
+    expect(order.orderNo, "no order number returned");
+    return order.orderNo;
+  }, { soft: true });
   await step("module gate blocks disabled module", async () => {
     // Turn CRM off, expect 403 MODULE_DISABLED, then turn it back on.
     ok(await api("PUT", "/api/v1/company/modules", { modules: ["pos", "employees", "inventory"] }, withCo()), "disable crm");

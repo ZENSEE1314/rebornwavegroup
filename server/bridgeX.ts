@@ -58,9 +58,9 @@ export const BRIDGEX_MODULE_REGISTRY: ModuleDef[] = [
   // Booking
   { key: "booking", name: "Universal Booking", category: "Booking", status: "beta", desc: "One engine for tables, rooms, stylists, bays, assets, classes." },
   // Industry packs
-  { key: "restaurant", name: "Restaurant / Café", category: "Industry", status: "planned", desc: "Table floor plan, split/merge bills, dine-in/takeaway/delivery." },
-  { key: "kitchen_display", name: "Kitchen Display (KDS)", category: "Industry", status: "planned", desc: "Route orders to kitchen/bar/dessert; new→preparing→ready→served." },
-  { key: "qr_ordering", name: "QR Ordering", category: "Industry", status: "planned", desc: "Scan → menu → order → kitchen → serve → pay → review." },
+  { key: "restaurant", name: "Restaurant / Café", category: "Industry", status: "live", desc: "Table floor plan, running tabs, open→add→settle, dine-in service." },
+  { key: "kitchen_display", name: "Kitchen Display (KDS)", category: "Industry", status: "live", desc: "Route orders to kitchen/bar/dessert; new→preparing→ready→served." },
+  { key: "qr_ordering", name: "QR Ordering", category: "Industry", status: "live", desc: "Scan table QR → menu → order → straight to the kitchen." },
   { key: "foodcourt", name: "Food Court", category: "Industry", status: "planned", desc: "One payment across stalls, revenue allocation, stall settlement." },
   { key: "ktv", name: "KTV / Rooms", category: "Industry", status: "planned", desc: "Room map, hourly timers, minimum spend, packages, reservations." },
   { key: "bottle_keep", name: "Bottle Keep", category: "Industry", status: "beta", desc: "Customer bottle storage & balance, host/waiter assignment." },
@@ -191,6 +191,16 @@ async function companyAccess(req: Request, res: Response, management = false) {
   return { user, companyId, role: member.role, branchId: member.branchId };
 }
 
+// KDS routing: explicit product override wins, else derive a station from the category name.
+function stationFor(category?: string | null, override?: string | null): string {
+  if (override) return override;
+  const c = (category || "").toLowerCase();
+  if (/drink|beer|wine|beverage|\bbar\b|cocktail|juice|coffee|tea|soda|spirit|whisky|vodka/.test(c)) return "bar";
+  if (/dessert|cake|ice ?cream|sweet|pastry|gelato/.test(c)) return "dessert";
+  return "kitchen";
+}
+function randomToken() { return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
+
 async function moduleEnabled(companyId: number, key: string) {
   const rows = (await db.execute(sql`SELECT enabled FROM bridge_company_modules WHERE company_id=${companyId} AND module_key=${key} LIMIT 1`)).rows as any[];
   return rows.length ? !!rows[0].enabled : false;
@@ -204,6 +214,32 @@ async function requireModule(req: Request, res: Response, key: string, managemen
     return null;
   }
   return access;
+}
+
+// Recompute a ticket's subtotal/total from its current line items + stored charges.
+async function recomputeTicket(ticketId: number) {
+  const [t] = await db.select().from(posTickets).where(eq(posTickets.id, ticketId)).limit(1);
+  if (!t) return;
+  const its = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, ticketId));
+  const subtotal = its.reduce((s, i) => s + Number(i.lineTotal), 0);
+  const total = Math.max(0, subtotal - Number(t.discount) + Number(t.tax) + Number(t.serviceFee));
+  await db.update(posTickets).set({ subtotal: String(subtotal), total: String(total) }).where(eq(posTickets.id, ticketId));
+}
+// Append items to an open ticket (running tab): validates ownership, deducts stock, sets KDS station, recomputes totals.
+async function appendTicketItems(companyId: number, ticketId: number, rawItems: any[], source: string) {
+  const productIds = rawItems.map((i) => Number(i.productId)).filter(Boolean);
+  const products = productIds.length ? await db.select().from(posProducts).where(and(eq(posProducts.companyId, companyId), inArray(posProducts.id, productIds))) : [];
+  const lines = rawItems.map((item) => { const product = products.find((r) => r.id === Number(item.productId)); if (!product) throw new Error("A product does not belong to this company"); const qty = Math.max(1, Number(item.qty || 1)); return { product, qty, total: Number(product.price) * qty }; });
+  if (!lines.length) throw new Error("No valid items");
+  await db.insert(posTicketItems).values(lines.map((l) => ({ orderId: ticketId, productId: l.product.id, name: l.product.name, price: l.product.price, qty: l.qty, lineTotal: String(l.total), source, status: "new", station: stationFor(l.product.category, l.product.station) })));
+  for (const l of lines) await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${l.qty}` }).where(and(eq(posProducts.id, l.product.id), eq(posProducts.companyId, companyId)));
+  await recomputeTicket(ticketId);
+  return lines;
+}
+async function notifyKitchen(companyId: number, ticket: any, lines: any[]) {
+  const result = await db.execute(sql`SELECT DISTINCT m.user_id FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${companyId} AND m.status='active' AND (p.code IN ('chef','kitchen','bartender','bar') OR m.role IN ('owner','admin','manager'))`);
+  const ids = ((result.rows || result) as any[]).map((r) => r.user_id);
+  await sendBridgeXNotifications(companyId, ids, { type: "new_order", title: `Order ${ticket.orderNo}`, body: `${lines.length} item${lines.length === 1 ? "" : "s"}${ticket.tableNumber ? ` · Table ${ticket.tableNumber}` : ""}`, data: { ticketId: ticket.id } });
 }
 
 async function ensureUser(email: string, name: string, password?: string) {
@@ -396,6 +432,12 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS voided_at timestamp;
     CREATE TABLE IF NOT EXISTS bridge_payments (id serial PRIMARY KEY, company_id integer NOT NULL, ticket_id integer NOT NULL, method varchar NOT NULL, amount numeric(14,2) NOT NULL, reference varchar, is_refund boolean NOT NULL DEFAULT false, created_by varchar, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS bridge_payments_ticket ON bridge_payments(ticket_id);
+    -- Restaurant pack (tables, KDS routing, QR ordering)
+    ALTER TABLE pos_ticket_items ADD COLUMN IF NOT EXISTS station varchar NOT NULL DEFAULT 'kitchen';
+    CREATE TABLE IF NOT EXISTS bridge_tables (id serial PRIMARY KEY, company_id integer NOT NULL, branch_id integer NOT NULL DEFAULT 0, name varchar NOT NULL, area varchar, seats integer NOT NULL DEFAULT 2, status varchar NOT NULL DEFAULT 'available', current_ticket_id integer, qr_token varchar, sort integer NOT NULL DEFAULT 0, created_at timestamp NOT NULL DEFAULT now());
+    CREATE UNIQUE INDEX IF NOT EXISTS bridge_tables_qr_token ON bridge_tables(qr_token) WHERE qr_token IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS bridge_tables_company ON bridge_tables(company_id);
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS station varchar;
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
@@ -434,6 +476,31 @@ export function registerBridgeXRoutes(app: Express) {
   });
   app.get("/api/v1/meta/modules", route(async (_req, res) => { res.json(BRIDGEX_MODULE_REGISTRY); }));
   app.get("/api/v1/meta/industries", route(async (_req, res) => { res.json(BRIDGEX_INDUSTRIES); }));
+  // ── QR ordering (public — resolved by a table's QR token, no login) ────────
+  app.get("/api/v1/order/:token", route(async (req, res) => {
+    const [tbl] = (await db.execute(sql`SELECT * FROM bridge_tables WHERE qr_token=${req.params.token} LIMIT 1`)).rows as any[];
+    if (!tbl) return res.status(404).json({ message: "Invalid QR code" });
+    if (!(await moduleEnabled(tbl.company_id, "qr_ordering"))) return res.status(403).json({ message: "QR ordering is not enabled here" });
+    const [company] = await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, tbl.company_id)).limit(1);
+    const menu = await db.select().from(posProducts).where(and(eq(posProducts.companyId, tbl.company_id), eq(posProducts.active, true)));
+    res.json({ table: { id: tbl.id, name: tbl.name }, company: { appName: company?.appName || company?.name, logoUrl: company?.logoUrl, theme: company?.theme }, menu: menu.filter((m) => m.posVisible !== false).map((m) => ({ id: m.id, name: m.name, price: m.price, category: m.category, imageUrl: m.imageUrl })) });
+  }));
+  app.post("/api/v1/order/:token", route(async (req, res) => {
+    const [tbl] = (await db.execute(sql`SELECT * FROM bridge_tables WHERE qr_token=${req.params.token} LIMIT 1`)).rows as any[];
+    if (!tbl) return res.status(404).json({ message: "Invalid QR code" });
+    const companyId = tbl.company_id;
+    if (!(await moduleEnabled(companyId, "qr_ordering"))) return res.status(403).json({ message: "QR ordering is not enabled here" });
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ message: "Add at least one item" });
+    let ticketId = tbl.current_ticket_id;
+    if (ticketId) { const [t] = await db.select().from(posTickets).where(eq(posTickets.id, ticketId)).limit(1); if (!t || ["paid", "refunded", "voided"].includes(t.status)) ticketId = null; }
+    if (!ticketId) { const [t] = await db.insert(posTickets).values({ companyId, branchId: tbl.branch_id || null, orderNo: `QR-${Date.now().toString(36).toUpperCase()}`, source: "qr", status: "open", tableNumber: tbl.name, orderMode: "dine_in" }).returning(); ticketId = t.id; await db.execute(sql`UPDATE bridge_tables SET status='occupied', current_ticket_id=${ticketId} WHERE id=${tbl.id}`); }
+    const lines = await appendTicketItems(companyId, ticketId, items, "qr");
+    const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, ticketId)).limit(1);
+    await notifyKitchen(companyId, ticket, lines);
+    emitCompanyChange(companyId, "kds");
+    res.status(201).json({ ok: true, orderNo: ticket.orderNo });
+  }));
   app.post("/api/v1/merchant/apply", route(async (req, res) => {
     const body = req.body || {};
     const email = String(body.email || "").trim().toLowerCase(); const password = String(body.password || "");
@@ -917,12 +984,12 @@ export function registerBridgeXRoutes(app: Express) {
   app.post("/api/v1/company/pos/products", route(async (req, res) => {
     const access = await companyAccess(req, res, true); if (!access) return;
     if (!req.body?.name) return res.status(400).json({ message: "Product name required" });
-    const [product] = await db.insert(posProducts).values({ companyId: access.companyId, branchId: req.body?.branchId || access.branchId, name: req.body.name, category: req.body?.category || "General", price: String(req.body?.price || 0), cost: String(req.body?.cost || 0), stock: Number(req.body?.stock || 0), imageUrl: req.body?.imageUrl || null }).returning();
+    const [product] = await db.insert(posProducts).values({ companyId: access.companyId, branchId: req.body?.branchId || access.branchId, name: req.body.name, category: req.body?.category || "General", price: String(req.body?.price || 0), cost: String(req.body?.cost || 0), stock: Number(req.body?.stock || 0), imageUrl: req.body?.imageUrl || null, station: req.body?.station || null }).returning();
     res.status(201).json(product);
   }));
   app.patch("/api/v1/company/pos/products/:id", route(async (req, res) => {
     const access = await companyAccess(req, res, true); if (!access) return;
-    const update: any = {}; for (const key of ["name", "category", "price", "cost", "stock", "imageUrl", "active", "sortOrder", "branchId"]) if (req.body?.[key] !== undefined) update[key] = req.body[key];
+    const update: any = {}; for (const key of ["name", "category", "price", "cost", "stock", "imageUrl", "active", "sortOrder", "branchId", "station"]) if (req.body?.[key] !== undefined) update[key] = req.body[key];
     const [product] = await db.update(posProducts).set(update).where(and(eq(posProducts.id, Number(req.params.id)), eq(posProducts.companyId, access.companyId))).returning();
     if (!product) return res.status(404).json({ message: "Product not found" }); res.json(product);
   }));
@@ -975,7 +1042,7 @@ export function registerBridgeXRoutes(app: Express) {
       tableNumber: req.body?.tableNumber || null, orderMode: req.body?.orderMode || "dine_in",
       staffId: access.user.id, salesStaffId: req.body?.salesStaffId || access.user.id, paidAt: status === "paid" ? new Date() : null,
     }).returning();
-    await db.insert(posTicketItems).values(lines.map((line:any) => ({ orderId: ticket.id, productId: line.product.id, name: line.product.name, price: line.product.price, qty: line.qty, lineTotal: String(line.total), source: req.body?.source || "pos" })));
+    await db.insert(posTicketItems).values(lines.map((line:any) => ({ orderId: ticket.id, productId: line.product.id, name: line.product.name, price: line.product.price, qty: line.qty, lineTotal: String(line.total), source: req.body?.source || "pos", station: stationFor(line.product.category, line.product.station) })));
     if (payments.length) await db.insert(bridgePayments).values(payments.map((p:any) => ({ companyId: access.companyId, ticketId: ticket.id, method: p.method, amount: String(p.amount), reference: p.reference, createdBy: access.user.id })));
     for (const line of lines) await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${line.qty}` }).where(and(eq(posProducts.id, line.product.id), eq(posProducts.companyId, access.companyId)));
     if (ticket.customerId && (status === "paid" || status === "partial") && await moduleEnabled(access.companyId, "crm")) {
@@ -1016,6 +1083,116 @@ export function registerBridgeXRoutes(app: Express) {
     await db.update(posTickets).set({ status: "voided", voidReason: String(req.body?.reason || ""), voidedBy: access.user.id, voidedAt: new Date() }).where(eq(posTickets.id, id));
     if (t.customerId && Number(t.total) > 0 && await moduleEnabled(access.companyId, "crm")) await db.execute(sql`UPDATE bridge_customers SET total_spend=GREATEST(0, total_spend - ${Number(t.total)}), updated_at=now() WHERE id=${t.customerId} AND company_id=${access.companyId}`);
     res.json({ ok: true, status: "voided" });
+  }));
+  // Append items to a running tab (table service / register hold), fires to KDS.
+  app.post("/api/v1/company/pos/tickets/:id/items", route(async (req, res) => {
+    const access = await companyAccess(req, res); if (!access) return;
+    const id = Number(req.params.id);
+    const [t] = await db.select().from(posTickets).where(and(eq(posTickets.id, id), eq(posTickets.companyId, access.companyId))).limit(1);
+    if (!t) return res.status(404).json({ message: "Ticket not found" });
+    if (["paid", "refunded", "voided"].includes(t.status)) return res.status(400).json({ message: "This ticket is closed" });
+    const lines = await appendTicketItems(access.companyId, id, Array.isArray(req.body?.items) ? req.body.items : [], req.body?.source || "pos");
+    await notifyKitchen(access.companyId, t, lines);
+    emitCompanyChange(access.companyId, "kds");
+    res.json((await db.select().from(posTickets).where(eq(posTickets.id, id)).limit(1))[0]);
+  }));
+  // Settle (finalise) an open ticket with payments; frees any table it occupies.
+  app.post("/api/v1/company/pos/tickets/:id/settle", route(async (req, res) => {
+    const access = await companyAccess(req, res); if (!access) return;
+    const id = Number(req.params.id);
+    const [t] = await db.select().from(posTickets).where(and(eq(posTickets.id, id), eq(posTickets.companyId, access.companyId))).limit(1);
+    if (!t) return res.status(404).json({ message: "Ticket not found" });
+    if (["paid", "refunded", "voided"].includes(t.status)) return res.status(400).json({ message: "This ticket is already settled" });
+    const discount = Math.max(0, Number(req.body?.discount ?? t.discount));
+    const tax = Math.max(0, Number(req.body?.tax ?? t.tax));
+    const serviceCharge = Math.max(0, Number(req.body?.serviceCharge ?? t.serviceFee));
+    const tip = Math.max(0, Number(req.body?.tip ?? t.tip));
+    const its = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
+    const subtotal = its.reduce((s, i) => s + Number(i.lineTotal), 0);
+    const total = Math.max(0, subtotal - discount + tax + serviceCharge);
+    const due = total + tip;
+    let payments = Array.isArray(req.body?.payments) ? req.body.payments.map((p: any) => ({ method: String(p.method || "cash"), amount: Math.max(0, Number(p.amount || 0)), reference: p.reference || null })).filter((p: any) => p.amount > 0) : [];
+    if (!payments.length && req.body?.paymentMethod) payments = [{ method: String(req.body.paymentMethod), amount: due, reference: null }];
+    const paidTotal = payments.reduce((s: number, p: any) => s + p.amount, 0);
+    const cashPaid = payments.filter((p: any) => p.method === "cash").reduce((s: number, p: any) => s + p.amount, 0);
+    const change = Math.max(0, paidTotal - due);
+    const status = (paidTotal >= due && due > 0) ? "paid" : paidTotal > 0 ? "partial" : "open";
+    if (payments.length) await db.insert(bridgePayments).values(payments.map((p: any) => ({ companyId: access.companyId, ticketId: id, method: p.method, amount: String(p.amount), reference: p.reference, createdBy: access.user.id })));
+    const customerId = req.body?.customerId != null ? Number(req.body.customerId) : t.customerId;
+    await db.update(posTickets).set({ discount: String(discount), tax: String(tax), serviceFee: String(serviceCharge), tip: String(tip), subtotal: String(subtotal), total: String(total), paidTotal: String(Math.min(paidTotal, due)), paymentMethod: payments.length === 1 ? payments[0].method : payments.length > 1 ? "split" : t.paymentMethod, cashReceived: cashPaid ? String(cashPaid) : null, changeGiven: change ? String(change) : null, customerId, status, paidAt: status === "paid" ? new Date() : null }).where(eq(posTickets.id, id));
+    if (status === "paid") {
+      await db.execute(sql`UPDATE bridge_tables SET status='available', current_ticket_id=NULL WHERE current_ticket_id=${id} AND company_id=${access.companyId}`);
+      if (customerId && await moduleEnabled(access.companyId, "crm")) await db.execute(sql`UPDATE bridge_customers SET total_spend=total_spend + ${total}, visit_count=visit_count + 1, last_visit_at=now(), updated_at=now() WHERE id=${customerId} AND company_id=${access.companyId}`);
+    }
+    res.json((await db.select().from(posTickets).where(eq(posTickets.id, id)).limit(1))[0]);
+  }));
+
+  // ── Restaurant: tables & floor plan ───────────────────────────────────────
+  app.get("/api/v1/company/restaurant/tables", route(async (req, res) => {
+    const a = await requireModule(req, res, "restaurant"); if (!a) return;
+    res.json((await db.execute(sql`SELECT t.*, tk.total open_total, tk.order_no open_order_no, tk.status open_status, (SELECT COUNT(*) FROM pos_ticket_items pi WHERE pi.order_id=t.current_ticket_id) open_items FROM bridge_tables t LEFT JOIN pos_tickets tk ON tk.id=t.current_ticket_id WHERE t.company_id=${a.companyId} ORDER BY t.sort, t.name`)).rows || []);
+  }));
+  app.post("/api/v1/company/restaurant/tables", route(async (req, res) => {
+    const a = await requireModule(req, res, "restaurant", true); if (!a) return;
+    const name = String(req.body?.name || "").trim(); if (!name) return res.status(400).json({ message: "Table name/number is required" });
+    res.status(201).json((await db.execute(sql`INSERT INTO bridge_tables (company_id, name, area, seats, qr_token) VALUES (${a.companyId}, ${name}, ${req.body?.area || null}, ${Number(req.body?.seats) || 2}, ${randomToken()}) RETURNING *`)).rows[0]);
+  }));
+  app.put("/api/v1/company/restaurant/tables/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "restaurant", true); if (!a) return;
+    const r = await db.execute(sql`UPDATE bridge_tables SET name=COALESCE(${req.body?.name ?? null},name), area=${req.body?.area ?? null}, seats=COALESCE(${req.body?.seats ?? null},seats), status=COALESCE(${req.body?.status ?? null},status), sort=COALESCE(${req.body?.sort ?? null},sort) WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} RETURNING *`);
+    if (!r.rows.length) return res.status(404).json({ message: "Table not found" }); res.json(r.rows[0]);
+  }));
+  app.delete("/api/v1/company/restaurant/tables/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "restaurant", true); if (!a) return;
+    await db.execute(sql`DELETE FROM bridge_tables WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/restaurant/tables/:id", route(async (req, res) => {
+    const a = await requireModule(req, res, "restaurant"); if (!a) return;
+    const [tbl] = (await db.execute(sql`SELECT * FROM bridge_tables WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!tbl) return res.status(404).json({ message: "Table not found" });
+    let ticket: any = null;
+    if (tbl.current_ticket_id) { const [t] = await db.select().from(posTickets).where(eq(posTickets.id, tbl.current_ticket_id)).limit(1); if (t) { const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, t.id)); ticket = { ...t, items }; } }
+    res.json({ ...tbl, ticket });
+  }));
+  app.post("/api/v1/company/restaurant/tables/:id/open", route(async (req, res) => {
+    const a = await requireModule(req, res, "restaurant"); if (!a) return;
+    const [tbl] = (await db.execute(sql`SELECT * FROM bridge_tables WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!tbl) return res.status(404).json({ message: "Table not found" });
+    if (tbl.current_ticket_id) { const [t] = await db.select().from(posTickets).where(eq(posTickets.id, tbl.current_ticket_id)).limit(1); if (t && !["paid", "refunded", "voided"].includes(t.status)) return res.json(t); }
+    const [ticket] = await db.insert(posTickets).values({ companyId: a.companyId, branchId: tbl.branch_id || a.branchId, orderNo: `BX-${Date.now().toString(36).toUpperCase()}`, source: "pos", status: "open", tableNumber: tbl.name, orderMode: "dine_in", staffId: a.user.id, salesStaffId: a.user.id }).returning();
+    await db.execute(sql`UPDATE bridge_tables SET status='occupied', current_ticket_id=${ticket.id} WHERE id=${tbl.id}`);
+    res.status(201).json(ticket);
+  }));
+  app.post("/api/v1/company/restaurant/tables/:id/close", route(async (req, res) => {
+    const a = await requireModule(req, res, "restaurant", true); if (!a) return;
+    await db.execute(sql`UPDATE bridge_tables SET status='available', current_ticket_id=NULL WHERE id=${Number(req.params.id)} AND company_id=${a.companyId}`); res.json({ ok: true });
+  }));
+  app.get("/api/v1/company/restaurant/tables/:id/qr", route(async (req, res) => {
+    const a = await requireModule(req, res, "restaurant", true); if (!a) return;
+    const [tbl] = (await db.execute(sql`SELECT * FROM bridge_tables WHERE id=${Number(req.params.id)} AND company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!tbl?.qr_token) return res.status(404).json({ message: "Table not found" });
+    const svg = await QRCode.toString(`${req.protocol}://${req.get("host")}/order/t/${tbl.qr_token}`, { type: "svg", width: 640, margin: 2 });
+    res.type("image/svg+xml").send(svg);
+  }));
+
+  // ── Kitchen Display (KDS) ─────────────────────────────────────────────────
+  app.get("/api/v1/company/restaurant/kds", route(async (req, res) => {
+    const a = await requireModule(req, res, "kitchen_display"); if (!a) return;
+    const station = String(req.query.station || "");
+    const rows = station
+      ? (await db.execute(sql`SELECT pi.id, pi.order_id, pi.name, pi.qty, pi.status, pi.station, pi.created_at, tk.order_no, tk.table_number FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${a.companyId} AND pi.status IN ('new','preparing','ready') AND pi.station=${station} ORDER BY pi.created_at ASC LIMIT 300`)).rows
+      : (await db.execute(sql`SELECT pi.id, pi.order_id, pi.name, pi.qty, pi.status, pi.station, pi.created_at, tk.order_no, tk.table_number FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE tk.company_id=${a.companyId} AND pi.status IN ('new','preparing','ready') ORDER BY pi.created_at ASC LIMIT 300`)).rows;
+    res.json(rows || []);
+  }));
+  app.patch("/api/v1/company/restaurant/kds/:itemId", route(async (req, res) => {
+    const a = await requireModule(req, res, "kitchen_display"); if (!a) return;
+    const status = String(req.body?.status || ""); if (!["new", "preparing", "ready", "served"].includes(status)) return res.status(400).json({ message: "Invalid status" });
+    const [row] = (await db.execute(sql`SELECT pi.id FROM pos_ticket_items pi JOIN pos_tickets tk ON tk.id=pi.order_id WHERE pi.id=${Number(req.params.itemId)} AND tk.company_id=${a.companyId} LIMIT 1`)).rows as any[];
+    if (!row) return res.status(404).json({ message: "Item not found" });
+    if (status === "served") await db.execute(sql`UPDATE pos_ticket_items SET status=${status}, served_at=now() WHERE id=${Number(req.params.itemId)}`);
+    else await db.execute(sql`UPDATE pos_ticket_items SET status=${status} WHERE id=${Number(req.params.itemId)}`);
+    emitCompanyChange(a.companyId, "kds");
+    res.json({ ok: true });
   }));
 
   // Attendance, shifts and leave are scoped by tenant and generate native alerts.
