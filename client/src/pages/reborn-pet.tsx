@@ -7,6 +7,7 @@ import { PawPrint, Egg, HeartPulse, Pill, Clock, Check, Coins, Sofa, Shirt } fro
 import petMale from "@assets/Doluruu Boy_1749664545355.png";
 import petFemale from "@assets/doluruu-female-transparent.png";
 import eggImg from "@assets/doluruu-blindbox-box.jpeg";
+import { ItemArt, COSTUME_FIT } from "@/components/pet-art";
 
 const WALK_CSS = `
 @keyframes rwpetWalk{0%{left:6%}46%{left:60%}50%{left:60%}96%{left:6%}100%{left:6%}}
@@ -292,17 +293,17 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
       </button>
 
       {/* wall art slot */}
-      {slot("art") && <span className="absolute right-[18%] top-[12%] text-[2.6rem] leading-none drop-shadow">{slot("art").emoji}</span>}
+      {slot("art") && <ItemArt id={slot("art").id} emoji={slot("art").emoji} className="absolute drop-shadow-md" style={{ right: "13%", top: "8%", width: "20%", aspectRatio: "1" }} />}
 
       {/* wooden floor */}
       <div className="absolute inset-x-0 bottom-0 h-[26%]" style={{ background: "repeating-linear-gradient(90deg,#c98f5a 0 38px,#bf8450 38px 40px)", borderTop: "6px solid #8a5a33" }} />
       <div className="absolute left-1/2 -translate-x-1/2 bottom-[6%] w-[46%] h-[11%] rounded-[50%]" style={{ background: "radial-gradient(ellipse,#f6c1d6 0 55%,#e89ab8 56% 70%,transparent 71%)" }} />
 
       {/* floor slots */}
-      {slot("lamp") && <span className="absolute left-[1%] bottom-[20%] text-[2.8rem] leading-none">{slot("lamp").emoji}</span>}
-      {slot("sofa") && <span className="absolute left-[10%] bottom-[15%] text-[4.4rem] leading-none drop-shadow">{slot("sofa").emoji}</span>}
-      {slot("toy") && <span className="absolute left-[70%] bottom-[7%] text-[2.2rem] leading-none">{slot("toy").emoji}</span>}
-      {slot("plant") && <span className="absolute right-[2%] bottom-[18%] text-[3.2rem] leading-none drop-shadow">{slot("plant").emoji}</span>}
+      {slot("lamp") && <ItemArt id={slot("lamp").id} emoji={slot("lamp").emoji} className="absolute" style={{ left: "-1%", bottom: "13%", width: "17%", aspectRatio: "1" }} />}
+      {slot("sofa") && <ItemArt id={slot("sofa").id} emoji={slot("sofa").emoji} className="absolute" style={{ left: "9%", bottom: "8%", width: "38%", aspectRatio: "1" }} />}
+      {slot("toy") && <ItemArt id={slot("toy").id} emoji={slot("toy").emoji} className="absolute" style={{ left: "63%", bottom: "4%", width: "13%", aspectRatio: "1" }} />}
+      {slot("plant") && <ItemArt id={slot("plant").id} emoji={slot("plant").emoji} className="absolute" style={{ right: "0%", bottom: "13%", width: "21%", aspectRatio: "1" }} />}
 
       {pet.isEgg ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10">
@@ -315,9 +316,13 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
           <div className="rwpet-face" style={asleep ? { animation: "none" } : undefined}>
             <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
               <img src={img} alt={pet.name} className={`w-full h-full object-contain ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />
-              {worn.neck && <span className="absolute left-1/2 top-[52%] -translate-x-1/2 text-[1.4rem] leading-none">{itemById(home, worn.neck)?.emoji}</span>}
-              {worn.face && <span className="absolute left-1/2 top-[22%] -translate-x-1/2 text-[1.5rem] leading-none">{itemById(home, worn.face)?.emoji}</span>}
-              {worn.head && <span className="absolute left-1/2 -top-[8%] -translate-x-1/2 text-[1.7rem] leading-none">{itemById(home, worn.head)?.emoji}</span>}
+              {(["neck", "face", "head"] as const).map((part) => {
+                const it = worn[part] && itemById(home, worn[part]);
+                if (!it) return null;
+                const f = COSTUME_FIT[part];
+                return <ItemArt key={part} id={it.id} emoji={it.emoji} className="absolute pointer-events-none"
+                  style={{ left: `${f.left}%`, top: `${f.top}%`, width: `${f.width}%`, aspectRatio: "1", transform: `translate(-50%, ${f.anchor === "bottom" ? "-100%" : "-50%"})`, filter: "drop-shadow(0 2px 2px rgba(0,0,0,.25))" }} />;
+              })}
             </div>
           </div>
           {pop && <span className="rwpet-heart">💖</span>}
@@ -367,7 +372,7 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
           return (
             <button key={it.id} onClick={onClick} disabled={busy || (!owned && home.coins < it.price)}
               className={`min-w-0 flex flex-col items-center gap-1 rounded-2xl border p-2.5 transition active:scale-95 disabled:opacity-40 ${active ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 bg-black/20"}`}>
-              <span className="text-3xl leading-none">{it.emoji}</span>
+              <ItemArt id={it.id} emoji={it.emoji} className="text-3xl leading-none" style={{ width: 52, height: 52 }} />
               <span className="text-[11px] font-semibold text-center leading-tight truncate w-full">{it.name}</span>
               <span className={`text-[11px] font-bold ${owned ? (active ? "text-amber-300" : "text-emerald-300") : "text-white/70"}`}>{label}</span>
             </button>

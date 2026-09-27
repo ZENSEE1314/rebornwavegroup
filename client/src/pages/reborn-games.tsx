@@ -15,7 +15,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "60s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
-  wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "spin for a drink dare — ½ up to 5 cups" },
+  wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "½ cup · 1 cup · 2 cups — or land on PASS 😎" },
   riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
   timer: { name: "Stop at 10:00", emoji: "⏱️", blurb: "stop the clock closest to 10 sec wins · up to 20" },
   "789": { name: "789 Dice", emoji: "🎯", blurb: "2 dice · 7 top-up · 8 half · 9 whole cup 🍺" },
@@ -71,8 +71,8 @@ const RULES: Record<string, string[]> = {
   ],
   wheel: [
     "Take turns spinning the wheel.",
-    "It lands on a random dare: from half a cup up to 5 cups 🍺.",
-    "Drink whatever you land on — cheers!",
+    "14 slices: 4× ½ cup, 2× 1 cup, 1× 2 cups — and a PASS 😎 between every drink.",
+    "Land on a drink and you drink it; land on PASS and you're safe — cheers!",
     "Everyone spins once, then the round ends.",
   ],
   riding: [
@@ -325,8 +325,8 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
             )}
             {game === "wheel" && (
               <div className="mt-3">
-                <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Punishments <span className="text-white/40 normal-case">— one per line, or leave blank for the default drink dares</span></p>
-                <textarea value={wheelText} onChange={(e) => setWheelText(e.target.value)} rows={4} placeholder={"Default:\nHalf cup\n1 cup\n2 cups\n… (leave blank to use these)"} className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
+                <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Punishments <span className="text-white/40 normal-case">— one per line (a PASS slice is added after each), or leave blank for the default wheel</span></p>
+                <textarea value={wheelText} onChange={(e) => setWheelText(e.target.value)} rows={4} placeholder={"Default: ½ cup ×4, 1 cup ×2, 2 cups ×1\nwith a PASS between every drink\n(leave blank to use this)"} className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
               </div>
             )}
             {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && (
@@ -1087,15 +1087,15 @@ function WheelGame({ room, code, me }: any) {
             const [lx, ly] = pt(mid, R * 0.62);
             return (
               <g key={i}>
-                <path d={slice(a0, a1)} fill={colors[i % colors.length]} stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
-                <text x={lx} y={ly} fill="#1a1030" fontSize={N > 6 ? 8 : 11} fontWeight="800" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${mid}, ${lx.toFixed(2)}, ${ly.toFixed(2)})`}>{p.label}</text>
+                <path d={slice(a0, a1)} fill={p.pass ? "#2b2346" : colors[Math.floor(i / (prizes.some((q: any) => q.pass) ? 2 : 1)) % colors.length]} stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
+                <text x={lx} y={ly} fill={p.pass ? "#f0d787" : "#1a1030"} fontSize={N > 10 ? 8.5 : N > 6 ? 9 : 11} fontWeight="800" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${mid}, ${lx.toFixed(2)}, ${ly.toFixed(2)})`}>{p.label}</text>
               </g>
             );
           })}
           <circle cx="100" cy="100" r="16" fill="#0a0714" stroke="rgba(255,255,255,0.25)" strokeWidth="3" />
         </svg>
       </div>
-      {room.status === "reveal" && w.result && <p className="text-2xl font-black text-amber-300 mb-3" style={{ animation: "rwgPop .5s ease-out" }}>{w.result.name}: {w.result.label} {w.result.emoji}</p>}
+      {room.status === "reveal" && w.result && <p className="text-2xl font-black text-amber-300 mb-3" style={{ animation: "rwgPop .5s ease-out" }}>{w.result.pass ? `${w.result.name}: PASS — no drink! ${w.result.emoji}` : `${w.result.name}: ${w.result.label} ${w.result.emoji}`}</p>}
       {myTurn ? (
         <button onClick={() => { sfx.spin(); act({ act: "spin" }); }} className="cbtn cbtn-gold w-full py-4 text-lg">🎡 SPIN!</button>
       ) : room.status === "playing" ? (

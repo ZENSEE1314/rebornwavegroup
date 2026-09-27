@@ -30,7 +30,7 @@ interface Room {
   // series (best-of / play to N wins)
   winTarget?: number; seriesScore?: Record<string, number>; seriesChampionId?: string;
   // wheel-only
-  wheelResult?: any; wheelSpun?: string[]; wheelPrizes?: { label: string; cups?: number; w: number; emoji?: string }[];
+  wheelResult?: any; wheelSpun?: string[]; wheelPrizes?: { label: string; cups?: number; w: number; emoji?: string; pass?: boolean }[];
   // riding (Red Riding Hood) only
   tiles?: { id: number; kind: "grandma" | "laughing" | "wolf"; flipped: boolean; by?: string }[];
   ridingClicks?: number; flippedThisTurn?: number; wolfCounts?: Record<string, number>; ridingReveal?: boolean;
@@ -827,13 +827,14 @@ function diceView(room: Room, forUserId?: string) {
 }
 
 // ── Spin the Wheel (random punishment) ──────────────────────────────────
-const WHEEL_PRIZES = [
-  { label: "Half cup", cups: 0.5, w: 3, emoji: "🥤" },
-  { label: "1 cup", cups: 1, w: 2, emoji: "🍺" },
-  { label: "2 cups", cups: 2, w: 1, emoji: "🍺🍺" },
-];
+// Every slice is equally likely. 7 drink slices (4× half, 2× 1 cup, 1× 2 cups)
+// with a PASS slice between each one — half the wheel lets you off the hook.
+const WHEEL_PASS = { label: "PASS", cups: 0, w: 1, emoji: "😎", pass: true };
+const withPasses = (drinks: { label: string; cups?: number; w: number; emoji?: string }[]) => drinks.flatMap((d) => [{ ...d, w: 1 }, WHEEL_PASS]);
+const HALF = { label: "½ cup", cups: 0.5, w: 1, emoji: "🥤" }, ONE = { label: "1 cup", cups: 1, w: 1, emoji: "🍺" }, TWO = { label: "2 cups", cups: 2, w: 1, emoji: "🍺🍺" };
+const WHEEL_PRIZES = withPasses([HALF, ONE, HALF, TWO, HALF, ONE, HALF]);
 const WHEEL_TURN_SECONDS = 20;
-const wheelPrizesOf = (room: Room) => (room.wheelPrizes && room.wheelPrizes.length ? room.wheelPrizes : WHEEL_PRIZES);
+const wheelPrizesOf = (room: Room) => (room.wheelPrizes && room.wheelPrizes.length ? withPasses(room.wheelPrizes) : WHEEL_PRIZES);
 function startWheel(room: Room) {
   clearTimers(room);
   room.wheelSpun = []; room.wheelResult = null;
@@ -856,9 +857,10 @@ function wheelSpin(room: Room, uid: string) {
   const prize = PRIZES[pi];
   const p = room.players[idx];
   room.wheelSpun = Array.from(new Set([...(room.wheelSpun || []), uid]));
-  room.wheelResult = { playerId: uid, name: p.name, index: pi, label: prize.label, cups: prize.cups, emoji: prize.emoji };
+  const pass = !!(prize as any).pass;
+  room.wheelResult = { playerId: uid, name: p.name, index: pi, label: prize.label, cups: prize.cups, emoji: prize.emoji, pass };
   room.status = "reveal";
-  room.message = `${p.name} must drink ${prize.label}! ${prize.emoji}`;
+  room.message = pass ? `${p.name} hit PASS — no drink! ${prize.emoji}` : `${p.name} must drink ${prize.label}! ${prize.emoji}`;
   broadcast(room);
   room.timer = setTimeout(() => {
     if ((room.wheelSpun || []).length >= room.players.length) {
