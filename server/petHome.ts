@@ -7,7 +7,7 @@ import { db } from "./db";
 import { requireAuth, getUserId } from "./multiAuth";
 import { getBookingTimezone } from "./booking";
 
-export type PetItem = { id: string; name: string; emoji: string; price: number; kind: "furniture" | "costume"; slot: string; image?: string; figure?: string; sprite?: boolean; hidden?: boolean };
+export type PetItem = { id: string; name: string; emoji: string; price: number; kind: "furniture" | "costume"; slot: string; image?: string; figure?: string; sprite?: boolean; layer?: string; hidden?: boolean };
 
 // The 100 wearables from the "Customize your Doluruu" sheet. Pictures live in
 // client/public/pet-items/<n>.webp (cut from the sheet). [name, price]
@@ -26,6 +26,24 @@ const WEAR_SLOTS: [string, string, [string, number][]][] = [
   ["tail", "🎀", [["Rainbow Tail Ring", 120], ["Gold Tail Ring", 150], ["Tail Bow", 70]]],
   ["shell", "🐢", [["Shell Jewel Set", 300], ["Neon Shell Trim", 350], ["Royal Shell Armor", 500]]],
 ];
+// Clothing + footwear mix & match: each clothing item is a full-body figure on a
+// shared 300x360 canvas; each footwear item is a shoes-only layer on the same
+// canvas, so the client stacks clothing (or the shirtless base) + footwear.
+export const BASE_LAYER = "/pet-items/cloth-1.webp"; // shirtless, barefoot
+const CLOTHING_LIST: [string, number][] = [["T-Shirt", 80], ["Hoodie", 120], ["Jacket", 150], ["Leather Jacket", 180], ["Bomber Jacket", 170], ["Denim Jacket", 150],
+  ["Sports Jersey", 130], ["Football Jersey", 130], ["Baseball Jersey", 130], ["Suit & Tie", 220], ["Tuxedo", 250], ["Chef Outfit", 180], ["Doctor Coat", 180],
+  ["Police Uniform", 220], ["Firefighter", 220], ["Construction", 160], ["Explorer", 200], ["Adventurer", 220], ["Ninja Outfit", 250], ["Samurai Armor", 400],
+  ["Knight Armor", 400], ["Wizard Robe", 300], ["King Robe", 380], ["Angel Outfit", 320], ["Devil Outfit", 320], ["Astronaut Suit", 450], ["Chinese Outfit", 280],
+  ["K-Pop Outfit", 260], ["Hawaiian Shirt", 120]];
+const CLOTHING: PetItem[] = CLOTHING_LIST.map(([name, price], i) => ({ id: `c${i + 2}`, name, emoji: "👕", price, kind: "costume", slot: "clothing", figure: `/pet-items/cloth-${i + 2}.webp`, layer: `/pet-items/cloth-${i + 2}.webp` }));
+const FOOTWEAR_LIST: [string, number][] = [["Classic Sneakers", 80], ["Sport Sneakers", 90], ["Gold Sneakers", 250], ["Silver Sneakers", 200], ["Black Sneakers", 90],
+  ["Red Sneakers", 90], ["Green Sneakers", 90], ["Rainbow Sneakers", 150], ["LED Sneakers", 220], ["Basketball Shoes", 130],
+  ["Football Cleats", 120], ["Roller Skates", 180], ["Bunny Slippers", 90], ["Bear Slippers", 90], ["Panda Slippers", 90],
+  ["Chicken Slippers", 90], ["Dinosaur Slippers", 110], ["Shark Slippers", 110], ["Unicorn Slippers", 130], ["Cat Slippers", 90],
+  ["Dog Slippers", 90], ["Dragon Slippers", 150], ["Tiger Slippers", 110], ["Pig Slippers", 90], ["Cow Slippers", 90],
+  ["Fuzzy Boots", 140], ["Winter Boots", 160], ["Snow Boots", 170], ["Neon Sneakers", 260], ["Golden Wing Sneakers", 400]];
+const FOOTWEAR: PetItem[] = FOOTWEAR_LIST.map(([name, price], i) => ({ id: `s${i + 1}`, name, emoji: "👟", price, kind: "costume", slot: "footwear", figure: `/pet-items/shoefig-${i + 1}.webp`, layer: `/pet-items/shoe-${i + 1}.webp` }));
+
 // Full-body transparent figures of Doluruu wearing the item (fig-<n>.webp) exist
 // for all but these; tail rings are close-ups, so they can't be the walking pet.
 const NO_FIGURE = new Set([5, 16, 25, 34, 46, 55, 65]);
@@ -34,7 +52,9 @@ let n = 0;
 const WEARABLES: PetItem[] = WEAR_SLOTS.flatMap(([slot, emoji, items]) => items.map(([name, price]) => {
   n += 1;
   const figure = NO_FIGURE.has(n) ? undefined : `/pet-items/fig-${n}.webp`;
-  return { id: `w${n}`, name, emoji, price, kind: "costume" as const, slot, image: `/pet-items/${n}.webp`, figure, sprite: !!figure && !NOT_SPRITE.has(n) };
+  // Body and feet from the first sheet are replaced by the clothing/footwear sets.
+  const hidden = slot === "body" || slot === "feet";
+  return { id: `w${n}`, name, emoji, price, kind: "costume" as const, slot, image: `/pet-items/${n}.webp`, figure, sprite: !!figure && !NOT_SPRITE.has(n), ...(hidden ? { hidden: true } : {}) };
 }));
 
 // Furniture goes in one slot of the room; costumes are worn on the pet's head/face/neck.
@@ -62,8 +82,11 @@ export const PET_CATALOG: PetItem[] = [
   { id: "glasses_cool", name: "Sunglasses", emoji: "🕶️", price: 70, kind: "costume", slot: "face", hidden: true },
   { id: "scarf_red", name: "Scarf", emoji: "🧣", price: 55, kind: "costume", slot: "neck", hidden: true },
   ...WEARABLES,
+  ...CLOTHING,
+  ...FOOTWEAR,
 ];
 // Everyone starts with these so a new room isn't empty.
+// (Clothing/footwear defaults: shirtless and barefoot — see BASE_LAYER.)
 const STARTER_ITEMS = ["plant_fern", "art_landscape"];
 const STARTER_PLACED: Record<string, string> = { plant: "plant_fern", art: "art_landscape" };
 
@@ -120,7 +143,7 @@ function view(h: Home) {
     coins: h.coins, owned: h.owned, placed: h.placed, costumes: h.costumes, lightOn: h.lightOn,
     earnedToday: h.earnedDay === day ? h.earnedToday : 0, dailyCap: DAILY_COIN_CAP,
     rewards: { play: COINS_PER_PLAY, win: COINS_PER_WIN, numberCrack: COINS_NUMBER_CRACK },
-    timezone: getBookingTimezone(), catalog: PET_CATALOG,
+    timezone: getBookingTimezone(), catalog: PET_CATALOG, baseLayer: BASE_LAYER,
   };
 }
 
