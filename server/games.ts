@@ -6,6 +6,7 @@ import { and, desc, eq, sql, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { users, pvpScores, appSettings, gameRanks } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
+import { resolveCompanyId } from "./tenant";
 
 type Choice = "rock" | "paper" | "scissors";
 type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding";
@@ -13,7 +14,7 @@ interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; }
 interface Room {
-  code: string; game: GameKind; hostId: string; password: string;
+  code: string; game: GameKind; hostId: string; password: string; companyId?: number;
   status: "lobby" | "playing" | "reveal" | "done";
   players: Player[];
   round: number; deadline: number; message: string;
@@ -84,7 +85,7 @@ async function nameFor(userId: string): Promise<string> {
 
 async function saveScores(room: Room, rows: { userId: string; name: string; score: number; result: "win" | "lose" }[]) {
   if (!rows.length) return;
-  await db.insert(pvpScores).values(rows.map((r) => ({ game: room.game, userId: r.userId, userName: r.name, score: r.score, result: r.result, roomCode: room.code }))).catch(() => {});
+  await db.insert(pvpScores).values(rows.map((r) => ({ companyId: room.companyId ?? null, game: room.game, userId: r.userId, userName: r.name, score: r.score, result: r.result, roomCode: room.code }))).catch(() => {});
   // Award +1 career rank star to each winner; the round's loser drops 1 star.
   const season = (await getRankConfig()).season;
   for (const r of rows.filter((x) => x.result === "win")) {
@@ -754,10 +755,11 @@ export function registerGameRoutes(app: Express) {
   // Leaderboard per game
   app.get("/api/reborn/games/leaderboard", async (req, res) => {
     const game = String(req.query.game || "rps");
+    const cid = await resolveCompanyId(req);
     // rps/cards: rank by wins; tap: rank by best single score (coins).
     const rows: any = game === "tap"
-      ? await db.execute(sql`SELECT user_id, max(user_name) name, max(score) best, count(*) plays FROM pvp_game_scores WHERE game=${game} GROUP BY user_id ORDER BY best DESC LIMIT 50`)
-      : await db.execute(sql`SELECT user_id, max(user_name) name, count(*) FILTER (WHERE result='win') wins, count(*) plays FROM pvp_game_scores WHERE game=${game} GROUP BY user_id ORDER BY wins DESC LIMIT 50`);
+      ? await db.execute(sql`SELECT user_id, max(user_name) name, max(score) best, count(*) plays FROM pvp_game_scores WHERE game=${game} AND company_id=${cid} GROUP BY user_id ORDER BY best DESC LIMIT 50`)
+      : await db.execute(sql`SELECT user_id, max(user_name) name, count(*) FILTER (WHERE result='win') wins, count(*) plays FROM pvp_game_scores WHERE game=${game} AND company_id=${cid} GROUP BY user_id ORDER BY wins DESC LIMIT 50`);
     res.json((rows.rows || rows).map((r: any) => ({ userId: r.user_id, name: r.name, score: Number(r.best ?? r.wins ?? 0), plays: Number(r.plays || 0) })));
   });
 
@@ -782,8 +784,9 @@ export function registerGameRoutes(app: Express) {
     const cfg = await getGamesConfig();
     if (!availableToday(cfg)[game]) return res.status(400).json({ message: "That game isn't available today." });
     const name = await nameFor(uid);
+    const companyId = await resolveCompanyId(req);
     const room: Room = {
-      code: code4(), game, hostId: uid, password: String(req.body?.password || "").trim(),
+      code: code4(), game, hostId: uid, password: String(req.body?.password || "").trim(), companyId,
       status: "lobby", players: [{ id: uid, name, alive: true, taps: 0, connected: true }],
       round: 1, deadline: 0, message: "Waiting for players…", eliminatedThisRound: [],
       winTarget: Math.max(1, Math.min(10, Math.floor(Number(req.body?.winTarget) || 1))), seriesScore: {},

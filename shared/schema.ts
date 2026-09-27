@@ -1015,6 +1015,7 @@ export const gameRanks = pgTable("game_ranks", {
 // Live PvP mini-games — persisted results for per-game leaderboards.
 export const pvpScores = pgTable("pvp_game_scores", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),          // business the game was played at
   game: varchar("game").notNull(),           // 'rps' | 'tap' | 'cards'
   userId: varchar("user_id").notNull(),
   userName: varchar("user_name"),
