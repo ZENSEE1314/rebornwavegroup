@@ -310,6 +310,7 @@ const GAME_META: Record<string, { name: string; emoji: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️" },
   cards: { name: "Card Match", emoji: "🃏" },
+  poker3: { name: "3-Card Poker", emoji: "🂡" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲" },
   wheel: { name: "Spin the Wheel", emoji: "🎡" },
   riding: { name: "Red Riding Hood", emoji: "👵" },
