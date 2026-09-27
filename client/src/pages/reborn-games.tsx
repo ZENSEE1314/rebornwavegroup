@@ -19,6 +19,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
   timer: { name: "Stop at 1:00", emoji: "⏱️", blurb: "stop the clock closest to 1 min wins · up to 20" },
   "789": { name: "789 Dice", emoji: "🎯", blurb: "2 dice · 7 top-up · 8 half · 9 whole cup 🍺" },
+  stack: { name: "Tower Stack", emoji: "🧱", blurb: "tap to drop blocks · overhang falls · tallest wins" },
   number: { name: "Guess the Number", emoji: "🔢", blurb: "one 4-digit number, guess any time · no host, runs 24/7" },
 };
 const HAND: Record<string, string> = { rock: "✊", paper: "✋", scissors: "✌️" };
@@ -28,14 +29,14 @@ const GAME_GRAD: Record<string, string> = {
   cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)",
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
   timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)",
-  number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
+  stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
 };
 // Games grouped into categories for the lobby.
 const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
   { name: "Guessing game", emoji: "🧠", games: ["number", "rps"] },
   { name: "Dice game", emoji: "🎲", games: ["dice", "789"] },
   { name: "Card game", emoji: "🃏", games: ["cards"] },
-  { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer"] },
+  { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer", "stack"] },
   { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding"] },
 ];
 
@@ -86,6 +87,13 @@ const RULES: Record<string, string[]> = {
     "Hit STOP as close to exactly 1:00:00 as you can; your time locks in instantly.",
     "Whoever stops closest to 1:00 wins 🏆; everyone else loses.",
     "Same time = shared win (2 or 3 winners is fine). Up to 20 players.",
+  ],
+  stack: [
+    "A block slides back and forth — tap to drop it onto the tower.",
+    "Land it dead-on and the block keeps its size.",
+    "Overhang gets sliced off and falls — your block (and next ones) get smaller.",
+    "Miss completely and your tower topples — you're out.",
+    "Last one standing wins 🏆; if time's up, the tallest tower takes it.",
   ],
   "789": [
     "On your turn, roll the 2 dice 🎲🎲.",
@@ -142,7 +150,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "number";
+type GK = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
@@ -221,11 +229,11 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
       <div className="gcard p-4">
         <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">Pick a game</p>
         <div className="space-y-4">
-          {GAME_CATEGORIES.map((cat) => (
+          {GAME_CATEGORIES.filter((cat) => cat.games.some((g) => today[g])).map((cat) => (
             <div key={cat.name}>
               <p className="text-[11px] font-bold text-amber-300/80 uppercase tracking-wider mb-2">{cat.emoji} {cat.name}</p>
               <div className="grid grid-cols-1 gap-2.5">
-                {(cat.games as GK[]).map((g) => {
+                {(cat.games.filter((g) => today[g]) as GK[]).map((g) => {
                   const on = today[g];
                   return (
                     <button key={g} disabled={!on} onClick={() => setGame(g)}
@@ -323,14 +331,14 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
         <div className="flex items-center justify-between mb-2">
           <p className="font-extrabold text-white flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" /> Leaderboard</p>
           <div className="flex gap-1">
-            {(["rps", "tap", "cards", "dice", "timer", "number"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
+            {(["rps", "tap", "stack", "cards", "dice", "timer", "number"] as const).map((g) => <button key={g} onClick={() => setLbGame(g)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${lbGame === g ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{GAMES[g].emoji}</button>)}
           </div>
         </div>
         {lb.length === 0 && <p className="text-xs text-white/40">No scores yet — be the first!</p>}
         {lb.map((r, i) => (
           <div key={r.userId} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0 text-sm">
             <span className="text-white/80">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {r.name}</span>
-            <span className="text-amber-300 font-bold">{r.score}{lbGame === "tap" ? " coins" : " wins"}</span>
+            <span className="text-amber-300 font-bold">{r.score}{lbGame === "tap" ? " coins" : lbGame === "stack" ? " high" : " wins"}</span>
           </div>
         ))}
       </div>
@@ -398,6 +406,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "timer" && <TimerGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "789" && <SevenGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "stack" && <StackGame room={room} code={code} me={me} />}
 
       {room.status === "done" && (
         <div className="space-y-2">
@@ -702,6 +711,88 @@ function SevenGame({ room, code, me }: any) {
           <span key={p.id} className={`px-3 py-1.5 rounded-full text-sm ${p.id === s.turnId ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>
             {p.id === s.turnId && "🎲 "}{p.id === me ? "You" : p.name}
           </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StackGame({ room, code, me }: any) {
+  const W = 240, BH = 20, BASE = 120, WINDOW = 12;
+  const [, tick] = useState(0);
+  const st = useRef<any>(null);
+  const rafRef = useRef<number>(0);
+  const doneRef = useRef(false);
+  useEffect(() => {
+    if (room.status !== "playing") return;
+    if (!st.current) st.current = { placed: [{ left: (W - BASE) / 2, width: BASE }], moving: { left: 0, width: BASE, dir: 1 }, speed: 2, over: false, height: 0 };
+    const loop = () => {
+      const s = st.current;
+      if (s && !s.over && !doneRef.current) {
+        const m = s.moving;
+        m.left += m.dir * s.speed;
+        if (m.left <= 0) { m.left = 0; m.dir = 1; }
+        if (m.left + m.width >= W) { m.left = W - m.width; m.dir = -1; }
+        tick((x) => x + 1);
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [room.status]);
+  const drop = () => {
+    const s = st.current;
+    if (!s || s.over || doneRef.current || room.status !== "playing") return;
+    const top = s.placed[s.placed.length - 1], m = s.moving;
+    const ol = Math.max(m.left, top.left), or = Math.min(m.left + m.width, top.left + top.width);
+    const overlap = or - ol;
+    if (overlap <= 0) {
+      s.over = true; doneRef.current = true; (sfx as any).rankDown?.();
+      post(`/api/reborn/games/rooms/${code}/action`, { act: "stack", height: s.height, out: true });
+      tick((x) => x + 1); return;
+    }
+    s.placed.push({ left: ol, width: overlap });
+    s.height += 1; (sfx as any).coin?.();
+    post(`/api/reborn/games/rooms/${code}/action`, { act: "stack", height: s.height });
+    s.speed = Math.min(6.5, 2 + s.height * 0.18);
+    const fromLeft = s.height % 2 === 0;
+    s.moving = { left: fromLeft ? 0 : W - overlap, width: overlap, dir: fromLeft ? 1 : -1 };
+    tick((x) => x + 1);
+  };
+  const s = st.current;
+  const placed: any[] = s?.placed || [];
+  const startI = Math.max(0, placed.length - WINDOW);
+  const done = room.status === "done";
+  const iWon = done && (room.stack?.winners || []).includes(me);
+  const iOut = !!s?.over;
+  const heights = room.stack?.heights || {};
+  const board = room.players.map((p: any) => ({ id: p.id, name: p.name, h: heights[p.id]?.h || 0, alive: heights[p.id]?.alive !== false })).sort((a: any, b: any) => b.h - a.h);
+  return (
+    <div className="rwg-card p-5 text-center">
+      <p className="text-sm text-white/60 mb-1">{room.message}</p>
+      <p className="text-3xl font-black text-amber-300 mb-2 tabular-nums">{s?.height || 0} <span className="text-sm text-white/50">blocks</span></p>
+      {done ? (
+        <div className="py-4">
+          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "🧱"}</div>
+          <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-white/70"}`}>{iWon ? "TALLEST TOWER!" : "Game over"}</p>
+        </div>
+      ) : (
+        <div className="relative mx-auto rounded-xl overflow-hidden select-none touch-none cursor-pointer" style={{ width: W, height: (WINDOW + 1) * BH, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }} onPointerDown={drop}>
+          {placed.slice(startI).map((b, i) => {
+            const idx = startI + i;
+            return <div key={idx} className="absolute rounded-sm" style={{ left: b.left, width: b.width, height: BH - 2, bottom: i * BH, background: `hsl(${(idx * 28) % 360} 70% 60%)` }} />;
+          })}
+          {s && !s.over && <div className="absolute rounded-sm" style={{ left: s.moving.left, width: s.moving.width, height: BH - 2, bottom: (placed.length - startI) * BH, background: `hsl(${(placed.length * 28) % 360} 82% 66%)`, boxShadow: "0 0 12px rgba(255,255,255,0.35)" }} />}
+          {iOut && <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-red-300 font-black text-xl">Toppled! ⛔</div>}
+        </div>
+      )}
+      {!done && <p className="text-white/50 text-xs mt-3">{iOut ? "You're out — waiting for the others…" : "Tap the tower to drop each block"}</p>}
+      <div className="mt-4 text-left">
+        {board.map((p: any, i: number) => (
+          <div key={p.id} className="flex items-center justify-between text-sm py-1 border-b border-white/5 last:border-0">
+            <span className={p.alive ? "text-white/70" : "text-white/35 line-through"}>{i === 0 ? "🥇" : `${i + 1}.`} {p.id === me ? "You" : p.name}{!p.alive && " ⛔"}</span>
+            <span className="text-amber-300 font-bold tabular-nums">{p.h} 🧱</span>
+          </div>
         ))}
       </div>
     </div>

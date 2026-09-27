@@ -333,6 +333,7 @@ const GAME_META: Record<string, { name: string; emoji: string }> = {
   riding: { name: "Red Riding Hood", emoji: "👵" },
   timer: { name: "Stop at 1:00", emoji: "⏱️" },
   "789": { name: "789 Dice", emoji: "🎯" },
+  stack: { name: "Tower Stack", emoji: "🧱" },
   number: { name: "Guess the Number", emoji: "🔢" },
 };
 const WDAYS = [["1", "Mon"], ["2", "Tue"], ["3", "Wed"], ["4", "Thu"], ["5", "Fri"], ["6", "Sat"], ["0", "Sun"]];
@@ -341,9 +342,12 @@ function GamesAdmin() {
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/games/config"], queryFn: () => apiRequest("GET", "/api/reborn/games/config").then((r) => r.json()) });
   const [cfg, setCfg] = useState<any>(null);
+  const [catCfg, setCatCfg] = useState<any>(null);
   const cur = cfg || data?.config;
+  const curCat = catCfg || data?.categories;
+  const catOrder: string[] = data?.categoryOrder || [];
   const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/games/config", { config: cur }).then((r) => r.json()),
+    mutationFn: () => apiRequest("POST", "/api/reborn/games/config", { config: cur, categories: curCat }).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Games schedule saved ✓" }); qc.invalidateQueries({ queryKey: ["/api/reborn/games/config"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
@@ -353,12 +357,34 @@ function GamesAdmin() {
     const days: number[] = cur[k]?.days || [];
     setGame(k, { days: days.includes(d) ? days.filter((x) => x !== d) : [...days, d] });
   };
+  const toggleCatDay = (c: string, d: number) => {
+    const base = curCat || {};
+    const days: number[] = base[c]?.days || [];
+    setCatCfg({ ...base, [c]: { days: days.includes(d) ? days.filter((x) => x !== d) : [...days, d] } });
+  };
   return (
     <div className="space-y-3">
       <Card>
         <h3 className="font-bold text-sm flex items-center gap-2"><Gamepad2 className="w-4 h-4 text-amber-300" /> Live games schedule</h3>
         <p className="text-[11px] text-white/50 mt-1">Turn each game on/off and pick which weekdays members can play it. Members create rooms; the host starts and up to 20 play live.</p>
       </Card>
+      {catOrder.length > 0 && (
+        <Card>
+          <p className="font-bold text-sm mb-1">🗂️ Category schedule</p>
+          <p className="text-[11px] text-white/50 mb-3">Pick which weekdays each category appears. A game shows only when both its own days and its category's days include today.</p>
+          {catOrder.map((c) => (
+            <div key={c} className="py-2 border-b border-white/5 last:border-0">
+              <p className="text-sm font-semibold mb-1.5">{c}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {WDAYS.map(([d, lbl]) => {
+                  const on = ((curCat?.[c]?.days) || []).includes(Number(d));
+                  return <button key={d} onClick={() => toggleCatDay(c, Number(d))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${on ? "bg-amber-400 text-black" : "bg-white/5 text-white/50"}`}>{lbl}</button>;
+                })}
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
       {Object.keys(GAME_META).map((k) => (
         <Card key={k}>
           <div className="flex items-center justify-between mb-2">

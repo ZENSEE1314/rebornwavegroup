@@ -9,10 +9,10 @@ import { requireAuth, getUserId } from "./multiAuth";
 import { resolveCompanyId } from "./tenant";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
-interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; }
+interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
 interface Room {
   code: string; game: GameKind; hostId: string; password: string; companyId?: number;
   status: "lobby" | "playing" | "reveal" | "done";
@@ -38,6 +38,8 @@ interface Room {
   timerStart?: number; timerWinners?: string[];
   // 789 (two-dice drinking) only
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
+  // stack (tower stacking) only
+  stackWinners?: string[];
 }
 
 const rooms = new Map<string, Room>();
@@ -72,6 +74,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "riding" ? { riding: ridingView(room) } : {}),
     ...(room.game === "timer" ? { timer: timerView(room, forUserId) } : {}),
     ...(room.game === "789" ? { seven: sevenView(room) } : {}),
+    ...(room.game === "stack" ? { stack: stackView(room) } : {}),
   };
 }
 
@@ -349,6 +352,56 @@ function sevenView(room: Room) {
   };
 }
 
+// ── Tower Stack (parallel skill game) ────────────────────────────────────
+// Each player stacks their own tower: a block slides, tap to drop it. Overhang
+// falls and the block shrinks; miss completely and you're out. Last one standing
+// (or the tallest tower when time's up) wins. Client runs the animation and
+// reports its height/out, like the tap game.
+const STACK_MAX_MS = 150_000;
+function startStack(room: Room) {
+  clearTimers(room);
+  room.status = "playing";
+  room.stackWinners = [];
+  for (const p of room.players) { p.alive = true; p.stackHeight = 0; }
+  room.deadline = Date.now() + STACK_MAX_MS;
+  room.message = "Stack the tower — tap to drop each block! 🧱";
+  broadcast(room);
+  room.ticker = setInterval(() => broadcast(room), 700); // live scoreboard
+  room.timer = setTimeout(() => finishStack(room), STACK_MAX_MS);
+}
+function finishStack(room: Room) {
+  clearTimers(room);
+  room.status = "done";
+  const ranked = [...room.players].sort((a, b) => (b.stackHeight || 0) - (a.stackHeight || 0));
+  const top = ranked[0]?.stackHeight || 0;
+  const winners = ranked.filter((p) => (p.stackHeight || 0) === top && top > 0);
+  room.stackWinners = winners.map((p) => p.id);
+  room.winnerId = winners[0]?.id;
+  room.lastLoserId = ranked.length ? ranked[ranked.length - 1].id : undefined;
+  room.message = winners.length
+    ? (winners.length === 1 ? `${winners[0].name} stacked ${top} high! 🏆` : `${winners.map((p) => p.name).join(" & ")} tied at ${top} blocks 🏆`)
+    : "Game over — nobody got a block down!";
+  broadcast(room);
+  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: p.stackHeight || 0, result: (room.stackWinners!.includes(p.id) ? "win" : "lose") as "win" | "lose" })));
+  scheduleCleanup(room);
+}
+function stackAction(room: Room, uid: string, height: number, out: boolean) {
+  if (room.status !== "playing" || room.game !== "stack") return;
+  const p = room.players.find((x) => x.id === uid);
+  if (!p || !p.alive) return;
+  p.stackHeight = Math.max(p.stackHeight || 0, Math.floor(height) || 0);
+  if (out) p.alive = false;
+  const aliveN = room.players.filter((x) => x.alive).length;
+  if (aliveN === 0 || (room.players.length > 1 && aliveN <= 1)) return finishStack(room);
+  broadcast(room);
+}
+function stackView(room: Room) {
+  return {
+    winners: room.stackWinners || [],
+    heights: room.players.reduce((acc: any, p) => { acc[p.id] = { h: p.stackHeight || 0, alive: p.alive }; return acc; }, {}),
+  };
+}
+
 // Remove a player from a room; the game keeps running for whoever's left. The
 // room is only torn down when the last player leaves. Host passes to another.
 function removePlayer(room: Room, uid?: string) {
@@ -423,6 +476,9 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`;
       return broadcast(room);
     }
+    case "stack":
+      if (room.players.filter((p) => p.alive).length <= 1 && room.players.length) return finishStack(room);
+      return broadcast(room);
     default:
       return broadcast(room);
   }
@@ -447,9 +503,10 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
+  room.stackWinners = [];
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
-  for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; }
+  for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
   broadcast(room);
 }
 
@@ -905,7 +962,24 @@ function ridingView(room: Room) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "cards", "dice", "wheel", "riding", "timer", "789", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+// Each game belongs to one category; admins can schedule categories per weekday.
+const GAME_CATEGORY: Record<string, string> = {
+  number: "Guessing game", rps: "Guessing game",
+  dice: "Dice game", "789": "Dice game",
+  cards: "Card game",
+  tap: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
+  wheel: "Lucky game", riding: "Lucky game",
+};
+const CATEGORY_ORDER = ["Guessing game", "Dice game", "Card game", "Who's the fastest", "Lucky game"];
+async function getCategoryConfig(): Promise<Record<string, { days: number[] }>> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "gameCategoryConfig"));
+  let cfg: any = {};
+  try { cfg = row?.value ? JSON.parse(row.value) : {}; } catch { cfg = {}; }
+  const out: any = {};
+  for (const c of CATEGORY_ORDER) out[c] = { days: Array.isArray(cfg[c]?.days) ? cfg[c].days : [0, 1, 2, 3, 4, 5, 6] };
+  return out;
+}
 async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days: number[]; dailyLimit?: number }>> {
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "gamesConfig"));
   let cfg: any = {};
@@ -916,10 +990,14 @@ async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days
   out.number.dailyLimit = Math.max(0, Math.floor(Number(cfg?.number?.dailyLimit) || 0));
   return out;
 }
-function availableToday(cfg: Record<string, { enabled: boolean; days: number[] }>) {
+function availableToday(cfg: Record<string, { enabled: boolean; days: number[] }>, catCfg?: Record<string, { days: number[] }>) {
   const wd = new Date().getDay();
   const out: Record<string, boolean> = {};
-  for (const k of GAME_KEYS) out[k] = cfg[k].enabled && cfg[k].days.includes(wd);
+  for (const k of GAME_KEYS) {
+    const catDays = catCfg?.[GAME_CATEGORY[k]]?.days;
+    const catOk = !catDays || catDays.includes(wd);
+    out[k] = cfg[k].enabled && cfg[k].days.includes(wd) && catOk;
+  }
   return out;
 }
 
@@ -1011,21 +1089,30 @@ export function registerGameRoutes(app: Express) {
   // Config (members see today's availability; admin edits schedule)
   app.get("/api/reborn/games/config", async (_req, res) => {
     const cfg = await getGamesConfig();
-    res.json({ config: cfg, today: availableToday(cfg) });
+    const cat = await getCategoryConfig();
+    res.json({ config: cfg, categories: cat, categoryOrder: CATEGORY_ORDER, gameCategory: GAME_CATEGORY, today: availableToday(cfg, cat) });
   });
   app.post("/api/reborn/games/config", requireAuth, async (req, res) => {
     const uid = getUserId(req); const [u] = uid ? await db.select().from(users).where(eq(users.id, uid)) : [];
     if (!u || u.role !== "admin") return res.status(403).json({ message: "Admin only" });
-    const cfg = req.body?.config || {};
-    await db.insert(appSettings).values({ key: "gamesConfig", value: JSON.stringify(cfg), updatedAt: new Date() })
-      .onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(cfg), updatedAt: new Date() } });
-    res.json({ ok: true, config: await getGamesConfig() });
+    if (req.body?.config) {
+      const cfg = req.body.config;
+      await db.insert(appSettings).values({ key: "gamesConfig", value: JSON.stringify(cfg), updatedAt: new Date() })
+        .onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(cfg), updatedAt: new Date() } });
+    }
+    if (req.body?.categories) {
+      const cat = req.body.categories;
+      await db.insert(appSettings).values({ key: "gameCategoryConfig", value: JSON.stringify(cat), updatedAt: new Date() })
+        .onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(cat), updatedAt: new Date() } });
+    }
+    const cfg = await getGamesConfig(); const cat = await getCategoryConfig();
+    res.json({ ok: true, config: cfg, categories: cat });
   });
 
   // Guess the Number — read current round + guess history
   app.get("/api/reborn/games/number", requireAuth, async (req, res) => {
     const cfg = await getGamesConfig();
-    if (!availableToday(cfg).number) return res.json({ available: false });
+    if (!availableToday(cfg, await getCategoryConfig()).number) return res.json({ available: false });
     const cid = await resolveCompanyId(req);
     const uid = getUserId(req)!;
     const g = await loadNumberGame(cid);
@@ -1037,7 +1124,7 @@ export function registerGameRoutes(app: Express) {
   // Submit a guess; first correct one ends the round and rolls a new secret.
   app.post("/api/reborn/games/number/guess", requireAuth, async (req, res) => {
     const cfg = await getGamesConfig();
-    if (!availableToday(cfg).number) return res.status(400).json({ message: "The number game isn't available today." });
+    if (!availableToday(cfg, await getCategoryConfig()).number) return res.status(400).json({ message: "The number game isn't available today." });
     const cid = await resolveCompanyId(req);
     const uid = getUserId(req)!;
     const guess = Math.floor(Number(req.body?.guess));
@@ -1078,7 +1165,7 @@ export function registerGameRoutes(app: Express) {
     const game = String(req.query.game || "rps");
     const cid = await resolveCompanyId(req);
     // rps/cards: rank by wins; tap: rank by best single score (coins).
-    const rows: any = game === "tap"
+    const rows: any = (game === "tap" || game === "stack")
       ? await db.execute(sql`SELECT user_id, max(user_name) name, max(score) best, count(*) plays FROM pvp_game_scores WHERE game=${game} AND company_id=${cid} GROUP BY user_id ORDER BY best DESC LIMIT 50`)
       : await db.execute(sql`SELECT user_id, max(user_name) name, count(*) FILTER (WHERE result='win') wins, count(*) plays FROM pvp_game_scores WHERE game=${game} AND company_id=${cid} GROUP BY user_id ORDER BY wins DESC LIMIT 50`);
     res.json((rows.rows || rows).map((r: any) => ({ userId: r.user_id, name: r.name, score: Number(r.best ?? r.wins ?? 0), plays: Number(r.plays || 0) })));
@@ -1101,9 +1188,10 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
-    if (!availableToday(cfg)[game]) return res.status(400).json({ message: "That game isn't available today." });
+    const cat = await getCategoryConfig();
+    if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
     const name = await nameFor(uid);
     const companyId = await resolveCompanyId(req);
     const room: Room = {
@@ -1154,6 +1242,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "riding") startRiding(room);
     else if (room.game === "timer") startTimer(room);
     else if (room.game === "789") start789(room);
+    else if (room.game === "stack") startStack(room);
     else startTap(room);
     res.json({ ok: true });
   });
@@ -1187,6 +1276,10 @@ export function registerGameRoutes(app: Express) {
       const uid = getUserId(req)!;
       if (req.body?.act === "roll") seven789Roll(room, uid);
       else if (req.body?.act === "choose") seven789Choose(room, uid, String(req.body?.targetId));
+      return res.json({ ok: true });
+    }
+    if (room.game === "stack") {
+      if (req.body?.act === "stack") stackAction(room, getUserId(req)!, Number(req.body?.height), !!req.body?.out);
       return res.json({ ok: true });
     }
     if (room.game === "riding") {
