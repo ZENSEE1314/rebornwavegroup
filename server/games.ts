@@ -10,7 +10,7 @@ import { resolveCompanyId } from "./tenant";
 import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -42,6 +42,8 @@ interface Room {
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
   // stack (tower stacking) only
   stackWinners?: string[];
+  // draw (Draw & Guess) only
+  dg?: { word: string; category: string; drawer: string; strokes: { id: number; c: string; w: number; p: number[] }[]; feed: { id: string; name: string; text: string }[]; reveal: number[]; lastGuess: Record<string, number>; startedAt: number; winner?: string | null };
   // bridge (Glass Bridge) only
   gb?: { safe: number[]; known: (number | null)[]; broken: (number | null)[]; order: string[]; cur: number; pos: number; done: string[]; fell: string[]; last?: any };
   // memory (Memory Match) only
@@ -95,6 +97,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "rlgl" ? { rlgl: rlView(room) } : {}),
     ...(room.game === "memory" ? { memory: memView(room) } : {}),
     ...(room.game === "bridge" ? { bridge: gbView(room) } : {}),
+    ...(room.game === "draw" ? { draw: dgView(room, forUserId) } : {}),
   };
 }
 
@@ -504,6 +507,11 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       if (leavingWasTurn) { armDiceTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; }
       return broadcast(room);
     }
+    case "draw": {
+      if (room.dg && !room.players.some((p) => p.id === room.dg!.drawer)) return finishDraw(room, null, "✏️ The drawer left!");
+      if (room.dg && room.players.length < 2) return finishDraw(room, null, "Everyone else left!");
+      return broadcast(room);
+    }
     case "bridge": {
       if (room.gb && !room.players.some((p) => p.id === room.gb!.order[room.gb!.cur])) gbAdvance(room); // the walker left
       return broadcast(room);
@@ -583,7 +591,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1253,6 +1261,122 @@ function gbView(room: Room) {
   };
 }
 
+// ── Draw & Guess (3–20 players) ─────────────────────────────────────────
+// A random player becomes the drawer and secretly gets a random word (food,
+// animal or item). Everyone else sees only the hint (category + letter
+// blanks, with a letter revealed at 2 and 4 minutes) and types guesses.
+// First correct guess ends it: the drawer AND that guesser win, the rest
+// drink. Nobody gets it within 5 minutes → everyone loses, drawer included.
+const DG_WORDS: Record<string, string[]> = {
+  Food: ["pizza", "burger", "noodles", "sushi", "ice cream", "hot dog", "banana", "apple", "watermelon", "cake", "donut", "egg", "bread", "rice", "chicken wing", "french fries", "sandwich", "cookie", "cheese", "corn", "carrot", "pineapple", "grapes", "strawberry", "chilli", "popcorn", "lollipop", "cupcake", "taco", "dumpling", "satay", "durian", "coconut", "mango", "pancake", "prawn", "fish ball", "candy", "chocolate", "mushroom"],
+  Animal: ["cat", "dog", "elephant", "giraffe", "snake", "fish", "bird", "rabbit", "monkey", "lion", "tiger", "horse", "cow", "pig", "chicken", "duck", "frog", "turtle", "shark", "whale", "octopus", "crab", "spider", "butterfly", "bee", "penguin", "owl", "kangaroo", "zebra", "crocodile", "snail", "dolphin", "bat", "mouse", "panda", "camel", "deer", "sheep", "jellyfish", "dinosaur"],
+  Item: ["umbrella", "phone", "guitar", "microphone", "chair", "table", "bed", "lamp", "clock", "glasses", "hat", "shoe", "key", "car", "bicycle", "airplane", "boat", "house", "tree", "flower", "sun", "moon", "star", "rainbow", "cup", "bottle", "beer", "scissors", "pencil", "book", "camera", "television", "computer", "balloon", "candle", "ladder", "toothbrush", "backpack", "rocket", "football"],
+};
+const DG_SECONDS = 300, DG_MAX_POINTS = 8000, DG_MAX_FEED = 40;
+type DgStroke = { c: string; w: number; p: number[] }; // p = flat [x,y,x,y…] in 0..1000
+function dgNorm(s: string) { return String(s || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+function dgPoints(g: NonNullable<Room["dg"]>) { return g.strokes.reduce((n, s) => n + s.p.length / 2, 0); }
+function startDraw(room: Room) {
+  const cats = Object.keys(DG_WORDS);
+  const category = cats[Math.floor(Math.random() * cats.length)];
+  const list = DG_WORDS[category];
+  const drawer = room.players[Math.floor(Math.random() * room.players.length)];
+  room.dg = { word: list[Math.floor(Math.random() * list.length)], category, drawer: drawer.id, strokes: [], feed: [], reveal: [], lastGuess: {}, startedAt: Date.now() };
+  room.status = "playing";
+  room.message = `✏️ ${drawer.name} is drawing — guess the ${category.toLowerCase()}!`;
+  clearTimers(room);
+  room.deadline = Date.now() + DG_SECONDS * 1000;
+  room.timer = setTimeout(() => finishDraw(room, null), DG_SECONDS * 1000);
+  dgArmHints(room);
+  broadcast(room);
+}
+// Reveal one letter at 2:00 and another at 4:00 so a stuck table gets help.
+function dgArmHints(room: Room) {
+  room.ticker = setInterval(() => {
+    const g = room.dg;
+    if (!g || room.status !== "playing") return;
+    const elapsed = (Date.now() - g.startedAt) / 1000;
+    const want = elapsed >= 240 ? 2 : elapsed >= 120 ? 1 : 0;
+    if (g.reveal.length >= want) return;
+    const hidden = g.word.split("").map((_, i) => i).filter((i) => g.word[i] !== " " && !g.reveal.includes(i));
+    if (hidden.length <= 1) return;
+    g.reveal.push(hidden[Math.floor(Math.random() * hidden.length)]);
+    room.message = "💡 Hint: a letter was revealed!";
+    broadcast(room);
+  }, 2000);
+}
+function dgAction(room: Room, uid: string, body: any): string {
+  const g = room.dg;
+  if (room.status !== "playing" || !g) return "Not playing";
+  const act = String(body?.act || "");
+  if (act === "stroke" || act === "clear" || act === "undo") {
+    if (uid !== g.drawer) return "Only the drawer can draw";
+    if (act === "clear") g.strokes = [];
+    else if (act === "undo") { const sid = g.strokes.length ? g.strokes[g.strokes.length - 1].id : null; g.strokes = g.strokes.filter((s) => s.id !== sid); }
+    else {
+      const raw = Array.isArray(body?.p) ? body.p : [];
+      const p: number[] = [];
+      for (let i = 0; i + 1 < raw.length && p.length < 400; i += 2) {
+        const x = Math.round(Number(raw[i])), y = Math.round(Number(raw[i + 1]));
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        p.push(Math.max(0, Math.min(1000, x)), Math.max(0, Math.min(1000, y)));
+      }
+      if (p.length < 2) return "";
+      if (dgPoints(g) + p.length / 2 > DG_MAX_POINTS) return "Canvas is full — clear or undo";
+      const c = /^#[0-9a-fA-F]{6}$/.test(String(body?.c)) ? String(body.c) : "#111111";
+      const w = Math.max(2, Math.min(40, Math.round(Number(body?.w) || 6)));
+      g.strokes.push({ id: Math.max(0, Math.floor(Number(body?.id) || 0)), c, w, p });
+    }
+    broadcast(room);
+    return "";
+  }
+  if (act === "guess") {
+    if (uid === g.drawer) return "You're the drawer!";
+    const me = room.players.find((p) => p.id === uid);
+    if (!me) return "Not in this room";
+    const now = Date.now();
+    if (now - (g.lastGuess[uid] || 0) < 600) return "Slow down";
+    g.lastGuess[uid] = now;
+    const text = String(body?.text || "").trim().slice(0, 40);
+    if (!dgNorm(text)) return "Type a guess";
+    if (dgNorm(text) === dgNorm(g.word)) { finishDraw(room, uid); return ""; }
+    g.feed.push({ id: uid, name: me.name, text });
+    if (g.feed.length > DG_MAX_FEED) g.feed.splice(0, g.feed.length - DG_MAX_FEED);
+    broadcast(room);
+    return "";
+  }
+  return "Unknown action";
+}
+function finishDraw(room: Room, winnerId: string | null, reason?: string) {
+  clearTimers(room);
+  const g = room.dg!;
+  room.status = "done";
+  g.winner = winnerId;
+  const drawer = room.players.find((p) => p.id === g.drawer);
+  const winner = winnerId ? room.players.find((p) => p.id === winnerId) : undefined;
+  const wins = new Set(winner ? [g.drawer, winner.id] : []);
+  const losers = room.players.filter((p) => !wins.has(p.id));
+  room.winnerId = winner?.id; room.lastLoserId = losers[0]?.id;
+  room.message = winner
+    ? `🎉 ${winner.name} guessed "${g.word}"! ${winner.name} & ${drawer?.name || "the drawer"} win — ${losers.map((p) => p.name).join(", ") || "nobody"} drink${losers.length === 1 ? "s" : ""} 🍺`
+    : `${reason || "⏰ Time's up!"} The word was "${g.word}" — nobody got it, everyone drinks (drawer too) 🍺`;
+  broadcast(room);
+  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: wins.has(p.id) ? 1 : 0, result: (wins.has(p.id) ? "win" : "lose") as "win" | "lose" })));
+  scheduleCleanup(room);
+}
+function dgView(room: Room, forUserId?: string) {
+  const g = room.dg;
+  if (!g) return null;
+  const show = room.status === "done" || forUserId === g.drawer;
+  return {
+    drawerId: g.drawer, category: g.category,
+    word: show ? g.word : null,
+    // letter blanks for guessers: "_" for hidden letters, spaces kept
+    mask: g.word.split("").map((ch, i) => (ch === " " ? " " : g.reveal.includes(i) ? ch : "_")).join(""),
+    strokes: g.strokes, feed: g.feed, winnerId: g.winner ?? null,
+  };
+}
+
 // ── Memory Match (2 players) ────────────────────────────────────────────
 // 30 face-down cards (6×5) = 15 pairs. On your turn flip 2: same number = +1
 // point and flip again; different = they flip back and it's the other
@@ -1495,10 +1619,10 @@ function frogView(room: Room, forUserId?: string) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "frog", "bridge", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "frog", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
-  number: "Guessing game", rps: "Guessing game",
+  number: "Guessing game", rps: "Guessing game", draw: "Guessing game",
   dice: "Dice game", "789": "Dice game",
   cards: "Card game", poker3: "Card game", memory: "Card game",
   tap: "Who's the fastest", rlgl: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
@@ -1722,7 +1846,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
@@ -1777,6 +1901,7 @@ export function registerGameRoutes(app: Express) {
     if (getUserId(req) !== room.hostId) return res.status(403).json({ message: "Only the host can start." });
     if (room.status !== "lobby") return res.status(400).json({ message: "Already started." });
     if (room.players.length < 2) return res.status(400).json({ message: "Need at least 2 players." });
+    if (room.game === "draw" && room.players.length < 3) return res.status(400).json({ message: "Draw & Guess needs at least 3 players." });
     if (room.game === "rps") { room.round = 1; startRpsRound(room); }
     else if (room.game === "cards") startCards(room);
     else if (room.game === "poker3") startPoker(room);
@@ -1784,6 +1909,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "rlgl") startRlgl(room);
     else if (room.game === "memory") startMemory(room);
     else if (room.game === "bridge") startBridge(room);
+    else if (room.game === "draw") startDraw(room);
     else if (room.game === "dice") startDiceRound(room);
     else if (room.game === "wheel") startWheel(room);
     else if (room.game === "riding") startRiding(room);
@@ -1853,6 +1979,10 @@ export function registerGameRoutes(app: Express) {
         return res.json({ ok: true });
       }
       return res.status(400).json({ message: "Bad action" });
+    }
+    if (room.game === "draw") {
+      const err = dgAction(room, getUserId(req)!, req.body);
+      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
     }
     if (room.game === "bridge") {
       const err = gbStep(room, getUserId(req)!, Number(req.body?.side));
