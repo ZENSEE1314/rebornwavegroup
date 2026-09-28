@@ -183,7 +183,8 @@ function RebornApp() {
         registerPushToken();
         window.__bridgeXPushTimer = setInterval(registerPushToken, 10000);
         fetch('/api/auth/user', {credentials:'include'}).then(function (response) {
-          if (response.ok && /^\/login\/?$/.test(location.pathname)) location.replace('/');
+          var p = location.pathname;
+          if (response.ok && (p === '/login' || p === '/login/')) location.replace('/');
         }).catch(function () {});
       })(); true;
     `);
