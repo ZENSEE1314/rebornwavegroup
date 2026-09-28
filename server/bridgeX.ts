@@ -297,7 +297,12 @@ async function maybeDeductRecipes(companyId: number, lines: any[], userId: strin
 async function notifyKitchen(companyId: number, ticket: any, lines: any[]) {
   const result = await db.execute(sql`SELECT DISTINCT m.user_id FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${companyId} AND m.status='active' AND (p.code IN ('chef','kitchen','bartender','bar') OR m.role IN ('owner','admin','manager'))`);
   const ids = ((result.rows || result) as any[]).map((r) => r.user_id);
-  await sendBridgeXNotifications(companyId, ids, { type: "new_order", title: `Order ${ticket.orderNo}`, body: `${lines.length} item${lines.length === 1 ? "" : "s"}${ticket.tableNumber ? ` · Table ${ticket.tableNumber}` : ""}`, data: { ticketId: ticket.id } });
+  // Reborn's admins/staff are flagged on users.role and usually have no
+  // bridge_company_members row, so the query above finds nobody for them.
+  const [company] = await db.select({ slug: bridgeCompanies.slug }).from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
+  const isReborn = company?.slug === "reborn-wave-group";
+  if (isReborn) ids.push(...(await db.select({ id: users.id }).from(users).where(inArray(users.role, ["admin", "staff"]))).map((u) => u.id));
+  await sendBridgeXNotifications(companyId, ids, { type: "new_order", title: `Order ${ticket.orderNo}`, body: `${lines.length} item${lines.length === 1 ? "" : "s"}${ticket.tableNumber ? ` · Table ${ticket.tableNumber}` : ""}`, data: { ticketId: ticket.id, ...(isReborn ? { path: "/reborn-pos" } : {}) } });
 }
 
 async function ensureUser(email: string, name: string, password?: string) {
@@ -354,14 +359,16 @@ async function createCompany(req: Request, ownerUserId: string, body: any) {
   return { company, branch, modules: selected };
 }
 
-export async function sendBridgeXNotifications(companyId: number, userIds: string[], payload: { type: string; title: string; body: string; data?: Record<string, unknown> }) {
+export interface PushOutcome { status: "sent" | "failed" | "no_device" | "no_recipients"; devices: number; errors: string[] }
+export async function sendBridgeXNotifications(companyId: number, userIds: string[], payload: { type: string; title: string; body: string; data?: Record<string, unknown> }): Promise<PushOutcome> {
   const targets = Array.from(new Set(userIds.filter(Boolean)));
-  if (!targets.length) return;
+  if (!targets.length) return { status: "no_recipients", devices: 0, errors: [] };
   const notices = await db.insert(bridgeNotifications).values(targets.map((userId) => ({ companyId, userId, type: payload.type, title: payload.title, body: payload.body, data: payload.data || {} }))).returning();
   const tokens = await db.select().from(bridgeDeviceTokens).where(and(inArray(bridgeDeviceTokens.userId, targets), eq(bridgeDeviceTokens.active, true)));
   if (!tokens.length) {
     await db.update(bridgeNotifications).set({ pushStatus: "no_device" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
-    return;
+    console.info("Expo push skipped: no registered phone", { type: payload.type, recipients: targets.length });
+    return { status: "no_device", devices: 0, errors: [] };
   }
   const messages = tokens.map((token) => ({
     to: token.expoPushToken,
@@ -389,11 +396,15 @@ export async function sendBridgeXNotifications(companyId: number, userIds: strin
     }
     const invalid = tokens.filter((_, index) => tickets[index]?.details?.error === "DeviceNotRegistered");
     if (invalid.length) await db.update(bridgeDeviceTokens).set({ active: false, updatedAt: new Date() }).where(inArray(bridgeDeviceTokens.id, invalid.map((token) => token.id)));
-    await db.update(bridgeNotifications).set({ pushStatus: tickets.some((ticket: any) => ticket?.status === "ok") ? "sent" : "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
-    console.info("Expo push result", { type: payload.type, recipients: targets.length, devices: tokens.length, accepted: tickets.filter((ticket: any) => ticket?.status === "ok").length });
+    const sent = tickets.some((ticket: any) => ticket?.status === "ok");
+    await db.update(bridgeNotifications).set({ pushStatus: sent ? "sent" : "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
+    const errors = tickets.filter((ticket: any) => ticket?.status !== "ok").map((ticket: any) => ticket?.details?.error || ticket?.message || "unknown");
+    console.info("Expo push result", { type: payload.type, recipients: targets.length, devices: tokens.length, accepted: tickets.length - errors.length, errors });
+    return { status: sent ? "sent" : "failed", devices: tokens.length, errors };
   } catch (error) {
     await db.update(bridgeNotifications).set({ pushStatus: "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
     console.warn("Expo push unavailable", error);
+    return { status: "failed", devices: tokens.length, errors: [error instanceof Error ? error.message : String(error)] };
   }
 }
 
@@ -416,12 +427,13 @@ export async function sendRebornStaffNotification(payload: { type: string; title
   emitCompanyChange(company.id, String(payload.data?.path || "notifications"));
 }
 
-export async function sendRebornUserNotification(userId: string | null | undefined, payload: { type: string; title: string; body: string; data?: Record<string, unknown> }) {
+export async function sendRebornUserNotification(userId: string | null | undefined, payload: { type: string; title: string; body: string; data?: Record<string, unknown> }): Promise<PushOutcome | undefined> {
   if (!userId) return;
   const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
   if (!company) return;
-  await sendBridgeXNotifications(company.id, [userId], payload);
+  const outcome = await sendBridgeXNotifications(company.id, [userId], payload);
   emitCompanyChange(company.id, String(payload.data?.path || "notifications"));
+  return outcome;
 }
 
 export async function sendRebornAllNotification(payload: { type: string; title: string; body: string; data?: Record<string, unknown> }) {
@@ -2009,8 +2021,12 @@ export function registerBridgeXRoutes(app: Express) {
   }));
   app.post("/api/v1/app/notifications/test", route(async (req, res) => {
     const user = await requireUser(req, res); if (!user) return;
-    await sendRebornUserNotification(user.id, { type: "test", title: "Reborn notifications are working", body: "You will receive live orders, gifts, messages and updates on this phone.", data: { path: "/profile" } });
-    res.json({ message: "Test notification sent to your registered phone." });
+    const outcome = await sendRebornUserNotification(user.id, { type: "test", title: "Reborn notifications are working", body: "You will receive live orders, gifts, messages and updates on this phone.", data: { path: "/profile" } });
+    if (outcome?.status === "sent") return res.json({ message: "Test notification sent to your registered phone.", ...outcome });
+    if (outcome?.status === "no_device") return res.status(409).json({ message: "This phone isn't registered for alerts yet. Install the latest app, allow notifications, then reopen the app while signed in.", ...outcome });
+    const reason = outcome?.errors?.[0] || "unknown";
+    const hint = /InvalidCredentials|FCM|credentials/i.test(reason) ? " Android push key (FCM) is missing in the Expo project." : "";
+    res.status(502).json({ message: `Phone alert was rejected: ${reason}.${hint}`, ...(outcome || {}) });
   }));
   app.get("/api/v1/app/notifications", route(async (req, res) => { const user = await requireUser(req, res); if (user) res.json(await db.select().from(bridgeNotifications).where(eq(bridgeNotifications.userId, user.id)).orderBy(desc(bridgeNotifications.id)).limit(100)); }));
   app.post("/api/v1/app/notifications/:id/read", route(async (req, res) => { const user = await requireUser(req, res); if (!user) return; res.json((await db.update(bridgeNotifications).set({ readAt: new Date() }).where(and(eq(bridgeNotifications.id, Number(req.params.id)), eq(bridgeNotifications.userId, user.id))).returning())[0]); }));

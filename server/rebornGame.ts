@@ -2047,10 +2047,12 @@ export function registerRebornRoutes(app: Express) {
       }).returning();
     }
     await appendItems(order.id, order.orderNo, clean!, userId, "pending", "app"); // counter must accept
-    await notifyAdmins(`🛎️ New order from table ${tableNumber} (${order.memberName || "member"}) — needs Accept/Reject in POS.`);
-    await sendRebornStaffNotification({ type: "new_order", title: `New order ${order.orderNo}`, body: `${order.memberName || "Member"} · Table ${tableNumber} · ${clean!.length} item${clean!.length === 1 ? "" : "s"}`, data: { path: "/reborn-pos", ticketId: order.id } });
     emitLiveUpdate("/api/reborn/pos/orders", { action: "NEW_ORDER", resource: String(order.id) });
+    // Phone push first and independently: a stalled WhatsApp send used to hold
+    // this request open so the admin app alert never went out.
+    sendRebornStaffNotification({ type: "new_order", title: `New order ${order.orderNo}`, body: `${order.memberName || "Member"} · Table ${tableNumber} · ${clean!.length} item${clean!.length === 1 ? "" : "s"}`, data: { path: "/reborn-pos", ticketId: order.id } }).catch((e) => console.warn("new_order app push failed", e));
     sendPushToAdmins({ title: "🛎️ New order", body: `Table ${tableNumber} · ${order.memberName || "member"} — needs Accept/Reject`, url: "/reborn-pos", tag: "new-order" }).catch(() => {});
+    notifyAdmins(`🛎️ New order from table ${tableNumber} (${order.memberName || "member"}) — needs Accept/Reject in POS.`).catch(() => {});
     res.json({ message: "Order sent — waiting for the counter to accept.", order });
   });
   // Counter accepts / rejects / serves an app order item.
