@@ -19,6 +19,12 @@ const LANGS: { code: "en" | "zh" | "id"; label: string; flag: string }[] = [
 const inp = "w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60";
 const gold = { background: "linear-gradient(90deg,#c9a84c,#f0d787)" };
 
+// apiRequest errors look like `409: {"message":"..."}` — show just the message.
+function apiErrorMessage(e: any): string {
+  const raw = String(e?.message || e || "");
+  try { return JSON.parse(raw.replace(/^\d+:\s*/, "")).message || raw; } catch { return raw; }
+}
+
 function splitPhone(raw?: string): { dial: string; num: string } {
   const s = (raw || "").trim();
   const m = s.match(/^(\+\d{1,4})\s*(.*)$/);
@@ -42,7 +48,8 @@ export default function RebornProfile() {
   });
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
   const { data: pushStatus, refetch: refetchPush } = useQuery<any>({ queryKey: ["/api/v1/app/device-tokens/status"], queryFn: () => apiRequest("GET", "/api/v1/app/device-tokens/status").then((r) => r.json()), refetchInterval: 10000 });
-  const testPush = useMutation({ mutationFn: () => apiRequest("POST", "/api/v1/app/notifications/test", {}).then((r) => r.json()), onSuccess: (d) => toast({ title: "Test sent", description: d.message }), onError: (e: any) => toast({ title: "Test failed", description: e.message, variant: "destructive" }) });
+  const testPush = useMutation({ mutationFn: () => apiRequest("POST", "/api/v1/app/notifications/test", {}).then((r) => r.json()), onSuccess: (d) => toast({ title: "Test sent", description: d.message }), onError: (e: any) => toast({ title: "Test failed", description: apiErrorMessage(e), variant: "destructive" }) });
+  const inNativeApp = typeof window !== "undefined" && ((window as any).__REBORN_NATIVE_APP__ || (() => { try { return localStorage.getItem("reborn.nativeApp") === "true"; } catch { return false; } })());
 
   const saveProfile = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/reborn/profile", body).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
@@ -103,7 +110,17 @@ export default function RebornProfile() {
 
       <a href="/history" className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 mb-4 flex items-center gap-3"><ReceiptText className="w-5 h-5 text-amber-300" /><span className="flex-1"><b className="block">My payments & history</b><span className="text-xs text-white/50">Receipts, top-ups, KGOLD, gifts and rewards</span></span></a>
 
-      <NotificationToggle />
+      {inNativeApp ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">
+          <p className="font-bold text-sm mb-1 flex items-center gap-2"><Bell className="w-4 h-4 text-amber-300" /> Phone notifications</p>
+          {pushStatus?.registered ? (
+            <p className="text-xs text-emerald-300 mb-3">✅ This phone is registered for alerts{u.role === "admin" || u.role === "staff" ? " (new orders, bookings, song requests)" : ""}.</p>
+          ) : (
+            <p className="text-xs text-amber-300 mb-3">⚠️ This phone isn't registered for alerts yet. Allow notifications for the app in your phone settings, then close and reopen the app. If it stays like this, install the latest app version.</p>
+          )}
+          <button onClick={() => { refetchPush(); testPush.mutate(); }} disabled={testPush.isPending} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-white/5 border border-white/10 text-white/80 disabled:opacity-60">{testPush.isPending ? "Sending…" : "Send test notification"}</button>
+        </div>
+      ) : <NotificationToggle />}
 
       {/* Language */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">
