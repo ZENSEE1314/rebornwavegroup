@@ -14,6 +14,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "30s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
+  draw: { name: "Draw & Guess", emoji: "🎨", blurb: "One draws the secret word · first right guess wins with the drawer" },
   bridge: { name: "Glass Bridge", emoji: "🌉", blurb: "10 rows of glass · pick left or right · wrong = fall & drink" },
   memory: { name: "Memory Match", emoji: "🧠", blurb: "2 players · flip 2 cards, same number = point & go again" },
   rlgl: { name: "Red Light, Green Light", emoji: "🚦", blurb: "tap left-right to walk on green · freeze on red · 3 min to cross" },
@@ -33,12 +34,12 @@ const GAME_GRAD: Record<string, string> = {
   rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)",
   cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)",
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
-  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)", memory: "linear-gradient(135deg,#a78bfa,#6d28d9)", bridge: "linear-gradient(135deg,#7dd3fc,#1e3a8a)",
+  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)", memory: "linear-gradient(135deg,#a78bfa,#6d28d9)", bridge: "linear-gradient(135deg,#7dd3fc,#1e3a8a)", draw: "linear-gradient(135deg,#fda4af,#7c3aed)",
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
 };
 // Games grouped into categories for the lobby.
 const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
-  { name: "Guessing game", emoji: "🧠", games: ["number", "rps"] },
+  { name: "Guessing game", emoji: "🧠", games: ["number", "rps", "draw"] },
   { name: "Dice game", emoji: "🎲", games: ["dice", "789"] },
   { name: "Card game", emoji: "🃏", games: ["cards", "poker3", "memory"] },
   { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"] },
@@ -57,6 +58,13 @@ const RULES: Record<string, string[]> = {
     "Every tap = 1 gold coin ⛏️🪙.",
     "You have 30 seconds — most coins wins.",
     "Lowest score buys the round 😄.",
+  ],
+  draw: [
+    "3–20 players. A random player becomes the drawer and secretly gets a word — a food, an animal or an item.",
+    "Everyone else sees the hint: the category and the letter blanks (a letter is revealed at 2:00 and 4:00).",
+    "The drawer draws it on the board — no writing letters! Everyone types guesses.",
+    "First correct guess wins: that guesser AND the drawer win, everyone else drinks 🍺.",
+    "Nobody gets it within 5 minutes → everyone loses, the drawer too (draw better!).",
   ],
   bridge: [
     "A glass bridge with 10 rows — each row has a LEFT and a RIGHT panel. Only one is safe.",
@@ -191,7 +199,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
+type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
@@ -398,7 +406,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                 </div>
               </div>
             )}
-            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && game !== "rlgl" && game !== "memory" && game !== "bridge" && (
+            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && game !== "rlgl" && game !== "memory" && game !== "bridge" && game !== "draw" && (
             <div className="mt-3">
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
               <div className="flex gap-2">
@@ -515,6 +523,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "done") && room.game === "rlgl" && <RlglGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "memory" && <MemoryGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "bridge" && <BridgeGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && room.game === "draw" && <DrawGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
@@ -561,8 +570,8 @@ function LobbyRoom({ room, code, isHost }: any) {
         ))}
       </div>
       {isHost ? (
-        <button onClick={start} disabled={room.players.length < 2} className="cbtn cbtn-gold w-full py-4 text-lg inline-flex items-center justify-center gap-2">
-          <Play className="w-5 h-5" /> {room.players.length < 2 ? "Waiting for players…" : "Start game"}
+        <button onClick={start} disabled={room.players.length < (room.game === "draw" ? 3 : 2)} className="cbtn cbtn-gold w-full py-4 text-lg inline-flex items-center justify-center gap-2">
+          <Play className="w-5 h-5" /> {room.players.length < (room.game === "draw" ? 3 : 2) ? `Waiting for players… (min ${room.game === "draw" ? 3 : 2})` : "Start game"}
         </button>
       ) : <p className="text-center text-white/50 text-sm py-3">Waiting for the host to start…</p>}
       <p className="text-center text-[11px] text-white/40 mt-3">Share code <b className="text-amber-300">{room.code}</b>{room.hasPassword ? " + the password" : ""} with friends to join.</p>
@@ -1291,6 +1300,146 @@ function MemoryGame({ room, code, me }: any) {
         })}
       </div>
       {!me0 && <p className="mt-2 text-xs text-white/40">Watching</p>}
+    </div>
+  );
+}
+
+const DG_COLORS = ["#111111", "#ef4444", "#f97316", "#facc15", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#92400e", "#ffffff"];
+const DG_WIDTHS = [4, 9, 18];
+function DrawGame({ room, code, me }: any) {
+  const g = room.draw || {};
+  const { toast } = useToast();
+  const done = room.status === "done";
+  const amDrawer = g.drawerId === me;
+  const drawerName = room.players.find((p: any) => p.id === g.drawerId)?.name || "Drawer";
+  const secs = useLocalCountdown(room.secondsLeft, `${room.status}-${g.drawerId}`);
+  const [color, setColor] = useState(DG_COLORS[0]);
+  const [width, setWidth] = useState(DG_WIDTHS[1]);
+  const [guess, setGuess] = useState("");
+  // Local copies of strokes the drawer is still sending, so drawing feels instant.
+  const [local, setLocal] = useState<Record<number, { c: string; w: number; p: number[] }>>({});
+  const cur = useRef<{ id: number; c: string; w: number; all: number[]; sent: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const flushT = useRef<any>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
+  const act = async (body: any, title = "Oops") => {
+    try {
+      const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, body);
+      if (!ok) toast({ title, description: d.message, variant: "destructive" });
+      return ok;
+    } catch (e: any) { toast({ title, description: String(e?.message || e).replace(/^\d+:\s*/, ""), variant: "destructive" }); return false; }
+  };
+  const pt = (e: React.PointerEvent) => {
+    const r = svgRef.current!.getBoundingClientRect();
+    return [Math.round(((e.clientX - r.left) / r.width) * 1000), Math.round(((e.clientY - r.top) / r.height) * 1000)];
+  };
+  // Send the unsent tail of the current stroke (overlapping 1 point so pieces join up).
+  const flush = (final = false) => {
+    const s = cur.current;
+    if (!s) return;
+    const from = Math.max(0, s.sent - 2);
+    if (s.all.length - from >= 4 || (final && s.all.length >= 2)) {
+      const p = s.all.slice(from);
+      s.sent = s.all.length;
+      const id = s.id;
+      act({ act: "stroke", id, c: s.c, w: s.w, p: p.length === 2 ? [...p, p[0] + 1, p[1]] : p }, "Can't draw").then(() => {
+        if (final) setLocal((l) => { const n = { ...l }; delete n[id]; return n; });
+      });
+    } else if (final) setLocal((l) => { const n = { ...l }; delete n[s.id]; return n; });
+  };
+  const down = (e: React.PointerEvent) => {
+    if (!amDrawer || done) return;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    const [x, y] = pt(e);
+    cur.current = { id: Date.now(), c: color, w: width, all: [x, y], sent: 0 };
+    setLocal((l) => ({ ...l, [cur.current!.id]: { c: color, w: width, p: [x, y, x + 1, y] } }));
+    clearInterval(flushT.current);
+    flushT.current = setInterval(() => flush(), 180);
+  };
+  const move = (e: React.PointerEvent) => {
+    const s = cur.current;
+    if (!s) return;
+    const [x, y] = pt(e);
+    const lx = s.all[s.all.length - 2], ly = s.all[s.all.length - 1];
+    if (Math.abs(x - lx) + Math.abs(y - ly) < 6) return;
+    s.all.push(x, y);
+    setLocal((l) => ({ ...l, [s.id]: { c: s.c, w: s.w, p: [...s.all] } }));
+  };
+  const up = () => {
+    if (!cur.current) return;
+    clearInterval(flushT.current);
+    flush(true);
+    cur.current = null;
+  };
+  useEffect(() => () => clearInterval(flushT.current), []);
+  const feedLen = (g.feed || []).length;
+  useEffect(() => { feedRef.current?.scrollTo({ top: 1e6 }); }, [feedLen]);
+  const winKey = `${room.status}-${g.winnerId}`;
+  useEffect(() => { if (!done) return; if (g.winnerId && (g.winnerId === me || amDrawer)) sfx.win(); else sfx.eliminated(); }, [winKey]);
+  const send = async () => {
+    const t = guess.trim();
+    if (!t) return;
+    setGuess("");
+    await act({ act: "guess", text: t }, "Guess not sent");
+  };
+  const serverStrokes = (g.strokes || []).filter((s: any) => !local[s.id]);
+  const all = [...serverStrokes, ...Object.values(local)];
+  const iWon = done && !!g.winnerId && (g.winnerId === me || amDrawer);
+  const mm = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  return (
+    <div className="rwg-card p-3 text-center">
+      <p className="mb-2 min-h-[20px] text-sm text-white/75">{room.message}</p>
+      {done && <p className={`mb-2 text-2xl font-black ${iWon ? "text-emerald-300" : "text-red-300"}`}>{iWon ? "🎉 You win!" : "🍺 You drink!"}</p>}
+      <div className="mb-2 flex items-center justify-between gap-2 text-left">
+        <div className="min-w-0">
+          <p className="truncate text-xs text-white/50">✏️ {amDrawer ? "You are drawing" : `${drawerName} is drawing`} · {g.category}</p>
+          {amDrawer || done
+            ? <p className="truncate text-lg font-black text-amber-300">{amDrawer && !done ? "Draw: " : "Answer: "}{String(g.word || "").toUpperCase()}</p>
+            : <p className="font-mono text-lg font-black tracking-[0.25em] text-amber-300 break-all">{String(g.mask || "").toUpperCase()} <span className="text-xs tracking-normal text-white/40">({String(g.mask || "").replace(/ /g, "").length})</span></p>}
+        </div>
+        {!done && <span className={`shrink-0 rounded-lg px-2 py-1 font-black tabular-nums ${secs <= 30 ? "bg-red-500/30 text-red-200" : "bg-white/10 text-white"}`}>{mm}</span>}
+      </div>
+      <svg ref={svgRef} viewBox="0 0 1000 1000" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={up}
+        className={`mx-auto block w-full max-w-md rounded-xl bg-white ${amDrawer && !done ? "cursor-crosshair" : ""}`} style={{ aspectRatio: "1 / 1", touchAction: "none" }}>
+        {all.map((s: any, i: number) => {
+          const pts: string[] = [];
+          for (let k = 0; k + 1 < s.p.length; k += 2) pts.push(`${s.p[k]},${s.p[k + 1]}`);
+          return <polyline key={i} points={pts.join(" ")} fill="none" stroke={s.c} strokeWidth={s.w * 2} strokeLinecap="round" strokeLinejoin="round" />;
+        })}
+      </svg>
+      {amDrawer && !done && (
+        <div className="mx-auto mt-2 max-w-md space-y-2">
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {DG_COLORS.map((c) => (
+              <button key={c} onClick={() => setColor(c)} aria-label={`Colour ${c}`}
+                className={`h-7 w-7 rounded-full border-2 ${color === c ? "scale-110 border-amber-300" : "border-white/30"}`} style={{ background: c }} />
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            {DG_WIDTHS.map((w) => (
+              <button key={w} onClick={() => setWidth(w)} className={`flex h-8 w-10 items-center justify-center rounded-lg border ${width === w ? "border-amber-300 bg-white/15" : "border-white/15 bg-white/5"}`}>
+                <span className="rounded-full bg-white" style={{ width: w, height: w }} />
+              </button>
+            ))}
+            <button onClick={() => act({ act: "undo" })} className="h-8 rounded-lg border border-white/15 bg-white/5 px-3 text-xs font-bold text-white">↶ Undo</button>
+            <button onClick={() => act({ act: "clear" })} className="h-8 rounded-lg border border-red-400/30 bg-red-500/15 px-3 text-xs font-bold text-red-200">🗑 Clear</button>
+          </div>
+          <p className="text-[11px] text-white/40">Draw it — no letters or words! If nobody guesses in 5 min, you lose too.</p>
+        </div>
+      )}
+      <div ref={feedRef} className="mx-auto mt-2 max-h-32 max-w-md overflow-y-auto rounded-xl bg-black/25 p-2 text-left text-sm">
+        {feedLen === 0 ? <p className="text-center text-xs text-white/35">Guesses will show here</p> :
+          (g.feed || []).map((f: any, i: number) => (
+            <p key={i} className="truncate"><b className={f.id === me ? "text-amber-300" : "text-white/80"}>{f.name}:</b> <span className="text-white/60">{f.text}</span></p>
+          ))}
+      </div>
+      {!amDrawer && !done && (
+        <form onSubmit={(e) => { e.preventDefault(); send(); }} className="mx-auto mt-2 flex max-w-md gap-2">
+          <input value={guess} onChange={(e) => setGuess(e.target.value)} maxLength={40} placeholder="Type your guess…" autoComplete="off"
+            className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-white placeholder:text-white/35" />
+          <button type="submit" className="shrink-0 rounded-xl bg-amber-400 px-4 py-2 font-black text-slate-950">Guess</button>
+        </form>
+      )}
     </div>
   );
 }

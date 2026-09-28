@@ -35,6 +35,7 @@ const FLOWS = [
   ["games › Guess the Number", "/games", ["Guessing game", "Guess the Number"]],
   ["games › Guess the Number › play", "/games", ["Guessing game", "Guess the Number", "Play now"]],
   ["games › Rock Paper Scissors", "/games", ["Guessing game", "Rock Paper Scissors"]],
+  ["games › Draw & Guess", "/games", ["Guessing game", "Draw & Guess"]],
   ["games › Who's the fastest", "/games", ["Who's the fastest"]],
   ["games › Lucky game", "/games", ["Lucky game"]],
   ["games › Dice game", "/games", ["Dice game"]],
@@ -56,7 +57,7 @@ const USER = {
 function mock(url) {
   const p = new URL(url).pathname;
   if (p === "/api/auth/user") return USER;
-  if (p === "/api/reborn/games/config") return { today: Object.fromEntries(["rps", "tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "number"].map((g) => [g, true])) };
+  if (p === "/api/reborn/games/config") return { today: Object.fromEntries(["rps", "tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "number", "draw"].map((g) => [g, true])) };
   if (p === "/api/reborn/games/leaderboard") return [{ userId: "a", name: "A very long member name that could overflow", score: 12, plays: 20 }, { userId: "b", name: "Hihta Goh", score: 1, plays: 2 }];
   if (p.startsWith("/api/reborn/games/number")) return { round: 4, low: 0, high: 3504, remaining: 5, dailyLimit: 10, used: 5, recent: [{ name: "Huli", guess: 3505, hint: "lower" }], lastWin: { name: "Hihta Goh", number: 3536, round: 3 } };
   if (p === "/api/reborn/kos/wallet") return { kgold: 39172800, starsReceived: 703500, kgoldPerRp: 10, feePercent: 30 };
