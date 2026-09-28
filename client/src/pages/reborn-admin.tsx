@@ -314,6 +314,7 @@ const GAME_META: Record<string, { name: string; emoji: string }> = {
   frog: { name: "Frog Jump", emoji: "🐸" },
   rlgl: { name: "Red Light, Green Light", emoji: "🚦" },
   memory: { name: "Memory Match", emoji: "🧠" },
+  bridge: { name: "Glass Bridge", emoji: "🌉" },
   dice: { name: "Dice Bluffing Game", emoji: "🎲" },
   wheel: { name: "Spin the Wheel", emoji: "🎡" },
   riding: { name: "Red Riding Hood", emoji: "👵" },
