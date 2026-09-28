@@ -45,7 +45,7 @@ interface Room {
   // memory (Memory Match) only
   mem?: { tiles: { v: number; by?: string }[]; open: number[]; score: Record<string, number>; busy?: boolean };
   // rlgl (Red Light, Green Light) only
-  rl?: { light: "green" | "red"; lightAt: number; endsAt: number; startAt: number; st: Record<string, { steps: number; out?: boolean; done?: boolean; ms?: number; num: number; last?: number }> };
+  rl?: { light: "green" | "red"; lightAt: number; lightUntil?: number; nextGreenMs?: number; endsAt: number; startAt: number; st: Record<string, { steps: number; out?: boolean; done?: boolean; ms?: number; num: number; last?: number }> };
   // frog (Frog Jump) only
   frog?: { phase: "wait" | "pick" | "reveal"; picks: Record<string, number>; last?: any; drinks: Record<string, number>; turnNo: number };
   // poker3 (3-card blind poker drinking game) only
@@ -1244,13 +1244,16 @@ function rlSchedule(room: Room) {
   const r = room.rl!;
   if (room.status !== "playing") return;
   const next = r.light === "green" ? "red" : "green";
-  const dur = next === "green" ? 2500 + Math.random() * 4000 : 2000 + Math.random() * 2500;
+  // `dur` is how long the CURRENT light lasts before switching to `next`.
+  const dur = r.light === "green" ? (r.lightUntil ? Math.max(0, r.lightUntil - Date.now()) : 4000) : 2000 + Math.random() * 2500;
+  if (next === "green") r.nextGreenMs = 2500 + Math.random() * 4000;
   room.ticker = setTimeout(() => {
     if (room.status !== "playing" || !room.rl) return;
     room.rl.light = next; room.rl.lightAt = Date.now();
+    room.rl.lightUntil = next === "green" ? room.rl.lightAt + room.rl.nextGreenMs! : undefined;
     room.message = next === "green" ? "🟢 GREEN LIGHT — walk!" : "🔴 RED LIGHT — freeze!";
     broadcast(room); rlSchedule(room);
-  }, r.light === "green" ? dur : dur) as any;
+  }, dur) as any;
 }
 function startRlgl(room: Room) {
   clearTimers(room);
@@ -1262,7 +1265,7 @@ function startRlgl(room: Room) {
   room.message = "Get ready… 🔴 (don't move!)";
   broadcast(room);
   // first green after the 3s countdown, then random red/green cycles
-  room.ticker = setTimeout(() => { if (!room.rl) return; room.rl.light = "green"; room.rl.lightAt = Date.now(); room.message = "🟢 GREEN LIGHT — walk!"; broadcast(room); rlSchedule(room); }, 3000) as any;
+  room.ticker = setTimeout(() => { if (!room.rl) return; room.rl.light = "green"; room.rl.lightAt = Date.now(); room.rl.lightUntil = room.rl.lightAt + 2500 + Math.random() * 4000; room.message = "🟢 GREEN LIGHT — walk!"; broadcast(room); rlSchedule(room); }, 3000) as any;
   room.timer = setTimeout(() => finishRlgl(room), 3000 + RL_TIME_MS);
 }
 function rlStep(room: Room, uid: string, n: number) {
@@ -1306,7 +1309,7 @@ function finishRlgl(room: Room) {
 function rlView(room: Room) {
   const r = room.rl;
   if (!r) return null;
-  return { light: r.light, lightAt: r.lightAt, startAt: r.startAt, endsAt: r.endsAt, serverNow: Date.now(), goal: RL_GOAL, st: r.st };
+  return { light: r.light, lightAt: r.lightAt, lightUntil: r.lightUntil || null, startAt: r.startAt, endsAt: r.endsAt, serverNow: Date.now(), goal: RL_GOAL, st: r.st };
 }
 
 // ── Frog Jump (non-stop party game) ─────────────────────────────────────
