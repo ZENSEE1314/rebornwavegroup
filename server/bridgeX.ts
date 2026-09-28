@@ -297,7 +297,12 @@ async function maybeDeductRecipes(companyId: number, lines: any[], userId: strin
 async function notifyKitchen(companyId: number, ticket: any, lines: any[]) {
   const result = await db.execute(sql`SELECT DISTINCT m.user_id FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${companyId} AND m.status='active' AND (p.code IN ('chef','kitchen','bartender','bar') OR m.role IN ('owner','admin','manager'))`);
   const ids = ((result.rows || result) as any[]).map((r) => r.user_id);
-  await sendBridgeXNotifications(companyId, ids, { type: "new_order", title: `Order ${ticket.orderNo}`, body: `${lines.length} item${lines.length === 1 ? "" : "s"}${ticket.tableNumber ? ` · Table ${ticket.tableNumber}` : ""}`, data: { ticketId: ticket.id } });
+  // Reborn's admins/staff are flagged on users.role and usually have no
+  // bridge_company_members row, so the query above finds nobody for them.
+  const [company] = await db.select({ slug: bridgeCompanies.slug }).from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
+  const isReborn = company?.slug === "reborn-wave-group";
+  if (isReborn) ids.push(...(await db.select({ id: users.id }).from(users).where(inArray(users.role, ["admin", "staff"]))).map((u) => u.id));
+  await sendBridgeXNotifications(companyId, ids, { type: "new_order", title: `Order ${ticket.orderNo}`, body: `${lines.length} item${lines.length === 1 ? "" : "s"}${ticket.tableNumber ? ` · Table ${ticket.tableNumber}` : ""}`, data: { ticketId: ticket.id, ...(isReborn ? { path: "/reborn-pos" } : {}) } });
 }
 
 async function ensureUser(email: string, name: string, password?: string) {
@@ -390,7 +395,8 @@ export async function sendBridgeXNotifications(companyId: number, userIds: strin
     const invalid = tokens.filter((_, index) => tickets[index]?.details?.error === "DeviceNotRegistered");
     if (invalid.length) await db.update(bridgeDeviceTokens).set({ active: false, updatedAt: new Date() }).where(inArray(bridgeDeviceTokens.id, invalid.map((token) => token.id)));
     await db.update(bridgeNotifications).set({ pushStatus: tickets.some((ticket: any) => ticket?.status === "ok") ? "sent" : "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
-    console.info("Expo push result", { type: payload.type, recipients: targets.length, devices: tokens.length, accepted: tickets.filter((ticket: any) => ticket?.status === "ok").length });
+    const errors = tickets.filter((ticket: any) => ticket?.status !== "ok").map((ticket: any) => ticket?.details?.error || ticket?.message || "unknown");
+    console.info("Expo push result", { type: payload.type, recipients: targets.length, devices: tokens.length, accepted: tickets.length - errors.length, errors });
   } catch (error) {
     await db.update(bridgeNotifications).set({ pushStatus: "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
     console.warn("Expo push unavailable", error);
