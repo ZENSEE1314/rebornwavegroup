@@ -273,7 +273,7 @@ const TOKEN_CYCLE_MS = 24 * 60 * 60 * 1000; // 2 feeds within this rolling windo
 const MAX_PETS = 2;                 // living pets a member can hold at once
 const DECAY_PER_MIN = 100 / 240;    // stats fall 100 → 0 over 4 hours
 const ACTION_ENERGY_COST = 10;      // feed/play/clean each cost energy
-const STAT_GAIN = 30;               // play/clean raise their bar by 30%
+const STAT_GAIN = 50;               // play/clean raise their bar by 50%
 const FEED_GAIN = 50;               // each feed raises hunger by 50% (feed to full any time)
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
@@ -638,8 +638,8 @@ export function registerRebornRoutes(app: Express) {
       } else if (action === "play" || action === "clean") {
         if (energy <= 0) return res.status(400).json({ message: "Too tired! Tap Sleep to recover energy first." });
         energy = clamp(energy - ACTION_ENERGY_COST);
-        if (action === "play") { happiness = clamp(happiness + STAT_GAIN); message = "So much fun! Joy +30"; }
-        else { cleanliness = clamp(cleanliness + STAT_GAIN); message = "Squeaky clean! +30"; }
+        if (action === "play") { happiness = clamp(happiness + STAT_GAIN); message = "So much fun! +50% joy"; }
+        else { cleanliness = clamp(cleanliness + STAT_GAIN); message = "Squeaky clean! +50% clean"; }
       } else {
         return res.status(400).json({ message: "Unknown action" });
       }
