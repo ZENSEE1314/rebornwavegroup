@@ -1741,6 +1741,7 @@ function AdminBookings() {
         ))}
         <span className="ml-auto text-xs text-white/40 self-center">{list.length} item(s)</span>
       </div>
+      <p className="text-[11px] text-white/40 px-1">Tap <b>✓ Arrived</b> when the guest checks in. Bookings not marked Arrived within 15 min of their time are auto-cancelled, the guest gets a WhatsApp, and the slot opens again.</p>
       {list.map((b) => (
         <div key={b.id} className="rounded-xl bg-white/5 border border-white/10 p-3">
           <div className="flex items-start justify-between gap-2">
@@ -1757,7 +1758,7 @@ function AdminBookings() {
           ) : b.status !== "cancelled" && b.status !== "completed" && (
             <div className="flex gap-2 mt-2">
               {b.status !== "confirmed" && <button onClick={() => setStatus.mutate({ id: b.id, status: "confirmed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">Confirm</button>}
-              <button onClick={() => setStatus.mutate({ id: b.id, status: "completed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white/70">Done</button>
+              <button onClick={() => setStatus.mutate({ id: b.id, status: "completed" })} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${b.started ? "bg-sky-500/20 text-sky-200 border border-sky-400/40" : "bg-white/10 text-white/70"}`}>✓ Arrived</button>
               <button onClick={() => { const note = prompt("Reject/cancel — reason for the guest (optional):", "") ?? undefined; setStatus.mutate({ id: b.id, status: "cancelled", note }); }} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 text-red-200 border border-red-400/40">Reject</button>
             </div>
           )}

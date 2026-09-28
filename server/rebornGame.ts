@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
-import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp } from "./whatsappBot";
+import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
@@ -2704,6 +2704,11 @@ export function registerRebornRoutes(app: Express) {
     res.json(row);
   }));
 
+  // A still-pending booking whose date passed more than 3 days ago is dropped from
+  // booking lists; upcoming ones always stay.
+  const isStalePending = (r: { status: string; appointmentDate: Date | string }) =>
+    (r.status === "pending" || r.status === "scheduled") && new Date(r.appointmentDate).getTime() < Date.now() - 3 * 86_400_000;
+
   // Booking info for members — enabled areas (each with its own hours/slots) + next 7 days.
   app.get("/api/reborn/booking/info", requireAuth, async (_req, res) => {
     const s = await getSettings();
@@ -2787,16 +2792,18 @@ export function registerRebornRoutes(app: Express) {
     const userId = getUserId(req)!;
     const cid = await rebornCompanyId(req);
     const rows = await db.select().from(appointments).where(and(eq(appointments.companyId, cid), eq(appointments.userId, userId))).orderBy(desc(appointments.appointmentDate)).limit(50);
-    res.json(rows);
+    res.json(rows.filter((r) => !isStalePending(r)));
   });
   app.post("/api/reborn/my-bookings/:id/cancel", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     const id = Number(req.params.id);
     const [a] = await db.select().from(appointments).where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
     if (!a) return res.status(404).json({ message: "Booking not found" });
-    if (a.status === "cancelled" || a.status === "completed") return res.status(400).json({ message: "Can't cancel this booking" });
-    await db.update(appointments).set({ status: "cancelled", updatedAt: new Date() }).where(eq(appointments.id, id));
-    await sendRebornStaffNotification({ type: "booking_cancelled", title: "Booking cancelled by member", body: `${a.title} · booking #${a.id}`, data: { path: "/reborn-admin", bookingId: a.id } });
+    // Pending AND confirmed bookings can be cancelled by the member, up to the start time.
+    if (!["pending", "scheduled", "confirmed"].includes(a.status)) return res.status(400).json({ message: "Can't cancel this booking" });
+    if (new Date(a.appointmentDate).getTime() <= Date.now()) return res.status(400).json({ message: "This booking has already started" });
+    const [row] = await db.update(appointments).set({ status: "cancelled", adminNote: "Cancelled by member (app)", updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
+    await notifyBookingCancelledByMember(row, "app");
     res.json({ message: "Booking cancelled" });
   });
   // Admin — all bookings (recent + upcoming) with member name/phone.
@@ -2807,9 +2814,11 @@ export function registerRebornRoutes(app: Express) {
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids as string[])) : [];
     const umap = new Map(us.map((u) => [u.id, u]));
     const now = Date.now();
-    const out = rows.map((r) => {
+    const out = rows.filter((r) => !isStalePending(r)).map((r) => {
       const u: any = umap.get(r.userId);
-      return { ...r, memberName: u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email : "—", memberPhone: u?.phoneNumber || "", upcoming: new Date(r.appointmentDate).getTime() > now };
+      const start = new Date(r.appointmentDate).getTime();
+      // "upcoming" keeps a booking listed until it ends, so staff can still mark the guest Arrived.
+      return { ...r, memberName: u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email : "—", memberPhone: u?.phoneNumber || "", upcoming: start + (r.duration || 120) * 60_000 > now, started: start <= now };
     });
     res.json(out);
   }));
