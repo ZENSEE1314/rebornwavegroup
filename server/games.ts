@@ -55,8 +55,8 @@ interface Room {
   // poker3 (3-card blind poker drinking game) only
   pkMin?: number; pkMax?: number; // half-cup units, host-set
   pk?: { hands: Record<string, PkCard[]>; seen: Record<string, boolean>; stake: number; pot: number; lastBy?: string; reveal?: any };
-  stackTower?: { left: number; width: number; by?: string }[];
-  stackMove?: { width: number; fromLeft: boolean; t0: number; speed: number };
+  stackTower?: { x: number; y: number; w: number; h: number; by?: string }[];
+  stackMove?: { axis: "x" | "y"; x: number; y: number; w: number; h: number; from: boolean; t0: number; speed: number };
 }
 
 const rooms = new Map<string, Room>();
@@ -387,20 +387,25 @@ function sevenView(room: Room) {
 // knocks it over and loses — everyone else wins. The block's motion is a
 // deterministic back-and-forth from the server's clock so every player sees the
 // same block; the dropper reports where it was when they tapped.
-const STACK_W = 240, STACK_BASE = 120, STACK_TURN_MS = 10_000;
+// 2-axis stacker: the block slides on ONE axis per level and the axis alternates
+// (even height → ↔ horizontal, odd → ↕ vertical). The active axis is trimmed on
+// an off-centre drop. Motion is deterministic from the server clock so everyone
+// sees the same block; the dropper reports its position on that axis when tapped.
+const STACK_S = 220, STACK_BASE = 120, STACK_TURN_MS = 10_000;
 function stackTop(room: Room) { const t = room.stackTower || []; return t[t.length - 1]; }
-function stackPos(m: NonNullable<Room["stackMove"]>, now: number) {
-  const L = STACK_W - m.width;
-  if (L <= 0) return 0;
-  const d = Math.max(0, now - m.t0) * m.speed, ph = d % (2 * L);
-  const x = ph <= L ? ph : 2 * L - ph;
-  return m.fromLeft ? x : L - x;
+function stackAxisPos(m: NonNullable<Room["stackMove"]>, now: number) {
+  const span = m.axis === "x" ? STACK_S - m.w : STACK_S - m.h;
+  if (span <= 0) return 0;
+  const d = Math.max(0, now - m.t0) * m.speed, ph = d % (2 * span);
+  const v = ph <= span ? ph : 2 * span - ph;
+  return m.from ? v : span - v;
 }
 function armStack(room: Room) {
   clearTimers(room);
   const h = (room.stackTower?.length || 1) - 1;
   const top = stackTop(room)!;
-  room.stackMove = { width: top.width, fromLeft: h % 2 === 0, t0: Date.now() + 700, speed: Math.min(0.36, 0.12 + h * 0.012) };
+  const axis: "x" | "y" = h % 2 === 0 ? "x" : "y";
+  room.stackMove = { axis, x: top.x, y: top.y, w: top.w, h: top.h, from: true, t0: Date.now() + 700, speed: Math.min(0.36, 0.12 + h * 0.012) };
   const p = room.players[room.turnIdx ?? 0];
   room.deadline = Date.now() + STACK_TURN_MS + 700;
   room.message = `${p?.name}'s turn — tap to drop! 🧱`;
@@ -411,7 +416,8 @@ function startStack(room: Room) {
   room.status = "playing";
   room.stackWinners = [];
   for (const p of room.players) { p.alive = true; p.stackHeight = 0; }
-  room.stackTower = [{ left: (STACK_W - STACK_BASE) / 2, width: STACK_BASE }];
+  const b = (STACK_S - STACK_BASE) / 2;
+  room.stackTower = [{ x: b, y: b, w: STACK_BASE, h: STACK_BASE }];
   room.turnIdx = Math.floor(Math.random() * room.players.length);
   armStack(room);
 }
@@ -430,18 +436,25 @@ function finishStack(room: Room, loserId?: string, why = "missed the tower") {
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: height, result: (p.id === loser?.id ? "lose" : "win") as "win" | "lose" })));
   scheduleCleanup(room);
 }
-function stackDrop(room: Room, uid: string, reportedLeft: number) {
+function stackDrop(room: Room, uid: string, reportedPos: number) {
   if (room.status !== "playing" || room.game !== "stack" || !room.stackMove) return;
   const p = room.players[room.turnIdx ?? 0];
   if (!p || p.id !== uid) return;
   const m = room.stackMove, top = stackTop(room)!;
   if (Date.now() < m.t0) return; // block hasn't started moving yet
-  const L = STACK_W - m.width;
-  const left = Number.isFinite(reportedLeft) ? Math.max(0, Math.min(L, reportedLeft)) : stackPos(m, Date.now());
-  const ol = Math.max(left, top.left), or = Math.min(left + m.width, top.left + top.width);
-  const overlap = or - ol;
-  if (overlap < 1) return finishStack(room, uid);
-  room.stackTower!.push({ left: ol, width: overlap, by: p.name });
+  const span = m.axis === "x" ? STACK_S - m.w : STACK_S - m.h;
+  const pos = Number.isFinite(reportedPos) ? Math.max(0, Math.min(span, reportedPos)) : stackAxisPos(m, Date.now());
+  let block: { x: number; y: number; w: number; h: number; by?: string };
+  if (m.axis === "x") {
+    const ol = Math.max(pos, top.x), or = Math.min(pos + m.w, top.x + top.w);
+    if (or - ol < 1) return finishStack(room, uid);
+    block = { x: ol, y: top.y, w: or - ol, h: top.h, by: p.name };
+  } else {
+    const ol = Math.max(pos, top.y), or = Math.min(pos + m.h, top.y + top.h);
+    if (or - ol < 1) return finishStack(room, uid);
+    block = { x: top.x, y: ol, w: top.w, h: or - ol, by: p.name };
+  }
+  room.stackTower!.push(block);
   p.stackHeight = (p.stackHeight || 0) + 1;
   room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length;
   armStack(room);
@@ -449,7 +462,7 @@ function stackDrop(room: Room, uid: string, reportedLeft: number) {
 function stackView(room: Room) {
   const t = room.stackTower || [];
   return {
-    width: STACK_W,
+    size: STACK_S,
     winners: room.stackWinners || [],
     tower: t,
     height: Math.max(0, t.length - 1),
@@ -1952,7 +1965,7 @@ export function registerGameRoutes(app: Express) {
       return res.json({ ok: true });
     }
     if (room.game === "stack") {
-      if (req.body?.act === "drop") stackDrop(room, getUserId(req)!, Number(req.body?.left));
+      if (req.body?.act === "drop") stackDrop(room, getUserId(req)!, Number(req.body?.pos ?? req.body?.left));
       return res.json({ ok: true });
     }
     if (room.game === "riding") {

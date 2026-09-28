@@ -139,9 +139,9 @@ const RULES: Record<string, string[]> = {
     "Same time = shared win (2 or 3 winners is fine). Up to 20 players.",
   ],
   stack: [
-    "Everyone builds ONE tower together — take turns, one block each.",
-    "On your turn a block slides back and forth; tap to drop it (10 seconds).",
-    "Overhang gets sliced off, so the next player's block is smaller.",
+    "Everyone builds ONE tower together — take turns, one block each (top-down view).",
+    "The block slides on one axis and it alternates each turn: ↔ horizontal, then ↕ vertical.",
+    "Tap to drop it (10 seconds). Off-centre? The overhang on that axis is sliced off, so the next block is smaller.",
     "Miss the tower (or run out of time) and it falls — YOU lose, everyone else wins 🏆.",
   ],
   "789": [
@@ -847,7 +847,7 @@ function SevenGame({ room, code, me }: any) {
 // sees the same block. The player whose turn it is taps to drop it.
 function StackGame({ room, code, me }: any) {
   const st = room.stack || {};
-  const W: number = st.width || 240, BH = 20, WINDOW = 12;
+  const S: number = st.size || 220, VIEW = 8;
   const tower: any[] = st.tower || [];
   const move = st.move;
   const myTurn = room.status === "playing" && st.turnId === me;
@@ -861,11 +861,16 @@ function StackGame({ room, code, me }: any) {
     return () => cancelAnimationFrame(raf);
   }, [room.status]);
   const now = Date.now() + offsetRef.current;
+  // Position of the moving block along its active axis (matches the server).
   const posOf = (m: any) => {
-    const L = W - m.width; if (L <= 0) return 0;
-    const d = Math.max(0, now - m.t0) * m.speed, ph = d % (2 * L);
-    const x = ph <= L ? ph : 2 * L - ph;
-    return m.fromLeft ? x : L - x;
+    const span = (m.axis === "x" ? S - m.w : S - m.h); if (span <= 0) return 0;
+    const d = Math.max(0, now - m.t0) * m.speed, ph = d % (2 * span);
+    const v = ph <= span ? ph : 2 * span - ph;
+    return m.from ? v : span - v;
+  };
+  const movingRect = (m: any) => {
+    const pos = posOf(m);
+    return m.axis === "x" ? { x: pos, y: m.y, w: m.w, h: m.h } : { x: m.x, y: pos, w: m.w, h: m.h };
   };
   const sentRef = useRef("");
   const drop = () => {
@@ -873,14 +878,15 @@ function StackGame({ room, code, me }: any) {
     const key = `${tower.length}`; if (sentRef.current === key) return; // one drop per turn
     sentRef.current = key; (sfx as any).coin?.();
     setTimeout(() => { if (sentRef.current === key) sentRef.current = ""; }, 1500); // allow a retry if the tap was too early
-    post(`/api/reborn/games/rooms/${code}/action`, { act: "drop", left: posOf(move) });
+    post(`/api/reborn/games/rooms/${code}/action`, { act: "drop", pos: posOf(move) });
   };
   const done = room.status === "done";
   const iWon = done && (st.winners || []).includes(me);
   const loser = room.players.find((p: any) => p.id === st.loserId);
   const turnName = room.players.find((p: any) => p.id === st.turnId)?.name;
-  const startI = Math.max(0, tower.length - WINDOW);
+  const startI = Math.max(0, tower.length - VIEW);
   const secsLeft = room.deadline ? Math.max(0, Math.ceil((room.deadline - now) / 1000)) : 0;
+  const mv = move ? movingRect(move) : null;
   return (
     <div className="rwg-card p-5 text-center">
       <p className="text-sm text-white/60 mb-1">{room.message}</p>
@@ -893,15 +899,16 @@ function StackGame({ room, code, me }: any) {
         </div>
       ) : (
         <>
-          <p className={`text-sm font-bold mb-2 ${myTurn ? "text-emerald-300" : "text-white/60"}`}>{myTurn ? `Your turn — tap to drop! (${secsLeft}s)` : `${turnName || "…"}'s turn (${secsLeft}s)`}</p>
-          <div className={`relative mx-auto rounded-xl overflow-hidden select-none touch-none ${myTurn ? "cursor-pointer ring-2 ring-emerald-400/60" : ""}`} style={{ width: W, height: (WINDOW + 1) * BH, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }} onPointerDown={drop}>
+          <p className={`text-sm font-bold mb-1 ${myTurn ? "text-emerald-300" : "text-white/60"}`}>{myTurn ? `Your turn — tap to drop! (${secsLeft}s)` : `${turnName || "…"}'s turn (${secsLeft}s)`}</p>
+          {move && <p className="text-xs text-white/45 mb-2">Sliding <b className="text-amber-300">{move.axis === "x" ? "↔ horizontal" : "↕ vertical"}</b> · top-down view</p>}
+          <div className={`relative mx-auto rounded-xl overflow-hidden select-none touch-none ${myTurn ? "cursor-pointer ring-2 ring-emerald-400/60" : ""}`} style={{ width: S, height: S, background: "repeating-linear-gradient(45deg,rgba(255,255,255,0.03),rgba(255,255,255,0.03) 10px,rgba(255,255,255,0.05) 10px,rgba(255,255,255,0.05) 20px)", border: "1px solid rgba(255,255,255,0.1)" }} onPointerDown={drop}>
             {tower.slice(startI).map((b: any, i: number) => {
-              const idx = startI + i;
-              return <div key={idx} className="absolute rounded-sm" style={{ left: b.left, width: b.width, height: BH - 2, bottom: i * BH, background: `hsl(${(idx * 28) % 360} 70% 60%)` }} />;
+              const idx = startI + i, depth = tower.slice(startI).length - i;
+              return <div key={idx} className="absolute rounded-sm" style={{ left: b.x, top: b.y, width: b.w, height: b.h, background: `hsl(${(idx * 30) % 360} 70% 58%)`, opacity: Math.max(0.22, 1 - depth * 0.12) }} />;
             })}
-            {move && <div className="absolute rounded-sm" style={{ left: posOf(move), width: move.width, height: BH - 2, bottom: (tower.length - startI) * BH, background: `hsl(${(tower.length * 28) % 360} 82% 66%)`, boxShadow: "0 0 12px rgba(255,255,255,0.35)", opacity: now < move.t0 ? 0.5 : 1 }} />}
+            {mv && <div className="absolute rounded-sm" style={{ left: mv.x, top: mv.y, width: mv.w, height: mv.h, background: `hsl(${(tower.length * 30) % 360} 85% 66%)`, boxShadow: "0 0 14px rgba(255,255,255,0.45)", opacity: now < move.t0 ? 0.5 : 1 }} />}
           </div>
-          <p className="text-white/50 text-xs mt-3">{myTurn ? "Miss the tower and you lose!" : "Watch out — whoever misses loses 🧱"}</p>
+          <p className="text-white/50 text-xs mt-3">{myTurn ? "Line it up over the tower — miss and you lose!" : "Whoever misses the tower loses 🧱"}</p>
         </>
       )}
       <div className="mt-4 flex flex-wrap justify-center gap-1.5">
