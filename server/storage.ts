@@ -420,7 +420,8 @@ export class DatabaseStorage implements IStorage {
 
   // Email authentication operations
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+    // Case- and space-insensitive: "John@Mail.com " finds "john@mail.com" (and older mixed-case rows).
+    const [user] = await db.select().from(users).where(sql`lower(trim(${users.email})) = ${String(email || "").trim().toLowerCase()}`).limit(1);
     return user;
   }
 
@@ -446,7 +447,7 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values({
         id: userId,
-        email: userData.email,
+        email: typeof userData.email === "string" ? userData.email.trim().toLowerCase() : userData.email,
         username: userData.username,
         firstName: userData.firstName,
         lastName: userData.lastName,

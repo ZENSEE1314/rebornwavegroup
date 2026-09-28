@@ -59,19 +59,20 @@ export function setupLocalAuth() {
     { usernameField: 'email' },
     async (email: string, password: string, done) => {
       try {
+        // Capital letters and stray spaces in the email never matter.
         const result: any = await db.execute(sql`
           SELECT id, email, password
           FROM users
-          WHERE lower(email) = lower(${email})
-          LIMIT 1
+          WHERE lower(trim(email)) = lower(trim(${String(email || '')}))
+          ORDER BY updated_at DESC NULLS LAST
+          LIMIT 5
         `);
-        const user = (result.rows || result)[0];
-        if (!user || !user.password) {
-          return done(null, false, { message: 'Invalid email or password' });
+        // Older accounts may exist twice with different capitals — accept the one whose password matches.
+        let user: any = null;
+        for (const row of (result.rows || result) as any[]) {
+          if (row.password && await bcrypt.compare(password, row.password)) { user = row; break; }
         }
-
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        if (!isValidPassword) {
+        if (!user) {
           return done(null, false, { message: 'Invalid email or password' });
         }
 

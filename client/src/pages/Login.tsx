@@ -14,13 +14,13 @@ import rwgLogo from "@assets/rwg-logo.png";
 
 /* ─── Validation schemas (unchanged) ─── */
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   rememberMe: z.boolean().optional(),
 });
 
 const registerSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
   username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be less than 20 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   firstName: z.string().min(1, "First name is required"),
@@ -35,7 +35,7 @@ const registerSchema = z.object({
 });
 
 const forgotPasswordSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
 });
 
 const resetPasswordSchema = z.object({
@@ -524,6 +524,7 @@ export default function Login() {
                     placeholder={t("auth.enterEmail")}
                     className={inputBase}
                     autoComplete="email"
+                    type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
                     {...loginForm.register("email")}
                   />
                 </FormField>
@@ -619,7 +620,7 @@ export default function Login() {
                 </div>
 
                 <FormField label={t("auth.email")} icon={Mail} error={registerForm.formState.errors.email?.message}>
-                  <Input placeholder={t("auth.enterEmail")} className={inputBase} autoComplete="email" {...registerForm.register("email")} />
+                  <Input placeholder={t("auth.enterEmail")} className={inputBase} autoComplete="email" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} {...registerForm.register("email")} />
                 </FormField>
 
                 <FormField label="Username" icon={User} error={registerForm.formState.errors.username?.message}>
@@ -765,6 +766,7 @@ export default function Login() {
                     placeholder="Enter your email"
                     className={inputBase}
                     autoComplete="email"
+                    type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
                     {...forgotPasswordForm.register("email")}
                   />
                 </FormField>
