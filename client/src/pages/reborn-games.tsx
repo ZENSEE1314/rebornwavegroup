@@ -1161,6 +1161,17 @@ function RlglGame({ room, code, me }: any) {
       post(`/api/reborn/games/rooms/${code}/action`, { act: "step", n }).catch(() => {});
     }
   };
+  // doll chant during green (fits the green time), turn sound on red
+  useEffect(() => {
+    if (room.status !== "playing") return;
+    if (r.light === "green" && r.lightUntil) {
+      const stop = sfx.dollChant((r.lightUntil - (Date.now() + offset.current)) / 1000);
+      return stop;
+    }
+    if (r.light === "red" && Date.now() + offset.current > (r.startAt || 0)) sfx.dollTurn();
+  }, [r.light, r.lightAt, room.status]);
+  const wasOut = useRef(false);
+  useEffect(() => { if (my.out && !wasOut.current) { wasOut.current = true; sfx.eliminated(); } }, [my.out]);
   const secs = Math.max(0, Math.ceil(((counting ? r.startAt : r.endsAt) - now) / 1000));
   const players = room.players.map((p: any, i: number) => ({ ...p, color: RL_COLORS[i % RL_COLORS.length], s: st[p.id] || { steps: 0 } }));
   if (room.status === "done") {
@@ -1186,6 +1197,7 @@ function RlglGame({ room, code, me }: any) {
       {/* light + timer */}
       <div className="flex items-center justify-between px-4 py-3 transition-colors" style={{ background: counting ? "#374151" : green ? "#059669" : "#dc2626" }}>
         <span className="text-lg font-black text-white">{counting ? `Get ready… ${secs}` : green ? "🟢 GREEN LIGHT" : "🔴 RED LIGHT"}</span>
+        <MuteToggle />
         <span className="rounded-full bg-black/30 px-3 py-1 text-sm font-bold tabular-nums text-white">⏱ {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}</span>
       </div>
       {/* the field: doll at the finish, players walking up */}
