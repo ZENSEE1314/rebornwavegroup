@@ -14,6 +14,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "30s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
+  bridge: { name: "Glass Bridge", emoji: "🌉", blurb: "10 rows of glass · pick left or right · wrong = fall & drink" },
   memory: { name: "Memory Match", emoji: "🧠", blurb: "2 players · flip 2 cards, same number = point & go again" },
   rlgl: { name: "Red Light, Green Light", emoji: "🚦", blurb: "tap left-right to walk on green · freeze on red · 3 min to cross" },
   frog: { name: "Frog Jump", emoji: "🐸", blurb: "tap a frog in 5s · same frog as the turn player = ½ cup" },
@@ -32,7 +33,7 @@ const GAME_GRAD: Record<string, string> = {
   rps: "linear-gradient(135deg,#f0d787,#c9a84c)", tap: "linear-gradient(135deg,#ffd27a,#e0870f)",
   cards: "linear-gradient(135deg,#c49bff,#7c3aed)", dice: "linear-gradient(135deg,#66e2ff,#17b3e6)",
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
-  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)", memory: "linear-gradient(135deg,#a78bfa,#6d28d9)",
+  timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)", memory: "linear-gradient(135deg,#a78bfa,#6d28d9)", bridge: "linear-gradient(135deg,#7dd3fc,#1e3a8a)",
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
 };
 // Games grouped into categories for the lobby.
@@ -41,7 +42,7 @@ const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
   { name: "Dice game", emoji: "🎲", games: ["dice", "789"] },
   { name: "Card game", emoji: "🃏", games: ["cards", "poker3", "memory"] },
   { name: "Who's the fastest", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"] },
-  { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding", "frog"] },
+  { name: "Lucky game", emoji: "🍀", games: ["wheel", "riding", "frog", "bridge"] },
 ];
 
 const RULES: Record<string, string[]> = {
@@ -56,6 +57,13 @@ const RULES: Record<string, string[]> = {
     "Every tap = 1 gold coin ⛏️🪙.",
     "You have 30 seconds — most coins wins.",
     "Lowest score buys the round 😄.",
+  ],
+  bridge: [
+    "A glass bridge with 10 rows — each row has a LEFT and a RIGHT panel. Only one is safe.",
+    "Players cross one at a time (random order). On your turn tap LEFT or RIGHT for the next row (15s).",
+    "Safe glass → you step forward. Wrong glass → it shatters, you fall, you're OUT and drink 1 cup 🍺.",
+    "Every broken row is shown to everyone, so the next walker skips straight past the known rows.",
+    "Everyone who reaches the end wins 🏁 (many winners possible). If nobody makes it, nobody wins. Up to 20 players.",
   ],
   memory: [
     "2 players. 30 cards face-down (6 × 5) — 15 pairs of numbers.",
@@ -183,7 +191,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
+type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { toast } = useToast();
   const [today, setToday] = useState<Record<string, boolean>>({});
@@ -390,7 +398,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                 </div>
               </div>
             )}
-            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && game !== "rlgl" && game !== "memory" && (
+            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && game !== "rlgl" && game !== "memory" && game !== "bridge" && (
             <div className="mt-3">
               <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">Play to how many wins?</p>
               <div className="flex gap-2">
@@ -506,6 +514,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "done") && room.game === "frog" && <FrogGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "rlgl" && <RlglGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "memory" && <MemoryGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && room.game === "bridge" && <BridgeGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "dice" && <DiceGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "wheel" && <WheelGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "riding" && <RidingGame room={room} code={code} me={me} />}
@@ -1282,6 +1291,73 @@ function MemoryGame({ room, code, me }: any) {
         })}
       </div>
       {!me0 && <p className="mt-2 text-xs text-white/40">Watching</p>}
+    </div>
+  );
+}
+
+function BridgeGame({ room, code, me }: any) {
+  const g = room.bridge || {};
+  const { toast } = useToast();
+  const myTurn = room.status === "playing" && g.turnId === me;
+  const turnName = room.players.find((p: any) => p.id === g.turnId)?.name;
+  const rows: number = g.rows || 10;
+  const step = async (side: number) => {
+    try {
+      const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, { side });
+      if (!ok) toast({ title: "Can't step", description: d.message, variant: "destructive" });
+    } catch (e: any) { toast({ title: "Can't step", description: String(e?.message || e).replace(/^\d+:\s*/, ""), variant: "destructive" }); }
+  };
+  const lastKey = g.last ? `${g.last.id}-${g.last.row}-${g.last.fell ? "f" : g.last.crossed ? "c" : "s"}` : "";
+  useEffect(() => { if (!g.last) return; if (g.last.fell) sfx.eliminated(); else if (g.last.crossed) sfx.win(); else sfx.tick(); }, [lastKey]);
+  const done = room.status === "done";
+  const iWon = (g.done || []).includes(me);
+  const iFell = (g.fell || []).includes(me);
+  const status = (id: string) => ((g.done || []).includes(id) ? "🏁" : (g.fell || []).includes(id) ? "💥" : id === g.turnId ? "🚶" : "⏳");
+  return (
+    <div className="rwg-card p-4 text-center">
+      <p className="mb-2 min-h-[20px] text-sm text-white/75">{room.message}</p>
+      {done && <p className={`mb-2 text-2xl font-black ${iWon ? "text-emerald-300" : "text-red-300"}`}>{iWon ? "🏁 You crossed!" : "🍺 You drink 1 cup!"}</p>}
+      {/* the bridge: finish at the top, start at the bottom */}
+      <div className="mx-auto max-w-xs rounded-2xl p-3" style={{ background: "linear-gradient(180deg,#0f172a,#1e1b4b)" }}>
+        <div className="mb-1.5 rounded-lg bg-emerald-500/30 py-1 text-[11px] font-black tracking-widest text-emerald-200">FINISH 🏁</div>
+        {Array.from({ length: rows }).map((_, k) => {
+          const r = rows - 1 - k; // draw top row first
+          const here = !done && g.pos === r && g.turnId;
+          return (
+            <div key={r} className="mb-1.5 flex items-center gap-2">
+              <span className="w-5 text-[10px] font-bold text-white/40">{r + 1}</span>
+              {[0, 1].map((side) => {
+                const knownSafe = g.known?.[r] === side;
+                const broken = g.broken?.[r] === side || (g.known?.[r] !== null && g.known?.[r] !== undefined && g.known[r] !== side);
+                const safeAtEnd = done && g.safe?.[r] === side;
+                const clickable = myTurn && g.pos === r;
+                return (
+                  <button key={side} disabled={!clickable} onClick={() => step(side)}
+                    className={`relative h-9 flex-1 rounded-md border-2 text-sm font-black transition ${clickable ? "animate-pulse border-amber-300 active:scale-95" : "border-white/20"}`}
+                    style={{ background: broken ? "repeating-linear-gradient(135deg,#1f2937 0 4px,#111827 4px 8px)" : knownSafe || safeAtEnd ? "linear-gradient(135deg,#a7f3d0,#34d399)" : "linear-gradient(135deg,rgba(186,230,253,.55),rgba(125,211,252,.25))", color: "#0f172a" }}>
+                    {broken ? "💥" : knownSafe ? "✓" : clickable ? (side ? "RIGHT" : "LEFT") : ""}
+                    {here && g.known?.[r] === null && side === 0 && <span className="absolute -left-1 -top-3 text-base">🚶</span>}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+        <div className="rounded-lg bg-white/10 py-1 text-[11px] font-black tracking-widest text-white/60">START</div>
+      </div>
+      {!done && (
+        <p className={`mt-3 text-sm font-bold ${myTurn ? "text-amber-300" : "text-white/60"}`}>
+          {myTurn ? `Your turn! Row ${g.pos + 1} — tap LEFT or RIGHT (${room.secondsLeft}s)` : iFell ? "💥 You fell — watch the others" : iWon ? "🏁 You're across!" : `${turnName || "…"} is walking (${room.secondsLeft}s)`}
+        </p>
+      )}
+      {/* walking order */}
+      <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+        {(g.order || []).map((id: string, i: number) => {
+          const p = room.players.find((x: any) => x.id === id);
+          if (!p) return null;
+          return <span key={id} className={`rounded-full px-2.5 py-1 text-xs ${id === g.turnId ? "bg-amber-400/25 text-amber-200" : (g.fell || []).includes(id) ? "bg-red-500/15 text-red-300" : (g.done || []).includes(id) ? "bg-emerald-500/15 text-emerald-300" : "bg-white/5 text-white/60"}`}>{i + 1}. {id === me ? "You" : p.name} {status(id)}</span>;
+        })}
+      </div>
     </div>
   );
 }

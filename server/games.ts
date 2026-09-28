@@ -10,7 +10,7 @@ import { resolveCompanyId } from "./tenant";
 import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -42,6 +42,8 @@ interface Room {
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
   // stack (tower stacking) only
   stackWinners?: string[];
+  // bridge (Glass Bridge) only
+  gb?: { safe: number[]; known: (number | null)[]; broken: (number | null)[]; order: string[]; cur: number; pos: number; done: string[]; fell: string[]; last?: any };
   // memory (Memory Match) only
   mem?: { tiles: { v: number; by?: string }[]; open: number[]; score: Record<string, number>; busy?: boolean };
   // rlgl (Red Light, Green Light) only
@@ -92,6 +94,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "frog" ? { frog: frogView(room, forUserId) } : {}),
     ...(room.game === "rlgl" ? { rlgl: rlView(room) } : {}),
     ...(room.game === "memory" ? { memory: memView(room) } : {}),
+    ...(room.game === "bridge" ? { bridge: gbView(room) } : {}),
   };
 }
 
@@ -501,6 +504,10 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       if (leavingWasTurn) { armDiceTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; }
       return broadcast(room);
     }
+    case "bridge": {
+      if (room.gb && !room.players.some((p) => p.id === room.gb!.order[room.gb!.cur])) gbAdvance(room); // the walker left
+      return broadcast(room);
+    }
     case "memory": {
       if (room.players.length < 2) return soloWin();
       return broadcast(room);
@@ -576,7 +583,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1149,6 +1156,103 @@ function pokerView(room: Room, forUserId?: string) {
   };
 }
 
+// ── Glass Bridge ─────────────────────────────────────────────────────────
+// 10 rows of glass, each with a LEFT and RIGHT panel — one is tempered (safe),
+// the other shatters. Players cross one at a time in a random order. On an
+// unknown row the walker taps left or right: safe → step forward; wrong → the
+// glass breaks, they fall (out, drink 1 cup) and that row is now known to
+// everyone. Rows already known are walked automatically. Everyone who reaches
+// the end wins; if nobody makes it, nobody wins.
+const GB_ROWS = 10, GB_TURN_SECONDS = 15, GB_PAUSE_MS = 1600;
+function armGb(room: Room) {
+  clearTimers(room);
+  const g = room.gb!;
+  const id = g.order[g.cur];
+  room.deadline = Date.now() + GB_TURN_SECONDS * 1000;
+  room.timer = setTimeout(() => gbStep(room, id, Math.random() < 0.5 ? 0 : 1, true), GB_TURN_SECONDS * 1000);
+}
+function gbName(room: Room, id: string) { return room.players.find((p) => p.id === id)?.name || "Player"; }
+// Put the current walker on the first row nobody knows yet (known rows are free).
+function gbAdvance(room: Room) {
+  const g = room.gb!;
+  while (g.cur < g.order.length && !room.players.some((p) => p.id === g.order[g.cur])) g.cur++; // skip leavers
+  if (g.cur >= g.order.length) return finishBridge(room);
+  const id = g.order[g.cur];
+  g.pos = 0;
+  while (g.pos < GB_ROWS && g.known[g.pos] !== null) g.pos++;
+  if (g.pos >= GB_ROWS) { // the whole path is known — walk straight across
+    g.done.push(id);
+    g.last = { id, crossed: true, free: true };
+    room.message = `🌉 ${gbName(room, id)} walks the known path and crosses safely!`;
+    g.cur++; broadcast(room);
+    clearTimers(room); room.timer = setTimeout(() => gbAdvance(room), GB_PAUSE_MS);
+    return;
+  }
+  room.message = `${gbName(room, id)}'s turn — row ${g.pos + 1}: LEFT or RIGHT?`;
+  armGb(room); broadcast(room);
+}
+function startBridge(room: Room) {
+  const order = room.players.map((p) => p.id);
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  room.gb = { safe: Array.from({ length: GB_ROWS }, () => (Math.random() < 0.5 ? 0 : 1)), known: Array(GB_ROWS).fill(null), broken: Array(GB_ROWS).fill(null), order, cur: 0, pos: 0, done: [], fell: [] };
+  room.status = "playing";
+  gbAdvance(room);
+}
+function gbStep(room: Room, uid: string, side: number, auto = false): string {
+  const g = room.gb;
+  if (room.status !== "playing" || !g) return "Not playing";
+  if (g.order[g.cur] !== uid) return "Not your turn";
+  if (side !== 0 && side !== 1) return "Pick left or right";
+  clearTimers(room);
+  const row = g.pos;
+  g.known[row] = g.safe[row];
+  if (side === g.safe[row]) {
+    g.pos++;
+    while (g.pos < GB_ROWS && g.known[g.pos] !== null) g.pos++;
+    if (g.pos >= GB_ROWS) {
+      g.done.push(uid); g.last = { id: uid, crossed: true, row };
+      room.message = `🎉 ${gbName(room, uid)} made it across the bridge!`;
+      g.cur++; broadcast(room);
+      room.timer = setTimeout(() => gbAdvance(room), GB_PAUSE_MS);
+      return "";
+    }
+    g.last = { id: uid, safe: true, row, side };
+    room.message = `✅ ${gbName(room, uid)} stepped ${side ? "RIGHT" : "LEFT"} — safe! Row ${g.pos + 1} next${auto ? " (time ran out — random step)" : ""}`;
+    armGb(room); broadcast(room);
+    return "";
+  }
+  g.broken[row] = side; g.fell.push(uid);
+  g.last = { id: uid, fell: true, row, side };
+  room.message = `💥 The glass shattered! ${gbName(room, uid)} fell at row ${row + 1} — drink 1 cup 🍺${auto ? " (time ran out)" : ""}`;
+  g.cur++; broadcast(room);
+  room.timer = setTimeout(() => gbAdvance(room), GB_PAUSE_MS + 400);
+  return "";
+}
+function finishBridge(room: Room) {
+  clearTimers(room);
+  const g = room.gb!;
+  room.status = "done";
+  const winners = room.players.filter((p) => g.done.includes(p.id));
+  const losers = room.players.filter((p) => !g.done.includes(p.id));
+  room.winnerId = winners[0]?.id; room.lastLoserId = losers[0]?.id;
+  room.message = winners.length
+    ? `🌉 ${winners.map((p) => p.name).join(", ")} crossed! ${losers.length ? `${losers.map((p) => p.name).join(", ")} fell — drink 1 cup each 🍺` : "Nobody fell!"}`
+    : "Nobody made it across — no winners! Everyone drinks 🍺";
+  broadcast(room);
+  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: g.done.includes(p.id) ? GB_ROWS : 0, result: (g.done.includes(p.id) ? "win" : "lose") as "win" | "lose" })));
+  scheduleCleanup(room);
+}
+function gbView(room: Room) {
+  const g = room.gb;
+  if (!g) return null;
+  return {
+    rows: GB_ROWS, known: g.known, broken: g.broken, order: g.order, cur: g.cur, pos: g.pos,
+    turnId: room.status === "playing" ? g.order[g.cur] || null : null,
+    done: g.done, fell: g.fell, last: g.last || null,
+    safe: room.status === "done" ? g.safe : null,
+  };
+}
+
 // ── Memory Match (2 players) ────────────────────────────────────────────
 // 30 face-down cards (6×5) = 15 pairs. On your turn flip 2: same number = +1
 // point and flip again; different = they flip back and it's the other
@@ -1391,14 +1495,14 @@ function frogView(room: Room, forUserId?: string) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "frog", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "frog", "bridge", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
   number: "Guessing game", rps: "Guessing game",
   dice: "Dice game", "789": "Dice game",
   cards: "Card game", poker3: "Card game", memory: "Card game",
   tap: "Who's the fastest", rlgl: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
-  wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game",
+  wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game", bridge: "Lucky game",
 };
 const CATEGORY_ORDER = ["Guessing game", "Dice game", "Card game", "Who's the fastest", "Lucky game"];
 async function getCategoryConfig(): Promise<Record<string, { days: number[] }>> {
@@ -1618,7 +1722,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
@@ -1679,6 +1783,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "frog") startFrog(room);
     else if (room.game === "rlgl") startRlgl(room);
     else if (room.game === "memory") startMemory(room);
+    else if (room.game === "bridge") startBridge(room);
     else if (room.game === "dice") startDiceRound(room);
     else if (room.game === "wheel") startWheel(room);
     else if (room.game === "riding") startRiding(room);
@@ -1748,6 +1853,10 @@ export function registerGameRoutes(app: Express) {
         return res.json({ ok: true });
       }
       return res.status(400).json({ message: "Bad action" });
+    }
+    if (room.game === "bridge") {
+      const err = gbStep(room, getUserId(req)!, Number(req.body?.side));
+      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
     }
     if (room.game === "memory") {
       const err = memFlip(room, getUserId(req)!, Number(req.body?.idx));
