@@ -148,7 +148,8 @@ function asksForLocation(text: string): boolean {
   return /\b(address|location|located|directions?|map|maps|where are you|how to get there|alamat|lokasi|peta|dimana|di mana)\b|地址|位置|在哪里|在哪儿|怎么走/i.test(text);
 }
 
-async function locationReply(): Promise<string> {
+// Exported so the app booking endpoints can include the same address + map pin.
+export async function locationReply(): Promise<string> {
   const address = (await settingVal("businessAddress")).trim() || WEBSITE_ADDRESS;
   const savedMap = (await settingVal("businessMapUrl")).trim();
   const mapUrl = savedMap || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -813,6 +814,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH, companyId: (await defaultCompanyId()) ?? undefined });
         await pushWhatsAppBooking(row, c, area, date, label, party);
         await say(L(lang, "bookDone", { day: fmtDMY(date), time: label, n: String(party), url: APP_BASE_URL }));
+        await say(await locationReply()); // so the guest knows where to find us
         await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
         await sendMemberMenu(from, c, lang);
         return patchContact(c.id, { waState: { flow: null } });
@@ -828,6 +830,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
     const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: openH });
     await pushWhatsAppBooking(row, c, area, date, label, party);
     await say(L(lang, "bookDone", { day: fmtDMY(date), time: label, n: String(party), url: APP_BASE_URL }));
+    await say(await locationReply()); // so the guest knows where to find us
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · ${party} pax — confirm in the app.`);
     await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
@@ -952,6 +955,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     const label = labelFor(wa.slot);
     await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
     await say(L(lang, "bookDone", { day: fmtDMY(wa.date), time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
+    await say(await locationReply()); // so the guest knows where to find us
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
     await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
