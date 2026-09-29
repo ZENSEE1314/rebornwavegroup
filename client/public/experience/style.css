@@ -162,6 +162,7 @@ h2.small { font-size: clamp(18px, 2.4vw, 26px); font-weight: 600; color: var(--c
 }
 
 body.hovering-screen { cursor: pointer; }
+body.zooming #flash { opacity: 0 !important; } /* inline opacity is set per frame */
 body.zooming #story { opacity: 0; transition: opacity 200ms var(--ease); } /* let a zoomed card read clearly */
 #story { transition: opacity 200ms var(--ease); }
 

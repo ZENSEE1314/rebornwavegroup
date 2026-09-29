@@ -16,7 +16,7 @@ const PORTRAIT = () => innerWidth / innerHeight < 0.85;
 // Lateral distance of the side displays; closer on portrait so they fit the narrow view.
 const SIDE_X = () => (PORTRAIT() ? 5.5 : 8);
 const SMOOTHING = 5.5;          // higher = snappier scroll follow
-const FLASH_HALF_WIDTH = 0.018; // portal flash window around each segment boundary
+const FLASH_HALF_WIDTH = 0.014; // portal flash window around each segment boundary
 const BEAT_FADE = 0.014;        // overlay fade width in progress units
 
 const HEX = { night0: 0x0a0714, night1: 0x120b20, night2: 0x1a1030, gold: 0xdcb45a, goldHi: 0xf0d787 };
@@ -43,6 +43,19 @@ const PETS = [
   { key: "snake", name: "Snakes" },
   { key: "guinea-pig", name: "Guinea pigs" },
 ];
+// Architectural floor plans shown at the start of each floor (img/plans/).
+const FLOOR_PLANS = {
+  ktv: [["1f-lounge", "Lounge & bar"], ["1f-game-room", "Game rooms"]],
+  private: [["2f-ktv", "KTV rooms"], ["2f-beauty", "Beauty rooms 1–5"]],
+  vip: [["3f-vip", "VIP KTV rooms"], ["3f-beauty", "Beauty rooms 6–8"]],
+  pet: [["4f-restaurant", "Restaurant & pet room"]],
+  live: [["5f-rooftop", "Rooftop bar & stage"]],
+};
+const PLAN_IMAGE_H = 4.6; // world units; plans zoom up for reading
+const PLAN_Y = 5.2;       // plans hang just above/behind each floor's closing monuments
+const PLAN_Y_LIVE = 14.8; // above the 5F stage truss
+const PLAN_Z = -50;
+const PLAN_TILT = 0.15;   // lean towards the camera below
 const segById = (id) => SEGS.find((s) => s.id === id);
 
 // Venue facts shown on the location stage (mirrors landing page + booking hours).
@@ -150,6 +163,9 @@ async function loadAll() {
   IMG.blindbox = loadTex("./img/blindbox.jpeg");
   for (const p of PETS) IMG[`pet_${p.key}`] = loadTex(`./img/pets/${p.key}.jpg`);
   for (const k of ["facial", "hair"]) IMG[`beauty_${k}`] = loadTex(`./img/beauty/${k}.jpg`);
+  const planKeys = Object.values(FLOOR_PLANS).flat().map(([key]) => key);
+  const planTex = await Promise.all(planKeys.map((key) => texLoader.loadAsync(`./img/plans/${key}.jpg`)));
+  planKeys.forEach((key, i) => { planTex[i].colorSpace = THREE.SRGBColorSpace; planTex[i].anisotropy = renderer.capabilities.getMaxAnisotropy(); IMG[`plan_${key}`] = planTex[i]; });
   for (const n of ["intro", "ktv", "sing", "vip", "live", "demo"]) IMG[`poster_${n}`] = loadTex(`./media/${n}.jpg`);
 }
 
@@ -448,6 +464,41 @@ function buildArrival() {
 }
 
 // ── Zone: FLOOR (shared shell + per-floor dressing) ────────────────────────
+// Framed floor plan with a header strip; keeps the drawing's aspect ratio.
+function floorPlanCard(tex, floorLabel, name) {
+  const aspect = tex.image.width / tex.image.height;
+  const imgW = PLAN_IMAGE_H * aspect, header = 0.95, pad = 0.14;
+  const c = card(imgW + pad * 2, PLAN_IMAGE_H + header + pad * 2, (x, W, H) => {
+    rr(x, 4, 4, W - 8, H - 8, 18); x.fillStyle = "rgba(14,9,26,.97)"; x.fill();
+    x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+    const hy = (header / (PLAN_IMAGE_H + header + pad * 2)) * H;
+    x.textBaseline = "middle"; x.textAlign = "center";
+    x.fillStyle = "#f0d787"; x.font = `800 ${hy * 0.26}px Montserrat`; x.fillText(`${floorLabel} · FLOOR PLAN`, W / 2, hy * 0.42);
+    x.fillStyle = "#fbf6ea"; x.font = `600 ${hy * 0.24}px Montserrat`; x.fillText(name, W / 2, hy * 0.78);
+  }, { frame: false, glow: 0xdcb45a, pxPerUnit: 160 });
+  const img = new THREE.Mesh(new THREE.PlaneGeometry(imgW, PLAN_IMAGE_H), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  img.position.set(0, -header / 2, 0.02); c.add(img);
+  return c;
+}
+
+// Plans hang side by side above the end of each floor, tilted towards the rising camera.
+function addFloorPlans(ctx) {
+  const plans = FLOOR_PLANS[ctx.seg.id];
+  if (!plans) return;
+  const isLive = ctx.seg.id === "live";
+  const s = (PORTRAIT() ? 0.72 : 1) * (isLive ? 0.75 : 1);
+  const baseY = isLive ? PLAN_Y_LIVE : PLAN_Y;
+  plans.forEach(([key, name], i) => {
+    const c = floorPlanCard(IMG[`plan_${key}`], ctx.seg.label, name);
+    const { h, w } = c.userData.size;
+    const x = plans.length === 1 ? 0 : (i === 0 ? -1 : 1) * ((w * s) / 2 + 0.2);
+    c.scale.setScalar(s);
+    place(c, x, ctx.Y + baseY + (h * s) / 2, PLAN_Z);
+    c.rotation.x = PLAN_TILT;
+    ctx.Z.add(zoomable(c, ctx.zi));
+  });
+}
+
 function buildFloor(seg, dress) {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
   const Y = seg.y, m = seg.mirror ? -1 : 1;
@@ -462,6 +513,7 @@ function buildFloor(seg, dress) {
   Z.add(dust(zi, seg.accent, 320, [-18, 18, Y + 0.4, Y + 14, -50, 14]));
   const ctx = { Z, zi, Y, m, seg, videoX: m * -SIDE_X(), clusterX: m * SIDE_X(), videoRot: m * 0.67, clusterRot: m * -0.74 };
   dress(ctx);
+  addFloorPlans(ctx);
   return Z;
 }
 const place = (obj, x, y, z, ry = 0) => { obj.position.set(x, y, z); obj.rotation.y = ry; return obj; };
@@ -1022,10 +1074,10 @@ function floorPath(seg) {
   if (seg.id === "live") {
     return path(
       [[0, Y + 3.6, 26 + back], [-0.8 * k, Y + 3.6, 16 + back * 0.5], [-1.2 * k, Y + 5.4, 6], [0.4 * k, Y + 8, -1.5], [-2.8 * k, Y + 3.0, -12], [2.4 * k, Y + 2.4, -21], [0, Y + 3.8, -30], [0, Y + 7.5, -37]],
-      [[0, Y + 3.4, 0], [0, Y + 3.4, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [-SIDE_X(), Y + 3.2, -17], [SIDE_X(), Y + 3.2, -24], [0, Y + 6.8, -48], [0, Y + 12, -48]],
+      [[0, Y + 3.4, 0], [0, Y + 3.4, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [-SIDE_X(), Y + 3.2, -17], [SIDE_X(), Y + 3.2, -24], [0, Y + 10.5, -48], [0, Y + PLAN_Y_LIVE + 2.6, -48]],
     );
   }
-  const lookY = seg.id === "pet" ? 3.2 : 3.6;
+  const lookY = seg.id === "pet" ? 4.2 : 4.6; // frames the closing monuments and the floor plans above them
   return path(
     [[0, Y + 3.3, 26 + back], [m * -0.8 * k, Y + 3.5, 16 + back * 0.5], [m * -1.2 * k, Y + 5.4, 6], [m * 0.4 * k, Y + 8, -1.5], [m * -3.2 * k, Y + 3.2, -11], [m * 3.3 * k, Y + 2.9, -22], [0, Y + 4.1, -33], [0, Y + 7.5, -40]],
     [[0, Y + 3.2, 0], [0, Y + 3.2, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [m * -SIDE_X(), Y + 3.3, -17], [m * SIDE_X(), Y + 3.3, -27], [0, Y + lookY, -47], [0, Y + 13, -47]],
