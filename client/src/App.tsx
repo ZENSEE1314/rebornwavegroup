@@ -111,6 +111,13 @@ function PageLoader() {
   );
 }
 
+// The public homepage is the standalone 3D tower (client/public/experience), served
+// by the server as static files — leave the SPA so it loads.
+function ExperienceRedirect() {
+  window.location.replace(`/experience/${window.location.search}`);
+  return null;
+}
+
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -235,15 +242,15 @@ function Router() {
         <Route path="/investor/login" component={InvestorLogin} />
         <Route path="/investor" component={InvestorLanding} />
         <Route path="/lux" component={LuxExperience} />
-        {/* /experience is a standalone static page; leave the SPA so the server serves it */}
-        <Route path="/experience">{() => { window.location.replace("/experience/"); return null; }}</Route>
+        <Route path="/experience" component={ExperienceRedirect} />
+        <Route path="/welcome" component={Landing} />
         <Route path="/attend" component={RebornAttend} />
         <Route path="/order/t/:token" component={OrderTable} />
         <Route path="/ticket/:code" component={TicketView} />
         <Route path="/t/:slug" component={TenantEntry} />
 
         {!isAuthenticated ? (
-          <Route path="/" component={bridgeXHost ? BridgeXLanding : Landing} />
+          <Route path="/" component={bridgeXHost ? BridgeXLanding : ExperienceRedirect} />
         ) : (
           <>
             {/* New member dashboard is the home; full legacy app still at /complete-app */}
