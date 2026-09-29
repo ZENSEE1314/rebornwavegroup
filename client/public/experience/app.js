@@ -405,7 +405,7 @@ function buildArrival() {
   const tower = new THREE.Group(); tower.position.set(0, 0, -14); Z.add(tower);
   const body = new THREE.Mesh(new THREE.BoxGeometry(7, 44, 7), M.glass); body.position.y = 22; tower.add(body);
   const edges = new THREE.LineSegments(new THREE.EdgesGeometry(body.geometry), M.lineGold); edges.position.y = 22; tower.add(edges);
-  const floorNames = ["KTV LOUNGE", "PRIVATE KTV", "VIP", "PET CAFE", "LIVE"];
+  const floorNames = ["LOUNGE · GAMES", "KTV · BEAUTY", "VIP · BEAUTY", "RESTAURANT · PETS", "ROOFTOP BAR"];
   for (let i = 0; i < 5; i++) {
     const y = 8 + i * 7;
     const band = new THREE.Mesh(new THREE.BoxGeometry(7.12, 0.07, 7.12), M.gold); band.position.y = y; tower.add(band);
@@ -576,11 +576,17 @@ function dressKTV(ctx) {
   });
   const arcadeStage = new THREE.Mesh(new THREE.BoxGeometry(22, 0.9, 3), M.night); arcadeStage.position.set(0, Y + 0.45, -51.5); Z.add(arcadeStage);
   const stageTrim = new THREE.Mesh(new THREE.BoxGeometry(22.1, 0.06, 0.08), M.gold); stageTrim.position.set(0, Y + 0.9, -50); Z.add(stageTrim);
-  [[-8.4, 0xc04dff, "ARCADE"], [-4.2, 0xff4fa3, "RACER"], [0, 0xffd23f, "BASKET"], [4.2, 0x4fc3ff, "DANCE"], [8.4, 0x7ee081, "DRUMS"]].forEach(([x, col, label]) => {
+  [[-8.4, 0xff5a5f, "RACING"], [-4.2, 0xc04dff, "ARCADE"], [0, 0xffd23f, "HOCKEY"], [4.2, 0x4fc3ff, "CONSOLE"], [8.4, 0x7ee081, "FOOSBALL"]].forEach(([x, col, label]) => {
     Z.add(place(arcadeCabinet(col, label), x, Y + 0.9, -51.5));
   });
-  const arcadeSign = card(6, 1, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("GAME HOUSE · ARCADE", W / 2, H / 2); }, { frame: false, glow: seg.accent });
+  const arcadeSign = card(6, 1, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("FIVE GAME ROOMS", W / 2, H / 2); }, { frame: false, glow: seg.accent });
   arcadeSign.position.set(0, Y + 3.9, -51.8); Z.add(arcadeSign);
+  // Pool & darts (game room 4)
+  const { pool, darts } = poolAndDarts(seg.accent2);
+  Z.add(place(pool, ctx.videoX * 0.55, Y, -28, 0.2 * ctx.m));
+  Z.add(place(darts, ctx.videoX * 1.2, Y + 3, -25, ctx.videoRot));
+  const poolSign = card(3.6, 0.8, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("POOL · DARTS", W / 2, H / 2); }, { frame: false, glow: seg.accent });
+  Z.add(place(poolSign, ctx.videoX * 0.55, Y + 3.4, -29, 0.2 * ctx.m));
   // Blind boxes live here too
   const eggGeo = new THREE.SphereGeometry(0.45, 24, 18); eggGeo.scale(1, 1.3, 1);
   const bandGeo = new THREE.TorusGeometry(0.46, 0.035, 8, 32);
@@ -712,9 +718,9 @@ function poolAndDarts(accent) {
 function dressPrivate(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("ktv", 6.6, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
-  // Four rooms: two past the video, two on the near cluster side
+  // Three KTV rooms and the dance room: two past the video, two on the near cluster side
   [[ctx.clusterX * 1.2, -9], [ctx.clusterX * 1.2, -16], [ctx.videoX * 1.2, -25], [ctx.videoX * 1.2, -32]]
-    .forEach(([x, z], i) => roomPod(ctx, "Private KTV", `Room ${i + 1}`, x, z, i % 2 ? seg.accent : 0xc04dff));
+    .forEach(([x, z], i) => (i < 3 ? roomPod(ctx, "Private KTV", `KTV Room ${i + 1}`, x, z, i % 2 ? seg.accent : 0xc04dff) : roomPod(ctx, "Lights & music", "Dance Room", x, z, 0xffd23f)));
   // Beauty corner (where the camera turns during the beauty beat): mirror + chair + cards
   const bx = ctx.clusterX, bRot = ctx.clusterRot;
   const mirror = card(2, 2.8, (x, W, H) => {
@@ -759,11 +765,8 @@ function dressVIP(ctx) {
   }
   roomPod(ctx, "Gold members", "VIP Room", ctx.clusterX * 1.25, -27, 0xf0d787);
   roomPod(ctx, "Gold members", "VIP Room", ctx.clusterX * 1.25, -34, 0xc98b3c);
-  const { pool, darts } = poolAndDarts(seg.accent2);
-  Z.add(place(pool, ctx.videoX * 0.55, Y, -30, 0.2 * ctx.m));
-  Z.add(place(darts, ctx.videoX * 1.2, Y + 3, -25, ctx.videoRot));
-  const vipSign = card(3.6, 0.8, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("POOL · DARTS", W / 2, H / 2); }, { frame: false, glow: seg.accent });
-  Z.add(place(vipSign, ctx.videoX * 0.55, Y + 3.4, -31, 0.2 * ctx.m));
+  const beauty = card(3, 2.3, drawPanel({ eyebrow: "3F · Beauty", title: "Rooms 6–8", lines: ["Facials & hair", "Same floor as VIP"], accent: "#ffb3d9" }), { glow: 0xff7ac0 });
+  Z.add(zoomable(place(beauty, ctx.videoX * 0.9, Y + 2.9, -27, ctx.videoRot), zi));
   [["GOLD", "Gold tier only", -6.2], ["PRIORITY", "VIP room booking", 0], ["INVITE", "Members only", 6.2]].forEach(([wtxt, sub, x]) => {
     const ped = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.8, 1.6), M.night); ped.position.set(x, Y + 0.4, -47); Z.add(ped);
     const wd = word(wtxt, 1.15, wordMaterial(seg.accent), 4.2); wd.position.set(x, Y + 0.85, -47); Z.add(wd);
@@ -970,11 +973,11 @@ function dressLocation({ Z, zi, Y, seg, portrait }) {
 // ── Zone: FINALE ───────────────────────────────────────────────────────────
 const ORBIT_SPEED = 0.04; // radians per second
 const FLOOR_CONCEPTS = [
-  ["1F · KTV Lounge", "The party floor", ["KOS sing-off · earn K-GOLD", "Tokens, spin & blind boxes", "Doluruu photo spot · arcade"]],
-  ["2F · Private KTV", "Rooms & beauty", ["Four private KTV rooms", "Facials & hair salon"]],
-  ["3F · VIP", "Gold members", ["Private VIP KTV rooms", "Priority booking", "Pool & darts · by invitation"]],
-  ["4F · Pet Cafe", "Pets & food", ["Sugar gliders, cats, snakes", "and guinea pigs", "Family tables & kids"]],
-  ["5F · Rooftop", "Live every night", ["DJs, bands & KOS finals", "Real crowds, real energy"]],
+  ["1F · Lounge & games", "The party floor", ["Lounge bar, sofas & booths", "5 game rooms · pool & darts", "KOS sing-off · earn K-GOLD"]],
+  ["2F · KTV & beauty", "Sing & glow", ["3 private KTV rooms", "Dance room", "Beauty rooms 1–5"]],
+  ["3F · VIP & beauty", "Gold members", ["2 VIP KTV rooms with bars", "Priority booking", "Beauty rooms 6–8"]],
+  ["4F · Restaurant", "Pets & food", ["Dining hall & kitchen", "Pet room", "Outdoor garden terrace"]],
+  ["5F · Rooftop bar", "Live every night", ["Rooftop bar", "Live band stage", "DJs & KOS finals"]],
 ];
 const FINALE_VIDEOS = [
   ["intro", "Reborn Wave House"], ["ktv", "2F Private KTV"], ["sing", "1F Kings of Singers"],

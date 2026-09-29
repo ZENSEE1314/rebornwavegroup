@@ -6,8 +6,10 @@ import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 import { storage } from "./storage";
+import { getUserId } from "./multiAuth";
 
 const viteLogger = createLogger();
+const FLAGSHIP_HOSTS = new Set(["rebornwave.group", "www.rebornwave.group"]);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -137,6 +139,14 @@ export function serveStatic(app: Express) {
   const baseHtml = fs.existsSync(indexPath)
     ? fs.readFileSync(indexPath, "utf-8")
     : null;
+
+  // The flagship's public homepage is the standalone 3D tower (client/public/experience).
+  // Logged-in members keep the SPA dashboard at "/"; other hosts (tenants, BridgeX) keep their apps.
+  const experienceIndex = path.resolve(distPath, "experience", "index.html");
+  app.get("/", (req, res, next) => {
+    if (!FLAGSHIP_HOSTS.has(req.hostname) || getUserId(req) || !fs.existsSync(experienceIndex)) return next();
+    res.set("Cache-Control", "no-cache").sendFile(experienceIndex);
+  });
 
   console.log(`[static] Serving static files from: ${distPath}`);
   app.use(express.static(distPath));

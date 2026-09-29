@@ -120,6 +120,17 @@ function ExperienceRedirect() {
   return null;
 }
 
+// Where this SPA instance was first loaded; if the server already chose the SPA for "/"
+// (e.g. dev, or a session the client doesn't recognise), reloading "/" would loop.
+const INITIAL_PATH = window.location.pathname;
+
+// Logged-out "/" — the server serves the 3D tower at the root on the flagship domain.
+function HomeRedirect() {
+  if (INITIAL_PATH === "/") window.location.replace(`/experience/${window.location.search}`);
+  else window.location.assign(`/${window.location.search}`);
+  return null;
+}
+
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -252,7 +263,7 @@ function Router() {
         <Route path="/t/:slug" component={TenantEntry} />
 
         {!isAuthenticated ? (
-          <Route path="/" component={bridgeXHost ? BridgeXLanding : ExperienceRedirect} />
+          <Route path="/" component={bridgeXHost ? BridgeXLanding : HomeRedirect} />
         ) : (
           <>
             {/* New member dashboard is the home; full legacy app still at /complete-app */}
