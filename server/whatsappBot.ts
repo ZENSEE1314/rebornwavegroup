@@ -225,7 +225,8 @@ const WELCOME_TRILINGUAL =
   "🌊 欢迎来到 Reborn Wave Group！请选择您的语言：\n" +
   "🌊 Selamat datang di Reborn Wave Group! Silakan pilih bahasa Anda:\n\n" +
   "1️⃣ English\n2️⃣ 中文\n3️⃣ Bahasa Indonesia\n\n" +
-  "Reply 1, 2 or 3 · 回复 1、2 或 3 · Balas 1, 2 atau 3";
+  "Reply 1, 2 or 3 · 回复 1、2 或 3 · Balas 1, 2 atau 3\n\n" +
+  "Change anytime: \"change English / Chinese / Bahasa\" · 随时切换：「换中文」 · Ganti kapan saja: \"ganti bahasa\"";
 
 function parseLang(s: string): Lang | null {
   const t = s.trim().toLowerCase();
@@ -235,8 +236,32 @@ function parseLang(s: string): Lang | null {
   return null;
 }
 
+// "change english", "switch to chinese", "ganti bahasa", "tukar bahasa inggeris",
+// "换中文", "切换英文", "english please" → the language to reply in from now on.
+const LANG_NAMES: Array<[Lang, RegExp]> = [
+  ["en", /^(english|eng|inggeris|inggris|bahasa (inggeris|inggris)|英文|英语|英語)$/],
+  ["zh", /^(chinese|mandarin|中文|华语|华文|汉语|普通话|國語|bahasa (cina|mandarin|tionghoa))$/],
+  ["id", /^(bahasa|bahasa indonesia|indonesia|indonesian|malay|melayu|bahasa melayu|bm)$/],
+];
+function langName(s: string): Lang | null {
+  const t = s.trim();
+  for (const [code, re] of LANG_NAMES) if (re.test(t)) return code;
+  return null;
+}
+function parseLangSwitch(text: string): Lang | null {
+  const t = text.trim().toLowerCase().replace(/[.!?。！？~]+$/, "").replace(/\s+/g, " ");
+  const cmd = t.match(/^(?:(?:please|pls|can you|could you|tolong|sila)\s+)?(?:change|switch|set|use|speak|reply|talk|ganti|tukar|ubah|pakai|guna|cakap|换成|换|切换到|切换成|切换|改成|改用|改|用|说)\s*(?:(?:the\s+)?(?:language|lang|bahasa|语言)\s+)?(?:(?:to|into|in|ke|jadi)\s+|成|到)?\s*(.+)$/);
+  const bare = (x: string) => x.replace(/^(?:language|lang|语言)\s*[:：]?\s*/, "").replace(/\s*\b(?:please|pls|only|language|lah)$/, "");
+  return (cmd && langName(bare(cmd[1]))) || langName(bare(t));
+}
+
 function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
   const T: Record<string, Record<Lang, string>> = {
+    langChanged: {
+      en: "✅ Okay! I'll reply in English from now on. (Type \"change Chinese\" or \"change Bahasa\" to switch.)",
+      zh: "✅ 好的！接下来我会用中文回复您。（输入「change English」或「change Bahasa」可切换语言。）",
+      id: "✅ Baik! Mulai sekarang saya akan membalas dalam Bahasa Indonesia. (Ketik \"change English\" atau \"change Chinese\" untuk ganti bahasa.)",
+    },
     askName: {
       en: "Great! 👋 May I know your name?",
       zh: "好的！👋 请问怎么称呼您？",
@@ -613,14 +638,18 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     return;
   }
 
+  // "change english / chinese / bahasa" — switch the reply language at any point.
+  const switchTo = parseLangSwitch(body);
+
   // If this phone already has an app account, skip onboarding — greet by name.
   if (!c.userId && (c.stage === "new" || c.stage === "await_lang" || c.stage === "await_name" || c.stage === "await_email")) {
     const u = await linkExistingUserByPhone(c.phone);
     if (u) {
       const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || "there";
-      const uLang = (["en", "zh", "id"].includes((u as any).preferredLanguage) ? (u as any).preferredLanguage : c.lang) as Lang;
+      const uLang = (switchTo || (["en", "zh", "id"].includes((u as any).preferredLanguage) ? (u as any).preferredLanguage : c.lang)) as Lang;
       await patchContact(c.id, { userId: u.id, name, stage: "member", lang: uLang });
       c = { ...c, userId: u.id, name, stage: "member", lang: uLang } as Contact;
+      if (switchTo) await db.update(users).set({ preferredLanguage: switchTo }).where(eq(users.id, u.id)).catch(() => {});
       await sendMemberMenu(from, c, uLang, true);
       return;
     }
@@ -629,6 +658,19 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   const lang = (c.lang as Lang) || "en";
   const say = async (msg: string) => { await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); };
   const wa: any = (c.waState as any) || {};
+
+  if (switchTo) {
+    await patchContact(c.id, { lang: switchTo });
+    c = { ...c, lang: switchTo } as Contact;
+    if (c.userId) await db.update(users).set({ preferredLanguage: switchTo }).where(eq(users.id, c.userId)).catch(() => {});
+    await say(L(switchTo, "langChanged"));
+    // Carry on from where they were, now in the new language.
+    if (c.stage === "new" || c.stage === "await_lang") { await say(L(switchTo, "askName")); return patchContact(c.id, { stage: "await_name" }); }
+    if (c.stage === "await_name") { await say(L(switchTo, "askName")); return; }
+    if (c.stage === "await_email") { await say(L(switchTo, "askEmail", { name: c.name || "" })); return; }
+    await sendMemberMenu(from, c, switchTo);
+    return patchContact(c.id, { waState: { flow: null } });
+  }
 
   // --- ONBOARDING (new numbers) ---
   if (c.stage === "new") {
