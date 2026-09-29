@@ -111,6 +111,26 @@ function PageLoader() {
   );
 }
 
+const FLAGSHIP_TENANT_SLUG = "reborn-wave-group";
+
+// The public homepage is the standalone 3D tower (client/public/experience), served
+// by the server as static files — leave the SPA so it loads.
+function ExperienceRedirect() {
+  window.location.replace(`/experience/${window.location.search}`);
+  return null;
+}
+
+// Where this SPA instance was first loaded; if the server already chose the SPA for "/"
+// (e.g. dev, or a session the client doesn't recognise), reloading "/" would loop.
+const INITIAL_PATH = window.location.pathname;
+
+// Logged-out "/" — the server serves the 3D tower at the root on the flagship domain.
+function HomeRedirect() {
+  if (INITIAL_PATH === "/") window.location.replace(`/experience/${window.location.search}`);
+  else window.location.assign(`/${window.location.search}`);
+  return null;
+}
+
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -235,20 +255,22 @@ function Router() {
         <Route path="/investor/login" component={InvestorLogin} />
         <Route path="/investor" component={InvestorLanding} />
         <Route path="/lux" component={LuxExperience} />
+        <Route path="/experience" component={ExperienceRedirect} />
+        <Route path="/welcome" component={Landing} />
         <Route path="/attend" component={RebornAttend} />
         <Route path="/order/t/:token" component={OrderTable} />
         <Route path="/ticket/:code" component={TicketView} />
         <Route path="/t/:slug" component={TenantEntry} />
 
         {!isAuthenticated ? (
-          <Route path="/" component={bridgeXHost ? BridgeXLanding : Landing} />
+          <Route path="/" component={bridgeXHost ? BridgeXLanding : HomeRedirect} />
         ) : (
           <>
             {/* New member dashboard is the home; full legacy app still at /complete-app */}
             <Route path="/" component={RebornDashboard} />
             <Route path="/pet" component={RebornPet} />
             <Route path="/spin" component={RebornSpin} />
-            <Route path="/games" component={RebornGames} />
+            <Route path="/games" component={RebornGames} />
             <Route path="/support" component={RebornSupport} />
             <Route path="/kos" component={RebornKos} />
             <Route path="/songs" component={RebornSong} />
@@ -299,7 +321,8 @@ function App() {
       .then((response) => response.ok ? response.json() : null)
       .then((tenant) => {
         if (!tenant) return;
-        document.title = tenant.app_name || tenant.name;
+        // The flagship site keeps its SEO title from index.html; white-label tenants get their own name.
+        if (tenant.slug !== FLAGSHIP_TENANT_SLUG) document.title = tenant.app_name || tenant.name;
         const primary = tenant.theme?.primaryColor;
         const accent = tenant.theme?.accentColor;
         if (primary) document.documentElement.style.setProperty("--bridgex-primary", primary);

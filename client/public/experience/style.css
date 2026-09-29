@@ -1,0 +1,211 @@
+/* ── Design tokens ─────────────────────────────────────────────── */
+:root {
+  --c-night-0: #0a0714;
+  --c-night-1: #120b20;
+  --c-night-2: #1a1030;
+  --c-gold-0: #c9a84c;
+  --c-gold-1: #f0d787;
+  --c-ink: #fbf6ea;
+  --c-wa: #25d366;
+  --c-ink-dim: rgba(251, 246, 234, 0.72);
+  --c-ink-faint: rgba(251, 246, 234, 0.45);
+  --g-gold: linear-gradient(100deg, var(--c-gold-0), var(--c-gold-1) 55%, var(--c-gold-0));
+  --f-display: "Cinzel", "Times New Roman", serif;
+  --f-body: "Montserrat", system-ui, sans-serif;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 72px;
+  --r-pill: 999px; --r-md: 14px;
+  --shadow-gold: 0 10px 40px rgba(201, 168, 76, 0.35);
+  --ease: cubic-bezier(.22, .8, .24, 1);
+  --t-fast: 180ms;
+  --z-canvas: 0; --z-vignette: 1; --z-story: 5; --z-flash: 8; --z-nav: 10; --z-modal: 20; --z-loader: 30;
+  --gutter: clamp(16px, 5vw, 64px);
+}
+
+* { box-sizing: border-box; }
+html { background: var(--c-night-0); }
+body {
+  margin: 0; color: var(--c-ink); font-family: var(--f-body);
+  background: var(--c-night-0); -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+#spacer { height: 2000vh; }
+
+#gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; z-index: var(--z-canvas); }
+#vignette {
+  position: fixed; inset: 0; pointer-events: none; z-index: var(--z-vignette);
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(5, 3, 12, 0.72) 100%);
+}
+
+/* Portal / lift transition: gold light + rising streak tunnel */
+#flash {
+  position: fixed; inset: 0; pointer-events: none; z-index: var(--z-flash); opacity: 0;
+  display: grid; place-items: center;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 236, 190, 0) 0 22px, rgba(255, 236, 190, 0.22) 23px 24px, rgba(255, 236, 190, 0) 25px 61px),
+    radial-gradient(60% 70% at 50% 50%, #fff4d6 0%, #f0d787 30%, #c9a84c 58%, #1a1030 100%);
+  background-size: 100% 100%, 100% 100%;
+}
+#flash.streaking { animation: streak 0.5s linear infinite; }
+@keyframes streak { from { background-position: 0 0, 0 0; } to { background-position: 0 -120px, 0 0; } }
+#flash-floor {
+  font-family: var(--f-display); font-weight: 800; font-size: clamp(64px, 16vw, 200px);
+  color: var(--c-night-1); letter-spacing: .06em; mix-blend-mode: multiply; opacity: .8;
+}
+
+/* Nav */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: var(--z-nav);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(var(--s-4) + env(safe-area-inset-top)) var(--gutter) var(--s-4);
+  background: linear-gradient(180deg, rgba(10, 7, 20, .75), transparent);
+}
+.brand { font-family: var(--f-display); font-weight: 800; letter-spacing: .18em; color: var(--c-ink); text-decoration: none; font-size: 15px; }
+.brand-mark { color: var(--c-gold-1); }
+.nav-links { display: flex; align-items: center; gap: var(--s-5); }
+.nav-links a:not(.btn) { color: var(--c-ink-dim); text-decoration: none; font-weight: 500; font-size: 14px; }
+.nav-links a:not(.btn):hover { color: var(--c-ink); }
+
+/* Floor indicator */
+#floors {
+  position: fixed; right: calc(var(--gutter) / 2); top: 50%; transform: translateY(-50%);
+  z-index: var(--z-nav); display: flex; flex-direction: column-reverse; gap: var(--s-2);
+}
+#floors button {
+  width: 44px; height: 30px; border-radius: var(--r-pill); cursor: pointer;
+  border: 1px solid rgba(240, 215, 135, .25); background: rgba(10, 7, 20, .45);
+  color: var(--c-ink-faint); font: 600 11px/1 var(--f-body); letter-spacing: .08em;
+  transition: all var(--t-fast) var(--ease); backdrop-filter: blur(6px);
+}
+#floors button:hover { color: var(--c-ink); border-color: var(--c-gold-0); }
+#floors button.on { background: var(--g-gold); color: var(--c-night-1); border-color: transparent; box-shadow: var(--shadow-gold); }
+#floors button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid var(--c-gold-1); outline-offset: 3px; }
+
+/* Story beats (HTML overlays) */
+#story { position: fixed; inset: 0; z-index: var(--z-story); pointer-events: none; }
+.beat {
+  position: absolute; max-width: min(460px, 86vw); opacity: 0; visibility: hidden;
+  transform: translateY(18px); will-change: opacity, transform;
+}
+.beat.visible { visibility: visible; }
+.beat.visible a, .beat.visible button { pointer-events: auto; }
+.beat.left { left: var(--gutter); top: 50%; margin-top: -120px; }
+.beat.right { right: calc(var(--gutter) + 56px); top: 50%; margin-top: -120px; text-align: right; }
+.beat.right .chips { justify-content: flex-end; }
+.beat.center { left: 50%; top: 50%; translate: -50% -50%; text-align: center; max-width: min(760px, 92vw); }
+.beat.top { left: 50%; top: 12vh; translate: -50% 0; text-align: center; max-width: min(620px, 90vw); }
+.beat.bottom { left: 50%; bottom: 9vh; translate: -50% 0; text-align: center; max-width: min(620px, 90vw); }
+.beat.wide { max-width: min(760px, 92vw); }
+.beat::before { /* soft backing for legibility over the scene */
+  content: ""; position: absolute; inset: -28px -36px; z-index: -1; border-radius: 28px;
+  background: radial-gradient(closest-side, rgba(10, 7, 20, .62), rgba(10, 7, 20, 0));
+}
+.eyebrow { margin: 0 0 var(--s-2); color: var(--c-gold-1); font: 600 12px/1.4 var(--f-body); letter-spacing: .28em; text-transform: uppercase; }
+.display {
+  margin: 0; font-family: var(--f-display); font-weight: 800; letter-spacing: .08em;
+  font-size: clamp(44px, 9vw, 120px); line-height: .95;
+  background: var(--g-gold); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 30px rgba(201, 168, 76, .35));
+}
+.display-2 {
+  margin: 0 0 var(--s-3); font-family: var(--f-display); font-weight: 800; font-size: clamp(40px, 8vw, 104px); line-height: 1;
+  background: var(--g-gold); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+h2 { margin: 0 0 var(--s-3); font-weight: 800; font-size: clamp(28px, 4.2vw, 52px); line-height: 1.05; letter-spacing: -.01em; }
+h2.small { font-size: clamp(18px, 2.4vw, 26px); font-weight: 600; color: var(--c-ink-dim); }
+.beat p { margin: 0 0 var(--s-4); color: var(--c-ink-dim); font-size: clamp(15px, 1.4vw, 18px); line-height: 1.6; }
+.lede { font-size: clamp(17px, 2vw, 24px) !important; color: var(--c-ink) !important; font-weight: 500; }
+.hint { margin-top: var(--s-6) !important; font-size: 13px !important; letter-spacing: .2em; text-transform: uppercase; color: var(--c-ink-faint) !important; }
+.hint span { display: inline-block; animation: nudge 1.6s var(--ease) infinite; }
+@keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+.chips { list-style: none; padding: 0; margin: var(--s-4) 0 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.chips li { padding: 6px 12px; border-radius: var(--r-pill); border: 1px solid rgba(240, 215, 135, .35); background: rgba(10, 7, 20, .5); font-size: 13px; font-weight: 500; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 22px;
+  border-radius: var(--r-pill); font: 700 14px/1 var(--f-body); letter-spacing: .04em; text-decoration: none;
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background var(--t-fast);
+}
+.btn:hover { transform: translateY(-2px); }
+.btn-gold { background: var(--g-gold); color: var(--c-night-1); box-shadow: var(--shadow-gold); }
+.btn-ghost { border: 1px solid rgba(240, 215, 135, .55); color: var(--c-ink); background: rgba(10, 7, 20, .45); backdrop-filter: blur(6px); }
+.btn-wa { background: var(--c-wa); color: #fff; box-shadow: 0 8px 24px rgba(37, 211, 102, .35); }
+.btn-link { color: var(--c-gold-1); padding: 0 8px; }
+.btn-sm { min-height: 38px; padding: 0 16px; font-size: 13px; }
+.cta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3); margin-top: var(--s-5); }
+.cta-row.start { justify-content: flex-start; }
+.beat.final { top: auto; bottom: 5vh; translate: -50% 0; } /* keep the 3D REBORN WAVE logo visible above the CTAs */
+.final::before { inset: -60px -80px; background: radial-gradient(closest-side, rgba(10, 7, 20, .8), rgba(10, 7, 20, 0)); }
+
+.skip { position: fixed; left: -999px; top: 8px; z-index: 99; background: var(--c-gold-1); color: var(--c-night-1); padding: 8px 14px; border-radius: 8px; }
+.skip:focus { left: 8px; }
+
+/* Loader */
+#loader {
+  position: fixed; inset: 0; z-index: var(--z-loader); display: grid; place-content: center; justify-items: center; gap: var(--s-4);
+  background: radial-gradient(80% 70% at 50% 40%, var(--c-night-2), var(--c-night-0));
+  transition: opacity 700ms var(--ease), visibility 700ms;
+}
+#loader img { width: 120px; height: 120px; object-fit: contain; animation: bob 1.4s var(--ease) infinite; }
+#loader p { margin: 0; font-family: var(--f-display); letter-spacing: .22em; color: var(--c-gold-1); font-size: 14px; }
+#loader .bar { width: 200px; height: 3px; border-radius: 3px; background: rgba(240, 215, 135, .15); overflow: hidden; }
+#loader .bar span { display: block; height: 100%; width: 0; background: var(--g-gold); transition: width 200ms; }
+#loader.done { opacity: 0; visibility: hidden; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* Video modal */
+#vmodal { border: 0; padding: 0; background: transparent; max-width: min(1100px, 94vw); width: 100%; }
+#vmodal::backdrop { background: rgba(5, 3, 12, .86); backdrop-filter: blur(6px); }
+#vmodal video { width: 100%; border-radius: var(--r-md); box-shadow: var(--shadow-gold); display: block; }
+.vclose {
+  position: absolute; top: -52px; right: 0; width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+  border: 1px solid rgba(240, 215, 135, .5); background: rgba(10, 7, 20, .7); color: var(--c-ink); font-size: 18px;
+}
+
+body.hovering-screen { cursor: pointer; }
+
+/* WhatsApp shortcut (mobile only) */
+.wa-fab { display: none; }
+body.zooming .wa-fab { opacity: 0; pointer-events: none; }
+body.zooming #flash { opacity: 0 !important; } /* inline opacity is set per frame */
+body.zooming #story { opacity: 0; transition: opacity 200ms var(--ease); } /* let a zoomed card read clearly */
+#story { transition: opacity 200ms var(--ease); }
+
+/* Mobile */
+@media (max-width: 760px) {
+  :root { --mobile-beat-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .nav-links a:not(.btn) { display: none; }
+  /* Floor pills become a row under the header so they never cover the story text */
+  #floors { top: 64px; left: 50%; right: auto; transform: translateX(-50%); flex-direction: row; gap: 4px; }
+  #floors button { width: 32px; height: 26px; font-size: 10px; padding: 0; }
+  .beat.top { top: auto; } /* keep the 3D stage clear on tall screens */
+  .beat.final { left: var(--gutter); right: var(--gutter); translate: none; max-width: none; }
+  .wa-fab {
+    display: grid; place-items: center; position: fixed; z-index: var(--z-nav);
+    right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); width: 54px; height: 54px; border-radius: 50%;
+    background: var(--c-wa); color: #fff; box-shadow: 0 8px 24px rgba(37, 211, 102, .45);
+    transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  }
+  .wa-fab:active { transform: scale(.94); }
+  /* sit the story text just above the WhatsApp button */
+  .beat.bottom, .beat.top { bottom: var(--mobile-beat-bottom); }
+  .beat.final { bottom: var(--mobile-beat-bottom); }
+  .final .cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+  .final .cta-row .btn { padding: 0 10px; font-size: 13px; }
+  .beat.left, .beat.right {
+    left: var(--gutter); right: var(--gutter); top: auto; bottom: var(--mobile-beat-bottom); margin-top: 0;
+    text-align: left; max-width: none;
+  }
+  .beat.right .chips { justify-content: flex-start; }
+}
+
+/* No-WebGL fallback: the story reads as a normal page */
+body.static #gl, body.static #flash, body.static #floors, body.static #spacer { display: none; }
+body.static #story { position: static; padding: 120px var(--gutter) 80px; display: grid; gap: 72px; justify-items: center; }
+body.static .beat { position: relative; inset: auto; translate: none; margin: 0; opacity: 1 !important; visibility: visible; transform: none !important; text-align: center; max-width: 720px; }
+body.static .beat a { pointer-events: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hint span, #loader img { animation: none; }
+  #flash.streaking { animation: none; }
+  .btn:hover { transform: none; }
+}
