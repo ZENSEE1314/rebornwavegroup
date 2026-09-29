@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
-import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember } from "./whatsappBot";
+import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
@@ -2769,6 +2769,13 @@ export function registerRebornRoutes(app: Express) {
     await notifyAdmins(`📅 New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
     await sendRebornStaffNotification({ type: "new_booking", title: "New booking request", body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Member"} · ${date} ${label}`, data: { path: "/reborn-admin", bookingId: row.id } });
     sendPushToAdmins({ title: "📅 New booking to confirm", body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label}`, url: "/reborn-admin", tag: `newbk-${row.id}` }).catch(() => {});
+    // WhatsApp the member a booking receipt with our address + map pin.
+    if (u?.phoneNumber) {
+      const phone = u.phoneNumber;
+      locationReply()
+        .then((loc) => sendWhatsApp(phone, `✅ Booking received at ${s.clubName || "Reborn Wave"}: ${area.name} · ${date} ${label}${table ? ` · ${table}` : ""} · ${party} pax. Our team will confirm shortly. 💜\n\n${loc}`))
+        .catch(() => {});
+    }
     await logAdmin(req, { targetUserId: userId, targetType: "appointment", targetId: row.id, action: "book", entityType: "booking", description: `Booked ${date} ${label}` });
     res.json({ message: `Booked ${date} at ${label}. We'll confirm shortly.`, appointment: row });
   });
@@ -2895,7 +2902,12 @@ export function registerRebornRoutes(app: Express) {
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
     const whenTxt = when.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
-    if (u.phoneNumber) sendWhatsApp(u.phoneNumber, `✅ We've booked you at ${s.clubName || "Reborn Wave"}: ${area.name} on ${whenTxt}${table ? ` · ${table}` : ""}. See you! 💜`).catch(() => {});
+    if (u.phoneNumber) {
+      const phone = u.phoneNumber;
+      locationReply()
+        .then((loc) => sendWhatsApp(phone, `✅ We've booked you at ${s.clubName || "Reborn Wave"}: ${area.name} on ${whenTxt}${table ? ` · ${table}` : ""}. See you! 💜\n\n${loc}`))
+        .catch(() => {});
+    }
     sendPushToUser(u.id, { title: "✅ You're booked", body: `${area.name} — ${whenTxt}${table ? ` · ${table}` : ""}`, url: "/bookings", tag: `booking-${row.id}` }).catch(() => {});
     await logAdmin(req, { targetUserId: u.id, targetType: "appointment", targetId: row.id, action: "manual_book", entityType: "booking", description: `Booked ${name} · ${area.name} ${date} ${label}` });
     res.json({ message: `Booked ${name} · ${area.name} ${date} ${label}`, appointment: row });
