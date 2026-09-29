@@ -11,15 +11,15 @@
 // Without those vars the module still loads; sends are no-ops (logged) so the rest
 // of the app runs unchanged and the wa.me button on the homepage still works.
 import type { Express, Request, Response } from "express";
-import { and, desc, eq, isNotNull, lte, gt, ilike, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, lte, gt, ilike, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
-import { sendRebornStaffNotification } from "./bridgeX";
+import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, getBookingTimezone, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
-import { sendPushToUser } from "./push";
+import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
 
 const GRAPH_VERSION = "v20.0";
@@ -282,9 +282,9 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "Hai {name}! 🍾 Simpanan {item} Anda (sisa {qty}) menunggu di Reborn Wave — kedaluwarsa dalam {days} hari. Yuk habiskan sebelum hangus! 💜",
     },
     menu: {
-      en: "Hello {name}, how can I help you today? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3, or ask anything you need.",
-      zh: "你好 {name}，今天有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2、3，或直接提出任何问题。",
-      id: "Halo {name}, apa yang bisa saya bantu hari ini? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2, 3, atau tanyakan apa saja yang Anda perlukan.",
+      en: "Hello {name}, how can I help you today? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3, or ask anything you need.\n❌ Type \"cancel booking\" to cancel a booking.",
+      zh: "你好 {name}，今天有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2、3，或直接提出任何问题。\n❌ 输入「取消预订」可取消预订。",
+      id: "Halo {name}, apa yang bisa saya bantu hari ini? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2, 3, atau tanyakan apa saja yang Anda perlukan.\n❌ Ketik \"batal booking\" untuk membatalkan booking.",
     },
     songAskName: {
       en: "🎤 What's the song name? (Chinese or pinyin — or both)",
@@ -400,6 +400,26 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       en: "Thank you for the {n}⭐! {extra}",
       zh: "感谢你的 {n}⭐！{extra}",
       id: "Terima kasih atas {n}⭐! {extra}",
+    },
+    bookNoShow: {
+      en: "😔 Your booking at {club} ({when}) has been cancelled because you didn't arrive within 15 minutes of the booking time. The table is now free for other guests.\n\nWant to come another time? Reply \"booking\" here or book in the app: {url} 💜",
+      zh: "😔 您在 {club} 的预订（{when}）已取消，因为您未在预订时间后 15 分钟内到达。该座位已释放给其他客人。\n\n想改天再来？回复「预订」或在 App 中预订：{url} 💜",
+      id: "😔 Booking Anda di {club} ({when}) dibatalkan karena Anda tidak datang dalam 15 menit dari waktu booking. Meja sudah dibuka untuk tamu lain.\n\nMau datang di lain waktu? Balas \"booking\" di sini atau booking di app: {url} 💜",
+    },
+    cancelNone: {
+      en: "You don't have any upcoming bookings to cancel. Reply \"booking\" to make one. 💜",
+      zh: "您目前没有可取消的预订。回复「预订」即可新建预订。💜",
+      id: "Anda tidak punya booking mendatang untuk dibatalkan. Balas \"booking\" untuk membuat booking. 💜",
+    },
+    cancelPick: {
+      en: "Which booking do you want to cancel?\n{list}\n\nReply with the number, or \"menu\" to go back.",
+      zh: "您要取消哪一个预订？\n{list}\n\n请回复编号，或回复「菜单」返回。",
+      id: "Booking mana yang ingin dibatalkan?\n{list}\n\nBalas dengan nomornya, atau \"menu\" untuk kembali.",
+    },
+    cancelDone: {
+      en: "✅ Your booking ({what}) has been cancelled. We've let the team know. Reply \"booking\" any time to book again. 💜",
+      zh: "✅ 您的预订（{what}）已取消，我们已通知团队。随时回复「预订」即可重新预订。💜",
+      id: "✅ Booking Anda ({what}) sudah dibatalkan. Tim kami sudah diberi tahu. Balas \"booking\" kapan saja untuk booking lagi. 💜",
     },
     bookReminder: {
       en: "⏰ Reminder: your booking at {club} is {when} — in about {left}.{where} See you soon! 💜",
@@ -663,6 +683,17 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     // not a rating → fall through to normal handling
   }
 
+  // --- CANCEL A BOOKING --- ("cancel booking" / "batal booking" / "取消预订")
+  if (CANCEL_BOOKING_RE.test(body)) return startCancelBooking(c, lang, say);
+  if (wa.flow === "cancelbk") {
+    if (/^(menu|cancel|stop|0|batal|取消|菜单)$/i.test(body)) { await patchContact(c.id, { waState: { flow: null } }); await sendMemberMenu(from, c, lang); return; }
+    const ids: number[] = Array.isArray(wa.ids) ? wa.ids : [];
+    const n = Number((body.match(/\d+/) || [])[0] || 0);
+    if (n >= 1 && n <= ids.length) return finishCancelBooking(c, lang, ids[n - 1], say);
+    // Not a valid pick → leave the cancel flow and handle the message normally.
+    await patchContact(c.id, { waState: { flow: null } });
+  }
+
   // --- ACTIVE FLOWS ---
   // "menu" / "cancel" always leaves a booking or song flow.
   if ((wa.flow === "book" || wa.flow === "song") && /^(menu|cancel|stop|0|batal|取消|菜单)$/i.test(body)) {
@@ -811,6 +842,42 @@ async function startBooking(c: Contact, lang: Lang, from: string, say: (m: strin
   const list = areas.map((a, i) => `${i + 1}. ${a.name} (${a.level})`).join("\n");
   await say(L(lang, "bookAskArea", { list }));
   return patchContact(c.id, { waState: { flow: "book", step: "area" } });
+}
+
+const CANCEL_BOOKING_RE = /\b(cancel|batal(kan)?)\b.*\b(book(ing)?|reserv\w*|tempahan|meja)\b|取消(预订|预约|订位)/i;
+const MEMBER_ACTIVE = ["pending", "scheduled", "confirmed"];
+const fmtBookingWhen = (d: Date | string) => new Date(d).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
+
+async function startCancelBooking(c: Contact, lang: Lang, say: (m: string) => Promise<void>) {
+  if (!c.userId) { await say(L(lang, "cancelNone")); return patchContact(c.id, { waState: { flow: null } }); }
+  const rows = await db.select().from(appointments).where(and(
+    eq(appointments.userId, c.userId), inArray(appointments.status, MEMBER_ACTIVE), gt(appointments.appointmentDate, new Date()),
+  )).orderBy(appointments.appointmentDate).limit(5);
+  if (!rows.length) { await say(L(lang, "cancelNone")); return patchContact(c.id, { waState: { flow: null } }); }
+  if (rows.length === 1) return finishCancelBooking(c, lang, rows[0].id, say);
+  const list = rows.map((r, i) => `${i + 1}️⃣ ${r.title} · ${fmtBookingWhen(r.appointmentDate)} (${r.status})`).join("\n");
+  await say(L(lang, "cancelPick", { list }));
+  return patchContact(c.id, { waState: { flow: "cancelbk", ids: rows.map((r) => r.id) } });
+}
+
+async function finishCancelBooking(c: Contact, lang: Lang, id: number, say: (m: string) => Promise<void>) {
+  await patchContact(c.id, { waState: { flow: null } });
+  const [a] = await db.update(appointments).set({ status: "cancelled", adminNote: "Cancelled by member (WhatsApp)", updatedAt: new Date() })
+    .where(and(eq(appointments.id, id), eq(appointments.userId, c.userId || "__none__"), inArray(appointments.status, MEMBER_ACTIVE))).returning();
+  if (!a) { await say(L(lang, "cancelNone")); return; }
+  await say(L(lang, "cancelDone", { what: `${a.title} · ${fmtBookingWhen(a.appointmentDate)}` }));
+  await notifyBookingCancelledByMember(a, "WhatsApp");
+}
+
+// Tell the team (WhatsApp admin line, app push, browser push) that a member cancelled.
+export async function notifyBookingCancelledByMember(a: typeof appointments.$inferSelect, via: "app" | "WhatsApp") {
+  const [u] = a.userId ? await db.select().from(users).where(eq(users.id, a.userId)) : [];
+  const who = [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Member";
+  const when = fmtBookingWhen(a.appointmentDate);
+  await notifyAdmin(`❌ Booking #${a.id} cancelled by ${who} (via ${via}): ${a.title} · ${when}${a.notes ? ` · ${a.notes}` : ""}. The slot is free again.`).catch(() => {});
+  await sendRebornStaffNotification({ type: "booking_cancelled", title: "❌ Booking cancelled by member", body: `${who} · ${a.title} · ${when}`, data: { path: "/reborn-admin", bookingId: a.id } }).catch(() => {});
+  sendPushToAdmins({ title: "❌ Booking cancelled", body: `${who} · ${a.title} · ${when}`, url: "/reborn-admin", tag: `cancelbk-${a.id}` }).catch(() => {});
+  emitLiveUpdate("/api/reborn/admin/bookings", { action: "BOOKING_CANCELLED", resource: String(a.id) });
 }
 
 async function bookingStep(c: Contact, lang: Lang, from: string, body: string, wa: any, say: (m: string) => Promise<void>) {
@@ -1173,6 +1240,45 @@ export async function runBookingReminders(): Promise<number> {
   return sent;
 }
 
+// No-shows: a booking still pending/confirmed 15 minutes after its start time is
+// auto-cancelled, which frees the table for app + WhatsApp booking again. Staff
+// mark guests who turned up as "Arrived" (status completed) in the admin app.
+// Only bookings that started after this server booted (and within the last
+// hour) are touched, so history — and guests seated before staff could mark
+// them Arrived — is never mass-cancelled or messaged.
+const NO_SHOW_SINCE = Date.now();
+export async function runNoShowCancels(): Promise<number> {
+  let cancelled = 0;
+  try {
+    const now = Date.now();
+    const rows = await db.update(appointments)
+      .set({ status: "cancelled", adminNote: "No-show — auto-cancelled 15 min after booking time", updatedAt: new Date() })
+      .where(and(
+        inArray(appointments.status, MEMBER_ACTIVE),
+        lte(appointments.appointmentDate, new Date(now - 15 * 60_000)),
+        gte(appointments.appointmentDate, new Date(Math.max(now - 60 * 60_000, NO_SHOW_SINCE))),
+        ne(appointments.title, "BLOCKED"),
+      )).returning();
+    if (!rows.length) return 0;
+    const club = (await settingVal("clubName")) || "Reborn Wave";
+    const waAvail = await whatsappAvailable();
+    for (const a of rows) {
+      cancelled++;
+      const when = fmtBookingWhen(a.appointmentDate);
+      const [u] = a.userId ? await db.select().from(users).where(eq(users.id, a.userId)) : [];
+      const phone = (u?.phoneNumber || "").replace(/\D/g, "");
+      if (waAvail && phone) sendWhatsApp(phone, L(await langForPhone(phone), "bookNoShow", { club, when, url: `${APP_BASE_URL}/bookings` })).catch(() => {});
+      sendPushToUser(a.userId, { title: "😔 Booking cancelled — no-show", body: `${a.title} · ${when}. Tap to book again.`, url: "/bookings", tag: `noshow-${a.id}` }).catch(() => {});
+      await sendRebornUserNotification(a.userId, { type: "booking_status", title: "Booking cancelled (no-show)", body: `${a.title} · ${when} — you didn't arrive within 15 minutes. Book again any time.`, data: { path: "/bookings", bookingId: a.id, status: "cancelled" } }).catch(() => {});
+      const who = [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Member";
+      await sendRebornStaffNotification({ type: "booking_cancelled", title: "⏱️ No-show auto-cancelled", body: `${who} · ${a.title} · ${when} — slot is free again`, data: { path: "/reborn-admin", bookingId: a.id } }).catch(() => {});
+    }
+    emitLiveUpdate("/api/reborn/admin/bookings", { action: "NO_SHOW", resource: rows.map((r) => r.id).join(",") });
+    console.info("[booking] no-show auto-cancelled", rows.map((r) => r.id));
+  } catch (e) { console.error("[booking] no-show job", e); }
+  return cancelled;
+}
+
 async function phoneForBottle(b: typeof bottleKeeps.$inferSelect): Promise<string | null> {
   if (b.userId) {
     const [u] = await db.select().from(users).where(eq(users.id, b.userId));
@@ -1201,4 +1307,7 @@ function startReminderScheduler() {
   // Booking reminders need finer granularity (3h / 1h / 10min) — check every 5 minutes.
   setTimeout(() => { runBookingReminders().catch(() => {}); }, 60 * 1000);
   setInterval(() => { runBookingReminders().catch(() => {}); }, 5 * 60 * 1000);
+  // No-show auto-cancel (15 min after start) — checked every minute.
+  setTimeout(() => { runNoShowCancels().catch(() => {}); }, 90 * 1000);
+  setInterval(() => { runNoShowCancels().catch(() => {}); }, 60 * 1000);
 }
