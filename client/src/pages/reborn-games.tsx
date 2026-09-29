@@ -23,7 +23,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   dice: { name: "Dice Bluffing Game", emoji: "🎲", blurb: "5 dice each · bluff the count · catch the liar" },
   wheel: { name: "Spin the Wheel", emoji: "🎡", blurb: "½ cup · 1 cup · 2 cups — or land on PASS 😎" },
   riding: { name: "Red Riding Hood", emoji: "👵", blurb: "tap grannies · dodge the 🐺 wolf & 🧙 witch" },
-  timer: { name: "Stop the Clock", emoji: "⏱️", blurb: "stop closest to the target (10s or random 5–20s) · up to 20" },
+  timer: { name: "Stop the Clock", emoji: "⏱️", blurb: "stop closest to the target (10s or random 5–20s)" },
   "789": { name: "789 Dice", emoji: "🎯", blurb: "2 dice · 7 top-up · 8 half · 9 whole cup 🍺" },
   stack: { name: "Tower Stack", emoji: "🧱", blurb: "one tower, take turns · whoever knocks it over loses" },
   number: { name: "Guess the Number", emoji: "🔢", blurb: "one 4-digit number, guess any time · no host, runs 24/7" },
@@ -60,7 +60,7 @@ const RULES: Record<string, string[]> = {
     "Lowest score buys the round 😄.",
   ],
   draw: [
-    "3–20 players. A random player becomes the drawer and secretly gets a word — a food, an animal or an item.",
+    "3+ players. A random player becomes the drawer and secretly gets a word — a food, an animal or an item.",
     "Everyone else sees the hint: the category and the letter blanks (a letter is revealed at 2:00 and 4:00).",
     "The drawer draws it on the board — no writing letters! Everyone types guesses.",
     "First correct guess wins: that guesser AND the drawer win, everyone else drinks 🍺.",
@@ -71,7 +71,7 @@ const RULES: Record<string, string[]> = {
     "Players cross one at a time (random order). On your turn tap LEFT or RIGHT for the next row (15s).",
     "Safe glass → you step forward. Wrong glass → it shatters, you fall, you're OUT and drink 1 cup 🍺.",
     "Every broken row is shown to everyone, so the next walker skips straight past the known rows.",
-    "Everyone who reaches the end wins 🏁 (many winners possible). If nobody makes it, nobody wins. Up to 20 players.",
+    "Everyone who reaches the end wins 🏁 (many winners possible). If nobody makes it, nobody wins.",
   ],
   memory: [
     "2 players. 30 cards face-down (6 × 5) — 15 pairs of numbers.",
@@ -136,7 +136,7 @@ const RULES: Record<string, string[]> = {
     "The target is 10:00 — or, if the host picked Random, a surprise time from 5:00 to 20:00 shown when the game starts.",
     "Hit STOP as close to the target as you can; your time locks in instantly.",
     "Whoever stops closest wins 🏆; everyone else loses.",
-    "Same time = shared win (2 or 3 winners is fine). Up to 20 players.",
+    "Same time = shared win (2 or 3 winners is fine).",
   ],
   stack: [
     "Everyone builds ONE tower together — take turns, one block each (top-down view).",
@@ -561,7 +561,7 @@ function LobbyRoom({ room, code, isHost }: any) {
     <div className="rwg-card p-4">
       <p className="font-bold text-white mb-1">{GAMES[room.game]?.emoji} {GAMES[room.game]?.name}</p>
       <p className="text-[11px] text-white/50 mb-3">{GAMES[room.game]?.blurb} · {room.hasPassword ? "🔒 private" : "open"}</p>
-      <p className="text-xs text-white/50 mb-2 flex items-center gap-1.5"><Users className="w-4 h-4" /> {room.players.length}/20 players</p>
+      <p className="text-xs text-white/50 mb-2 flex items-center gap-1.5"><Users className="w-4 h-4" /> {room.players.length}/{room.maxPlayers || 20} players</p>
       <div className="flex flex-wrap gap-2 mb-4">
         {room.players.map((p: any) => (
           <span key={p.id} className={`px-3 py-1.5 rounded-full text-sm ${p.id === room.hostId ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/70"}`}>

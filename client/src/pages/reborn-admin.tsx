@@ -354,7 +354,12 @@ function GamesAdmin() {
     <div className="space-y-3">
       <Card>
         <h3 className="font-bold text-sm flex items-center gap-2"><Gamepad2 className="w-4 h-4 text-amber-300" /> Live games schedule</h3>
-        <p className="text-[11px] text-white/50 mt-1">Turn each game on/off and pick which weekdays members can play it. Members create rooms; the host starts and up to 20 play live.</p>
+        <p className="text-[11px] text-white/50 mt-1">Turn each game on/off and pick which weekdays members can play it. Members create rooms; the host starts and plays live.</p>
+        <label className="mt-3 block text-xs text-white/50">Max players per room — applies to all games <span className="text-white/30">(default 20)</span>
+          <input type="number" inputMode="numeric" min={2} max={100} value={cur.maxPlayers ?? 20} onFocus={(e) => e.currentTarget.select()}
+            onChange={(e) => setCfg({ ...cur, maxPlayers: Math.min(100, Math.max(2, Math.floor(Number(e.target.value) || 20))) })} className={inp + " w-full mt-1"} />
+        </label>
+        <p className="text-[10px] text-white/35 mt-1">Card games keep their own seat limits (Card Match 5 · Poker 8 · Memory 2).</p>
       </Card>
       {catOrder.length > 0 && (
         <Card>
