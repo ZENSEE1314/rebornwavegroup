@@ -13,6 +13,8 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const MOBILE = matchMedia("(max-width: 760px)").matches;
 const PORTRAIT = () => innerWidth / innerHeight < 0.85;
+// Lateral distance of the side displays; closer on portrait so they fit the narrow view.
+const SIDE_X = () => (PORTRAIT() ? 5.5 : 8);
 const SMOOTHING = 5.5;          // higher = snappier scroll follow
 const FLASH_HALF_WIDTH = 0.018; // portal flash window around each segment boundary
 const BEAT_FADE = 0.014;        // overlay fade width in progress units
@@ -81,7 +83,22 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.55;
 
-const camera = new THREE.PerspectiveCamera(PORTRAIT() ? 62 : 45, innerWidth / innerHeight, 0.1, 400);
+const FOV_LANDSCAPE = 45, FOV_PORTRAIT = 62;
+const PORTRAIT_FRAME = 1.24; // virtual frame height / screen height on portrait
+const camera = new THREE.PerspectiveCamera(FOV_LANDSCAPE, innerWidth / innerHeight, 0.1, 400);
+function fitCamera() {
+  camera.aspect = innerWidth / innerHeight;
+  if (PORTRAIT()) {
+    const full = innerHeight * PORTRAIT_FRAME;
+    camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(FOV_PORTRAIT) / 2) * PORTRAIT_FRAME));
+    camera.setViewOffset(innerWidth, full, 0, full - innerHeight, innerWidth, innerHeight);
+  } else {
+    camera.fov = FOV_LANDSCAPE;
+    camera.clearViewOffset();
+  }
+  camera.updateProjectionMatrix();
+}
+fitCamera();
 const zoomDimmer = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshBasicMaterial({ color: 0x05030c, transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false, fog: false }));
 zoomDimmer.position.z = -0.5; zoomDimmer.renderOrder = -1; zoomDimmer.layers.set(1); // ZOOM_LAYER (declared below)
 camera.add(zoomDimmer); scene.add(camera);
@@ -443,7 +460,7 @@ function buildFloor(seg, dress) {
   anims.push({ zone: zi, fn: (t) => { if (!REDUCED) w.position.y = Y + 1.1 + Math.sin(t * 0.7) * 0.08; } });
   Z.add(accentLight(seg.accent, m * -7, Y + 5, -14), accentLight(seg.accent2, m * 7, Y + 5, -26), accentLight(seg.accent, 0, Y + 7, -42, 70));
   Z.add(dust(zi, seg.accent, 320, [-18, 18, Y + 0.4, Y + 14, -50, 14]));
-  const ctx = { Z, zi, Y, m, seg, videoX: m * -8, clusterX: m * 8, videoRot: m * 0.67, clusterRot: m * -0.74 };
+  const ctx = { Z, zi, Y, m, seg, videoX: m * -SIDE_X(), clusterX: m * SIDE_X(), videoRot: m * 0.67, clusterRot: m * -0.74 };
   dress(ctx);
   return Z;
 }
@@ -483,6 +500,7 @@ function dressKTV(ctx) {
   }
   // Game house: Doluruu photo spot flanked by claw machines, arcade cabinets further in
   const house = place(new THREE.Group(), ctx.videoX, Y, -17, ctx.videoRot); Z.add(house);
+  if (PORTRAIT()) house.scale.setScalar(0.78); // the camera passes closer on portrait
   const backdrop = card(4.6, 4, (x, W, H) => {
     const g = x.createRadialGradient(W / 2, H * 0.45, 0, W / 2, H * 0.45, W * 0.7); g.addColorStop(0, "#6a2f9a"); g.addColorStop(1, "#140b24");
     x.fillStyle = g; x.fillRect(0, 0, W, H);
@@ -667,7 +685,7 @@ function dressPrivate(ctx) {
     }, { glow: 0xff7ac0 });
     const photo = new THREE.Mesh(new THREE.PlaneGeometry(2.36, 2.36), new THREE.MeshBasicMaterial({ map: IMG[`beauty_${key}`], toneMapped: false }));
     photo.position.set(0, 0.36, 0.02); c.add(photo);
-    Z.add(zoomable(place(c, bx + i * 0.8 * ctx.m, Y + 2.9 + i * 0.5, -23.5 - i * 2.2, bRot), zi));
+    Z.add(zoomable(place(c, bx + i * 0.8 * ctx.m, Y + 2.9 + i * 0.5, -25.5 - i * 2.2, bRot), zi));
     anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.9 + i * 0.5 + Math.sin(t2 + i) * 0.1; } });
   });
   // 5-IN-1 monument
@@ -898,6 +916,51 @@ function dressLocation({ Z, zi, Y, seg, portrait }) {
 }
 
 // ── Zone: FINALE ───────────────────────────────────────────────────────────
+const ORBIT_SPEED = 0.04; // radians per second
+const FLOOR_CONCEPTS = [
+  ["1F · KTV Lounge", "The party floor", ["KOS sing-off · earn K-GOLD", "Tokens, spin & blind boxes", "Doluruu photo spot · arcade"]],
+  ["2F · Private KTV", "Rooms & beauty", ["Four private KTV rooms", "Facials & hair salon"]],
+  ["3F · VIP", "Gold members", ["Private VIP KTV rooms", "Priority booking", "Pool & darts · by invitation"]],
+  ["4F · Pet Cafe", "Pets & food", ["Sugar gliders, cats, snakes", "and guinea pigs", "Family tables & kids"]],
+  ["5F · Rooftop", "Live every night", ["DJs, bands & KOS finals", "Real crowds, real energy"]],
+];
+const FINALE_VIDEOS = [
+  ["intro", "Reborn Wave House"], ["ktv", "2F Private KTV"], ["sing", "1F Kings of Singers"],
+  ["vip", "3F VIP"], ["live", "5F Live rooftop"], ["demo", "App demo"],
+];
+const FINALE_PHOTOS = [
+  ["blindbox", "Doluruu blind box"], ["pet_cat", "Cats"], ["pet_sugar-glider", "Sugar gliders"], ["beauty_facial", "Facial"],
+  ["pet_snake", "Snakes"], ["beauty_hair", "Hair salon"], ["pet_guinea-pig", "Guinea pigs"], ["boy", "Doluruu"],
+];
+
+// Poster card that opens the clip when clicked (hover zooms it like any card).
+function finaleVideoCard(name, label) {
+  const c = card(3.4, 2.4, (x, W, H) => {
+    rr(x, 4, 4, W - 8, H - 8, 22); x.fillStyle = "rgba(14,9,26,.96)"; x.fill();
+    x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+    x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.09}px Montserrat`; x.textAlign = "center"; x.fillText(label, W / 2, H * 0.92);
+  }, { frame: false, glow: 0x7a4dff });
+  const poster = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 1.74), new THREE.MeshBasicMaterial({ map: IMG[`poster_${name}`], toneMapped: false }));
+  poster.position.set(0, 0.24, 0.02); c.add(poster);
+  const play = card(0.6, 0.6, (x, W) => {
+    x.fillStyle = "rgba(10,7,20,.6)"; x.beginPath(); x.arc(W / 2, W / 2, W * 0.46, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#f0d787"; x.beginPath(); x.moveTo(W * 0.4, W * 0.3); x.lineTo(W * 0.72, W * 0.5); x.lineTo(W * 0.4, W * 0.7); x.closePath(); x.fill();
+  }, { frame: false });
+  play.position.set(0, 0.24, 0.04); c.add(play);
+  c.userData.face.userData.screen = { name };
+  return c;
+}
+
+function finalePhotoCard(tex, label) {
+  const c = card(2.4, 2.95, (x, W, H) => {
+    rr(x, 4, 4, W - 8, H - 8, 22); x.fillStyle = "rgba(20,13,24,.96)"; x.fill();
+    x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+    x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.07}px Montserrat`; x.textAlign = "center"; x.fillText(label.toUpperCase(), W / 2, H * 0.93);
+  }, { frame: false, glow: 0xdcb45a });
+  const photo = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
+  photo.position.set(0, 0.26, 0.02); c.add(photo);
+  return c;
+}
 function buildFinale() {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
   const Y = segById("finale").y;
@@ -905,43 +968,44 @@ function buildFinale() {
   const logo = new THREE.Group(); logo.position.set(0, Y, 0); Z.add(logo);
   const r = word("REBORN", 3.5, M.gold, 20); r.position.y = 4.4; logo.add(r);
   const w = word("WAVE", 3.5, M.gold, 20); w.position.y = 0.4; logo.add(w);
-  if (PORTRAIT()) logo.scale.setScalar(0.55);
+  if (PORTRAIT()) logo.scale.setScalar(0.68);
   const halo = glowPlane(0xdcb45a, 40, 22, 0.35); halo.position.set(0, Y + 4, -4); Z.add(halo);
   const d = makeDoluruu("female", 4.2); d.position.set(PORTRAIT() ? 3.2 : 12, Y, 2.2); Z.add(d);
   anims.push({ zone: zi, fn: (t) => { if (!REDUCED) d.userData.sprite.position.y = Math.abs(Math.sin(t * 2.2)) * 0.12; } });
   Z.add(accentLight(0xffd27a, 0, Y + 8, 10, 160), accentLight(0x7a4dff, -14, Y + 6, 0, 90), accentLight(0xff4fa3, 14, Y + 6, 0, 90));
   Z.add(dust(zi, HEX.goldHi, 500, [-30, 30, Y + 0.3, Y + 20, -20, 20]));
 
-  // Everything from the tower converges into a halo around the logo
-  const factories = [
-    () => card(2.2, 1.4, drawMemberCard("GOLD TIER"), { frame: false }),
-    () => card(1.4, 1.4, drawIcon("🎤", "KTV"), { frame: false }),
-    () => card(1.4, 1.4, drawIcon("🍸", "F&B"), { frame: false }),
-    () => card(1.4, 1.4, drawIcon("💄", "Beauty"), { frame: false }),
-    () => card(1.4, 1.4, drawIcon("🎮", "Gaming"), { frame: false }),
-    () => card(1.4, 1.4, drawIcon("💻", "IT"), { frame: false }),
-    () => { const g = new THREE.Group(); const e = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 16), new THREE.MeshStandardMaterial({ color: 0xff9db0, roughness: 0.35 })); e.scale.y = 1.3; g.add(e); return g; },
-    () => { const n = ["ktv", "vip", "live", "demo", "sing", "intro"][Math.floor(Math.random() * 6)]; const g = new THREE.Group(); const p = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.35), new THREE.MeshBasicMaterial({ map: IMG[`poster_${n}`], toneMapped: false })); const f = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.45), new THREE.MeshBasicMaterial({ color: HEX.gold, toneMapped: false })); f.position.z = -0.01; g.add(f, p); return g; },
+  // The whole tower converges into a halo of zoomable cards: every floor, video and photo
+  const groups = [
+    FLOOR_CONCEPTS.map(([eyebrow, title, lines]) => card(3.4, 2.6, drawPanel({ eyebrow, title, lines, accent: "#f0d787" }), { glow: 0xdcb45a })),
+    FINALE_VIDEOS.map(([name, label]) => finaleVideoCard(name, label)),
+    FINALE_PHOTOS.map(([key, label]) => finalePhotoCard(IMG[key], label)),
   ];
-  const N = MOBILE ? 14 : 24;
-  for (let i = 0; i < N; i++) {
-    const o = factories[i % factories.length]();
+  // Round-robin so floors, videos and photos alternate around the ring
+  const ring = [];
+  for (let i = 0; groups.some((g) => i < g.length); i++) for (const g of groups) if (i < g.length) ring.push(g[i]);
+  const N = ring.length;
+  const settledScale = PORTRAIT() ? 0.7 : 1;
+  const ringRadius = PORTRAIT() ? 7.5 : Math.min(14, 11 * (innerWidth / innerHeight)); // keep the halo on screen
+  ring.forEach((o, i) => {
     const ang = (i / N) * Math.PI * 2;
     const dir = V(rand(-1, 1), rand(-0.4, 1), rand(-1, 1)).normalize();
-    const item = {
-      o, ang, rad: PORTRAIT() ? 7.5 : 14, zOff: rand(-6, -2), yOff: rand(-0.5, 0.5),
+    converge.push({
+      o, ang, rad: ringRadius, zOff: rand(-6, -2), yOff: rand(-0.5, 0.5),
       start: V(dir.x * 70, Y + 4 + dir.y * 40, dir.z * 70 - 10), spin: rand(4, 9) * (Math.random() < 0.5 ? -1 : 1),
-    };
-    converge.push(item); Z.add(o);
-  }
+    });
+    Z.add(zoomable(o, zi));
+  });
+  let orbit = 0;
   anims.push({ zone: zi, fn: (t, dt, lt) => {
     const c = easeOut(clamp((lt - 0.02) / 0.62));
+    if (!REDUCED && !hoveredZoom) orbit += dt * ORBIT_SPEED; // hold still while a card is zoomed
     for (const it of converge) {
-      const a = it.ang + (REDUCED ? 0 : t * 0.08);
+      const a = it.ang + orbit;
       const tx = Math.cos(a) * it.rad, ty = Y + 4.2 + Math.sin(a) * it.rad * 0.55 + it.yOff;
       it.o.position.set(lerp(it.start.x, tx, c), lerp(it.start.y, ty, c), lerp(it.start.z, it.zOff, c));
       it.o.rotation.y = (1 - c) * it.spin;
-      it.o.scale.setScalar(lerp(0.4, 0.85, c));
+      it.o.scale.setScalar(lerp(0.3, settledScale, c));
     }
   } });
 }
@@ -958,13 +1022,13 @@ function floorPath(seg) {
   if (seg.id === "live") {
     return path(
       [[0, Y + 3.6, 26 + back], [-0.8 * k, Y + 3.6, 16 + back * 0.5], [-1.2 * k, Y + 5.4, 6], [0.4 * k, Y + 8, -1.5], [-2.8 * k, Y + 3.0, -12], [2.4 * k, Y + 2.4, -21], [0, Y + 3.8, -30], [0, Y + 7.5, -37]],
-      [[0, Y + 3.4, 0], [0, Y + 3.4, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [-8, Y + 3.2, -17], [8, Y + 3.2, -24], [0, Y + 6.8, -48], [0, Y + 12, -48]],
+      [[0, Y + 3.4, 0], [0, Y + 3.4, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [-SIDE_X(), Y + 3.2, -17], [SIDE_X(), Y + 3.2, -24], [0, Y + 6.8, -48], [0, Y + 12, -48]],
     );
   }
   const lookY = seg.id === "pet" ? 3.2 : 3.6;
   return path(
     [[0, Y + 3.3, 26 + back], [m * -0.8 * k, Y + 3.5, 16 + back * 0.5], [m * -1.2 * k, Y + 5.4, 6], [m * 0.4 * k, Y + 8, -1.5], [m * -3.2 * k, Y + 3.2, -11], [m * 3.3 * k, Y + 2.9, -22], [0, Y + 4.1, -33], [0, Y + 7.5, -40]],
-    [[0, Y + 3.2, 0], [0, Y + 3.2, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [m * -8, Y + 3.3, -17], [m * 8, Y + 3.3, -27], [0, Y + lookY, -47], [0, Y + 13, -47]],
+    [[0, Y + 3.2, 0], [0, Y + 3.2, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [m * -SIDE_X(), Y + 3.3, -17], [m * SIDE_X(), Y + 3.3, -27], [0, Y + lookY, -47], [0, Y + 13, -47]],
   );
 }
 // Slow dolly-in towards a stage centred on (fx, lookY).
@@ -988,7 +1052,7 @@ function buildPaths() {
     showcasePath(segById("demo"), 0, 4.4, 12, portrait ? 16 : 0),
     showcasePath(segById("location"), portrait ? 0 : 1.5, portrait ? 4.6 : 3.4, 13, portrait ? 14 : 0),
     path([[0, F + 8, 56 + back], [0, F + 6.5, 40 + back], [0, F + 5.2, 28 + back], [0, F + 4.9, 25 + back]],
-      [[0, F + 5, 0], [0, F + 4.6, 0], [0, F + 3.4, 0], [0, F + (back ? -6 : 1.0), 0]]),
+      [[0, F + 5, 0], [0, F + 4.6, 0], [0, F + 3.4, 0], [0, F + (back ? -0.5 : 1.0), 0]]),
   ];
 }
 
@@ -1126,7 +1190,8 @@ function unapplyZoom() {
 }
 // Ease hovered cards towards a framed spot in front of the camera, facing it.
 function applyZoom(dt) {
-  const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+  const frameScale = camera.view && camera.view.enabled ? camera.view.fullHeight / camera.view.height : 1;
+  const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / frameScale;
   let isZooming = false, maxK = 0;
   for (const e of zoomables) {
     e.k += ((hoveredZoom === e ? 1 : 0) - e.k) * Math.min(1, dt * ZOOM_RATE);
@@ -1196,9 +1261,7 @@ function frame(ts) {
 }
 
 function onResize() {
-  camera.aspect = innerWidth / innerHeight;
-  camera.fov = PORTRAIT() ? 62 : 45;
-  camera.updateProjectionMatrix();
+  fitCamera();
   renderer.setSize(innerWidth, innerHeight);
   buildPaths();
   fitIntroBackground();
