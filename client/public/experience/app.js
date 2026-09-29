@@ -56,6 +56,8 @@ const PLAN_Y = 5.2;       // plans hang just above/behind each floor's closing m
 const PLAN_Y_LIVE = 14.8; // above the 5F stage truss
 const PLAN_Z = -50;
 const PLAN_TILT = 0.15;   // lean towards the camera below
+// Photo-style images of the individual rooms (img/rooms/), shown on each room's door.
+const ROOM_PHOTOS = ["ktv-room-1", "ktv-room-2", "ktv-room-3", "dance-room", "vip-room-1", "vip-room-2"];
 const segById = (id) => SEGS.find((s) => s.id === id);
 
 // Venue facts shown on the location stage (mirrors landing page + booking hours).
@@ -163,6 +165,7 @@ async function loadAll() {
   IMG.blindbox = loadTex("./img/blindbox.jpeg");
   for (const p of PETS) IMG[`pet_${p.key}`] = loadTex(`./img/pets/${p.key}.jpg`);
   for (const k of ["facial", "hair"]) IMG[`beauty_${k}`] = loadTex(`./img/beauty/${k}.jpg`);
+  for (const k of ROOM_PHOTOS) IMG[`room_${k}`] = loadTex(`./img/rooms/${k}.jpg`);
   const planKeys = Object.values(FLOOR_PLANS).flat().map(([key]) => key);
   const planTex = await Promise.all(planKeys.map((key) => texLoader.loadAsync(`./img/plans/${key}.jpg`)));
   planKeys.forEach((key, i) => { planTex[i].colorSpace = THREE.SRGBColorSpace; planTex[i].anisotropy = renderer.capabilities.getMaxAnisotropy(); IMG[`plan_${key}`] = planTex[i]; });
@@ -665,7 +668,7 @@ function arcadeCabinet(color, label) {
 }
 
 // A lit glass room pod whose front faces the floor's centre line.
-function roomPod(ctx, eyebrow, title, x, z, glow) {
+function roomPod(ctx, eyebrow, title, x, z, glow, photoKey = null) {
   const { Z, Y } = ctx;
   const pod = new THREE.Group();
   const shell = new THREE.Mesh(new THREE.BoxGeometry(3.6, 3.4, 3.2), M.glass); shell.position.y = 1.7; pod.add(shell);
@@ -674,11 +677,17 @@ function roomPod(ctx, eyebrow, title, x, z, glow) {
   const front = card(3.4, 3.2, (x, W, H) => {
     const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, hex); g.addColorStop(0.55, "rgba(40,16,60,1)"); g.addColorStop(1, "#0d0917");
     x.fillStyle = g; x.fillRect(0, 0, W, H);
-    rr(x, W * 0.22, H * 0.3, W * 0.56, H * 0.3, 10); x.fillStyle = "rgba(255,240,210,.9)"; x.fill(); // karaoke screen
-    x.fillStyle = "#3a1455"; rr(x, W * 0.12, H * 0.74, W * 0.76, H * 0.16, 18); x.fill(); // sofa
+    if (!photoKey) { // drawn stand-in when the room has no photo
+      rr(x, W * 0.22, H * 0.3, W * 0.56, H * 0.3, 10); x.fillStyle = "rgba(255,240,210,.9)"; x.fill(); // karaoke screen
+      x.fillStyle = "#3a1455"; rr(x, W * 0.12, H * 0.74, W * 0.76, H * 0.16, 18); x.fill(); // sofa
+    }
     x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.11}px Montserrat`; x.fillText(title, W * 0.08, H * 0.18);
     x.fillStyle = "#f0d787"; x.font = `600 ${H * 0.055}px Montserrat`; x.fillText(eyebrow.toUpperCase(), W * 0.08, H * 0.07 + H * 0.02);
   }, { glow });
+  if (photoKey) {
+    const photo = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 2.3), new THREE.MeshBasicMaterial({ map: IMG[`room_${photoKey}`], toneMapped: false }));
+    photo.position.set(0, -0.32, 0.02); front.add(photo);
+  }
   front.position.set(0, 1.7, 1.62); pod.add(zoomable(front, ctx.zi));
   place(pod, x, Y, z, -Math.sign(x) * Math.PI / 2);
   Z.add(pod);
@@ -720,7 +729,7 @@ function dressPrivate(ctx) {
   Z.add(place(videoScreen("ktv", 6.6, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
   // Three KTV rooms and the dance room: two past the video, two on the near cluster side
   [[ctx.clusterX * 1.2, -9], [ctx.clusterX * 1.2, -16], [ctx.videoX * 1.2, -25], [ctx.videoX * 1.2, -32]]
-    .forEach(([x, z], i) => (i < 3 ? roomPod(ctx, "Private KTV", `KTV Room ${i + 1}`, x, z, i % 2 ? seg.accent : 0xc04dff) : roomPod(ctx, "Lights & music", "Dance Room", x, z, 0xffd23f)));
+    .forEach(([x, z], i) => (i < 3 ? roomPod(ctx, "Private KTV", `KTV Room ${i + 1}`, x, z, i % 2 ? seg.accent : 0xc04dff, `ktv-room-${i + 1}`) : roomPod(ctx, "Lights & music", "Dance Room", x, z, 0xffd23f, "dance-room")));
   // Beauty corner (where the camera turns during the beauty beat): mirror + chair + cards
   const bx = ctx.clusterX, bRot = ctx.clusterRot;
   const mirror = card(2, 2.8, (x, W, H) => {
@@ -763,8 +772,8 @@ function dressVIP(ctx) {
   for (const z of [-6, -16, -26, -36]) for (const s of [-1, 1]) {
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 9, 32), M.gold); p.position.set(s * 6.8, Y + 4.5, z); Z.add(p);
   }
-  roomPod(ctx, "Gold members", "VIP Room", ctx.clusterX * 1.25, -27, 0xf0d787);
-  roomPod(ctx, "Gold members", "VIP Room", ctx.clusterX * 1.25, -34, 0xc98b3c);
+  roomPod(ctx, "Gold members", "VIP KTV Room 1", ctx.clusterX * 1.25, -27, 0xf0d787, "vip-room-1");
+  roomPod(ctx, "Gold members", "VIP KTV Room 2", ctx.clusterX * 1.25, -34, 0xc98b3c, "vip-room-2");
   const beauty = card(3, 2.3, drawPanel({ eyebrow: "3F · Beauty", title: "Rooms 6–8", lines: ["Facials & hair", "Same floor as VIP"], accent: "#ffb3d9" }), { glow: 0xff7ac0 });
   Z.add(zoomable(place(beauty, ctx.videoX * 0.9, Y + 2.9, -27, ctx.videoRot), zi));
   [["GOLD", "Gold tier only", -6.2], ["PRIORITY", "VIP room booking", 0], ["INVITE", "Members only", 6.2]].forEach(([wtxt, sub, x]) => {
@@ -986,6 +995,8 @@ const FINALE_VIDEOS = [
 const FINALE_PHOTOS = [
   ["blindbox", "Doluruu blind box"], ["pet_cat", "Cats"], ["pet_sugar-glider", "Sugar gliders"], ["beauty_facial", "Facial"],
   ["pet_snake", "Snakes"], ["beauty_hair", "Hair salon"], ["pet_guinea-pig", "Guinea pigs"], ["boy", "Doluruu"],
+  ["room_ktv-room-1", "KTV Room 1"], ["room_vip-room-1", "VIP KTV Room 1"], ["room_ktv-room-2", "KTV Room 2"],
+  ["room_dance-room", "Dance Room"], ["room_ktv-room-3", "KTV Room 3"], ["room_vip-room-2", "VIP KTV Room 2"],
 ];
 
 // Poster card that opens the clip when clicked (hover zooms it like any card).
@@ -1040,7 +1051,7 @@ function buildFinale() {
   const ring = [];
   for (let i = 0; groups.some((g) => i < g.length); i++) for (const g of groups) if (i < g.length) ring.push(g[i]);
   const N = ring.length;
-  const settledScale = PORTRAIT() ? 0.7 : 1;
+  const settledScale = PORTRAIT() ? 0.58 : 1;
   const ringRadius = PORTRAIT() ? 7.5 : Math.min(14, 11 * (innerWidth / innerHeight)); // keep the halo on screen
   ring.forEach((o, i) => {
     const ang = (i / N) * Math.PI * 2;
