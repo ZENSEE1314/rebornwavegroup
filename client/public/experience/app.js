@@ -522,6 +522,26 @@ function buildFloor(seg, dress) {
 }
 const place = (obj, x, y, z, ry = 0) => { obj.position.set(x, y, z); obj.rotation.y = ry; return obj; };
 
+// Three gold words on pedestals across the end of a floor; shrunk and centred on
+// portrait screens so all three fit the narrow view.
+const MONUMENT_SPACING = 6.2, MONUMENT_SPACING_PORTRAIT = 5;
+const MONUMENT_PORTRAIT_SCALE = 0.4;
+const MONUMENT_PORTRAIT_LIFT = 1.1;
+function monumentRow(ctx, items) {
+  const portrait = PORTRAIT();
+  const row = new THREE.Group();
+  row.position.set(0, ctx.Y + (portrait ? MONUMENT_PORTRAIT_LIFT : 0), -47);
+  if (portrait) row.scale.setScalar(MONUMENT_PORTRAIT_SCALE);
+  items.forEach(([wtxt, sub], i) => {
+    const x = (i - 1) * (portrait ? MONUMENT_SPACING_PORTRAIT : MONUMENT_SPACING);
+    const ped = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.8, 1.6), M.night); ped.position.set(x, 0.4, 0); row.add(ped);
+    const wd = word(wtxt, 1.15, wordMaterial(ctx.seg.accent), 4.2); wd.position.set(x, 0.85, 0); row.add(wd);
+    const cap = card(3.6, 0.6, (c2, W, H) => { c2.fillStyle = "#f0d787"; c2.font = `700 ${H * 0.55}px Montserrat`; c2.textAlign = "center"; c2.textBaseline = "middle"; c2.fillText(sub.toUpperCase(), W / 2, H / 2); }, { frame: false });
+    cap.position.set(x, 0.4, 0.85); row.add(cap);
+  });
+  ctx.Z.add(row);
+}
+
 function monolith(ctx, x, z, quote, sub, w = 4.6, h = 3) {
   const slab = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, h + 2.4, 0.5), M.night);
   place(slab, x, ctx.Y + (h + 2.4) / 2, z); ctx.Z.add(slab);
@@ -609,12 +629,7 @@ function dressKTV(ctx) {
   boxImg.position.z = 0.02; box.add(boxImg);
   Z.add(place(box, ctx.clusterX * 0.8, Y + 1.6, -37, ctx.clusterRot));
   // Member economy: all earned and spent on 1F
-  [["TOKENS", "Earn daily", -6.2], ["K-GOLD", "Win at KOS", 0], ["SPIN", "Win prizes", 6.2]].forEach(([wtxt, sub, x]) => {
-    const ped = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.8, 1.6), M.night); ped.position.set(x, Y + 0.4, -47); Z.add(ped);
-    const wd = word(wtxt, 1.15, wordMaterial(seg.accent), 4.2); wd.position.set(x, Y + 0.85, -47); Z.add(wd);
-    const cap = card(3.6, 0.6, (c2, W, H) => { c2.fillStyle = "#f0d787"; c2.font = `700 ${H * 0.55}px Montserrat`; c2.textAlign = "center"; c2.textBaseline = "middle"; c2.fillText(sub.toUpperCase(), W / 2, H / 2); }, { frame: false });
-    cap.position.set(x, Y + 0.4, -46.15); Z.add(cap);
-  });
+  monumentRow(ctx, [["TOKENS", "Earn daily"], ["K-GOLD", "Win at KOS"], ["SPIN", "Win prizes"]]);
 }
 
 // Claw machine: base, glass case full of plush prizes, and a moving gold claw.
@@ -777,12 +792,7 @@ function dressVIP(ctx) {
   roomPod(ctx, "Gold members", "VIP KTV Room 2", ctx.clusterX * 1.25, -34, 0xc98b3c, "vip-room-2");
   const beauty = card(3, 2.3, drawPanel({ eyebrow: "3F · Beauty", title: "Rooms 6–8", lines: ["Facials & hair", "Same floor as VIP"], accent: "#ffb3d9" }), { glow: 0xff7ac0 });
   Z.add(zoomable(place(beauty, ctx.videoX * 0.9, Y + 2.9, -27, ctx.videoRot), zi));
-  [["GOLD", "Gold tier only", -6.2], ["PRIORITY", "VIP room booking", 0], ["INVITE", "Members only", 6.2]].forEach(([wtxt, sub, x]) => {
-    const ped = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.8, 1.6), M.night); ped.position.set(x, Y + 0.4, -47); Z.add(ped);
-    const wd = word(wtxt, 1.15, wordMaterial(seg.accent), 4.2); wd.position.set(x, Y + 0.85, -47); Z.add(wd);
-    const cap = card(3.6, 0.6, (c2, W, H) => { c2.fillStyle = "#f0d787"; c2.font = `700 ${H * 0.55}px Montserrat`; c2.textAlign = "center"; c2.textBaseline = "middle"; c2.fillText(sub.toUpperCase(), W / 2, H / 2); }, { frame: false });
-    cap.position.set(x, Y + 0.4, -46.15); Z.add(cap);
-  });
+  monumentRow(ctx, [["GOLD", "Gold tier only"], ["PRIORITY", "VIP room booking"], ["INVITE", "Members only"]]);
   monolith(ctx, ctx.videoX * 0.62, -35, "Private VIP rooms. Gold members only.", "3F VIP · BY INVITATION", 4.2, 2.6);
 }
 
