@@ -235,6 +235,8 @@ function Router() {
         <Route path="/investor/login" component={InvestorLogin} />
         <Route path="/investor" component={InvestorLanding} />
         <Route path="/lux" component={LuxExperience} />
+        {/* /experience is a standalone static page; leave the SPA so the server serves it */}
+        <Route path="/experience">{() => { window.location.replace("/experience/"); return null; }}</Route>
         <Route path="/attend" component={RebornAttend} />
         <Route path="/order/t/:token" component={OrderTable} />
         <Route path="/ticket/:code" component={TicketView} />
@@ -248,7 +250,7 @@ function Router() {
             <Route path="/" component={RebornDashboard} />
             <Route path="/pet" component={RebornPet} />
             <Route path="/spin" component={RebornSpin} />
-            <Route path="/games" component={RebornGames} />
+            <Route path="/games" component={RebornGames} />
             <Route path="/support" component={RebornSupport} />
             <Route path="/kos" component={RebornKos} />
             <Route path="/songs" component={RebornSong} />
