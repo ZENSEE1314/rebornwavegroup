@@ -34,6 +34,13 @@ const SEGS = [
   { id: "location", a: 0.80, b: 0.90, y: 900, accent: 0x2fae9e, accent2: 0xdcb45a, fog: 0x08121a, label: "VISIT" },
   { id: "finale", a: 0.90, b: 1.00, y: 1100, fog: 0x0a0714, label: "★" },
 ];
+// 4F resident pets (photo-style images in img/pets/).
+const PETS = [
+  { key: "sugar-glider", name: "Sugar gliders" },
+  { key: "cat", name: "Cats" },
+  { key: "snake", name: "Snakes" },
+  { key: "guinea-pig", name: "Guinea pigs" },
+];
 const segById = (id) => SEGS.find((s) => s.id === id);
 
 // Venue facts shown on the location stage (mirrors landing page + booking hours).
@@ -121,6 +128,7 @@ async function loadAll() {
   font = f;
   imgs.forEach((n, i) => { tex[i].colorSpace = THREE.SRGBColorSpace; tex[i].anisotropy = 8; IMG[n] = tex[i]; });
   IMG.blindbox = loadTex("./img/blindbox.jpeg");
+  for (const p of PETS) IMG[`pet_${p.key}`] = loadTex(`./img/pets/${p.key}.jpg`);
   for (const n of ["intro", "ktv", "sing", "vip", "live", "demo"]) IMG[`poster_${n}`] = loadTex(`./media/${n}.jpg`);
 }
 
@@ -140,17 +148,6 @@ function makeDoluruu(imgKey, height) {
   grp.userData.sprite = sprite;
   billboards.push(sprite);
   return grp;
-}
-
-// Emoji drawn to a transparent canvas and stood up as a camera-facing sprite.
-function emojiSprite(emoji, height) {
-  const tex = canvasTexture(256, 256, (x, W, H) => {
-    x.font = `${H * 0.8}px ${EMOJI_FONT}`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(emoji, W / 2, H * 0.54);
-  });
-  const geo = new THREE.PlaneGeometry(height, height); geo.translate(0, height / 2, 0);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.05, toneMapped: false }));
-  billboards.push(mesh);
-  return mesh;
 }
 
 // ── Builders ───────────────────────────────────────────────────────────────
@@ -613,16 +610,23 @@ function dressVIP(ctx) {
 // 4F — pet cafe & restaurant: our pets, food, kids and families.
 function dressPet(ctx) {
   const { Z, zi, Y, seg } = ctx;
-  // Meet the pets
-  [["🐿️", "Sugar gliders"], ["🐱", "Cats"], ["🐍", "Snakes"], ["🐹", "Guinea pigs"]].forEach(([ic, name], i) => {
-    const c = card(2, 2, drawIcon(ic, name), { frame: false, glow: seg.accent2, pxPerUnit: 200 });
-    Z.add(place(c, ctx.clusterX + i * 0.5 * ctx.m, Y + 2.8 + (i % 2) * 0.9, -14 - i * 3.4, ctx.clusterRot));
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + 2.8 + (i % 2) * 0.9 + Math.sin(t * 1.3 + i) * 0.12; } });
+  // Meet the pets: framed photo cards
+  PETS.forEach(({ key, name }, i) => {
+    const c = card(2.4, 2.95, (x, W, H) => {
+      rr(x, 4, 4, W - 8, H - 8, 22); x.fillStyle = "rgba(20,13,10,.96)"; x.fill();
+      x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+      x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.075}px Montserrat`; x.textAlign = "center"; x.fillText(name.toUpperCase(), W / 2, H * 0.93);
+    }, { frame: false, glow: seg.accent2 });
+    const photo = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: IMG[`pet_${key}`], toneMapped: false }));
+    photo.position.set(0, 0.26, 0.02); c.add(photo);
+    const baseY = 3 + (i % 2) * 0.6;
+    Z.add(place(c, ctx.videoX + i * 0.5 * -ctx.m, Y + baseY, -13 - i * 3.4, ctx.videoRot));
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + baseY + Math.sin(t * 1.3 + i) * 0.1; } });
   });
   // Food, kids & family
   [["☕", "Cafe", "Coffee, tea & sweet treats"], ["🍽️", "Restaurant", "Proper meals made to share"], ["👨‍👩‍👧", "Kids & family", "Family tables, kid-friendly"]].forEach(([ic, t, l], i) => {
     const c = card(2.6, 2.1, drawPanel({ eyebrow: "4F · Pet cafe", icon: ic, title: t, lines: [l], accent: "#ffcf8a" }), { glow: seg.accent });
-    Z.add(place(c, ctx.videoX + i * 0.5 * -ctx.m, Y + 2.8 + i * 1.3, -15 - i * 3.2, ctx.videoRot));
+    Z.add(place(c, ctx.clusterX + i * 0.5 * ctx.m, Y + 2.8 + i * 1.3, -25 - i * 2.6, ctx.clusterRot));
     anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.8 + i * 1.3 + Math.sin(t2 + i) * 0.1; } });
   });
   // Cafe tables with chairs and cups
@@ -650,19 +654,6 @@ function dressPet(ctx) {
   for (let i = 0; i < nBalls; i++) { const r = Math.sqrt(Math.random()) * 2.2, a = rand(0, Math.PI * 2); bm.setPosition(Math.cos(a) * r, rand(0.15, 0.6), Math.sin(a) * r); balls.setMatrixAt(i, bm); balls.setColorAt(i, bcols[i % 5]); }
   pit.add(balls);
   Z.add(place(pit, ctx.clusterX * 0.9, Y, -41));
-  // Pets roaming the cafe
-  const cat = emojiSprite("🐈", 0.9); cat.position.set(-4.5, Y, -10.4); Z.add(cat);
-  const pig = emojiSprite("🐹", 0.6); pig.position.set(4.5, Y, -13.3); Z.add(pig);
-  const snake = emojiSprite("🐍", 0.9); snake.position.set(-3.5, Y + 1.04, -33); Z.add(snake);
-  const glider = emojiSprite("🐿️", 0.8); Z.add(glider);
-  anims.push({ zone: zi, fn: (t) => {
-    if (REDUCED) { glider.position.set(0, Y + 5, -20); return; }
-    cat.position.x = -4.5 + Math.sin(t * 0.5) * 2.2;
-    pig.position.y = Y + Math.abs(Math.sin(t * 3)) * 0.15;
-    snake.rotation.z = Math.sin(t * 1.4) * 0.08;
-    const g = (t * 0.12) % 1;
-    glider.position.set(lerp(-9, 9, g), Y + 6.5 - Math.sin(g * Math.PI) * 2.5, -18 - g * 8);
-  } });
   // Menu board at the end of the floor
   const menu = card(6.4, 3.6, drawPanel({ eyebrow: "4F · Pet cafe & restaurant", title: "Pets, food & family", lines: ["☕  Coffee, tea & treats", "🍽️  Meals to share", "🐾  Meet our pets"], accent: "#ffcf8a" }), { glow: seg.accent });
   Z.add(place(menu, 0, Y + 3, -47));
