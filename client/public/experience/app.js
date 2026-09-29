@@ -1,6 +1,7 @@
 // Reborn Wave — immersive scroll-driven 3D tower experience.
-// One continuous WebGL world: arrival → lift portal → 1F KTV → 2F Private →
-// 3F VIP → 4F Pet (Doluruu) → 5F Live rooftop → convergence + CTA.
+// One continuous WebGL world: arrival → lift portal → 1F KTV Lounge & game house →
+// 2F Private KTV & beauty → 3F VIP (Gold members) → 4F Pet cafe → 5F Live rooftop →
+// convergence + CTA.
 // Scroll maps to a master timeline (smoothed, Lenis-style); each segment owns a
 // Catmull-Rom camera path, and a gold "lift" flash hides the cut between floors.
 import * as THREE from "three";
@@ -22,14 +23,25 @@ const GOLD_CSS = ["#c9a84c", "#f0d787"];
 // Segments of the master timeline. Floors are stacked far apart in Y so each
 // world is isolated; the flash covers the camera cut between them.
 const SEGS = [
-  { id: "arrival", a: 0.00, b: 0.13, y: 0, fog: 0x0b0716, label: "" },
-  { id: "ktv", a: 0.13, b: 0.28, y: 200, floor: 1, word: "KTV", mirror: false, accent: 0xc04dff, accent2: 0xff4fa3, fog: 0x12071d, label: "1F" },
-  { id: "private", a: 0.28, b: 0.42, y: 300, floor: 2, word: "PRIVATE", mirror: true, accent: 0x8a3dff, accent2: 0xdcb45a, fog: 0x0e0716, label: "2F" },
-  { id: "vip", a: 0.42, b: 0.56, y: 400, floor: 3, word: "VIP", mirror: false, accent: 0xf0d787, accent2: 0xc98b3c, fog: 0x140e07, label: "3F" },
-  { id: "pet", a: 0.56, b: 0.72, y: 500, floor: 4, word: "PET", mirror: true, accent: 0x2fae9e, accent2: 0xff9db0, fog: 0x0a1417, label: "4F" },
-  { id: "live", a: 0.72, b: 0.86, y: 600, floor: 5, word: "LIVE", mirror: false, accent: 0xff5a5f, accent2: 0x4fc3ff, fog: 0x10050b, label: "5F" },
-  { id: "finale", a: 0.86, b: 1.00, y: 800, fog: 0x0a0714, label: "★" },
+  { id: "arrival", a: 0.00, b: 0.10, y: 0, fog: 0x0b0716, label: "" },
+  { id: "ktv", a: 0.10, b: 0.21, y: 200, floor: 1, word: "LOUNGE", mirror: false, accent: 0xc04dff, accent2: 0xff4fa3, fog: 0x12071d, label: "1F" },
+  { id: "private", a: 0.21, b: 0.31, y: 300, floor: 2, word: "PRIVATE", mirror: true, accent: 0x8a3dff, accent2: 0xdcb45a, fog: 0x0e0716, label: "2F" },
+  { id: "vip", a: 0.31, b: 0.41, y: 400, floor: 3, word: "VIP", mirror: false, accent: 0xf0d787, accent2: 0xc98b3c, fog: 0x140e07, label: "3F" },
+  { id: "pet", a: 0.41, b: 0.52, y: 500, floor: 4, word: "PET CAFE", mirror: true, accent: 0xffb35c, accent2: 0x2fae9e, fog: 0x130d0a, label: "4F" },
+  { id: "live", a: 0.52, b: 0.62, y: 600, floor: 5, word: "LIVE", mirror: false, accent: 0xff5a5f, accent2: 0x4fc3ff, fog: 0x10050b, label: "5F" },
+  { id: "blindbox", a: 0.62, b: 0.72, y: 700, accent: 0xff9db0, accent2: 0xc7b3ff, fog: 0x120a18, label: "BOX" },
+  { id: "demo", a: 0.72, b: 0.80, y: 800, accent: 0x7a4dff, accent2: 0xdcb45a, fog: 0x0b0716, label: "DEMO" },
+  { id: "location", a: 0.80, b: 0.90, y: 900, accent: 0x2fae9e, accent2: 0xdcb45a, fog: 0x08121a, label: "VISIT" },
+  { id: "finale", a: 0.90, b: 1.00, y: 1100, fog: 0x0a0714, label: "★" },
 ];
+const segById = (id) => SEGS.find((s) => s.id === id);
+
+// Venue facts shown on the location stage (mirrors landing page + booking hours).
+const VENUE = {
+  name: "Reborn Wave",
+  lines: ["Ruko Oceanic Bliss, Blok A No. 51", "Jl. Pasir Putih Harbourfront – Batam Centre", "Sadai, Bengkong, Batam 29444"],
+  hours: ["Sun–Thu  5pm – 2am", "Fri–Sat  5pm – 3am"],
+};
 
 // ── Utils ──────────────────────────────────────────────────────────────────
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -99,7 +111,7 @@ let font;
 const IMG = {};
 
 async function loadAll() {
-  const imgs = ["baby", "boy", "teen", "adult", "female"];
+  const imgs = ["boy", "female"];
   const [f, ...tex] = await Promise.all([
     new FontLoader(manager).loadAsync("./vendor/fonts/helvetiker_bold.typeface.json"),
     ...imgs.map((n) => texLoader.loadAsync(`./img/doluruu-${n}.png`)),
@@ -109,7 +121,7 @@ async function loadAll() {
   font = f;
   imgs.forEach((n, i) => { tex[i].colorSpace = THREE.SRGBColorSpace; tex[i].anisotropy = 8; IMG[n] = tex[i]; });
   IMG.blindbox = loadTex("./img/blindbox.jpeg");
-  for (const n of ["intro", "ktv", "sing", "vip", "pet", "live"]) IMG[`poster_${n}`] = loadTex(`./media/${n}.jpg`);
+  for (const n of ["intro", "ktv", "sing", "vip", "live", "demo"]) IMG[`poster_${n}`] = loadTex(`./media/${n}.jpg`);
 }
 
 // Doluruu = the brand's own artwork, placed in the world as a camera-facing
@@ -128,6 +140,17 @@ function makeDoluruu(imgKey, height) {
   grp.userData.sprite = sprite;
   billboards.push(sprite);
   return grp;
+}
+
+// Emoji drawn to a transparent canvas and stood up as a camera-facing sprite.
+function emojiSprite(emoji, height) {
+  const tex = canvasTexture(256, 256, (x, W, H) => {
+    x.font = `${H * 0.8}px ${EMOJI_FONT}`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(emoji, W / 2, H * 0.54);
+  });
+  const geo = new THREE.PlaneGeometry(height, height); geo.translate(0, height / 2, 0);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.05, toneMapped: false }));
+  billboards.push(mesh);
+  return mesh;
 }
 
 // ── Builders ───────────────────────────────────────────────────────────────
@@ -310,13 +333,17 @@ function buildArrival() {
   const tower = new THREE.Group(); tower.position.set(0, 0, -14); Z.add(tower);
   const body = new THREE.Mesh(new THREE.BoxGeometry(7, 44, 7), M.glass); body.position.y = 22; tower.add(body);
   const edges = new THREE.LineSegments(new THREE.EdgesGeometry(body.geometry), M.lineGold); edges.position.y = 22; tower.add(edges);
-  const floorNames = ["KTV", "PRIVATE", "VIP", "DOLURUU WORLD", "LIVE"];
+  const floorNames = ["KTV LOUNGE", "PRIVATE KTV", "VIP", "PET CAFE", "LIVE"];
   for (let i = 0; i < 5; i++) {
     const y = 8 + i * 7;
     const band = new THREE.Mesh(new THREE.BoxGeometry(7.12, 0.07, 7.12), M.gold); band.position.y = y; tower.add(band);
     const lab = card(3.6, 0.6, (x, W, H) => {
-      x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.6}px Montserrat`; x.textBaseline = "middle";
-      x.fillText(`${i + 1}F  ·  ${floorNames[i]}`, 8, H / 2);
+      const txt = `${i + 1}F  ·  ${floorNames[i]}`;
+      let fs = H * 0.6;
+      x.font = `800 ${fs}px Montserrat`;
+      while (x.measureText(txt).width > W - 16) { fs *= 0.92; x.font = `800 ${fs}px Montserrat`; }
+      x.fillStyle = goldGrad(x, 0, W); x.textBaseline = "middle";
+      x.fillText(txt, 8, H / 2);
     }, { frame: false });
     lab.position.set(-1.4, y + 0.55, 3.52); tower.add(lab);
     const win = glowPlane(new THREE.Color(SEGS[i + 1].accent), 6, 5, 0.25); win.position.set(0, y + 3.2, 3.53); tower.add(win);
@@ -392,11 +419,13 @@ function monolith(ctx, x, z, quote, sub, w = 4.6, h = 3) {
   return c;
 }
 
+// 1F — open KTV lounge + game house: KOS (earn K-GOLD), tokens, spin, blind box,
+// arcade games, pool and darts. The whole party floor.
 function dressKTV(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("ktv", 6.4, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
   Z.add(place(videoScreen("sing", 5.4, seg.accent2, zi), ctx.clusterX, Y + 3.6, -27, ctx.clusterRot));
-  const board = card(2.8, 3.4, drawPanel({ eyebrow: "Kings of Singers", title: "Weekly board", lines: ["#1  🎤  Weekly champion", "#2  🎤  Runner-up", "#3  🎤  Rising star", "Sing live · earn tokens"], accent: "#ff4fa3" }), { glow: seg.accent2 });
+  const board = card(2.8, 3.4, drawPanel({ eyebrow: "Kings of Singers", title: "KOS board", lines: ["#1  🎤  Weekly champion", "#2  🎤  Runner-up", "#3  🎤  Rising star", "Sing live · earn K-GOLD"], accent: "#ff4fa3" }), { glow: seg.accent2 });
   Z.add(place(board, ctx.clusterX + 0.6, Y + 3.2, -22.5, ctx.clusterRot));
   // Disco ball
   const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(1.4, 2), M.chrome); ball.position.set(0, Y + 10.5, -15); Z.add(ball);
@@ -404,60 +433,122 @@ function dressKTV(ctx) {
   const sparkle = glowPlane(0xffffff, 7, 7, 0.35); sparkle.position.set(0, Y + 10.5, -15.2); Z.add(sparkle);
   anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { ball.rotation.y = t * 0.45; sparkle.material.opacity = 0.25 + Math.abs(Math.sin(t * 3)) * 0.2; } } });
   // Floating microphones
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 6; i++) {
     const mic = new THREE.Group();
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.9, 16), M.night); handle.position.y = -0.45; mic.add(handle);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 16), M.goldSoft); mic.add(head);
     const side = i % 2 ? 1 : -1;
-    mic.position.set(side * rand(3, 6.5), Y + rand(2.4, 6), -4 - i * 4.4); mic.rotation.z = side * -0.5;
+    mic.position.set(side * rand(3, 6.5), Y + rand(2.4, 6), -4 - i * 5); mic.rotation.z = side * -0.5;
     Z.add(mic);
     const ph = rand(0, 6);
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { mic.rotation.y = t * 0.6 + ph; mic.position.y += Math.sin(t * 1.4 + ph) * 0.0025; } } });
   }
-  // Lyric ribbons drifting through the air
-  const lyrics = ["♪  sing it like it's yours  ♪", "♫  one more song tonight  ♫", "♪  take the mic  ♪"];
-  lyrics.forEach((txt, i) => {
-    const rib = card(9, 0.8, (x, W, H) => {
-      const g = x.createLinearGradient(0, 0, W, 0); g.addColorStop(0, "rgba(255,79,163,0)"); g.addColorStop(0.5, "rgba(255,79,163,.28)"); g.addColorStop(1, "rgba(255,79,163,0)");
-      x.fillStyle = g; x.fillRect(0, 0, W, H); x.fillStyle = "#fbf6ea"; x.font = `600 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(txt, W / 2, H / 2);
-    }, { frame: false });
-    rib.position.set(0, Y + 6.5 + i * 1.1, -8 - i * 9); Z.add(rib);
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) rib.position.x = Math.sin(t * 0.25 + i * 2) * 4; } });
+  // Game house arcade: the app's games, floating above the lounge video
+  [["🧱", "Tower Stack"], ["🎲", "789 Dice"], ["🔢", "Guess the Number"], ["⏱️", "Stop at 1:00"]].forEach(([ic, name], i) => {
+    const c = card(1.7, 1.7, drawIcon(ic, name), { frame: false, glow: seg.accent2, pxPerUnit: 200 });
+    Z.add(place(c, ctx.videoX + (i - 1.5) * 1.9 * -ctx.m * 0.5, Y + 6.6 + (i % 2) * 0.5, -15 - i * 1.4, ctx.videoRot));
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + 6.6 + (i % 2) * 0.5 + Math.sin(t * 1.3 + i) * 0.14; } });
   });
-  monolith(ctx, 0, -47, "Sing live. Top the board. Win tokens.", "KINGS OF SINGERS · IN THE APP");
+  // Pool table
+  const pool = new THREE.Group();
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.24, 2.7), M.goldSoft); rim.position.y = 0.95; pool.add(rim);
+  const felt = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 2.3), new THREE.MeshStandardMaterial({ color: 0x0f6b4a, roughness: 0.9 })); felt.position.y = 1.1; pool.add(felt);
+  for (const [lx, lz] of [[-1.9, -1], [1.9, -1], [-1.9, 1], [1.9, 1]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.85, 12), M.night); leg.position.set(lx, 0.42, lz); pool.add(leg);
+  }
+  const ballCols = [0xffffff, 0xf2c230, 0x1f4fd1, 0xd6302b, 0x6a2c8f, 0xf07a1c, 0x1e8f4a, 0x111111];
+  ballCols.forEach((c, i) => {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), new THREE.MeshStandardMaterial({ color: c, roughness: 0.2 }));
+    b.position.set(i === 0 ? -1.2 : 0.6 + (i % 3) * 0.18, 1.24, i === 0 ? 0 : ((i % 4) - 1.5) * 0.19); pool.add(b);
+  });
+  const lamp = glowPlane(0xfff0c0, 4.4, 2.6, 0.35); lamp.rotation.x = -Math.PI / 2; lamp.position.y = 1.17; pool.add(lamp);
+  Z.add(place(pool, ctx.videoX * 0.55, Y, -27, 0.2 * ctx.m));
+  // Darts board
+  const darts = card(2.2, 2.2, (x, W) => {
+    const cx = W / 2, R = W * 0.47;
+    x.fillStyle = "#111"; x.beginPath(); x.arc(cx, cx, R, 0, Math.PI * 2); x.fill();
+    for (let s = 0; s < 20; s++) {
+      const a0 = (s / 20) * Math.PI * 2 - Math.PI / 20, a1 = a0 + Math.PI / 10;
+      for (const [r0, r1, even, odd] of [[0.15, 0.95, "#f3e6c4", "#1a1a1a"], [0.55, 0.62, "#d6302b", "#1e8f4a"], [0.88, 0.95, "#d6302b", "#1e8f4a"]]) {
+        x.fillStyle = s % 2 ? odd : even; x.beginPath(); x.arc(cx, cx, R * r1, a0, a1); x.arc(cx, cx, R * r0, a1, a0, true); x.fill();
+      }
+    }
+    x.fillStyle = "#1e8f4a"; x.beginPath(); x.arc(cx, cx, R * 0.1, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#d6302b"; x.beginPath(); x.arc(cx, cx, R * 0.05, 0, Math.PI * 2); x.fill();
+  }, { frame: false, glow: seg.accent2 });
+  Z.add(place(darts, ctx.clusterX * 1.2, Y + 3, -33, ctx.clusterRot));
+  const sign = card(4.4, 0.9, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.46}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("GAME HOUSE · POOL · DARTS", W / 2, H / 2); }, { frame: false, glow: seg.accent });
+  Z.add(place(sign, ctx.videoX * 0.55, Y + 4.2, -28, 0.2 * ctx.m));
+  // Blind boxes live here too
+  const eggGeo = new THREE.SphereGeometry(0.45, 24, 18); eggGeo.scale(1, 1.3, 1);
+  const bandGeo = new THREE.TorusGeometry(0.46, 0.035, 8, 32);
+  const eggCols = [0xff9db0, 0x7fe0d2, 0xffe08a, 0xc7b3ff, 0xffb27a];
+  for (let i = 0; i < (MOBILE ? 5 : 9); i++) {
+    const egg = new THREE.Group();
+    egg.add(new THREE.Mesh(eggGeo, new THREE.MeshStandardMaterial({ color: eggCols[i % 5], roughness: 0.35, metalness: 0.1 })));
+    const band = new THREE.Mesh(bandGeo, M.gold); band.rotation.x = Math.PI / 2; egg.add(band);
+    const side = i % 2 ? 1 : -1;
+    egg.position.set(side * rand(3, 6.5), Y + rand(1.5, 6.5), rand(-6, -38)); Z.add(egg);
+    const ph = rand(0, 6);
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { egg.rotation.y = t * 0.6 + ph; egg.position.y += Math.sin(t * 1.5 + ph) * 0.003; } } });
+  }
+  const box = card(2.2, 2.2, (x, W, H) => { x.fillStyle = "#1a1030"; x.fillRect(0, 0, W, H); }, { glow: seg.accent2 });
+  const boxImg = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.1), new THREE.MeshBasicMaterial({ map: IMG.blindbox, toneMapped: false }));
+  boxImg.position.z = 0.02; box.add(boxImg);
+  Z.add(place(box, ctx.clusterX * 0.8, Y + 1.6, -37, ctx.clusterRot));
+  // Member economy: all earned and spent on 1F
+  [["TOKENS", "Earn daily", -6.2], ["K-GOLD", "Win at KOS", 0], ["SPIN", "Win prizes", 6.2]].forEach(([wtxt, sub, x]) => {
+    const ped = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.8, 1.6), M.night); ped.position.set(x, Y + 0.4, -47); Z.add(ped);
+    const wd = word(wtxt, 1.15, wordMaterial(seg.accent), 4.2); wd.position.set(x, Y + 0.85, -47); Z.add(wd);
+    const cap = card(3.6, 0.6, (c2, W, H) => { c2.fillStyle = "#f0d787"; c2.font = `700 ${H * 0.55}px Montserrat`; c2.textAlign = "center"; c2.textBaseline = "middle"; c2.fillText(sub.toUpperCase(), W / 2, H / 2); }, { frame: false });
+    cap.position.set(x, Y + 0.4, -46.15); Z.add(cap);
+  });
 }
 
+// A lit glass room pod whose front faces the floor's centre line.
+function roomPod(ctx, eyebrow, title, x, z, glow) {
+  const { Z, Y } = ctx;
+  const pod = new THREE.Group();
+  const shell = new THREE.Mesh(new THREE.BoxGeometry(3.6, 3.4, 3.2), M.glass); shell.position.y = 1.7; pod.add(shell);
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(shell.geometry), M.lineGold); edges.position.y = 1.7; pod.add(edges);
+  const hex = `#${new THREE.Color(glow).getHexString()}`;
+  const front = card(3.4, 3.2, (x, W, H) => {
+    const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, hex); g.addColorStop(0.55, "rgba(40,16,60,1)"); g.addColorStop(1, "#0d0917");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    rr(x, W * 0.22, H * 0.3, W * 0.56, H * 0.3, 10); x.fillStyle = "rgba(255,240,210,.9)"; x.fill(); // karaoke screen
+    x.fillStyle = "#3a1455"; rr(x, W * 0.12, H * 0.74, W * 0.76, H * 0.16, 18); x.fill(); // sofa
+    x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.11}px Montserrat`; x.fillText(title, W * 0.08, H * 0.18);
+    x.fillStyle = "#f0d787"; x.font = `600 ${H * 0.055}px Montserrat`; x.fillText(eyebrow.toUpperCase(), W * 0.08, H * 0.07 + H * 0.02);
+  }, { glow });
+  front.position.set(0, 1.7, 1.62); pod.add(front);
+  place(pod, x, Y, z, -Math.sign(x) * Math.PI / 2);
+  Z.add(pod);
+  return pod;
+}
+
+// 2F — four private KTV rooms + beauty (facial & hair salon).
 function dressPrivate(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("intro", 6.6, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
-  // Bottle walls on both sides (instanced)
-  const prof = [[0, 0], [0.12, 0], [0.13, 0.05], [0.13, 0.42], [0.06, 0.52], [0.045, 0.62], [0.045, 0.74], [0, 0.74]].map(([a, b]) => new THREE.Vector2(a, b));
-  const bottleGeo = new THREE.LatheGeometry(prof, 14);
-  const bottleMat = new THREE.MeshStandardMaterial({ metalness: 0.2, roughness: 0.12, emissive: 0x220c33, emissiveIntensity: 0.6 });
-  const step = MOBILE ? 1.7 : 1.05, shelves = [1.1, 2.3, 3.5, 4.7];
-  const perWall = shelves.length * Math.floor(34 / step);
-  const tints = [0x9a5a1a, 0x1f5a33, 0x8fb6c2, 0xc9a84c, 0x6b1520, 0x3b2a6b].map((c) => new THREE.Color(c));
-  for (const side of [-1, 1]) {
-    const inst = new THREE.InstancedMesh(bottleGeo, bottleMat, perWall);
-    const mtx = new THREE.Matrix4(); let k = 0;
-    for (const sy of shelves) for (let z = -2; z > -36 && k < perWall; z -= step) {
-      mtx.makeScale(1.3, 1.3, 1.3).setPosition(side * 11.4, Y + sy, z + rand(-0.15, 0.15));
-      inst.setMatrixAt(k, mtx); inst.setColorAt(k, tints[k % tints.length]); k++;
-    }
-    inst.count = k; Z.add(inst);
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 6.2, 36), M.night); wall.position.set(side * 12, Y + 3.1, -19); Z.add(wall);
-    for (const sy of shelves) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 36), M.gold); s.position.set(side * 11.5, Y + sy - 0.03, -19); Z.add(s); }
-    const strip = glowPlane(seg.accent, 1.2, 36, 0.5); strip.rotation.y = side * -Math.PI / 2; strip.position.set(side * 11.8, Y + 5.8, -19); Z.add(strip);
-  }
-  // Velvet booth
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(5, 0.9, 1.8), M.velvet); seat.position.set(ctx.clusterX * 1.25, Y + 0.45, -30); Z.add(seat);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(5, 1.8, 0.5), M.velvet); back.position.set(ctx.clusterX * 1.25, Y + 1.4, -30.9); Z.add(back);
-  // F&B + Beauty cards (part of the 5-in-1)
-  const cards = [["🍸", "Signature bar", "Crafted cocktails & bottle service"], ["🍽️", "Kitchen", "Plates made for the party"], ["💄", "Beauty", "Glow-up before the night"]];
-  cards.forEach(([ic, t, l], i) => {
-    const c = card(2.6, 2.1, drawPanel({ icon: ic, title: t, lines: [l], accent: "#b58cff" }), { glow: seg.accent });
-    Z.add(place(c, ctx.clusterX + i * 0.4 * ctx.m, Y + 2.2 + i * 1.5, -22 - i * 2.2, ctx.clusterRot));
-    anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.2 + i * 1.5 + Math.sin(t2 + i) * 0.1; } });
+  // Four rooms: two past the video, two on the near cluster side
+  [[ctx.clusterX * 1.2, -9], [ctx.clusterX * 1.2, -16], [ctx.videoX * 1.2, -25], [ctx.videoX * 1.2, -32]]
+    .forEach(([x, z], i) => roomPod(ctx, "Private KTV", `Room ${i + 1}`, x, z, i % 2 ? seg.accent : 0xc04dff));
+  // Beauty corner (where the camera turns during the beauty beat): mirror + chair + cards
+  const bx = ctx.clusterX, bRot = ctx.clusterRot;
+  const mirror = card(2, 2.8, (x, W, H) => {
+    const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#d9dbe6"); g.addColorStop(0.5, "#8d90a3"); g.addColorStop(1, "#c7c9d6");
+    rr(x, 0, 0, W, H, W * 0.5); x.fillStyle = g; x.fill();
+  }, { glow: 0xffd9ec });
+  Z.add(place(mirror, bx * 1.2, Y + 2.6, -32, bRot));
+  const chair = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.5, 20), M.gold); base.position.y = 0.25; chair.add(base);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 1.1), M.velvet); seat.position.y = 0.7; chair.add(seat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 0.25), M.velvet); back.position.set(0, 1.4, -0.45); chair.add(back);
+  Z.add(place(chair, bx * 0.95, Y, -31, bRot + Math.PI));
+  [["💆", "Facial", "Skin treatments & facials"], ["💇", "Hair salon", "Cut, colour & styling"]].forEach(([ic, t, l], i) => {
+    const c = card(2.6, 2.1, drawPanel({ eyebrow: "2F · Beauty", icon: ic, title: t, lines: [l], accent: "#ffb3d9" }), { glow: 0xff7ac0 });
+    Z.add(place(c, bx + i * 0.6 * ctx.m, Y + 2.6 + i * 1.6, -24 - i * 1.8, bRot));
+    anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.6 + i * 1.6 + Math.sin(t2 + i) * 0.1; } });
   });
   // 5-IN-1 monument
   const mono = word("5-IN-1", 2.6, wordMaterial(seg.accent), 14); mono.position.set(0, Y + 1.2, -47); Z.add(mono);
@@ -465,83 +556,85 @@ function dressPrivate(ctx) {
   cap.position.set(0, Y + 0.6, -46.2); Z.add(cap);
 }
 
+// 3F — private VIP KTV rooms for Gold tier members, by invitation.
 function dressVIP(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("vip", 6.4, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
-  // Floating VIP member cards (fanned)
-  ["GOLD", "PLATINUM", "BLACK"].forEach((tier, i) => {
-    const c = card(3.2, 2, drawMemberCard(`${tier} TIER`), { frame: false, glow: 0xf0d787 });
-    Z.add(place(c, ctx.clusterX + (i - 1) * 0.9 * ctx.m, Y + 3 + i * 0.9, -25 - i * 1.4, ctx.clusterRot + (i - 1) * 0.12));
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { c.rotation.z = Math.sin(t * 0.8 + i) * 0.06; c.position.y = Y + 3 + i * 0.9 + Math.sin(t + i) * 0.12; } } });
-  });
+  const gold = card(3.6, 2.25, drawMemberCard("GOLD TIER"), { frame: false, glow: 0xf0d787 });
+  Z.add(place(gold, ctx.clusterX, Y + 4.2, -19, ctx.clusterRot));
+  anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { gold.rotation.z = Math.sin(t * 0.8) * 0.05; gold.position.y = Y + 4.2 + Math.sin(t) * 0.12; } } });
   // Mirrored gold pillars
   for (const z of [-6, -16, -26, -36]) for (const s of [-1, 1]) {
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 9, 32), M.gold); p.position.set(s * 6.8, Y + 4.5, z); Z.add(p);
   }
-  // Throne booth
-  const throne = new THREE.Group();
-  const backrest = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.35, 16, 40, Math.PI), M.gold); backrest.position.y = 1.2; throne.add(backrest);
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(3, 0.7, 1.4), M.velvet); seat.position.y = 0.45; throne.add(seat);
-  Z.add(place(throne, ctx.clusterX * 1.35, Y, -33, ctx.clusterRot));
-  // Member-economy monuments
-  [["TOKENS", "Earn daily", -6.2], ["K-GOLD", "Collect & spend", 0], ["SPIN", "Win prizes", 6.2]].forEach(([wtxt, sub, x]) => {
+  roomPod(ctx, "Gold members", "VIP Room", ctx.clusterX * 1.25, -27, 0xf0d787);
+  roomPod(ctx, "Gold members", "VIP Room", ctx.clusterX * 1.25, -34, 0xc98b3c);
+  [["GOLD", "Gold tier only", -6.2], ["PRIORITY", "VIP room booking", 0], ["INVITE", "Members only", 6.2]].forEach(([wtxt, sub, x]) => {
     const ped = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.8, 1.6), M.night); ped.position.set(x, Y + 0.4, -47); Z.add(ped);
     const wd = word(wtxt, 1.15, wordMaterial(seg.accent), 4.2); wd.position.set(x, Y + 0.85, -47); Z.add(wd);
     const cap = card(3.6, 0.6, (c2, W, H) => { c2.fillStyle = "#f0d787"; c2.font = `700 ${H * 0.55}px Montserrat`; c2.textAlign = "center"; c2.textBaseline = "middle"; c2.fillText(sub.toUpperCase(), W / 2, H / 2); }, { frame: false });
     cap.position.set(x, Y + 0.4, -46.15); Z.add(cap);
   });
-  monolith(ctx, ctx.videoX * 0.62, -35, "Priority tables. Members' lounge. Invitation-only nights.", "VIP MEMBERSHIP", 4.2, 2.6);
+  monolith(ctx, ctx.videoX * 0.62, -35, "Private VIP rooms. Gold members only.", "3F VIP · BY INVITATION", 4.2, 2.6);
 }
 
+// 4F — pet cafe & restaurant: our pets, food, kids and families.
 function dressPet(ctx) {
   const { Z, zi, Y, seg } = ctx;
-  Z.add(place(videoScreen("pet", 6.2, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
-  // Growth path: baby → boy → teen → adult
-  [["baby", "Hatch"], ["boy", "Grow"], ["teen", "Level up"], ["adult", "Earn perks"]].forEach(([img, label], i) => {
-    const c = card(2, 2.5, (x, W, H) => {
-      rr(x, 4, 4, W - 8, H - 8, 26); x.fillStyle = "rgba(14,24,28,.9)"; x.fill(); x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
-      x.fillStyle = "#2fae9e"; x.font = `800 ${H * 0.075}px Montserrat`; x.textAlign = "center"; x.fillText(`STEP ${i + 1}`, W / 2, H * 0.12);
-      x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.1}px Montserrat`; x.fillText(label.toUpperCase(), W / 2, H * 0.93);
-    }, { glow: seg.accent });
-    const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: IMG[img], transparent: true, toneMapped: false }));
-    pic.position.z = 0.02; pic.position.y = 0.05; c.add(pic);
-    Z.add(place(c, ctx.clusterX + i * 0.5 * ctx.m, Y + 2.6 + (i % 2) * 0.6, -21 - i * 2.8, ctx.clusterRot));
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) pic.position.y = 0.05 + Math.abs(Math.sin(t * 2 + i)) * 0.06; } });
+  // Meet the pets
+  [["🐿️", "Sugar gliders"], ["🐱", "Cats"], ["🐍", "Snakes"], ["🐹", "Guinea pigs"]].forEach(([ic, name], i) => {
+    const c = card(2, 2, drawIcon(ic, name), { frame: false, glow: seg.accent2, pxPerUnit: 200 });
+    Z.add(place(c, ctx.clusterX + i * 0.5 * ctx.m, Y + 2.8 + (i % 2) * 0.9, -14 - i * 3.4, ctx.clusterRot));
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + 2.8 + (i % 2) * 0.9 + Math.sin(t * 1.3 + i) * 0.12; } });
   });
-  // Mini-game arcade screens
-  [["🧱", "Tower Stack"], ["🎲", "789 Dice"], ["🔢", "Guess the Number"], ["⏱️", "Stop at 1:00"]].forEach(([ic, name], i) => {
-    const c = card(1.7, 1.7, drawIcon(ic, name), { frame: false, glow: seg.accent2, pxPerUnit: 200 });
-    Z.add(place(c, ctx.videoX + (i - 1.5) * 1.9 * -ctx.m * 0.5, Y + 6.6 + (i % 2) * 0.5, -15 - i * 1.4, ctx.videoRot));
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + 6.6 + (i % 2) * 0.5 + Math.sin(t * 1.3 + i) * 0.14; } });
+  // Food, kids & family
+  [["☕", "Cafe", "Coffee, tea & sweet treats"], ["🍽️", "Restaurant", "Proper meals made to share"], ["👨‍👩‍👧", "Kids & family", "Family tables, kid-friendly"]].forEach(([ic, t, l], i) => {
+    const c = card(2.6, 2.1, drawPanel({ eyebrow: "4F · Pet cafe", icon: ic, title: t, lines: [l], accent: "#ffcf8a" }), { glow: seg.accent });
+    Z.add(place(c, ctx.videoX + i * 0.5 * -ctx.m, Y + 2.8 + i * 1.3, -15 - i * 3.2, ctx.videoRot));
+    anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.8 + i * 1.3 + Math.sin(t2 + i) * 0.1; } });
   });
-  // Blind-box eggs
-  const eggGeo = new THREE.SphereGeometry(0.45, 24, 18); eggGeo.scale(1, 1.3, 1);
-  const bandGeo = new THREE.TorusGeometry(0.46, 0.035, 8, 32);
-  const eggCols = [0xff9db0, 0x7fe0d2, 0xffe08a, 0xc7b3ff, 0xffb27a];
-  const eggs = MOBILE ? 7 : 14;
-  for (let i = 0; i < eggs; i++) {
-    const egg = new THREE.Group();
-    egg.add(new THREE.Mesh(eggGeo, new THREE.MeshStandardMaterial({ color: eggCols[i % 5], roughness: 0.35, metalness: 0.1 })));
-    const band = new THREE.Mesh(bandGeo, M.gold); band.rotation.x = Math.PI / 2; egg.add(band);
-    const side = i % 2 ? 1 : -1;
-    egg.position.set(side * rand(2.5, 6), Y + rand(1.2, 6.5), rand(-4, -38)); Z.add(egg);
-    const ph = rand(0, 6);
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { egg.rotation.y = t * 0.6 + ph; egg.position.y += Math.sin(t * 1.5 + ph) * 0.003; } } });
+  // Cafe tables with chairs and cups
+  const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.6 });
+  const cream = new THREE.MeshStandardMaterial({ color: 0xf3e6c4, roughness: 0.5 });
+  const tables = [[-4.5, -9], [4.5, -12], [-6, -21], [5.5, -25], [-3.5, -33], [3.8, -38]];
+  for (const [x, z] of tables) {
+    const tb = new THREE.Group();
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.08, 28), wood); top.position.y = 1; tb.add(top);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.3, 1, 12), M.goldSoft); leg.position.y = 0.5; tb.add(leg);
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2;
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.6, 16), M.velvet); stool.position.set(Math.cos(a) * 1.4, 0.3, Math.sin(a) * 1.4); tb.add(stool);
+      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.16, 12), cream); cup.position.set(Math.cos(a) * 0.5, 1.12, Math.sin(a) * 0.5); tb.add(cup);
+    }
+    const warm = glowPlane(seg.accent, 3.2, 3.2, 0.3); warm.rotation.x = -Math.PI / 2; warm.position.y = 0.03; tb.add(warm);
+    Z.add(place(tb, x, Y, z));
   }
-  const box = card(2.2, 2.2, (x, W, H) => { x.fillStyle = "#1a1030"; x.fillRect(0, 0, W, H); }, { glow: seg.accent2 });
-  const boxImg = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.1), new THREE.MeshBasicMaterial({ map: IMG.blindbox, toneMapped: false }));
-  boxImg.position.z = 0.02; box.add(boxImg);
-  Z.add(place(box, ctx.videoX * 0.55, Y + 1.8, -33, ctx.videoRot));
-  // Doluruu, the star of the floor
-  const d = makeDoluruu("adult", 5.6); d.position.set(0, Y, -44); Z.add(d);
-  const halo = glowPlane(seg.accent, 12, 12, 0.45); halo.rotation.x = -Math.PI / 2; halo.position.set(0, Y + 0.03, -44); Z.add(halo);
-  const back = glowPlane(seg.accent2, 14, 12, 0.3); back.position.set(0, Y + 3, -46.5); Z.add(back);
+  // Kids' ball pit
+  const pit = new THREE.Group();
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 0.7, 40, 1, true), new THREE.MeshStandardMaterial({ color: 0x2fae9e, roughness: 0.6, side: THREE.DoubleSide })); wall.position.y = 0.35; pit.add(wall);
+  const nBalls = MOBILE ? 60 : 140;
+  const balls = new THREE.InstancedMesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshStandardMaterial({ roughness: 0.4 }), nBalls);
+  const bm = new THREE.Matrix4(); const bcols = [0xff5a5f, 0xffd23f, 0x4fc3ff, 0x7ee081, 0xff9db0].map((c) => new THREE.Color(c));
+  for (let i = 0; i < nBalls; i++) { const r = Math.sqrt(Math.random()) * 2.2, a = rand(0, Math.PI * 2); bm.setPosition(Math.cos(a) * r, rand(0.15, 0.6), Math.sin(a) * r); balls.setMatrixAt(i, bm); balls.setColorAt(i, bcols[i % 5]); }
+  pit.add(balls);
+  Z.add(place(pit, ctx.clusterX * 0.9, Y, -41));
+  // Pets roaming the cafe
+  const cat = emojiSprite("🐈", 0.9); cat.position.set(-4.5, Y, -10.4); Z.add(cat);
+  const pig = emojiSprite("🐹", 0.6); pig.position.set(4.5, Y, -13.3); Z.add(pig);
+  const snake = emojiSprite("🐍", 0.9); snake.position.set(-3.5, Y + 1.04, -33); Z.add(snake);
+  const glider = emojiSprite("🐿️", 0.8); Z.add(glider);
   anims.push({ zone: zi, fn: (t) => {
-    if (REDUCED) return;
-    const s = d.userData.sprite;
-    s.position.y = Math.abs(Math.sin(t * 2.4)) * 0.18;
-    s.scale.y = 1 + Math.sin(t * 4.8) * 0.015;
+    if (REDUCED) { glider.position.set(0, Y + 5, -20); return; }
+    cat.position.x = -4.5 + Math.sin(t * 0.5) * 2.2;
+    pig.position.y = Y + Math.abs(Math.sin(t * 3)) * 0.15;
+    snake.rotation.z = Math.sin(t * 1.4) * 0.08;
+    const g = (t * 0.12) % 1;
+    glider.position.set(lerp(-9, 9, g), Y + 6.5 - Math.sin(g * Math.PI) * 2.5, -18 - g * 8);
   } });
+  // Menu board at the end of the floor
+  const menu = card(6.4, 3.6, drawPanel({ eyebrow: "4F · Pet cafe & restaurant", title: "Pets, food & family", lines: ["☕  Coffee, tea & treats", "🍽️  Meals to share", "🐾  Meet our pets"], accent: "#ffcf8a" }), { glow: seg.accent });
+  Z.add(place(menu, 0, Y + 3, -47));
+  const back = glowPlane(seg.accent2, 14, 10, 0.25); back.position.set(0, Y + 3, -48); Z.add(back);
 }
 
 function dressLive(ctx) {
@@ -596,10 +689,99 @@ function dressLive(ctx) {
   monolith(ctx, ctx.clusterX * 0.85, -24, "Real crowds. Real energy. Every night.", "5F ROOFTOP · LIVE", 4.2, 2.6);
 }
 
+// ── Zones: SHOWCASE stages (blind box, demo, location) ─────────────────────
+function buildShowcase(seg, dress) {
+  const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
+  const Y = seg.y;
+  Z.add(ground(Y, seg.accent));
+  Z.add(accentLight(seg.accent, -9, Y + 6, 6), accentLight(seg.accent2, 9, Y + 6, 6), accentLight(0xffe6b0, 0, Y + 9, 12, 70));
+  Z.add(dust(zi, seg.accent2, 260, [-20, 20, Y + 0.4, Y + 14, -20, 16]));
+  dress({ Z, zi, Y, seg, portrait: PORTRAIT() });
+}
+
+function dressBlindbox({ Z, zi, Y, seg, portrait }) {
+  const box = card(3, 3, (x, W, H) => { x.fillStyle = "#1a1030"; x.fillRect(0, 0, W, H); }, { glow: seg.accent });
+  const img = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 2.9), new THREE.MeshBasicMaterial({ map: IMG.blindbox, toneMapped: false }));
+  img.position.z = 0.02; box.add(img);
+  const boxY = portrait ? 8.4 : 5.6;
+  box.position.set(0, Y + boxY, -1.5); Z.add(box);
+  anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { box.rotation.y = Math.sin(t * 0.7) * 0.25; box.position.y = Y + boxY + Math.sin(t * 1.2) * 0.12; } } });
+  const steps = [
+    ["Buy a blind box", ["Pick up a package", "at the club"]],
+    ["Enter the code", ["Type it in Pet Care", "in the Reborn app"]],
+    ["Doluruu hatches", ["Feed and care for it", "(up to 2 pets)"]],
+    ["Earn & win", ["Male + female = free baby", "Feeding earns tokens"]],
+  ];
+  steps.forEach(([title, lines], i) => {
+    const c = card(3.6, 2.4, drawPanel({ eyebrow: `Step ${i + 1}`, title, lines, accent: "#ff9db0" }), { glow: i % 2 ? seg.accent2 : seg.accent });
+    const x = portrait ? (i % 2 ? 2 : -2) : -6.3 + i * 4.2;
+    const y = portrait ? (i < 2 ? 5.1 : 2.3) : 2.2;
+    const s = portrait ? 0.95 : 1;
+    c.scale.setScalar(s); c.position.set(x, Y + y, 0); Z.add(c);
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + y + Math.sin(t * 1.1 + i) * 0.07; } });
+  });
+  if (!portrait) {
+    const boy = makeDoluruu("boy", 3); boy.position.set(-10.2, Y, 0.5); Z.add(boy);
+    const girl = makeDoluruu("female", 3); girl.position.set(10.2, Y, 0.5); Z.add(girl);
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { boy.userData.sprite.position.y = Math.abs(Math.sin(t * 2.2)) * 0.1; girl.userData.sprite.position.y = Math.abs(Math.sin(t * 2.2 + 1)) * 0.1; } } });
+  }
+  const eggGeo = new THREE.SphereGeometry(0.4, 24, 18); eggGeo.scale(1, 1.3, 1);
+  const eggCols = [0xff9db0, 0x7fe0d2, 0xffe08a, 0xc7b3ff, 0xffb27a];
+  for (let i = 0; i < 8; i++) {
+    const egg = new THREE.Mesh(eggGeo, new THREE.MeshStandardMaterial({ color: eggCols[i % 5], roughness: 0.35 }));
+    const a = (i / 8) * Math.PI * 2;
+    Z.add(egg);
+    anims.push({ zone: zi, fn: (t) => { const r = portrait ? 4.2 : 3.4; const b = a + (REDUCED ? 0 : t * 0.35); egg.position.set(Math.cos(b) * r, Y + boxY + Math.sin(b) * r * 0.35, -1.5 + Math.sin(b) * 1.2); egg.rotation.y = t; } });
+  }
+}
+
+function dressDemo({ Z, zi, Y, seg }) {
+  const screen = videoScreen("demo", 14, seg.accent, zi);
+  screen.position.set(0, Y + 4.8, -2); Z.add(screen);
+  const play = card(1.4, 1.4, (x, W) => {
+    x.fillStyle = "rgba(10,7,20,.55)"; x.beginPath(); x.arc(W / 2, W / 2, W * 0.46, 0, Math.PI * 2); x.fill();
+    x.lineWidth = W * 0.04; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+    x.fillStyle = "#f0d787"; x.beginPath(); x.moveTo(W * 0.4, W * 0.3); x.lineTo(W * 0.72, W * 0.5); x.lineTo(W * 0.4, W * 0.7); x.closePath(); x.fill();
+  }, { frame: false });
+  play.position.set(0, Y + 4.8, -1.85); Z.add(play);
+  anims.push({ zone: zi, fn: (t) => { if (!REDUCED) play.scale.setScalar(1 + Math.sin(t * 2.4) * 0.05); } });
+}
+
+function dressLocation({ Z, zi, Y, seg, portrait }) {
+  const cx = portrait ? 0 : 4;
+  // Stylised city map: grid, blocks, and a pulsing gold pin at the venue
+  const grid = new THREE.GridHelper(26, 26, HEX.goldHi, 0x2fae9e);
+  grid.material.transparent = true; grid.material.opacity = 0.22; grid.position.set(cx, Y + 0.02, -2); Z.add(grid);
+  const blockMat = new THREE.MeshStandardMaterial({ color: 0x14202a, metalness: 0.6, roughness: 0.4, emissive: 0x06141a });
+  for (let i = 0; i < 26; i++) {
+    const h = rand(0.5, 3.2);
+    const x = cx + Math.round(rand(-6, 6)), z = -2 + Math.round(rand(-6, 5));
+    if (Math.abs(x - cx) < 1.5 && Math.abs(z + 2) < 1.5) continue;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.8, h, 0.8), blockMat); b.position.set(x, Y + h / 2, z); Z.add(b);
+  }
+  const sea = glowPlane(0x2f8fd0, 26, 8, 0.35); sea.rotation.x = -Math.PI / 2; sea.position.set(cx, Y + 0.03, 6); Z.add(sea);
+  const pin = new THREE.Group();
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 24), M.gold); head.position.y = 2.6; pin.add(head);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.6, 32), M.gold); tip.rotation.x = Math.PI; tip.position.y = 1.6; pin.add(tip);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.28, 20, 16), new THREE.MeshBasicMaterial({ color: 0x0a0714 })); dot.position.set(0, 2.6, 0.55); pin.add(dot);
+  pin.position.set(cx, Y, -2); Z.add(pin);
+  const rings = [0, 1, 2].map(() => {
+    const r = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 48), new THREE.MeshBasicMaterial({ color: HEX.goldHi, transparent: true, toneMapped: false, side: THREE.DoubleSide }));
+    r.rotation.x = -Math.PI / 2; r.position.set(cx, Y + 0.05, -2); Z.add(r); return r;
+  });
+  anims.push({ zone: zi, fn: (t) => {
+    pin.position.y = Y + (REDUCED ? 0.4 : 0.4 + Math.abs(Math.sin(t * 2)) * 0.5);
+    if (!REDUCED) pin.rotation.y = t * 0.8;
+    rings.forEach((r, i) => { const k = ((t * 0.5 + i / 3) % 1); r.scale.setScalar(1 + k * 5); r.material.opacity = (1 - k) * 0.8; });
+  } });
+  const sign = card(5.2, 3.2, drawPanel({ eyebrow: "Batam · Harbourfront", title: VENUE.name, lines: [...VENUE.lines.slice(0, 2), ...VENUE.hours], accent: "#7fe0d2" }), { glow: seg.accent });
+  sign.position.set(cx, Y + (portrait ? 7.6 : 6.2), -3); Z.add(sign);
+}
+
 // ── Zone: FINALE ───────────────────────────────────────────────────────────
 function buildFinale() {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
-  const Y = SEGS[6].y;
+  const Y = segById("finale").y;
   Z.add(ground(Y, 0x7a4dff));
   const logo = new THREE.Group(); logo.position.set(0, Y, 0); Z.add(logo);
   const r = word("REBORN", 3.5, M.gold, 20); r.position.y = 4.4; logo.add(r);
@@ -620,7 +802,7 @@ function buildFinale() {
     () => card(1.4, 1.4, drawIcon("🎮", "Gaming"), { frame: false }),
     () => card(1.4, 1.4, drawIcon("💻", "IT"), { frame: false }),
     () => { const g = new THREE.Group(); const e = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 16), new THREE.MeshStandardMaterial({ color: 0xff9db0, roughness: 0.35 })); e.scale.y = 1.3; g.add(e); return g; },
-    () => { const n = ["ktv", "vip", "live", "pet", "sing", "intro"][Math.floor(Math.random() * 6)]; const g = new THREE.Group(); const p = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.35), new THREE.MeshBasicMaterial({ map: IMG[`poster_${n}`], toneMapped: false })); const f = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.45), new THREE.MeshBasicMaterial({ color: HEX.gold, toneMapped: false })); f.position.z = -0.01; g.add(f, p); return g; },
+    () => { const n = ["ktv", "vip", "live", "demo", "sing", "intro"][Math.floor(Math.random() * 6)]; const g = new THREE.Group(); const p = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.35), new THREE.MeshBasicMaterial({ map: IMG[`poster_${n}`], toneMapped: false })); const f = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.45), new THREE.MeshBasicMaterial({ color: HEX.gold, toneMapped: false })); f.position.z = -0.01; g.add(f, p); return g; },
   ];
   const N = MOBILE ? 14 : 24;
   for (let i = 0; i < N; i++) {
@@ -666,14 +848,26 @@ function floorPath(seg) {
     [[0, Y + 3.2, 0], [0, Y + 3.2, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [m * -8, Y + 3.3, -17], [m * 8, Y + 3.3, -27], [0, Y + lookY, -47], [0, Y + 13, -47]],
   );
 }
+// Slow dolly-in towards a stage centred on (fx, lookY).
+function showcasePath(seg, fx, lookY, dist, back) {
+  const Y = seg.y;
+  return path(
+    [[fx * 0.3 - 2, Y + 6.5, dist + 16 + back], [fx * 0.6 + 1.2, Y + 5, dist + 7 + back], [fx, Y + lookY, dist + back]],
+    [[fx, Y + lookY, -2], [fx, Y + lookY, -2], [fx, Y + lookY, -2]],
+  );
+}
 let PATHS = [];
 function buildPaths() {
-  const back = PORTRAIT() ? 10 : 0;
-  const F = SEGS[6].y;
+  const portrait = PORTRAIT();
+  const back = portrait ? 10 : 0;
+  const F = segById("finale").y;
   PATHS = [
     path([[0, 5, 30 + back], [1.8, 3.6, 18 + back * 0.5], [0.8, 2.8, 7], [0.2, 2.5, -4], [0, 2.4, -9.6]],
       [[0, 7, -14], [0.4, 3.4, -12], [0, 2.7, -11], [0, 2.4, -14], [0, 2.4, -20]]),
     ...SEGS.slice(1, 6).map(floorPath),
+    showcasePath(segById("blindbox"), 0, portrait ? 5 : 3.6, 13, portrait ? 4 : 0),
+    showcasePath(segById("demo"), 0, 4.4, 12, portrait ? 16 : 0),
+    showcasePath(segById("location"), portrait ? 0 : 1.5, portrait ? 4.6 : 3.4, 13, portrait ? 14 : 0),
     path([[0, F + 8, 56 + back], [0, F + 6.5, 40 + back], [0, F + 5.2, 28 + back], [0, F + 4.9, 25 + back]],
       [[0, F + 5, 0], [0, F + 4.6, 0], [0, F + 3.4, 0], [0, F + (back ? -6 : 1.0), 0]]),
   ];
@@ -730,11 +924,17 @@ function hitScreen(ev) {
   return hit ? hit.object.userData.screen : null;
 }
 canvas.addEventListener("pointermove", (ev) => { document.body.classList.toggle("hovering-screen", !!hitScreen(ev)); });
-canvas.addEventListener("click", (ev) => {
-  const s = hitScreen(ev); if (!s) return;
-  vplayer.src = `./media/${s.name}.mp4`; vplayer.poster = `./media/${s.name}.jpg`;
+// The demo opens the full-quality cut with sound; venue clips are silent loops.
+const FULL_DEMO_SRC = "/demo.mp4";
+function openVideo(name) {
+  const isDemo = name === "demo";
+  vplayer.src = isDemo ? FULL_DEMO_SRC : `./media/${name}.mp4`;
+  vplayer.poster = `./media/${name}.jpg`;
+  vplayer.muted = !isDemo;
   vmodal.showModal(); vplayer.play().catch(() => {});
-});
+}
+canvas.addEventListener("click", (ev) => { const s = hitScreen(ev); if (s) openVideo(s.name); });
+document.getElementById("play-demo").addEventListener("click", () => openVideo("demo"));
 const closeModal = () => { vplayer.pause(); vmodal.close(); };
 vmodal.querySelector(".vclose").addEventListener("click", closeModal);
 vmodal.addEventListener("click", (e) => { if (e.target === vmodal) closeModal(); });
@@ -808,6 +1008,9 @@ loadAll().then(() => {
   buildFloor(SEGS[3], dressVIP);
   buildFloor(SEGS[4], dressPet);
   buildFloor(SEGS[5], dressLive);
+  buildShowcase(segById("blindbox"), dressBlindbox);
+  buildShowcase(segById("demo"), dressDemo);
+  buildShowcase(segById("location"), dressLocation);
   buildFinale();
   buildPaths();
   readScroll(); cur = target;
