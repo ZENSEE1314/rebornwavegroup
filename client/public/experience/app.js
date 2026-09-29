@@ -166,6 +166,7 @@ async function loadAll() {
   for (const p of PETS) IMG[`pet_${p.key}`] = loadTex(`./img/pets/${p.key}.jpg`);
   for (const k of ["facial", "hair"]) IMG[`beauty_${k}`] = loadTex(`./img/beauty/${k}.jpg`);
   for (const k of ROOM_PHOTOS) IMG[`room_${k}`] = loadTex(`./img/rooms/${k}.jpg`);
+  for (const k of ["pet-cafe", "restaurant", "family"]) IMG[`food_${k}`] = loadTex(`./img/food/${k}.jpg`);
   const planKeys = Object.values(FLOOR_PLANS).flat().map(([key]) => key);
   const planTex = await Promise.all(planKeys.map((key) => texLoader.loadAsync(`./img/plans/${key}.jpg`)));
   planKeys.forEach((key, i) => { planTex[i].colorSpace = THREE.SRGBColorSpace; planTex[i].anisotropy = renderer.capabilities.getMaxAnisotropy(); IMG[`plan_${key}`] = planTex[i]; });
@@ -802,8 +803,17 @@ function dressPet(ctx) {
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + baseY + Math.sin(t * 1.3 + i) * 0.1; } });
   });
   // Food, kids & family
-  [["☕", "Cafe", "Coffee, tea & sweet treats"], ["🍽️", "Restaurant", "Proper meals made to share"], ["👨‍👩‍👧", "Kids & family", "Family tables, kid-friendly"]].forEach(([ic, t, l], i) => {
-    const c = card(2.6, 2.1, drawPanel({ eyebrow: "4F · Pet cafe", icon: ic, title: t, lines: [l], accent: "#ffcf8a" }), { glow: seg.accent });
+  [["pet-cafe", "Pet cafe", "Coffee & treats with our pets"], ["restaurant", "Restaurant", "Dining hall & kitchen"], ["family", "Kids & family", "Family tables & outdoor terrace"]].forEach(([key, t, l], i) => {
+    const c = card(2.6, 3.3, (x, W, H) => {
+      rr(x, 4, 4, W - 8, H - 8, 22); x.fillStyle = "rgba(24,16,10,.96)"; x.fill();
+      x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+      x.textAlign = "left"; x.fillStyle = "#ffcf8a"; x.font = `600 ${H * 0.04}px Montserrat`; x.fillText("4F · RESTAURANT & PETS", W * 0.08, H * 0.8);
+      x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.07}px Montserrat`; x.fillText(t, W * 0.08, H * 0.87);
+      x.fillStyle = "rgba(251,246,234,.74)"; x.font = `500 ${H * 0.04}px Montserrat`; x.fillText(l, W * 0.08, H * 0.93);
+    }, { glow: seg.accent });
+    const photo = new THREE.Mesh(new THREE.PlaneGeometry(2.36, 2.36), new THREE.MeshBasicMaterial({ map: IMG[`food_${key}`], toneMapped: false }));
+    photo.position.set(0, 0.36, 0.02); c.add(photo);
+    c.scale.setScalar(0.82); // taller photo cards; keep clear of the story text
     Z.add(zoomable(place(c, ctx.clusterX + i * 0.5 * ctx.m, Y + 2.8 + i * 1.3, -25 - i * 2.6, ctx.clusterRot), zi));
     anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.8 + i * 1.3 + Math.sin(t2 + i) * 0.1; } });
   });
@@ -997,6 +1007,7 @@ const FINALE_PHOTOS = [
   ["pet_snake", "Snakes"], ["beauty_hair", "Hair salon"], ["pet_guinea-pig", "Guinea pigs"], ["boy", "Doluruu"],
   ["room_ktv-room-1", "KTV Room 1"], ["room_vip-room-1", "VIP KTV Room 1"], ["room_ktv-room-2", "KTV Room 2"],
   ["room_dance-room", "Dance Room"], ["room_ktv-room-3", "KTV Room 3"], ["room_vip-room-2", "VIP KTV Room 2"],
+  ["food_pet-cafe", "Pet cafe"], ["food_restaurant", "Restaurant"], ["food_family", "Kids & family"],
 ];
 
 // Poster card that opens the clip when clicked (hover zooms it like any card).
