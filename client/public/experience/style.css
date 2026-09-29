@@ -162,26 +162,40 @@ h2.small { font-size: clamp(18px, 2.4vw, 26px); font-weight: 600; color: var(--c
 }
 
 body.hovering-screen { cursor: pointer; }
+
+/* WhatsApp shortcut (mobile only) */
+.wa-fab { display: none; }
+body.zooming .wa-fab { opacity: 0; pointer-events: none; }
 body.zooming #flash { opacity: 0 !important; } /* inline opacity is set per frame */
 body.zooming #story { opacity: 0; transition: opacity 200ms var(--ease); } /* let a zoomed card read clearly */
 #story { transition: opacity 200ms var(--ease); }
 
 /* Mobile */
 @media (max-width: 760px) {
+  :root { --mobile-beat-bottom: calc(84px + env(safe-area-inset-bottom)); }
   .nav-links a:not(.btn) { display: none; }
   /* Floor pills become a row under the header so they never cover the story text */
   #floors { top: 64px; left: 50%; right: auto; transform: translateX(-50%); flex-direction: row; gap: 4px; }
   #floors button { width: 32px; height: 26px; font-size: 10px; padding: 0; }
-  .beat.top { top: auto; bottom: 7vh; } /* keep the 3D stage clear on tall screens */
+  .beat.top { top: auto; } /* keep the 3D stage clear on tall screens */
   .beat.final { left: var(--gutter); right: var(--gutter); translate: none; max-width: none; }
+  .wa-fab {
+    display: grid; place-items: center; position: fixed; z-index: var(--z-nav);
+    right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); width: 54px; height: 54px; border-radius: 50%;
+    background: var(--c-wa); color: #fff; box-shadow: 0 8px 24px rgba(37, 211, 102, .45);
+    transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  }
+  .wa-fab:active { transform: scale(.94); }
+  /* sit the story text just above the WhatsApp button */
+  .beat.bottom, .beat.top { bottom: var(--mobile-beat-bottom); }
+  .beat.final { bottom: var(--mobile-beat-bottom); }
   .final .cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
   .final .cta-row .btn { padding: 0 10px; font-size: 13px; }
   .beat.left, .beat.right {
-    left: var(--gutter); right: var(--gutter); top: auto; bottom: 7vh; margin-top: 0;
+    left: var(--gutter); right: var(--gutter); top: auto; bottom: var(--mobile-beat-bottom); margin-top: 0;
     text-align: left; max-width: none;
   }
   .beat.right .chips { justify-content: flex-start; }
-  .beat.right { padding-right: 0; }
 }
 
 /* No-WebGL fallback: the story reads as a normal page */
