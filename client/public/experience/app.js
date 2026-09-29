@@ -129,6 +129,7 @@ async function loadAll() {
   imgs.forEach((n, i) => { tex[i].colorSpace = THREE.SRGBColorSpace; tex[i].anisotropy = 8; IMG[n] = tex[i]; });
   IMG.blindbox = loadTex("./img/blindbox.jpeg");
   for (const p of PETS) IMG[`pet_${p.key}`] = loadTex(`./img/pets/${p.key}.jpg`);
+  for (const k of ["facial", "hair"]) IMG[`beauty_${k}`] = loadTex(`./img/beauty/${k}.jpg`);
   for (const n of ["intro", "ktv", "sing", "vip", "live", "demo"]) IMG[`poster_${n}`] = loadTex(`./media/${n}.jpg`);
 }
 
@@ -155,9 +156,13 @@ const anims = [];     // { zone, fn(time, dt, localT) }
 const screens = [];   // { mesh, name, zone, video }
 const zones = [];     // THREE.Group per segment
 const converge = [];  // finale convergence items
-const zoomables = []; // { face, zone, k } cards that zoom towards the viewer on hover/tap
+const zoomables = []; // info cards that fly towards the viewer on hover (tap on touch)
 let hoveredZoom = null;
-const ZOOM_SCALE = 0.45, ZOOM_FORWARD = 2.2, ZOOM_LIFT = 0.4, ZOOM_CENTER_PULL = 0.35;
+const ZOOM_MAX_H = 0.62;        // zoomed card fills at most this share of the view height…
+const ZOOM_MAX_W = 0.86;        // …and of the view width
+const ZOOM_GROW = 2.6;          // target on-screen growth factor
+const ZOOM_CENTER_PULL = 0.3;   // how far the card drifts towards screen centre
+const ZOOM_RATE = 9;            // ease speed
 
 function word(text, size, mat, maxW = Infinity) {
   const g = new TextGeometry(text, { font, size, depth: size * 0.28, curveSegments: 8, bevelEnabled: true, bevelThickness: size * 0.045, bevelSize: size * 0.028, bevelSegments: 3 });
@@ -199,7 +204,16 @@ function card(w, h, draw, { frame = true, glow = null, pxPerUnit = 220 } = {}) {
   }
   if (glow != null) { const gl = glowPlane(glow, w * 1.9, h * 1.9, 0.55); gl.position.z = -0.06; grp.add(gl); }
   grp.userData.face = face;
+  grp.userData.size = { w, h };
   return grp;
+}
+
+// Mark a card as zoomable; returns it for chaining.
+function zoomable(obj, zone) {
+  const e = { obj, zone, face: obj.userData.face, ...obj.userData.size, k: 0, active: false, basePos: new THREE.Vector3(), baseQuat: new THREE.Quaternion() };
+  e.face.userData.zoom = e;
+  zoomables.push(e);
+  return obj;
 }
 
 let GLOW_TEX;
@@ -437,7 +451,7 @@ function monolith(ctx, x, z, quote, sub, w = 4.6, h = 3) {
   place(slab, x, ctx.Y + (h + 2.4) / 2, z); ctx.Z.add(slab);
   const edge = new THREE.LineSegments(new THREE.EdgesGeometry(slab.geometry), M.lineGold); edge.position.copy(slab.position); ctx.Z.add(edge);
   const c = card(w, h, drawQuote(quote, sub), { frame: false, glow: ctx.seg.accent });
-  place(c, x, ctx.Y + (h + 2.4) / 2 + 0.3, z + 0.27); ctx.Z.add(c);
+  place(c, x, ctx.Y + (h + 2.4) / 2 + 0.3, z + 0.27); ctx.Z.add(zoomable(c, ctx.zi));
   return c;
 }
 
@@ -447,7 +461,7 @@ function dressKTV(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("sing", 5.4, seg.accent2, zi), ctx.clusterX, Y + 3.6, -27, ctx.clusterRot));
   const board = card(2.8, 3.4, drawPanel({ eyebrow: "Kings of Singers", title: "KOS board", lines: ["#1  🎤  Weekly champion", "#2  🎤  Runner-up", "#3  🎤  Rising star", "Sing live · earn K-GOLD"], accent: "#ff4fa3" }), { glow: seg.accent2 });
-  Z.add(place(board, ctx.clusterX + 0.6, Y + 3.2, -22.5, ctx.clusterRot));
+  Z.add(zoomable(place(board, ctx.clusterX + 0.6, Y + 3.2, -22.5, ctx.clusterRot), zi));
   // Disco ball
   const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(1.4, 2), M.chrome); ball.position.set(0, Y + 10.5, -15); Z.add(ball);
   const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 6), M.goldSoft); wire.position.set(0, Y + 14.9, -15); Z.add(wire);
@@ -464,16 +478,32 @@ function dressKTV(ctx) {
     const ph = rand(0, 6);
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { mic.rotation.y = t * 0.6 + ph; mic.position.y += Math.sin(t * 1.4 + ph) * 0.0025; } } });
   }
-  // Game house wall: the app games in a 2×2 grid under a sign
+  // Game house: Doluruu photo spot flanked by claw machines, arcade cabinets further in
   const house = place(new THREE.Group(), ctx.videoX, Y, -17, ctx.videoRot); Z.add(house);
-  [["🧱", "Tower Stack"], ["🎲", "789 Dice"], ["🔢", "Guess the Number"], ["⏱️", "Stop at 1:00"]].forEach(([ic, name], i) => {
-    const c = card(1.8, 1.8, drawIcon(ic, name), { frame: false, glow: seg.accent2, pxPerUnit: 200 });
-    const gy = i < 2 ? 4.4 : 2.3;
-    c.position.set(i % 2 ? 1.05 : -1.05, gy, 0); house.add(c);
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = gy + Math.sin(t * 1.3 + i) * 0.08; } });
-  });
+  const backdrop = card(4.6, 4, (x, W, H) => {
+    const g = x.createRadialGradient(W / 2, H * 0.45, 0, W / 2, H * 0.45, W * 0.7); g.addColorStop(0, "#6a2f9a"); g.addColorStop(1, "#140b24");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 70; i++) { x.fillStyle = `rgba(240,215,135,${(0.2 + Math.random() * 0.7).toFixed(2)})`; x.beginPath(); x.arc(Math.random() * W, Math.random() * H * 0.85, 1 + Math.random() * W * 0.005, 0, Math.PI * 2); x.fill(); }
+    x.textAlign = "center"; x.fillStyle = goldGrad(x, 0, W);
+    x.font = `800 ${H * 0.075}px Montserrat`; x.fillText("PHOTO SPOT", W / 2, H * 0.11);
+    x.font = `700 ${H * 0.055}px Montserrat`; x.fillText("#REBORNWAVE", W / 2, H * 0.95);
+  }, { glow: seg.accent });
+  backdrop.position.set(0, 2.2, -0.9); house.add(zoomable(backdrop, zi));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.07, 16, 64), new THREE.MeshBasicMaterial({ color: 0xffe6a8, toneMapped: false }));
+  ring.position.set(0, 2, -0.7); house.add(ring);
+  const ringGlow = glowPlane(0xffe6a8, 4.2, 4.2, 0.35); ringGlow.position.set(0, 2, -0.75); house.add(ringGlow);
+  const mascot = makeDoluruu("boy", 2.7); mascot.position.set(0, 0, 0.2); house.add(mascot);
+  anims.push({ zone: zi, fn: (t) => { if (!REDUCED) mascot.userData.sprite.position.y = Math.abs(Math.sin(t * 2.2)) * 0.08; } });
   const sign = card(4.4, 0.9, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("GAME HOUSE", W / 2, H / 2); }, { frame: false, glow: seg.accent });
-  sign.position.set(0, 6, 0); house.add(sign);
+  sign.position.set(0, 4.9, -0.9); house.add(sign);
+  [[-3.1, 0xff4fa3], [3.1, 0x4fc3ff]].forEach(([lx, col], i) => {
+    const claw = clawMachine(col); claw.position.set(lx, 0, 0); house.add(claw);
+    const head = claw.userData.claw;
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { head.position.x = Math.sin(t * 0.6 + i * 2) * 0.4; head.position.y = 2.25 - Math.abs(Math.sin(t * 0.9 + i)) * 0.5; } } });
+  });
+  [[-24, 0xc04dff, "ARCADE"], [-27.2, 0xff4fa3, "RACER"], [-30.4, 0x4fc3ff, "DANCE"]].forEach(([z, col, label]) => {
+    Z.add(place(arcadeCabinet(col, label), ctx.videoX * 1.12, Y, z, ctx.videoRot));
+  });
   // Blind boxes live here too
   const eggGeo = new THREE.SphereGeometry(0.45, 24, 18); eggGeo.scale(1, 1.3, 1);
   const bandGeo = new THREE.TorusGeometry(0.46, 0.035, 8, 32);
@@ -500,6 +530,57 @@ function dressKTV(ctx) {
   });
 }
 
+// Claw machine: base, glass case full of plush prizes, and a moving gold claw.
+function clawMachine(color) {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color, metalness: 0.3, roughness: 0.4, emissive: color, emissiveIntensity: 0.18 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.1, 1.4), bodyMat); base.position.y = 0.55; g.add(base);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.36, 1.5, 1.36), new THREE.MeshStandardMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.16, roughness: 0.05, depthWrite: false }));
+  glass.position.y = 1.85; g.add(glass);
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(glass.geometry), M.lineGold); edges.position.y = 1.85; g.add(edges);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.35, 1.5), bodyMat); top.position.y = 2.78; g.add(top);
+  const marquee = glowPlane(color, 1.8, 0.7, 0.6); marquee.position.set(0, 2.78, 0.77); g.add(marquee);
+  const prizeCols = [0xff9db0, 0xffe08a, 0x7fe0d2, 0xc7b3ff, 0xffb27a];
+  for (let i = 0; i < 14; i++) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({ color: prizeCols[i % 5], roughness: 0.75 }));
+    p.position.set(rand(-0.5, 0.5), 1.27 + rand(0, 0.25), rand(-0.5, 0.5)); g.add(p);
+  }
+  const claw = new THREE.Group();
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 8), M.goldSoft); rod.position.y = 0.25; claw.add(rod);
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2;
+    const finger = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.3, 8), M.gold); finger.position.set(Math.cos(a) * 0.08, -0.1, Math.sin(a) * 0.08); finger.rotation.z = Math.PI; claw.add(finger);
+  }
+  claw.position.y = 2.25; g.add(claw);
+  g.userData.claw = claw;
+  return g;
+}
+
+// Upright arcade cabinet with a glowing screen, control panel and marquee.
+function arcadeCabinet(color, label) {
+  const g = new THREE.Group();
+  const hex = `#${new THREE.Color(color).getHexString()}`;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.3, 0.9), new THREE.MeshStandardMaterial({ color: 0x1a1030, metalness: 0.4, roughness: 0.5 }));
+  body.position.y = 1.15; g.add(body);
+  const screen = card(0.9, 0.72, (x, W, H) => {
+    x.fillStyle = "#05030c"; x.fillRect(0, 0, W, H);
+    x.strokeStyle = hex; x.globalAlpha = 0.5; x.lineWidth = 2;
+    for (let i = 0; i <= 8; i++) { x.beginPath(); x.moveTo(W / 2, H * 0.45); x.lineTo((i / 8) * W, H); x.stroke(); }
+    for (let i = 0; i < 5; i++) { const y = H * 0.55 + i * i * H * 0.02; x.beginPath(); x.moveTo(0, y); x.lineTo(W, y); x.stroke(); }
+    x.globalAlpha = 1; x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.2}px Montserrat`; x.textAlign = "center"; x.fillText("PLAY", W / 2, H * 0.36);
+  }, { frame: false });
+  screen.position.set(0, 1.7, 0.46); screen.rotation.x = -0.12; g.add(screen);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.12, 0.45), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.2 }));
+  panel.position.set(0, 1.08, 0.6); panel.rotation.x = 0.25; g.add(panel);
+  [-0.25, 0, 0.25].forEach((bx, i) => {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 12), new THREE.MeshBasicMaterial({ color: [0xff5a5f, 0xffd23f, 0x4fc3ff][i], toneMapped: false }));
+    b.position.set(bx, 1.16, 0.64); b.rotation.x = 0.25; g.add(b);
+  });
+  const marquee = card(1.1, 0.32, (x, W, H) => { x.fillStyle = hex; x.fillRect(0, 0, W, H); x.fillStyle = "#fff"; x.font = `800 ${H * 0.55}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(label, W / 2, H / 2); }, { frame: false, glow: color });
+  marquee.position.set(0, 2.18, 0.46); g.add(marquee);
+  return g;
+}
+
 // A lit glass room pod whose front faces the floor's centre line.
 function roomPod(ctx, eyebrow, title, x, z, glow) {
   const { Z, Y } = ctx;
@@ -515,7 +596,7 @@ function roomPod(ctx, eyebrow, title, x, z, glow) {
     x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.11}px Montserrat`; x.fillText(title, W * 0.08, H * 0.18);
     x.fillStyle = "#f0d787"; x.font = `600 ${H * 0.055}px Montserrat`; x.fillText(eyebrow.toUpperCase(), W * 0.08, H * 0.07 + H * 0.02);
   }, { glow });
-  front.position.set(0, 1.7, 1.62); pod.add(front);
+  front.position.set(0, 1.7, 1.62); pod.add(zoomable(front, ctx.zi));
   place(pod, x, Y, z, -Math.sign(x) * Math.PI / 2);
   Z.add(pod);
   return pod;
@@ -569,10 +650,18 @@ function dressPrivate(ctx) {
   const seat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 1.1), M.velvet); seat.position.y = 0.7; chair.add(seat);
   const back = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 0.25), M.velvet); back.position.set(0, 1.4, -0.45); chair.add(back);
   Z.add(place(chair, bx * 0.95, Y, -31, bRot + Math.PI));
-  [["💆", "Facial", "Skin treatments & facials"], ["💇", "Hair salon", "Cut, colour & styling"]].forEach(([ic, t, l], i) => {
-    const c = card(2.6, 2.1, drawPanel({ eyebrow: "2F · Beauty", icon: ic, title: t, lines: [l], accent: "#ffb3d9" }), { glow: 0xff7ac0 });
-    Z.add(place(c, bx + i * 0.6 * ctx.m, Y + 2.6 + i * 1.6, -24 - i * 1.8, bRot));
-    anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.6 + i * 1.6 + Math.sin(t2 + i) * 0.1; } });
+  [["facial", "Facial", "Skin treatments & facials"], ["hair", "Hair salon", "Cut, colour & styling"]].forEach(([key, t, l], i) => {
+    const c = card(2.6, 3.3, (x, W, H) => {
+      rr(x, 4, 4, W - 8, H - 8, 22); x.fillStyle = "rgba(24,12,32,.96)"; x.fill();
+      x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+      x.textAlign = "left"; x.fillStyle = "#ffb3d9"; x.font = `600 ${H * 0.04}px Montserrat`; x.fillText("2F · BEAUTY", W * 0.08, H * 0.8);
+      x.fillStyle = "#fbf6ea"; x.font = `800 ${H * 0.07}px Montserrat`; x.fillText(t, W * 0.08, H * 0.87);
+      x.fillStyle = "rgba(251,246,234,.74)"; x.font = `500 ${H * 0.04}px Montserrat`; x.fillText(l, W * 0.08, H * 0.93);
+    }, { glow: 0xff7ac0 });
+    const photo = new THREE.Mesh(new THREE.PlaneGeometry(2.36, 2.36), new THREE.MeshBasicMaterial({ map: IMG[`beauty_${key}`], toneMapped: false }));
+    photo.position.set(0, 0.36, 0.02); c.add(photo);
+    Z.add(zoomable(place(c, bx + i * 0.8 * ctx.m, Y + 2.9 + i * 0.5, -23.5 - i * 2.2, bRot), zi));
+    anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.9 + i * 0.5 + Math.sin(t2 + i) * 0.1; } });
   });
   // 5-IN-1 monument
   const mono = word("BEAUTY", 2.6, wordMaterial(seg.accent), 14); mono.position.set(0, Y + 1.2, -47); Z.add(mono);
@@ -585,7 +674,7 @@ function dressVIP(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("vip", 6.4, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
   const gold = card(3.6, 2.25, drawMemberCard("GOLD TIER"), { frame: false, glow: 0xf0d787 });
-  Z.add(place(gold, ctx.clusterX, Y + 4.2, -19, ctx.clusterRot));
+  Z.add(zoomable(place(gold, ctx.clusterX, Y + 4.2, -19, ctx.clusterRot), zi));
   anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { gold.rotation.z = Math.sin(t * 0.8) * 0.05; gold.position.y = Y + 4.2 + Math.sin(t) * 0.12; } } });
   // Mirrored gold pillars
   for (const z of [-6, -16, -26, -36]) for (const s of [-1, 1]) {
@@ -620,13 +709,13 @@ function dressPet(ctx) {
     const photo = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: IMG[`pet_${key}`], toneMapped: false }));
     photo.position.set(0, 0.26, 0.02); c.add(photo);
     const baseY = 3 + (i % 2) * 0.6;
-    Z.add(place(c, ctx.videoX + i * 0.5 * -ctx.m, Y + baseY, -13 - i * 3.4, ctx.videoRot));
+    Z.add(zoomable(place(c, ctx.videoX + i * 0.5 * -ctx.m, Y + baseY, -13 - i * 3.4, ctx.videoRot), zi));
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + baseY + Math.sin(t * 1.3 + i) * 0.1; } });
   });
   // Food, kids & family
   [["☕", "Cafe", "Coffee, tea & sweet treats"], ["🍽️", "Restaurant", "Proper meals made to share"], ["👨‍👩‍👧", "Kids & family", "Family tables, kid-friendly"]].forEach(([ic, t, l], i) => {
     const c = card(2.6, 2.1, drawPanel({ eyebrow: "4F · Pet cafe", icon: ic, title: t, lines: [l], accent: "#ffcf8a" }), { glow: seg.accent });
-    Z.add(place(c, ctx.clusterX + i * 0.5 * ctx.m, Y + 2.8 + i * 1.3, -25 - i * 2.6, ctx.clusterRot));
+    Z.add(zoomable(place(c, ctx.clusterX + i * 0.5 * ctx.m, Y + 2.8 + i * 1.3, -25 - i * 2.6, ctx.clusterRot), zi));
     anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.8 + i * 1.3 + Math.sin(t2 + i) * 0.1; } });
   });
   // Cafe tables with chairs and cups
@@ -656,7 +745,7 @@ function dressPet(ctx) {
   Z.add(place(pit, ctx.clusterX * 0.9, Y, -41));
   // Menu board at the end of the floor
   const menu = card(6.4, 3.6, drawPanel({ eyebrow: "4F · Pet cafe & restaurant", title: "Pets, food & family", lines: ["☕  Coffee, tea & treats", "🍽️  Meals to share", "🐾  Meet our pets"], accent: "#ffcf8a" }), { glow: seg.accent });
-  Z.add(place(menu, 0, Y + 3, -47));
+  Z.add(zoomable(place(menu, 0, Y + 3, -47), zi));
   const back = glowPlane(seg.accent2, 14, 10, 0.25); back.position.set(0, Y + 3, -48); Z.add(back);
 }
 
@@ -706,7 +795,7 @@ function dressLive(ctx) {
   // Event cards + energy monolith
   [["🎧", "DJ nights"], ["🎸", "Live bands"], ["👑", "KOS finals"]].forEach(([ic, name], i) => {
     const c = card(1.9, 1.9, drawIcon(ic, name), { frame: false, glow: seg.accent, pxPerUnit: 200 });
-    Z.add(place(c, ctx.videoX + i * 0.6 * -ctx.m, Y + 3.2 + (i % 2) * 1.1, -15 - i * 2.6, ctx.videoRot));
+    Z.add(zoomable(place(c, ctx.videoX + i * 0.6 * -ctx.m, Y + 3.2 + (i % 2) * 1.1, -15 - i * 2.6, ctx.videoRot), zi));
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + 3.2 + (i % 2) * 1.1 + Math.sin(t * 1.6 + i) * 0.15; } });
   });
   monolith(ctx, ctx.clusterX * 0.85, -24, "Real crowds. Real energy. Every night.", "5F ROOFTOP · LIVE", 4.2, 2.6);
@@ -727,7 +816,7 @@ function dressBlindbox({ Z, zi, Y, seg, portrait }) {
   const img = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 2.9), new THREE.MeshBasicMaterial({ map: IMG.blindbox, toneMapped: false }));
   img.position.z = 0.02; box.add(img);
   const boxY = portrait ? 8.4 : 5.6;
-  box.position.set(0, Y + boxY, -1.5); Z.add(box);
+  box.position.set(0, Y + boxY, -1.5); Z.add(zoomable(box, zi));
   anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { box.rotation.y = Math.sin(t * 0.7) * 0.25; box.position.y = Y + boxY + Math.sin(t * 1.2) * 0.12; } } });
   const steps = [
     ["Buy a blind box", ["Pick up a package", "at the club"]],
@@ -740,14 +829,8 @@ function dressBlindbox({ Z, zi, Y, seg, portrait }) {
     const x = portrait ? (i % 2 ? 2 : -2) : -6.3 + i * 4.2;
     const y = portrait ? (i < 2 ? 5.1 : 2.3) : 2.2;
     const s = portrait ? 0.95 : 1;
-    c.scale.setScalar(s); c.position.set(x, Y + y, 0); Z.add(c);
-    const entry = { face: c.userData.face, zone: zi, k: 0 };
-    zoomables.push(entry); c.userData.face.userData.zoom = entry;
-    anims.push({ zone: zi, fn: (t, dt) => {
-      entry.k += ((hoveredZoom === entry ? 1 : 0) - entry.k) * Math.min(1, dt * 10);
-      c.position.set(x * (1 - entry.k * ZOOM_CENTER_PULL), Y + y + (REDUCED ? 0 : Math.sin(t * 1.1 + i) * 0.07) + entry.k * ZOOM_LIFT, entry.k * ZOOM_FORWARD);
-      c.scale.setScalar(s * (1 + entry.k * ZOOM_SCALE));
-    } });
+    c.scale.setScalar(s); c.position.set(x, Y + y, 0); Z.add(zoomable(c, zi));
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + y + Math.sin(t * 1.1 + i) * 0.07; } });
   });
   if (!portrait) {
     const boy = makeDoluruu("boy", 3); boy.position.set(-10.2, Y, 0.5); Z.add(boy);
@@ -804,7 +887,7 @@ function dressLocation({ Z, zi, Y, seg, portrait }) {
     rings.forEach((r, i) => { const k = ((t * 0.5 + i / 3) % 1); r.scale.setScalar(1 + k * 5); r.material.opacity = (1 - k) * 0.8; });
   } });
   const sign = card(5.2, 3.2, drawPanel({ eyebrow: "Batam · Harbourfront", title: VENUE.name, lines: [...VENUE.lines.slice(0, 2), ...VENUE.hours], accent: "#7fe0d2" }), { glow: seg.accent });
-  sign.position.set(cx, Y + (portrait ? 7.6 : 6.2), -3); Z.add(sign);
+  sign.position.set(cx, Y + (portrait ? 7.6 : 6.2), -3); Z.add(zoomable(sign, zi));
 }
 
 // ── Zone: FINALE ───────────────────────────────────────────────────────────
@@ -1009,6 +1092,37 @@ function setActiveSegment(i) {
   scene.fog.near = seg.id === "arrival" ? 28 : 30; scene.fog.far = seg.id === "arrival" ? 120 : 95;
 }
 
+const zCam = new THREE.Vector3(), zTarget = new THREE.Vector3(), zQuat = new THREE.Quaternion();
+// Undo last frame's zoom so the anims see (and set) the card's resting transform.
+function unapplyZoom() {
+  for (const e of zoomables) if (e.active) { e.obj.position.copy(e.basePos); e.obj.quaternion.copy(e.baseQuat); e.active = false; }
+}
+// Ease hovered cards towards a framed spot in front of the camera, facing it.
+function applyZoom(dt) {
+  const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+  let isZooming = false;
+  for (const e of zoomables) {
+    e.k += ((hoveredZoom === e ? 1 : 0) - e.k) * Math.min(1, dt * ZOOM_RATE);
+    if (e.k < 0.002 || !zones[e.zone].visible) continue;
+    const o = e.obj;
+    o.getWorldPosition(zCam); camera.worldToLocal(zCam);
+    const depth = -zCam.z;
+    if (depth <= 0.2) continue;
+    const s = o.getWorldScale(zTarget).y, h = e.h * s, w = e.w * s;
+    const fWant = Math.min(ZOOM_MAX_H, (h / (2 * depth * tanHalf)) * ZOOM_GROW);
+    const dist = Math.min(depth, Math.max(h / (2 * tanHalf * fWant), w / (2 * tanHalf * camera.aspect * ZOOM_MAX_W)));
+    const ratio = (dist / depth) * (1 - ZOOM_CENTER_PULL);
+    zTarget.set(zCam.x * ratio, zCam.y * ratio, -dist);
+    camera.localToWorld(zTarget); o.parent.worldToLocal(zTarget);
+    e.basePos.copy(o.position); e.baseQuat.copy(o.quaternion); e.active = true;
+    o.position.lerp(zTarget, e.k);
+    o.parent.getWorldQuaternion(zQuat).invert().multiply(camera.quaternion);
+    o.quaternion.slerp(zQuat, e.k);
+    if (e.k > 0.5) isZooming = true;
+  }
+  document.body.classList.toggle("zooming", isZooming);
+}
+
 function frame(ts) {
   timer.update(ts);
   const dt = Math.min(timer.getDelta(), 0.05);
@@ -1028,7 +1142,9 @@ function frame(ts) {
   key.position.set(camPos.x + 8, seg.y + 16, camPos.z + 10);
   key.target.position.set(camPos.x, seg.y, camPos.z - 20);
 
+  unapplyZoom();
   for (const a of anims) if (zones[a.zone].visible) a.fn(t, dt, a.zone === si ? lt : a.zone < si ? 1 : 0);
+  applyZoom(dt);
   // Doluruu sprites always face the camera, staying upright
   for (const s of billboards) { s.getWorldPosition(tmpV); s.lookAt(camPos.x, tmpV.y, camPos.z); }
   updateOverlays(p, si);
