@@ -21,6 +21,10 @@ const WALK_CSS = `
 @keyframes rwpetCloud{0%{transform:translateX(-30px)}100%{transform:translateX(90px)}}
 @keyframes rwpetTwinkle{0%,100%{opacity:.35}50%{opacity:1}}
 @keyframes rwpetBubble{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes rwpetDrift{0%{left:-24%}100%{left:106%}}
+@keyframes rwpetSway{0%,100%{transform:rotate(-1.6deg)}50%{transform:rotate(1.6deg)}}
+@keyframes rwpetRise{0%{transform:translate(-50%,0) scale(.5);opacity:0}18%{opacity:1}100%{transform:translate(-50%,-54px) scale(1.15);opacity:0}}
+@keyframes rwpetFirefly{0%,100%{opacity:.15;transform:translateY(0)}50%{opacity:.9;transform:translateY(-7px)}}
 .rwpet-walker{position:absolute;bottom:11%;width:34%;aspect-ratio:1;cursor:pointer;z-index:5;will-change:left;}
 .rwpet-shadow{position:absolute;left:50%;bottom:1%;width:56%;height:8%;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.32);filter:blur(3px);}
 .rwpet-face{position:relative;width:100%;height:100%;transition:transform .28s ease;}
@@ -143,10 +147,8 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
   const sick = pet.lifeStatus === "sick";
   const [pop, setPop] = useState(false);
   const poke = () => { setPop(true); setTimeout(() => setPop(false), 550); }; // reaction only — no energy cost
-  const stageRef = useRef<HTMLIFrameElement>(null);
-  const postStage = (msg: any) => { try { stageRef.current?.contentWindow?.postMessage({ __pet3d: true, ...msg }, "*"); } catch {} };
-  const ACT_MAP: Record<string, string> = { feed: "feed", play: "play", clean: "bath", sleep: "sleep", wake: "wake" };
-  const doAction = (a: string) => { postStage({ type: "act", action: ACT_MAP[a] || a }); onAction(a); };
+  const [fx, setFx] = useState<{ action: string; n: number } | null>(null);
+  const doAction = (a: string) => { setFx((p) => ({ action: a, n: (p?.n || 0) + 1 })); onAction(a); };
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 overflow-hidden">
@@ -163,7 +165,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
 
       {pet.isEgg
         ? <PetRoom pet={pet} img={img} sick={sick} home={home} onLight={onLight} pop={pop} onPoke={poke} />
-        : <Pet3DStage pet={pet} sick={sick} home={home} stageRef={stageRef} pop={pop} onPoke={poke} />}
+        : <PetGarden pet={pet} img={img} sick={sick} home={home} fx={fx} pop={pop} onPoke={poke} />}
       {!pet.isEgg && <OutfitCard pet={pet} home={home} />}
 
       {/* body */}
@@ -361,34 +363,113 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
   );
 }
 
-// ── 3D Doluruu stage (LayaAir) ───────────────────────────────────────────
-// Renders the animated 3D dino in an isolated iframe and drives it via
-// postMessage from the app's own action buttons / stats.
-function Pet3DStage({ pet, sick, home, stageRef, pop, onPoke }: any) {
+// ── Outdoor garden stage (2D) ────────────────────────────────────────────
+// The hatched Doluruu lives in a layered 2D garden: phase-driven sky, sun or
+// moon, drifting clouds, hills and gently swaying trees, with the real
+// character artwork wandering about. Action buttons fire emoji bursts + a hop.
+const CELESTIAL: Record<Phase, React.CSSProperties> = {
+  dawn: { left: "12%", top: "36%", background: "radial-gradient(circle at 40% 35%,#fff3b8,#ffb95e)", boxShadow: "0 0 46px 18px rgba(255,190,110,.55)" },
+  day: { right: "10%", top: "8%", background: "radial-gradient(circle at 40% 35%,#fffbe0,#ffd23f)", boxShadow: "0 0 44px 16px rgba(255,224,130,.5)" },
+  dusk: { right: "16%", top: "44%", background: "radial-gradient(circle at 40% 35%,#ffe1b0,#ff9d5c)", boxShadow: "0 0 46px 18px rgba(255,150,90,.5)" },
+  night: { right: "11%", top: "9%", background: "radial-gradient(circle at 62% 38%,#fff,#cdd6f2)", boxShadow: "0 0 40px 14px rgba(210,220,255,.35)" },
+};
+const FX_BURST: Record<string, string[]> = { feed: ["🍖", "😋"], play: ["🎾", "💖"], clean: ["🫧", "🧼", "🫧"], sleep: ["💤"], wake: ["☀️"] };
+const GardenCloud = ({ top, w, dur, delay, o }: any) => (
+  <svg viewBox="0 0 64 26" className="absolute" style={{ top, width: w, opacity: o, left: "-24%", animation: `rwpetDrift ${dur}s linear ${delay}s infinite` }}>
+    <ellipse cx="20" cy="17" rx="15" ry="8" fill="#fff" /><ellipse cx="36" cy="12" rx="13" ry="9" fill="#fff" /><ellipse cx="47" cy="18" rx="11" ry="7" fill="#fff" />
+  </svg>
+);
+const GardenTree = ({ style, pine }: any) => (
+  <svg viewBox="0 0 60 84" className="absolute" style={{ transformOrigin: "50% 100%", animation: "rwpetSway 6.5s ease-in-out infinite", ...style }}>
+    {pine ? (
+      <>
+        <rect x="27" y="66" width="6" height="16" rx="2.4" fill="#8a5c38" />
+        <path d="M30 2 L48 34 H12 Z" fill="#37a067" /><path d="M30 20 L52 54 H8 Z" fill="#2e8f5b" /><path d="M30 40 L56 72 H4 Z" fill="#287c50" />
+      </>
+    ) : (
+      <>
+        <rect x="26" y="52" width="8" height="30" rx="3" fill="#8a5c38" />
+        <circle cx="30" cy="32" r="21" fill="#3fae4f" /><circle cx="15" cy="42" r="12" fill="#59c463" /><circle cx="45" cy="42" r="12" fill="#2f9648" />
+        <circle cx="24" cy="26" r="7" fill="#7ed08a" opacity=".8" />
+      </>
+    )}
+  </svg>
+);
+function PetGarden({ pet, img, sick, home, fx, pop, onPoke }: any) {
   const phase = phaseOf(useVenueHour(home?.timezone));
-  const [ready, setReady] = useState(false);
+  const night = phase === "night";
+  const dim = night ? 0.34 : phase === "dusk" ? 0.14 : phase === "dawn" ? 0.05 : 0;
+  const worn: Record<string, string> = home?.costumes?.[String(pet.id)] || {};
+  const layers = outfitLayers(home, worn);
+  const placed = home?.placed || {};
+  const slot = (s: string) => itemById(home, placed[s]);
+  const asleep = pet.isSleeping || sick;
+  const wander = useWander(!asleep);
   const stats = ["hunger", "happiness", "cleanliness", "energy"].map((k) => pet[k] ?? 0);
   const lowest = Math.min(...stats);
   const need = lowest >= 30 ? null : ["🍖", "🎾", "🧼", "😴"][stats.indexOf(lowest)];
   const mood = stats.reduce((a: number, b: number) => a + b, 0) / 4 >= 60 ? "😊" : lowest < 20 ? "😢" : null;
-  const post = (msg: any) => { try { stageRef.current?.contentWindow?.postMessage({ __pet3d: true, ...msg }, "*"); } catch {} };
-  useEffect(() => { if (ready) post({ type: "state", sleeping: !!pet.isSleeping, sick: !!sick }); }, [ready, pet.isSleeping, sick]);
-  useEffect(() => { if (ready) post({ type: "phase", phase }); }, [ready, phase]);
-  useEffect(() => {
-    const h = (e: MessageEvent) => {
-      const d: any = e.data || {};
-      if (!d.__pet3d || !stageRef.current || e.source !== stageRef.current.contentWindow) return;
-      if (d.type === "ready") setReady(true);
-      if (d.type === "poke") onPoke?.();
-    };
-    window.addEventListener("message", h);
-    return () => window.removeEventListener("message", h);
-  }, [onPoke]);
+  const [burst, setBurst] = useState<{ action: string; n: number } | null>(null);
+  useEffect(() => { if (!fx) return; setBurst(fx); const t = setTimeout(() => setBurst(null), 1400); return () => clearTimeout(t); }, [fx]);
+
   return (
-    <div className="relative mx-3 mt-3 rounded-2xl overflow-hidden aspect-[4/3] select-none" style={{ background: "#bfe9ff" }}>
-      <iframe ref={stageRef} src="/pet3d/stage.html" title={pet.name} className="absolute inset-0 h-full w-full border-0" scrolling="no" />
-      {pop && <span className="rwpet-heart" style={{ left: "50%" }}>💖</span>}
-      {(need || mood) && <span className="absolute top-[9%] right-[8%] rounded-full bg-white px-2 py-0.5 text-base shadow" style={{ animation: "rwpetBubble 1.8s ease-in-out infinite" }}>{need || mood}</span>}
+    <div className="relative mx-3 mt-3 rounded-2xl overflow-hidden aspect-[4/3] select-none" style={{ background: SKY[phase] }}>
+      {/* clouds */}
+      <GardenCloud top="9%" w="26%" dur={46} delay={-8} o={night ? 0.25 : 0.95} />
+      <GardenCloud top="20%" w="18%" dur={60} delay={-33} o={night ? 0.18 : 0.8} />
+      <GardenCloud top="4%" w="14%" dur={74} delay={-58} o={night ? 0.15 : 0.7} />
+      {/* far hills */}
+      <div className="absolute bottom-[22%] left-[-16%] w-[70%] h-[24%] rounded-[50%]" style={{ background: "#a5d69b" }} />
+      <div className="absolute bottom-[23%] right-[-22%] w-[82%] h-[20%] rounded-[50%]" style={{ background: "#8fcb86" }} />
+      {/* trees */}
+      <GardenTree style={{ left: "1%", bottom: "22%", width: "17%" }} />
+      <GardenTree style={{ right: "1.5%", bottom: "23%", width: "14%" }} pine />
+      <GardenTree style={{ right: "16%", bottom: "24%", width: "9%" }} />
+      {/* grass */}
+      <div className="absolute bottom-0 left-[-10%] w-[120%] h-[30%]" style={{ background: "linear-gradient(180deg,#7ec850,#55a53d)", borderRadius: "50% 50% 0 0 / 30% 30% 0 0" }} />
+      {/* flowers & props */}
+      {[["🌼", "16%", "16%"], ["🌷", "34%", "4%"], ["🌻", "62%", "14%"], ["🌸", "83%", "7%"], ["🪨", "5%", "3%"]].map(([e, left, bottom]) => (
+        <span key={`${e}${left}`} className="absolute text-base" style={{ left, bottom, textShadow: "0 1px 2px rgba(0,0,0,.2)" }}>{e}</span>
+      ))}
+      {slot("plant") && <ItemArt id={slot("plant").id} emoji={slot("plant").emoji} className="absolute" style={{ right: "2%", bottom: "6%", width: "17%", aspectRatio: "1" }} />}
+      {slot("toy") && <ItemArt id={slot("toy").id} emoji={slot("toy").emoji} className="absolute" style={{ left: "72%", bottom: "2%", width: "12%", aspectRatio: "1" }} />}
+      {/* night/dusk dimming, with the glowing sky lights above it */}
+      <div className="absolute inset-0 pointer-events-none transition-colors duration-700" style={{ background: `rgba(10,14,45,${dim})` }} />
+      <div className="absolute w-10 h-10 rounded-full" style={CELESTIAL[phase]} />
+      {night && ["10% 12%", "30% 6%", "48% 16%", "66% 8%", "84% 20%", "22% 26%"].map((pos, i) => (
+        <span key={pos} className="absolute text-[9px] text-white" style={{ left: pos.split(" ")[0], top: pos.split(" ")[1], animation: `rwpetTwinkle ${1.5 + i * 0.35}s ease-in-out infinite` }}>✦</span>
+      ))}
+      {night && [["20%", "12%"], ["55%", "20%"], ["78%", "9%"]].map(([left, bottom], i) => (
+        <span key={left} className="absolute text-[10px]" style={{ left, bottom, animation: `rwpetFirefly ${2 + i * 0.7}s ease-in-out ${i * 0.5}s infinite` }}>✨</span>
+      ))}
+
+      {/* Doluruu */}
+      <button ref={wander.ref} onClick={onPoke} aria-label="Play with your pet"
+        className={`rwpet-walker ${asleep ? "rwpet-sleep" : `rwpet-m-${wander.mode}`} ${burst && !asleep && burst.action !== "sleep" ? "rwpet-m-hop" : ""}`}
+        style={{ left: `${asleep ? 36 : wander.startX}%` }}>
+        <div className="rwpet-shadow" />
+        <div className="rwpet-face" style={{ transform: `scaleX(${wander.facing})` }}>
+          <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
+            {layers
+              ? <DressedPet home={home} worn={worn} alt={pet.name} className={sick ? "grayscale opacity-70" : ""} />
+              : <img src={img} alt={pet.name} className={`w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />}
+            {(["neck", "face", "head"] as const).map((part) => {
+              const it = worn[part] && itemById(home, worn[part]);
+              if (!it || !PET_ART[it.id] || layers) return null; // drawn legacy costumes only
+              const f = COSTUME_FIT[part];
+              return <ItemArt key={part} id={it.id} emoji={it.emoji} className="absolute pointer-events-none"
+                style={{ left: `${f.left}%`, top: `${f.top}%`, width: `${f.width}%`, aspectRatio: "1", transform: `translate(-50%, ${f.anchor === "bottom" ? "-100%" : "-50%"})`, filter: "drop-shadow(0 2px 2px rgba(0,0,0,.25))" }} />;
+            })}
+          </div>
+        </div>
+        {burst && (FX_BURST[burst.action] || []).map((e, i) => (
+          <span key={`${burst.n}-${i}`} className="absolute left-1/2 top-[6%] text-xl pointer-events-none" style={{ marginLeft: (i - 1) * 16, animation: `rwpetRise 1.15s ease-out ${i * 0.14}s forwards`, opacity: 0 }}>{e}</span>
+        ))}
+        {pop && <span className="rwpet-heart">💖</span>}
+        {!asleep && (need || mood) && <span className="absolute -top-[14%] right-[-4%] rounded-full bg-white px-1.5 py-0.5 text-sm shadow" style={{ animation: "rwpetBubble 1.8s ease-in-out infinite" }}>{need || mood}</span>}
+      </button>
+      {pet.isSleeping && <span className="absolute left-1/2 top-[26%] text-xl z-10" style={{ animation: "rwpetBreathe 1.6s ease-in-out infinite" }}>💤</span>}
+
       <span className="absolute left-2 bottom-2 z-10 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">
         {phase === "night" ? "🌙 Night" : phase === "dusk" ? "🌇 Evening" : phase === "dawn" ? "🌅 Morning" : "☀️ Day"}
       </span>
