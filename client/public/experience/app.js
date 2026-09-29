@@ -82,6 +82,9 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.55;
 
 const camera = new THREE.PerspectiveCamera(PORTRAIT() ? 62 : 45, innerWidth / innerHeight, 0.1, 400);
+const zoomDimmer = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshBasicMaterial({ color: 0x05030c, transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false, fog: false }));
+zoomDimmer.position.z = -0.5; zoomDimmer.renderOrder = -1; zoomDimmer.layers.set(1); // ZOOM_LAYER (declared below)
+camera.add(zoomDimmer); scene.add(camera);
 scene.add(new THREE.HemisphereLight(0x8c6cff, 0x1a0d05, 0.9));
 const key = new THREE.DirectionalLight(0xfff0d0, 1.6);
 scene.add(key, key.target);
@@ -158,11 +161,11 @@ const zones = [];     // THREE.Group per segment
 const converge = [];  // finale convergence items
 const zoomables = []; // info cards that fly towards the viewer on hover (tap on touch)
 let hoveredZoom = null;
-const ZOOM_MAX_H = 0.62;        // zoomed card fills at most this share of the view height…
-const ZOOM_MAX_W = 0.86;        // …and of the view width
-const ZOOM_GROW = 2.6;          // target on-screen growth factor
-const ZOOM_CENTER_PULL = 0.3;   // how far the card drifts towards screen centre
+const ZOOM_MAX_H = 0.78;        // zoomed card fills at most this share of the view height…
+const ZOOM_MAX_W = 0.9;         // …and of the view width
 const ZOOM_RATE = 9;            // ease speed
+const ZOOM_LAYER = 1;
+const ZOOM_DIM = 0.6;           // how dark the scene gets behind a zoomed card
 
 function word(text, size, mat, maxW = Infinity) {
   const g = new TextGeometry(text, { font, size, depth: size * 0.28, curveSegments: 8, bevelEnabled: true, bevelThickness: size * 0.045, bevelSize: size * 0.028, bevelSegments: 3 });
@@ -460,7 +463,7 @@ function monolith(ctx, x, z, quote, sub, w = 4.6, h = 3) {
 function dressKTV(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("sing", 5.4, seg.accent2, zi), ctx.clusterX, Y + 3.6, -27, ctx.clusterRot));
-  const board = card(2.8, 3.4, drawPanel({ eyebrow: "Kings of Singers", title: "KOS board", lines: ["#1  🎤  Weekly champion", "#2  🎤  Runner-up", "#3  🎤  Rising star", "Sing live · earn K-GOLD"], accent: "#ff4fa3" }), { glow: seg.accent2 });
+  const board = card(3.6, 3.4, drawPanel({ eyebrow: "Kings of Singers", title: "KOS board", lines: ["#1  🎤  Weekly champion", "#2  🎤  Runner-up", "#3  🎤  Rising star", "Sing live · earn K-GOLD"], accent: "#ff4fa3" }), { glow: seg.accent2 });
   Z.add(zoomable(place(board, ctx.clusterX + 0.6, Y + 3.2, -22.5, ctx.clusterRot), zi));
   // Disco ball
   const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(1.4, 2), M.chrome); ball.position.set(0, Y + 10.5, -15); Z.add(ball);
@@ -501,9 +504,13 @@ function dressKTV(ctx) {
     const head = claw.userData.claw;
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { head.position.x = Math.sin(t * 0.6 + i * 2) * 0.4; head.position.y = 2.25 - Math.abs(Math.sin(t * 0.9 + i)) * 0.5; } } });
   });
-  [[-24, 0xc04dff, "ARCADE"], [-27.2, 0xff4fa3, "RACER"], [-30.4, 0x4fc3ff, "DANCE"]].forEach(([z, col, label]) => {
-    Z.add(place(arcadeCabinet(col, label), ctx.videoX * 1.12, Y, z, ctx.videoRot));
+  const arcadeStage = new THREE.Mesh(new THREE.BoxGeometry(22, 0.9, 3), M.night); arcadeStage.position.set(0, Y + 0.45, -51.5); Z.add(arcadeStage);
+  const stageTrim = new THREE.Mesh(new THREE.BoxGeometry(22.1, 0.06, 0.08), M.gold); stageTrim.position.set(0, Y + 0.9, -50); Z.add(stageTrim);
+  [[-8.4, 0xc04dff, "ARCADE"], [-4.2, 0xff4fa3, "RACER"], [0, 0xffd23f, "BASKET"], [4.2, 0x4fc3ff, "DANCE"], [8.4, 0x7ee081, "DRUMS"]].forEach(([x, col, label]) => {
+    Z.add(place(arcadeCabinet(col, label), x, Y + 0.9, -51.5));
   });
+  const arcadeSign = card(6, 1, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("GAME HOUSE · ARCADE", W / 2, H / 2); }, { frame: false, glow: seg.accent });
+  arcadeSign.position.set(0, Y + 3.9, -51.8); Z.add(arcadeSign);
   // Blind boxes live here too
   const eggGeo = new THREE.SphereGeometry(0.45, 24, 18); eggGeo.scale(1, 1.3, 1);
   const bandGeo = new THREE.TorusGeometry(0.46, 0.035, 8, 32);
@@ -1025,6 +1032,7 @@ function updateOverlays(p, segIdx) {
 
 // ── Interaction: click a floating screen to watch it big ───────────────────
 const ray = new THREE.Raycaster();
+ray.layers.enableAll(); // zoomed cards sit on ZOOM_LAYER
 const ndc = new THREE.Vector2();
 const vmodal = document.getElementById("vmodal");
 const vplayer = document.getElementById("vplayer");
@@ -1036,9 +1044,25 @@ function pick(ev) {
   const hit = ray.intersectObjects(targets, false)[0];
   return hit ? hit.object.userData : null;
 }
+let releasedZoom = null;
+const ZOOM_SETTLED = 0.9;
+const ZOOM_RELEASE_DIST = 0.22; // share of the short screen side the pointer may wander before release
+const hoverStart = { x: 0, y: 0 };
+// A zoomed card stays until the pointer wanders well away or reaches another card; once
+// released it can't re-trigger until the pointer leaves it (else it bounces under a still pointer).
+function updateHover(hit, ev) {
+  if (hit !== releasedZoom) releasedZoom = null;
+  if (hoveredZoom) {
+    if (hit === hoveredZoom || hoveredZoom.k < ZOOM_SETTLED) return;
+    const wandered = Math.hypot(ev.clientX - hoverStart.x, ev.clientY - hoverStart.y) > ZOOM_RELEASE_DIST * Math.min(innerWidth, innerHeight);
+    if (!hit && !wandered) return;
+    releasedZoom = hoveredZoom; hoveredZoom = null;
+  }
+  if (hit && hit !== releasedZoom) { hoveredZoom = hit; hoverStart.x = ev.clientX; hoverStart.y = ev.clientY; }
+}
 canvas.addEventListener("pointermove", (ev) => {
   const hit = pick(ev);
-  if (ev.pointerType === "mouse") hoveredZoom = hit?.zoom || null;
+  if (ev.pointerType === "mouse") updateHover(hit?.zoom || null, ev);
   document.body.classList.toggle("hovering-screen", !!(hit?.screen || hit?.zoom));
 });
 canvas.addEventListener("pointerleave", () => { hoveredZoom = null; });
@@ -1064,7 +1088,10 @@ vmodal.addEventListener("click", (e) => { if (e.target === vmodal) closeModal();
 
 // ── Main loop ──────────────────────────────────────────────────────────────
 let target = 0, cur = 0, activeSeg = -1;
-const readScroll = () => { target = clamp(scrollY / maxScroll()); };
+const readScroll = () => {
+  target = clamp(scrollY / maxScroll());
+  if (hoveredZoom) { releasedZoom = hoveredZoom; hoveredZoom = null; }
+};
 addEventListener("scroll", readScroll, { passive: true });
 const timer = new THREE.Timer();
 const camPos = V(0, 0, 0), camLook = V(0, 0, 0), tmpV = V(0, 0, 0);
@@ -1100,27 +1127,43 @@ function unapplyZoom() {
 // Ease hovered cards towards a framed spot in front of the camera, facing it.
 function applyZoom(dt) {
   const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-  let isZooming = false;
+  let isZooming = false, maxK = 0;
   for (const e of zoomables) {
     e.k += ((hoveredZoom === e ? 1 : 0) - e.k) * Math.min(1, dt * ZOOM_RATE);
-    if (e.k < 0.002 || !zones[e.zone].visible) continue;
+    const onTop = e.k >= 0.002 && zones[e.zone].visible;
+    if (onTop !== e.onTop) { e.onTop = onTop; e.obj.traverse((n) => n.layers.set(onTop ? ZOOM_LAYER : 0)); }
+    if (!onTop) continue;
     const o = e.obj;
     o.getWorldPosition(zCam); camera.worldToLocal(zCam);
     const depth = -zCam.z;
     if (depth <= 0.2) continue;
     const s = o.getWorldScale(zTarget).y, h = e.h * s, w = e.w * s;
-    const fWant = Math.min(ZOOM_MAX_H, (h / (2 * depth * tanHalf)) * ZOOM_GROW);
-    const dist = Math.min(depth, Math.max(h / (2 * tanHalf * fWant), w / (2 * tanHalf * camera.aspect * ZOOM_MAX_W)));
-    const ratio = (dist / depth) * (1 - ZOOM_CENTER_PULL);
-    zTarget.set(zCam.x * ratio, zCam.y * ratio, -dist);
+    const dist = Math.max(h / (2 * tanHalf * ZOOM_MAX_H), w / (2 * tanHalf * camera.aspect * ZOOM_MAX_W));
+    zTarget.set(0, 0, -dist);
     camera.localToWorld(zTarget); o.parent.worldToLocal(zTarget);
     e.basePos.copy(o.position); e.baseQuat.copy(o.quaternion); e.active = true;
     o.position.lerp(zTarget, e.k);
     o.parent.getWorldQuaternion(zQuat).invert().multiply(camera.quaternion);
     o.quaternion.slerp(zQuat, e.k);
     if (e.k > 0.5) isZooming = true;
+    maxK = Math.max(maxK, e.k);
   }
   document.body.classList.toggle("zooming", isZooming);
+  zoomDimmer.material.opacity = maxK * ZOOM_DIM;
+}
+function renderWithZoomOverlay() {
+  camera.layers.set(0);
+  renderer.render(scene, camera);
+  if (!zoomables.some((e) => e.onTop)) return;
+  const bg = scene.background;
+  scene.background = null;
+  renderer.autoClear = false;
+  renderer.clearDepth();
+  camera.layers.set(ZOOM_LAYER);
+  renderer.render(scene, camera);
+  renderer.autoClear = true;
+  camera.layers.set(0);
+  scene.background = bg;
 }
 
 function frame(ts) {
@@ -1148,7 +1191,7 @@ function frame(ts) {
   // Doluruu sprites always face the camera, staying upright
   for (const s of billboards) { s.getWorldPosition(tmpV); s.lookAt(camPos.x, tmpV.y, camPos.z); }
   updateOverlays(p, si);
-  renderer.render(scene, camera);
+  renderWithZoomOverlay();
   requestAnimationFrame(frame);
 }
 

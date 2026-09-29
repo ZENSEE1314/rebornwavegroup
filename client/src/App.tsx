@@ -111,6 +111,8 @@ function PageLoader() {
   );
 }
 
+const FLAGSHIP_TENANT_SLUG = "reborn-wave-group";
+
 // The public homepage is the standalone 3D tower (client/public/experience), served
 // by the server as static files — leave the SPA so it loads.
 function ExperienceRedirect() {
@@ -308,7 +310,8 @@ function App() {
       .then((response) => response.ok ? response.json() : null)
       .then((tenant) => {
         if (!tenant) return;
-        document.title = tenant.app_name || tenant.name;
+        // The flagship site keeps its SEO title from index.html; white-label tenants get their own name.
+        if (tenant.slug !== FLAGSHIP_TENANT_SLUG) document.title = tenant.app_name || tenant.name;
         const primary = tenant.theme?.primaryColor;
         const accent = tenant.theme?.accentColor;
         if (primary) document.documentElement.style.setProperty("--bridgex-primary", primary);
