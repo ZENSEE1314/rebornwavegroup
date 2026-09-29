@@ -158,6 +158,9 @@ const anims = [];     // { zone, fn(time, dt, localT) }
 const screens = [];   // { mesh, name, zone, video }
 const zones = [];     // THREE.Group per segment
 const converge = [];  // finale convergence items
+const zoomables = []; // { face, zone, k } cards that zoom towards the viewer on hover/tap
+let hoveredZoom = null;
+const ZOOM_SCALE = 0.45, ZOOM_FORWARD = 2.2, ZOOM_LIFT = 0.4, ZOOM_CENTER_PULL = 0.35;
 
 function word(text, size, mat, maxW = Infinity) {
   const g = new TextGeometry(text, { font, size, depth: size * 0.28, curveSegments: 8, bevelEnabled: true, bevelThickness: size * 0.045, bevelSize: size * 0.028, bevelSegments: 3 });
@@ -324,6 +327,28 @@ function accentLight(color, x, y, z, intensity = 90) {
   const l = new THREE.PointLight(color, intensity, 38, 1.6); l.position.set(x, y, z); return l;
 }
 
+// Opening-scene backdrop: the intro clip plays as the scene background, cover-fitted.
+const ARRIVAL_BG_INTENSITY = 0.55;
+const INTRO_ASPECT = 16 / 9;
+let introBg = null;
+function createIntroBackground() {
+  const v = document.createElement("video");
+  Object.assign(v, { src: "./media/intro.mp4", muted: true, loop: true, playsInline: true, preload: "auto", crossOrigin: "anonymous" });
+  v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
+  const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
+  introBg = { video: v, tex, current: IMG.poster_intro };
+  v.addEventListener("playing", () => { introBg.current = tex; if (activeSeg === 0) scene.background = tex; }, { once: true });
+  fitIntroBackground();
+}
+function fitIntroBackground() {
+  if (!introBg) return;
+  const a = innerWidth / innerHeight;
+  for (const t of [introBg.tex, IMG.poster_intro]) {
+    if (a > INTRO_ASPECT) { t.repeat.set(1, INTRO_ASPECT / a); t.offset.set(0, (1 - INTRO_ASPECT / a) / 2); }
+    else { t.repeat.set(a / INTRO_ASPECT, 1); t.offset.set((1 - a / INTRO_ASPECT) / 2, 0); }
+  }
+}
+
 // ── Zone: ARRIVAL ──────────────────────────────────────────────────────────
 function buildArrival() {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
@@ -423,7 +448,6 @@ function monolith(ctx, x, z, quote, sub, w = 4.6, h = 3) {
 // arcade games, pool and darts. The whole party floor.
 function dressKTV(ctx) {
   const { Z, zi, Y, seg } = ctx;
-  Z.add(place(videoScreen("ktv", 6.4, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
   Z.add(place(videoScreen("sing", 5.4, seg.accent2, zi), ctx.clusterX, Y + 3.6, -27, ctx.clusterRot));
   const board = card(2.8, 3.4, drawPanel({ eyebrow: "Kings of Singers", title: "KOS board", lines: ["#1  🎤  Weekly champion", "#2  🎤  Runner-up", "#3  🎤  Rising star", "Sing live · earn K-GOLD"], accent: "#ff4fa3" }), { glow: seg.accent2 });
   Z.add(place(board, ctx.clusterX + 0.6, Y + 3.2, -22.5, ctx.clusterRot));
@@ -443,42 +467,16 @@ function dressKTV(ctx) {
     const ph = rand(0, 6);
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { mic.rotation.y = t * 0.6 + ph; mic.position.y += Math.sin(t * 1.4 + ph) * 0.0025; } } });
   }
-  // Game house arcade: the app's games, floating above the lounge video
+  // Game house wall: the app games in a 2×2 grid under a sign
+  const house = place(new THREE.Group(), ctx.videoX, Y, -17, ctx.videoRot); Z.add(house);
   [["🧱", "Tower Stack"], ["🎲", "789 Dice"], ["🔢", "Guess the Number"], ["⏱️", "Stop at 1:00"]].forEach(([ic, name], i) => {
-    const c = card(1.7, 1.7, drawIcon(ic, name), { frame: false, glow: seg.accent2, pxPerUnit: 200 });
-    Z.add(place(c, ctx.videoX + (i - 1.5) * 1.9 * -ctx.m * 0.5, Y + 6.6 + (i % 2) * 0.5, -15 - i * 1.4, ctx.videoRot));
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + 6.6 + (i % 2) * 0.5 + Math.sin(t * 1.3 + i) * 0.14; } });
+    const c = card(1.8, 1.8, drawIcon(ic, name), { frame: false, glow: seg.accent2, pxPerUnit: 200 });
+    const gy = i < 2 ? 4.4 : 2.3;
+    c.position.set(i % 2 ? 1.05 : -1.05, gy, 0); house.add(c);
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = gy + Math.sin(t * 1.3 + i) * 0.08; } });
   });
-  // Pool table
-  const pool = new THREE.Group();
-  const rim = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.24, 2.7), M.goldSoft); rim.position.y = 0.95; pool.add(rim);
-  const felt = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 2.3), new THREE.MeshStandardMaterial({ color: 0x0f6b4a, roughness: 0.9 })); felt.position.y = 1.1; pool.add(felt);
-  for (const [lx, lz] of [[-1.9, -1], [1.9, -1], [-1.9, 1], [1.9, 1]]) {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.85, 12), M.night); leg.position.set(lx, 0.42, lz); pool.add(leg);
-  }
-  const ballCols = [0xffffff, 0xf2c230, 0x1f4fd1, 0xd6302b, 0x6a2c8f, 0xf07a1c, 0x1e8f4a, 0x111111];
-  ballCols.forEach((c, i) => {
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), new THREE.MeshStandardMaterial({ color: c, roughness: 0.2 }));
-    b.position.set(i === 0 ? -1.2 : 0.6 + (i % 3) * 0.18, 1.24, i === 0 ? 0 : ((i % 4) - 1.5) * 0.19); pool.add(b);
-  });
-  const lamp = glowPlane(0xfff0c0, 4.4, 2.6, 0.35); lamp.rotation.x = -Math.PI / 2; lamp.position.y = 1.17; pool.add(lamp);
-  Z.add(place(pool, ctx.videoX * 0.55, Y, -27, 0.2 * ctx.m));
-  // Darts board
-  const darts = card(2.2, 2.2, (x, W) => {
-    const cx = W / 2, R = W * 0.47;
-    x.fillStyle = "#111"; x.beginPath(); x.arc(cx, cx, R, 0, Math.PI * 2); x.fill();
-    for (let s = 0; s < 20; s++) {
-      const a0 = (s / 20) * Math.PI * 2 - Math.PI / 20, a1 = a0 + Math.PI / 10;
-      for (const [r0, r1, even, odd] of [[0.15, 0.95, "#f3e6c4", "#1a1a1a"], [0.55, 0.62, "#d6302b", "#1e8f4a"], [0.88, 0.95, "#d6302b", "#1e8f4a"]]) {
-        x.fillStyle = s % 2 ? odd : even; x.beginPath(); x.arc(cx, cx, R * r1, a0, a1); x.arc(cx, cx, R * r0, a1, a0, true); x.fill();
-      }
-    }
-    x.fillStyle = "#1e8f4a"; x.beginPath(); x.arc(cx, cx, R * 0.1, 0, Math.PI * 2); x.fill();
-    x.fillStyle = "#d6302b"; x.beginPath(); x.arc(cx, cx, R * 0.05, 0, Math.PI * 2); x.fill();
-  }, { frame: false, glow: seg.accent2 });
-  Z.add(place(darts, ctx.clusterX * 1.2, Y + 3, -33, ctx.clusterRot));
-  const sign = card(4.4, 0.9, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.46}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("GAME HOUSE · POOL · DARTS", W / 2, H / 2); }, { frame: false, glow: seg.accent });
-  Z.add(place(sign, ctx.videoX * 0.55, Y + 4.2, -28, 0.2 * ctx.m));
+  const sign = card(4.4, 0.9, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("GAME HOUSE", W / 2, H / 2); }, { frame: false, glow: seg.accent });
+  sign.position.set(0, 6, 0); house.add(sign);
   // Blind boxes live here too
   const eggGeo = new THREE.SphereGeometry(0.45, 24, 18); eggGeo.scale(1, 1.3, 1);
   const bandGeo = new THREE.TorusGeometry(0.46, 0.035, 8, 32);
@@ -526,10 +524,39 @@ function roomPod(ctx, eyebrow, title, x, z, glow) {
   return pod;
 }
 
+// Pool table + darts board for the VIP rooms.
+function poolAndDarts(accent) {
+  const pool = new THREE.Group();
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.24, 2.7), M.goldSoft); rim.position.y = 0.95; pool.add(rim);
+  const felt = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 2.3), new THREE.MeshStandardMaterial({ color: 0x0f6b4a, roughness: 0.9 })); felt.position.y = 1.1; pool.add(felt);
+  for (const [lx, lz] of [[-1.9, -1], [1.9, -1], [-1.9, 1], [1.9, 1]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.85, 12), M.night); leg.position.set(lx, 0.42, lz); pool.add(leg);
+  }
+  const ballCols = [0xffffff, 0xf2c230, 0x1f4fd1, 0xd6302b, 0x6a2c8f, 0xf07a1c, 0x1e8f4a, 0x111111];
+  ballCols.forEach((c, i) => {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), new THREE.MeshStandardMaterial({ color: c, roughness: 0.2 }));
+    b.position.set(i === 0 ? -1.2 : 0.6 + (i % 3) * 0.18, 1.24, i === 0 ? 0 : ((i % 4) - 1.5) * 0.19); pool.add(b);
+  });
+  const lamp = glowPlane(0xfff0c0, 4.4, 2.6, 0.35); lamp.rotation.x = -Math.PI / 2; lamp.position.y = 1.17; pool.add(lamp);
+  const darts = card(2.2, 2.2, (x, W) => {
+    const cx = W / 2, R = W * 0.47;
+    x.fillStyle = "#111"; x.beginPath(); x.arc(cx, cx, R, 0, Math.PI * 2); x.fill();
+    for (let s = 0; s < 20; s++) {
+      const a0 = (s / 20) * Math.PI * 2 - Math.PI / 20, a1 = a0 + Math.PI / 10;
+      for (const [r0, r1, even, odd] of [[0.15, 0.95, "#f3e6c4", "#1a1a1a"], [0.55, 0.62, "#d6302b", "#1e8f4a"], [0.88, 0.95, "#d6302b", "#1e8f4a"]]) {
+        x.fillStyle = s % 2 ? odd : even; x.beginPath(); x.arc(cx, cx, R * r1, a0, a1); x.arc(cx, cx, R * r0, a1, a0, true); x.fill();
+      }
+    }
+    x.fillStyle = "#1e8f4a"; x.beginPath(); x.arc(cx, cx, R * 0.1, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#d6302b"; x.beginPath(); x.arc(cx, cx, R * 0.05, 0, Math.PI * 2); x.fill();
+  }, { frame: false, glow: accent });
+  return { pool, darts };
+}
+
 // 2F — four private KTV rooms + beauty (facial & hair salon).
 function dressPrivate(ctx) {
   const { Z, zi, Y, seg } = ctx;
-  Z.add(place(videoScreen("intro", 6.6, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
+  Z.add(place(videoScreen("ktv", 6.6, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
   // Four rooms: two past the video, two on the near cluster side
   [[ctx.clusterX * 1.2, -9], [ctx.clusterX * 1.2, -16], [ctx.videoX * 1.2, -25], [ctx.videoX * 1.2, -32]]
     .forEach(([x, z], i) => roomPod(ctx, "Private KTV", `Room ${i + 1}`, x, z, i % 2 ? seg.accent : 0xc04dff));
@@ -551,8 +578,8 @@ function dressPrivate(ctx) {
     anims.push({ zone: zi, fn: (t2) => { if (!REDUCED) c.position.y = Y + 2.6 + i * 1.6 + Math.sin(t2 + i) * 0.1; } });
   });
   // 5-IN-1 monument
-  const mono = word("5-IN-1", 2.6, wordMaterial(seg.accent), 14); mono.position.set(0, Y + 1.2, -47); Z.add(mono);
-  const cap = card(9, 1.1, (x, W, H) => { x.fillStyle = "#f0d787"; x.font = `700 ${H * 0.42}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("BEAUTY  ·  F&B  ·  GAMING  ·  KTV  ·  IT", W / 2, H / 2); }, { frame: false });
+  const mono = word("BEAUTY", 2.6, wordMaterial(seg.accent), 14); mono.position.set(0, Y + 1.2, -47); Z.add(mono);
+  const cap = card(9, 1.1, (x, W, H) => { x.fillStyle = "#f0d787"; x.font = `700 ${H * 0.42}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("BEAUTY  ·  SING", W / 2, H / 2); }, { frame: false });
   cap.position.set(0, Y + 0.6, -46.2); Z.add(cap);
 }
 
@@ -569,6 +596,11 @@ function dressVIP(ctx) {
   }
   roomPod(ctx, "Gold members", "VIP Room", ctx.clusterX * 1.25, -27, 0xf0d787);
   roomPod(ctx, "Gold members", "VIP Room", ctx.clusterX * 1.25, -34, 0xc98b3c);
+  const { pool, darts } = poolAndDarts(seg.accent2);
+  Z.add(place(pool, ctx.videoX * 0.55, Y, -30, 0.2 * ctx.m));
+  Z.add(place(darts, ctx.videoX * 1.2, Y + 3, -25, ctx.videoRot));
+  const vipSign = card(3.6, 0.8, (x, W, H) => { x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.5}px Montserrat`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("POOL · DARTS", W / 2, H / 2); }, { frame: false, glow: seg.accent });
+  Z.add(place(vipSign, ctx.videoX * 0.55, Y + 3.4, -31, 0.2 * ctx.m));
   [["GOLD", "Gold tier only", -6.2], ["PRIORITY", "VIP room booking", 0], ["INVITE", "Members only", 6.2]].forEach(([wtxt, sub, x]) => {
     const ped = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.8, 1.6), M.night); ped.position.set(x, Y + 0.4, -47); Z.add(ped);
     const wd = word(wtxt, 1.15, wordMaterial(seg.accent), 4.2); wd.position.set(x, Y + 0.85, -47); Z.add(wd);
@@ -718,7 +750,13 @@ function dressBlindbox({ Z, zi, Y, seg, portrait }) {
     const y = portrait ? (i < 2 ? 5.1 : 2.3) : 2.2;
     const s = portrait ? 0.95 : 1;
     c.scale.setScalar(s); c.position.set(x, Y + y, 0); Z.add(c);
-    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + y + Math.sin(t * 1.1 + i) * 0.07; } });
+    const entry = { face: c.userData.face, zone: zi, k: 0 };
+    zoomables.push(entry); c.userData.face.userData.zoom = entry;
+    anims.push({ zone: zi, fn: (t, dt) => {
+      entry.k += ((hoveredZoom === entry ? 1 : 0) - entry.k) * Math.min(1, dt * 10);
+      c.position.set(x * (1 - entry.k * ZOOM_CENTER_PULL), Y + y + (REDUCED ? 0 : Math.sin(t * 1.1 + i) * 0.07) + entry.k * ZOOM_LIFT, entry.k * ZOOM_FORWARD);
+      c.scale.setScalar(s * (1 + entry.k * ZOOM_SCALE));
+    } });
   });
   if (!portrait) {
     const boy = makeDoluruu("boy", 3); boy.position.set(-10.2, Y, 0.5); Z.add(boy);
@@ -916,14 +954,20 @@ const ray = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 const vmodal = document.getElementById("vmodal");
 const vplayer = document.getElementById("vplayer");
-function hitScreen(ev) {
+// Topmost interactive thing under the pointer: a video screen or a zoomable card.
+function pick(ev) {
   ndc.set((ev.clientX / innerWidth) * 2 - 1, -(ev.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const live = screens.filter((s) => zones[s.zone].visible).map((s) => s.mesh);
-  const hit = ray.intersectObjects(live, false)[0];
-  return hit ? hit.object.userData.screen : null;
+  const targets = [...screens, ...zoomables].filter((s) => zones[s.zone].visible).map((s) => s.mesh || s.face);
+  const hit = ray.intersectObjects(targets, false)[0];
+  return hit ? hit.object.userData : null;
 }
-canvas.addEventListener("pointermove", (ev) => { document.body.classList.toggle("hovering-screen", !!hitScreen(ev)); });
+canvas.addEventListener("pointermove", (ev) => {
+  const hit = pick(ev);
+  if (ev.pointerType === "mouse") hoveredZoom = hit?.zoom || null;
+  document.body.classList.toggle("hovering-screen", !!(hit?.screen || hit?.zoom));
+});
+canvas.addEventListener("pointerleave", () => { hoveredZoom = null; });
 // The demo opens the full-quality cut with sound; venue clips are silent loops.
 const FULL_DEMO_SRC = "/demo.mp4";
 function openVideo(name) {
@@ -933,7 +977,12 @@ function openVideo(name) {
   vplayer.muted = !isDemo;
   vmodal.showModal(); vplayer.play().catch(() => {});
 }
-canvas.addEventListener("click", (ev) => { const s = hitScreen(ev); if (s) openVideo(s.name); });
+canvas.addEventListener("click", (ev) => {
+  const hit = pick(ev);
+  if (hit?.screen) openVideo(hit.screen.name);
+  else if (hit?.zoom) hoveredZoom = hoveredZoom === hit.zoom ? null : hit.zoom; // tap to zoom on touch screens
+  else hoveredZoom = null;
+});
 document.getElementById("play-demo").addEventListener("click", () => openVideo("demo"));
 const closeModal = () => { vplayer.pause(); vmodal.close(); };
 vmodal.querySelector(".vclose").addEventListener("click", closeModal);
@@ -946,6 +995,7 @@ addEventListener("scroll", readScroll, { passive: true });
 const timer = new THREE.Timer();
 const camPos = V(0, 0, 0), camLook = V(0, 0, 0), tmpV = V(0, 0, 0);
 const bg = new THREE.Color(HEX.night0);
+const bgColor = new THREE.Color(HEX.night0);
 
 function segmentAt(p) {
   for (let i = 0; i < SEGS.length; i++) if (p < SEGS[i].b || i === SEGS.length - 1) return i;
@@ -960,7 +1010,11 @@ function setActiveSegment(i) {
     else if (!s.video.paused) s.video.pause();
   }
   const seg = SEGS[i];
-  bg.set(seg.fog); scene.background.copy(bg); scene.fog.color.copy(bg);
+  bg.set(seg.fog); scene.fog.color.copy(bg);
+  const isArrival = seg.id === "arrival";
+  scene.background = isArrival ? introBg.current : bgColor.copy(bg);
+  scene.backgroundIntensity = isArrival ? ARRIVAL_BG_INTENSITY : 1;
+  if (isArrival) introBg.video.play().catch(() => {}); else introBg.video.pause();
   scene.fog.near = seg.id === "arrival" ? 28 : 30; scene.fog.far = seg.id === "arrival" ? 120 : 95;
 }
 
@@ -997,11 +1051,13 @@ function onResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   buildPaths();
+  fitIntroBackground();
 }
 addEventListener("resize", onResize);
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 loadAll().then(() => {
+  createIntroBackground();
   buildArrival();
   buildFloor(SEGS[1], dressKTV);
   buildFloor(SEGS[2], dressPrivate);
