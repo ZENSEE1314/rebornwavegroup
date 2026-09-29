@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Reborn Wave — Step Inside</title>
+  <meta name="description" content="Reborn Wave — the world's first 5-in-1 destination. Ride the tower through KTV, Private, VIP, Doluruu World and the Live rooftop." />
+  <meta name="theme-color" content="#0a0714" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Montserrat:wght@400;500;600;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#join">Skip to join</a>
+
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="flash" aria-hidden="true"><span id="flash-floor"></span></div>
+
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Reborn Wave home"><span class="brand-mark">◆</span> REBORN WAVE</a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/bookings">Book</a>
+      <a href="/investor">Investors</a>
+      <a class="btn btn-gold btn-sm" href="/login">Open the app</a>
+    </nav>
+  </header>
+
+  <nav id="floors" aria-label="Tower floors">
+    <button data-seg="arrival" aria-label="Arrival">G</button>
+    <button data-seg="ktv" aria-label="1F KTV">1F</button>
+    <button data-seg="private" aria-label="2F Private">2F</button>
+    <button data-seg="vip" aria-label="3F VIP">3F</button>
+    <button data-seg="pet" aria-label="4F Doluruu World">4F</button>
+    <button data-seg="live" aria-label="5F Live rooftop">5F</button>
+    <button data-seg="finale" aria-label="Join">★</button>
+  </nav>
+
+  <!-- Story overlays: each beat fades in/out over a scroll window [data-a, data-b]. -->
+  <main id="story">
+    <section class="beat center" data-a="0" data-b="0.05">
+      <p class="eyebrow">Singapore · Batam</p>
+      <h1 class="display">REBORN WAVE</h1>
+      <p class="lede">One destination. Five worlds.</p>
+      <p class="hint" id="hint">Scroll to step inside <span>↓</span></p>
+    </section>
+
+    <section class="beat left" data-a="0.052" data-b="0.105">
+      <p class="eyebrow">The world's first</p>
+      <h2>5‑in‑1 destination</h2>
+      <p>Beauty, Food &amp; Beverage, Gaming, KTV and IT — under one roof, in one membership.</p>
+      <ul class="chips">
+        <li>💄 Beauty</li><li>🍸 F&amp;B</li><li>🎮 Gaming</li><li>🎤 KTV</li><li>💻 IT</li>
+      </ul>
+    </section>
+
+    <section class="beat bottom" data-a="0.10" data-b="0.128">
+      <h2 class="small">Doluruu is waiting. The lift is open.</h2>
+    </section>
+
+    <!-- 1F KTV -->
+    <section class="beat left" data-a="0.150" data-b="0.205">
+      <p class="eyebrow">1F · KTV</p>
+      <h2>Sing like the night is yours</h2>
+      <p>Private KTV rooms with pro sound, stage lights and a song library that never runs out.</p>
+      <a class="btn btn-ghost" href="/bookings">Book a room</a>
+    </section>
+    <section class="beat right" data-a="0.210" data-b="0.265">
+      <p class="eyebrow">Kings of Singers</p>
+      <h2>Top the board</h2>
+      <p>Sing live in the app, climb the KOS leaderboard and win tokens every week.</p>
+      <a class="btn btn-ghost" href="/kos">Enter KOS</a>
+    </section>
+
+    <!-- 2F PRIVATE -->
+    <section class="beat left" data-a="0.292" data-b="0.345">
+      <p class="eyebrow">2F · Private</p>
+      <h2>Your room. Your rules.</h2>
+      <p>Private party rooms with bottle service — birthdays, deals, celebrations, done right.</p>
+      <a class="btn btn-ghost" href="/bookings">Reserve</a>
+    </section>
+    <section class="beat right" data-a="0.350" data-b="0.405">
+      <p class="eyebrow">Food &amp; Beverage · Beauty</p>
+      <h2>Taste. Glow. Repeat.</h2>
+      <p>Signature drinks and kitchen plates, with beauty and grooming under the same roof.</p>
+    </section>
+
+    <!-- 3F VIP -->
+    <section class="beat left" data-a="0.432" data-b="0.485">
+      <p class="eyebrow">3F · VIP</p>
+      <h2>Live above the noise</h2>
+      <p>VIP tiers unlock priority tables, the members' lounge and invitation‑only nights.</p>
+    </section>
+    <section class="beat right" data-a="0.490" data-b="0.545">
+      <p class="eyebrow">The member economy</p>
+      <h2>Every visit pays you back</h2>
+      <p>Earn daily tokens and K‑Gold, spin for prizes, and pay by QR anywhere in the club.</p>
+      <a class="btn btn-ghost" href="/login">Become a member</a>
+    </section>
+
+    <!-- 4F PET -->
+    <section class="beat left" data-a="0.575" data-b="0.635">
+      <p class="eyebrow">4F · Doluruu World</p>
+      <h2>Meet Doluruu</h2>
+      <p>Unbox a Doluruu, raise it in the app and watch it grow — baby, teen, adult.</p>
+      <a class="btn btn-ghost" href="/pet">Meet your pet</a>
+    </section>
+    <section class="beat right" data-a="0.640" data-b="0.705">
+      <p class="eyebrow">Play to earn</p>
+      <h2>Your pet earns you perks</h2>
+      <p>Feed, play and compete in mini‑games — Tower Stack, 789 Dice, Guess the Number — for real club rewards.</p>
+      <a class="btn btn-ghost" href="/games">Play now</a>
+    </section>
+
+    <!-- 5F LIVE -->
+    <section class="beat bottom wide" data-a="0.735" data-b="0.845">
+      <p class="eyebrow">5F · Rooftop</p>
+      <h2>Live every night</h2>
+      <p>Artists, DJs and sing‑offs on the rooftop stage. Real crowds. Real energy. This is where the wave breaks.</p>
+    </section>
+
+    <!-- FINALE -->
+    <section class="beat center final" id="join" data-a="0.915" data-b="1.01">
+      <p class="eyebrow">One membership · Five worlds</p>
+      <h2>Join the wave.</h2>
+      <p class="lede">Doluruu is waiting for you at the top.</p>
+      <div class="cta-row">
+        <a class="btn btn-gold" href="/login">Open the app</a>
+        <a class="btn btn-ghost" href="/bookings">Book a room</a>
+        <a class="btn btn-ghost" href="/login">Become a member</a>
+        <a class="btn btn-link" href="/investor">Investor program →</a>
+      </div>
+    </section>
+  </main>
+
+  <div id="spacer" aria-hidden="true"></div>
+
+  <div id="loader" role="status" aria-live="polite">
+    <img src="./img/doluruu-baby.png" alt="" width="120" height="120" />
+    <p>Opening the tower…</p>
+    <div class="bar"><span id="loadbar"></span></div>
+  </div>
+
+  <dialog id="vmodal" aria-label="Video">
+    <button class="vclose" aria-label="Close video">✕</button>
+    <video id="vplayer" controls playsinline loop muted></video>
+  </dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
