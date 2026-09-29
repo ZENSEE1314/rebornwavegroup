@@ -60,8 +60,14 @@ interface Room {
 }
 
 const rooms = new Map<string, Room>();
-const MAX_PLAYERS = 20;
+const MAX_PLAYERS = 20; // default room size; admins can raise it in the games settings
 const CARDS_MAX = 5;
+// Live copy of the admin-set room size, refreshed on every getGamesConfig()
+// read (room list, create, join) so raising it applies to open lobbies too.
+let liveMaxPlayers = MAX_PLAYERS;
+// Card games keep their mechanical seat limits; every other game uses the
+// admin-configurable cap.
+const roomCap = (game: string) => (game === "cards" ? CARDS_MAX : game === "poker3" ? 8 : game === "memory" ? 2 : liveMaxPlayers);
 const RPS_SECONDS = 20;
 const TAP_SECONDS = 30;
 
@@ -78,6 +84,7 @@ function view(room: Room, forUserId?: string) {
     hasPassword: !!room.password, round: room.round, message: room.message,
     secondsLeft: room.deadline ? Math.max(0, Math.ceil((room.deadline - Date.now()) / 1000)) : 0,
     winnerId: room.winnerId, lastLoserId: room.lastLoserId, eliminatedThisRound: room.eliminatedThisRound,
+    maxPlayers: roomCap(room.game),
     winTarget: room.winTarget || 1, seriesScore: room.seriesScore || {}, seriesChampionId: room.seriesChampionId,
     you: forUserId,
     players: room.players.map((p) => ({
@@ -1658,6 +1665,8 @@ async function getGamesConfig(): Promise<Record<string, { enabled: boolean; days
   for (const k of GAME_KEYS) out[k] = { enabled: cfg[k]?.enabled !== false, days: Array.isArray(cfg[k]?.days) ? cfg[k].days : [0, 1, 2, 3, 4, 5, 6] };
   // Guess-the-Number: 0 = unlimited daily guesses per player.
   out.number.dailyLimit = Math.max(0, Math.floor(Number(cfg?.number?.dailyLimit) || 0));
+  // Room size for all live games (default 20, admin-adjustable, 2–100).
+  out.maxPlayers = liveMaxPlayers = Math.min(100, Math.max(2, Math.floor(Number(cfg?.maxPlayers)) || MAX_PLAYERS));
   return out;
 }
 function availableToday(cfg: Record<string, { enabled: boolean; days: number[] }>, catCfg?: Record<string, { days: number[] }>) {
@@ -1844,12 +1853,13 @@ export function registerGameRoutes(app: Express) {
 
   // Browse all open rooms (in the lobby, not yet started)
   app.get("/api/reborn/games/rooms", requireAuth, async (_req, res) => {
+    await getGamesConfig(); // refresh the admin-set room size
     const list = Array.from(rooms.values())
       .filter((r) => r.status === "lobby")
       .map((r) => ({
         code: r.code, game: r.game,
         hostName: r.players.find((p) => p.id === r.hostId)?.name || "Host",
-        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : r.game === "poker3" ? 8 : r.game === "memory" ? 2 : MAX_PLAYERS,
+        players: r.players.length, max: roomCap(r.game),
         hasPassword: !!r.password, createdAt: r.createdAt,
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -1900,7 +1910,8 @@ export function registerGameRoutes(app: Express) {
     if (existing) return res.json({ code: room.code });
     if (room.status !== "lobby") return res.status(400).json({ message: "This game has already started." });
     if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: "Wrong room password." });
-    const cap = room.game === "cards" ? CARDS_MAX : room.game === "poker3" ? 8 : room.game === "memory" ? 2 : MAX_PLAYERS;
+    await getGamesConfig(); // refresh the admin-set room size
+    const cap = roomCap(room.game);
     if (room.players.length >= cap) return res.status(400).json({ message: `Room is full (${cap} players).` });
     room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
     broadcast(room);
