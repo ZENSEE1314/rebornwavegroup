@@ -143,8 +143,10 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
   const sick = pet.lifeStatus === "sick";
   const [pop, setPop] = useState(false);
   const poke = () => { setPop(true); setTimeout(() => setPop(false), 550); }; // reaction only — no energy cost
-  const [fx, setFx] = useState({ n: 0, action: "" });
-  const doAction = (a: string) => { setFx((s) => ({ n: s.n + 1, action: a })); onAction(a); };
+  const stageRef = useRef<HTMLIFrameElement>(null);
+  const postStage = (msg: any) => { try { stageRef.current?.contentWindow?.postMessage({ __pet3d: true, ...msg }, "*"); } catch {} };
+  const ACT_MAP: Record<string, string> = { feed: "feed", play: "play", clean: "bath", sleep: "sleep", wake: "wake" };
+  const doAction = (a: string) => { postStage({ type: "act", action: ACT_MAP[a] || a }); onAction(a); };
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 overflow-hidden">
@@ -161,7 +163,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
 
       {pet.isEgg
         ? <PetRoom pet={pet} img={img} sick={sick} home={home} onLight={onLight} pop={pop} onPoke={poke} />
-        : <Pet3DStage pet={pet} sick={sick} home={home} fx={fx} pop={pop} onPoke={poke} />}
+        : <Pet3DStage pet={pet} sick={sick} home={home} stageRef={stageRef} pop={pop} onPoke={poke} />}
       {!pet.isEgg && <OutfitCard pet={pet} home={home} />}
 
       {/* body */}
@@ -359,41 +361,38 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
   );
 }
 
-// ── Animated dino stage (rendered video clips) ───────────────────────────
-// Plays the Doluruu dino animation. Drop more clips into client/public/pet/clips/
-// (feed.mp4, play.mp4, sleep.mp4, bath.mp4, idle.mp4…) and map them below;
-// missing ones fall back to "swing".
-const PET_CLIPS: Record<string, string> = { idle: "swing", play: "swing", feed: "swing", clean: "swing", sleep: "swing", wake: "swing", poke: "swing" };
-const clipUrl = (name: string) => `/pet/clips/${PET_CLIPS[name] || "swing"}.mp4`;
-function Pet3DStage({ pet, sick, home, fx, pop, onPoke }: any) {
+// ── 3D Doluruu stage (LayaAir) ───────────────────────────────────────────
+// Renders the animated 3D dino in an isolated iframe and drives it via
+// postMessage from the app's own action buttons / stats.
+function Pet3DStage({ pet, sick, home, stageRef, pop, onPoke }: any) {
   const phase = phaseOf(useVenueHour(home?.timezone));
-  const vref = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
   const stats = ["hunger", "happiness", "cleanliness", "energy"].map((k) => pet[k] ?? 0);
   const lowest = Math.min(...stats);
   const need = lowest >= 30 ? null : ["🍖", "🎾", "🧼", "😴"][stats.indexOf(lowest)];
   const mood = stats.reduce((a: number, b: number) => a + b, 0) / 4 >= 60 ? "😊" : lowest < 20 ? "😢" : null;
-  // Replay the matching clip for a bit of feedback whenever an action fires.
+  const post = (msg: any) => { try { stageRef.current?.contentWindow?.postMessage({ __pet3d: true, ...msg }, "*"); } catch {} };
+  useEffect(() => { if (ready) post({ type: "state", sleeping: !!pet.isSleeping, sick: !!sick }); }, [ready, pet.isSleeping, sick]);
+  useEffect(() => { if (ready) post({ type: "phase", phase }); }, [ready, phase]);
   useEffect(() => {
-    if (!fx || fx.n === 0) return;
-    const v = vref.current; if (!v) return;
-    const url = clipUrl(fx.action);
-    if (!v.src.endsWith(url)) v.src = url; else { try { v.currentTime = 0; } catch {} }
-    v.play?.().catch(() => {});
-  }, [fx?.n]);
-  const filter = sick ? "grayscale(.75) brightness(.82)"
-    : phase === "night" ? "brightness(.7) saturate(.9)"
-    : phase === "dusk" || phase === "dawn" ? "brightness(.92) sepia(.12)" : "none";
+    const h = (e: MessageEvent) => {
+      const d: any = e.data || {};
+      if (!d.__pet3d || !stageRef.current || e.source !== stageRef.current.contentWindow) return;
+      if (d.type === "ready") setReady(true);
+      if (d.type === "poke") onPoke?.();
+    };
+    window.addEventListener("message", h);
+    return () => window.removeEventListener("message", h);
+  }, [onPoke]);
   return (
     <div className="relative mx-3 mt-3 rounded-2xl overflow-hidden aspect-[4/3] select-none" style={{ background: "#bfe9ff" }}>
-      <video ref={vref} src={clipUrl("idle")} autoPlay loop muted playsInline onClick={onPoke}
-        className="absolute inset-0 h-full w-full object-cover cursor-pointer" style={{ filter }} />
+      <iframe ref={stageRef} src="/pet3d/stage.html" title={pet.name} className="absolute inset-0 h-full w-full border-0" scrolling="no" />
       {pop && <span className="rwpet-heart" style={{ left: "50%" }}>💖</span>}
       {(need || mood) && <span className="absolute top-[9%] right-[8%] rounded-full bg-white px-2 py-0.5 text-base shadow" style={{ animation: "rwpetBubble 1.8s ease-in-out infinite" }}>{need || mood}</span>}
       <span className="absolute left-2 bottom-2 z-10 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">
         {phase === "night" ? "🌙 Night" : phase === "dusk" ? "🌇 Evening" : phase === "dawn" ? "🌅 Morning" : "☀️ Day"}
       </span>
       {sick && <span className="absolute top-2 left-2 z-10 rounded-full bg-red-500/80 px-2 py-0.5 text-[10px] font-bold text-white">🤒 Sick</span>}
-      {pet.isSleeping && <span className="absolute left-1/2 -translate-x-1/2 top-[10%] text-2xl z-10" style={{ animation: "rwpetBreathe 1.6s ease-in-out infinite" }}>💤</span>}
     </div>
   );
 }
