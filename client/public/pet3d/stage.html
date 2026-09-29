@@ -7,6 +7,7 @@
   <style>html,body{margin:0;height:100%;overflow:hidden;background:#bfe9ff;-webkit-user-select:none;user-select:none;touch-action:none}</style>
   <script src="libs/laya.core.js"></script>
   <script src="libs/laya.d3.js"></script>
+  <script src="libs/laya.gltf.js"></script>
   <script src="libs/laya.webgl_2D.js"></script>
   <script src="libs/laya.webgl_3D.js"></script>
 </head>
@@ -14,7 +15,7 @@
 <script>
 const L = Laya;
 const { Stage, Scene3D, Camera, Sprite3D, DirectionLightCom, MeshSprite3D, PrimitiveMesh,
-        PBRStandardMaterial, Vector3, Color, Event } = L;
+        PBRStandardMaterial, UnlitMaterial, Vector3, Color, Event, Loader, Handler } = L;
 const col = (hex) => { const n = parseInt(hex.slice(1), 16); return new Color(((n>>16)&255)/255, ((n>>8)&255)/255, (n&255)/255, 1); };
 const mat = (hex) => { const m = new PBRStandardMaterial(); m.albedoColor = col(hex); try { m.metallic = 0; m.smoothness = 0.2; } catch(e){} return m; };
 const setPos = (n,x,y,z)=>{ n.transform.localPosition = new Vector3(x,y,z); };
@@ -22,8 +23,8 @@ const setRot = (n,x,y,z)=>{ n.transform.localRotationEuler = new Vector3(x,y,z);
 const setScl = (n,x,y,z)=>{ n.transform.localScale = new Vector3(x,y,z); };
 
 const M = {};
-let scene, camera, P;
-const S = { t: 0, action: "idle", actT: 0, jumpT: -1, blink: 2, blinkClose: 0, sleeping: false, sick: false };
+let scene, camera, hero;   // hero = container we animate
+const S = { t: 0, action: "idle", actT: 0, jumpT: -1, sleeping: false, sick: false, ready: false, baseY: 0, faceY: 0 };
 const SKY = { day: "#bfe9ff", dawn: "#ffd9b0", dusk: "#f0b3c8", night: "#2a2f6b" };
 
 L.init(0,0).then(start).catch((e)=>console.error(e));
@@ -32,24 +33,31 @@ function start() {
   L.stage.scaleMode = Stage.SCALE_FULL; L.stage.screenMode = Stage.SCREEN_NONE; L.stage.bgColor = "#bfe9ff";
   scene = L.stage.addChild(new Scene3D());
   camera = scene.addChild(new Camera(0, 0.1, 100));
-  setPos(camera, 0, 2.1, 5.1); setRot(camera, -12, 0, 0); camera.clearColor = col("#bfe9ff");
+  setPos(camera, 0, 2.0, 5.1); setRot(camera, -10, 0, 0); camera.clearColor = col("#bfe9ff");
   const light = scene.addChild(new Sprite3D()); light.addComponent(DirectionLightCom);
   const lm = light.transform.worldMatrix; lm.setForward(new Vector3(-0.4,-1,-0.5)); light.transform.worldMatrix = lm;
   const fill = scene.addChild(new Sprite3D()); const fdl = fill.addComponent(DirectionLightCom);
-  try { fdl.color = new Color(0.45,0.5,0.6,1); } catch(e){}
-  const fm = fill.transform.worldMatrix; fm.setForward(new Vector3(0.6,-0.2,0.6)); fill.transform.worldMatrix = fm;
+  try { fdl.color = new Color(0.5,0.55,0.65,1); } catch(e){}
+  const fm = fill.transform.worldMatrix; fm.setForward(new Vector3(0.6,-0.1,0.6)); fill.transform.worldMatrix = fm;
 
-  Object.assign(M, { grass: mat("#6cc24a"), matC: mat("#7bd3ef"),
-    body: mat("#3c3b36"), tan: mat("#f0cf8d"), bellyRim: mat("#2f8f6b"), iris: mat("#1f7a68"),
-    eye: mat("#ffffff"), pupil: mat("#141414"), hi: mat("#ffffff"), cheek: mat("#ff9db0"),
-    red: mat("#d9542f"), pOrange: mat("#e0673a"), pYellow: mat("#e8c15a"), pTeal: mat("#2fae9e"),
-    purple: mat("#6b4a8c"), mouth: mat("#26251f"),
-    trunk: mat("#9c6b3f"), leaf: mat("#3fae4f"), leaf2: mat("#59c463"), bowl: mat("#ff8f3f"), ball: mat("#ff5a5f") });
+  Object.assign(M, { grass: mat("#6cc24a"), matC: mat("#7bd3ef"), trunk: mat("#9c6b3f"), leaf: mat("#3fae4f"), leaf2: mat("#59c463"), bowl: mat("#ff8f3f"), ball: mat("#ff5a5f") });
+  buildScene();
 
-  buildScene(); P = buildDino();
-  L.timer.frameLoop(1, null, update);
-  L.stage.on(Event.MOUSE_DOWN, null, () => { if (!S.sleeping) { S.action = "play"; S.actT = 0; S.jumpT = 0; } try { parent.postMessage({ __pet3d: true, type: "poke" }, "*"); } catch(e){} });
+  L.loader.load("doluruu.glb").then(() => {
+    hero = new Sprite3D(); scene.addChild(hero);
+    let model;
+    try { model = Loader.createNodes("doluruu.glb"); } catch (e) { console.error("createNodes", e); }
+    if (model) {
+      hero.addChild(model);
+      setRot(model, -90, 0, 0);      // Z-up → Y-up; front (-Y) now faces +Z (camera)
+      setPos(model, -0.10, 0, 0);    // centre it on X
+      paintByName(model);
+    } else console.error("model is null after load");
+    S.ready = true;
+    L.timer.frameLoop(1, null, update);
+  }).catch((e) => console.error("glb load failed", e));
 
+  L.stage.on(Event.MOUSE_DOWN, null, () => { if (S.ready && !S.sleeping) { S.action = "play"; S.actT = 0; S.jumpT = 0; } try { parent.postMessage({ __pet3d: true, type: "poke" }, "*"); } catch(e){} });
   window.addEventListener("message", (e) => {
     const d = e.data || {}; if (!d || !d.__pet3d) return;
     if (d.type === "act") { const a = d.action; if (a === "wake") { S.sleeping = false; S.action = "idle"; } else if (a === "sleep") { S.sleeping = true; S.action = "sleep"; } else { S.action = a; S.actT = 0; if (a === "play") S.jumpT = 0; } }
@@ -59,10 +67,36 @@ function start() {
   try { parent.postMessage({ __pet3d: true, type: "ready" }, "*"); } catch(e){}
 }
 
+// The glTF import drops vertex colors, but every part is named — so paint each
+// part with the correct Doluruu palette (lit PBR, cached per colour).
+const _matCache = {};
+function pmat(hex) { if (_matCache[hex]) return _matCache[hex]; const m = new PBRStandardMaterial(); m.albedoColor = col(hex); try { m.metallic = 0; m.smoothness = 0.22; } catch(e){} return (_matCache[hex] = m); }
+function colorFor(name) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("belly_border")) return "#2f8f6b";
+  if (n.includes("belly") || n.includes("upper_plate")) return "#f0cf8d";
+  if (n.includes("shell_rim")) return "#553872";
+  if (n.includes("shell")) return "#6b4a8c";
+  if (n.includes("eye_white") || n.includes("glint")) return "#ffffff";
+  if (n.includes("iris")) return "#1f7a68";
+  if (n.includes("pupil")) return "#141414";
+  if (n.includes("forehead")) return "#d9542f";
+  if (n.includes("head_spike")) { const i = parseInt(n.replace(/[^0-9]/g, "")) || 0; return ["#e0673a","#e8c15a","#2fae9e","#d9542f","#e8c15a","#2fae9e"][i % 6]; }
+  if (n.includes("tail_spike")) { const i = parseInt(n.replace(/[^0-9]/g, "")) || 0; return ["#e0673a","#2fae9e","#6b4a8c"][i % 3]; }
+  if (n.includes("nostril")) return "#201f1b";
+  if (n.includes("brow")) return "#2a2925";
+  return "#3c3b36"; // body default (charcoal)
+}
+function paintByName(node) {
+  let r = null; try { r = node.getComponent(L.MeshRenderer); } catch (e) {}
+  if (r) { try { r.sharedMaterial = pmat(colorFor(node.name)); } catch (e) { console.error("paint", e); } }
+  const n = node.numChildren || 0;
+  for (let i = 0; i < n; i++) paintByName(node.getChildAt(i));
+}
+
 function box(p,m,w,h,d){const s=p.addChild(new MeshSprite3D(PrimitiveMesh.createBox(w,h,d)));s.meshRenderer.material=m;return s;}
 function sph(p,m,r){const s=p.addChild(new MeshSprite3D(PrimitiveMesh.createSphere(r,18,18)));s.meshRenderer.material=m;return s;}
 function cyl(p,m,r,h){const s=p.addChild(new MeshSprite3D(PrimitiveMesh.createCylinder(r,h,20)));s.meshRenderer.material=m;return s;}
-function plate(parent,m,x,y,z,sx,sy,rz){const s=sph(parent,m,0.28);setPos(s,x,y,z);setScl(s,sx,sy,0.12);setRot(s,0,0,rz);return s;}
 function tree(x,z){ const t=scene.addChild(new Sprite3D()); setPos(t,x,0,z);
   box(t,M.trunk,0.4,1.6,0.4).transform.localPosition=new Vector3(0,0.8,0);
   const a=sph(t,M.leaf,1.2); setPos(a,0,2.3,0); setScl(a,1,0.9,1);
@@ -75,85 +109,26 @@ function buildScene() {
   sph(scene, M.ball, 0.42).transform.localPosition = new Vector3(2.2, 0.42, 0.7);
 }
 
-function buildDino() {
-  const root = scene.addChild(new Sprite3D()); setPos(root, 0, 0, 0);
-  const bob = root.addChild(new Sprite3D());
-  // legs + feet
-  box(bob, M.body, 0.44, 0.55, 0.5).transform.localPosition = new Vector3(-0.32, 0.3, 0.06);
-  box(bob, M.body, 0.44, 0.55, 0.5).transform.localPosition = new Vector3(0.32, 0.3, 0.06);
-  const fl = sph(bob, M.body, 0.27); setPos(fl,-0.32,0.12,0.28); setScl(fl,1,0.7,1.35);
-  const fr = sph(bob, M.body, 0.27); setPos(fr,0.32,0.12,0.28); setScl(fr,1,0.7,1.35);
-  // body + belly plate
-  const body = sph(bob, M.body, 0.8); setPos(body, 0, 1.05, 0); setScl(body, 1.02, 1.02, 0.95);
-  const rim = sph(bob, M.bellyRim, 0.52); setPos(rim, 0, 0.95, 0.36); setScl(rim, 0.82, 1.15, 0.35);
-  sph(bob, M.tan, 0.46).transform.localPosition = new Vector3(0, 0.95, 0.4);
-  for (const [bx,by] of [[-0.15,1.18],[0.15,1.18],[-0.15,0.95],[0.15,0.95],[-0.15,0.7],[0.15,0.7]]) { const s=sph(bob,M.tan,0.15); setPos(s,bx,by,0.52); setScl(s,1,1,0.45); }
-  // purple back shell
-  const shell = sph(bob, M.purple, 0.6); setPos(shell, 0, 1.05, -0.42); setScl(shell, 0.92, 0.98, 0.6);
-  // little arms (shoulder pivots)
-  const armL = bob.addChild(new Sprite3D()); setPos(armL, -0.8, 1.2, 0.08); box(armL, M.body, 0.26, 0.5, 0.3).transform.localPosition = new Vector3(0,-0.24,0); sph(armL, M.body, 0.16).transform.localPosition = new Vector3(0,-0.48,0.03);
-  const armR = bob.addChild(new Sprite3D()); setPos(armR, 0.8, 1.2, 0.08); box(armR, M.body, 0.26, 0.5, 0.3).transform.localPosition = new Vector3(0,-0.24,0); sph(armR, M.body, 0.16).transform.localPosition = new Vector3(0,-0.48,0.03);
-  // head
-  const head = bob.addChild(new Sprite3D()); setPos(head, 0, 2.12, 0.05);
-  sph(head, M.body, 0.7);
-  sph(head, M.body, 0.42).transform.localPosition = new Vector3(0, -0.24, 0.48); // snout (scaled next)
-  const eyeL = sph(head, M.eye, 0.2); setPos(eyeL, -0.3, 0.03, 0.48);
-  const eyeR = sph(head, M.eye, 0.2); setPos(eyeR, 0.3, 0.03, 0.48);
-  const irL = sph(head, M.iris, 0.13); setPos(irL, -0.31, 0.0, 0.62);
-  const irR = sph(head, M.iris, 0.13); setPos(irR, 0.31, 0.0, 0.62);
-  const pupL = sph(head, M.pupil, 0.075); setPos(pupL, -0.31, -0.01, 0.69);
-  const pupR = sph(head, M.pupil, 0.075); setPos(pupR, 0.31, -0.01, 0.69);
-  sph(head, M.hi, 0.035).transform.localPosition = new Vector3(-0.26, 0.08, 0.73);
-  sph(head, M.hi, 0.035).transform.localPosition = new Vector3(0.36, 0.08, 0.73);
-  sph(head, M.mouth, 0.03).transform.localPosition = new Vector3(-0.09, -0.32, 0.76);
-  sph(head, M.mouth, 0.03).transform.localPosition = new Vector3(0.09, -0.32, 0.76);
-  const mouth = sph(head, M.mouth, 0.13); setPos(mouth, 0, -0.44, 0.6); setScl(mouth, 1.5, 0.35, 0.6);
-  sph(head, M.cheek, 0.1).transform.localPosition = new Vector3(-0.46, -0.22, 0.4);
-  sph(head, M.cheek, 0.1).transform.localPosition = new Vector3(0.46, -0.22, 0.4);
-  sph(head, M.red, 0.11).transform.localPosition = new Vector3(0, 0.34, 0.52);
-  // head plates (side yellow = "ears" that wiggle)
-  const earL = plate(head, M.pYellow, -0.42, 0.56, 0.05, 0.7, 1.0, 16);
-  const earR = plate(head, M.pYellow, 0.42, 0.56, 0.05, 0.7, 1.0, -16);
-  plate(head, M.red, 0, 0.74, 0.02, 0.72, 1.15, 0);
-  plate(head, M.pOrange, -0.66, 0.42, -0.12, 0.6, 0.9, 28);
-  plate(head, M.pTeal, 0.66, 0.44, -0.12, 0.62, 0.95, -26);
-  // back plates + tail
-  plate(bob, M.pTeal, 0.0, 1.8, -0.5, 0.85, 1.15, 0);
-  plate(bob, M.pOrange, -0.35, 1.6, -0.62, 0.62, 0.95, 18);
-  const t1 = sph(bob, M.body, 0.3); setPos(t1, 0.12, 0.55, -0.78); setScl(t1,1,0.9,1.25);
-  const t2 = sph(bob, M.body, 0.22); setPos(t2, 0.28, 0.5, -1.08); setScl(t2,1,0.85,1.25);
-  sph(bob, M.body, 0.15).transform.localPosition = new Vector3(0.44, 0.5, -1.32);
-  plate(bob, M.pOrange, 0.44, 0.74, -1.32, 0.42, 0.6, 8);
-  plate(bob, M.pTeal, 0.52, 0.68, -1.44, 0.36, 0.5, 8);
-  return { root, bob, head, armL, armR, earL, earR, eyeL, eyeR, irL, irR, pupL, pupR, mouth };
-}
-
 function update() {
+  if (!S.ready) return;
   let dt = L.timer.delta/1000; if (dt>0.05) dt=0.05;
   S.t += dt;
   if (S.action!=="idle" && S.action!=="sleep"){ S.actT+=dt; if (S.actT>1.4){ S.action = S.sleeping ? "sleep" : "idle"; S.actT=0; } }
   animate(dt);
 }
 function animate(dt) {
-  const br = 1 + Math.sin(S.t*2.2)*0.03; setScl(P.bob, 1, br, 1);
-  let headX = Math.sin(S.t*0.8)*3, headY = Math.sin(S.t*0.5)*6, bodyRot = Math.sin(S.t*0.9)*2, jumpY = 0;
-  S.blink -= dt; if (S.blink <= 0 && S.blinkClose <= 0){ S.blinkClose = 0.12; S.blink = 1.5 + Math.random()*2.5; }
-  let eyeS = 1; if (S.blinkClose > 0){ S.blinkClose -= dt; eyeS = 0.12; }
-  const ew = Math.sin(S.t*3)*5; setRot(P.earL, ew,0,16); setRot(P.earR, -ew,0,-16);
-  let armLr=[10,0,10], armRr=[10,0,-10];
+  let bobY = Math.sin(S.t*2.2)*0.05;            // gentle breathing bob
+  let swayY = Math.sin(S.t*0.7)*6;               // look side to side
+  let rockZ = Math.sin(S.t*0.9)*1.5, jump = 0, sq = 1 + Math.sin(S.t*2.2)*0.03;
 
-  if (S.action==="feed"){ headX = Math.sin(S.actT*22)*10; setScl(P.mouth,1.5,0.35+Math.abs(Math.sin(S.actT*22))*0.8,0.6); armLr=[-70,0,20]; armRr=[-70,0,-20]; }
-  else setScl(P.mouth,1.5,0.35,0.6);
-  if (S.action==="play"){ if (S.jumpT>=0){ S.jumpT+=L.timer.delta; const p=Math.min(1,S.jumpT/1400); jumpY=Math.abs(Math.sin(p*Math.PI*2))*0.6; if(p>=1)S.jumpT=-1; } bodyRot=Math.sin(S.actT*12)*12; armLr=[-120,0,15]; armRr=[-120,0,-15]; }
-  if (S.action==="bath"){ bodyRot=Math.sin(S.actT*30)*6; armLr=[-30,0,30]; armRr=[-30,0,-30]; }
-  if (S.action==="sleep" || S.sleeping){ eyeS=0.1; headY=12; headX=-6+Math.sin(S.t*1.2)*2; armLr=[30,0,20]; armRr=[30,0,-20]; }
+  if (S.action==="feed"){ bobY += Math.abs(Math.sin(S.actT*16))*0.12; }
+  if (S.action==="play"){ if (S.jumpT>=0){ S.jumpT+=L.timer.delta; const p=Math.min(1,S.jumpT/1400); jump=Math.abs(Math.sin(p*Math.PI*2))*0.5; if(p>=1)S.jumpT=-1; } swayY=Math.sin(S.actT*10)*22; rockZ=Math.sin(S.actT*12)*6; }
+  if (S.action==="bath"){ rockZ=Math.sin(S.actT*28)*7; }
+  if (S.action==="sleep" || S.sleeping){ rockZ=-14; swayY=22; bobY=-0.1+Math.sin(S.t*1.4)*0.02; sq=1+Math.sin(S.t*1.4)*0.02; }
 
-  setScl(P.eyeL,1,eyeS,1); setScl(P.eyeR,1,eyeS,1); setScl(P.irL,1,eyeS,1); setScl(P.irR,1,eyeS,1); setScl(P.pupL,1,eyeS,1); setScl(P.pupR,1,eyeS,1);
-  setRot(P.head, headX, headY, 0);
-  setRot(P.bob, 0, bodyRot*0.3, bodyRot);
-  setPos(P.root, 0, jumpY, 0);
-  setRot(P.armL, armLr[0],armLr[1],armLr[2]);
-  setRot(P.armR, armRr[0],armRr[1],armRr[2]);
+  setPos(hero, 0, 0.0 + bobY + jump, -0.5);
+  setRot(hero, 0, swayY, rockZ);
+  setScl(hero, 1.3, 1.3*sq, 1.3);
 }
 </script>
 </body>
