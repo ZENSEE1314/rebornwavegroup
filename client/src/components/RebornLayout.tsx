@@ -14,6 +14,7 @@ import {
 const GX_ACCENT: Record<string, string> = {
   "/chat": "#22d3ee", "/profile": "#a855f7", "/order": "#f97316", "/loyalty-program": "#f3c14b",
   "/my-referral": "#22c55e", "/bookings": "#8b5cf6", "/songs": "#ec4899", "/pos": "#14b8a6",
+  "/spin": "#f59e0b", "/bottles": "#e11d48", "/support": "#60a5fa", "/reborn-admin": "#f3c14b", "staff-feedback": "#fb7185",
 };
 
 interface NavItem { label: string; tkey: string; icon: ReactNode; path: string; }
