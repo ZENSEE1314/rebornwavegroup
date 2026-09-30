@@ -33,8 +33,9 @@ const SEGS = [
   { id: "live", a: 0.52, b: 0.62, y: 600, floor: 5, word: "LIVE", mirror: false, accent: 0xff5a5f, accent2: 0x4fc3ff, fog: 0x10050b, label: "5F" },
   { id: "blindbox", a: 0.62, b: 0.72, y: 700, accent: 0xff9db0, accent2: 0xc7b3ff, fog: 0x120a18, label: "BOX" },
   { id: "demo", a: 0.72, b: 0.80, y: 800, accent: 0x7a4dff, accent2: 0xdcb45a, fog: 0x0b0716, label: "DEMO" },
-  { id: "location", a: 0.80, b: 0.90, y: 900, accent: 0x2fae9e, accent2: 0xdcb45a, fog: 0x08121a, label: "VISIT" },
-  { id: "finale", a: 0.90, b: 1.00, y: 1100, fog: 0x0a0714, label: "★" },
+  { id: "location", a: 0.80, b: 0.87, y: 900, accent: 0x2fae9e, accent2: 0xdcb45a, fog: 0x08121a, label: "VISIT" },
+  { id: "app", a: 0.87, b: 0.93, y: 1000, accent: 0xc04dff, accent2: 0xf0d787, fog: 0x0d0718, label: "APP" },
+  { id: "finale", a: 0.93, b: 1.00, y: 1100, fog: 0x0a0714, label: "★" },
 ];
 // 4F resident pets (photo-style images in img/pets/).
 const PETS = [
@@ -59,6 +60,31 @@ const PLAN_TILT = 0.15;   // lean towards the camera below
 // Photo-style images of the individual rooms (img/rooms/), shown on each room's door.
 const ROOM_PHOTOS = ["ktv-room-1", "ktv-room-2", "ktv-room-3", "dance-room", "vip-room-1", "vip-room-2"];
 const segById = (id) => SEGS.find((s) => s.id === id);
+
+// Page language: the app's saved choice, else the browser's (en / zh / id).
+const LANG = (() => {
+  try { const l = localStorage.getItem("language"); if (l === "zh" || l === "id" || l === "en") return l; } catch {}
+  const n = (navigator.language || "").toLowerCase();
+  return n.startsWith("zh") ? "zh" : (n.startsWith("id") || n.startsWith("ms")) ? "id" : "en";
+})();
+const tl = (o) => o[LANG] || o.en;
+// App-stop texts (the overlay uses data-t keys; the 3D icons use APP_FEATURES).
+const APP_TEXT = {
+  eyebrow: { en: "Get the app", zh: "下载应用", id: "Unduh aplikasi" },
+  title: { en: "Reborn Wave in your pocket", zh: "把 Reborn Wave 装进口袋", id: "Reborn Wave di genggamanmu" },
+  body: { en: "Book rooms, order drinks, request songs, play live games, raise your pet and send KOS gifts — all in one app.", zh: "预订包厢、点饮品、点歌、玩实时游戏、养宠物、送 KOS 礼物——一个应用全搞定。", id: "Booking ruangan, pesan minuman, request lagu, main game live, rawat peliharaan dan kirim hadiah KOS — semua dalam satu aplikasi." },
+  android: { en: "Download for Android", zh: "下载安卓版", id: "Unduh untuk Android" },
+  ios: { en: "Download for iPhone", zh: "下载 iPhone 版", id: "Unduh untuk iPhone" },
+  web: { en: "Open in browser", zh: "在浏览器中打开", id: "Buka di browser" },
+  note: { en: "Android: tap Download, open the file and allow the install.", zh: "安卓：点击下载，打开文件并允许安装。", id: "Android: ketuk Unduh, buka file lalu izinkan pemasangan." },
+  floorBtn: { en: "Download the app", zh: "下载应用", id: "Unduh aplikasi" },
+  short: { en: "Download", zh: "下载", id: "Unduh" },
+};
+const APP_FEATURES = [
+  ["🎮", { en: "Games", zh: "游戏", id: "Game" }], ["🐉", { en: "Pet", zh: "宠物", id: "Pet" }], ["🎁", { en: "Gifts", zh: "礼物", id: "Hadiah" }],
+  ["🎤", { en: "Songs", zh: "点歌", id: "Lagu" }], ["📅", { en: "Booking", zh: "预订", id: "Booking" }], ["🍸", { en: "Order", zh: "点单", id: "Pesan" }],
+  ["🏆", { en: "Ranks", zh: "段位", id: "Peringkat" }], ["💬", { en: "Chat", zh: "聊天", id: "Chat" }],
+];
 
 // Venue facts shown on the location stage (mirrors landing page + booking hours).
 const VENUE = {
@@ -999,6 +1025,41 @@ function dressLocation({ Z, zi, Y, seg, portrait }) {
   sign.position.set(cx, Y + (portrait ? 7.6 : 6.2), -3); Z.add(zoomable(sign, zi));
 }
 
+// App stop: a glowing phone showing Doluruu, with the app's features orbiting it.
+function dressApp({ Z, zi, Y, seg, portrait }) {
+  const cx = portrait ? 0 : -4.6, cy = portrait ? 5.6 : 4;
+  const phone = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.3, 6.6, 0.3), M.glass); phone.add(body);
+  const rim = card(3.5, 6.8, (x, W, H) => { rr(x, 6, 6, W - 12, H - 12, W * 0.16); x.lineWidth = 12; x.strokeStyle = goldGrad(x, 0, W); x.stroke(); }, { frame: false, glow: seg.accent });
+  rim.position.z = 0.16; phone.add(rim);
+  const screen = card(3, 6, (x, W, H) => {
+    const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#241042"); g.addColorStop(1, "#0b0716");
+    rr(x, 0, 0, W, H, W * 0.12); x.fillStyle = g; x.fill();
+    x.fillStyle = "#000"; rr(x, W * 0.36, H * 0.02, W * 0.28, H * 0.025, H * 0.012); x.fill();
+    x.textAlign = "center"; x.fillStyle = goldGrad(x, 0, W); x.font = `800 ${H * 0.05}px Cinzel`; x.fillText("REBORN WAVE", W / 2, H * 0.12);
+    x.fillStyle = "#c7b3ff"; x.font = `700 ${H * 0.028}px Montserrat`; x.fillText(tl(APP_TEXT.eyebrow).toUpperCase(), W / 2, H * 0.17);
+    rr(x, W * 0.14, H * 0.82, W * 0.72, H * 0.08, H * 0.04); x.fillStyle = goldGrad(x, W * 0.14, W * 0.86); x.fill();
+    x.fillStyle = "#1a1030"; x.font = `800 ${H * 0.032}px Montserrat`; x.textBaseline = "middle"; x.fillText("⬇  " + tl(APP_TEXT.short).toUpperCase(), W / 2, H * 0.86);
+  }, { frame: false });
+  screen.position.z = 0.17; phone.add(screen);
+  const pet = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4 / (IMG.boy.image ? IMG.boy.image.width / IMG.boy.image.height : 0.75)), new THREE.MeshBasicMaterial({ map: IMG.boy, transparent: true, toneMapped: false }));
+  pet.position.set(0, -0.1, 0.19); phone.add(pet);
+  phone.position.set(cx, Y + cy, -2); Z.add(phone);
+  const halo = glowPlane(seg.accent, 12, 12, 0.35); halo.position.set(cx, Y + cy, -2.6); Z.add(halo);
+  const icons = APP_FEATURES.map(([ic, name]) => { const c = card(1.3, 1.3, drawIcon(ic, tl(name)), { frame: false, glow: seg.accent2, pxPerUnit: 200 }); Z.add(c); return c; });
+  anims.push({ zone: zi, fn: (t) => {
+    const sp = REDUCED ? 0 : t;
+    phone.position.y = Y + cy + (REDUCED ? 0 : Math.sin(t * 1.3) * 0.18);
+    phone.rotation.y = REDUCED ? 0.18 : Math.sin(t * 0.5) * 0.22 + 0.12;
+    const rx = portrait ? 3.1 : 3.4, ry = portrait ? 3.9 : 3.4;
+    icons.forEach((c, i) => {
+      const a = sp * 0.35 + (i / icons.length) * Math.PI * 2;
+      c.position.set(cx + Math.cos(a) * rx, Y + cy + Math.sin(a) * ry, -2 + Math.sin(a) * 1.4);
+      c.lookAt(cx + Math.cos(a) * rx * 1.4, Y + cy + Math.sin(a) * ry * 1.4, 30);
+    });
+  } });
+}
+
 // ── Zone: FINALE ───────────────────────────────────────────────────────────
 const ORBIT_SPEED = 0.04; // radians per second
 const FLOOR_CONCEPTS = [
@@ -1138,10 +1199,21 @@ function buildPaths() {
     showcasePath(segById("blindbox"), 0, portrait ? 5 : 3.6, 13, portrait ? 4 : 0),
     showcasePath(segById("demo"), 0, 4.4, 12, portrait ? 16 : 0),
     showcasePath(segById("location"), portrait ? 0 : 1.5, portrait ? 4.6 : 3.4, 13, portrait ? 14 : 0),
+    showcasePath(segById("app"), portrait ? 0 : -1.6, portrait ? 5.2 : 4, 12, portrait ? 8 : 0),
     path([[0, F + 8, 56 + back], [0, F + 6.5, 40 + back], [0, F + 5.2, 28 + back], [0, F + 4.9, 25 + back]],
       [[0, F + 5, 0], [0, F + 4.6, 0], [0, F + 3.4, 0], [0, F + (back ? -0.5 : 1.0), 0]]),
   ];
 }
+
+// ── App stop overlay: translate, and show only the download links the admin set ──
+document.querySelectorAll("[data-t]").forEach((el) => { const v = APP_TEXT[el.dataset.t]; if (v) el.textContent = tl(v); });
+document.querySelectorAll("[data-t-label]").forEach((el) => { const v = APP_TEXT[el.dataset.tLabel]; if (v) el.setAttribute("aria-label", tl(v)); });
+fetch("/api/public/app-links").then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((links) => {
+  const a = document.getElementById("dl-android"), i = document.getElementById("dl-ios"), n = document.getElementById("dl-note");
+  if (a) a.hidden = !links.android;
+  if (i) i.hidden = !links.ios;
+  if (n) n.hidden = !links.android;
+});
 
 // ── Overlays, nav, flash ───────────────────────────────────────────────────
 const beats = [...document.querySelectorAll(".beat")].map((el) => ({ el, a: +el.dataset.a, b: +el.dataset.b }));
@@ -1367,6 +1439,7 @@ loadAll().then(() => {
   buildShowcase(segById("blindbox"), dressBlindbox);
   buildShowcase(segById("demo"), dressDemo);
   buildShowcase(segById("location"), dressLocation);
+  buildShowcase(segById("app"), dressApp);
   buildFinale();
   buildPaths();
   readScroll(); cur = target;

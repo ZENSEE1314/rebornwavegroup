@@ -133,6 +133,9 @@ h2.small { font-size: clamp(18px, 2.4vw, 26px); font-weight: 600; color: var(--c
 .btn-sm { min-height: 38px; padding: 0 16px; font-size: 13px; }
 .cta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3); margin-top: var(--s-5); }
 .cta-row.start { justify-content: flex-start; }
+.cta-row.end { justify-content: flex-end; }
+.dl-note { margin-top: var(--s-3); font-size: 13px; color: var(--c-ink-dim); }
+.btn[hidden], .dl-note[hidden] { display: none; }
 .beat.final { top: auto; bottom: 5vh; translate: -50% 0; } /* keep the 3D REBORN WAVE logo visible above the CTAs */
 .final::before { inset: -60px -80px; background: radial-gradient(closest-side, rgba(10, 7, 20, .8), rgba(10, 7, 20, 0)); }
 
@@ -196,6 +199,7 @@ body.zooming #story { opacity: 0; transition: opacity 200ms var(--ease); } /* le
     text-align: left; max-width: none;
   }
   .beat.right .chips { justify-content: flex-start; }
+  .beat.right .cta-row.end { justify-content: flex-start; }
 }
 
 /* No-WebGL fallback: the story reads as a normal page */

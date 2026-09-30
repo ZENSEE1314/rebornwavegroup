@@ -65,6 +65,8 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
   bookingTableDayLock: "false", // a table booked at any time is closed for the rest of that day
   bookingAskHours: "true",      // ask guests how many hours they'll stay (off → default 2 hours)
+  appAndroidUrl: "",            // where /download/android sends people (APK or Play Store link)
+  appIosUrl: "",                // where /download/ios sends people (App Store / TestFlight link)
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -105,6 +107,8 @@ async function getSettings() {
     allowNegativeStock: map.allowNegativeStock === "true",
     bookingTableDayLock: map.bookingTableDayLock === "true",
     bookingAskHours: map.bookingAskHours !== "false",
+    appAndroidUrl: map.appAndroidUrl || "",
+    appIosUrl: map.appIosUrl || "",
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
 }
@@ -1554,11 +1558,24 @@ export function registerRebornRoutes(app: Express) {
     res.json({ message: tr(req, { en: "Deleted", zh: "已删除", id: "Dihapus" }) });
   }));
 
+  // App download links (public): the home page shows a button for each one that's set,
+  // and /download/android|ios forward to the current link so shared links never go stale.
+  app.get("/api/public/app-links", async (_req, res) => {
+    const s = await getSettings();
+    res.set("Cache-Control", "no-cache").json({ android: !!s.appAndroidUrl, ios: !!s.appIosUrl });
+  });
+  app.get("/download/:platform", async (req, res) => {
+    const s = await getSettings();
+    const url = req.params.platform === "ios" ? s.appIosUrl : req.params.platform === "android" ? s.appAndroidUrl : "";
+    if (/^https?:\/\//i.test(url)) return res.redirect(302, url);
+    res.redirect(302, "/login");
+  });
+
   app.get("/api/reborn/admin/settings", requireAdmin(async (_req, res) => {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "appAndroidUrl", "appIosUrl"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
