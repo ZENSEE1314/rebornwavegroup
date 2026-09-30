@@ -139,7 +139,10 @@ export async function startWhatsAppWeb(): Promise<void> {
         const alt = (m.key as any).remoteJidAlt as string | undefined;
         const phoneJid = [chatJid, alt].find((j) => j && j.endsWith("@s.whatsapp.net"));
         const phone = (phoneJid ? phoneJid.split("@")[0] : chatJid.split("@")[0]).replace(/\D/g, "");
-        if (phone) jidForPhone.set(phone, chatJid);            // remember how to reach them
+        if (phone && jidForPhone.get(phone) !== chatJid) {     // remember how to reach them (survives restarts)
+          jidForPhone.set(phone, chatJid);
+          writeAuth(`jid:${phone}`, chatJid).catch(() => {});
+        }
         let nativeReply = "";
         const nativeParams = m.message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
         if (nativeParams) {
@@ -165,11 +168,21 @@ export async function startWhatsAppWeb(): Promise<void> {
   }
 }
 
+// Chat JID we last heard this number from — memory first, then the saved copy.
+async function knownJid(digits: string): Promise<string | undefined> {
+  let jid = jidForPhone.get(digits);
+  if (!jid) {
+    jid = (await readAuth(`jid:${digits}`).catch(() => null)) || undefined;
+    if (jid) jidForPhone.set(digits, jid);
+  }
+  return jid;
+}
+
 export async function sendWhatsAppWeb(to: string, text: string): Promise<boolean> {
   if (!isWebConnected() || !sock) return false;
   const digits = String(to).replace(/\D/g, "");
   // Reply to the exact chat JID we last heard from (handles LID); else resolve the phone.
-  let jid = jidForPhone.get(digits);
+  let jid = await knownJid(digits);
   try {
     if (!jid) {
       const res = await sock.onWhatsApp(digits).catch(() => null);
@@ -183,7 +196,7 @@ export async function sendWhatsAppWeb(to: string, text: string): Promise<boolean
 export async function sendWhatsAppWebChoices(to: string, text: string, choices: Array<{ id: string; title: string }>): Promise<boolean> {
   if (!isWebConnected() || !sock) return false;
   const digits = String(to).replace(/\D/g, "");
-  let jid = jidForPhone.get(digits);
+  let jid = await knownJid(digits);
   try {
     if (!jid) {
       const res = await sock.onWhatsApp(digits).catch(() => null);
@@ -218,7 +231,7 @@ export async function sendWhatsAppWebChoices(to: string, text: string, choices: 
 export async function sendWhatsAppWebImage(to: string, image: Buffer, caption: string): Promise<boolean> {
   if (!isWebConnected() || !sock) return false;
   const digits = String(to).replace(/\D/g, "");
-  let jid = jidForPhone.get(digits);
+  let jid = await knownJid(digits);
   try {
     if (!jid) { const res = await sock.onWhatsApp(digits).catch(() => null); jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`; }
     await sock.sendMessage(jid, { image, caption });

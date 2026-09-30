@@ -362,6 +362,16 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "😔 抱歉，您的预订（{what}，{when}）已被取消{note} 请回复「预订」选择新的日期。💜",
       id: "😔 Maaf, booking Anda ({what} pada {when}) dibatalkan{note} Silakan pesan tanggal baru dengan mengetik \"booking\". 💜",
     },
+    songConfirmed: {
+      en: "🎤 Your song request is confirmed: {song}{note}. Get ready to sing! 💜",
+      zh: "🎤 您的点歌已确认：{song}{note}。准备开唱吧！💜",
+      id: "🎤 Permintaan lagu Anda dikonfirmasi: {song}{note}. Siap-siap bernyanyi! 💜",
+    },
+    songRejected: {
+      en: "🎵 Sorry, we can't play your song request: {song}{note}. Feel free to request another one in the app. 💜",
+      zh: "🎵 抱歉，暂时无法播放您点的歌：{song}{note}。欢迎在应用里再点一首。💜",
+      id: "🎵 Maaf, permintaan lagu Anda belum bisa diputar: {song}{note}. Silakan minta lagu lain di aplikasi. 💜",
+    },
     pushConfirmedTitle: { en: "✅ Booking confirmed", zh: "✅ 预订已确认", id: "✅ Booking dikonfirmasi" },
     pushCancelledTitle: { en: "😔 Booking cancelled", zh: "😔 预订已取消", id: "😔 Booking dibatalkan" },
     tapRebook: { en: "Tap to rebook.", zh: "点击重新预订。", id: "Ketuk untuk booking ulang." },
@@ -1460,8 +1470,7 @@ export async function runBookingReminders(): Promise<number> {
       if (!tag) continue;
       const already = (a.remindersSent || "").split(",").filter(Boolean);
       if (already.includes(tag)) continue;
-      const [u] = await db.select().from(users).where(eq(users.id, a.userId));
-      const phone = (u?.phoneNumber || "").replace(/\D/g, "");
+      const phone = await memberWaPhone(a.userId);
       const markSet = Array.from(new Set([...already, ...REMINDER_ORDER.slice(0, REMINDER_ORDER.indexOf(tag) + 1)]));
       const lang = await langForPhone(phone, a.userId);
       const left = L(lang, tag === "10m" ? "left10m" : tag === "1h" ? "left1h" : "left3h");
@@ -1540,6 +1549,26 @@ async function accountLang(userId?: string | null): Promise<Lang | null> {
 }
 // Language to message someone in: their member account's language when linked
 // (so choosing 中文 in the app also switches WhatsApp), else the WhatsApp contact's.
+// Phone typed in the app → WhatsApp digits. Indonesian numbers are often typed
+// without the country code ("0812…" / "812…"), which WhatsApp can't deliver to.
+export function waDigits(raw: string | null | undefined): string {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.startsWith("0")) d = "62" + d.slice(1);
+  else if (d.startsWith("8") && d.length >= 9 && d.length <= 12) d = "62" + d;
+  return d;
+}
+
+// The WhatsApp number to message a member on: the chat they actually wrote to us
+// from (CRM contact) when there is one, else the phone on their profile.
+export async function memberWaPhone(userId: string | null | undefined): Promise<string> {
+  if (!userId) return "";
+  const [c] = await db.select().from(crmContacts).where(eq(crmContacts.userId, userId));
+  if (c?.phone) return c.phone;
+  const [u] = await db.select().from(users).where(eq(users.id, userId));
+  return waDigits(u?.phoneNumber);
+}
+
 export async function langForPhone(phone: string, userId?: string | null): Promise<Lang> {
   const num = (phone || "").replace(/\D/g, "");
   const [c] = num ? await db.select().from(crmContacts).where(eq(crmContacts.phone, num)) : [];
