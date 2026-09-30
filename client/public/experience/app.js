@@ -1449,6 +1449,60 @@ function dressPet(ctx) {
   const back = glowPlane(seg.accent2, 14, 10, 0.25); back.position.set(0, Y + 3, -48); Z.add(back);
 }
 
+// 5F: two rooftop searchlights throw Doluruu's shadow onto the sky, like a hero signal,
+// sweeping left and right past each other.
+const SIGNAL_LEN = 44, SIGNAL_ELEV = 0.5, SIGNAL_SIZE = 17; // beam length, and its angle above the horizon (radians)
+function signalDiscTexture() {
+  return canvasTexture(512, 512, (x, W, H) => {
+    const g = x.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W / 2);
+    g.addColorStop(0, "rgba(255,244,200,.95)"); g.addColorStop(0.62, "rgba(255,226,150,.8)");
+    g.addColorStop(0.8, "rgba(255,210,120,.35)"); g.addColorStop(1, "rgba(255,200,120,0)");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const img = IMG.boy && IMG.boy.image;
+    if (img && img.width) {
+      // Doluruu as a solid shadow in the middle of the light
+      const sc = (H * 0.62) / img.height, w = img.width * sc, h = img.height * sc;
+      const tmp = document.createElement("canvas"); tmp.width = Math.ceil(w); tmp.height = Math.ceil(h);
+      const t = tmp.getContext("2d"); t.drawImage(img, 0, 0, w, h);
+      t.globalCompositeOperation = "source-in"; t.fillStyle = "rgba(20,12,24,.92)"; t.fillRect(0, 0, w, h);
+      x.drawImage(tmp, (W - w) / 2, (H - h) / 2 + H * 0.02);
+    }
+  });
+}
+function beamTexture() {
+  return canvasTexture(8, 256, (x, W, H) => {
+    const g = x.createLinearGradient(0, H, 0, 0); // bright at the lamp, fading into the sky
+    g.addColorStop(0, "rgba(255,240,200,.55)"); g.addColorStop(0.7, "rgba(255,236,190,.18)"); g.addColorStop(1, "rgba(255,236,190,.06)");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+  });
+}
+function doluruuSignals({ Z, zi, Y }) {
+  const disc = signalDiscTexture(), beamTex = beamTexture();
+  const lamps = [-1, 1].map((sx) => {
+    const base = new THREE.Group(); base.position.set(sx * 12.5, Y, -30); Z.add(base);
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 1.2, 16), M.goldSoft); stand.position.y = 0.6; base.add(stand);
+    const yaw = new THREE.Group(); yaw.position.y = 1.4; base.add(yaw);
+    const tilt = new THREE.Group(); tilt.rotation.x = -(Math.PI / 2 - SIGNAL_ELEV); yaw.add(tilt);
+    const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.6, 1.3, 20), M.night); tilt.add(housing);
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.72, 24), new THREE.MeshBasicMaterial({ color: 0xfff4d0, toneMapped: false }));
+    lens.rotation.x = -Math.PI / 2; lens.position.y = 0.66; tilt.add(lens);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(SIGNAL_SIZE * 0.36, 0.7, SIGNAL_LEN, 28, 1, true), new THREE.MeshBasicMaterial({
+      map: beamTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false,
+    }));
+    beam.position.y = SIGNAL_LEN / 2 + 0.6; tilt.add(beam);
+    const spot = new THREE.Mesh(new THREE.PlaneGeometry(SIGNAL_SIZE, SIGNAL_SIZE), new THREE.MeshBasicMaterial({ map: disc, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
+    spot.position.y = SIGNAL_LEN + 0.6; tilt.add(spot);
+    return { yaw, spot, sx };
+  });
+  anims.push({ zone: zi, fn: (t) => {
+    for (const { yaw, spot, sx } of lamps) {
+      // each sweeps across, out of step with the other, so they cross in the middle
+      yaw.rotation.y = -sx * 0.25 + (REDUCED ? 0 : Math.sin(t * 0.45 + (sx > 0 ? Math.PI : 0)) * 0.55);
+      spot.lookAt(camera.position); // the shadow always faces you
+    }
+  } });
+}
+
 function dressLive(ctx) {
   const { Z, zi, Y, seg } = ctx;
   // Stage + truss + giant screen
@@ -1499,6 +1553,7 @@ function dressLive(ctx) {
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + 3.2 + (i % 2) * 1.1 + Math.sin(t * 1.6 + i) * 0.15; } });
   });
   monolith(ctx, ctx.clusterX * 0.85, -24, "Real crowds. Real energy. Every night.", "5F ROOFTOP · LIVE", 4.2, 2.6);
+  doluruuSignals(ctx);
 }
 
 // ── Zones: SHOWCASE stages (blind box, demo, location) ─────────────────────
