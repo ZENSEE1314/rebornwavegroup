@@ -473,8 +473,8 @@ function canvasBackdrop(draw) {
 function fitFloorBackgrounds() { for (const b of Object.values(floorBg)) for (const t of b.fit) if (t) coverFit(t, b.aspect); }
 function tickFloorBackground(segId, t) {
   const b = floorBg[segId];
-  if (!b || !b.draw || REDUCED || t - b.last < 1 / 30) return;
-  b.last = t; b.draw(b.ctx, BG_W, BG_H, t); b.tex.needsUpdate = true;
+  if (!b || !b.draw || REDUCED || t - b.last < 1 / (b.fps || 30)) return;
+  b.last = t; b.draw(b.ctx, b.ctx.canvas.width, b.ctx.canvas.height, t); b.tex.needsUpdate = true;
 }
 const rnd = (seed) => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -593,11 +593,12 @@ function imageBackdrop(url, aspect, intensity) {
   const tex = loadTex(url);
   return { tex, current: tex, aspect, intensity, fit: [tex] };
 }
-// Social: a wall of vertical reels (our venue clips) drifting up like a feed.
+// Social: a 360° wall of vertical reels (our venue clips) drifting up and down like a feed.
+const SOCIAL_W = 2048, SOCIAL_H = 1024;
 const REEL_CLIPS = ["intro", "sing", "ktv", "live", "vip"];
 function socialBackdrop() {
-  const c = document.createElement("canvas"); c.width = BG_W; c.height = BG_H;
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const c = document.createElement("canvas"); c.width = SOCIAL_W; c.height = SOCIAL_H;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping;
   const videos = REEL_CLIPS.map((n) => {
     const v = document.createElement("video");
     Object.assign(v, { src: `./media/${n}.mp4`, muted: true, loop: true, playsInline: true, preload: "none", crossOrigin: "anonymous", poster: `./media/${n}.jpg` });
@@ -607,7 +608,8 @@ function socialBackdrop() {
   const posters = REEL_CLIPS.map((n) => IMG[`poster_${n}`]);
   const draw = (x, W, H, t) => {
     x.fillStyle = "#07040c"; x.fillRect(0, 0, W, H);
-    const cols = 6, gap = 10, tw = (W - gap * (cols + 1)) / cols, th = tw * 16 / 9;
+    x.save(); x.translate(W, 0); x.scale(-1, 1); // it wraps round the inside of a sphere
+    const cols = 14, gap = 12, tw = (W - gap * cols) / cols, th = tw * 16 / 9;
     for (let ci = 0; ci < cols; ci++) {
       const speed = 14 + (ci % 3) * 6, dir = ci % 2 ? 1 : -1;
       const off = ((t * speed * dir) % (th + gap) + (th + gap)) % (th + gap);
@@ -629,9 +631,10 @@ function socialBackdrop() {
         x.restore();
       }
     }
+    x.restore();
   };
-  const b = { tex, current: tex, aspect: BG_W / BG_H, draw, ctx: c.getContext("2d"), last: -1, fit: [tex], intensity: 0.55, videos };
-  draw(b.ctx, BG_W, BG_H, 0); tex.needsUpdate = true;
+  const b = { tex, current: tex, aspect: 2, draw, ctx: c.getContext("2d"), last: -1, fit: [], videos, sphere: true, fps: 20 };
+  draw(b.ctx, SOCIAL_W, SOCIAL_H, 0); tex.needsUpdate = true;
   return b;
 }
 // 360° surround: the photo repeats all the way round,
@@ -2044,8 +2047,9 @@ function setActiveSegment(i) {
   bg.set(seg.fog); scene.fog.color.copy(bg);
   const isArrival = seg.id === "arrival";
   const fb = floorBg[seg.id];
-  scene.background = isArrival ? introBg.current : fb ? fb.current : bgColor.copy(bg);
-  scene.backgroundIntensity = isArrival ? ARRIVAL_BG_INTENSITY : fb ? (fb.intensity ?? FLOOR_BG_INTENSITY) : 1;
+  const flat = fb && !fb.sphere ? fb : null; // sphere backdrops wrap round the page instead
+  scene.background = isArrival ? introBg.current : flat ? flat.current : bgColor.copy(bg);
+  scene.backgroundIntensity = isArrival ? ARRIVAL_BG_INTENSITY : flat ? (flat.intensity ?? FLOOR_BG_INTENSITY) : 1;
   if (isArrival) introBg.video.play().catch(() => {}); else introBg.video.pause();
   for (const [id, b] of Object.entries(floorBg)) for (const v of b.videos || (b.video ? [b.video] : [])) { if (id === seg.id) v.play().catch(() => {}); else v.pause(); }
   scene.fog.near = seg.id === "arrival" ? 28 : 30; scene.fog.far = seg.id === "arrival" ? 120 : 95;
@@ -2153,7 +2157,11 @@ loadAll().then(() => {
   buildShowcase(segById("location"), dressLocation, { pano: "./img/breeding/building.jpg" });
   buildShowcase(segById("app"), dressApp, { floor: false });
   { const s = segById("app"); appIconSurround(zones.length - 1, V(0, s.y + 4, 6), 50); }
-  buildShowcase(segById("social"), dressSocial);
+  buildShowcase(segById("social"), dressSocial, { floor: false });
+  { const s = segById("social"), zi = zones.length - 1;
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(40, 64, 40), new THREE.MeshBasicMaterial({ map: floorBg.social.tex, side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false, color: 0xb0b0b0 }));
+    mesh.position.set(0, s.y + 4, 8); mesh.renderOrder = -1; mesh.visible = false; zones[zi].add(mesh); panos.push({ zone: zi, mesh });
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) mesh.rotation.y = t * 0.03; } }); }
   buildFinale();
   buildPaths();
   readScroll(); cur = target;
