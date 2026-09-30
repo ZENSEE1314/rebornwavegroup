@@ -65,7 +65,7 @@ export default function RebornPos() {
         <h1 className="text-xl font-extrabold">{t("pos.heading")}</h1>
         <button onClick={() => setShowDrawer(true)} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70"><Settings className="w-4 h-4" /> {t("pos.cashDrawer")}</button>
       </div>
-      {role === "admin" && <StaffGuideButton />}
+      <StaffGuideButton />
       {role === "admin" && <ClosePosDay />}
       <div className="grid grid-cols-5 gap-2 mb-4 max-w-2xl">
         {([["tables", t("pos.tab.tables"), <LayoutGrid className="w-4 h-4" />], ["sell", t("pos.tab.sell"), <Receipt className="w-4 h-4" />], ["sales", t("pos.tab.sales"), <History className="w-4 h-4" />], ["stock", t("pos.tab.stock"), <PackagePlus className="w-4 h-4" />], ["bottles", t("pos.tab.bottles"), <Wine className="w-4 h-4" />]] as const).map(([k, l, ic]) => (

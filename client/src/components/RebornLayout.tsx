@@ -138,9 +138,9 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
             <Coins className="w-4 h-4 text-amber-400" />
             <span className="text-sm font-bold text-amber-300">{tokens}</span>
           </div>
-          <button onClick={() => setConfirmLogout(true)} aria-label={t("nav.logout")} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 hover:text-white">
+          <button onClick={() => setConfirmLogout(true)} aria-label={t("nav.logout")} className="rwg-logout">
             <LogOut className="w-4 h-4" />
-            <span className="text-xs font-semibold">{t("nav.logout")}</span>
+            <span>{t("nav.logout")}</span>
           </button>
         </div>
       </header>
@@ -150,14 +150,14 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
 
       {/* Bottom nav — hidden while inside a live game so you can't tap out by accident */}
       {!hideNav && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 backdrop-blur-md" style={{ background: "rgba(10,7,20,0.9)" }}>
+        <nav className="rwg-dock fixed bottom-0 left-0 right-0 z-40 backdrop-blur-md" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="max-w-2xl mx-auto grid grid-cols-5">
             {MAIN_NAV.map((it) => {
               const isActive = active === it.path || active === it.label.toLowerCase();
               return (
-                <button key={it.path} onClick={() => go(it.path)} className={`rwg-nav-item ${isActive ? "is-active" : ""} flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? "text-amber-300" : "text-white/50 hover:text-white/80"}`}>
-                  {it.icon}
-                  <span className="text-[11px] font-medium">{t(it.tkey)}</span>
+                <button key={it.path} onClick={() => go(it.path)} className={`rwg-nav-item ${isActive ? "is-active" : ""}`}>
+                  <span className="rwg-nav-ic">{it.icon}</span>
+                  <span className="rwg-nav-lbl">{t(it.tkey)}</span>
                 </button>
               );
             })}
