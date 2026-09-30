@@ -680,17 +680,52 @@ function socialBackdrop() {
   draw(b.ctx, BG_W, BG_H, 0); tex.needsUpdate = true;
   return b;
 }
+// 360° surround: the photo repeats all the way round,
+// its top edge stretches up into the sky and its bottom edge becomes the floor.
+const PANO_W = 4096, PANO_H = 2048;
+const PANO_BAND = [0.28, 0.56]; // where the photo sits, as a share of the height (0 = straight up)
+const panos = []; // { zone, mesh }
+function panoSurround(url, zone, center, radius) {
+  const c = document.createElement("canvas"); c.width = PANO_W; c.height = PANO_H;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  const img = new Image();
+  img.onload = () => {
+    const x = c.getContext("2d");
+    const y0 = PANO_BAND[0] * PANO_H, bh = (PANO_BAND[1] - PANO_BAND[0]) * PANO_H;
+    const n = Math.max(2, Math.round(PANO_W / (bh * (img.width / img.height))));
+    const tw = PANO_W / n, edge = Math.max(2, Math.round(img.height * 0.02));
+    x.save(); x.translate(PANO_W, 0); x.scale(-1, 1); // seen from inside the sphere, so draw it flipped
+    for (let k = 0; k < n; k++) {
+      x.save(); x.translate(k * tw, 0);
+      x.drawImage(img, 0, 0, img.width, edge, 0, 0, tw, y0 + 1);                                   // sky
+      x.drawImage(img, 0, 0, img.width, img.height, 0, y0, tw, bh);                                  // the photo
+      x.drawImage(img, 0, img.height - edge, img.width, edge, 0, y0 + bh - 1, tw, PANO_H - y0 - bh + 1); // floor
+      x.restore();
+    }
+    x.restore();
+    // soften the floor towards the feet so it reads as ground
+    const g = x.createLinearGradient(0, y0 + bh, 0, PANO_H); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.45)");
+    x.fillStyle = g; x.fillRect(0, y0 + bh, PANO_W, PANO_H - y0 - bh);
+    tex.offset.x = 0.5 / n - 0.75; // a copy's centre straight ahead (-Z)
+    tex.needsUpdate = true;
+  };
+  img.src = url;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 64, 40), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
+  mesh.position.copy(center); mesh.renderOrder = -1; mesh.visible = false;
+  zones[zone].add(mesh);
+  panos.push({ zone, mesh });
+  return mesh;
+}
 function createFloorBackgrounds() {
   floorBg.ktv = videoBackdrop("sing");     // 1F lounge
   floorBg.private = videoBackdrop("ktv");  // 2F KTV rooms
   floorBg.vip = canvasBackdrop(drawSpaceship);    // 3F spaceship KTV room
   floorBg.pet = canvasBackdrop(drawRestaurant);   // 4F restaurant
   floorBg.live = canvasBackdrop(drawSeaview);     // 5F rooftop sea view
-  floorBg.blindbox = imageBackdrop("./img/breeding/logo.jpg", 1181 / 1063, 0.8); // Doluruu Breeding
   floorBg.demo = canvasBackdrop(drawCinema);      // demo video in a cinema
-  floorBg.location = imageBackdrop("./img/breeding/building.jpg", 1080 / 1208, 0.75); // the house at night
   floorBg.social = socialBackdrop();              // our reels, like a social feed
-  floorBg.finale = imageBackdrop("./img/breeding/building.jpg", 1080 / 1208, 0.6);
+
   fitFloorBackgrounds();
 }
 
@@ -1388,10 +1423,11 @@ function dressLive(ctx) {
 }
 
 // ── Zones: SHOWCASE stages (blind box, demo, location) ─────────────────────
-function buildShowcase(seg, dress) {
+function buildShowcase(seg, dress, pano) {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
   const Y = seg.y;
-  Z.add(ground(Y, seg.accent));
+  if (pano) panoSurround(pano, zi, V(0, Y + 3, 8), 50); // the photo all round, floor included
+  else Z.add(ground(Y, seg.accent));
   Z.add(accentLight(seg.accent, -9, Y + 6, 6), accentLight(seg.accent2, 9, Y + 6, 6), accentLight(0xffe6b0, 0, Y + 9, 12, 70));
   Z.add(dust(zi, seg.accent2, 260, [-20, 20, Y + 0.4, Y + 14, -20, 16]));
   dress({ Z, zi, Y, seg, portrait: PORTRAIT() });
@@ -1637,7 +1673,7 @@ function finalePhotoCard(tex, label) {
 function buildFinale() {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
   const Y = segById("finale").y;
-  Z.add(ground(Y, 0x7a4dff));
+  panoSurround("./img/breeding/building.jpg", zi, V(0, Y + 3, 20), 75);
   const logo = new THREE.Group(); logo.position.set(0, Y, 0); Z.add(logo);
   const r = word("REBORN", 3.5, M.gold, 20); r.position.y = 4.4; logo.add(r);
   const w = word("WAVE", 3.5, M.gold, 20); w.position.y = 0.4; logo.add(w);
@@ -1865,6 +1901,7 @@ function setActiveSegment(i) {
   if (i === activeSeg) return;
   activeSeg = i;
   zones.forEach((z, zi) => { z.visible = Math.abs(zi - i) <= 1; });
+  for (const pn of panos) pn.mesh.visible = pn.zone === i;
   for (const s of screens) {
     if (s.zone === i) { if (s.video.paused) s.video.play().catch(() => {}); }
     else if (!s.video.paused) s.video.pause();
@@ -1977,9 +2014,9 @@ loadAll().then(() => {
   buildFloor(SEGS[3], dressVIP);
   buildFloor(SEGS[4], dressPet);
   buildFloor(SEGS[5], dressLive);
-  buildShowcase(segById("blindbox"), dressBlindbox);
+  buildShowcase(segById("blindbox"), dressBlindbox, "./img/breeding/logo.jpg");
   buildShowcase(segById("demo"), dressDemo);
-  buildShowcase(segById("location"), dressLocation);
+  buildShowcase(segById("location"), dressLocation, "./img/breeding/building.jpg");
   buildShowcase(segById("app"), dressApp);
   buildShowcase(segById("social"), dressSocial);
   buildFinale();
