@@ -334,4 +334,13 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.credit.hoursVal': { en: "Monday - Sunday, 9:00 AM - 9:00 PM", zh: "周一至周日，上午 9:00 - 晚上 9:00", id: "Senin - Minggu, 09.00 - 21.00" },
   'hm.credit.afterDeposit': { en: "After deposit, upload receipt photo and admin will approve within 24 hours.", zh: "存款后请上传收据照片，管理员将在 24 小时内审核。", id: "Setelah setor, unggah foto struk dan admin akan menyetujui dalam 24 jam." },
   'hm.credit.submitCash': { en: "Submit Cash Deposit", zh: "提交现金存款", id: "Kirim Setoran Tunai" },
+  'hm.tier.rookie': { en: 'Rookie', zh: '新手', id: 'Pemula' },
+  'hm.tier.warrior': { en: 'Warrior', zh: '勇士', id: 'Pejuang' },
+  'hm.tier.fighter': { en: 'Fighter', zh: '斗士', id: 'Petarung' },
+  'hm.tier.elite': { en: 'Elite', zh: '精英', id: 'Elite' },
+  'hm.tier.master': { en: 'Master', zh: '大师', id: 'Master' },
+  'hm.tier.grandmaster': { en: 'Grandmaster', zh: '宗师', id: 'Grandmaster' },
+  'hm.tier.epic': { en: 'Epic', zh: '史诗', id: 'Epik' },
+  'hm.tier.champion': { en: 'Champion', zh: '冠军', id: 'Juara' },
+  'hm.tier.legend': { en: 'Legend', zh: '传奇', id: 'Legenda' },
 };

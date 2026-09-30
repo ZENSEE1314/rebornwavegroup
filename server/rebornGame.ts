@@ -118,7 +118,7 @@ async function idsByLang(ids: string[]): Promise<Map<Lang, string[]>> {
   const uniq = Array.from(new Set(ids.filter(Boolean)));
   if (!uniq.length) return out;
   const rows = await db.select({ id: users.id, l: users.preferredLanguage }).from(users).where(inArray(users.id, uniq));
-  const langOf = new Map(rows.map((r) => [r.id, asLang(r.l)]));
+  const langOf = new Map<string, Lang>(rows.map((r) => [r.id, asLang(r.l)] as [string, Lang]));
   for (const id of uniq) { const l = langOf.get(id) || "en"; (out.get(l) || out.set(l, []).get(l)!).push(id); }
   return out;
 }
