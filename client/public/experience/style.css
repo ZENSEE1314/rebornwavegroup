@@ -214,3 +214,6 @@ body.static .beat a { pointer-events: auto; }
   #flash.streaking { animation: none; }
   .btn:hover { transform: none; }
 }
+
+.btn-ig { background: linear-gradient(45deg, #feda75, #fa7e1e 30%, #d62976 60%, #962fbf 85%, #4f5bd5); color: #fff; border: 0; }
+.btn-tt { background: #050505; color: #fff; border: 1px solid #25f4ee; box-shadow: 2px 2px 0 #fe2c55; }

@@ -33,9 +33,10 @@ const SEGS = [
   { id: "live", a: 0.52, b: 0.62, y: 600, floor: 5, word: "LIVE", mirror: false, accent: 0xff5a5f, accent2: 0x4fc3ff, fog: 0x10050b, label: "5F" },
   { id: "blindbox", a: 0.62, b: 0.72, y: 700, accent: 0xff9db0, accent2: 0xc7b3ff, fog: 0x120a18, label: "BOX" },
   { id: "demo", a: 0.72, b: 0.80, y: 800, accent: 0x7a4dff, accent2: 0xdcb45a, fog: 0x0b0716, label: "DEMO" },
-  { id: "location", a: 0.80, b: 0.87, y: 900, accent: 0x2fae9e, accent2: 0xdcb45a, fog: 0x08121a, label: "VISIT" },
-  { id: "app", a: 0.87, b: 0.93, y: 1000, accent: 0xc04dff, accent2: 0xf0d787, fog: 0x0d0718, label: "APP" },
-  { id: "finale", a: 0.93, b: 1.00, y: 1100, fog: 0x0a0714, label: "★" },
+  { id: "location", a: 0.80, b: 0.86, y: 900, accent: 0x2fae9e, accent2: 0xdcb45a, fog: 0x08121a, label: "VISIT" },
+  { id: "app", a: 0.86, b: 0.905, y: 1000, accent: 0xc04dff, accent2: 0xf0d787, fog: 0x0d0718, label: "APP" },
+  { id: "social", a: 0.905, b: 0.945, y: 1100, accent: 0xff2d7a, accent2: 0x25f4ee, fog: 0x0b0714, label: "@" },
+  { id: "finale", a: 0.945, b: 1.00, y: 1200, fog: 0x0a0714, label: "★" },
 ];
 // 4F resident pets (photo-style images in img/pets/).
 const PETS = [
@@ -80,6 +81,10 @@ const APP_TEXT = {
   note: { en: "Android: tap Download, open the file and allow the install.", zh: "安卓：点击下载，打开文件并允许安装。", id: "Android: ketuk Unduh, buka file lalu izinkan pemasangan." },
   floorBtn: { en: "Download the app", zh: "下载应用", id: "Unduh aplikasi" },
   short: { en: "Download", zh: "下载", id: "Unduh" },
+  socialEyebrow: { en: "Follow us", zh: "关注我们", id: "Ikuti kami" },
+  socialTitle: { en: "See what's on tonight", zh: "看看今晚的精彩", id: "Lihat keseruan malam ini" },
+  socialBody: { en: "Clips from our nights, new rooms and Doluruu — follow us on Instagram and TikTok.", zh: "我们的夜晚精彩片段、新包厢和 Doluruu——在 Instagram 和 TikTok 关注我们。", id: "Cuplikan malam kami, ruangan baru dan Doluruu — ikuti kami di Instagram dan TikTok." },
+  follow: { en: "Follow", zh: "关注", id: "Ikuti" },
   parkEyebrow: { en: "Exclusive", zh: "专属", id: "Eksklusif" },
   parkTitle: { en: "VIP parking lots", zh: "VIP 专属停车位", id: "Parkir khusus VIP" },
   parkBody: { en: "Park right at our door — a built-in lift takes you straight to every level, 1F to 5F.", zh: "车停在门口——内置电梯直达每一层，1 楼到 5 楼。", id: "Parkir tepat di depan pintu kami — lift di dalam gedung langsung mengantar ke semua lantai, 1F sampai 5F." },
@@ -89,6 +94,11 @@ const APP_FEATURES = [
   ["🎤", { en: "Songs", zh: "点歌", id: "Lagu" }], ["📅", { en: "Booking", zh: "预订", id: "Booking" }], ["🍸", { en: "Order", zh: "点单", id: "Pesan" }],
   ["🏆", { en: "Ranks", zh: "段位", id: "Peringkat" }], ["💬", { en: "Chat", zh: "聊天", id: "Chat" }],
 ];
+
+const SOCIAL = {
+  instagram: { url: "https://www.instagram.com/rebornwavegroup/", handle: "@rebornwavegroup" },
+  tiktok: { url: "https://www.tiktok.com/@reborn.wave.group", handle: "@reborn.wave.group" },
+};
 
 // Venue facts shown on the location stage (mirrors landing page + booking hours).
 const VENUE = {
@@ -193,6 +203,7 @@ async function loadAll() {
   font = f;
   imgs.forEach((n, i) => { tex[i].colorSpace = THREE.SRGBColorSpace; tex[i].anisotropy = 8; IMG[n] = tex[i]; });
   IMG.blindbox = loadTex("./img/blindbox.jpeg");
+  for (const [k] of BREEDING_POSTERS) IMG[`breed_${k}`] = loadTex(`./img/breeding/${k}.jpg`);
   for (const p of PETS) IMG[`pet_${p.key}`] = loadTex(`./img/pets/${p.key}.jpg`);
   for (const k of ["facial", "hair"]) IMG[`beauty_${k}`] = loadTex(`./img/beauty/${k}.jpg`);
   for (const k of ROOM_PHOTOS) IMG[`room_${k}`] = loadTex(`./img/rooms/${k}.jpg`);
@@ -577,12 +588,109 @@ function drawSeaview(x, W, H, t) {
   x.strokeStyle = "rgba(20,12,30,.8)"; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0, 22); for (let xx = 0; xx <= W; xx += 10) x.lineTo(xx, 22 + Math.sin((xx / W) * Math.PI * 3) * 14 + 14); x.stroke();
   for (let i = 0; i < 24; i++) { const xx = (i + 0.5) * (W / 24), yy = 22 + Math.sin((xx / W) * Math.PI * 3) * 14 + 18, on = 0.55 + 0.45 * Math.sin(t * 2 + i); const g = x.createRadialGradient(xx, yy, 0, xx, yy, 12); g.addColorStop(0, `rgba(255,220,140,${on})`); g.addColorStop(1, "rgba(255,200,120,0)"); x.fillStyle = g; x.beginPath(); x.arc(xx, yy, 12, 0, Math.PI * 2); x.fill(); }
 }
+// A still photo as the backdrop (its own texture, so cover-fitting it doesn't crop other cards).
+function imageBackdrop(url, aspect, intensity) {
+  const tex = loadTex(url);
+  return { tex, current: tex, aspect, intensity, fit: [tex] };
+}
+// Demo: a cinema hall — curtains, a glowing screen, rows of seats and aisle lights.
+const CINEMA_DUST = (() => { const r = rnd(11); return Array.from({ length: 60 }, () => ({ x: r(), y: r(), s: 0.3 + r() * 0.7, p: r() * 6 })); })();
+function drawCinema(x, W, H, t) {
+  x.fillStyle = "#07040c"; x.fillRect(0, 0, W, H);
+  const sx = W * 0.2, sy = H * 0.12, sw = W * 0.6, sh = H * 0.42;
+  // screen glow slowly shifting colour like a film playing
+  const hue = (t * 12) % 360;
+  const glow = x.createRadialGradient(W / 2, sy + sh / 2, 10, W / 2, sy + sh / 2, W * 0.6);
+  glow.addColorStop(0, `hsla(${hue},60%,55%,.35)`); glow.addColorStop(1, "rgba(0,0,0,0)");
+  x.fillStyle = glow; x.fillRect(0, 0, W, H);
+  const sg = x.createLinearGradient(sx, sy, sx + sw, sy + sh);
+  sg.addColorStop(0, `hsl(${hue},45%,32%)`); sg.addColorStop(0.5, `hsl(${(hue + 60) % 360},55%,48%)`); sg.addColorStop(1, `hsl(${(hue + 140) % 360},45%,30%)`);
+  x.fillStyle = sg; x.fillRect(sx, sy, sw, sh);
+  x.strokeStyle = "rgba(240,215,135,.55)"; x.lineWidth = 3; x.strokeRect(sx - 4, sy - 4, sw + 8, sh + 8);
+  // projector beam from behind the audience
+  const beam = x.createLinearGradient(W / 2, H, W / 2, sy + sh);
+  beam.addColorStop(0, "rgba(255,240,200,0)"); beam.addColorStop(1, "rgba(255,240,200,.10)");
+  x.fillStyle = beam; x.beginPath(); x.moveTo(W * 0.47, H * 0.02); x.lineTo(sx, sy + sh); x.lineTo(sx + sw, sy + sh); x.lineTo(W * 0.53, H * 0.02); x.fill();
+  for (const d of CINEMA_DUST) {
+    const a = 0.25 + 0.25 * Math.sin(t * 1.5 + d.p);
+    x.fillStyle = `rgba(255,236,200,${a})`; x.fillRect(sx + d.x * sw, sy + sh * 0.3 + ((d.y + t * 0.01 * d.s) % 1) * H * 0.4, 1.5, 1.5);
+  }
+  // red velvet curtains with folds
+  for (const side of [0, 1]) {
+    const cx0 = side ? sx + sw + 4 : 0, cw = side ? W - cx0 : sx - 4;
+    for (let i = 0; i < 7; i++) {
+      const fx = cx0 + (i / 7) * cw, fw = cw / 7;
+      const g = x.createLinearGradient(fx, 0, fx + fw, 0); g.addColorStop(0, "#3a0610"); g.addColorStop(0.5, "#8c1424"); g.addColorStop(1, "#3a0610");
+      x.fillStyle = g; x.fillRect(fx, 0, fw + 1, H * 0.72);
+    }
+  }
+  const valance = x.createLinearGradient(0, 0, 0, sy - 6); valance.addColorStop(0, "#5a0a18"); valance.addColorStop(1, "#8c1424");
+  x.fillStyle = valance; x.fillRect(0, 0, W, sy - 8);
+  x.fillStyle = "#d9b45c"; x.fillRect(0, sy - 10, W, 3);
+  // seat rows (silhouettes), nearer rows bigger
+  for (let r = 0; r < 5; r++) {
+    const yy = H * (0.62 + r * 0.085), sz = 14 + r * 7, gap = sz * 1.25;
+    x.fillStyle = `rgba(${40 + r * 6},${10 + r * 3},${24 + r * 4},1)`;
+    for (let xx = -gap / 2 + ((r % 2) * gap) / 2; xx < W + gap; xx += gap) { rr(x, xx, yy, sz, sz * 1.1, sz * 0.3); x.fill(); }
+  }
+  // aisle step lights
+  for (let r = 0; r < 6; r++) {
+    const yy = H * (0.64 + r * 0.07);
+    for (const ax of [W * 0.08, W * 0.92]) { x.fillStyle = "rgba(255,196,110,.8)"; x.fillRect(ax - 6, yy, 12, 3); }
+  }
+}
+// Social: a wall of vertical reels (our venue clips) drifting up like a feed.
+const REEL_CLIPS = ["intro", "sing", "ktv", "live", "vip"];
+function socialBackdrop() {
+  const c = document.createElement("canvas"); c.width = BG_W; c.height = BG_H;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const videos = REEL_CLIPS.map((n) => {
+    const v = document.createElement("video");
+    Object.assign(v, { src: `./media/${n}.mp4`, muted: true, loop: true, playsInline: true, preload: "none", crossOrigin: "anonymous", poster: `./media/${n}.jpg` });
+    v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
+    return v;
+  });
+  const posters = REEL_CLIPS.map((n) => IMG[`poster_${n}`]);
+  const draw = (x, W, H, t) => {
+    x.fillStyle = "#07040c"; x.fillRect(0, 0, W, H);
+    const cols = 6, gap = 10, tw = (W - gap * (cols + 1)) / cols, th = tw * 16 / 9;
+    for (let ci = 0; ci < cols; ci++) {
+      const speed = 14 + (ci % 3) * 6, dir = ci % 2 ? 1 : -1;
+      const off = ((t * speed * dir) % (th + gap) + (th + gap)) % (th + gap);
+      for (let ri = -1; ri < Math.ceil(H / (th + gap)) + 1; ri++) {
+        const k = (ci * 2 + ri + 50) % REEL_CLIPS.length;
+        const v = videos[k], img = v.readyState >= 2 ? v : posters[k] && posters[k].image;
+        const tx = gap + ci * (tw + gap), ty = ri * (th + gap) + off;
+        x.save(); rr(x, tx, ty, tw, th, 10); x.clip();
+        if (img && (img.videoWidth || img.width)) {
+          const iw = img.videoWidth || img.width, ih = img.videoHeight || img.height, sc = Math.max(tw / iw, th / ih);
+          x.drawImage(img, tx + (tw - iw * sc) / 2, ty + (th - ih * sc) / 2, iw * sc, ih * sc);
+        } else { x.fillStyle = "#1a1030"; x.fillRect(tx, ty, tw, th); }
+        const sh = x.createLinearGradient(0, ty + th * 0.6, 0, ty + th); sh.addColorStop(0, "rgba(0,0,0,0)"); sh.addColorStop(1, "rgba(0,0,0,.7)");
+        x.fillStyle = sh; x.fillRect(tx, ty, tw, th);
+        // feed UI: heart + comment dots down the side, caption bars
+        x.fillStyle = "rgba(255,255,255,.85)";
+        for (let d = 0; d < 3; d++) { x.beginPath(); x.arc(tx + tw - 12, ty + th * 0.55 + d * 18, 5, 0, Math.PI * 2); x.fill(); }
+        x.fillStyle = "rgba(255,255,255,.7)"; x.fillRect(tx + 8, ty + th - 22, tw * 0.55, 4); x.fillRect(tx + 8, ty + th - 13, tw * 0.35, 4);
+        x.restore();
+      }
+    }
+  };
+  const b = { tex, current: tex, aspect: BG_W / BG_H, draw, ctx: c.getContext("2d"), last: -1, fit: [tex], intensity: 0.55, videos };
+  draw(b.ctx, BG_W, BG_H, 0); tex.needsUpdate = true;
+  return b;
+}
 function createFloorBackgrounds() {
   floorBg.ktv = videoBackdrop("sing");     // 1F lounge
   floorBg.private = videoBackdrop("ktv");  // 2F KTV rooms
   floorBg.vip = canvasBackdrop(drawSpaceship);    // 3F spaceship KTV room
   floorBg.pet = canvasBackdrop(drawRestaurant);   // 4F restaurant
   floorBg.live = canvasBackdrop(drawSeaview);     // 5F rooftop sea view
+  floorBg.blindbox = imageBackdrop("./img/breeding/logo.jpg", 1181 / 1063, 0.8); // Doluruu Breeding
+  floorBg.demo = canvasBackdrop(drawCinema);      // demo video in a cinema
+  floorBg.location = imageBackdrop("./img/breeding/building.jpg", 1080 / 1208, 0.75); // the house at night
+  floorBg.social = socialBackdrop();              // our reels, like a social feed
+  floorBg.finale = imageBackdrop("./img/breeding/building.jpg", 1080 / 1208, 0.6);
   fitFloorBackgrounds();
 }
 
@@ -1289,7 +1397,31 @@ function buildShowcase(seg, dress) {
   dress({ Z, zi, Y, seg, portrait: PORTRAIT() });
 }
 
+// Doluruu Breeding posters, drifting past behind the blind box.
+const BREEDING_POSTERS = [["family", 1170 / 1903], ["soon1", 0.8], ["mum", 0.8], ["dad", 0.8], ["soon2", 0.8]];
+function breedingShowcase({ Z, zi, Y, portrait }) {
+  const h = 3, s = portrait ? 0.85 : 1, loop = portrait ? 16 : 30;
+  const posters = BREEDING_POSTERS.map(([k, aspect]) => {
+    const w = h * aspect;
+    const c = card(w, h, (x, W, H) => { x.fillStyle = "#1a1030"; x.fillRect(0, 0, W, H); }, { glow: 0xff9db0 });
+    const img = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.06, h - 0.06), new THREE.MeshBasicMaterial({ map: IMG[`breed_${k}`], toneMapped: false }));
+    img.position.z = 0.02; c.add(img); c.scale.setScalar(s);
+    Z.add(zoomable(c, zi));
+    return { c, w: w * s };
+  });
+  const gap = (loop - posters.reduce((a, p) => a + p.w, 0)) / posters.length;
+  let acc = 0; for (const p of posters) { p.base = acc + p.w / 2; acc += p.w + gap; }
+  const y = Y + (portrait ? 13 : 8.6);
+  anims.push({ zone: zi, fn: (t) => {
+    posters.forEach((p, i) => {
+      const x = (((p.base + (REDUCED ? 0 : t * 0.6)) % loop) + loop) % loop - loop / 2;
+      p.c.position.set(x, y + (REDUCED ? 0 : Math.sin(t * 1.1 + i) * 0.08), -5);
+    });
+  } });
+}
+
 function dressBlindbox({ Z, zi, Y, seg, portrait }) {
+  breedingShowcase({ Z, zi, Y, portrait });
   const box = card(3, 3, (x, W, H) => { x.fillStyle = "#1a1030"; x.fillRect(0, 0, W, H); }, { glow: seg.accent });
   const img = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 2.9), new THREE.MeshBasicMaterial({ map: IMG.blindbox, toneMapped: false }));
   img.position.z = 0.02; box.add(img);
@@ -1401,6 +1533,56 @@ function dressApp({ Z, zi, Y, seg, portrait }) {
       c.lookAt(cx + Math.cos(a) * rx * 1.4, Y + cy + Math.sin(a) * ry * 1.4, 30);
     });
   } });
+}
+
+function socialCard(kind, seg) {
+  const ig = kind === "instagram";
+  const c = card(3, 5.2, (x, W, H) => {
+    rr(x, 0, 0, W, H, W * 0.12);
+    if (ig) { const g = x.createLinearGradient(0, H, W, 0); g.addColorStop(0, "#feda75"); g.addColorStop(0.3, "#fa7e1e"); g.addColorStop(0.55, "#d62976"); g.addColorStop(0.8, "#962fbf"); g.addColorStop(1, "#4f5bd5"); x.fillStyle = g; }
+    else x.fillStyle = "#050505";
+    x.fill();
+    x.textAlign = "center"; x.textBaseline = "middle";
+    // logo mark
+    const cx = W / 2, cy = H * 0.3, r = W * 0.2;
+    if (ig) {
+      x.lineWidth = W * 0.035; x.strokeStyle = "#fff"; rr(x, cx - r, cy - r, r * 2, r * 2, r * 0.55); x.stroke();
+      x.beginPath(); x.arc(cx, cy, r * 0.45, 0, Math.PI * 2); x.stroke();
+      x.fillStyle = "#fff"; x.beginPath(); x.arc(cx + r * 0.6, cy - r * 0.6, r * 0.1, 0, Math.PI * 2); x.fill();
+    } else {
+      x.font = `900 ${r * 2}px Montserrat`;
+      x.fillStyle = "#25f4ee"; x.fillText("♪", cx - r * 0.08, cy - r * 0.05);
+      x.fillStyle = "#fe2c55"; x.fillText("♪", cx + r * 0.08, cy + r * 0.05);
+      x.fillStyle = "#fff"; x.fillText("♪", cx, cy);
+    }
+    x.fillStyle = "#fff"; x.font = `800 ${H * 0.065}px Montserrat`; x.fillText(ig ? "Instagram" : "TikTok", cx, H * 0.55);
+    const handle = SOCIAL[kind].handle; let fs = H * 0.045; x.font = `600 ${fs}px Montserrat`;
+    while (x.measureText(handle).width > W * 0.86) { fs *= 0.92; x.font = `600 ${fs}px Montserrat`; }
+    x.fillStyle = "rgba(255,255,255,.9)"; x.fillText(handle, cx, H * 0.63);
+    rr(x, W * 0.16, H * 0.74, W * 0.68, H * 0.1, H * 0.05); x.fillStyle = ig ? "#fff" : "#fe2c55"; x.fill();
+    x.fillStyle = ig ? "#d62976" : "#fff"; x.font = `800 ${H * 0.045}px Montserrat`; x.fillText(tl(APP_TEXT.follow), cx, H * 0.79);
+  }, { frame: false, glow: ig ? seg.accent : seg.accent2 });
+  c.userData.face.userData.link = SOCIAL[kind].url;
+  return c;
+}
+const linkCards = []; // { zone, face } — tapping opens the card's link
+function dressSocial({ Z, zi, Y, seg, portrait }) {
+  const cards = ["instagram", "tiktok"].map((k, i) => {
+    const c = socialCard(k, seg);
+    const x = portrait ? (i ? 1.75 : -1.75) : (i ? 2.1 : -2.1), y = portrait ? 7.4 : 6.3, s = portrait ? 1 : 0.95;
+    c.scale.setScalar(s); c.position.set(x, Y + y, -1.5); c.rotation.y = i ? -0.14 : 0.14;
+    Z.add(c); linkCards.push({ zone: zi, face: c.userData.face });
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) { c.position.y = Y + y + Math.sin(t * 1.2 + i * 1.6) * 0.12; c.rotation.y = (i ? -0.14 : 0.14) + Math.sin(t * 0.6 + i) * 0.05; } } });
+    return c;
+  });
+  // floating hearts
+  for (let i = 0; i < 10; i++) {
+    const h = card(0.5, 0.5, (x, W) => { x.font = `${W * 0.8}px ${EMOJI_FONT}`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(i % 3 ? "❤️" : "✨", W / 2, W / 2); }, { frame: false, pxPerUnit: 160 });
+    Z.add(h);
+    const x0 = (i / 10 - 0.5) * (portrait ? 7 : 12), sp = 0.5 + (i % 4) * 0.15;
+    anims.push({ zone: zi, fn: (t) => { const k = ((t * sp * 0.25 + i * 0.13) % 1); h.position.set(x0 + Math.sin(t + i) * 0.3, Y + 1 + k * 9, -2.5); h.scale.setScalar(0.6 + Math.sin(k * Math.PI) * 0.6); } });
+  }
+  return cards;
 }
 
 // ── Zone: FINALE ───────────────────────────────────────────────────────────
@@ -1544,6 +1726,7 @@ function buildPaths() {
     showcasePath(segById("demo"), 0, 4.4, 12, portrait ? 16 : 0),
     showcasePath(segById("location"), portrait ? 0 : 1.5, portrait ? 4.6 : 3.4, 13, portrait ? 14 : 0),
     showcasePath(segById("app"), portrait ? 0 : -1.6, portrait ? 5.2 : 4, 12, portrait ? 8 : 0),
+    showcasePath(segById("social"), 0, portrait ? 5.6 : 4, 12, portrait ? 8 : 0),
     path([[0, F + 8, 56 + back], [0, F + 6.5, 40 + back], [0, F + 5.2, 28 + back], [0, F + 4.9, 25 + back]],
       [[0, F + 5, 0], [0, F + 4.6, 0], [0, F + 3.4, 0], [0, F + (back ? -0.5 : 1.0), 0]]),
   ];
@@ -1615,7 +1798,7 @@ const vplayer = document.getElementById("vplayer");
 function pick(ev) {
   ndc.set((ev.clientX / innerWidth) * 2 - 1, -(ev.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const targets = [...screens, ...zoomables].filter((s) => zones[s.zone].visible).map((s) => s.mesh || s.face);
+  const targets = [...screens, ...zoomables, ...linkCards].filter((s) => zones[s.zone].visible).map((s) => s.mesh || s.face);
   const hit = ray.intersectObjects(targets, false)[0];
   return hit ? hit.object.userData : null;
 }
@@ -1638,7 +1821,7 @@ function updateHover(hit, ev) {
 canvas.addEventListener("pointermove", (ev) => {
   const hit = pick(ev);
   if (ev.pointerType === "mouse") updateHover(hit?.zoom || null, ev);
-  document.body.classList.toggle("hovering-screen", !!(hit?.screen || hit?.zoom));
+  document.body.classList.toggle("hovering-screen", !!(hit?.screen || hit?.zoom || hit?.link));
 });
 canvas.addEventListener("pointerleave", () => { hoveredZoom = null; });
 // The demo opens the full-quality cut with sound; venue clips are silent loops.
@@ -1652,7 +1835,8 @@ function openVideo(name) {
 }
 canvas.addEventListener("click", (ev) => {
   const hit = pick(ev);
-  if (hit?.screen) openVideo(hit.screen.name);
+  if (hit?.link) window.open(hit.link, "_blank", "noopener");
+  else if (hit?.screen) openVideo(hit.screen.name);
   else if (hit?.zoom) hoveredZoom = hoveredZoom === hit.zoom ? null : hit.zoom; // tap to zoom on touch screens
   else hoveredZoom = null;
 });
@@ -1690,9 +1874,9 @@ function setActiveSegment(i) {
   const isArrival = seg.id === "arrival";
   const fb = floorBg[seg.id];
   scene.background = isArrival ? introBg.current : fb ? fb.current : bgColor.copy(bg);
-  scene.backgroundIntensity = isArrival ? ARRIVAL_BG_INTENSITY : fb ? FLOOR_BG_INTENSITY : 1;
+  scene.backgroundIntensity = isArrival ? ARRIVAL_BG_INTENSITY : fb ? (fb.intensity ?? FLOOR_BG_INTENSITY) : 1;
   if (isArrival) introBg.video.play().catch(() => {}); else introBg.video.pause();
-  for (const [id, b] of Object.entries(floorBg)) if (b.video) { if (id === seg.id) b.video.play().catch(() => {}); else b.video.pause(); }
+  for (const [id, b] of Object.entries(floorBg)) for (const v of b.videos || (b.video ? [b.video] : [])) { if (id === seg.id) v.play().catch(() => {}); else v.pause(); }
   scene.fog.near = seg.id === "arrival" ? 28 : 30; scene.fog.far = seg.id === "arrival" ? 120 : 95;
 }
 
@@ -1797,6 +1981,7 @@ loadAll().then(() => {
   buildShowcase(segById("demo"), dressDemo);
   buildShowcase(segById("location"), dressLocation);
   buildShowcase(segById("app"), dressApp);
+  buildShowcase(segById("social"), dressSocial);
   buildFinale();
   buildPaths();
   readScroll(); cur = target;
