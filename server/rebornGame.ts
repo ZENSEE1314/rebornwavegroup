@@ -7,7 +7,7 @@ import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
-import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
+import { crmRecordVisit, whatsappConfigured, whatsappAvailable, waDigits, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
@@ -1781,12 +1781,18 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/broadcast", requireAdmin(async (req, res) => {
     const subject = String(req.body?.subject || "").trim();
     const body = String(req.body?.body || "").trim();
-    const channel = ["email", "inapp", "both"].includes(req.body?.channel) ? req.body.channel : "both";
+    // Channels: `channels` {inapp,email,whatsapp} flags, or the older `channel` = both|inapp|email.
+    const legacy = ["email", "inapp", "both"].includes(req.body?.channel) ? req.body.channel : "both";
+    const ch = req.body?.channels && typeof req.body.channels === "object"
+      ? { inapp: !!req.body.channels.inapp, email: !!req.body.channels.email, whatsapp: !!req.body.channels.whatsapp }
+      : { inapp: legacy !== "email", email: legacy !== "inapp", whatsapp: false };
     if (!subject || !body) return res.status(400).json({ message: tr(req, { en: "Subject and message are required", zh: "请填写主题和内容", id: "Subjek dan pesan wajib diisi" }) });
-    const everyone = await db.select({ id: users.id, email: users.email, firstName: users.firstName }).from(users);
-    let inapp = 0, emails = 0, emailFail = 0;
+    if (!ch.inapp && !ch.email && !ch.whatsapp) return res.status(400).json({ message: tr(req, { en: "Pick at least one way to send", zh: "请至少选择一种发送方式", id: "Pilih minimal satu cara kirim" }) });
+    if (ch.whatsapp && !(await whatsappAvailable())) return res.status(400).json({ message: tr(req, { en: "WhatsApp is not connected — connect it in the CRM tab first.", zh: "WhatsApp 未连接 — 请先在 CRM 页面连接。", id: "WhatsApp belum terhubung — hubungkan dulu di tab CRM." }) });
+    const everyone = await db.select({ id: users.id, email: users.email, firstName: users.firstName, phone: users.phoneNumber }).from(users);
+    let inapp = 0, emails = 0, emailFail = 0, waQueued = 0;
 
-    if (channel === "inapp" || channel === "both") {
+    if (ch.inapp) {
       for (const u of everyone) {
         try {
           const [existing] = await db.select().from(supportTickets).where(and(eq(supportTickets.userId, u.id), sql`${supportTickets.status} != 'closed'`)).orderBy(desc(supportTickets.createdAt)).limit(1);
@@ -1797,7 +1803,7 @@ export function registerRebornRoutes(app: Express) {
         } catch (e) { console.error("broadcast inapp", e); }
       }
     }
-    if (channel === "email" || channel === "both") {
+    if (ch.email) {
       const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto"><h2 style="color:#c9a84c">${subject}</h2><p style="white-space:pre-line;color:#333;line-height:1.6">${body.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!))}</p><p style="color:#999;font-size:12px;margin-top:24px">Reborn Wave Group</p></div>`;
       for (const u of everyone) {
         if (!u.email) continue;
@@ -1805,10 +1811,34 @@ export function registerRebornRoutes(app: Express) {
         catch (e) { emailFail++; console.error("broadcast email", e); }
       }
     }
+    if (ch.whatsapp) {
+      // Every WhatsApp number we know: people who chatted with the bot + members' phones (each number once).
+      const contacts = await db.select({ id: crmContacts.id, phone: crmContacts.phone }).from(crmContacts);
+      const targets = new Map<string, number | null>();
+      for (const c of contacts) { const d = waDigits(c.phone); if (d.length >= 8) targets.set(d, c.id); }
+      for (const u of everyone) { const d = waDigits(u.phone); if (d.length >= 8 && !targets.has(d)) targets.set(d, null); }
+      waQueued = targets.size;
+      const text = `📢 *${subject}*\n\n${body}`;
+      // Send in the background, one every ~1.5s so WhatsApp doesn't flag the number.
+      (async () => {
+        let ok = 0, fail = 0;
+        for (const [phone, contactId] of Array.from(targets)) {
+          try {
+            if (await sendWhatsApp(phone, text)) {
+              ok++;
+              if (contactId) await db.insert(crmMessages).values({ contactId, phone, direction: "out", body: text, viaBot: false }).catch(() => {});
+            } else fail++;
+          } catch (e) { fail++; console.error("broadcast wa", e); }
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+        await logAdmin(req, { targetType: "broadcast", action: "whatsapp", entityType: "broadcast", description: `Broadcast "${subject}" · WhatsApp ${ok} sent${fail ? `, ${fail} failed` : ""}` }).catch(() => {});
+      })();
+    }
     const pushed = await sendPushToUsers(everyone.map((u) => u.id), { title: `📢 ${subject}`, body, url: "/reborn", tag: "broadcast" }).catch(() => 0);
     await sendRebornAllNotification({ type: "admin_broadcast", title: subject, body: body.slice(0, 160), data: { path: "/support" } });
-    await logAdmin(req, { targetType: "broadcast", action: "send", entityType: "broadcast", description: `Broadcast "${subject}" · ${inapp} in-app, ${emails} emails, ${pushed} push${emailFail ? `, ${emailFail} failed` : ""}` });
-    res.json({ message: tr(req, { en: "Sent — {a} in-app, {e} email(s), {p} push{f}.", zh: "已发送——应用内 {a} 条，邮件 {e} 封，推送 {p} 条{f}。", id: "Terkirim — {a} di aplikasi, {e} email, {p} push{f}." }, { a: inapp, e: emails, p: pushed, f: emailFail ? tr(req, { en: ", {x} email(s) failed", zh: "，{x} 封邮件发送失败", id: ", {x} email gagal" }, { x: emailFail }) : "" }), inapp, emails, emailFail, pushed });
+    await logAdmin(req, { targetType: "broadcast", action: "send", entityType: "broadcast", description: `Broadcast "${subject}" · ${inapp} in-app, ${emails} emails, ${pushed} push${emailFail ? `, ${emailFail} failed` : ""}${ch.whatsapp ? `, ${waQueued} WhatsApp queued` : ""}` });
+    const waNote = ch.whatsapp ? tr(req, { en: " WhatsApp: sending to {w} number(s) now (about {m} min).", zh: " WhatsApp：正在发送给 {w} 个号码（约 {m} 分钟）。", id: " WhatsApp: sedang mengirim ke {w} nomor (sekitar {m} menit)." }, { w: waQueued, m: Math.max(1, Math.ceil(waQueued * 1.6 / 60)) }) : "";
+    res.json({ message: tr(req, { en: "Sent — {a} in-app, {e} email(s), {p} push{f}.", zh: "已发送——应用内 {a} 条，邮件 {e} 封，推送 {p} 条{f}。", id: "Terkirim — {a} di aplikasi, {e} email, {p} push{f}." }, { a: inapp, e: emails, p: pushed, f: emailFail ? tr(req, { en: ", {x} email(s) failed", zh: "，{x} 封邮件发送失败", id: ", {x} email gagal" }, { x: emailFail }) : "" }) + waNote, inapp, emails, emailFail, pushed, whatsappQueued: waQueued });
   }));
 
   // Admin activity log (full admin only) — resolves which admin account did each action

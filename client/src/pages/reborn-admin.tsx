@@ -68,24 +68,34 @@ export default function RebornAdmin() {
 function Broadcast() {
   const { toast } = useToast();
   const { t } = useTranslation();
-  const [f, setF] = useState({ subject: "", body: "", channel: "both" });
+  const blank = { subject: "", body: "", channels: { inapp: true, email: true, whatsapp: false } };
+  const [f, setF] = useState(blank);
   const send = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/broadcast", f).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: t("admin.bc.sent"), description: d.message }); setF({ subject: "", body: "", channel: "both" }); },
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: t("admin.bc.sent"), description: d.message }); setF(blank); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
+  const chosen = f.channels.inapp || f.channels.email || f.channels.whatsapp;
   return (
     <Card>
       <h3 className="font-bold mb-1 flex items-center gap-2"><Megaphone className="w-4 h-4 text-amber-300" /> {t("admin.bc.title")}</h3>
       <p className="text-xs text-white/50 mb-3">{t("admin.bc.hint")}</p>
       <input value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} placeholder={t("admin.bc.subject")} className={inp + " w-full mb-2"} />
       <textarea value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} placeholder={t("admin.bc.message")} rows={5} className={inp + " w-full mb-3"} />
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {[["both", t("admin.bc.both")], ["inapp", t("admin.bc.inapp")], ["email", t("admin.bc.email")]].map(([v, l]) => (
-          <button key={v} onClick={() => setF({ ...f, channel: v })} className={`py-2.5 rounded-xl border text-sm font-semibold ${f.channel === v ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{l}</button>
-        ))}
+      <p className="text-[11px] text-white/45 mb-1.5">{t("admin.bc.via")}</p>
+      <div className="mb-2" style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 96px), 1fr))" }}>
+        {([["inapp", "💬", t("admin.bc.chChat")], ["email", "✉️", t("admin.bc.chEmail")], ["whatsapp", "🟢", t("admin.bc.chWa")]] as const).map(([v, ic, l]) => {
+          const on = f.channels[v];
+          return (
+            <button key={v} type="button" aria-pressed={on} onClick={() => setF({ ...f, channels: { ...f.channels, [v]: !on } })}
+              className={`py-2.5 px-1.5 rounded-xl border text-[13px] leading-tight font-semibold inline-flex items-center justify-center gap-1 ${on ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/50"}`}>
+              <span aria-hidden className="text-xs">{on ? "✅" : ic}</span>{l}
+            </button>
+          );
+        })}
       </div>
-      <button onClick={() => { if (confirm(t("admin.bc.confirm"))) send.mutate(); }} disabled={send.isPending || !f.subject.trim() || !f.body.trim()} className={btn + " disabled:opacity-50"}>{send.isPending ? t("admin.c.sending") : t("admin.bc.send")}</button>
+      {f.channels.whatsapp && <p className="text-[11px] text-emerald-300/80 mb-3">{t("admin.bc.waHint")}</p>}
+      <button onClick={() => { if (confirm(t("admin.bc.confirm"))) send.mutate(); }} disabled={send.isPending || !chosen || !f.subject.trim() || !f.body.trim()} className={btn + " mt-1 disabled:opacity-50"}>{send.isPending ? t("admin.c.sending") : t("admin.bc.send")}</button>
     </Card>
   );
 }
