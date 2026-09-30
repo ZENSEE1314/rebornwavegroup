@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages } from "lucide-react";
+import { Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
@@ -602,6 +602,12 @@ function Settings() {
         <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.set.reviewLink")}</span><input value={cur.googleReviewUrl || ""} onChange={(e) => setStr("googleReviewUrl", e.target.value)} placeholder="https://g.page/r/..." className={inp + " w-full"} /></label>
         <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.set.house")}</span><input value={cur.houseReferralUserId || ""} onChange={(e) => setStr("houseReferralUserId", e.target.value)} placeholder={t("admin.set.housePh")} className={inp + " w-full"} /></label>
         <p className="text-[11px] text-white/40 mt-1">{t("admin.set.houseHint")}</p>
+      </Card>
+      <Card>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Smartphone className="w-4 h-4 text-amber-300" /> {t("admin.set.appTitle")}</h3>
+        <p className="mb-3 text-[11px] text-white/40">{t("admin.set.appHint")}</p>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.set.appAndroid")}</span><input value={cur.appAndroidUrl || ""} onChange={(e) => setStr("appAndroidUrl", e.target.value.trim())} placeholder="https://expo.dev/artifacts/eas/....apk" className={inp + " w-full"} /></label>
+        <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.set.appIos")}</span><input value={cur.appIosUrl || ""} onChange={(e) => setStr("appIosUrl", e.target.value.trim())} placeholder="https://apps.apple.com/..." className={inp + " w-full"} /></label>
       </Card>
       <Card>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Disc3 className="w-4 h-4 text-amber-300" /> {t("admin.spin.title")}</h3>
