@@ -140,7 +140,7 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
           );
         })}
       </div>
-      {isFullAdmin && <StaffGuideButton />}
+      <StaffGuideButton />
       <h2 className="arc-head">{t("admin.ov.openSection")}</h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((tb) => tb !== "Overview").map((tb, i) => (

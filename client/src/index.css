@@ -2163,12 +2163,31 @@ button, .interactive {
 .rwg-app :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select):focus { border-color: rgba(240,215,135,.65) !important; box-shadow: 0 0 0 3px rgba(240,215,135,.16), 0 0 18px rgba(240,215,135,.14); outline: none; }
 
 /* bottom navigation: glowing active tab with a little bounce */
-.rwg-nav-item { position:relative; }
-.rwg-nav-item.is-active::before { content:""; position:absolute; top:6px; left:50%; width:46px; height:30px; transform: translateX(-50%); border-radius:12px; z-index:-1;
-  background: radial-gradient(closest-side, rgba(240,215,135,.28), transparent); }
-.rwg-nav-item.is-active::after { content:""; position:absolute; top:0; left:50%; width:26px; height:3px; transform: translateX(-50%); border-radius:0 0 4px 4px; background:#f3c14b; box-shadow: 0 0 10px #f3c14b; }
-.rwg-nav-item.is-active svg { animation: rwgNavPop .45s cubic-bezier(.3,1.6,.5,1) both; filter: drop-shadow(0 0 6px rgba(243,193,75,.7)); }
-@keyframes rwgNavPop { 0% { transform: scale(.7) translateY(3px); } 100% { transform: scale(1.12) translateY(-1px); } }
+/* bottom navigation: arcade dock — each tab is a 3D key; the active one lifts up and glows gold */
+.rwg-dock { background: linear-gradient(180deg, rgba(22,16,42,.96), rgba(8,6,16,.98)) !important; border-top: 0 !important; box-shadow: 0 -10px 30px rgba(0,0,0,.55); }
+.rwg-dock::before { content:""; position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, #a855f7 20%, #f3c14b 50%, #a855f7 80%, transparent); box-shadow: 0 0 12px rgba(243,193,75,.55); }
+.rwg-nav-item { position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 0 7px !important; min-height:0 !important; color: rgba(255,255,255,.55); }
+.rwg-nav-ic { width:40px; height:34px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08);
+  box-shadow: 0 3px 0 rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08); transition: transform .2s cubic-bezier(.3,1.6,.5,1), background .2s ease, box-shadow .2s ease; }
+.rwg-nav-ic svg { width:20px; height:20px; }
+.rwg-nav-lbl { font-size:10.5px; font-weight:800; letter-spacing:.04em; }
+.rwg-nav-item:not(.is-active):active .rwg-nav-ic { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.55); }
+.rwg-nav-item.is-active { color:#f7d774; }
+.rwg-nav-item.is-active .rwg-nav-ic { transform: translateY(-7px); color:#170f00;
+  background: linear-gradient(180deg, #ffe89a, #f3b52f); border-color: rgba(255,240,190,.8);
+  box-shadow: 0 4px 0 #a06a0c, 0 0 18px rgba(243,181,47,.6), inset 0 1px 0 rgba(255,255,255,.7); }
+.rwg-nav-item.is-active .rwg-nav-lbl { text-shadow: 0 0 10px rgba(247,215,116,.7); margin-top:-5px; }
+.rwg-nav-item.is-active svg { animation: rwgNavPop .45s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes rwgNavPop { 0% { transform: scale(.7); } 100% { transform: scale(1.05); } }
+/* top bar logout: neon red key */
+.rwg-logout { display:flex; align-items:center; gap:6px; padding:7px 12px !important; min-height:0 !important; border-radius:999px; font-size:12px; font-weight:800; color:#fecaca;
+  background: linear-gradient(180deg, rgba(239,68,68,.22), rgba(127,29,29,.35)); border:1px solid rgba(248,113,113,.5);
+  box-shadow: 0 3px 0 rgba(0,0,0,.5), 0 0 12px rgba(239,68,68,.22), inset 0 1px 0 rgba(255,255,255,.12); }
+.rwg-logout:hover { color:#fff; box-shadow: 0 3px 0 rgba(0,0,0,.5), 0 0 18px rgba(239,68,68,.45), inset 0 1px 0 rgba(255,255,255,.15); }
+.rwg-logout svg { width:16px; height:16px; }
+/* the phone-wide "svg max-width:100%" rule squashes icons inside padded buttons (e.g. the tier delete buttons) */
+.rwg-app button svg { max-width:none !important; }
 /* top bar token chip */
 .rwg-token-chip { background: linear-gradient(180deg, rgba(243,193,75,.18), rgba(243,193,75,.06)) !important; border-color: rgba(243,193,75,.4) !important; box-shadow: 0 0 14px rgba(243,193,75,.18), inset 0 1px 0 rgba(255,255,255,.12); }
 

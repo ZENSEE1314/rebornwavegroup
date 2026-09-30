@@ -719,7 +719,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   // ── Staff guide for admins (POS + admin panel) — OnboardingWalkthrough with prefix "admin.guide" ──
   'admin.guide.open': { en: 'Admin & POS guide', zh: '管理与收银指南', id: 'Panduan Admin & POS' },
   'admin.guide.welcome.t': { en: 'Admin & POS guide', zh: '管理与收银指南', id: 'Panduan Admin & POS' },
-  'admin.guide.welcome.i': { en: 'Only admins see this guide. It explains every POS button and every admin section, one card at a time.', zh: '只有管理员能看到本指南。它会逐张卡片讲解每个收银按钮和每个管理板块。', id: 'Hanya admin yang melihat panduan ini. Panduan ini menjelaskan setiap tombol POS dan setiap bagian admin, satu kartu demi satu kartu.' },
+  'admin.guide.welcome.i': { en: 'For staff and admins. It explains every POS button and every admin section, one card at a time. Some sections (stock & money, settings, broadcast…) only show for full admins.', zh: '供员工和管理员使用。逐张卡片讲解每个收银按钮和每个管理板块。部分板块（库存与账务、设置、群发等）仅对正式管理员显示。', id: 'Untuk staf dan admin. Menjelaskan setiap tombol POS dan setiap bagian admin, satu kartu demi satu kartu. Beberapa bagian (stok & keuangan, pengaturan, siaran…) hanya tampil untuk admin penuh.' },
   'admin.guide.welcome.p': { en: "Hi boss! I'm Doluruu. Let me show you how to run the club from the app.", zh: '老板好！我是 Doluruu。我来教你如何用应用管理俱乐部。', id: 'Halo bos! Aku Doluruu. Aku tunjukkan cara mengelola klub dari aplikasi.' },
 
   'admin.guide.tables.t': { en: 'POS · Tables', zh: '收银 · 桌台', id: 'POS · Meja' },
