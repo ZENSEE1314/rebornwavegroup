@@ -2177,3 +2177,40 @@ button, .interactive {
   .rwg-app .rwg-card:hover, .rwg-app button:not(:disabled):active { transform:none; }
 }
 
+
+/* Pet page — arcade look. Action buttons are chunky 3D keys in their own colour (--c). */
+.pet-act { position:relative; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 2px 8px; border-radius:16px; color:#fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 55%, #2a2445), color-mix(in srgb, var(--c) 25%, #120e24));
+  border:1px solid color-mix(in srgb, var(--c) 60%, transparent);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--c) 35%, #000), 0 0 14px color-mix(in srgb, var(--c) 28%, transparent), inset 0 2px 0 rgba(255,255,255,.22);
+  transition: transform .1s ease, box-shadow .1s ease; }
+.pet-act:not(:disabled):active { transform: translateY(4px); box-shadow: 0 1px 0 color-mix(in srgb, var(--c) 35%, #000), 0 0 20px color-mix(in srgb, var(--c) 45%, transparent), inset 0 2px 0 rgba(255,255,255,.22); }
+.pet-act:disabled { filter: grayscale(.7); opacity:.45; }
+.pet-act .e { font-size:22px; line-height:1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.45)); }
+.pet-act .l { max-width:100%; font-size:10px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pet-stat { padding:7px 9px; border-radius:12px; background: rgba(0,0,0,.3); border:1px solid color-mix(in srgb, var(--c1) 30%, transparent); }
+.pet-stat .arc-bar { height:7px; }
+.pet-seg { flex:1; height:8px; border-radius:99px; background: rgba(255,255,255,.1); }
+.pet-seg.on { background: linear-gradient(90deg, #f3b52f, #ffe89a); box-shadow: 0 0 8px rgba(243,181,47,.7); }
+.pet-tab { padding:9px 0; border-radius:12px; font-size:13px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; justify-content:center; gap:6px; color: rgba(255,255,255,.55); }
+.pet-tab.on { color:#170f00; background: linear-gradient(180deg, #ffe89a, #f3b52f); box-shadow: 0 3px 0 #a06a0c, 0 0 14px rgba(243,181,47,.45), inset 0 1px 0 rgba(255,255,255,.7); }
+.pet-item { position:relative; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px; border-radius:16px; transition: transform .12s ease;
+  background: linear-gradient(170deg, #221c3e, #110d22); border:1px solid rgba(255,255,255,.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+.pet-item:not(:disabled):active { transform: scale(.95); }
+.pet-item.on { border-color: rgba(247,215,116,.8); box-shadow: 0 0 0 1px rgba(247,215,116,.4) inset, 0 0 18px rgba(247,215,116,.35); background: linear-gradient(170deg, #3a2f18, #16102a); }
+.pet-price { font-size:11px; font-weight:900; padding:1px 8px; border-radius:99px; background: rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.14); }
+
+/* Admin overview — stat tiles in their own colour (--c) */
+.stat-tile { position:relative; overflow:hidden; isolation:isolate; padding:14px 14px 12px; border-radius:20px; text-align:left;
+  background: radial-gradient(110% 90% at 100% 0%, color-mix(in srgb, var(--c) 28%, transparent), transparent 60%), linear-gradient(160deg, #1c1834, #0f0c1e);
+  border:1px solid color-mix(in srgb, var(--c) 42%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 20px rgba(0,0,0,.4), 0 0 16px color-mix(in srgb, var(--c) 14%, transparent); transition: transform .15s ease, box-shadow .2s ease; }
+.stat-tile:active { transform: scale(.96); }
+.stat-tile:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 10px 24px rgba(0,0,0,.45), 0 0 26px color-mix(in srgb, var(--c) 32%, transparent); }
+.stat-tile .num { font-size:32px; line-height:1; font-weight:900; font-style:italic; color:#fff; text-shadow: 0 2px 0 rgba(0,0,0,.4), 0 0 14px color-mix(in srgb, var(--c) 70%, transparent); }
+.stat-tile .ic { position:absolute; right:10px; bottom:8px; z-index:-1; opacity:.22; color: var(--c); }
+.stat-tile .ic svg { width:40px; height:40px; }
+.stat-tile .lbl { margin-top:8px; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color: rgba(255,255,255,.65); }
+.stat-hot { animation: statPulse 1.8s ease-in-out infinite; }
+@keyframes statPulse { 0%,100% { box-shadow: 0 0 0 rgba(0,0,0,0); } 50% { box-shadow: 0 0 14px color-mix(in srgb, var(--c) 70%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .stat-hot { animation:none; } }
