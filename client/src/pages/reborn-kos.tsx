@@ -10,12 +10,37 @@ import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, C
 
 const ANIM_CSS = `
 @keyframes kgPop{0%{transform:scale(.2);opacity:0}40%{transform:scale(1.25);opacity:1}70%{transform:scale(.95)}100%{transform:scale(1);opacity:1}}
-@keyframes kgFloat{0%{transform:translateY(60px) scale(.6);opacity:0}30%{opacity:1}100%{transform:translateY(-40px) scale(1.1);opacity:0}}
+@keyframes kgFloat{0%{transform:translateY(90px) scale(.5);opacity:0}45%{opacity:1;transform:translateY(-14px) scale(1.12)}70%{transform:translateY(4px) scale(.97)}100%{transform:translateY(0) scale(1);opacity:1}}
 @keyframes kgZoom{0%{transform:scale(3);opacity:0}30%{opacity:1}60%{transform:scale(1)}100%{transform:scale(1.05);opacity:1}}
 @keyframes kgRainDrop{0%{transform:translateY(-120px);opacity:0}20%{opacity:1}100%{transform:translateY(340px);opacity:0}}
 .kg-pop{animation:kgPop .7s cubic-bezier(.2,1.4,.4,1) both}
 .kg-float{animation:kgFloat 1.6s ease-out both}
 .kg-zoom{animation:kgZoom .8s ease-out both}
+@keyframes kgFlash{0%{opacity:.95}100%{opacity:0}}
+@keyframes kgSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes kgRaysIn{from{opacity:0;transform:translate(-50%,-50%) scale(.3)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes kgRing{0%{transform:translate(-50%,-50%) scale(.2);opacity:1}100%{transform:translate(-50%,-50%) scale(2.4);opacity:0}}
+@keyframes kgBurst{0%{transform:translate(-50%,-50%) rotate(var(--a)) translateY(0) scale(.3);opacity:0}15%{opacity:1}100%{transform:translate(-50%,-50%) rotate(var(--a)) translateY(calc(-1 * var(--d))) scale(1.1) rotate(calc(-1 * var(--a)));opacity:0}}
+@keyframes kgConfetti{0%{transform:translate(0,-10vh) rotate(0);opacity:1}100%{transform:translate(var(--x),110vh) rotate(calc(var(--r) + 720deg));opacity:.9}}
+@keyframes kgBob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+@keyframes kgGlow{0%,100%{filter:drop-shadow(0 0 18px rgba(247,215,116,.7)) drop-shadow(0 0 40px rgba(236,72,153,.45))}50%{filter:drop-shadow(0 0 30px rgba(247,215,116,1)) drop-shadow(0 0 60px rgba(236,72,153,.7))}}
+@keyframes kgTitle{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+@keyframes kgAmount{0%,100%{text-shadow:0 0 10px rgba(247,215,116,.6),0 0 24px rgba(243,181,47,.4)}50%{text-shadow:0 0 18px rgba(247,215,116,1),0 0 40px rgba(243,181,47,.8)}}
+.kg-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,#fff,rgba(255,236,170,.6) 30%,transparent 65%);animation:kgFlash .7s ease-out forwards;pointer-events:none}
+.kg-rays{position:absolute;left:50%;top:42%;width:170vmax;height:170vmax;transform:translate(-50%,-50%);pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,rgba(247,215,116,.20) 0deg 8deg,transparent 8deg 22deg);
+  -webkit-mask-image:radial-gradient(circle,#000 0,transparent 45%);mask-image:radial-gradient(circle,#000 0,transparent 45%);
+  animation:kgRaysIn .6s ease-out both,kgSpin 14s linear infinite}
+.kg-ring{position:absolute;left:50%;top:50%;width:170px;height:170px;border-radius:50%;border:4px solid rgba(247,215,116,.9);box-shadow:0 0 30px rgba(247,215,116,.8),inset 0 0 30px rgba(236,72,153,.6);animation:kgRing 1s ease-out both;pointer-events:none}
+.kg-burst{position:absolute;left:50%;top:50%;font-size:22px;animation:kgBurst 1.2s cubic-bezier(.15,.7,.3,1) both;pointer-events:none}
+.kg-confetti{position:absolute;top:0;width:8px;height:14px;border-radius:2px;animation-name:kgConfetti;animation-timing-function:linear;animation-iteration-count:infinite;pointer-events:none;opacity:0;animation-fill-mode:both}
+.kg-gift{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.kg-art,.kg-art-emoji{animation:kgBob 2.4s ease-in-out .9s infinite,kgGlow 1.8s ease-in-out infinite}
+.kg-art-emoji{font-size:110px;line-height:1;display:inline-block}
+.kg-art{box-shadow:0 0 0 3px rgba(247,215,116,.8),0 10px 40px rgba(0,0,0,.6)}
+.kg-title{animation:kgTitle .6s cubic-bezier(.2,1.4,.4,1) .35s both;text-shadow:0 2px 0 rgba(0,0,0,.5),0 0 18px rgba(236,72,153,.6)}
+.kg-amount{font-size:26px;font-weight:900;font-style:italic;color:#fff3c4;animation:kgAmount 1.6s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.kg-rays,.kg-burst,.kg-confetti,.kg-ring,.kg-flash{display:none}.kg-art,.kg-art-emoji{animation:none}}
 `;
 const fmt = (n: number) => (n || 0).toLocaleString(localeTag());
 function nameOf(u: any) { return u?.username || u?.firstName || translate("vn.common.member"); }
@@ -97,6 +122,7 @@ export default function RebornKos() {
           <div className="min-w-0">
             <p className="kos-lbl">{t("vn.kos.yourKgold")}</p>
             <div className="kos-num flex items-center gap-2"><span className="kos-coin">🪙</span> {fmt(wallet?.kgold ?? 0)}</div>
+            <p className="mt-1 text-sm font-black text-amber-200/90" style={{ textShadow: "0 0 10px rgba(247,215,116,.45)" }}>{t("vn.kos.worthRp", { rp: fmt(Math.floor((wallet?.kgold ?? 0) / (wallet?.kgoldPerRp || 100))), cr: fmt(wallet?.credits ?? 0) })}</p>
             <p className="arc-badge">🎁 {t("vn.kos.receivedGifts", { n: fmt(wallet?.starsReceived ?? 0) })}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -302,26 +328,60 @@ function CashoutModal({ wallet, onClose, onDone }: any) {
   );
 }
 
+// Counts a number up from 0 for the gift reveal.
+function useCountUp(target: number, ms = 1200, key?: any) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    let raf = 0; const t0 = performance.now();
+    const tick = (now: number) => { const p = Math.min(1, (now - t0) / ms); setV(Math.round(target * (1 - Math.pow(1 - p, 3)))); if (p < 1) raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, key]);
+  return v;
+}
+
+const CONFETTI = ["#f7d774", "#ec4899", "#a855f7", "#22d3ee", "#34d399", "#fb7185", "#fff"];
 function GiftInbox({ notifs, onClose }: any) {
   const { t } = useTranslation();
   const [i, setI] = useState(0);
   const g = notifs[i];
   useEffect(() => { if (notifs.length === 0) onClose(); }, [notifs.length]);
+  useEffect(() => { try { navigator.vibrate?.([60, 40, 120]); } catch {} }, [i]);
+  const kg = Number(g?.recipientKgold || 0);
+  const shown = useCountUp(kg, 1400, i);
   if (!g) return null;
   const animClass = g.animation === "float" ? "kg-float" : g.animation === "zoom" ? "kg-zoom" : "kg-pop";
   const next = () => (i < notifs.length - 1 ? setI(i + 1) : onClose());
+  // Bigger gifts get a bigger show.
+  const tier = kg >= 1_000_000 ? 3 : kg >= 100_000 ? 2 : 1;
+  const burst = 10 + tier * 8, confetti = 18 + tier * 14;
+  const art = g.imageUrl ? <img src={g.imageUrl} alt="" className="kg-art w-36 h-36 object-cover rounded-3xl mx-auto" /> : <span className="kg-art-emoji">{g.emoji || "🎁"}</span>;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6" onClick={next}>
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-      {g.animation === "rain" && Array.from({ length: 12 }).map((_, k) => (
-        <span key={k} className="absolute text-3xl" style={{ left: `${(k * 8 + 5) % 95}%`, top: 0, animation: `kgRainDrop ${1 + (k % 5) * 0.3}s linear ${k * 0.1}s infinite` }}>{g.emoji || "🎁"}</span>
+    <div className="kg-stage fixed inset-0 z-[60] flex items-center justify-center p-6 overflow-hidden" onClick={next}>
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
+      <div key={`flash-${i}`} className="kg-flash" />
+      <div key={`rays-${i}`} className="kg-rays" />
+      {/* confetti rain */}
+      {Array.from({ length: confetti }).map((_, k) => (
+        <i key={`c-${i}-${k}`} className="kg-confetti" style={{ left: `${(k * 37) % 100}%`, background: CONFETTI[k % CONFETTI.length],
+          animationDelay: `${(k % 12) * 0.12}s`, animationDuration: `${2.2 + (k % 5) * 0.35}s`, ["--r" as any]: `${(k * 53) % 360}deg`, ["--x" as any]: `${((k * 29) % 80) - 40}px` }} />
+      ))}
+      {g.animation === "rain" && Array.from({ length: 14 }).map((_, k) => (
+        <span key={`r-${i}-${k}`} className="absolute text-3xl" style={{ left: `${(k * 7 + 4) % 95}%`, top: 0, animation: `kgRainDrop ${1 + (k % 5) * 0.3}s linear ${k * 0.1}s infinite` }}>{g.emoji || "🎁"}</span>
       ))}
       <div className="relative text-center" onClick={(e) => e.stopPropagation()}>
-        <div key={i} className={animClass} style={{ fontSize: 96, lineHeight: 1 }}>
-          {g.imageUrl ? <img src={g.imageUrl} alt="" className="w-32 h-32 object-contain mx-auto" /> : (g.emoji || "🎁")}
+        <div className="relative mx-auto" style={{ width: 170, height: 170 }}>
+          <div key={`ring-${i}`} className="kg-ring" />
+          {/* burst of gift copies + sparkles flying out */}
+          {Array.from({ length: burst }).map((_, k) => (
+            <span key={`b-${i}-${k}`} className="kg-burst" style={{ ["--a" as any]: `${(360 / burst) * k}deg`, ["--d" as any]: `${110 + (k % 3) * 45}px`, animationDelay: `${0.15 + (k % 4) * 0.05}s` }}>
+              {k % 3 === 0 ? (g.emoji || "✨") : k % 3 === 1 ? "✨" : "⭐"}
+            </span>
+          ))}
+          <div key={`g-${i}`} className={`kg-gift ${animClass}`}>{art}</div>
         </div>
-        <p className="text-white text-lg font-extrabold mt-4">{t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName })}</p>
-        <p className="text-amber-300 font-bold mt-1">🪙 +{fmt(g.recipientKgold)} KGOLD</p>
+        <p key={`t-${i}`} className="kg-title text-white text-xl font-black mt-5 px-2">{t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName })}</p>
+        <p className="kg-amount mt-2">🪙 +{fmt(shown)} KGOLD</p>
         <button onClick={next} className="arc-play arc-start mt-6 mx-auto px-8 justify-center" style={{ padding: "12px 32px", fontSize: 14 }}>{i < notifs.length - 1 ? t("vn.common.next") : t("vn.kos.awesome")}</button>
         {notifs.length > 1 && <p className="text-white/40 text-xs mt-2">{i + 1} / {notifs.length}</p>}
       </div>

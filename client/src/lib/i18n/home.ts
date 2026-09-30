@@ -190,7 +190,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.guide.home.t': { en: "Home page", zh: "主页", id: "Halaman Beranda" },
   'hm.guide.home.i': { en: "Your balances and shortcuts to everything:", zh: "你的余额以及所有功能的入口：", id: "Saldomu dan pintasan ke semua fitur:" },
   'hm.guide.home.credits.t': { en: "Credits (RP)", zh: "余额（RP）", id: "Kredit (RP)" },
-  'hm.guide.home.credits.x': { en: "Money you top up. Use it to buy KGOLD and pay in the app.", zh: "你充值的金额。可用来购买 KGOLD 和在应用内付款。", id: "Uang yang kamu isi ulang. Dipakai untuk membeli KGOLD dan membayar di aplikasi." },
+  'hm.guide.home.credits.x': { en: "Money you top up (up to RP 1,000,000,000 at a time). Use it to buy KGOLD, or ask staff to pay your bill with your RP credits.", zh: "你充值的金额（单次最多 RP 1,000,000,000）。可用来购买 KGOLD，或让工作人员用你的 RP 余额结账。", id: "Uang yang kamu isi ulang (maks. RP 1.000.000.000 sekali isi). Pakai untuk membeli KGOLD, atau minta staf membayar tagihanmu dengan kredit RP." },
   'hm.guide.home.points.t': { en: "Points", zh: "积分", id: "Poin" },
   'hm.guide.home.points.x': { en: "Loyalty points — 1 point for every RP 1,000 you spend. They raise your level.", zh: "会员积分 — 每消费 RP 1,000 得 1 分，用来提升你的等级。", id: "Poin loyalitas — 1 poin tiap belanja RP 1.000. Poin menaikkan levelmu." },
   'hm.guide.home.tokens.t': { en: "Tokens", zh: "代币", id: "Token" },

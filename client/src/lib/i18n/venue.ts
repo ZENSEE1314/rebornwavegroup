@@ -16,6 +16,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.kos.giftSent': { en: 'Gift sent!', zh: '礼物已送出！', id: 'Hadiah terkirim!' },
   'vn.kos.cantGift': { en: "Can't gift", zh: '无法送礼', id: 'Tidak bisa memberi hadiah' },
   'vn.kos.yourKgold': { en: 'Your KGOLD', zh: '你的 KGOLD', id: 'KGOLD Anda' },
+  'vn.kos.worthRp': { en: '≈ RP {rp} · Credits RP {cr}', zh: '≈ RP {rp} · 余额 RP {cr}', id: '≈ RP {rp} · Kredit RP {cr}' },
   'vn.kos.receivedGifts': { en: 'Received {n} KGOLD in gifts', zh: '已收到礼物 {n} KGOLD', id: 'Menerima {n} KGOLD dari hadiah' },
   'vn.kos.scanVenueQr': { en: 'Scan venue QR', zh: '扫描场馆二维码', id: 'Pindai QR venue' },
   'vn.kos.giftNotifs': { en: 'Gift notifications', zh: '礼物通知', id: 'Notifikasi hadiah' },

@@ -118,7 +118,7 @@ function ClosePosDay() {
 function ClosingReport({ report, onClose }: { report: any; onClose: () => void }) {
   const { t: tr } = useTranslation();
   const t=report.totals||{};
-  return <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/85 p-4 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-md rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={onClose} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10" aria-label={tr("pos.report.closeAria")}><X className="h-5 w-5"/></button><h2 className="pr-10 text-xl font-black">{tr("pos.report.title")}</h2><p className="text-sm text-white/50">{report.day} · {tr("pos.report.paidOrders", { n: report.ticketCount })}</p><div className="my-4 max-h-56 space-y-2 overflow-y-auto border-y border-white/10 py-3">{(report.items||[]).map((item:any)=><div key={item.name} className="flex justify-between gap-3 text-sm"><span>{item.quantity}× {item.name}</span><span>{rp(item.sales)}</span></div>)}{!(report.items||[]).length&&<p className="text-sm text-white/40">{tr("pos.report.noItems")}</p>}</div><div className="space-y-1 text-sm"><div className="flex justify-between"><span>{tr("pos.report.gross")}</span><span>{rp(t.subtotal)}</span></div><div className="flex justify-between"><span>{tr("pos.report.discounts")}</span><span>- {rp(t.discount)}</span></div><div className="flex justify-between"><span>{tr("pos.serviceFee")}</span><span>{rp(t.serviceFee)}</span></div><div className="flex justify-between"><span>{tr("pos.tax")}</span><span>{rp(t.tax)}</span></div><div className="flex justify-between text-lg font-black text-amber-300"><span>{tr("pos.report.revenue")}</span><span>{rp(t.revenue)}</span></div><div className="flex justify-between text-white/60"><span>{tr("pos.report.cashCard")}</span><span>{rp(t.cash)} / {rp(t.card)}</span></div><div className="mt-2 flex justify-between border-t border-white/10 pt-2"><span>{tr("pos.report.cost")}</span><span>- {rp(t.cost)}</span></div><div className="flex justify-between text-lg font-black text-emerald-300"><span>{tr("pos.report.profit")}</span><span>{rp(t.profit)}</span></div></div><div className="mt-5 grid grid-cols-2 gap-2"><button onClick={()=>printClosingReport(report,{clubName:"Reborn Wave Group"})} className="flex items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-bold text-black"><Printer className="h-4 w-4"/> {tr("pos.print")}</button><button onClick={onClose} className="rounded-xl bg-white/10 px-4 py-3 font-bold">{tr("pos.done")}</button></div><p className="mt-3 text-center text-xs text-white/40">{tr("pos.report.saved")}</p></div></div>;
+  return <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/85 p-4 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-md rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={onClose} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10" aria-label={tr("pos.report.closeAria")}><X className="h-5 w-5"/></button><h2 className="pr-10 text-xl font-black">{tr("pos.report.title")}</h2><p className="text-sm text-white/50">{report.day} · {tr("pos.report.paidOrders", { n: report.ticketCount })}</p><div className="my-4 max-h-56 space-y-2 overflow-y-auto border-y border-white/10 py-3">{(report.items||[]).map((item:any)=><div key={item.name} className="flex justify-between gap-3 text-sm"><span>{item.quantity}× {item.name}</span><span>{rp(item.sales)}</span></div>)}{!(report.items||[]).length&&<p className="text-sm text-white/40">{tr("pos.report.noItems")}</p>}</div><div className="space-y-1 text-sm"><div className="flex justify-between"><span>{tr("pos.report.gross")}</span><span>{rp(t.subtotal)}</span></div><div className="flex justify-between"><span>{tr("pos.report.discounts")}</span><span>- {rp(t.discount)}</span></div><div className="flex justify-between"><span>{tr("pos.serviceFee")}</span><span>{rp(t.serviceFee)}</span></div><div className="flex justify-between"><span>{tr("pos.tax")}</span><span>{rp(t.tax)}</span></div><div className="flex justify-between text-lg font-black text-amber-300"><span>{tr("pos.report.revenue")}</span><span>{rp(t.revenue)}</span></div><div className="flex justify-between text-white/60"><span>{tr("pos.report.cashCard")}</span><span>{rp(t.cash)} / {rp(t.card)}</span></div>{Number(t.credits) > 0 && <div className="flex justify-between text-white/60"><span>{tr("pos.pay.credits")}</span><span>{rp(t.credits)}</span></div>}<div className="mt-2 flex justify-between border-t border-white/10 pt-2"><span>{tr("pos.report.cost")}</span><span>- {rp(t.cost)}</span></div><div className="flex justify-between text-lg font-black text-emerald-300"><span>{tr("pos.report.profit")}</span><span>{rp(t.profit)}</span></div></div><div className="mt-5 grid grid-cols-2 gap-2"><button onClick={()=>printClosingReport(report,{clubName:"Reborn Wave Group"})} className="flex items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-bold text-black"><Printer className="h-4 w-4"/> {tr("pos.print")}</button><button onClick={onClose} className="rounded-xl bg-white/10 px-4 py-3 font-bold">{tr("pos.done")}</button></div><p className="mt-3 text-center text-xs text-white/40">{tr("pos.report.saved")}</p></div></div>;
 }
 
 function SalesPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
@@ -297,7 +297,8 @@ function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [] }: {
 function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [pay, setPay] = useState<"cash" | "card">("cash");
+  const [pay, setPay] = useState<"cash" | "card" | "credits">("cash");
+  const [creditBal, setCreditBal] = useState<number | null>(null);
   const [paymentReference, setPaymentReference] = useState("");
   const [cashReceived, setCashReceived] = useState("");
   const [receiptResult, setReceiptResult] = useState<any>(null);
@@ -449,16 +450,17 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               <input value={discReason} onChange={(e) => setDiscReason(e.target.value)} placeholder={t("pos.reasonOptional")} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm mb-2" />
               <button onClick={() => setBillDiscount.mutate(discPct ? { percent: Number(discPct), reason: discReason } : { amount: discount, reason: discReason })} className="w-full py-2 rounded-xl bg-white/10 text-sm font-semibold">{t("pos.applyDiscount")}</button>
             </div>
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              {(["cash", "card"] as const).map((m) => (
+            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+              {(["cash", "card", "credits"] as const).map((m) => (
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
               ))}
             </div>
             <div className="mb-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs"><div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div><div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number(posSettings?.serviceFeePercent)||0 })}</span><span>{rp(due.serviceFee)}</span></div><div className="flex justify-between"><span>{t("pos.taxPct", { n: Number(posSettings?.taxPercent)||0 })}</span><span>{rp(due.tax)}</span></div><div className="flex justify-between text-sm font-black text-amber-300"><span>{t("pos.total")}</span><span>{rp(total)}</span></div></div>
+            {pay === "credits" && <CreditsLine code={order.memberCode} total={total} onBalance={setCreditBal} />}
             {pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
             {pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={total} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(total)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-total))}</p></div></div>}
             <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks}/>
-            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < total) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("pos.chargeAmount", { amount: rp(total), method: t(`pos.pay.${pay}`) })}</button>
+            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < total) || (pay === "credits" && (creditBal === null || creditBal < total)) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("pos.chargeAmount", { amount: rp(total), method: t(`pos.pay.${pay}`) })}</button>
             <button onClick={() => { if (confirm(t("pos.cancelConfirm"))) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">{t("pos.cancelTicket")}</button>
           </div>
         </div>
@@ -474,7 +476,7 @@ function QuickSaleTab() {
   const qc = useQueryClient();
   const [code, setCode] = useState("");
   const [member, setMember] = useState<any>(null);
-  const [pay, setPay] = useState<"cash" | "card">("cash");
+  const [pay, setPay] = useState<"cash" | "card" | "credits">("cash");
   const [paymentReference, setPaymentReference] = useState("");
   const [cashReceived, setCashReceived] = useState("");
   const [receiptResult, setReceiptResult] = useState<any>(null);
@@ -503,7 +505,7 @@ function QuickSaleTab() {
   return (
     <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
       <div className="order-2 lg:order-1">
-        <ProductPicker label={t("pos.chargeMethod", { method: t(`pos.pay.${pay}`) })} displayTotal={due.total} busy={sell.isPending || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < due.total) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
+        <ProductPicker label={t("pos.chargeMethod", { method: t(`pos.pay.${pay}`) })} displayTotal={due.total} busy={sell.isPending || (pay === "credits" && (!member || Number(member.credits || 0) < due.total)) || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < due.total) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
       </div>
       <div className="order-1 lg:order-2 mb-3 lg:mb-0 space-y-3 h-fit">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -529,11 +531,12 @@ function QuickSaleTab() {
         <label className="text-xs text-white/50 block">{t("pos.discountRp")}<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
         {cartSubtotal>0&&<div className="space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs"><div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div><div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number(posSettings?.serviceFeePercent)||0 })}</span><span>{rp(due.serviceFee)}</span></div><div className="flex justify-between"><span>{t("pos.taxPct", { n: Number(posSettings?.taxPercent)||0 })}</span><span>{rp(due.tax)}</span></div><div className="flex justify-between text-sm font-black text-amber-300"><span>{t("pos.total")}</span><span>{rp(due.total)}</span></div></div>}
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
-        <div className="grid grid-cols-2 gap-2">
-          {(["cash", "card"] as const).map((m) => (
+        <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+          {(["cash", "card", "credits"] as const).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
           ))}
         </div>
+        {pay === "credits" && <CreditsLine code={member?.code} total={due.total} onBalance={() => {}} />}
         {pay === "card" && <label className="block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
         {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={t("pos.required")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-due.total))}</p></div></div>}
         <p className="text-[11px] text-white/40 text-center">{t("pos.receiptNote")}</p>
@@ -774,7 +777,7 @@ function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone
         {Number(order.serviceFee)>0 && <div className="flex justify-between"><span>{meta?.serviceFeePercent ? t("pos.serviceFeePct", { n: meta.serviceFeePercent }) : t("pos.serviceFee")}</span><span>{rp(Number(order.serviceFee))}</span></div>}
         {Number(order.tax)>0 && <div className="flex justify-between"><span>{t("pos.tax")}</span><span>{rp(Number(order.tax))}</span></div>}
         <div className="flex justify-between text-lg font-black"><span>{t("pos.rc.total")}</span><span>{rp(Number(order.total))}</span></div>
-        <div className="flex justify-between"><span>{t("pos.rc.paid")}</span><b>{order.paymentMethod === "cash" || order.paymentMethod === "card" ? t(`pos.pay.${order.paymentMethod}`).toUpperCase() : String(order.paymentMethod || "").toUpperCase()}</b></div>
+        <div className="flex justify-between"><span>{t("pos.rc.paid")}</span><b>{order.paymentMethod === "cash" || order.paymentMethod === "card" || order.paymentMethod === "credits" ? t(`pos.pay.${order.paymentMethod}`).toUpperCase() : String(order.paymentMethod || "").toUpperCase()}</b></div>
         {order.paymentReference && <div className="flex justify-between gap-3"><span>{t("pos.rc.cardRef")}</span><b className="text-right">{order.paymentReference}</b></div>}
         {order.paymentMethod === "cash" && <><div className="flex justify-between"><span>{t("pos.cashReceived")}</span><b>{rp(Number(order.cashReceived))}</b></div><div className="flex justify-between"><span>{t("pos.change")}</span><b>{rp(Number(order.changeGiven))}</b></div></>}
       </div>
@@ -819,6 +822,29 @@ function DrawerSetup({ onClose }: { onClose: () => void }) {
           <button onClick={test} className="flex-1 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-sm font-semibold">{t("pos.drawer.test")}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Paying with the member's RP credits: shows their balance (looked up by member
+// code) and whether it covers the bill. Reports the balance to the parent.
+function CreditsLine({ code, total, onBalance }: { code?: string | null; total: number; onBalance: (n: number | null) => void }) {
+  const { t } = useTranslation();
+  const { data, isLoading } = useQuery<any>({
+    queryKey: ["/api/reborn/pos/member", code],
+    queryFn: () => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent(code || "")}`).then((r) => r.json()),
+    enabled: !!code,
+  });
+  const bal = data?.credits !== undefined ? Number(data.credits) : null;
+  useEffect(() => { onBalance(bal); }, [bal]);
+  const rp = (n: number) => "RP " + Math.round(n || 0).toLocaleString(localeTag());
+  if (!code) return <p className="mb-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200">{t("pos.credits.needMember")}</p>;
+  if (isLoading || bal === null) return <p className="mb-2 text-xs text-white/50">…</p>;
+  const ok = bal >= total;
+  return (
+    <div className={`mb-2 rounded-xl border px-3 py-2 text-xs ${ok ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-100" : "border-red-400/40 bg-red-500/10 text-red-100"}`}>
+      <div className="flex justify-between font-semibold"><span>{t("pos.credits.balance")}</span><b>{rp(bal)}</b></div>
+      <div className="flex justify-between mt-0.5"><span>{ok ? t("pos.credits.after") : t("pos.credits.short")}</span><b>{ok ? rp(bal - total) : rp(total - bal)}</b></div>
     </div>
   );
 }

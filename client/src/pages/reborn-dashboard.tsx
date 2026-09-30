@@ -31,8 +31,8 @@ const TILES = [
   { label: "hm.tile.history", desc: "hm.tile.historyDesc", icon: <ReceiptText className="w-6 h-6" />, path: "/history", color: "#f0d787" },
 ];
 
-// Must match MAX_TOPUP_RP on the server (credits are stored as decimal(10,2)).
-const MAX_TOPUP = 50_000_000;
+// Must match MAX_TOPUP_RP on the server.
+const MAX_TOPUP = 1_000_000_000;
 
 function formatRp(n: number) { return "RP " + (n || 0).toLocaleString(localeTag()); }
 
