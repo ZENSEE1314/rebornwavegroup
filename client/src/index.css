@@ -2125,3 +2125,55 @@ button, .interactive {
 
 /* Red Riding Hood full-screen reveal */
 @keyframes rwgZoom { 0% { transform: scale(0.2) rotate(-8deg); opacity: 0; } 55% { transform: scale(1.12) rotate(4deg); opacity: 1; } 70% { transform: scale(.98) rotate(-2deg); } 100% { transform: scale(1.05) rotate(0deg); opacity: 1; } }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Live, glossy look for the whole member/staff app (scoped to RebornLayout).
+   ════════════════════════════════════════════════════════════════════════ */
+/* page entrance: sections slide up one after another */
+@keyframes rwgEnter { from { opacity:0; transform: translateY(14px) scale(.985); } to { opacity:1; transform:none; } }
+.rwg-enter > * { animation: rwgEnter .45s cubic-bezier(.2,.8,.2,1) both; }
+.rwg-enter > *:nth-child(2) { animation-delay:.05s } .rwg-enter > *:nth-child(3) { animation-delay:.1s } .rwg-enter > *:nth-child(4) { animation-delay:.15s }
+.rwg-enter > *:nth-child(5) { animation-delay:.2s } .rwg-enter > *:nth-child(6) { animation-delay:.25s } .rwg-enter > *:nth-child(n+7) { animation-delay:.3s }
+
+/* cards / boxes: glossy gradient, top highlight, glow on hover, press-in */
+.rwg-app .rwg-card,
+.rwg-app .bg-white\/5.border-white\/10 {
+  background: linear-gradient(160deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 6px 18px rgba(0,0,0,.28);
+  transition: transform .15s ease, box-shadow .25s ease, border-color .25s ease, background .25s ease;
+}
+.rwg-app .rwg-card { border-color: rgba(255,255,255,.1); }
+.rwg-app .rwg-card:hover { transform: translateY(-2px); border-color: rgba(240,215,135,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 12px 30px rgba(0,0,0,.4), 0 0 22px rgba(240,215,135,.12); }
+.rwg-app :is(button, a).bg-white\/5.border-white\/10:hover { border-color: rgba(240,215,135,.3); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 8px 22px rgba(0,0,0,.35), 0 0 16px rgba(240,215,135,.12); }
+
+/* buttons: springy press everywhere, glow on coloured ones */
+.rwg-app button, .rwg-app a[role="button"] { transition: transform .12s ease, box-shadow .2s ease, filter .2s ease, background-color .2s ease, border-color .2s ease, color .2s ease; -webkit-tap-highlight-color: transparent; }
+.rwg-app button:not(:disabled):active, .rwg-app a[role="button"]:active { transform: scale(.96); }
+.rwg-app button[class*="bg-gradient-to"]:not(:disabled),
+.rwg-app button.bg-amber-400:not(:disabled), .rwg-app button.bg-red-500:not(:disabled), .rwg-app button.bg-emerald-500:not(:disabled) {
+  box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 18px rgba(139,92,246,.28), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.rwg-app button[class*="bg-gradient-to"]:not(:disabled):hover { filter: brightness(1.08) saturate(1.1); box-shadow: 0 8px 22px rgba(0,0,0,.4), 0 0 26px rgba(139,92,246,.45), inset 0 1px 0 rgba(255,255,255,.3); }
+.rwg-app button.bg-amber-400:not(:disabled) { box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 18px rgba(245,190,50,.4), inset 0 1px 0 rgba(255,255,255,.4); }
+.rwg-app button.bg-red-500:not(:disabled) { box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 16px rgba(239,68,68,.4), inset 0 1px 0 rgba(255,255,255,.25); }
+.rwg-app button.bg-emerald-500:not(:disabled) { box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 16px rgba(16,185,129,.4), inset 0 1px 0 rgba(255,255,255,.25); }
+
+/* inputs: gold focus glow */
+.rwg-app :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select) { transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.rwg-app :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select):focus { border-color: rgba(240,215,135,.65) !important; box-shadow: 0 0 0 3px rgba(240,215,135,.16), 0 0 18px rgba(240,215,135,.14); outline: none; }
+
+/* bottom navigation: glowing active tab with a little bounce */
+.rwg-nav-item { position:relative; }
+.rwg-nav-item.is-active::before { content:""; position:absolute; top:6px; left:50%; width:46px; height:30px; transform: translateX(-50%); border-radius:12px; z-index:-1;
+  background: radial-gradient(closest-side, rgba(240,215,135,.28), transparent); }
+.rwg-nav-item.is-active::after { content:""; position:absolute; top:0; left:50%; width:26px; height:3px; transform: translateX(-50%); border-radius:0 0 4px 4px; background:#f3c14b; box-shadow: 0 0 10px #f3c14b; }
+.rwg-nav-item.is-active svg { animation: rwgNavPop .45s cubic-bezier(.3,1.6,.5,1) both; filter: drop-shadow(0 0 6px rgba(243,193,75,.7)); }
+@keyframes rwgNavPop { 0% { transform: scale(.7) translateY(3px); } 100% { transform: scale(1.12) translateY(-1px); } }
+/* top bar token chip */
+.rwg-token-chip { background: linear-gradient(180deg, rgba(243,193,75,.18), rgba(243,193,75,.06)) !important; border-color: rgba(243,193,75,.4) !important; box-shadow: 0 0 14px rgba(243,193,75,.18), inset 0 1px 0 rgba(255,255,255,.12); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rwg-enter > *, .rwg-nav-item.is-active svg { animation: none; }
+  .rwg-app .rwg-card:hover, .rwg-app button:not(:disabled):active { transform:none; }
+}
+

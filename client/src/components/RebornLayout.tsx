@@ -113,7 +113,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   const go = (p: string) => navigate(p);
 
   return (
-    <div className="min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
+    <div className="rwg-app min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
       <PullToRefresh />
       {/* Top bar */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-white/10 backdrop-blur-md" style={{ background: "rgba(10,7,20,0.75)" }}>
@@ -126,7 +126,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
           {title || brand.appName || "REBORN WAVE"}
         </button>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+          <div className="rwg-token-chip flex items-center gap-1.5 px-3 py-1.5 rounded-full border">
             <Coins className="w-4 h-4 text-amber-400" />
             <span className="text-sm font-bold text-amber-300">{tokens}</span>
           </div>
@@ -138,7 +138,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
       </header>
 
       {/* Content */}
-      <main className={`${wide ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 pt-4 ${hideNav ? "pb-6" : "pb-28"}`}>{children}</main>
+      <main key={active || title || "page"} className={`rwg-enter ${wide ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 pt-4 ${hideNav ? "pb-6" : "pb-28"}`}>{children}</main>
 
       {/* Bottom nav — hidden while inside a live game so you can't tap out by accident */}
       {!hideNav && (
@@ -147,7 +147,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
             {MAIN_NAV.map((it) => {
               const isActive = active === it.path || active === it.label.toLowerCase();
               return (
-                <button key={it.path} onClick={() => go(it.path)} className={`flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? "text-amber-300" : "text-white/50 hover:text-white/80"}`}>
+                <button key={it.path} onClick={() => go(it.path)} className={`rwg-nav-item ${isActive ? "is-active" : ""} flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? "text-amber-300" : "text-white/50 hover:text-white/80"}`}>
                   {it.icon}
                   <span className="text-[11px] font-medium">{t(it.tkey)}</span>
                 </button>
