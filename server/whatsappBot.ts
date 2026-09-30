@@ -22,6 +22,7 @@ import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
 import { localeOf, asLang, faqIn } from "./i18n";
+import { parseDateInput, yesNo, weekdayInWeek, weekdayOfIso } from "./dateParse";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -490,9 +491,27 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "Mau pesan yang mana?\n{list}\nBalas nomornya.",
     },
     bookAskDate: {
-      en: "Which day? Reply: today, tomorrow, or a date like 2026-09-25.",
-      zh: "哪一天？请回复：今天、明天，或日期如 2026-09-25。",
-      id: "Hari apa? Balas: hari ini, besok, atau tanggal seperti 2026-09-25.",
+      en: "Which day? Reply e.g. today, tomorrow, next Sunday, or a date like 13/10.",
+      zh: "哪一天？可回复：今天、明天、后天、下个礼拜天，或日期如 10月13日、13/10。",
+      id: "Hari apa? Balas mis. hari ini, besok, lusa, Sabtu depan, atau tanggal seperti 13/10.",
+    },
+    askWeekday: {
+      en: "Which day {week}?\n1. Monday\n2. Tuesday\n3. Wednesday\n4. Thursday\n5. Friday\n6. Saturday\n7. Sunday\nReply the number or the day.",
+      zh: "{week}哪一天？\n1. 星期一\n2. 星期二\n3. 星期三\n4. 星期四\n5. 星期五\n6. 星期六\n7. 星期日\n请回复数字或星期几。",
+      id: "Hari apa {week}?\n1. Senin\n2. Selasa\n3. Rabu\n4. Kamis\n5. Jumat\n6. Sabtu\n7. Minggu\nBalas angka atau nama harinya.",
+    },
+    weekNext: { en: "next week", zh: "下个礼拜", id: "minggu depan" },
+    weekThis: { en: "this week", zh: "这个礼拜", id: "minggu ini" },
+    weekLater: { en: "in two weeks", zh: "下下个礼拜", id: "dua minggu lagi" },
+    confirmDate: {
+      en: "📅 Is it *{day}*? Reply yes or no.",
+      zh: "📅 是 *{day}* 吗？请回复 是 或 不是。",
+      id: "📅 Apakah *{day}*? Balas ya atau tidak.",
+    },
+    datePast: {
+      en: "📅 {day} has already passed. Please reply another date.",
+      zh: "📅 {day} 已经过去了，请回复其他日期。",
+      id: "📅 {day} sudah lewat. Silakan balas tanggal lain.",
     },
     bookAskSlot: {
       en: "{day} · {hours}\nChoose your start time:\n{list}\nReply the number.",
@@ -682,59 +701,35 @@ function parseMenuIntent(s: string): "book" | "song" | "bottle" | "menu" | null 
   if (/^(menu|hi|hello|hey|start|help|0|你好|嗨|halo|hai)$/.test(t)) return "menu";
   return null;
 }
-const isoFrom = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 // Display a YYYY-MM-DD date as "Mon 30-09-2025" (周一 / Sen) for members.
 const WD: Record<Lang, string[]> = {
   en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
   zh: ["周日", "周一", "周二", "周三", "周四", "周五", "周六"],
   id: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
 };
+// "Wednesday 13/10/2026" / "星期三 13/10/2026" / "Rabu 13/10/2026" for confirming a date.
+const WD_FULL: Record<Lang, string[]> = {
+  en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+  zh: ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"],
+  id: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
+};
+function fmtLong(iso: string, lang: Lang): string {
+  const [y, m, d] = iso.split("-");
+  return `${WD_FULL[lang][weekdayOfIso(iso)]} ${d}/${m}/${y}`;
+}
 export function fmtDMY(iso: string, lang: Lang = "en"): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, (m || 1) - 1, d || 1);
   const wd = WD[lang][dt.getDay()];
   return `${wd} ${String(d).padStart(2, "0")}-${String(m).padStart(2, "0")}-${y}`;
 }
-// Accepts DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD, today/tomorrow, and
-// "next monday"…"next sunday" plus "next next monday" (two weeks out).
-function parseBookDate(s: string): string | null {
-  const t = s.trim().toLowerCase();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
-  const dmy = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
-  if (dmy) { let [_, d, m, y] = dmy; const yy = y.length === 2 ? "20" + y : y; return `${yy}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`; }
-  if (/today|hari ini|今天|tonight|今晚/.test(t)) return todayStr();
-  if (/tomorrow|besok|明天|tmr/.test(t)) { const d = new Date(); d.setDate(d.getDate() + 1); return isoFrom(d); }
-  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  for (let i = 0; i < 7; i++) {
-    const re = new RegExp(`\\b${days[i]}\\b|\\b${days[i].slice(0, 3)}\\b`);
-    if (re.test(t)) {
-      const today = new Date().getDay();
-      let delta = (i - today + 7) % 7; if (delta === 0) delta = 7; // the coming <weekday>
-      // "next next <day>" (or "next 2"/"2 weeks") → add another week
-      if (/next\s+next|next\s*2|2\s*weeks?|minggu depan.*depan/.test(t)) delta += 7;
-      const d = new Date(); d.setDate(d.getDate() + delta); return isoFrom(d);
-    }
-  }
-  return null;
-}
 function weekdayOf(dateStr: string): number { const [y, m, d] = dateStr.split("-").map(Number); return new Date(y, m - 1, d).getDay(); }
 
 // --- Natural-language booking ("book KTV Lounge next Wednesday 6pm for 4 pax") ---
-const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-function dateFor(delta: number): string { const d = new Date(); d.setDate(d.getDate() + delta); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+// A date anywhere in a one-line request ("book KTV next Wednesday 6pm"), any language.
 function nlDate(body: string): string | null {
-  const t = body.toLowerCase();
-  if (/\b\d{4}-\d{2}-\d{2}\b/.test(t)) return t.match(/\b\d{4}-\d{2}-\d{2}\b/)?.[0] || null;
-  if (/tonight|today|hari ini|今晚|今天/.test(t)) return dateFor(0);
-  if (/tomorrow|besok|明天|tmr/.test(t)) return dateFor(1);
-  for (let i = 0; i < 7; i++) {
-    if (new RegExp(`\\b${WEEKDAYS[i]}\\b`).test(t) || new RegExp(`\\b${WEEKDAYS[i].slice(0, 3)}\\b`).test(t)) {
-      const today = new Date().getDay();
-      let delta = (i - today + 7) % 7; if (delta === 0) delta = 7; // the coming <weekday>
-      return dateFor(delta);
-    }
-  }
-  return null;
+  const r = parseDateInput(body, todayStr());
+  return r && r.kind !== "askDay" ? r.date : null;
 }
 function nlHourToSlot(body: string, area: BookingArea, date: string): string | null {
   const m = body.toLowerCase().match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/g);
@@ -1091,9 +1086,41 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
   const slots = wa.date ? areaSlotsForDate(area, wa.date) : [];
   const labels = wa.date ? areaSlotLabelsForDate(area, wa.date) : [];
   const labelFor = (slot: string) => labels[slots.indexOf(slot)] || slot;
+  // Date: a typed date is used as-is; "tomorrow / next Sunday / 下个礼拜天 / lusa"
+  // is confirmed first (yes/no); "next week" alone asks which day.
+  const askForDay = async (weekOffset: number) => {
+    await say(L(lang, "askWeekday", { week: L(lang, weekOffset === 0 ? "weekThis" : weekOffset === 1 ? "weekNext" : "weekLater") }));
+    return patchContact(c.id, { waState: { flow: "book", step: "weekday", areaId: area.id, weekOffset } });
+  };
+  const confirmDay = async (date: string) => {
+    if (date < todayStr()) { await say(L(lang, "datePast", { day: fmtLong(date, lang) })); return patchContact(c.id, { waState: { flow: "book", step: "date", areaId: area.id } }); }
+    await say(L(lang, "confirmDate", { day: fmtLong(date, lang) }));
+    return patchContact(c.id, { waState: { flow: "book", step: "dateConfirm", areaId: area.id, pendingDate: date } });
+  };
+  if (wa.step === "weekday") {
+    const n = Number((body.match(/^\s*([1-7])\s*$/) || [])[1] || 0);
+    const r = parseDateInput(body, todayStr());
+    if (n) return confirmDay(weekdayInWeek(todayStr(), n % 7, wa.weekOffset ?? 1)); // 1 = Monday … 7 = Sunday
+    if (r?.kind === "exact") wa = { ...wa, step: "date" };
+    else if (r?.kind === "relative") return confirmDay(r.kind === "relative" && /(星期|礼拜|禮拜|周|週)|\b(mon|tue|wed|thu|fri|sat|sun|senin|selasa|rabu|kamis|jum|sabtu|minggu)/i.test(body) ? weekdayInWeek(todayStr(), weekdayOfIso(r.date), wa.weekOffset ?? 1) : r.date);
+    else return askForDay(wa.weekOffset ?? 1);
+  }
+  if (wa.step === "dateConfirm") {
+    const ans = yesNo(body);
+    if (ans === "yes") wa = { ...wa, step: "date", confirmedDate: wa.pendingDate };
+    else if (ans === "no") { await say(L(lang, "bookAskDate")); return patchContact(c.id, { waState: { flow: "book", step: "date", areaId: area.id } }); }
+    else wa = { ...wa, step: "date" }; // they typed a date instead — read it below
+  }
   if (wa.step === "date") {
-    const date = parseBookDate(body);
-    if (!date) { await say(L(lang, "bookAskDate")); return; }
+    let date: string | null = wa.confirmedDate || null;
+    if (!date) {
+      const r = parseDateInput(body, todayStr());
+      if (!r) { await say(L(lang, "bookAskDate")); return patchContact(c.id, { waState: { flow: "book", step: "date", areaId: area.id } }); }
+      if (r.kind === "askDay") return askForDay(r.weekOffset);
+      if (r.kind === "relative") return confirmDay(r.date);
+      date = r.date;
+      if (date < todayStr()) { await say(L(lang, "datePast", { day: fmtLong(date, lang) })); return; }
+    }
     if (!areaSlotsForDate(area, date).length) { await say(L(lang, "closedDay", { day: fmtDMY(date, lang), area: areaNameIn(area, lang) })); return; }
     const avail = await availableSlotsForDate(area, date);
     if (!avail.length) { await say(L(lang, "fullDay", { day: fmtDMY(date, lang), area: areaNameIn(area, lang) })); return; }
