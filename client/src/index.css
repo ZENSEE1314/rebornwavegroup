@@ -1989,5 +1989,41 @@ button, .interactive {
 .gem { border-radius: 16px; display:flex; align-items:center; justify-content:center;
   box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 4px 8px rgba(0,0,0,.4); }
 
+/* Game lobby — arcade-style category / game tiles. --c1/--c2 = the tile's neon colours */
+.arc-tile { position:relative; overflow:hidden; display:flex; align-items:center; gap:12px; width:100%; min-width:0; text-align:left;
+  padding:14px 14px 14px 12px; border-radius:22px; isolation:isolate;
+  background: radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--c1) 38%, transparent) 0%, transparent 55%),
+              linear-gradient(135deg, #1b1633 0%, #0f0c1f 100%);
+  border:1px solid color-mix(in srgb, var(--c1) 55%, transparent);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.04) inset, 0 8px 24px rgba(0,0,0,.45), 0 0 22px color-mix(in srgb, var(--c1) 22%, transparent);
+  transition: transform .15s ease, box-shadow .2s ease; }
+.arc-tile:active { transform: scale(.975); }
+.arc-tile:hover { box-shadow: 0 0 0 1px rgba(255,255,255,.06) inset, 0 10px 28px rgba(0,0,0,.5), 0 0 30px color-mix(in srgb, var(--c1) 40%, transparent); }
+/* diagonal speed stripes + moving shine */
+.arc-tile::before { content:""; position:absolute; inset:0; z-index:-1; opacity:.18;
+  background: repeating-linear-gradient(115deg, transparent 0 14px, color-mix(in srgb, var(--c2) 60%, transparent) 14px 16px);
+  mask-image: linear-gradient(90deg, transparent 30%, #000 100%); -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 100%); }
+.arc-tile::after { content:""; position:absolute; top:0; bottom:0; width:40%; left:-60%; z-index:1; pointer-events:none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.14), transparent); animation: arcShine 4.5s ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes arcShine { 0%, 70% { left:-60%; } 100% { left:130%; } }
+.arc-icon { position:relative; flex-shrink:0; width:58px; height:58px; border-radius:17px; display:flex; align-items:center; justify-content:center; font-size:31px;
+  background: linear-gradient(145deg, var(--c1), var(--c2));
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.45), inset 0 -4px 0 rgba(0,0,0,.25), 0 6px 14px rgba(0,0,0,.5), 0 0 18px color-mix(in srgb, var(--c1) 55%, transparent);
+  transform: rotate(-6deg); animation: arcFloat 3.2s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.arc-icon > span { filter: drop-shadow(0 3px 2px rgba(0,0,0,.45)); transform: rotate(6deg); }
+@keyframes arcFloat { 0%,100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(-3deg) translateY(-3px); } }
+.arc-title { display:block; font-weight:900; font-style:italic; letter-spacing:.02em; text-transform:uppercase; line-height:1.05; color:#fff;
+  font-size:18px; overflow-wrap:anywhere; text-shadow: 0 2px 0 rgba(0,0,0,.4), 0 0 14px color-mix(in srgb, var(--c1) 60%, transparent); }
+.arc-badge { display:inline-flex; align-items:center; gap:4px; margin-top:6px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  color:#fff; background: color-mix(in srgb, var(--c1) 35%, rgba(0,0,0,.35)); border:1px solid color-mix(in srgb, var(--c1) 60%, transparent); }
+.arc-chips { display:flex; gap:4px; margin-top:6px; }
+.arc-chip { width:22px; height:22px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); }
+.arc-play { flex-shrink:0; display:flex; align-items:center; gap:3px; padding:7px 10px; border-radius:12px; font-size:11px; font-weight:900; font-style:italic; letter-spacing:.06em; text-transform:uppercase; color:#170f00;
+  background: linear-gradient(180deg, #ffe89a, #f3b52f); box-shadow: 0 3px 0 #a06a0c, 0 0 14px rgba(243,181,47,.45), inset 0 1px 0 rgba(255,255,255,.7); }
+.arc-head { display:flex; align-items:center; gap:8px; margin:2px 2px 12px; font-size:12px; font-weight:900; letter-spacing:.18em; text-transform:uppercase;
+  color:#f7d774; text-shadow: 0 0 10px rgba(247,215,116,.45); }
+.arc-head::after { content:""; flex:1; height:1px; background: linear-gradient(90deg, rgba(247,215,116,.6), transparent); }
+@media (prefers-reduced-motion: reduce) { .arc-tile::after, .arc-icon { animation: none; } }
+
 /* Red Riding Hood full-screen reveal */
 @keyframes rwgZoom { 0% { transform: scale(0.2) rotate(-8deg); opacity: 0; } 55% { transform: scale(1.12) rotate(4deg); opacity: 1; } 70% { transform: scale(.98) rotate(-2deg); } 100% { transform: scale(1.05) rotate(0deg); opacity: 1; } }

@@ -48,13 +48,16 @@ const GAME_GRAD: Record<string, string> = {
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
 };
 // Games grouped into categories for the lobby (name = id; label from gm.cat.<key>).
-const GAME_CATEGORIES: { name: string; key: string; emoji: string; games: string[] }[] = [
-  { name: "Guessing game", key: "guess", emoji: "🧠", games: ["number", "rps", "draw"] },
-  { name: "Dice game", key: "dice", emoji: "🎲", games: ["dice", "789"] },
-  { name: "Card game", key: "card", emoji: "🃏", games: ["cards", "poker3", "memory"] },
-  { name: "Who's the fastest", key: "fast", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"] },
-  { name: "Lucky game", key: "lucky", emoji: "🍀", games: ["wheel", "riding", "frog", "bridge"] },
+// c1/c2 = each category's neon colours in the arcade-style lobby.
+const GAME_CATEGORIES: { name: string; key: string; emoji: string; games: string[]; c1: string; c2: string }[] = [
+  { name: "Guessing game", key: "guess", emoji: "🧠", games: ["number", "rps", "draw"], c1: "#b36bff", c2: "#5b2bd6" },
+  { name: "Dice game", key: "dice", emoji: "🎲", games: ["dice", "789"], c1: "#29d8ff", c2: "#1463d6" },
+  { name: "Card game", key: "card", emoji: "🃏", games: ["cards", "poker3", "memory"], c1: "#ff4fa3", c2: "#b3127a" },
+  { name: "Who's the fastest", key: "fast", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"], c1: "#ffb020", c2: "#e8551c" },
+  { name: "Lucky game", key: "lucky", emoji: "🍀", games: ["wheel", "riding", "frog", "bridge"], c1: "#3ef08a", c2: "#0e9f57" },
 ];
+// Neon colour pair for a single game tile (taken from its gradient).
+const gameColors = (g: string): [string, string] => { const m = (GAME_GRAD[g] || "").match(/#[0-9a-fA-F]{6}/g) || []; return [m[0] || "#f0d787", m[1] || "#c9a84c"]; };
 
 // How-to-play lines per game: gm.rules.<game>.<n> for n = 1..count.
 const RULES: Record<string, number> = { rps: 5, tap: 4, draw: 5, bridge: 5, memory: 5, rlgl: 5, frog: 5, poker3: 6, cards: 6, dice: 6, wheel: 4, riding: 5, timer: 5, stack: 4, "789": 6, number: 5 };
@@ -191,21 +194,22 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
       </div>
 
       {!cat && (
-        <div className="gcard p-4">
-          <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">{t("gm.lobby.pickCat")}</p>
-          <div className="grid grid-cols-1 gap-2.5">
-            {cats.map((c) => {
-              const n = c.games.filter((g) => today[g]).length;
+        <div>
+          <p className="arc-head">🎮 {t("gm.lobby.pickCat")}</p>
+          <div className="grid grid-cols-1 gap-3">
+            {cats.map((c, i) => {
+              const list = c.games.filter((g) => today[g]);
+              const n = list.length;
               return (
-                <button key={c.name} onClick={() => setCat(c.name)}
-                  className="w-full min-w-0 flex items-center gap-3 p-3 rounded-2xl text-left border border-white/10 active:scale-[.98] transition"
-                  style={{ background: "rgba(255,255,255,0.04)" }}>
-                  <span className="gem shrink-0" style={{ width: 52, height: 52, fontSize: 28, background: "linear-gradient(135deg,#f0d787,#c9a44c)" }}>{c.emoji}</span>
+                <button key={c.name} onClick={() => setCat(c.name)} className="arc-tile"
+                  style={{ ["--c1" as any]: c.c1, ["--c2" as any]: c.c2, ["--d" as any]: `${i * 0.6}s` }}>
+                  <span className="arc-icon"><span>{c.emoji}</span></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-lg font-extrabold text-white leading-tight">{t(`gm.cat.${c.key}`)}</span>
-                    <span className="block text-[11px] text-white/55 truncate">{t(n === 1 ? "gm.lobby.gameCount1" : "gm.lobby.gameCountN", { n })} · {c.games.filter((g) => today[g]).map((g) => gameName(t, g)).join(" · ")}</span>
+                    <span className="arc-title">{t(`gm.cat.${c.key}`)}</span>
+                    <span className="arc-badge">🕹️ {t(n === 1 ? "gm.lobby.gameCount1" : "gm.lobby.gameCountN", { n })}</span>
+                    <span className="arc-chips" aria-hidden>{list.map((g) => <span key={g} className="arc-chip" title={gameName(t, g)}>{GAMES[g]?.emoji}</span>)}</span>
                   </span>
-                  <ChevronRight className="w-5 h-5 text-white/40 shrink-0" />
+                  <span className="arc-play">{t("gm.lobby.play")} ▶</span>
                 </button>
               );
             })}
@@ -217,20 +221,22 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
       {curCat && !game && (
         <div className="gcard p-4">
           <button onClick={() => setCat(null)} className="flex items-center gap-1 text-sm text-white/60 mb-3"><ChevronLeft className="w-4 h-4" /> {t("gm.back")}</button>
-          <p className="text-[11px] font-bold text-amber-300/80 uppercase tracking-wider mb-2">{curCat.emoji} {t(`gm.cat.${curCat.key}`)}</p>
-          <div className="grid grid-cols-1 gap-2.5">
-            {(curCat.games.filter((g) => today[g]) as GK[]).map((g) => (
-              <button key={g} onClick={() => pickGame(g)}
-                className="w-full min-w-0 flex items-center gap-3 p-3 rounded-2xl text-left border border-white/10 active:scale-[.98] transition"
-                style={{ background: "rgba(255,255,255,0.04)" }}>
-                <span className="gem shrink-0" style={{ width: 48, height: 48, fontSize: 26, background: GAME_GRAD[g] }}>{GAMES[g].emoji}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-lg font-extrabold text-white leading-tight">{gameName(t, g)}</span>
-                  <span className="block text-[11px] text-white/55">{gameBlurb(t, g)}</span>
-                </span>
-                <ChevronRight className="w-5 h-5 text-white/40 shrink-0" />
-              </button>
-            ))}
+          <p className="arc-head" style={{ color: curCat.c1, textShadow: `0 0 10px ${curCat.c1}88` }}>{curCat.emoji} {t(`gm.cat.${curCat.key}`)}</p>
+          <div className="grid grid-cols-1 gap-3">
+            {(curCat.games.filter((g) => today[g]) as GK[]).map((g, i) => {
+              const [c1, c2] = gameColors(g);
+              return (
+                <button key={g} onClick={() => pickGame(g)} className="arc-tile"
+                  style={{ ["--c1" as any]: c1, ["--c2" as any]: c2, ["--d" as any]: `${i * 0.6}s` }}>
+                  <span className="arc-icon"><span>{GAMES[g].emoji}</span></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="arc-title" style={{ fontSize: 17 }}>{gameName(t, g)}</span>
+                    <span className="mt-1 block text-[11px] leading-snug text-white/65">{gameBlurb(t, g)}</span>
+                  </span>
+                  <span className="arc-play">{t("gm.lobby.play")} ▶</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
