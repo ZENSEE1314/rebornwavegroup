@@ -11,8 +11,8 @@ import { ItemArt, COSTUME_FIT, PET_ART } from "@/components/pet-art";
 import { useTranslation } from "@/lib/i18n";
 
 const WALK_CSS = `
-@keyframes rwpetWaddle{0%{transform:translateY(0) rotate(-5deg) scale(1.03,.97)}25%{transform:translateY(-7%) rotate(0) scale(.98,1.03)}50%{transform:translateY(0) rotate(5deg) scale(1.03,.97)}75%{transform:translateY(-7%) rotate(0) scale(.98,1.03)}100%{transform:translateY(0) rotate(-5deg) scale(1.03,.97)}}
-@keyframes rwpetShadowStep{0%,50%,100%{transform:translateX(-50%) scale(1);opacity:.32}25%,75%{transform:translateX(-50%) scale(.78);opacity:.2}}
+@keyframes rwpetWaddle{0%,100%{transform:translateY(0) rotate(-3deg)}25%{transform:translateY(-4%) rotate(0)}50%{transform:translateY(0) rotate(3deg)}75%{transform:translateY(-4%) rotate(0)}}
+@keyframes rwpetShadowStep{0%,50%,100%{transform:translateX(-50%) scale(1);opacity:.32}25%,75%{transform:translateX(-50%) scale(.86);opacity:.24}}
 @keyframes rwpetIdle{0%,100%{transform:scale(1,1)}50%{transform:scale(1.025,.975)}}
 @keyframes rwpetHop{0%,100%{transform:translateY(0) scale(1,1)}15%{transform:translateY(0) scale(1.1,.88)}45%{transform:translateY(-26%) scale(.94,1.08)}75%{transform:translateY(0) scale(1.08,.92)}}
 @keyframes rwpetLook{0%,100%{transform:rotate(0)}30%{transform:rotate(-7deg)}70%{transform:rotate(7deg)}}
@@ -22,18 +22,19 @@ const WALK_CSS = `
 @keyframes rwpetCloud{0%{transform:translateX(-30px)}100%{transform:translateX(90px)}}
 @keyframes rwpetTwinkle{0%,100%{opacity:.35}50%{opacity:1}}
 @keyframes rwpetBubble{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-.rwpet-walker{position:absolute;bottom:11%;width:34%;aspect-ratio:1;cursor:pointer;z-index:5;will-change:left;}
+.rwpet-walker{position:absolute;bottom:11%;width:34%;aspect-ratio:1;cursor:pointer;z-index:5;will-change:transform;}
 .rwpet-shadow{position:absolute;left:50%;bottom:1%;width:56%;height:8%;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.32);filter:blur(3px);}
 .rwpet-face{position:relative;width:100%;height:100%;transition:transform .28s ease;}
 .rwpet-step{position:relative;width:100%;height:100%;transform-origin:50% 100%;}
-.rwpet-m-walk .rwpet-step{animation:rwpetWaddle .6s linear infinite;}
-.rwpet-m-walk .rwpet-shadow{animation:rwpetShadowStep .6s linear infinite;}
+.rwpet-m-walk .rwpet-step{animation:rwpetWaddle .8s ease-in-out infinite;}
+.rwpet-m-walk .rwpet-shadow{animation:rwpetShadowStep .8s ease-in-out infinite;}
 .rwpet-m-idle .rwpet-step{animation:rwpetIdle 2.2s ease-in-out infinite;}
 .rwpet-m-look .rwpet-step{animation:rwpetLook 1.6s ease-in-out infinite;}
 .rwpet-m-hop .rwpet-step{animation:rwpetHop .7s ease-out 2;}
 .rwpet-pop{animation:rwpetPop .55s ease !important;}
 .rwpet-sleep .rwpet-step{animation:rwpetBreathe 2.6s ease-in-out infinite;}
 .rwpet-sleep img{filter:brightness(.85) saturate(.8);}
+.rwpet-layer{max-width:none !important;height:auto !important;}
 .rwpet-heart{position:absolute;left:50%;top:0;font-size:20px;animation:rwpetHeart 1s ease-out forwards;pointer-events:none;}
 `;
 
@@ -332,7 +333,7 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
           <div className="rwpet-face" style={{ transform: `scaleX(${wander.facing})` }}>
             <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
               {layers
-                ? <DressedPet home={home} worn={worn} alt={pet.name} className={sick ? "grayscale opacity-70" : ""} />
+                ? <DressedPet home={home} worn={worn} alt={pet.name} gender={pet.gender} className={sick ? "grayscale opacity-70" : ""} />
                 : <img src={img} alt={pet.name} className={`w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />}
               {(["neck", "face", "head"] as const).map((part) => {
                 const it = worn[part] && itemById(home, worn[part]);
@@ -424,18 +425,31 @@ const PORTRAIT_ORDER = ["clothing", "footwear", "aura", "back", "head", "face", 
 // Doluruu drawn from layers on a 300x360 canvas: clothing (or shirtless base),
 // footwear, then face and head items placed by matching the eyes.
 const CANVAS_W = 300, CANVAS_H = 360;
-function DressedPet({ home, worn, alt, className = "" }: any) {
-  const layers = outfitLayers(home, worn) || [];
+// The clean full-body Doluruu pictures, used whenever no clothing / shoes are worn
+// (the sheet-cut shirtless base is clipped at the shell). box = tight crop around
+// the pet inside the file; eyes = [x, y, distance] inside that box.
+const PLAIN_PET = {
+  male: { src: petMale, w: 500, h: 500, box: [72, 22, 332, 439], eyes: [128, 133, 102] },
+  female: { src: petFemale, w: 1024, h: 1024, box: [158, 37, 655, 889], eyes: [248.5, 276.3, 200.7] },
+};
+// Soften the lower edge of hat / glasses overlays so they blend into the head.
+const OVERLAY_FADE = "linear-gradient(to bottom, #000 70%, transparent 100%)";
+function DressedPet({ home, worn, alt, gender, className = "" }: any) {
+  const plain = !worn.clothing && !worn.footwear && PLAIN_PET[gender === "female" ? "female" : "male"];
+  const layers = plain ? [] : outfitLayers(home, worn) || [];
   const cloth = worn.clothing && itemById(home, worn.clothing);
-  const eyes: number[] | undefined = cloth?.eyes || home?.baseEyes;
+  const cw = plain ? plain.box[2] : CANVAS_W, ch = plain ? plain.box[3] : CANVAS_H;
+  const eyes: number[] | undefined = plain ? plain.eyes : cloth?.eyes || home?.baseEyes;
   const extras = ["face", "head"].map((k) => worn[k] && itemById(home, worn[k])).filter((i: any) => i?.overlay && i.anchor);
   return (
-    <div className="absolute bottom-0 left-1/2 h-full -translate-x-1/2" style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}>
+    <div className="absolute bottom-0 left-1/2 h-full -translate-x-1/2" style={{ aspectRatio: `${cw} / ${ch}` }}>
+      {plain && <img src={plain.src} alt={alt} draggable={false} className={`rwpet-layer absolute ${className}`}
+        style={{ left: `${(-plain.box[0] / cw) * 100}%`, top: `${(-plain.box[1] / ch) * 100}%`, width: `${(plain.w / cw) * 100}%` }} />}
       {layers.map((src, i) => <img key={src} src={src} alt={i === 0 ? alt : ""} className={`absolute inset-0 h-full w-full ${className}`} draggable={false} />)}
       {eyes && extras.map((it: any) => {
         const [ax, ay, d, ow] = it.anchor; const s = eyes[2] / d;
-        return <img key={it.id} src={it.overlay} alt="" draggable={false} className={`absolute max-w-none ${className}`}
-          style={{ left: `${((eyes[0] - ax * s) / CANVAS_W) * 100}%`, top: `${((eyes[1] - ay * s) / CANVAS_H) * 100}%`, width: `${((ow * s) / CANVAS_W) * 100}%` }} />;
+        return <img key={it.id} src={it.overlay} alt="" draggable={false} className={`rwpet-layer absolute ${className}`}
+          style={{ left: `${((eyes[0] - ax * s) / cw) * 100}%`, top: `${((eyes[1] - ay * s) / ch) * 100}%`, width: `${((ow * s) / cw) * 100}%`, WebkitMaskImage: OVERLAY_FADE, maskImage: OVERLAY_FADE }} />;
       })}
     </div>
   );
@@ -461,7 +475,7 @@ function OutfitCard({ pet, home }: any) {
     <div className="mx-3 mt-3 flex items-center gap-3 rounded-2xl border border-amber-300/25 bg-gradient-to-r from-amber-300/10 to-fuchsia-400/10 p-2.5">
       <div className="h-20 w-20 shrink-0 rounded-xl shadow-lg ring-2 ring-amber-300/60" style={{ background: "radial-gradient(circle at 50% 40%, #fff3d6, #f3c98b)" }}>
         {layers
-          ? <div className="relative h-full w-full p-1"><DressedPet home={home} worn={worn} alt="" /></div>
+          ? <div className="relative h-full w-full p-1"><DressedPet home={home} worn={worn} alt="" gender={pet.gender} /></div>
           : <img src={main.figure || main.image} alt={main.name} className={`h-full w-full ${main.figure ? "object-contain object-bottom p-1" : "rounded-xl object-cover"}`} />}
       </div>
       <div className="min-w-0 flex-1">
