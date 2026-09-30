@@ -149,10 +149,17 @@ export function serveStatic(app: Express) {
   });
 
   console.log(`[static] Serving static files from: ${distPath}`);
-  app.use(express.static(distPath));
+  // Hashed build files never change → cache them for a year; index.html is sent
+  // below with no-cache so phones always pick up the newest file names.
+  app.use("/assets", express.static(path.join(distPath, "assets"), { immutable: true, maxAge: "1y", fallthrough: true }));
+  app.use(express.static(distPath, { index: false }));
+  // A build file that no longer exists (old version) must 404 — not return the
+  // app's HTML, which makes the page import fail with a confusing error.
+  app.use("/assets", (_req, res) => { res.status(404).set("Cache-Control", "no-store").end(); });
 
   // fall through to index.html, injecting live SEO meta tags
   app.use("*", async (req, res) => {
+    res.set("Cache-Control", "no-cache");
     if (!baseHtml) {
       return res.sendFile(path.resolve(distPath!, "index.html"));
     }

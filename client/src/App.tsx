@@ -7,7 +7,31 @@ import { useAuth } from "@/hooks/useAuth";
 import { setLanguage, translate } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useEffect, Component, lazy, Suspense, type ReactNode } from "react";
+import { useEffect, Component, lazy as reactLazy, Suspense, type ReactNode, type ComponentType } from "react";
+
+// After a new version is deployed, page files get new names; a phone still running
+// the old version asks for files that no longer exist. When a page file fails to
+// load, reload once (fresh index.html → new file names) instead of showing an error.
+const RELOAD_KEY = "rwg-chunk-reload";
+function reloadForNewVersion(): boolean {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+    if (Date.now() - last < 30_000) return false; // already tried just now → show the error
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+  } catch { /* storage blocked: still reload once */ }
+  window.location.reload();
+  return true;
+}
+function lazy<T extends ComponentType<any>>(load: () => Promise<{ default: T }>) {
+  return reactLazy(() => load().catch((err) => {
+    if (reloadForNewVersion()) return new Promise<{ default: T }>(() => {}); // page is reloading
+    throw err;
+  }));
+}
+if (typeof window !== "undefined") {
+  // Vite's own preload failures (CSS/JS of a page) — same fix.
+  window.addEventListener("vite:preloadError", (e) => { if (reloadForNewVersion()) e.preventDefault(); });
+}
 
 // ── Error boundary for the whole app ──────────────────────────────────────────
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -38,9 +62,9 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
       return (
         <div className="rwg-page-bg min-h-screen w-full flex items-center justify-center">
           <div className="text-center">
-            <p className="text-white/60 text-sm mb-4">Failed to load page. Check your connection.</p>
-            <button type="button" onClick={() => window.location.reload()} className="px-4 py-2 bg-violet-700 text-white rounded-lg text-sm cursor-pointer">
-              Retry
+            <p className="text-white/60 text-sm mb-4 px-6">{translate("app.loadFailed")}</p>
+            <button type="button" onClick={() => { try { sessionStorage.removeItem(RELOAD_KEY); } catch {} window.location.reload(); }} className="px-4 py-2 bg-violet-700 text-white rounded-lg text-sm cursor-pointer">
+              {translate("app.retry")}
             </button>
           </div>
         </div>

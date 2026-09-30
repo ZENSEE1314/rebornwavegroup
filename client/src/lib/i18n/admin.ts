@@ -714,6 +714,10 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.crm.bot': { en: "🤖 bot · ", zh: "🤖 机器人 · ", id: "🤖 bot · " },
   'admin.crm.notLinked': { en: "⚠️ WhatsApp not linked — messages are saved but won't be delivered until you link a number.", zh: "⚠️ WhatsApp 未关联——消息会被保存，但在关联号码之前不会送达。", id: "⚠️ WhatsApp belum ditautkan — pesan disimpan tetapi tidak akan terkirim sampai Anda menautkan nomor." },
   'admin.crm.typeMsg': { en: "Type a message…", zh: "输入消息…", id: "Ketik pesan…" },
+  'admin.faq.translate': { en: 'Translate from English → 中文 + Bahasa', zh: '从英文翻译 → 中文 + 印尼语', id: 'Terjemahkan dari Inggris → 中文 + Bahasa' },
+  'admin.faq.translating': { en: 'Translating…', zh: '正在翻译…', id: 'Menerjemahkan…' },
+  'admin.faq.translated': { en: 'Translated — check it, then press Save', zh: '已翻译——请检查后点击“保存”', id: 'Sudah diterjemahkan — periksa, lalu tekan Simpan' },
+  'admin.faq.overwrite': { en: 'Replace the Chinese and Bahasa text with a new translation?', zh: '要用新的翻译替换中文和印尼语内容吗？', id: 'Ganti teks Mandarin dan Bahasa dengan terjemahan baru?' },
   'admin.faq.inZh': { en: 'Chinese (中文) — shown to members using Chinese', zh: '中文 — 显示给使用中文的会员', id: 'Mandarin (中文) — ditampilkan untuk member berbahasa Mandarin' },
   'admin.faq.inId': { en: 'Bahasa Indonesia — shown to members using Bahasa', zh: '印尼语 — 显示给使用印尼语的会员', id: 'Bahasa Indonesia — ditampilkan untuk member berbahasa Indonesia' },
   // ── Staff guide for admins (POS + admin panel) — OnboardingWalkthrough with prefix "admin.guide" ──

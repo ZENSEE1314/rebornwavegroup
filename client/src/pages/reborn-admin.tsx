@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
@@ -972,10 +972,26 @@ function Faq() {
 function FaqRow({ f, onSave, onDelete }: any) {
   const [e, setE] = useState(f);
   const { t } = useTranslation();
+  const { toast } = useToast();
+  // Fill the Chinese + Bahasa boxes from the English question/answer.
+  const translateAll = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/translate", { texts: [e.question || "", e.answer || ""] }).then((r) => r.json()),
+    onSuccess: (d: any) => {
+      setE((cur: any) => ({ ...cur, i18n: { ...(cur.i18n || {}), zh: { question: d.zh[0], answer: d.zh[1] }, id: { question: d.id[0], answer: d.id[1] } } }));
+      toast({ title: t("admin.faq.translated") });
+    },
+    onError: (err: any) => toast({ title: t("admin.c.failed"), description: String(err.message || "").replace(/^\d+:\s*/, ""), variant: "destructive" }),
+  });
+  const hasOther = ["zh", "id"].some((l) => e.i18n?.[l]?.question || e.i18n?.[l]?.answer);
   return (
     <Card>
       <input value={e.question} onChange={(x) => setE({ ...e, question: x.target.value })} placeholder={t("admin.faq.question")} className={inp + " w-full mb-2"} />
       <textarea value={e.answer} onChange={(x) => setE({ ...e, answer: x.target.value })} placeholder={t("admin.faq.answer")} rows={2} className={inp + " w-full mb-2"} />
+      <button type="button" disabled={translateAll.isPending || !(e.question || e.answer)}
+        onClick={() => { if (!hasOther || confirm(t("admin.faq.overwrite"))) translateAll.mutate(); }}
+        className="mb-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sky-400/50 bg-sky-500/15 px-3 py-2 text-sm font-bold text-sky-100 hover:bg-sky-500/25 disabled:opacity-50">
+        <Languages className="w-4 h-4" /> {translateAll.isPending ? t("admin.faq.translating") : t("admin.faq.translate")}
+      </button>
       {(["zh", "id"] as const).map((l) => (
         <div key={l} className="mb-2 rounded-lg border border-white/10 p-2">
           <p className="mb-1 text-[11px] font-semibold text-white/50">{t(l === "zh" ? "admin.faq.inZh" : "admin.faq.inId")}</p>
