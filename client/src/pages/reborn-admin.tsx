@@ -800,7 +800,7 @@ function SongRow({ s, onSave, onDelete }: any) {
 function SongRequests() {
   const qc = useQueryClient();
   const { t } = useTranslation();
-  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/song-requests"], queryFn: () => apiRequest("GET", "/api/reborn/admin/song-requests").then((r) => r.json()) });
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/song-requests"], queryFn: () => apiRequest("GET", "/api/reborn/admin/song-requests").then((r) => r.json()), refetchInterval: 10000, refetchOnWindowFocus: true });
   const act = useMutation({ mutationFn: ({ id, approve, comment }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}`, { approve, comment }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/song-requests"] }) });
   if (rows.length === 0) return <Empty text={t("admin.req.empty")} />;
   return (

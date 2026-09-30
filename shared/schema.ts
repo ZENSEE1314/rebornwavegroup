@@ -804,6 +804,7 @@ export const songs = pgTable("songs", {
 // A member's request to sing a song; admin confirms → member sees a tick
 export const songRequests = pgTable("song_requests", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"), // which venue the request is for (admin lists filter on it)
   userId: varchar("user_id").notNull(),
   songId: integer("song_id"),
   title: varchar("title").notNull(),
