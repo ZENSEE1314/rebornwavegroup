@@ -620,4 +620,7 @@ export const gamesT: Record<string, { en: string; zh: string; id: string }> = {
   "gm.w.backpack": { en: "backpack", zh: "背包", id: "ransel" },
   "gm.w.rocket": { en: "rocket", zh: "火箭", id: "roket" },
   "gm.w.football": { en: "football", zh: "足球", id: "bola sepak" },
+  "gm.room.waitingPlayers": { en: "Waiting for players", zh: "等待玩家加入", id: "Menunggu pemain" },
+  "gm.room.readyToStart": { en: "Ready to start", zh: "可以开始了", id: "Siap dimulai" },
+  "gm.room.emptySlot": { en: "Open", zh: "空位", id: "Kosong" },
 };
