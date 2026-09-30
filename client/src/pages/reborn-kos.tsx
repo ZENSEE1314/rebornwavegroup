@@ -393,7 +393,7 @@ function Burst({ x, y, n, size, delay, loop }: { x: string; y: string; n: number
     </div>
   );
 }
-function FireworksScene({ art }: { art: ReactNode }) {
+function FireworksScene() {
   return (
     <div className="gs-fw">
       <div className="gs-fw-sky" />
@@ -403,7 +403,7 @@ function FireworksScene({ art }: { art: ReactNode }) {
       <Burst x="78%" y="22%" n={26} size={90} delay={2.4} loop />
       <Burst x="35%" y="40%" n={20} size={70} delay={3.1} loop />
       <Burst x="68%" y="12%" n={20} size={70} delay={3.6} loop />
-      <div className="gs-fw-gift">{art}</div>
+      <Burst x="50%" y="30%" n={36} size={120} delay={4.2} loop />
     </div>
   );
 }
@@ -440,7 +440,7 @@ function DiamondsScene({ art }: { art: ReactNode }) {
 
 function GiftScene({ kind, art }: { kind: Scene; art: ReactNode }) {
   if (kind === "car") return <CarScene art={art} />;
-  if (kind === "fireworks") return <FireworksScene art={art} />;
+  if (kind === "fireworks") return <FireworksScene />;
   if (kind === "crown") return <CrownScene art={art} />;
   return <DiamondsScene art={art} />;
 }
