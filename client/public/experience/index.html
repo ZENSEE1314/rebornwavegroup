@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Montserrat:wght@400;500;600;800;900&display=swap" rel="stylesheet" />
   <!-- Bump ?v= on every release: CDN caches these for 4h, the HTML is uncached. -->
-  <link rel="stylesheet" href="./style.css?v=20261001-1" />
+  <link rel="stylesheet" href="./style.css?v=20261001-2" />
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
   </script>
@@ -66,14 +66,20 @@
 
   <!-- Story overlays: each beat fades in/out over a scroll window [data-a, data-b]. -->
   <main id="story">
-    <section class="beat center" data-a="0" data-b="0.038">
+    <section class="beat center" data-a="0" data-b="0.018">
       <p class="eyebrow">Batam · Harbourfront</p>
       <h1 class="display">REBORN WAVE</h1>
       <p class="lede">One destination. Five worlds.</p>
       <p class="hint" id="hint">Scroll to step inside <span>↓</span></p>
     </section>
 
-    <section class="beat left" data-a="0.040" data-b="0.080">
+    <section class="beat left" data-a="0.019" data-b="0.040">
+      <p class="eyebrow" data-t="parkEyebrow">Exclusive</p>
+      <h2 data-t="parkTitle">VIP parking lots</h2>
+      <p data-t="parkBody">Park right at our door — a built-in lift takes you straight to every level, 1F to 5F.</p>
+    </section>
+
+    <section class="beat left" data-a="0.044" data-b="0.080">
       <p class="eyebrow">The world's first</p>
       <h2>5‑in‑1 destination</h2>
       <p>Beauty, Food &amp; Beverage, Gaming, KTV and IT — under one roof, in one membership.</p>
@@ -216,6 +222,6 @@
     <video id="vplayer" controls playsinline loop></video>
   </dialog>
 
-  <script type="module" src="./app.js?v=20261001-1"></script>
+  <script type="module" src="./app.js?v=20261001-2"></script>
 </body>
 </html>
