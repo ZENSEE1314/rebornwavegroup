@@ -310,7 +310,7 @@ function GiftTypes() {
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/gifttypes"], queryFn: () => apiRequest("GET", "/api/reborn/admin/gifttypes").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/gifttypes"] });
   const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/gifttypes", { name: t("admin.gift.newName"), emoji: "🎁", kgoldCost: 1000 }).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.gift.added") }); inv(); } });
-  const save = useMutation({ mutationFn: (g: any) => apiRequest("PUT", `/api/reborn/admin/gifttypes/${g.id}`, g).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.gift.saved") }); inv(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
+  const save = useMutation({ mutationFn: (g: any) => apiRequest("PUT", `/api/reborn/admin/gifttypes/${g.id}`, g).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.gift.saved") }); inv(); }, onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }) });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/gifttypes/${id}`), onSuccess: () => { toast({ title: t("admin.gift.deleted") }); inv(); } });
   return (
     <div>
@@ -320,23 +320,24 @@ function GiftTypes() {
     </div>
   );
 }
-const GAME_META: Record<string, { name: string; emoji: string }> = {
-  rps: { name: "Rock Paper Scissors", emoji: "✊" },
-  tap: { name: "Gold Rush (Tap)", emoji: "⛏️" },
-  cards: { name: "Card Match", emoji: "🃏" },
-  poker3: { name: "3-Card Poker", emoji: "🂡" },
-  frog: { name: "Frog Jump", emoji: "🐸" },
-  rlgl: { name: "Red Light, Green Light", emoji: "🚦" },
-  memory: { name: "Memory Match", emoji: "🧠" },
-  bridge: { name: "Glass Bridge", emoji: "🌉" },
-  draw: { name: "Draw & Guess", emoji: "🎨" },
-  dice: { name: "Dice Bluffing Game", emoji: "🎲" },
-  wheel: { name: "Spin the Wheel", emoji: "🎡" },
-  riding: { name: "Red Riding Hood", emoji: "👵" },
-  timer: { name: "Stop the Clock", emoji: "⏱️" },
-  "789": { name: "789 Dice", emoji: "🎯" },
-  stack: { name: "Tower Stack", emoji: "🧱" },
-  number: { name: "Guess the Number", emoji: "🔢" },
+// Game names are translated via admin.game.<key>.
+const GAME_META: Record<string, { emoji: string }> = {
+  rps: { emoji: "✊" },
+  tap: { emoji: "⛏️" },
+  cards: { emoji: "🃏" },
+  poker3: { emoji: "🂡" },
+  frog: { emoji: "🐸" },
+  rlgl: { emoji: "🚦" },
+  memory: { emoji: "🧠" },
+  bridge: { emoji: "🌉" },
+  draw: { emoji: "🎨" },
+  dice: { emoji: "🎲" },
+  wheel: { emoji: "🎡" },
+  riding: { emoji: "👵" },
+  timer: { emoji: "⏱️" },
+  "789": { emoji: "🎯" },
+  stack: { emoji: "🧱" },
+  number: { emoji: "🔢" },
 };
 const WDAYS = ["1", "2", "3", "4", "5", "6", "0"];
 function GamesAdmin() {
@@ -1651,6 +1652,7 @@ function PayrollRow({initial,onSave,onPay,money}:any){const { t } = useTranslati
 
 function Inventory() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/inventory"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory").then((r) => r.json()) });
   const adjust = useMutation({
@@ -1668,11 +1670,11 @@ function Inventory() {
     ? items.reduce((a, it) => ({ units: a.units + it.stock, cost: a.cost + it.stockValue, retail: a.retail + it.retailValue, low: a.low + (it.low ? 1 : 0) }), { units: 0, cost: 0, retail: 0, low: 0 })
     : (data?.totals || { units: 0, cost: 0, retail: 0, low: 0 });
   const step = (it: any, delta: number) => {
-    if (delta > 0) { const c = prompt(`Add how many "${it.name}"?`, "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; const supplier = prompt("Supplier for this batch (optional — same item can come from many suppliers)", it.suppliers?.[0] || "") || undefined; const uc = prompt("Unit cost (RP) — leave blank to skip expense", ""); adjust.mutate({ productId: it.id, qty: q, unitCost: uc ? Number(uc) : undefined, supplier }); }
-    else { const c = prompt(`Deduct how many "${it.name}"? (spoilage / adjustment)`, "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; adjust.mutate({ productId: it.id, qty: -Math.abs(q) }); }
+    if (delta > 0) { const c = prompt(t("admin.inv.addHowMany", { name: it.name }), "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; const supplier = prompt(t("admin.inv.supplierPrompt"), it.suppliers?.[0] || "") || undefined; const uc = prompt(t("admin.inv.unitCostPrompt"), ""); adjust.mutate({ productId: it.id, qty: q, unitCost: uc ? Number(uc) : undefined, supplier }); }
+    else { const c = prompt(t("admin.inv.deductHowMany", { name: it.name }), "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; adjust.mutate({ productId: it.id, qty: -Math.abs(q) }); }
   };
   const exportCsv = () => {
-    const rows = [["Category", "Item", "Stock", "Unit cost", "Stock value", "Retail value"], ...items.map((i) => [i.category, i.name, String(i.stock), String(i.cost), String(i.stockValue), String(i.retailValue)])];
+    const rows = [[t("admin.prod.category"), t("admin.prod.item"), t("admin.prod.stock"), t("admin.inv.unitCost"), t("admin.inv.stockValue"), t("admin.inv.retailValue")], ...items.map((i) => [i.category, i.name, String(i.stock), String(i.cost), String(i.stockValue), String(i.retailValue)])];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a"); a.href = url; a.download = `inventory-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
@@ -1681,12 +1683,12 @@ function Inventory() {
     <div className="space-y-3">
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Units</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
-        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Stock value</p><p className="text-base font-extrabold text-amber-300">{money(totals.cost || 0)}</p></div>
-        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Retail value</p><p className="text-base font-extrabold text-emerald-300">{money(totals.retail || 0)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.stockValue")}</p><p className="text-base font-extrabold text-amber-300">{money(totals.cost || 0)}</p></div>
+        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.retailValue")}</p><p className="text-base font-extrabold text-emerald-300">{money(totals.retail || 0)}</p></div>
       </div>
       <div className="flex items-center gap-2">
-        {(data?.totals?.low || 0) > 0 && <span className="inline-flex items-center gap-1 text-xs text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-2.5 py-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {data.totals.low} low-stock item(s)</span>}
+        {(data?.totals?.low || 0) > 0 && <span className="inline-flex items-center gap-1 text-xs text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-2.5 py-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {t("admin.inv.lowItems", { n: data.totals.low })}</span>}
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
       {/* Desktop: spreadsheet view */}
@@ -1700,8 +1702,8 @@ function Inventory() {
             <div key={it.id} className="flex items-center gap-2 py-2 border-b border-white/5 last:border-0">
               {it.imageUrl ? <img src={it.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" /> : <span className="w-9 h-9 rounded-lg bg-white/5 flex-shrink-0" />}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate flex items-center gap-1.5">{it.name}{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">LOW</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">NOT IN POS</span>}</p>
-                <p className="text-[11px] text-white/40">cost {money(it.cost)} · value {money(it.stockValue)}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
+                <p className="text-sm font-semibold truncate flex items-center gap-1.5">{it.name}{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</p>
+                <p className="text-[11px] text-white/40">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
               </div>
               <button onClick={() => step(it, -1)} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center" style={{ fontSize: 16 }}>−</button>
               <span className={`w-10 text-center font-extrabold ${it.low ? "text-red-300" : "text-white"}`}>{it.stock}</span>
@@ -1711,12 +1713,13 @@ function Inventory() {
         </Card>
       ))}
       </div>
-      {items.length === 0 && <Empty text="No products yet. Add products in the Products tab." />}
+      {items.length === 0 && <Empty text={t("admin.inv.empty")} />}
     </div>
   );
 }
 
 function InventoryTable({ items, money, step }: { items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void }) {
+  const { t } = useTranslation();
   const rows = [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
   return (
     <Card>
@@ -1724,20 +1727,20 @@ function InventoryTable({ items, money, step }: { items: any[]; money: (v: numbe
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
-              <th className="py-2 px-2 font-semibold">Item</th>
-              <th className="py-2 px-2 font-semibold">Category</th>
-              <th className="py-2 px-2 font-semibold">Industry</th>
-              <th className="py-2 px-2 font-semibold">Supplier(s)</th>
-              <th className="py-2 px-2 font-semibold text-right">Unit cost</th>
-              <th className="py-2 px-2 font-semibold text-right">Stock value</th>
-              <th className="py-2 px-2 font-semibold text-right">Retail value</th>
-              <th className="py-2 px-2 font-semibold text-center min-w-[130px]">Stock</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.prod.item")}</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.prod.category")}</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.inv.industry")}</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.inv.suppliers")}</th>
+              <th className="py-2 px-2 font-semibold text-right">{t("admin.inv.unitCost")}</th>
+              <th className="py-2 px-2 font-semibold text-right">{t("admin.inv.stockValue")}</th>
+              <th className="py-2 px-2 font-semibold text-right">{t("admin.inv.retailValue")}</th>
+              <th className="py-2 px-2 font-semibold text-center min-w-[130px]">{t("admin.prod.stock")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((it) => (
               <tr key={it.id} className={`border-b border-white/5 hover:bg-white/[0.03] ${it.low ? "bg-red-500/5" : ""}`}>
-                <td className="px-2 py-1.5"><div className="flex items-center gap-2">{it.imageUrl ? <img src={it.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<span className="font-medium">{it.name}</span>{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">LOW</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">NOT IN POS</span>}</div></td>
+                <td className="px-2 py-1.5"><div className="flex items-center gap-2">{it.imageUrl ? <img src={it.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<span className="font-medium">{it.name}</span>{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</div></td>
                 <td className="px-2 py-1.5 text-white/60">{it.category}</td>
                 <td className="px-2 py-1.5 text-white/60">{deptLabel(it.department) || "—"}</td>
                 <td className="px-2 py-1.5 text-white/50 text-xs">{it.suppliers?.length ? it.suppliers.join(", ") : "—"}</td>
@@ -1756,16 +1759,17 @@ function InventoryTable({ items, money, step }: { items: any[]; money: (v: numbe
 
 function AdminBookings() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/bookings"], queryFn: () => apiRequest("GET", "/api/reborn/admin/bookings").then((r) => r.json()), refetchInterval: 30000 });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/bookings"] });
   const setStatus = useMutation({
     mutationFn: (v: { id: number; status: string; note?: string }) => apiRequest("POST", `/api/reborn/admin/bookings/${v.id}/status`, { status: v.status, note: v.note }).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Updated" }); inv(); },
+    onSuccess: () => { toast({ title: t("admin.c.updated") }); inv(); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
-  const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+  const fmt = (iso: string) => new Date(iso).toLocaleString(localeTag(), { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
   const list = rows.filter((b) => (filter === "upcoming" ? b.upcoming && b.status !== "cancelled" : true));
   const sColor: Record<string, string> = { confirmed: "text-emerald-300", pending: "text-amber-300", scheduled: "text-blue-300", completed: "text-white/40", cancelled: "text-red-300", blocked: "text-orange-300" };
   return (
@@ -1774,70 +1778,72 @@ function AdminBookings() {
       <BlockSlot onDone={inv} />
       <div className="flex gap-2">
         {(["upcoming", "all"] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${filter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{f}</button>
+          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${filter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.bk.filter." + f)}</button>
         ))}
-        <span className="ml-auto text-xs text-white/40 self-center">{list.length} item(s)</span>
+        <span className="ml-auto text-xs text-white/40 self-center">{t("admin.bk.items", { n: list.length })}</span>
       </div>
-      <p className="text-[11px] text-white/40 px-1">Tap <b>✓ Arrived</b> when the guest checks in. Bookings not marked Arrived within 15 min of their time are auto-cancelled, the guest gets a WhatsApp, and the slot opens again.</p>
+      <p className="text-[11px] text-white/40 px-1">{t("admin.bk.arrivedHint")}</p>
       {list.map((b) => (
         <div key={b.id} className="rounded-xl bg-white/5 border border-white/10 p-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="text-sm font-bold truncate">{b.status === "blocked" ? "🚫 " : ""}{b.title}</p>
               {b.status !== "blocked" && <p className="text-[11px] text-white/50">{b.memberName}{b.memberPhone ? ` · ${b.memberPhone}` : ""}</p>}
-              <p className="text-[11px] text-white/40 mt-0.5">📅 {fmt(b.appointmentDate)} · {Math.round((b.duration || 120) / 60)}h · {b.description}</p>
+              <p className="text-[11px] text-white/40 mt-0.5">📅 {fmt(b.appointmentDate)} · {t("admin.bk.hoursN", { n: Math.round((b.duration || 120) / 60) })} · {b.description}</p>
               {b.adminNote && <p className="text-[11px] text-amber-300/80 mt-0.5">📝 {b.adminNote}</p>}
             </div>
-            <span className={`text-xs font-bold flex-shrink-0 ${sColor[b.status] || "text-white/50"}`}>{b.status}</span>
+            <span className={`text-xs font-bold flex-shrink-0 ${sColor[b.status] || "text-white/50"}`}>{tv(t, "admin.st." + b.status, b.status)}</span>
           </div>
           {b.status === "blocked" ? (
-            <button onClick={() => { if (confirm("Unblock this slot?")) setStatus.mutate({ id: b.id, status: "cancelled" }); }} className="mt-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white/70">Unblock</button>
+            <button onClick={() => { if (confirm(t("admin.bk.unblockConfirm"))) setStatus.mutate({ id: b.id, status: "cancelled" }); }} className="mt-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white/70">{t("admin.bk.unblock")}</button>
           ) : b.status !== "cancelled" && b.status !== "completed" && (
             <div className="flex gap-2 mt-2">
-              {b.status !== "confirmed" && <button onClick={() => setStatus.mutate({ id: b.id, status: "confirmed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">Confirm</button>}
-              <button onClick={() => setStatus.mutate({ id: b.id, status: "completed" })} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${b.started ? "bg-sky-500/20 text-sky-200 border border-sky-400/40" : "bg-white/10 text-white/70"}`}>✓ Arrived</button>
-              <button onClick={() => { const note = prompt("Reject/cancel — reason for the guest (optional):", "") ?? undefined; setStatus.mutate({ id: b.id, status: "cancelled", note }); }} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 text-red-200 border border-red-400/40">Reject</button>
+              {b.status !== "confirmed" && <button onClick={() => setStatus.mutate({ id: b.id, status: "confirmed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">{t("admin.c.confirm")}</button>}
+              <button onClick={() => setStatus.mutate({ id: b.id, status: "completed" })} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${b.started ? "bg-sky-500/20 text-sky-200 border border-sky-400/40" : "bg-white/10 text-white/70"}`}>{t("admin.bk.arrived")}</button>
+              <button onClick={() => { const note = prompt(t("admin.bk.rejectPrompt"), "") ?? undefined; setStatus.mutate({ id: b.id, status: "cancelled", note }); }} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 text-red-200 border border-red-400/40">{t("admin.c.reject")}</button>
             </div>
           )}
         </div>
       ))}
-      {list.length === 0 && <Empty text="No bookings." />}
+      {list.length === 0 && <Empty text={t("admin.bk.empty")} />}
     </div>
   );
 }
 
 function AdminBottles() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/bottle-keeps", q], queryFn: () => apiRequest("GET", `/api/reborn/pos/bottle-keeps${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()) });
   const collect = useMutation({
     mutationFn: (id: number) => apiRequest("POST", `/api/reborn/pos/bottle-keeps/${id}/collect`, {}).then((r) => r.json()),
-    onSuccess: (d: any) => { toast({ title: d.message || "Redeemed" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
+    onSuccess: (d: any) => { toast({ title: d.message || t("admin.bot.redeemed") }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const kept = rows.filter((b) => b.status === "kept");
   return (
     <div className="space-y-3">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search member name / code…" className={inp + " w-full"} />
-      <p className="text-xs text-white/40 px-1">{kept.length} bottle(s) kept</p>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("admin.bot.search")} className={inp + " w-full"} />
+      <p className="text-xs text-white/40 px-1">{t("admin.bot.kept", { n: kept.length })}</p>
       {kept.map((b) => (
         <div key={b.id} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
           {b.photoUrl ? <img src={b.photoUrl} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" /> : <span className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0"><Wine className="w-5 h-5 text-amber-300" /></span>}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold truncate">{b.name} <span className="text-white/40 text-xs capitalize">· {b.type}{b.type === "beer" ? ` · ${b.quantity} left` : ""}</span></p>
-            <p className="text-[11px] text-white/40 truncate">{b.memberName || "—"}{b.memberCode ? ` · ${b.memberCode}` : ""}{b.expiresAt ? ` · exp ${new Date(b.expiresAt).toLocaleDateString()}` : ""}</p>
+            <p className="text-sm font-semibold truncate">{b.name} <span className="text-white/40 text-xs capitalize">· {tv(t, "admin.bot.type." + b.type, b.type)}{b.type === "beer" ? ` · ${t("admin.bot.left", { n: b.quantity })}` : ""}</span></p>
+            <p className="text-[11px] text-white/40 truncate">{b.memberName || "—"}{b.memberCode ? ` · ${b.memberCode}` : ""}{b.expiresAt ? ` · ${t("admin.bot.exp", { d: new Date(b.expiresAt).toLocaleDateString(localeTag()) })}` : ""}</p>
           </div>
-          <button onClick={() => { if (confirm(`Redeem ${b.name} for ${b.memberName || "customer"}?`)) collect.mutate(b.id); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> Redeem</button>
+          <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate(b.id); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeem")}</button>
         </div>
       ))}
-      {kept.length === 0 && <Empty text="No bottles kept right now." />}
+      {kept.length === 0 && <Empty text={t("admin.bot.empty")} />}
     </div>
   );
 }
 
 function ManualBooking({ onDone }: { onDone: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()), enabled: open });
   const areas: any[] = data?.areas || [];
@@ -1849,37 +1855,37 @@ function ManualBooking({ onDone }: { onDone: () => void }) {
   const slots: any[] = avail?.slots || [];
   const book = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/manual", { memberCode, areaId, date, slot, table: table || undefined, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); onDone(); },
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); onDone(); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
-  if (!open) return <button onClick={() => setOpen(true)} className={btn + " w-full justify-center"}><Plus className="w-4 h-4" /> Book for a member</button>;
+  if (!open) return <button onClick={() => setOpen(true)} className={btn + " w-full justify-center"}><Plus className="w-4 h-4" /> {t("admin.bk.bookFor")}</button>;
   return (
     <Card>
-      <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-sm">Book for a member</h3><button onClick={() => setOpen(false)} className={btnSm}><X className="w-4 h-4" /></button></div>
-      <div className="mb-2"><UserPicker value={memberCode} onChange={setMemberCode} placeholder="Search member by name / code…" /></div>
+      <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-sm">{t("admin.bk.bookFor")}</h3><button onClick={() => setOpen(false)} className={btnSm}><X className="w-4 h-4" /></button></div>
+      <div className="mb-2"><UserPicker value={memberCode} onChange={setMemberCode} placeholder={t("admin.bk.searchMember")} /></div>
       <select value={areaId} onChange={(e) => { setAreaId(e.target.value); setSlot(""); setTable(""); }} className={inp + " w-full mb-2"}>
-        <option value="">Select area…</option>
+        <option value="">{t("admin.bk.selectArea")}</option>
         {areas.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.level})</option>)}
       </select>
       {area && (<>
         <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={(e) => { setDate(e.target.value); setSlot(""); }} className={inp + " w-full mb-2"} style={{ colorScheme: "dark" }} />
-        {avail?.closed ? <p className="text-xs text-amber-300 mb-2">Closed that day.</p> : (
+        {avail?.closed ? <p className="text-xs text-amber-300 mb-2">{t("admin.bk.closed")}</p> : (
           <select value={slot} onChange={(e) => setSlot(e.target.value)} className={inp + " w-full mb-2"}>
-            <option value="">Start time…</option>
+            <option value="">{t("admin.bk.startTime")}</option>
             {slots.map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         )}
         {area.tables?.length > 0 && (
           <select value={table} onChange={(e) => setTable(e.target.value)} className={inp + " w-full mb-2"}>
-            <option value="">Select table/room…</option>
+            <option value="">{t("admin.bk.selectTable")}</option>
             {area.tables.map((t: string) => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
         <div className="flex gap-2 mb-2">
-          <label className="text-[11px] text-white/50 flex-1">Party<input type="number" min={1} value={party} onChange={(e) => setParty(Number(e.target.value))} className={inp + " w-full"} /></label>
-          <label className="text-[11px] text-white/50 flex-1">Hours<input type="number" min={2} max={8} value={hours} onChange={(e) => setHours(Number(e.target.value))} className={inp + " w-full"} /></label>
+          <label className="text-[11px] text-white/50 flex-1">{t("admin.bk.party")}<input type="number" min={1} value={party} onChange={(e) => setParty(Number(e.target.value))} className={inp + " w-full"} /></label>
+          <label className="text-[11px] text-white/50 flex-1">{t("admin.bk.hours")}<input type="number" min={2} max={8} value={hours} onChange={(e) => setHours(Number(e.target.value))} className={inp + " w-full"} /></label>
         </div>
-        <button onClick={() => book.mutate()} disabled={!memberCode.trim() || !slot || (area.tables?.length > 0 && !table) || book.isPending} className={btn + " w-full justify-center disabled:opacity-50"}>Confirm booking</button>
+        <button onClick={() => book.mutate()} disabled={!memberCode.trim() || !slot || (area.tables?.length > 0 && !table) || book.isPending} className={btn + " w-full justify-center disabled:opacity-50"}>{t("admin.bk.confirmBooking")}</button>
       </>)}
     </Card>
   );
@@ -1887,6 +1893,7 @@ function ManualBooking({ onDone }: { onDone: () => void }) {
 
 function BlockSlot({ onDone }: { onDone: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()), enabled: open });
   const areas: any[] = data?.areas || [];
@@ -1897,31 +1904,31 @@ function BlockSlot({ onDone }: { onDone: () => void }) {
   const slots: any[] = avail?.slots || [];
   const block = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/block", { areaId, date, slot, table: table || undefined, reason }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); setReason(""); onDone(); },
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); setReason(""); onDone(); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
-  if (!open) return <button onClick={() => setOpen(true)} className={btn + " w-full justify-center"}>🚫 Block a date / time</button>;
+  if (!open) return <button onClick={() => setOpen(true)} className={btn + " w-full justify-center"}>🚫 {t("admin.bk.blockTitle")}</button>;
   return (
     <Card>
-      <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-sm">Block a date / time</h3><button onClick={() => setOpen(false)} className={btnSm}><X className="w-4 h-4" /></button></div>
+      <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-sm">{t("admin.bk.blockTitle")}</h3><button onClick={() => setOpen(false)} className={btnSm}><X className="w-4 h-4" /></button></div>
       <select value={areaId} onChange={(e) => { setAreaId(e.target.value); setSlot(""); setTable(""); }} className={inp + " w-full mb-2"}>
-        <option value="">Select area…</option>
+        <option value="">{t("admin.bk.selectArea")}</option>
         {areas.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.level})</option>)}
       </select>
       {area && (<>
         <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={(e) => { setDate(e.target.value); setSlot(""); }} className={inp + " w-full mb-2"} style={{ colorScheme: "dark" }} />
         <select value={slot} onChange={(e) => setSlot(e.target.value)} className={inp + " w-full mb-2"}>
-          <option value="">Start time…</option>
+          <option value="">{t("admin.bk.startTime")}</option>
           {slots.map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         {area.tables?.length > 0 && (
           <select value={table} onChange={(e) => setTable(e.target.value)} className={inp + " w-full mb-2"}>
-            <option value="">Whole area (all tables)</option>
+            <option value="">{t("admin.bk.wholeArea")}</option>
             {area.tables.map((t: string) => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
-        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" className={inp + " w-full mb-2"} />
-        <button onClick={() => block.mutate()} disabled={!slot || block.isPending} className={btn + " w-full justify-center disabled:opacity-50"}>Block this slot</button>
+        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("admin.bk.reasonOpt")} className={inp + " w-full mb-2"} />
+        <button onClick={() => block.mutate()} disabled={!slot || block.isPending} className={btn + " w-full justify-center disabled:opacity-50"}>{t("admin.bk.blockSlot")}</button>
       </>)}
     </Card>
   );
@@ -1929,6 +1936,7 @@ function BlockSlot({ onDone }: { onDone: () => void }) {
 
 function Crm() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/crm"], queryFn: () => apiRequest("GET", "/api/reborn/admin/crm").then((r) => r.json()) });
   const { data: wa } = useQuery<any>({
@@ -1944,11 +1952,11 @@ function Crm() {
   });
   const logout = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/web/logout", {}).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "WhatsApp unlinked" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/whatsapp/status"] }); },
+    onSuccess: () => { toast({ title: t("admin.crm.unlinked") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/whatsapp/status"] }); },
   });
   const runReminders = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/run-reminders", {}).then((r) => r.json()),
-    onSuccess: (d: any) => toast({ title: d.configured ? "Reminders sent" : "Reminders run", description: `${d.bottles} bottle · ${d.comeback} comeback · ${d.feedback} feedback` }),
+    onSuccess: (d: any) => toast({ title: d.configured ? t("admin.crm.remSent") : t("admin.crm.remRun"), description: t("admin.crm.remDesc", { b: d.bottles, c: d.comeback, f: d.feedback }) }),
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const contacts: any[] = data?.contacts || [];
@@ -1960,50 +1968,50 @@ function Crm() {
     <div className="space-y-3">
       {/* QR login — link an existing WhatsApp number */}
       <div className={`rounded-2xl border p-4 ${webStatus === "connected" ? "bg-emerald-500/10 border-emerald-400/30" : "bg-white/5 border-white/10"}`}>
-        <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-300" /> Connect WhatsApp by QR</p>
+        <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-300" /> {t("admin.crm.connectTitle")}</p>
         {webStatus === "connected" ? (
           <div className="mt-2">
-            <p className="text-sm text-emerald-300 font-semibold">Linked{wa?.web?.number ? ` · +${wa.web.number}` : ""}</p>
-            <p className="text-[11px] text-white/50 mt-1">The bot now auto-replies, captures leads, creates accounts, books appointments and sends reminders on this number.</p>
-            <button onClick={() => { if (confirm("Unlink this WhatsApp number?")) logout.mutate(); }} disabled={logout.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 border border-red-400/40 text-red-200">Unlink</button>
+            <p className="text-sm text-emerald-300 font-semibold">{t("admin.crm.linked")}{wa?.web?.number ? ` · +${wa.web.number}` : ""}</p>
+            <p className="text-[11px] text-white/50 mt-1">{t("admin.crm.linkedHint")}</p>
+            <button onClick={() => { if (confirm(t("admin.crm.unlinkConfirm"))) logout.mutate(); }} disabled={logout.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 border border-red-400/40 text-red-200">{t("admin.crm.unlink")}</button>
           </div>
         ) : webStatus === "qr" && wa?.web?.qr ? (
           <div className="mt-3 text-center">
-            <p className="text-[11px] text-white/60 mb-2">On your phone: WhatsApp → <b>Settings → Linked devices → Link a device</b>, then scan:</p>
-            <img src={wa.web.qr} alt="WhatsApp QR" className="mx-auto rounded-xl bg-white p-2" style={{ width: 240, height: 240 }} />
-            <p className="text-[11px] text-white/40 mt-2">Waiting for scan… the code refreshes automatically.</p>
+            <p className="text-[11px] text-white/60 mb-2">{t("admin.crm.scanHow")}</p>
+            <img src={wa.web.qr} alt={t("admin.crm.qrAlt")} className="mx-auto rounded-xl bg-white p-2" style={{ width: 240, height: 240 }} />
+            <p className="text-[11px] text-white/40 mt-2">{t("admin.crm.waiting")}</p>
           </div>
         ) : (
           <div className="mt-2">
-            <p className="text-[11px] text-white/50">Link your existing WhatsApp number (like WhatsApp Web) so the bot runs without the Meta Business API.</p>
-            <p className="text-[11px] text-amber-300/90 mt-1">⚠️ Uses WhatsApp's unofficial web protocol — against WhatsApp's Terms; the number can be banned. Use a dedicated business line, not personal.</p>
-            <button onClick={() => connect.mutate()} disabled={connect.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-black inline-flex items-center gap-1.5">{connect.isPending || webStatus === "connecting" ? "Starting…" : "Show QR to link"}</button>
+            <p className="text-[11px] text-white/50">{t("admin.crm.linkHint")}</p>
+            <p className="text-[11px] text-amber-300/90 mt-1">{t("admin.crm.warn")}</p>
+            <button onClick={() => connect.mutate()} disabled={connect.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-black inline-flex items-center gap-1.5">{connect.isPending || webStatus === "connecting" ? t("admin.crm.starting") : t("admin.crm.showQr")}</button>
           </div>
         )}
       </div>
 
       <div className={`rounded-2xl border p-3 ${live ? "bg-emerald-500/10 border-emerald-400/30" : "bg-amber-500/10 border-amber-400/30"}`}>
-        <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4" /> Bot status: {live ? "active" : "inactive"}</p>
-        <p className="text-[11px] text-white/50 mt-1">{live ? "Auto-captures leads, creates member accounts and books appointments. Reminders run hourly." : "Link a number by QR above, or set WHATSAPP_* env vars for the Meta Business API. The homepage WhatsApp button already works."}</p>
-        <button onClick={() => runReminders.mutate()} disabled={runReminders.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 inline-flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Run reminders now</button>
+        <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4" /> {t("admin.crm.botStatus", { s: live ? t("admin.crm.active") : t("admin.crm.inactive") })}</p>
+        <p className="text-[11px] text-white/50 mt-1">{live ? t("admin.crm.liveHint") : t("admin.crm.offHint")}</p>
+        <button onClick={() => runReminders.mutate()} disabled={runReminders.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 inline-flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> {t("admin.crm.runNow")}</button>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Contacts</p><p className="text-base font-extrabold">{data?.count || 0}</p></div>
-        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Members</p><p className="text-base font-extrabold text-emerald-300">{data?.stages?.member || 0}</p></div>
-        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">In progress</p><p className="text-base font-extrabold text-amber-300">{(data?.stages?.await_name || 0) + (data?.stages?.await_email || 0)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.crm.contacts")}</p><p className="text-base font-extrabold">{data?.count || 0}</p></div>
+        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.ov.members")}</p><p className="text-base font-extrabold text-emerald-300">{data?.stages?.member || 0}</p></div>
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.crm.inProgress")}</p><p className="text-base font-extrabold text-amber-300">{(data?.stages?.await_name || 0) + (data?.stages?.await_email || 0)}</p></div>
       </div>
-      <p className="text-xs text-white/40 px-1 pt-1">Tap a contact to chat, edit or delete</p>
+      <p className="text-xs text-white/40 px-1 pt-1">{t("admin.crm.tapHint")}</p>
       {contacts.map((c) => (
         <button key={c.id} onClick={() => setOpenId(c.id)} className="w-full flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-left hover:bg-white/10">
           <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-black font-bold" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>{(c.name || c.phone || "?").slice(0, 1).toUpperCase()}</span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold truncate">{c.name || "Unknown"} <span className={`text-[11px] ${stageColor[c.stage] || "text-white/40"}`}>· {c.stage}</span></span>
-            <span className="block text-[11px] text-white/40 truncate">{c.phone}{c.email ? ` · ${c.email}` : ""}{c.lastVisitAt ? ` · visit ${new Date(c.lastVisitAt).toLocaleDateString()}` : ""}</span>
+            <span className="block text-sm font-semibold truncate">{c.name || t("admin.crm.unknown")} <span className={`text-[11px] ${stageColor[c.stage] || "text-white/40"}`}>· {tv(t, "admin.stage." + c.stage, c.stage)}</span></span>
+            <span className="block text-[11px] text-white/40 truncate">{c.phone}{c.email ? ` · ${c.email}` : ""}{c.lastVisitAt ? ` · ${t("admin.crm.visit", { d: new Date(c.lastVisitAt).toLocaleDateString(localeTag()) })}` : ""}</span>
           </span>
           <MessageCircle className="w-4 h-4 text-emerald-300 flex-shrink-0" />
         </button>
       ))}
-      {contacts.length === 0 && <Empty text="No contacts yet. Leads captured by the WhatsApp bot appear here." />}
+      {contacts.length === 0 && <Empty text={t("admin.crm.empty")} />}
 
       {openContact && <CrmChat contact={openContact} connected={webStatus === "connected" || !!wa?.configured} onClose={() => setOpenId(null)} />}
     </div>
@@ -2012,6 +2020,7 @@ function Crm() {
 
 function CrmChat({ contact, connected, onClose }: { contact: any; connected: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
@@ -2029,12 +2038,12 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
   });
   const saveEdit = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/crm/${contact.id}`, f).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Saved" }); setEditing(false); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); },
+    onSuccess: () => { toast({ title: t("admin.c.saved") }); setEditing(false); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); },
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const del = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/crm/${contact.id}`, {}).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Contact deleted" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); onClose(); },
+    onSuccess: () => { toast({ title: t("admin.crm.deleted") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); onClose(); },
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   return (
@@ -2045,34 +2054,34 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
         <div className="flex items-center gap-2 p-3 border-b border-white/10">
           <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-black font-bold" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>{(contact.name || contact.phone || "?").slice(0, 1).toUpperCase()}</span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold truncate">{contact.name || "Unknown"}</p>
-            <p className="text-[11px] text-white/40 truncate">+{String(contact.phone).replace(/\D/g, "")} · {contact.stage} · {contact.lang?.toUpperCase()}</p>
+            <p className="text-sm font-bold truncate">{contact.name || t("admin.crm.unknown")}</p>
+            <p className="text-[11px] text-white/40 truncate">+{String(contact.phone).replace(/\D/g, "")} · {tv(t, "admin.stage." + contact.stage, contact.stage)} · {contact.lang?.toUpperCase()}</p>
           </div>
-          <button onClick={() => setEditing((v) => !v)} className={btnSm} title="Edit"><Pencil className="w-4 h-4 text-white/70" /></button>
-          <button onClick={() => { if (confirm(`Delete ${contact.name || contact.phone}? This removes the contact and its chat history.`)) del.mutate(); }} className={btnSm} title="Delete"><Trash2 className="w-4 h-4 text-red-300" /></button>
-          <button onClick={onClose} className={btnSm} title="Close"><X className="w-4 h-4 text-white/70" /></button>
+          <button onClick={() => setEditing((v) => !v)} className={btnSm} title={t("admin.c.edit")}><Pencil className="w-4 h-4 text-white/70" /></button>
+          <button onClick={() => { if (confirm(t("admin.crm.delConfirm", { name: contact.name || contact.phone }))) del.mutate(); }} className={btnSm} title={t("admin.c.delete")}><Trash2 className="w-4 h-4 text-red-300" /></button>
+          <button onClick={onClose} className={btnSm} title={t("admin.c.close")}><X className="w-4 h-4 text-white/70" /></button>
         </div>
 
         {editing && (
           <div className="p-3 border-b border-white/10 space-y-2 bg-black/20">
             <div className="grid grid-cols-2 gap-2">
-              <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Name" className={inp} />
+              <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={t("admin.c.name")} className={inp} />
               <select value={f.lang} onChange={(e) => setF({ ...f, lang: e.target.value })} className={inp}><option value="en">English</option><option value="zh">中文</option><option value="id">Bahasa</option></select>
             </div>
-            <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="Email" className={inp + " w-full"} />
-            <input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder="Notes" className={inp + " w-full"} />
-            <button onClick={() => saveEdit.mutate()} disabled={saveEdit.isPending} className={btnSave}><Check className="w-4 h-4" /> Save profile</button>
+            <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder={t("admin.c.email")} className={inp + " w-full"} />
+            <input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder={t("admin.crm.notes")} className={inp + " w-full"} />
+            <button onClick={() => saveEdit.mutate()} disabled={saveEdit.isPending} className={btnSave}><Check className="w-4 h-4" /> {t("admin.crm.saveProfile")}</button>
           </div>
         )}
 
         {/* messages */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2" style={{ minHeight: 200 }}>
-          {msgs.length === 0 && <p className="text-center text-xs text-white/40 py-8">No messages yet. Say hello 👋</p>}
+          {msgs.length === 0 && <p className="text-center text-xs text-white/40 py-8">{t("admin.crm.noMsgs")}</p>}
           {msgs.map((m) => (
             <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm ${m.direction === "out" ? "bg-emerald-600/80 text-white rounded-br-sm" : "bg-white/10 text-white rounded-bl-sm"}`}>
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                <p className="text-[9px] opacity-50 mt-0.5">{m.viaBot ? "🤖 bot · " : ""}{new Date(m.createdAt).toLocaleString()}</p>
+                <p className="text-[9px] opacity-50 mt-0.5">{m.viaBot ? t("admin.crm.bot") : ""}{new Date(m.createdAt).toLocaleString(localeTag())}</p>
               </div>
             </div>
           ))}
@@ -2080,9 +2089,9 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
 
         {/* composer */}
         <div className="p-3 border-t border-white/10">
-          {!connected && <p className="text-[11px] text-amber-300 mb-1.5">⚠️ WhatsApp not linked — messages are saved but won't be delivered until you link a number.</p>}
+          {!connected && <p className="text-[11px] text-amber-300 mb-1.5">{t("admin.crm.notLinked")}</p>}
           <div className="flex items-end gap-2">
-            <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (text.trim()) send.mutate(); } }} rows={1} placeholder="Type a message…" className={inp + " flex-1 resize-none"} style={{ maxHeight: 120 }} />
+            <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (text.trim()) send.mutate(); } }} rows={1} placeholder={t("admin.crm.typeMsg")} className={inp + " flex-1 resize-none"} style={{ maxHeight: 120 }} />
             <button onClick={() => text.trim() && send.mutate()} disabled={send.isPending || !text.trim()} className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-black disabled:opacity-40" style={{ background: "#25D366" }}><Send className="w-5 h-5" /></button>
           </div>
         </div>
