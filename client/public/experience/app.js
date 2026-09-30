@@ -671,6 +671,68 @@ function panoSurround(url, zone, center, radius) {
   panos.push({ zone, mesh });
   return mesh;
 }
+// App page: a whole sphere of phone-app icons (video, music, chat, camera, games…) slowly spinning.
+// Generic app-style icons — colours and symbols only, no real brand logos.
+const APP_ICON_STYLES = [
+  ["#ff2d2d", "#c40000", "▶"], ["#1ed760", "#0f9b45", "♫"], ["#ffffff", "#e8e8e8", "▶", "#34a853"], ["#fd1d1d", "#833ab4", "◉"],
+  ["#25f4ee", "#111111", "♪"], ["#25d366", "#128c7e", "✆"], ["#1877f2", "#0b4fb3", "☷"], ["#fffc00", "#f0e000", "☺", "#111"],
+  ["#1da1f2", "#0c7abf", "✉"], ["#e50914", "#8c0000", "▦"], ["#9146ff", "#5c1ecb", "✦"], ["#ff5700", "#c43d00", "☻"],
+  ["#0088cc", "#00679b", "✈"], ["#ff4081", "#c2185b", "♥"], ["#ffb300", "#f57c00", "★"], ["#00c6ff", "#0072ff", "☁"],
+  ["#43e97b", "#38f9d7", "✎", "#0b3d2e"], ["#f7971e", "#ffd200", "☀", "#5a2d00"], ["#654ea3", "#eaafc8", "♛"], ["#ff416c", "#ff4b2b", "✚"],
+];
+function drawAppIcon(x, cx, cy, sz, style, stretch = 1) {
+  const [a, b, glyph, ink] = style;
+  x.save(); x.translate(cx, cy); x.scale(stretch, 1);
+  x.shadowColor = "rgba(0,0,0,.45)"; x.shadowBlur = sz * 0.18; x.shadowOffsetY = sz * 0.06;
+  const g = x.createLinearGradient(-sz / 2, -sz / 2, sz / 2, sz / 2); g.addColorStop(0, a); g.addColorStop(1, b);
+  rr(x, -sz / 2, -sz / 2, sz, sz, sz * 0.24); x.fillStyle = g; x.fill();
+  x.shadowColor = "transparent";
+  const hl = x.createLinearGradient(0, -sz / 2, 0, 0); hl.addColorStop(0, "rgba(255,255,255,.35)"); hl.addColorStop(1, "rgba(255,255,255,0)");
+  rr(x, -sz / 2, -sz / 2, sz, sz / 2, sz * 0.24); x.fillStyle = hl; x.fill();
+  x.fillStyle = ink || "#fff"; x.textAlign = "center"; x.textBaseline = "middle";
+  x.font = `900 ${sz * 0.52}px Montserrat, "DejaVu Sans", sans-serif`; x.fillText(glyph, 0, sz * 0.03);
+  x.restore();
+}
+function appIconSurround(zone, center, radius) {
+  const cv = document.createElement("canvas"); cv.width = PANO_W; cv.height = PANO_H; // full 2:1, wider than canvasTexture allows
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  ((x, W, H) => {
+    const bg = x.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#1a0b33"); bg.addColorStop(0.5, "#2a1250"); bg.addColorStop(1, "#12071f");
+    x.fillStyle = bg; x.fillRect(0, 0, W, H);
+    const rows = 14, cell = H / rows;
+    let k = 0;
+    x.translate(W, 0); x.scale(-1, 1); // seen from inside the sphere
+    x.globalAlpha = 0.66;
+    for (let r = 0; r < rows; r++) {
+      const lat = ((r + 0.5) / rows - 0.5) * Math.PI;   // -90°..90°
+      const squash = Math.max(0.12, Math.cos(lat));      // fewer, wider icons towards the top and bottom
+      const cols = Math.max(4, Math.round((W / cell) * squash));
+      const cw = W / cols;
+      for (let c = 0; c < cols; c++) {
+        const style = APP_ICON_STYLES[(k++ * 7 + r) % APP_ICON_STYLES.length];
+        drawAppIcon(x, (c + 0.5 + (r % 2) * 0.5) * cw % W, (r + 0.5) * cell, cell * 0.62, style, 1 / squash);
+      }
+    }
+  })(cv.getContext("2d"), PANO_W, PANO_H);
+  tex.wrapS = THREE.RepeatWrapping;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 64, 40), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
+  mesh.position.copy(center); mesh.renderOrder = -1; mesh.visible = false;
+  zones[zone].add(mesh);
+  panos.push({ zone, mesh });
+  anims.push({ zone, fn: (t) => { if (!REDUCED) { mesh.rotation.y = t * 0.06; mesh.rotation.x = Math.sin(t * 0.15) * 0.08; } } });
+  // a closer ring of floating app icons turning the other way, for depth
+  const ring = new THREE.Group(); ring.position.copy(center); zones[zone].add(ring);
+  for (let i = 0; i < 18; i++) {
+    const c = card(2.6, 2.6, (x, W, H) => drawAppIcon(x, W / 2, H / 2, W * 0.86, APP_ICON_STYLES[(i * 3) % APP_ICON_STYLES.length]), { frame: false, pxPerUnit: 160 });
+    const a = (i / 18) * Math.PI * 2, rr2 = 30 + (i % 3) * 3; // beyond the camera, so they never cover the text
+    c.position.set(Math.cos(a) * rr2, -4 + (i % 5) * 3.6, Math.sin(a) * rr2);
+    c.lookAt(ring.position.x, c.position.y, ring.position.z); // face the middle, where the camera is
+    ring.add(c);
+  }
+  anims.push({ zone, fn: (t) => { if (!REDUCED) ring.rotation.y = -t * 0.12; } });
+  return mesh;
+}
 function createFloorBackgrounds() {
   floorBg.ktv = videoBackdrop("sing");     // 1F lounge
   floorBg.private = videoBackdrop("ktv");  // 2F KTV rooms
@@ -2089,7 +2151,8 @@ loadAll().then(() => {
   buildShowcase(segById("blindbox"), dressBlindbox, { pano: "./img/breeding/logo.jpg" });
   buildShowcase(segById("demo"), dressDemo, { floor: false });
   buildShowcase(segById("location"), dressLocation, { pano: "./img/breeding/building.jpg" });
-  buildShowcase(segById("app"), dressApp);
+  buildShowcase(segById("app"), dressApp, { floor: false });
+  { const s = segById("app"); appIconSurround(zones.length - 1, V(0, s.y + 4, 6), 50); }
   buildShowcase(segById("social"), dressSocial);
   buildFinale();
   buildPaths();
