@@ -593,52 +593,6 @@ function imageBackdrop(url, aspect, intensity) {
   const tex = loadTex(url);
   return { tex, current: tex, aspect, intensity, fit: [tex] };
 }
-// Demo: a cinema hall — curtains, a glowing screen, rows of seats and aisle lights.
-const CINEMA_DUST = (() => { const r = rnd(11); return Array.from({ length: 60 }, () => ({ x: r(), y: r(), s: 0.3 + r() * 0.7, p: r() * 6 })); })();
-function drawCinema(x, W, H, t) {
-  x.fillStyle = "#07040c"; x.fillRect(0, 0, W, H);
-  const sx = W * 0.2, sy = H * 0.12, sw = W * 0.6, sh = H * 0.42;
-  // screen glow slowly shifting colour like a film playing
-  const hue = (t * 12) % 360;
-  const glow = x.createRadialGradient(W / 2, sy + sh / 2, 10, W / 2, sy + sh / 2, W * 0.6);
-  glow.addColorStop(0, `hsla(${hue},60%,55%,.35)`); glow.addColorStop(1, "rgba(0,0,0,0)");
-  x.fillStyle = glow; x.fillRect(0, 0, W, H);
-  const sg = x.createLinearGradient(sx, sy, sx + sw, sy + sh);
-  sg.addColorStop(0, `hsl(${hue},45%,32%)`); sg.addColorStop(0.5, `hsl(${(hue + 60) % 360},55%,48%)`); sg.addColorStop(1, `hsl(${(hue + 140) % 360},45%,30%)`);
-  x.fillStyle = sg; x.fillRect(sx, sy, sw, sh);
-  x.strokeStyle = "rgba(240,215,135,.55)"; x.lineWidth = 3; x.strokeRect(sx - 4, sy - 4, sw + 8, sh + 8);
-  // projector beam from behind the audience
-  const beam = x.createLinearGradient(W / 2, H, W / 2, sy + sh);
-  beam.addColorStop(0, "rgba(255,240,200,0)"); beam.addColorStop(1, "rgba(255,240,200,.10)");
-  x.fillStyle = beam; x.beginPath(); x.moveTo(W * 0.47, H * 0.02); x.lineTo(sx, sy + sh); x.lineTo(sx + sw, sy + sh); x.lineTo(W * 0.53, H * 0.02); x.fill();
-  for (const d of CINEMA_DUST) {
-    const a = 0.25 + 0.25 * Math.sin(t * 1.5 + d.p);
-    x.fillStyle = `rgba(255,236,200,${a})`; x.fillRect(sx + d.x * sw, sy + sh * 0.3 + ((d.y + t * 0.01 * d.s) % 1) * H * 0.4, 1.5, 1.5);
-  }
-  // red velvet curtains with folds
-  for (const side of [0, 1]) {
-    const cx0 = side ? sx + sw + 4 : 0, cw = side ? W - cx0 : sx - 4;
-    for (let i = 0; i < 7; i++) {
-      const fx = cx0 + (i / 7) * cw, fw = cw / 7;
-      const g = x.createLinearGradient(fx, 0, fx + fw, 0); g.addColorStop(0, "#3a0610"); g.addColorStop(0.5, "#8c1424"); g.addColorStop(1, "#3a0610");
-      x.fillStyle = g; x.fillRect(fx, 0, fw + 1, H * 0.72);
-    }
-  }
-  const valance = x.createLinearGradient(0, 0, 0, sy - 6); valance.addColorStop(0, "#5a0a18"); valance.addColorStop(1, "#8c1424");
-  x.fillStyle = valance; x.fillRect(0, 0, W, sy - 8);
-  x.fillStyle = "#d9b45c"; x.fillRect(0, sy - 10, W, 3);
-  // seat rows (silhouettes), nearer rows bigger
-  for (let r = 0; r < 5; r++) {
-    const yy = H * (0.62 + r * 0.085), sz = 14 + r * 7, gap = sz * 1.25;
-    x.fillStyle = `rgba(${40 + r * 6},${10 + r * 3},${24 + r * 4},1)`;
-    for (let xx = -gap / 2 + ((r % 2) * gap) / 2; xx < W + gap; xx += gap) { rr(x, xx, yy, sz, sz * 1.1, sz * 0.3); x.fill(); }
-  }
-  // aisle step lights
-  for (let r = 0; r < 6; r++) {
-    const yy = H * (0.64 + r * 0.07);
-    for (const ax of [W * 0.08, W * 0.92]) { x.fillStyle = "rgba(255,196,110,.8)"; x.fillRect(ax - 6, yy, 12, 3); }
-  }
-}
 // Social: a wall of vertical reels (our venue clips) drifting up like a feed.
 const REEL_CLIPS = ["intro", "sing", "ktv", "live", "vip"];
 function socialBackdrop() {
@@ -723,7 +677,6 @@ function createFloorBackgrounds() {
   floorBg.vip = canvasBackdrop(drawSpaceship);    // 3F spaceship KTV room
   floorBg.pet = canvasBackdrop(drawRestaurant);   // 4F restaurant
   floorBg.live = canvasBackdrop(drawSeaview);     // 5F rooftop sea view
-  floorBg.demo = canvasBackdrop(drawCinema);      // demo video in a cinema
   floorBg.social = socialBackdrop();              // our reels, like a social feed
 
   fitFloorBackgrounds();
@@ -1423,11 +1376,11 @@ function dressLive(ctx) {
 }
 
 // ── Zones: SHOWCASE stages (blind box, demo, location) ─────────────────────
-function buildShowcase(seg, dress, pano) {
+function buildShowcase(seg, dress, { pano, floor = true } = {}) {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
   const Y = seg.y;
   if (pano) panoSurround(pano, zi, V(0, Y + 3, 8), 50); // the photo all round, floor included
-  else Z.add(ground(Y, seg.accent));
+  else if (floor) Z.add(ground(Y, seg.accent));
   Z.add(accentLight(seg.accent, -9, Y + 6, 6), accentLight(seg.accent2, 9, Y + 6, 6), accentLight(0xffe6b0, 0, Y + 9, 12, 70));
   Z.add(dust(zi, seg.accent2, 260, [-20, 20, Y + 0.4, Y + 14, -20, 16]));
   dress({ Z, zi, Y, seg, portrait: PORTRAIT() });
@@ -1493,15 +1446,127 @@ function dressBlindbox({ Z, zi, Y, seg, portrait }) {
   }
 }
 
+// Demo: walk up to a small cinema door, it swings open, and inside the demo plays on the big screen.
+const CINEMA_TEXT = {
+  cinema: { en: "CINEMA", zh: "影院", id: "BIOSKOP" },
+  showing: { en: "NOW SHOWING · REBORN WAVE", zh: "正在上映 · REBORN WAVE", id: "SEDANG TAYANG · REBORN WAVE" },
+};
+const CINEMA_DOOR_Z = () => (PORTRAIT() ? 30 : 18);
+const CINEMA_END_Z = () => (PORTRAIT() ? 24 : 12); // where the camera settles, facing the screen
+const ROW_LIFT = 0.3, ROW_GAP = 2.2;
+const cinemaRows = () => Math.floor((CINEMA_END_Z() - 6) / ROW_GAP) + 1; // the last row stays just in front of the camera
+const cinemaLanding = () => cinemaRows() * ROW_LIFT; // you come in at the top of the seating // the hall's back wall, just behind where the camera stops
+const CINEMA_HALL_W = 30, CINEMA_HALL_H = 13, CINEMA_DOOR_W = 2.4, CINEMA_DOOR_H = 3.6;
+function curtainTexture() {
+  return canvasTexture(512, 512, (x, W, H) => {
+    for (let i = 0; i < 16; i++) {
+      const g = x.createLinearGradient(i * W / 16, 0, (i + 1) * W / 16, 0);
+      g.addColorStop(0, "#2a0409"); g.addColorStop(0.5, "#9a1628"); g.addColorStop(1, "#2a0409");
+      x.fillStyle = g; x.fillRect(i * W / 16, 0, W / 16 + 1, H);
+    }
+    const sh = x.createLinearGradient(0, 0, 0, H); sh.addColorStop(0, "rgba(0,0,0,.35)"); sh.addColorStop(0.2, "rgba(0,0,0,0)"); sh.addColorStop(1, "rgba(0,0,0,.4)");
+    x.fillStyle = sh; x.fillRect(0, 0, W, H);
+  });
+}
+function buildCinemaHall({ Z, zi, Y, seg }) {
+  const dz = CINEMA_DOOR_Z(), front = -5, len = dz - front, W2 = CINEMA_HALL_W / 2;
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a0d1c, roughness: 0.85, metalness: 0.1 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x2a0a14, roughness: 0.95 });
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, Y + y, z); Z.add(m); return m; };
+  // floor, ceiling, side walls
+  const fl = add(new THREE.PlaneGeometry(CINEMA_HALL_W, len + 14), floorMat, 0, 0, front + (len + 14) / 2); fl.rotation.x = -Math.PI / 2;
+  const ce = add(new THREE.PlaneGeometry(CINEMA_HALL_W, len), wallMat, 0, CINEMA_HALL_H, front + len / 2); ce.rotation.x = Math.PI / 2;
+  for (const sx of [-1, 1]) {
+    const w = add(new THREE.PlaneGeometry(len, CINEMA_HALL_H), wallMat, sx * W2, CINEMA_HALL_H / 2, front + len / 2); w.rotation.y = -sx * Math.PI / 2;
+    // wall sconces
+    for (let k = 0; k < 4; k++) {
+      const z = front + 6 + k * (len - 8) / 3;
+      const sc = glowPlane(0xffb46a, 1.6, 2.4, 0.55); sc.position.set(sx * (W2 - 0.05), Y + 5, z); sc.rotation.y = -sx * Math.PI / 2; Z.add(sc);
+    }
+  }
+  // front wall + curtains either side of the screen
+  add(new THREE.PlaneGeometry(CINEMA_HALL_W, CINEMA_HALL_H), wallMat, 0, CINEMA_HALL_H / 2, front);
+  const curtain = new THREE.MeshStandardMaterial({ map: curtainTexture(), roughness: 0.9 });
+  for (const sx of [-1, 1]) add(new THREE.PlaneGeometry(6.5, CINEMA_HALL_H - 1), curtain, sx * 11.2, (CINEMA_HALL_H - 1) / 2, front + 0.4);
+  add(new THREE.PlaneGeometry(CINEMA_HALL_W, 2.2), curtain, 0, CINEMA_HALL_H - 1.1, front + 0.5);
+  add(new THREE.BoxGeometry(18, 0.6, 3), new THREE.MeshStandardMaterial({ color: 0x140a18, roughness: 0.6 }), 0, 0.3, front + 1.5);
+  // stadium seating: rows step up towards the back, with a centre aisle
+  const rows = cinemaRows(), top = cinemaLanding();
+  const seatMat = new THREE.MeshStandardMaterial({ color: 0x8c1424, roughness: 0.8 });
+  const perRow = [], rowGap = ROW_GAP;
+  for (let r = 0; r < rows; r++) for (let x = -12.5; x <= 12.5; x += 1.15) if (Math.abs(x) > 1.3) perRow.push([x, r]);
+  const back = new THREE.InstancedMesh(new THREE.BoxGeometry(0.95, 1.0, 0.18), seatMat, perRow.length);
+  const cush = new THREE.InstancedMesh(new THREE.BoxGeometry(0.95, 0.22, 0.8), seatMat, perRow.length);
+  const mtx = new THREE.Matrix4();
+  perRow.forEach(([x, r], i) => {
+    const z = 3 + r * rowGap, lift = r * ROW_LIFT;
+    mtx.makeTranslation(x, Y + lift + 0.95, z + 0.35); back.setMatrixAt(i, mtx);
+    mtx.makeTranslation(x, Y + lift + 0.5, z); cush.setMatrixAt(i, mtx);
+  });
+  Z.add(back, cush);
+  const tierMat = new THREE.MeshStandardMaterial({ color: 0x1c0a12, roughness: 0.9 });
+  for (let r = 0; r < rows; r++) {
+    const step = add(new THREE.BoxGeometry(CINEMA_HALL_W, r * ROW_LIFT + 0.02, rowGap), tierMat, 0, (r * ROW_LIFT) / 2, 3 + r * rowGap + 0.2);
+    for (const ax of [-1.3, 1.3]) add(new THREE.BoxGeometry(0.3, 0.05, 0.08), new THREE.MeshBasicMaterial({ color: 0xffc46e, toneMapped: false }), ax, r * ROW_LIFT + 0.05, 3 + r * rowGap - 0.8);
+  }
+  const lastZ = 3 + (rows - 1) * rowGap + rowGap / 2 + 0.2;
+  add(new THREE.BoxGeometry(CINEMA_HALL_W, top, dz - lastZ), tierMat, 0, top / 2, lastZ + (dz - lastZ) / 2);
+  // back wall with the small door (three boxes around the opening)
+  const dw = CINEMA_DOOR_W, dh = CINEMA_DOOR_H, side = (CINEMA_HALL_W - dw) / 2;
+  const outer = new THREE.MeshStandardMaterial({ color: 0x241028, roughness: 0.7, metalness: 0.2 });
+  for (const sx of [-1, 1]) add(new THREE.BoxGeometry(side, CINEMA_HALL_H, 0.4), outer, sx * (dw / 2 + side / 2), CINEMA_HALL_H / 2, dz);
+  add(new THREE.BoxGeometry(dw, CINEMA_HALL_H - dh - top, 0.4), outer, 0, top + dh + (CINEMA_HALL_H - dh - top) / 2, dz);
+  const jamb = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(dw + 0.1, dh + 0.05, 0.5)), M.lineGold); jamb.position.set(0, Y + top + dh / 2, dz); Z.add(jamb);
+  // the two door leaves swing open into the hall
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x5a0e1c, roughness: 0.5, metalness: 0.3 });
+  const leaves = [-1, 1].map((sx) => {
+    const hinge = new THREE.Group(); hinge.position.set(sx * dw / 2, Y + top, dz); Z.add(hinge);
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(dw / 2, dh, 0.08), leafMat); leaf.position.set(-sx * dw / 4, dh / 2, 0); hinge.add(leaf);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), M.gold); knob.position.set(-sx * (dw / 2 - 0.2), dh / 2, 0.08); hinge.add(knob);
+    const win = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), new THREE.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false })); win.position.set(-sx * dw / 4, dh * 0.72, 0.05); hinge.add(win);
+    return { hinge, sx };
+  });
+  // outside: lobby floor, lit CINEMA sign and a now-showing strip above the door
+  const lobby = add(new THREE.PlaneGeometry(14, 14), new THREE.MeshStandardMaterial({ color: 0x120a18, roughness: 0.6, metalness: 0.4 }), 0, top + 0.01, dz + 7); lobby.rotation.x = -Math.PI / 2;
+  const carpet = add(new THREE.PlaneGeometry(2.6, 14), new THREE.MeshStandardMaterial({ color: 0x7a0f1e, roughness: 0.95 }), 0, top + 0.02, dz + 7); carpet.rotation.x = -Math.PI / 2;
+  for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) {
+    add(new THREE.CylinderGeometry(0.06, 0.08, 1, 12), M.gold, sx * 1.6, top + 0.5, dz + 2.5 + k * 3);
+    add(new THREE.SphereGeometry(0.1, 12, 8), M.gold, sx * 1.6, top + 1.05, dz + 2.5 + k * 3);
+  }
+  const sign = card(4.2, 1.1, (x, W, H) => {
+    rr(x, 4, 4, W - 8, H - 8, 18); x.fillStyle = "#12060c"; x.fill(); x.lineWidth = 6; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+    // marquee bulbs
+    for (let i = 0; i < 26; i++) { x.fillStyle = "#ffe2a0"; x.beginPath(); x.arc(20 + i * (W - 40) / 25, 16, 5, 0, Math.PI * 2); x.fill(); x.beginPath(); x.arc(20 + i * (W - 40) / 25, H - 16, 5, 0, Math.PI * 2); x.fill(); }
+    x.textAlign = "center"; x.textBaseline = "middle"; x.shadowColor = "#ff4d6a"; x.shadowBlur = 18;
+    x.fillStyle = "#ff5d78"; x.font = `900 ${H * 0.5}px Montserrat`; x.fillText(tl(CINEMA_TEXT.cinema), W / 2, H / 2 + 2);
+  }, { frame: false, glow: 0xff4d6a, pxPerUnit: 200 });
+  sign.position.set(0, Y + top + dh + 1.2, dz + 0.25); Z.add(sign);
+  const strip = card(4.2, 0.45, (x, W, H) => {
+    x.fillStyle = "#0a0612"; x.fillRect(0, 0, W, H);
+    x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffc46e"; x.shadowColor = "#ffb347"; x.shadowBlur = 10;
+    const t = tl(CINEMA_TEXT.showing); let fs = H * 0.55; x.font = `800 ${fs}px Montserrat`;
+    while (x.measureText(t).width > W - 30) { fs *= 0.92; x.font = `800 ${fs}px Montserrat`; }
+    x.fillText(t, W / 2, H / 2 + 1);
+  }, { frame: false, pxPerUnit: 240 });
+  strip.position.set(0, Y + top + dh + 0.35, dz + 0.25); Z.add(strip);
+  // light: screen glow in the hall, warm light in the lobby
+  Z.add(accentLight(0x9fb6ff, 0, Y + 6, front + 6, 120), accentLight(0xffb46a, 0, Y + 4, dz + 4, 60), accentLight(seg.accent, 0, Y + 8, dz - 6, 50));
+  anims.push({ zone: zi, fn: (t, dt, lt) => {
+    const open = smooth(clamp(lt / 0.22));
+    for (const { hinge, sx } of leaves) hinge.rotation.y = sx * open * 1.45; // swing into the hall
+  } });
+}
+
 function dressDemo({ Z, zi, Y, seg }) {
-  const screen = videoScreen("demo", 14, seg.accent, zi);
-  screen.position.set(0, Y + 4.8, -2); Z.add(screen);
+  buildCinemaHall({ Z, zi, Y, seg });
+  const screen = videoScreen("demo", 15, seg.accent, zi);
+  screen.position.set(0, Y + 5.6, -4.2); Z.add(screen);
   const play = card(1.4, 1.4, (x, W) => {
     x.fillStyle = "rgba(10,7,20,.55)"; x.beginPath(); x.arc(W / 2, W / 2, W * 0.46, 0, Math.PI * 2); x.fill();
     x.lineWidth = W * 0.04; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
     x.fillStyle = "#f0d787"; x.beginPath(); x.moveTo(W * 0.4, W * 0.3); x.lineTo(W * 0.72, W * 0.5); x.lineTo(W * 0.4, W * 0.7); x.closePath(); x.fill();
   }, { frame: false });
-  play.position.set(0, Y + 4.8, -1.85); Z.add(play);
+  play.position.set(0, Y + 5.6, -4.05); Z.add(play);
   anims.push({ zone: zi, fn: (t) => { if (!REDUCED) play.scale.setScalar(1 + Math.sin(t * 2.4) * 0.05); } });
 }
 
@@ -1748,6 +1813,13 @@ function showcasePath(seg, fx, lookY, dist, back) {
     [[fx, Y + lookY, -2], [fx, Y + lookY, -2], [fx, Y + lookY, -2]],
   );
 }
+function cinemaPath(seg) {
+  const Y = seg.y, dz = CINEMA_DOOR_Z(), endZ = CINEMA_END_Z(), eyeY = PORTRAIT() ? 5.4 : 4.8, top = cinemaLanding();
+  return path(
+    [[0, Y + top + 1.8, dz + 10], [0, Y + top + 1.9, dz + 2.5], [0, Y + top + 2.1, dz - 1.5], [0, Y + eyeY - 0.4, endZ + 3], [0, Y + eyeY, endZ]],
+    [[0, Y + top + 2.2, dz - 10], [0, Y + top + 2.4, dz - 12], [0, Y + 3.4, -4], [0, Y + 5, -4.2], [0, Y + 5.2, -4.2]],
+  );
+}
 let PATHS = [];
 function buildPaths() {
   const portrait = PORTRAIT();
@@ -1759,7 +1831,7 @@ function buildPaths() {
       [[0, 7, -14], portrait ? [7, 1.2, 10] : [12, 1.2, 8], [0, 2.7, -11], [0, 2.4, -14], [0, 2.4, -20]]),
     ...SEGS.slice(1, 6).map(floorPath),
     showcasePath(segById("blindbox"), 0, portrait ? 5 : 3.6, 13, portrait ? 4 : 0),
-    showcasePath(segById("demo"), 0, 4.4, 12, portrait ? 16 : 0),
+    cinemaPath(segById("demo")),
     showcasePath(segById("location"), portrait ? 0 : 1.5, portrait ? 4.6 : 3.4, 13, portrait ? 14 : 0),
     showcasePath(segById("app"), portrait ? 0 : -1.6, portrait ? 5.2 : 4, 12, portrait ? 8 : 0),
     showcasePath(segById("social"), 0, portrait ? 5.6 : 4, 12, portrait ? 8 : 0),
@@ -2014,9 +2086,9 @@ loadAll().then(() => {
   buildFloor(SEGS[3], dressVIP);
   buildFloor(SEGS[4], dressPet);
   buildFloor(SEGS[5], dressLive);
-  buildShowcase(segById("blindbox"), dressBlindbox, "./img/breeding/logo.jpg");
-  buildShowcase(segById("demo"), dressDemo);
-  buildShowcase(segById("location"), dressLocation, "./img/breeding/building.jpg");
+  buildShowcase(segById("blindbox"), dressBlindbox, { pano: "./img/breeding/logo.jpg" });
+  buildShowcase(segById("demo"), dressDemo, { floor: false });
+  buildShowcase(segById("location"), dressLocation, { pano: "./img/breeding/building.jpg" });
   buildShowcase(segById("app"), dressApp);
   buildShowcase(segById("social"), dressSocial);
   buildFinale();
