@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -50,6 +50,23 @@ export default function RebornProfile() {
   const { data: pushStatus, refetch: refetchPush } = useQuery<any>({ queryKey: ["/api/v1/app/device-tokens/status"], queryFn: () => apiRequest("GET", "/api/v1/app/device-tokens/status").then((r) => r.json()), refetchInterval: 10000 });
   const testPush = useMutation({ mutationFn: () => apiRequest("POST", "/api/v1/app/notifications/test", {}).then((r) => r.json()), onSuccess: (d) => toast({ title: t("ac.prof.testSent"), description: d.message }), onError: (e: any) => toast({ title: t("ac.prof.testFailed"), description: apiErrorMessage(e), variant: "destructive" }) });
   const inNativeApp = typeof window !== "undefined" && ((window as any).__REBORN_NATIVE_APP__ || (() => { try { return localStorage.getItem("reborn.nativeApp") === "true"; } catch { return false; } })());
+  // Push setup status reported by the phone app (build 15+): stage, error detail
+  // and the token itself. When the phone has a token but isn't registered yet,
+  // register it from here too, and show the server's answer if it's refused.
+  const [phone, setPhone] = useState<any>(() => (typeof window !== "undefined" ? (window as any).__rebornPush : null) || null);
+  const [regError, setRegError] = useState("");
+  useEffect(() => {
+    const h = () => setPhone({ ...((window as any).__rebornPush || {}) });
+    window.addEventListener("reborn:push", h);
+    return () => window.removeEventListener("reborn:push", h);
+  }, []);
+  useEffect(() => {
+    if (!phone?.token || pushStatus?.registered) return;
+    fetch("/api/v1/app/device-tokens", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expoPushToken: phone.token, platform: phone.platform || "android", deviceId: "expo-app" }) })
+      .then(async (r) => { if (r.ok) { setRegError(""); refetchPush(); } else setRegError(`${r.status} ${(await r.text()).slice(0, 160)}`); })
+      .catch((e) => setRegError(String(e?.message || e)));
+  }, [phone?.token, pushStatus?.registered]);
+  const STAGE_KEY: Record<string, string> = { starting: "ac.prof.stage.starting", getting_token: "ac.prof.stage.gettingToken", token_ready: "ac.prof.stage.tokenReady", token_missing: "ac.prof.stage.tokenMissing", permission_denied: "ac.prof.stage.permissionDenied", setup_error: "ac.prof.stage.setupError" };
 
   const saveProfile = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/reborn/profile", body).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
@@ -118,6 +135,12 @@ export default function RebornProfile() {
           ) : (
             <p className="text-xs text-amber-300 mb-3">{t("ac.prof.notRegistered")}</p>
           )}
+          {/* What the phone itself reports — screenshot this if alerts don't work */}
+          <div className="mb-3 rounded-lg bg-black/30 p-2 text-[11px] leading-relaxed text-white/60">
+            <p>{t("ac.prof.phoneStatus")}: <b className="text-white/80">{phone?.stage ? t(STAGE_KEY[phone.stage] || phone.stage) : t("ac.prof.stage.oldApp")}</b>{phone?.build ? ` · ${t("ac.prof.appBuild", { n: phone.build })}` : ""}</p>
+            {phone?.detail ? <p className="break-words text-amber-300/80">{phone.detail}</p> : null}
+            {regError ? <p className="break-words text-red-300/80">{t("ac.prof.regRefused")}: {regError}</p> : null}
+          </div>
           <button onClick={() => { refetchPush(); testPush.mutate(); }} disabled={testPush.isPending} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-white/5 border border-white/10 text-white/80 disabled:opacity-60">{testPush.isPending ? t("ac.prof.sending") : t("ac.prof.sendTest")}</button>
         </div>
       ) : <NotificationToggle />}

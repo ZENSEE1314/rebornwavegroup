@@ -31,17 +31,27 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true }),
 });
 
+// A step that never answers (Google Play services busy/missing, no network to
+// Expo) used to hang setup forever with no error and no retry. Give every step
+// a time limit so it fails visibly and the retry loop can try again.
+function withTimeout<T>(promise: Promise<T>, ms: number, step: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${step} timed out after ${Math.round(ms / 1000)}s`)), ms);
+    promise.then((value) => { clearTimeout(timer); resolve(value); }, (error) => { clearTimeout(timer); reject(error); });
+  });
+}
+
 async function getPushToken() {
   if (!Device.isDevice) throw new Error("Push notifications require a physical phone.");
-  if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("bridgex", { name: "BridgeXPOS alerts", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250] });
+  if (Platform.OS === "android") await withTimeout(Notifications.setNotificationChannelAsync("bridgex", { name: "BridgeXPOS alerts", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250] }), 10000, "Notification channel");
   const current = await Notifications.getPermissionsAsync();
   // Show Android/iOS's real permission sheet immediately. The earlier custom
   // pre-prompt could be dismissed without ever opening the system permission.
   const permission = current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
   if (permission.status !== "granted") return null;
-  if (Platform.OS === "android") await Notifications.getDevicePushTokenAsync();
+  if (Platform.OS === "android") await withTimeout(Notifications.getDevicePushTokenAsync(), 20000, "Google (FCM) device token");
   const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId || "e1d4fa37-5438-4cee-8f00-0b9796bc0f1d";
-  return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  return (await withTimeout(Notifications.getExpoPushTokenAsync({ projectId }), 20000, "Expo push token")).data;
 }
 
 async function reportPushDiagnostic(status: string, detail?: string) {
@@ -65,6 +75,8 @@ function RebornApp() {
   const [notificationIssue, setNotificationIssue] = useState<"permission" | "token" | null>(null);
   const [notificationDetail, setNotificationDetail] = useState("");
   const notificationSetupRunning = useRef(false);
+  // Latest push setup status, shared with the web page (Profile shows it).
+  const [pushStage, setPushStage] = useState("starting");
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -79,24 +91,28 @@ function RebornApp() {
     if (notificationSetupRunning.current) return;
     notificationSetupRunning.current = true;
     reportPushDiagnostic("setup_started");
+    setPushStage("getting_token");
     try {
       const token = await getPushToken();
       setPushToken(token);
       if (token) {
         setNotificationIssue(null);
         setNotificationDetail("");
+        setPushStage("token_ready");
         reportPushDiagnostic("expo_token_ready");
       }
       else {
         const permission = await Notifications.getPermissionsAsync();
         setNotificationIssue(permission.status === "granted" ? "token" : "permission");
         setNotificationDetail(permission.status === "granted" ? "Waiting for Google Play notification service." : "Android notification permission is off.");
+        setPushStage(permission.status === "granted" ? "token_missing" : "permission_denied");
         reportPushDiagnostic(permission.status === "granted" ? "token_missing" : "permission_denied", permission.status);
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       setNotificationIssue("token");
       setNotificationDetail(detail);
+      setPushStage("setup_error");
       reportPushDiagnostic("setup_error", detail);
     } finally {
       notificationSetupRunning.current = false;
@@ -159,6 +175,14 @@ function RebornApp() {
     }
     await setupNotifications();
   }, [setupNotifications]);
+
+  // Tell the web page where push setup is (Profile shows it, and the page also
+  // registers the token itself as a second path).
+  const sharePushStatus = useCallback(() => {
+    const status = JSON.stringify({ stage: pushStage, detail: notificationDetail, token: pushToken, platform: Platform.OS, build: Constants.nativeBuildVersion || "?" });
+    webViewRef.current?.injectJavaScript(`window.__rebornPush = ${status}; window.dispatchEvent(new Event('reborn:push')); true;`);
+  }, [pushStage, notificationDetail, pushToken]);
+  useEffect(() => { sharePushStatus(); }, [sharePushStatus]);
 
   const syncPushToken = useCallback(() => {
     if (!pushToken) return;
@@ -254,7 +278,7 @@ function RebornApp() {
           setFailed(false);
           setLoading(true);
         }}
-        onLoadEnd={() => { setLoading(false); syncPushToken(); }}
+        onLoadEnd={() => { setLoading(false); sharePushStatus(); syncPushToken(); }}
         onError={() => {
           setLoading(false);
           setFailed(true);
