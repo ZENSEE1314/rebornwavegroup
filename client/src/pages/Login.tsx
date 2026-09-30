@@ -80,9 +80,9 @@ function FormField({
   return (
     <div>
       <label className="text-amber-200/70 text-xs font-semibold uppercase tracking-wider mb-2 block">{label}</label>
-      <div className="relative">
-        {Icon && <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400/40 pointer-events-none z-10" />}
-        <div className={Icon ? "pl-10" : ""}>{children}</div>
+      <div className={`relative ${Icon ? "auth-has-icon" : ""}`}>
+        {Icon && <Icon className="auth-field-icon absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none z-10" />}
+        <div>{children}</div>
         {rightSlot && <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightSlot}</div>}
       </div>
       <FieldError msg={error} />
@@ -410,7 +410,7 @@ export default function Login() {
         }
       `}</style>
 
-      <div className="rwg-page-bg min-h-screen flex items-center justify-center px-4 py-8 relative overflow-hidden">
+      <div className="rwg-auth rwg-page-bg min-h-screen flex items-center justify-center px-4 py-8 relative overflow-hidden">
         {/* Atmospheric orbs */}
         <div className="rwg-gold-orb-1" />
         <div className="rwg-gold-orb-2" />
@@ -449,11 +449,10 @@ export default function Login() {
           </div>
 
           {/* ── Card ── */}
-          <div className="rwg-card rwg-card-glow p-7">
+          <div className="auth-card rwg-card rwg-card-glow p-7">
             {/* Header */}
             <div className="text-center mb-6">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-900/50"
-                style={{ background: "linear-gradient(135deg, #C9A84C, #F5D87A)" }}>
+              <div className="auth-emblem arc-icon mx-auto mb-4" style={{ width: 68, height: 68, ["--c1" as any]: "#ffe89a", ["--c2" as any]: "#c98a12" }}>
                 {activeTab === "login" ? (
                   <Crown className="w-7 h-7 text-black" />
                 ) : activeTab === "register" ? (
@@ -465,19 +464,19 @@ export default function Login() {
 
               {activeTab === "login" && (
                 <>
-                  <h1 className="text-2xl font-bold text-white">{t("auth.title")}</h1>
+                  <h1 className="auth-title">{t("auth.title")}</h1>
                   <p className="text-white/40 text-sm mt-1">{t("auth.subtitle")}</p>
                 </>
               )}
               {activeTab === "register" && (
                 <>
-                  <h1 className="text-2xl font-bold text-white">{t("auth.signUp")}</h1>
+                  <h1 className="auth-title">{t("auth.signUp")}</h1>
                   <p className="text-white/40 text-sm mt-1">{t("ac.login.joinToday")}</p>
                 </>
               )}
               {(activeTab === "forgot" || activeTab === "reset") && (
                 <>
-                  <h1 className="text-2xl font-bold text-white">{t("ac.login.resetTitle")}</h1>
+                  <h1 className="auth-title">{t("ac.login.resetTitle")}</h1>
                   <p className="text-white/40 text-sm mt-1">{t("ac.login.resetSub")}</p>
                 </>
               )}

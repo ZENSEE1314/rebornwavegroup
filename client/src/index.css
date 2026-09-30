@@ -2360,3 +2360,54 @@ button, .interactive {
 .guide-item { background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 14%, #17132b), #120e24 70%); border:1px solid color-mix(in srgb, var(--c1) 30%, transparent); }
 .guide-item .arc-icon, .guide-band .arc-icon { animation:none; transform: rotate(-6deg); }
 .guide-dot { padding:0 !important; min-height:0 !important; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Login / register — same arcade look as the app (scoped to .rwg-auth)
+   ════════════════════════════════════════════════════════════════════════ */
+.rwg-auth { background: radial-gradient(120% 70% at 50% 0%, #2a1650 0%, #120b24 45%, #07050f 100%) !important; }
+.rwg-auth::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.35;
+  background: linear-gradient(rgba(168,85,247,.10) 1px, transparent 1px) 0 0/34px 34px, linear-gradient(90deg, rgba(168,85,247,.10) 1px, transparent 1px) 0 0/34px 34px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent); }
+/* neon card with HUD corners and a slow shine */
+.rwg-auth .auth-card { position:relative; overflow:hidden; isolation:isolate; border-radius:28px !important;
+  background: radial-gradient(90% 45% at 50% 0%, rgba(247,215,116,.16), transparent 70%), linear-gradient(165deg, #1f1840 0%, #110d24 60%, #0b0918 100%) !important;
+  border:1px solid rgba(247,215,116,.45) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 50px rgba(0,0,0,.6), 0 0 40px rgba(168,85,247,.25), 0 0 0 1px rgba(168,85,247,.15) !important; }
+.rwg-auth .auth-card::before { content:""; position:absolute; inset:8px; pointer-events:none; border-radius:22px; opacity:.8; z-index:-1;
+  background:
+    linear-gradient(#f7d774,#f7d774) top left/16px 2px no-repeat, linear-gradient(#f7d774,#f7d774) top left/2px 16px no-repeat,
+    linear-gradient(#f7d774,#f7d774) top right/16px 2px no-repeat, linear-gradient(#f7d774,#f7d774) top right/2px 16px no-repeat,
+    linear-gradient(#f7d774,#f7d774) bottom left/16px 2px no-repeat, linear-gradient(#f7d774,#f7d774) bottom left/2px 16px no-repeat,
+    linear-gradient(#f7d774,#f7d774) bottom right/16px 2px no-repeat, linear-gradient(#f7d774,#f7d774) bottom right/2px 16px no-repeat; }
+.rwg-auth .auth-card::after { content:""; position:absolute; top:0; bottom:0; width:40%; left:-60%; z-index:-1; pointer-events:none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.07), transparent); animation: arcShine 6s ease-in-out infinite; }
+.rwg-auth .auth-emblem { color:#1a1000; }
+.rwg-auth .auth-emblem svg { width:32px; height:32px; }
+.rwg-auth .auth-title { font-size:26px; line-height:1.15; font-weight:900; font-style:italic; letter-spacing:.01em; color:#fff;
+  text-shadow: 0 2px 0 rgba(0,0,0,.45), 0 0 18px rgba(247,215,116,.45), 0 0 34px rgba(168,85,247,.35); }
+/* Login / Sign up switch: gold 3D key for the active tab */
+.rwg-auth .rwg-tab-switcher { background: rgba(0,0,0,.45) !important; border:1px solid rgba(255,255,255,.1) !important; border-radius:16px !important; padding:4px !important; }
+.rwg-auth .rwg-gold-tab-active { background: linear-gradient(180deg, #ffe89a, #f3b52f) !important; color:#170f00 !important; font-weight:900 !important; font-style:italic; letter-spacing:.05em; text-transform:uppercase;
+  border-radius:12px !important; box-shadow: 0 3px 0 #a06a0c, 0 0 16px rgba(243,181,47,.5), inset 0 1px 0 rgba(255,255,255,.7) !important; }
+.rwg-auth .rwg-gold-tab-inactive { color: rgba(255,255,255,.5) !important; font-weight:800; letter-spacing:.05em; text-transform:uppercase; }
+/* inputs: dark HUD fields, icon inside, gold focus glow */
+.rwg-auth label.uppercase { color:#f7d774 !important; opacity:.9; letter-spacing:.14em !important; font-weight:900 !important; text-shadow: 0 0 8px rgba(247,215,116,.35); }
+.rwg-auth :is(input.rwg-input, .rwg-select, select, input[type="date"]) { background: rgba(0,0,0,.45) !important; border:1px solid rgba(168,85,247,.35) !important; border-radius:14px !important; color:#fff !important; }
+.rwg-auth :is(input.rwg-input, .rwg-select, select, input[type="date"]):focus { border-color:#f7d774 !important; box-shadow: 0 0 0 3px rgba(247,215,116,.18), 0 0 18px rgba(247,215,116,.25) !important; }
+.rwg-auth .auth-has-icon :is(input, select) { padding-left: 2.6rem !important; }
+.rwg-auth .auth-field-icon { color: rgba(247,215,116,.75); filter: drop-shadow(0 0 4px rgba(247,215,116,.4)); }
+/* main buttons (Sign In / Create Account / Send / Reset): chunky gold 3D key */
+.rwg-auth button[type="submit"] { height:auto !important; min-height:52px; border-radius:16px !important; border:0 !important; color:#170f00 !important;
+  font-size:16px !important; font-weight:900 !important; font-style:italic; letter-spacing:.08em; text-transform:uppercase;
+  background: linear-gradient(180deg, #ffe89a, #f3b52f) !important;
+  box-shadow: 0 5px 0 #a06a0c, 0 0 22px rgba(243,181,47,.5), inset 0 2px 0 rgba(255,255,255,.7) !important;
+  animation: arcGlow 2.2s ease-in-out infinite; transition: transform .1s ease !important; }
+.rwg-auth button[type="submit"]:not(:disabled):active { transform: translateY(4px) !important; box-shadow: 0 1px 0 #a06a0c, 0 0 26px rgba(243,181,47,.6) !important; }
+/* sign-up perks: neon chips */
+.rwg-auth .rwg-perk-pill { background: linear-gradient(100deg, rgba(168,85,247,.18), rgba(0,0,0,.3)) !important; border-color: rgba(168,85,247,.4) !important; color: rgba(255,255,255,.85) !important; font-weight:700; border-radius:12px !important; }
+.rwg-auth .rwg-perk-pill svg { color:#f7d774; filter: drop-shadow(0 0 4px rgba(247,215,116,.5)); }
+.rwg-auth .rwg-member-badge { background: rgba(0,0,0,.45) !important; border-color: rgba(52,211,153,.45) !important; color:#a7f3d0 !important; box-shadow: 0 0 14px rgba(52,211,153,.2); font-weight:800 !important; }
+/* language picker: dark chip instead of a white box */
+.rwg-auth button:has(> .lucide-globe) { background: rgba(0,0,0,.45) !important; border:1px solid rgba(247,215,116,.4) !important; border-radius:999px !important; box-shadow: 0 0 12px rgba(247,215,116,.15) !important; }
+.rwg-auth button:has(> .lucide-globe) :is(svg, span) { color:#f7d774 !important; }
+@media (prefers-reduced-motion: reduce) { .rwg-auth .auth-card::after, .rwg-auth button[type="submit"] { animation:none; } }
