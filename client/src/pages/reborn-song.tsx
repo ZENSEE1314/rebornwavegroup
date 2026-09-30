@@ -74,6 +74,9 @@ function TopList() {
     onError: (e: any) => toast({ title: t("vn.common.failed"), description: e.message, variant: "destructive" }),
   });
   const filtered = search ? (searchResult?.songs || []) : songs;
+  // Long lists render in pages of 60 so phones stay fast; "Show more" reveals the rest.
+  const [shown, setShown] = useState(60);
+  useEffect(() => setShown(60), [search]);
   return (
     <div>
       {songSettings?.performanceModeEnabled && <ModePicker value={performanceMode} onChange={setPerformanceMode}/>}
@@ -83,7 +86,9 @@ function TopList() {
       </div>
       {search && <p className="mb-3 text-xs text-white/40">{isFetching ? t("vn.song.searchingAll") : searchResult?.spotifyConnected ? t("vn.song.resultsSpotify") : t("vn.song.resultsFree")}</p>}
       {filtered.length === 0 && <div className="text-center py-10 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.song.noSongs")}</p></div>}
-      <div className="space-y-2">{filtered.map((s) => <SongRow key={`${s.source || "library"}-${s.id || s.externalId || `${s.title}-${s.artist}`}`} s={s} onRequest={(x: any) => req.mutate(x)} pending={req.isPending} />)}</div>
+      {!search && songs.length > 0 && <p className="mb-2 text-xs text-white/40">{t("vn.song.total", { n: songs.length })}</p>}
+      <div className="space-y-2">{filtered.slice(0, shown).map((s) => <SongRow key={`${s.source || "library"}-${s.id || s.externalId || `${s.title}-${s.artist}`}`} s={s} onRequest={(x: any) => req.mutate(x)} pending={req.isPending} />)}</div>
+      {filtered.length > shown && <button onClick={() => setShown((n) => n + 60)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80">{t("vn.song.showMore", { n: filtered.length - shown })}</button>}
     </div>
   );
 }

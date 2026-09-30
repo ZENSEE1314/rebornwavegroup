@@ -163,7 +163,8 @@ async function searchAppleCatalog(query: string, limit: number): Promise<SongSug
   return rows;
 }
 
-export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<{ songs: SongSuggestion[]; spotifyConnected: boolean; freeCatalogConnected: boolean }> {
+// `limit` caps each online source; `localLimit` caps library matches (all of them are kept).
+export async function searchSongCatalog(rawQuery: unknown, limit = 10, localLimit = limit): Promise<{ songs: SongSuggestion[]; spotifyConnected: boolean; freeCatalogConnected: boolean }> {
   const query = String(rawQuery || "").trim().slice(0, 120);
   if (!query) return { songs: [], spotifyConnected: spotifySearchConfigured(), freeCatalogConnected: true };
   const pattern = `%${query.replace(/[\\%_]/g, "\\$&")}%`;
@@ -172,7 +173,7 @@ export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<
     ilike(songs.titlePinyin, pattern),
     ilike(songs.artist, pattern),
     ilike(songs.artistPinyin, pattern),
-  )).orderBy(desc(songs.isHit), desc(songs.requestCount)).limit(limit);
+  )).orderBy(desc(songs.isHit), desc(songs.requestCount), songs.title).limit(localLimit);
 
   let remote: SongSuggestion[] = [];
   if (spotifySearchConfigured()) {
@@ -208,6 +209,6 @@ export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).slice(0, limit);
+  }).slice(0, local.length + limit);
   return { songs: deduped, spotifyConnected: spotifySearchConfigured(), freeCatalogConnected: true };
 }
