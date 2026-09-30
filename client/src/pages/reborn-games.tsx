@@ -87,8 +87,9 @@ export default function RebornGames() {
   const enter = (c: string) => { try { localStorage.setItem(ROOM_KEY, c); } catch {} setCode(c); };
   const exit = () => { try { localStorage.removeItem(ROOM_KEY); } catch {} setCode(""); };
   const [numberMode, setNumberMode] = useState(false);
+  const { t } = useTranslation();
   return (
-    <RebornLayout active="/games" title="GAMES" hideNav={!!code || numberMode}>
+    <RebornLayout active="/games" title={t("gm.title")} hideNav={!!code || numberMode}>
       <div className="max-w-2xl mx-auto">
         {!code && !numberMode && <MobileBackButton className="mb-4" />}
         {code ? <Room code={code} onLeave={exit} />
@@ -1716,7 +1717,7 @@ function CardGame({ room, code, me }: any) {
   const iWon = room.status === "done" && room.winnerId === me;
   const iLost = room.status === "done" && room.lastLoserId === me;
   const act = (body: any) => { sfx.flip(); return post(`/api/reborn/games/rooms/${code}/action`, body); };
-  const secs = useLocalCountdown(room.secondsLeft, `${cards.turnId}-${cards.phase}-${roomMsg(t, room)}`);
+  const secs = useLocalCountdown(room.secondsLeft, `${cards.turnId}-${cards.phase}-${room.message}`);
 
   // Winner reveal — show the completed hand to everyone before the win screen.
   if (room.status === "reveal" && cards.reveal) {

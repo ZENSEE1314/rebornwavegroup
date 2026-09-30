@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useTranslation, translations, localeTag } from "@/lib/i18n";
+import { useTranslation, translations, localeTag, translate } from "@/lib/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -1303,21 +1303,25 @@ const INDUSTRY_LABELS: Record<string, string> = { restaurant: "Restaurant", bar:
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar,Restaurant").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
-const deptLabel = (d?: string | null): string => deptList(d).join(" · ");
+// Industry values are stored in English (e.g. "Food Court"); show them in the current language.
+const indLabel = (v: string): string => { const k = Object.keys(INDUSTRY_LABELS).find((x) => INDUSTRY_LABELS[x] === v); return k ? translate("admin.ind." + k) : v; };
+const deptLabel = (d?: string | null): string => deptList(d).map(indLabel).join(" · ");
 
 function IndustryPicker({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
   const sel = new Set(deptList(value));
   const toggle = (o: string) => { const s = new Set(sel); s.has(o) ? s.delete(o) : s.add(o); onChange(Array.from(s).join(",")); };
   return (
     <div className="mt-1 flex flex-wrap gap-1.5">
-      {options.length === 0 && <span className="text-xs text-white/30">No industry modules enabled</span>}
-      {options.map((o) => <button type="button" key={o} onClick={() => toggle(o)} className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${sel.has(o) ? "bg-amber-400 text-black border-amber-400" : "bg-white/5 text-white/60 border-white/10"}`}>{o}</button>)}
+      {options.length === 0 && <span className="text-xs text-white/30">{t("admin.prod.noIndustries")}</span>}
+      {options.map((o) => <button type="button" key={o} onClick={() => toggle(o)} className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${sel.has(o) ? "bg-amber-400 text-black border-amber-400" : "bg-white/5 text-white/60 border-white/10"}`}>{indLabel(o)}</button>)}
     </div>
   );
 }
 
 function Products() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const modules = useModules();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
@@ -1331,51 +1335,51 @@ function Products() {
   const shown = industry ? products.filter((p) => deptHas(p.department, industry)) : products;
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: t("admin.prod.added") }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const restock = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/pos/stock-in", { productId: Number(rs.productId), qty: Number(rs.qty), unitCost: rs.unitCost ? Number(rs.unitCost) : undefined, supplier: rs.supplier || undefined }).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Batch added" }); setRs({ productId: "", supplier: "", qty: 1, unitCost: 0 }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
+    onSuccess: () => { toast({ title: t("admin.prod.batchAdded") }); setRs({ productId: "", supplier: "", qty: 1, unitCost: 0 }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div className="space-y-3">
       <Card>
         <div className="mb-3 flex gap-2">
-          <button onClick={() => setMode("new")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${mode === "new" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>New product</button>
-          <button onClick={() => setMode("restock")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${mode === "restock" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>Same item · new supplier</button>
+          <button onClick={() => setMode("new")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${mode === "new" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.prod.new")}</button>
+          <button onClick={() => setMode("restock")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${mode === "restock" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.prod.restockTab")}</button>
         </div>
         {mode === "new" ? <>
-        <label className="text-xs text-white/50 block mb-2">Product name<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="e.g. Heineken" className={inp + " w-full"} /></label>
+        <label className="text-xs text-white/50 block mb-2">{t("admin.prod.name")}<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder={t("admin.c.eg", { v: "Heineken" })} className={inp + " w-full"} /></label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-          <label className="text-xs text-white/50">Category<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Drinks" className={inp + " w-full"} /></label>
-          <div className="text-xs text-white/50 sm:col-span-2">Industries <span className="text-white/30">(tick all that apply — an item like beer can be in KTV, Bar &amp; Restaurant)</span><IndustryPicker value={n.department} options={industryOptions} onChange={(v) => setN({ ...n, department: v })} /></div>
-          <label className="text-xs text-white/50">Stock quantity<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={n.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.category")}<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder={t("admin.prod.categoryPh")} className={inp + " w-full"} /></label>
+          <div className="text-xs text-white/50 sm:col-span-2">{t("admin.prod.industries")} <span className="text-white/30">{t("admin.prod.industriesHint")}</span><IndustryPicker value={n.department} options={industryOptions} onChange={(v) => setN({ ...n, department: v })} /></div>
+          <label className="text-xs text-white/50">{t("admin.prod.stockQty")}<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={n.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
         </div>
-        <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" sm:col-span-2"}/></div>
-        <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> Sellable in POS <span className="text-white/40 text-xs">(uncheck for raw items like meat)</span></label>
-        <div className="mb-3"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label="Upload photo" /></div>
-        <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
+        <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
+        <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHint")}</span></label>
+        <div className="mb-3"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
+        <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.c.add")}</button>
         </> : <>
-        <p className="text-xs text-white/50 mb-2">Restock an existing item from a different supplier — adds stock without creating a duplicate product.</p>
-        <label className="text-xs text-white/50 block mb-2">Item<select value={rs.productId} onChange={(e) => setRs({ ...rs, productId: e.target.value })} className={inp + " w-full"}><option value="">Select existing item</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}{p.department ? ` · ${deptLabel(p.department)}` : ""} (stock {p.stock})</option>)}</select></label>
+        <p className="text-xs text-white/50 mb-2">{t("admin.prod.restockHint")}</p>
+        <label className="text-xs text-white/50 block mb-2">{t("admin.prod.item")}<select value={rs.productId} onChange={(e) => setRs({ ...rs, productId: e.target.value })} className={inp + " w-full"}><option value="">{t("admin.prod.selectItem")}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}{p.department ? ` · ${deptLabel(p.department)}` : ""} ({t("admin.prod.stockN", { n: p.stock })})</option>)}</select></label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
-          <label className="text-xs text-white/50">Supplier<input value={rs.supplier} onChange={(e) => setRs({ ...rs, supplier: e.target.value })} placeholder="Supplier name" className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Quantity<input type="number" inputMode="numeric" value={rs.qty || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, qty: Number(e.target.value) })} className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={rs.unitCost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, unitCost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.supplier")}<input value={rs.supplier} onChange={(e) => setRs({ ...rs, supplier: e.target.value })} placeholder={t("admin.prod.supNameShort")} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.qty")}<input type="number" inputMode="numeric" value={rs.qty || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, qty: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={rs.unitCost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, unitCost: Number(e.target.value) })} className={inp + " w-full"} /></label>
         </div>
-        <button onClick={() => restock.mutate()} disabled={!rs.productId || !Number(rs.qty) || restock.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add batch</button>
+        <button onClick={() => restock.mutate()} disabled={!rs.productId || !Number(rs.qty) || restock.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.prod.addBatch")}</button>
         </>}
       </Card>
-      {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || "All"}</button>)}</div>}
+      {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
       {/* Desktop: editable spreadsheet view */}
       {shown.length > 0 && <div className="hidden lg:block"><ProductsTable products={shown} industryOptions={industryOptions} /></div>}
       {/* Mobile / tablet: card view */}
       <div className="lg:hidden space-y-3">{shown.map((p) => <ProductRow key={p.id} p={p} />)}</div>
-      {shown.length === 0 && <Empty text="No products in this industry yet." />}
+      {shown.length === 0 && <Empty text={t("admin.prod.emptyInd")} />}
     </div>
   );
 }
@@ -1384,21 +1388,22 @@ function Products() {
 const cell = "w-full bg-transparent border border-transparent rounded px-1.5 py-1 text-sm outline-none hover:border-white/15 focus:border-amber-400/60 focus:bg-black/20";
 
 function ProductsTable({ products, industryOptions }: { products: any[]; industryOptions: string[] }) {
+  const { t } = useTranslation();
   return (
     <Card>
       <div className="overflow-x-auto -mx-3 sm:mx-0">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
-              <th className="py-2 px-2 font-semibold">Item</th>
-              <th className="py-2 px-2 font-semibold">Category</th>
-              <th className="py-2 px-2 font-semibold min-w-[180px]">Industries</th>
-              <th className="py-2 px-2 font-semibold text-right">Sell (RP)</th>
-              <th className="py-2 px-2 font-semibold text-right">Cost (RP)</th>
-              <th className="py-2 px-2 font-semibold text-right">Stock</th>
-              <th className="py-2 px-2 font-semibold">Supplier</th>
-              <th className="py-2 px-2 font-semibold text-center">POS</th>
-              <th className="py-2 px-2 font-semibold text-center">Active</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.prod.item")}</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.prod.category")}</th>
+              <th className="py-2 px-2 font-semibold min-w-[180px]">{t("admin.prod.industries")}</th>
+              <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.sellRp")}</th>
+              <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
+              <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.prod.supplier")}</th>
+              <th className="py-2 px-2 font-semibold text-center">{t("admin.prod.pos")}</th>
+              <th className="py-2 px-2 font-semibold text-center">{t("admin.prod.activeCol")}</th>
               <th className="py-2 px-2 font-semibold text-right"></th>
             </tr>
           </thead>
@@ -1407,20 +1412,21 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-white/40 mt-2">Edit any cell, then press <b>Save</b> on that row. Stock quantities are adjusted in the Inventory tab.</p>
+      <p className="text-[11px] text-white/40 mt-2">{t("admin.prod.tableHint")}</p>
     </Card>
   );
 }
 
 function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: string[] }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, supplierName: p.supplierName || "" };
   const [f, setF] = useState(base);
   const dirty = JSON.stringify(f) !== JSON.stringify(base);
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Saved" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: t("admin.c.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
@@ -1434,13 +1440,14 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
-      <td className="px-2 py-1 text-right"><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> Save</button></td>
+      <td className="px-2 py-1 text-right"><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></td>
     </tr>
   );
 }
 
 function ProductRow({ p }: any) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
@@ -1448,7 +1455,7 @@ function ProductRow({ p }: any) {
   const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...deptList(p.department)])).sort();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: t("admin.c.saved") }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
@@ -1457,40 +1464,42 @@ function ProductRow({ p }: any) {
         <div className="flex items-start gap-3">
           {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" /> : <span className="w-14 h-14 rounded-xl bg-white/5 flex-shrink-0" />}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>} {p.posVisible === false && <span className="text-xs text-amber-400">(not in POS)</span>}</p>
-            <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
-            {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">Supplier: {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
+            <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">{t("admin.prod.hiddenTag")}</span>} {p.posVisible === false && <span className="text-xs text-amber-400">{t("admin.prod.notInPosTag")}</span>}</p>
+            <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · RP {Number(p.price).toLocaleString()} · {t("admin.prod.stockN", { n: p.stock })}</p>
+            {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">{t("admin.prod.supplierLbl")} {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
-          <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> Edit</button>
+          <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> {t("admin.c.edit")}</button>
         </div>
       ) : (
         <div>
-          <label className="text-xs text-white/50">Name<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} /></label>
-          <div className="text-xs text-white/50 mb-2">Industries <span className="text-white/30">(tick all that apply)</span><IndustryPicker value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></div>
+          <label className="text-xs text-white/50">{t("admin.c.name")}<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} /></label>
+          <div className="text-xs text-white/50 mb-2">{t("admin.prod.industries")} <span className="text-white/30">{t("admin.prod.tickAll")}</span><IndustryPicker value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></div>
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <label className="text-xs text-white/50">Category<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
-            <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active</label>
-            <label className="text-xs text-white/50">Sell price (RP)<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50">Unit cost (RP)<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.prod.category")}<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
+            <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> {t("admin.prod.activeCol")}</label>
+            <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
           </div>
-          <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> Sellable in POS <span className="text-white/40 text-xs">(uncheck for raw items like meat that must be prepared first — still tracked in inventory)</span></label>
-          <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" sm:col-span-2"}/></div>
-          <div className="mb-2"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label="Upload photo" /></div>
+          <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHintLong")}</span></label>
+          <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
+          <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => save.mutate()} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
             <button onClick={() => setEdit(false)} className={btnSm + " text-white/60"}><X className="w-4 h-4" /></button>
           </div>
-          <p className="text-[11px] text-white/40 mt-1">Adjust stock quantities from POS › Stock.</p>
+          <p className="text-[11px] text-white/40 mt-1">{t("admin.prod.adjustHint")}</p>
         </div>
       )}
     </Card>
   );
 }
 
-const CAT_LABEL: Record<string, string> = { "income:product_sale": "Product sales", "income:topup": "Top-ups", "income:service": "Services", "income:other": "Other income", "expense:purchase": "Stock purchases", "expense:commission": "Commission paid", "expense:spin_prize": "Spin prizes paid", "expense:salary": "Staff salary", "expense:rental": "Rental", "expense:utilities": "Utilities", "expense:other": "Other expenses" };
+// Ledger category label ("income:topup" → translated), or undefined when unknown.
+const catLabel = (k: string): string | undefined => { const key = "admin.cat." + k.replace(":", "."); return translations[key] ? translate(key) : undefined; };
 
 function Accounting() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [days, setDays] = useState(30);
   const [rate, setRate] = useState(10);
@@ -1502,18 +1511,18 @@ function Accounting() {
   const normalLedger = ledger.filter((entry) => entry.refType !== "pos_closing");
   const addEntry = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/accounting/entry", e).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Entry added" }); setE({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
-    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+    onSuccess: () => { toast({ title: t("admin.acc.entryAdded") }); setE({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const payCommission = useMutation({
     mutationFn: (v: { staffName: string; amount: number }) => apiRequest("POST", "/api/reborn/admin/accounting/commission/pay", v).then((r) => r.json()),
-    onSuccess: (d: any) => { toast({ title: "Commission paid", description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
-    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+    onSuccess: (d: any) => { toast({ title: t("admin.acc.commissionPaid"), description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
   const exportCsv = () => {
-    const rows = [["Date", "Type", "Category", "Amount (RP)", "Note"], ...normalLedger.map((l) => [
-      new Date(l.createdAt).toISOString(), l.kind, l.category, String(Math.round(Number(l.amount))), (l.note || "").replace(/"/g, "'"),
+    const rows = [[t("admin.hr.date"), t("admin.acc.type"), t("admin.prod.category"), t("admin.acc.amount"), t("admin.acc.note")], ...normalLedger.map((l) => [
+      new Date(l.createdAt).toISOString(), tv(t, "admin.acc." + l.kind, l.kind), catLabel(l.kind + ":" + l.category) || l.category, String(Math.round(Number(l.amount))), (l.note || "").replace(/"/g, "'"),
     ])];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -1522,120 +1531,123 @@ function Accounting() {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{d}d</button>)}
-        <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Export CSV</button>
+        {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.acc.days", { n: d })}</button>)}
+        <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
       {byIndustry.length > 0 && <Card>
-        <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> Sales by industry ({days}d)</p>
+        <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.acc.byIndustry", { n: days })}</p>
         <div className="space-y-1.5">{byIndustry.map((r) => (
-          <div key={r.industry} className="flex items-center justify-between text-sm"><span className="text-white/80">{r.industry}</span><span className="text-white/50">{r.orders} orders · <b className="text-amber-200">{money(r.revenue)}</b></span></div>
+          <div key={r.industry} className="flex items-center justify-between text-sm"><span className="text-white/80">{indLabel(r.industry)}</span><span className="text-white/50">{t("admin.acc.orders", { n: r.orders })} · <b className="text-amber-200">{money(r.revenue)}</b></span></div>
         ))}</div>
-        <p className="mt-2 text-[11px] text-white/40">Tag each product with an Industry (Products tab) to split revenue per business.</p>
+        <p className="mt-2 text-[11px] text-white/40">{t("admin.acc.industryHint")}</p>
       </Card>}
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Income</p><p className="text-base font-extrabold text-emerald-300">{money(sum?.income || 0)}</p></div>
-        <div className="rounded-2xl bg-red-500/10 border border-red-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Expense</p><p className="text-base font-extrabold text-red-300">{money(sum?.expense || 0)}</p></div>
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Net</p><p className={`text-base font-extrabold ${(sum?.net || 0) >= 0 ? "text-amber-300" : "text-red-300"}`}>{money(sum?.net || 0)}</p></div>
+        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.acc.incomeT")}</p><p className="text-base font-extrabold text-emerald-300">{money(sum?.income || 0)}</p></div>
+        <div className="rounded-2xl bg-red-500/10 border border-red-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.acc.expenseT")}</p><p className="text-base font-extrabold text-red-300">{money(sum?.expense || 0)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.acc.net")}</p><p className={`text-base font-extrabold ${(sum?.net || 0) >= 0 ? "text-amber-300" : "text-red-300"}`}>{money(sum?.net || 0)}</p></div>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Revenue</p><p className="text-sm font-extrabold text-white">{money(sum?.revenue || 0)}</p></div>
-        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Cost of goods</p><p className="text-sm font-extrabold text-white">{money(sum?.cogs || 0)}</p></div>
-        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">🎡 Prize pool</p><p className="text-sm font-extrabold text-amber-300">{money(sum?.spinPool || 0)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.acc.revenue")}</p><p className="text-sm font-extrabold text-white">{money(sum?.revenue || 0)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.acc.cogs")}</p><p className="text-sm font-extrabold text-white">{money(sum?.cogs || 0)}</p></div>
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.acc.prizePool")}</p><p className="text-sm font-extrabold text-amber-300">{money(sum?.spinPool || 0)}</p></div>
       </div>
       {sum?.byCategory && Object.keys(sum.byCategory).length > 0 && (
         <Card>
-          <p className="font-bold mb-2 text-sm">Breakdown</p>
+          <p className="font-bold mb-2 text-sm">{t("admin.acc.breakdown")}</p>
           {Object.entries(sum.byCategory).map(([k, v]: any) => (
-            <div key={k} className="flex justify-between text-sm py-0.5"><span className="text-white/60">{CAT_LABEL[k] || k}</span><span className={k.startsWith("income") ? "text-emerald-300" : "text-red-300"}>{money(v)}</span></div>
+            <div key={k} className="flex justify-between text-sm py-0.5"><span className="text-white/60">{catLabel(k) || k}</span><span className={k.startsWith("income") ? "text-emerald-300" : "text-red-300"}>{money(v)}</span></div>
           ))}
         </Card>
       )}
       {commission?.staff && (
         <Card>
           <div className="flex items-center justify-between mb-2">
-            <p className="font-bold text-sm">Sales by staff (commission)</p>
-            <label className="text-xs text-white/50 flex items-center gap-1">rate <input type="number" value={rate} onChange={(e) => setRate(Number(e.target.value))} className={inp + " w-14"} />%</label>
+            <p className="font-bold text-sm">{t("admin.acc.byStaff")}</p>
+            <label className="text-xs text-white/50 flex items-center gap-1">{t("admin.acc.rate")} <input type="number" value={rate} onChange={(e) => setRate(Number(e.target.value))} className={inp + " w-14"} />%</label>
           </div>
-          {commission.staff.length === 0 && <p className="text-xs text-white/40">No paid sales in this period.</p>}
+          {commission.staff.length === 0 && <p className="text-xs text-white/40">{t("admin.acc.noSales")}</p>}
           {commission.staff.map((s: any) => (
             <div key={s.name} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 gap-2">
-              <span className="text-white/70 min-w-0 truncate">{s.name} <span className="text-white/30">· {s.tickets} sale(s) · {money(s.sales)}</span></span>
+              <span className="text-white/70 min-w-0 truncate">{s.name === "Unassigned" ? t("admin.acc.unassigned") : s.name} <span className="text-white/30">· {t("admin.acc.sales", { n: s.tickets })} · {money(s.sales)}</span></span>
               <span className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-emerald-300 font-semibold">{money(s.commission)}</span>
                 {s.name !== "Unassigned" && s.commission > 0 && (
-                  <button onClick={() => { if (confirm(`Pay RP ${s.commission.toLocaleString()} commission to ${s.name}? This records an RP cash expense.`)) payCommission.mutate({ staffName: s.name, amount: s.commission }); }} disabled={payCommission.isPending} className="px-2.5 py-1.5 rounded-lg bg-emerald-500/90 text-black text-xs font-bold">Pay RP</button>
+                  <button onClick={() => { if (confirm(t("admin.acc.payConfirm", { rp: s.commission.toLocaleString(), name: s.name }))) payCommission.mutate({ staffName: s.name, amount: s.commission }); }} disabled={payCommission.isPending} className="px-2.5 py-1.5 rounded-lg bg-emerald-500/90 text-black text-xs font-bold">{t("admin.acc.payRp")}</button>
                 )}
               </span>
             </div>
           ))}
-          <p className="text-[11px] text-white/40 mt-2">Commission is paid as RP cash (recorded as an expense), not app credits.</p>
+          <p className="text-[11px] text-white/40 mt-2">{t("admin.acc.commissionHint")}</p>
         </Card>
       )}
       <DailyClosings days={days} />
       <AccountingOrders days={days} />
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Calculator className="w-4 h-4 text-amber-300" /> Add manual entry</p>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.acc.manual")}</p>
         <div className="grid grid-cols-2 gap-2 mb-2">
-          <select value={e.kind} onChange={(x) => setE({ ...e, kind: x.target.value })} className={inp}><option value="expense">Expense</option><option value="income">Income</option></select>
+          <select value={e.kind} onChange={(x) => setE({ ...e, kind: x.target.value })} className={inp}><option value="expense">{t("admin.acc.expenseT")}</option><option value="income">{t("admin.acc.incomeT")}</option></select>
           <select value={e.category} onChange={(x) => setE({ ...e, category: x.target.value })} className={inp}>
             {e.kind === "expense"
-              ? <><option value="salary">Staff salary</option><option value="rental">Rental</option><option value="utilities">Utilities</option><option value="purchase">Stock purchase</option><option value="other">Other</option></>
-              : <><option value="service">Service</option><option value="other">Other</option></>}
+              ? <><option value="salary">{t("admin.cat.expense.salary")}</option><option value="rental">{t("admin.cat.expense.rental")}</option><option value="utilities">{t("admin.cat.expense.utilities")}</option><option value="purchase">{t("admin.acc.stockPurchase")}</option><option value="other">{t("admin.acc.other")}</option></>
+              : <><option value="service">{t("admin.acc.service")}</option><option value="other">{t("admin.acc.other")}</option></>}
           </select>
-          <input type="number" value={e.amount} onChange={(x) => setE({ ...e, amount: Number(x.target.value) })} placeholder="Amount (RP)" className={inp} />
-          <input value={e.note} onChange={(x) => setE({ ...e, note: x.target.value })} placeholder="Note (who / what for)" className={inp} />
+          <input type="number" value={e.amount} onChange={(x) => setE({ ...e, amount: Number(x.target.value) })} placeholder={t("admin.acc.amount")} className={inp} />
+          <input value={e.note} onChange={(x) => setE({ ...e, note: x.target.value })} placeholder={t("admin.acc.notePh")} className={inp} />
         </div>
-        <p className="text-[11px] text-white/50 mb-1">📸 Snap the invoice / receipt (optional — for outside payments)</p>
-        <div className="mb-3"><ImageUpload value={e.photoUrl} onChange={(v: any) => setE({ ...e, photoUrl: v })} label="Snap / upload invoice" output="jpeg" maxDim={1200} /></div>
-        <button onClick={() => addEntry.mutate()} disabled={e.amount <= 0 || addEntry.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add entry</button>
+        <p className="text-[11px] text-white/50 mb-1">{t("admin.acc.snapHint")}</p>
+        <div className="mb-3"><ImageUpload value={e.photoUrl} onChange={(v: any) => setE({ ...e, photoUrl: v })} label={t("admin.acc.snap")} output="jpeg" maxDim={1200} /></div>
+        <button onClick={() => addEntry.mutate()} disabled={e.amount <= 0 || addEntry.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.acc.addEntry")}</button>
       </Card>
-      <p className="text-xs text-white/40 px-1">Recent ledger</p>
+      <p className="text-xs text-white/40 px-1">{t("admin.acc.recent")}</p>
       {normalLedger.map((l) => (
         <div key={l.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm gap-2">
           <div className="min-w-0 flex items-center gap-2">
-            {l.photoUrl && <a href={l.photoUrl} target="_blank" rel="noreferrer"><img src={l.photoUrl} alt="invoice" className="w-9 h-9 rounded object-cover border border-white/10 flex-shrink-0" /></a>}
-            <div className="min-w-0"><p className="truncate">{l.note || CAT_LABEL[l.kind + ":" + l.category] || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString()}</p></div>
+            {l.photoUrl && <a href={l.photoUrl} target="_blank" rel="noreferrer"><img src={l.photoUrl} alt={t("admin.acc.invoice")} className="w-9 h-9 rounded object-cover border border-white/10 flex-shrink-0" /></a>}
+            <div className="min-w-0"><p className="truncate">{l.note || catLabel(l.kind + ":" + l.category) || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString(localeTag())}</p></div>
           </div>
           <span className={l.kind === "income" ? "text-emerald-300 font-semibold flex-shrink-0" : "text-red-300 font-semibold flex-shrink-0"}>{l.kind === "income" ? "+" : "−"}{money(Number(l.amount))}</span>
         </div>
       ))}
-      {normalLedger.length === 0 && <Empty text="No transactions yet." />}
+      {normalLedger.length === 0 && <Empty text={t("admin.acc.noTx")} />}
     </div>
   );
 }
 
 function DailyClosings({days}:{days:number}) {
+  const { t } = useTranslation();
   const [selected,setSelected]=useState<any>(null);
   const {data:reports=[]}=useQuery<any[]>({queryKey:["/api/reborn/admin/accounting/closings",days],queryFn:()=>apiRequest("GET",`/api/reborn/admin/accounting/closings?days=${days}`).then(r=>r.json())});
   const money=(n:any)=>"RP "+Math.round(Number(n)||0).toLocaleString();
-  return <Card><p className="mb-2 flex items-center gap-2 text-sm font-bold"><Receipt className="h-4 w-4 text-amber-300"/>End-of-day receipts</p>{reports.map(r=><button key={r.id} onClick={()=>setSelected(r)} className="mb-2 flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/20 p-3 text-left"><span><b className="block">{r.day}</b><span className="text-[11px] text-white/40">{r.ticketCount} paid order(s) · cost {money(r.totals?.cost)}</span></span><span className="text-right"><b className="block text-emerald-300">{money(r.totals?.revenue)}</b><span className="text-[11px] text-white/40">profit {money(r.totals?.profit)}</span></span></button>)}{reports.length===0&&<p className="text-xs text-white/40">No POS closing reports yet.</p>}{selected&&<div className="fixed inset-0 z-[90] overflow-y-auto bg-black/85 p-4 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-md rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={()=>setSelected(null)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10"><X className="h-5 w-5"/></button><h3 className="pr-10 text-xl font-black">End-of-day receipt</h3><p className="text-sm text-white/50">{selected.day} · {selected.ticketCount} paid order(s)</p><div className="my-4 max-h-60 space-y-2 overflow-y-auto border-y border-white/10 py-3">{(selected.items||[]).map((item:any)=><div key={item.name} className="flex justify-between gap-3 text-sm"><span>{item.quantity}× {item.name}</span><span>{money(item.sales)}</span></div>)}</div><div className="space-y-1 text-sm"><div className="flex justify-between"><span>Gross sales</span><span>{money(selected.totals?.subtotal)}</span></div><div className="flex justify-between"><span>Discounts</span><span>- {money(selected.totals?.discount)}</span></div><div className="flex justify-between"><span>Service fee</span><span>{money(selected.totals?.serviceFee)}</span></div><div className="flex justify-between"><span>Tax</span><span>{money(selected.totals?.tax)}</span></div><div className="flex justify-between text-lg font-black text-amber-300"><span>Total revenue</span><span>{money(selected.totals?.revenue)}</span></div><div className="flex justify-between text-white/60"><span>Cash / Card</span><span>{money(selected.totals?.cash)} / {money(selected.totals?.card)}</span></div><div className="mt-2 flex justify-between border-t border-white/10 pt-2"><span>Product cost</span><span>- {money(selected.totals?.cost)}</span></div><div className="flex justify-between text-lg font-black text-emerald-300"><span>Gross profit</span><span>{money(selected.totals?.profit)}</span></div></div><button onClick={()=>printClosingReport(selected,{clubName:"Reborn Wave Group"})} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 py-3 font-bold text-black"><Printer className="h-4 w-4"/>Print daily receipt</button></div></div>}</Card>;
+  return <Card><p className="mb-2 flex items-center gap-2 text-sm font-bold"><Receipt className="h-4 w-4 text-amber-300"/>{t("admin.dc.title")}</p>{reports.map(r=><button key={r.id} onClick={()=>setSelected(r)} className="mb-2 flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/20 p-3 text-left"><span><b className="block">{r.day}</b><span className="text-[11px] text-white/40">{t("admin.dc.paidOrders", { n: r.ticketCount })} · {t("admin.dc.cost", { v: money(r.totals?.cost) })}</span></span><span className="text-right"><b className="block text-emerald-300">{money(r.totals?.revenue)}</b><span className="text-[11px] text-white/40">{t("admin.dc.profit", { v: money(r.totals?.profit) })}</span></span></button>)}{reports.length===0&&<p className="text-xs text-white/40">{t("admin.dc.empty")}</p>}{selected&&<div className="fixed inset-0 z-[90] overflow-y-auto bg-black/85 p-4 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-md rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={()=>setSelected(null)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10"><X className="h-5 w-5"/></button><h3 className="pr-10 text-xl font-black">{t("admin.dc.receipt")}</h3><p className="text-sm text-white/50">{selected.day} · {t("admin.dc.paidOrders", { n: selected.ticketCount })}</p><div className="my-4 max-h-60 space-y-2 overflow-y-auto border-y border-white/10 py-3">{(selected.items||[]).map((item:any)=><div key={item.name} className="flex justify-between gap-3 text-sm"><span>{item.quantity}× {item.name}</span><span>{money(item.sales)}</span></div>)}</div><div className="space-y-1 text-sm"><div className="flex justify-between"><span>{t("admin.dc.gross")}</span><span>{money(selected.totals?.subtotal)}</span></div><div className="flex justify-between"><span>{t("admin.dc.discounts")}</span><span>- {money(selected.totals?.discount)}</span></div><div className="flex justify-between"><span>{t("admin.dc.serviceFee")}</span><span>{money(selected.totals?.serviceFee)}</span></div><div className="flex justify-between"><span>{t("admin.dc.tax")}</span><span>{money(selected.totals?.tax)}</span></div><div className="flex justify-between text-lg font-black text-amber-300"><span>{t("admin.dc.totalRevenue")}</span><span>{money(selected.totals?.revenue)}</span></div><div className="flex justify-between text-white/60"><span>{t("admin.dc.cashCard")}</span><span>{money(selected.totals?.cash)} / {money(selected.totals?.card)}</span></div><div className="mt-2 flex justify-between border-t border-white/10 pt-2"><span>{t("admin.dc.productCost")}</span><span>- {money(selected.totals?.cost)}</span></div><div className="flex justify-between text-lg font-black text-emerald-300"><span>{t("admin.dc.grossProfit")}</span><span>{money(selected.totals?.profit)}</span></div></div><button onClick={()=>printClosingReport(selected,{clubName:"Reborn Wave Group"})} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 py-3 font-bold text-black"><Printer className="h-4 w-4"/>{t("admin.dc.print")}</button></div></div>}</Card>;
 }
 
 function AccountingOrders({ days }: { days: number }) {
+  const { t } = useTranslation();
   const { toast } = useToast(); const qc=useQueryClient(); const [selected,setSelected]=useState<any>(null); const [editing,setEditing]=useState(false); const [reason,setReason]=useState("");
   const {data:orders=[]}=useQuery<any[]>({queryKey:["/api/reborn/admin/accounting/orders",days],queryFn:()=>apiRequest("GET",`/api/reborn/admin/accounting/orders?days=${days}`).then(r=>r.json())});
   const refresh=()=>{qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting/orders"]});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting/summary"]});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting/ledger"]});};
-  const refund=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/refund`,{reason}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setReason("");refresh()},onError:(e:any)=>toast({title:"Refund failed",description:e.message,variant:"destructive"})});
-  const save=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/edit`,{...o,reason,items:o.items.map((x:any)=>({id:x.id,qty:Number(x.qty),price:Number(x.price)})),discount:Number(o.discount),tax:Number(o.tax),cashReceived:o.paymentMethod==="cash"?Number(o.cashReceived):undefined}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setEditing(false);setReason("");refresh()},onError:(e:any)=>toast({title:"Edit failed",description:e.message,variant:"destructive"})});
+  const refund=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/refund`,{reason}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setReason("");refresh()},onError:(e:any)=>toast({title:t("admin.ao.refundFailed"),description:e.message,variant:"destructive"})});
+  const save=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/edit`,{...o,reason,items:o.items.map((x:any)=>({id:x.id,qty:Number(x.qty),price:Number(x.price)})),discount:Number(o.discount),tax:Number(o.tax),cashReceived:o.paymentMethod==="cash"?Number(o.cashReceived):undefined}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setEditing(false);setReason("");refresh()},onError:(e:any)=>toast({title:t("admin.ao.editFailed"),description:e.message,variant:"destructive"})});
   const money=(n:any)=>"RP "+Math.round(Number(n)||0).toLocaleString();
   const [industry,setIndustry]=useState("");
   const industries=Array.from(new Set(orders.flatMap((o:any)=>(o.items||[]).flatMap((it:any)=>deptList(it.department))))).sort();
   const shown=industry?orders.filter((o:any)=>(o.items||[]).some((it:any)=>deptHas(it.department,industry))):orders;
   const taxRate=(o:any)=>{const taxable=Number(o.subtotal)-Number(o.discount);return taxable>0&&Number(o.tax)>0?Number((Number(o.tax)/taxable*100).toFixed(2)):0};
   const serviceRate=(o:any)=>{const taxable=Number(o.subtotal)-Number(o.discount);return taxable>0&&Number(o.serviceFee)>0?Number((Number(o.serviceFee)/taxable*100).toFixed(2)):0};
-  return <Card><p className="mb-2 font-bold text-sm flex items-center gap-2"><Ticket className="h-4 w-4 text-amber-300"/>Paid orders and receipts</p>{industries.length>0&&<div className="mb-2 flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["",...industries].map((d)=><button key={d||"all"} onClick={()=>setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry===d?"bg-amber-400 text-black font-bold":"bg-white/5 text-white/60"}`}>{d||"All"}</button>)}</div>}<div className="max-h-80 space-y-2 overflow-y-auto">{shown.map((o)=><button key={o.id} onClick={()=>{setSelected(structuredClone(o));setEditing(false);setReason("")}} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-left"><span className="min-w-0"><b className="block truncate">{o.orderNo} · {o.memberName||"Walk-in"}</b><span className="text-[11px] text-white/40">{new Date(o.paidAt).toLocaleString()} · {String(o.paymentMethod).toUpperCase()}</span></span><span className={o.status==="refunded"?"font-bold text-red-300":"font-bold text-emerald-300"}>{o.status==="refunded"?"REFUNDED · ":""}{money(o.total)}</span></button>)}</div>{shown.length===0&&<p className="text-xs text-white/40">No paid orders in this period.</p>}
-  {selected&&<div className="fixed inset-0 z-[80] overflow-y-auto bg-black/80 p-3 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-lg rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={()=>setSelected(null)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10"><X className="h-5 w-5"/></button><h3 className="pr-10 text-lg font-extrabold">{selected.orderNo} receipt</h3><p className="text-xs text-white/50">{selected.memberName||"Walk-in"} · {new Date(selected.paidAt).toLocaleString()}</p><div className="my-4 space-y-2">{selected.items.filter((x:any)=>x.status!=="rejected").map((x:any,i:number)=><div key={x.id} className="grid grid-cols-[1fr_70px_110px] items-center gap-2 rounded-xl bg-white/5 p-2"><span className="truncate text-sm">{x.name}</span>{editing?<><input type="number" min={1} value={x.qty} onChange={e=>{const items=[...selected.items];items[i]={...x,qty:Number(e.target.value)};setSelected({...selected,items})}} className={inp}/><input type="number" min={0} value={x.price} onChange={e=>{const items=[...selected.items];items[i]={...x,price:Number(e.target.value)};setSelected({...selected,items})}} className={inp}/></>:<><span className="text-sm">×{x.qty}</span><span className="text-right text-sm">{money(x.lineTotal)}</span></>}</div>)}</div>{editing&&<div className="grid grid-cols-2 gap-2"><label className="text-xs text-white/50">Discount<input type="number" value={selected.discount} onChange={e=>setSelected({...selected,discount:Number(e.target.value)})} className={inp+" w-full"}/></label><label className="text-xs text-white/50">Service fee<input type="number" value={selected.serviceFee||0} onChange={e=>setSelected({...selected,serviceFee:Number(e.target.value)})} className={inp+" w-full"}/></label><label className="text-xs text-white/50">Tax<input type="number" value={selected.tax} onChange={e=>setSelected({...selected,tax:Number(e.target.value)})} className={inp+" w-full"}/></label><select value={selected.paymentMethod} onChange={e=>setSelected({...selected,paymentMethod:e.target.value})} className={inp}><option value="cash">Cash</option><option value="card">Card</option></select>{selected.paymentMethod==="card"?<input value={selected.paymentReference||""} onChange={e=>setSelected({...selected,paymentReference:e.target.value})} placeholder="Card receipt number" className={inp}/>:<input type="number" value={selected.cashReceived||""} onChange={e=>setSelected({...selected,cashReceived:e.target.value})} placeholder="Cash received" className={inp}/>}</div>}<div className="my-4 border-t border-white/10 pt-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(selected.subtotal)}</span></div><div className="flex justify-between"><span>Discount</span><span>- {money(selected.discount)}</span></div><div className="flex justify-between"><span>Service fee{serviceRate(selected)>0?` (${serviceRate(selected)}%)`:""}</span><span>{money(selected.serviceFee)}</span></div><div className="flex justify-between"><span>Tax{taxRate(selected)>0?` (${taxRate(selected)}%)`:""}</span><span>{money(selected.tax)}</span></div><div className="flex justify-between text-lg font-black"><span>Total</span><span>{money(selected.total)}</span></div>{selected.paymentMethod==="cash"&&<><div className="flex justify-between"><span>Cash received</span><span>{money(selected.cashReceived)}</span></div><div className="flex justify-between"><span>Change</span><span>{money(selected.changeGiven)}</span></div></>}</div>{(editing||selected.status==="paid")&&<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Required reason for edit or refund" rows={2} className={inp+" mb-3 w-full"}/>}<div className="grid grid-cols-2 gap-2"><button onClick={()=>printReceipt(selected,{clubName:"Reborn Wave Group",serviceFeePercent:serviceRate(selected),taxPercent:taxRate(selected)})} className="rounded-xl bg-white/10 px-3 py-2.5 text-sm font-bold"><Printer className="mr-1 inline h-4 w-4"/>Print receipt</button>{selected.status==="paid"&&!editing&&<button onClick={()=>setEditing(true)} className="rounded-xl bg-amber-400 px-3 py-2.5 text-sm font-bold text-black">Edit bill</button>}{editing&&<button onClick={()=>save.mutate(selected)} disabled={!reason.trim()||save.isPending} className="rounded-xl bg-emerald-500 px-3 py-2.5 text-sm font-bold text-black disabled:opacity-40">Save edited bill</button>}{selected.status==="paid"&&!editing&&<button onClick={()=>refund.mutate(selected)} disabled={!reason.trim()||refund.isPending} className="col-span-2 rounded-xl bg-red-500/20 px-3 py-2.5 text-sm font-bold text-red-200 disabled:opacity-40">Refund and restore stock</button>}</div>{selected.refundReason&&<p className="mt-3 rounded-xl bg-red-500/10 p-3 text-xs text-red-200">Refund reason: {selected.refundReason}</p>}</div></div>}</Card>;
+  return <Card><p className="mb-2 font-bold text-sm flex items-center gap-2"><Ticket className="h-4 w-4 text-amber-300"/>{t("admin.ao.title")}</p>{industries.length>0&&<div className="mb-2 flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["",...industries].map((d)=><button key={d||"all"} onClick={()=>setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry===d?"bg-amber-400 text-black font-bold":"bg-white/5 text-white/60"}`}>{d?indLabel(d):t("admin.c.all")}</button>)}</div>}<div className="max-h-80 space-y-2 overflow-y-auto">{shown.map((o)=><button key={o.id} onClick={()=>{setSelected(structuredClone(o));setEditing(false);setReason("")}} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-left"><span className="min-w-0"><b className="block truncate">{o.orderNo} · {o.memberName||t("admin.ao.walkIn")}</b><span className="text-[11px] text-white/40">{new Date(o.paidAt).toLocaleString(localeTag())} · {tv(t,"admin.pay."+o.paymentMethod,String(o.paymentMethod).toUpperCase())}</span></span><span className={o.status==="refunded"?"font-bold text-red-300":"font-bold text-emerald-300"}>{o.status==="refunded"?t("admin.ao.refundedTag"):""}{money(o.total)}</span></button>)}</div>{shown.length===0&&<p className="text-xs text-white/40">{t("admin.ao.empty")}</p>}
+  {selected&&<div className="fixed inset-0 z-[80] overflow-y-auto bg-black/80 p-3 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-lg rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={()=>setSelected(null)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10"><X className="h-5 w-5"/></button><h3 className="pr-10 text-lg font-extrabold">{t("admin.ao.receiptTitle", { no: selected.orderNo })}</h3><p className="text-xs text-white/50">{selected.memberName||t("admin.ao.walkIn")} · {new Date(selected.paidAt).toLocaleString(localeTag())}</p><div className="my-4 space-y-2">{selected.items.filter((x:any)=>x.status!=="rejected").map((x:any,i:number)=><div key={x.id} className="grid grid-cols-[1fr_70px_110px] items-center gap-2 rounded-xl bg-white/5 p-2"><span className="truncate text-sm">{x.name}</span>{editing?<><input type="number" min={1} value={x.qty} onChange={e=>{const items=[...selected.items];items[i]={...x,qty:Number(e.target.value)};setSelected({...selected,items})}} className={inp}/><input type="number" min={0} value={x.price} onChange={e=>{const items=[...selected.items];items[i]={...x,price:Number(e.target.value)};setSelected({...selected,items})}} className={inp}/></>:<><span className="text-sm">×{x.qty}</span><span className="text-right text-sm">{money(x.lineTotal)}</span></>}</div>)}</div>{editing&&<div className="grid grid-cols-2 gap-2"><label className="text-xs text-white/50">{t("admin.ao.discount")}<input type="number" value={selected.discount} onChange={e=>setSelected({...selected,discount:Number(e.target.value)})} className={inp+" w-full"}/></label><label className="text-xs text-white/50">{t("admin.dc.serviceFee")}<input type="number" value={selected.serviceFee||0} onChange={e=>setSelected({...selected,serviceFee:Number(e.target.value)})} className={inp+" w-full"}/></label><label className="text-xs text-white/50">{t("admin.dc.tax")}<input type="number" value={selected.tax} onChange={e=>setSelected({...selected,tax:Number(e.target.value)})} className={inp+" w-full"}/></label><select value={selected.paymentMethod} onChange={e=>setSelected({...selected,paymentMethod:e.target.value})} className={inp}><option value="cash">{t("admin.pay.cash")}</option><option value="card">{t("admin.pay.card")}</option></select>{selected.paymentMethod==="card"?<input value={selected.paymentReference||""} onChange={e=>setSelected({...selected,paymentReference:e.target.value})} placeholder={t("admin.ao.cardRef")} className={inp}/>:<input type="number" value={selected.cashReceived||""} onChange={e=>setSelected({...selected,cashReceived:e.target.value})} placeholder={t("admin.ao.cashReceived")} className={inp}/>}</div>}<div className="my-4 border-t border-white/10 pt-3 text-sm"><div className="flex justify-between"><span>{t("admin.ao.subtotal")}</span><span>{money(selected.subtotal)}</span></div><div className="flex justify-between"><span>{t("admin.ao.discount")}</span><span>- {money(selected.discount)}</span></div><div className="flex justify-between"><span>{t("admin.dc.serviceFee")}{serviceRate(selected)>0?` (${serviceRate(selected)}%)`:""}</span><span>{money(selected.serviceFee)}</span></div><div className="flex justify-between"><span>{t("admin.dc.tax")}{taxRate(selected)>0?` (${taxRate(selected)}%)`:""}</span><span>{money(selected.tax)}</span></div><div className="flex justify-between text-lg font-black"><span>{t("admin.ao.total")}</span><span>{money(selected.total)}</span></div>{selected.paymentMethod==="cash"&&<><div className="flex justify-between"><span>{t("admin.ao.cashReceived")}</span><span>{money(selected.cashReceived)}</span></div><div className="flex justify-between"><span>{t("admin.ao.change")}</span><span>{money(selected.changeGiven)}</span></div></>}</div>{(editing||selected.status==="paid")&&<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder={t("admin.ao.reason")} rows={2} className={inp+" mb-3 w-full"}/>}<div className="grid grid-cols-2 gap-2"><button onClick={()=>printReceipt(selected,{clubName:"Reborn Wave Group",serviceFeePercent:serviceRate(selected),taxPercent:taxRate(selected)})} className="rounded-xl bg-white/10 px-3 py-2.5 text-sm font-bold"><Printer className="mr-1 inline h-4 w-4"/>{t("admin.ao.print")}</button>{selected.status==="paid"&&!editing&&<button onClick={()=>setEditing(true)} className="rounded-xl bg-amber-400 px-3 py-2.5 text-sm font-bold text-black">{t("admin.ao.editBill")}</button>}{editing&&<button onClick={()=>save.mutate(selected)} disabled={!reason.trim()||save.isPending} className="rounded-xl bg-emerald-500 px-3 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.ao.saveBill")}</button>}{selected.status==="paid"&&!editing&&<button onClick={()=>refund.mutate(selected)} disabled={!reason.trim()||refund.isPending} className="col-span-2 rounded-xl bg-red-500/20 px-3 py-2.5 text-sm font-bold text-red-200 disabled:opacity-40">{t("admin.ao.refund")}</button>}</div>{selected.refundReason&&<p className="mt-3 rounded-xl bg-red-500/10 p-3 text-xs text-red-200">{t("admin.ao.refundReason", { r: selected.refundReason })}</p>}</div></div>}</Card>;
 }
 
 function Payroll() {
+  const { t } = useTranslation();
   const {toast}=useToast();const qc=useQueryClient();const [month,setMonth]=useState(new Date().toISOString().slice(0,7));
   const {data}=useQuery<any>({queryKey:["/api/reborn/admin/payroll",month],queryFn:()=>apiRequest("GET",`/api/reborn/admin/payroll?month=${month}`).then(r=>r.json())});
-  const save=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/profile",{userId:s.user_id,payType:s.pay_type,employmentType:s.employment_type,baseSalary:Number(s.base_salary),hourlyRate:Number(s.hourly_rate),commissionRate:Number(s.commission_rate),salesTarget:Number(s.sales_target)}).then(r=>r.json()),onSuccess:()=>{toast({title:"Payroll settings saved"});qc.invalidateQueries({queryKey:["/api/reborn/admin/payroll"]})}});
-  const pay=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/pay",{userId:s.user_id,name:s.name,month,amount:s.total}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting"]})},onError:(e:any)=>toast({title:"Cannot record payroll",description:e.message,variant:"destructive"})});
+  const save=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/profile",{userId:s.user_id,payType:s.pay_type,employmentType:s.employment_type,baseSalary:Number(s.base_salary),hourlyRate:Number(s.hourly_rate),commissionRate:Number(s.commission_rate),salesTarget:Number(s.sales_target)}).then(r=>r.json()),onSuccess:()=>{toast({title:t("admin.pr.saved")});qc.invalidateQueries({queryKey:["/api/reborn/admin/payroll"]})}});
+  const pay=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/pay",{userId:s.user_id,name:s.name,month,amount:s.total}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting"]})},onError:(e:any)=>toast({title:t("admin.pr.cannot"),description:e.message,variant:"destructive"})});
   const money=(v:any)=>"RP "+Math.round(Number(v)||0).toLocaleString();
-  return <div className="space-y-3"><Card><div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold">Monthly payroll</h3><p className="text-xs text-white/50">Basic pay, approved attendance hours, sales commission and targets.</p></div><input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={inp} style={{colorScheme:"dark"}}/></div></Card>{(data?.staff||[]).map((initial:any)=><PayrollRow key={initial.user_id+month} initial={initial} onSave={(s:any)=>save.mutate(s)} onPay={(s:any)=>pay.mutate(s)} money={money}/>)}<Card><p className="mb-2 font-bold text-sm">Customer referral commission</p>{(data?.referrals||[]).map((r:any)=><div key={r.introducer_id} className="flex justify-between border-b border-white/5 py-2 text-sm"><span>{r.name}<span className="block text-[11px] text-white/40">{r.referrals} purchase(s) · {money(r.referred_sales)} referred sales</span></span><b className="text-amber-300">{money(r.commission)}</b></div>)}{!(data?.referrals||[]).length&&<p className="text-xs text-white/40">No referral commission this month.</p>}<p className="mt-2 text-[11px] text-white/40">Recorded payroll becomes an Accounting expense automatically.</p></Card></div>;
+  return <div className="space-y-3"><Card><div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold">{t("admin.pr.title")}</h3><p className="text-xs text-white/50">{t("admin.pr.hint")}</p></div><input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={inp} style={{colorScheme:"dark"}}/></div></Card>{(data?.staff||[]).map((initial:any)=><PayrollRow key={initial.user_id+month} initial={initial} onSave={(s:any)=>save.mutate(s)} onPay={(s:any)=>pay.mutate(s)} money={money}/>)}<Card><p className="mb-2 font-bold text-sm">{t("admin.pr.refTitle")}</p>{(data?.referrals||[]).map((r:any)=><div key={r.introducer_id} className="flex justify-between border-b border-white/5 py-2 text-sm"><span>{r.name}<span className="block text-[11px] text-white/40">{t("admin.pr.refLine", { n: r.referrals, v: money(r.referred_sales) })}</span></span><b className="text-amber-300">{money(r.commission)}</b></div>)}{!(data?.referrals||[]).length&&<p className="text-xs text-white/40">{t("admin.pr.noRef")}</p>}<p className="mt-2 text-[11px] text-white/40">{t("admin.pr.recordedHint")}</p></Card></div>;
 }
-function PayrollRow({initial,onSave,onPay,money}:any){const[s,setS]=useState(initial);const basic=s.pay_type==="hourly"?Number(s.hourly_rate)*Number(s.hours):Number(s.base_salary);const commission=Number(s.sales)*Number(s.commission_rate)/100;const overtimePay=Number(s.ot_hours||0)*Number(s.otRate||0);const total=basic+commission+overtimePay;const v={...s,basic,salesCommission:commission,overtimePay,total};return <Card><div className="mb-3 flex items-start justify-between gap-2"><div><b>{s.name}</b><p className="text-xs text-white/40">{Number(s.hours).toFixed(1)} worked hours{Number(s.ot_hours)>0?` · ${Number(s.ot_hours).toFixed(1)} OT`:""} · {s.tickets} sales · {money(s.sales)}</p></div><span className={`rounded-lg px-2 py-1 text-[11px] font-bold ${Number(s.sales_target)>0&&Number(s.sales)>=Number(s.sales_target)?"bg-emerald-500/20 text-emerald-300":"bg-white/5 text-white/50"}`}>{Number(s.sales_target)>0?`${Math.round(Number(s.sales)/Number(s.sales_target)*100)}% target`:"No target"}</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><label className="text-[11px] text-white/50">Pay type<select value={s.pay_type||"salary"} onChange={e=>setS({...s,pay_type:e.target.value})} className={inp+" w-full"}><option value="salary">Monthly salary</option><option value="hourly">Hourly</option></select></label><label className="text-[11px] text-white/50">Basic salary<input type="number" value={s.base_salary||0} onChange={e=>setS({...s,base_salary:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Hourly rate<input type="number" value={s.hourly_rate||0} onChange={e=>setS({...s,hourly_rate:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Sales target<input type="number" value={s.sales_target||0} onChange={e=>setS({...s,sales_target:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">Commission %<input type="number" min={0} value={s.commission_rate||0} onChange={e=>setS({...s,commission_rate:e.target.value})} className={inp+" w-full"}/></label></div><div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs"><span className="rounded-xl bg-white/5 p-2">Basic<br/><b>{money(basic)}</b></span><span className="rounded-xl bg-white/5 p-2">Commission<br/><b>{money(commission)}</b></span><span className="rounded-xl bg-white/5 p-2">Overtime<br/><b>{money(overtimePay)}</b></span><span className="rounded-xl bg-amber-400/10 p-2 text-amber-200">Payroll<br/><b>{money(total)}</b></span></div><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={()=>onSave(v)} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">Save settings</button><button onClick={()=>{if(confirm(`Record ${money(total)} payroll for ${s.name}?`))onPay(v)}} disabled={total<=0} className="rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-black disabled:opacity-40">Record paid</button></div></Card>}
+function PayrollRow({initial,onSave,onPay,money}:any){const { t } = useTranslation();const[s,setS]=useState(initial);const basic=s.pay_type==="hourly"?Number(s.hourly_rate)*Number(s.hours):Number(s.base_salary);const commission=Number(s.sales)*Number(s.commission_rate)/100;const overtimePay=Number(s.ot_hours||0)*Number(s.otRate||0);const total=basic+commission+overtimePay;const v={...s,basic,salesCommission:commission,overtimePay,total};return <Card><div className="mb-3 flex items-start justify-between gap-2"><div><b>{s.name}</b><p className="text-xs text-white/40">{t("admin.pr.hours", { h: Number(s.hours).toFixed(1) })}{Number(s.ot_hours)>0?` · ${t("admin.pr.ot", { h: Number(s.ot_hours).toFixed(1) })}`:""} · {t("admin.pr.salesN", { n: s.tickets })} · {money(s.sales)}</p></div><span className={`rounded-lg px-2 py-1 text-[11px] font-bold ${Number(s.sales_target)>0&&Number(s.sales)>=Number(s.sales_target)?"bg-emerald-500/20 text-emerald-300":"bg-white/5 text-white/50"}`}>{Number(s.sales_target)>0?t("admin.pr.target", { n: Math.round(Number(s.sales)/Number(s.sales_target)*100) }):t("admin.pr.noTarget")}</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><label className="text-[11px] text-white/50">{t("admin.pr.payType")}<select value={s.pay_type||"salary"} onChange={e=>setS({...s,pay_type:e.target.value})} className={inp+" w-full"}><option value="salary">{t("admin.pr.monthly")}</option><option value="hourly">{t("admin.pr.hourly")}</option></select></label><label className="text-[11px] text-white/50">{t("admin.pr.basicSalary")}<input type="number" value={s.base_salary||0} onChange={e=>setS({...s,base_salary:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">{t("admin.pr.hourlyRate")}<input type="number" value={s.hourly_rate||0} onChange={e=>setS({...s,hourly_rate:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">{t("admin.pr.salesTarget")}<input type="number" value={s.sales_target||0} onChange={e=>setS({...s,sales_target:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">{t("admin.pr.commissionPct")}<input type="number" min={0} value={s.commission_rate||0} onChange={e=>setS({...s,commission_rate:e.target.value})} className={inp+" w-full"}/></label></div><div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs"><span className="rounded-xl bg-white/5 p-2">{t("admin.pr.basic")}<br/><b>{money(basic)}</b></span><span className="rounded-xl bg-white/5 p-2">{t("admin.pr.commission")}<br/><b>{money(commission)}</b></span><span className="rounded-xl bg-white/5 p-2">{t("admin.pr.overtime")}<br/><b>{money(overtimePay)}</b></span><span className="rounded-xl bg-amber-400/10 p-2 text-amber-200">{t("admin.pr.payroll")}<br/><b>{money(total)}</b></span></div><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={()=>onSave(v)} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">{t("admin.set.save")}</button><button onClick={()=>{if(confirm(t("admin.pr.confirm", { v: money(total), name: s.name })))onPay(v)}} disabled={total<=0} className="rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.pr.recordPaid")}</button></div></Card>}
 
 function Inventory() {
   const { toast } = useToast();
@@ -1644,7 +1656,7 @@ function Inventory() {
   const adjust = useMutation({
     mutationFn: (v: { productId: number; qty: number; unitCost?: number; supplier?: string }) => apiRequest("POST", "/api/reborn/pos/stock-in", v).then((r) => r.json()),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); },
-    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
   const allItems: any[] = data?.items || [];
@@ -1667,7 +1679,7 @@ function Inventory() {
   };
   return (
     <div className="space-y-3">
-      {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || "All"}</button>)}</div>}
+      {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Units</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
         <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Stock value</p><p className="text-base font-extrabold text-amber-300">{money(totals.cost || 0)}</p></div>
@@ -1675,7 +1687,7 @@ function Inventory() {
       </div>
       <div className="flex items-center gap-2">
         {(data?.totals?.low || 0) > 0 && <span className="inline-flex items-center gap-1 text-xs text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-2.5 py-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {data.totals.low} low-stock item(s)</span>}
-        <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Export CSV</button>
+        <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
       {/* Desktop: spreadsheet view */}
       {items.length > 0 && <div className="hidden lg:block"><InventoryTable items={items} money={money} step={step} /></div>}
@@ -1928,7 +1940,7 @@ function Crm() {
   const connect = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/web/connect", {}).then((r) => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/whatsapp/status"] }),
-    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const logout = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/web/logout", {}).then((r) => r.json()),
@@ -1937,7 +1949,7 @@ function Crm() {
   const runReminders = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/run-reminders", {}).then((r) => r.json()),
     onSuccess: (d: any) => toast({ title: d.configured ? "Reminders sent" : "Reminders run", description: `${d.bottles} bottle · ${d.comeback} comeback · ${d.feedback} feedback` }),
-    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const contacts: any[] = data?.contacts || [];
   const [openId, setOpenId] = useState<number | null>(null);
@@ -2013,17 +2025,17 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
   const send = useMutation({
     mutationFn: () => apiRequest("POST", `/api/reborn/admin/crm/${contact.id}/send`, { text }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ d }: any) => { setText(""); qc.invalidateQueries({ queryKey: msgsKey }); if (d?.message && d.message !== "Sent") toast({ title: d.message }); },
-    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const saveEdit = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/crm/${contact.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); setEditing(false); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); },
-    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const del = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/crm/${contact.id}`, {}).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Contact deleted" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); onClose(); },
-    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
