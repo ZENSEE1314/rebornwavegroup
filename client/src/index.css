@@ -2214,3 +2214,34 @@ button, .interactive {
 .stat-hot { animation: statPulse 1.8s ease-in-out infinite; }
 @keyframes statPulse { 0%,100% { box-shadow: 0 0 0 rgba(0,0,0,0); } 50% { box-shadow: 0 0 14px color-mix(in srgb, var(--c) 70%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .stat-hot { animation:none; } }
+
+/* KOS (Kings of Singers) — stage look: neon wallet, glowing KGOLD, arcade ranking */
+.kos-wallet { --c1:#ec4899; --c2:#f7d774; position:relative; overflow:hidden; isolation:isolate; border-radius:24px; padding:18px;
+  background: radial-gradient(80% 90% at 100% 0%, rgba(247,215,116,.28), transparent 60%), radial-gradient(90% 90% at 0% 100%, rgba(236,72,153,.35), transparent 60%), linear-gradient(150deg, #2a1340, #120b22);
+  border:1px solid rgba(236,72,153,.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 12px 30px rgba(0,0,0,.5), 0 0 30px rgba(236,72,153,.25); }
+.kos-wallet::before { content:""; position:absolute; inset:0; z-index:-1; opacity:.16;
+  background: repeating-linear-gradient(115deg, transparent 0 14px, var(--c2) 14px 16px);
+  -webkit-mask-image: linear-gradient(90deg, transparent 40%, #000); mask-image: linear-gradient(90deg, transparent 40%, #000); }
+.kos-wallet::after { content:""; position:absolute; top:0; bottom:0; width:40%; left:-60%; z-index:-1; pointer-events:none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.12), transparent); animation: arcShine 5s ease-in-out infinite; }
+.kos-lbl { font-size:11px; font-weight:900; letter-spacing:.18em; text-transform:uppercase; color:#f9a8d4; text-shadow: 0 0 10px rgba(236,72,153,.6); }
+.kos-num { font-size:36px; line-height:1.1; font-weight:900; font-style:italic; color:#fff3c4;
+  text-shadow: 0 2px 0 rgba(0,0,0,.45), 0 0 16px rgba(247,215,116,.75), 0 0 32px rgba(236,72,153,.4); }
+.kos-coin { display:inline-block; animation: kosSpin 3.2s ease-in-out infinite; }
+@keyframes kosSpin { 0%,70%,100% { transform: rotateY(0); } 85% { transform: rotateY(180deg); } }
+.kos-dark { display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 10px; border-radius:12px; font-size:12px; font-weight:900; font-style:italic; letter-spacing:.06em; text-transform:uppercase; color:#fff;
+  background: linear-gradient(180deg, rgba(236,72,153,.35), rgba(80,20,60,.55)); border:1px solid rgba(244,114,182,.6);
+  box-shadow: 0 3px 0 rgba(0,0,0,.55), 0 0 14px rgba(236,72,153,.3), inset 0 1px 0 rgba(255,255,255,.2); }
+.kos-gift { flex-shrink:0; padding:8px 14px; border-radius:12px; font-size:12px; font-weight:900; font-style:italic; letter-spacing:.06em; text-transform:uppercase; color:#fff;
+  background: linear-gradient(180deg, #f472b6, #be185d); box-shadow: 0 3px 0 #831843, 0 0 14px rgba(236,72,153,.5), inset 0 1px 0 rgba(255,255,255,.45); }
+.kos-add { flex-shrink:0; width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#170f00;
+  background: linear-gradient(180deg, #ffe89a, #f3b52f); box-shadow: 0 3px 0 #a06a0c, 0 0 12px rgba(243,181,47,.45), inset 0 1px 0 rgba(255,255,255,.7); }
+.kos-checkin { animation: statPulse 1.8s ease-in-out infinite; }
+.kos-sheet { --c1:#ec4899; }
+.kos-sheet > .kos-sheet-box { background: radial-gradient(90% 50% at 50% 0%, rgba(236,72,153,.2), transparent 70%), linear-gradient(160deg, #1d1838, #0e0b1d);
+  border:1px solid rgba(236,72,153,.5); box-shadow: 0 0 30px rgba(236,72,153,.25), 0 20px 50px rgba(0,0,0,.6); }
+@media (prefers-reduced-motion: reduce) { .kos-wallet::after, .kos-coin, .kos-checkin { animation:none; } }
+/* Icon-only square buttons: drop the phone-wide button padding so the icon keeps its size */
+.arc-btn, .kos-add { padding:0; min-height:0; }
+.rwg-app button svg, .rwg-token-chip svg { flex-shrink:0; }
