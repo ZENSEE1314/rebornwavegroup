@@ -80,6 +80,9 @@ const APP_TEXT = {
   note: { en: "Android: tap Download, open the file and allow the install.", zh: "安卓：点击下载，打开文件并允许安装。", id: "Android: ketuk Unduh, buka file lalu izinkan pemasangan." },
   floorBtn: { en: "Download the app", zh: "下载应用", id: "Unduh aplikasi" },
   short: { en: "Download", zh: "下载", id: "Unduh" },
+  parkEyebrow: { en: "Exclusive", zh: "专属", id: "Eksklusif" },
+  parkTitle: { en: "VIP parking lots", zh: "VIP 专属停车位", id: "Parkir khusus VIP" },
+  parkBody: { en: "Park right at our door — a built-in lift takes you straight to every level, 1F to 5F.", zh: "车停在门口——内置电梯直达每一层，1 楼到 5 楼。", id: "Parkir tepat di depan pintu kami — lift di dalam gedung langsung mengantar ke semua lantai, 1F sampai 5F." },
 };
 const APP_FEATURES = [
   ["🎮", { en: "Games", zh: "游戏", id: "Game" }], ["🐉", { en: "Pet", zh: "宠物", id: "Pet" }], ["🎁", { en: "Gifts", zh: "礼物", id: "Hadiah" }],
@@ -586,7 +589,7 @@ function createFloorBackgrounds() {
 // ── Arrival: lift + VIP parking ───────────────────────────────────────────
 const LEVEL_TEXT = {
   lvl: { en: "LVL {n}", zh: "{n} 楼", id: "LT {n}" },
-  parking: { en: "VIP PARKING", zh: "VIP 停车场", id: "PARKIR VIP" },
+  parking: { en: "EXCLUSIVE VIP PARKING", zh: "VIP 专属停车场", id: "PARKIR VIP EKSKLUSIF" },
   reserved: { en: "RESERVED", zh: "专属车位", id: "KHUSUS" },
 };
 const floorName = (n) => (n === 0 ? "G" : String(n));
@@ -709,7 +712,7 @@ function buildVipParking(Z) {
     x.font = `700 ${H * 0.1}px Montserrat`; x.fillText(tl(LEVEL_TEXT.reserved), W / 2, H * 0.68);
   });
   const markMat = new THREE.MeshBasicMaterial({ map: mark, transparent: true, depthWrite: false, toneMapped: false });
-  const sign = (side) => card(2.6, 1, (x, W, H) => {
+  const sign = (side) => card(3.4, 1, (x, W, H) => {
     rr(x, 4, 4, W - 8, H - 8, 16); x.fillStyle = "#140c24"; x.fill(); x.lineWidth = 6; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
     x.textAlign = "center"; x.textBaseline = "middle";
     x.beginPath(); x.arc(H * 0.55, H / 2, H * 0.3, 0, Math.PI * 2); x.fillStyle = "#3b6bff"; x.fill();
@@ -1534,7 +1537,8 @@ function buildPaths() {
   const F = segById("finale").y;
   PATHS = [
     path([[0, 5, 30 + back], [1.8, 3.6, 18 + back * 0.5], [0.8, 2.8, 7], [0.2, 2.5, -4], [0, 2.4, -9.6]],
-      [[0, 7, -14], [0.4, 3.4, -12], [0, 2.7, -11], [0, 2.4, -14], [0, 2.4, -20]]),
+      // halfway in, the camera turns towards the VIP car park on the right
+      [[0, 7, -14], portrait ? [7, 1.2, 10] : [12, 1.2, 8], [0, 2.7, -11], [0, 2.4, -14], [0, 2.4, -20]]),
     ...SEGS.slice(1, 6).map(floorPath),
     showcasePath(segById("blindbox"), 0, portrait ? 5 : 3.6, 13, portrait ? 4 : 0),
     showcasePath(segById("demo"), 0, 4.4, 12, portrait ? 16 : 0),
