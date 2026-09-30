@@ -173,6 +173,7 @@ export const gamesT: Record<string, { en: string; zh: string; id: string }> = {
   "gm.lobby.scoreCoins": { en: "{n} coins", zh: "{n} 金币", id: "{n} koin" },
   "gm.lobby.scoreHigh": { en: "{n} high", zh: "{n} 层高", id: "{n} tinggi" },
   "gm.lobby.scoreWins": { en: "{n} wins", zh: "{n} 胜", id: "{n} menang" },
+  "gm.lobby.scoreWin": { en: "{n} win", zh: "{n} 胜", id: "{n} menang" },
   "gm.lobby.play": { en: "Play", zh: "开玩", id: "Main" },
   "gm.lobby.createRoom": { en: "Create a room", zh: "创建房间", id: "Buat room" },
   "gm.lobby.pwOptional": { en: "Room password (optional)", zh: "房间密码（可选）", id: "Kata sandi room (opsional)" },

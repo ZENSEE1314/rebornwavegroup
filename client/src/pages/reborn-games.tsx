@@ -104,6 +104,39 @@ export default function RebornGames() {
 }
 
 type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
+// Game leaderboard: a podium for the top 3, then a ranked list. Your row glows.
+function lbScore(t: TFn, game: string, n: number) {
+  return t(game === "tap" ? "gm.lobby.scoreCoins" : game === "stack" ? "gm.lobby.scoreHigh" : n === 1 ? "gm.lobby.scoreWin" : "gm.lobby.scoreWins", { n });
+}
+function LbPodium({ rows, game, me }: { rows: any[]; game: string; me?: string }) {
+  const { t } = useTranslation();
+  const top = [rows[1], rows[0], rows[2]]; // 2nd · 1st · 3rd
+  const place = [2, 1, 3];
+  return (
+    <>
+      <div className="gr-podium">
+        {top.map((r, k) => r ? (
+          <div key={r.userId} className={`gr-pod gr-pod-${place[k]} ${r.userId === me ? "is-me" : ""}`}>
+            {place[k] === 1 && <span className="gr-pod-crown" aria-hidden>👑</span>}
+            <span className="gr-pod-ava">{String(r.name || "?").trim().charAt(0).toUpperCase() || "?"}</span>
+            <span className="gr-pod-name">{r.name}</span>{r.userId === me && <span className="gr-you">{t("gm.you")}</span>}
+            <span className="gr-pod-score">{lbScore(t, game, r.score)}</span>
+            <span className="gr-pod-step"><b>{place[k]}</b></span>
+          </div>
+        ) : <div key={`e${k}`} className={`gr-pod gr-pod-${place[k]} gr-pod-empty`}><span className="gr-pod-step"><b>{place[k]}</b></span></div>)}
+      </div>
+      {rows.slice(3).map((r, i) => (
+        <div key={r.userId} className={`gr-lbrow ${r.userId === me ? "is-me" : ""}`}>
+          <span className="gr-lbnum">{i + 4}</span>
+          <span className="gr-lbava">{String(r.name || "?").trim().charAt(0).toUpperCase() || "?"}</span>
+          <span className="flex-1 min-w-0 truncate">{r.name}{r.userId === me && <span className="gr-you ml-1.5">{t("gm.you")}</span>}</span>
+          <span className="text-amber-300 font-bold shrink-0">{lbScore(t, game, r.score)}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpenNumber: () => void }) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -118,6 +151,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
   const [joinCode, setJoinCode] = useState("");
   const [joinPw, setJoinPw] = useState("");
   const [lb, setLb] = useState<any[]>([]);
+  const myId = (useAuth().user as any)?.id;
   const [help, setHelp] = useState<string | null>(null);
 
   const [openRooms, setOpenRooms] = useState<any[]>([]);
@@ -257,14 +291,9 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
           </div>
 
           <div className="gcard p-4">
-            <p className="font-extrabold text-white flex items-center gap-2 mb-2"><Trophy className="w-4 h-4 text-amber-300" /> {t("gm.lobby.leaderboard")}</p>
+            <p className="font-extrabold text-white flex items-center gap-2 mb-3"><Trophy className="w-4 h-4 text-amber-300" /> {t("gm.lobby.leaderboard")}</p>
             {lb.length === 0 && <p className="text-xs text-white/40">{t("gm.lobby.noScores")}</p>}
-            {lb.map((r, i) => (
-              <div key={r.userId} className="flex items-center justify-between gap-2 py-1.5 border-b border-white/5 last:border-0 text-sm">
-                <span className="text-white/80 truncate min-w-0">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {r.name}</span>
-                <span className="text-amber-300 font-bold shrink-0">{t(game === "tap" ? "gm.lobby.scoreCoins" : game === "stack" ? "gm.lobby.scoreHigh" : "gm.lobby.scoreWins", { n: r.score })}</span>
-              </div>
-            ))}
+            {lb.length > 0 && <LbPodium rows={lb} game={game} me={myId} />}
           </div>
 
           <div className="gcard p-4">
@@ -453,6 +482,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
 
       {room.status === "done" && (
         <div className="space-y-2">
+          {room.winnerId === me && <WinConfetti key={`${room.code}-${room.round ?? ""}-${room.winnerId}`} />}
           <RankFlash win={room.winnerId === me} lose={room.lastLoserId === me} />
           {room.seriesChampionId && (
             <div className="rwg-card p-4 text-center" style={{ animation: "rwgPop .5s ease-out" }}>
@@ -518,10 +548,41 @@ function RankFlash({ win, lose }: { win: boolean; lose: boolean }) {
   const qc = useQueryClient();
   useEffect(() => { qc.invalidateQueries({ queryKey: ["/api/reborn/rank/me"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/leaderboard"] }); if (win) sfx.rankUp(); else if (lose) sfx.rankDown(); }, [qc, win, lose]);
   if (!win && !lose) return null;
+  const [label, delta] = (win ? t("gm.rankUp") : t("gm.rankDown")).split(/\s{2,}/);
   return (
-    <div className="rounded-2xl p-4 text-center border" style={{ animation: "rwgPop .5s ease-out", borderColor: win ? "rgba(240,215,135,0.4)" : "rgba(248,113,113,0.4)", background: win ? "linear-gradient(135deg,rgba(240,215,135,0.18),rgba(52,211,153,0.12))" : "rgba(248,113,113,0.1)" }}>
-      <p className="text-4xl mb-1" style={{ animation: win ? "rwgPop .6s ease-out" : "rwgPulse 1s" }}>{win ? "⭐" : "🔻"}</p>
-      <p className={`text-lg font-black ${win ? "text-amber-300" : "text-red-300"}`}>{win ? t("gm.rankUp") : t("gm.rankDown")}</p>
+    <div className={`gr-rank ${win ? "gr-rank-up" : "gr-rank-down"}`}>
+      <span className="gr-rank-star" aria-hidden><i />{win ? "⭐" : "🔻"}</span>
+      <span className="gr-rank-text">
+        <b>{label}</b>
+        {delta && <em>{delta}</em>}
+      </span>
+    </div>
+  );
+}
+
+// Big result emoji: a win gets spinning light rays and sparkles, a loss a shake.
+function ResultIcon({ icon }: { icon: string }) {
+  const tone = /🏆|🎉|👑/.test(icon) ? "win" : /🍺|🍻|💥/.test(icon) ? "lose" : "none";
+  return (
+    <div className={`gr-icon gr-icon-${tone}`} aria-hidden>
+      {tone === "win" && <><span className="gr-rays" /><span className="gr-spark" style={{ left: "18%", top: "20%" }}>✦</span><span className="gr-spark" style={{ right: "16%", top: "12%", animationDelay: ".4s" }}>✦</span><span className="gr-spark" style={{ right: "24%", bottom: "8%", animationDelay: ".8s" }}>✧</span></>}
+      <span className="gr-emoji">{icon}</span>
+    </div>
+  );
+}
+
+const CONFETTI = ["#f0d787", "#f472b6", "#60a5fa", "#34d399", "#a78bfa", "#fb923c", "#ffffff"];
+// Confetti rain over the room when you win (plays once, then clears).
+function WinConfetti() {
+  const [on, setOn] = useState(true);
+  useEffect(() => { const id = setTimeout(() => setOn(false), 4200); return () => clearTimeout(id); }, []);
+  if (!on) return null;
+  return (
+    <div className="gr-confetti" aria-hidden>
+      {Array.from({ length: 70 }).map((_, i) => (
+        <i key={i} style={{ left: `${(i * 37) % 100}%`, background: CONFETTI[i % CONFETTI.length], animationDelay: `${(i % 14) * 0.09}s`, animationDuration: `${2.4 + (i % 5) * 0.35}s`,
+          width: i % 3 === 0 ? 6 : 9, height: i % 3 === 0 ? 12 : 7, ["--sway" as any]: `${((i % 7) - 3) * 22}px`, ["--spin" as any]: `${(i % 2 ? 1 : -1) * (360 + (i % 4) * 180)}deg` }} />
+      ))}
     </div>
   );
 }
@@ -564,7 +625,7 @@ function RpsGame({ room, code, me }: any) {
 
       {room.status === "done" ? (
         <div className="py-6">
-          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iLost ? "🍺" : "🎉"}</div>
+          <ResultIcon icon={iLost ? "🍺" : "🎉"} />
           <p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-emerald-300"}`}>{iLost ? t("gm.youLoseDrink") : room.lastLoserId ? t("gm.rps.youSafe") : t("gm.gameOver")}</p>
         </div>
       ) : (
@@ -640,7 +701,7 @@ function TapGame({ room, code, me }: any) {
 
       {room.status === "done" ? (
         <div className="py-6">
-          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "⛏️"}</div>
+          <ResultIcon icon={iWon ? "🏆" : "⛏️"} />
           <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-white/70"}`}>{iWon ? t("gm.tap.gold") : t("gm.gameOver")}</p>
         </div>
       ) : (
@@ -697,7 +758,7 @@ function TimerGame({ room, code, me }: any) {
       <p className="text-sm text-white/60 mb-3">{roomMsg(t, room)}</p>
       {room.status === "done" ? (
         <>
-          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "⏱️"}</div>
+          <ResultIcon icon={iWon ? "🏆" : "⏱️"} />
           <p className={`text-2xl font-black mb-3 ${iWon ? "text-emerald-300" : "text-white/70"}`}>{iWon ? t("gm.timer.closest", { t: fmtClock(TIMER_TARGET_MS) }) : t("gm.gameOver")}</p>
           <div className="text-left">
             {(tm.results || []).map((r: any, i: number) => {
@@ -829,7 +890,7 @@ function StackGame({ room, code, me }: any) {
       <p className="text-3xl font-black text-amber-300 mb-2 tabular-nums">{st.height || 0} <span className="text-sm text-white/50">{t("gm.stack.high")}</span></p>
       {done ? (
         <div className="py-4">
-          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "💥"}</div>
+          <ResultIcon icon={iWon ? "🏆" : "💥"} />
           <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-red-300"}`}>{iWon ? t("gm.stack.survived") : t("gm.stack.knocked")}</p>
           {loser && <p className="text-white/60 text-sm mt-1">{loser.id === me ? t("gm.stack.youLose") : t("gm.stack.loses", { name: loser.name })}</p>}
         </div>
@@ -966,7 +1027,7 @@ function PokerGame({ room, code, me }: any) {
     const iLost = pk.reveal.results.find((r: any) => r.id === me)?.loser;
     return (
       <div className="rwg-card p-5 text-center">
-        <div className="text-6xl mb-1">{iLost ? "🍺" : "🏆"}</div>
+        <ResultIcon icon={iLost ? "🍺" : "🏆"} />
         <p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-emerald-300"}`}>{iLost ? t("gm.pk.youDrink", { cups: cupsLabel(pk.reveal.pot) }) : t("gm.youSafe")}</p>
         <p className="text-white/60 text-sm mt-1 mb-4">{roomMsg(t, room)}</p>
         <div className="space-y-2 text-left">
@@ -1509,7 +1570,7 @@ function DiceGame({ room, code, me }: any) {
     const iLost = room.lastLoserId === me;
     return (
       <div className="rwg-card p-6 text-center">
-        <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : iLost ? "🍻" : "🎲"}</div>
+        <ResultIcon icon={iWon ? "🏆" : iLost ? "🍻" : "🎲"} />
         <p className={`text-2xl font-black ${iWon ? "text-amber-300" : iLost ? "text-red-300" : "text-white/70"}`}>{iWon ? t("gm.dice.calledIt") : iLost ? t("gm.youLoseDrink") : t("gm.gameOver")}</p>
         <p className="text-white/60 text-sm mt-2">{roomMsg(t, room)}</p>
       </div>
@@ -1763,7 +1824,7 @@ function CardGame({ room, code, me }: any) {
   if (room.status === "done") {
     return (
       <div className="rwg-card p-6 text-center">
-        <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : iLost ? "🍻" : "🃏"}</div>
+        <ResultIcon icon={iWon ? "🏆" : iLost ? "🍻" : "🃏"} />
         <p className={`text-2xl font-black ${iWon ? "text-amber-300" : iLost ? "text-red-300" : "text-white/70"}`}>{iWon ? t("gm.cards.youWin") : iLost ? t("gm.youLoseDrink") : (room.winnerId ? t("gm.gameOver") : t("gm.cards.tie"))}</p>
         <p className="text-white/60 text-sm mt-2">{roomMsg(t, room)}</p>
       </div>
