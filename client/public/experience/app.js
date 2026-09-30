@@ -583,6 +583,164 @@ function createFloorBackgrounds() {
   fitFloorBackgrounds();
 }
 
+// ── Arrival: lift + VIP parking ───────────────────────────────────────────
+const LEVEL_TEXT = {
+  lvl: { en: "LVL {n}", zh: "{n} 楼", id: "LT {n}" },
+  parking: { en: "VIP PARKING", zh: "VIP 停车场", id: "PARKIR VIP" },
+  reserved: { en: "RESERVED", zh: "专属车位", id: "KHUSUS" },
+};
+const floorName = (n) => (n === 0 ? "G" : String(n));
+// Amber LED display over the lift doors: arrow + floor, and a G–5 row with the current floor lit.
+function liftIndicator() {
+  const W = 640, H = 240;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d");
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Group();
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  const fr = new THREE.Mesh(new THREE.PlaneGeometry(2.52, 1.02), new THREE.MeshBasicMaterial({ color: HEX.gold, toneMapped: false })); fr.position.z = -0.012;
+  const gl = glowPlane(0xffb347, 4.2, 1.8, 0.35); gl.position.z = -0.05;
+  mesh.add(gl, fr, face);
+  let key = "";
+  const set = (floor, dir, t) => {
+    const blink = dir !== 0 && !REDUCED && Math.sin(t * 8) < -0.3;
+    const k = `${floor}|${dir}|${blink}`;
+    if (k === key) return; key = k;
+    x.fillStyle = "#0a0612"; x.fillRect(0, 0, W, H);
+    x.textAlign = "center"; x.textBaseline = "middle";
+    x.shadowColor = "#ff9d2e"; x.shadowBlur = 18; x.fillStyle = "#ffb347";
+    if (dir !== 0 && !blink) {
+      const ax = W * 0.24, ay = H * 0.38, a = H * 0.2;
+      x.beginPath();
+      if (dir > 0) { x.moveTo(ax, ay - a); x.lineTo(ax - a, ay + a * 0.7); x.lineTo(ax + a, ay + a * 0.7); }
+      else { x.moveTo(ax, ay + a); x.lineTo(ax - a, ay - a * 0.7); x.lineTo(ax + a, ay - a * 0.7); }
+      x.fill();
+    }
+    x.font = `800 ${H * 0.55}px "Courier New", monospace`;
+    x.fillText(floorName(floor), W * 0.56, H * 0.4);
+    x.shadowBlur = 0;
+    ["G", "1", "2", "3", "4", "5"].forEach((lb, i) => {
+      const cx = W * (0.14 + i * 0.144), cy = H * 0.82, on = i === floor;
+      x.beginPath(); x.arc(cx, cy, H * 0.1, 0, Math.PI * 2);
+      x.fillStyle = on ? "#ffb347" : "#2a1c38"; x.fill();
+      x.fillStyle = on ? "#1a0e00" : "#8c7a5a"; x.font = `800 ${H * 0.11}px Montserrat`; x.fillText(lb, cx, cy + 1);
+    });
+    tex.needsUpdate = true;
+  };
+  set(0, 0, 0);
+  return { mesh, set };
+}
+// Inside of the lift car, drawn in perspective: gold walls, lit ceiling, handrail, its own display.
+function liftCarTexture() {
+  const W = 520, H = 880;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d");
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const bx0 = W * 0.2, bx1 = W * 0.8, by0 = H * 0.14, by1 = H * 0.8;
+  const quad = (pts, fill) => { x.beginPath(); x.moveTo(...pts[0]); for (const q of pts.slice(1)) x.lineTo(...q); x.closePath(); x.fillStyle = fill; x.fill(); };
+  let key = "";
+  const set = (floor, dir) => {
+    const k = `${floor}|${dir}`; if (k === key) return; key = k;
+    const cg = x.createLinearGradient(0, 0, 0, by0); cg.addColorStop(0, "#fff6dc"); cg.addColorStop(1, "#f3d28a");
+    quad([[0, 0], [W, 0], [bx1, by0], [bx0, by0]], cg);
+    const fg = x.createLinearGradient(0, by1, 0, H); fg.addColorStop(0, "#3a2a1a"); fg.addColorStop(1, "#1a1008");
+    quad([[bx0, by1], [bx1, by1], [W, H], [0, H]], fg);
+    x.strokeStyle = "rgba(240,215,135,.35)"; x.lineWidth = 2;
+    for (let i = 1; i < 5; i++) { const f = i / 5; x.beginPath(); x.moveTo(lerp(bx0, 0, f), lerp(by1, H, f)); x.lineTo(lerp(bx1, W, f), lerp(by1, H, f)); x.stroke(); }
+    const lg = x.createLinearGradient(0, 0, bx0, 0); lg.addColorStop(0, "#8a6424"); lg.addColorStop(1, "#d9b45c");
+    quad([[0, 0], [bx0, by0], [bx0, by1], [0, H]], lg);
+    const rg = x.createLinearGradient(bx1, 0, W, 0); rg.addColorStop(0, "#d9b45c"); rg.addColorStop(1, "#8a6424");
+    quad([[W, 0], [bx1, by0], [bx1, by1], [W, H]], rg);
+    const bg = x.createLinearGradient(bx0, 0, bx1, 0); bg.addColorStop(0, "#e9c877"); bg.addColorStop(0.5, "#fff0c4"); bg.addColorStop(1, "#e9c877");
+    x.fillStyle = bg; x.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
+    x.strokeStyle = "rgba(120,80,20,.45)"; x.lineWidth = 3;
+    for (let i = 1; i < 3; i++) { const px = lerp(bx0, bx1, i / 3); x.beginPath(); x.moveTo(px, by0 + 90); x.lineTo(px, by1); x.stroke(); }
+    x.strokeStyle = "#7a5518"; x.lineWidth = 10; x.beginPath(); x.moveTo(bx0, by0 + (by1 - by0) * 0.6); x.lineTo(bx1, by0 + (by1 - by0) * 0.6); x.stroke();
+    x.fillStyle = "rgba(255,255,255,.9)"; for (let i = 0; i < 3; i++) x.fillRect(W * (0.3 + i * 0.15), by0 * 0.35, W * 0.1, 8);
+    rr(x, W * 0.33, by0 + 14, W * 0.34, 66, 10); x.fillStyle = "#0a0612"; x.fill();
+    x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffb347"; x.shadowColor = "#ff9d2e"; x.shadowBlur = 12;
+    x.font = `800 46px "Courier New", monospace`;
+    x.fillText(`${dir > 0 ? "▲" : dir < 0 ? "▼" : ""}${floorName(floor)}`, W / 2, by0 + 49); x.shadowBlur = 0;
+    x.fillStyle = "#1a1030"; x.fillRect(W * 0.86, H * 0.36, W * 0.07, H * 0.26);
+    for (let i = 0; i < 6; i++) {
+      x.beginPath(); x.arc(W * 0.895, H * 0.6 - i * H * 0.037, 9, 0, Math.PI * 2);
+      x.fillStyle = i === floor || (dir > 0 && i === floor + 1) ? "#ffb347" : "#6b5a3a"; x.fill();
+    }
+    tex.needsUpdate = true;
+  };
+  set(0, 0);
+  return { tex, set };
+}
+// A simple luxury car: long low body, dark glass cabin, gold rims, head and tail lights.
+function makeCar(color) {
+  const g = new THREE.Group();
+  const paint = new THREE.MeshStandardMaterial({ color, metalness: 0.85, roughness: 0.22 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x0b0a14, metalness: 0.9, roughness: 0.08 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.62, 1.9), paint); body.position.y = 0.62; g.add(body);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.58, 1.66), glass); cabin.position.set(-0.3, 1.2, 0); g.add(cabin);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 1.6), paint); roof.position.set(-0.35, 1.52, 0); g.add(roof);
+  const tyre = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.8 });
+  for (const [wx, wz] of [[1.4, 0.95], [1.4, -0.95], [-1.4, 0.95], [-1.4, -0.95]]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.28, 20), tyre); w.rotation.x = Math.PI / 2; w.position.set(wx, 0.4, wz); g.add(w);
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.3, 12), M.gold); r.rotation.x = Math.PI / 2; r.position.set(wx, 0.4, wz); g.add(r);
+  }
+  const head = new THREE.MeshBasicMaterial({ color: 0xfff4d6, toneMapped: false });
+  const tail = new THREE.MeshBasicMaterial({ color: 0xff2a3a, toneMapped: false });
+  for (const s of [-0.65, 0.65]) {
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.4), head); h.position.set(2.21, 0.72, s); g.add(h);
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.5), tail); b.position.set(-2.21, 0.74, s); g.add(b);
+  }
+  const beam = glowPlane(0xfff0c8, 3, 1.6, 0.35); beam.rotation.x = -Math.PI / 2; beam.position.set(3.3, 0.04, 0); g.add(beam);
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.3), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.02; g.add(shadow);
+  return g;
+}
+// VIP parking outside the tower on both sides: gold-lined bays with VIP marks, parked cars, a lit sign.
+function buildVipParking(Z) {
+  // phones see a narrow view, so the bays sit closer to the driveway there
+  const portrait = PORTRAIT();
+  const nearX = portrait ? 4.4 : 9, bayW = 2.9, z0 = portrait ? 8 : 4.5, len = 5.6;
+  const bays = [0, 1, 2, 3].map((i) => z0 + i * bayW);
+  const colors = [0x0b0b10, 0xdcb45a, 0xf4f1ea, 0x3a1455];
+  const lineMat = new THREE.MeshBasicMaterial({ color: HEX.goldHi, toneMapped: false });
+  const mark = canvasTexture(256, 256, (x, W, H) => {
+    x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "rgba(240,215,135,.85)";
+    x.font = `900 ${H * 0.34}px Montserrat`; x.fillText("VIP", W / 2, H * 0.42);
+    x.font = `700 ${H * 0.1}px Montserrat`; x.fillText(tl(LEVEL_TEXT.reserved), W / 2, H * 0.68);
+  });
+  const markMat = new THREE.MeshBasicMaterial({ map: mark, transparent: true, depthWrite: false, toneMapped: false });
+  const sign = (side) => card(2.6, 1, (x, W, H) => {
+    rr(x, 4, 4, W - 8, H - 8, 16); x.fillStyle = "#140c24"; x.fill(); x.lineWidth = 6; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+    x.textAlign = "center"; x.textBaseline = "middle";
+    x.beginPath(); x.arc(H * 0.55, H / 2, H * 0.3, 0, Math.PI * 2); x.fillStyle = "#3b6bff"; x.fill();
+    x.fillStyle = "#fff"; x.font = `900 ${H * 0.4}px Montserrat`; x.fillText("P", H * 0.55, H / 2 + 2);
+    const txt = tl(LEVEL_TEXT.parking); let fs = H * 0.34; x.font = `800 ${fs}px Montserrat`;
+    while (x.measureText(txt).width > W - H * 1.3) { fs *= 0.92; x.font = `800 ${fs}px Montserrat`; }
+    x.fillStyle = goldGrad(x, 0, W); x.fillText(txt, (W + H * 0.95) / 2, H / 2 + 2);
+  }, { frame: false, glow: 0xdcb45a, pxPerUnit: 200 });
+  for (const side of [-1, 1]) {
+    const x0 = side * nearX;
+    const backLine = new THREE.Mesh(new THREE.PlaneGeometry(0.1, bays.length * bayW + 0.1), lineMat);
+    backLine.rotation.x = -Math.PI / 2; backLine.position.set(x0 + side * len, 0.03, (bays[0] + bays[bays.length - 1]) / 2); Z.add(backLine);
+    for (let i = 0; i <= bays.length; i++) {
+      const ln = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.1), lineMat);
+      ln.rotation.x = -Math.PI / 2; ln.position.set(x0 + side * len / 2, 0.03, bays[0] - bayW / 2 + i * bayW); Z.add(ln);
+    }
+    bays.forEach((z, i) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), markMat);
+      m.rotation.x = -Math.PI / 2; m.position.set(x0 + side * 1.3, 0.035, z); Z.add(m);
+      if (i === 1) return; // one bay kept free for you
+      const car = makeCar(colors[(i + (side > 0 ? 1 : 0)) % colors.length]);
+      car.position.set(x0 + side * 3.2, 0, z); car.rotation.y = side > 0 ? Math.PI : 0; // nose to the driveway
+      Z.add(car);
+    });
+    const sz = bays[0] - 2.2;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 3.2, 12), M.gold); post.position.set(x0 + side * 0.4, 1.6, sz); Z.add(post);
+    const sg = sign(side); sg.scale.setScalar(1.4); sg.position.set(x0 + side * 0.4, 3.9, sz + 0.06); sg.rotation.y = -side * 0.3; Z.add(sg);
+    Z.add(accentLight(0xffe0a0, x0 + side * 3, 4, 9, 40));
+  }
+}
+
 // ── Zone: ARRIVAL ──────────────────────────────────────────────────────────
 function buildArrival() {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
@@ -596,33 +754,52 @@ function buildArrival() {
   for (let i = 0; i < 5; i++) {
     const y = 8 + i * 7;
     const band = new THREE.Mesh(new THREE.BoxGeometry(7.12, 0.07, 7.12), M.gold); band.position.y = y; tower.add(band);
-    const lab = card(3.6, 0.6, (x, W, H) => {
-      const txt = `${i + 1}F  ·  ${floorNames[i]}`;
-      let fs = H * 0.6;
-      x.font = `800 ${fs}px Montserrat`;
-      while (x.measureText(txt).width > W - 16) { fs *= 0.92; x.font = `800 ${fs}px Montserrat`; }
-      x.fillStyle = goldGrad(x, 0, W); x.textBaseline = "middle";
-      x.fillText(txt, 8, H / 2);
+    // Big level number at the top of each floor box, the floor's name under it
+    const lab = card(5.6, 1.9, (x, W, H) => {
+      x.textAlign = "center"; x.textBaseline = "middle";
+      const big = tl(LEVEL_TEXT.lvl).replace("{n}", i + 1);
+      let fs = H * 0.56; x.font = `900 ${fs}px Montserrat`;
+      while (x.measureText(big).width > W - 20) { fs *= 0.92; x.font = `900 ${fs}px Montserrat`; }
+      x.shadowColor = "rgba(255,210,120,.65)"; x.shadowBlur = H * 0.08;
+      x.fillStyle = goldGrad(x, 0, W); x.fillText(big, W / 2, H * 0.36);
+      x.shadowBlur = 0;
+      const name = floorNames[i];
+      fs = H * 0.2; x.font = `700 ${fs}px Montserrat`;
+      while (x.measureText(name).width > W - 20) { fs *= 0.92; x.font = `700 ${fs}px Montserrat`; }
+      x.fillStyle = "#fbf6ea"; x.fillText(name, W / 2, H * 0.8);
     }, { frame: false });
-    lab.position.set(-1.4, y + 0.55, 3.52); tower.add(lab);
+    lab.position.set(0, y + 5.7, 3.53); tower.add(lab);
     const win = glowPlane(new THREE.Color(SEGS[i + 1].accent), 6, 5, 0.25); win.position.set(0, y + 3.2, 3.53); tower.add(win);
   }
   const crown = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.5, 7.4), M.gold); crown.position.y = 44.2; tower.add(crown);
   const beam = new THREE.Mesh(new THREE.ConeGeometry(3.2, 30, 32, 1, true), new THREE.MeshBasicMaterial({ color: HEX.goldHi, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
   beam.position.y = 59; beam.rotation.x = Math.PI; tower.add(beam);
 
-  // Golden lift: glowing interior + sliding doors + frame
-  const doorGlow = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 4.4), new THREE.MeshBasicMaterial({ color: 0xffe6a8, toneMapped: false }));
+  // The lift: a lit car behind sliding gold doors, a floor indicator above them
+  // (counts down to G as it arrives, then ▲ up to the floors) and a call button.
+  const car = liftCarTexture();
+  const doorGlow = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 4.4), new THREE.MeshBasicMaterial({ map: car.tex, toneMapped: false }));
   doorGlow.position.set(0, 2.2, -10.48); Z.add(doorGlow);
-  const spill = glowPlane(0xffd27a, 9, 7, 0.55); spill.position.set(0, 2.4, -10.4); Z.add(spill);
+  const spill = glowPlane(0xffd27a, 9, 7, 0.45); spill.position.set(0, 2.4, -10.4); Z.add(spill);
   const doorMat = new THREE.MeshStandardMaterial({ color: 0xd9b45c, metalness: 1, roughness: 0.32 });
   const doorL = new THREE.Mesh(new THREE.BoxGeometry(1.3, 4.4, 0.1), doorMat); doorL.position.set(-0.65, 2.2, -10.43); Z.add(doorL);
   const doorR = doorL.clone(); doorR.position.x = 0.65; Z.add(doorR);
+  const jamb = new THREE.Mesh(new THREE.BoxGeometry(3.3, 5.0, 0.04), M.night); jamb.position.set(0, 2.5, -10.51); Z.add(jamb);
   const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(2.9, 4.7, 0.2)), M.lineGold);
   frame.position.set(0, 2.35, -10.4); Z.add(frame);
+  const ind = liftIndicator();
+  ind.mesh.position.set(0, 5.35, -10.36); Z.add(ind.mesh);
+  const call = card(0.42, 0.9, (x, W, H) => {
+    rr(x, 3, 3, W - 6, H - 6, 14); x.fillStyle = "#1a1030"; x.fill(); x.lineWidth = 4; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+    for (const [cy, up] of [[H * 0.32, true], [H * 0.68, false]]) {
+      x.beginPath(); x.arc(W / 2, cy, W * 0.3, 0, Math.PI * 2); x.fillStyle = up ? "#ffe6a8" : "#3a2a50"; x.fill();
+      const d = up ? -1 : 1; x.fillStyle = up ? "#7a4a00" : "#c9a84c"; x.beginPath();
+      x.moveTo(W / 2, cy + d * W * 0.14); x.lineTo(W / 2 - W * 0.13, cy - d * W * 0.08); x.lineTo(W / 2 + W * 0.13, cy - d * W * 0.08); x.fill();
+    }
+  }, { frame: false, glow: 0xffd27a, pxPerUnit: 300 });
+  call.position.set(1.95, 1.6, -10.36); Z.add(call);
   const itCard = card(2.6, 0.9, drawIcon("💻", "IT · the app"), { glow: 0x6b3dff, pxPerUnit: 200 });
-  itCard.position.set(0, 5.4, -10.35); itCard.scale.set(0.9, 0.9, 0.9);
-  // wide label instead of square icon card
+  itCard.position.set(0, 6.6, -10.35); itCard.scale.set(0.7, 0.7, 0.7);
   Z.add(itCard);
 
   // 5-in-1 pillars (IT is the lift itself — the app is the portal)
@@ -635,16 +812,22 @@ function buildArrival() {
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = 5.3 + Math.sin(t * 1.2 + x) * 0.12; } });
   }
 
-  // Doluruu waits by the lift, then walks in
+  // The lift comes down to G, the doors open, Doluruu walks in and it heads ▲ to 1F.
   const d = makeDoluruu("boy", 3.1); d.position.set(2.5, 0, -7.4); Z.add(d);
   anims.push({ zone: zi, fn: (t, dt, lt) => {
-    const walk = smooth(clamp((lt - 0.55) / 0.35));
+    const walk = smooth(clamp((lt - 0.5) / 0.3));
     d.position.x = lerp(2.5, 0.3, walk); d.position.z = lerp(-7.4, -9.9, walk);
     d.userData.sprite.position.y = REDUCED ? 0 : (walk > 0.02 && walk < 0.99 ? Math.abs(Math.sin(t * 9)) * 0.14 : Math.abs(Math.sin(t * 2.2)) * 0.05);
     d.visible = lt < 0.93;
-    const open = smooth(clamp((lt - 0.42) / 0.3));
+    const open = smooth(clamp((lt - 0.3) / 0.22));
     doorL.position.x = -0.65 - open * 1.3; doorR.position.x = 0.65 + open * 1.3;
+    // arriving 5 → G, waiting at G, then ▲ 1 once Doluruu is on board
+    const floor = lt < 0.28 ? Math.max(0, 5 - Math.floor((lt / 0.28) * 6)) : lt < 0.85 ? 0 : 1;
+    const dir = lt < 0.28 ? -1 : lt < 0.8 ? 0 : 1;
+    ind.set(floor, dir, t); car.set(floor, dir);
   } });
+
+  buildVipParking(Z);
 
   Z.add(accentLight(0xffd27a, 0, 3, -6, 60), accentLight(0x7a4dff, -10, 6, 4, 70), accentLight(0xc04dff, 10, 6, 4, 70));
   Z.add(dust(zi, HEX.goldHi, 380, [-30, 30, 0.3, 20, -30, 30]));
@@ -1380,6 +1563,7 @@ const beats = [...document.querySelectorAll(".beat")].map((el) => ({ el, a: +el.
 const floorBtns = [...document.querySelectorAll("#floors button")];
 const flashEl = document.getElementById("flash");
 const flashFloor = document.getElementById("flash-floor");
+let lastFlashP = 0;
 const hint = document.getElementById("hint");
 
 function maxScroll() { return Math.max(1, document.documentElement.scrollHeight - innerHeight); }
@@ -1409,7 +1593,11 @@ function updateOverlays(p, segIdx) {
   }
   flashEl.style.opacity = (REDUCED ? best * 0.9 : best).toFixed(3);
   flashEl.classList.toggle("streaking", best > 0.05);
-  if (label && flashFloor.textContent !== label) flashFloor.textContent = label;
+  if (label) {
+    const txt = /^\dF$/.test(label) ? `${p >= lastFlashP ? "▲" : "▼"} ${label}` : label;
+    if (flashFloor.textContent !== txt) flashFloor.textContent = txt;
+  }
+  lastFlashP = p;
   if (hint) hint.style.opacity = p > 0.01 ? "0" : "1";
 }
 
