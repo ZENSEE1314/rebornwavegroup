@@ -17,6 +17,7 @@ const PORTRAIT = () => innerWidth / innerHeight < 0.85;
 const SIDE_X = () => (PORTRAIT() ? 5.5 : 8);
 const SMOOTHING = 5.5;          // higher = snappier scroll follow
 const FLASH_HALF_WIDTH = 0.014; // portal flash window around each segment boundary
+const FLASH_HALF_WIDTH_LIFT = 0.004; // floors join lift-to-lift, so only a quick "▲ 2F" blink
 const BEAT_FADE = 0.014;        // overlay fade width in progress units
 
 const HEX = { night0: 0x0a0714, night1: 0x120b20, night2: 0x1a1030, gold: 0xdcb45a, goldHi: 0xf0d787 };
@@ -1048,9 +1049,69 @@ function buildFloor(seg, dress) {
   const ctx = { Z, zi, Y, m, seg, videoX: m * -SIDE_X(), clusterX: m * SIDE_X(), videoRot: m * 0.67, clusterRot: m * -0.74 };
   dress(ctx);
   addFloorPlans(ctx);
+  addFloorLifts(ctx);
   return Z;
 }
 const place = (obj, x, y, z, ry = 0) => { obj.position.set(x, y, z); obj.rotation.y = ry; return obj; };
+
+// ── Floor lifts: every floor starts by stepping out of a lift and ends by walking into one ──
+const LIFT_OUT_Z = 28;                        // the arrival lift's doors (the camera starts inside, behind them)
+const LIFT_IN = (seg) => (seg.id === "live" ? { x: 13.5, z: -38 } : { x: 0, z: -56 }); // the lift at the far end
+const LIFT_DOOR_W = 2.8, LIFT_DOOR_H = 5, LIFT_DEPTH = 4.4;
+// A small lift shaft. Local space: doors at z = 0, the car behind them towards +z.
+function liftShaft(label, backLabel) {
+  const g = new THREE.Group();
+  const shell = new THREE.MeshStandardMaterial({ color: 0x1a1024, metalness: 0.6, roughness: 0.4 });
+  const W = 6, H = 7, pw = (W - LIFT_DOOR_W) / 2;
+  const box = (w, h, d, x, y, z, m = shell) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
+  for (const sx of [-1, 1]) box(pw, H, 0.4, sx * (LIFT_DOOR_W / 2 + pw / 2), H / 2, 0); // pillars beside the doors
+  box(LIFT_DOOR_W, H - LIFT_DOOR_H, 0.4, 0, LIFT_DOOR_H + (H - LIFT_DOOR_H) / 2, 0);    // lintel
+  for (const sx of [-1, 1]) box(0.3, H, LIFT_DEPTH, sx * (W / 2 - 0.15), H / 2, LIFT_DEPTH / 2); // shaft sides
+  box(W, 0.3, LIFT_DEPTH, 0, H, LIFT_DEPTH / 2);                                         // roof
+  box(W, H, 0.3, 0, H / 2, LIFT_DEPTH);                                                  // back
+  // the lit car inside
+  // car walls (open at the front, where the doors are)
+  const carMat = new THREE.MeshStandardMaterial({ color: 0xd9b45c, metalness: 0.75, roughness: 0.3, side: THREE.DoubleSide, emissive: 0x3a2400, emissiveIntensity: 0.6 });
+  const cw = LIFT_DOOR_W + 0.3, ch = LIFT_DOOR_H + 0.1, cd = LIFT_DEPTH - 0.4, cz = 0.2 + cd / 2;
+  const plane = (w, h, x, y, z, rx, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), carMat); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); g.add(m); };
+  plane(cw, ch, 0, ch / 2, 0.2 + cd, 0, 0);                 // back
+  for (const sx of [-1, 1]) plane(cd, ch, sx * cw / 2, ch / 2, cz, 0, Math.PI / 2); // sides
+  plane(cw, cd, 0, ch, cz, Math.PI / 2, 0);                  // ceiling
+  plane(cw, cd, 0, 0.01, cz, -Math.PI / 2, 0);               // floor
+  const lamp = glowPlane(0xfff1cc, 2.4, 2.4, 0.9); lamp.rotation.x = Math.PI / 2; lamp.position.set(0, LIFT_DOOR_H - 0.05, LIFT_DEPTH / 2); g.add(lamp);
+  const light = new THREE.PointLight(0xffe2a8, 18, 7, 1.6); light.position.set(0, LIFT_DOOR_H - 0.6, LIFT_DEPTH / 2); g.add(light);
+  box(LIFT_DOOR_W, 0.08, 0.08, 0, 1.9, LIFT_DEPTH - 0.45, M.gold);
+  // gold frame and sliding doors
+  const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(LIFT_DOOR_W + 0.08, LIFT_DOOR_H + 0.04, 0.44)), M.lineGold);
+  frame.position.set(0, LIFT_DOOR_H / 2, 0); g.add(frame);
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0xd9b45c, metalness: 1, roughness: 0.3 });
+  const doors = [-1, 1].map((sx) => box(LIFT_DOOR_W / 2, LIFT_DOOR_H, 0.08, sx * LIFT_DOOR_W / 4, LIFT_DOOR_H / 2, 0.1, doorMat));
+  // floor displays: over the doors inside and out, and on the car's back wall
+  const display = (txt, w = 1.5) => card(w, 0.55, (x, CW, CH) => {
+    x.fillStyle = "#0a0612"; x.fillRect(0, 0, CW, CH);
+    x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffb347"; x.shadowColor = "#ff9d2e"; x.shadowBlur = 14;
+    x.font = `800 ${CH * 0.62}px "Courier New", monospace`; x.fillText(txt, CW / 2, CH / 2 + 2);
+  }, { frame: true, pxPerUnit: 200 });
+  const inside = display(label); inside.position.set(0, LIFT_DOOR_H + 0.55, 0.25); g.add(inside);
+  const outside = display(label); outside.position.set(0, LIFT_DOOR_H + 0.55, -0.25); outside.rotation.y = Math.PI; g.add(outside);
+  if (backLabel) { const back = display(backLabel, 1.9); back.position.set(0, 3.4, LIFT_DEPTH - 0.42); back.rotation.y = Math.PI; g.add(back); }
+  g.userData.setOpen = (o) => { doors.forEach((d, i) => { d.position.x = (i ? 1 : -1) * (LIFT_DOOR_W / 4 + o * (LIFT_DOOR_W / 2 - 0.05)); }); };
+  g.userData.setOpen(0);
+  return g;
+}
+// Doors of the lift you step out of open first; the lift at the end stands open, waiting.
+const LIFT_OPEN_AT = [0.05, 0.11];
+function addFloorLifts(ctx) {
+  const { Z, zi, Y, seg } = ctx;
+  const idx = SEGS.indexOf(seg), next = SEGS[idx + 1];
+  const out = liftShaft(seg.label);
+  out.position.set(0, Y, LIFT_OUT_Z); Z.add(out); // car behind the camera's start, doors facing the floor
+  const end = LIFT_IN(seg);
+  const inn = liftShaft(seg.label, next && next.floor ? `▲ ${next.label}` : "▲ ★");
+  inn.position.set(end.x, Y, end.z); inn.rotation.y = Math.PI; Z.add(inn); // doors facing back down the floor
+  inn.userData.setOpen(1);
+  anims.push({ zone: zi, fn: (t, dt, lt) => out.userData.setOpen(smooth(clamp((lt - LIFT_OPEN_AT[0]) / (LIFT_OPEN_AT[1] - LIFT_OPEN_AT[0])))) });
+}
 
 // Three gold words on pedestals across the end of a floor; shrunk and centred on
 // portrait screens so all three fit the narrow view.
@@ -1854,18 +1915,29 @@ function path(pos, look) {
   const mk = (arr) => new THREE.CatmullRomCurve3(arr.map((v) => V(...v)), false, "catmullrom", 0.5);
   return { pos: mk(pos), look: mk(look) };
 }
+// Wrap a floor's walk: start standing in the lift (doors opening), step out, … then walk into the lift at the end.
+function withLifts(seg, pos, look) {
+  const Y = seg.y, end = LIFT_IN(seg), inside = LIFT_OUT_Z + LIFT_DEPTH - 0.5; // back of the car
+  const outPos = [[0, Y + 2.8, inside], [0, Y + 2.8, inside - 0.3], [0, Y + 3, LIFT_OUT_Z - 2]];
+  const outLook = [[0, Y + 2.9, LIFT_OUT_Z - 12], [0, Y + 2.9, LIFT_OUT_Z - 12], [0, Y + 3.1, 0]];
+  const ex = end.x, ez = end.z;
+  // over the closing signs, down to the doors, into the car
+  const inPos = [[ex * 0.5, Y + 5.8, ez + 9], [ex, Y + 3.2, ez + 3.5], [ex, Y + 2.9, ez - LIFT_DEPTH + 1.3]];
+  const inLook = [[ex, Y + 3.2, ez - 4], [ex, Y + 3, ez - 6], [ex, Y + 2.9, ez - 8]];
+  return path([...outPos, ...pos.slice(1), ...inPos], [...outLook, ...look.slice(1), ...inLook]);
+}
 function floorPath(seg) {
   const Y = seg.y, m = seg.mirror ? -1 : 1;
   const k = PORTRAIT() ? 0.5 : 1; // tighter lateral moves on portrait screens
   const back = PORTRAIT() ? 6 : 0;
   if (seg.id === "live") {
-    return path(
+    return withLifts(seg,
       [[0, Y + 3.6, 26 + back], [-0.8 * k, Y + 3.6, 16 + back * 0.5], [-1.2 * k, Y + 5.4, 6], [0.4 * k, Y + 8, -1.5], [-2.8 * k, Y + 3.0, -12], [2.4 * k, Y + 2.4, -21], [0, Y + 3.8, -30], [0, Y + 7.5, -37]],
       [[0, Y + 3.4, 0], [0, Y + 3.4, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [-SIDE_X(), Y + 3.2, -17], [SIDE_X(), Y + 3.2, -24], [0, Y + 10.5, -48], [0, Y + PLAN_Y_LIVE + 2.6, -48]],
     );
   }
   const lookY = seg.id === "pet" ? 4.2 : 4.6; // frames the closing monuments and the floor plans above them
-  return path(
+  return withLifts(seg,
     [[0, Y + 3.3, 26 + back], [m * -0.8 * k, Y + 3.5, 16 + back * 0.5], [m * -1.2 * k, Y + 5.4, 6], [m * 0.4 * k, Y + 8, -1.5], [m * -3.2 * k, Y + 3.2, -11], [m * 3.3 * k, Y + 2.9, -22], [0, Y + 4.1, -33], [0, Y + 7.5, -40]],
     [[0, Y + 3.2, 0], [0, Y + 3.2, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [m * -SIDE_X(), Y + 3.3, -17], [m * SIDE_X(), Y + 3.3, -27], [0, Y + lookY, -47], [0, Y + 13, -47]],
   );
@@ -1948,7 +2020,8 @@ function updateOverlays(p, segIdx) {
   let best = 0, label = "";
   for (let i = 1; i < SEGS.length; i++) {
     const d = Math.abs(p - SEGS[i].a);
-    const bump = smooth(clamp(1 - d / FLASH_HALF_WIDTH));
+    const hw = SEGS[i].floor || SEGS[i - 1].floor ? FLASH_HALF_WIDTH_LIFT : FLASH_HALF_WIDTH;
+    const bump = smooth(clamp(1 - d / hw));
     if (bump > best) { best = bump; label = SEGS[i].label; }
   }
   flashEl.style.opacity = (REDUCED ? best * 0.9 : best).toFixed(3);
