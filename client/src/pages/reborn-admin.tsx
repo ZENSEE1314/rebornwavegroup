@@ -6,6 +6,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
+import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
@@ -139,6 +140,7 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
           );
         })}
       </div>
+      {isFullAdmin && <StaffGuideButton />}
       <h2 className="arc-head">{t("admin.ov.openSection")}</h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((tb) => tb !== "Overview").map((tb, i) => (

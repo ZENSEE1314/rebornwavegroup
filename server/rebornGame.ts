@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
-import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText } from "./whatsappBot";
+import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
@@ -1456,6 +1456,16 @@ export function registerRebornRoutes(app: Express) {
       title: approve ? pick(lang, { en: "Song request confirmed", zh: "点歌已确认", id: "Permintaan lagu dikonfirmasi" }) : pick(lang, { en: "Song request update", zh: "点歌请求有更新", id: "Kabar permintaan lagu" }),
       body: `${row?.title || pick(lang, { en: "Your song", zh: "你的歌曲", id: "Lagumu" })}${comment ? ` · ${comment}` : ""}`,
     }), { path: "/songs", songRequestId: row?.id, status: row?.status });
+    // Tell the member on WhatsApp too.
+    if (row?.userId) {
+      const phone = await memberWaPhone(row.userId);
+      if (phone) {
+        const lang = await langForPhone(phone, row.userId);
+        const song = [row.title, row.artist].filter(Boolean).join(" — ");
+        const msg = waText(lang, approve ? "songConfirmed" : "songRejected", { song, note: comment ? ` (${comment})` : "" });
+        sendWhatsApp(phone, msg).then((ok) => { if (!ok) console.warn(`[wa] song request #${row.id}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
+      }
+    }
     emitLiveUpdate("/api/reborn/songs/my-requests", { action: approve ? "CONFIRMED" : "REJECTED" });
     res.json(row);
   }));
@@ -2855,8 +2865,9 @@ export function registerRebornRoutes(app: Express) {
     await notifyStaffI18n("new_booking", (lang) => ({ title: pick(lang, { en: "New booking request", zh: "新的预订请求", id: "Permintaan booking baru" }), body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || pick(lang, { en: "Member", zh: "会员", id: "Member" })} · ${date} ${label}` }), { path: "/reborn-admin", bookingId: row.id });
     pushAdminsI18n((lang) => ({ title: pick(lang, { en: "📅 New booking to confirm", zh: "📅 有新预订待确认", id: "📅 Booking baru perlu dikonfirmasi" }), body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label}`, url: "/reborn-admin", tag: `newbk-${row.id}` })).catch(() => {});
     // WhatsApp the member a booking receipt with our address + map pin.
-    if (u?.phoneNumber) {
-      const phone = u.phoneNumber;
+    const receiptPhone = await memberWaPhone(userId);
+    if (receiptPhone) {
+      const phone = receiptPhone;
       (async () => {
         const lang = await langForPhone(phone, userId);
         const msg = waText(lang, "appReceipt", { club: s.clubName || "Reborn Wave", area: area.name, day: fmtDMY(date, lang), time: timeText(lang, slot, label), table: table ? ` · ${table}` : "", n: String(party) });
@@ -2925,16 +2936,16 @@ export function registerRebornRoutes(app: Express) {
     if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
     // Tell the member on WhatsApp when a booking is confirmed or rejected.
     if ((status === "confirmed" || status === "cancelled") && row.userId) {
-      const [u] = await db.select().from(users).where(eq(users.id, row.userId));
-      const lang = await langForPhone(u?.phoneNumber || "", row.userId);
+      const phone = await memberWaPhone(row.userId);
+      const lang = await langForPhone(phone, row.userId);
       const when = fmtBookingWhen(row.appointmentDate, lang);
       const what = localizeBookingText(lang, row.title);
-      if (u?.phoneNumber) {
+      if (phone) {
         const msg = status === "confirmed"
           ? waText(lang, "staffConfirmed", { what, when })
           : waText(lang, "staffCancelled", { what, when, note: note ? `: ${note}.` : "." });
-        sendWhatsApp(u.phoneNumber, msg).catch(() => {});
-      }
+        sendWhatsApp(phone, msg).then((ok) => { if (!ok) console.warn(`[wa] booking #${id} ${status}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
+      } else console.warn(`[wa] booking #${id} ${status}: member has no WhatsApp number`);
       sendPushToUser(row.userId, {
         title: waText(lang, status === "confirmed" ? "pushConfirmedTitle" : "pushCancelledTitle"),
         body: status === "confirmed" ? `${what} — ${when}` : `${what}${note ? ` — ${note}` : ""}. ${waText(lang, "tapRebook")}`,
@@ -2991,10 +3002,11 @@ export function registerRebornRoutes(app: Express) {
     await db.update(appointments).set({ status: "confirmed" }).where(eq(appointments.id, row.id)); // admin booking = confirmed
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
-    const mLang = await langForPhone(u.phoneNumber || "", u.id);
+    const memberPhone = await memberWaPhone(u.id);
+    const mLang = await langForPhone(memberPhone, u.id);
     const whenTxt = fmtBookingWhen(when, mLang);
-    if (u.phoneNumber) {
-      const phone = u.phoneNumber;
+    if (memberPhone) {
+      const phone = memberPhone;
       locationReply(mLang)
         .then((loc) => sendWhatsApp(phone, `${waText(mLang, "staffBooked", { club: s.clubName || "Reborn Wave", area: area.name, when: whenTxt, table: table ? ` · ${table}` : "" })}\n\n${loc}`))
         .catch(() => {});

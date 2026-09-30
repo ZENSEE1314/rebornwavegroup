@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import petGuideImage from "@assets/Doluruu Grandpa_1749903476706.png";
@@ -7,7 +8,7 @@ import petGuideImage from "@assets/Doluruu Grandpa_1749903476706.png";
 // Texts live in client/src/lib/i18n/home.ts under hm.guide.<step>.* —
 // <step>.t title, <step>.i intro, <step>.p Doluruu's tip, and for each item
 // <step>.<item>.t / <step>.<item>.x.
-interface TourStep {
+export interface TourStep {
   key: string;
   emoji: string;
   c1: string;
@@ -55,20 +56,57 @@ const STEPS: TourStep[] = [
   { key: "done", emoji: "🚀", c1: "#d946ef", c2: "#7c3aed" },
 ];
 
+// Admin-only guide to the POS and the admin panel (texts: admin.guide.* in i18n/admin.ts).
+export const STAFF_STEPS: TourStep[] = [
+  { key: "welcome", emoji: "🛠️", c1: "#f3c14b", c2: "#b45309" },
+  { key: "tables", emoji: "🍽️", c1: "#14b8a6", c2: "#0f766e", items: [
+    { key: "open", emoji: "🪑" }, { key: "add", emoji: "➕" }, { key: "app", emoji: "🔔" }, { key: "edit", emoji: "✏️" },
+  ] },
+  { key: "pay", emoji: "💳", c1: "#22c55e", c2: "#15803d", items: [
+    { key: "type", emoji: "🥡" }, { key: "disc", emoji: "🏷️" }, { key: "method", emoji: "💵" }, { key: "bottle", emoji: "🍾" }, { key: "cancel", emoji: "🗑️" },
+  ] },
+  { key: "posmore", emoji: "🧾", c1: "#0ea5e9", c2: "#1e40af", items: [
+    { key: "quick", emoji: "⚡" }, { key: "sales", emoji: "↩️" }, { key: "stock", emoji: "📦" }, { key: "bottles", emoji: "🍾" }, { key: "drawer", emoji: "🗄️" }, { key: "close", emoji: "🌙" },
+  ] },
+  { key: "queue", emoji: "📋", c1: "#f59e0b", c2: "#c2410c", items: [
+    { key: "book", emoji: "📅" }, { key: "songs", emoji: "🎵" }, { key: "redeem", emoji: "🎁" }, { key: "topup", emoji: "💰" },
+  ] },
+  { key: "members", emoji: "👥", c1: "#22c55e", c2: "#166534", items: [
+    { key: "users", emoji: "👤" }, { key: "codes", emoji: "🔑" }, { key: "pills", emoji: "💊" }, { key: "prizes", emoji: "🎡" }, { key: "bottles", emoji: "🍾" },
+  ] },
+  { key: "content", emoji: "📣", c1: "#ec4899", c2: "#9d174d", items: [
+    { key: "songs", emoji: "🎤" }, { key: "events", emoji: "📢" }, { key: "broadcast", emoji: "📨" }, { key: "gifts", emoji: "🎮" },
+  ] },
+  { key: "money", emoji: "💹", c1: "#10b981", c2: "#065f46", items: [
+    { key: "products", emoji: "🛒" }, { key: "inventory", emoji: "📦" }, { key: "acct", emoji: "📊" }, { key: "payroll", emoji: "💼" },
+  ] },
+  { key: "team", emoji: "🧑‍🤝‍🧑", c1: "#84cc16", c2: "#3f6212", items: [
+    { key: "staff", emoji: "🕒" }, { key: "board", emoji: "🏆" }, { key: "fb", emoji: "⭐" },
+  ] },
+  { key: "setup", emoji: "⚙️", c1: "#a855f7", c2: "#6b21a8", items: [
+    { key: "crm", emoji: "💬" }, { key: "settings", emoji: "⚙️" }, { key: "logs", emoji: "📜" },
+  ] },
+  { key: "done", emoji: "🚀", c1: "#f3c14b", c2: "#b45309" },
+];
+
 interface OnboardingWalkthroughProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: () => void;
+  /** Cards to show (default: the member guide). */
+  steps?: TourStep[];
+  /** i18n key prefix for the cards (default "hm.guide"). */
+  prefix?: string;
 }
 
-export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: OnboardingWalkthroughProps) {
+export function OnboardingWalkthrough({ isOpen, onClose, onComplete, steps = STEPS, prefix = "hm.guide" }: OnboardingWalkthroughProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState(0);
-  const total = STEPS.length;
-  const data = STEPS[step];
+  const total = steps.length;
+  const data = steps[step];
   const isFirst = step === 0;
   const isLast = step === total - 1;
-  const k = (s: string) => t(`hm.guide.${data.key}.${s}`);
+  const k = (s: string) => t(`${prefix}.${data.key}.${s}`);
 
   const next = () => (isLast ? onComplete() : setStep((s) => s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
@@ -87,7 +125,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
 
   if (!isOpen) return null;
 
-  return (
+  // Portal to <body> so an animated/transformed parent can't trap the fixed overlay.
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ ["--c1" as any]: data.c1, ["--c2" as any]: data.c2 }}>
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
 
@@ -124,8 +163,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
                 <div key={it.key} className="guide-item flex gap-3 items-start rounded-2xl p-3">
                   <span className="arc-icon shrink-0" style={{ width: 38, height: 38, fontSize: 18, borderRadius: 12 }}><span>{it.emoji}</span></span>
                   <div className="min-w-0">
-                    <p className="text-sm font-black">{t(`hm.guide.${data.key}.${it.key}.t`)}</p>
-                    <p className="text-[13px] leading-snug text-white/65">{t(`hm.guide.${data.key}.${it.key}.x`)}</p>
+                    <p className="text-sm font-black">{t(`${prefix}.${data.key}.${it.key}.t`)}</p>
+                    <p className="text-[13px] leading-snug text-white/65">{t(`${prefix}.${data.key}.${it.key}.x`)}</p>
                   </div>
                 </div>
               ))}
@@ -136,7 +175,7 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
         {/* Footer */}
         <div className="px-5 pt-3 pb-5 mt-2 border-t border-white/10">
           <div className="flex items-center justify-center gap-1.5 mb-4 flex-wrap">
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <button key={s.key} onClick={() => setStep(i)} aria-label={t("hm.tour.goStep", { n: i + 1 })}
                 className="guide-dot h-1.5 rounded-full transition-all duration-300"
                 style={{ width: i === step ? 22 : 7, background: i === step ? "var(--c1)" : "rgba(255,255,255,.22)", boxShadow: i === step ? "0 0 8px var(--c1)" : "none" }} />
@@ -158,6 +197,7 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
