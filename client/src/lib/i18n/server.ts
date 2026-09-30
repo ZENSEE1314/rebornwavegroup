@@ -1,5 +1,7 @@
 // Translations for the server area. Every key needs en, zh and id.
 export const serverT: Record<string, { en: string; zh: string; id: string }> = {
+  'app.loadFailed': { en: "Couldn't load this page. Check your internet connection and try again.", zh: "页面加载失败，请检查网络连接后重试。", id: "Halaman gagal dimuat. Periksa koneksi internet lalu coba lagi." },
+  'app.retry': { en: "Retry", zh: "重试", id: "Coba lagi" },
   'srv.err.busy': { en: "The server is busy right now. Please try again in a moment.", zh: "服务器暂时繁忙，请稍后再试。", id: "Server sedang sibuk. Silakan coba lagi sebentar lagi." },
   // Built-in data stored in English on the server (see tData in i18n.ts)
   "data:Free can of beer": { en: "Free can of beer", zh: "免费啤酒一罐", id: "Gratis sekaleng bir" },

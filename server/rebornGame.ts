@@ -19,6 +19,7 @@ import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, type PushPayload } from "./push";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL } from "./booking";
 import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, type Lang } from "./i18n";
+import { translateTexts } from "./autoTranslate";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -1689,6 +1690,18 @@ export function registerRebornRoutes(app: Express) {
 
   // Member RP top-up requests (approved by staff/admin → credits added)
   const MAX_TOPUP_RP = 1_000_000_000;
+  // Admin helper: translate English text into Chinese + Bahasa (FAQ editor's Translate button).
+  app.post("/api/reborn/admin/translate", requireStaff(async (req, res) => {
+    const texts: string[] = (Array.isArray(req.body?.texts) ? req.body.texts : []).slice(0, 20).map((x: any) => String(x ?? "").slice(0, 4000));
+    if (!texts.some((x) => x.trim())) return res.status(400).json({ message: tr(req, { en: "Type the English text first", zh: "请先填写英文内容", id: "Isi teks bahasa Inggris dulu" }) });
+    try {
+      const [zh, id] = await Promise.all([translateTexts(texts, "zh"), translateTexts(texts, "id")]);
+      res.json({ zh, id });
+    } catch (e) {
+      console.error("[translate]", e);
+      res.status(502).json({ message: tr(req, { en: "Auto-translate is not available right now. Please type the translation or try again later.", zh: "自动翻译暂时不可用，请手动填写翻译或稍后再试。", id: "Terjemahan otomatis sedang tidak tersedia. Silakan ketik terjemahannya atau coba lagi nanti." }) });
+    }
+  }));
   app.post("/api/reborn/topup", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     const amount = Math.round((Number(req.body?.amount) || 0) * 100) / 100;
