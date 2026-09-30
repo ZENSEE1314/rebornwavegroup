@@ -2245,3 +2245,50 @@ button, .interactive {
 /* Icon-only square buttons: drop the phone-wide button padding so the icon keeps its size */
 .arc-btn, .kos-add { padding:0; min-height:0; }
 .rwg-app button svg, .rwg-token-chip svg { flex-shrink:0; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Gaming skin for the everyday pages (chat, profile, order, loyalty, referral,
+   bookings, songs, POS). RebornLayout puts .gx on <main> for those pages and
+   sets --gx to the page's accent colour; the rules below restyle the common
+   box / heading / button / input patterns those pages already use.
+   ════════════════════════════════════════════════════════════════════════ */
+.gx { --gx:#f3c14b; }
+/* big panels: neon frame in the page colour, HUD corners */
+.gx :is(.rwg-card, .rounded-3xl.bg-white\/5, div.rounded-2xl.bg-white\/5.border) {
+  background: radial-gradient(90% 60% at 50% 0%, color-mix(in srgb, var(--gx) 14%, transparent), transparent 70%), linear-gradient(160deg, #1d1838, #0f0c1f) !important;
+  border-color: color-mix(in srgb, var(--gx) 38%, transparent) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 10px 26px rgba(0,0,0,.45), 0 0 20px color-mix(in srgb, var(--gx) 12%, transparent) !important; }
+.gx :is(.rwg-card, .rounded-3xl.bg-white\/5, div.rounded-2xl.bg-white\/5.border):is(.p-4, .p-5, .p-6):not(.absolute):not(.fixed) { position:relative; }
+.gx :is(.rwg-card, .rounded-3xl.bg-white\/5, div.rounded-2xl.bg-white\/5.border):is(.p-4, .p-5, .p-6)::before {
+  content:""; position:absolute; inset:5px; pointer-events:none; border-radius:inherit; opacity:.75;
+  background:
+    linear-gradient(var(--gx),var(--gx)) top left/12px 2px no-repeat, linear-gradient(var(--gx),var(--gx)) top left/2px 12px no-repeat,
+    linear-gradient(var(--gx),var(--gx)) top right/12px 2px no-repeat, linear-gradient(var(--gx),var(--gx)) top right/2px 12px no-repeat,
+    linear-gradient(var(--gx),var(--gx)) bottom left/12px 2px no-repeat, linear-gradient(var(--gx),var(--gx)) bottom left/2px 12px no-repeat,
+    linear-gradient(var(--gx),var(--gx)) bottom right/12px 2px no-repeat, linear-gradient(var(--gx),var(--gx)) bottom right/2px 12px no-repeat; }
+/* rows / list items that are buttons */
+.gx button.bg-white\/5.border, .gx a.bg-white\/5.border, .gx button.bg-white\/15.border {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--gx) 12%, #17132b), #120e24 70%) !important;
+  border-color: color-mix(in srgb, var(--gx) 30%, transparent) !important;
+  box-shadow: 0 3px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07) !important; }
+.gx button.bg-white\/5.border:not(:disabled):hover { border-color: color-mix(in srgb, var(--gx) 60%, transparent) !important; box-shadow: 0 3px 0 rgba(0,0,0,.45), 0 0 16px color-mix(in srgb, var(--gx) 25%, transparent) !important; }
+/* headings: bold italic arcade titles */
+.gx :is(h1, h2, h3):not(.uppercase) { font-weight:900 !important; font-style:italic; letter-spacing:.01em; text-shadow: 0 2px 0 rgba(0,0,0,.4), 0 0 14px color-mix(in srgb, var(--gx) 45%, transparent); }
+/* small uppercase section labels → glowing HUD header with a line */
+.gx :is(h2, h3, p).uppercase.tracking-wider { display:flex; align-items:center; gap:8px; font-weight:900 !important; letter-spacing:.16em !important; color: var(--gx) !important;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--gx) 50%, transparent); }
+.gx :is(h2, h3, p).uppercase.tracking-wider::after { content:""; flex:1; height:1px; background: linear-gradient(90deg, color-mix(in srgb, var(--gx) 60%, transparent), transparent); }
+/* main action buttons: chunky 3D arcade keys */
+.gx button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500):not(.rounded-full) {
+  font-weight:900 !important; font-style:italic; letter-spacing:.04em;
+  box-shadow: 0 4px 0 rgba(0,0,0,.5), 0 0 16px color-mix(in srgb, var(--gx) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.45) !important; }
+.gx button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500):not(.rounded-full):not(:disabled):active {
+  transform: translateY(3px) !important; box-shadow: 0 1px 0 rgba(0,0,0,.5), 0 0 22px color-mix(in srgb, var(--gx) 50%, transparent), inset 0 1px 0 rgba(255,255,255,.45) !important; }
+.gx button.rounded-full:is([style*="linear-gradient"], .bg-amber-400):not(:disabled) { box-shadow: 0 0 16px color-mix(in srgb, var(--gx) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.4) !important; }
+/* inputs: dark HUD fields with a coloured edge */
+.gx :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select) {
+  background-color: rgba(0,0,0,.42) !important; border-color: color-mix(in srgb, var(--gx) 30%, rgba(255,255,255,.1)) !important; }
+.gx :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select):focus {
+  border-color: var(--gx) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--gx) 22%, transparent), 0 0 16px color-mix(in srgb, var(--gx) 25%, transparent) !important; }
+/* amber numbers / prices glow */
+.gx :is(.text-amber-300, .text-amber-400).font-bold, .gx :is(.text-amber-300, .text-amber-400).font-extrabold { text-shadow: 0 0 10px rgba(247,215,116,.45); }
