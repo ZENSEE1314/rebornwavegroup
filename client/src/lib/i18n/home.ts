@@ -19,7 +19,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.tile.kos': { en: "Kings of Singers", zh: "歌王之王", id: "Raja Penyanyi" },
   'hm.tile.kosDesc': { en: "Gift & rank", zh: "送礼与排名", id: "Hadiah & peringkat" },
   'hm.tile.songs': { en: "Song Request", zh: "点歌", id: "Permintaan Lagu" },
-  'hm.tile.songsDesc': { en: "Request & Top 500", zh: "点歌与热门 500", id: "Permintaan & Top 500" },
+  'hm.tile.songsDesc': { en: "Request & all songs", zh: "点歌与全部歌曲", id: "Permintaan & semua lagu" },
   'hm.tile.referrals': { en: "Referrals", zh: "推荐好友", id: "Referal" },
   'hm.tile.referralsDesc': { en: "Invite friends", zh: "邀请好友", id: "Undang teman" },
   'hm.tile.support': { en: "Support", zh: "客服", id: "Bantuan" },
@@ -268,7 +268,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.guide.club.bottles.t': { en: "Bottle Keep", zh: "存酒", id: "Simpan Botol" },
   'hm.guide.club.bottles.x': { en: "Bottles staff keep for you, with days left (up to 30). We remind you on WhatsApp before they expire.", zh: "工作人员为你保存的酒及剩余天数（最多 30 天）。到期前会通过 WhatsApp 提醒你。", id: "Botol yang disimpan staf untukmu, dengan sisa hari (maks. 30). Kami ingatkan lewat WhatsApp sebelum kedaluwarsa." },
   'hm.guide.club.songs.t': { en: "Song Request", zh: "点歌", id: "Permintaan Lagu" },
-  'hm.guide.club.songs.x': { en: "Choose Self sing or By singer first. Top 500: tap Request on a hit. Request: type any song (Chinese or pinyin works) and Send request. My Requests: see if it's confirmed.", zh: "先选择“自己唱”或“歌手演唱”。热门 500：在热门歌曲上点“点歌”。点歌：输入任意歌名（中文或拼音都可以）并“发送点歌”。我的点歌：查看是否已确认。", id: "Pilih dulu Nyanyi sendiri atau Oleh penyanyi. Top 500: ketuk Minta pada lagu hits. Minta Lagu: ketik lagu apa saja (bisa 中文 atau pinyin) lalu Kirim permintaan. Permintaan Saya: lihat apakah sudah dikonfirmasi." },
+  'hm.guide.club.songs.x': { en: "Choose Self sing or By singer first. All songs: search or scroll (tap Show more) and tap Request. Request: type any song (Chinese or pinyin works) and Send request. My Requests: see if it's confirmed.", zh: "先选择“自己唱”或“歌手演唱”。全部歌曲：搜索或下拉（点“显示更多”）后点“点歌”。点歌：输入任意歌名（中文或拼音都可以）并“发送点歌”。我的点歌：查看是否已确认。", id: "Pilih dulu Nyanyi sendiri atau Oleh penyanyi. Semua lagu: cari atau gulir (ketuk Tampilkan lagi) lalu ketuk Minta. Minta Lagu: ketik lagu apa saja (bisa 中文 atau pinyin) lalu Kirim permintaan. Permintaan Saya: lihat apakah sudah dikonfirmasi." },
   'hm.guide.club.p': { en: "Order, keep your bottle and queue your song — all from your seat!", zh: "点单、存酒、点歌 — 坐着就能搞定！", id: "Pesan, simpan botol, dan antre lagu — semua dari tempat dudukmu!" },
 
   'hm.guide.book.t': { en: "Bookings", zh: "预订", id: "Booking" },

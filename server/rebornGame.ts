@@ -1275,7 +1275,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/songs", async (req, res) => {
     try {
       await seedSongsIfEmpty();
-      const rows = await db.select().from(songs).orderBy(desc(songs.isHit), desc(songs.requestCount), songs.title).limit(500);
+      const rows = await db.select().from(songs).orderBy(desc(songs.isHit), desc(songs.requestCount), songs.title); // the whole library
       res.json(rows);
     } catch (e) { console.error("songs", e); res.status(500).json({ message: tr(req, { en: "Failed to load songs", zh: "歌曲加载失败", id: "Gagal memuat lagu" }) }); }
   });
@@ -1283,7 +1283,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/songs/search", requireAuth, async (req, res) => {
     try {
       await seedSongsIfEmpty();
-      res.json(await searchSongCatalog(req.query.q, 10));
+      res.json(await searchSongCatalog(req.query.q, 10, 100));
     } catch (e) {
       console.error("song search", e);
       res.status(500).json({ message: tr(req, { en: "Song search failed", zh: "歌曲搜索失败", id: "Pencarian lagu gagal" }) });

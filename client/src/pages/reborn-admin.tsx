@@ -762,10 +762,16 @@ function Songs() {
   const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/songs", { title: t("admin.song.newTitle"), isHit: true }).then((r) => r.json()), onSuccess: inv });
   const save = useMutation({ mutationFn: (s: any) => apiRequest("PUT", `/api/reborn/admin/songs/${s.id}`, s).then((r) => r.json()), onSuccess: inv });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/songs/${id}`), onSuccess: inv });
+  const [q, setQ] = useState("");
+  const [shown, setShown] = useState(50);
+  const needle = q.trim().toLowerCase();
+  const list = needle ? songs.filter((s) => [s.title, s.titlePinyin, s.artist, s.artistPinyin].some((v) => String(v || "").toLowerCase().includes(needle))) : songs;
   return (
     <div>
       <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> {t("admin.song.add")}</button>
-      <div className="space-y-3">{songs.map((s) => <SongRow key={s.id} s={s} onSave={save.mutate} onDelete={del.mutate} />)}</div>
+      <input value={q} onChange={(e) => { setQ(e.target.value); setShown(50); }} placeholder={t("admin.song.search", { n: songs.length })} className={inp + " w-full mb-3"} />
+      <div className="space-y-3">{list.slice(0, shown).map((s) => <SongRow key={s.id} s={s} onSave={save.mutate} onDelete={del.mutate} />)}</div>
+      {list.length > shown && <button onClick={() => setShown((n) => n + 50)} className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 py-2.5 text-sm text-white/70">{t("vn.song.showMore", { n: list.length - shown })}</button>}
     </div>
   );
 }

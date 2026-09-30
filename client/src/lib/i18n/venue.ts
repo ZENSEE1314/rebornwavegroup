@@ -61,7 +61,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
 
   // Song request
   'vn.song.title': { en: 'SONG REQUEST', zh: '点歌', id: 'PERMINTAAN LAGU' },
-  'vn.song.tabTop': { en: 'Top 500', zh: '热门 500', id: 'Top 500' },
+  'vn.song.tabTop': { en: 'All songs', zh: '全部歌曲', id: 'Semua lagu' },
   'vn.song.tabRequest': { en: 'Request', zh: '点歌', id: 'Minta Lagu' },
   'vn.song.tabMine': { en: 'My Requests', zh: '我的点歌', id: 'Permintaan Saya' },
   'vn.song.selfSing': { en: 'Self sing', zh: '自己唱', id: 'Nyanyi sendiri' },
@@ -75,6 +75,8 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.song.resultsSpotify': { en: 'Reborn + Apple + MusicBrainz + Spotify results', zh: 'Reborn + Apple + MusicBrainz + Spotify 搜索结果', id: 'Hasil Reborn + Apple + MusicBrainz + Spotify' },
   'vn.song.resultsFree': { en: 'Reborn + free Apple and MusicBrainz results', zh: 'Reborn + 免费 Apple 和 MusicBrainz 搜索结果', id: 'Hasil Reborn + Apple dan MusicBrainz gratis' },
   'vn.song.noSongs': { en: 'No songs yet. Be the first to request one!', zh: '还没有歌曲，快来第一个点歌吧！', id: 'Belum ada lagu. Jadilah yang pertama meminta!' },
+  'vn.song.total': { en: '{n} songs in our list — search to find yours fast', zh: '共 {n} 首歌曲——搜索可快速找到', id: '{n} lagu di daftar kami — cari untuk menemukan lebih cepat' },
+  'vn.song.showMore': { en: 'Show more ({n} more)', zh: '显示更多（还有 {n} 首）', id: 'Tampilkan lagi ({n} lagi)' },
   'vn.song.requestSent': { en: 'Request sent!', zh: '点歌已发送！', id: 'Permintaan terkirim!' },
   'vn.song.requestASong': { en: 'Request a song', zh: '点一首歌', id: 'Minta sebuah lagu' },
   'vn.song.requestHelp': { en: 'Start typing a song, Chinese title or pinyin. Pick a match to fill the song and singer automatically, or enter any Malay or other song manually.', zh: '输入歌名、中文歌名或拼音。选择匹配结果可自动填写歌曲和歌手，也可以手动输入马来歌曲或其他歌曲。', id: 'Mulai ketik judul lagu, judul Mandarin atau pinyin. Pilih hasil yang cocok untuk mengisi lagu dan penyanyi otomatis, atau masukkan lagu Melayu atau lainnya secara manual.' },
