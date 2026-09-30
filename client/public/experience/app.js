@@ -427,6 +427,162 @@ function fitIntroBackground() {
   }
 }
 
+// ── Floor backdrops: each floor shows its own place behind the 3D scene ────
+// 1F lounge and 2F KTV play the venue clips; 3F (spaceship KTV), 4F (restaurant)
+// and 5F (sea view) are drawn live on a canvas, like a looping video.
+const FLOOR_BG_INTENSITY = 0.62;
+const BG_W = 800, BG_H = 450;
+const floorBg = {}; // seg id -> { tex, current, aspect, video?, draw?, ctx?, last }
+function coverFit(tex, aspect) {
+  const a = innerWidth / innerHeight;
+  if (a > aspect) { tex.repeat.set(1, aspect / a); tex.offset.set(0, (1 - aspect / a) / 2); }
+  else { tex.repeat.set(a / aspect, 1); tex.offset.set((1 - a / aspect) / 2, 0); }
+}
+function videoBackdrop(name) {
+  const v = document.createElement("video");
+  Object.assign(v, { src: `./media/${name}.mp4`, muted: true, loop: true, playsInline: true, preload: "metadata", crossOrigin: "anonymous" });
+  v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
+  const tex = new THREE.VideoTexture(v); tex.colorSpace = THREE.SRGBColorSpace;
+  const poster = IMG[`poster_${name}`];
+  const b = { video: v, tex, current: poster, aspect: 16 / 9, fit: [tex, poster] };
+  v.addEventListener("loadedmetadata", () => { if (v.videoWidth) { b.aspect = v.videoWidth / v.videoHeight; fitFloorBackgrounds(); } });
+  v.addEventListener("playing", () => { b.current = tex; if (SEGS[activeSeg] && floorBg[SEGS[activeSeg].id] === b) scene.background = tex; }, { once: true });
+  return b;
+}
+function canvasBackdrop(draw) {
+  const c = document.createElement("canvas"); c.width = BG_W; c.height = BG_H;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const b = { tex, current: tex, aspect: BG_W / BG_H, draw, ctx: c.getContext("2d"), last: -1, fit: [tex] };
+  draw(b.ctx, BG_W, BG_H, 0); tex.needsUpdate = true;
+  return b;
+}
+function fitFloorBackgrounds() { for (const b of Object.values(floorBg)) for (const t of b.fit) if (t) coverFit(t, b.aspect); }
+function tickFloorBackground(segId, t) {
+  const b = floorBg[segId];
+  if (!b || !b.draw || REDUCED || t - b.last < 1 / 30) return;
+  b.last = t; b.draw(b.ctx, BG_W, BG_H, t); b.tex.needsUpdate = true;
+}
+const rnd = (seed) => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+// 3F: a spaceship KTV room — stars rushing past a big window, neon hull, lyrics bar.
+const WARP = (() => { const r = rnd(7); return Array.from({ length: 170 }, () => ({ a: r() * Math.PI * 2, o: r(), s: 0.12 + r() * 0.25, c: r() < 0.3 ? "#9fd8ff" : r() < 0.5 ? "#d9b8ff" : "#ffffff" })); })();
+function drawSpaceship(x, W, H, t) {
+  x.fillStyle = "#07051a"; x.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = H * 0.42, rw = W * 0.36, rh = H * 0.3;
+  // window: space with warp streaks and a slow planet
+  x.save(); x.beginPath(); x.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2); x.clip();
+  const sp = x.createRadialGradient(cx, cy, 0, cx, cy, rw); sp.addColorStop(0, "#1b1446"); sp.addColorStop(1, "#040212"); x.fillStyle = sp; x.fillRect(0, 0, W, H);
+  const px = cx + rw * 0.45 + Math.sin(t * 0.05) * 20, py = cy + rh * 0.2;
+  const pg = x.createRadialGradient(px - 18, py - 18, 4, px, py, 60); pg.addColorStop(0, "#ffb3e6"); pg.addColorStop(0.6, "#7a3dff"); pg.addColorStop(1, "rgba(40,10,90,0)");
+  x.fillStyle = pg; x.beginPath(); x.arc(px, py, 60, 0, Math.PI * 2); x.fill();
+  x.lineCap = "round";
+  for (const s of WARP) {
+    const d = (s.o + t * s.s) % 1, r1 = d * d * rw * 1.4, r0 = r1 * 0.82;
+    x.strokeStyle = s.c; x.globalAlpha = Math.min(1, d * 1.6); x.lineWidth = 0.6 + d * 2.2;
+    x.beginPath(); x.moveTo(cx + Math.cos(s.a) * r0, cy + Math.sin(s.a) * r0 * 0.8); x.lineTo(cx + Math.cos(s.a) * r1, cy + Math.sin(s.a) * r1 * 0.8); x.stroke();
+  }
+  x.globalAlpha = 1; x.restore();
+  // hull: window frame + neon strips that pulse to the beat
+  const beat = 0.55 + 0.45 * Math.abs(Math.sin(t * 2.2));
+  x.lineWidth = 14; x.strokeStyle = "#1a1433"; x.beginPath(); x.ellipse(cx, cy, rw + 7, rh + 7, 0, 0, Math.PI * 2); x.stroke();
+  x.lineWidth = 3; x.strokeStyle = `rgba(80,220,255,${0.5 + beat * 0.5})`; x.shadowColor = "#50dcff"; x.shadowBlur = 18;
+  x.beginPath(); x.ellipse(cx, cy, rw + 15, rh + 15, 0, 0, Math.PI * 2); x.stroke();
+  x.strokeStyle = `rgba(200,90,255,${0.4 + (1 - beat) * 0.6})`; x.shadowColor = "#c85aff";
+  for (const k of [-1, 1]) { x.beginPath(); x.moveTo(cx + k * (rw + 40), 0); x.lineTo(cx + k * (rw + 40), H * 0.78); x.stroke(); x.beginPath(); x.moveTo(cx + k * (rw + 70), 0); x.lineTo(cx + k * (rw + 90), H * 0.78); x.stroke(); }
+  x.shadowBlur = 0;
+  // neon grid floor rushing forward
+  const hy = H * 0.78; const fg = x.createLinearGradient(0, hy, 0, H); fg.addColorStop(0, "#150a33"); fg.addColorStop(1, "#05020f"); x.fillStyle = fg; x.fillRect(0, hy, W, H - hy);
+  x.strokeStyle = "rgba(200,90,255,.55)"; x.lineWidth = 1.2;
+  for (let i = -10; i <= 10; i++) { x.beginPath(); x.moveTo(cx + i * 22, hy); x.lineTo(cx + i * 150, H); x.stroke(); }
+  for (let k = 0; k < 8; k++) { const z = ((k + (t * 0.8) % 1) / 8); const y = hy + (H - hy) * z * z; x.globalAlpha = z; x.beginPath(); x.moveTo(0, y); x.lineTo(W, y); x.stroke(); }
+  x.globalAlpha = 1;
+  // blinking control panels on the side walls
+  for (const k of [-1, 1]) for (let i = 0; i < 12; i++) {
+    const bx = cx + k * (rw + 110 + (i % 3) * 16), by = H * 0.3 + Math.floor(i / 3) * 22, on = Math.sin(t * 3 + i * 1.7 + k) > 0.2;
+    x.fillStyle = on ? ["#50dcff", "#ff5fd2", "#ffd35a"][i % 3] : "rgba(255,255,255,.08)"; x.fillRect(bx, by, 8, 8);
+  }
+  // neon lounge sofas facing the window
+  for (const [sx, w] of [[W * 0.03, W * 0.3], [W * 0.67, W * 0.3]]) {
+    x.fillStyle = "#1c0f3d"; x.beginPath(); x.roundRect(sx, H * 0.8, w, H * 0.14, 14); x.fill();
+    x.strokeStyle = `rgba(200,90,255,${0.5 + beat * 0.5})`; x.lineWidth = 3; x.shadowColor = "#c85aff"; x.shadowBlur = 16; x.stroke(); x.shadowBlur = 0;
+  }
+  // lyrics bar under the window
+  x.fillStyle = "rgba(10,8,30,.85)"; x.beginPath(); x.roundRect(cx - 170, cy + rh + 20, 340, 34, 17); x.fill();
+  x.fillStyle = `rgba(120,230,255,${0.7 + beat * 0.3})`; x.font = "700 18px Montserrat, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+  x.fillText("♪  ♫  ♪  ♫  ♪  ♫  ♪", cx + ((t * 40) % 40) - 20, cy + rh + 37);
+}
+
+// 4F: the restaurant photo with a slow camera drift, warm floating lights and candle glow.
+const BOKEH = (() => { const r = rnd(11); return Array.from({ length: 34 }, () => ({ x: r(), y: r(), r: 6 + r() * 22, s: 0.004 + r() * 0.01, p: r() * 6 })); })();
+function drawRestaurant(x, W, H, t) {
+  const img = IMG.food_restaurant && IMG.food_restaurant.image;
+  x.fillStyle = "#1a0f08"; x.fillRect(0, 0, W, H);
+  if (img && img.width) {
+    const z = 1.12 + 0.06 * Math.sin(t * 0.05), ia = img.width / img.height, a = W / H;
+    let dw = W * z, dh = dw / ia; if (dh < H * z) { dh = H * z; dw = dh * ia; }
+    x.drawImage(img, (W - dw) / 2 + Math.sin(t * 0.07) * W * 0.04, (H - dh) / 2 + Math.cos(t * 0.05) * H * 0.03, dw, dh);
+  }
+  const warm = x.createLinearGradient(0, 0, 0, H); warm.addColorStop(0, "rgba(40,18,6,.35)"); warm.addColorStop(1, "rgba(20,8,2,.55)"); x.fillStyle = warm; x.fillRect(0, 0, W, H);
+  x.globalCompositeOperation = "lighter";
+  for (const b of BOKEH) {
+    const yy = ((b.y - t * b.s) % 1 + 1) % 1, xx = b.x + Math.sin(t * 0.3 + b.p) * 0.01, al = 0.12 + 0.1 * Math.sin(t * 1.3 + b.p);
+    const g = x.createRadialGradient(xx * W, yy * H, 0, xx * W, yy * H, b.r); g.addColorStop(0, `rgba(255,190,110,${al})`); g.addColorStop(1, "rgba(255,160,80,0)");
+    x.fillStyle = g; x.beginPath(); x.arc(xx * W, yy * H, b.r, 0, Math.PI * 2); x.fill();
+  }
+  for (const [cxp, cyp, ph] of [[0.26, 0.66, 0], [0.52, 0.7, 2], [0.78, 0.63, 4]]) {
+    const f = 0.55 + 0.25 * Math.sin(t * 7 + ph) + 0.15 * Math.sin(t * 13 + ph * 2);
+    const g = x.createRadialGradient(cxp * W, cyp * H, 0, cxp * W, cyp * H, 70); g.addColorStop(0, `rgba(255,200,120,${0.35 * f})`); g.addColorStop(1, "rgba(255,150,60,0)");
+    x.fillStyle = g; x.beginPath(); x.arc(cxp * W, cyp * H, 70, 0, Math.PI * 2); x.fill();
+  }
+  x.globalCompositeOperation = "source-over";
+}
+
+// 5F: rooftop sunset over the sea — waves, sparkles on the water, clouds, a boat, railing and string lights.
+const CLOUDS = (() => { const r = rnd(5); return Array.from({ length: 7 }, () => ({ x: r(), y: 0.12 + r() * 0.28, w: 70 + r() * 110, s: 0.004 + r() * 0.008 })); })();
+const SPARKS = (() => { const r = rnd(9); return Array.from({ length: 90 }, () => ({ x: r(), y: r(), p: r() * 6 })); })();
+function drawSeaview(x, W, H, t) {
+  const hz = H * 0.56;
+  const sky = x.createLinearGradient(0, 0, 0, hz); sky.addColorStop(0, "#1c1442"); sky.addColorStop(0.45, "#7a3b7d"); sky.addColorStop(0.8, "#ff7e5f"); sky.addColorStop(1, "#ffc27a");
+  x.fillStyle = sky; x.fillRect(0, 0, W, hz);
+  const sx = W * 0.5, sy = hz - 18 + Math.sin(t * 0.1) * 3;
+  const glow = x.createRadialGradient(sx, sy, 0, sx, sy, 180); glow.addColorStop(0, "rgba(255,230,160,.9)"); glow.addColorStop(0.2, "rgba(255,190,110,.5)"); glow.addColorStop(1, "rgba(255,120,80,0)");
+  x.fillStyle = glow; x.fillRect(0, 0, W, hz);
+  x.fillStyle = "#fff1c4"; x.beginPath(); x.arc(sx, sy, 34, 0, Math.PI * 2); x.fill();
+  for (const c of CLOUDS) {
+    const cx = ((c.x + t * c.s) % 1.3 - 0.15) * W, cy = c.y * H;
+    for (const [ox, oy, rr] of [[0, 0, 1], [0.45, -0.25, 0.7], [-0.4, 0.05, 0.6]]) {
+      const r = c.w * 0.35 * rr, g = x.createRadialGradient(cx + ox * c.w * 0.5, cy + oy * r, 0, cx + ox * c.w * 0.5, cy + oy * r, r);
+      g.addColorStop(0, "rgba(255,190,170,.32)"); g.addColorStop(1, "rgba(255,160,150,0)"); x.fillStyle = g;
+      x.beginPath(); x.ellipse(cx + ox * c.w * 0.5, cy + oy * r, r, r * 0.45, 0, 0, Math.PI * 2); x.fill();
+    }
+  }
+  // islands + sea
+  x.fillStyle = "#2a1838"; x.beginPath(); x.moveTo(0, hz); x.quadraticCurveTo(W * 0.1, hz - 30, W * 0.22, hz); x.fill();
+  x.beginPath(); x.moveTo(W * 0.72, hz); x.quadraticCurveTo(W * 0.85, hz - 22, W, hz - 6); x.lineTo(W, hz); x.fill();
+  const sea = x.createLinearGradient(0, hz, 0, H); sea.addColorStop(0, "#c46a6a"); sea.addColorStop(0.25, "#3a2a5e"); sea.addColorStop(1, "#0d1030"); x.fillStyle = sea; x.fillRect(0, hz, W, H - hz);
+  x.lineWidth = 1.2;
+  for (let i = 0; i < 26; i++) { const yy = hz + 6 + i * i * 0.55; x.strokeStyle = `rgba(255,200,170,${0.08 + (1 - i / 26) * 0.12})`; x.beginPath(); for (let xx = 0; xx <= W; xx += 16) x.lineTo(xx, yy + Math.sin(xx * 0.03 + t * 1.4 + i) * (1 + i * 0.12)); x.stroke(); }
+  for (const s of SPARKS) {
+    const yy = hz + 4 + s.y * (H * 0.3), spread = 30 + (yy - hz) * 0.9, xx = sx + (s.x - 0.5) * spread * 2;
+    const a = Math.max(0, Math.sin(t * 3 + s.p * 5)); if (a < 0.4) continue;
+    x.fillStyle = `rgba(255,236,190,${a})`; x.fillRect(xx, yy, 6 + a * 8, 1.6);
+  }
+  const bx = ((t * 0.012) % 1.2 - 0.1) * W; x.fillStyle = "#1b1030"; x.beginPath(); x.moveTo(bx - 22, hz + 10); x.lineTo(bx + 22, hz + 10); x.lineTo(bx + 16, hz + 16); x.lineTo(bx - 16, hz + 16); x.fill(); x.fillRect(bx - 2, hz - 12, 3, 22);
+  // rooftop railing + string lights
+  x.fillStyle = "rgba(10,6,18,.92)"; x.fillRect(0, H * 0.86, W, 5); x.fillRect(0, H * 0.94, W, 4);
+  for (let xx = 20; xx < W; xx += 70) x.fillRect(xx, H * 0.86, 5, H * 0.14);
+  x.strokeStyle = "rgba(20,12,30,.8)"; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0, 22); for (let xx = 0; xx <= W; xx += 10) x.lineTo(xx, 22 + Math.sin((xx / W) * Math.PI * 3) * 14 + 14); x.stroke();
+  for (let i = 0; i < 24; i++) { const xx = (i + 0.5) * (W / 24), yy = 22 + Math.sin((xx / W) * Math.PI * 3) * 14 + 18, on = 0.55 + 0.45 * Math.sin(t * 2 + i); const g = x.createRadialGradient(xx, yy, 0, xx, yy, 12); g.addColorStop(0, `rgba(255,220,140,${on})`); g.addColorStop(1, "rgba(255,200,120,0)"); x.fillStyle = g; x.beginPath(); x.arc(xx, yy, 12, 0, Math.PI * 2); x.fill(); }
+}
+function createFloorBackgrounds() {
+  floorBg.ktv = videoBackdrop("sing");     // 1F lounge
+  floorBg.private = videoBackdrop("ktv");  // 2F KTV rooms
+  floorBg.vip = canvasBackdrop(drawSpaceship);    // 3F spaceship KTV room
+  floorBg.pet = canvasBackdrop(drawRestaurant);   // 4F restaurant
+  floorBg.live = canvasBackdrop(drawSeaview);     // 5F rooftop sea view
+  fitFloorBackgrounds();
+}
+
 // ── Zone: ARRIVAL ──────────────────────────────────────────────────────────
 function buildArrival() {
   const Z = new THREE.Group(); const zi = zones.length; zones.push(Z); scene.add(Z);
@@ -1340,9 +1496,11 @@ function setActiveSegment(i) {
   const seg = SEGS[i];
   bg.set(seg.fog); scene.fog.color.copy(bg);
   const isArrival = seg.id === "arrival";
-  scene.background = isArrival ? introBg.current : bgColor.copy(bg);
-  scene.backgroundIntensity = isArrival ? ARRIVAL_BG_INTENSITY : 1;
+  const fb = floorBg[seg.id];
+  scene.background = isArrival ? introBg.current : fb ? fb.current : bgColor.copy(bg);
+  scene.backgroundIntensity = isArrival ? ARRIVAL_BG_INTENSITY : fb ? FLOOR_BG_INTENSITY : 1;
   if (isArrival) introBg.video.play().catch(() => {}); else introBg.video.pause();
+  for (const [id, b] of Object.entries(floorBg)) if (b.video) { if (id === seg.id) b.video.play().catch(() => {}); else b.video.pause(); }
   scene.fog.near = seg.id === "arrival" ? 28 : 30; scene.fog.far = seg.id === "arrival" ? 120 : 95;
 }
 
@@ -1404,6 +1562,7 @@ function frame(ts) {
   const seg = SEGS[si];
   const lt = clamp((p - seg.a) / (seg.b - seg.a));
   setActiveSegment(si);
+  tickFloorBackground(seg.id, t);
 
   PATHS[si].pos.getPoint(lt, camPos);
   PATHS[si].look.getPoint(lt, camLook);
@@ -1428,12 +1587,14 @@ function onResize() {
   renderer.setSize(innerWidth, innerHeight);
   buildPaths();
   fitIntroBackground();
+  fitFloorBackgrounds();
 }
 addEventListener("resize", onResize);
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 loadAll().then(() => {
   createIntroBackground();
+  createFloorBackgrounds();
   buildArrival();
   buildFloor(SEGS[1], dressKTV);
   buildFloor(SEGS[2], dressPrivate);
