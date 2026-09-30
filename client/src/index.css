@@ -2328,3 +2328,16 @@ button, .interactive {
 @keyframes spinRing { to { transform: rotate(360deg); } }
 .spin-go { font-size:20px !important; padding:16px 44px !important; border-radius:18px !important; }
 @media (prefers-reduced-motion: reduce) { .spin-wheel::before { animation:none; } }
+
+/* App guide (OnboardingWalkthrough) — dark arcade card in each step's colour (--c1/--c2) */
+.guide-card { background: radial-gradient(90% 40% at 50% 0%, color-mix(in srgb, var(--c1) 22%, transparent), transparent 70%), linear-gradient(170deg, #1d1838, #0c0a18);
+  border:1px solid color-mix(in srgb, var(--c1) 55%, transparent); box-shadow: 0 0 40px color-mix(in srgb, var(--c1) 30%, transparent), 0 24px 60px rgba(0,0,0,.6);
+  animation: rwgEnter .35s cubic-bezier(.2,.8,.2,1) both; }
+.guide-band { background: linear-gradient(135deg, var(--c1), var(--c2)); overflow:hidden; isolation:isolate; }
+.guide-band::before { content:""; position:absolute; inset:0; z-index:-1; opacity:.2; background: repeating-linear-gradient(115deg, transparent 0 14px, rgba(255,255,255,.7) 14px 16px);
+  -webkit-mask-image: linear-gradient(90deg, transparent 35%, #000); mask-image: linear-gradient(90deg, transparent 35%, #000); }
+.guide-band .arc-title { text-shadow: 0 2px 0 rgba(0,0,0,.35), 0 0 16px rgba(0,0,0,.25); }
+.guide-bubble { background: rgba(10,8,22,.92); border:1px solid color-mix(in srgb, var(--c1) 55%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--c1) 25%, transparent); }
+.guide-item { background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 14%, #17132b), #120e24 70%); border:1px solid color-mix(in srgb, var(--c1) 30%, transparent); }
+.guide-item .arc-icon, .guide-band .arc-icon { animation:none; transform: rotate(-6deg); }
+.guide-dot { padding:0 !important; min-height:0 !important; }
