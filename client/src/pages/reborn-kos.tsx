@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -340,6 +340,111 @@ function useCountUp(target: number, ms = 1200, key?: any) {
   return v;
 }
 
+
+// ── Special gift scenes ─────────────────────────────────────────────────────
+// Picked by the gift's animation ("car" | "fireworks" | "crown" | "diamonds"),
+// or automatically from its emoji / name so existing gifts get them too.
+type Scene = "car" | "fireworks" | "crown" | "diamonds";
+function sceneOf(g: any): Scene | null {
+  const a = String(g?.animation || "");
+  if (a === "car" || a === "fireworks" || a === "crown" || a === "diamonds") return a;
+  const e = `${g?.emoji || ""} ${g?.giftName || ""}`;
+  if (/🏎|🚗|🚙|🚘|sports ?car|\bcar\b/i.test(e)) return "car";
+  if (/🎆|🎇|🧨|firework/i.test(e)) return "fireworks";
+  if (/👑|crown/i.test(e)) return "crown";
+  if (/💎|diamond/i.test(e)) return "diamonds";
+  return null;
+}
+const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
+// Where the gift text sits so it doesn't cover the scene.
+const SCENE_TEXT: Record<Scene, CSSProperties> = {
+  car: { top: "9%" }, fireworks: { bottom: "7%" }, crown: { bottom: "7%" }, diamonds: { top: "47%" },
+};
+
+function CarScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-car">
+      <div className="gs-sky" />
+      <div className="gs-moon">🌙</div>
+      <div className="gs-city"><div className="gs-city-row">{Array.from({ length: 2 }).map((_, r) => <span key={r}>🏙️🏢🏬🌃🏙️🏢🏨🏬🏙️🏢🏬🌃</span>)}</div></div>
+      <div className="gs-lamps">{Array.from({ length: 8 }).map((_, k) => <i key={k} style={{ left: `${k * 25}%` }} />)}</div>
+      <div className="gs-road"><div className="gs-lane" /></div>
+      <div className="gs-carbox">
+        <div className="gs-speed">{Array.from({ length: 6 }).map((_, k) => <i key={k} style={{ top: `${15 + k * 13}%`, animationDelay: `${k * 0.09}s` }} />)}</div>
+        <div className="gs-puff">💨</div>
+        <div className="gs-beam" />
+        <div className="gs-carart">{art}</div>
+      </div>
+    </div>
+  );
+}
+
+const FW_COLORS = ["#ffd166", "#ff5d8f", "#7cf5ff", "#b388ff", "#8bff9c", "#ffffff", "#ff9f43"];
+function Burst({ x, y, n, size, delay, loop }: { x: string; y: string; n: number; size: number; delay: number; loop?: boolean }) {
+  return (
+    <div className="gs-burst" style={{ left: x, top: y }}>
+      <i className="gs-flash" style={{ animationDelay: `${delay}s`, animationIterationCount: loop ? "infinite" : 1 }} />
+      {Array.from({ length: n }).map((_, k) => {
+        const ang = (k / n) * Math.PI * 2, d = size * (0.75 + (k % 3) * 0.15);
+        return <i key={k} className="gs-spark" style={{ ["--dx" as any]: `${Math.cos(ang) * d}px`, ["--dy" as any]: `${Math.sin(ang) * d}px`,
+          background: FW_COLORS[k % FW_COLORS.length], boxShadow: `0 0 8px ${FW_COLORS[k % FW_COLORS.length]}`,
+          animationDelay: `${delay}s`, animationIterationCount: loop ? "infinite" : 1 }} />;
+      })}
+    </div>
+  );
+}
+function FireworksScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-fw">
+      <div className="gs-fw-sky" />
+      <div className="gs-rocket" />
+      <Burst x="50%" y="26%" n={44} size={150} delay={1.15} />
+      <Burst x="22%" y="18%" n={26} size={80} delay={1.9} loop />
+      <Burst x="78%" y="22%" n={26} size={90} delay={2.4} loop />
+      <Burst x="35%" y="40%" n={20} size={70} delay={3.1} loop />
+      <Burst x="68%" y="12%" n={20} size={70} delay={3.6} loop />
+      <div className="gs-fw-gift">{art}</div>
+    </div>
+  );
+}
+
+function CrownScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-crown">
+      <div className="gs-throne-glow" />
+      <div className="gs-king"><span>🧔</span><i className="gs-robe" /></div>
+      <div className="gs-hand">🫴</div>
+      <div className="gs-crownart">{art}</div>
+      <div className="gs-crown-rays" />
+      {Array.from({ length: 8 }).map((_, k) => <span key={k} className="gs-glint" style={{ left: `${50 + Math.cos(k * 0.785) * 22}%`, top: `${40 + Math.sin(k * 0.785) * 12}%`, animationDelay: `${2.5 + (k % 4) * 0.25}s` }}>✨</span>)}
+    </div>
+  );
+}
+
+function DiamondsScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-dia">
+      <div className="gs-dia-sky" />
+      {Array.from({ length: 42 }).map((_, k) => (
+        <span key={k} className="gs-drop" style={{ left: `${(k * 23 + 4) % 96}%`, fontSize: 18 + (k % 4) * 6,
+          ["--land" as any]: `${80 + (k % 5) * 2.4}vh`, ["--rot" as any]: `${(k * 47) % 60 - 30}deg`,
+          animationDelay: `${(k % 14) * 0.12 + Math.floor(k / 14) * 0.25}s` }}>💎</span>
+      ))}
+      <div className="gs-ground" />
+      <div className="gs-bigdia">{art}</div>
+      <div className="gs-bigdia-ring" />
+      {Array.from({ length: 6 }).map((_, k) => <span key={k} className="gs-glint" style={{ left: `${50 + Math.cos(k * 1.05) * 18}%`, top: `${24 + Math.sin(k * 1.05) * 8}%`, animationDelay: `${2.9 + k * 0.2}s` }}>✨</span>)}
+    </div>
+  );
+}
+
+function GiftScene({ kind, art }: { kind: Scene; art: ReactNode }) {
+  if (kind === "car") return <CarScene art={art} />;
+  if (kind === "fireworks") return <FireworksScene art={art} />;
+  if (kind === "crown") return <CrownScene art={art} />;
+  return <DiamondsScene art={art} />;
+}
+
 const CONFETTI = ["#f7d774", "#ec4899", "#a855f7", "#22d3ee", "#34d399", "#fb7185", "#fff"];
 function GiftInbox({ notifs, onClose }: any) {
   const { t } = useTranslation();
@@ -356,6 +461,22 @@ function GiftInbox({ notifs, onClose }: any) {
   const tier = kg >= 1_000_000 ? 3 : kg >= 100_000 ? 2 : 1;
   const burst = 10 + tier * 8, confetti = 18 + tier * 14;
   const art = g.imageUrl ? <img src={g.imageUrl} alt="" className="kg-art w-36 h-36 object-cover rounded-3xl mx-auto" /> : <span className="kg-art-emoji">{g.emoji || "🎁"}</span>;
+  const scene = reducedMotion() ? null : sceneOf(g);
+  if (scene) {
+    const sceneArt = g.imageUrl ? <img src={g.imageUrl} alt="" className="gs-img" /> : <span className="gs-emoji">{g.emoji || "🎁"}</span>;
+    return (
+      <div className="kg-stage fixed inset-0 z-[60] overflow-hidden" onClick={next}>
+        <div className="absolute inset-0 bg-black/90" />
+        <div key={`scene-${i}`} className="absolute inset-0"><GiftScene kind={scene} art={sceneArt} /></div>
+        <div key={`txt-${i}`} className="gs-text absolute inset-x-0 text-center px-6" style={SCENE_TEXT[scene]} onClick={(e) => e.stopPropagation()}>
+          <p className="kg-title text-white text-xl font-black">{t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName })}</p>
+          <p className="kg-amount mt-2">🪙 +{fmt(shown)} KGOLD</p>
+          <button onClick={next} className="arc-play arc-start mt-5 mx-auto px-8 justify-center" style={{ padding: "12px 32px", fontSize: 14 }}>{i < notifs.length - 1 ? t("vn.common.next") : t("vn.kos.awesome")}</button>
+          {notifs.length > 1 && <p className="text-white/40 text-xs mt-2">{i + 1} / {notifs.length}</p>}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="kg-stage fixed inset-0 z-[60] flex items-center justify-center p-6 overflow-hidden" onClick={next}>
       <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />

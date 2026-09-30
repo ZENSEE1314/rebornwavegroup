@@ -158,14 +158,16 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
       {groups.map(([cat, items]) => (
         <div key={cat} className="mb-4">
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat || t("pos.other")}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {/* 2–3 tiles per row on phones, more on wider screens (inline template:
+              the phone-wide grid-cols-* override would make it one huge column). */}
+          <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 112px), 1fr))" }}>
             {items.map((p) => (
-              <button key={p.id} onClick={() => add(p.id)} disabled={p.stock <= 0} className="rounded-2xl border border-white/10 bg-white/5 text-left active:scale-95 transition-all disabled:opacity-40 relative overflow-hidden">
+              <button key={p.id} onClick={() => add(p.id)} disabled={p.stock <= 0} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 text-left active:scale-95 transition-all disabled:opacity-40 relative overflow-hidden">
                 {p.imageUrl
                   ? <img src={p.imageUrl} alt="" className="w-full aspect-square object-cover" />
                   : <div className="w-full aspect-square flex items-center justify-center text-2xl bg-white/5">🍸</div>}
                 <div className="p-2">
-                  <p className="text-sm font-semibold leading-tight line-clamp-1">{p.name}</p>
+                  <p className="text-[13px] font-semibold leading-tight line-clamp-2 break-words">{p.name}</p>
                   <p className="text-xs text-amber-300">{rp(Number(p.price))}</p>
                   <p className="text-[10px] text-white/40">{t("pos.stockCount", { n: p.stock })}</p>
                 </div>
