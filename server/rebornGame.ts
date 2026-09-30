@@ -11,14 +11,14 @@ import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot"
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
-import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
+import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
 import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
-import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, sendPushToAdmins } from "./push";
+import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, sendPushToAdmins, type PushPayload } from "./push";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL } from "./booking";
-import { tr, pick, asLang, localeOf, type Lang } from "./i18n";
+import { tr, pick, asLang, localeOf, userLang, reqLang, type Lang } from "./i18n";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -106,6 +106,62 @@ async function getSettings() {
     bookingAskHours: map.bookingAskHours !== "false",
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
+}
+
+// ── Notifications in each recipient's own language ─────────────────────────
+// Numbers formatted the way the reader expects (1,000 / 1.000).
+const fmtN = (n: number, lang: Lang) => Number(n || 0).toLocaleString(localeOf(lang));
+type LangText = (lang: Lang) => { title: string; body: string };
+// Group user ids by their saved language.
+async function idsByLang(ids: string[]): Promise<Map<Lang, string[]>> {
+  const out = new Map<Lang, string[]>();
+  const uniq = Array.from(new Set(ids.filter(Boolean)));
+  if (!uniq.length) return out;
+  const rows = await db.select({ id: users.id, l: users.preferredLanguage }).from(users).where(inArray(users.id, uniq));
+  const langOf = new Map(rows.map((r) => [r.id, asLang(r.l)]));
+  for (const id of uniq) { const l = langOf.get(id) || "en"; (out.get(l) || out.set(l, []).get(l)!).push(id); }
+  return out;
+}
+// In-app + phone notification to one member, in their language.
+async function notifyUserI18n(userId: string | null | undefined, type: string, text: LangText, data?: Record<string, unknown>) {
+  if (!userId) return;
+  const lang = await userLang(userId);
+  return sendRebornUserNotification(userId, { type, ...text(lang), data });
+}
+// Web push to one member, in their language.
+async function pushUserI18n(userId: string | null | undefined, make: (lang: Lang) => PushPayload) {
+  if (!userId) return 0;
+  return sendPushToUser(userId, make(await userLang(userId)));
+}
+// Same recipients as sendRebornStaffNotification, each in their own language.
+async function notifyStaffI18n(type: string, text: LangText, data?: Record<string, unknown>) {
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  if (!company) return;
+  const members = await db.select({ userId: bridgeCompanyMembers.userId }).from(bridgeCompanyMembers).where(and(
+    eq(bridgeCompanyMembers.companyId, company.id),
+    eq(bridgeCompanyMembers.status, "active"),
+    inArray(bridgeCompanyMembers.role, ["owner", "admin", "manager", "staff"]),
+  ));
+  const roleUsers = await db.select({ id: users.id }).from(users).where(inArray(users.role, ["admin", "staff"]));
+  const groups = await idsByLang([...members.map((m) => m.userId), ...roleUsers.map((u) => u.id)]);
+  for (const [lang, ids] of Array.from(groups)) await sendBridgeXNotifications(company.id, ids, { type, ...text(lang), data });
+  emitCompanyChange(company.id, String(data?.path || "notifications"));
+}
+// Same recipients as sendRebornAllNotification (every user), each in their own language.
+async function notifyAllI18n(type: string, text: LangText, data?: Record<string, unknown>) {
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  if (!company) return;
+  const allUsers = await db.select({ id: users.id }).from(users);
+  const groups = await idsByLang(allUsers.map((u) => u.id));
+  for (const [lang, ids] of Array.from(groups)) await sendBridgeXNotifications(company.id, ids, { type, ...text(lang), data });
+  emitCompanyChange(company.id, String(data?.path || "notifications"));
+}
+// Same recipients as sendPushToAdmins (staff + admins), each in their own language.
+async function pushAdminsI18n(make: (lang: Lang) => PushPayload) {
+  const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ["staff", "admin"]));
+  let sent = 0;
+  for (const [lang, ids] of Array.from(await idsByLang(admins.map((a) => a.id)))) sent += await sendPushToUsers(ids, make(lang));
+  return sent;
 }
 
 // ── Multi-tenant resolver ────────────────────────────────────────────────────
@@ -534,7 +590,7 @@ export function registerRebornRoutes(app: Express) {
       if (!row) return res.status(404).json({ message: tr(req, { en: "Code not found. Check the code on your package.", zh: "找不到该激活码，请核对包装上的代码。", id: "Kode tidak ditemukan. Periksa kode di kemasanmu." }) });
       if (row.used) return res.status(400).json({ message: tr(req, { en: "This code has already been used.", zh: "此激活码已被使用。", id: "Kode ini sudah dipakai." }) });
       const living = await db.select({ id: pets.id }).from(pets).where(and(eq(pets.userId, userId), eq(pets.isActive, true), sql`${pets.lifeStatus} != 'dead'`));
-      if (living.length >= MAX_PETS) return res.status(400).json({ message: `You can only have ${MAX_PETS} pets at a time.` });
+      if (living.length >= MAX_PETS) return res.status(400).json({ message: tr(req, { en: "You can only have {n} pets at a time.", zh: "你最多只能同时拥有 {n} 只宠物。", id: "Kamu hanya bisa memiliki {n} peliharaan sekaligus." }, { n: MAX_PETS }) });
       const now = new Date();
       const [pet] = await db.insert(pets).values({
         userId, toyId: 0, name: row.petName || "Doluruu", type: "virtual",
@@ -584,7 +640,7 @@ export function registerRebornRoutes(app: Express) {
       await db.update(pets).set(update).where(eq(pets.id, pet.id));
       const [fresh] = await db.select().from(pets).where(eq(pets.id, pet.id));
       res.json({
-        message: tokenAwarded ? "Full belly! You earned 1 token 🎉" : `Fed! ${FEEDS_PER_DAY - feeds} more feed(s) today for your token.`,
+        message: tokenAwarded ? tr(req, { en: "Full belly! You earned 1 token 🎉", zh: "吃饱啦！你获得了 1 个代币 🎉", id: "Kenyang! Kamu mendapat 1 token 🎉" }) : tr(req, { en: "Fed! {n} more feed(s) today for your token.", zh: "喂好了！今天再喂 {n} 次即可获得代币。", id: "Sudah diberi makan! {n} kali lagi hari ini untuk mendapatkan token." }, { n: FEEDS_PER_DAY - feeds }),
         tokenAwarded, pet: petView(fresh),
       });
     } catch (e) { console.error("reborn feed", e); res.status(500).json({ message: tr(req, { en: "Feeding failed", zh: "喂食失败", id: "Gagal memberi makan" }) }); }
@@ -610,9 +666,9 @@ export function registerRebornRoutes(app: Express) {
       if (action === "sleep" || action === "wake") update.lastEnergyUpdate = now;
       if (action === "sleep") {
         update.isSleeping = true; update.sleepStartTime = now;
-        message = "Zzz… your pet is sleeping and will regain energy over time.";
+        message = tr(req, { en: "Zzz… your pet is sleeping and will regain energy over time.", zh: "Zzz… 你的宠物正在睡觉，会慢慢恢复体力。", id: "Zzz… peliharaanmu sedang tidur dan energinya akan pulih perlahan." });
       } else if (action === "wake") {
-        message = "Rise and shine! ☀️"; // isSleeping already cleared via update default
+        message = tr(req, { en: "Rise and shine! ☀️", zh: "起床啦！☀️", id: "Ayo bangun! ☀️" }); // isSleeping already cleared via update default
       } else if (action === "feed") {
         const nowMs = now.getTime();
         if (hunger >= 100) return res.status(400).json({ message: tr(req, { en: "Your pet is full — no need to feed right now.", zh: "你的宠物吃饱了——现在不用喂。", id: "Peliharaanmu sudah kenyang — tidak perlu diberi makan sekarang." }) });
@@ -633,18 +689,18 @@ export function registerRebornRoutes(app: Express) {
             await db.update(users).set({ tokens: sql`${users.tokens} + 1`, updatedAt: now }).where(eq(users.id, userId));
             await db.insert(tokenTransactions).values({ userId, tokens: 1, type: "earned", status: "completed", description: `Daily care token from ${pet.name}`, relatedId: pet.id });
             tokenAwarded = true;
-            message = "Full belly! You earned today's token 🎉";
+            message = tr(req, { en: "Full belly! You earned today's token 🎉", zh: "吃饱啦！你获得了今天的代币 🎉", id: "Kenyang! Kamu mendapat token hari ini 🎉" });
           } else {
-            message = `Yum! +50% hunger · ${Math.max(0, FEEDS_PER_DAY - feeds)} more spaced feed(s) for today's token.`;
+            message = tr(req, { en: "Yum! +50% hunger · {n} more spaced feed(s) for today's token.", zh: "好吃！饱食度 +50% · 再间隔喂食 {n} 次即可获得今天的代币。", id: "Nyam! Kenyang +50% · {n} kali makan berjeda lagi untuk token hari ini." }, { n: Math.max(0, FEEDS_PER_DAY - feeds) });
           }
         } else {
-          message = "Yum! +50% hunger. (Feed ~4h apart to count toward your token.)";
+          message = tr(req, { en: "Yum! +50% hunger. (Feed ~4h apart to count toward your token.)", zh: "好吃！饱食度 +50%。（每次喂食间隔约 4 小时才会计入代币。）", id: "Nyam! Kenyang +50%. (Beri makan berjarak ~4 jam agar dihitung untuk token.)" });
         }
       } else if (action === "play" || action === "clean") {
         if (energy <= 0) return res.status(400).json({ message: tr(req, { en: "Too tired! Tap Sleep to recover energy first.", zh: "太累了！先点“睡觉”恢复体力吧。", id: "Terlalu lelah! Ketuk Tidur untuk memulihkan energi dulu." }) });
         energy = clamp(energy - ACTION_ENERGY_COST);
-        if (action === "play") { happiness = clamp(happiness + STAT_GAIN); message = "So much fun! +50% joy"; }
-        else { cleanliness = clamp(cleanliness + STAT_GAIN); message = "Squeaky clean! +50% clean"; }
+        if (action === "play") { happiness = clamp(happiness + STAT_GAIN); message = tr(req, { en: "So much fun! +50% joy", zh: "玩得好开心！快乐度 +50%", id: "Seru sekali! Kebahagiaan +50%" }); }
+        else { cleanliness = clamp(cleanliness + STAT_GAIN); message = tr(req, { en: "Squeaky clean! +50% clean", zh: "干干净净！清洁度 +50%", id: "Bersih kinclong! Kebersihan +50%" }); }
       } else {
         return res.status(400).json({ message: tr(req, { en: "Unknown action", zh: "未知操作", id: "Aksi tidak dikenal" }) });
       }
@@ -700,7 +756,7 @@ export function registerRebornRoutes(app: Express) {
       const spinSettings = await getSettings();
       const spinCost = spinSettings.spinTokenCost;
       const user = await storage.getUser(userId);
-      if (!user || (user.tokens || 0) < spinCost) return res.status(400).json({ message: `Not enough tokens (need ${spinCost}). Feed your pet to earn more.` });
+      if (!user || (user.tokens || 0) < spinCost) return res.status(400).json({ message: tr(req, { en: "Not enough tokens (need {n}). Feed your pet to earn more.", zh: "代币不足（需要 {n} 个）。喂养宠物来赚取更多吧。", id: "Token tidak cukup (butuh {n}). Beri makan peliharaanmu untuk mendapatkan lebih banyak." }, { n: spinCost }) });
 
       const prizes = await db.select().from(spinPrizes).where(and(eq(spinPrizes.companyId, cid), eq(spinPrizes.active, true))).orderBy(spinPrizes.sortOrder);
       if (prizes.length === 0) return res.status(400).json({ message: tr(req, { en: "The wheel isn't set up yet. Please check back soon.", zh: "转盘尚未设置，请稍后再来。", id: "Roda belum disiapkan. Silakan cek lagi nanti." }) });
@@ -762,11 +818,11 @@ export function registerRebornRoutes(app: Express) {
         prizeIndex: index, prize: picked, freeSpin, status,
         tokens: fresh?.tokens ?? 0, resultId: result.id,
         message:
-          picked.prizeType === "nothing" ? "So close! Better luck next spin." :
-          freeSpin ? "Free spin! Go again — this one's on us." :
-          picked.prizeType === "pill" ? "You won a revival pill! Use it to revive or extend a pet." :
-          picked.prizeType === "egg" ? "You won a Doluruu egg! It will hatch in 15 days." :
-          `You won ${picked.label}! Show it to staff to redeem.`,
+          picked.prizeType === "nothing" ? tr(req, { en: "So close! Better luck next spin.", zh: "差一点！祝你下次好运。", id: "Hampir saja! Semoga beruntung di putaran berikutnya." }) :
+          freeSpin ? tr(req, { en: "Free spin! Go again — this one's on us.", zh: "免费再转一次！这次算我们的。", id: "Putaran gratis! Putar lagi — yang ini gratis dari kami." }) :
+          picked.prizeType === "pill" ? tr(req, { en: "You won a revival pill! Use it to revive or extend a pet.", zh: "你赢得了复活药丸！可用来复活宠物或延长寿命。", id: "Kamu memenangkan pil kebangkitan! Gunakan untuk membangkitkan atau memperpanjang umur peliharaan." }) :
+          picked.prizeType === "egg" ? tr(req, { en: "You won a Doluruu egg! It will hatch in 15 days.", zh: "你赢得了一颗 Doluruu 蛋！它将在 15 天后孵化。", id: "Kamu memenangkan telur Doluruu! Telur akan menetas dalam 15 hari." }) :
+          tr(req, { en: "You won {prize}! Show it to staff to redeem.", zh: "你赢得了 {prize}！出示给员工即可兑换。", id: "Kamu memenangkan {prize}! Tunjukkan ke staf untuk menukarkannya." }, { prize: picked.label }),
       });
     } catch (e) { console.error("spin", e); res.status(500).json({ message: tr(req, { en: "Spin failed", zh: "转盘失败", id: "Gagal memutar roda" }) }); }
   });
@@ -807,7 +863,7 @@ export function registerRebornRoutes(app: Express) {
       if (recent.length > 0) {
         const last = recent.sort((a, b) => new Date(b.redeemedAt!).getTime() - new Date(a.redeemedAt!).getTime())[0];
         const hrs = Math.ceil((new Date(last.redeemedAt!).getTime() + DAY_MS - Date.now()) / (60 * 60 * 1000));
-        return res.status(400).json({ message: `You can only use 1 prize per day. Try again in ~${hrs}h.` });
+        return res.status(400).json({ message: tr(req, { en: "You can only use 1 prize per day. Try again in ~{h}h.", zh: "每天只能使用 1 个奖品。请约 {h} 小时后再试。", id: "Kamu hanya bisa memakai 1 hadiah per hari. Coba lagi dalam ~{h} jam." }, { h: hrs }) });
       }
       const [row] = await db.update(spinResults).set({ status: "redeeming", redeemedAt: new Date() }).where(eq(spinResults.id, id)).returning();
       res.json({ message: tr(req, { en: "Prize activated! Show it to staff to receive it.", zh: "奖品已激活！出示给员工即可领取。", id: "Hadiah diaktifkan! Tunjukkan ke staf untuk menerimanya." }), prize: row });
@@ -815,7 +871,7 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // ── Support + FAQ ────────────────────────────────────────────────────────
-  app.get("/api/reborn/faq", async (_req, res) => {
+  app.get("/api/reborn/faq", async (req, res) => {
     try {
       await seedFaqIfEmpty();
       const rows = await db.select().from(faqItems).where(eq(faqItems.active, true)).orderBy(faqItems.sortOrder);
@@ -939,15 +995,15 @@ export function registerRebornRoutes(app: Express) {
       const userId = getUserId(req)!;
       const kgold = Math.floor(Number(req.body?.kgold) || 0);
       const s = await getSettings();
-      if (kgold < s.minBuyKgold) return res.status(400).json({ message: `Minimum purchase is ${s.minBuyKgold.toLocaleString()} KGOLD.` });
+      if (kgold < s.minBuyKgold) return res.status(400).json({ message: tr(req, { en: "Minimum purchase is {n} KGOLD.", zh: "最低购买 {n} KGOLD。", id: "Pembelian minimum {n} KGOLD." }, { n: fmtN(s.minBuyKgold, reqLang(req)) }) });
       const rpCost = kgold / s.kgoldPerRp;
       const u = await storage.getUser(userId);
-      if (!u || Number(u.credits || 0) < rpCost) return res.status(400).json({ message: `Not enough credits. This costs RP ${rpCost.toLocaleString()}.` });
+      if (!u || Number(u.credits || 0) < rpCost) return res.status(400).json({ message: tr(req, { en: "Not enough credits. This costs RP {n}.", zh: "余额不足，需要 RP {n}。", id: "Saldo tidak cukup. Biayanya RP {n}." }, { n: fmtN(rpCost, reqLang(req)) }) });
       const now = new Date();
       await db.update(users).set({ credits: sql`${users.credits} - ${rpCost}`, kgold: sql`${users.kgold} + ${kgold}`, updatedAt: now }).where(eq(users.id, userId));
       await db.insert(memberWalletTransactions).values({ userId, type: "kgold_purchase", rpAmount: String(-rpCost), kgoldAmount: kgold, description: `Bought ${kgold.toLocaleString()} KGOLD` });
       const fresh = await storage.getUser(userId);
-      res.json({ message: `Bought ${kgold.toLocaleString()} KGOLD.`, kgold: fresh?.kgold ?? 0, credits: Number(fresh?.credits || 0) });
+      res.json({ message: tr(req, { en: "Bought {n} KGOLD.", zh: "已购买 {n} KGOLD。", id: "Berhasil membeli {n} KGOLD." }, { n: fmtN(kgold, reqLang(req)) }), kgold: fresh?.kgold ?? 0, credits: Number(fresh?.credits || 0) });
     } catch (e) { console.error("kos buy", e); res.status(500).json({ message: tr(req, { en: "Purchase failed", zh: "购买失败", id: "Pembelian gagal" }) }); }
   });
 
@@ -959,13 +1015,13 @@ export function registerRebornRoutes(app: Express) {
       const kgoldBal = u?.kgold ?? 0;
       const kgold = Math.floor(Number(req.body?.kgold) || kgoldBal);
       const rp = kgold / s.kgoldPerRp;
-      if (rp < s.minCashoutRp) return res.status(400).json({ message: `You need at least ${(s.minCashoutRp * s.kgoldPerRp).toLocaleString()} KGOLD (RP ${s.minCashoutRp.toLocaleString()}) to cash out.` });
+      if (rp < s.minCashoutRp) return res.status(400).json({ message: tr(req, { en: "You need at least {k} KGOLD (RP {rp}) to cash out.", zh: "至少需要 {k} KGOLD（RP {rp}）才能兑现。", id: "Kamu butuh minimal {k} KGOLD (RP {rp}) untuk mencairkan." }, { k: fmtN(s.minCashoutRp * s.kgoldPerRp, reqLang(req)), rp: fmtN(s.minCashoutRp, reqLang(req)) }) });
       if (kgold > kgoldBal) return res.status(400).json({ message: tr(req, { en: "Not enough KGOLD.", zh: "KGOLD 不足。", id: "KGOLD tidak cukup." }) });
       const now = new Date();
       await db.update(users).set({ kgold: sql`${users.kgold} - ${kgold}`, credits: sql`${users.credits} + ${rp}`, updatedAt: now }).where(eq(users.id, userId));
       await db.insert(memberWalletTransactions).values({ userId, type: "kgold_cashout", rpAmount: String(rp), kgoldAmount: -kgold, description: `Cashed out ${kgold.toLocaleString()} KGOLD` });
       const fresh = await storage.getUser(userId);
-      res.json({ message: `Cashed out ${kgold.toLocaleString()} KGOLD → RP ${rp.toLocaleString()} credits.`, kgold: fresh?.kgold ?? 0, credits: Number(fresh?.credits || 0) });
+      res.json({ message: tr(req, { en: "Cashed out {k} KGOLD → RP {rp} credits.", zh: "已兑现 {k} KGOLD → 余额 RP {rp}。", id: "Berhasil mencairkan {k} KGOLD → saldo RP {rp}." }, { k: fmtN(kgold, reqLang(req)), rp: fmtN(rp, reqLang(req)) }), kgold: fresh?.kgold ?? 0, credits: Number(fresh?.credits || 0) });
     } catch (e) { console.error("kos cashout", e); res.status(500).json({ message: tr(req, { en: "Cash out failed", zh: "兑现失败", id: "Pencairan gagal" }) }); }
   });
 
@@ -984,7 +1040,7 @@ export function registerRebornRoutes(app: Express) {
       if (!gt || !gt.active) return res.status(404).json({ message: tr(req, { en: "Gift not found", zh: "找不到该礼物", id: "Hadiah tidak ditemukan" }) });
       const giver = await storage.getUser(fromUserId);
       const cost = gt.kgoldCost || 0;
-      if (!giver || (giver.kgold || 0) < cost) return res.status(400).json({ message: `Need ${cost.toLocaleString()} KGOLD for a ${gt.name}. Buy more KGOLD first.` });
+      if (!giver || (giver.kgold || 0) < cost) return res.status(400).json({ message: tr(req, { en: "Need {n} KGOLD for a {gift}. Buy more KGOLD first.", zh: "送出 {gift} 需要 {n} KGOLD，请先购买更多 KGOLD。", id: "Butuh {n} KGOLD untuk {gift}. Beli KGOLD dulu." }, { n: fmtN(cost, reqLang(req)), gift: gt.name }) });
       const s = await getSettings();
       const recipientKgold = Math.floor(cost * (100 - s.giftFeePercent) / 100);
       const now = new Date();
@@ -995,10 +1051,14 @@ export function registerRebornRoutes(app: Express) {
         { userId: fromUserId, type: "kgold_gift_sent", kgoldAmount: -cost, description: `Sent ${gt.name}`, referenceType: "kos_gift", referenceId: String(giftRow.id) },
         { userId: toUserId, type: "kgold_gift_received", kgoldAmount: recipientKgold, description: `Received ${gt.name}`, referenceType: "kos_gift", referenceId: String(giftRow.id) },
       ]);
-      await sendRebornUserNotification(toUserId, { type: "kos_gift", title: `${giver.firstName || giver.username || "Someone"} sent you ${gt.name}`, body: `You received ${recipientKgold.toLocaleString()} KGOLD`, data: { path: "/kos" } });
-      sendPushToUser(toUserId, { title: "🎁 You received a gift!", body: `${giver.firstName || giver.username || "Someone"} sent you a ${gt.name} · +${recipientKgold.toLocaleString()} KGOLD`, url: "/reborn-kos", tag: "gift" }).catch(() => {});
+      const giverName = (lang: Lang) => giver.firstName || giver.username || pick(lang, { en: "Someone", zh: "有人", id: "Seseorang" });
+      await notifyUserI18n(toUserId, "kos_gift", (lang) => ({
+        title: pick(lang, { en: "{name} sent you {gift}", zh: "{name} 送了你 {gift}", id: "{name} mengirimimu {gift}" }, { name: giverName(lang), gift: gt.name }),
+        body: pick(lang, { en: "You received {n} KGOLD", zh: "你收到了 {n} KGOLD", id: "Kamu menerima {n} KGOLD" }, { n: fmtN(recipientKgold, lang) }),
+      }), { path: "/kos" });
+      pushUserI18n(toUserId, (lang) => ({ title: pick(lang, { en: "🎁 You received a gift!", zh: "🎁 你收到了一份礼物！", id: "🎁 Kamu menerima hadiah!" }), body: pick(lang, { en: "{name} sent you a {gift} · +{n} KGOLD", zh: "{name} 送了你 {gift} · +{n} KGOLD", id: "{name} mengirimimu {gift} · +{n} KGOLD" }, { name: giverName(lang), gift: gt.name, n: fmtN(recipientKgold, lang) }), url: "/reborn-kos", tag: "gift" })).catch(() => {});
       const fresh = await storage.getUser(fromUserId);
-      res.json({ message: `Sent a ${gt.name}!`, kgold: fresh?.kgold ?? 0 });
+      res.json({ message: tr(req, { en: "Sent a {gift}!", zh: "已送出 {gift}！", id: "{gift} terkirim!" }, { gift: gt.name }), kgold: fresh?.kgold ?? 0 });
     } catch (e) { console.error("kos gift", e); res.status(500).json({ message: tr(req, { en: "Gift failed", zh: "送礼失败", id: "Gagal mengirim hadiah" }) }); }
   });
 
@@ -1096,10 +1156,10 @@ export function registerRebornRoutes(app: Express) {
         and(eq(friendships.requesterId, me), eq(friendships.addresseeId, toUserId)),
         and(eq(friendships.requesterId, toUserId), eq(friendships.addresseeId, me)),
       ));
-      if (existing.length) return res.json({ message: existing[0].status === "accepted" ? "You're already friends" : "Request already pending" });
+      if (existing.length) return res.json({ message: existing[0].status === "accepted" ? tr(req, { en: "You're already friends", zh: "你们已经是好友了", id: "Kalian sudah berteman" }) : tr(req, { en: "Request already pending", zh: "好友请求正在等待回应", id: "Permintaan masih menunggu" }) });
       await db.insert(friendships).values({ requesterId: me, addresseeId: toUserId, status: "pending" });
       const sender = await storage.getUser(me);
-      await sendRebornUserNotification(toUserId, { type: "friend_request", title: "New friend request", body: `${sender?.firstName || sender?.username || "A member"} wants to connect`, data: { path: "/chat" } });
+      await notifyUserI18n(toUserId, "friend_request", (lang) => ({ title: pick(lang, { en: "New friend request", zh: "新的好友请求", id: "Permintaan pertemanan baru" }), body: pick(lang, { en: "{name} wants to connect", zh: "{name} 想加你为好友", id: "{name} ingin berteman denganmu" }, { name: sender?.firstName || sender?.username || pick(lang, { en: "A member", zh: "一位会员", id: "Seorang member" }) }) }), { path: "/chat" });
       res.json({ message: tr(req, { en: "Friend request sent!", zh: "好友请求已发送！", id: "Permintaan pertemanan terkirim!" }) });
     } catch (e) { console.error("chat req", e); res.status(500).json({ message: tr(req, { en: "Request failed", zh: "请求失败", id: "Permintaan gagal" }) }); }
   });
@@ -1113,7 +1173,7 @@ export function registerRebornRoutes(app: Express) {
       if (!f || f.addresseeId !== me) return res.status(404).json({ message: tr(req, { en: "Request not found", zh: "找不到该请求", id: "Permintaan tidak ditemukan" }) });
       if (accept) await db.update(friendships).set({ status: "accepted", updatedAt: new Date() }).where(eq(friendships.id, id));
       else await db.delete(friendships).where(eq(friendships.id, id));
-      res.json({ message: accept ? "You're now friends!" : "Request declined" });
+      res.json({ message: accept ? tr(req, { en: "You're now friends!", zh: "你们现在是好友了！", id: "Kalian sekarang berteman!" }) : tr(req, { en: "Request declined", zh: "已拒绝请求", id: "Permintaan ditolak" }) });
     } catch (e) { console.error("chat respond", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
   });
 
@@ -1165,13 +1225,13 @@ export function registerRebornRoutes(app: Express) {
       if (!(await areFriends(me, toUserId))) return res.status(403).json({ message: tr(req, { en: "You're not friends yet", zh: "你们还不是好友", id: "Kalian belum berteman" }) });
       await db.insert(chatMessages).values({ senderId: me, receiverId: toUserId, content });
       const sender = await storage.getUser(me);
-      await sendRebornUserNotification(toUserId, { type: "chat_message", title: sender?.firstName || sender?.username || "New message", body: content.slice(0, 140), data: { path: "/chat", fromUserId: me } });
+      await notifyUserI18n(toUserId, "chat_message", (lang) => ({ title: sender?.firstName || sender?.username || pick(lang, { en: "New message", zh: "新消息", id: "Pesan baru" }), body: content.slice(0, 140) }), { path: "/chat", fromUserId: me });
       res.json({ message: tr(req, { en: "sent", zh: "已发送", id: "Terkirim" }) });
     } catch (e) { console.error("chat send", e); res.status(500).json({ message: tr(req, { en: "Send failed", zh: "发送失败", id: "Gagal mengirim" }) }); }
   });
 
   // ── Song requests + Top 500 library ──────────────────────────────────────
-  app.get("/api/reborn/songs", async (_req, res) => {
+  app.get("/api/reborn/songs", async (req, res) => {
     try {
       await seedSongsIfEmpty();
       const rows = await db.select().from(songs).orderBy(desc(songs.isHit), desc(songs.requestCount), songs.title).limit(500);
@@ -1227,12 +1287,10 @@ export function registerRebornRoutes(app: Express) {
         songId = song.id;
       }
       const [reqRow] = await db.insert(songRequests).values({ companyId: await rebornCompanyId(req), userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, status: "pending" }).returning();
-      await sendRebornStaffNotification({
-        type: "song_request",
-        title: "New app song request",
-        body: `${song.title}${song.artist ? ` - ${song.artist}` : ""} · ${performanceMode === "singer" ? "By singer" : "Self sing"}`,
-        data: { path: "/reborn-admin", songRequestId: reqRow.id, source: "app" },
-      });
+      await notifyStaffI18n("song_request", (lang) => ({
+        title: pick(lang, { en: "New app song request", zh: "新的应用点歌请求", id: "Permintaan lagu baru dari aplikasi" }),
+        body: `${song.title}${song.artist ? ` - ${song.artist}` : ""} · ${performanceMode === "singer" ? pick(lang, { en: "By singer", zh: "歌手演唱", id: "Dinyanyikan penyanyi" }) : pick(lang, { en: "Self sing", zh: "自己唱", id: "Nyanyi sendiri" })}`,
+      }), { path: "/reborn-admin", songRequestId: reqRow.id, source: "app" });
       res.json({ message: tr(req, { en: "Request sent! Staff will confirm it shortly.", zh: "请求已发送！员工会尽快确认。", id: "Permintaan terkirim! Staf akan segera mengonfirmasi." }), request: reqRow });
     } catch (e) { console.error("song request", e); res.status(500).json({ message: tr(req, { en: "Request failed", zh: "请求失败", id: "Permintaan gagal" }) }); }
   });
@@ -1323,18 +1381,19 @@ export function registerRebornRoutes(app: Express) {
     else if (prize.prizeType === "egg") await db.insert(pets).values({ userId: u.id, toyId: 0, name: "Doluruu Egg", type: "virtual", gender: Math.random() < 0.5 ? "male" : "female", isActive: true, isEgg: true, hatchAt: addDays(EGG_HATCH_DAYS, now), lifeStatus: "active" });
     const status = ["nothing", "free_spin", "pill", "egg"].includes(prize.prizeType || "") ? "won" : "unused";
     const [result] = await db.insert(spinResults).values({ userId: u.id, companyId: cid, prizeId: prize.id, prizeLabel: prize.label, prizeType: prize.prizeType, tokensSpent: 0, status }).returning();
-    await sendRebornUserNotification(u.id, { type: "prize", title: "🎉 You won a prize!", body: `${prize.label} — from ${(await getSettings()).clubName}`, data: { path: "/spin" } });
-    sendPushToUser(u.id, { title: "🎉 You won a prize!", body: `${prize.label} — show it to staff to redeem`, url: "/spin", tag: `award-${result.id}` }).catch(() => {});
+    const club = (await getSettings()).clubName;
+    await notifyUserI18n(u.id, "prize", (lang) => ({ title: pick(lang, { en: "🎉 You won a prize!", zh: "🎉 你赢得了奖品！", id: "🎉 Kamu memenangkan hadiah!" }), body: pick(lang, { en: "{prize} — from {club}", zh: "{prize} — 来自 {club}", id: "{prize} — dari {club}" }, { prize: prize.label, club }) }), { path: "/spin" });
+    pushUserI18n(u.id, (lang) => ({ title: pick(lang, { en: "🎉 You won a prize!", zh: "🎉 你赢得了奖品！", id: "🎉 Kamu memenangkan hadiah!" }), body: pick(lang, { en: "{prize} — show it to staff to redeem", zh: "{prize} — 出示给员工即可兑换", id: "{prize} — tunjukkan ke staf untuk menukarkannya" }, { prize: prize.label }), url: "/spin", tag: `award-${result.id}` })).catch(() => {});
     await logAdmin(req, { targetUserId: u.id, targetType: "spin_result", targetId: result.id, action: "award_prize", entityType: "prize", description: `Awarded "${prize.label}" to ${u.username || u.email}` });
-    res.json({ message: `Awarded ${prize.label} to ${u.username || u.email || u.id}` });
+    res.json({ message: tr(req, { en: "Awarded {prize} to {who}", zh: "已将 {prize} 颁发给 {who}", id: "{prize} diberikan kepada {who}" }, { prize: prize.label, who: u.username || u.email || u.id }) });
   }));
 
-  app.get("/api/reborn/admin/redemptions", requireStaff(async (_req, res) => {
+  app.get("/api/reborn/admin/redemptions", requireStaff(async (req, res) => {
     const rows = await db.select().from(spinResults).where(eq(spinResults.status, "redeeming")).orderBy(desc(spinResults.createdAt)).limit(200);
     const ids = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean))) as string[];
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const nameOf = new Map(us.map((u: any) => [u.id, [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email || u.id]));
-    res.json(rows.map((r) => ({ ...r, memberName: nameOf.get(r.userId) || "Member" })));
+    res.json(rows.map((r) => ({ ...r, memberName: nameOf.get(r.userId) || tr(req, { en: "Member", zh: "会员", id: "Member" }) })));
   }));
   app.post("/api/reborn/admin/redemptions/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
@@ -1358,7 +1417,7 @@ export function registerRebornRoutes(app: Express) {
       question: b.question || "", answer: b.answer || "", keywords: b.keywords || "",
       sortOrder: Number(b.sortOrder) || 0, active: b.active !== false,
     }).returning();
-    if (row.active) await sendRebornAllNotification({ type: "new_faq", title: "New help answer", body: row.question, data: { path: "/support", faqId: row.id } });
+    if (row.active) await notifyAllI18n("new_faq", (lang) => ({ title: pick(lang, { en: "New help answer", zh: "新的帮助解答", id: "Jawaban bantuan baru" }), body: row.question }), { path: "/support", faqId: row.id });
     res.json(row);
   }));
   app.put("/api/reborn/admin/faq/:id", requireAdmin(async (req, res) => {
@@ -1387,12 +1446,10 @@ export function registerRebornRoutes(app: Express) {
     const comment = String(req.body?.comment || "").trim() || null;
     const [row] = await db.update(songRequests).set({ status: approve ? "confirmed" : "rejected", confirmedAt: new Date(), adminId, adminNote: comment }).where(eq(songRequests.id, Number(req.params.id))).returning();
     await logAdmin(req, { targetUserId: row?.userId, targetType: "song_request", targetId: req.params.id, action: approve ? "approve" : "reject", entityType: "song_request", description: `${approve ? "Confirmed" : "Rejected"} song "${row?.title}"${comment ? ` (${comment})` : ""}` });
-    await sendRebornUserNotification(row?.userId, {
-      type: "song_request_update",
-      title: approve ? "Song request confirmed" : "Song request update",
-      body: `${row?.title || "Your song"}${comment ? ` · ${comment}` : ""}`,
-      data: { path: "/songs", songRequestId: row?.id, status: row?.status },
-    });
+    await notifyUserI18n(row?.userId, "song_request_update", (lang) => ({
+      title: approve ? pick(lang, { en: "Song request confirmed", zh: "点歌已确认", id: "Permintaan lagu dikonfirmasi" }) : pick(lang, { en: "Song request update", zh: "点歌请求有更新", id: "Kabar permintaan lagu" }),
+      body: `${row?.title || pick(lang, { en: "Your song", zh: "你的歌曲", id: "Lagumu" })}${comment ? ` · ${comment}` : ""}`,
+    }), { path: "/songs", songRequestId: row?.id, status: row?.status });
     emitLiveUpdate("/api/reborn/songs/my-requests", { action: approve ? "CONFIRMED" : "REJECTED" });
     res.json(row);
   }));
@@ -1623,11 +1680,12 @@ export function registerRebornRoutes(app: Express) {
       await db.update(users).set({ credits: sql`${users.credits} + ${Number(t.amount)}`, updatedAt: new Date() }).where(eq(users.id, t.userId));
       await db.insert(ledgerEntries).values({ kind: "income", category: "topup", amount: String(t.amount), note: `Top-up (${t.paymentMethod || "cash"})`, refType: "topup", refId: String(id), userId: t.userId });
     }
-    sendPushToUser(t.userId, approve
-      ? { title: "💰 Top-up approved", body: `RP ${Number(t.amount).toLocaleString()} added to your balance.`, url: "/reborn", tag: `topup-${id}` }
-      : { title: "Top-up not approved", body: `Your RP ${Number(t.amount).toLocaleString()} top-up was rejected${req.body?.notes ? `: ${req.body.notes}` : "."}`, url: "/reborn", tag: `topup-${id}` }).catch(() => {});
+    const topupNotes = req.body?.notes ? String(req.body.notes) : "";
+    pushUserI18n(t.userId, (lang) => approve
+      ? { title: pick(lang, { en: "💰 Top-up approved", zh: "💰 充值已批准", id: "💰 Isi saldo disetujui" }), body: pick(lang, { en: "RP {n} added to your balance.", zh: "RP {n} 已添加到你的余额。", id: "RP {n} telah ditambahkan ke saldomu." }, { n: fmtN(Number(t.amount), lang) }), url: "/reborn", tag: `topup-${id}` }
+      : { title: pick(lang, { en: "Top-up not approved", zh: "充值未获批准", id: "Isi saldo tidak disetujui" }), body: pick(lang, { en: "Your RP {n} top-up was rejected{note}", zh: "你的 RP {n} 充值申请被拒绝{note}", id: "Isi saldo RP {n} kamu ditolak{note}" }, { n: fmtN(Number(t.amount), lang), note: topupNotes ? (lang === "zh" ? `：${topupNotes}` : `: ${topupNotes}`) : (lang === "zh" ? "。" : ".") }), url: "/reborn", tag: `topup-${id}` }).catch(() => {});
     await logAdmin(req, { targetUserId: t.userId, targetType: "topup", targetId: id, action: approve ? "approve" : "reject", entityType: "credits", description: `${approve ? "Approved" : "Rejected"} RP ${t.amount} top-up` });
-    res.json({ message: approve ? "Approved — credits added." : "Rejected." });
+    res.json({ message: approve ? tr(req, { en: "Approved — credits added.", zh: "已批准——余额已添加。", id: "Disetujui — saldo ditambahkan." }) : tr(req, { en: "Rejected.", zh: "已拒绝。", id: "Ditolak." }) });
   }));
 
   // Events (homepage / login announcements)
@@ -1639,7 +1697,7 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     const [row] = await db.insert(events).values({ title: b.title || "New event", body: b.body || "", imageUrl: b.imageUrl || null, showOnLogin: b.showOnLogin !== false, active: b.active !== false, sortOrder: Number(b.sortOrder) || 0, createdBy: getUserId(req)! }).returning();
     await logAdmin(req, { targetType: "event", targetId: row.id, action: "create", entityType: "event", description: `Posted event "${row.title}"` });
-    if (row.active) await sendRebornAllNotification({ type: "new_event", title: row.title, body: row.body?.slice(0, 140) || "A new event was posted", data: { path: "/", eventId: row.id } });
+    if (row.active) await notifyAllI18n("new_event", (lang) => ({ title: row.title, body: row.body?.slice(0, 140) || pick(lang, { en: "A new event was posted", zh: "发布了新活动", id: "Ada acara baru" }) }), { path: "/", eventId: row.id });
     res.json(row);
   }));
   app.put("/api/reborn/admin/events/:id", requireStaff(async (req, res) => {
@@ -1702,7 +1760,7 @@ export function registerRebornRoutes(app: Express) {
     const pushed = await sendPushToUsers(everyone.map((u) => u.id), { title: `📢 ${subject}`, body, url: "/reborn", tag: "broadcast" }).catch(() => 0);
     await sendRebornAllNotification({ type: "admin_broadcast", title: subject, body: body.slice(0, 160), data: { path: "/support" } });
     await logAdmin(req, { targetType: "broadcast", action: "send", entityType: "broadcast", description: `Broadcast "${subject}" · ${inapp} in-app, ${emails} emails, ${pushed} push${emailFail ? `, ${emailFail} failed` : ""}` });
-    res.json({ message: `Sent — ${inapp} in-app, ${emails} email(s), ${pushed} push${emailFail ? `, ${emailFail} email(s) failed` : ""}.`, inapp, emails, emailFail, pushed });
+    res.json({ message: tr(req, { en: "Sent — {a} in-app, {e} email(s), {p} push{f}.", zh: "已发送——应用内 {a} 条，邮件 {e} 封，推送 {p} 条{f}。", id: "Terkirim — {a} di aplikasi, {e} email, {p} push{f}." }, { a: inapp, e: emails, p: pushed, f: emailFail ? tr(req, { en: ", {x} email(s) failed", zh: "，{x} 封邮件发送失败", id: ", {x} email gagal" }, { x: emailFail }) : "" }), inapp, emails, emailFail, pushed });
   }));
 
   // Admin activity log (full admin only) — resolves which admin account did each action
@@ -1755,7 +1813,7 @@ export function registerRebornRoutes(app: Express) {
         }
       }
     }
-    res.json({ message: learned ? "Sent · added to auto-replies" : "Sent", learned });
+    res.json({ message: learned ? tr(req, { en: "Sent · added to auto-replies", zh: "已发送 · 已加入自动回复", id: "Terkirim · ditambahkan ke balasan otomatis" }) : tr(req, { en: "Sent", zh: "已发送", id: "Terkirim" }), learned });
   }));
 
   // ── POS · Inventory · In-app ordering · Accounting ──────────────────────────
@@ -1764,11 +1822,11 @@ export function registerRebornRoutes(app: Express) {
     return Math.max(1, Number((result.rows || result as any)[0]?.value) || 1000);
   }
 
-  async function storeBottleForMember(u: any, bottle: any, staffId: string) {
+  async function storeBottleForMember(u: any, bottle: any, staffId: string, lang: Lang = "en") {
     if (!u || !bottle?.enabled) return null;
     const name = String(bottle.name || "").trim();
-    if (!name) throw new Error("Enter the bottle name before payment");
-    if (["wine", "whisky"].includes(String(bottle.type || "")) && !bottle.photoUrl) throw new Error("A bottle photo is required for wine and whisky");
+    if (!name) throw new Error(pick(lang, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }));
+    if (["wine", "whisky"].includes(String(bottle.type || "")) && !bottle.photoUrl) throw new Error(pick(lang, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }));
     const now = new Date();
     const keepDays = (await getSettings()).bottleExpiryDays;
     const [row] = await db.insert(bottleKeeps).values({
@@ -1877,7 +1935,7 @@ export function registerRebornRoutes(app: Express) {
         await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${it.qty}` }).where(eq(posProducts.id, it.productId));
         await db.insert(stockMovements).values({ productId: it.productId, delta: -it.qty, reason: "sale", note: `Ticket ${orderNo}`, userId });
         const remaining = (before?.stock ?? 0) - it.qty;
-        if ((before?.stock ?? 0) > 5 && remaining <= 5) await sendRebornStaffNotification({ type: "low_stock", title: "Low stock warning", body: `${it.name}: ${Math.max(0, remaining)} left`, data: { path: "/reborn-pos", productId: it.productId } });
+        if ((before?.stock ?? 0) > 5 && remaining <= 5) await notifyStaffI18n("low_stock", (lang) => ({ title: pick(lang, { en: "Low stock warning", zh: "库存不足提醒", id: "Peringatan stok menipis" }), body: pick(lang, { en: "{item}: {n} left", zh: "{item}：剩余 {n}", id: "{item}: sisa {n}" }, { item: it.name, n: Math.max(0, remaining) }) }), { path: "/reborn-pos", productId: it.productId });
       }
     }
     return recalcTicket(orderId);
@@ -1891,7 +1949,7 @@ export function registerRebornRoutes(app: Express) {
   }
 
   // Validate requested items against the live catalogue + stock.
-  async function resolveItems(items: any[]): Promise<{ clean?: any[]; error?: string }> {
+  async function resolveItems(items: any[], lang: Lang = "en"): Promise<{ clean?: any[]; error?: string }> {
     const ids = items.map((it) => Number(it.productId)).filter(Boolean);
     const products = ids.length ? await db.select().from(posProducts).where(or(...ids.map((i: number) => eq(posProducts.id, i)))) : [];
     const byId = new Map(products.map((p) => [p.id, p]));
@@ -1899,9 +1957,9 @@ export function registerRebornRoutes(app: Express) {
     const clean: any[] = [];
     for (const it of items) {
       const p = byId.get(Number(it.productId));
-      if (!p || !p.active) return { error: "An item is no longer available" };
+      if (!p || !p.active) return { error: pick(lang, { en: "An item is no longer available", zh: "有商品已不再供应", id: "Ada item yang sudah tidak tersedia" }) };
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
-      if (!allowNegative && (p.stock ?? 0) < qty) return { error: `${p.name} is sold out` };
+      if (!allowNegative && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
       clean.push({ productId: p.id, name: p.name, price: Number(p.price), qty });
     }
     return { clean };
@@ -1950,7 +2008,7 @@ export function registerRebornRoutes(app: Express) {
     if (!tableNumber) return res.status(400).json({ message: tr(req, { en: "Enter a table number", zh: "请输入桌号", id: "Masukkan nomor meja" }) });
     const cid = await rebornCompanyId(req);
     const [existing] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
-    if (existing) return res.json({ message: `Table ${tableNumber} already has an open ticket`, order: existing });
+    if (existing) return res.json({ message: tr(req, { en: "Table {t} already has an open ticket", zh: "{t} 号桌已有未结账单", id: "Meja {t} sudah punya tagihan terbuka" }, { t: tableNumber }), order: existing });
     const u = await findMemberByCode(req.body?.memberCode || "");
     const [row] = await db.insert(posTickets).values({
       companyId: cid,
@@ -1959,7 +2017,7 @@ export function registerRebornRoutes(app: Express) {
       subtotal: "0", total: "0", staffId: getUserId(req)!,
     }).returning();
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "open_ticket", entityType: "order", description: `Opened ticket ${row.orderNo} for table ${tableNumber}` });
-    res.json({ message: `Opened ticket for table ${tableNumber}`, order: row });
+    res.json({ message: tr(req, { en: "Opened ticket for table {t}", zh: "已为 {t} 号桌开单", id: "Tagihan dibuka untuk meja {t}" }, { t: tableNumber }), order: row });
   }));
 
   // Staff adds items to an open ticket (accumulate over the night).
@@ -1967,7 +2025,7 @@ export function registerRebornRoutes(app: Express) {
     const id = Number(req.params.id);
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
-    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : []);
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
     const total = await appendItems(id, o.orderNo, clean!, getUserId(req)!);
@@ -1981,12 +2039,12 @@ export function registerRebornRoutes(app: Express) {
     const u = await findMemberByCode(req.body?.memberCode || "");
     if (!u) return res.status(404).json({ message: tr(req, { en: "Member not found", zh: "找不到该会员", id: "Member tidak ditemukan" }) });
     await db.update(posTickets).set(memberTag(u)).where(eq(posTickets.id, id));
-    res.json({ message: `Tagged to ${memberTag(u).memberName}` });
+    res.json({ message: tr(req, { en: "Tagged to {name}", zh: "已关联到 {name}", id: "Ditandai ke {name}" }, { name: String(memberTag(u).memberName || "") }) });
   }));
 
   // Quick walk-in sale: open, fill, and close in one step.
   app.post("/api/reborn/pos/sale", requireStaff(async (req, res) => {
-    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : []);
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
     const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
@@ -2002,7 +2060,7 @@ export function registerRebornRoutes(app: Express) {
     const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
     const total = subtotal - discount + serviceFee + tax;
     const cashReceived = paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
-    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < total)) return res.status(400).json({ message: `Cash received must be at least RP ${total.toLocaleString()}` });
+    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < total)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(total, reqLang(req)) }) });
     const changeGiven = paymentMethod === "cash" ? cashReceived! - total : null;
     const keepType = String(req.body?.keepBottle?.type || "");
     if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: tr(req, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }) });
@@ -2019,9 +2077,9 @@ export function registerRebornRoutes(app: Express) {
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
-    await sendRebornStaffNotification({ type: "payment_completed", title: `Payment completed · ${row.orderNo}`, body: `RP ${total.toLocaleString()} · ${paymentMethod.toUpperCase()}`, data: { path: "/reborn-admin", ticketId: row.id } });
-    if (u?.id) await sendRebornUserNotification(u.id, { type: "order_paid", title: "Payment completed", body: `${row.orderNo} · RP ${total.toLocaleString()}. Your receipt is ready.`, data: { path: "/history", ticketId: row.id } });
-    const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, getUserId(req)!) : null;
+    await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${paymentMethod === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" })}` }), { path: "/reborn-admin", ticketId: row.id });
+    if (u?.id) await notifyUserI18n(u.id, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: row.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: row.id });
+    const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, getUserId(req)!, reqLang(req)) : null;
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
     if (u) {
       crmRecordVisit({ userId: u.id, phone: (u as any).phoneNumber, name: [u.firstName, u.lastName].filter(Boolean).join(" ") }).catch(() => {});
@@ -2029,7 +2087,7 @@ export function registerRebornRoutes(app: Express) {
     }
     contributeSpinPoolIfUnreferred(u?.id ?? null, total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
-    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}${keptBottle ? " · bottle stored for 30 days" : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + (points ? tr(req, { en: " · {p} points added", zh: " · 已增加 {p} 积分", id: " · {p} poin ditambahkan" }, { p: points }) : "") + (keptBottle ? tr(req, { en: " · bottle stored for 30 days", zh: " · 酒瓶已寄存 30 天", id: " · botol disimpan selama 30 hari" }) : ""), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
 
   // Member orders from the app — merges into their table's open ticket (or opens one).
@@ -2037,7 +2095,7 @@ export function registerRebornRoutes(app: Express) {
     const userId = getUserId(req)!;
     const tableNumber = String(req.body?.tableNumber || "").trim();
     if (!tableNumber) return res.status(400).json({ message: tr(req, { en: "Enter your table number", zh: "请输入你的桌号", id: "Masukkan nomor mejamu" }) });
-    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : []);
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "Your order is empty", zh: "你的订单是空的", id: "Pesananmu kosong" }) });
     const cid = await rebornCompanyId(req);
@@ -2056,8 +2114,14 @@ export function registerRebornRoutes(app: Express) {
     emitLiveUpdate("/api/reborn/pos/orders", { action: "NEW_ORDER", resource: String(order.id) });
     // Phone push first and independently: a stalled WhatsApp send used to hold
     // this request open so the admin app alert never went out.
-    sendRebornStaffNotification({ type: "new_order", title: `New order ${order.orderNo}`, body: `${order.memberName || "Member"} · Table ${tableNumber} · ${clean!.length} item${clean!.length === 1 ? "" : "s"}`, data: { path: "/reborn-pos", ticketId: order.id } }).catch((e) => console.warn("new_order app push failed", e));
-    sendPushToAdmins({ title: "🛎️ New order", body: `Table ${tableNumber} · ${order.memberName || "member"} — needs Accept/Reject`, url: "/reborn-pos", tag: "new-order" }).catch(() => {});
+    const itemCount = clean!.length;
+    notifyStaffI18n("new_order", (lang) => ({
+      title: pick(lang, { en: "New order {no}", zh: "新订单 {no}", id: "Pesanan baru {no}" }, { no: order.orderNo }),
+      body: pick(lang, itemCount === 1
+        ? { en: "{name} · Table {t} · {n} item", zh: "{name} · {t} 号桌 · {n} 件商品", id: "{name} · Meja {t} · {n} item" }
+        : { en: "{name} · Table {t} · {n} items", zh: "{name} · {t} 号桌 · {n} 件商品", id: "{name} · Meja {t} · {n} item" }, { name: order.memberName || pick(lang, { en: "Member", zh: "会员", id: "Member" }), t: tableNumber, n: itemCount }),
+    }), { path: "/reborn-pos", ticketId: order.id }).catch((e) => console.warn("new_order app push failed", e));
+    pushAdminsI18n((lang) => ({ title: pick(lang, { en: "🛎️ New order", zh: "🛎️ 新订单", id: "🛎️ Pesanan baru" }), body: pick(lang, { en: "Table {t} · {name} — needs Accept/Reject", zh: "{t} 号桌 · {name} — 需要接单/拒单", id: "Meja {t} · {name} — perlu Terima/Tolak" }, { t: tableNumber, name: order.memberName || pick(lang, { en: "member", zh: "会员", id: "member" }) }), url: "/reborn-pos", tag: "new-order" })).catch(() => {});
     notifyAdmins(`🛎️ New order from table ${tableNumber} (${order.memberName || "member"}) — needs Accept/Reject in POS.`).catch(() => {});
     res.json({ message: tr(req, { en: "Order sent — waiting for the counter to accept.", zh: "订单已发送——等待柜台接单。", id: "Pesanan terkirim — menunggu kasir menerima." }), order });
   });
@@ -2081,19 +2145,22 @@ export function registerRebornRoutes(app: Express) {
     await recalcTicket(it.orderId);
     const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, it.orderId));
     if (ticket?.memberId) {
-      await sendRebornUserNotification(ticket.memberId, {
-        type: "order_status", title: status === "served" ? "Your order is served" : status === "accepted" ? "Order confirmed" : "Order item unavailable",
-        body: status === "rejected" ? `${it.name}: ${patch.rejectReason}` : `${it.name} · ${status}`,
-        data: { path: "/shop", ticketId: ticket.id, itemId: id, status },
-      });
-      const label = it.name || "Your item";
-      sendPushToUser(ticket.memberId, {
-        title: status === "accepted" ? "👨‍🍳 Order accepted" : status === "served" ? "🍽️ Order served" : "😔 Item unavailable",
-        body: status === "rejected" ? `${label} — ${patch.rejectReason}` : status === "served" ? `${label} is on your table. Enjoy! 💜` : `${label} is being prepared.`,
-        url: "/reborn-order", tag: `order-${it.orderId}`,
+      // The default reason ("Unavailable") is stored as-is; show it in the member's language.
+      const reasonFor = (lang: Lang) => String(req.body?.reason || "").trim() ? patch.rejectReason : pick(lang, { en: "Unavailable", zh: "暂无供应", id: "Tidak tersedia" });
+      await notifyUserI18n(ticket.memberId, "order_status", (lang) => ({
+        title: status === "served" ? pick(lang, { en: "Your order is served", zh: "你的餐点已上桌", id: "Pesananmu sudah disajikan" }) : status === "accepted" ? pick(lang, { en: "Order confirmed", zh: "订单已确认", id: "Pesanan dikonfirmasi" }) : pick(lang, { en: "Order item unavailable", zh: "订单中有品项暂无供应", id: "Item pesanan tidak tersedia" }),
+        body: status === "rejected" ? `${it.name}: ${reasonFor(lang)}` : `${it.name} · ${status === "served" ? pick(lang, { en: "served", zh: "已上桌", id: "disajikan" }) : pick(lang, { en: "accepted", zh: "已接单", id: "diterima" })}`,
+      }), { path: "/shop", ticketId: ticket.id, itemId: id, status });
+      pushUserI18n(ticket.memberId, (lang) => {
+        const label = it.name || pick(lang, { en: "Your item", zh: "你的餐点", id: "Item kamu" });
+        return {
+          title: status === "accepted" ? pick(lang, { en: "👨‍🍳 Order accepted", zh: "👨‍🍳 已接单", id: "👨‍🍳 Pesanan diterima" }) : status === "served" ? pick(lang, { en: "🍽️ Order served", zh: "🍽️ 已上桌", id: "🍽️ Pesanan disajikan" }) : pick(lang, { en: "😔 Item unavailable", zh: "😔 品项暂无供应", id: "😔 Item tidak tersedia" }),
+          body: status === "rejected" ? `${label} — ${reasonFor(lang)}` : status === "served" ? pick(lang, { en: "{item} is on your table. Enjoy! 💜", zh: "{item} 已送到你的桌上，请慢用！💜", id: "{item} sudah ada di mejamu. Selamat menikmati! 💜" }, { item: label }) : pick(lang, { en: "{item} is being prepared.", zh: "{item} 正在准备中。", id: "{item} sedang disiapkan." }, { item: label }),
+          url: "/reborn-order", tag: `order-${it.orderId}`,
+        };
       }).catch(() => {});
     }
-    res.json({ message: status === "rejected" ? `Rejected: ${patch.rejectReason}` : status === "served" ? "Marked served" : "Accepted" });
+    res.json({ message: status === "rejected" ? tr(req, { en: "Rejected: {r}", zh: "已拒绝：{r}", id: "Ditolak: {r}" }, { r: String(req.body?.reason || "").trim() ? patch.rejectReason : tr(req, { en: "Unavailable", zh: "暂无供应", id: "Tidak tersedia" }) }) : status === "served" ? tr(req, { en: "Marked served", zh: "已标记为已上桌", id: "Ditandai sudah disajikan" }) : tr(req, { en: "Accepted", zh: "已接单", id: "Diterima" }) });
   }));
   // Edit an item's price and/or qty (adjusts stock for qty change; logs reason).
   app.post("/api/reborn/pos/items/:id/edit", requireStaff(async (req, res) => {
@@ -2127,7 +2194,7 @@ export function registerRebornRoutes(app: Express) {
     else await db.delete(posTicketItems).where(eq(posTicketItems.id, id));
     await recalcTicket(it.orderId);
     await logAdmin(req, { targetType: "pos_item", targetId: id, action: "remove", entityType: "order", description: `Removed "${it.name}"${reason ? ` (${reason})` : ""}` });
-    res.json({ message: reason ? `Removed: ${reason}` : "Item removed" });
+    res.json({ message: reason ? tr(req, { en: "Removed: {r}", zh: "已移除：{r}", id: "Dihapus: {r}" }, { r: reason }) : tr(req, { en: "Item removed", zh: "品项已移除", id: "Item dihapus" }) });
   }));
   // Move one item to another table's open ticket (split a bill). Creates the ticket if needed.
   app.post("/api/reborn/pos/items/:id/move", requireStaff(async (req, res) => {
@@ -2145,7 +2212,7 @@ export function registerRebornRoutes(app: Express) {
     await recalcTicket(it.orderId);
     await recalcTicket(dest.id);
     await logAdmin(req, { targetType: "pos_item", targetId: id, action: "move", entityType: "order", description: `Moved "${it.name}" to table ${table}` });
-    res.json({ message: `Moved to table ${table}` });
+    res.json({ message: tr(req, { en: "Moved to table {t}", zh: "已移至 {t} 号桌", id: "Dipindahkan ke meja {t}" }, { t: table }) });
   }));
   // Change a ticket's table number.
   app.post("/api/reborn/pos/orders/:id/table", requireStaff(async (req, res) => {
@@ -2156,7 +2223,7 @@ export function registerRebornRoutes(app: Express) {
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
     await db.update(posTickets).set({ tableNumber: table }).where(eq(posTickets.id, id));
     await logAdmin(req, { targetType: "pos_order", targetId: id, action: "rename_table", entityType: "order", description: `Table ${o.tableNumber} → ${table}` });
-    res.json({ message: `Table changed to ${table}` });
+    res.json({ message: tr(req, { en: "Table changed to {t}", zh: "桌号已改为 {t}", id: "Meja diubah menjadi {t}" }, { t: table }) });
   }));
   // Merge all items from this ticket into another open ticket, then close this one.
   app.post("/api/reborn/pos/orders/:id/merge", requireStaff(async (req, res) => {
@@ -2170,7 +2237,7 @@ export function registerRebornRoutes(app: Express) {
     await db.update(posTickets).set({ status: "cancelled" }).where(eq(posTickets.id, id));
     await recalcTicket(intoId);
     await logAdmin(req, { targetType: "pos_order", targetId: id, action: "merge", entityType: "order", description: `Merged ${from.orderNo} into ${into.orderNo} (table ${into.tableNumber})` });
-    res.json({ message: `Merged into table ${into.tableNumber}` });
+    res.json({ message: tr(req, { en: "Merged into table {t}", zh: "已合并到 {t} 号桌", id: "Digabungkan ke meja {t}" }, { t: String(into.tableNumber || "") }) });
   }));
   // Set a whole-bill discount with an optional reason (applied at payment).
   app.post("/api/reborn/pos/orders/:id/discount", requireStaff(async (req, res) => {
@@ -2190,7 +2257,7 @@ export function registerRebornRoutes(app: Express) {
     amount = Math.min(subtotal, amount);
     await db.update(posTickets).set({ discount: String(amount), discountReason: reason || null }).where(eq(posTickets.id, id));
     await logAdmin(req, { targetType: "pos_order", targetId: id, action: "discount", entityType: "order", description: `Discount RP ${amount}${reason ? ` (${reason})` : ""} on ${o.orderNo}` });
-    res.json({ message: amount ? `Discount RP ${amount.toLocaleString()} set` : "Discount cleared", amount });
+    res.json({ message: amount ? tr(req, { en: "Discount RP {n} set", zh: "已设置折扣 RP {n}", id: "Diskon RP {n} diterapkan" }, { n: fmtN(amount, reqLang(req)) }) : tr(req, { en: "Discount cleared", zh: "已清除折扣", id: "Diskon dihapus" }), amount });
   }));
   app.get("/api/reborn/shop/my-orders", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
@@ -2225,7 +2292,7 @@ export function registerRebornRoutes(app: Express) {
     const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
     const total = subtotal - discount + serviceFee + tax;
     const cashReceived = paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
-    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < total)) return res.status(400).json({ message: `Cash received must be at least RP ${total.toLocaleString()}` });
+    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < total)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(total, reqLang(req)) }) });
     const changeGiven = paymentMethod === "cash" ? cashReceived! - total : null;
     const keepType = String(req.body?.keepBottle?.type || "");
     if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: tr(req, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }) });
@@ -2236,10 +2303,10 @@ export function registerRebornRoutes(app: Express) {
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
-    await sendRebornStaffNotification({ type: "payment_completed", title: `Payment completed · ${o.orderNo}`, body: `RP ${total.toLocaleString()} · ${paymentMethod.toUpperCase()}`, data: { path: "/reborn-admin", ticketId: id } });
-    if (o.memberId) await sendRebornUserNotification(o.memberId, { type: "order_paid", title: "Payment completed", body: `${o.orderNo} · RP ${total.toLocaleString()}. Your receipt is ready.`, data: { path: "/history", ticketId: id } });
+    await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: o.orderNo }), body: `RP ${fmtN(total, lang)} · ${paymentMethod === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" })}` }), { path: "/reborn-admin", ticketId: id });
+    if (o.memberId) await notifyUserI18n(o.memberId, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: o.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: id });
     const [member] = o.memberId ? await db.select().from(users).where(eq(users.id, o.memberId)).limit(1) : [];
-    const keptBottle = member ? await storeBottleForMember(member, req.body?.keepBottle, getUserId(req)!) : null;
+    const keptBottle = member ? await storeBottleForMember(member, req.body?.keepBottle, getUserId(req)!, reqLang(req)) : null;
     await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${points ? ` · ${points} pts` : ""}` });
     if (o.memberId) {
       crmRecordVisit({ userId: o.memberId, name: o.memberName }).catch(() => {});
@@ -2248,7 +2315,7 @@ export function registerRebornRoutes(app: Express) {
     contributeSpinPoolIfUnreferred(o?.memberId ?? null, total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
-    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}${keptBottle ? " · bottle stored for 30 days" : ""}`, order: { ...fresh, items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + (points ? tr(req, { en: " · {p} points added", zh: " · 已增加 {p} 积分", id: " · {p} poin ditambahkan" }, { p: points }) : "") + (keptBottle ? tr(req, { en: " · bottle stored for 30 days", zh: " · 酒瓶已寄存 30 天", id: " · botol disimpan selama 30 hari" }) : ""), order: { ...fresh, items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
   app.post("/api/reborn/pos/orders/:id/cancel", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
@@ -2277,10 +2344,10 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     const u = await findMemberByCode(b.memberCode || "");
     if (!u) return res.status(404).json({ message: tr(req, { en: "Enter a valid member (code/card/username/email) to keep a bottle.", zh: "请输入有效的会员（会员码/卡号/用户名/邮箱）以寄存酒瓶。", id: "Masukkan member yang valid (kode/kartu/nama pengguna/email) untuk menitipkan botol." }) });
-    const row = await storeBottleForMember(u, { ...b, enabled: true, name: String(b.name || "").trim() || "Bottle" }, getUserId(req)!);
+    const row = await storeBottleForMember(u, { ...b, enabled: true, name: String(b.name || "").trim() || "Bottle" }, getUserId(req)!, reqLang(req));
     if (!row) return res.status(400).json({ message: tr(req, { en: "Could not store bottle", zh: "无法寄存酒瓶", id: "Tidak dapat menyimpan botol" }) });
     await logAdmin(req, { targetUserId: u.id, targetType: "bottle_keep", targetId: row.id, action: "store", entityType: "bottle", description: `Kept ${row.quantity}× ${row.name} for ${row.memberName} (30 days)` });
-    res.json({ message: `Stored for ${row.memberName} — 30 days to collect.`, bottle: bottleView(row) });
+    res.json({ message: tr(req, { en: "Stored for {name} — 30 days to collect.", zh: "已为 {name} 寄存——30 天内领取。", id: "Disimpan untuk {name} — 30 hari untuk diambil." }, { name: String(row.memberName || "") }), bottle: bottleView(row) });
   }));
   app.get("/api/reborn/pos/bottle-keeps", requireStaff(async (req, res) => {
     const q = String(req.query.q || "").trim();
@@ -2296,7 +2363,7 @@ export function registerRebornRoutes(app: Express) {
     if (remaining > 0) { await db.update(bottleKeeps).set({ quantity: remaining }).where(eq(bottleKeeps.id, id)); }
     else { await db.update(bottleKeeps).set({ status: "collected", quantity: 0, collectedAt: new Date() }).where(eq(bottleKeeps.id, id)); }
     await logAdmin(req, { targetUserId: b.userId || undefined, targetType: "bottle_keep", targetId: id, action: "collect", entityType: "bottle", description: `Collected ${take}× ${b.name} (${b.memberName})` });
-    res.json({ message: remaining > 0 ? `Collected ${take}. ${remaining} left in keep.` : "Collected — bottle keep closed." });
+    res.json({ message: remaining > 0 ? tr(req, { en: "Collected {n}. {r} left in keep.", zh: "已取走 {n}，寄存中还剩 {r}。", id: "Sudah diambil {n}. Sisa {r} di titipan." }, { n: take, r: remaining }) : tr(req, { en: "Collected — bottle keep closed.", zh: "已取走——寄存已结束。", id: "Sudah diambil — titipan botol ditutup." }) });
   }));
   // Member: my kept bottles + reminders.
   app.get("/api/reborn/bottles", requireAuth, async (req, res) => {
@@ -2342,7 +2409,7 @@ export function registerRebornRoutes(app: Express) {
     const rows = await db.select().from(posTickets).where(and(eq(posTickets.status, "paid"), sql`${posTickets.paidAt} >= ${since}`));
     const byStaff: Record<string, { name: string; sales: number; tickets: number }> = {};
     for (const t of rows) {
-      const key = t.salesStaffName || "Unassigned";
+      const key = t.salesStaffName || tr(req, { en: "Unassigned", zh: "未分配", id: "Belum ditentukan" });
       byStaff[key] ||= { name: key, sales: 0, tickets: 0 };
       byStaff[key].sales += Number(t.total); byStaff[key].tickets += 1;
     }
@@ -2357,7 +2424,7 @@ export function registerRebornRoutes(app: Express) {
     if (!name || amount <= 0) return res.status(400).json({ message: tr(req, { en: "Staff and amount required", zh: "请填写员工和金额", id: "Staf dan jumlah wajib diisi" }) });
     const [row] = await db.insert(ledgerEntries).values({ kind: "expense", category: "commission", amount: String(amount), note: `Commission paid to ${name} (RP)`, userId: getUserId(req)! }).returning();
     await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "pay_commission", entityType: "accounting", description: `Paid commission RP ${amount} to ${name}` });
-    res.json({ message: `Paid RP ${amount.toLocaleString()} commission to ${name}.` });
+    res.json({ message: tr(req, { en: "Paid RP {n} commission to {name}.", zh: "已向 {name} 支付佣金 RP {n}。", id: "Komisi RP {n} dibayarkan kepada {name}." }, { n: fmtN(amount, reqLang(req)), name }) });
   }));
   app.post("/api/reborn/admin/accounting/entry", requireAdmin(async (req, res) => {
     const b = req.body || {};
@@ -2397,12 +2464,12 @@ export function registerRebornRoutes(app: Express) {
       LEFT JOIN pos_products p ON p.id=pi.product_id
       LEFT JOIN LATERAL unnest(CASE WHEN COALESCE(p.department,'')='' THEN ARRAY['Unassigned'] ELSE string_to_array(p.department, ',') END) AS ind ON true
       GROUP BY 1 ORDER BY revenue DESC`);
-    res.json((rows.rows || rows as any[]).map((r: any) => ({ industry: r.industry, revenue: Number(r.revenue), orders: Number(r.orders), items: Number(r.items) })));
+    res.json((rows.rows || rows as any[]).map((r: any) => ({ industry: r.industry === "Unassigned" ? tr(req, { en: "Unassigned", zh: "未分配", id: "Belum ditentukan" }) : r.industry, revenue: Number(r.revenue), orders: Number(r.orders), items: Number(r.items) })));
   }));
 
   // Shared refund core: restores stock, reverses loyalty points, marks the ticket refunded
   // and books the expense. Returns the HTTP status + body plus the order for the audit log.
-  const doPosRefund = async (id: number, reason: string, actorId: string) => {
+  const doPosRefund = async (id: number, reason: string, actorId: string, req: Request) => {
     const [order] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!order || order.status !== "paid") return { status: 400 as const, body: { message: tr(req, { en: "Only a paid bill can be refunded", zh: "只有已付款的账单才能退款", id: "Hanya tagihan yang sudah dibayar yang bisa di-refund" }) }, order: null as any };
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
@@ -2413,12 +2480,12 @@ export function registerRebornRoutes(app: Express) {
     if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints: sql`greatest(0,${users.loyaltyPoints}-${order.pointsEarned})`, lifetimePoints: sql`greatest(0,${users.lifetimePoints}-${order.pointsEarned})`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
     const [updated] = await db.update(posTickets).set({ status: "refunded", refundReason: reason, refundedBy: actorId, refundedAt: new Date() }).where(eq(posTickets.id, id)).returning();
     await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(order.total), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
-    return { status: 200 as const, body: { message: `${order.orderNo} refunded and stock restored`, order: { ...updated, items } }, order };
+    return { status: 200 as const, body: { message: tr(req, { en: "{no} refunded and stock restored", zh: "{no} 已退款，库存已恢复", id: "{no} di-refund dan stok dikembalikan" }, { no: order.orderNo }), order: { ...updated, items } }, order };
   };
   app.post("/api/reborn/admin/accounting/orders/:id/refund", requireAdmin(async (req, res) => {
     const id = Number(req.params.id); const reason = String(req.body?.reason || "").trim();
     if (!reason) return res.status(400).json({ message: tr(req, { en: "A refund reason is required", zh: "请填写退款原因", id: "Alasan refund wajib diisi" }) });
-    const r = await doPosRefund(id, reason, getUserId(req)!);
+    const r = await doPosRefund(id, reason, getUserId(req)!, req);
     if (r.status !== 200) return res.status(r.status).json(r.body);
     await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "refund", entityType: "accounting", description: `Refunded ${r.order.orderNo} RP ${Number(r.order.total)}: ${reason}` });
     res.json(r.body);
@@ -2433,7 +2500,7 @@ export function registerRebornRoutes(app: Express) {
     const day = wibDay(new Date(order.paidAt || order.createdAt || Date.now()));
     const [closed] = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType, "pos_closing"), eq(ledgerEntries.refId, day))).limit(1);
     if (closed) return res.status(400).json({ message: tr(req, { en: "That day is already closed — ask an admin to refund it from Accounting.", zh: "该营业日已结账——请让管理员在会计中退款。", id: "Hari itu sudah ditutup — minta admin melakukan refund dari Akuntansi." }) });
-    const r = await doPosRefund(id, reason, getUserId(req)!);
+    const r = await doPosRefund(id, reason, getUserId(req)!, req);
     if (r.status !== 200) return res.status(r.status).json(r.body);
     await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "refund", entityType: "accounting", description: `POS refund ${r.order.orderNo} RP ${Number(r.order.total)}: ${reason}` });
     emitLiveUpdate("/api/reborn/pos/orders", { action: "REFUND", resource: String(id) });
@@ -2450,7 +2517,7 @@ export function registerRebornRoutes(app: Express) {
     for (const change of requested) {
       const old=current.find((x)=>x.id===Number(change.id)); if(!old || old.status==="rejected") continue;
       const qty=Math.max(1,Math.floor(Number(change.qty)||1)); const price=Math.max(0,Number(change.price)||0); const delta=qty-old.qty;
-      if(delta>0 && old.productId){ const [p]=await db.select().from(posProducts).where(eq(posProducts.id,old.productId)); if(!p || p.stock<delta) return res.status(400).json({message:`Not enough ${old.name} stock for that edit`}); }
+      if(delta>0 && old.productId){ const [p]=await db.select().from(posProducts).where(eq(posProducts.id,old.productId)); if(!p || p.stock<delta) return res.status(400).json({message:tr(req, { en: "Not enough {item} stock for that edit", zh: "{item} 库存不足，无法这样修改", id: "Stok {item} tidak cukup untuk perubahan itu" }, { item: old.name })}); }
       if(delta!==0 && old.productId){ await db.update(posProducts).set({stock:sql`${posProducts.stock}-${delta}`}).where(eq(posProducts.id,old.productId)); await db.insert(stockMovements).values({productId:old.productId,delta:-delta,reason:"bill_edit",note:`${order.orderNo}: ${reason}`,userId:getUserId(req)!}); }
       await db.update(posTicketItems).set({qty,price:String(price),lineTotal:String(qty*price)}).where(eq(posTicketItems.id,old.id));
     }
@@ -2501,7 +2568,7 @@ export function registerRebornRoutes(app: Express) {
     try {
       await savePushSubscription(getUserId(req)!, req.body?.subscription, req.headers["user-agent"] as string);
       res.json({ ok: true });
-    } catch (e: any) { res.status(400).json({ message: e.message || "Could not subscribe" }); }
+    } catch (e: any) { res.status(400).json({ message: tr(req, { en: "Could not subscribe", zh: "无法开启推送通知", id: "Tidak dapat mengaktifkan notifikasi push" }) }); }
   });
   app.post("/api/reborn/push/unsubscribe", requireAuth, async (req, res) => {
     await removePushSubscription(String(req.body?.endpoint || ""));
@@ -2509,7 +2576,7 @@ export function registerRebornRoutes(app: Express) {
   });
   // Let the member send themselves a test push to confirm it works.
   app.post("/api/reborn/push/test", requireAuth, async (req, res) => {
-    const n = await sendPushToUser(getUserId(req)!, { title: "🔔 Reborn Wave", body: "Push notifications are on — you're all set!", url: "/reborn", tag: "test" });
+    const n = await sendPushToUser(getUserId(req)!, { title: "🔔 Reborn Wave", body: tr(req, { en: "Push notifications are on — you're all set!", zh: "推送通知已开启——一切就绪！", id: "Notifikasi push aktif — semuanya siap!" }), url: "/reborn", tag: "test" });
     res.json({ sent: n });
   });
 
@@ -2541,7 +2608,7 @@ export function registerRebornRoutes(app: Express) {
     if (open[0] && !open[0].checkOutAt) return res.status(400).json({ message: tr(req, { en: "You are already checked in today.", zh: "你今天已经签到了。", id: "Kamu sudah absen masuk hari ini." }) });
     const [row] = await db.insert(staffAttendance).values({ userId: uid, companyId: await rebornCompanyId(req), workDate: wd, checkInPhoto: photo || null, status: "present", decisionNote: validCode ? "QR check-in" : null }).returning();
     const staff = await storage.getUser(uid);
-    await sendRebornStaffNotification({ type: "attendance", title: "Staff checked in", body: `${staff?.firstName || staff?.username || "Staff"} checked in`, data: { path: "/reborn-admin", attendanceId: row.id } });
+    await notifyStaffI18n("attendance", (lang) => ({ title: pick(lang, { en: "Staff checked in", zh: "员工已签到", id: "Staf absen masuk" }), body: pick(lang, { en: "{name} checked in", zh: "{name} 已签到", id: "{name} sudah absen masuk" }, { name: staff?.firstName || staff?.username || pick(lang, { en: "Staff", zh: "员工", id: "Staf" }) }) }), { path: "/reborn-admin", attendanceId: row.id });
     res.json(row);
   }));
   // Break in / out — accumulates break time; a member can't check out while on break.
@@ -2580,7 +2647,7 @@ export function registerRebornRoutes(app: Express) {
     }
     const [upd] = await db.update(staffAttendance).set({ checkOutAt: now, onBreak: false, breakStartedAt: null, breakSeconds, overtimeSeconds }).where(eq(staffAttendance.id, row.id)).returning();
     const staff = await storage.getUser(uid);
-    await sendRebornStaffNotification({ type: "attendance", title: "Staff checked out", body: `${staff?.firstName || staff?.username || "Staff"} checked out`, data: { path: "/reborn-admin", attendanceId: row.id } });
+    await notifyStaffI18n("attendance", (lang) => ({ title: pick(lang, { en: "Staff checked out", zh: "员工已签退", id: "Staf absen pulang" }), body: pick(lang, { en: "{name} checked out", zh: "{name} 已签退", id: "{name} sudah absen pulang" }, { name: staff?.firstName || staff?.username || pick(lang, { en: "Staff", zh: "员工", id: "Staf" }) }) }), { path: "/reborn-admin", attendanceId: row.id });
     res.json(upd);
   }));
   app.get("/api/reborn/staff/my-attendance", requireStaff(async (req, res) => {
@@ -2599,7 +2666,7 @@ export function registerRebornRoutes(app: Express) {
       startDate: b.startDate, endDate: b.endDate, reason: String(b.reason).trim(), attachmentUrl: b.attachmentUrl || null,
     }).returning();
     const staff = await storage.getUser(row.userId);
-    await sendRebornStaffNotification({ type: "leave_request", title: row.type === "mc" ? "New medical leave" : "New leave request", body: `${staff?.firstName || staff?.username || "Staff"} · ${row.startDate} to ${row.endDate}`, data: { path: "/reborn-admin", leaveId: row.id } });
+    await notifyStaffI18n("leave_request", (lang) => ({ title: row.type === "mc" ? pick(lang, { en: "New medical leave", zh: "新的病假申请", id: "Cuti sakit baru" }) : pick(lang, { en: "New leave request", zh: "新的请假申请", id: "Pengajuan cuti baru" }), body: pick(lang, { en: "{name} · {from} to {to}", zh: "{name} · {from} 至 {to}", id: "{name} · {from} sampai {to}" }, { name: staff?.firstName || staff?.username || pick(lang, { en: "Staff", zh: "员工", id: "Staf" }), from: row.startDate, to: row.endDate }) }), { path: "/reborn-admin", leaveId: row.id });
     res.json(row);
   }));
   app.get("/api/reborn/staff/my-leave", requireStaff(async (req, res) => {
@@ -2659,8 +2726,8 @@ export function registerRebornRoutes(app: Express) {
     const approve = !!req.body?.approve;
     const [row] = await db.update(staffAttendance).set({ status: approve ? "approved" : "rejected", decidedBy: getUserId(req)!, decisionNote: req.body?.note || null }).where(eq(staffAttendance.id, Number(req.params.id))).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
-    await sendRebornUserNotification(row.userId, { type: "attendance_decision", title: `Attendance ${row.status}`, body: `${row.workDate}${row.decisionNote ? ` · ${row.decisionNote}` : ""}`, data: { path: "/staff", attendanceId: row.id } });
-    sendPushToUser(row.userId, { title: approve ? "✅ Attendance approved" : "Attendance rejected", body: `${row.workDate}${!approve && row.decisionNote ? ` — ${row.decisionNote}` : ""}`, url: "/reborn-admin", tag: `att-${row.id}` }).catch(() => {});
+    await notifyUserI18n(row.userId, "attendance_decision", (lang) => ({ title: row.status === "approved" ? pick(lang, { en: "Attendance approved", zh: "考勤已批准", id: "Absensi disetujui" }) : pick(lang, { en: "Attendance rejected", zh: "考勤被拒绝", id: "Absensi ditolak" }), body: `${row.workDate}${row.decisionNote ? ` · ${row.decisionNote}` : ""}` }), { path: "/staff", attendanceId: row.id });
+    pushUserI18n(row.userId, (lang) => ({ title: approve ? pick(lang, { en: "✅ Attendance approved", zh: "✅ 考勤已批准", id: "✅ Absensi disetujui" }) : pick(lang, { en: "Attendance rejected", zh: "考勤被拒绝", id: "Absensi ditolak" }), body: `${row.workDate}${!approve && row.decisionNote ? ` — ${row.decisionNote}` : ""}`, url: "/reborn-admin", tag: `att-${row.id}` })).catch(() => {});
     res.json(row);
   }));
   app.get("/api/reborn/admin/shifts", requireAdmin(async (req, res) => {
@@ -2678,7 +2745,7 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     if (!b.userId || !b.shiftDate || !b.startTime || !b.endTime) return res.status(400).json({ message: tr(req, { en: "Worker, date and times are required.", zh: "请填写员工、日期和时间。", id: "Pekerja, tanggal, dan jam wajib diisi." }) });
     const [row] = await db.insert(workerShifts).values({ userId: b.userId, companyId: await rebornCompanyId(req), shiftDate: b.shiftDate, startTime: b.startTime, endTime: b.endTime, role: b.role || null, note: b.note || null, createdBy: getUserId(req)! }).returning();
-    await sendRebornUserNotification(row.userId, { type: "shift", title: "New work shift", body: `${row.shiftDate} · ${row.startTime}–${row.endTime}`, data: { path: "/staff", shiftId: row.id } });
+    await notifyUserI18n(row.userId, "shift", (lang) => ({ title: pick(lang, { en: "New work shift", zh: "新的排班", id: "Jadwal kerja baru" }), body: `${row.shiftDate} · ${row.startTime}–${row.endTime}` }), { path: "/staff", shiftId: row.id });
     res.json(row);
   }));
   app.delete("/api/reborn/admin/shifts/:id", requireAdmin(async (req, res) => {
@@ -2703,10 +2770,16 @@ export function registerRebornRoutes(app: Express) {
       decidedBy: getUserId(req)!, decisionNote: req.body?.note || null,
     }).where(eq(leaveRequests.id, Number(req.params.id))).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
-    await sendRebornUserNotification(row.userId, { type: "leave_decision", title: `${row.type === "mc" ? "Medical leave" : "Leave"} ${row.status}`, body: `${row.startDate} to ${row.endDate}${row.decisionNote ? ` · ${row.decisionNote}` : ""}`, data: { path: "/staff", leaveId: row.id } });
-    sendPushToUser(row.userId, approve
-      ? { title: "✅ Leave approved", body: `${row.type === "mc" ? "MC" : "Leave"} ${row.startDate}${row.endDate !== row.startDate ? `→${row.endDate}` : ""} — ${row.paid ? "paid" : "unpaid"}`, url: "/reborn-admin", tag: `leave-${row.id}` }
-      : { title: "Leave rejected", body: `${row.type === "mc" ? "MC" : "Leave"} ${row.startDate}${row.decisionNote ? ` — ${row.decisionNote}` : ""}`, url: "/reborn-admin", tag: `leave-${row.id}` }).catch(() => {});
+    const leaveKind = (lang: Lang) => row.type === "mc" ? pick(lang, { en: "Medical leave", zh: "病假", id: "Cuti sakit" }) : pick(lang, { en: "Leave", zh: "请假", id: "Cuti" });
+    await notifyUserI18n(row.userId, "leave_decision", (lang) => ({
+      title: row.status === "approved"
+        ? pick(lang, { en: "{kind} approved", zh: "{kind}已批准", id: "{kind} disetujui" }, { kind: leaveKind(lang) })
+        : pick(lang, { en: "{kind} rejected", zh: "{kind}被拒绝", id: "{kind} ditolak" }, { kind: leaveKind(lang) }),
+      body: `${pick(lang, { en: "{from} to {to}", zh: "{from} 至 {to}", id: "{from} sampai {to}" }, { from: row.startDate, to: row.endDate })}${row.decisionNote ? ` · ${row.decisionNote}` : ""}`,
+    }), { path: "/staff", leaveId: row.id });
+    pushUserI18n(row.userId, (lang) => approve
+      ? { title: pick(lang, { en: "✅ Leave approved", zh: "✅ 请假已批准", id: "✅ Cuti disetujui" }), body: `${leaveKind(lang)} ${row.startDate}${row.endDate !== row.startDate ? `→${row.endDate}` : ""} — ${row.paid ? pick(lang, { en: "paid", zh: "带薪", id: "dibayar" }) : pick(lang, { en: "unpaid", zh: "无薪", id: "tidak dibayar" })}`, url: "/reborn-admin", tag: `leave-${row.id}` }
+      : { title: pick(lang, { en: "Leave rejected", zh: "请假被拒绝", id: "Cuti ditolak" }), body: `${leaveKind(lang)} ${row.startDate}${row.decisionNote ? ` — ${row.decisionNote}` : ""}`, url: "/reborn-admin", tag: `leave-${row.id}` }).catch(() => {});
     res.json(row);
   }));
 
@@ -2773,8 +2846,8 @@ export function registerRebornRoutes(app: Express) {
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const [u] = await db.select().from(users).where(eq(users.id, userId));
     await notifyAdmins(`📅 New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
-    await sendRebornStaffNotification({ type: "new_booking", title: "New booking request", body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Member"} · ${date} ${label}`, data: { path: "/reborn-admin", bookingId: row.id } });
-    sendPushToAdmins({ title: "📅 New booking to confirm", body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label}`, url: "/reborn-admin", tag: `newbk-${row.id}` }).catch(() => {});
+    await notifyStaffI18n("new_booking", (lang) => ({ title: pick(lang, { en: "New booking request", zh: "新的预订请求", id: "Permintaan booking baru" }), body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || pick(lang, { en: "Member", zh: "会员", id: "Member" })} · ${date} ${label}` }), { path: "/reborn-admin", bookingId: row.id });
+    pushAdminsI18n((lang) => ({ title: pick(lang, { en: "📅 New booking to confirm", zh: "📅 有新预订待确认", id: "📅 Booking baru perlu dikonfirmasi" }), body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label}`, url: "/reborn-admin", tag: `newbk-${row.id}` })).catch(() => {});
     // WhatsApp the member a booking receipt with our address + map pin.
     if (u?.phoneNumber) {
       const phone = u.phoneNumber;
@@ -2885,7 +2958,7 @@ export function registerRebornRoutes(app: Express) {
       appointmentDate: when, duration: 120, cost: "0", status: "blocked", adminNote: b.reason || null,
     }).returning();
     await logAdmin(req, { targetType: "appointment", targetId: row.id, action: "block", entityType: "booking", description: `Blocked ${area.name} ${b.date} ${slot} (${table})` });
-    res.json({ message: `Blocked ${area.name} on ${b.date} ${slot}${table !== BLOCK_ALL ? " · " + table : " (whole area)"}.`, appointment: row });
+    res.json({ message: tr(req, { en: "Blocked {area} on {d} {slot}{t}.", zh: "已封锁 {area}：{d} {slot}{t}。", id: "{area} diblokir pada {d} {slot}{t}." }, { area: area.name, d: String(b.date || ""), slot, t: table !== BLOCK_ALL ? " · " + table : tr(req, { en: " (whole area)", zh: "（整个区域）", id: " (seluruh area)" }) }), appointment: row });
   }));
   // Admin books on behalf of a member (auto-confirmed).
   app.post("/api/reborn/admin/bookings/manual", requireStaff(async (req, res) => {
@@ -2904,9 +2977,9 @@ export function registerRebornRoutes(app: Express) {
     if (area.tables.length && !table) return res.status(400).json({ message: tr(req, { en: "Pick a table", zh: "请选择桌位", id: "Pilih meja" }) });
     const when = bookingWhen(areaOpenHourForDate(area, date), date, slot);
     if (await isAreaBlocked(area, when)) return res.status(409).json({ message: tr(req, { en: "That time is blocked", zh: "该时段已被封锁", id: "Jam itu sudah diblokir" }) });
-    if (table && await isTableTaken(area, table, when)) return res.status(409).json({ message: `${table} is already booked for that time` });
+    if (table && await isTableTaken(area, table, when)) return res.status(409).json({ message: tr(req, { en: "{t} is already booked for that time", zh: "{t} 该时段已被预订", id: "{t} sudah dipesan untuk jam itu" }, { t: table }) });
     const manualParty = Math.max(1, Number(b.partySize) || 2);
-    if (manualParty > tableCap(area, table)) return res.status(400).json({ message: `${table || "This area"} seats up to ${tableCap(area, table)} pax.` });
+    if (manualParty > tableCap(area, table)) return res.status(400).json({ message: tr(req, { en: "{t} seats up to {n} pax.", zh: "{t} 最多容纳 {n} 人。", id: "{t} maksimal {n} orang." }, { t: table || tr(req, { en: "This area", zh: "该区域", id: "Area ini" }), n: tableCap(area, table) }) });
     const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
     const row = await createBooking({ userId: u.id, dateStr: date, slot, partySize: manualParty, hours, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
     await db.update(appointments).set({ status: "confirmed" }).where(eq(appointments.id, row.id)); // admin booking = confirmed
@@ -2922,7 +2995,7 @@ export function registerRebornRoutes(app: Express) {
     }
     sendPushToUser(u.id, { title: waText(mLang, "pushBookedTitle"), body: `${area.name} — ${whenTxt}${table ? ` · ${table}` : ""}`, url: "/bookings", tag: `booking-${row.id}` }).catch(() => {});
     await logAdmin(req, { targetUserId: u.id, targetType: "appointment", targetId: row.id, action: "manual_book", entityType: "booking", description: `Booked ${name} · ${area.name} ${date} ${label}` });
-    res.json({ message: `Booked ${name} · ${area.name} ${date} ${label}`, appointment: row });
+    res.json({ message: tr(req, { en: "Booked {name} · {area} {d} {l}", zh: "已为 {name} 预订 · {area} {d} {l}", id: "Booking untuk {name} · {area} {d} {l}" }, { name: String(name || ""), area: area.name, d: date, l: label }), appointment: row });
   }));
 
   // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.

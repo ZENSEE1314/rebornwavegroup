@@ -1361,7 +1361,136 @@ const DG_WORDS: Record<string, string[]> = {
 };
 const DG_SECONDS = 300, DG_MAX_POINTS = 8000, DG_MAX_FEED = 40;
 type DgStroke = { c: string; w: number; p: number[] }; // p = flat [x,y,x,y…] in 0..1000
-function dgNorm(s: string) { return String(s || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+// The same words in Chinese and Bahasa — guesses in any of the three languages count,
+// and each player sees the word in their own language (client key gm.w.<word>).
+const DG_T: Record<string, { zh: string; id: string }> = {
+  "pizza": { zh: "披萨", id: "pizza" },
+  "burger": { zh: "汉堡", id: "burger" },
+  "noodles": { zh: "面条", id: "mi" },
+  "sushi": { zh: "寿司", id: "sushi" },
+  "ice cream": { zh: "冰淇淋", id: "es krim" },
+  "hot dog": { zh: "热狗", id: "hot dog" },
+  "banana": { zh: "香蕉", id: "pisang" },
+  "apple": { zh: "苹果", id: "apel" },
+  "watermelon": { zh: "西瓜", id: "semangka" },
+  "cake": { zh: "蛋糕", id: "kue" },
+  "donut": { zh: "甜甜圈", id: "donat" },
+  "egg": { zh: "鸡蛋", id: "telur" },
+  "bread": { zh: "面包", id: "roti" },
+  "rice": { zh: "米饭", id: "nasi" },
+  "chicken wing": { zh: "鸡翅", id: "sayap ayam" },
+  "french fries": { zh: "薯条", id: "kentang goreng" },
+  "sandwich": { zh: "三明治", id: "roti lapis" },
+  "cookie": { zh: "饼干", id: "kukis" },
+  "cheese": { zh: "奶酪", id: "keju" },
+  "corn": { zh: "玉米", id: "jagung" },
+  "carrot": { zh: "胡萝卜", id: "wortel" },
+  "pineapple": { zh: "菠萝", id: "nanas" },
+  "grapes": { zh: "葡萄", id: "anggur" },
+  "strawberry": { zh: "草莓", id: "stroberi" },
+  "chilli": { zh: "辣椒", id: "cabai" },
+  "popcorn": { zh: "爆米花", id: "popcorn" },
+  "lollipop": { zh: "棒棒糖", id: "permen lolipop" },
+  "cupcake": { zh: "纸杯蛋糕", id: "kue mangkuk" },
+  "taco": { zh: "墨西哥卷饼", id: "taco" },
+  "dumpling": { zh: "饺子", id: "pangsit" },
+  "satay": { zh: "沙爹", id: "sate" },
+  "durian": { zh: "榴莲", id: "durian" },
+  "coconut": { zh: "椰子", id: "kelapa" },
+  "mango": { zh: "芒果", id: "mangga" },
+  "pancake": { zh: "煎饼", id: "panekuk" },
+  "prawn": { zh: "虾", id: "udang" },
+  "fish ball": { zh: "鱼丸", id: "bakso ikan" },
+  "candy": { zh: "糖果", id: "permen" },
+  "chocolate": { zh: "巧克力", id: "cokelat" },
+  "mushroom": { zh: "蘑菇", id: "jamur" },
+  "cat": { zh: "猫", id: "kucing" },
+  "dog": { zh: "狗", id: "anjing" },
+  "elephant": { zh: "大象", id: "gajah" },
+  "giraffe": { zh: "长颈鹿", id: "jerapah" },
+  "snake": { zh: "蛇", id: "ular" },
+  "fish": { zh: "鱼", id: "ikan" },
+  "bird": { zh: "鸟", id: "burung" },
+  "rabbit": { zh: "兔子", id: "kelinci" },
+  "monkey": { zh: "猴子", id: "monyet" },
+  "lion": { zh: "狮子", id: "singa" },
+  "tiger": { zh: "老虎", id: "harimau" },
+  "horse": { zh: "马", id: "kuda" },
+  "cow": { zh: "牛", id: "sapi" },
+  "pig": { zh: "猪", id: "babi" },
+  "chicken": { zh: "鸡", id: "ayam" },
+  "duck": { zh: "鸭子", id: "bebek" },
+  "frog": { zh: "青蛙", id: "katak" },
+  "turtle": { zh: "乌龟", id: "kura-kura" },
+  "shark": { zh: "鲨鱼", id: "hiu" },
+  "whale": { zh: "鲸鱼", id: "paus" },
+  "octopus": { zh: "章鱼", id: "gurita" },
+  "crab": { zh: "螃蟹", id: "kepiting" },
+  "spider": { zh: "蜘蛛", id: "laba-laba" },
+  "butterfly": { zh: "蝴蝶", id: "kupu-kupu" },
+  "bee": { zh: "蜜蜂", id: "lebah" },
+  "penguin": { zh: "企鹅", id: "penguin" },
+  "owl": { zh: "猫头鹰", id: "burung hantu" },
+  "kangaroo": { zh: "袋鼠", id: "kanguru" },
+  "zebra": { zh: "斑马", id: "zebra" },
+  "crocodile": { zh: "鳄鱼", id: "buaya" },
+  "snail": { zh: "蜗牛", id: "siput" },
+  "dolphin": { zh: "海豚", id: "lumba-lumba" },
+  "bat": { zh: "蝙蝠", id: "kelelawar" },
+  "mouse": { zh: "老鼠", id: "tikus" },
+  "panda": { zh: "熊猫", id: "panda" },
+  "camel": { zh: "骆驼", id: "unta" },
+  "deer": { zh: "鹿", id: "rusa" },
+  "sheep": { zh: "羊", id: "domba" },
+  "jellyfish": { zh: "水母", id: "ubur-ubur" },
+  "dinosaur": { zh: "恐龙", id: "dinosaurus" },
+  "umbrella": { zh: "雨伞", id: "payung" },
+  "phone": { zh: "手机", id: "ponsel" },
+  "guitar": { zh: "吉他", id: "gitar" },
+  "microphone": { zh: "麦克风", id: "mikrofon" },
+  "chair": { zh: "椅子", id: "kursi" },
+  "table": { zh: "桌子", id: "meja" },
+  "bed": { zh: "床", id: "kasur" },
+  "lamp": { zh: "台灯", id: "lampu" },
+  "clock": { zh: "时钟", id: "jam dinding" },
+  "glasses": { zh: "眼镜", id: "kacamata" },
+  "hat": { zh: "帽子", id: "topi" },
+  "shoe": { zh: "鞋子", id: "sepatu" },
+  "key": { zh: "钥匙", id: "kunci" },
+  "car": { zh: "汽车", id: "mobil" },
+  "bicycle": { zh: "自行车", id: "sepeda" },
+  "airplane": { zh: "飞机", id: "pesawat" },
+  "boat": { zh: "船", id: "perahu" },
+  "house": { zh: "房子", id: "rumah" },
+  "tree": { zh: "树", id: "pohon" },
+  "flower": { zh: "花", id: "bunga" },
+  "sun": { zh: "太阳", id: "matahari" },
+  "moon": { zh: "月亮", id: "bulan" },
+  "star": { zh: "星星", id: "bintang" },
+  "rainbow": { zh: "彩虹", id: "pelangi" },
+  "cup": { zh: "杯子", id: "cangkir" },
+  "bottle": { zh: "瓶子", id: "botol" },
+  "beer": { zh: "啤酒", id: "bir" },
+  "scissors": { zh: "剪刀", id: "gunting" },
+  "pencil": { zh: "铅笔", id: "pensil" },
+  "book": { zh: "书", id: "buku" },
+  "camera": { zh: "相机", id: "kamera" },
+  "television": { zh: "电视", id: "televisi" },
+  "computer": { zh: "电脑", id: "komputer" },
+  "balloon": { zh: "气球", id: "balon" },
+  "candle": { zh: "蜡烛", id: "lilin" },
+  "ladder": { zh: "梯子", id: "tangga" },
+  "toothbrush": { zh: "牙刷", id: "sikat gigi" },
+  "backpack": { zh: "背包", id: "ransel" },
+  "rocket": { zh: "火箭", id: "roket" },
+  "football": { zh: "足球", id: "bola sepak" },
+};
+const dgKey = (w: string) => `gm.w.${w.replace(/ /g, "_")}`;
+function dgNorm(s: string) { return String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""); }
+function dgMatches(guess: string, word: string): boolean {
+  const g = dgNorm(guess);
+  return [word, DG_T[word]?.zh, DG_T[word]?.id].some((w) => !!w && dgNorm(w) === g);
+}
 function dgPoints(g: NonNullable<Room["dg"]>) { return g.strokes.reduce((n, s) => n + s.p.length / 2, 0); }
 function startDraw(room: Room) {
   const cats = Object.keys(DG_WORDS);
@@ -1426,7 +1555,7 @@ function dgAction(room: Room, uid: string, body: any): string {
     g.lastGuess[uid] = now;
     const text = String(body?.text || "").trim().slice(0, 40);
     if (!dgNorm(text)) return "Type a guess";
-    if (dgNorm(text) === dgNorm(g.word)) { finishDraw(room, uid); return ""; }
+    if (dgMatches(text, g.word)) { finishDraw(room, uid); return ""; }
     g.feed.push({ id: uid, name: me.name, text });
     if (g.feed.length > DG_MAX_FEED) g.feed.splice(0, g.feed.length - DG_MAX_FEED);
     broadcast(room);
@@ -1448,11 +1577,11 @@ function finishDraw(room: Room, winnerId: string | null, reason?: "drawDrawerLef
   if (winner) {
     const lnames = losers.map((p) => p.name).join(", ");
     setMsg(room, losers.length === 0 ? "dgWin0" : losers.length === 1 ? "dgWin1" : "dgWinN",
-      { name: winner.name, word: g.word, drawer: drawer?.name || { k: "theDrawer" }, losers: lnames },
+      { name: winner.name, word: dgKey(g.word), drawer: drawer?.name || { k: "theDrawer" }, losers: lnames },
       `🎉 ${winner.name} guessed "${g.word}"! ${winner.name} & ${drawer?.name || "the drawer"} win — ${lnames || "nobody"} drink${losers.length === 1 ? "s" : ""} 🍺`);
   } else {
     const rk = reason || "dgTimeUp";
-    setMsg(room, "dgLose", { reason: { k: rk }, word: g.word }, `${DG_REASON_EN[rk]} The word was "${g.word}" — nobody got it, everyone drinks (drawer too) 🍺`);
+    setMsg(room, "dgLose", { reason: { k: rk }, word: dgKey(g.word) }, `${DG_REASON_EN[rk]} The word was "${g.word}" — nobody got it, everyone drinks (drawer too) 🍺`);
   }
   broadcast(room);
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: wins.has(p.id) ? 1 : 0, result: (wins.has(p.id) ? "win" : "lose") as "win" | "lose" })));
@@ -1465,6 +1594,9 @@ function dgView(room: Room, forUserId?: string) {
   return {
     drawerId: g.drawer, category: g.category,
     word: show ? g.word : null,
+    wordKey: show ? dgKey(g.word) : null,
+    // answer length per language, so Chinese/Bahasa players get the right number of blanks
+    lens: { en: g.word.replace(/ /g, "").length, zh: (DG_T[g.word]?.zh || g.word).replace(/ /g, "").length, id: (DG_T[g.word]?.id || g.word).replace(/ /g, "").length },
     // letter blanks for guessers: "_" for hidden letters, spaces kept
     mask: g.word.split("").map((ch, i) => (ch === " " ? " " : g.reveal.includes(i) ? ch : "_")).join(""),
     strokes: g.strokes, feed: g.feed, winnerId: g.winner ?? null,

@@ -1234,7 +1234,7 @@ function MemoryGame({ room, code, me }: any) {
 const DG_COLORS = ["#111111", "#ef4444", "#f97316", "#facc15", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#92400e", "#ffffff"];
 const DG_WIDTHS = [4, 9, 18];
 function DrawGame({ room, code, me }: any) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const g = room.draw || {};
   const { toast } = useToast();
   const done = room.status === "done";
@@ -1323,8 +1323,10 @@ function DrawGame({ room, code, me }: any) {
         <div className="min-w-0">
           <p className="truncate text-xs text-white/50">✏️ {amDrawer ? t("gm.dg.youDraw") : t("gm.dg.isDrawing", { name: drawerName })} · {DG_CAT_KEY[g.category] ? t(DG_CAT_KEY[g.category]) : g.category}</p>
           {amDrawer || done
-            ? <p className="truncate text-lg font-black text-amber-300">{amDrawer && !done ? t("gm.dg.draw") : t("gm.dg.answer")}{String(g.word || "").toUpperCase()}</p>
-            : <p className="font-mono text-lg font-black tracking-[0.25em] text-amber-300 break-all">{String(g.mask || "").toUpperCase()} <span className="text-xs tracking-normal text-white/40">({String(g.mask || "").replace(/ /g, "").length})</span></p>}
+            ? <p className="truncate text-lg font-black text-amber-300">{amDrawer && !done ? t("gm.dg.draw") : t("gm.dg.answer")}{g.wordKey ? t(g.wordKey).toUpperCase() : String(g.word || "").toUpperCase()}</p>
+            : language === "en" || !g.lens
+              ? <p className="font-mono text-lg font-black tracking-[0.25em] text-amber-300 break-all">{String(g.mask || "").toUpperCase()} <span className="text-xs tracking-normal text-white/40">({String(g.mask || "").replace(/ /g, "").length})</span></p>
+              : <p className="font-mono text-lg font-black tracking-[0.25em] text-amber-300 break-all">{"_".repeat(g.lens[language] || 0)} <span className="text-xs tracking-normal text-white/40">({g.lens[language]})</span></p>}
         </div>
         {!done && <span className={`shrink-0 rounded-lg px-2 py-1 font-black tabular-nums ${secs <= 30 ? "bg-red-500/30 text-red-200" : "bg-white/10 text-white"}`}>{mm}</span>}
       </div>
