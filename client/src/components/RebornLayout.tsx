@@ -150,7 +150,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
 
       {/* Bottom nav — hidden while inside a live game so you can't tap out by accident */}
       {!hideNav && (
-        <nav className="rwg-dock fixed bottom-0 left-0 right-0 z-40 backdrop-blur-md" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <nav className="rwg-dock fixed bottom-0 left-0 right-0 z-40 backdrop-blur-md">
           <div className="max-w-2xl mx-auto grid grid-cols-5">
             {MAIN_NAV.map((it) => {
               const isActive = active === it.path || active === it.label.toLowerCase();
