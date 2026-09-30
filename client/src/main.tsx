@@ -2,6 +2,9 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { registerServiceWorker, pushSupported, enablePush } from "./lib/push";
+import { installNumberInputFix } from "./lib/numberInputFix";
+
+installNumberInputFix();
 
 createRoot(document.getElementById("root")!).render(<App />);
 
