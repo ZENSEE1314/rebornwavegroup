@@ -97,6 +97,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.chat.accept': { en: 'Accept', zh: '接受', id: 'Terima' },
   'vn.chat.decline': { en: 'Decline', zh: '拒绝', id: 'Tolak' },
   'vn.chat.friends': { en: 'Friends', zh: '好友', id: 'Teman' },
+  'vn.chat.announce': { en: 'Announcements', zh: '公告', id: 'Pengumuman' },
   'vn.chat.noFriendsA': { en: 'No friends yet. Add members from the', zh: '还没有好友。去', id: 'Belum ada teman. Tambahkan anggota dari halaman' },
   'vn.chat.noFriendsB': { en: 'page — once they accept, you can chat here.', zh: '页面添加会员 — 对方接受后即可在这里聊天。', id: '— setelah mereka menerima, Anda bisa mengobrol di sini.' },
   'vn.chat.kosName': { en: 'Kings of Singers', zh: '歌王之王', id: 'Raja Penyanyi' },

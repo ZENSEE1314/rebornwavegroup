@@ -917,6 +917,22 @@ export function registerRebornRoutes(app: Express) {
     } catch (e) { console.error("support msgs", e); res.status(500).json({ message: tr(req, { en: "Failed to load chat", zh: "聊天加载失败", id: "Gagal memuat obrolan" }) }); }
   });
 
+  // Admin broadcasts this member received (shown pinned in the Chat tab).
+  app.get("/api/reborn/announcements", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const rows = await db.select({ id: supportMessages.id, content: supportMessages.content, createdAt: supportMessages.createdAt })
+        .from(supportMessages).innerJoin(supportTickets, eq(supportTickets.id, supportMessages.ticketId))
+        .where(and(eq(supportTickets.userId, userId), eq(supportMessages.senderType, "staff"), sql`${supportMessages.content} LIKE '📢 %'`))
+        .orderBy(desc(supportMessages.createdAt)).limit(30);
+      res.json(rows.map((r) => {
+        const text = String(r.content || "").replace(/^📢\s*/, "");
+        const cut = text.indexOf("\n\n");
+        return { id: r.id, title: cut >= 0 ? text.slice(0, cut) : text, body: cut >= 0 ? text.slice(cut + 2) : "", createdAt: r.createdAt };
+      }));
+    } catch (e) { console.error("announcements", e); res.status(500).json({ message: tr(req, { en: "Failed to load announcements", zh: "公告加载失败", id: "Gagal memuat pengumuman" }) }); }
+  });
+
   app.post("/api/reborn/support/ask", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
@@ -1834,8 +1850,8 @@ export function registerRebornRoutes(app: Express) {
         await logAdmin(req, { targetType: "broadcast", action: "whatsapp", entityType: "broadcast", description: `Broadcast "${subject}" · WhatsApp ${ok} sent${fail ? `, ${fail} failed` : ""}` }).catch(() => {});
       })();
     }
-    const pushed = await sendPushToUsers(everyone.map((u) => u.id), { title: `📢 ${subject}`, body, url: "/reborn", tag: "broadcast" }).catch(() => 0);
-    await sendRebornAllNotification({ type: "admin_broadcast", title: subject, body: body.slice(0, 160), data: { path: "/support" } });
+    const pushed = await sendPushToUsers(everyone.map((u) => u.id), { title: `📢 ${subject}`, body, url: "/chat", tag: "broadcast" }).catch(() => 0);
+    await sendRebornAllNotification({ type: "admin_broadcast", title: subject, body: body.slice(0, 160), data: { path: "/chat" } });
     await logAdmin(req, { targetType: "broadcast", action: "send", entityType: "broadcast", description: `Broadcast "${subject}" · ${inapp} in-app, ${emails} emails, ${pushed} push${emailFail ? `, ${emailFail} failed` : ""}${ch.whatsapp ? `, ${waQueued} WhatsApp queued` : ""}` });
     const waNote = ch.whatsapp ? tr(req, { en: " WhatsApp: sending to {w} number(s) now (about {m} min).", zh: " WhatsApp：正在发送给 {w} 个号码（约 {m} 分钟）。", id: " WhatsApp: sedang mengirim ke {w} nomor (sekitar {m} menit)." }, { w: waQueued, m: Math.max(1, Math.ceil(waQueued * 1.6 / 60)) }) : "";
     res.json({ message: tr(req, { en: "Sent — {a} in-app, {e} email(s), {p} push{f}.", zh: "已发送——应用内 {a} 条，邮件 {e} 封，推送 {p} 条{f}。", id: "Terkirim — {a} di aplikasi, {e} email, {p} push{f}." }, { a: inapp, e: emails, p: pushed, f: emailFail ? tr(req, { en: ", {x} email(s) failed", zh: "，{x} 封邮件发送失败", id: ", {x} email gagal" }, { x: emailFail }) : "" }) + waNote, inapp, emails, emailFail, pushed, whatsappQueued: waQueued });
