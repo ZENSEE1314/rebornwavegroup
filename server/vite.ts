@@ -147,6 +147,14 @@ export function serveStatic(app: Express) {
     if (!FLAGSHIP_HOSTS.has(req.hostname) || getUserId(req) || !fs.existsSync(experienceIndex)) return next();
     res.set("Cache-Control", "no-cache").sendFile(experienceIndex);
   });
+  // The tower's own address always serves the tower (its files load relative to /experience/).
+  // (Express treats /experience and /experience/ as the same route, so check the exact path.)
+  app.get("/experience", (req, res, next) => {
+    if (!fs.existsSync(experienceIndex)) return next();
+    const [path, query] = req.originalUrl.split("?");
+    if (!path.endsWith("/")) return res.redirect(301, `${path}/${query ? `?${query}` : ""}`);
+    res.set("Cache-Control", "no-cache").sendFile(experienceIndex);
+  });
 
   console.log(`[static] Serving static files from: ${distPath}`);
   // Hashed build files never change → cache them for a year; index.html is sent

@@ -141,6 +141,9 @@ const FLAGSHIP_TENANT_SLUG = "reborn-wave-group";
 // The public homepage is the standalone 3D tower (client/public/experience), served
 // by the server as static files — leave the SPA so it loads.
 function ExperienceRedirect() {
+  // Already on /experience and the server still sent the app → reloading would loop
+  // (the page kept blinking). Show the welcome page instead.
+  if (INITIAL_PATH.startsWith("/experience")) return <Landing />;
   window.location.replace(`/experience/${window.location.search}`);
   return null;
 }
