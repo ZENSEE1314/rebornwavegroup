@@ -39,6 +39,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.topup.requestSent': { en: "Request sent", zh: "请求已发送", id: "Permintaan terkirim" },
   'hm.common.failed': { en: "Failed", zh: "失败", id: "Gagal" },
   'hm.topup.title': { en: "Top up RP", zh: "充值 RP", id: "Isi Ulang RP" },
+  'hm.topup.max': { en: "Maximum RP {n} per top-up.", zh: "单次最多充值 RP {n}。", id: "Maksimal RP {n} per isi ulang." },
   'hm.topup.desc': { en: "Request to add RP credits (use them to buy KGOLD or pay in-app). Staff will confirm your payment.", zh: "申请充值 RP 余额（可用于购买 KGOLD 或在应用内付款）。工作人员将确认你的付款。", id: "Ajukan penambahan kredit RP (untuk membeli KGOLD atau bayar di aplikasi). Staf akan mengonfirmasi pembayaranmu." },
   'hm.topup.amount': { en: "Amount (RP)", zh: "金额（RP）", id: "Jumlah (RP)" },
   'hm.topup.method': { en: "Payment method", zh: "付款方式", id: "Metode pembayaran" },

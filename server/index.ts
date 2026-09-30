@@ -9,6 +9,11 @@ import { ensureBridgeXSchema, registerBridgeXRoutes } from "./bridgeX";
 import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
+
+// One failing request must never take the whole app down (Cloudflare 502 for
+// everyone): log async errors that nothing caught instead of exiting.
+process.on("unhandledRejection", (reason) => { console.error("[unhandledRejection]", reason); });
+process.on("uncaughtException", (err) => { console.error("[uncaughtException]", err); });
 import { emitLiveUpdate, installLiveMutationBroadcast, registerLiveUpdateRoute } from "./liveUpdates";
 
 const app = express();
