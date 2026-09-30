@@ -2411,3 +2411,96 @@ button, .interactive {
 .rwg-auth button:has(> .lucide-globe) { background: rgba(0,0,0,.45) !important; border:1px solid rgba(247,215,116,.4) !important; border-radius:999px !important; box-shadow: 0 0 12px rgba(247,215,116,.15) !important; }
 .rwg-auth button:has(> .lucide-globe) :is(svg, span) { color:#f7d774 !important; }
 @media (prefers-reduced-motion: reduce) { .rwg-auth .auth-card::after, .rwg-auth button[type="submit"] { animation:none; } }
+
+/* ════════════════════════════════════════════════════════════════════════
+   KOS special gift scenes (car / fireworks / crown / diamonds)
+   ════════════════════════════════════════════════════════════════════════ */
+.gs-car, .gs-fw, .gs-crown, .gs-dia { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.gs-emoji { display:inline-block; line-height:1; }
+.gs-img { display:block; object-fit:contain; }
+.gs-text { z-index:5; opacity:0; animation: gsIn .5s ease-out 2.4s forwards; }
+@keyframes gsIn { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform:none; } }
+
+/* ── Car: night city road, driving right ── */
+.gs-sky { position:absolute; inset:0; background: linear-gradient(180deg, #0b0630 0%, #2a0f4d 45%, #7a2a6b 62%, #1a0b22 63%); }
+.gs-moon { position:absolute; right:12%; top:9%; font-size:44px; filter: drop-shadow(0 0 18px rgba(255,236,170,.8)); }
+.gs-city { position:absolute; left:0; right:0; bottom:37%; height:90px; overflow:hidden; opacity:.9; }
+.gs-city-row { position:absolute; left:0; bottom:0; display:flex; white-space:nowrap; font-size:64px; line-height:1; animation: gsScroll 9s linear infinite; filter: saturate(.8) brightness(.8); }
+.gs-city-row span { padding-right:0; }
+@keyframes gsScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.gs-lamps { position:absolute; left:0; bottom:36%; width:200%; height:120px; animation: gsScroll 2.4s linear infinite; }
+.gs-lamps i { position:absolute; bottom:0; width:4px; height:110px; background: linear-gradient(#777, #333); border-radius:2px; }
+.gs-lamps i::before { content:""; position:absolute; top:-6px; left:-10px; width:24px; height:10px; border-radius:6px; background:#ffe89a; box-shadow: 0 0 22px 8px rgba(255,220,120,.55); }
+.gs-road { position:absolute; left:0; right:0; bottom:0; height:37%; background: linear-gradient(180deg, #3a3346 0%, #1c1824 18%, #121016 100%); border-top: 6px solid #6b5f7a; }
+.gs-lane { position:absolute; left:0; top:38%; width:200%; height:8px; background: repeating-linear-gradient(90deg, #ffe89a 0 60px, transparent 60px 130px); box-shadow: 0 0 10px rgba(255,232,154,.5); animation: gsScroll .45s linear infinite; }
+.gs-carbox { position:absolute; bottom:22%; left:50%; width:190px; height:130px; transform: translateX(-50%); animation: gsCarIn 1.3s cubic-bezier(.15,.8,.25,1) both; }
+@keyframes gsCarIn { from { left:-40%; } to { left:50%; } }
+.gs-carart { position:absolute; inset:0; display:flex; align-items:flex-end; justify-content:center; transform: scaleX(-1); animation: gsBump .32s ease-in-out infinite alternate; }
+.gs-carart .gs-emoji { font-size:120px; filter: drop-shadow(0 12px 10px rgba(0,0,0,.7)); }
+.gs-carart .gs-img { width:180px; height:120px; }
+@keyframes gsBump { from { transform: scaleX(-1) translateY(0) rotate(0deg); } to { transform: scaleX(-1) translateY(-4px) rotate(-1deg); } }
+.gs-speed { position:absolute; right:78%; top:0; width:220px; height:100%; }
+.gs-speed i { position:absolute; right:0; height:3px; width:120px; border-radius:3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.9)); animation: gsStreak .5s linear infinite; }
+@keyframes gsStreak { from { transform: translateX(0); opacity:1; } to { transform: translateX(-160px); opacity:0; } }
+.gs-puff { position:absolute; left:-40px; bottom:4px; font-size:40px; opacity:.8; transform: scaleX(-1); animation: gsPuff .6s ease-out infinite; }
+@keyframes gsPuff { from { transform: scaleX(-1) translateX(0) scale(.6); opacity:.9; } to { transform: scaleX(-1) translateX(60px) scale(1.4); opacity:0; } }
+.gs-beam { position:absolute; left:88%; bottom:14px; width:220px; height:70px; background: radial-gradient(ellipse at left center, rgba(255,245,200,.55), transparent 70%); clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 60%); }
+
+/* ── Fireworks: one rocket up, big burst, then more ── */
+.gs-fw-sky { position:absolute; inset:0; background: radial-gradient(80% 60% at 50% 100%, #3b1760 0%, #120a26 60%, #05040c 100%); }
+.gs-rocket { position:absolute; left:50%; bottom:-10px; width:6px; height:6px; margin-left:-3px; border-radius:50%; background:#fff; box-shadow: 0 0 12px 4px #ffd166;
+  animation: gsRocket 1.15s cubic-bezier(.3,.6,.4,1) forwards; }
+.gs-rocket::after { content:""; position:absolute; left:1px; top:6px; width:4px; height:110px; border-radius:2px; background: linear-gradient(#ffd166, rgba(255,120,60,.6) 40%, transparent); }
+@keyframes gsRocket { 0% { transform: translate(0,0); opacity:1; } 30% { transform: translate(-6px,-24vh); } 60% { transform: translate(5px,-50vh); } 96% { transform: translate(0,-73vh); opacity:1; } 100% { transform: translate(0,-73vh); opacity:0; } }
+.gs-burst { position:absolute; width:0; height:0; }
+.gs-burst > i { max-width:none !important; }
+.gs-flash { position:absolute; left:-90px; top:-90px; width:180px; height:180px; border-radius:50%; background: radial-gradient(circle, #fff 0%, rgba(255,230,160,.8) 25%, transparent 70%); opacity:0;
+  animation: gsFlash 3s ease-out both; }
+@keyframes gsFlash { 0% { transform: scale(.2); opacity:0; } 2% { transform: scale(.25); opacity:1; } 12% { transform: scale(1.2); opacity:.9; } 30%, 100% { transform: scale(1.6); opacity:0; } }
+.gs-spark { position:absolute; left:-4px; top:-4px; width:8px; height:8px; border-radius:50%; opacity:0; animation: gsSpark 3s cubic-bezier(.1,.7,.3,1) both; }
+@keyframes gsSpark { 0% { transform: translate(0,0) scale(1.3); opacity:0; } 3% { transform: translate(0,0) scale(1.3); opacity:1; } 45% { transform: translate(var(--dx), var(--dy)) scale(1); opacity:1; }
+  70% { transform: translate(var(--dx), calc(var(--dy) + 40px)) scale(.7); opacity:.6; } 80%, 100% { transform: translate(var(--dx), calc(var(--dy) + 60px)) scale(.3); opacity:0; } }
+.gs-fw-gift { position:absolute; left:50%; top:44%; transform: translate(-50%,-50%); opacity:0; animation: gsPopIn .7s cubic-bezier(.2,1.5,.4,1) 1.5s forwards; }
+.gs-fw-gift .gs-emoji { font-size:96px; filter: drop-shadow(0 0 24px rgba(255,209,102,.8)); }
+.gs-fw-gift .gs-img { width:140px; height:140px; border-radius:24px; }
+@keyframes gsPopIn { from { transform: translate(-50%,-50%) scale(.2); opacity:0; } to { transform: translate(-50%,-50%) scale(1); opacity:1; } }
+
+/* ── Crown: the king lifts his crown and hands it to you ── */
+.gs-crown { background: radial-gradient(70% 50% at 50% 30%, #4a2a10 0%, #1a0f22 55%, #07050d 100%); }
+.gs-throne-glow { position:absolute; left:50%; top:16%; width:320px; height:320px; margin-left:-160px; border-radius:50%; background: radial-gradient(circle, rgba(247,215,116,.35), transparent 65%); animation: gsKing 3.2s ease-in-out both; }
+.gs-king { position:absolute; left:50%; top:13%; transform: translateX(-50%); text-align:center; animation: gsKing 3.2s ease-in-out both; }
+.gs-king span { font-size:110px; line-height:1; display:block; position:relative; z-index:1; }
+.gs-robe { display:block; width:170px; height:70px; margin:-18px auto 0; border-radius:60px 60px 10px 10px; background: linear-gradient(180deg, #b91c1c, #7f1d1d); box-shadow: inset 0 6px 0 #f7d774, 0 0 20px rgba(185,28,28,.5); }
+@keyframes gsKing { 0% { opacity:0; transform: translateX(-50%) scale(.8); } 12%, 58% { opacity:1; transform: translateX(-50%) scale(1); } 85%, 100% { opacity:0; transform: translateX(-50%) translateY(-30px) scale(.8); } }
+.gs-crownart { position:absolute; left:50%; top:9%; transform: translate(-50%,0) scale(.8); animation: gsCrownMove 3.2s cubic-bezier(.4,.1,.3,1) both; z-index:3; }
+.gs-crownart .gs-emoji { font-size:64px; filter: drop-shadow(0 0 14px rgba(247,215,116,.9)); }
+.gs-crownart .gs-img { width:90px; height:90px; }
+@keyframes gsCrownMove {
+  0% { top:9%; transform: translate(-50%,0) scale(.8); opacity:0; } 12% { opacity:1; }
+  26% { top:9%; transform: translate(-50%,0) scale(.8); }
+  42% { top:3%; transform: translate(-50%,0) scale(.85) rotate(-6deg); }
+  80% { top:34%; transform: translate(-50%,0) scale(2.3) rotate(0deg); }
+  100% { top:34%; transform: translate(-50%,0) scale(2.3); opacity:1; } }
+.gs-hand { position:absolute; left:50%; top:22%; font-size:56px; opacity:0; transform: translate(-50%,0); animation: gsHand 3.2s cubic-bezier(.4,.1,.3,1) both; z-index:2; }
+@keyframes gsHand { 0%, 30% { top:24%; opacity:0; transform: translate(-50%,0) scale(.8); } 42% { top:12%; opacity:1; transform: translate(-50%,0) scale(.9); }
+  80% { top:52%; opacity:1; transform: translate(-50%,0) scale(1.9); } 92%, 100% { top:60%; opacity:0; transform: translate(-50%,0) scale(1.9); } }
+.gs-crown-rays { position:absolute; left:50%; top:43%; width:170vmax; height:170vmax; transform: translate(-50%,-50%); opacity:0;
+  background: repeating-conic-gradient(from 0deg, rgba(247,215,116,.28) 0deg 7deg, transparent 7deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, #000 0, transparent 40%); mask-image: radial-gradient(circle, #000 0, transparent 40%);
+  animation: gsRaysOn .6s ease-out 2.5s forwards, kgSpin 12s linear 2.5s infinite; }
+@keyframes gsRaysOn { to { opacity:1; } }
+.gs-glint { position:absolute; font-size:26px; opacity:0; animation: gsGlint 1.2s ease-in-out infinite; }
+@keyframes gsGlint { 0%, 100% { opacity:0; transform: scale(.3) rotate(0); } 50% { opacity:1; transform: scale(1.2) rotate(90deg); } }
+
+/* ── Diamonds: a sky of diamonds pours down, then the big one lands ── */
+.gs-dia-sky { position:absolute; inset:0; background: radial-gradient(80% 60% at 50% 0%, #0e3a5c 0%, #0a1830 50%, #04060e 100%); }
+.gs-drop { position:absolute; top:0; transform: translateY(-15vh); animation: gsDrop 1.4s cubic-bezier(.5,0,.8,.6) both; filter: drop-shadow(0 0 6px rgba(125,211,252,.8)); }
+@keyframes gsDrop { 0% { transform: translateY(-15vh) rotate(0); } 78% { transform: translateY(var(--land)) rotate(var(--rot)); }
+  88% { transform: translateY(calc(var(--land) - 14px)) rotate(var(--rot)); } 100% { transform: translateY(var(--land)) rotate(var(--rot)); } }
+.gs-ground { position:absolute; left:0; right:0; bottom:0; height:12%; background: linear-gradient(180deg, rgba(125,211,252,.18), rgba(10,20,40,.9)); border-top:1px solid rgba(125,211,252,.4); box-shadow: 0 -10px 40px rgba(125,211,252,.25); }
+.gs-bigdia { position:absolute; left:50%; top:22%; transform: translate(-50%,-50%); opacity:0; animation: gsBigDia 1s cubic-bezier(.3,.7,.3,1.3) 2.2s forwards, gsDiaGlow 1.6s ease-in-out 3.2s infinite; z-index:2; }
+.gs-bigdia .gs-emoji { font-size:120px; }
+.gs-bigdia .gs-img { width:150px; height:150px; }
+@keyframes gsBigDia { from { transform: translate(-50%,-160%) scale(.4) rotate(-25deg); opacity:1; } to { transform: translate(-50%,-50%) scale(1) rotate(0); opacity:1; } }
+@keyframes gsDiaGlow { 0%, 100% { filter: drop-shadow(0 0 16px rgba(125,211,252,.8)) brightness(1); } 50% { filter: drop-shadow(0 0 40px rgba(186,230,253,1)) brightness(1.25); } }
+.gs-bigdia-ring { position:absolute; left:50%; top:22%; width:160px; height:160px; border-radius:50%; border:3px solid rgba(186,230,253,.9); opacity:0; animation: kgRing 1s ease-out 3.1s both; }

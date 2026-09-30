@@ -330,10 +330,10 @@ async function contributeSpinPool(saleTotal: number) {
 const DEFAULT_GIFT_TYPES = [
   { name: "Rose", emoji: "🌹", animation: "float", kgoldCost: 100, sortOrder: 0 },
   { name: "Heart", emoji: "❤️", animation: "pop", kgoldCost: 500, sortOrder: 1 },
-  { name: "Fireworks", emoji: "🎆", animation: "rain", kgoldCost: 5000, sortOrder: 2 },
-  { name: "Diamond", emoji: "💎", animation: "zoom", kgoldCost: 20000, sortOrder: 3 },
-  { name: "Crown", emoji: "👑", animation: "zoom", kgoldCost: 100000, sortOrder: 4 },
-  { name: "Sports Car", emoji: "🏎️", animation: "float", kgoldCost: 500000, sortOrder: 5 },
+  { name: "Fireworks", emoji: "🎆", animation: "fireworks", kgoldCost: 5000, sortOrder: 2 },
+  { name: "Diamond", emoji: "💎", animation: "diamonds", kgoldCost: 20000, sortOrder: 3 },
+  { name: "Crown", emoji: "👑", animation: "crown", kgoldCost: 100000, sortOrder: 4 },
+  { name: "Sports Car", emoji: "🏎️", animation: "car", kgoldCost: 500000, sortOrder: 5 },
 ];
 async function seedGiftTypesIfEmpty(companyId?: number) {
   const cond = companyId ? eq(kosGiftTypes.companyId, companyId) : undefined;
