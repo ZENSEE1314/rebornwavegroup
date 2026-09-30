@@ -84,7 +84,7 @@ export const STAFF_STEPS: TourStep[] = [
     { key: "staff", emoji: "🕒" }, { key: "board", emoji: "🏆" }, { key: "fb", emoji: "⭐" },
   ] },
   { key: "setup", emoji: "⚙️", c1: "#a855f7", c2: "#6b21a8", items: [
-    { key: "crm", emoji: "💬" }, { key: "settings", emoji: "⚙️" }, { key: "logs", emoji: "📜" },
+    { key: "crm", emoji: "💬" }, { key: "features", emoji: "🔘" }, { key: "settings", emoji: "⚙️" }, { key: "logs", emoji: "📜" },
   ] },
   { key: "done", emoji: "🚀", c1: "#f3c14b", c2: "#b45309" },
 ];
