@@ -166,22 +166,24 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
     <div className="space-y-4">
       {/* Rank header — Mobile-Legends style ladder */}
       {rankCfg?.tiers && (
-        <div className="rounded-2xl p-4 border border-amber-400/20" style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.18),rgba(201,168,76,0.12))" }}>
-          <div className="mb-3">
-            <p className="text-[11px] text-white/50 uppercase tracking-wider mb-1">{t("gm.lobby.yourRank", { n: rankCfg.season })}</p>
+        <div className="arc-panel" style={{ ["--c1" as any]: "#f3c14b" }}>
+          <p className="arc-head" style={{ marginBottom: 10 }}>🏆 {t("gm.lobby.yourRank", { n: rankCfg.season })}</p>
+          <div className="mb-4 flex items-center justify-between gap-3">
             <RankBadge stars={myRank?.stars || 0} tiers={rankCfg.tiers} size="lg" />
+            <span className="rounded-full border border-amber-300/40 bg-black/30 px-3 py-1 text-xs font-black text-amber-200">⭐ {myRank?.stars || 0}</span>
           </div>
-          <div className="rounded-xl bg-black/25 p-2">
-            <p className="text-[11px] font-bold text-white/60 mb-1 flex items-center gap-1"><Medal className="w-3.5 h-3.5 text-amber-300" /> {t("gm.lobby.topRanked")}</p>
-            {rankLb.length === 0 && <p className="text-[11px] text-white/40">{t("gm.lobby.climb")}</p>}
-            {rankLb.slice(0, 5).map((r, i) => (
-              <div key={r.userId} className="flex items-center gap-2 py-1">
-                <span className="text-xs w-4 text-white/50 shrink-0">{i + 1}</span>
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/60"><Medal className="w-3.5 h-3.5 text-amber-300" /> {t("gm.lobby.topRanked")}</p>
+          {rankLb.length === 0 && <p className="text-xs text-white/45">{t("gm.lobby.climb")}</p>}
+          {rankLb.slice(0, 5).map((r, i) => {
+            const top = ["#f3c14b", "#cbd5e1", "#d08a4f"][i];
+            return (
+              <div key={r.userId} className={`arc-row ${top ? "arc-row-top" : ""}`} style={top ? { ["--rc" as any]: top } : undefined}>
+                <span className="arc-medal">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-extrabold text-white">{r.name}</span>
                 <RankBadge stars={r.stars} tiers={rankCfg.tiers!} size="sm" />
-                <span className="text-xs text-white/70 truncate">{r.name}</span>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       )}
 
@@ -337,33 +339,41 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
       {help && <HowToPlay game={help} onClose={() => setHelp(null)} />}
 
       {game !== "number" && (
-      <div className="gcard p-4">
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-extrabold text-white flex items-center gap-2"><Users className="w-4 h-4 text-amber-300" /> {t("gm.lobby.openRooms")}</p>
-          <button onClick={loadRooms} className="text-xs text-white/50">{t("gm.lobby.refresh")}</button>
+      <div className="arc-panel" style={{ ["--c1" as any]: "#29d8ff" }}>
+        <div className="mb-3 flex items-center gap-2">
+          <p className="arc-head" style={{ margin: 0, flex: 1, color: "#7fe9ff", textShadow: "0 0 10px rgba(41,216,255,.5)" }}>👥 {t("gm.lobby.openRooms")}{shownRooms.length ? ` · ${shownRooms.length}` : ""}</p>
+          <button onClick={loadRooms} className="arc-btn" style={{ width: 34, height: 34 }} title={t("gm.lobby.refresh")} aria-label={t("gm.lobby.refresh")}>↻</button>
         </div>
-        {shownRooms.length === 0 && <p className="text-xs text-white/40">{t("gm.lobby.noRooms")}</p>}
-        <div className="space-y-2">
-          {shownRooms.map((r) => (
-            <div key={r.code} className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5">
-              <span className="text-2xl">{GAMES[r.game]?.emoji || "🎮"}</span>
+        {shownRooms.length === 0 && (
+          <div className="py-4 text-center">
+            <p className="text-3xl mb-1" style={{ filter: "drop-shadow(0 0 10px rgba(41,216,255,.5))" }}>🎮</p>
+            <p className="text-xs text-white/55">{t("gm.lobby.noRooms")}</p>
+          </div>
+        )}
+        {shownRooms.map((r) => {
+          const [rc1, rc2] = gameColors(r.game);
+          const full = r.players >= r.max;
+          return (
+            <div key={r.code} className="arc-room-row" style={{ ["--c1" as any]: rc1, ["--c2" as any]: rc2 }}>
+              <span className="arc-icon" style={{ width: 44, height: 44, fontSize: 23, borderRadius: 13, animation: "none" }}><span>{GAMES[r.game]?.emoji || "🎮"}</span></span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white truncate">{gameName(t, r.game)} {r.hasPassword ? "🔒" : ""}</p>
-                <p className="text-[11px] text-white/50 truncate">{t("gm.lobby.hostRoom", { name: r.hostName })} · <b className="text-amber-300">{r.code}</b> · {t("gm.lobby.playersOf", { n: r.players, max: r.max })}</p>
+                <p className="truncate text-sm font-black italic uppercase text-white">{gameName(t, r.game)} {r.hasPassword ? "🔒" : ""}</p>
+                <p className="truncate text-[11px] text-white/60">{t("gm.lobby.hostRoom", { name: r.hostName })} · <b className="font-mono tracking-widest text-amber-200">#{r.code}</b></p>
+                <div className="flex items-center gap-2"><div className="arc-bar flex-1"><i style={{ width: `${Math.min(100, (r.players / Math.max(1, r.max)) * 100)}%` }} /></div><span className="mt-1 text-[10px] font-bold text-white/60">{r.players}/{r.max}</span></div>
               </div>
-              <button onClick={() => joinRoom(r)} disabled={r.players >= r.max} className="cbtn cbtn-cyan px-4 py-2 text-sm shrink-0">{r.players >= r.max ? t("gm.lobby.full") : t("gm.lobby.join")}</button>
+              <button onClick={() => joinRoom(r)} disabled={full} className="arc-play" style={full ? { filter: "grayscale(1)", opacity: .6 } : undefined}>{full ? t("gm.lobby.full") : `${t("gm.lobby.join")} ▶`}</button>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
       )}
 
-      <div className="gcard p-4">
-        <p className="text-xs text-white/50 mb-2 font-bold uppercase tracking-wider">{t("gm.lobby.joinByCode")}</p>
-        <div className="flex flex-wrap gap-2">
-          <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={4} placeholder={t("gm.lobby.codePh")} className="w-20 text-center tracking-widest font-extrabold rounded-xl bg-black/30 border border-white/10 py-2.5 text-white focus:outline-none" />
-          <input value={joinPw} onChange={(e) => setJoinPw(e.target.value)} placeholder={t("gm.lobby.pwIfAny")} className="flex-1 min-w-0 rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white text-sm focus:outline-none" />
-          <button onClick={join} className="cbtn cbtn-cyan shrink-0 px-5 py-2.5">{t("gm.lobby.join")}</button>
+      <div className="arc-panel" style={{ ["--c1" as any]: "#f3c14b" }}>
+        <p className="arc-head" style={{ marginBottom: 10 }}>🔑 {t("gm.lobby.joinByCode")}</p>
+        <div className="flex items-center gap-2">
+          <input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={4} placeholder={t("gm.lobby.codePh")} className="arc-input arc-input-code" />
+          <input value={joinPw} onChange={(e) => setJoinPw(e.target.value)} placeholder={t("gm.lobby.pwIfAny")} className="arc-input flex-1" />
+          <button onClick={join} disabled={joinCode.trim().length < 4} className="arc-play" style={{ padding: "10px 12px", fontSize: 12, ...(joinCode.trim().length < 4 ? { opacity: .55 } : {}) }}>{t("gm.lobby.join")} ▶</button>
         </div>
       </div>
 

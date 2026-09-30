@@ -135,29 +135,21 @@ export default function RebornDashboard() {
       </button>
 
       {/* All feature buttons */}
-      <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1">{t("nav.allFeatures")}</h2>
+      <p className="arc-head">✨ {t("nav.allFeatures")}</p>
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
-        {TILES.filter((tile) => moduleEnabled(modules, NAV_MODULE[tile.path])).map((tile) => (
-          <button key={tile.label} onClick={() => navigate(tile.path)} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all">
-            <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `${tile.color}22`, color: tile.color }}>{tile.icon}</span>
-            <span className="text-xs font-semibold text-center leading-tight">{t(tile.label)}</span>
-            <span className="text-[10px] text-white/40 text-center leading-tight">{t(tile.desc)}</span>
+        {[
+          ...TILES.filter((tile) => moduleEnabled(modules, NAV_MODULE[tile.path])).map((tile) => ({ key: tile.label, path: tile.path, icon: tile.icon, color: tile.color, title: t(tile.label), desc: t(tile.desc) })),
+          ...(isAdmin ? [
+            { key: "pos", path: "/pos", icon: <Store className="w-6 h-6" />, color: "#f0b429", title: t("nav.pos"), desc: t("hm.dash.posDesc") },
+            { key: "admin", path: "/reborn-admin", icon: <Shield className="w-6 h-6" />, color: "#a855f7", title: t("hm.dash.admin"), desc: t("hm.dash.adminDesc") },
+          ] : []),
+        ].map((tile, i) => (
+          <button key={tile.key} onClick={() => navigate(tile.path)} className="feat-tile" style={{ ["--c" as any]: tile.color, ["--d" as any]: `${(i % 6) * 0.8}s` }}>
+            <span className="feat-badge">{tile.icon}</span>
+            <span className="feat-title">{tile.title}</span>
+            <span className="feat-desc">{tile.desc}</span>
           </button>
         ))}
-        {isAdmin && (
-          <button onClick={() => navigate("/pos")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-amber-500/30 hover:bg-white/10 active:scale-95 transition-all">
-            <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(201,168,76,0.15)", color: "#f0d787" }}><Store className="w-6 h-6" /></span>
-            <span className="text-xs font-semibold text-center">{t("nav.pos")}</span>
-            <span className="text-[10px] text-white/40 text-center">{t("hm.dash.posDesc")}</span>
-          </button>
-        )}
-        {isAdmin && (
-          <button onClick={() => navigate("/reborn-admin")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-purple-500/30 hover:bg-white/10 active:scale-95 transition-all">
-            <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.15)", color: "#c084fc" }}><Shield className="w-6 h-6" /></span>
-            <span className="text-xs font-semibold text-center">{t("hm.dash.admin")}</span>
-            <span className="text-[10px] text-white/40 text-center">{t("hm.dash.adminDesc")}</span>
-          </button>
-        )}
       </div>
 
       {/* Replay guide */}
