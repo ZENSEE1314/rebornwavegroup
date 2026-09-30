@@ -217,7 +217,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.tour.skip': { en: "Skip", zh: "跳过", id: "Lewati" },
   'hm.tour.letsGo': { en: "Let's go!", zh: "出发吧！", id: "Ayo mulai!" },
   'hm.common.next': { en: "Next", zh: "下一步", id: "Berikutnya" },
-  'hm.wa.greeting': { en: "Hi Reborn Wave Group, I have some enquiries.", zh: "Hi Reborn Wave Group，我想咨询一些问题。", id: "Hi Reborn Wave Group, saya ingin menanyakan beberapa hal." },
+  'hm.wa.greeting': { en: "Hi Reborn Wave Group, I have some enquiries.", zh: "您好 Reborn Wave Group，我想咨询一些问题。", id: "Halo Reborn Wave Group, saya ingin menanyakan beberapa hal." },
   'hm.wa.aria': { en: "Chat with us on WhatsApp", zh: "通过 WhatsApp 联系我们", id: "Chat dengan kami di WhatsApp" },
   'hm.lang.selector': { en: "Language selector", zh: "语言选择", id: "Pilihan bahasa" },
   'hm.pw.hide': { en: "Hide password", zh: "隐藏密码", id: "Sembunyikan kata sandi" },

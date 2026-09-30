@@ -2006,10 +2006,16 @@ export function registerBridgeXRoutes(app: Express) {
     console.info("Mobile push device registered", { userId: user.id, role: user.role, platform: row.platform, newDevice: existing.length === 0 });
     res.json(row);
     if (!existing.length || existing[0].userId !== user.id || !existing[0].active) {
+      const { userLang, pick } = await import("./i18n");
+      const lang = await userLang(user.id);
       await sendRebornUserNotification(user.id, {
         type: "notifications_enabled",
-        title: user.role === "admin" || user.role === "staff" ? "Admin phone alerts enabled" : "Phone alerts enabled",
-        body: user.role === "admin" || user.role === "staff" ? "New food orders, song requests and staff updates will pop up on this phone." : "Bookings, orders, messages and account updates will pop up on this phone.",
+        title: user.role === "admin" || user.role === "staff"
+          ? pick(lang, { en: "Admin phone alerts enabled", zh: "管理员手机提醒已开启", id: "Notifikasi HP admin aktif" })
+          : pick(lang, { en: "Phone alerts enabled", zh: "手机提醒已开启", id: "Notifikasi HP aktif" }),
+        body: user.role === "admin" || user.role === "staff"
+          ? pick(lang, { en: "New food orders, song requests and staff updates will pop up on this phone.", zh: "新的点餐、点歌请求和员工动态将在这部手机上弹出提醒。", id: "Pesanan makanan baru, permintaan lagu, dan kabar staf akan muncul di HP ini." })
+          : pick(lang, { en: "Bookings, orders, messages and account updates will pop up on this phone.", zh: "预订、订单、消息和账户动态将在这部手机上弹出提醒。", id: "Booking, pesanan, pesan, dan kabar akun akan muncul di HP ini." }),
         data: { path: user.role === "admin" || user.role === "staff" ? "/reborn-admin" : "/profile" },
       });
     }
@@ -2021,12 +2027,14 @@ export function registerBridgeXRoutes(app: Express) {
   }));
   app.post("/api/v1/app/notifications/test", route(async (req, res) => {
     const user = await requireUser(req, res); if (!user) return;
-    const outcome = await sendRebornUserNotification(user.id, { type: "test", title: "Reborn notifications are working", body: "You will receive live orders, gifts, messages and updates on this phone.", data: { path: "/profile" } });
-    if (outcome?.status === "sent") return res.json({ message: "Test notification sent to your registered phone.", ...outcome });
-    if (outcome?.status === "no_device") return res.status(409).json({ message: "This phone isn't registered for alerts yet. Install the latest app, allow notifications, then reopen the app while signed in.", ...outcome });
-    const reason = outcome?.errors?.[0] || "unknown";
-    const hint = /InvalidCredentials|FCM|credentials/i.test(reason) ? " Android push key (FCM) is missing in the Expo project." : "";
-    res.status(502).json({ message: `Phone alert was rejected: ${reason}.${hint}`, ...(outcome || {}) });
+    const { userLang, pick, tr } = await import("./i18n");
+    const lang = await userLang(user.id);
+    const outcome = await sendRebornUserNotification(user.id, { type: "test", title: pick(lang, { en: "Reborn notifications are working", zh: "Reborn 通知运行正常", id: "Notifikasi Reborn berfungsi" }), body: pick(lang, { en: "You will receive live orders, gifts, messages and updates on this phone.", zh: "你将在这部手机上实时收到订单、礼物、消息和动态。", id: "Kamu akan menerima pesanan, hadiah, pesan, dan kabar terbaru secara langsung di HP ini." }), data: { path: "/profile" } });
+    if (outcome?.status === "sent") return res.json({ message: tr(req, { en: "Test notification sent to your registered phone.", zh: "测试通知已发送到你登记的手机。", id: "Notifikasi uji telah dikirim ke HP terdaftarmu." }), ...outcome });
+    if (outcome?.status === "no_device") return res.status(409).json({ message: tr(req, { en: "This phone isn't registered for alerts yet. Install the latest app, allow notifications, then reopen the app while signed in.", zh: "这部手机尚未登记接收提醒。请安装最新版应用、允许通知，然后在登录状态下重新打开应用。", id: "HP ini belum terdaftar untuk notifikasi. Pasang aplikasi versi terbaru, izinkan notifikasi, lalu buka ulang aplikasi dalam keadaan masuk." }), ...outcome });
+    const reason = outcome?.errors?.[0] || tr(req, { en: "unknown", zh: "未知", id: "tidak diketahui" });
+    const hint = /InvalidCredentials|FCM|credentials/i.test(reason) ? tr(req, { en: " Android push key (FCM) is missing in the Expo project.", zh: " Expo 项目中缺少安卓推送密钥（FCM）。", id: " Kunci push Android (FCM) belum diatur di proyek Expo." }) : "";
+    res.status(502).json({ message: tr(req, { en: "Phone alert was rejected: {reason}.{hint}", zh: "手机提醒被拒绝：{reason}。{hint}", id: "Notifikasi HP ditolak: {reason}.{hint}" }, { reason, hint }), ...(outcome || {}) });
   }));
   app.get("/api/v1/app/notifications", route(async (req, res) => { const user = await requireUser(req, res); if (user) res.json(await db.select().from(bridgeNotifications).where(eq(bridgeNotifications.userId, user.id)).orderBy(desc(bridgeNotifications.id)).limit(100)); }));
   app.post("/api/v1/app/notifications/:id/read", route(async (req, res) => { const user = await requireUser(req, res); if (!user) return; res.json((await db.update(bridgeNotifications).set({ readAt: new Date() }).where(and(eq(bridgeNotifications.id, Number(req.params.id)), eq(bridgeNotifications.userId, user.id))).returning())[0]); }));

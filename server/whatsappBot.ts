@@ -913,7 +913,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     const ans = await faqAnswer(body);
     if (ans) { await say(ans); return; }
     // Greeting with no FAQ hit → show the menu.
-    if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu)\b/i.test(body)) {
+    if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu|halo|hai|selamat|tanya|bantuan)\b|你好|您好|咨询|请问|帮助|菜单/i.test(body)) {
       await sendMemberMenu(from, c, lang, true);
       return;
     }

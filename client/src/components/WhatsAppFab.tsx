@@ -6,7 +6,7 @@ const WA_NUMBER = "6281336361314";
 
 export function WhatsAppFab() {
   const { t } = useTranslation();
-  // Keeps a leading "Hi" in every language so the bot's greeting match still fires.
+  // The bot recognises the greeting in every language (hi / 您好 / halo) and replies with its menu.
   const href = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(t("hm.wa.greeting"))}`;
   return (
     <a
