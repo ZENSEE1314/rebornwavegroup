@@ -523,9 +523,19 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
     weekThis: { en: "this week", zh: "这个礼拜", id: "minggu ini" },
     weekLater: { en: "in two weeks", zh: "下下个礼拜", id: "dua minggu lagi" },
     confirmDate: {
-      en: "📅 Is it *{day}*? Reply yes or no.",
-      zh: "📅 是 *{day}* 吗？请回复 是 或 不是。",
-      id: "📅 Apakah *{day}*? Balas ya atau tidak.",
+      en: "📅 Is it *{day}*?\n1️⃣ Yes\n2️⃣ No",
+      zh: "📅 是 *{day}* 吗？\n1️⃣ 是\n2️⃣ 不是",
+      id: "📅 Apakah *{day}*?\n1️⃣ Ya\n2️⃣ Tidak",
+    },
+    navHint: {
+      en: "↩️ Reply *B* to go back · ❌ *0* to cancel",
+      zh: "↩️ 回复 *B* 返回上一步 · ❌ 回复 *0* 取消",
+      id: "↩️ Balas *B* untuk kembali · ❌ *0* untuk batal",
+    },
+    navHintSongPick: {
+      en: "↩️ Reply *B* to go back · ❌ *CANCEL* to stop",
+      zh: "↩️ 回复 *B* 返回上一步 · ❌ 回复 *取消* 停止",
+      id: "↩️ Balas *B* untuk kembali · ❌ *BATAL* untuk berhenti",
     },
     datePast: {
       en: "📅 {day} has already passed. Please reply another date.",
@@ -906,10 +916,14 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // --- ACTIVE FLOWS ---
   // "menu" / "cancel" always leaves a booking or song flow.
-  if ((wa.flow === "book" || wa.flow === "song") && /^(menu|cancel|stop|0|batal|取消|菜单)$/i.test(body)) {
+  const zeroMeansNotListed = wa.flow === "song" && wa.step === "pick" && body.trim() === "0";
+  if ((wa.flow === "book" || wa.flow === "song") && !zeroMeansNotListed && /^(menu|cancel|stop|0|batal|取消|菜单)$/i.test(body)) {
     await patchContact(c.id, { waState: { flow: null } });
     await sendMemberMenu(from, c, lang);
     return;
+  }
+  if ((wa.flow === "book" || wa.flow === "song") && BACK_RE.test(body.trim())) {
+    return wa.flow === "book" ? bookingBack(c, lang, from, wa, say) : songBack(c, lang, wa, say);
   }
   if (wa.flow === "book") return bookingStep(c, lang, from, body, wa, say);
   if (wa.flow === "song") return songStep(c, lang, from, body, wa, say);
@@ -919,7 +933,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   const offKey = intent === "book" ? "bookings" : intent === "song" ? "songs" : intent === "bottle" ? "bottles" : "";
   if (offKey && await featureOff(offKey)) { await say(L(lang, "featureOff")); return; }
   if (intent === "book") return handleBookIntent(c, lang, from, body, say);
-  if (intent === "song") { await say(L(lang, "songAskName")); return patchContact(c.id, { waState: { flow: "song", step: "name" } }); }
+  if (intent === "song") { await say(withNav(lang, L(lang, "songAskName"))); return patchContact(c.id, { waState: { flow: "song", step: "name" } }); }
   if (intent === "bottle") return showBottles(c, lang, say);
   if (intent === "menu") { await sendMemberMenu(from, c, lang); return; }
 
@@ -1018,7 +1032,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         if (await isTableTaken(area, table, bookingWhen(openH, date, slot))) {
           const free = await freeTablesForDateSlot(area, date, slot);
           const list = tableList(lang, area, free);
-          await say(L(lang, tableDayLockOn() ? "tableTakenDay" : "tableTaken", { t: table, time: timeText(lang, slot, label), day: fmtDMY(date, lang), list }));
+          await say(withNav(lang, L(lang, tableDayLockOn() ? "tableTakenDay" : "tableTaken", { t: table, time: timeText(lang, slot, label), day: fmtDMY(date, lang), list })));
           return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
         }
         const cap = tableCap(area, table);
@@ -1034,7 +1048,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
       // Area needs a table but none named → ask, showing only free tables + caps.
       const free = await freeTablesForDateSlot(area, date, slot);
       const list = tableList(lang, area, free);
-      const caption = L(lang, "bookAskTable", { list });
+      const caption = withNav(lang, L(lang, "bookAskTable", { list }));
       if (area.image) { await sendWhatsAppImage(from, area.image, caption); await logMsg(c.id, c.phone, "out", caption, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
     }
@@ -1054,7 +1068,7 @@ async function startBooking(c: Contact, lang: Lang, from: string, say: (m: strin
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
   const areas = enabledAreas(await settingVal("bookingAreas"));
   const list = areas.map((a, i) => `${i + 1}. ${areaNameIn(a, lang)} (${areaLevelIn(a.level, lang)})`).join("\n");
-  await say(L(lang, "bookAskArea", { list }));
+  await say(withNav(lang, L(lang, "bookAskArea", { list })));
   return patchContact(c.id, { waState: { flow: "book", step: "area" } });
 }
 
@@ -1094,7 +1108,38 @@ export async function notifyBookingCancelledByMember(a: typeof appointments.$inf
   emitLiveUpdate("/api/reborn/admin/bookings", { action: "BOOKING_CANCELLED", resource: String(a.id) });
 }
 
-async function bookingStep(c: Contact, lang: Lang, from: string, body: string, wa: any, say: (m: string) => Promise<void>) {
+// "B" / back / 返回 / kembali: go one question back in a WhatsApp booking or song request.
+const BACK_RE = /^(b|back|go back|返回|上一步|kembali|balik)$/i;
+const withNav = (lang: Lang, m: string) => `${m}\n\n${L(lang, "navHint")}`;
+
+// Step back one question in the guided booking and ask it again.
+async function bookingBack(c: Contact, lang: Lang, from: string, wa: any, say: (m: string) => Promise<void>): Promise<unknown> {
+  const areaId = wa.areaId;
+  switch (wa.step) {
+    case "area": await patchContact(c.id, { waState: { flow: null } }); return sendMemberMenu(from, c, lang);
+    case "date": return startBooking(c, lang, from, say);
+    case "weekday": case "dateConfirm": case "slot":
+      await say(withNav(lang, L(lang, "bookAskDate")));
+      return patchContact(c.id, { waState: { flow: "book", step: "date", areaId } });
+    case "table":
+      return bookingStep(c, lang, from, "", { flow: "book", step: "date", areaId, confirmedDate: wa.date }, say);
+    case "party": case "hours": {
+      if (wa.table) { // back to the table list for that time
+        const areas = enabledAreas(await settingVal("bookingAreas"));
+        const area = areas.find((a) => a.id === areaId);
+        const avail = area ? await availableSlotsForDate(area, wa.date) : [];
+        const i = avail.indexOf(wa.slot);
+        if (i >= 0) return bookingStep(c, lang, from, String(i + 1), { flow: "book", step: "slot", areaId, date: wa.date }, say);
+      }
+      return bookingStep(c, lang, from, "", { flow: "book", step: "date", areaId, confirmedDate: wa.date }, say);
+    }
+    default: return startBooking(c, lang, from, say);
+  }
+}
+
+async function bookingStep(c: Contact, lang: Lang, from: string, body: string, wa: any, sayRaw: (m: string) => Promise<void>): Promise<unknown> {
+  // Every question in this flow ends with the "B = back · 0 = cancel" line.
+  const say = (m: string) => sayRaw(withNav(lang, m));
   const areas = enabledAreas(await settingVal("bookingAreas"));
   if (wa.step === "area") {
     const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
@@ -1113,8 +1158,10 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     await say(L(lang, "askWeekday", { week: L(lang, weekOffset === 0 ? "weekThis" : weekOffset === 1 ? "weekNext" : "weekLater") }));
     return patchContact(c.id, { waState: { flow: "book", step: "weekday", areaId: area.id, weekOffset } });
   };
-  const confirmDay = async (date: string) => {
+  const confirmDay = async (date: string): Promise<unknown> => {
     if (date < todayStr()) { await say(L(lang, "datePast", { day: fmtLong(date, lang) })); return patchContact(c.id, { waState: { flow: "book", step: "date", areaId: area.id } }); }
+    // Only "tomorrow / next Tuesday"-style answers are checked; today goes straight to the times.
+    if (date === todayStr()) return bookingStep(c, lang, from, "", { ...wa, flow: "book", step: "date", areaId: area.id, confirmedDate: date }, sayRaw);
     await say(L(lang, "confirmDate", { day: fmtLong(date, lang) }));
     return patchContact(c.id, { waState: { flow: "book", step: "dateConfirm", areaId: area.id, pendingDate: date } });
   };
@@ -1162,7 +1209,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
       if (!free.length) { await say(L(lang, "slotFilled", { n: String(avail.length) })); return; }
       const list = tableList(lang, area, free);
       const caption = L(lang, "bookAskTable", { list });
-      if (area.image) { await sendWhatsAppImage(from, area.image, caption); await logMsg(c.id, c.phone, "out", caption, true); } else await say(caption);
+      if (area.image) { const cap = withNav(lang, caption); await sendWhatsAppImage(from, area.image, cap); await logMsg(c.id, c.phone, "out", cap, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date: wa.date, slot: picked } });
     }
     await say(L(lang, "bookAskParty"));
@@ -1177,7 +1224,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     if (wa.party) {
       if (wa.party > cap) { await say(L(lang, "tableTooSmall", { t: picked, cap: String(cap), n: String(wa.party) })); return; }
       const next = { ...wa, table: picked };
-      if (!(await askHoursOn())) return completeStepBooking(c, lang, from, area, next, 2, say);
+      if (!(await askHoursOn())) return completeStepBooking(c, lang, from, area, next, 2, sayRaw);
       await say(L(lang, "bookAskHours")); return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: picked, party: wa.party } });
     }
     await say(L(lang, "askPaxFor", { t: picked, cap: String(cap) }));
@@ -1187,13 +1234,13 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     const cap = tableCap(area, wa.table);
     const n = Math.max(1, Number((body.match(/\d+/) || [])[0] || 2));
     if (n > cap) { await say(L(lang, "paxTooMany", { cap: String(cap) })); return; }
-    if (!(await askHoursOn())) return completeStepBooking(c, lang, from, area, { ...wa, party: n }, 2, say);
+    if (!(await askHoursOn())) return completeStepBooking(c, lang, from, area, { ...wa, party: n }, 2, sayRaw);
     await say(L(lang, "bookAskHours"));
     return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: wa.table, party: n } });
   }
   if (wa.step === "hours") {
     const hrs = Math.max(2, Math.min(8, Number((body.match(/\d+/) || [])[0] || 2)));
-    return completeStepBooking(c, lang, from, area, wa, hrs, say);
+    return completeStepBooking(c, lang, from, area, wa, hrs, sayRaw);
   }
 }
 
@@ -1218,7 +1265,19 @@ async function completeStepBooking(c: Contact, lang: Lang, from: string, area: B
   return patchContact(c.id, { waState: { flow: null } });
 }
 
-async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: any, say: (m: string) => Promise<void>) {
+// Step back one question in a WhatsApp song request.
+async function songBack(c: Contact, lang: Lang, wa: any, say: (m: string) => Promise<void>) {
+  if (wa.step === "mode" && wa.song?.source !== "library" && Array.isArray(wa.candidates)) {
+    const list = wa.candidates.map((song: any, i: number) => `${i + 1}. ${song.title}${song.artist ? ` — ${song.artist}` : ""}`).join("\n");
+    await say(`${L(lang, "songPick", { list })}\n\n${L(lang, "navHintSongPick")}`);
+    return patchContact(c.id, { waState: { flow: "song", step: "pick", songTitle: wa.songTitle, candidates: wa.candidates } });
+  }
+  await say(withNav(lang, L(lang, "songAskName")));
+  return patchContact(c.id, { waState: { flow: "song", step: "name" } });
+}
+
+async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: any, sayRaw: (m: string) => Promise<void>) {
+  const say = (m: string) => sayRaw(withNav(lang, m));
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
   if (wa.step === "name") {
     const title = body.trim();
@@ -1226,7 +1285,7 @@ async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: 
     const result = await searchSongCatalog(title, 8);
     if (result.songs.length) {
       const list = result.songs.map((song, index) => `${index + 1}. ${song.title}${song.artist ? ` — ${song.artist}` : ""}${song.titlePinyin ? ` (${song.titlePinyin})` : ""}`).join("\n");
-      await say(L(lang, "songPick", { list }));
+      await sayRaw(`${L(lang, "songPick", { list })}\n\n${L(lang, "navHintSongPick")}`);
       return patchContact(c.id, { waState: { flow: "song", step: "pick", songTitle: title, candidates: result.songs } });
     }
     await say(L(lang, "songAskArtist"));
@@ -1243,9 +1302,9 @@ async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: 
     if (!song) { await say(L(lang, "songPickInvalid")); return; }
     if ((await settingVal("songRequestModeEnabled")) !== "false") {
       await say(L(lang, "songAskMode"));
-      return patchContact(c.id, { waState: { flow: "song", step: "mode", song } });
+      return patchContact(c.id, { waState: { flow: "song", step: "mode", song, songTitle: wa.songTitle, candidates: wa.candidates } });
     }
-    await finishWhatsAppSongRequest(c, lang, song, "self", say);
+    await finishWhatsAppSongRequest(c, lang, song, "self", sayRaw);
     return;
   }
 
@@ -1257,7 +1316,7 @@ async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: 
       await say(L(lang, "songAskMode"));
       return patchContact(c.id, { waState: { flow: "song", step: "mode", song } });
     }
-    await finishWhatsAppSongRequest(c, lang, song, "self", say);
+    await finishWhatsAppSongRequest(c, lang, song, "self", sayRaw);
     return;
   }
 
@@ -1265,7 +1324,7 @@ async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: 
     const normalized = body.trim().toLowerCase();
     const performanceMode = /^(2|singer|by singer|歌手|penyanyi)/i.test(normalized) ? "singer" : /^(1|self|self sing|自己|sendiri)/i.test(normalized) ? "self" : "";
     if (!performanceMode) { await say(L(lang, "songModeInvalid")); return; }
-    await finishWhatsAppSongRequest(c, lang, wa.song as SongSuggestion, performanceMode, say);
+    await finishWhatsAppSongRequest(c, lang, wa.song as SongSuggestion, performanceMode, sayRaw);
     return;
   }
 
