@@ -154,8 +154,10 @@ export default function RebornDashboard() {
       </div>
 
       {/* Replay guide */}
-      <button onClick={() => setShowTour(true)} className="mt-5 w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white/70 hover:text-white flex items-center justify-center gap-2 text-sm">
-        <HelpCircle className="w-4 h-4" /> {t("dash.replayGuide")}
+      <button onClick={() => setShowTour(true)} className="arc-tile mt-5 w-full text-left" style={{ ["--c1" as any]: "#60a5fa", ["--c2" as any]: "#7c3aed" }}>
+        <span className="arc-icon"><span><HelpCircle className="w-7 h-7 text-white" /></span></span>
+        <span className="arc-title flex-1 min-w-0" style={{ fontSize: 16 }}>{t("dash.replayGuide")}</span>
+        <span className="arc-play"><ChevronRight className="w-4 h-4" /></span>
       </button>
     </RebornLayout>
   );
