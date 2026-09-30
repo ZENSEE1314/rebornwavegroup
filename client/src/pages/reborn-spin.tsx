@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { RebornLayout } from "@/components/RebornLayout";
-import { useTranslation, localeTag } from "@/lib/i18n";
+import { useTranslation, localeTag, tData } from "@/lib/i18n";
 import { Coins, Gift, History as HistoryIcon, Disc3, Check, Clock, X } from "lucide-react";
 
 const TABS = ["Wheel", "My Prizes", "History"] as const;
@@ -94,7 +94,7 @@ export default function RebornSpin() {
             ) : (
               <>
                 <div className="text-5xl mb-3">{result.prize?.prizeType === "nothing" ? "🎯" : result.freeSpin ? "🔄" : result.prize?.prizeType === "egg" ? "🥚" : "🎉"}</div>
-                <h3 className="text-xl font-extrabold mb-1">{result.prize?.label}</h3>
+                <h3 className="text-xl font-extrabold mb-1">{tData(result.prize?.label)}</h3>
                 <p className="text-white/60 text-sm">{result.message}</p>
                 {result.status === "unused" && <p className="mt-3 text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3">{t("hm.spin.savedNote")}</p>}
                 {result.freeSpin ? (
@@ -125,7 +125,7 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
       const large = seg > 180 ? 1 : 0;
       const mid = (i + 0.5) * seg; // degrees clockwise from top
       const flip = mid > 90 && mid < 270; // bottom half → keep text upright
-      return { path: `M${C},${C} L${x0},${y0} A${R},${R} 0 ${large} 1 ${x1},${y1} Z`, color: p.colorHex || "#c9a84c", mid, flip, label: p.label || "" };
+      return { path: `M${C},${C} L${x0},${y0} A${R},${R} 0 ${large} 1 ${x1},${y1} Z`, color: p.colorHex || "#c9a84c", mid, flip, label: tData(p.label) };
     });
   }, [prizes, n]);
 
@@ -179,7 +179,7 @@ function MyPrizes() {
         <div key={p.id} className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
           <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(201,168,76,0.15)" }}><Gift className="w-5 h-5 text-amber-300" /></span>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{p.prizeLabel}</p>
+            <p className="font-semibold truncate">{tData(p.prizeLabel)}</p>
             <p className="text-xs text-white/40">{new Date(p.createdAt).toLocaleDateString(localeTag(language))}</p>
           </div>
           {p.status === "redeemed" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400"><Check className="w-3 h-3" /> {t("hm.spin.claimed")}</span>
@@ -202,7 +202,7 @@ function SpinHistory() {
     <div className="space-y-2">
       {rows.map((r) => (
         <div key={r.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
-          <span className="text-sm">{r.prizeLabel}</span>
+          <span className="text-sm">{tData(r.prizeLabel)}</span>
           <span className="text-xs text-white/40">{new Date(r.createdAt).toLocaleString(localeTag(language))}</span>
         </div>
       ))}

@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { RebornLayout } from "@/components/RebornLayout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useTranslation, localeTag } from "@/lib/i18n";
+import { useTranslation, localeTag, tData } from "@/lib/i18n";
 
 const tierIcons = [Medal, Award, Trophy, Star, Crown];
 const tierColors = ["from-amber-500 to-amber-700", "from-slate-400 to-slate-600", "from-yellow-400 to-yellow-600", "from-violet-500 to-purple-700", "from-indigo-400 to-violet-600"];
@@ -35,12 +35,12 @@ export default function LoyaltyProgram() {
     const configured = useFallback ? fallbackTiers : settings.loyalty.tiers;
     return [...configured].sort((a: any, b: any) => Number(a.minPoints || 0) - Number(b.minPoints || 0)).map((tier: any, index: number, all: any[]) => ({
       level: index + 1,
-      name: tier.name ? (useFallback ? t(tier.name) : tier.name) : t("ac.loy.tierN", { n: index + 1 }),
+      name: tier.name ? (useFallback ? t(tier.name) : tData(tier.name)) : t("ac.loy.tierN", { n: index + 1 }),
       pointsRequired: Number(tier.minPoints || 0),
       maxPoints: index < all.length - 1 ? Number(all[index + 1].minPoints || 0) - 1 : Infinity,
       discount: Number(tier.discountPercent || 0),
       freeRp: Number(tier.freeRp || 0),
-      benefits: Array.isArray(tier.benefits) ? (useFallback ? tier.benefits.map((b: string) => t(b)) : tier.benefits) : [],
+      benefits: Array.isArray(tier.benefits) ? (useFallback ? tier.benefits.map((b: string) => t(b)) : tier.benefits.map((b: string) => tData(b))) : [],
       icon: tierIcons[index % tierIcons.length],
       color: tierColors[index % tierColors.length],
     }));

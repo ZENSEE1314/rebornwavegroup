@@ -1486,7 +1486,8 @@ const DG_T: Record<string, { zh: string; id: string }> = {
   "football": { zh: "足球", id: "bola sepak" },
 };
 const dgKey = (w: string) => `gm.w.${w.replace(/ /g, "_")}`;
-function dgNorm(s: string) { return String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""); }
+const DG_NON_WORD = new RegExp("[^\\p{L}\\p{N}]", "gu");
+function dgNorm(s: string) { return String(s || "").toLowerCase().replace(DG_NON_WORD, ""); }
 function dgMatches(guess: string, word: string): boolean {
   const g = dgNorm(guess);
   return [word, DG_T[word]?.zh, DG_T[word]?.id].some((w) => !!w && dgNorm(w) === g);

@@ -4,7 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import { setLanguage } from "@/lib/i18n";
+import { setLanguage, translate } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useEffect, Component, lazy, Suspense, type ReactNode } from "react";
@@ -105,7 +105,7 @@ function PageLoader() {
     <div className="rwg-page-bg min-h-screen w-full flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent mx-auto mb-4" />
-        <p className="text-white/40 text-sm">Loading...</p>
+        <p className="text-white/40 text-sm">{translate("common.loading")}</p>
       </div>
     </div>
   );
@@ -235,7 +235,7 @@ function Router() {
       <div className="rwg-page-bg min-h-screen w-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-white/40 text-sm">Loading...</p>
+          <p className="text-white/40 text-sm">{translate("common.loading")}</p>
         </div>
       </div>
     );

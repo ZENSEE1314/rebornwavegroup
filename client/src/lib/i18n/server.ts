@@ -1,3 +1,24 @@
 // Translations for the server area. Every key needs en, zh and id.
 export const serverT: Record<string, { en: string; zh: string; id: string }> = {
+  // Built-in data stored in English on the server (see tData in i18n.ts)
+  "data:Free can of beer": { en: "Free can of beer", zh: "免费啤酒一罐", id: "Gratis sekaleng bir" },
+  "data:10% discount voucher": { en: "10% discount voucher", zh: "10% 折扣券", id: "Voucher diskon 10%" },
+  "data:50% discount voucher": { en: "50% discount voucher", zh: "50% 折扣券", id: "Voucher diskon 50%" },
+  "data:Free Martell": { en: "Free Martell", zh: "免费马爹利", id: "Gratis Martell" },
+  "data:Free spin": { en: "Free spin", zh: "免费再转一次", id: "Putaran gratis" },
+  "data:50,000 RP discount voucher": { en: "50,000 RP discount voucher", zh: "50,000 RP 折扣券", id: "Voucher diskon 50.000 RP" },
+  "data:100,000 RP discount voucher": { en: "100,000 RP discount voucher", zh: "100,000 RP 折扣券", id: "Voucher diskon 100.000 RP" },
+  "data:Revival pill": { en: "Revival pill", zh: "复活药丸", id: "Pil kebangkitan" },
+  "data:Free dish": { en: "Free dish", zh: "免费菜品", id: "Gratis satu hidangan" },
+  "data:Nothing": { en: "Nothing", zh: "谢谢参与", id: "Belum beruntung" },
+  "data:Bronze": { en: "Bronze", zh: "青铜", id: "Perunggu" },
+  "data:Silver": { en: "Silver", zh: "白银", id: "Perak" },
+  "data:Gold": { en: "Gold", zh: "黄金", id: "Emas" },
+  "data:Member access": { en: "Member access", zh: "会员专享", id: "Akses member" },
+  "data:Priority booking": { en: "Priority booking", zh: "优先预订", id: "Prioritas booking" },
+  "data:5% discount": { en: "5% discount", zh: "95 折优惠", id: "Diskon 5%" },
+  "data:RP 50,000 store gift": { en: "RP 50,000 store gift", zh: "RP 50,000 店内礼品", id: "Hadiah toko RP 50.000" },
+  "data:Cancelled by member (app)": { en: "Cancelled by member (app)", zh: "会员已取消（应用）", id: "Dibatalkan oleh member (aplikasi)" },
+  "data:Cancelled by member (WhatsApp)": { en: "Cancelled by member (WhatsApp)", zh: "会员已取消（WhatsApp）", id: "Dibatalkan oleh member (WhatsApp)" },
+  "data:No-show \u2014 auto-cancelled 15 min after booking time": { en: "No-show \u2014 auto-cancelled 15 min after booking time", zh: "未到店——预订时间 15 分钟后自动取消", id: "Tidak datang \u2014 otomatis dibatalkan 15 menit setelah waktu booking" },
 };

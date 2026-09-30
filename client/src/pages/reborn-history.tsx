@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
-import { useTranslation, translate, localeTag } from "@/lib/i18n";
+import { useTranslation, translate, localeTag, tData } from "@/lib/i18n";
 import { ReceiptText, Coins, Gift, CreditCard, ChevronDown } from "lucide-react";
 
 const fmt = (n: any) => Math.abs(Number(n) || 0).toLocaleString(localeTag());
@@ -54,7 +54,7 @@ export default function RebornHistory() {
     </Section>
 
     <Section icon={<Gift />} title={tr("vn.hist.prizes")} empty={!data?.prizes?.length}>
-      {data?.prizes?.map((x: any) => <Row key={x.id} title={x.prizeLabel || x.prizeType || tr("vn.hist.spinReward")} date={x.createdAt} amount={status(x.status)} positive={x.status !== "rejected"} />)}
+      {data?.prizes?.map((x: any) => <Row key={x.id} title={tData(x.prizeLabel) || x.prizeType || tr("vn.hist.spinReward")} date={x.createdAt} amount={status(x.status)} positive={x.status !== "rejected"} />)}
     </Section>
   </RebornLayout>;
 }

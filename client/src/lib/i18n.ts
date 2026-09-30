@@ -6184,12 +6184,20 @@ export function setLanguage(language: Language): void {
 
 // Translate outside React (toasts built in helpers, etc.). `{name}` placeholders
 // are filled from `vars`.
-export function translate(key: string, vars?: Record<string, string | number>, lang: Language = getCurrentLanguage()): string {
+export function translate(key: string, vars?: Record<string, string | number | undefined | null>, lang: Language = getCurrentLanguage()): string {
   const tr = translations[key];
   let s = tr ? (tr[lang] || tr.en || key) : key;
   if (!tr && typeof console !== 'undefined') console.warn(`Translation missing for key: ${key}`);
-  if (vars) for (const k in vars) s = s.split(`{${k}}`).join(String(vars[k]));
+  if (vars) for (const k in vars) s = s.split(`{${k}}`).join(String(vars[k] ?? ""));
   return s;
+}
+
+// Built-in data the server stores in English (default spin prizes, loyalty
+// tiers, system booking notes…): show it translated; anything an admin typed
+// themselves has no "data:" key and is shown as it is.
+export function tData(text: string | null | undefined): string {
+  if (!text) return "";
+  return translations[`data:${text}`] ? translate(`data:${text}`) : text;
 }
 
 // Locale tag for dates/numbers in the current language.
@@ -6209,7 +6217,7 @@ export function useTranslation() {
     };
   }, []);
 
-  const t = (key: string, vars?: Record<string, string | number>): string => translate(key, vars, language);
+  const t = (key: string, vars?: Record<string, string | number | undefined | null>): string => translate(key, vars, language);
 
   const changeLanguage = (newLanguage: Language) => {
     setLanguage(newLanguage);

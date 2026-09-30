@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useTranslation, translations, localeTag, translate } from "@/lib/i18n";
+import { tData, useTranslation, translations, localeTag, translate } from "@/lib/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -844,7 +844,7 @@ function Prizes() {
           <UserPicker value={award.username} onChange={(code) => setAward({ ...award, username: code })} placeholder={t("admin.prize.searchMember")} />
           <select value={award.prizeId} onChange={(e) => setAward({ ...award, prizeId: Number(e.target.value) })} className={inp}>
             <option value={0}>{t("admin.prize.choose")}</option>
-            {prizes.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            {prizes.map((p) => <option key={p.id} value={p.id}>{tData(p.label)}</option>)}
           </select>
         </div>
         <button onClick={() => giveAward.mutate()} disabled={!award.username.trim() || !award.prizeId || giveAward.isPending} className={btn + " disabled:opacity-50"}><Gift className="w-4 h-4" /> {t("admin.prize.give")}</button>
@@ -904,7 +904,7 @@ function Redemptions() {
           <div className="flex items-center gap-3">
             <Gift className="w-5 h-5 text-amber-300" />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">{r.prizeLabel}</p>
+              <p className="font-semibold text-sm">{tData(r.prizeLabel)}</p>
               <p className="text-xs text-white/40">{r.memberName || t("admin.c.member")} · {new Date(r.createdAt).toLocaleString(localeTag())}</p>
             </div>
             <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.approve")}</button>
@@ -960,6 +960,13 @@ function FaqRow({ f, onSave, onDelete }: any) {
     <Card>
       <input value={e.question} onChange={(x) => setE({ ...e, question: x.target.value })} placeholder={t("admin.faq.question")} className={inp + " w-full mb-2"} />
       <textarea value={e.answer} onChange={(x) => setE({ ...e, answer: x.target.value })} placeholder={t("admin.faq.answer")} rows={2} className={inp + " w-full mb-2"} />
+      {(["zh", "id"] as const).map((l) => (
+        <div key={l} className="mb-2 rounded-lg border border-white/10 p-2">
+          <p className="mb-1 text-[11px] font-semibold text-white/50">{t(l === "zh" ? "admin.faq.inZh" : "admin.faq.inId")}</p>
+          <input value={e.i18n?.[l]?.question || ""} onChange={(x) => setE({ ...e, i18n: { ...(e.i18n || {}), [l]: { ...(e.i18n?.[l] || {}), question: x.target.value } } })} placeholder={t("admin.faq.question")} className={inp + " w-full mb-1"} />
+          <textarea value={e.i18n?.[l]?.answer || ""} onChange={(x) => setE({ ...e, i18n: { ...(e.i18n || {}), [l]: { ...(e.i18n?.[l] || {}), answer: x.target.value } } })} placeholder={t("admin.faq.answer")} rows={2} className={inp + " w-full"} />
+        </div>
+      ))}
       <input value={e.keywords || ""} onChange={(x) => setE({ ...e, keywords: x.target.value })} placeholder={t("admin.faq.keywords")} className={inp + " w-full mb-2"} />
       <div className="flex gap-2">
         <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>

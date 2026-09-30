@@ -21,7 +21,7 @@ import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas,
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
-import { localeOf, asLang } from "./i18n";
+import { localeOf, asLang, faqIn } from "./i18n";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -910,7 +910,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   // --- No recognized command ---
   if (c.stage === "member" || c.stage === "active") {
     // Answer general enquiries from the FAQ knowledge base.
-    const ans = await faqAnswer(body);
+    const ans = await faqAnswer(body, lang);
     if (ans) { await say(ans); return; }
     // Greeting with no FAQ hit → show the menu.
     if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu|halo|hai|selamat|tanya|bantuan)\b|你好|您好|咨询|请问|帮助|菜单/i.test(body)) {
@@ -940,7 +940,7 @@ async function linkExistingUserByPhone(phone: string) {
 }
 
 // Match the message against active FAQ items with an answer.
-async function faqAnswer(body: string): Promise<string | null> {
+async function faqAnswer(body: string, lang: Lang = "en"): Promise<string | null> {
   const lc = body.toLowerCase();
   const faqs = await db.select().from(faqItems).where(eq(faqItems.active, true));
   let best: any = null, bestScore = 0;
@@ -949,10 +949,11 @@ async function faqAnswer(body: string): Promise<string | null> {
     const kws = (f.keywords || "").toLowerCase().split(",").map((k) => k.trim()).filter(Boolean);
     let score = 0;
     for (const k of kws) if (k && lc.includes(k)) score += 2;
-    if (f.question && lc.includes(f.question.toLowerCase().slice(0, 12))) score += 1;
+    // match the question in any language (the member may ask in 中文 or Bahasa)
+    for (const q of [f.question, faqIn(f as any, "zh").question, faqIn(f as any, "id").question]) if (q && lc.includes(q.toLowerCase().slice(0, 12))) { score += 1; break; }
     if (score > bestScore) { bestScore = score; best = f; }
   }
-  return bestScore > 0 ? best.answer : null;
+  return bestScore > 0 ? faqIn(best, lang).answer : null;
 }
 
 // Log an unanswered question as an inactive FAQ item (admin fills the answer later).
@@ -1018,8 +1019,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
       const free = await freeTablesForDateSlot(area, date, slot);
       const list = tableList(lang, area, free);
       const caption = L(lang, "bookAskTable", { list });
-      if (area.image) await sendWhatsAppImage(from, area.image, caption); else await say(caption);
-      await logMsg(c.id, c.phone, "out", caption, true);
+      if (area.image) { await sendWhatsAppImage(from, area.image, caption); await logMsg(c.id, c.phone, "out", caption, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
     }
     const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: openH });
@@ -1114,8 +1114,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
       if (!free.length) { await say(L(lang, "slotFilled", { n: String(avail.length) })); return; }
       const list = tableList(lang, area, free);
       const caption = L(lang, "bookAskTable", { list });
-      if (area.image) await sendWhatsAppImage(from, area.image, caption); else await say(caption);
-      await logMsg(c.id, c.phone, "out", caption, true);
+      if (area.image) { await sendWhatsAppImage(from, area.image, caption); await logMsg(c.id, c.phone, "out", caption, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date: wa.date, slot: picked } });
     }
     await say(L(lang, "bookAskParty"));

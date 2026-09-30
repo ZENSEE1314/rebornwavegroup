@@ -714,4 +714,6 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.crm.bot': { en: "🤖 bot · ", zh: "🤖 机器人 · ", id: "🤖 bot · " },
   'admin.crm.notLinked': { en: "⚠️ WhatsApp not linked — messages are saved but won't be delivered until you link a number.", zh: "⚠️ WhatsApp 未关联——消息会被保存，但在关联号码之前不会送达。", id: "⚠️ WhatsApp belum ditautkan — pesan disimpan tetapi tidak akan terkirim sampai Anda menautkan nomor." },
   'admin.crm.typeMsg': { en: "Type a message…", zh: "输入消息…", id: "Ketik pesan…" },
+  'admin.faq.inZh': { en: 'Chinese (中文) — shown to members using Chinese', zh: '中文 — 显示给使用中文的会员', id: 'Mandarin (中文) — ditampilkan untuk member berbahasa Mandarin' },
+  'admin.faq.inId': { en: 'Bahasa Indonesia — shown to members using Bahasa', zh: '印尼语 — 显示给使用印尼语的会员', id: 'Bahasa Indonesia — ditampilkan untuk member berbahasa Indonesia' },
 };

@@ -6,7 +6,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { Calendar, Clock, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import MobileBackButton from "@/components/mobile-back-button";
-import { useTranslation, localeTag, translate, getCurrentLanguage } from "@/lib/i18n";
+import { useTranslation, localeTag, translate, getCurrentLanguage, tData } from "@/lib/i18n";
 
 // Booking titles/descriptions are stored in English ("KTV Lounge (Level 1) ·
 // Table V1 · Party of 4") — translate the fixed words for display.
@@ -26,6 +26,14 @@ function areaName(a: any, lang: string): string {
 function areaLevel(level: string, lang: string): string {
   if (!level || (lang !== "zh" && lang !== "id")) return level;
   return level.replace(/^Level\s+(.+)$/i, (_m, n) => translate("bk.levelN", { n }));
+}
+
+// Opening hours: "5:00pm – 2:00am" in English, "17:00 – 02:00" in Chinese/Bahasa.
+function hoursIn(text: string, lang: string): string {
+  if (!text) return "";
+  if (text === "Closed") return translate("bk.closedToday");
+  if (lang === "en") return text;
+  return text.replace(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/gi, (_m, h, mi, ap) => { let hh = Number(h) % 12; if (/pm/i.test(ap)) hh += 12; return `${String(hh).padStart(2, "0")}:${mi || "00"}`; });
 }
 
 const STATUS_KEY: Record<string, string> = { confirmed: "bk.st.confirmed", pending: "bk.st.pending", scheduled: "bk.st.scheduled", completed: "bk.st.completed", cancelled: "bk.st.cancelled", blocked: "bk.st.blocked", no_show: "bk.st.noShow" };
@@ -84,7 +92,7 @@ function MyBookings() {
                 <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLE[b.status] || STATUS_STYLE.pending}`}>{STATUS_KEY[b.status] ? t(STATUS_KEY[b.status]) : b.status}</span>
               </div>
               {b.description && <p className="text-white/50 text-sm mb-2">{localizeBooking(b.description)}</p>}
-              {b.adminNote && b.status === "cancelled" && <p className="text-red-300/80 text-xs mb-2">{t("bk.note")}: {b.adminNote}</p>}
+              {b.adminNote && b.status === "cancelled" && <p className="text-red-300/80 text-xs mb-2">{t("bk.note")}: {tData(b.adminNote)}</p>}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/40">
                 <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {fmt(b.appointmentDate)}</span>
                 <span className="text-white/30">·</span>
@@ -153,7 +161,7 @@ function TableBookingCard() {
           <button key={a.id} onClick={() => { setAreaId(a.id); setTable(""); setSlot(""); }} className={`p-3 rounded-xl text-left ${areaId === a.id ? "bg-gradient-to-br from-violet-600/40 to-blue-600/30 border border-violet-400/50" : "bg-white/5 border border-white/10"}`}>
             <span className="block text-sm font-bold text-white">{areaName(a, language)}</span>
             <span className="block text-[11px] text-white/50">{areaLevel(a.level, language)}</span>
-            <span className="block text-[10px] text-amber-300/80 mt-0.5">{a.hours === "Closed" ? t("bk.closedToday") : a.hours}</span>
+            <span className="block text-[10px] text-amber-300/80 mt-0.5">{hoursIn(a.hours, language)}</span>
           </button>
         ))}
       </div>
@@ -166,7 +174,7 @@ function TableBookingCard() {
         <input type="date" value={date} min={todayStr} onChange={(e) => setDate(e.target.value)}
           className="w-full mb-3 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" style={{ colorScheme: "dark" }} />
 
-        <p className="text-xs text-white/50 mb-1">{t("bk.startTime")} <span className="text-white/30">· {(avail?.hours || area.hours) === "Closed" ? t("bk.closedToday") : (avail?.hours || area.hours)}</span></p>
+        <p className="text-xs text-white/50 mb-1">{t("bk.startTime")} <span className="text-white/30">· {hoursIn(avail?.hours || area.hours, language)}</span></p>
         {avail?.closed ? (
           <p className="text-sm text-amber-300 mb-3">{t("bk.closedDay")}</p>
         ) : avail?.fullyBooked ? (
@@ -174,7 +182,7 @@ function TableBookingCard() {
         ) : (
           <div className="grid grid-cols-3 gap-2 mb-3">
             {areaSlots.map((s: any) => (
-              <button key={s.value} onClick={() => setSlot(s.value)} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{s.label}</button>
+              <button key={s.value} onClick={() => setSlot(s.value)} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{language === "en" ? s.label : s.value}</button>
             ))}
           </div>
         )}

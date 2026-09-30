@@ -5,7 +5,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.failed': { en: 'Failed', zh: '操作失败', id: 'Gagal' },
   'pos.staffOnly': { en: 'Staff only.', zh: '仅限员工。', id: 'Khusus staf.' },
   'pos.goHome': { en: 'Go home', zh: '返回首页', id: 'Ke beranda' },
-  'pos.heading': { en: 'Point of Sale', zh: '收银系统', id: 'Kasir (Point of Sale)' },
+  'pos.heading': { en: 'Point of Sale', zh: '收银系统', id: 'Sistem Kasir' },
   'pos.cashDrawer': { en: 'Cash drawer', zh: '钱箱', id: 'Laci kas' },
   'pos.print': { en: 'Print', zh: '打印', id: 'Cetak' },
   'pos.done': { en: 'Done', zh: '完成', id: 'Selesai' },

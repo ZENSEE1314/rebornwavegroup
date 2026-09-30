@@ -471,6 +471,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_name varchar; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_address text; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_phone varchar;
     ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS performance_mode varchar NOT NULL DEFAULT 'self';
+    ALTER TABLE faq_items ADD COLUMN IF NOT EXISTS i18n jsonb;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS branch_id integer; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS payment_reference varchar;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS cash_received numeric(10,2); ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS change_given numeric(10,2); ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS adjustment_reason text; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS refund_reason text; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS refunded_by varchar; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS refunded_at timestamp;
     ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS commission_rate numeric(6,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS sales_target numeric(14,2) NOT NULL DEFAULT 0;

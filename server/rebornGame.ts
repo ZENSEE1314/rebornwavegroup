@@ -11,14 +11,14 @@ import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot"
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
-import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange } from "./bridgeX";
+import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
 import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
-import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, sendPushToAdmins, type PushPayload } from "./push";
+import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, type PushPayload } from "./push";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL } from "./booking";
-import { tr, pick, asLang, localeOf, userLang, reqLang, type Lang } from "./i18n";
+import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, type Lang } from "./i18n";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -875,7 +875,8 @@ export function registerRebornRoutes(app: Express) {
     try {
       await seedFaqIfEmpty();
       const rows = await db.select().from(faqItems).where(eq(faqItems.active, true)).orderBy(faqItems.sortOrder);
-      res.json(rows);
+      const lang = reqLang(req);
+      res.json(rows.map((r) => faqIn(r as any, lang)));
     } catch (e) { console.error("faq", e); res.status(500).json({ message: tr(req, { en: "Failed to load FAQ", zh: "常见问题加载失败", id: "Gagal memuat FAQ" }) }); }
   });
 
@@ -921,7 +922,9 @@ export function registerRebornRoutes(app: Express) {
         if (f.question && lc.includes(f.question.toLowerCase().slice(0, 12))) score += 1;
         if (score > bestScore) { bestScore = score; best = f; }
       }
+      const sLang = reqLang(req);
       const faqContext = faqs
+        .map((f) => faqIn(f as any, sLang))
         .map((f) => `Q: ${f.question}\nA: ${f.answer}`)
         .join("\n\n");
       let autoReply = await generateLayaSupportReply({
@@ -929,8 +932,9 @@ export function registerRebornRoutes(app: Express) {
         message: content,
         category: ticket.category,
         faqContext,
+        language: sLang,
       });
-      if (!autoReply && best && bestScore > 0) autoReply = best.answer;
+      if (!autoReply && best && bestScore > 0) autoReply = faqIn(best as any, sLang).answer;
       if (autoReply) {
         await db.insert(supportMessages).values({ ticketId: ticket.id, senderType: "ai", content: autoReply });
         await db.update(supportTickets).set({ status: "ai_replied", updatedAt: new Date() }).where(eq(supportTickets.id, ticket.id));
@@ -1415,15 +1419,17 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     const [row] = await db.insert(faqItems).values({
       question: b.question || "", answer: b.answer || "", keywords: b.keywords || "",
+      i18n: b.i18n && typeof b.i18n === "object" ? b.i18n : null,
       sortOrder: Number(b.sortOrder) || 0, active: b.active !== false,
     }).returning();
-    if (row.active) await notifyAllI18n("new_faq", (lang) => ({ title: pick(lang, { en: "New help answer", zh: "新的帮助解答", id: "Jawaban bantuan baru" }), body: row.question }), { path: "/support", faqId: row.id });
+    if (row.active) await notifyAllI18n("new_faq", (lang) => ({ title: pick(lang, { en: "New help answer", zh: "新的帮助解答", id: "Jawaban bantuan baru" }), body: faqIn(row as any, lang).question }), { path: "/support", faqId: row.id });
     res.json(row);
   }));
   app.put("/api/reborn/admin/faq/:id", requireAdmin(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {};
     const patch: any = { updatedAt: new Date() };
     for (const k of ["question", "answer", "keywords"]) if (b[k] !== undefined) patch[k] = b[k];
+    if (b.i18n !== undefined) patch.i18n = b.i18n && typeof b.i18n === "object" ? b.i18n : null;
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
     const [row] = await db.update(faqItems).set(patch).where(eq(faqItems.id, id)).returning();
@@ -2858,7 +2864,7 @@ export function registerRebornRoutes(app: Express) {
       })().catch(() => {});
     }
     await logAdmin(req, { targetUserId: userId, targetType: "appointment", targetId: row.id, action: "book", entityType: "booking", description: `Booked ${date} ${label}` });
-    res.json({ message: tr(req, { en: "Booked {d} at {tm}. We'll confirm shortly.", zh: "已预订 {d} {tm}，我们会尽快确认。", id: "Dipesan {d} jam {tm}. Kami akan segera konfirmasi." }, { d: date, tm: label }), appointment: row });
+    res.json({ message: tr(req, { en: "Booked {d} at {tm}. We'll confirm shortly.", zh: "已预订 {d} {tm}，我们会尽快确认。", id: "Dipesan {d} jam {tm}. Kami akan segera konfirmasi." }, { d: date, tm: timeText(reqLang(req), slot, label) }), appointment: row });
   });
   // Which tables/rooms are already taken for an area on a date (to grey them out).
   app.get("/api/reborn/booking/availability", requireAuth, async (req, res) => {
