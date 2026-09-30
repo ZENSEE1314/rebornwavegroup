@@ -368,6 +368,7 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
   const [slot, setSlot] = useState("clothing");
   const items = (home.catalog || []).filter((i: any) => i.kind === tab && !i.hidden && (tab === "furniture" || i.slot === slot));
   const worn = home.costumes?.[String(petId)] || {};
+  const gender = pets.find((p: any) => p.id === petId)?.gender;
   return (
     <div className="arc-panel mt-4" style={{ ["--c1" as any]: "#f7d774" }}>
       <div className="flex items-center justify-between gap-2 mb-1">
@@ -400,7 +401,10 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
           return (
             <button key={it.id} onClick={onClick} disabled={busy || (!owned && home.coins < it.price)}
               className={`pet-item ${active ? "on" : ""} ${it.image ? "p-1.5" : "p-2.5"} ${it.image ? "disabled:opacity-60" : "disabled:opacity-40"}`}>
-              {it.figure
+              {it.overlay && it.anchor
+                // Hats, glasses and neck items: show the full-body pet wearing just this item.
+                ? <div className="relative w-full aspect-square overflow-hidden rounded-xl p-1" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><div className="relative h-full w-full"><DressedPet home={home} worn={{ [it.slot]: it.id }} alt={it.name} gender={gender} /></div></div>
+                : it.figure
                 ? <div className="relative w-full aspect-square overflow-hidden rounded-xl" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><img src={it.figure} alt={it.name} loading="lazy" className={`absolute inset-0 h-full w-full object-contain p-1 ${it.slot === "footwear" ? "object-center" : "object-bottom"}`} /></div>
                 : it.image
                 ? <img src={it.image} alt={it.name} loading="lazy" className="w-full aspect-square rounded-xl object-cover" />
@@ -417,8 +421,8 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
 
 // Wardrobe sections, in the order of the "Customize your Doluruu" sheet.
 const WEAR_SLOTS: [string, string, string][] = [
+  // Only items that show on the walking pet (wings, auras, hand, tail and shell items were removed).
   ["clothing", "hm.slot.clothing", "👕"], ["footwear", "hm.slot.footwear", "👟"], ["head", "hm.slot.head", "👑"], ["face", "hm.slot.face", "🕶️"], ["neck", "hm.slot.neck", "📿"],
-  ["back", "hm.slot.back", "🪽"], ["aura", "hm.slot.aura", "✨"], ["hands", "hm.slot.hands", "🧤"], ["tail", "hm.slot.tail", "🎀"], ["shell", "hm.slot.shell", "🐢"],
 ];
 // Which worn item's picture best shows the whole look (full-body shots first).
 const PORTRAIT_ORDER = ["clothing", "footwear", "aura", "back", "head", "face", "neck", "hands", "shell", "tail"];
@@ -440,7 +444,8 @@ function DressedPet({ home, worn, alt, gender, className = "" }: any) {
   const cloth = worn.clothing && itemById(home, worn.clothing);
   const cw = plain ? plain.box[2] : CANVAS_W, ch = plain ? plain.box[3] : CANVAS_H;
   const eyes: number[] | undefined = plain ? plain.eyes : cloth?.eyes || home?.baseEyes;
-  const extras = ["face", "head"].map((k) => worn[k] && itemById(home, worn[k])).filter((i: any) => i?.overlay && i.anchor);
+  // Neck first (under the chin), then glasses, then hats.
+  const extras = ["neck", "face", "head"].map((k) => worn[k] && itemById(home, worn[k])).filter((i: any) => i?.overlay && i.anchor);
   return (
     <div className="absolute bottom-0 left-1/2 h-full -translate-x-1/2" style={{ aspectRatio: `${cw} / ${ch}` }}>
       {plain && <img src={plain.src} alt={alt} draggable={false} className={`rwpet-layer absolute ${className}`}
@@ -449,7 +454,7 @@ function DressedPet({ home, worn, alt, gender, className = "" }: any) {
       {eyes && extras.map((it: any) => {
         const [ax, ay, d, ow] = it.anchor; const s = eyes[2] / d;
         return <img key={it.id} src={it.overlay} alt="" draggable={false} className={`rwpet-layer absolute ${className}`}
-          style={{ left: `${((eyes[0] - ax * s) / cw) * 100}%`, top: `${((eyes[1] - ay * s) / ch) * 100}%`, width: `${((ow * s) / cw) * 100}%`, WebkitMaskImage: OVERLAY_FADE, maskImage: OVERLAY_FADE }} />;
+          style={{ left: `${((eyes[0] - ax * s) / cw) * 100}%`, top: `${((eyes[1] - ay * s) / ch) * 100}%`, width: `${((ow * s) / cw) * 100}%`, ...(it.slot === "neck" ? {} : { WebkitMaskImage: OVERLAY_FADE, maskImage: OVERLAY_FADE }) }} />;
       })}
     </div>
   );
@@ -482,7 +487,7 @@ function OutfitCard({ pet, home }: any) {
         <p className="text-[11px] font-bold uppercase tracking-wider text-amber-200/80">{t("hm.pet.todaysOutfit")}</p>
         <p className="truncate text-sm font-extrabold">{items.map((i: any) => i.name).join(" · ")}</p>
         <div className="mt-1.5 flex gap-1.5 overflow-x-auto">
-          {items.filter((i: any) => layers || i.id !== main.id).map((i: any) => <img key={i.id} src={i.figure || i.image} alt={i.name} title={i.name} className={`h-9 w-9 shrink-0 rounded-lg ring-1 ring-white/15 ${i.figure ? "bg-white/10 object-contain" : "object-cover"}`} />)}
+          {items.filter((i: any) => layers || i.id !== main.id).map((i: any) => <img key={i.id} src={i.overlay ? i.image || i.figure : i.figure || i.image} alt={i.name} title={i.name} className={`h-9 w-9 shrink-0 rounded-lg ring-1 ring-white/15 ${i.figure ? "bg-white/10 object-contain" : "object-cover"}`} />)}
         </div>
       </div>
     </div>

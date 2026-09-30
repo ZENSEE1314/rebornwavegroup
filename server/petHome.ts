@@ -37,6 +37,11 @@ const CLOTH_EYES: Record<number, number[]> = {"1": [167.9, 133.6, 96.5], "2": [1
 export const BASE_EYES = CLOTH_EYES[1];
 // Overlay anchor per head/face item: [eyeX, eyeY, eyeDist, width, height] in overlay px.
 const OVERLAY_ANCHOR: Record<number, number[]> = {"1": [89.6, 130.1, 79.0, 214, 109], "2": [91.5, 137.3, 77.7, 222, 117], "3": [77.3, 141.4, 74.4, 208, 122], "4": [70.8, 145.5, 69.0, 198, 128], "5": [92, 160, 75, 225, 141], "6": [82.0, 145.1, 73.9, 220, 126], "7": [78.9, 130.1, 73.6, 222, 111], "8": [70.1, 136.3, 73.5, 222, 117], "9": [78.9, 138.4, 75.0, 242, 119], "10": [80, 128, 65, 222, 111], "11": [94.7, 118.2, 77.3, 220, 98], "12": [84.7, 121.5, 72.4, 218, 103], "13": [79.8, 123.0, 72.8, 212, 104], "14": [79.6, 121.9, 76.2, 214, 102], "15": [77, 113, 69, 216, 95], "16": [98, 142, 87, 225, 120], "17": [74.6, 100.9, 75.9, 222, 81], "18": [74, 106, 70, 216, 88], "19": [89.6, 110.7, 72.7, 224, 92], "20": [74.7, 126.1, 78.0, 210, 106], "21": [88, 41, 73, 175, 81], "22": [81, 44, 80, 177, 88], "23": [90, 42, 75, 180, 83], "24": [92.8, 48.0, 87.2, 197, 96], "25": [90, 53, 95, 204, 105], "26": [89, 44, 79, 183, 87], "27": [71, 46, 83, 170, 91], "28": [86, 48, 86, 189, 95], "29": [85.2, 46.8, 84.4, 186, 93], "30": [70, 32, 58, 139, 63]};
+// Neck items: chain / scarf / lei cut from each item's picture (ov-<n>.webp), same anchor format.
+Object.assign(OVERLAY_ANCHOR, { "31": [66.5, -40, 71, 128, 60], "32": [59.5, -40, 71, 121, 60], "33": [59.5, -40, 71, 116, 60], "35": [66.5, -40, 71, 134, 60], "36": [66.5, -40, 71, 134, 60], "37": [66.5, -40, 71, 134, 60], "38": [66.5, -40, 71, 126, 60], "39": [65.5, -40, 71, 122, 60], "40": [68.5, -41, 73, 127, 59] });
+// Items that can't be drawn on the walking pet (their pictures are half-body close-ups):
+// wings/packs, auras, hand items, tail rings, shell items and the Bow Tie. Off sale; owners get refunded.
+export const REMOVED_WEARABLES = new Set([34, ...Array.from({ length: 20 }, (_, i) => 71 + i), 95, 96, 97, 98, 99, 100]);
 const CLOTHING_LIST: [string, number][] = [["T-Shirt", 80], ["Hoodie", 120], ["Jacket", 150], ["Leather Jacket", 180], ["Bomber Jacket", 170], ["Denim Jacket", 150],
   ["Sports Jersey", 130], ["Football Jersey", 130], ["Baseball Jersey", 130], ["Suit & Tie", 220], ["Tuxedo", 250], ["Chef Outfit", 180], ["Doctor Coat", 180],
   ["Police Uniform", 220], ["Firefighter", 220], ["Construction", 160], ["Explorer", 200], ["Adventurer", 220], ["Ninja Outfit", 250], ["Samurai Armor", 400],
@@ -60,7 +65,7 @@ const WEARABLES: PetItem[] = WEAR_SLOTS.flatMap(([slot, emoji, items]) => items.
   n += 1;
   const figure = NO_FIGURE.has(n) ? undefined : `/pet-items/fig-${n}.webp`;
   // Body and feet from the first sheet are replaced by the clothing/footwear sets.
-  const hidden = slot === "body" || slot === "feet";
+  const hidden = slot === "body" || slot === "feet" || REMOVED_WEARABLES.has(n);
   const ov = OVERLAY_ANCHOR[n] ? { overlay: `/pet-items/ov-${n}.webp`, anchor: OVERLAY_ANCHOR[n] } : {};
   return { id: `w${n}`, name, emoji, price, kind: "costume" as const, slot, image: `/pet-items/${n}.webp`, figure, sprite: !!figure && !NOT_SPRITE.has(n), ...ov, ...(hidden ? { hidden: true } : {}) };
 }));
@@ -186,6 +191,28 @@ function ensureTable() {
 
 type Home = { userId: string; coins: number; owned: string[]; placed: Record<string, string>; costumes: Record<string, Record<string, string>>; lightOn: boolean; earnedDay: string | null; earnedToday: number };
 
+// One-off clean-up: refund pet coins for removed wearables and take them off every pet.
+let refunded: Promise<void> | null = null;
+function refundRemovedWearables() {
+  refunded ??= (async () => {
+    await ensureTable();
+    const removed = new Map(PET_CATALOG.filter((i) => i.kind === "costume" && /^w\d+$/.test(i.id) && REMOVED_WEARABLES.has(Number(i.id.slice(1)))).map((i) => [i.id, i.price]));
+    const r: any = await db.execute(sql`SELECT user_id, owned, costumes FROM pet_homes`);
+    for (const row of (r.rows || r)) {
+      const owned: string[] = row.owned || [];
+      const gone = owned.filter((id) => removed.has(id));
+      if (!gone.length) continue;
+      const refund = gone.reduce((sum, id) => sum + (removed.get(id) || 0), 0);
+      const costumes: Record<string, Record<string, string>> = row.costumes || {};
+      for (const pet of Object.values(costumes)) for (const [slot, id] of Object.entries(pet)) if (removed.has(id)) delete pet[slot];
+      await db.execute(sql`UPDATE pet_homes SET coins = coins + ${refund}, owned = ${JSON.stringify(owned.filter((id) => !removed.has(id)))}::jsonb,
+        costumes = ${JSON.stringify(costumes)}::jsonb, updated_at = now() WHERE user_id = ${row.user_id}`);
+      console.log(`[petHome] refunded ${refund} coins to ${row.user_id} for removed items: ${gone.join(", ")}`);
+    }
+  })().catch((e) => { refunded = null; console.error("[petHome] refund removed", e); });
+  return refunded;
+}
+
 function venueDay() { return new Intl.DateTimeFormat("en-CA", { timeZone: getBookingTimezone() }).format(new Date()); }
 
 async function getHome(userId: string): Promise<Home> {
@@ -220,6 +247,7 @@ function view(h: Home, lang: Lang = "en") {
 }
 
 export function registerPetHomeRoutes(app: Express) {
+  refundRemovedWearables();
   app.get("/api/reborn/pet-home", requireAuth, async (req, res) => {
     try { res.json(view(await getHome(getUserId(req)!), reqLang(req))); }
     catch (e) { console.error("[petHome] get", e); res.status(500).json({ message: tr(req, { en: "Failed to load pet home", zh: "宠物小屋加载失败", id: "Gagal memuat rumah hewan" }) }); }
