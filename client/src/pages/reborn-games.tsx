@@ -463,7 +463,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
         <button onClick={leave} className="arc-btn arc-btn-red" title={t("gm.room.leave")} aria-label={t("gm.room.leave")}><span aria-hidden style={{ fontSize: 18 }}>🚪</span></button>
       </div>
 
-      {room.status === "lobby" && <><SeriesBoard room={room} /><LobbyRoom room={room} code={code} isHost={isHost} /></>}
+      {room.status === "lobby" && <><SeriesBoard room={room} /><LobbyRoom room={room} code={code} isHost={isHost} onLeave={leave} /></>}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "rps" && <RpsGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
@@ -503,7 +503,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
   );
 }
 
-function LobbyRoom({ room, code, isHost }: any) {
+function LobbyRoom({ room, code, isHost, onLeave }: any) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const start = async () => { const { ok, d } = await post(`/api/reborn/games/rooms/${code}/start`); if (!ok) toast({ title: t("gm.toast.cantStart"), description: d.message, variant: "destructive" }); };
@@ -531,6 +531,7 @@ function LobbyRoom({ room, code, isHost }: any) {
           <Play className="w-5 h-5" /> {!ready ? t("gm.room.waitPlayers", { n: minPlayers }) : t("gm.room.start")}
         </button>
       ) : <p className="text-center text-white/60 text-sm py-3">⏳ {t("gm.room.waitHost")}</p>}
+      <button onClick={onLeave} className="cbtn cbtn-dark w-full py-3 mt-3 inline-flex items-center justify-center gap-2"><LogOut className="w-4 h-4" /> {t("gm.room.leaveRoom")}</button>
       <p className="text-center text-[11px] text-white/40 mt-3">{t(room.hasPassword ? "gm.room.sharePw" : "gm.room.share", { code: "\u0000" }).split("\u0000")[0]}<b className="text-amber-300">{room.code}</b>{t(room.hasPassword ? "gm.room.sharePw" : "gm.room.share", { code: "\u0000" }).split("\u0000")[1]}</p>
     </div>
   );
