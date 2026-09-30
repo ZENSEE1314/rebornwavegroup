@@ -482,7 +482,6 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
 
       {room.status === "done" && (
         <div className="space-y-2">
-          {room.winnerId === me && <WinConfetti key={`${room.code}-${room.round ?? ""}-${room.winnerId}`} />}
           <RankFlash win={room.winnerId === me} lose={room.lastLoserId === me} />
           {room.seriesChampionId && (
             <div className="rwg-card p-4 text-center" style={{ animation: "rwgPop .5s ease-out" }}>
@@ -560,11 +559,12 @@ function RankFlash({ win, lose }: { win: boolean; lose: boolean }) {
   );
 }
 
-// Big result emoji: a win gets spinning light rays and sparkles, a loss a shake.
-function ResultIcon({ icon }: { icon: string }) {
-  const tone = /🏆|🎉|👑/.test(icon) ? "win" : /🍺|🍻|💥/.test(icon) ? "lose" : "none";
+// Big result emoji: a win gets spinning light rays, sparkles and confetti; a loss a shake.
+function ResultIcon({ icon, tone: forced, confetti = true, small }: { icon: string; tone?: "win" | "lose" | "none"; confetti?: boolean; small?: boolean }) {
+  const tone = forced || (/🏆|🎉|👑|🏁/.test(icon) ? "win" : /🍺|🍻|💥/.test(icon) ? "lose" : "none");
   return (
-    <div className={`gr-icon gr-icon-${tone}`} aria-hidden>
+    <div className={`gr-icon gr-icon-${tone}${small ? " gr-icon-sm" : ""}`} aria-hidden>
+      {tone === "win" && confetti && <WinConfetti />}
       {tone === "win" && <><span className="gr-rays" /><span className="gr-spark" style={{ left: "18%", top: "20%" }}>✦</span><span className="gr-spark" style={{ right: "16%", top: "12%", animationDelay: ".4s" }}>✦</span><span className="gr-spark" style={{ right: "24%", bottom: "8%", animationDelay: ".8s" }}>✧</span></>}
       <span className="gr-emoji">{icon}</span>
     </div>
@@ -962,6 +962,7 @@ function NumberGame({ onLeave }: { onLeave: () => void }) {
         <h2 className="text-xl font-black text-white">{t("gm.game.number")}</h2>
         <p className="text-white/50 text-sm">{t("gm.num.round", { n: state?.round ?? "—" })}</p>
         {state?.range && <p className="mt-2 inline-block rounded-full bg-white/5 border border-white/10 px-3 py-1 text-sm text-amber-300 font-bold tabular-nums">{t("gm.num.between", { a: state.range.low, b: state.range.high })}</p>}
+        {feedback?.correct && <ResultIcon icon="🎉" />}
         {feedback && (
           <div className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${feedback.correct ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30" : "bg-white/5 text-white/80 border border-white/10"}`} style={{ animation: "rwgPop .4s ease-out" }}>{feedback.message}</div>
         )}
@@ -1132,6 +1133,7 @@ function FrogGame({ room, code, me }: any) {
         ? <button onClick={() => act({ act: "start" })} className="cbtn cbtn-gold w-full py-4 text-lg">{t("gm.frog.start")}</button>
         : <p className="text-white/60 text-sm">{t("gm.frog.waitStart", { name: turnName || "…", n: room.secondsLeft })}</p>)}
       {f.phase === "pick" && <p className={`text-sm font-bold ${f.myPick === null ? "text-emerald-300" : "text-white/60"}`}>{f.myPick === null ? t("gm.frog.tap", { n: left.toFixed(1) }) : t("gm.frog.locked", { f: f.myPick + 1, n: (f.picked || []).length, total: room.players.length })}</p>}
+      {f.phase === "reveal" && <ResultIcon small confetti={false} icon={drinkerIds.has(me) ? "🍺" : "😎"} tone={drinkerIds.has(me) ? "lose" : "win"} />}
       {f.phase === "reveal" && (
         <p className={`text-lg font-black ${drinkerIds.has(me) ? "text-red-300" : "text-emerald-300"}`}>{drinkerIds.has(me) ? t("gm.frog.youDrink") : "😎 " + t("gm.youSafe")}</p>
       )}
@@ -1204,7 +1206,7 @@ function RlglGame({ room, code, me }: any) {
     const iWon = !!st[me]?.done;
     return (
       <div className="rwg-card p-5 text-center">
-        <div className="text-6xl mb-1">{iWon ? "🏁" : "🍺"}</div>
+        <ResultIcon icon={iWon ? "🏁" : "🍺"} />
         <p className={`text-2xl font-black ${iWon ? "text-emerald-300" : "text-red-300"}`}>{iWon ? t("gm.rl.madeIt") : t("gm.youDrink")}</p>
         <p className="text-white/60 text-sm mt-1 mb-4">{roomMsg(t, room)}</p>
         <div className="space-y-1.5 text-left">
@@ -1291,7 +1293,7 @@ function MemoryGame({ room, code, me }: any) {
         ))}
       </div>
       <p className="mb-3 min-h-[20px] text-sm text-white/70">{done ? roomMsg(t, room) : myTurn ? t("gm.mem.yourTurn", { n: room.secondsLeft }) : m.busy ? roomMsg(t, room) : t("gm.turnSecs", { name: turnName || "…", n: room.secondsLeft })}</p>
-      {done && <p className={`mb-3 text-2xl font-black ${iLost ? "text-red-300" : "text-emerald-300"}`}>{iLost ? "🍺 " + t("gm.youDrink") : "🏆 " + t("gm.youWin")}</p>}
+      {done && <><ResultIcon icon={iLost ? "🍺" : "🏆"} /><p className={`mb-3 text-2xl font-black ${iLost ? "text-red-300" : "text-emerald-300"}`}>{iLost ? t("gm.youDrink") : t("gm.youWin")}</p></>}
       {/* 6 × 5 board */}
       <div className="mx-auto grid max-w-sm gap-1.5" style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}>
         {(m.tiles || []).map((t: any, i: number) => {
@@ -1403,7 +1405,7 @@ function DrawGame({ room, code, me }: any) {
   return (
     <div className="rwg-card p-3 text-center">
       <p className="mb-2 min-h-[20px] text-sm text-white/75">{roomMsg(t, room)}</p>
-      {done && <p className={`mb-2 text-2xl font-black ${iWon ? "text-emerald-300" : "text-red-300"}`}>{iWon ? "🎉 " + t("gm.youWin") : "🍺 " + t("gm.youDrink")}</p>}
+      {done && <><ResultIcon icon={iWon ? "🎉" : "🍺"} /><p className={`mb-2 text-2xl font-black ${iWon ? "text-emerald-300" : "text-red-300"}`}>{iWon ? t("gm.youWin") : t("gm.youDrink")}</p></>}
       <div className="mb-2 flex items-center justify-between gap-2 text-left">
         <div className="min-w-0">
           <p className="truncate text-xs text-white/50">✏️ {amDrawer ? t("gm.dg.youDraw") : t("gm.dg.isDrawing", { name: drawerName })} · {DG_CAT_KEY[g.category] ? t(DG_CAT_KEY[g.category]) : g.category}</p>
@@ -1482,7 +1484,7 @@ function BridgeGame({ room, code, me }: any) {
   return (
     <div className="rwg-card p-4 text-center">
       <p className="mb-2 min-h-[20px] text-sm text-white/75">{roomMsg(t, room)}</p>
-      {done && <p className={`mb-2 text-2xl font-black ${iWon ? "text-emerald-300" : "text-red-300"}`}>{iWon ? t("gm.gb.youCrossed") : t("gm.gb.youDrink")}</p>}
+      {done && <><ResultIcon icon={iWon ? "🏁" : "🍺"} /><p className={`mb-2 text-2xl font-black ${iWon ? "text-emerald-300" : "text-red-300"}`}>{iWon ? t("gm.gb.youCrossed") : t("gm.gb.youDrink")}</p></>}
       {/* the bridge: finish at the top, start at the bottom */}
       <div className="mx-auto max-w-xs rounded-2xl p-3" style={{ background: "linear-gradient(180deg,#0f172a,#1e1b4b)" }}>
         <div className="mb-1.5 rounded-lg bg-emerald-500/30 py-1 text-[11px] font-black tracking-widest text-emerald-200">{t("gm.finish")} 🏁</div>
@@ -1680,7 +1682,7 @@ function WheelGame({ room, code, me }: any) {
   const slice = (a0: number, a1: number) => { const [x0, y0] = pt(a0, R); const [x1, y1] = pt(a1, R); return `M${C},${C} L${x0.toFixed(2)},${y0.toFixed(2)} A${R},${R} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z`; };
 
   if (room.status === "done") {
-    return <div className="rwg-card p-6 text-center"><div className="text-6xl mb-2">🍻</div><p className="text-xl font-black text-amber-300">{t("gm.wheel.done")}</p><p className="text-white/60 text-sm mt-1">{roomMsg(t, room)}</p></div>;
+    return <div className="rwg-card p-6 text-center"><ResultIcon icon="🍻" tone="none" /><p className="text-xl font-black text-amber-300">{t("gm.wheel.done")}</p><p className="text-white/60 text-sm mt-1">{roomMsg(t, room)}</p></div>;
   }
   return (
     <div className="rwg-card p-5 text-center">
@@ -1743,7 +1745,7 @@ function RidingGame({ room, code, me }: any) {
 
   if (room.status === "done") {
     const iLost = room.lastLoserId === me;
-    return <div className="rwg-card p-6 text-center"><div className="text-7xl mb-2">{iLost ? (lossKind === "witch" ? "🧙🍻" : "🐺🍻") : "👵"}</div><p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-white/70"}`}>{iLost ? t("gm.youLoseDrink") : t("gm.ride.safe")}</p><p className="text-white/60 text-sm mt-2">{roomMsg(t, room)}</p></div>;
+    return <div className="rwg-card p-6 text-center"><ResultIcon icon={iLost ? (lossKind === "witch" ? "🧙🍻" : "🐺🍻") : "👵"} tone={iLost ? "lose" : "win"} /><p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-white/70"}`}>{iLost ? t("gm.youLoseDrink") : t("gm.ride.safe")}</p><p className="text-white/60 text-sm mt-2">{roomMsg(t, room)}</p></div>;
   }
   return (
     <div className="rwg-card p-4">
