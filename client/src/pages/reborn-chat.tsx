@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { useTranslation, translate } from "@/lib/i18n";
+import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Send, ArrowLeft, Check, X, UserPlus, MessageCircle, Users, Clock } from "lucide-react";
 
 function nameOf(u: any) { return u?.username || u?.firstName || translate("vn.common.member"); }
@@ -37,6 +37,7 @@ export default function RebornChat() {
 
   return (
     <RebornLayout active="/chat" title={t("vn.chat.title")}>
+      <Announcements />
       {incoming.length > 0 && (
         <>
           <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{t("vn.chat.friendRequests")}</h2>
@@ -122,5 +123,48 @@ function ChatThread({ friend, onBack }: any) {
         <button onClick={() => text.trim() && send.mutate()} aria-label={t("vn.chat.send")} title={t("vn.chat.send")} disabled={send.isPending || !text.trim()} className="w-12 h-12 rounded-full flex items-center justify-center text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}><Send className="w-5 h-5" /></button>
       </div>
     </RebornLayout>
+  );
+}
+
+// Admin broadcasts, pinned at the top of Chat. New ones (since you last opened) get a dot.
+const SEEN_KEY = "rw_announce_seen";
+function Announcements() {
+  const { t, language } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState<number>(() => { try { return Number(localStorage.getItem(SEEN_KEY)) || 0; } catch { return 0; } });
+  const { data = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/announcements"],
+    queryFn: () => apiRequest("GET", "/api/reborn/announcements").then((r) => r.json()),
+    refetchInterval: 30000,
+  });
+  if (!data.length) return null;
+  const latest = new Date(data[0].createdAt).getTime();
+  const unread = data.filter((a) => new Date(a.createdAt).getTime() > seen).length;
+  const toggle = () => { const next = !open; setOpen(next); if (next) { try { localStorage.setItem(SEEN_KEY, String(latest)); } catch {} setSeen(latest); } };
+  const when = (d: string) => new Date(d).toLocaleString(localeTag(language), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  return (
+    <div className="mb-5">
+      <button onClick={toggle} className="w-full flex items-center gap-3 p-3 rounded-2xl text-left border border-amber-400/40" style={{ background: "linear-gradient(135deg,rgba(240,215,135,0.16),rgba(236,72,153,0.10))" }}>
+        <span className="relative w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0" style={{ background: "linear-gradient(135deg,#f0d787,#c9a84c)" }}>
+          📢{unread > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">{unread}</span>}
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-bold text-amber-200">{t("vn.chat.announce")}</span>
+          <span className="block text-xs text-white/55 truncate">{data[0].title}</span>
+        </span>
+        <span className="text-white/40 text-sm">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          {data.map((a) => (
+            <div key={a.id} className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <p className="font-bold text-white">{a.title}</p>
+              {a.body && <p className="text-sm text-white/75 whitespace-pre-line mt-1 break-words">{a.body}</p>}
+              <p className="text-[11px] text-white/35 mt-2">{when(a.createdAt)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
