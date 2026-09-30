@@ -2077,5 +2077,51 @@ button, .interactive {
 .arc-room .cbtn-dark:active { box-shadow: 0 1px 0 rgba(0,0,0,.6), 0 0 18px color-mix(in srgb, var(--c1) 40%, transparent); }
 @media (prefers-reduced-motion: reduce) { .arc-ava, .arc-ava-empty, .arc-status .dot, .arc-start { animation:none; } }
 
+/* Lobby panels (rank, open rooms, join by code) — neon frame with HUD corners */
+.arc-panel { --c1:#c084fc; position:relative; overflow:hidden; border-radius:22px; padding:16px;
+  background: radial-gradient(90% 60% at 50% 0%, color-mix(in srgb, var(--c1) 18%, transparent), transparent 70%), linear-gradient(160deg, #1d1838, #0e0b1d);
+  border:1px solid color-mix(in srgb, var(--c1) 45%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 10px 28px rgba(0,0,0,.45), 0 0 24px color-mix(in srgb, var(--c1) 16%, transparent); }
+.arc-panel::before { content:""; position:absolute; inset:6px; pointer-events:none; border-radius:16px; opacity:.7;
+  background:
+    linear-gradient(var(--c1),var(--c1)) top left/14px 2px no-repeat, linear-gradient(var(--c1),var(--c1)) top left/2px 14px no-repeat,
+    linear-gradient(var(--c1),var(--c1)) top right/14px 2px no-repeat, linear-gradient(var(--c1),var(--c1)) top right/2px 14px no-repeat,
+    linear-gradient(var(--c1),var(--c1)) bottom left/14px 2px no-repeat, linear-gradient(var(--c1),var(--c1)) bottom left/2px 14px no-repeat,
+    linear-gradient(var(--c1),var(--c1)) bottom right/14px 2px no-repeat, linear-gradient(var(--c1),var(--c1)) bottom right/2px 14px no-repeat; }
+.arc-panel > * { position:relative; }
+.arc-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:14px; background: rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.06); }
+.arc-row + .arc-row { margin-top:6px; }
+.arc-row-top { border-color: color-mix(in srgb, var(--rc) 55%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--rc) 25%, transparent); background: linear-gradient(90deg, color-mix(in srgb, var(--rc) 22%, rgba(0,0,0,.3)), rgba(0,0,0,.28) 60%); }
+.arc-medal { width:28px; flex-shrink:0; text-align:center; font-size:20px; font-weight:900; color: rgba(255,255,255,.55); }
+.arc-room-row { position:relative; overflow:hidden; display:flex; align-items:center; gap:10px; padding:10px; border-radius:16px;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 26%, #15112a), #120e24 60%);
+  border:1px solid color-mix(in srgb, var(--c1) 50%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--c1) 18%, transparent); }
+.arc-room-row + .arc-room-row { margin-top:8px; }
+.arc-bar { height:5px; border-radius:99px; background: rgba(255,255,255,.1); overflow:hidden; margin-top:5px; }
+.arc-bar > i { display:block; height:100%; border-radius:99px; background: linear-gradient(90deg, var(--c1), color-mix(in srgb, var(--c1) 50%, #fff)); box-shadow: 0 0 8px var(--c1); }
+.arc-input { min-width:0; border-radius:12px; background: rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.14); color:#fff; padding:10px 12px; font-size:14px; outline:none; }
+.arc-input:focus { border-color: var(--c1); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c1) 25%, transparent); }
+.arc-input-code { width:96px; text-align:center; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:900; font-size:18px; letter-spacing:.3em; color:#fff3c4;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--c1) 80%, transparent); border-color: color-mix(in srgb, var(--c1) 50%, transparent); }
+.arc-input-code::placeholder { color: rgba(255,243,196,.35); letter-spacing:.2em; font-size:14px; }
+
+/* Home "All features" tiles — glossy badge + glow in each tile's colour (--c) */
+.feat-tile { position:relative; overflow:hidden; isolation:isolate; display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 10px 14px; border-radius:22px; text-align:center;
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--c) 30%, transparent), transparent 65%), linear-gradient(160deg, #1c1834, #0f0c1e);
+  border:1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 20px rgba(0,0,0,.4), 0 0 18px color-mix(in srgb, var(--c) 14%, transparent);
+  transition: transform .15s ease, box-shadow .2s ease; }
+.feat-tile:active { transform: scale(.96); }
+.feat-tile:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 10px 24px rgba(0,0,0,.45), 0 0 26px color-mix(in srgb, var(--c) 32%, transparent); }
+.feat-tile::after { content:""; position:absolute; top:0; bottom:0; width:45%; left:-70%; z-index:-1; pointer-events:none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.10), transparent); animation: arcShine 5s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.feat-badge { width:56px; height:56px; border-radius:18px; display:flex; align-items:center; justify-content:center; color:#fff;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--c) 90%, #fff 10%), color-mix(in srgb, var(--c) 55%, #000 45%));
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.45), inset 0 -3px 0 rgba(0,0,0,.25), 0 6px 14px rgba(0,0,0,.45), 0 0 16px color-mix(in srgb, var(--c) 45%, transparent); }
+.feat-badge svg { width:28px; height:28px; filter: drop-shadow(0 2px 1px rgba(0,0,0,.35)); }
+.feat-title { font-size:14px; font-weight:900; line-height:1.15; color:#fff; letter-spacing:.01em; }
+.feat-desc { font-size:11px; line-height:1.25; color: rgba(255,255,255,.55); }
+@media (prefers-reduced-motion: reduce) { .feat-tile::after { animation:none; } }
+
 /* Red Riding Hood full-screen reveal */
 @keyframes rwgZoom { 0% { transform: scale(0.2) rotate(-8deg); opacity: 0; } 55% { transform: scale(1.12) rotate(4deg); opacity: 1; } 70% { transform: scale(.98) rotate(-2deg); } 100% { transform: scale(1.05) rotate(0deg); opacity: 1; } }
