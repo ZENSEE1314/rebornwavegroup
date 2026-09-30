@@ -187,10 +187,12 @@ app.use((req, res, next) => {
               .where(eq(pets.id, pet.id));
             if (currentHunger > 25 && newHunger <= 25) {
               const { sendRebornUserNotification } = await import("./bridgeX.js");
+              const { userLang, pick } = await import("./i18n.js");
+              const lang = await userLang(pet.userId);
               await sendRebornUserNotification(pet.userId, {
                 type: "pet_hungry",
-                title: `${pet.name || "Your pet"} is hungry`,
-                body: "Open Pet Care and feed your pet now.",
+                title: pick(lang, { en: "{pet} is hungry", zh: "{pet}饿了", id: "{pet} lapar" }, { pet: pet.name || pick(lang, { en: "Your pet", zh: "你的宠物", id: "Hewan peliharaanmu" }) }),
+                body: pick(lang, { en: "Open Pet Care and feed your pet now.", zh: "打开宠物照护，现在就喂喂你的宠物吧。", id: "Buka Perawatan Hewan dan beri makan hewanmu sekarang." }),
                 data: { path: "/pet", petId: pet.id },
               });
             }

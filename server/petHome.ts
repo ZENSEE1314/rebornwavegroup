@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { requireAuth, getUserId } from "./multiAuth";
 import { getBookingTimezone } from "./booking";
+import { reqLang, tr, type Lang } from "./i18n";
 
 export type PetItem = { id: string; name: string; emoji: string; price: number; kind: "furniture" | "costume"; slot: string; image?: string; figure?: string; sprite?: boolean; layer?: string; eyes?: number[]; overlay?: string; anchor?: number[]; hidden?: boolean };
 
@@ -92,6 +93,70 @@ export const PET_CATALOG: PetItem[] = [
   ...CLOTHING,
   ...FOOTWEAR,
 ];
+// Catalogue item names in Chinese / Bahasa (English is the name itself).
+const ITEM_NAMES: Record<string, [string, string]> = {
+  "Crown": ["皇冠", "Mahkota"], "Diamond Crown": ["钻石皇冠", "Mahkota Berlian"], "King Crown": ["国王皇冠", "Mahkota Raja"],
+  "Prince Crown": ["王子皇冠", "Mahkota Pangeran"], "Party Hat": ["派对帽", "Topi Pesta"], "Birthday Crown": ["生日皇冠", "Mahkota Ulang Tahun"],
+  "Santa Hat": ["圣诞帽", "Topi Sinterklas"], "Witch Hat": ["女巫帽", "Topi Nenek Sihir"], "Wizard Hat": ["巫师帽", "Topi Penyihir"],
+  "Chef Hat": ["厨师帽", "Topi Koki"], "Cowboy Hat": ["牛仔帽", "Topi Koboi"], "Pirate Hat": ["海盗帽", "Topi Bajak Laut"],
+  "Samurai Helmet": ["武士头盔", "Helm Samurai"], "Viking Helmet": ["维京头盔", "Helm Viking"], "Knight Helmet": ["骑士头盔", "Helm Ksatria"],
+  "Baseball Cap": ["棒球帽", "Topi Bisbol"], "Bucket Hat": ["渔夫帽", "Topi Bucket"], "Beanie": ["毛线帽", "Kupluk"],
+  "Straw Hat": ["草帽", "Topi Jerami"], "Halo": ["光环", "Lingkaran Malaikat"], "Round Sunglasses": ["圆框墨镜", "Kacamata Hitam Bulat"],
+  "Heart Glasses": ["爱心眼镜", "Kacamata Hati"], "Cyber Visor": ["赛博护目镜", "Visor Siber"], "Aviator Glasses": ["飞行员眼镜", "Kacamata Aviator"],
+  "Nerd Glasses": ["书呆子眼镜", "Kacamata Kutu Buku"], "Star Glasses": ["星星眼镜", "Kacamata Bintang"], "Monocle": ["单片眼镜", "Monokel"],
+  "Eye Patch": ["眼罩", "Penutup Mata"], "Superhero Mask": ["超级英雄面具", "Topeng Superhero"], "Ninja Mask": ["忍者面罩", "Topeng Ninja"],
+  "Gold Chain": ["金链", "Kalung Rantai Emas"], "Diamond Chain": ["钻石链", "Kalung Rantai Berlian"], "Bell Collar": ["铃铛项圈", "Kalung Lonceng"],
+  "Bow Tie": ["领结", "Dasi Kupu-kupu"], "Red Scarf": ["红围巾", "Syal Merah"], "Winter Scarf": ["冬季围巾", "Syal Musim Dingin"],
+  "Hawaiian Lei": ["夏威夷花环", "Kalung Bunga Hawaii"], "Pearl Necklace": ["珍珠项链", "Kalung Mutiara"], "Magic Amulet": ["魔法护身符", "Jimat Ajaib"],
+  "Dragon Medallion": ["龙纹勋章", "Medali Naga"], "King Robe": ["国王长袍", "Jubah Raja"], "Tuxedo": ["燕尾服", "Tuksedo"],
+  "Business Suit": ["商务西装", "Setelan Jas Bisnis"], "Hoodie": ["连帽衫", "Hoodie"], "Varsity Jacket": ["棒球夹克", "Jaket Varsity"],
+  "Leather Jacket": ["皮夹克", "Jaket Kulit"], "Hawaiian Shirt": ["夏威夷衬衫", "Kemeja Hawaii"], "Basketball Jersey": ["篮球球衣", "Jersey Basket"],
+  "Football Jersey": ["足球球衣", "Jersey Sepak Bola"], "Baseball Jersey": ["棒球球衣", "Jersey Bisbol"], "Superhero Suit": ["超级英雄战衣", "Kostum Superhero"],
+  "Ninja Outfit": ["忍者服", "Pakaian Ninja"], "Samurai Armor": ["武士铠甲", "Baju Zirah Samurai"], "Knight Armor": ["骑士铠甲", "Baju Zirah Ksatria"],
+  "Pirate Coat": ["海盗大衣", "Mantel Bajak Laut"], "Wizard Robe": ["巫师长袍", "Jubah Penyihir"], "Vampire Cape": ["吸血鬼斗篷", "Jubah Vampir"],
+  "Angel Robe": ["天使长袍", "Jubah Malaikat"], "Devil Costume": ["恶魔装", "Kostum Iblis"], "Astronaut Suit": ["宇航服", "Baju Astronaut"],
+  "Firefighter Suit": ["消防员制服", "Seragam Pemadam Kebakaran"], "Police Costume": ["警察装", "Kostum Polisi"], "Doctor Coat": ["医生白大褂", "Jas Dokter"],
+  "Chef Uniform": ["厨师服", "Seragam Koki"], "Construction Vest": ["施工背心", "Rompi Konstruksi"], "Explorer Outfit": ["探险家服装", "Pakaian Penjelajah"],
+  "Rock Star Jacket": ["摇滚明星夹克", "Jaket Bintang Rock"], "K-Pop Outfit": ["K-Pop 服装", "Pakaian K-Pop"], "Chinese New Year": ["新年唐装", "Baju Imlek"],
+  "Batik Outfit": ["蜡染服装", "Baju Batik"], "Angel Wings": ["天使翅膀", "Sayap Malaikat"], "Devil Wings": ["恶魔翅膀", "Sayap Iblis"],
+  "Fairy Wings": ["精灵翅膀", "Sayap Peri"], "Dragon Wings": ["龙翼", "Sayap Naga"], "Jetpack": ["喷气背包", "Jetpack"],
+  "Rocket Pack": ["火箭背包", "Ransel Roket"], "Cyber Wings": ["赛博翅膀", "Sayap Siber"], "Rainbow Aura": ["彩虹光环", "Aura Pelangi"],
+  "Fire Aura": ["火焰光环", "Aura Api"], "Ice Aura": ["冰霜光环", "Aura Es"], "Lightning Aura": ["闪电光环", "Aura Petir"],
+  "Heart Aura": ["爱心光环", "Aura Hati"], "Star Aura": ["星星光环", "Aura Bintang"], "Money Aura": ["金钱光环", "Aura Uang"],
+  "Galaxy Aura": ["银河光环", "Aura Galaksi"], "Golden Aura": ["金色光环", "Aura Emas"], "Gold Bracelet": ["金手镯", "Gelang Emas"],
+  "Diamond Watch": ["钻石手表", "Jam Tangan Berlian"], "Boxing Gloves": ["拳击手套", "Sarung Tinju"], "Magic Gloves": ["魔法手套", "Sarung Tangan Ajaib"],
+  "Sneakers": ["运动鞋", "Sepatu Sneakers"], "Gold Sneakers": ["金色运动鞋", "Sneakers Emas"], "Bunny Slippers": ["兔子拖鞋", "Sandal Kelinci"],
+  "Roller Skates": ["旱冰鞋", "Sepatu Roda"], "Rainbow Tail Ring": ["彩虹尾环", "Cincin Ekor Pelangi"], "Gold Tail Ring": ["金色尾环", "Cincin Ekor Emas"],
+  "Tail Bow": ["尾巴蝴蝶结", "Pita Ekor"], "Shell Jewel Set": ["龟壳宝石套装", "Set Permata Cangkang"], "Neon Shell Trim": ["霓虹龟壳饰边", "Hiasan Cangkang Neon"],
+  "Royal Shell Armor": ["皇家龟壳铠甲", "Zirah Cangkang Kerajaan"], "T-Shirt": ["T恤", "Kaus"], "Jacket": ["夹克", "Jaket"],
+  "Bomber Jacket": ["飞行员夹克", "Jaket Bomber"], "Denim Jacket": ["牛仔夹克", "Jaket Denim"], "Sports Jersey": ["运动球衣", "Jersey Olahraga"],
+  "Suit & Tie": ["西装领带", "Jas & Dasi"], "Chef Outfit": ["厨师装", "Pakaian Koki"], "Police Uniform": ["警察制服", "Seragam Polisi"],
+  "Firefighter": ["消防员", "Pemadam Kebakaran"], "Construction": ["建筑工人", "Pekerja Konstruksi"], "Explorer": ["探险家", "Penjelajah"],
+  "Adventurer": ["冒险家", "Petualang"], "Angel Outfit": ["天使装", "Pakaian Malaikat"], "Devil Outfit": ["恶魔装束", "Pakaian Iblis"],
+  "Chinese Outfit": ["中式服装", "Pakaian Tionghoa"], "Classic Sneakers": ["经典运动鞋", "Sneakers Klasik"], "Sport Sneakers": ["运动跑鞋", "Sneakers Sport"],
+  "Silver Sneakers": ["银色运动鞋", "Sneakers Perak"], "Black Sneakers": ["黑色运动鞋", "Sneakers Hitam"], "Red Sneakers": ["红色运动鞋", "Sneakers Merah"],
+  "Green Sneakers": ["绿色运动鞋", "Sneakers Hijau"], "Rainbow Sneakers": ["彩虹运动鞋", "Sneakers Pelangi"], "LED Sneakers": ["LED 发光鞋", "Sneakers LED"],
+  "Basketball Shoes": ["篮球鞋", "Sepatu Basket"], "Football Cleats": ["足球钉鞋", "Sepatu Bola"], "Bear Slippers": ["小熊拖鞋", "Sandal Beruang"],
+  "Panda Slippers": ["熊猫拖鞋", "Sandal Panda"], "Chicken Slippers": ["小鸡拖鞋", "Sandal Ayam"], "Dinosaur Slippers": ["恐龙拖鞋", "Sandal Dinosaurus"],
+  "Shark Slippers": ["鲨鱼拖鞋", "Sandal Hiu"], "Unicorn Slippers": ["独角兽拖鞋", "Sandal Unicorn"], "Cat Slippers": ["猫咪拖鞋", "Sandal Kucing"],
+  "Dog Slippers": ["小狗拖鞋", "Sandal Anjing"], "Dragon Slippers": ["龙拖鞋", "Sandal Naga"], "Tiger Slippers": ["老虎拖鞋", "Sandal Harimau"],
+  "Pig Slippers": ["小猪拖鞋", "Sandal Babi"], "Cow Slippers": ["奶牛拖鞋", "Sandal Sapi"], "Fuzzy Boots": ["毛绒靴", "Sepatu Bot Berbulu"],
+  "Winter Boots": ["冬靴", "Sepatu Bot Musim Dingin"], "Snow Boots": ["雪地靴", "Sepatu Bot Salju"], "Neon Sneakers": ["霓虹运动鞋", "Sneakers Neon"],
+  "Golden Wing Sneakers": ["金翼运动鞋", "Sneakers Sayap Emas"], "Pink sofa": ["粉色沙发", "Sofa merah muda"], "Armchair": ["扶手椅", "Kursi berlengan"],
+  "Fern pot": ["蕨类盆栽", "Pot pakis"], "Tulip pot": ["郁金香盆栽", "Pot tulip"], "Sunflower pot": ["向日葵盆栽", "Pot bunga matahari"],
+  "Cactus": ["仙人掌", "Kaktus"], "Cherry blossom": ["樱花", "Bunga sakura"], "Floor lamp": ["落地灯", "Lampu lantai"],
+  "Candles": ["蜡烛", "Lilin"], "Landscape": ["风景画", "Lukisan pemandangan"], "Rainbow poster": ["彩虹海报", "Poster pelangi"],
+  "Wall clock": ["挂钟", "Jam dinding"], "Beach ball": ["沙滩球", "Bola pantai"], "Teddy bear": ["泰迪熊", "Boneka beruang"],
+  "Gift box": ["礼物盒", "Kotak hadiah"], "Party hat": ["派对帽", "Topi pesta"], "Cap": ["鸭舌帽", "Topi"],
+  "Top hat": ["礼帽", "Topi tinggi"], "Ribbon": ["蝴蝶结", "Pita"], "Sunglasses": ["墨镜", "Kacamata hitam"], "Scarf": ["围巾", "Syal"],
+};
+function itemName(name: string, lang: Lang): string {
+  const t = ITEM_NAMES[name];
+  return !t || lang === "en" ? name : lang === "zh" ? t[0] : t[1];
+}
+function localCatalog(lang: Lang): PetItem[] {
+  return lang === "en" ? PET_CATALOG : PET_CATALOG.map((i) => ({ ...i, name: itemName(i.name, lang) }));
+}
 // Everyone starts with these so a new room isn't empty.
 // (Clothing/footwear defaults: shirtless and barefoot — see BASE_LAYER.)
 const STARTER_ITEMS = ["plant_fern", "art_landscape"];
@@ -144,35 +209,35 @@ export async function awardPetCoins(userId: string, amount: number) {
   } catch (e) { console.error("[petHome] award", e); }
 }
 
-function view(h: Home) {
+function view(h: Home, lang: Lang = "en") {
   const day = venueDay();
   return {
     coins: h.coins, owned: h.owned, placed: h.placed, costumes: h.costumes, lightOn: h.lightOn,
     earnedToday: h.earnedDay === day ? h.earnedToday : 0, dailyCap: DAILY_COIN_CAP,
     rewards: { play: COINS_PER_PLAY, win: COINS_PER_WIN, numberCrack: COINS_NUMBER_CRACK },
-    timezone: getBookingTimezone(), catalog: PET_CATALOG, baseLayer: BASE_LAYER, baseEyes: BASE_EYES,
+    timezone: getBookingTimezone(), catalog: localCatalog(lang), baseLayer: BASE_LAYER, baseEyes: BASE_EYES,
   };
 }
 
 export function registerPetHomeRoutes(app: Express) {
   app.get("/api/reborn/pet-home", requireAuth, async (req, res) => {
-    try { res.json(view(await getHome(getUserId(req)!))); }
-    catch (e) { console.error("[petHome] get", e); res.status(500).json({ message: "Failed to load pet home" }); }
+    try { res.json(view(await getHome(getUserId(req)!), reqLang(req))); }
+    catch (e) { console.error("[petHome] get", e); res.status(500).json({ message: tr(req, { en: "Failed to load pet home", zh: "宠物小屋加载失败", id: "Gagal memuat rumah hewan" }) }); }
   });
 
   app.post("/api/reborn/pet-home/buy", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
       const item = PET_CATALOG.find((i) => i.id === req.body?.itemId);
-      if (!item || item.hidden) return res.status(404).json({ message: "Item not found" });
+      if (!item || item.hidden) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该物品", id: "Barang tidak ditemukan" }) });
       const home = await getHome(userId);
-      if (home.owned.includes(item.id)) return res.status(400).json({ message: "You already own this" });
+      if (home.owned.includes(item.id)) return res.status(400).json({ message: tr(req, { en: "You already own this", zh: "你已经拥有这件物品", id: "Kamu sudah memiliki ini" }) });
       // Atomic: only succeeds if the balance still covers the price.
       const r: any = await db.execute(sql`UPDATE pet_homes SET coins = coins - ${item.price}, owned = owned || ${JSON.stringify([item.id])}::jsonb, updated_at = now()
         WHERE user_id = ${userId} AND coins >= ${item.price} AND NOT (owned ? ${item.id}) RETURNING user_id`);
-      if (!(r.rows || r).length) return res.status(400).json({ message: `Not enough pet coins — ${item.name} costs ${item.price}` });
-      res.json({ message: `${item.emoji} ${item.name} is yours!`, ...view(await getHome(userId)) });
-    } catch (e) { console.error("[petHome] buy", e); res.status(500).json({ message: "Purchase failed" }); }
+      if (!(r.rows || r).length) return res.status(400).json({ message: tr(req, { en: "Not enough pet coins — {item} costs {price}", zh: "宠物币不足 — {item} 需要 {price} 币", id: "Koin hewan tidak cukup — {item} seharga {price}" }, { item: itemName(item.name, reqLang(req)), price: item.price }) });
+      res.json({ message: tr(req, { en: "{emoji} {item} is yours!", zh: "{emoji} {item} 归你啦！", id: "{emoji} {item} jadi milikmu!" }, { emoji: item.emoji, item: itemName(item.name, reqLang(req)) }), ...view(await getHome(userId), reqLang(req)) });
+    } catch (e) { console.error("[petHome] buy", e); res.status(500).json({ message: tr(req, { en: "Purchase failed", zh: "购买失败", id: "Pembelian gagal" }) }); }
   });
 
   // Put an owned furniture item in its slot (itemId null clears the slot).
@@ -184,14 +249,14 @@ export function registerPetHomeRoutes(app: Express) {
       const home = await getHome(userId);
       if (itemId) {
         const item = PET_CATALOG.find((i) => i.id === itemId);
-        if (!item || item.kind !== "furniture" || item.slot !== slot) return res.status(400).json({ message: "That doesn't go there" });
-        if (!home.owned.includes(itemId)) return res.status(400).json({ message: "Buy it first" });
-      } else if (!PET_CATALOG.some((i) => i.kind === "furniture" && i.slot === slot)) return res.status(400).json({ message: "Unknown spot" });
+        if (!item || item.kind !== "furniture" || item.slot !== slot) return res.status(400).json({ message: tr(req, { en: "That doesn't go there", zh: "这件物品不能放在这里", id: "Barang itu tidak bisa ditaruh di sana" }) });
+        if (!home.owned.includes(itemId)) return res.status(400).json({ message: tr(req, { en: "Buy it first", zh: "请先购买", id: "Beli dulu" }) });
+      } else if (!PET_CATALOG.some((i) => i.kind === "furniture" && i.slot === slot)) return res.status(400).json({ message: tr(req, { en: "Unknown spot", zh: "未知位置", id: "Posisi tidak dikenal" }) });
       const placed = { ...home.placed };
       if (itemId) placed[slot] = itemId; else delete placed[slot];
       await db.execute(sql`UPDATE pet_homes SET placed = ${JSON.stringify(placed)}::jsonb, updated_at = now() WHERE user_id = ${userId}`);
-      res.json(view({ ...home, placed }));
-    } catch (e) { console.error("[petHome] place", e); res.status(500).json({ message: "Failed" }); }
+      res.json(view({ ...home, placed }, reqLang(req)));
+    } catch (e) { console.error("[petHome] place", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
   });
 
   // Dress a pet: toggles an owned costume on/off for that pet (one per slot).
@@ -200,14 +265,14 @@ export function registerPetHomeRoutes(app: Express) {
       const userId = getUserId(req)!;
       const petId = String(Number(req.body?.petId) || "");
       const item = PET_CATALOG.find((i) => i.id === req.body?.itemId && i.kind === "costume");
-      if (!petId || !item) return res.status(400).json({ message: "Pick a costume" });
+      if (!petId || !item) return res.status(400).json({ message: tr(req, { en: "Pick a costume", zh: "请选择一件服装", id: "Pilih kostum" }) });
       const home = await getHome(userId);
-      if (!home.owned.includes(item.id)) return res.status(400).json({ message: "Buy it first" });
+      if (!home.owned.includes(item.id)) return res.status(400).json({ message: tr(req, { en: "Buy it first", zh: "请先购买", id: "Beli dulu" }) });
       const costumes = { ...home.costumes, [petId]: { ...(home.costumes[petId] || {}) } };
       if (costumes[petId][item.slot] === item.id) delete costumes[petId][item.slot]; else costumes[petId][item.slot] = item.id;
       await db.execute(sql`UPDATE pet_homes SET costumes = ${JSON.stringify(costumes)}::jsonb, updated_at = now() WHERE user_id = ${userId}`);
-      res.json(view({ ...home, costumes }));
-    } catch (e) { console.error("[petHome] wear", e); res.status(500).json({ message: "Failed" }); }
+      res.json(view({ ...home, costumes }, reqLang(req)));
+    } catch (e) { console.error("[petHome] wear", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
   });
 
   app.post("/api/reborn/pet-home/light", requireAuth, async (req, res) => {
@@ -216,7 +281,7 @@ export function registerPetHomeRoutes(app: Express) {
       const on = !!req.body?.on;
       const home = await getHome(userId);
       await db.execute(sql`UPDATE pet_homes SET light_on = ${on}, updated_at = now() WHERE user_id = ${userId}`);
-      res.json(view({ ...home, lightOn: on }));
-    } catch (e) { console.error("[petHome] light", e); res.status(500).json({ message: "Failed" }); }
+      res.json(view({ ...home, lightOn: on }, reqLang(req)));
+    } catch (e) { console.error("[petHome] light", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
   });
 }

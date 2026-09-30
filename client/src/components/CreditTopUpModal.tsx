@@ -12,6 +12,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 
 import { Upload, CreditCard, Building, Wallet, History, Eye, X, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
+import { useTranslation, localeTag } from "@/lib/i18n";
 
 interface CreditTopUpModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ interface CreditTopUpModalProps {
 // Stripe Tab Component
 function StripeTab({ onClose }: { onClose: () => void }) {
   const [, setLocation] = useLocation();
+  const { t, language } = useTranslation();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
 
   const creditPackages = [
@@ -37,6 +39,8 @@ function StripeTab({ onClose }: { onClose: () => void }) {
     { amount: 500000000, price: "RP 500,000,000", credits: "500,000,000", popular: false },
   ];
 
+  const fmtRp = (n: number) => `RP ${n.toLocaleString(localeTag(language))}`;
+
   const handleStripePayment = () => {
     if (!selectedAmount) return;
     
@@ -51,14 +55,14 @@ function StripeTab({ onClose }: { onClose: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Stripe Payment</CardTitle>
+        <CardTitle>{t("hm.credit.stripeTitle")}</CardTitle>
         <CardDescription>
-          Pay securely with Stripe. All major credit cards accepted. Credits added instantly.
+          {t("hm.credit.stripeDesc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label>Select Credit Package</Label>
+          <Label>{t("hm.credit.selectPackage")}</Label>
           <div className="grid grid-cols-2 gap-3 mt-2">
             {creditPackages.map((pkg) => (
               <Card 
@@ -73,15 +77,15 @@ function StripeTab({ onClose }: { onClose: () => void }) {
                 <CardContent className="p-4 relative">
                   {pkg.popular && (
                     <div className="absolute -top-2 right-4 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                      Popular
+                      {t("hm.credit.popular")}
                     </div>
                   )}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <CreditCard className="w-5 h-5 text-blue-600" />
                       <div>
-                        <div className="font-bold text-lg">{pkg.credits} Credits</div>
-                        <div className="text-sm text-gray-600">{pkg.price}</div>
+                        <div className="font-bold text-lg">{t("hm.credit.nCredits", { n: pkg.amount.toLocaleString(localeTag(language)) })}</div>
+                        <div className="text-sm text-gray-600">{fmtRp(pkg.amount)}</div>
                       </div>
                     </div>
                     {selectedAmount === pkg.amount && (
@@ -97,10 +101,10 @@ function StripeTab({ onClose }: { onClose: () => void }) {
         <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
           <div className="flex items-center gap-2 mb-2">
             <CreditCard className="w-4 h-4 text-blue-600" />
-            <span className="font-medium text-blue-900">Secure Payment</span>
+            <span className="font-medium text-blue-900">{t("hm.credit.securePayment")}</span>
           </div>
           <p className="text-sm text-blue-800">
-            Payments are processed securely through Stripe. We accept Visa, Mastercard, American Express, and more.
+            {t("hm.credit.secureDesc")}
           </p>
         </div>
 
@@ -110,8 +114,8 @@ function StripeTab({ onClose }: { onClose: () => void }) {
           className="w-full bg-blue-600 hover:bg-blue-700"
         >
           {selectedAmount 
-            ? `Pay ${creditPackages.find(pkg => pkg.amount === selectedAmount)?.price} with Stripe`
-            : "Select Amount to Continue"
+            ? t("hm.credit.payWithStripe", { amount: fmtRp(selectedAmount) })
+            : t("hm.credit.selectToContinue")
           }
         </Button>
       </CardContent>
@@ -130,7 +134,9 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
   const [isUploading, setIsUploading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const { toast } = useToast();
+  const { t, language } = useTranslation();
   const queryClient = useQueryClient();
+  const pmLabel = (m: string) => ({ bank_transfer: t("hm.credit.bankTransfer"), cash_deposit: t("hm.credit.cashDeposit"), cash: t("hm.topup.cash"), card: t("hm.topup.card") } as Record<string, string>)[m] ?? m;
 
   // Fetch user's top-up history
   const { data: topUpHistory, isLoading: isLoadingHistory } = useQuery({
@@ -145,8 +151,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     // Check file type
     if (!file.type.startsWith('image/')) {
       toast({
-        title: "Invalid file type",
-        description: "Please select an image file (PNG, JPG, JPEG)",
+        title: t("hm.credit.invalidFile"),
+        description: t("hm.credit.invalidFileDesc"),
         variant: "destructive",
       });
       return;
@@ -155,8 +161,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     // Allow up to 10MB for payment proof images
     if (file.size > 10 * 1024 * 1024) {
       toast({
-        title: "File too large",
-        description: "Please select an image smaller than 10MB",
+        title: t("hm.credit.tooLarge"),
+        description: t("hm.credit.tooLargeDesc"),
         variant: "destructive",
       });
       return;
@@ -173,8 +179,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     } catch (error) {
       setIsUploading(false);
       toast({
-        title: "Upload failed",
-        description: "Failed to upload image. Please try again.",
+        title: t("hm.credit.uploadFailed"),
+        description: t("hm.credit.uploadFailedDesc"),
         variant: "destructive",
       });
     }
@@ -188,8 +194,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     },
     onSuccess: () => {
       toast({
-        title: "Bank Transfer Request Submitted",
-        description: "Your request has been submitted for admin approval.",
+        title: t("hm.credit.bankSubmitted"),
+        description: t("hm.credit.submittedDesc"),
       });
       setAmount("");
       setBankDetails({ bankName: "", accountNumber: "", referenceNumber: "" });
@@ -198,8 +204,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     },
     onError: (error: any) => {
       toast({
-        title: "Submission Failed",
-        description: error.message || "Failed to submit bank transfer request",
+        title: t("hm.credit.submitFailed"),
+        description: error.message || t("hm.credit.bankFailedDesc"),
         variant: "destructive",
       });
     },
@@ -211,8 +217,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     },
     onSuccess: () => {
       toast({
-        title: "Cash Deposit Request Submitted",
-        description: "Your request has been submitted for admin approval.",
+        title: t("hm.credit.cashSubmitted"),
+        description: t("hm.credit.submittedDesc"),
       });
       setAmount("");
       setPaymentProof("");
@@ -220,8 +226,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     },
     onError: (error: any) => {
       toast({
-        title: "Submission Failed",
-        description: error.message || "Failed to submit cash deposit request",
+        title: t("hm.credit.submitFailed"),
+        description: error.message || t("hm.credit.cashFailedDesc"),
         variant: "destructive",
       });
     },
@@ -233,8 +239,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     const amountNum = parseFloat(amount);
     if (!amountNum || amountNum < 10000) {
       toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid amount (minimum IDR 10,000)",
+        title: t("hm.credit.invalidAmount"),
+        description: t("hm.credit.invalidAmountDesc"),
         variant: "destructive",
       });
       return;
@@ -242,8 +248,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
     if (!bankDetails.bankName || !bankDetails.accountNumber || !bankDetails.referenceNumber) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all bank transfer details",
+        title: t("hm.credit.missingInfo"),
+        description: t("hm.credit.missingInfoDesc"),
         variant: "destructive",
       });
       return;
@@ -251,8 +257,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
     if (!paymentProof || paymentProof.trim().length < 10) {
       toast({
-        title: "Photo Proof Required",
-        description: "Please upload photo proof of your bank transfer receipt",
+        title: t("hm.credit.proofRequired"),
+        description: t("hm.credit.proofBankDesc"),
         variant: "destructive",
       });
       return;
@@ -269,8 +275,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     const amountNum = parseFloat(amount);
     if (!amountNum || amountNum < 10000) {
       toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid amount (minimum IDR 10,000)",
+        title: t("hm.credit.invalidAmount"),
+        description: t("hm.credit.invalidAmountDesc"),
         variant: "destructive",
       });
       return;
@@ -278,8 +284,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
     if (!paymentProof || paymentProof.trim().length < 10) {
       toast({
-        title: "Photo Proof Required",
-        description: "Please upload photo proof of your cash deposit receipt",
+        title: t("hm.credit.proofRequired"),
+        description: t("hm.credit.proofCashDesc"),
         variant: "destructive",
       });
       return;
@@ -297,7 +303,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" />
-            Add Credits to Account
+            {t("hm.credit.title")}
             <Button
               variant="outline"
               size="sm"
@@ -305,11 +311,11 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
               className="ml-auto"
             >
               <History className="h-4 w-4 mr-1" />
-              {showHistory ? "Hide History" : "View History"}
+              {showHistory ? t("hm.credit.hideHistory") : t("hm.credit.viewHistory")}
             </Button>
           </DialogTitle>
           <DialogDescription>
-            Current Balance: <span className="font-semibold">IDR {currentCredits}</span>
+            {t("hm.credit.currentBalance")} <span className="font-semibold">IDR {currentCredits}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -317,7 +323,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
             <h3 className="font-semibold mb-3 flex items-center gap-2">
               <History className="h-4 w-4" />
-              Top-up History
+              {t("hm.credit.history")}
             </h3>
             {isLoadingHistory ? (
               <div className="flex justify-center py-4">
@@ -328,10 +334,10 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                 {topUpHistory.map((item: any) => (
                   <div key={item.id} className="flex justify-between items-center p-2 bg-white rounded border">
                     <div>
-                      <div className="font-medium">IDR {parseFloat(item.amount).toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">{item.paymentMethod}</div>
+                      <div className="font-medium">IDR {parseFloat(item.amount).toLocaleString(localeTag(language))}</div>
+                      <div className="text-xs text-gray-500">{pmLabel(item.paymentMethod)}</div>
                       <div className="text-xs text-gray-400">
-                        {new Date(item.createdAt).toLocaleDateString()} at {new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        {t("hm.credit.dateAt", { date: new Date(item.createdAt).toLocaleDateString(localeTag(language)), time: new Date(item.createdAt).toLocaleTimeString(localeTag(language), { hour: '2-digit', minute: '2-digit' }) })}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -343,14 +349,14 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                         item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-red-100 text-red-700'
                       }`}>
-                        {item.status}
+                        {t(`hm.status.${item.status}`)}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">No top-up history found</p>
+              <p className="text-gray-500 text-center py-4">{t("hm.credit.noHistory")}</p>
             )}
           </div>
         )}
@@ -364,11 +370,11 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
             </TabsTrigger>
             <TabsTrigger value="bank" className="flex items-center gap-2">
               <Building className="h-4 w-4" />
-              Bank Transfer
+              {t("hm.credit.bankTransfer")}
             </TabsTrigger>
             <TabsTrigger value="cash" className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
-              Cash Deposit
+              {t("hm.credit.cashDeposit")}
             </TabsTrigger>
           </TabsList>
 
@@ -381,41 +387,41 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
           <TabsContent value="bank">
             <Card>
               <CardHeader>
-                <CardTitle>Bank Transfer</CardTitle>
+                <CardTitle>{t("hm.credit.bankTransfer")}</CardTitle>
                 <CardDescription>
-                  Transfer money to our bank account. Credits will be added after verification.
+                  {t("hm.credit.bankDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="bank-amount">Amount (IDR)</Label>
+                  <Label htmlFor="bank-amount">{t("hm.credit.amountIdr")}</Label>
                   <Input
                     id="bank-amount"
                     type="number"
                     step="1000"
                     min="10000"
-                    placeholder="Enter amount in Rupiah"
+                    placeholder={t("hm.credit.amountPh")}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Minimum: IDR 10,000</p>
+                  <p className="text-xs text-gray-500 mt-1">{t("hm.credit.minimum")}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="bank-name">Bank Name</Label>
+                    <Label htmlFor="bank-name">{t("hm.credit.bankName")}</Label>
                     <Input
                       id="bank-name"
-                      placeholder="Your bank name"
+                      placeholder={t("hm.credit.bankNamePh")}
                       value={bankDetails.bankName}
                       onChange={(e) => setBankDetails(prev => ({ ...prev, bankName: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="account-number">Account Number</Label>
+                    <Label htmlFor="account-number">{t("hm.credit.accountNumber")}</Label>
                     <Input
                       id="account-number"
-                      placeholder="Your account number"
+                      placeholder={t("hm.credit.accountNumberPh")}
                       value={bankDetails.accountNumber}
                       onChange={(e) => setBankDetails(prev => ({ ...prev, accountNumber: e.target.value }))}
                     />
@@ -423,24 +429,24 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                 </div>
 
                 <div>
-                  <Label htmlFor="reference-number">Transfer Reference Number</Label>
+                  <Label htmlFor="reference-number">{t("hm.credit.refNumber")}</Label>
                   <Input
                     id="reference-number"
-                    placeholder="Bank transfer reference number"
+                    placeholder={t("hm.credit.refNumberPh")}
                     value={bankDetails.referenceNumber}
                     onChange={(e) => setBankDetails(prev => ({ ...prev, referenceNumber: e.target.value }))}
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="bank-proof">Payment Proof (Required)</Label>
+                  <Label htmlFor="bank-proof">{t("hm.credit.proofLabel")}</Label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                     {paymentProof ? (
                       <div className="space-y-4">
                         <div className="relative inline-block">
                           <img 
                             src={paymentProof} 
-                            alt="Payment proof" 
+                            alt={t("hm.credit.proofAlt")} 
                             className="max-w-full max-h-48 rounded-lg shadow-md"
                           />
                           <Button
@@ -459,7 +465,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                             onClick={() => window.open(paymentProof, '_blank')}
                           >
                             <Eye className="h-4 w-4 mr-1" />
-                            View Full Size
+                            {t("hm.credit.viewFull")}
                           </Button>
                         </div>
                       </div>
@@ -467,8 +473,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                       <div className="space-y-4">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto" />
                         <div>
-                          <p className="text-sm text-gray-600">Upload bank transfer receipt</p>
-                          <p className="text-xs text-gray-400">PNG, JPG up to 10MB</p>
+                          <p className="text-sm text-gray-600">{t("hm.credit.uploadBankReceipt")}</p>
+                          <p className="text-xs text-gray-400">{t("hm.credit.fileHint")}</p>
                         </div>
                         <input
                           type="file"
@@ -485,28 +491,28 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                           {isUploading ? (
                             <>
                               <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
-                              Uploading...
+                              {t("hm.credit.uploading")}
                             </>
                           ) : (
                             <>
                               <Upload className="h-4 w-4 mr-2" />
-                              Choose File
+                              {t("hm.credit.chooseFile")}
                             </>
                           )}
                         </Button>
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-red-500 mt-1">* Photo proof of bank transfer is required for verification</p>
+                  <p className="text-xs text-red-500 mt-1">{t("hm.credit.bankProofNote")}</p>
                 </div>
 
                 <div className="bg-orange-50 dark:bg-orange-950 p-4 rounded-lg">
-                  <h4 className="font-semibold text-orange-800 dark:text-orange-200">Bank Transfer Instructions:</h4>
+                  <h4 className="font-semibold text-orange-800 dark:text-orange-200">{t("hm.credit.bankInstr")}</h4>
                   <div className="text-sm text-orange-700 dark:text-orange-300 mt-1 space-y-1">
-                    <p><strong>Bank:</strong> Bank Mandiri</p>
-                    <p><strong>Account Number:</strong> 1234-5678-9012</p>
-                    <p><strong>Account Name:</strong> Reborn Wave Group</p>
-                    <p className="mt-2 font-medium">After transfer, upload receipt photo and admin will approve within 24 hours.</p>
+                    <p><strong>{t("hm.credit.bank")}</strong> Bank Mandiri</p>
+                    <p><strong>{t("hm.credit.accountNumberC")}</strong> 1234-5678-9012</p>
+                    <p><strong>{t("hm.credit.accountName")}</strong> Reborn Wave Group</p>
+                    <p className="mt-2 font-medium">{t("hm.credit.afterTransfer")}</p>
                   </div>
                 </div>
 
@@ -515,7 +521,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                   disabled={bankTransferMutation.isPending}
                   className="w-full"
                 >
-                  {bankTransferMutation.isPending ? "Submitting..." : "Submit Bank Transfer"}
+                  {bankTransferMutation.isPending ? t("hm.credit.submitting") : t("hm.credit.submitBank")}
                 </Button>
               </CardContent>
             </Card>
@@ -524,35 +530,35 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
           <TabsContent value="cash">
             <Card>
               <CardHeader>
-                <CardTitle>Cash Deposit</CardTitle>
+                <CardTitle>{t("hm.credit.cashDeposit")}</CardTitle>
                 <CardDescription>
-                  Deposit cash at our physical location. Credits will be added after verification.
+                  {t("hm.credit.cashDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="cash-amount">Amount (IDR)</Label>
+                  <Label htmlFor="cash-amount">{t("hm.credit.amountIdr")}</Label>
                   <Input
                     id="cash-amount"
                     type="number"
                     step="1000"
                     min="10000"
-                    placeholder="Enter amount in Rupiah"
+                    placeholder={t("hm.credit.amountPh")}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Minimum: IDR 10,000</p>
+                  <p className="text-xs text-gray-500 mt-1">{t("hm.credit.minimum")}</p>
                 </div>
 
                 <div>
-                  <Label htmlFor="cash-proof">Payment Proof (Required)</Label>
+                  <Label htmlFor="cash-proof">{t("hm.credit.proofLabel")}</Label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                     {paymentProof ? (
                       <div className="space-y-4">
                         <div className="relative inline-block">
                           <img 
                             src={paymentProof} 
-                            alt="Payment proof" 
+                            alt={t("hm.credit.proofAlt")} 
                             className="max-w-full max-h-48 rounded-lg shadow-md"
                           />
                           <Button
@@ -571,7 +577,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                             onClick={() => window.open(paymentProof, '_blank')}
                           >
                             <Eye className="h-4 w-4 mr-1" />
-                            View Full Size
+                            {t("hm.credit.viewFull")}
                           </Button>
                         </div>
                       </div>
@@ -579,8 +585,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                       <div className="space-y-4">
                         <Upload className="h-12 w-12 text-gray-400 mx-auto" />
                         <div>
-                          <p className="text-sm text-gray-600">Upload cash deposit receipt</p>
-                          <p className="text-xs text-gray-400">PNG, JPG up to 10MB</p>
+                          <p className="text-sm text-gray-600">{t("hm.credit.uploadCashReceipt")}</p>
+                          <p className="text-xs text-gray-400">{t("hm.credit.fileHint")}</p>
                         </div>
                         <input
                           type="file"
@@ -597,28 +603,28 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                           {isUploading ? (
                             <>
                               <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
-                              Uploading...
+                              {t("hm.credit.uploading")}
                             </>
                           ) : (
                             <>
                               <Upload className="h-4 w-4 mr-2" />
-                              Choose File
+                              {t("hm.credit.chooseFile")}
                             </>
                           )}
                         </Button>
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-red-500 mt-1">* Photo proof of cash deposit receipt is required for verification</p>
+                  <p className="text-xs text-red-500 mt-1">{t("hm.credit.cashProofNote")}</p>
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                  <h4 className="font-semibold text-blue-800 dark:text-blue-200">Cash Deposit Instructions:</h4>
+                  <h4 className="font-semibold text-blue-800 dark:text-blue-200">{t("hm.credit.cashInstr")}</h4>
                   <div className="text-sm text-blue-700 dark:text-blue-300 mt-1 space-y-1">
-                    <p><strong>Location:</strong> Reborn Wave Group Office, Batam, Indonesia</p>
-                    <p><strong>Address:</strong> Jl. Raya Batam Center No. 123, Batam 29432</p>
-                    <p><strong>Hours:</strong> Monday - Sunday, 9:00 AM - 9:00 PM</p>
-                    <p className="mt-2 font-medium">After deposit, upload receipt photo and admin will approve within 24 hours.</p>
+                    <p><strong>{t("hm.credit.location")}</strong> {t("hm.credit.locationVal")}</p>
+                    <p><strong>{t("hm.credit.address")}</strong> Jl. Raya Batam Center No. 123, Batam 29432</p>
+                    <p><strong>{t("hm.credit.hours")}</strong> {t("hm.credit.hoursVal")}</p>
+                    <p className="mt-2 font-medium">{t("hm.credit.afterDeposit")}</p>
                   </div>
                 </div>
 
@@ -627,7 +633,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                   disabled={cashDepositMutation.isPending}
                   className="w-full"
                 >
-                  {cashDepositMutation.isPending ? "Submitting..." : "Submit Cash Deposit"}
+                  {cashDepositMutation.isPending ? t("hm.credit.submitting") : t("hm.credit.submitCash")}
                 </Button>
               </CardContent>
             </Card>
