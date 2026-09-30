@@ -129,10 +129,10 @@ export function parseDateInput(raw: string, today: string): DateInput {
   return null;
 }
 
-// Yes / no answers in all three languages.
+// Yes / no answers in all three languages (1 = yes, 2 = no, as shown in the question).
 export function yesNo(raw: string): "yes" | "no" | null {
   const t = String(raw || "").trim().toLowerCase().replace(/[.!。！~]+$/, "");
-  if (/^(y|yes|yeah|yep|ok|okay|sure|correct|right|ya|iya|iyah|yoi|betul|benar|bener|oke|setuju|是|是的|对|對|对的|好|好的|没错|沒錯|嗯|可以|确定|確定)$/.test(t)) return "yes";
-  if (/^(n|no|nope|not|wrong|tidak|tdk|nggak|ngga|gak|enggak|bukan|salah|否|不|不是|不对|不對|错|錯|不要)$/.test(t)) return "no";
+  if (/^(1|y|yes|yeah|yep|ok|okay|sure|correct|right|ya|iya|iyah|yoi|betul|benar|bener|oke|setuju|是|是的|对|對|对的|好|好的|没错|沒錯|嗯|可以|确定|確定)$/.test(t)) return "yes";
+  if (/^(2|n|no|nope|not|wrong|tidak|tdk|nggak|ngga|gak|enggak|bukan|salah|否|不|不是|不对|不對|错|錯|不要)$/.test(t)) return "no";
   return null;
 }
