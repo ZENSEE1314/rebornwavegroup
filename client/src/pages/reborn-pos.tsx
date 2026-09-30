@@ -629,12 +629,13 @@ function StockTab() {
       {groups.map(([cat, items]) => (
         <div key={cat}>
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat || t("pos.other")}</p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {/* Columns always fit the screen; cards may shrink so long names truncate. */}
+          <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 260px), 1fr))" }}>
             {items.map((p) => (
-              <div key={p.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div key={p.id} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {p.imageUrl && <img src={p.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover" />}
+                  <div className="flex flex-1 items-center gap-2 min-w-0">
+                    {p.imageUrl && <img src={p.imageUrl} alt="" className="w-9 h-9 shrink-0 rounded-lg object-cover" />}
                     <div className="min-w-0"><p className="font-semibold text-sm truncate">{p.name}</p><p className={`text-xs ${p.stock <= 5 ? "text-red-400" : "text-white/50"}`}>{t("pos.stockCount", { n: p.stock })}{p.stock <= 5 ? t("pos.lowStock") : ""}</p></div>
                   </div>
                   <button onClick={() => { setSel(sel === p.id ? null : p.id); setDir("add"); }} title={t("pos.adjustStock")} aria-label={t("pos.adjustStock")} className="px-3 py-2 rounded-xl bg-white/10 text-sm font-semibold flex items-center gap-1 flex-shrink-0"><PackagePlus className="w-4 h-4" /></button>
@@ -724,9 +725,9 @@ function BottlesTab() {
       </div>
       <div>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("pos.searchKept")} className={inp + " mb-3"} />
-        <div className="grid sm:grid-cols-2 gap-2">
+        <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 260px), 1fr))" }}>
           {kept.map((b) => (
-            <div key={b.id} className={`flex items-center gap-3 rounded-2xl border p-3 ${b.expiringSoon ? "border-amber-400/40 bg-amber-400/5" : "border-white/10 bg-white/5"}`}>
+            <div key={b.id} className={`min-w-0 flex items-center gap-3 rounded-2xl border p-3 ${b.expiringSoon ? "border-amber-400/40 bg-amber-400/5" : "border-white/10 bg-white/5"}`}>
               {b.photoUrl
                 ? <img src={b.photoUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
                 : <span className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0"><Wine className="w-6 h-6 text-amber-300" /></span>}
