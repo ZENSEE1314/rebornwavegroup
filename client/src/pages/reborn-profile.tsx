@@ -7,6 +7,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useTranslation } from "@/lib/i18n";
+import { useDisabledFeatures } from "@/lib/features";
 import { COUNTRIES, DIAL_CODES } from "@/lib/countries";
 import { User, Lock, Globe, Copy, CreditCard, ReceiptText } from "lucide-react";
 
@@ -26,6 +27,7 @@ function splitPhone(raw?: string): { dial: string; num: string } {
 }
 
 export default function RebornProfile() {
+  const historyOff = useDisabledFeatures().has("history");
   const { user } = useAuth();
   const { t, language: lang, changeLanguage: setLang } = useTranslation();
   const { toast } = useToast();
@@ -114,7 +116,7 @@ export default function RebornProfile() {
         )}
       </div>
 
-      <a href="/history" className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 mb-4 flex items-center gap-3"><ReceiptText className="w-5 h-5 text-amber-300" /><span className="flex-1"><b className="block">{t("ac.prof.historyTitle")}</b><span className="text-xs text-white/50">{t("ac.prof.historyDesc")}</span></span></a>
+      {!historyOff && <a href="/history" className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 mb-4 flex items-center gap-3"><ReceiptText className="w-5 h-5 text-amber-300" /><span className="flex-1"><b className="block">{t("ac.prof.historyTitle")}</b><span className="text-xs text-white/50">{t("ac.prof.historyDesc")}</span></span></a>}
 
       {/* Language */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">

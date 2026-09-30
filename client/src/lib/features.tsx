@@ -27,30 +27,42 @@ export function featureForPath(path: string): string | undefined {
   return APP_FEATURES.find((f) => f.paths.includes(p))?.key;
 }
 
-// The features switched off (empty while loading, so nothing flickers away).
-export function useDisabledFeatures(): Set<string> {
-  const { data } = useQuery<{ disabled: string[] }>({
+function useFeaturesQuery() {
+  return useQuery<{ disabled: string[] }>({
     queryKey: ["/api/reborn/features"],
     queryFn: () => apiRequest("GET", "/api/reborn/features").then((r) => r.json()),
     staleTime: 30_000,
   });
-  return new Set(data?.disabled || []);
+}
+// The features switched off. Until the list has loaded every switchable feature
+// counts as off, so a member can never see or tap a button that's turned off.
+export function useDisabledFeatures(): Set<string> {
+  return useFeatureState().off;
+}
+export function useFeatureState(): { off: Set<string>; loaded: boolean } {
+  const { data, isError } = useFeaturesQuery();
+  if (!data) return { off: new Set(isError ? [] : APP_FEATURES.map((f) => f.key)), loaded: isError };
+  return { off: new Set(data.disabled || []), loaded: true };
 }
 
 // Is this page's feature on for the current user? Admins and staff can always open it.
-export function useFeatureOn(path: string): boolean {
-  const off = useDisabledFeatures();
+// "loading" until the list arrives, so pages don't flash the "turned off" notice.
+export function useFeatureOn(path: string): boolean | "loading" {
+  const { off, loaded } = useFeatureState();
   const { user } = useAuth();
   const role = (user as any)?.role;
   if (role === "admin" || role === "staff") return true;
   const key = featureForPath(path);
-  return !key || !off.has(key);
+  if (!key) return true;
+  if (!loaded) return "loading";
+  return !off.has(key);
 }
 
 // Wraps a page: shows a friendly "turned off" card when the admin disabled it.
 export function FeatureGate({ path, children }: { path: string; children: ReactNode }) {
   const on = useFeatureOn(path);
   const { t } = useTranslation();
+  if (on === "loading") return null;
   if (on) return <>{children}</>;
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "#0a0714" }}>
