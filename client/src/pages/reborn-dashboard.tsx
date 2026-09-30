@@ -31,6 +31,9 @@ const TILES = [
   { label: "hm.tile.history", desc: "hm.tile.historyDesc", icon: <ReceiptText className="w-6 h-6" />, path: "/history", color: "#f0d787" },
 ];
 
+// Must match MAX_TOPUP_RP on the server (credits are stored as decimal(10,2)).
+const MAX_TOPUP = 50_000_000;
+
 function formatRp(n: number) { return "RP " + (n || 0).toLocaleString(localeTag()); }
 
 export default function RebornDashboard() {
@@ -183,14 +186,15 @@ function TopupModal({ onClose }: { onClose: () => void }) {
         <h3 className="arc-title mb-1" style={{ ["--c1" as any]: "#f3b52f" }}>{t("hm.topup.title")}</h3>
         <p className="text-sm text-white/60 mb-4">{t("hm.topup.desc")}</p>
         <label className="text-xs text-white/60 block mb-1">{t("hm.topup.amount")}</label>
-        <input type="number" min={10000} step={10000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="arc-input w-full mb-3 font-black text-lg" style={{ ["--c1" as any]: "#f3b52f" }} />
+        <input type="number" min={10000} max={MAX_TOPUP} step={10000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="arc-input w-full mb-1 font-black text-lg" style={{ ["--c1" as any]: "#f3b52f" }} />
+        <p className={`text-[11px] mb-3 ${amount > MAX_TOPUP ? "text-red-300 font-bold" : "text-white/45"}`}>{t("hm.topup.max", { n: MAX_TOPUP.toLocaleString(localeTag(language)) })}</p>
         <label className="text-xs text-white/60 block mb-1">{t("hm.topup.method")}</label>
         <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           {[{ v: "cash", l: t("hm.topup.cash") }, { v: "card", l: t("hm.topup.card") }].map((m) => (
             <button key={m.v} type="button" onClick={() => setMethod(m.v)} className={`pet-tab ${method === m.v ? "on" : "border border-white/10 bg-black/30"}`}>{m.l}</button>
           ))}
         </div>
-        <button onClick={() => submit.mutate()} disabled={submit.isPending || amount < 10000} className="arc-play w-full justify-center disabled:opacity-50" style={{ padding: 12, fontSize: 13 }}>{t("hm.topup.send")}</button>
+        <button onClick={() => submit.mutate()} disabled={submit.isPending || amount < 10000 || amount > MAX_TOPUP} className="arc-play w-full justify-center disabled:opacity-50" style={{ padding: 12, fontSize: 13 }}>{t("hm.topup.send")}</button>
         {mine.length > 0 && (
           <div className="mt-4 space-y-1">
             <p className="text-xs text-white/40">{t("hm.topup.recent")}</p>

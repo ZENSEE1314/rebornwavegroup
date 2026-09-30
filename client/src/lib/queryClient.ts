@@ -1,9 +1,16 @@
+import { translate } from "@/lib/i18n";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    // Show the server's own (translated) message, never a raw HTML error page
+    // (e.g. Cloudflare's 502 page while the server restarts).
+    let msg = text;
+    try { const j = JSON.parse(text); if (j && typeof j.message === "string") msg = j.message; } catch {
+      if (/<\s*(!doctype|html|head|body|div)\b/i.test(text) || res.status >= 502) msg = translate("srv.err.busy");
+    }
+    throw new Error(`${res.status}: ${msg}`);
   }
 }
 

@@ -1672,10 +1672,13 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // Member RP top-up requests (approved by staff/admin → credits added)
+  const MAX_TOPUP_RP = 50_000_000;
   app.post("/api/reborn/topup", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
-    const amount = Number(req.body?.amount) || 0;
+    const amount = Math.round((Number(req.body?.amount) || 0) * 100) / 100;
     if (amount <= 0) return res.status(400).json({ message: tr(req, { en: "Enter an amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
+    // amount / credits columns are decimal(10,2): anything bigger can't be stored.
+    if (amount > MAX_TOPUP_RP) return res.status(400).json({ message: tr(req, { en: "The maximum top-up is RP {n}.", zh: "单次最多充值 RP {n}。", id: "Isi ulang maksimal RP {n}." }, { n: MAX_TOPUP_RP.toLocaleString(localeOf(reqLang(req))) }) });
     const method = req.body?.paymentMethod === "card" ? "card" : "cash";
     const [row] = await db.insert(topUpRequests).values({ userId, amount: String(amount), paymentMethod: method, paymentProof: req.body?.paymentProof || null, status: "pending" }).returning();
     res.json({ message: tr(req, { en: "Top-up request sent. Staff will confirm and add your credits.", zh: "充值申请已提交。员工确认后会为你添加余额。", id: "Permintaan isi saldo terkirim. Staf akan mengonfirmasi dan menambahkan saldomu." }), request: row });
