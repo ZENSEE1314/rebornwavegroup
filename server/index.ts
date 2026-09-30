@@ -6,6 +6,7 @@ import { registerRebornRoutes } from "./rebornGame";
 import { registerGameRoutes } from "./games";
 import { registerPetHomeRoutes } from "./petHome";
 import { ensureBridgeXSchema, registerBridgeXRoutes } from "./bridgeX";
+import { ensureMoneyColumns } from "./moneyColumns";
 import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
@@ -99,6 +100,7 @@ app.use((req, res, next) => {
 
   // BridgeXPOS uses the same authenticated session and seeds Reborn as tenant one.
   await ensureBridgeXSchema();
+  await ensureMoneyColumns();
   registerBridgeXRoutes(app);
 
   // Reborn game routes need the session/passport middleware that registerRoutes sets up

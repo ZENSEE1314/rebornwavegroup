@@ -271,12 +271,28 @@ async function buildDailyClosingReport(day: string) {
     sum.revenue += Number(ticket.total) || 0;
     if (ticket.paymentMethod === "cash") sum.cash += Number(ticket.total) || 0;
     if (ticket.paymentMethod === "card") sum.card += Number(ticket.total) || 0;
+    if (ticket.paymentMethod === "credits") sum.credits += Number(ticket.total) || 0;
     return sum;
-  }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, cash: 0, card: 0 });
+  }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, cash: 0, card: 0, credits: 0 });
   const items = Array.from(grouped.values()).sort((a, b) => b.sales - a.sales);
   const cost = items.reduce((sum, item) => sum + item.cost, 0);
   return { day, closedAt: new Date().toISOString(), ticketCount: tickets.length, items, totals: { ...totals, cost, profit: totals.revenue - totals.tax - cost } };
 }
+// Pay a POS bill from the member's RP credits: one atomic UPDATE that only
+// succeeds when the balance covers it. Returns the new balance, or null (+ current
+// balance) when there isn't enough. Credits were booked as income at top-up, so
+// the sale itself adds no second income entry to the ledger.
+async function payWithCredits(userId: string, total: number, orderNo: string, ticketId: number): Promise<{ ok: true; balance: number } | { ok: false; balance: number }> {
+  const [row] = await db.update(users).set({ credits: sql`${users.credits} - ${total}`, updatedAt: new Date() })
+    .where(and(eq(users.id, userId), sql`${users.credits} >= ${total}`)).returning({ credits: users.credits });
+  if (!row) { const [u] = await db.select({ credits: users.credits }).from(users).where(eq(users.id, userId)); return { ok: false, balance: Number(u?.credits || 0) }; }
+  await db.insert(memberWalletTransactions).values({ userId, type: "pos_payment", rpAmount: String(-total), kgoldAmount: 0, description: `Paid bill ${orderNo} with RP credits`, referenceType: "pos_order", referenceId: String(ticketId) });
+  return { ok: true, balance: Number(row.credits) };
+}
+const posMethod = (m: any) => (m === "card" ? "card" : m === "credits" ? "credits" : "cash");
+const methodLabel = (m: string, lang: Lang) => m === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : m === "credits" ? pick(lang, { en: "RP CREDITS", zh: "RP 余额", id: "KREDIT RP" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" });
+const notEnoughCredits = (req: Request, total: number, balance: number) => tr(req, { en: "Not enough RP credits: the bill is RP {n}, the member has RP {b}.", zh: "RP 余额不足：账单 RP {n}，会员余额 RP {b}。", id: "Kredit RP tidak cukup: tagihan RP {n}, saldo member RP {b}." }, { n: fmtN(total, reqLang(req)), b: fmtN(balance, reqLang(req)) });
+
 // Contribute the pool % only for UN-referred buyers (a referred buyer's 10% is their
 // referrer's commission instead). House-account referrals count as un-referred.
 async function contributeSpinPoolIfUnreferred(userId: string | null | undefined, saleTotal: number) {
@@ -949,12 +965,12 @@ export function registerRebornRoutes(app: Express) {
     try {
       const session = await ensureVenueSession();
       const cid = await rebornCompanyId(req);
-      const result = await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::int AS stars
+      const result = await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::bigint AS stars
         FROM venue_checkins v JOIN users u ON u.id=v.user_id
         LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at AND g.company_id=${cid}
         WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL
         GROUP BY u.id,u.first_name,u.username,u.profile_image_url,v.checked_in_at ORDER BY stars DESC,v.checked_in_at ASC LIMIT 100`);
-      res.json(result.rows || result);
+      res.json(((result.rows || result) as any[]).map((r) => ({ ...r, stars: Number(r.stars || 0) })));
     } catch (e) { console.error("kos leaderboard", e); res.status(500).json({ message: tr(req, { en: "Failed to load leaderboard", zh: "排行榜加载失败", id: "Gagal memuat papan peringkat" }) }); }
   });
 
@@ -988,7 +1004,7 @@ export function registerRebornRoutes(app: Express) {
       const cid = await rebornCompanyId(req);
       const [got] = await db.select({ stars: sql<number>`coalesce(sum(${kosGifts.recipientKgold}),0)` }).from(kosGifts).where(and(eq(kosGifts.companyId, cid), eq(kosGifts.toUserId, userId)));
       res.json({
-        kgold: u?.kgold ?? 0, credits: Number(u?.credits || 0), starsReceived: Number(got?.stars || 0),
+        kgold: Number(u?.kgold ?? 0), credits: Number(u?.credits || 0), starsReceived: Number(got?.stars || 0),
         kgoldPerRp: s.kgoldPerRp, minBuyKgold: s.minBuyKgold, minCashoutRp: s.minCashoutRp, feePercent: s.giftFeePercent,
       });
     } catch (e) { console.error("kos wallet", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
@@ -1672,12 +1688,12 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // Member RP top-up requests (approved by staff/admin → credits added)
-  const MAX_TOPUP_RP = 50_000_000;
+  const MAX_TOPUP_RP = 1_000_000_000;
   app.post("/api/reborn/topup", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     const amount = Math.round((Number(req.body?.amount) || 0) * 100) / 100;
     if (amount <= 0) return res.status(400).json({ message: tr(req, { en: "Enter an amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
-    // amount / credits columns are decimal(10,2): anything bigger can't be stored.
+    // Credits are numeric(16,2) (see moneyColumns.ts); the cap is a business limit.
     if (amount > MAX_TOPUP_RP) return res.status(400).json({ message: tr(req, { en: "The maximum top-up is RP {n}.", zh: "单次最多充值 RP {n}。", id: "Isi ulang maksimal RP {n}." }, { n: MAX_TOPUP_RP.toLocaleString(localeOf(reqLang(req))) }) });
     const method = req.body?.paymentMethod === "card" ? "card" : "cash";
     const [row] = await db.insert(topUpRequests).values({ userId, amount: String(amount), paymentMethod: method, paymentProof: req.body?.paymentProof || null, status: "pending" }).returning();
@@ -2066,10 +2082,11 @@ export function registerRebornRoutes(app: Express) {
     const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
-    const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
+    const paymentMethod = posMethod(req.body?.paymentMethod);
     const paymentReference = String(req.body?.paymentReference || "").trim();
     if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const u = await findMemberByCode(req.body?.memberCode || "");
+    if (paymentMethod === "credits" && !u) return res.status(400).json({ message: tr(req, { en: "Enter the member code to pay with their RP credits", zh: "使用 RP 余额付款前请输入会员码", id: "Masukkan kode member untuk membayar dengan kredit RP" }) });
     if (req.body?.keepBottle?.enabled && !u) return res.status(400).json({ message: tr(req, { en: "Select a member before keeping a bottle at checkout", zh: "结账寄存酒瓶前请先选择会员", id: "Pilih member sebelum menitipkan botol saat pembayaran" }) });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }) });
     const settings = await getSettings();
@@ -2083,6 +2100,7 @@ export function registerRebornRoutes(app: Express) {
     const changeGiven = paymentMethod === "cash" ? cashReceived! - total : null;
     const keepType = String(req.body?.keepBottle?.type || "");
     if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: tr(req, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }) });
+    if (paymentMethod === "credits" && Number(u!.credits || 0) < total) return res.status(400).json({ message: notEnoughCredits(req, total, Number(u!.credits || 0)) });
     const points = u ? Math.floor(total / await pointsSpendRp()) : 0;
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : "dine_in";
     const [row] = await db.insert(posTickets).values({
@@ -2092,11 +2110,15 @@ export function registerRebornRoutes(app: Express) {
       subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), orderMode,
       paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
     }).returning();
+    if (paymentMethod === "credits") {
+      const paid = await payWithCredits(u!.id, total, row.orderNo, row.id);
+      if (!paid.ok) { await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(400).json({ message: notEnoughCredits(req, total, paid.balance) }); }
+    }
     await appendItems(row.id, row.orderNo, clean!, getUserId(req)!);
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
-    await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
-    await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${paymentMethod === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" })}` }), { path: "/reborn-admin", ticketId: row.id });
+    if (paymentMethod !== "credits") await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
+    await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: row.id });
     if (u?.id) await notifyUserI18n(u.id, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: row.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: row.id });
     const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, getUserId(req)!, reqLang(req)) : null;
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
@@ -2295,11 +2317,12 @@ export function registerRebornRoutes(app: Express) {
     res.json(withItems);
   }));
   app.post("/api/reborn/pos/orders/:id/pay", requireStaff(async (req, res) => {
-    const id = Number(req.params.id); const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
+    const id = Number(req.params.id); const paymentMethod = posMethod(req.body?.paymentMethod);
     const paymentReference = String(req.body?.paymentReference || "").trim();
     if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Order not open", zh: "该订单未开启", id: "Pesanan tidak terbuka" }) });
+    if (paymentMethod === "credits" && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member to pay with their RP credits", zh: "使用 RP 余额付款前请先标记会员", id: "Tandai member untuk membayar dengan kredit RP" }) });
     if (req.body?.keepBottle?.enabled && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member before keeping a bottle at checkout", zh: "结账寄存酒瓶前请先标记会员", id: "Tandai member sebelum menitipkan botol saat pembayaran" }) });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }) });
     const settings = await getSettings();
@@ -2318,11 +2341,15 @@ export function registerRebornRoutes(app: Express) {
     const points = o.memberId ? Math.floor(total / await pointsSpendRp()) : 0;
     const sales = await salesTag(req.body); // optional salesperson override at checkout
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : (o.orderMode || "dine_in");
+    if (paymentMethod === "credits") {
+      const paid = await payWithCredits(o.memberId!, total, o.orderNo, id);
+      if (!paid.ok) return res.status(400).json({ message: notEnoughCredits(req, total, paid.balance) });
+    }
     await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), orderMode, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
-    await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
-    await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: o.orderNo }), body: `RP ${fmtN(total, lang)} · ${paymentMethod === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" })}` }), { path: "/reborn-admin", ticketId: id });
+    if (paymentMethod !== "credits") await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
+    await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: o.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: id });
     if (o.memberId) await notifyUserI18n(o.memberId, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: o.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: id });
     const [member] = o.memberId ? await db.select().from(users).where(eq(users.id, o.memberId)).limit(1) : [];
     const keptBottle = member ? await storeBottleForMember(member, req.body?.keepBottle, getUserId(req)!, reqLang(req)) : null;
@@ -2498,7 +2525,11 @@ export function registerRebornRoutes(app: Express) {
     }
     if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints: sql`greatest(0,${users.loyaltyPoints}-${order.pointsEarned})`, lifetimePoints: sql`greatest(0,${users.lifetimePoints}-${order.pointsEarned})`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
     const [updated] = await db.update(posTickets).set({ status: "refunded", refundReason: reason, refundedBy: actorId, refundedAt: new Date() }).where(eq(posTickets.id, id)).returning();
-    await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(order.total), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
+    if (order.paymentMethod === "credits" && order.memberId) {
+      // Paid from RP credits → give the credits back (no cash left the till).
+      await db.update(users).set({ credits: sql`${users.credits} + ${Number(order.total)}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
+      await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund", rpAmount: String(Number(order.total)), kgoldAmount: 0, description: `Refund ${order.orderNo}: ${reason}`, referenceType: "pos_order", referenceId: String(id) });
+    } else await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(order.total), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
     return { status: 200 as const, body: { message: tr(req, { en: "{no} refunded and stock restored", zh: "{no} 已退款，库存已恢复", id: "{no} di-refund dan stok dikembalikan" }, { no: order.orderNo }), order: { ...updated, items } }, order };
   };
   app.post("/api/reborn/admin/accounting/orders/:id/refund", requireAdmin(async (req, res) => {

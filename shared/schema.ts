@@ -8,6 +8,7 @@ import {
   uniqueIndex,
   serial,
   integer,
+  bigint,
   decimal,
   boolean,
   primaryKey,
@@ -47,11 +48,11 @@ export const users = pgTable("users", {
   country: varchar("country"),
   preferredLanguage: varchar("preferred_language").default("en"), // 'en' | 'zh' | 'id'
   role: varchar("role").default("user").notNull(), // 'user' | 'admin'
-  credits: decimal("credits", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  credits: decimal("credits", { precision: 16, scale: 2 }).default("0.00").notNull(),
   loyaltyPoints: integer("loyalty_points").default(0).notNull(),
   lifetimePoints: integer("lifetime_points").default(0).notNull(),
   tokens: integer("tokens").default(0).notNull(), // Physical tokens that can be claimed
-  kgold: integer("kgold").default(0).notNull(), // KOS gifting currency (100 KGOLD = 1 RP)
+  kgold: bigint("kgold", { mode: "number" }).default(0).notNull(), // KOS gifting currency (100 KGOLD = 1 RP)
   level: integer("level").default(1).notNull(),
   referralCode: varchar("referral_code").unique().notNull(),
   referredById: varchar("referred_by_id"),
@@ -251,7 +252,7 @@ export const memberWalletTransactions = pgTable("member_wallet_transactions", {
   userId: varchar("user_id").notNull(),
   type: varchar("type").notNull(),
   rpAmount: decimal("rp_amount", { precision: 14, scale: 2 }).default("0").notNull(),
-  kgoldAmount: integer("kgold_amount").default(0).notNull(),
+  kgoldAmount: bigint("kgold_amount", { mode: "number" }).default(0).notNull(),
   description: text("description").notNull(),
   referenceType: varchar("reference_type"),
   referenceId: varchar("reference_id"),
@@ -764,7 +765,7 @@ export const kosGiftTypes = pgTable("kos_gift_types", {
   emoji: varchar("emoji").default("🎁"),
   imageUrl: varchar("image_url"),
   animation: varchar("animation").default("pop"), // pop | float | rain | zoom
-  kgoldCost: integer("kgold_cost").default(100),
+  kgoldCost: bigint("kgold_cost", { mode: "number" }).default(100),
   active: boolean("active").default(true),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
@@ -778,8 +779,8 @@ export const kosGifts = pgTable("kos_gifts", {
   toUserId: varchar("to_user_id").notNull(),
   giftTypeId: integer("gift_type_id"),
   giftName: varchar("gift_name").default("Gift"),
-  kgoldCost: integer("kgold_cost").default(0),      // charged to sender
-  recipientKgold: integer("recipient_kgold").default(0), // credited to recipient (after fee)
+  kgoldCost: bigint("kgold_cost", { mode: "number" }).default(0),      // charged to sender
+  recipientKgold: bigint("recipient_kgold", { mode: "number" }).default(0), // credited to recipient (after fee)
   seen: boolean("seen").default(false),             // notification read?
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -994,7 +995,7 @@ export const ledgerEntries = pgTable("ledger_entries", {
   branchId: integer("branch_id"),
   kind: varchar("kind").notNull(), // 'income' | 'expense'
   category: varchar("category").notNull(), // 'product_sale' | 'service' | 'topup' | 'purchase' | 'other'
-  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  amount: decimal("amount", { precision: 16, scale: 2 }).notNull(),
   note: text("note"),
   photoUrl: text("photo_url"), // snapped invoice/receipt for outside payments
   refType: varchar("ref_type"), // 'pos_order' | 'topup' | 'stock_movement'
@@ -1669,7 +1670,7 @@ export const paymentMethods = pgTable("payment_methods", {
 export const topUpRequests = pgTable("topup_requests", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  amount: decimal("amount", { precision: 16, scale: 2 }).notNull(),
   paymentMethod: varchar("payment_method").notNull(), // 'bank_transfer', 'cash_deposit', 'paypal'
   paymentProof: text("payment_proof"), // File path or URL to payment proof
   bankTransferDetails: jsonb("bank_transfer_details"), // Bank name, account number, reference number
