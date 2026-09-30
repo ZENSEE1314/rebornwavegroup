@@ -65,7 +65,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
   bookingTableDayLock: "false", // a table booked at any time is closed for the rest of that day
   bookingAskHours: "true",      // ask guests how many hours they'll stay (off → default 2 hours)
-  appAndroidUrl: "",            // where /download/android sends people (APK or Play Store link)
+  appAndroidUrl: "https://expo.dev/artifacts/eas/0YiA8OVhLT7Ri54Uvn0Xe9j8x1aH_w84jTMgSmqiHts.apk", // where /download/android sends people (EAS build 16, expires 2026-10-14; admin Settings override)
   appIosUrl: "",                // where /download/ios sends people (App Store / TestFlight link)
 };
 async function getSettings() {
@@ -107,8 +107,8 @@ async function getSettings() {
     allowNegativeStock: map.allowNegativeStock === "true",
     bookingTableDayLock: map.bookingTableDayLock === "true",
     bookingAskHours: map.bookingAskHours !== "false",
-    appAndroidUrl: map.appAndroidUrl || "",
-    appIosUrl: map.appIosUrl || "",
+    appAndroidUrl: map.appAndroidUrl || SETTINGS_DEFAULTS.appAndroidUrl,
+    appIosUrl: map.appIosUrl || SETTINGS_DEFAULTS.appIosUrl,
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
 }
