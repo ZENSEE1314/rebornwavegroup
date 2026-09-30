@@ -141,6 +141,10 @@ export async function sendWhatsAppImage(to: string, imageUrl: string, caption: s
   return sendWhatsApp(num, caption);
 }
 
+// Admin › App features: is this member feature switched off? (same list the app uses)
+async function featureOff(key: string): Promise<boolean> {
+  try { const v = JSON.parse((await settingVal("disabledFeatures")) || "[]"); return Array.isArray(v) && v.includes(key); } catch { return false; }
+}
 async function settingVal(key: string): Promise<string> {
   try { const [r] = await db.select().from(appSettings).where(eq(appSettings.key, key)); return r?.value || ""; }
   catch { return ""; }
@@ -439,6 +443,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       en: "Hello {name}, how can I help you today? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3, or ask anything you need.\n❌ Type \"cancel booking\" to cancel a booking.",
       zh: "你好 {name}，今天有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2、3，或直接提出任何问题。\n❌ 输入「取消预订」可取消预订。",
       id: "Halo {name}, apa yang bisa saya bantu hari ini? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2, 3, atau tanyakan apa saja yang Anda perlukan.\n❌ Ketik \"batal booking\" untuk membatalkan booking.",
+    },
+    featureOff: {
+      en: "Sorry, this is turned off right now. 🙏 Reply MENU for other options.",
+      zh: "抱歉，此功能目前已关闭。🙏 回复 MENU 查看其他选项。",
+      id: "Maaf, fitur ini sedang dinonaktifkan. 🙏 Balas MENU untuk pilihan lain.",
     },
     songAskName: {
       en: "🎤 What's the song name? (Chinese or pinyin — or both)",
@@ -907,6 +916,8 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // --- MENU INTENTS (work for members & returning contacts) ---
   const intent = parseMenuIntent(body);
+  const offKey = intent === "book" ? "bookings" : intent === "song" ? "songs" : intent === "bottle" ? "bottles" : "";
+  if (offKey && await featureOff(offKey)) { await say(L(lang, "featureOff")); return; }
   if (intent === "book") return handleBookIntent(c, lang, from, body, say);
   if (intent === "song") { await say(L(lang, "songAskName")); return patchContact(c.id, { waState: { flow: "song", step: "name" } }); }
   if (intent === "bottle") return showBottles(c, lang, say);

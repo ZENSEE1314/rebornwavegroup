@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages } from "lucide-react";
+import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
+import { APP_FEATURES } from "@/lib/features";
 import { printClosingReport, printReceipt } from "@/lib/receipt";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
@@ -17,7 +18,7 @@ const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles"
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
 const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ export default function RebornAdmin() {
       {tab === "Songs" && <Songs />}
       {tab === "Requests" && <SongRequests />}
       {tab === "Gifts" && <GiftTypes />}
+      {tab === "Features" && <AppFeatures />}
       {tab === "Settings" && <Settings />}
       {tab === "Users" && <Members />}
       {tab === "Top-ups" && <TopUps />}
@@ -62,6 +64,49 @@ export default function RebornAdmin() {
       {tab === "CRM" && <Crm />}
       {tab === "Logs" && <Logs />}
     </RebornLayout>
+  );
+}
+
+// Admin › App features: switch each member feature on or off (saved straight away).
+function AppFeatures() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<{ disabled: string[] }>({ queryKey: ["/api/reborn/features"], queryFn: () => apiRequest("GET", "/api/reborn/features").then((r) => r.json()) });
+  const off = new Set(data?.disabled || []);
+  const save = useMutation({
+    mutationFn: (disabled: string[]) => apiRequest("POST", "/api/reborn/admin/features", { disabled }).then((r) => r.json()),
+    onMutate: (disabled) => { qc.setQueryData(["/api/reborn/features"], { disabled }); },
+    onSuccess: (d: any) => { qc.setQueryData(["/api/reborn/features"], { disabled: d.disabled }); toast({ title: t("admin.feat.saved") }); },
+    onError: (e: any) => { qc.invalidateQueries({ queryKey: ["/api/reborn/features"] }); toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }); },
+  });
+  const toggle = (key: string) => { const next = new Set(off); next.has(key) ? next.delete(key) : next.add(key); save.mutate(Array.from(next)); };
+  const onCount = APP_FEATURES.length - APP_FEATURES.filter((f) => off.has(f.key)).length;
+  return (
+    <Card>
+      <h3 className="font-bold mb-1 flex items-center gap-2"><ToggleRight className="w-4 h-4 text-amber-300" /> {t("admin.feat.title")}</h3>
+      <p className="text-xs text-white/50 mb-1">{t("admin.feat.hint")}</p>
+      <p className="text-xs text-amber-200/80 mb-3">{t("admin.feat.count", { n: onCount, total: APP_FEATURES.length })}</p>
+      <div className="space-y-2">
+        {APP_FEATURES.map((f) => {
+          const on = !off.has(f.key);
+          return (
+            <button key={f.key} type="button" role="switch" aria-checked={on} onClick={() => toggle(f.key)} disabled={save.isPending}
+              className={`w-full flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${on ? "border-emerald-400/40 bg-emerald-400/10" : "border-white/10 bg-black/30 opacity-70"}`}>
+              <span className="text-2xl w-9 text-center shrink-0" aria-hidden>{f.icon}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-bold text-white truncate">{t(f.label)}</span>
+                <span className="block text-[11px] text-white/45 truncate">{t(f.desc)}</span>
+              </span>
+              <span className={`shrink-0 text-[11px] font-black uppercase tracking-wide ${on ? "text-emerald-300" : "text-white/40"}`}>{on ? t("admin.feat.on") : t("admin.feat.off")}</span>
+              <span className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${on ? "bg-emerald-400" : "bg-white/15"}`}>
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all" style={{ left: on ? 22 : 2 }} />
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
@@ -106,7 +151,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Songs: <Music2 className="w-4 h-4" />, Events: <Megaphone className="w-4 h-4" />, Broadcast: <Send className="w-4 h-4" />,
   Users: <UsersIcon className="w-4 h-4" />, Products: <Package className="w-4 h-4" />, Accounting: <Calculator className="w-4 h-4" />,
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
-  Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
+  Features: <ToggleRight className="w-4 h-4" />, Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
   Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />, Games: <Gamepad2 className="w-4 h-4" />,
 };

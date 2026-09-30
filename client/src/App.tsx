@@ -1,4 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
+import { FeatureGate } from "@/lib/features";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -149,6 +150,25 @@ function ExperienceRedirect() {
 const INITIAL_PATH = window.location.pathname;
 
 // Logged-out "/" — the server serves the 3D tower at the root on the flagship domain.
+// Member pages the admin can switch off (Admin › App features).
+function gated(path: string, C: ComponentType<any>) {
+  return function Gated(props: any) { return <FeatureGate path={path}><C {...props} /></FeatureGate>; };
+}
+const GatedRebornPet = gated("/pet", RebornPet);
+const GatedRebornSpin = gated("/spin", RebornSpin);
+const GatedRebornGames = gated("/games", RebornGames);
+const GatedRebornSupport = gated("/support", RebornSupport);
+const GatedRebornKos = gated("/kos", RebornKos);
+const GatedRebornSong = gated("/songs", RebornSong);
+const GatedRebornChat = gated("/chat", RebornChat);
+const GatedRebornOrder = gated("/order", RebornOrder);
+const GatedRebornBottles = gated("/bottles", RebornBottles);
+const GatedBookings = gated("/bookings", Bookings);
+const GatedReferrals = gated("/referrals", Referrals);
+const GatedMyReferral = gated("/my-referral", MyReferral);
+const GatedLoyaltyProgram = gated("/loyalty-program", LoyaltyProgram);
+const GatedRebornHistory = gated("/history", RebornHistory);
+
 function HomeRedirect() {
   if (INITIAL_PATH === "/") window.location.replace(`/experience/${window.location.search}`);
   else window.location.assign(`/${window.location.search}`);
@@ -292,15 +312,15 @@ function Router() {
           <>
             {/* New member dashboard is the home; full legacy app still at /complete-app */}
             <Route path="/" component={RebornDashboard} />
-            <Route path="/pet" component={RebornPet} />
-            <Route path="/spin" component={RebornSpin} />
-            <Route path="/games" component={RebornGames} />
-            <Route path="/support" component={RebornSupport} />
-            <Route path="/kos" component={RebornKos} />
-            <Route path="/songs" component={RebornSong} />
-            <Route path="/chat" component={RebornChat} />
-            <Route path="/order" component={RebornOrder} />
-            <Route path="/bottles" component={RebornBottles} />
+            <Route path="/pet" component={GatedRebornPet} />
+            <Route path="/spin" component={GatedRebornSpin} />
+            <Route path="/games" component={GatedRebornGames} />
+            <Route path="/support" component={GatedRebornSupport} />
+            <Route path="/kos" component={GatedRebornKos} />
+            <Route path="/songs" component={GatedRebornSong} />
+            <Route path="/chat" component={GatedRebornChat} />
+            <Route path="/order" component={GatedRebornOrder} />
+            <Route path="/bottles" component={GatedRebornBottles} />
             <Route path="/pos" component={RebornPos} />
             <Route path="/reborn-admin" component={RebornAdmin} />
             <Route path="/staff-feedback" component={StaffFeedback} />
@@ -312,14 +332,14 @@ function Router() {
             <Route path="/app" component={CompleteApp} />
             <Route path="/pet-care" component={SimplePetCare} />
             <Route path="/energy-potion" component={PetCareWithEnergy} />
-            <Route path="/bookings" component={Bookings} />
+            <Route path="/bookings" component={GatedBookings} />
             <Route path="/marketplace" component={Marketplace} />
-            <Route path="/referrals" component={Referrals} />
-            <Route path="/my-referral" component={MyReferral} />
-            <Route path="/loyalty-program" component={LoyaltyProgram} />
+            <Route path="/referrals" component={GatedReferrals} />
+            <Route path="/my-referral" component={GatedMyReferral} />
+            <Route path="/loyalty-program" component={GatedLoyaltyProgram} />
             <Route path="/seasonal-collections" component={SimpleCollections} />
             <Route path="/profile" component={RebornProfile} />
-            <Route path="/history" component={RebornHistory} />
+            <Route path="/history" component={GatedRebornHistory} />
             <Route path="/profile-legacy" component={Profile} />
             <Route path="/checkout" component={Checkout} />
             <Route path="/payment-success" component={PaymentSuccess} />

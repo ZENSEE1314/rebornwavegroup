@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout, MENU_ITEMS } from "@/components/RebornLayout";
 import { useModules, moduleEnabled, NAV_MODULE } from "@/lib/modules";
+import { useDisabledFeatures, featureForPath } from "@/lib/features";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import { useTranslation, localeTag } from "@/lib/i18n";
 import {
@@ -39,6 +40,7 @@ function formatRp(n: number) { return "RP " + (n || 0).toLocaleString(localeTag(
 export default function RebornDashboard() {
   const [, navigate] = useLocation();
   const modules = useModules();
+  const featuresOff = useDisabledFeatures();
   const { user } = useAuth();
   const { t } = useTranslation();
   const isAdmin = (user as any)?.role === "admin" || (user as any)?.role === "staff";
@@ -142,7 +144,7 @@ export default function RebornDashboard() {
       <p className="arc-head">✨ {t("nav.allFeatures")}</p>
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
         {[
-          ...TILES.filter((tile) => moduleEnabled(modules, NAV_MODULE[tile.path])).map((tile) => ({ key: tile.label, path: tile.path, icon: tile.icon, color: tile.color, title: t(tile.label), desc: t(tile.desc) })),
+          ...TILES.filter((tile) => moduleEnabled(modules, NAV_MODULE[tile.path]) && !featuresOff.has(featureForPath(tile.path) || "")).map((tile) => ({ key: tile.label, path: tile.path, icon: tile.icon, color: tile.color, title: t(tile.label), desc: t(tile.desc) })),
           ...(isAdmin ? [
             { key: "pos", path: "/pos", icon: <Store className="w-6 h-6" />, color: "#f0b429", title: t("nav.pos"), desc: t("hm.dash.posDesc") },
             { key: "admin", path: "/reborn-admin", icon: <Shield className="w-6 h-6" />, color: "#a855f7", title: t("hm.dash.admin"), desc: t("hm.dash.adminDesc") },

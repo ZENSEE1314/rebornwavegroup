@@ -586,8 +586,60 @@ async function seedSongsIfEmpty() {
   songCatalogReady = true;
 }
 
+// ── App features the admin can switch off for members ─────────────────────
+// Stored as a JSON array of feature keys in app_settings.disabledFeatures.
+export const APP_FEATURE_KEYS = ["pet", "order", "bottles", "spin", "games", "bookings", "loyalty", "kos", "songs", "referral", "support", "chat", "history"] as const;
+let _disabledCache: { at: number; list: string[] } | null = null;
+export async function disabledFeatures(): Promise<string[]> {
+  if (_disabledCache && Date.now() - _disabledCache.at < 15000) return _disabledCache.list;
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "disabledFeatures"));
+  let list: string[] = [];
+  try { const v = JSON.parse(row?.value || "[]"); if (Array.isArray(v)) list = v.filter((k) => (APP_FEATURE_KEYS as readonly string[]).includes(k)); } catch {}
+  _disabledCache = { at: Date.now(), list };
+  return list;
+}
+// Member actions that belong to each feature (POST/PUT/DELETE only; reads stay open).
+const FEATURE_API: Array<[string, RegExp]> = [
+  ["pet", /^\/api\/reborn\/(action|feed|use-pill|pet-home\/)/],
+  ["order", /^\/api\/reborn\/shop\/order/],
+  ["spin", /^\/api\/reborn\/(spin$|prizes\/)/],
+  ["games", /^\/api\/reborn\/games\/(rooms|number)/],
+  ["bookings", /^\/api\/reborn\/booking$/],
+  ["kos", /^\/api\/reborn\/kos\/(buy|gift|cashout)/],
+  ["songs", /^\/api\/reborn\/songs\/request/],
+  ["chat", /^\/api\/reborn\/chat\/(request|send)/],
+  ["support", /^\/api\/reborn\/support\/ask/],
+];
+
 export function registerRebornRoutes(app: Express) {
   console.log("*** REBORN GAME ROUTES REGISTERED");
+
+  // Block member actions for features the admin turned off (admins/staff can still test them).
+  app.use(async (req, res, next) => {
+    if (req.method === "GET" || !req.path.startsWith("/api/reborn/")) return next();
+    const hit = FEATURE_API.find(([, re]) => re.test(req.path));
+    if (!hit) return next();
+    try {
+      if (!(await disabledFeatures()).includes(hit[0])) return next();
+      const uid = getUserId(req);
+      const u = uid ? await storage.getUser(uid) : null;
+      if (u && ((u as any).role === "admin" || (u as any).role === "staff")) return next();
+      return res.status(403).json({ message: tr(req, { en: "This feature is turned off right now.", zh: "此功能目前已关闭。", id: "Fitur ini sedang dinonaktifkan." }), featureOff: hit[0] });
+    } catch { return next(); }
+  });
+  app.get("/api/reborn/features", async (_req, res) => {
+    res.set("Cache-Control", "no-cache").json({ disabled: await disabledFeatures() });
+  });
+  app.post("/api/reborn/admin/features", requireAdmin(async (req, res) => {
+    const raw = Array.isArray(req.body?.disabled) ? req.body.disabled : [];
+    const list = Array.from(new Set(raw.map(String).filter((k: string) => (APP_FEATURE_KEYS as readonly string[]).includes(k))));
+    const v = JSON.stringify(list);
+    await db.insert(appSettings).values({ key: "disabledFeatures", value: v, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value: v, updatedAt: new Date() } });
+    _disabledCache = null;
+    await logAdmin(req, { targetType: "settings", action: "features", entityType: "settings", description: `App features off: ${list.join(", ") || "none"}` });
+    res.json({ disabled: list, message: tr(req, { en: "Saved", zh: "已保存", id: "Tersimpan" }) });
+  }));
   // Apply the club's saved timezone to booking/reminder time math at boot.
   getSettings().then((s) => { setBookingTimezone(s.timezone); setBookingRules({ tableDayLock: s.bookingTableDayLock }); }).catch(() => {});
 

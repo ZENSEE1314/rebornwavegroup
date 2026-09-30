@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
+import { useDisabledFeatures, featureForPath } from "@/lib/features";
 import {
   Home, PawPrint, Disc3, Headphones, X, Gift, Coins,
   Calendar, Trophy, Users, User, Music, Mic2, LogOut, Sparkles, MessageCircle,
@@ -112,6 +113,8 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   const brand = useTenantBrand();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const tokens = (user as any)?.tokens ?? 0;
+  const featuresOff = useDisabledFeatures();
+  const navItems = MAIN_NAV.filter((it) => !featuresOff.has(featureForPath(it.path) || ""));
   const gx = active ? GX_ACCENT[active] : undefined;
 
   const logout = async () => {
@@ -151,8 +154,8 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
       {/* Bottom nav — hidden while inside a live game so you can't tap out by accident */}
       {!hideNav && (
         <nav className="rwg-dock fixed bottom-0 left-0 right-0 z-40 backdrop-blur-md">
-          <div className="max-w-2xl mx-auto grid grid-cols-5">
-            {MAIN_NAV.map((it) => {
+          <div className="max-w-2xl mx-auto grid" style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
+            {navItems.map((it) => {
               const isActive = active === it.path || active === it.label.toLowerCase();
               return (
                 <button key={it.path} onClick={() => go(it.path)} className={`rwg-nav-item ${isActive ? "is-active" : ""}`}>
