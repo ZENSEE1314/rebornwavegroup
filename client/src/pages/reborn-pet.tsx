@@ -103,13 +103,13 @@ export default function RebornPet() {
       <style dangerouslySetInnerHTML={{ __html: WALK_CSS }} />
 
       {canAddMore && (
-        <div className="rounded-3xl p-5 mb-4 border border-white/10 bg-white/5">
-          <div className="flex items-center gap-2 mb-2"><PawPrint className="w-5 h-5 text-rose-400" /><h2 className="font-bold">{t("hm.pet.activateTitle")}</h2></div>
+        <div className="arc-panel mb-4" style={{ ["--c1" as any]: "#fb7185" }}>
+          <div className="flex items-center gap-2 mb-2"><PawPrint className="w-5 h-5 text-rose-400" /><h2 className="arc-title" style={{ fontSize: 16 }}>{t("hm.pet.activateTitle")}</h2></div>
           <p className="text-sm text-white/60 mb-3">{t("hm.pet.activateDesc")}</p>
           <div className="flex gap-2">
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="RW-XXXXXX"
-              className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60 uppercase tracking-wider" />
-            <button onClick={() => activate.mutate()} disabled={!code.trim() || activate.isPending} className="shrink-0 px-5 py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
+              className="arc-input arc-input-code flex-1" style={{ width: "auto", letterSpacing: ".18em" }} />
+            <button onClick={() => activate.mutate()} disabled={!code.trim() || activate.isPending} className="arc-play shrink-0 px-5 disabled:opacity-50" style={{ fontSize: 13 }}>
               {activate.isPending ? "..." : t("hm.pet.activate")}
             </button>
           </div>
@@ -148,16 +148,16 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
   const poke = () => { setPop(true); setTimeout(() => setPop(false), 550); }; // reaction only — no energy cost
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 overflow-hidden">
+    <div className="arc-panel" style={{ padding: 0, ["--c1" as any]: pet.isEgg ? "#fb7185" : sick ? "#ef4444" : "#f472b6" }}>
       {/* header */}
       <div className="flex items-center justify-between px-4 pt-4">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-bold">{pet.name}</h3>
+          <h3 className="arc-title">{pet.name}</h3>
           {pet.isEgg ? <Badge color="#fb7185"><Egg className="w-3 h-3" /> {t("hm.pet.egg")}</Badge>
             : sick ? <Badge color="#ef4444"><HeartPulse className="w-3 h-3" /> {t("hm.pet.sick")}</Badge>
             : <Badge color="#22c55e"><Check className="w-3 h-3" /> {t("hm.pet.healthy")}</Badge>}
         </div>
-        {!pet.isEgg && <span className="text-xs text-white/50 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("hm.pet.daysLeftShort", { n: pet.daysLeft })}</span>}
+        {!pet.isEgg && <span className="arc-badge" style={{ marginTop: 0 }}><Clock className="w-3 h-3" /> {t("hm.pet.daysLeftShort", { n: pet.daysLeft })}</span>}
       </div>
 
       <PetRoom pet={pet} img={img} sick={sick} home={home} onLight={onLight} pop={pop} onPoke={poke} />
@@ -170,21 +170,21 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
         ) : sick ? (
           <>
             <p className="text-sm text-white/60 mb-3">{t("hm.pet.sickDesc")}</p>
-            <button onClick={onPill} disabled={pilling || pillsAvailable < 1} className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-white disabled:opacity-50" style={{ background: pillsAvailable > 0 ? "linear-gradient(90deg,#ef4444,#f97316)" : "rgba(255,255,255,0.08)" }}>
+            <button onClick={onPill} disabled={pilling || pillsAvailable < 1} className="pet-act w-full" style={{ flexDirection: "row", gap: 8, padding: "12px 8px", ["--c" as any]: pillsAvailable > 0 ? "#ef4444" : "#64748b" }}>
               <Pill className="w-4 h-4" /> {pillsAvailable > 0 ? t("hm.pet.usePill") : t("hm.pet.noPill")}
             </button>
           </>
         ) : (
           <>
             {/* stat bars */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
+            <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
               {(["hunger", "happiness", "cleanliness", "energy"] as const).map((k) => {
                 const v = pet[k] ?? 0; const m = STAT_META[k];
                 const c = v < 20 ? "#ef4444" : v < 50 ? "#f59e0b" : m.color;
                 return (
-                  <div key={k}>
-                    <div className="flex justify-between text-[11px] mb-1"><span className="text-white/60">{m.emoji} {t(m.label)}</span><span className="font-bold" style={{ color: c }}>{v}%</span></div>
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${v}%`, background: c }} /></div>
+                  <div key={k} className="pet-stat" style={{ ["--c1" as any]: c }}>
+                    <div className="flex justify-between text-[11px]"><span className="font-bold text-white/75 truncate">{m.emoji} {t(m.label)}</span><span className="font-black" style={{ color: c, textShadow: `0 0 8px ${c}` }}>{v}%</span></div>
+                    <div className="arc-bar"><i className="transition-all" style={{ width: `${v}%` }} /></div>
                   </div>
                 );
               })}
@@ -193,21 +193,21 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
             {/* actions */}
             <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
               {[
-                { a: "feed", label: t("hm.pet.feed"), emoji: "🍖" },
-                { a: "play", label: t("hm.pet.play"), emoji: "🎾" },
-                { a: "clean", label: t("hm.pet.clean"), emoji: "🧼" },
-                { a: pet.isSleeping ? "wake" : "sleep", label: pet.isSleeping ? t("hm.pet.wake") : t("hm.pet.sleep"), emoji: pet.isSleeping ? "☀️" : "😴" },
+                { a: "feed", label: t("hm.pet.feed"), emoji: "🍖", c: "#f59e0b" },
+                { a: "play", label: t("hm.pet.play"), emoji: "🎾", c: "#22c55e" },
+                { a: "clean", label: t("hm.pet.clean"), emoji: "🧼", c: "#38bdf8" },
+                { a: pet.isSleeping ? "wake" : "sleep", label: pet.isSleeping ? t("hm.pet.wake") : t("hm.pet.sleep"), emoji: pet.isSleeping ? "☀️" : "😴", c: "#a855f7" },
               ].map((b) => (
                 <button key={b.a} onClick={() => onAction(b.a)} disabled={busy || (b.a === "feed" && !pet.canFeed)}
-                  className="flex flex-col items-center justify-center gap-0.5 py-2 min-w-0 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all disabled:opacity-40">
-                  <span className="text-lg leading-none">{b.emoji}</span><span className="text-[10px] font-semibold truncate">{b.label}</span>
+                  className="pet-act" style={{ ["--c" as any]: b.c }}>
+                  <span className="e">{b.emoji}</span><span className="l">{b.label}</span>
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-white/35 text-center mt-1.5">{t("hm.pet.energyHelp")}</p>
+            <p className="text-[10px] text-white/35 text-center mt-2.5">{t("hm.pet.energyHelp")}</p>
 
             {/* daily token timer */}
-            <div className="mt-3 rounded-xl bg-black/20 p-3">
+            <div className="mt-3 rounded-2xl p-3 border border-amber-300/25" style={{ background: "linear-gradient(100deg, rgba(243,181,47,.14), rgba(0,0,0,.3) 60%)" }}>
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="text-white/60 flex items-center gap-1"><Coins className="w-3 h-3 text-amber-400" /> {t("hm.pet.dailyToken")}</span>
                 {pet.tokenEarnedToday ? <span className="text-emerald-400 font-bold">{t("hm.pet.earned")}</span>
@@ -216,7 +216,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
               </div>
               <div className="flex gap-1.5">
                 {Array.from({ length: pet.feedsNeeded }).map((_, i) => (
-                  <div key={i} className="flex-1 h-2 rounded-full" style={{ background: i < pet.feedsInCycle ? "#c9a84c" : "rgba(255,255,255,0.12)" }} />
+                  <div key={i} className={`pet-seg ${i < pet.feedsInCycle ? "on" : ""}`} />
                 ))}
               </div>
               <p className="text-[11px] text-white/40 mt-1.5">
@@ -368,15 +368,15 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
   const items = (home.catalog || []).filter((i: any) => i.kind === tab && !i.hidden && (tab === "furniture" || i.slot === slot));
   const worn = home.costumes?.[String(petId)] || {};
   return (
-    <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+    <div className="arc-panel mt-4" style={{ ["--c1" as any]: "#f7d774" }}>
       <div className="flex items-center justify-between gap-2 mb-1">
-        <h3 className="font-bold flex items-center gap-2">🏠 {t("hm.pet.shopTitle")}</h3>
-        <span className="shrink-0 rounded-full bg-amber-400/15 px-3 py-1 text-sm font-extrabold text-amber-300">🐾 {home.coins}</span>
+        <h3 className="arc-title flex items-center gap-2" style={{ fontSize: 16 }}>🏠 {t("hm.pet.shopTitle")}</h3>
+        <span className="rwg-token-chip shrink-0 rounded-full border px-3 py-1 text-sm font-black text-amber-300">🐾 {home.coins}</span>
       </div>
       <p className="text-[11px] text-white/50 mb-3">{t("hm.pet.shopEarn", { play: home.rewards?.play, win: home.rewards?.win, crack: home.rewards?.numberCrack, today: home.earnedToday, cap: home.dailyCap })}</p>
-      <div className="grid gap-1 p-1 rounded-xl bg-black/25 mb-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+      <div className="grid gap-1 p-1 rounded-2xl bg-black/40 border border-white/10 mb-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
         {([["furniture", t("hm.pet.tabRoom"), Sofa], ["costume", t("hm.pet.tabCostumes"), Shirt]] as const).map(([k, label, Icon]) => (
-          <button key={k} onClick={() => setTab(k)} className={`py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-1.5 ${tab === k ? "bg-amber-400 text-black" : "text-white/60"}`}><Icon className="w-4 h-4" />{label}</button>
+          <button key={k} onClick={() => setTab(k)} className={`pet-tab ${tab === k ? "on" : ""}`}><Icon className="w-4 h-4" />{label}</button>
         ))}
       </div>
       {tab === "costume" && pets.length > 1 && (
@@ -398,14 +398,14 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
           const onClick = () => !owned ? onBuy(it.id) : tab === "furniture" ? onPlace(it.slot, active ? null : it.id) : onWear(petId, it.id);
           return (
             <button key={it.id} onClick={onClick} disabled={busy || (!owned && home.coins < it.price)}
-              className={`min-w-0 flex flex-col items-center gap-1 rounded-2xl border ${it.image ? "p-1.5" : "p-2.5"} transition active:scale-95 ${it.image ? "disabled:opacity-60" : "disabled:opacity-40"} ${active ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 bg-black/20"}`}>
+              className={`pet-item ${active ? "on" : ""} ${it.image ? "p-1.5" : "p-2.5"} ${it.image ? "disabled:opacity-60" : "disabled:opacity-40"}`}>
               {it.figure
                 ? <div className="relative w-full aspect-square overflow-hidden rounded-xl" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><img src={it.figure} alt={it.name} loading="lazy" className={`absolute inset-0 h-full w-full object-contain p-1 ${it.slot === "footwear" ? "object-center" : "object-bottom"}`} /></div>
                 : it.image
                 ? <img src={it.image} alt={it.name} loading="lazy" className="w-full aspect-square rounded-xl object-cover" />
                 : <ItemArt id={it.id} emoji={it.emoji} className="text-3xl leading-none" style={{ width: 52, height: 52 }} />}
               <span className="text-[11px] font-semibold text-center leading-tight truncate w-full">{it.name}</span>
-              <span className={`text-[11px] font-bold ${owned ? (active ? "text-amber-300" : "text-emerald-300") : "text-white/70"}`}>{label}</span>
+              <span className={`pet-price ${owned ? (active ? "text-amber-300" : "text-emerald-300") : "text-amber-200"}`}>{label}</span>
             </button>
           );
         })}

@@ -100,6 +100,14 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />, Games: <Gamepad2 className="w-4 h-4" />,
 };
 
+// Each admin section's colour for its tile.
+const TAB_COLOR: Record<string, string> = {
+  Requests: "#a855f7", Redemptions: "#ec4899", "Top-ups": "#f59e0b", Codes: "#06b6d4", Pills: "#ef4444", Songs: "#8b5cf6",
+  Events: "#f97316", Broadcast: "#3b82f6", Users: "#22c55e", Products: "#14b8a6", Accounting: "#10b981", Prizes: "#eab308",
+  Gifts: "#f472b6", FAQ: "#60a5fa", Settings: "#94a3b8", Logs: "#64748b", Inventory: "#0ea5e9", CRM: "#6366f1",
+  Bookings: "#f59e0b", Bottles: "#e11d48", Staff: "#84cc16", Payroll: "#059669", Leaderboard: "#facc15", Feedback: "#fb7185", Games: "#d946ef",
+};
+
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -116,21 +124,27 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
   return (
     <div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-        {cards.filter((c) => !c.admin || isFullAdmin).map((c, i) => (
-          <button key={i} onClick={() => onGo(c.tab)} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10 active:scale-95 transition-all">
-            <div className="flex items-center justify-between">
-              <span className={`text-3xl font-extrabold ${c.warn && c.count > 0 ? "text-red-400" : c.hot && c.count > 0 ? "text-amber-300" : "text-white"}`}>{c.count ?? "—"}</span>
-              {c.hot && c.count > 0 && <span className="text-[10px] font-bold text-black bg-amber-300 px-1.5 py-0.5 rounded-full">{t("admin.ov.pending", { n: c.count })}</span>}
-            </div>
-            <p className="text-sm text-white/60 mt-1">{c.label}</p>
-          </button>
-        ))}
+        {cards.filter((c) => !c.admin || isFullAdmin).map((c, i) => {
+          const live = (c.hot || c.warn) && c.count > 0;
+          const col = c.warn ? (c.count > 0 ? "#ef4444" : "#64748b") : TAB_COLOR[c.tab];
+          return (
+            <button key={i} onClick={() => onGo(c.tab)} className={`stat-tile ${live ? "stat-hot" : ""}`} style={{ ["--c" as any]: col }}>
+              <span className="ic">{TAB_ICON[c.tab]}</span>
+              <div className="flex items-start justify-between gap-1">
+                <span className="num">{c.count ?? "—"}</span>
+                {c.hot && c.count > 0 && <span className="text-[10px] font-black text-black bg-amber-300 px-1.5 py-0.5 rounded-full shadow-[0_0_10px_rgba(252,211,77,.6)]">{t("admin.ov.pending", { n: c.count })}</span>}
+              </div>
+              <p className="lbl">{c.label}</p>
+            </button>
+          );
+        })}
       </div>
-      <p className="text-xs text-white/40 mb-2 px-1">{t("admin.ov.openSection")}</p>
+      <h2 className="arc-head">{t("admin.ov.openSection")}</h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((tb) => tb !== "Overview").map((tb) => (
-          <button key={tb} onClick={() => onGo(tb)} className="py-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white/70 hover:bg-white/10 hover:border-amber-400/40 flex flex-col items-center gap-2">
-            <span className="text-amber-300">{TAB_ICON[tb]}</span>{t(tabKey(tb))}
+        {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((tb) => tb !== "Overview").map((tb, i) => (
+          <button key={tb} onClick={() => onGo(tb)} className="feat-tile" style={{ ["--c" as any]: TAB_COLOR[tb] || "#c9a84c", ["--d" as any]: `${(i % 6) * 0.8}s` }}>
+            <span className="feat-badge">{TAB_ICON[tb]}</span>
+            <span className="feat-title">{t(tabKey(tb))}</span>
           </button>
         ))}
       </div>
