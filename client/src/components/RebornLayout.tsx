@@ -10,6 +10,12 @@ import {
   Utensils, Star,
 } from "lucide-react";
 
+// Pages that wear the gaming skin (.gx in index.css), with their accent colour.
+const GX_ACCENT: Record<string, string> = {
+  "/chat": "#22d3ee", "/profile": "#a855f7", "/order": "#f97316", "/loyalty-program": "#f3c14b",
+  "/my-referral": "#22c55e", "/bookings": "#8b5cf6", "/songs": "#ec4899", "/pos": "#14b8a6",
+};
+
 interface NavItem { label: string; tkey: string; icon: ReactNode; path: string; }
 
 const MAIN_NAV: NavItem[] = [
@@ -105,6 +111,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   const brand = useTenantBrand();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const tokens = (user as any)?.tokens ?? 0;
+  const gx = active ? GX_ACCENT[active] : undefined;
 
   const logout = async () => {
     try { await apiRequest("POST", "/api/auth/logout"); } catch {}
@@ -138,7 +145,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
       </header>
 
       {/* Content */}
-      <main key={active || title || "page"} className={`rwg-enter ${wide ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 pt-4 ${hideNav ? "pb-6" : "pb-28"}`}>{children}</main>
+      <main key={active || title || "page"} style={gx ? { ["--gx" as any]: gx } : undefined} className={`rwg-enter ${gx ? "gx" : ""} ${wide ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 pt-4 ${hideNav ? "pb-6" : "pb-28"}`}>{children}</main>
 
       {/* Bottom nav — hidden while inside a live game so you can't tap out by accident */}
       {!hideNav && (
