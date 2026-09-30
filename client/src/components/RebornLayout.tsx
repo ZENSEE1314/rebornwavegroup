@@ -44,25 +44,25 @@ function ForcePasswordChange() {
   const [err, setErr] = useState("");
   const submit = async () => {
     setErr("");
-    if (pw.length < 6) { setErr("At least 6 characters."); return; }
-    if (pw !== pw2) { setErr("Passwords don't match."); return; }
+    if (pw.length < 6) { setErr(t("hm.pw.min6")); return; }
+    if (pw !== pw2) { setErr(t("hm.pw.mismatch")); return; }
     setBusy(true);
     try {
       const r = await apiRequest("POST", "/api/reborn/profile", { newPassword: pw });
-      if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.message || "Failed"); setBusy(false); return; }
+      if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.message || t("hm.common.failed")); setBusy(false); return; }
       window.location.reload();
-    } catch (e: any) { setErr(e?.message || "Failed"); setBusy(false); }
+    } catch (e: any) { setErr(e?.message || t("hm.common.failed")); setBusy(false); }
   };
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
       <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
       <div className="relative w-full max-w-sm bg-[#160f2a] border border-white/10 rounded-3xl p-6">
-        <h3 className="text-lg font-extrabold mb-1">Set a new password</h3>
-        <p className="text-sm text-white/50 mb-4">For your security, please change the temporary password before you continue.</p>
-        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password" className="w-full mb-2 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" />
-        <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Confirm new password" className="w-full mb-2 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" />
+        <h3 className="text-lg font-extrabold mb-1">{t("hm.pw.setNew")}</h3>
+        <p className="text-sm text-white/50 mb-4">{t("hm.pw.setNewDesc")}</p>
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={t("hm.pw.new")} className="w-full mb-2 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" />
+        <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder={t("hm.pw.confirmNew")} className="w-full mb-2 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" />
         {err && <p className="text-xs text-red-300 mb-2">{err}</p>}
-        <button onClick={submit} disabled={busy} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{busy ? "Saving…" : "Save & continue"}</button>
+        <button onClick={submit} disabled={busy} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{busy ? t("hm.common.saving") : t("hm.pw.saveContinue")}</button>
       </div>
     </div>
   );
@@ -165,7 +165,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div className="relative w-full max-w-xs bg-[#160f2a] border border-white/10 rounded-3xl p-6 text-center" onClick={(e) => e.stopPropagation()}>
             <span className="w-12 h-12 rounded-full bg-red-500/15 border border-red-400/30 flex items-center justify-center mx-auto mb-3"><LogOut className="w-5 h-5 text-red-300" /></span>
-            <h3 className="text-lg font-extrabold mb-1">{t("nav.logout")}?</h3>
+            <h3 className="text-lg font-extrabold mb-1">{t("hm.layout.logoutTitle")}</h3>
             <p className="text-sm text-white/50 mb-5">{t("logout.confirm")}</p>
             <div className="flex gap-2">
               <button onClick={() => setConfirmLogout(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-semibold">{t("common.cancel")}</button>

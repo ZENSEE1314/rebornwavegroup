@@ -11,8 +11,11 @@ async function throwIfResNotOk(res: Response) {
 // Domain-based tenants resolve server-side from the host, so this is only needed
 // for the shared host + slug access; absent = the default (Reborn) company.
 function tenantHeaders(): Record<string, string> {
-  try { const slug = localStorage.getItem("bridgexTenantSlug"); if (slug) return { "X-Tenant-Slug": slug }; } catch {}
-  return {};
+  const h: Record<string, string> = {};
+  try { const slug = localStorage.getItem("bridgexTenantSlug"); if (slug) h["X-Tenant-Slug"] = slug; } catch {}
+  // The app language, so server messages come back translated.
+  try { const lang = localStorage.getItem("language"); if (lang) h["X-Lang"] = lang; } catch {}
+  return h;
 }
 
 export async function apiRequest(

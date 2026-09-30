@@ -3,13 +3,16 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { RebornLayout } from "@/components/RebornLayout";
+import { useTranslation, localeTag } from "@/lib/i18n";
 import { Coins, Gift, History as HistoryIcon, Disc3, Check, Clock, X } from "lucide-react";
 
 const TABS = ["Wheel", "My Prizes", "History"] as const;
+const TAB_KEY: Record<(typeof TABS)[number], string> = { "Wheel": "hm.spin.tabWheel", "My Prizes": "hm.spin.tabPrizes", "History": "hm.spin.tabHistory" };
 
 export default function RebornSpin() {
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const tokens = (user as any)?.tokens ?? 0;
   const initialTab = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "prizes" ? "My Prizes" : "Wheel";
   const [tab, setTab] = useState<(typeof TABS)[number]>(initialTab as any);
@@ -30,7 +33,7 @@ export default function RebornSpin() {
 
   const doSpin = async () => {
     if (spinningRef.current || n === 0) return;
-    if (tokens < cost) { setResult({ error: "Not enough tokens. Feed your pet to earn more!" }); return; }
+    if (tokens < cost) { setResult({ error: t("hm.spin.notEnough") }); return; }
     spinningRef.current = true; setSpinning(true); setResult(null);
     try {
       const res = await apiRequest("POST", "/api/reborn/spin").then((r) => r.json());
@@ -50,11 +53,11 @@ export default function RebornSpin() {
   };
 
   return (
-    <RebornLayout active="/spin" title="SPIN & WIN">
+    <RebornLayout active="/spin" title={t("hm.spin.pageTitle")}>
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-full bg-white/5 border border-white/10 mb-5">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${tab === t ? "text-black" : "text-white/60"}`} style={tab === t ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{t}</button>
+        {TABS.map((tb) => (
+          <button key={tb} onClick={() => setTab(tb)} className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${tab === tb ? "text-black" : "text-white/60"}`} style={tab === tb ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{t(TAB_KEY[tb])}</button>
         ))}
       </div>
 
@@ -62,8 +65,8 @@ export default function RebornSpin() {
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-white/5 border border-white/10">
             <Coins className="w-5 h-5 text-amber-400" />
-            <span className="font-bold text-amber-300">{tokens} tokens</span>
-            <span className="text-white/40 text-sm">· {cost} per spin</span>
+            <span className="font-bold text-amber-300">{t("hm.spin.tokens", { n: tokens })}</span>
+            <span className="text-white/40 text-sm">· {t("hm.spin.perSpin", { n: cost })}</span>
           </div>
 
           <Wheel prizes={prizes} rotation={rotation} spinning={spinning} />
@@ -71,9 +74,9 @@ export default function RebornSpin() {
           <button onClick={doSpin} disabled={spinning || n === 0}
             className="mt-6 px-10 py-4 rounded-full font-extrabold text-lg text-black shadow-lg disabled:opacity-50 active:scale-95 transition-transform"
             style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
-            {spinning ? "Spinning…" : tokens < cost ? "Need more tokens" : "SPIN"}
+            {spinning ? t("hm.spin.spinning") : tokens < cost ? t("hm.spin.needMore") : t("hm.spin.spin")}
           </button>
-          <p className="text-white/40 text-xs mt-3 text-center max-w-xs">Prizes are held for you to claim — show them to our staff and an admin confirms your reward.</p>
+          <p className="text-white/40 text-xs mt-3 text-center max-w-xs">{t("hm.spin.heldNote")}</p>
         </div>
       )}
 
@@ -93,11 +96,11 @@ export default function RebornSpin() {
                 <div className="text-5xl mb-3">{result.prize?.prizeType === "nothing" ? "🎯" : result.freeSpin ? "🔄" : result.prize?.prizeType === "egg" ? "🥚" : "🎉"}</div>
                 <h3 className="text-xl font-extrabold mb-1">{result.prize?.label}</h3>
                 <p className="text-white/60 text-sm">{result.message}</p>
-                {result.status === "unused" && <p className="mt-3 text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3">Saved to “My Prizes”. Tap “Use” there when you're at the club — 1 prize per day.</p>}
+                {result.status === "unused" && <p className="mt-3 text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3">{t("hm.spin.savedNote")}</p>}
                 {result.freeSpin ? (
-                  <button onClick={() => { setResult(null); doSpin(); }} className="mt-4 w-full py-3 rounded-xl font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Spin again free</button>
+                  <button onClick={() => { setResult(null); doSpin(); }} className="mt-4 w-full py-3 rounded-xl font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("hm.spin.again")}</button>
                 ) : (
-                  <button onClick={() => setResult(null)} className="mt-4 w-full py-3 rounded-xl font-bold bg-white/10">Done</button>
+                  <button onClick={() => setResult(null)} className="mt-4 w-full py-3 rounded-xl font-bold bg-white/10">{t("hm.common.done")}</button>
                 )}
               </>
             )}
@@ -156,6 +159,7 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
 
 function MyPrizes() {
   const qc = useQueryClient();
+  const { t, language } = useTranslation();
   const { data } = useQuery<{ prizes: any[]; canUseNow: boolean; cooldownHoursLeft: number }>({
     queryKey: ["/api/reborn/prizes"],
     queryFn: () => apiRequest("GET", "/api/reborn/prizes").then((r) => r.json()),
@@ -167,20 +171,20 @@ function MyPrizes() {
   });
   const prizes = data?.prizes || [];
   const canUseNow = data?.canUseNow ?? true;
-  if (prizes.length === 0) return <Empty icon={<Gift className="w-10 h-10" />} text="No prizes yet. Spin the wheel to win!" />;
+  if (prizes.length === 0) return <Empty icon={<Gift className="w-10 h-10" />} text={t("hm.spin.noPrizes")} />;
   return (
     <div className="space-y-2">
-      {!canUseNow && <p className="text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3 mb-1">You can use 1 prize per day — next in ~{data?.cooldownHoursLeft}h.</p>}
+      {!canUseNow && <p className="text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3 mb-1">{t("hm.spin.cooldown", { n: data?.cooldownHoursLeft ?? 0 })}</p>}
       {prizes.map((p) => (
         <div key={p.id} className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
           <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(201,168,76,0.15)" }}><Gift className="w-5 h-5 text-amber-300" /></span>
           <div className="flex-1 min-w-0">
             <p className="font-semibold truncate">{p.prizeLabel}</p>
-            <p className="text-xs text-white/40">{new Date(p.createdAt).toLocaleDateString()}</p>
+            <p className="text-xs text-white/40">{new Date(p.createdAt).toLocaleDateString(localeTag(language))}</p>
           </div>
-          {p.status === "redeemed" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400"><Check className="w-3 h-3" /> Claimed</span>
-            : p.status === "redeeming" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-400"><Clock className="w-3 h-3" /> With staff</span>
-            : <button onClick={() => use.mutate(p.id)} disabled={!canUseNow || use.isPending} className="px-4 py-2 rounded-full text-xs font-bold text-black disabled:opacity-40" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Use</button>}
+          {p.status === "redeemed" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400"><Check className="w-3 h-3" /> {t("hm.spin.claimed")}</span>
+            : p.status === "redeeming" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-400"><Clock className="w-3 h-3" /> {t("hm.spin.withStaff")}</span>
+            : <button onClick={() => use.mutate(p.id)} disabled={!canUseNow || use.isPending} className="px-4 py-2 rounded-full text-xs font-bold text-black disabled:opacity-40" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("hm.spin.use")}</button>}
         </div>
       ))}
     </div>
@@ -188,17 +192,18 @@ function MyPrizes() {
 }
 
 function SpinHistory() {
+  const { t, language } = useTranslation();
   const { data: rows = [] } = useQuery<any[]>({
     queryKey: ["/api/reborn/spin/history"],
     queryFn: () => apiRequest("GET", "/api/reborn/spin/history").then((r) => r.json()),
   });
-  if (rows.length === 0) return <Empty icon={<HistoryIcon className="w-10 h-10" />} text="No spins yet." />;
+  if (rows.length === 0) return <Empty icon={<HistoryIcon className="w-10 h-10" />} text={t("hm.spin.noSpins")} />;
   return (
     <div className="space-y-2">
       {rows.map((r) => (
         <div key={r.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
           <span className="text-sm">{r.prizeLabel}</span>
-          <span className="text-xs text-white/40">{new Date(r.createdAt).toLocaleString()}</span>
+          <span className="text-xs text-white/40">{new Date(r.createdAt).toLocaleString(localeTag(language))}</span>
         </div>
       ))}
     </div>

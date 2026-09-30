@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
-import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply } from "./whatsappBot";
+import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
@@ -17,7 +17,8 @@ import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, sendPushToAdmins } from "./push";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, setBookingTimezone, getBookingTimezone, BLOCK_ALL } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL } from "./booking";
+import { tr, pick, asLang, localeOf, type Lang } from "./i18n";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -61,6 +62,8 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   payrollDay: "1",          // day of month payroll is recorded/paid
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
   allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
+  bookingTableDayLock: "false", // a table booked at any time is closed for the rest of that day
+  bookingAskHours: "true",      // ask guests how many hours they'll stay (off → default 2 hours)
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -99,6 +102,8 @@ async function getSettings() {
     payrollDay: Math.min(28, Math.max(1, Number(map.payrollDay) || 1)),
     overtimeHourlyRate: Math.max(0, Number(map.overtimeHourlyRate) || 0),
     allowNegativeStock: map.allowNegativeStock === "true",
+    bookingTableDayLock: map.bookingTableDayLock === "true",
+    bookingAskHours: map.bookingAskHours !== "false",
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
 }
@@ -507,7 +512,7 @@ async function seedSongsIfEmpty() {
 export function registerRebornRoutes(app: Express) {
   console.log("*** REBORN GAME ROUTES REGISTERED");
   // Apply the club's saved timezone to booking/reminder time math at boot.
-  getSettings().then((s) => setBookingTimezone(s.timezone)).catch(() => {});
+  getSettings().then((s) => { setBookingTimezone(s.timezone); setBookingRules({ tableDayLock: s.bookingTableDayLock }); }).catch(() => {});
 
   // ── Pets ────────────────────────────────────────────────────────────────
   app.get("/api/reborn/pets", requireAuth, async (req, res) => {
@@ -1447,7 +1452,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -1467,6 +1472,7 @@ export function registerRebornRoutes(app: Express) {
       await db.execute(sql`UPDATE bridge_company_settings s SET config=jsonb_set(COALESCE(s.config,'{}'::jsonb),'{loyalty}',${JSON.stringify(clean)}::jsonb,true), updated_at=now() FROM bridge_companies c WHERE s.company_id=c.id AND c.slug='reborn-wave-group'`);
     }
     if (req.body?.timezone !== undefined) setBookingTimezone(String(req.body.timezone));
+    if (req.body?.bookingTableDayLock !== undefined) setBookingRules({ tableDayLock: String(req.body.bookingTableDayLock) === "true" });
     res.json(await getSettings());
   }));
   // Prize pool status + manual adjust (top-up or set).
@@ -2727,7 +2733,7 @@ export function registerRebornRoutes(app: Express) {
       hasImage: !!image,
       hours: areaHoursTextForDate(a as any, today),
     }));
-    res.json({ note: s.bookingNote, hoursSummary: bookingHoursSummary(), areas, days });
+    res.json({ note: s.bookingNote, hoursSummary: bookingHoursSummary(), areas, days, askHours: s.bookingAskHours, tableDayLock: s.bookingTableDayLock });
   });
   // Serve one area's layout image (kept out of booking/info to keep that payload small).
   app.get("/api/reborn/booking/area-image/:areaId", requireAuth, async (req, res) => {
@@ -2747,22 +2753,22 @@ export function registerRebornRoutes(app: Express) {
     const s = await getSettings();
     const areas = enabledAreas(s.bookingAreas);
     const area = areas.find((a) => a.id === b.areaId || a.name === b.area);
-    if (!area) return res.status(400).json({ message: "Pick an area" });
+    if (!area) return res.status(400).json({ message: tr(req, { en: "Pick an area", zh: "请选择区域", id: "Pilih area" }) });
     const slots = areaSlotsForDate(area, date);
-    if (!slots.length) return res.status(400).json({ message: "Closed on that day — please pick another date." });
+    if (!slots.length) return res.status(400).json({ message: tr(req, { en: "Closed on that day — please pick another date.", zh: "当天不营业，请选择其他日期。", id: "Tutup pada hari itu — silakan pilih tanggal lain." }) });
     const slot = slots.includes(String(b.slot)) ? String(b.slot) : null;
-    if (!slot) return res.status(400).json({ message: "Pick a valid time slot" });
+    if (!slot) return res.status(400).json({ message: tr(req, { en: "Pick a valid time slot", zh: "请选择有效的时段", id: "Pilih jam yang valid" }) });
     const table = b.table && area.tables.includes(String(b.table)) ? String(b.table) : undefined;
-    if (area.tables.length && !table) return res.status(400).json({ message: "Pick a table" });
+    if (area.tables.length && !table) return res.status(400).json({ message: tr(req, { en: "Pick a table", zh: "请选择桌位", id: "Pilih meja" }) });
     const whenDt = bookingWhen(areaOpenHourForDate(area, date), date, slot);
-    if (await isAreaBlocked(area, whenDt)) return res.status(409).json({ message: "That time is not available. Please pick another." });
+    if (await isAreaBlocked(area, whenDt)) return res.status(409).json({ message: tr(req, { en: "That time is not available. Please pick another.", zh: "该时段不可预订，请选择其他时间。", id: "Jam itu tidak tersedia. Silakan pilih yang lain." }) });
     // Prevent double-booking the same table/room at the same time.
     if (table && await isTableTaken(area, table, whenDt))
-      return res.status(409).json({ message: `${table} is already booked for that time. Please pick another.` });
+      return res.status(409).json({ message: tr(req, tableDayLockOn() ? { en: "{t} is already booked that day. Please pick another.", zh: "{t} 当天已被预订，请选择其他桌位。", id: "{t} sudah dipesan hari itu. Silakan pilih yang lain." } : { en: "{t} is already booked for that time. Please pick another.", zh: "{t} 该时段已被预订，请选择其他桌位。", id: "{t} sudah dipesan untuk jam itu. Silakan pilih yang lain." }, { t: table }) });
     const party = Math.max(1, Number(b.partySize) || 2);
     const cap = tableCap(area, table);
-    if (party > cap) return res.status(400).json({ message: `${table || "This area"} seats up to ${cap} pax. Please reduce the party size or pick a bigger ${table ? "table/room" : "spot"}.` });
-    const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
+    if (party > cap) return res.status(400).json({ message: tr(req, { en: "{t} seats up to {n} pax. Please reduce the party size or pick a bigger spot.", zh: "{t} 最多容纳 {n} 人，请减少人数或选择更大的位置。", id: "{t} maksimal {n} orang. Kurangi jumlah orang atau pilih tempat yang lebih besar." }, { t: table || tr(req, { en: "This area", zh: "该区域", id: "Area ini" }), n: cap }) });
+    const hours = s.bookingAskHours ? Math.max(2, Math.min(8, Number(b.hours) || 2)) : 2;
     const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: b.note, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const [u] = await db.select().from(users).where(eq(users.id, userId));
@@ -2772,12 +2778,14 @@ export function registerRebornRoutes(app: Express) {
     // WhatsApp the member a booking receipt with our address + map pin.
     if (u?.phoneNumber) {
       const phone = u.phoneNumber;
-      locationReply()
-        .then((loc) => sendWhatsApp(phone, `✅ Booking received at ${s.clubName || "Reborn Wave"}: ${area.name} · ${date} ${label}${table ? ` · ${table}` : ""} · ${party} pax. Our team will confirm shortly. 💜\n\n${loc}`))
-        .catch(() => {});
+      (async () => {
+        const lang = await langForPhone(phone, userId);
+        const msg = waText(lang, "appReceipt", { club: s.clubName || "Reborn Wave", area: area.name, day: fmtDMY(date, lang), time: timeText(lang, slot, label), table: table ? ` · ${table}` : "", n: String(party) });
+        await sendWhatsApp(phone, `${msg}\n\n${await locationReply(lang)}`);
+      })().catch(() => {});
     }
     await logAdmin(req, { targetUserId: userId, targetType: "appointment", targetId: row.id, action: "book", entityType: "booking", description: `Booked ${date} ${label}` });
-    res.json({ message: `Booked ${date} at ${label}. We'll confirm shortly.`, appointment: row });
+    res.json({ message: tr(req, { en: "Booked {d} at {tm}. We'll confirm shortly.", zh: "已预订 {d} {tm}，我们会尽快确认。", id: "Dipesan {d} jam {tm}. Kami akan segera konfirmasi." }, { d: date, tm: label }), appointment: row });
   });
   // Which tables/rooms are already taken for an area on a date (to grey them out).
   app.get("/api/reborn/booking/availability", requireAuth, async (req, res) => {
@@ -2805,13 +2813,13 @@ export function registerRebornRoutes(app: Express) {
     const userId = getUserId(req)!;
     const id = Number(req.params.id);
     const [a] = await db.select().from(appointments).where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
-    if (!a) return res.status(404).json({ message: "Booking not found" });
+    if (!a) return res.status(404).json({ message: tr(req, { en: "Booking not found", zh: "找不到该预订", id: "Booking tidak ditemukan" }) });
     // Pending AND confirmed bookings can be cancelled by the member, up to the start time.
-    if (!["pending", "scheduled", "confirmed"].includes(a.status)) return res.status(400).json({ message: "Can't cancel this booking" });
-    if (new Date(a.appointmentDate).getTime() <= Date.now()) return res.status(400).json({ message: "This booking has already started" });
+    if (!["pending", "scheduled", "confirmed"].includes(a.status)) return res.status(400).json({ message: tr(req, { en: "Can't cancel this booking", zh: "无法取消此预订", id: "Booking ini tidak bisa dibatalkan" }) });
+    if (new Date(a.appointmentDate).getTime() <= Date.now()) return res.status(400).json({ message: tr(req, { en: "This booking has already started", zh: "此预订已开始", id: "Booking ini sudah dimulai" }) });
     const [row] = await db.update(appointments).set({ status: "cancelled", adminNote: "Cancelled by member (app)", updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
     await notifyBookingCancelledByMember(row, "app");
-    res.json({ message: "Booking cancelled" });
+    res.json({ message: tr(req, { en: "Booking cancelled", zh: "预订已取消", id: "Booking dibatalkan" }) });
   });
   // Admin — all bookings (recent + upcoming) with member name/phone.
   app.get("/api/reborn/admin/bookings", requireStaff(async (req, res) => {
@@ -2839,21 +2847,24 @@ export function registerRebornRoutes(app: Express) {
     // Tell the member on WhatsApp when a booking is confirmed or rejected.
     if ((status === "confirmed" || status === "cancelled") && row.userId) {
       const [u] = await db.select().from(users).where(eq(users.id, row.userId));
+      const lang = await langForPhone(u?.phoneNumber || "", row.userId);
+      const when = fmtBookingWhen(row.appointmentDate, lang);
+      const what = localizeBookingText(lang, row.title);
       if (u?.phoneNumber) {
-        const when = new Date(row.appointmentDate).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
         const msg = status === "confirmed"
-          ? `✅ Your booking is confirmed: ${row.title} on ${when}. See you! 💜`
-          : `😔 Sorry, your booking (${row.title} on ${when}) has been cancelled${note ? `: ${note}` : "."} Please rebook a new date by typing "booking". 💜`;
-        if (u.phoneNumber) sendWhatsApp(u.phoneNumber, msg).catch(() => {});
+          ? waText(lang, "staffConfirmed", { what, when })
+          : waText(lang, "staffCancelled", { what, when, note: note ? `: ${note}.` : "." });
+        sendWhatsApp(u.phoneNumber, msg).catch(() => {});
       }
       sendPushToUser(row.userId, {
-        title: status === "confirmed" ? "✅ Booking confirmed" : "😔 Booking cancelled",
-        body: status === "confirmed" ? `${row.title} — ${new Date(row.appointmentDate).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() })}` : `${row.title}${note ? ` — ${note}` : ""}. Tap to rebook.`,
+        title: waText(lang, status === "confirmed" ? "pushConfirmedTitle" : "pushCancelledTitle"),
+        body: status === "confirmed" ? `${what} — ${when}` : `${what}${note ? ` — ${note}` : ""}. ${waText(lang, "tapRebook")}`,
         url: "/bookings", tag: `booking-${id}`,
       }).catch(() => {});
     }
     await logAdmin(req, { targetUserId: row.userId, targetType: "appointment", targetId: id, action: status, entityType: "booking", description: `Booking #${id} → ${status}${note ? ` (${note})` : ""}` });
-    await sendRebornUserNotification(row.userId, { type: "booking_status", title: `Booking ${status}`, body: `${row.title}${note ? ` · ${note}` : ""}`, data: { path: "/booking", bookingId: row.id, status } });
+    const nLang = await langForPhone("", row.userId);
+    await sendRebornUserNotification(row.userId, { type: "booking_status", title: waText(nLang, `status.${status}`), body: `${localizeBookingText(nLang, row.title)}${note ? ` · ${note}` : ""}`, data: { path: "/bookings", bookingId: row.id, status } });
     res.json(row);
   }));
   // Admin blocks a date/time (whole area, or one table/room) so guests can't book it.
@@ -2901,14 +2912,15 @@ export function registerRebornRoutes(app: Express) {
     await db.update(appointments).set({ status: "confirmed" }).where(eq(appointments.id, row.id)); // admin booking = confirmed
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
-    const whenTxt = when.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
+    const mLang = await langForPhone(u.phoneNumber || "", u.id);
+    const whenTxt = fmtBookingWhen(when, mLang);
     if (u.phoneNumber) {
       const phone = u.phoneNumber;
-      locationReply()
-        .then((loc) => sendWhatsApp(phone, `✅ We've booked you at ${s.clubName || "Reborn Wave"}: ${area.name} on ${whenTxt}${table ? ` · ${table}` : ""}. See you! 💜\n\n${loc}`))
+      locationReply(mLang)
+        .then((loc) => sendWhatsApp(phone, `${waText(mLang, "staffBooked", { club: s.clubName || "Reborn Wave", area: area.name, when: whenTxt, table: table ? ` · ${table}` : "" })}\n\n${loc}`))
         .catch(() => {});
     }
-    sendPushToUser(u.id, { title: "✅ You're booked", body: `${area.name} — ${whenTxt}${table ? ` · ${table}` : ""}`, url: "/bookings", tag: `booking-${row.id}` }).catch(() => {});
+    sendPushToUser(u.id, { title: waText(mLang, "pushBookedTitle"), body: `${area.name} — ${whenTxt}${table ? ` · ${table}` : ""}`, url: "/bookings", tag: `booking-${row.id}` }).catch(() => {});
     await logAdmin(req, { targetUserId: u.id, targetType: "appointment", targetId: row.id, action: "manual_book", entityType: "booking", description: `Booked ${name} · ${area.name} ${date} ${label}` });
     res.json({ message: `Booked ${name} · ${area.name} ${date} ${label}`, appointment: row });
   }));

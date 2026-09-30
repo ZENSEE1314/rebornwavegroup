@@ -1,7 +1,9 @@
 import { Link } from "wouter";
 import { AlertCircle, ArrowLeft } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
 
 export default function NotFound() {
+  const { t } = useTranslation();
   return (
     <div className="rwg-page-bg min-h-screen flex items-center justify-center p-4">
       <div className="rwg-orb-1" />
@@ -11,14 +13,14 @@ export default function NotFound() {
           <AlertCircle className="h-8 w-8 text-red-400" />
         </div>
         <h1 className="text-5xl font-extrabold text-white mb-3">404</h1>
-        <h2 className="text-xl font-semibold text-white/80 mb-3">Page Not Found</h2>
+        <h2 className="text-xl font-semibold text-white/80 mb-3">{t("ac.nf.title")}</h2>
         <p className="text-white/40 text-sm mb-8">
-          The page you're looking for doesn't exist or has been moved.
+          {t("ac.nf.desc")}
         </p>
         <Link href="/">
           <button type="button" className="rwg-btn inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
             <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+            {t("ac.nf.back")}
           </button>
         </Link>
       </div>

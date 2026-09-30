@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation, translations, localeTag } from "@/lib/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -12,6 +13,9 @@ import { printClosingReport, printReceipt } from "@/lib/receipt";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
 const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff", "Leaderboard", "Feedback"] as const;
+// Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
+const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
+const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");
 const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
@@ -21,12 +25,13 @@ export default function RebornAdmin() {
   const ALL_TABS = (isFullAdmin ? ADMIN_TABS : STAFF_TABS) as readonly string[];
   const TABS = ALL_TABS.filter((t) => moduleEnabled(modules, ADMIN_TAB_MODULE[t]));
   const [tab, setTab] = useState<string>("Overview");
+  const { t } = useTranslation();
   return (
-    <RebornLayout active="/reborn-admin" title="ADMIN">
-      {isFullAdmin && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">Company setup (super admin)</b><span className="text-xs text-cyan-100/60">Enable/disable modules, branches & business types, white-label and billing.</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">Open</span></a>}
+    <RebornLayout active="/reborn-admin" title={t("admin.title")}>
+      {isFullAdmin && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">{t("admin.companySetup")}</b><span className="text-xs text-cyan-100/60">{t("admin.companySetupHint")}</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">{t("admin.c.open")}</span></a>}
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === t ? "text-black" : "text-white/60"}`} style={tab === t ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[t]}{t}</button>
+        {TABS.map((tb) => (
+          <button key={tb} onClick={() => setTab(tb)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === tb ? "text-black" : "text-white/60"}`} style={tab === tb ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[tb]}{t(tabKey(tb))}</button>
         ))}
       </div>
       {tab === "Overview" && <Overview onGo={setTab} />}
@@ -61,24 +66,25 @@ export default function RebornAdmin() {
 
 function Broadcast() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [f, setF] = useState({ subject: "", body: "", channel: "both" });
   const send = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/broadcast", f).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Broadcast sent", description: d.message }); setF({ subject: "", body: "", channel: "both" }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: t("admin.bc.sent"), description: d.message }); setF({ subject: "", body: "", channel: "both" }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <Card>
-      <h3 className="font-bold mb-1 flex items-center gap-2"><Megaphone className="w-4 h-4 text-amber-300" /> Message all members</h3>
-      <p className="text-xs text-white/50 mb-3">Send an announcement to every member — in their in-app chat, by email, or both.</p>
-      <input value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} placeholder="Subject / title" className={inp + " w-full mb-2"} />
-      <textarea value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} placeholder="Your message…" rows={5} className={inp + " w-full mb-3"} />
+      <h3 className="font-bold mb-1 flex items-center gap-2"><Megaphone className="w-4 h-4 text-amber-300" /> {t("admin.bc.title")}</h3>
+      <p className="text-xs text-white/50 mb-3">{t("admin.bc.hint")}</p>
+      <input value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} placeholder={t("admin.bc.subject")} className={inp + " w-full mb-2"} />
+      <textarea value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} placeholder={t("admin.bc.message")} rows={5} className={inp + " w-full mb-3"} />
       <div className="grid grid-cols-3 gap-2 mb-3">
-        {[["both", "Chat + Email"], ["inapp", "In-app only"], ["email", "Email only"]].map(([v, l]) => (
+        {[["both", t("admin.bc.both")], ["inapp", t("admin.bc.inapp")], ["email", t("admin.bc.email")]].map(([v, l]) => (
           <button key={v} onClick={() => setF({ ...f, channel: v })} className={`py-2.5 rounded-xl border text-sm font-semibold ${f.channel === v ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{l}</button>
         ))}
       </div>
-      <button onClick={() => { if (confirm("Send this to ALL members?")) send.mutate(); }} disabled={send.isPending || !f.subject.trim() || !f.body.trim()} className={btn + " disabled:opacity-50"}>{send.isPending ? "Sending…" : "Send to all members"}</button>
+      <button onClick={() => { if (confirm(t("admin.bc.confirm"))) send.mutate(); }} disabled={send.isPending || !f.subject.trim() || !f.body.trim()} className={btn + " disabled:opacity-50"}>{send.isPending ? t("admin.c.sending") : t("admin.bc.send")}</button>
     </Card>
   );
 }
@@ -96,15 +102,16 @@ const TAB_ICON: Record<string, JSX.Element> = {
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const isFullAdmin = (user as any)?.role === "admin";
   const { data: o } = useQuery<any>({ queryKey: ["/api/reborn/admin/overview"], queryFn: () => apiRequest("GET", "/api/reborn/admin/overview").then((r) => r.json()), refetchInterval: 15000 });
   const cards = [
-    { tab: "Requests", label: "Song requests", count: o?.songRequests, hot: true },
-    { tab: "Redemptions", label: "Prize redemptions", count: o?.redemptions, hot: true },
-    { tab: "Top-ups", label: "RP top-ups", count: o?.topups, hot: true },
-    { tab: "Users", label: "Members", count: o?.users },
-    { tab: "Products", label: "Products", count: o?.products, admin: true },
-    { tab: "Products", label: "Low stock", count: o?.lowStock, warn: true, admin: true },
+    { tab: "Requests", label: t("admin.ov.songRequests"), count: o?.songRequests, hot: true },
+    { tab: "Redemptions", label: t("admin.ov.redemptions"), count: o?.redemptions, hot: true },
+    { tab: "Top-ups", label: t("admin.ov.topups"), count: o?.topups, hot: true },
+    { tab: "Users", label: t("admin.ov.members"), count: o?.users },
+    { tab: "Products", label: t("admin.ov.products"), count: o?.products, admin: true },
+    { tab: "Products", label: t("admin.ov.lowStock"), count: o?.lowStock, warn: true, admin: true },
   ];
   return (
     <div>
@@ -113,17 +120,17 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
           <button key={i} onClick={() => onGo(c.tab)} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10 active:scale-95 transition-all">
             <div className="flex items-center justify-between">
               <span className={`text-3xl font-extrabold ${c.warn && c.count > 0 ? "text-red-400" : c.hot && c.count > 0 ? "text-amber-300" : "text-white"}`}>{c.count ?? "—"}</span>
-              {c.hot && c.count > 0 && <span className="text-[10px] font-bold text-black bg-amber-300 px-1.5 py-0.5 rounded-full">{c.count} PENDING</span>}
+              {c.hot && c.count > 0 && <span className="text-[10px] font-bold text-black bg-amber-300 px-1.5 py-0.5 rounded-full">{t("admin.ov.pending", { n: c.count })}</span>}
             </div>
             <p className="text-sm text-white/60 mt-1">{c.label}</p>
           </button>
         ))}
       </div>
-      <p className="text-xs text-white/40 mb-2 px-1">Open a section</p>
+      <p className="text-xs text-white/40 mb-2 px-1">{t("admin.ov.openSection")}</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((t) => t !== "Overview").map((t) => (
-          <button key={t} onClick={() => onGo(t)} className="py-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white/70 hover:bg-white/10 hover:border-amber-400/40 flex flex-col items-center gap-2">
-            <span className="text-amber-300">{TAB_ICON[t]}</span>{t}
+        {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((tb) => tb !== "Overview").map((tb) => (
+          <button key={tb} onClick={() => onGo(tb)} className="py-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white/70 hover:bg-white/10 hover:border-amber-400/40 flex flex-col items-center gap-2">
+            <span className="text-amber-300">{TAB_ICON[tb]}</span>{t(tabKey(tb))}
           </button>
         ))}
       </div>
@@ -133,6 +140,7 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
 
 function Members() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "admin">("all");
@@ -144,34 +152,34 @@ function Members() {
   const { user } = useAuth();
   const isFullAdmin = (user as any)?.role === "admin";
   const { data: positions = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-positions"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-positions").then((r) => r.json()), enabled: isFullAdmin });
-  const save = useMutation({ mutationFn: (u: any) => apiRequest("POST", `/api/reborn/admin/users/${u.id}`, u).then((r) => r.json()), onSuccess: () => { toast({ title: "Member updated" }); refetch(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
-  const del = useMutation({ mutationFn: (id: string) => apiRequest("DELETE", `/api/reborn/admin/users/${id}`, {}).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message || "Deleted" }); refetch(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
+  const save = useMutation({ mutationFn: (u: any) => apiRequest("POST", `/api/reborn/admin/users/${u.id}`, u).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.m.updated") }); refetch(); }, onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }) });
+  const del = useMutation({ mutationFn: (id: string) => apiRequest("DELETE", `/api/reborn/admin/users/${id}`, {}).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message || t("admin.c.deleted") }); refetch(); }, onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }) });
   const reset = useMutation({
     mutationFn: (password: string) => apiRequest("POST", "/api/reborn/admin/reset-numbers", { password }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); refetch(); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); refetch(); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div>
       {summary && (
         <div className="grid grid-cols-3 gap-2 mb-3">
-          <div className="rounded-xl bg-white/5 border border-white/10 p-2.5 text-center"><p className="text-[11px] text-white/50">Users</p><p className="font-extrabold">{summary.totalUsers}</p></div>
-          <div className="rounded-xl bg-amber-500/10 border border-amber-400/30 p-2.5 text-center"><p className="text-[11px] text-white/50">Total tokens</p><p className="font-extrabold text-amber-300">{summary.totalTokens}</p></div>
-          <div className="rounded-xl bg-white/5 border border-white/10 p-2.5 text-center"><p className="text-[11px] text-white/50">Total points</p><p className="font-extrabold">{summary.totalPoints}</p></div>
+          <div className="rounded-xl bg-white/5 border border-white/10 p-2.5 text-center"><p className="text-[11px] text-white/50">{t("admin.m.users")}</p><p className="font-extrabold">{summary.totalUsers}</p></div>
+          <div className="rounded-xl bg-amber-500/10 border border-amber-400/30 p-2.5 text-center"><p className="text-[11px] text-white/50">{t("admin.m.totalTokens")}</p><p className="font-extrabold text-amber-300">{summary.totalTokens}</p></div>
+          <div className="rounded-xl bg-white/5 border border-white/10 p-2.5 text-center"><p className="text-[11px] text-white/50">{t("admin.m.totalPoints")}</p><p className="font-extrabold">{summary.totalPoints}</p></div>
         </div>
       )}
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name / username / email" className={inp + " w-full mb-2"} />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("admin.m.search")} className={inp + " w-full mb-2"} />
       <div className="flex flex-wrap gap-2 mb-3">
-        {(["all", "active", "admin"] as const).map((f) => <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${filter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{f === "admin" ? "Staff/Admin" : f}</button>)}
-        <button onClick={() => setSort(sort === "tokens" ? "recent" : "tokens")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${sort === "tokens" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>Sort: {sort === "tokens" ? "tokens" : "recent"}</button>
+        {(["all", "active", "admin"] as const).map((f) => <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${filter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.m.filter." + f)}</button>)}
+        <button onClick={() => setSort(sort === "tokens" ? "recent" : "tokens")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${sort === "tokens" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.m.sort", { s: sort === "tokens" ? t("admin.m.sortTokens") : t("admin.m.sortRecent") })}</button>
       </div>
-      {!isFullAdmin && <p className="text-xs text-white/40 mb-3">Only full admins can edit balances and roles.</p>}
-      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} positions={positions} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => { if (confirm(`Delete ${u.firstName || u.username || u.email}? This cannot be undone.`)) del.mutate(id); }} />)}</div>
+      {!isFullAdmin && <p className="text-xs text-white/40 mb-3">{t("admin.m.onlyAdmins")}</p>}
+      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} positions={positions} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => { if (confirm(t("admin.m.confirmDelete", { name: u.firstName || u.username || u.email }))) del.mutate(id); }} />)}</div>
       {isFullAdmin && (
         <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-500/5 p-4">
-          <h3 className="font-bold text-sm text-red-200 mb-1">⚠️ Reset numbers (main admin)</h3>
-          <p className="text-[11px] text-white/50 mb-2">Zeros all members' tokens, points, credits, KGOLD and the prize pool. Users and items are NOT deleted. Requires the main-admin password (set it in Settings).</p>
-          <button onClick={() => { const p = prompt("Main-admin password to reset ALL numbers:"); if (p) reset.mutate(p); }} disabled={reset.isPending} className={btnDel}>Reset all numbers</button>
+          <h3 className="font-bold text-sm text-red-200 mb-1">{t("admin.m.resetTitle")}</h3>
+          <p className="text-[11px] text-white/50 mb-2">{t("admin.m.resetHint")}</p>
+          <button onClick={() => { const p = prompt(t("admin.m.resetPrompt")); if (p) reset.mutate(p); }} disabled={reset.isPending} className={btnDel}>{t("admin.m.resetBtn")}</button>
         </div>
       )}
     </div>
@@ -179,43 +187,44 @@ function Members() {
 }
 function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
   const [e, setE] = useState(u);
+  const { t } = useTranslation();
   return (
     <Card>
-      <p className="font-semibold text-sm">{u.firstName || u.username || "Member"} <span className="text-white/40">· {u.email}</span></p>
-      <p className="text-[11px] text-white/40 mb-2">id {u.id}</p>
+      <p className="font-semibold text-sm">{u.firstName || u.username || t("admin.c.member")} <span className="text-white/40">· {u.email}</span></p>
+      <p className="text-[11px] text-white/40 mb-2">{t("admin.c.idLabel", { id: u.id })}</p>
       {editable ? (
         <>
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <label className="text-xs text-white/50">First name<input value={e.firstName || ""} onChange={(x) => setE({ ...e, firstName: x.target.value })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50">Last name<input value={e.lastName || ""} onChange={(x) => setE({ ...e, lastName: x.target.value })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50 col-span-2">Email<input value={e.email || ""} onChange={(x) => setE({ ...e, email: x.target.value })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50 col-span-2">Username<input value={e.username || ""} onChange={(x) => setE({ ...e, username: x.target.value })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50 col-span-2">Membership card no. (add when they buy membership)<input value={e.membershipCardNumber || ""} onChange={(x) => setE({ ...e, membershipCardNumber: x.target.value })} placeholder="e.g. RWG-00123" className={inp + " w-full"} /></label>
-            <div className="col-span-2"><span className="text-xs text-white/50">Reset password (leave blank to keep)</span><PasswordInput value={e.password || ""} onChange={(v) => setE({ ...e, password: v })} placeholder="New password" className={inp + " w-full"} /></div>
+            <label className="text-xs text-white/50">{t("admin.m.firstName")}<input value={e.firstName || ""} onChange={(x) => setE({ ...e, firstName: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.m.lastName")}<input value={e.lastName || ""} onChange={(x) => setE({ ...e, lastName: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50 col-span-2">{t("admin.c.email")}<input value={e.email || ""} onChange={(x) => setE({ ...e, email: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50 col-span-2">{t("admin.m.username")}<input value={e.username || ""} onChange={(x) => setE({ ...e, username: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50 col-span-2">{t("admin.m.cardNo")}<input value={e.membershipCardNumber || ""} onChange={(x) => setE({ ...e, membershipCardNumber: x.target.value })} placeholder={t("admin.m.cardNoPh")} className={inp + " w-full"} /></label>
+            <div className="col-span-2"><span className="text-xs text-white/50">{t("admin.m.resetPw")}</span><PasswordInput value={e.password || ""} onChange={(v) => setE({ ...e, password: v })} placeholder={t("admin.m.newPw")} className={inp + " w-full"} /></div>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-white/50">Credits (RP)<input type="number" value={e.credits} onChange={(x) => setE({ ...e, credits: x.target.value })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50">Points<input type="number" value={e.loyaltyPoints} onChange={(x) => setE({ ...e, loyaltyPoints: Number(x.target.value) })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50">Tokens<input type="number" value={e.tokens} onChange={(x) => setE({ ...e, tokens: Number(x.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.m.credits")}<input type="number" value={e.credits} onChange={(x) => setE({ ...e, credits: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.m.points")}<input type="number" value={e.loyaltyPoints} onChange={(x) => setE({ ...e, loyaltyPoints: Number(x.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.m.tokens")}<input type="number" value={e.tokens} onChange={(x) => setE({ ...e, tokens: Number(x.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">KGOLD<input type="number" value={e.kgold} onChange={(x) => setE({ ...e, kgold: Number(x.target.value) })} className={inp + " w-full"} /></label>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            <label className="text-xs text-white/50">Role
+            <label className="text-xs text-white/50">{t("admin.m.role")}
               <select value={e.role || "user"} onChange={(x) => setE({ ...e, role: x.target.value })} className={inp + " ml-1"}>
-                <option value="user">user</option><option value="staff">staff (sub-admin)</option><option value="admin">admin</option>
+                <option value="user">{t("admin.role.user")}</option><option value="staff">{t("admin.role.staffSub")}</option><option value="admin">{t("admin.role.admin")}</option>
               </select>
             </label>
-            {(e.role === "staff" || e.role === "admin") && <label className="text-xs text-white/50">Position
+            {(e.role === "staff" || e.role === "admin") && <label className="text-xs text-white/50">{t("admin.m.position")}
               <select value={e.position_id || ""} onChange={(x) => setE({ ...e, positionId: x.target.value, position_id: x.target.value })} className={inp + " ml-1"}>
-                <option value="">Select position</option>{positions.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                <option value="">{t("admin.m.selectPosition")}</option>{positions.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>}
-            <button onClick={() => onSave(e)} className={btn + " ml-auto"}>Save</button>
+            <button onClick={() => onSave(e)} className={btn + " ml-auto"}>{t("admin.c.save")}</button>
             {onDelete && <button onClick={() => onDelete(u.id)} className={btnDel}><Trash2 className="w-4 h-4" /></button>}
           </div>
         </>
       ) : (
-        <p className="text-xs text-white/60">RP {u.credits} · {u.loyaltyPoints} pts · {u.tokens} tokens · {u.kgold} KGOLD · <b>{u.role}</b></p>
+        <p className="text-xs text-white/60">{t("admin.m.summaryLine", { credits: u.credits, points: u.loyaltyPoints, tokens: u.tokens, kgold: u.kgold })} · <b>{tv(t, "admin.role." + u.role, u.role)}</b></p>
       )}
     </Card>
   );
@@ -223,17 +232,18 @@ function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
 
 function TopUps() {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/topups"], queryFn: () => apiRequest("GET", "/api/reborn/admin/topups").then((r) => r.json()), refetchInterval: 15000 });
   const act = useMutation({ mutationFn: ({ id, approve }: any) => apiRequest("POST", `/api/reborn/admin/topups/${id}`, { approve }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/topups"] }) });
-  if (rows.length === 0) return <Empty text="No pending top-up requests." />;
+  if (rows.length === 0) return <Empty text={t("admin.tu.empty")} />;
   return (
     <div className="space-y-2">
       {rows.map((r) => (
         <Card key={r.id}>
           <div className="flex items-center gap-3">
             <Coins className="w-5 h-5 text-amber-300" />
-            <div className="flex-1 min-w-0"><p className="font-semibold text-sm">RP {Number(r.amount).toLocaleString()}</p><p className="text-xs text-white/40 truncate">{r.paymentMethod} · user {r.userId?.slice(0, 8)} · {new Date(r.createdAt).toLocaleString()}</p></div>
-            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Approve</button>
+            <div className="flex-1 min-w-0"><p className="font-semibold text-sm">RP {Number(r.amount).toLocaleString()}</p><p className="text-xs text-white/40 truncate">{r.paymentMethod} · {t("admin.c.userShort", { id: r.userId?.slice(0, 8) })} · {new Date(r.createdAt).toLocaleString(localeTag())}</p></div>
+            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.approve")}</button>
             <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
           </div>
         </Card>
@@ -244,46 +254,49 @@ function TopUps() {
 
 function Events() {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/events"], queryFn: () => apiRequest("GET", "/api/reborn/admin/events").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/events"] });
-  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/events", { title: "New event", body: "" }).then((r) => r.json()), onSuccess: inv });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/events", { title: t("admin.ev.newTitle"), body: "" }).then((r) => r.json()), onSuccess: inv });
   const save = useMutation({ mutationFn: (ev: any) => apiRequest("PUT", `/api/reborn/admin/events/${ev.id}`, ev).then((r) => r.json()), onSuccess: inv });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/events/${id}`), onSuccess: inv });
   return (
     <div>
-      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Post event</button>
+      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> {t("admin.ev.post")}</button>
       <div className="space-y-3">{rows.map((ev) => <EventRow key={ev.id} ev={ev} onSave={save.mutate} onDelete={del.mutate} />)}</div>
     </div>
   );
 }
 function EventRow({ ev, onSave, onDelete }: any) {
   const [e, setE] = useState(ev);
+  const { t } = useTranslation();
   return (
     <Card>
-      <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder="Event title" className={inp + " w-full mb-2"} />
-      <textarea value={e.body || ""} onChange={(x) => setE({ ...e, body: x.target.value })} placeholder="Details" rows={2} className={inp + " w-full mb-2"} />
-      <div className="mb-2"><p className="text-xs text-white/50 mb-1">Event image (optional)</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label="Upload image" /></div>
+      <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder={t("admin.ev.title")} className={inp + " w-full mb-2"} />
+      <textarea value={e.body || ""} onChange={(x) => setE({ ...e, body: x.target.value })} placeholder={t("admin.ev.details")} rows={2} className={inp + " w-full mb-2"} />
+      <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.ev.image")}</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label={t("admin.c.uploadImage")} /></div>
       <div className="flex items-center gap-3">
-        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
-        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.showOnLogin} onChange={(x) => setE({ ...e, showOnLogin: x.target.checked })} /> show at login</label>
+        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> {t("admin.c.active")}</label>
+        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.showOnLogin} onChange={(x) => setE({ ...e, showOnLogin: x.target.checked })} /> {t("admin.ev.showLogin")}</label>
       </div>
       <div className="flex gap-2 mt-3">
-        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
-        <button onClick={() => onDelete(ev.id)} className={btnDel}><Trash2 className="w-4 h-4" /> Delete</button>
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
+        <button onClick={() => onDelete(ev.id)} className={btnDel}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
       </div>
     </Card>
   );
 }
 
 function Logs() {
+  const { t } = useTranslation();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/logs"], queryFn: () => apiRequest("GET", "/api/reborn/admin/logs").then((r) => r.json()), refetchInterval: 20000 });
-  if (rows.length === 0) return <Empty text="No admin activity yet." />;
+  if (rows.length === 0) return <Empty text={t("admin.log.empty")} />;
   return (
     <div className="space-y-1.5">
       {rows.map((l) => (
         <div key={l.id} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">
-          <div className="flex justify-between"><span className="font-semibold">{l.description}</span><span className="text-white/30">{new Date(l.createdAt).toLocaleString()}</span></div>
-          <span className="text-white/40">{l.action} · {l.entityType} · by <span className="text-amber-300/80">{l.adminName || l.adminUserId?.slice(0, 8)}</span></span>
+          <div className="flex justify-between"><span className="font-semibold">{l.description}</span><span className="text-white/30">{new Date(l.createdAt).toLocaleString(localeTag())}</span></div>
+          <span className="text-white/40">{l.action} · {l.entityType} · {t("admin.log.by")} <span className="text-amber-300/80">{l.adminName || l.adminUserId?.slice(0, 8)}</span></span>
         </div>
       ))}
     </div>
@@ -293,16 +306,17 @@ function Logs() {
 function GiftTypes() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/gifttypes"], queryFn: () => apiRequest("GET", "/api/reborn/admin/gifttypes").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/gifttypes"] });
-  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/gifttypes", { name: "New gift", emoji: "🎁", kgoldCost: 1000 }).then((r) => r.json()), onSuccess: () => { toast({ title: "Gift added" }); inv(); } });
-  const save = useMutation({ mutationFn: (g: any) => apiRequest("PUT", `/api/reborn/admin/gifttypes/${g.id}`, g).then((r) => r.json()), onSuccess: () => { toast({ title: "Gift saved ✓" }); inv(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
-  const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/gifttypes/${id}`), onSuccess: () => { toast({ title: "Gift deleted" }); inv(); } });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/gifttypes", { name: t("admin.gift.newName"), emoji: "🎁", kgoldCost: 1000 }).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.gift.added") }); inv(); } });
+  const save = useMutation({ mutationFn: (g: any) => apiRequest("PUT", `/api/reborn/admin/gifttypes/${g.id}`, g).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.gift.saved") }); inv(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
+  const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/gifttypes/${id}`), onSuccess: () => { toast({ title: t("admin.gift.deleted") }); inv(); } });
   return (
     <div>
-      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add gift</button>
+      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> {t("admin.gift.add")}</button>
       <div className="space-y-3">{rows.map((g) => <GiftRow key={g.id} g={g} onSave={save.mutate} onDelete={del.mutate} />)}</div>
-      <p className="text-xs text-white/40 mt-3">Set the KGOLD cost per gift. Animation: pop, float, zoom, or rain. Image URL is optional (falls back to the emoji).</p>
+      <p className="text-xs text-white/40 mt-3">{t("admin.gift.hint")}</p>
     </div>
   );
 }
@@ -324,9 +338,10 @@ const GAME_META: Record<string, { name: string; emoji: string }> = {
   stack: { name: "Tower Stack", emoji: "🧱" },
   number: { name: "Guess the Number", emoji: "🔢" },
 };
-const WDAYS = [["1", "Mon"], ["2", "Tue"], ["3", "Wed"], ["4", "Thu"], ["5", "Fri"], ["6", "Sat"], ["0", "Sun"]];
+const WDAYS = ["1", "2", "3", "4", "5", "6", "0"];
 function GamesAdmin() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/games/config"], queryFn: () => apiRequest("GET", "/api/reborn/games/config").then((r) => r.json()) });
   const [cfg, setCfg] = useState<any>(null);
@@ -336,10 +351,10 @@ function GamesAdmin() {
   const catOrder: string[] = data?.categoryOrder || [];
   const save = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/games/config", { config: cur, categories: curCat }).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Games schedule saved ✓" }); qc.invalidateQueries({ queryKey: ["/api/reborn/games/config"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onSuccess: () => { toast({ title: t("admin.games.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/games/config"] }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
-  if (!cur) return <Empty text="Loading…" />;
+  if (!cur) return <Empty text={t("admin.c.loading")} />;
   const setGame = (k: string, patch: any) => setCfg({ ...cur, [k]: { ...cur[k], ...patch } });
   const toggleDay = (k: string, d: number) => {
     const days: number[] = cur[k]?.days || [];
@@ -353,20 +368,20 @@ function GamesAdmin() {
   return (
     <div className="space-y-3">
       <Card>
-        <h3 className="font-bold text-sm flex items-center gap-2"><Gamepad2 className="w-4 h-4 text-amber-300" /> Live games schedule</h3>
-        <p className="text-[11px] text-white/50 mt-1">Turn each game on/off and pick which weekdays members can play it. Members create rooms; the host starts and up to 20 play live.</p>
+        <h3 className="font-bold text-sm flex items-center gap-2"><Gamepad2 className="w-4 h-4 text-amber-300" /> {t("admin.games.title")}</h3>
+        <p className="text-[11px] text-white/50 mt-1">{t("admin.games.hint")}</p>
       </Card>
       {catOrder.length > 0 && (
         <Card>
-          <p className="font-bold text-sm mb-1">🗂️ Category schedule</p>
-          <p className="text-[11px] text-white/50 mb-3">Pick which weekdays each category appears. A game shows only when both its own days and its category's days include today.</p>
+          <p className="font-bold text-sm mb-1">{t("admin.games.catTitle")}</p>
+          <p className="text-[11px] text-white/50 mb-3">{t("admin.games.catHint")}</p>
           {catOrder.map((c) => (
             <div key={c} className="py-2 border-b border-white/5 last:border-0">
-              <p className="text-sm font-semibold mb-1.5">{c}</p>
+              <p className="text-sm font-semibold mb-1.5">{tv(t, "admin.gcat." + c.toLowerCase().replace(/[^a-z0-9]/g, ""), c)}</p>
               <div className="flex flex-wrap gap-1.5">
-                {WDAYS.map(([d, lbl]) => {
+                {WDAYS.map((d) => {
                   const on = ((curCat?.[c]?.days) || []).includes(Number(d));
-                  return <button key={d} onClick={() => toggleCatDay(c, Number(d))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${on ? "bg-amber-400 text-black" : "bg-white/5 text-white/50"}`}>{lbl}</button>;
+                  return <button key={d} onClick={() => toggleCatDay(c, Number(d))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${on ? "bg-amber-400 text-black" : "bg-white/5 text-white/50"}`}>{t("admin.wd." + d)}</button>;
                 })}
               </div>
             </div>
@@ -376,107 +391,110 @@ function GamesAdmin() {
       {Object.keys(GAME_META).map((k) => (
         <Card key={k}>
           <div className="flex items-center justify-between mb-2">
-            <p className="font-bold">{GAME_META[k].emoji} {GAME_META[k].name}</p>
-            <label className="flex items-center gap-2 text-sm text-white/70"><input type="checkbox" checked={cur[k]?.enabled !== false} onChange={(e) => setGame(k, { enabled: e.target.checked })} /> {cur[k]?.enabled !== false ? "On" : "Off"}</label>
+            <p className="font-bold">{GAME_META[k].emoji} {t("admin.game." + k)}</p>
+            <label className="flex items-center gap-2 text-sm text-white/70"><input type="checkbox" checked={cur[k]?.enabled !== false} onChange={(e) => setGame(k, { enabled: e.target.checked })} /> {cur[k]?.enabled !== false ? t("admin.c.on") : t("admin.c.off")}</label>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {WDAYS.map(([d, lbl]) => {
+            {WDAYS.map((d) => {
               const on = (cur[k]?.days || []).includes(Number(d));
-              return <button key={d} onClick={() => toggleDay(k, Number(d))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${on ? "bg-amber-400 text-black" : "bg-white/5 text-white/50"}`}>{lbl}</button>;
+              return <button key={d} onClick={() => toggleDay(k, Number(d))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${on ? "bg-amber-400 text-black" : "bg-white/5 text-white/50"}`}>{t("admin.wd." + d)}</button>;
             })}
           </div>
           {k === "number" && (
-            <label className="mt-3 block text-xs text-white/50">Guesses per player per day <span className="text-white/30">(0 = unlimited)</span>
+            <label className="mt-3 block text-xs text-white/50">{t("admin.games.guesses")} <span className="text-white/30">{t("admin.games.unlimited")}</span>
               <input type="number" inputMode="numeric" min={0} value={cur.number?.dailyLimit ?? 0} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setGame("number", { dailyLimit: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} className={inp + " w-full mt-1"} />
             </label>
           )}
         </Card>
       ))}
-      <button onClick={() => save.mutate()} className={btn}>Save schedule</button>
+      <button onClick={() => save.mutate()} className={btn}>{t("admin.games.save")}</button>
       <RankAdmin />
     </div>
   );
 }
 function RankAdmin() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/rank/config"], queryFn: () => apiRequest("GET", "/api/reborn/rank/config").then((r) => r.json()) });
   const [cfg, setCfg] = useState<any>(null);
   const cur = cfg || data;
   const save = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/rank/config", { seasonStarDrop: cur.seasonStarDrop, tiers: cur.tiers }).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Rank ladder saved ✓" }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/config"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onSuccess: () => { toast({ title: t("admin.rank.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/config"] }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const newSeason = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/rank/new-season", {}).then((r) => r.json()),
-    onSuccess: (d: any) => { toast({ title: `Season ${d.season} started`, description: `Everyone dropped ${d.dropped}★` }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/config"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onSuccess: (d: any) => { toast({ title: t("admin.rank.seasonStarted", { n: d.season }), description: t("admin.rank.dropped", { n: d.dropped }) }); qc.invalidateQueries({ queryKey: ["/api/reborn/rank/config"] }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   if (!cur) return null;
   const setTier = (i: number, patch: any) => setCfg({ ...cur, tiers: cur.tiers.map((t: any, j: number) => (j === i ? { ...t, ...patch } : t)) });
-  const addTier = () => setCfg({ ...cur, tiers: [...cur.tiers, { name: "New tier", perDiv: 6 }] });
+  const addTier = () => setCfg({ ...cur, tiers: [...cur.tiers, { name: t("admin.rank.newTier"), perDiv: 6 }] });
   const delTier = (i: number) => setCfg({ ...cur, tiers: cur.tiers.filter((_: any, j: number) => j !== i) });
   return (
     <>
       <Card>
-        <h3 className="font-bold text-sm flex items-center gap-2"><Sparkles className="w-4 h-4 text-amber-300" /> Rank ladder & season <span className="text-white/40 text-xs">(Season {cur.season})</span></h3>
-        <p className="text-[11px] text-white/50 mt-1 mb-2">Each game win = 1 star. Each tier has 3 colour divisions (Bronze→Silver→Gold); "stars per division" is how many wins to climb each colour.</p>
-        <Field label="Season reset — stars dropped when a new season starts" value={cur.seasonStarDrop} onChange={(v: any) => setCfg({ ...cur, seasonStarDrop: Math.max(0, Number(v) || 0) })} />
-        <p className="text-xs text-white/60 mb-1 mt-2">Tiers (low → high, then Legend is automatic)</p>
+        <h3 className="font-bold text-sm flex items-center gap-2"><Sparkles className="w-4 h-4 text-amber-300" /> {t("admin.rank.title")} <span className="text-white/40 text-xs">{t("admin.rank.season", { n: cur.season })}</span></h3>
+        <p className="text-[11px] text-white/50 mt-1 mb-2">{t("admin.rank.hint")}</p>
+        <Field label={t("admin.rank.drop")} value={cur.seasonStarDrop} onChange={(v: any) => setCfg({ ...cur, seasonStarDrop: Math.max(0, Number(v) || 0) })} />
+        <p className="text-xs text-white/60 mb-1 mt-2">{t("admin.rank.tiers")}</p>
         <div className="space-y-2">
-          {cur.tiers.map((t: any, i: number) => (
+          {cur.tiers.map((tier: any, i: number) => (
             <div key={i} className="flex items-center gap-2">
               <span className="text-white/30 text-xs w-4 shrink-0">{i + 1}</span>
-              <input value={t.name} onChange={(e) => setTier(i, { name: e.target.value })} className={inp + " flex-1 min-w-0"} />
-              <input type="number" value={t.perDiv || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setTier(i, { perDiv: Math.max(1, Number(e.target.value) || 1) })} className={inp + " w-14 shrink-0"} title="stars per division" />
+              <input value={tier.name} onChange={(e) => setTier(i, { name: e.target.value })} className={inp + " flex-1 min-w-0"} />
+              <input type="number" value={tier.perDiv || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setTier(i, { perDiv: Math.max(1, Number(e.target.value) || 1) })} className={inp + " w-14 shrink-0"} title={t("admin.rank.perDiv")} />
               <button onClick={() => delTier(i)} className={btnSm + " shrink-0"}><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
         </div>
-        <button onClick={addTier} className="mt-2 text-xs text-amber-300 font-semibold">+ Add tier</button>
+        <button onClick={addTier} className="mt-2 text-xs text-amber-300 font-semibold">{t("admin.rank.addTier")}</button>
         <div className="mt-3 flex gap-2">
-          <button onClick={() => save.mutate()} className={btn + " flex-1 justify-center"}>Save ladder</button>
+          <button onClick={() => save.mutate()} className={btn + " flex-1 justify-center"}>{t("admin.rank.saveLadder")}</button>
         </div>
       </Card>
       <Card>
-        <h3 className="font-bold text-sm text-red-200">⚠️ Start new season</h3>
-        <p className="text-[11px] text-white/50 mt-1 mb-2">Drops every player by {cur.seasonStarDrop}★ and advances the season. Do this monthly.</p>
-        <button onClick={() => { if (confirm(`Start a new season? Everyone loses ${cur.seasonStarDrop}★.`)) newSeason.mutate(); }} disabled={newSeason.isPending} className={btnDel}>Start new season</button>
+        <h3 className="font-bold text-sm text-red-200">{t("admin.rank.newSeasonTitle")}</h3>
+        <p className="text-[11px] text-white/50 mt-1 mb-2">{t("admin.rank.newSeasonHint", { n: cur.seasonStarDrop })}</p>
+        <button onClick={() => { if (confirm(t("admin.rank.newSeasonConfirm", { n: cur.seasonStarDrop }))) newSeason.mutate(); }} disabled={newSeason.isPending} className={btnDel}>{t("admin.rank.newSeasonBtn")}</button>
       </Card>
     </>
   );
 }
 function GiftRow({ g, onSave, onDelete }: any) {
   const [e, setE] = useState(g);
+  const { t } = useTranslation();
   return (
     <Card>
       <div className="flex gap-2 items-center mb-2">
         <input value={e.emoji || ""} onChange={(x) => setE({ ...e, emoji: x.target.value })} className={inp + " w-14 text-center"} />
-        <input value={e.name} onChange={(x) => setE({ ...e, name: x.target.value })} placeholder="Gift name" className={inp + " flex-1"} />
+        <input value={e.name} onChange={(x) => setE({ ...e, name: x.target.value })} placeholder={t("admin.gift.name")} className={inp + " flex-1"} />
       </div>
-      <div className="mb-2"><p className="text-xs text-white/50 mb-1">Gift image (optional — falls back to emoji)</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label="Upload image" /></div>
+      <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.gift.image")}</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label={t("admin.c.uploadImage")} /></div>
       <div className="flex flex-wrap gap-2 items-center">
         <label className="text-xs text-white/50">KGOLD<input type="number" inputMode="numeric" value={e.kgoldCost || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, kgoldCost: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
-        <select value={e.animation} onChange={(x) => setE({ ...e, animation: x.target.value })} className={inp}>{["pop", "float", "zoom", "rain"].map((a) => <option key={a} value={a}>{a}</option>)}</select>
-        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
+        <select value={e.animation} onChange={(x) => setE({ ...e, animation: x.target.value })} className={inp}>{["pop", "float", "zoom", "rain"].map((a) => <option key={a} value={a}>{t("admin.anim." + a)}</option>)}</select>
+        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> {t("admin.c.active")}</label>
       </div>
       <div className="flex gap-2 mt-3">
-        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
-        <button onClick={() => onDelete(g.id)} className={btnDel}><Trash2 className="w-4 h-4" /> Delete</button>
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
+        <button onClick={() => onDelete(g.id)} className={btnDel}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
       </div>
     </Card>
   );
 }
 
 function Settings() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/settings"], queryFn: () => apiRequest("GET", "/api/reborn/admin/settings").then((r) => r.json()) });
   const [e, setE] = useState<any>(null);
   const cur = e || data;
-  const save = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/settings", cur).then((r) => r.json()), onSuccess: () => { toast({ title: "Settings saved" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/settings"] }); } });
-  if (!cur) return <Empty text="Loading…" />;
+  const save = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/settings", cur).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.set.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/settings"] }); } });
+  if (!cur) return <Empty text={t("admin.c.loading")} />;
   const set = (k: string, v: any) => setE({ ...cur, [k]: Number(v) });
   const setStr = (k: string, v: any) => setE({ ...cur, [k]: v });
   const loyalty = cur.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] };
@@ -485,106 +503,94 @@ function Settings() {
   return (
     <div className="space-y-4">
       <Card>
-        <h3 className="font-bold mb-3 flex items-center gap-2"><Coins className="w-4 h-4 text-amber-300" /> KGOLD economy</h3>
-        <Field label="Gift fee % (kept by club; receiver gets the rest)" value={cur.giftFeePercent} onChange={(v: any) => set("giftFeePercent", v)} />
-        <Field label="KGOLD per 1 RP" value={cur.kgoldPerRp} onChange={(v: any) => set("kgoldPerRp", v)} />
-        <Field label="Minimum KGOLD purchase" value={cur.minBuyKgold} onChange={(v: any) => set("minBuyKgold", v)} />
-        <Field label="Minimum RP to cash out" value={cur.minCashoutRp} onChange={(v: any) => set("minCashoutRp", v)} />
+        <h3 className="font-bold mb-3 flex items-center gap-2"><Coins className="w-4 h-4 text-amber-300" /> {t("admin.set.kgold")}</h3>
+        <Field label={t("admin.set.giftFee")} value={cur.giftFeePercent} onChange={(v: any) => set("giftFeePercent", v)} />
+        <Field label={t("admin.set.kgoldPerRp")} value={cur.kgoldPerRp} onChange={(v: any) => set("kgoldPerRp", v)} />
+        <Field label={t("admin.set.minBuy")} value={cur.minBuyKgold} onChange={(v: any) => set("minBuyKgold", v)} />
+        <Field label={t("admin.set.minCashout")} value={cur.minCashoutRp} onChange={(v: any) => set("minCashoutRp", v)} />
       </Card>
       <Card>
-        <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> POS & receipts</h3>
-        <Field label="Sales tax % (applied at checkout)" value={cur.taxPercent} onChange={(v: any) => set("taxPercent", v)} />
-        <Field label="Service fee % (applied at checkout)" value={cur.serviceFeePercent} onChange={(v: any) => set("serviceFeePercent", v)} />
-        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Club name (on receipt)</span><input value={cur.clubName || ""} onChange={(e) => setStr("clubName", e.target.value)} className={inp + " w-full"} /></label>
-        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Receipt footer</span><input value={cur.receiptFooter || ""} onChange={(e) => setStr("receiptFooter", e.target.value)} className={inp + " w-full"} /></label>
-        <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.posAutoPrint === true} onChange={(e)=>setStr("posAutoPrint",e.target.checked)}/> Automatically open the print dialog after payment</label>
-        <p className="text-xs text-white/60 mb-1">Receipt logo</p>
-        <ImageUpload value={cur.receiptLogoUrl} onChange={(v) => setStr("receiptLogoUrl", v)} label="Upload logo" />
+        <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> {t("admin.set.pos")}</h3>
+        <Field label={t("admin.set.tax")} value={cur.taxPercent} onChange={(v: any) => set("taxPercent", v)} />
+        <Field label={t("admin.set.serviceFee")} value={cur.serviceFeePercent} onChange={(v: any) => set("serviceFeePercent", v)} />
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.set.clubName")}</span><input value={cur.clubName || ""} onChange={(e) => setStr("clubName", e.target.value)} className={inp + " w-full"} /></label>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.set.footer")}</span><input value={cur.receiptFooter || ""} onChange={(e) => setStr("receiptFooter", e.target.value)} className={inp + " w-full"} /></label>
+        <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.posAutoPrint === true} onChange={(e)=>setStr("posAutoPrint",e.target.checked)}/> {t("admin.set.autoPrint")}</label>
+        <p className="text-xs text-white/60 mb-1">{t("admin.set.logo")}</p>
+        <ImageUpload value={cur.receiptLogoUrl} onChange={(v) => setStr("receiptLogoUrl", v)} label={t("admin.set.uploadLogo")} />
       </Card>
       <Card>
-        <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> Operations</h3>
-        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Club country timezone <span className="text-white/40">(booking times & WhatsApp reminders follow this)</span></span>
+        <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> {t("admin.set.ops")}</h3>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.set.tz")} <span className="text-white/40">{t("admin.set.tzHint")}</span></span>
           <select value={cur.timezone || "Asia/Jakarta"} onChange={(e) => setStr("timezone", e.target.value)} className={inp + " w-full"}>
-            <option value="Asia/Jakarta">Indonesia — Jakarta / Batam (WIB, UTC+7)</option>
-            <option value="Asia/Makassar">Indonesia — Bali / Makassar (WITA, UTC+8)</option>
-            <option value="Asia/Jayapura">Indonesia — Papua (WIT, UTC+9)</option>
-            <option value="Asia/Singapore">Singapore (UTC+8)</option>
-            <option value="Asia/Kuala_Lumpur">Malaysia (UTC+8)</option>
-            <option value="Asia/Bangkok">Thailand (UTC+7)</option>
-            <option value="Asia/Manila">Philippines (UTC+8)</option>
-            <option value="Asia/Ho_Chi_Minh">Vietnam (UTC+7)</option>
-            <option value="Asia/Hong_Kong">Hong Kong (UTC+8)</option>
-            <option value="Asia/Shanghai">China (UTC+8)</option>
-            <option value="Asia/Tokyo">Japan (UTC+9)</option>
-            <option value="Asia/Dubai">UAE — Dubai (UTC+4)</option>
-            <option value="Australia/Sydney">Australia — Sydney</option>
-            <option value="Europe/London">UK — London</option>
-            <option value="America/New_York">USA — New York</option>
+            {["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura", "Asia/Singapore", "Asia/Kuala_Lumpur", "Asia/Bangkok", "Asia/Manila", "Asia/Ho_Chi_Minh", "Asia/Hong_Kong", "Asia/Shanghai", "Asia/Tokyo", "Asia/Dubai", "Australia/Sydney", "Europe/London", "America/New_York"].map((z) => <option key={z} value={z}>{t("admin.tz." + z.replace(/[^A-Za-z]/g, ""))}</option>)}
           </select>
         </label>
-        <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.allowNegativeStock === true} onChange={(e) => setStr("allowNegativeStock", e.target.checked)} /> Allow selling when stock is 0 (stock can go negative)</label>
-        <p className="-mt-2 mb-3 text-[11px] text-white/40">Turn on when there's real stock but it wasn't keyed in. Turn off to block sold-out items.</p>
-        <Field label="Bottle keep — days until it expires" value={cur.bottleExpiryDays} onChange={(v: any) => set("bottleExpiryDays", v)} />
-        <Field label="Payroll day of month (1–28)" value={cur.payrollDay} onChange={(v: any) => set("payrollDay", v)} />
-        <Field label="Overtime pay per hour (RP) — past scheduled shift end" value={cur.overtimeHourlyRate} onChange={(v: any) => set("overtimeHourlyRate", v)} />
+        <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.allowNegativeStock === true} onChange={(e) => setStr("allowNegativeStock", e.target.checked)} /> {t("admin.set.negStock")}</label>
+        <p className="-mt-2 mb-3 text-[11px] text-white/40">{t("admin.set.negStockHint")}</p>
+        <Field label={t("admin.set.bottleDays")} value={cur.bottleExpiryDays} onChange={(v: any) => set("bottleExpiryDays", v)} />
+        <Field label={t("admin.set.payrollDay")} value={cur.payrollDay} onChange={(v: any) => set("payrollDay", v)} />
+        <Field label={t("admin.set.otRate")} value={cur.overtimeHourlyRate} onChange={(v: any) => set("overtimeHourlyRate", v)} />
       </Card>
       <Card>
-        <h3 className="font-bold mb-1 flex items-center gap-2"><Star className="w-4 h-4 text-amber-300" /> Loyalty settings</h3>
-        <p className="mb-3 text-[11px] text-white/50">Points are added automatically at checkout. Set tiers, discounts and store gifts here.</p>
-        <Field label="RP spending needed to earn 1 point" value={loyalty.pointsSpendRp || 1000} onChange={(v:any)=>setLoyalty({pointsSpendRp:Math.max(1,Number(v)||1)})}/>
-        <p className="-mt-2 mb-3 text-[11px] text-white/40">Example: 1,000 means every RP 1,000 spent earns 1 point.</p>
-        <label className="mb-1 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={loyalty.rewardsEnabled !== false} onChange={(e)=>setLoyalty({rewardsEnabled:e.target.checked})}/> Enable reward redemption</label>
-        <p className="mb-4 text-[11px] text-white/40">Turn this off to hide reward redemption from members.</p>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Star className="w-4 h-4 text-amber-300" /> {t("admin.loy.title")}</h3>
+        <p className="mb-3 text-[11px] text-white/50">{t("admin.loy.hint")}</p>
+        <Field label={t("admin.loy.spend")} value={loyalty.pointsSpendRp || 1000} onChange={(v:any)=>setLoyalty({pointsSpendRp:Math.max(1,Number(v)||1)})}/>
+        <p className="-mt-2 mb-3 text-[11px] text-white/40">{t("admin.loy.spendHint")}</p>
+        <label className="mb-1 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={loyalty.rewardsEnabled !== false} onChange={(e)=>setLoyalty({rewardsEnabled:e.target.checked})}/> {t("admin.loy.enable")}</label>
+        <p className="mb-4 text-[11px] text-white/40">{t("admin.loy.enableHint")}</p>
         <div className="space-y-3">{(loyalty.tiers || []).map((tier:any,index:number)=><div key={index} className="rounded-xl border border-white/10 bg-black/20 p-3">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-amber-300">Tier {index + 1}</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-amber-300">{t("admin.loy.tierN", { n: index + 1 })}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block"><span className="mb-1 block text-xs text-white/60">Tier name</span><input className={inp+" w-full"} value={tier.name||""} placeholder="Example: Silver" onChange={(e)=>updateTier(index,{name:e.target.value})}/></label>
-            <label className="block"><span className="mb-1 block text-xs text-white/60">Points required to reach tier</span><input className={inp+" w-full"} type="number" min="0" value={tier.minPoints||0} placeholder="Example: 500" onChange={(e)=>updateTier(index,{minPoints:Math.max(0,Number(e.target.value)||0)})}/></label>
-            <label className="block"><span className="mb-1 block text-xs text-white/60">Member discount (%)</span><input className={inp+" w-full"} type="number" min="0" max="100" value={tier.discountPercent||0} placeholder="Example: 2" onChange={(e)=>updateTier(index,{discountPercent:Math.max(0,Math.min(100,Number(e.target.value)||0))})}/><span className="mt-1 block text-[10px] text-white/35">Enter 2 for a 2% discount. Enter 0 for none.</span></label>
-            <label className="block"><span className="mb-1 block text-xs text-white/60">Store gift value (RP)</span><input className={inp+" w-full"} type="number" min="0" value={tier.freeRp||0} placeholder="Example: 50000" onChange={(e)=>updateTier(index,{freeRp:Math.max(0,Number(e.target.value)||0)})}/><span className="mt-1 block text-[10px] text-white/35">Enter 50,000 for an RP 50,000 tier gift. Enter 0 for none.</span></label>
+            <label className="block"><span className="mb-1 block text-xs text-white/60">{t("admin.loy.tierName")}</span><input className={inp+" w-full"} value={tier.name||""} placeholder={t("admin.loy.tierNamePh")} onChange={(e)=>updateTier(index,{name:e.target.value})}/></label>
+            <label className="block"><span className="mb-1 block text-xs text-white/60">{t("admin.loy.minPoints")}</span><input className={inp+" w-full"} type="number" min="0" value={tier.minPoints||0} placeholder={t("admin.c.example", { v: 500 })} onChange={(e)=>updateTier(index,{minPoints:Math.max(0,Number(e.target.value)||0)})}/></label>
+            <label className="block"><span className="mb-1 block text-xs text-white/60">{t("admin.loy.discount")}</span><input className={inp+" w-full"} type="number" min="0" max="100" value={tier.discountPercent||0} placeholder={t("admin.c.example", { v: 2 })} onChange={(e)=>updateTier(index,{discountPercent:Math.max(0,Math.min(100,Number(e.target.value)||0))})}/><span className="mt-1 block text-[10px] text-white/35">{t("admin.loy.discountHint")}</span></label>
+            <label className="block"><span className="mb-1 block text-xs text-white/60">{t("admin.loy.gift")}</span><input className={inp+" w-full"} type="number" min="0" value={tier.freeRp||0} placeholder={t("admin.c.example", { v: 50000 })} onChange={(e)=>updateTier(index,{freeRp:Math.max(0,Number(e.target.value)||0)})}/><span className="mt-1 block text-[10px] text-white/35">{t("admin.loy.giftHint")}</span></label>
           </div>
-          <label className="mt-3 block"><span className="mb-1 block text-xs text-white/60">Other tier benefits</span><input className={inp+" w-full"} value={(tier.benefits||[]).join(", ")} placeholder="Example: Priority booking, birthday gift" onChange={(e)=>updateTier(index,{benefits:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)})}/><span className="mt-1 block text-[10px] text-white/35">Separate multiple benefits with commas.</span></label>
-          <p className="mt-3 rounded-lg bg-white/5 px-3 py-2 text-[11px] text-white/55"><b>{tier.name || `Tier ${index + 1}`}</b>: starts at {Number(tier.minPoints || 0).toLocaleString()} points · {Number(tier.discountPercent || 0)}% discount · {Number(tier.freeRp || 0) > 0 ? `RP ${Number(tier.freeRp).toLocaleString()} store gift` : "no store gift"}</p>
-          <button className="mt-3 text-xs text-red-300" onClick={()=>setLoyalty({tiers:loyalty.tiers.filter((_:any,i:number)=>i!==index)})}>Remove tier</button>
+          <label className="mt-3 block"><span className="mb-1 block text-xs text-white/60">{t("admin.loy.benefits")}</span><input className={inp+" w-full"} value={(tier.benefits||[]).join(", ")} placeholder={t("admin.loy.benefitsPh")} onChange={(e)=>updateTier(index,{benefits:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)})}/><span className="mt-1 block text-[10px] text-white/35">{t("admin.loy.benefitsHint")}</span></label>
+          <p className="mt-3 rounded-lg bg-white/5 px-3 py-2 text-[11px] text-white/55"><b>{tier.name || t("admin.loy.tierN", { n: index + 1 })}</b>: {t("admin.loy.summary", { points: Number(tier.minPoints || 0).toLocaleString(), pct: Number(tier.discountPercent || 0) })} · {Number(tier.freeRp || 0) > 0 ? t("admin.loy.storeGift", { rp: Number(tier.freeRp).toLocaleString() }) : t("admin.loy.noStoreGift")}</p>
+          <button className="mt-3 text-xs text-red-300" onClick={()=>setLoyalty({tiers:loyalty.tiers.filter((_:any,i:number)=>i!==index)})}>{t("admin.loy.removeTier")}</button>
         </div>)}</div>
-        <button className="mt-3 text-sm font-semibold text-amber-300" onClick={()=>setLoyalty({tiers:[...(loyalty.tiers||[]),{name:`Tier ${(loyalty.tiers||[]).length+1}`,minPoints:0,discountPercent:0,freeRp:0,benefits:[]}]})}>+ Add loyalty tier</button>
-        <button onClick={()=>save.mutate()} disabled={save.isPending} className={btn+" mt-4 w-full justify-center"}>{save.isPending?"Saving…":"Save loyalty settings"}</button>
+        <button className="mt-3 text-sm font-semibold text-amber-300" onClick={()=>setLoyalty({tiers:[...(loyalty.tiers||[]),{name:t("admin.loy.tierN", { n: (loyalty.tiers||[]).length+1 }),minPoints:0,discountPercent:0,freeRp:0,benefits:[]}]})}>{t("admin.loy.addTier")}</button>
+        <button onClick={()=>save.mutate()} disabled={save.isPending} className={btn+" mt-4 w-full justify-center"}>{save.isPending?t("admin.c.saving"):t("admin.loy.save")}</button>
       </Card>
       <Card>
-        <h3 className="font-bold mb-1 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> Booking areas (by level)</h3>
-        <p className="text-[11px] text-white/50 mb-3">Hours are fixed: Sun–Thu 5pm–2am · Fri–Sat 5pm–3am · 2-hour slots. Each area shows on the member booking page and on WhatsApp. Add tables/rooms and a layout image where guests pick a spot (e.g. KTV Lounge).</p>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.area.title")}</h3>
+        <p className="text-[11px] text-white/50 mb-3">{t("admin.area.hint")}</p>
         <BookingAreasEditor value={cur.bookingAreas} onChange={(v) => setStr("bookingAreas", v)} />
-        <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">Booking note (optional, shown with timings)</span><input value={cur.bookingNote || ""} onChange={(e) => setStr("bookingNote", e.target.value)} className={inp + " w-full"} /></label>
-        <button onClick={()=>save.mutate()} disabled={save.isPending} className={btn+" mt-3 w-full justify-center"}>{save.isPending?"Saving…":"Save booking times & visibility"}</button>
+        <label className="mt-3 flex items-start gap-2 rounded-xl border border-white/10 p-3 text-sm"><input className="mt-1" type="checkbox" checked={cur.bookingTableDayLock === true} onChange={(e) => setStr("bookingTableDayLock", e.target.checked)} /><span>{t("admin.bk.dayLock")}<span className="block text-[11px] text-white/40">{t("admin.bk.dayLockHint")}</span></span></label>
+        <label className="mt-2 flex items-start gap-2 rounded-xl border border-white/10 p-3 text-sm"><input className="mt-1" type="checkbox" checked={cur.bookingAskHours !== false} onChange={(e) => setStr("bookingAskHours", e.target.checked)} /><span>{t("admin.bk.askHours")}<span className="block text-[11px] text-white/40">{t("admin.bk.askHoursHint")}</span></span></label>
+        <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">{t("admin.area.note")}</span><input value={cur.bookingNote || ""} onChange={(e) => setStr("bookingNote", e.target.value)} className={inp + " w-full"} /></label>
+        <button onClick={()=>save.mutate()} disabled={save.isPending} className={btn+" mt-3 w-full justify-center"}>{save.isPending?t("admin.c.saving"):t("admin.area.save")}</button>
       </Card>
       <Card>
-        <h3 className="font-bold mb-2 flex items-center gap-2"><Music2 className="w-4 h-4 text-amber-300"/> Song request options</h3>
-        <label className="flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.songRequestModeEnabled !== false} onChange={(e)=>setStr("songRequestModeEnabled",e.target.checked)}/> Let members choose Self sing or By singer</label>
+        <h3 className="font-bold mb-2 flex items-center gap-2"><Music2 className="w-4 h-4 text-amber-300"/> {t("admin.set.songOpts")}</h3>
+        <label className="flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.songRequestModeEnabled !== false} onChange={(e)=>setStr("songRequestModeEnabled",e.target.checked)}/> {t("admin.set.songMode")}</label>
       </Card>
       <Card>
-        <h3 className="font-bold mb-1 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-amber-300" /> Reviews & referral</h3>
-        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Business address (sent automatically when someone asks on WhatsApp)</span><textarea value={cur.businessAddress || ""} onChange={(e) => setStr("businessAddress", e.target.value)} placeholder="Full business address" className={inp + " min-h-20 w-full"} /></label>
-        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Google Maps pin link (optional)</span><input value={cur.businessMapUrl || ""} onChange={(e) => setStr("businessMapUrl", e.target.value)} placeholder="https://maps.app.goo.gl/..." className={inp + " w-full"} /></label>
-        <p className="mb-3 text-[11px] text-white/40">If the map link is empty, WhatsApp creates a Google Maps pin from the address above.</p>
-        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Google review link (sent on WhatsApp after payment)</span><input value={cur.googleReviewUrl || ""} onChange={(e) => setStr("googleReviewUrl", e.target.value)} placeholder="https://g.page/r/..." className={inp + " w-full"} /></label>
-        <label className="block"><span className="text-xs text-white/60 block mb-1">House referral account — user ID that owns un-referred signups (commission)</span><input value={cur.houseReferralUserId || ""} onChange={(e) => setStr("houseReferralUserId", e.target.value)} placeholder="e.g. your admin user id" className={inp + " w-full"} /></label>
-        <p className="text-[11px] text-white/40 mt-1">Signups from the website or WhatsApp with no referral code are credited to this account.</p>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-amber-300" /> {t("admin.set.reviews")}</h3>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.set.address")}</span><textarea value={cur.businessAddress || ""} onChange={(e) => setStr("businessAddress", e.target.value)} placeholder={t("admin.set.addressPh")} className={inp + " min-h-20 w-full"} /></label>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.set.mapLink")}</span><input value={cur.businessMapUrl || ""} onChange={(e) => setStr("businessMapUrl", e.target.value)} placeholder="https://maps.app.goo.gl/..." className={inp + " w-full"} /></label>
+        <p className="mb-3 text-[11px] text-white/40">{t("admin.set.mapHint")}</p>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.set.reviewLink")}</span><input value={cur.googleReviewUrl || ""} onChange={(e) => setStr("googleReviewUrl", e.target.value)} placeholder="https://g.page/r/..." className={inp + " w-full"} /></label>
+        <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.set.house")}</span><input value={cur.houseReferralUserId || ""} onChange={(e) => setStr("houseReferralUserId", e.target.value)} placeholder={t("admin.set.housePh")} className={inp + " w-full"} /></label>
+        <p className="text-[11px] text-white/40 mt-1">{t("admin.set.houseHint")}</p>
       </Card>
       <Card>
-        <h3 className="font-bold mb-1 flex items-center gap-2"><Disc3 className="w-4 h-4 text-amber-300" /> Lucky Spin prize pool</h3>
-        <p className="text-[11px] text-white/50 mb-3">The pool is funded by the <b>10% on un-referred sales</b> (a referred buyer's 10% goes to their referrer instead). Raise the % to grow the pool faster. Spins only award a prize the pool can afford; below the minimum (or empty) spins land on "nothing". Set each prize's <b>cost RP</b> in the Prizes tab.</p>
-        <Field label="Tokens spent per spin" value={cur.spinTokenCost} onChange={(v: any) => set("spinTokenCost", v)} />
-        <Field label="Pool contribution % of un-referred sales" value={cur.spinPoolPercent} onChange={(v: any) => set("spinPoolPercent", v)} />
-        <Field label="Assumed bill (RP) for % voucher cost" value={cur.spinAssumedBill} onChange={(v: any) => set("spinAssumedBill", v)} />
-        <Field label="Minimum pool before prizes pay out (min 1,000,000)" value={cur.spinPoolMin} onChange={(v: any) => set("spinPoolMin", v)} />
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Disc3 className="w-4 h-4 text-amber-300" /> {t("admin.spin.title")}</h3>
+        <p className="text-[11px] text-white/50 mb-3">{t("admin.spin.hint")}</p>
+        <Field label={t("admin.spin.tokens")} value={cur.spinTokenCost} onChange={(v: any) => set("spinTokenCost", v)} />
+        <Field label={t("admin.spin.pct")} value={cur.spinPoolPercent} onChange={(v: any) => set("spinPoolPercent", v)} />
+        <Field label={t("admin.spin.bill")} value={cur.spinAssumedBill} onChange={(v: any) => set("spinAssumedBill", v)} />
+        <Field label={t("admin.spin.min")} value={cur.spinPoolMin} onChange={(v: any) => set("spinPoolMin", v)} />
         <SpinPool />
       </Card>
       <Card>
-        <h3 className="font-bold mb-1 flex items-center gap-2"><Coins className="w-4 h-4 text-red-300" /> Main-admin security</h3>
-        <p className="text-[11px] text-white/50 mb-3">Password required to <b>reset all numbers</b> (zero every member's tokens/points/credits + the prize pool) from the Members tab. Keep it separate from your login password.</p>
-        <label className="block"><span className="text-xs text-white/60 block mb-1">Main-admin reset password</span><PasswordInput value={cur.mainAdminPassword || ""} onChange={(v) => setStr("mainAdminPassword", v)} placeholder="Set a strong password" className={inp + " w-full"} /></label>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Coins className="w-4 h-4 text-red-300" /> {t("admin.sec.title")}</h3>
+        <p className="text-[11px] text-white/50 mb-3">{t("admin.sec.hint")}</p>
+        <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.sec.pw")}</span><PasswordInput value={cur.mainAdminPassword || ""} onChange={(v) => setStr("mainAdminPassword", v)} placeholder={t("admin.sec.pwPh")} className={inp + " w-full"} /></label>
       </Card>
-      <button onClick={() => save.mutate()} className={btn}>Save settings</button>
+      <button onClick={() => save.mutate()} className={btn}>{t("admin.set.save")}</button>
     </div>
   );
 }
@@ -596,25 +602,26 @@ function Field({ label, value, onChange }: any) {
 
 function SpinPool() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/spin-pool"], queryFn: () => apiRequest("GET", "/api/reborn/admin/spin-pool").then((r) => r.json()) });
   const [amt, setAmt] = useState("");
   const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
   const adjust = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/reborn/admin/spin-pool", body).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Pool updated" }); setAmt(""); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/spin-pool"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onSuccess: () => { toast({ title: t("admin.spin.updated") }); setAmt(""); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/spin-pool"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div className="mt-2 rounded-xl bg-amber-500/10 border border-amber-400/30 p-3">
-      <p className="text-xs text-white/50">Current pool balance</p>
+      <p className="text-xs text-white/50">{t("admin.spin.balance")}</p>
       <p className="text-xl font-extrabold text-amber-300">{money(data?.balance || 0)}</p>
       <div className="flex gap-2 mt-2">
-        <input value={amt} onChange={(e) => setAmt(e.target.value)} type="number" placeholder="Amount RP" className={inp + " flex-1"} />
-        <button onClick={() => adjust.mutate({ add: Number(amt) })} disabled={!amt || adjust.isPending} className={btnSave}>Add</button>
-        <button onClick={() => { if (confirm(`Set pool to RP ${Number(amt).toLocaleString()}?`)) adjust.mutate({ set: Number(amt) }); }} disabled={amt === "" || adjust.isPending} className="px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white/70">Set</button>
+        <input value={amt} onChange={(e) => setAmt(e.target.value)} type="number" placeholder={t("admin.spin.amount")} className={inp + " flex-1"} />
+        <button onClick={() => adjust.mutate({ add: Number(amt) })} disabled={!amt || adjust.isPending} className={btnSave}>{t("admin.c.add")}</button>
+        <button onClick={() => { if (confirm(t("admin.spin.setConfirm", { rp: Number(amt).toLocaleString() }))) adjust.mutate({ set: Number(amt) }); }} disabled={amt === "" || adjust.isPending} className="px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white/70">{t("admin.spin.set")}</button>
       </div>
-      <p className="text-[11px] text-white/40 mt-1">Add tops up the pool; Set overwrites it. Contributions & prize payouts adjust it automatically.</p>
+      <p className="text-[11px] text-white/40 mt-1">{t("admin.spin.addSetHint")}</p>
     </div>
   );
 }
@@ -629,57 +636,58 @@ const DEFAULT_AREAS = [
   { id: "restaurant", name: "Restaurant", level: "Level 4 & 5", image: "", tables: [] },
 ];
 function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (json: string) => void }) {
+  const { t } = useTranslation();
   const parse = (): any[] => { try { const a = JSON.parse(value || ""); if (Array.isArray(a) && a.length) return a; } catch {} return DEFAULT_AREAS; };
   const [areas, setAreas] = useState<any[]>(parse);
   const push = (next: any[]) => { setAreas(next); onChange(JSON.stringify(next)); };
   const upd = (i: number, patch: any) => push(areas.map((a, j) => (j === i ? { ...a, ...patch } : a)));
-  const add = () => push([...areas, { id: `area-${Date.now().toString(36)}`, name: "New area", level: "Level 1", image: "", tables: [] }]);
+  const add = () => push([...areas, { id: `area-${Date.now().toString(36)}`, name: t("admin.area.newArea"), level: t("admin.area.level1"), image: "", tables: [] }]);
   const remove = (i: number) => push(areas.filter((_, j) => j !== i));
   return (
     <div className="space-y-3">
       {areas.map((a, i) => (
         <div key={a.id || i} className={`rounded-xl border p-3 ${a.enabled === false ? "border-white/10 bg-black/40 opacity-60" : "border-white/10 bg-black/20"}`}>
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <input value={a.name} onChange={(e) => upd(i, { name: e.target.value })} placeholder="Area name" className={inp} />
-            <input value={a.level} onChange={(e) => upd(i, { level: e.target.value })} placeholder="Level" className={inp} />
+            <input value={a.name} onChange={(e) => upd(i, { name: e.target.value })} placeholder={t("admin.area.name")} className={inp} />
+            <input value={a.level} onChange={(e) => upd(i, { level: e.target.value })} placeholder={t("admin.area.level")} className={inp} />
           </div>
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <label className="text-[11px] text-white/50">Open<input type="time" value={a.open || ""} onChange={(e) => upd(i, { open: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-            <label className="text-[11px] text-white/50">Close<input type="time" value={a.close || ""} onChange={(e) => upd(i, { close: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+            <label className="text-[11px] text-white/50">{t("admin.area.open")}<input type="time" value={a.open || ""} onChange={(e) => upd(i, { open: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+            <label className="text-[11px] text-white/50">{t("admin.area.close")}<input type="time" value={a.close || ""} onChange={(e) => upd(i, { close: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
           </div>
-          <p className="text-[10px] text-white/35 mb-2">Default hours above. Set per-day below to override or close a day (applies to app + WhatsApp).</p>
+          <p className="text-[10px] text-white/35 mb-2">{t("admin.area.defaultHint")}</p>
           <WeeklySchedule area={a} onChange={(schedule: any) => upd(i, { schedule })} />
-          <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder="Tables/rooms (comma) — leave empty for none" className={inp + " w-full mb-2 mt-2"} />
-          <label className="text-[11px] text-white/50 block mb-2">Default max pax {(a.tables || []).length ? "(tables without their own cap)" : "(whole area)"}<input type="number" min={1} value={a.maxPax || ""} onChange={(e) => upd(i, { maxPax: Math.max(0, Number(e.target.value) || 0) })} placeholder="e.g. 10" className={inp + " w-full"} /></label>
+          <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder={t("admin.area.tables")} className={inp + " w-full mb-2 mt-2"} />
+          <label className="text-[11px] text-white/50 block mb-2">{t("admin.area.maxPax")} {(a.tables || []).length ? t("admin.area.maxPaxTables") : t("admin.area.maxPaxWhole")}<input type="number" min={1} value={a.maxPax || ""} onChange={(e) => upd(i, { maxPax: Math.max(0, Number(e.target.value) || 0) })} placeholder={t("admin.c.eg", { v: 10 })} className={inp + " w-full"} /></label>
           {(a.tables || []).length > 0 && (
             <div className="mb-2">
-              <p className="text-[11px] text-white/50 mb-1">Max pax per table/room</p>
+              <p className="text-[11px] text-white/50 mb-1">{t("admin.area.maxPerTable")}</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {(a.tables || []).map((tb: string) => (
                   <label key={tb} className="flex items-center gap-1.5 text-[11px] text-white/60 bg-black/20 rounded-lg px-2 py-1">
                     <span className="truncate flex-1">{tb}</span>
-                    <input type="number" min={1} value={(a.tableCaps || {})[tb] || ""} onChange={(e) => upd(i, { tableCaps: { ...(a.tableCaps || {}), [tb]: Math.max(0, Number(e.target.value) || 0) } })} placeholder="max" className="w-14 px-1.5 py-1 rounded bg-black/30 border border-white/10 text-white text-xs" />
+                    <input type="number" min={1} value={(a.tableCaps || {})[tb] || ""} onChange={(e) => upd(i, { tableCaps: { ...(a.tableCaps || {}), [tb]: Math.max(0, Number(e.target.value) || 0) } })} placeholder={t("admin.area.max")} className="w-14 px-1.5 py-1 rounded bg-black/30 border border-white/10 text-white text-xs" />
                   </label>
                 ))}
               </div>
             </div>
           )}
           <div className="flex items-center justify-between gap-2">
-            <ImageUpload value={a.image} onChange={(v) => upd(i, { image: v })} label="Layout image" output="jpeg" maxDim={900} />
+            <ImageUpload value={a.image} onChange={(v) => upd(i, { image: v })} label={t("admin.area.layout")} output="jpeg" maxDim={900} />
             <div className="flex items-center gap-2">
-              <button onClick={() => upd(i, { enabled: a.enabled === false })} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${a.enabled === false ? "bg-white/10 text-white/50" : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"}`}>{a.enabled === false ? "Hidden" : "Visible"}</button>
+              <button onClick={() => upd(i, { enabled: a.enabled === false })} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${a.enabled === false ? "bg-white/10 text-white/50" : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"}`}>{a.enabled === false ? t("admin.c.hidden") : t("admin.c.visible")}</button>
               <button onClick={() => remove(i)} className={btnDel}><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
       ))}
-      <button onClick={add} className={btn + " w-full justify-center"}><Plus className="w-4 h-4" /> Add area</button>
+      <button onClick={add} className={btn + " w-full justify-center"}><Plus className="w-4 h-4" /> {t("admin.area.add")}</button>
     </div>
   );
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function WeeklySchedule({ area, onChange }: { area: any; onChange: (s: any) => void }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const sched = area.schedule || {};
   const setDay = (d: number, patch: any) => {
@@ -690,8 +698,8 @@ function WeeklySchedule({ area, onChange }: { area: any; onChange: (s: any) => v
   return (
     <div className="rounded-lg border border-white/10 bg-black/20 p-2 mb-1">
       <button onClick={() => setOpen((v) => !v)} className="w-full text-left text-[11px] text-white/60 flex items-center justify-between">
-        <span>Weekly schedule (Mon–Sun) {open ? "▲" : "▼"}</span>
-        <span className="text-white/30">tap to {open ? "hide" : "edit"}</span>
+        <span>{t("admin.area.weekly")} {open ? "▲" : "▼"}</span>
+        <span className="text-white/30">{open ? t("admin.area.tapHide") : t("admin.area.tapEdit")}</span>
       </button>
       {open && (
         <div className="mt-2 space-y-1">
@@ -700,13 +708,13 @@ function WeeklySchedule({ area, onChange }: { area: any; onChange: (s: any) => v
             const enabled = cfg.enabled !== false;
             return (
               <div key={d} className="flex items-center gap-2">
-                <button onClick={() => setDay(d, { enabled: !enabled })} className={`w-12 py-1 rounded text-[11px] font-bold ${enabled ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-white/30 line-through"}`}>{WEEKDAYS[d]}</button>
+                <button onClick={() => setDay(d, { enabled: !enabled })} className={`w-12 py-1 rounded text-[11px] font-bold ${enabled ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-white/30 line-through"}`}>{t("admin.wd." + d)}</button>
                 <input type="time" value={cfg.open || ""} disabled={!enabled} onChange={(e) => setDay(d, { open: e.target.value })} className={inp + " flex-1"} style={{ colorScheme: "dark" }} />
                 <input type="time" value={cfg.close || ""} disabled={!enabled} onChange={(e) => setDay(d, { close: e.target.value })} className={inp + " flex-1"} style={{ colorScheme: "dark" }} />
               </div>
             );
           })}
-          <p className="text-[10px] text-white/35">Leave a day's times blank to use the default hours above. Toggle the day off to close it.</p>
+          <p className="text-[10px] text-white/35">{t("admin.area.weeklyHint")}</p>
         </div>
       )}
     </div>
@@ -741,8 +749,8 @@ function SongRow({ s, onSave, onDelete }: any) {
       <div className="mb-2"><p className="text-xs text-white/50 mb-1">Singer photo</p><ImageUpload value={e.artistPhoto} onChange={(v) => setE({ ...e, artistPhoto: v })} shape="circle" label="Upload photo" /></div>
       <label className="text-xs text-white/50 flex items-center gap-1 mb-2"><input type="checkbox" checked={e.isHit} onChange={(x) => setE({ ...e, isHit: x.target.checked })} /> hit song (Top list)</label>
       <div className="flex gap-2">
-        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
-        <button onClick={() => onDelete(s.id)} className={btnDel}><Trash2 className="w-4 h-4" /> Delete</button>
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
+        <button onClick={() => onDelete(s.id)} className={btnDel}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
       </div>
     </Card>
   );
@@ -819,7 +827,7 @@ function Prizes() {
   const giveAward = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/prizes/award", award).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { toast({ title: ok ? d.message : "Failed", description: ok ? undefined : d.message, variant: ok ? undefined : "destructive" }); if (ok) setAward({ username: "", prizeId: 0 }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div>
@@ -862,11 +870,11 @@ function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
           : <label className="text-xs text-white/50" title="RP drawn from the prize pool when won (0 = free outcome)">cost RP<input type="number" inputMode="numeric" value={e.costRp || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, costRp: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>}
         <label className="text-xs text-white/50">win rate<input type="number" inputMode="numeric" value={e.weight || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
         <span className="text-xs font-bold text-amber-300" title="Chance of winning this prize">≈{pct}%</span>
-        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
+        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> {t("admin.c.active")}</label>
       </div>
       <div className="flex gap-2 mt-3">
-        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
-        <button onClick={() => onDelete(p.id)} className={btnDel}><Trash2 className="w-4 h-4" /> Delete</button>
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
+        <button onClick={() => onDelete(p.id)} className={btnDel}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
       </div>
     </Card>
   );
@@ -891,7 +899,7 @@ function Redemptions() {
               <p className="font-semibold text-sm">{r.prizeLabel}</p>
               <p className="text-xs text-white/40">{r.memberName || "Member"} · {new Date(r.createdAt).toLocaleString()}</p>
             </div>
-            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Approve</button>
+            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.approve")}</button>
             <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
           </div>
         </Card>
@@ -906,7 +914,7 @@ function Pills() {
   const grant = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/grant-pill", { userId: userId.trim() }).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: d.message }); setUserId(""); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <Card>
@@ -943,8 +951,8 @@ function FaqRow({ f, onSave, onDelete }: any) {
       <textarea value={e.answer} onChange={(x) => setE({ ...e, answer: x.target.value })} placeholder="Answer" rows={2} className={inp + " w-full mb-2"} />
       <input value={e.keywords || ""} onChange={(x) => setE({ ...e, keywords: x.target.value })} placeholder="keywords, comma, separated" className={inp + " w-full mb-2"} />
       <div className="flex gap-2">
-        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
-        <button onClick={() => onDelete(f.id)} className={btnDel + " justify-center"}><Trash2 className="w-4 h-4" /> Delete</button>
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
+        <button onClick={() => onDelete(f.id)} className={btnDel + " justify-center"}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
       </div>
     </Card>
   );
@@ -1077,13 +1085,13 @@ function MyHr() {
   const doAct = useMutation({
     mutationFn: (v: { path: string; body?: any }) => apiRequest("POST", v.path, v.body || {}).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Done" }); setPhoto(""); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-attendance"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const [lv, setLv] = useState<any>({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" });
   const applyLeave = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/staff/leave", lv).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Leave requested" }); setLv({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-leave"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div className="space-y-3">
@@ -1182,7 +1190,7 @@ function ManageHr() {
   const addShift = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/shifts", sh).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Shift added" }); setSh({ ...sh, role: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/shifts", schedFrom] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const delShift = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/shifts/${id}`, {}).then((r) => r.json()),
@@ -1307,12 +1315,12 @@ function Products() {
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const restock = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/pos/stock-in", { productId: Number(rs.productId), qty: Number(rs.qty), unitCost: rs.unitCost ? Number(rs.unitCost) : undefined, supplier: rs.supplier || undefined }).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Batch added" }); setRs({ productId: "", supplier: "", qty: 1, unitCost: 0 }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div className="space-y-3">
@@ -1396,7 +1404,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <tr className={`border-b border-white/5 hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
@@ -1424,7 +1432,7 @@ function ProductRow({ p }: any) {
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <Card>
@@ -1726,7 +1734,7 @@ function AdminBookings() {
   const setStatus = useMutation({
     mutationFn: (v: { id: number; status: string; note?: string }) => apiRequest("POST", `/api/reborn/admin/bookings/${v.id}/status`, { status: v.status, note: v.note }).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Updated" }); inv(); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
   const list = rows.filter((b) => (filter === "upcoming" ? b.upcoming && b.status !== "cancelled" : true));
@@ -1777,7 +1785,7 @@ function AdminBottles() {
   const collect = useMutation({
     mutationFn: (id: number) => apiRequest("POST", `/api/reborn/pos/bottle-keeps/${id}/collect`, {}).then((r) => r.json()),
     onSuccess: (d: any) => { toast({ title: d.message || "Redeemed" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const kept = rows.filter((b) => b.status === "kept");
   return (
@@ -1813,7 +1821,7 @@ function ManualBooking({ onDone }: { onDone: () => void }) {
   const book = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/manual", { memberCode, areaId, date, slot, table: table || undefined, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); onDone(); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   if (!open) return <button onClick={() => setOpen(true)} className={btn + " w-full justify-center"}><Plus className="w-4 h-4" /> Book for a member</button>;
   return (
@@ -1861,7 +1869,7 @@ function BlockSlot({ onDone }: { onDone: () => void }) {
   const block = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/block", { areaId, date, slot, table: table || undefined, reason }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); setReason(""); onDone(); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   if (!open) return <button onClick={() => setOpen(true)} className={btn + " w-full justify-center"}>🚫 Block a date / time</button>;
   return (

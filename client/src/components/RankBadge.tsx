@@ -1,7 +1,9 @@
 import { computeRank, type Tier } from "@/lib/rank";
+import { useTranslation } from "@/lib/i18n";
 
 // Compact rank emblem: colored gem + tier/division + star pips (or Legend Nx).
 export function RankBadge({ stars, tiers, size = "md" }: { stars: number; tiers: Tier[]; size?: "sm" | "md" | "lg" }) {
+  const { t } = useTranslation();
   if (!tiers?.length) return null;
   const r = computeRank(stars, tiers);
   const big = size === "lg";
@@ -13,7 +15,7 @@ export function RankBadge({ stars, tiers, size = "md" }: { stars: number; tiers:
         {r.isLegend ? "★" : r.tier[0]}
       </div>
       <div className="min-w-0">
-        <p className={`font-extrabold leading-tight ${big ? "text-base" : "text-xs"}`} style={{ color: r.isLegend ? "#e9d5ff" : r.color }}>{r.label}</p>
+        <p className={`font-extrabold leading-tight ${big ? "text-base" : "text-xs"}`} style={{ color: r.isLegend ? "#e9d5ff" : r.color }}>{r.isLegend ? t("hm.rank.legend", { n: r.legendLevel }) : `${r.tier} ${t(`hm.rank.div${r.division}`)}`}</p>
         {!r.isLegend ? (
           <div className="flex gap-0.5 mt-0.5">
             {Array.from({ length: r.perDiv }).map((_, i) => (
@@ -21,7 +23,7 @@ export function RankBadge({ stars, tiers, size = "md" }: { stars: number; tiers:
             ))}
           </div>
         ) : (
-          <p className="text-[10px] text-white/50 leading-tight">Legend {r.legendLevel}★</p>
+          <p className="text-[10px] text-white/50 leading-tight">{t("hm.rank.legend", { n: r.legendLevel })}</p>
         )}
       </div>
     </div>

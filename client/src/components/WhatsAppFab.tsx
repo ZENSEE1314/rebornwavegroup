@@ -1,16 +1,19 @@
 // Company WhatsApp — floating button for the public homepage. Pre-fills a greeting
 // so the bot flow (server/whatsappBot.ts) can start capturing the contact into the CRM.
+import { useTranslation } from "@/lib/i18n";
+
 const WA_NUMBER = "6281336361314";
-const WA_GREETING = "Hi Reborn Wave Group, I have some enquiries.";
 
 export function WhatsAppFab() {
-  const href = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(WA_GREETING)}`;
+  const { t } = useTranslation();
+  // Keeps a leading "Hi" in every language so the bot's greeting match still fires.
+  const href = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(t("hm.wa.greeting"))}`;
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Chat with us on WhatsApp"
+      aria-label={t("hm.wa.aria")}
       className="fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-full pl-3 pr-4 py-3 font-bold text-white shadow-lg active:scale-95 transition-transform"
       style={{ background: "#25D366", boxShadow: "0 8px 24px rgba(37,211,102,0.45)" }}
     >

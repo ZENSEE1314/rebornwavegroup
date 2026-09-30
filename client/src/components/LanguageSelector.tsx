@@ -9,7 +9,7 @@ import {
 import { useTranslation } from "@/lib/i18n";
 
 export function LanguageSelector() {
-  const { language, changeLanguage } = useTranslation();
+  const { t, language, changeLanguage } = useTranslation();
 
   const getLanguageLabel = () => {
     switch (language) {
@@ -32,7 +32,7 @@ export function LanguageSelector() {
         >
           <Globe className="h-4 w-4 text-gray-600" />
           <span className="text-sm font-medium text-gray-700">{getLanguageLabel()}</span>
-          <span className="sr-only">Language selector</span>
+          <span className="sr-only">{t("hm.lang.selector")}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48 bg-white border border-gray-200 shadow-lg rounded-lg p-1">

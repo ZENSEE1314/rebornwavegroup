@@ -48,26 +48,26 @@ export default function RebornProfile() {
   });
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
   const { data: pushStatus, refetch: refetchPush } = useQuery<any>({ queryKey: ["/api/v1/app/device-tokens/status"], queryFn: () => apiRequest("GET", "/api/v1/app/device-tokens/status").then((r) => r.json()), refetchInterval: 10000 });
-  const testPush = useMutation({ mutationFn: () => apiRequest("POST", "/api/v1/app/notifications/test", {}).then((r) => r.json()), onSuccess: (d) => toast({ title: "Test sent", description: d.message }), onError: (e: any) => toast({ title: "Test failed", description: apiErrorMessage(e), variant: "destructive" }) });
+  const testPush = useMutation({ mutationFn: () => apiRequest("POST", "/api/v1/app/notifications/test", {}).then((r) => r.json()), onSuccess: (d) => toast({ title: t("ac.prof.testSent"), description: d.message }), onError: (e: any) => toast({ title: t("ac.prof.testFailed"), description: apiErrorMessage(e), variant: "destructive" }) });
   const inNativeApp = typeof window !== "undefined" && ((window as any).__REBORN_NATIVE_APP__ || (() => { try { return localStorage.getItem("reborn.nativeApp") === "true"; } catch { return false; } })());
 
   const saveProfile = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/reborn/profile", body).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => {
-      if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; }
+      if (!ok) { toast({ title: t("ac.prof.failed"), description: d.message, variant: "destructive" }); return; }
       toast({ title: t("prof.saved") });
       qc.invalidateQueries({ queryKey: ["/api/auth/user"] });
     },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("ac.prof.failed"), description: e.message, variant: "destructive" }),
   });
   const changePw = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/profile", pw).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => {
-      if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; }
+      if (!ok) { toast({ title: t("ac.prof.failed"), description: d.message, variant: "destructive" }); return; }
       toast({ title: t("prof.pwUpdated") });
       setPw({ currentPassword: "", newPassword: "" });
     },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("ac.prof.failed"), description: e.message, variant: "destructive" }),
   });
 
   const saveDetails = () => {
@@ -78,16 +78,16 @@ export default function RebornProfile() {
     });
   };
   const pickLang = (code: any) => { setLang(code); saveProfile.mutate({ preferredLanguage: code }); };
-  const copyCode = () => { try { navigator.clipboard.writeText(u.referralCode || ""); toast({ title: "Copied", description: u.referralCode }); } catch {} };
+  const copyCode = () => { try { navigator.clipboard.writeText(u.referralCode || ""); toast({ title: t("ac.prof.copied"), description: u.referralCode }); } catch {} };
 
   return (
-    <RebornLayout active="/profile" title="PROFILE">
+    <RebornLayout active="/profile" title={t("ac.prof.pageTitle")}>
       <div className="flex items-center gap-3 mb-5">
         {f.profileImageUrl
           ? <img src={f.profileImageUrl} alt="" className="w-16 h-16 rounded-2xl object-cover" />
           : <span className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-purple-500 flex items-center justify-center text-2xl font-bold text-black">{(f.firstName || u.email || "U").slice(0, 1).toUpperCase()}</span>}
         <div className="min-w-0">
-          <h1 className="text-xl font-extrabold truncate">{f.firstName || "Member"} {f.lastName}</h1>
+          <h1 className="text-xl font-extrabold truncate">{f.firstName || t("ac.prof.member")} {f.lastName}</h1>
           <p className="text-sm text-white/50 truncate">{u.email}</p>
         </div>
       </div>
@@ -108,17 +108,17 @@ export default function RebornProfile() {
         )}
       </div>
 
-      <a href="/history" className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 mb-4 flex items-center gap-3"><ReceiptText className="w-5 h-5 text-amber-300" /><span className="flex-1"><b className="block">My payments & history</b><span className="text-xs text-white/50">Receipts, top-ups, KGOLD, gifts and rewards</span></span></a>
+      <a href="/history" className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 mb-4 flex items-center gap-3"><ReceiptText className="w-5 h-5 text-amber-300" /><span className="flex-1"><b className="block">{t("ac.prof.historyTitle")}</b><span className="text-xs text-white/50">{t("ac.prof.historyDesc")}</span></span></a>
 
       {inNativeApp ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">
-          <p className="font-bold text-sm mb-1 flex items-center gap-2"><Bell className="w-4 h-4 text-amber-300" /> Phone notifications</p>
+          <p className="font-bold text-sm mb-1 flex items-center gap-2"><Bell className="w-4 h-4 text-amber-300" /> {t("ac.prof.phoneNotif")}</p>
           {pushStatus?.registered ? (
-            <p className="text-xs text-emerald-300 mb-3">✅ This phone is registered for alerts{u.role === "admin" || u.role === "staff" ? " (new orders, bookings, song requests)" : ""}.</p>
+            <p className="text-xs text-emerald-300 mb-3">{u.role === "admin" || u.role === "staff" ? t("ac.prof.registeredStaff") : t("ac.prof.registered")}</p>
           ) : (
-            <p className="text-xs text-amber-300 mb-3">⚠️ This phone isn't registered for alerts yet. Allow notifications for the app in your phone settings, then close and reopen the app. If it stays like this, install the latest app version.</p>
+            <p className="text-xs text-amber-300 mb-3">{t("ac.prof.notRegistered")}</p>
           )}
-          <button onClick={() => { refetchPush(); testPush.mutate(); }} disabled={testPush.isPending} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-white/5 border border-white/10 text-white/80 disabled:opacity-60">{testPush.isPending ? "Sending…" : "Send test notification"}</button>
+          <button onClick={() => { refetchPush(); testPush.mutate(); }} disabled={testPush.isPending} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-white/5 border border-white/10 text-white/80 disabled:opacity-60">{testPush.isPending ? t("ac.prof.sending") : t("ac.prof.sendTest")}</button>
         </div>
       ) : <NotificationToggle />}
 
@@ -135,12 +135,12 @@ export default function RebornProfile() {
       {/* Details */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">
         <p className="font-bold mb-3 flex items-center gap-2"><User className="w-4 h-4 text-amber-300" /> {t("prof.title")}</p>
-        <div className="mb-3"><p className="text-xs text-white/50 mb-1">{t("prof.photo").replace(" URL", "")}</p><ImageUpload value={f.profileImageUrl} onChange={(v) => setF({ ...f, profileImageUrl: v })} shape="circle" label="Upload photo" /></div>
+        <div className="mb-3"><p className="text-xs text-white/50 mb-1">{t("ac.prof.photo")}</p><ImageUpload value={f.profileImageUrl} onChange={(v) => setF({ ...f, profileImageUrl: v })} shape="circle" label={t("ac.prof.uploadPhoto")} /></div>
         <div className="grid grid-cols-2 gap-2 mb-2">
           <label className="text-xs text-white/50">{t("prof.firstName")}<input value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} className={inp} /></label>
           <label className="text-xs text-white/50">{t("prof.lastName")}<input value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} className={inp} /></label>
         </div>
-        <label className="text-xs text-white/50 block mb-2">{t("prof.username")}<input value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} placeholder="e.g. wave_king" className={inp} /></label>
+        <label className="text-xs text-white/50 block mb-2">{t("prof.username")}<input value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} placeholder={t("ac.prof.usernameEx")} className={inp} /></label>
         <label className="text-xs text-white/50 block mb-1">{t("prof.phone")}</label>
         <div className="flex gap-2 mb-2">
           <select value={f.dialCode} onChange={(e) => setF({ ...f, dialCode: e.target.value })} className="w-24 flex-shrink-0 px-2 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60">
@@ -154,7 +154,7 @@ export default function RebornProfile() {
           <label className="text-xs text-white/50">{t("prof.country")}
             <select value={f.country} onChange={(e) => setF({ ...f, country: e.target.value })} className={inp}>
               <option value="">—</option>
-              {COUNTRIES.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+              {COUNTRIES.map((c) => <option key={c.name} value={c.name}>{t(`ac.country.${c.name}`)}</option>)}
             </select>
           </label>
         </div>

@@ -8,6 +8,7 @@ import petMale from "@assets/Doluruu Boy_1749664545355.png";
 import petFemale from "@assets/doluruu-female-transparent.png";
 import eggImg from "@assets/doluruu-blindbox-box.jpeg";
 import { ItemArt, COSTUME_FIT, PET_ART } from "@/components/pet-art";
+import { useTranslation } from "@/lib/i18n";
 
 const WALK_CSS = `
 @keyframes rwpetWaddle{0%{transform:translateY(0) rotate(-5deg) scale(1.03,.97)}25%{transform:translateY(-7%) rotate(0) scale(.98,1.03)}50%{transform:translateY(0) rotate(5deg) scale(1.03,.97)}75%{transform:translateY(-7%) rotate(0) scale(.98,1.03)}100%{transform:translateY(0) rotate(-5deg) scale(1.03,.97)}}
@@ -37,15 +38,16 @@ const WALK_CSS = `
 `;
 
 const STAT_META: Record<string, { label: string; color: string; emoji: string }> = {
-  hunger: { label: "Hungry", color: "#f59e0b", emoji: "🍖" },
-  happiness: { label: "Joy", color: "#ec4899", emoji: "🎾" },
-  cleanliness: { label: "Clean", color: "#38bdf8", emoji: "🧼" },
-  energy: { label: "Energy", color: "#22c55e", emoji: "⚡" },
+  hunger: { label: "hm.pet.statHunger", color: "#f59e0b", emoji: "🍖" },
+  happiness: { label: "hm.pet.statJoy", color: "#ec4899", emoji: "🎾" },
+  cleanliness: { label: "hm.pet.statClean", color: "#38bdf8", emoji: "🧼" },
+  energy: { label: "hm.pet.statEnergy", color: "#22c55e", emoji: "⚡" },
 };
 
 export default function RebornPet() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [code, setCode] = useState("");
 
   const { data: pets = [], isLoading } = useQuery<any[]>({
@@ -66,7 +68,7 @@ export default function RebornPet() {
   const homeCall = useMutation({
     mutationFn: (v: { path: string; body: any }) => apiRequest("POST", `/api/reborn/pet-home/${v.path}`, v.body).then((r) => r.json()),
     onSuccess: (d) => { qc.setQueryData(["/api/reborn/pet-home"], d); if (d.message) toast({ title: d.message }); },
-    onError: (e: any) => toast({ title: "Can't do that", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("hm.pet.cantDo"), description: e.message, variant: "destructive" }),
   });
   const setLight = (on: boolean) => {
     qc.setQueryData(["/api/reborn/pet-home"], (h: any) => h && { ...h, lightOn: on }); // flip instantly
@@ -80,43 +82,43 @@ export default function RebornPet() {
 
   const activate = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/activate", { code: code.trim() }).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: "Pet activated!", description: d.message }); setCode(""); refresh(); },
-    onError: (e: any) => toast({ title: "Couldn't activate", description: e.message, variant: "destructive" }),
+    onSuccess: (d) => { toast({ title: t("hm.pet.activated"), description: d.message }); setCode(""); refresh(); },
+    onError: (e: any) => toast({ title: t("hm.pet.couldntActivate"), description: e.message, variant: "destructive" }),
   });
   const act = useMutation({
     mutationFn: (v: { petId: number; action: string }) => apiRequest("POST", "/api/reborn/action", v).then((r) => r.json()),
-    onSuccess: (d) => { if (d.tokenAwarded) toast({ title: "Token earned! 🎉", description: d.message }); refresh(); },
-    onError: (e: any) => toast({ title: "Can't do that", description: e.message, variant: "destructive" }),
+    onSuccess: (d) => { if (d.tokenAwarded) toast({ title: t("hm.pet.tokenEarned"), description: d.message }); refresh(); },
+    onError: (e: any) => toast({ title: t("hm.pet.cantDo"), description: e.message, variant: "destructive" }),
   });
   const usePill = useMutation({
     mutationFn: (petId: number) => apiRequest("POST", "/api/reborn/use-pill", { petId }).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: "Revived!", description: d.message }); refresh(); },
-    onError: (e: any) => toast({ title: "Can't revive", description: e.message, variant: "destructive" }),
+    onSuccess: (d) => { toast({ title: t("hm.pet.revived"), description: d.message }); refresh(); },
+    onError: (e: any) => toast({ title: t("hm.pet.cantRevive"), description: e.message, variant: "destructive" }),
   });
 
   const canAddMore = pets.filter((p) => p.lifeStatus !== "dead").length < 2;
 
   return (
-    <RebornLayout active="/pet" title="PET CARE">
+    <RebornLayout active="/pet" title={t("hm.pet.pageTitle")}>
       <style dangerouslySetInnerHTML={{ __html: WALK_CSS }} />
 
       {canAddMore && (
         <div className="rounded-3xl p-5 mb-4 border border-white/10 bg-white/5">
-          <div className="flex items-center gap-2 mb-2"><PawPrint className="w-5 h-5 text-rose-400" /><h2 className="font-bold">Activate a pet</h2></div>
-          <p className="text-sm text-white/60 mb-3">Enter the code on your blindbox package (you can keep up to 2 pets).</p>
+          <div className="flex items-center gap-2 mb-2"><PawPrint className="w-5 h-5 text-rose-400" /><h2 className="font-bold">{t("hm.pet.activateTitle")}</h2></div>
+          <p className="text-sm text-white/60 mb-3">{t("hm.pet.activateDesc")}</p>
           <div className="flex gap-2">
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="RW-XXXXXX"
               className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60 uppercase tracking-wider" />
             <button onClick={() => activate.mutate()} disabled={!code.trim() || activate.isPending} className="shrink-0 px-5 py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
-              {activate.isPending ? "..." : "Activate"}
+              {activate.isPending ? "..." : t("hm.pet.activate")}
             </button>
           </div>
         </div>
       )}
 
-      {isLoading && <p className="text-white/50 text-center py-8">Loading your pets…</p>}
+      {isLoading && <p className="text-white/50 text-center py-8">{t("hm.pet.loading")}</p>}
       {!isLoading && pets.length === 0 && (
-        <div className="text-center py-10 text-white/50"><PawPrint className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>No pets yet. Activate a package code above.</p></div>
+        <div className="text-center py-10 text-white/50"><PawPrint className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>{t("hm.pet.noPets")}</p></div>
       )}
 
       <div className="space-y-4">
@@ -139,6 +141,7 @@ export default function RebornPet() {
 }
 
 function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, onLight }: any) {
+  const { t } = useTranslation();
   const img = pet.isEgg ? eggImg : pet.gender === "female" ? petFemale : petMale;
   const sick = pet.lifeStatus === "sick";
   const [pop, setPop] = useState(false);
@@ -154,11 +157,11 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
       <div className="flex items-center justify-between px-4 pt-4">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-bold">{pet.name}</h3>
-          {pet.isEgg ? <Badge color="#fb7185"><Egg className="w-3 h-3" /> Egg</Badge>
-            : sick ? <Badge color="#ef4444"><HeartPulse className="w-3 h-3" /> Sick</Badge>
-            : <Badge color="#22c55e"><Check className="w-3 h-3" /> Healthy</Badge>}
+          {pet.isEgg ? <Badge color="#fb7185"><Egg className="w-3 h-3" /> {t("hm.pet.egg")}</Badge>
+            : sick ? <Badge color="#ef4444"><HeartPulse className="w-3 h-3" /> {t("hm.pet.sick")}</Badge>
+            : <Badge color="#22c55e"><Check className="w-3 h-3" /> {t("hm.pet.healthy")}</Badge>}
         </div>
-        {!pet.isEgg && <span className="text-xs text-white/50 flex items-center gap-1"><Clock className="w-3 h-3" /> {pet.daysLeft}d left</span>}
+        {!pet.isEgg && <span className="text-xs text-white/50 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("hm.pet.daysLeftShort", { n: pet.daysLeft })}</span>}
       </div>
 
       {pet.isEgg
@@ -169,12 +172,12 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
       {/* body */}
       <div className="p-4">
         {pet.isEgg ? (
-          <p className="text-sm text-white/60 text-center">Your egg will hatch into a brand-new pet you can raise for 15 more days.</p>
+          <p className="text-sm text-white/60 text-center">{t("hm.pet.eggDesc")}</p>
         ) : sick ? (
           <>
-            <p className="text-sm text-white/60 mb-3">Your pet is sick and won't earn tokens. Visit us and spend 300,000 RP to get a free revival pill from staff.</p>
+            <p className="text-sm text-white/60 mb-3">{t("hm.pet.sickDesc")}</p>
             <button onClick={onPill} disabled={pilling || pillsAvailable < 1} className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-white disabled:opacity-50" style={{ background: pillsAvailable > 0 ? "linear-gradient(90deg,#ef4444,#f97316)" : "rgba(255,255,255,0.08)" }}>
-              <Pill className="w-4 h-4" /> {pillsAvailable > 0 ? "Use revival pill" : "No pill yet (visit + spend 300,000 RP)"}
+              <Pill className="w-4 h-4" /> {pillsAvailable > 0 ? t("hm.pet.usePill") : t("hm.pet.noPill")}
             </button>
           </>
         ) : (
@@ -186,7 +189,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
                 const c = v < 20 ? "#ef4444" : v < 50 ? "#f59e0b" : m.color;
                 return (
                   <div key={k}>
-                    <div className="flex justify-between text-[11px] mb-1"><span className="text-white/60">{m.emoji} {m.label}</span><span className="font-bold" style={{ color: c }}>{v}%</span></div>
+                    <div className="flex justify-between text-[11px] mb-1"><span className="text-white/60">{m.emoji} {t(m.label)}</span><span className="font-bold" style={{ color: c }}>{v}%</span></div>
                     <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${v}%`, background: c }} /></div>
                   </div>
                 );
@@ -196,26 +199,26 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
             {/* actions */}
             <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
               {[
-                { a: "feed", label: "Feed", emoji: "🍖" },
-                { a: "play", label: "Play", emoji: "🎾" },
-                { a: "clean", label: "Clean", emoji: "🧼" },
-                { a: pet.isSleeping ? "wake" : "sleep", label: pet.isSleeping ? "Wake" : "Sleep", emoji: pet.isSleeping ? "☀️" : "😴" },
+                { a: "feed", label: t("hm.pet.feed"), emoji: "🍖" },
+                { a: "play", label: t("hm.pet.play"), emoji: "🎾" },
+                { a: "clean", label: t("hm.pet.clean"), emoji: "🧼" },
+                { a: pet.isSleeping ? "wake" : "sleep", label: pet.isSleeping ? t("hm.pet.wake") : t("hm.pet.sleep"), emoji: pet.isSleeping ? "☀️" : "😴" },
               ].map((b) => (
-                <button key={b.label} onClick={() => doAction(b.a)} disabled={busy || (b.a === "feed" && !pet.canFeed)}
+                <button key={b.a} onClick={() => doAction(b.a)} disabled={busy || (b.a === "feed" && !pet.canFeed)}
                   className="flex flex-col items-center justify-center gap-0.5 py-2 min-w-0 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all disabled:opacity-40">
                   <span className="text-lg leading-none">{b.emoji}</span><span className="text-[10px] font-semibold truncate">{b.label}</span>
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-white/35 text-center mt-1.5">Tap your pet to play (free) · buttons use 10 energy · resting +5 energy/hour · sleeping +5 every 10 min</p>
+            <p className="text-[10px] text-white/35 text-center mt-1.5">{t("hm.pet.energyHelp")}</p>
 
             {/* daily token timer */}
             <div className="mt-3 rounded-xl bg-black/20 p-3">
               <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="text-white/60 flex items-center gap-1"><Coins className="w-3 h-3 text-amber-400" /> Daily token</span>
-                {pet.tokenEarnedToday ? <span className="text-emerald-400 font-bold">Earned ✓</span>
-                  : pet.cycleActive ? <span className="text-amber-300 font-bold">⏳ {pet.cycleHoursLeft}h left</span>
-                  : <span className="text-white/40">Feed to start the 24h timer</span>}
+                <span className="text-white/60 flex items-center gap-1"><Coins className="w-3 h-3 text-amber-400" /> {t("hm.pet.dailyToken")}</span>
+                {pet.tokenEarnedToday ? <span className="text-emerald-400 font-bold">{t("hm.pet.earned")}</span>
+                  : pet.cycleActive ? <span className="text-amber-300 font-bold">⏳ {t("hm.pet.hoursLeft", { n: pet.cycleHoursLeft })}</span>
+                  : <span className="text-white/40">{t("hm.pet.feedToStart")}</span>}
               </div>
               <div className="flex gap-1.5">
                 {Array.from({ length: pet.feedsNeeded }).map((_, i) => (
@@ -223,9 +226,9 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
                 ))}
               </div>
               <p className="text-[11px] text-white/40 mt-1.5">
-                {pet.tokenEarnedToday ? "Token claimed for this cycle — timer resets in " + pet.cycleHoursLeft + "h."
-                  : pet.nextFeedMinutes > 0 ? `Not hungry yet — next feed in ${pet.nextFeedMinutes >= 60 ? Math.ceil(pet.nextFeedMinutes / 60) + "h" : pet.nextFeedMinutes + "m"} · ${pet.feedsInCycle}/${pet.feedsNeeded} feeds`
-                  : `Feed now · ${pet.feedsInCycle}/${pet.feedsNeeded} feeds done within 24h`}
+                {pet.tokenEarnedToday ? t("hm.pet.tokenClaimed", { n: pet.cycleHoursLeft })
+                  : pet.nextFeedMinutes > 0 ? t("hm.pet.notHungry", { time: pet.nextFeedMinutes >= 60 ? t("hm.unit.hours", { n: Math.ceil(pet.nextFeedMinutes / 60) }) : t("hm.unit.minutes", { n: pet.nextFeedMinutes }), fed: pet.feedsInCycle, need: pet.feedsNeeded })
+                  : t("hm.pet.feedNow", { fed: pet.feedsInCycle, need: pet.feedsNeeded })}
               </p>
             </div>
           </>
@@ -264,6 +267,7 @@ const WALL: Record<Phase, string> = {
 const itemById = (home: any, id?: string) => (home?.catalog || []).find((i: any) => i.id === id);
 
 function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
+  const { t } = useTranslation();
   const phase = phaseOf(useVenueHour(home?.timezone));
   const dark = phase === "night" || phase === "dusk";
   const lightOn = home?.lightOn ?? true;
@@ -303,7 +307,7 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
       {/* ceiling lamp + wall switch */}
       <div className="absolute left-[58%] top-0 w-[2px] h-[10%] bg-[#6b4f3a]" />
       <div className="absolute left-[58%] top-[9%] -translate-x-1/2 w-9 h-5 rounded-t-full" style={{ background: lightOn ? "#ffd86b" : "#c9b8a0", boxShadow: lightOn ? "0 10px 40px 18px rgba(255,214,107,.45)" : "none" }} />
-      <button onClick={() => onLight?.(!lightOn)} aria-label={lightOn ? "Turn light off" : "Turn light on"}
+      <button onClick={() => onLight?.(!lightOn)} aria-label={lightOn ? t("hm.pet.lightOffAria") : t("hm.pet.lightOnAria")}
         className="absolute right-[3%] top-[30%] z-10 flex flex-col items-center justify-center gap-0.5 rounded-lg border border-black/10 bg-white shadow-md"
         style={{ width: 34, height: 48 }}>
         <span style={{ fontSize: 14, lineHeight: 1, filter: lightOn ? "none" : "grayscale(1) opacity(.5)" }}>💡</span>
@@ -325,11 +329,11 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
 
       {pet.isEgg ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10">
-          <img src={img} alt="egg" className="w-28 h-28 object-contain rounded-xl" style={{ animation: "rwpetBreathe 2.4s ease-in-out infinite" }} />
-          <p className="text-xs text-white flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" /> Hatches in {pet.hatchDaysLeft} day(s)</p>
+          <img src={img} alt={t("hm.pet.eggAlt")} className="w-28 h-28 object-contain rounded-xl" style={{ animation: "rwpetBreathe 2.4s ease-in-out infinite" }} />
+          <p className="text-xs text-white flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" /> {t("hm.pet.hatchesIn", { n: pet.hatchDaysLeft })}</p>
         </div>
       ) : (
-        <button ref={wander.ref} onClick={onPoke} className={`rwpet-walker ${asleep ? "rwpet-sleep" : `rwpet-m-${wander.mode}`}`} style={{ left: `${asleep ? 36 : wander.startX}%` }} aria-label="Play with your pet">
+        <button ref={wander.ref} onClick={onPoke} className={`rwpet-walker ${asleep ? "rwpet-sleep" : `rwpet-m-${wander.mode}`}`} style={{ left: `${asleep ? 36 : wander.startX}%` }} aria-label={t("hm.pet.playAria")}>
           <div className="rwpet-shadow" />
           <div className="rwpet-face" style={{ transform: `scaleX(${wander.facing})` }}>
             <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
@@ -355,7 +359,7 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
       <div className="absolute inset-0 pointer-events-none transition-colors duration-700" style={{ background: `rgba(10,14,45,${dim})` }} />
       {lightOn && dark && <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 58% 12%, rgba(255,214,107,.28), transparent 60%)" }} />}
       <span className="absolute left-2 bottom-2 z-10 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">
-        {phase === "night" ? "🌙 Night" : phase === "dusk" ? "🌇 Evening" : phase === "dawn" ? "🌅 Morning" : "☀️ Day"} · light {lightOn ? "on" : "off"}
+        {phase === "night" ? t("hm.pet.night") : phase === "dusk" ? t("hm.pet.evening") : phase === "dawn" ? t("hm.pet.morning") : t("hm.pet.day")} · {lightOn ? t("hm.pet.lightOn") : t("hm.pet.lightOff")}
       </span>
     </div>
   );
@@ -365,6 +369,7 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
 // Renders the animated 3D dino in an isolated iframe and drives it via
 // postMessage from the app's own action buttons / stats.
 function Pet3DStage({ pet, sick, home, stageRef, pop, onPoke }: any) {
+  const { t } = useTranslation();
   const phase = phaseOf(useVenueHour(home?.timezone));
   const [ready, setReady] = useState(false);
   const stats = ["hunger", "happiness", "cleanliness", "energy"].map((k) => pet[k] ?? 0);
@@ -390,15 +395,16 @@ function Pet3DStage({ pet, sick, home, stageRef, pop, onPoke }: any) {
       {pop && <span className="rwpet-heart" style={{ left: "50%" }}>💖</span>}
       {(need || mood) && <span className="absolute top-[9%] right-[8%] rounded-full bg-white px-2 py-0.5 text-base shadow" style={{ animation: "rwpetBubble 1.8s ease-in-out infinite" }}>{need || mood}</span>}
       <span className="absolute left-2 bottom-2 z-10 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">
-        {phase === "night" ? "🌙 Night" : phase === "dusk" ? "🌇 Evening" : phase === "dawn" ? "🌅 Morning" : "☀️ Day"}
+        {phase === "night" ? t("hm.pet.night") : phase === "dusk" ? t("hm.pet.evening") : phase === "dawn" ? t("hm.pet.morning") : t("hm.pet.day")}
       </span>
-      {sick && <span className="absolute top-2 left-2 z-10 rounded-full bg-red-500/80 px-2 py-0.5 text-[10px] font-bold text-white">🤒 Sick</span>}
+      {sick && <span className="absolute top-2 left-2 z-10 rounded-full bg-red-500/80 px-2 py-0.5 text-[10px] font-bold text-white">🤒 {t("hm.pet.sick")}</span>}
     </div>
   );
 }
 
 // ── Shop: spend pet coins on furniture & costumes ────────────────────────
 function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"furniture" | "costume">("furniture");
   const [petId, setPetId] = useState<number>(pets[0]?.id);
   const [slot, setSlot] = useState("clothing");
@@ -407,12 +413,12 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
   return (
     <div className="mt-4 rounded-3xl border border-white/10 bg-white/5 p-4">
       <div className="flex items-center justify-between gap-2 mb-1">
-        <h3 className="font-bold flex items-center gap-2">🏠 Decorate &amp; dress up</h3>
+        <h3 className="font-bold flex items-center gap-2">🏠 {t("hm.pet.shopTitle")}</h3>
         <span className="shrink-0 rounded-full bg-amber-400/15 px-3 py-1 text-sm font-extrabold text-amber-300">🐾 {home.coins}</span>
       </div>
-      <p className="text-[11px] text-white/50 mb-3">Earn pet coins in Games: +{home.rewards?.play} per game, +{home.rewards?.win} per win, +{home.rewards?.numberCrack} for cracking Guess the Number · today {home.earnedToday}/{home.dailyCap}</p>
+      <p className="text-[11px] text-white/50 mb-3">{t("hm.pet.shopEarn", { play: home.rewards?.play, win: home.rewards?.win, crack: home.rewards?.numberCrack, today: home.earnedToday, cap: home.dailyCap })}</p>
       <div className="grid gap-1 p-1 rounded-xl bg-black/25 mb-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        {([["furniture", "Room", Sofa], ["costume", "Costumes", Shirt]] as const).map(([k, label, Icon]) => (
+        {([["furniture", t("hm.pet.tabRoom"), Sofa], ["costume", t("hm.pet.tabCostumes"), Shirt]] as const).map(([k, label, Icon]) => (
           <button key={k} onClick={() => setTab(k)} className={`py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-1.5 ${tab === k ? "bg-amber-400 text-black" : "text-white/60"}`}><Icon className="w-4 h-4" />{label}</button>
         ))}
       </div>
@@ -422,7 +428,7 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
       {tab === "costume" && (
         <div className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {WEAR_SLOTS.map(([k, label, icon]) => (
-            <button key={k} onClick={() => setSlot(k)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${slot === k ? "bg-white text-black" : "bg-white/5 text-white/60"}`}>{icon} {label}</button>
+            <button key={k} onClick={() => setSlot(k)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${slot === k ? "bg-white text-black" : "bg-white/5 text-white/60"}`}>{icon} {t(label)}</button>
           ))}
         </div>
       )}
@@ -431,7 +437,7 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
         {items.map((it: any) => {
           const owned = (home.owned || []).includes(it.id);
           const active = tab === "furniture" ? home.placed?.[it.slot] === it.id : worn[it.slot] === it.id;
-          const label = !owned ? `🐾 ${it.price}` : tab === "furniture" ? (active ? "In room ✓" : "Place") : (active ? "Wearing ✓" : "Wear");
+          const label = !owned ? `🐾 ${it.price}` : tab === "furniture" ? (active ? t("hm.pet.inRoom") : t("hm.pet.place")) : (active ? t("hm.pet.wearing") : t("hm.pet.wear"));
           const onClick = () => !owned ? onBuy(it.id) : tab === "furniture" ? onPlace(it.slot, active ? null : it.id) : onWear(petId, it.id);
           return (
             <button key={it.id} onClick={onClick} disabled={busy || (!owned && home.coins < it.price)}
@@ -453,8 +459,8 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
 
 // Wardrobe sections, in the order of the "Customize your Doluruu" sheet.
 const WEAR_SLOTS: [string, string, string][] = [
-  ["clothing", "Clothing", "👕"], ["footwear", "Footwear", "👟"], ["head", "Head", "👑"], ["face", "Face", "🕶️"], ["neck", "Neck", "📿"],
-  ["back", "Back", "🪽"], ["aura", "Aura", "✨"], ["hands", "Hands", "🧤"], ["tail", "Tail", "🎀"], ["shell", "Shell", "🐢"],
+  ["clothing", "hm.slot.clothing", "👕"], ["footwear", "hm.slot.footwear", "👟"], ["head", "hm.slot.head", "👑"], ["face", "hm.slot.face", "🕶️"], ["neck", "hm.slot.neck", "📿"],
+  ["back", "hm.slot.back", "🪽"], ["aura", "hm.slot.aura", "✨"], ["hands", "hm.slot.hands", "🧤"], ["tail", "hm.slot.tail", "🎀"], ["shell", "hm.slot.shell", "🐢"],
 ];
 // Which worn item's picture best shows the whole look (full-body shots first).
 const PORTRAIT_ORDER = ["clothing", "footwear", "aura", "back", "head", "face", "neck", "hands", "shell", "tail"];
@@ -488,6 +494,7 @@ function outfitLayers(home: any, worn: Record<string, string>): string[] | null 
 // Shows the pet's current outfit using the item artwork: a big portrait of the
 // main piece plus a row of everything else it's wearing.
 function OutfitCard({ pet, home }: any) {
+  const { t } = useTranslation();
   const worn: Record<string, string> = home?.costumes?.[String(pet.id)] || {};
   const items = WEAR_SLOTS.map(([k]) => worn[k] && itemById(home, worn[k])).filter((i: any) => i && (i.figure || i.image));
   if (!items.length) return null;
@@ -501,7 +508,7 @@ function OutfitCard({ pet, home }: any) {
           : <img src={main.figure || main.image} alt={main.name} className={`h-full w-full ${main.figure ? "object-contain object-bottom p-1" : "rounded-xl object-cover"}`} />}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-amber-200/80">Today's outfit</p>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-amber-200/80">{t("hm.pet.todaysOutfit")}</p>
         <p className="truncate text-sm font-extrabold">{items.map((i: any) => i.name).join(" · ")}</p>
         <div className="mt-1.5 flex gap-1.5 overflow-x-auto">
           {items.filter((i: any) => layers || i.id !== main.id).map((i: any) => <img key={i.id} src={i.figure || i.image} alt={i.name} title={i.name} className={`h-9 w-9 shrink-0 rounded-lg ring-1 ring-white/15 ${i.figure ? "bg-white/10 object-contain" : "object-cover"}`} />)}

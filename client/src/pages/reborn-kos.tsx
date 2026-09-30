@@ -5,6 +5,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
+import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, Camera, QrCode, CheckCircle2 } from "lucide-react";
 
 const ANIM_CSS = `
@@ -16,8 +17,8 @@ const ANIM_CSS = `
 .kg-float{animation:kgFloat 1.6s ease-out both}
 .kg-zoom{animation:kgZoom .8s ease-out both}
 `;
-const fmt = (n: number) => (n || 0).toLocaleString("en-US");
-function nameOf(u: any) { return u?.username || u?.firstName || "Member"; }
+const fmt = (n: number) => (n || 0).toLocaleString(localeTag());
+function nameOf(u: any) { return u?.username || u?.firstName || translate("vn.common.member"); }
 function initials(u: any) { return (nameOf(u)[0] || "?").toUpperCase(); }
 function Avatar({ u }: any) {
   return u?.photo ? <img src={u.photo} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
@@ -36,15 +37,16 @@ export default function RebornKos() {
   const [scanning, setScanning] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
   const isAdmin = (user as any)?.role === "admin";
+  const { t } = useTranslation();
 
   const checkIn = (code: string) => {
     apiRequest("POST", "/api/reborn/venue/checkin", { code }).then(async (response) => {
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Check-in failed");
-      toast({ title: "Venue check-in complete", description: data.message });
+      if (!response.ok) throw new Error(data.message || t("vn.kos.checkinFailed"));
+      toast({ title: t("vn.kos.checkinDone"), description: data.message });
       qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] });
       qc.invalidateQueries({ queryKey: ["/api/reborn/venue/status"] });
-    }).catch((error) => toast({ title: "Check-in failed", description: error.message, variant: "destructive" }));
+    }).catch((error) => toast({ title: t("vn.kos.checkinFailed"), description: error.message, variant: "destructive" }));
   };
 
   useEffect(() => {
@@ -76,63 +78,63 @@ export default function RebornKos() {
   const refreshWallet = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/wallet"] }); qc.invalidateQueries({ queryKey: ["/api/auth/user"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] }); };
   const gift = useMutation({
     mutationFn: (giftTypeId: number) => apiRequest("POST", "/api/reborn/kos/gift", { toUserId: target.id, giftTypeId }).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: "Gift sent!", description: d.message }); setTarget(null); refreshWallet(); },
-    onError: (e: any) => toast({ title: "Can't gift", description: e.message, variant: "destructive" }),
+    onSuccess: (d) => { toast({ title: t("vn.kos.giftSent"), description: d.message }); setTarget(null); refreshWallet(); },
+    onError: (e: any) => toast({ title: t("vn.kos.cantGift"), description: e.message, variant: "destructive" }),
   });
   const addFriend = useMutation({
     mutationFn: (toUserId: string) => apiRequest("POST", "/api/reborn/chat/request", { toUserId }).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/chat/friends"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("vn.common.failed"), description: e.message, variant: "destructive" }),
   });
 
   return (
-    <RebornLayout active="/kos" title="KINGS OF SINGERS">
+    <RebornLayout active="/kos" title={t("vn.kos.title")}>
       <style dangerouslySetInnerHTML={{ __html: ANIM_CSS }} />
 
       {/* Wallet */}
       <div className="rounded-3xl p-5 mb-4 border border-white/10" style={{ background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(201,168,76,0.14))" }}>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-white/60 text-sm">Your KGOLD</p>
+            <p className="text-white/60 text-sm">{t("vn.kos.yourKgold")}</p>
             <div className="text-3xl font-extrabold flex items-center gap-2">🪙 {fmt(wallet?.kgold ?? 0)}</div>
-            <p className="text-white/50 text-xs mt-1">Received {fmt(wallet?.starsReceived ?? 0)} KGOLD in gifts</p>
+            <p className="text-white/50 text-xs mt-1">{t("vn.kos.receivedGifts", { n: fmt(wallet?.starsReceived ?? 0) })}</p>
           </div>
           <div className="flex items-center gap-2">
-          <button onClick={() => setScanning(true)} title="Scan venue QR" aria-label="Scan venue QR" className="w-10 h-10 rounded-full bg-black/25 flex items-center justify-center">
+          <button onClick={() => setScanning(true)} title={t("vn.kos.scanVenueQr")} aria-label={t("vn.kos.scanVenueQr")} className="w-10 h-10 rounded-full bg-black/25 flex items-center justify-center">
             <Camera className="w-5 h-5 text-amber-300" />
           </button>
-          <button onClick={() => { setShowNotif(true); }} className="relative w-10 h-10 rounded-full bg-black/25 flex items-center justify-center">
+          <button onClick={() => { setShowNotif(true); }} title={t("vn.kos.giftNotifs")} aria-label={t("vn.kos.giftNotifs")} className="relative w-10 h-10 rounded-full bg-black/25 flex items-center justify-center">
             <Bell className="w-5 h-5 text-amber-300" />
             {notifs.length > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-[11px] font-bold flex items-center justify-center">{notifs.length}</span>}
           </button>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={() => setModal("buy")} className="py-2.5 rounded-xl font-bold text-black flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}><Plus className="w-4 h-4" /> Buy KGOLD</button>
-          <button onClick={() => setModal("cashout")} className="py-2.5 rounded-xl font-bold bg-black/25 border border-white/10 flex items-center justify-center gap-1.5"><ArrowDownToLine className="w-4 h-4" /> Cash out</button>
+          <button onClick={() => setModal("buy")} className="py-2.5 rounded-xl font-bold text-black flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}><Plus className="w-4 h-4" /> {t("vn.kos.buyKgold")}</button>
+          <button onClick={() => setModal("cashout")} className="py-2.5 rounded-xl font-bold bg-black/25 border border-white/10 flex items-center justify-center gap-1.5"><ArrowDownToLine className="w-4 h-4" /> {t("vn.kos.cashOut")}</button>
         </div>
-        <p className="text-white/40 text-[11px] mt-2 text-center">{wallet?.kgoldPerRp ?? 100} KGOLD = 1 RP · gifts give the receiver {100 - (wallet?.feePercent ?? 30)}%</p>
+        <p className="text-white/40 text-[11px] mt-2 text-center">{t("vn.kos.rateInfo", { per: wallet?.kgoldPerRp ?? 100, pct: 100 - (wallet?.feePercent ?? 30) })}</p>
       </div>
 
       {/* Venue check-in */}
       {venue && !venue.checkedIn && (
         <button onClick={() => setScanning(true)} className="w-full mb-4 flex items-center gap-3 p-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-left">
           <span className="w-11 h-11 rounded-full bg-amber-400 flex items-center justify-center text-black shrink-0"><Camera className="w-5 h-5" /></span>
-          <span className="min-w-0"><span className="block font-bold">Scan venue QR</span><span className="block text-xs text-white/55">Check in at the venue to appear in the ranking and receive gifts.</span></span>
+          <span className="min-w-0"><span className="block font-bold">{t("vn.kos.scanVenueQr")}</span><span className="block text-xs text-white/55">{t("vn.kos.scanHint")}</span></span>
         </button>
       )}
-      {venue?.checkedIn && <p className="mb-4 flex items-center gap-1.5 text-xs text-emerald-300"><CheckCircle2 className="w-4 h-4" /> Checked in at the venue today</p>}
+      {venue?.checkedIn && <p className="mb-4 flex items-center gap-1.5 text-xs text-emerald-300"><CheckCircle2 className="w-4 h-4" /> {t("vn.kos.checkedInToday")}</p>}
       {isAdmin && (
         <button onClick={() => setVenueOpen(true)} className="w-full mb-4 flex items-center gap-3 p-3 rounded-2xl border border-white/10 bg-white/5 text-left">
           <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center shrink-0"><QrCode className="w-5 h-5 text-amber-300" /></span>
-          <span className="min-w-0"><span className="block font-bold">Venue check-in QR <span className="text-[10px] font-bold text-black bg-amber-300 rounded px-1.5 py-0.5 ml-1 align-middle">ADMIN</span></span><span className="block text-xs text-white/55">Show today's QR at the entrance</span></span>
+          <span className="min-w-0"><span className="block font-bold">{t("vn.kos.venueQr")} <span className="text-[10px] font-bold text-black bg-amber-300 rounded px-1.5 py-0.5 ml-1 align-middle">{t("vn.kos.admin")}</span></span><span className="block text-xs text-white/55">{t("vn.kos.showTodayQr")}</span></span>
         </button>
       )}
 
       {/* Search */}
       <div className="relative mb-5">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a member by username…" className="w-full pl-9 pr-4 py-3 rounded-full bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("vn.kos.searchPh")} className="w-full pl-9 pr-4 py-3 rounded-full bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60" />
         {results.length > 0 && (
           <div className="absolute z-20 left-0 right-0 mt-2 rounded-2xl bg-[#160f2a] border border-white/10 overflow-hidden shadow-2xl">
             {results.map((u) => (
@@ -143,15 +145,15 @@ export default function RebornKos() {
       </div>
 
       {/* Leaderboard */}
-      <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1 flex items-center gap-2"><Crown className="w-4 h-4 text-amber-400" /> Ranking (KGOLD received)</h2>
-      {board.length === 0 && <div className="text-center py-10 text-white/40"><Mic2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No gifts yet. Be the first!</p></div>}
+      <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1 flex items-center gap-2"><Crown className="w-4 h-4 text-amber-400" /> {t("vn.kos.ranking")}</h2>
+      {board.length === 0 && <div className="text-center py-10 text-white/40"><Mic2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.kos.noGifts")}</p></div>}
       <div className="space-y-2">
         {board.map((u, i) => (
           <div key={u.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
             <span className={`w-7 text-center font-extrabold ${i === 0 ? "text-amber-300" : i === 1 ? "text-slate-300" : i === 2 ? "text-orange-400" : "text-white/40"}`}>{i + 1}</span>
             <Avatar u={u} />
             <div className="flex-1 min-w-0"><p className="font-semibold truncate">{nameOf(u)}</p><p className="text-xs text-amber-300">🪙 {fmt(u.stars)}</p></div>
-            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">You</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title="Add friend" aria-label={`Add ${nameOf(u)} as friend`} className="w-11 h-11 rounded-full bg-amber-400 border border-amber-200 shadow-lg flex items-center justify-center text-black"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">Pending</span>}<button onClick={() => setTarget(u)} className="px-4 py-2 rounded-full text-sm font-bold text-black" style={{ background: "linear-gradient(90deg,#ec4899,#c9a84c)" }}>Gift</button></>}
+            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">{t("vn.kos.you")}</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title={t("vn.kos.addFriend")} aria-label={t("vn.kos.addAsFriend", { name: nameOf(u) })} className="w-11 h-11 rounded-full bg-amber-400 border border-amber-200 shadow-lg flex items-center justify-center text-black"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">{t("vn.kos.pending")}</span>}<button onClick={() => setTarget(u)} className="px-4 py-2 rounded-full text-sm font-bold text-black" style={{ background: "linear-gradient(90deg,#ec4899,#c9a84c)" }}>{t("vn.kos.gift")}</button></>}
           </div>
         ))}
       </div>
@@ -169,7 +171,7 @@ export default function RebornKos() {
               </button>
             ))}
           </div>
-          {!friendIds.has(target.id) && !pendingIds.has(target.id) && <button onClick={() => addFriend.mutate(target.id)} className="mt-4 w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 flex items-center justify-center gap-2 text-sm font-semibold"><UserPlus className="w-4 h-4" /> Add friend to chat</button>}
+          {!friendIds.has(target.id) && !pendingIds.has(target.id) && <button onClick={() => addFriend.mutate(target.id)} className="mt-4 w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 flex items-center justify-center gap-2 text-sm font-semibold"><UserPlus className="w-4 h-4" /> {t("vn.kos.addFriendChat")}</button>}
         </Overlay>
       )}
 
@@ -184,6 +186,7 @@ export default function RebornKos() {
 
 // Live camera scanner for the venue check-in QR (encodes /kos?venue=CODE).
 function VenueScanner({ onDetect, onClose }: { onDetect: (code: string) => void; onClose: () => void }) {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [err, setErr] = useState("");
   useEffect(() => {
@@ -202,31 +205,32 @@ function VenueScanner({ onDetect, onClose }: { onDetect: (code: string) => void;
           onDetect(code);
         }, { returnDetailedScanResult: true, highlightScanRegion: true, preferredCamera: "environment" });
         await scanner.start();
-      } catch (e: any) { setErr(e?.message || "Cannot open camera — allow camera access and try again."); }
+      } catch (e: any) { setErr(e?.message || translate("vn.kos.cameraError")); }
     })();
     return () => { cancelled = true; try { scanner?.stop(); scanner?.destroy(); } catch {} };
   }, []);
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-4">
       <video ref={videoRef} className="w-full max-w-sm rounded-2xl aspect-square object-cover bg-black" muted playsInline />
-      <p className="text-white/70 text-sm mt-3 text-center">Point at the venue check-in QR</p>
+      <p className="text-white/70 text-sm mt-3 text-center">{t("vn.kos.pointAt")}</p>
       {err && <p className="text-red-400 text-sm mt-2 text-center max-w-sm">{err}</p>}
-      <button onClick={onClose} className="mt-4 px-6 py-2.5 rounded-xl font-bold bg-white/10 text-white">Cancel</button>
+      <button onClick={onClose} className="mt-4 px-6 py-2.5 rounded-xl font-bold bg-white/10 text-white">{t("vn.common.cancel")}</button>
     </div>
   );
 }
 
 // Admin-only: today's venue QR and live check-in count.
 function VenueQr() {
+  const { t } = useTranslation();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/venue/session"], queryFn: () => apiRequest("GET", "/api/reborn/admin/venue/session").then((r) => r.json()), refetchInterval: 5000 });
   return <div>
-    <h3 className="font-bold text-lg flex items-center gap-2 pr-8"><QrCode className="w-5 h-5 text-amber-300" /> Daily venue check-in</h3>
-    <p className="text-sm text-white/55 mt-1 mb-4">Show this QR at the entrance. Checked-in members appear in Kings of Singers and can receive gifts.</p>
-    <div className="bg-white rounded-2xl p-3"><img src={`/api/reborn/admin/venue/qr?v=${encodeURIComponent(data?.code || "")}`} alt="Daily venue check-in QR" className="w-full aspect-square" /></div>
+    <h3 className="font-bold text-lg flex items-center gap-2 pr-8"><QrCode className="w-5 h-5 text-amber-300" /> {t("vn.kos.dailyCheckin")}</h3>
+    <p className="text-sm text-white/55 mt-1 mb-4">{t("vn.kos.dailyCheckinDesc")}</p>
+    <div className="bg-white rounded-2xl p-3"><img src={`/api/reborn/admin/venue/qr?v=${encodeURIComponent(data?.code || "")}`} alt={t("vn.kos.dailyQrAlt")} className="w-full aspect-square" /></div>
     <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-      <div><p className="text-[11px] text-white/45">Today</p><p className="font-bold text-sm">{data?.day || "—"}</p></div>
-      <div><p className="text-[11px] text-white/45">Checked in</p><p className="font-extrabold text-2xl text-amber-300">{data?.count ?? 0}</p></div>
-      <div><p className="text-[11px] text-white/45">Code</p><p className="font-mono tracking-[0.2em] font-bold text-sm">{data?.code || "—"}</p></div>
+      <div><p className="text-[11px] text-white/45">{t("vn.kos.today")}</p><p className="font-bold text-sm">{data?.day || "—"}</p></div>
+      <div><p className="text-[11px] text-white/45">{t("vn.kos.checkedIn")}</p><p className="font-extrabold text-2xl text-amber-300">{data?.count ?? 0}</p></div>
+      <div><p className="text-[11px] text-white/45">{t("vn.kos.code")}</p><p className="font-mono tracking-[0.2em] font-bold text-sm">{data?.code || "—"}</p></div>
     </div>
   </div>;
 }
@@ -244,6 +248,7 @@ function Overlay({ children, onClose }: any) {
 }
 
 function BuyModal({ wallet, onClose, onDone, onTopup }: any) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const min = wallet?.minBuyKgold ?? 1000000;
   const per = wallet?.kgoldPerRp ?? 100;
@@ -253,20 +258,21 @@ function BuyModal({ wallet, onClose, onDone, onTopup }: any) {
   const buy = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/kos/buy", { kgold: kg }).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: d.message }); onDone(); onClose(); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("vn.common.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <Overlay onClose={onClose}>
-      <h3 className="text-xl font-extrabold mb-1">Buy KGOLD</h3>
-      <p className="text-sm text-white/60 mb-4">{per} KGOLD = 1 RP · minimum {fmt(min)} KGOLD.</p>
+      <h3 className="text-xl font-extrabold mb-1">{t("vn.kos.buyKgold")}</h3>
+      <p className="text-sm text-white/60 mb-4">{t("vn.kos.buyRate", { per, min: fmt(min) })}</p>
       <input type="number" min={min} step={min} value={kg} onChange={(e) => setKg(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-2" />
-      <p className="text-sm text-white/60 mb-4">Cost: <b className="text-amber-300">RP {fmt(cost)}</b> from your credits (you have RP {fmt(wallet?.credits ?? 0)})</p>
-      <button onClick={() => insufficient ? onTopup() : buy.mutate()} disabled={buy.isPending || kg < min} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{insufficient ? "Top up RP to continue" : `Buy ${fmt(kg)} KGOLD`}</button>
+      <p className="text-sm text-white/60 mb-4">{t("vn.kos.costLabel")} <b className="text-amber-300">RP {fmt(cost)}</b> {t("vn.kos.costFrom", { n: fmt(wallet?.credits ?? 0) })}</p>
+      <button onClick={() => insufficient ? onTopup() : buy.mutate()} disabled={buy.isPending || kg < min} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{insufficient ? t("vn.kos.topupToContinue") : t("vn.kos.buyN", { n: fmt(kg) })}</button>
     </Overlay>
   );
 }
 
 function CashoutModal({ wallet, onClose, onDone }: any) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const per = wallet?.kgoldPerRp ?? 100;
   const bal = wallet?.kgold ?? 0;
@@ -275,23 +281,24 @@ function CashoutModal({ wallet, onClose, onDone }: any) {
   const cash = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/kos/cashout", { kgold: bal }).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: d.message }); onDone(); onClose(); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("vn.common.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <Overlay onClose={onClose}>
-      <h3 className="text-xl font-extrabold mb-1">Cash out KGOLD</h3>
-      <p className="text-sm text-white/60 mb-4">Convert your KGOLD to RP credits. Minimum RP {fmt(minRp)} ({fmt(minRp * per)} KGOLD).</p>
+      <h3 className="text-xl font-extrabold mb-1">{t("vn.kos.cashoutTitle")}</h3>
+      <p className="text-sm text-white/60 mb-4">{t("vn.kos.cashoutDesc", { rp: fmt(minRp), kg: fmt(minRp * per) })}</p>
       <div className="rounded-2xl bg-black/25 p-4 mb-4 text-center">
         <p className="text-2xl font-extrabold">🪙 {fmt(bal)}</p>
-        <p className="text-white/60 text-sm">= RP {fmt(rp)} credits</p>
+        <p className="text-white/60 text-sm">{t("vn.kos.eqCredits", { n: fmt(rp) })}</p>
       </div>
-      <button onClick={() => cash.mutate()} disabled={cash.isPending || rp < minRp} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#22c55e,#86efac)" }}>Cash out all → RP {fmt(rp)}</button>
-      {rp < minRp && <p className="text-xs text-white/40 mt-2 text-center">You need more KGOLD to reach the minimum.</p>}
+      <button onClick={() => cash.mutate()} disabled={cash.isPending || rp < minRp} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#22c55e,#86efac)" }}>{t("vn.kos.cashoutAll", { n: fmt(rp) })}</button>
+      {rp < minRp && <p className="text-xs text-white/40 mt-2 text-center">{t("vn.kos.needMore")}</p>}
     </Overlay>
   );
 }
 
 function GiftInbox({ notifs, onClose }: any) {
+  const { t } = useTranslation();
   const [i, setI] = useState(0);
   const g = notifs[i];
   useEffect(() => { if (notifs.length === 0) onClose(); }, [notifs.length]);
@@ -308,9 +315,9 @@ function GiftInbox({ notifs, onClose }: any) {
         <div key={i} className={animClass} style={{ fontSize: 96, lineHeight: 1 }}>
           {g.imageUrl ? <img src={g.imageUrl} alt="" className="w-32 h-32 object-contain mx-auto" /> : (g.emoji || "🎁")}
         </div>
-        <p className="text-white text-lg font-extrabold mt-4">{g.fromUsername || g.fromName || "Someone"} sent you a {g.giftName}!</p>
+        <p className="text-white text-lg font-extrabold mt-4">{t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName })}</p>
         <p className="text-amber-300 font-bold mt-1">🪙 +{fmt(g.recipientKgold)} KGOLD</p>
-        <button onClick={next} className="mt-6 px-8 py-2.5 rounded-full font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{i < notifs.length - 1 ? "Next" : "Awesome!"}</button>
+        <button onClick={next} className="mt-6 px-8 py-2.5 rounded-full font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{i < notifs.length - 1 ? t("vn.common.next") : t("vn.kos.awesome")}</button>
         {notifs.length > 1 && <p className="text-white/40 text-xs mt-2">{i + 1} / {notifs.length}</p>}
       </div>
     </div>

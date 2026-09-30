@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, CreditCard } from "lucide-react";
 import { Link } from "wouter";
+import { useTranslation, localeTag } from "@/lib/i18n";
 
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
@@ -16,6 +17,9 @@ const CheckoutForm = ({ amount, description }: { amount: number; description: st
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
+  const { t, language } = useTranslation();
+  const amountText = amount.toLocaleString(localeTag(language));
+  const descriptionText = description === "Pet Care Credits" ? t("ac.co.petCredits") : description;
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,14 +40,14 @@ const CheckoutForm = ({ amount, description }: { amount: number; description: st
 
     if (error) {
       toast({
-        title: "Payment Failed",
+        title: t("ac.co.failed"),
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Payment Successful",
-        description: "Thank you for your purchase!",
+        title: t("ac.co.success"),
+        description: t("ac.co.thanks"),
       });
     }
     setIsLoading(false);
@@ -54,17 +58,17 @@ const CheckoutForm = ({ amount, description }: { amount: number; description: st
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="w-5 h-5" />
-          Complete Payment
+          {t("ac.co.complete")}
         </CardTitle>
         <CardDescription>
-          {description} - RP {amount.toLocaleString('id-ID')}
+          {descriptionText} - RP {amountText}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <PaymentElement />
           <Button type="submit" disabled={!stripe || isLoading} className="w-full">
-            {isLoading ? "Processing..." : `Pay RP ${amount.toLocaleString('id-ID')}`}
+            {isLoading ? t("ac.co.processing") : t("ac.co.pay", { n: amountText })}
           </Button>
         </form>
       </CardContent>
@@ -73,14 +77,15 @@ const CheckoutForm = ({ amount, description }: { amount: number; description: st
 };
 
 export default function Checkout() {
+  const { t } = useTranslation();
   if (!stripePromise) {
     return (
       <div className="rwg-page-bg min-h-screen flex items-center justify-center">
         <div className="rwg-card p-8 text-center max-w-md">
           <CreditCard className="w-12 h-12 text-violet-400 mx-auto mb-4" />
-          <h2 className="text-white text-xl font-semibold mb-2">Payments Unavailable</h2>
-          <p className="text-white/60 text-sm mb-4">Stripe is not configured. Contact the administrator.</p>
-          <Link href="/" className="text-violet-400 hover:text-violet-300 text-sm">← Back to Home</Link>
+          <h2 className="text-white text-xl font-semibold mb-2">{t("ac.co.unavailable")}</h2>
+          <p className="text-white/60 text-sm mb-4">{t("ac.co.notConfigured")}</p>
+          <Link href="/" className="text-violet-400 hover:text-violet-300 text-sm">{t("ac.co.backHome")}</Link>
         </div>
       </div>
     );
@@ -118,7 +123,7 @@ export default function Checkout() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="flex items-center justify-center p-8">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" aria-label="Loading"/>
+            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" aria-label={t("ac.co.loading")}/>
           </CardContent>
         </Card>
       </div>
@@ -130,12 +135,12 @@ export default function Checkout() {
       <div className="max-w-2xl mx-auto pt-8">
         <Link href="/" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 mb-6">
           <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
+          {t("ac.co.backDashboard")}
         </Link>
         
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Secure Payment</h1>
-          <p className="text-gray-600">Complete your purchase safely with Stripe</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{t("ac.co.secure")}</h1>
+          <p className="text-gray-600">{t("ac.co.secureDesc")}</p>
         </div>
 
         <Elements stripe={stripePromise} options={{ clientSecret }}>

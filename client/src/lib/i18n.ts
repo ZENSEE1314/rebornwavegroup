@@ -1,4 +1,12 @@
 import { useState, useEffect } from 'react';
+import { bookingT } from './i18n/booking';
+import { gamesT } from './i18n/games';
+import { homeT } from './i18n/home';
+import { venueT } from './i18n/venue';
+import { accountT } from './i18n/account';
+import { adminT } from './i18n/admin';
+import { posT } from './i18n/pos';
+import { serverT } from './i18n/server';
 
 export type Language = 'en' | 'zh' | 'id';
 
@@ -10,6 +18,8 @@ interface Translations {
   };
 }
 
+// Feature areas keep their strings in ./i18n/<area>.ts (merged below). Every
+// key MUST have en, zh and id — when adding or editing any text, add all three.
 export const translations: Translations = {
   // Reborn Wave member app
   'nav.pet': { en: 'Pet', zh: '宠物', id: 'Peliharaan' },
@@ -6147,6 +6157,8 @@ export const translations: Translations = {
 
 };
 
+Object.assign(translations, bookingT, gamesT, homeT, venueT, accountT, adminT, posT, serverT);
+
 // Language context and hook
 let currentLanguage: Language = 'en';
 let languageChangeListeners: ((lang: Language) => void)[] = [];
@@ -6167,6 +6179,22 @@ export function setLanguage(language: Language): void {
     localStorage.setItem('language', language);
   }
   languageChangeListeners.forEach(listener => listener(language));
+  if (typeof document !== 'undefined') document.documentElement.lang = language === 'zh' ? 'zh-CN' : language;
+}
+
+// Translate outside React (toasts built in helpers, etc.). `{name}` placeholders
+// are filled from `vars`.
+export function translate(key: string, vars?: Record<string, string | number>, lang: Language = getCurrentLanguage()): string {
+  const tr = translations[key];
+  let s = tr ? (tr[lang] || tr.en || key) : key;
+  if (!tr && typeof console !== 'undefined') console.warn(`Translation missing for key: ${key}`);
+  if (vars) for (const k in vars) s = s.split(`{${k}}`).join(String(vars[k]));
+  return s;
+}
+
+// Locale tag for dates/numbers in the current language.
+export function localeTag(lang: Language = getCurrentLanguage()): string {
+  return lang === 'zh' ? 'zh-CN' : lang === 'id' ? 'id-ID' : 'en-GB';
 }
 
 export function useTranslation() {
@@ -6181,17 +6209,12 @@ export function useTranslation() {
     };
   }, []);
 
-  const t = (key: string): string => {
-    const translation = translations[key];
-    if (!translation) {
-      console.warn(`Translation missing for key: ${key}`);
-      return key;
-    }
-    return translation[language] || translation.en || key;
-  };
+  const t = (key: string, vars?: Record<string, string | number>): string => translate(key, vars, language);
 
   const changeLanguage = (newLanguage: Language) => {
     setLanguage(newLanguage);
+    // Remember it on the account too, so WhatsApp messages & reminders follow it.
+    fetch('/api/reborn/profile', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preferredLanguage: newLanguage }) }).catch(() => {});
   };
 
   return { t, language, changeLanguage };

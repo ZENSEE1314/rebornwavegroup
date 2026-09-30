@@ -8,6 +8,7 @@ import { users, pvpScores, appSettings, gameRanks } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
 import { resolveCompanyId } from "./tenant";
 import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
+import { tr, type Tri } from "./i18n";
 
 type Choice = "rock" | "paper" | "scissors";
 type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw";
@@ -19,6 +20,9 @@ interface Room {
   status: "lobby" | "playing" | "reveal" | "done";
   players: Player[];
   round: number; deadline: number; message: string;
+  // Translatable form of `message`: players in one room may use different
+  // languages, so clients render gm.srv.<k> with vars `v` themselves.
+  msg?: Msg;
   eliminatedThisRound: string[]; winnerId?: string; lastLoserId?: string;
   createdAt: number; timer?: NodeJS.Timeout; ticker?: NodeJS.Timeout; cleanupTimer?: NodeJS.Timeout;
   subs: Set<{ res: Response; uid?: string }>;
@@ -59,6 +63,47 @@ interface Room {
   stackMove?: { axis: "x" | "y"; x: number; y: number; w: number; h: number; from: boolean; t0: number; speed: number };
 }
 
+// Room messages are sent as a key + vars; a var may itself be a nested message
+// (or a "gm.*" client key) so words inside messages are translated too.
+type MsgV = Record<string, string | number | Msg>;
+interface Msg { k: string; v?: MsgV }
+function setMsg(room: Room, k: string, v: MsgV | undefined, en: string) { room.message = en; room.msg = { k, v }; }
+// Half-cup units → message ("½ cup", "1½ cups", …).
+function cupsMsg(u: number): Msg { return { k: u <= 2 ? "cup1" : "cupN", v: { n: u % 2 ? (u === 1 ? "½" : `${Math.floor(u / 2)}½`) : `${u / 2}` } }; }
+// Errors returned to the acting player, in their language.
+const ERR: Record<string, Tri> = {
+  "Not your turn": { en: "Not your turn", zh: "还没轮到你", id: "Belum giliranmu" },
+  "No discard to take": { en: "No discard to take", zh: "没有可拿的弃牌", id: "Tidak ada kartu buangan untuk diambil" },
+  "Deck empty — take the discard": { en: "Deck empty — take the discard", zh: "牌堆已空——请拿弃牌", id: "Dek habis — ambil kartu buangan" },
+  "Choose take or draw": { en: "Choose take or draw", zh: "请选择拿弃牌或摸牌", id: "Pilih ambil buangan atau tarik dari dek" },
+  "Pick a card to discard": { en: "Pick a card to discard", zh: "请选择要弃的牌", id: "Pilih kartu untuk dibuang" },
+  "Draw first": { en: "Draw first", zh: "请先摸牌", id: "Tarik kartu dulu" },
+  "Not now": { en: "Not now", zh: "现在不行", id: "Belum saatnya" },
+  "Not playing": { en: "Not playing", zh: "游戏未在进行", id: "Permainan tidak sedang berjalan" },
+  "Not in this room": { en: "Not in this room", zh: "你不在这个房间", id: "Kamu tidak ada di room ini" },
+  "You've seen your cards — follow (double) or fold": { en: "You've seen your cards — follow (double) or fold", zh: "你已看牌——只能跟（双倍）或弃牌", id: "Kamu sudah lihat kartu — ikut (dobel) atau menyerah" },
+  "Call, raise or look": { en: "Call, raise or look", zh: "请跟注、加注或看牌", id: "Ikut, naikkan, atau lihat kartu" },
+  "Pick left or right": { en: "Pick left or right", zh: "请选择左或右", id: "Pilih kiri atau kanan" },
+  "Only the drawer can draw": { en: "Only the drawer can draw", zh: "只有画手可以画", id: "Hanya penggambar yang boleh menggambar" },
+  "Canvas is full — clear or undo": { en: "Canvas is full — clear or undo", zh: "画布已满——请清空或撤销", id: "Kanvas penuh — hapus atau urungkan" },
+  "You're the drawer!": { en: "You're the drawer!", zh: "你是画手！", id: "Kamu penggambarnya!" },
+  "Slow down": { en: "Slow down", zh: "慢一点", id: "Pelan-pelan" },
+  "Type a guess": { en: "Type a guess", zh: "请输入你的答案", id: "Ketik tebakanmu" },
+  "Unknown action": { en: "Unknown action", zh: "未知操作", id: "Aksi tidak dikenal" },
+  "Wait…": { en: "Wait…", zh: "请稍等…", id: "Tunggu…" },
+  "Pick a face-down card": { en: "Pick a face-down card", zh: "请选择一张背面朝上的牌", id: "Pilih kartu yang masih tertutup" },
+  "Only the turn player can start": { en: "Only the turn player can start", zh: "只有当前回合的玩家可以开始", id: "Hanya pemain yang sedang giliran yang bisa mulai" },
+  "Wait for START": { en: "Wait for START", zh: "请等待开始", id: "Tunggu MULAI" },
+  "Pick a frog": { en: "Pick a frog", zh: "请选一只青蛙", id: "Pilih seekor katak" },
+  "You already picked": { en: "You already picked", zh: "你已经选过了", id: "Kamu sudah memilih" },
+};
+function errText(req: Request, e: string | Tri): string {
+  if (typeof e !== "string") return tr(req, e);
+  return ERR[e] ? tr(req, ERR[e]) : e;
+}
+// Default wheel labels are sent as client keys so they get translated.
+const WHEEL_LABEL_KEY: Record<string, string> = { PASS: "gm.wheel.pass", "½ cup": "gm.wheel.half", "1 cup": "gm.wheel.one", "2 cups": "gm.wheel.two" };
+
 const rooms = new Map<string, Room>();
 const MAX_PLAYERS = 20;
 const CARDS_MAX = 5;
@@ -76,7 +121,7 @@ function view(room: Room, forUserId?: string) {
   const reveal = room.status === "reveal" || room.status === "done";
   return {
     code: room.code, game: room.game, hostId: room.hostId, status: room.status,
-    hasPassword: !!room.password, round: room.round, message: room.message,
+    hasPassword: !!room.password, round: room.round, message: room.message, msg: room.msg,
     secondsLeft: room.deadline ? Math.max(0, Math.ceil((room.deadline - Date.now()) / 1000)) : 0,
     winnerId: room.winnerId, lastLoserId: room.lastLoserId, eliminatedThisRound: room.eliminatedThisRound,
     winTarget: room.winTarget || 1, seriesScore: room.seriesScore || {}, seriesChampionId: room.seriesChampionId,
@@ -159,7 +204,7 @@ function startRpsRound(room: Room) {
   room.eliminatedThisRound = [];
   for (const p of room.players) if (p.alive) p.choice = null;
   room.deadline = Date.now() + RPS_SECONDS * 1000 + 400;
-  room.message = `Round ${room.round} — choose!`;
+  setMsg(room, "rpsRound", { n: room.round }, `Round ${room.round} — choose!`);
   broadcast(room);
   room.timer = setTimeout(() => resolveRps(room), RPS_SECONDS * 1000 + 400);
 }
@@ -188,7 +233,7 @@ function resolveRps(room: Room) {
   if (!choosers.length && alive.length >= 2) {
     room.status = "done";
     room.winnerId = undefined; room.lastLoserId = undefined;
-    room.message = "Nobody picked — game over.";
+    setMsg(room, "rpsNobody", undefined, "Nobody picked — game over.");
     broadcast(room);
     scheduleCleanup(room);
     return;
@@ -202,7 +247,7 @@ function resolveRps(room: Room) {
     const loser = remaining[0];
     room.winnerId = undefined;
     room.lastLoserId = loser?.id;
-    room.message = loser ? `${loser.name} loses — drink! 🍺` : "Everyone is safe!";
+    if (loser) setMsg(room, "rpsLoser", { name: loser.name }, `${loser.name} loses — drink! 🍺`); else setMsg(room, "rpsAllSafe", undefined, "Everyone is safe!");
     room.status = "done";
     broadcast(room);
     const rows = room.players.map((p) => ({ userId: p.id, name: p.name, score: p.id === loser?.id ? 0 : 1, result: (p.id === loser?.id ? "lose" : "win") as "win" | "lose" }));
@@ -210,7 +255,7 @@ function resolveRps(room: Room) {
     scheduleCleanup(room);
     return;
   }
-  room.message = safe.length ? `${safe.map((p) => p.name).join(", ")} safe! ${remaining.length} left — go again!` : "Stand-off — go again!";
+  if (safe.length) setMsg(room, "rpsSafe", { names: safe.map((p) => p.name).join(", "), n: remaining.length }, `${safe.map((p) => p.name).join(", ")} safe! ${remaining.length} left — go again!`); else setMsg(room, "rpsStandoff", undefined, "Stand-off — go again!");
   broadcast(room);
   // Short reveal pause, then next round with the players still in.
   room.round += 1;
@@ -223,7 +268,7 @@ function startTap(room: Room) {
   room.status = "playing";
   for (const p of room.players) p.taps = 0;
   room.deadline = Date.now() + TAP_SECONDS * 1000;
-  room.message = "DIG! Tap as fast as you can!";
+  setMsg(room, "tapGo", undefined, "DIG! Tap as fast as you can!");
   broadcast(room);
   room.ticker = setInterval(() => broadcast(room), 600); // live scoreboard
   room.timer = setTimeout(() => finishTap(room), TAP_SECONDS * 1000);
@@ -236,7 +281,7 @@ function finishTap(room: Room) {
   const top = ranked[0];
   room.winnerId = top?.id;
   room.lastLoserId = ranked[ranked.length - 1]?.id;
-  room.message = top ? `${top.name} struck gold — ${top.taps} coins! 🏆` : "Game over";
+  if (top) setMsg(room, "tapWin", { name: top.name, n: top.taps }, `${top.name} struck gold — ${top.taps} coins! 🏆`); else setMsg(room, "gameOver", undefined, "Game over");
   broadcast(room);
   bumpSeries(room, top?.id);
   saveScores(room, ranked.map((p, i) => ({ userId: p.id, name: p.name, score: p.taps, result: i === 0 ? "win" : "lose" })));
@@ -260,7 +305,7 @@ function startTimer(room: Room) {
   // Random mode picks a fresh whole-second target (5–20 s) every round.
   room.timerTargetMs = room.timerMode === "random" ? (5 + Math.floor(Math.random() * 16)) * 1000 : TIMER_TARGET_MS;
   room.deadline = 0;
-  room.message = `GO! Hit STOP at exactly ${fmtMs(room.timerTargetMs)} ⏱️`;
+  setMsg(room, "timerGo", { t: fmtMs(room.timerTargetMs) }, `GO! Hit STOP at exactly ${fmtMs(room.timerTargetMs)} ⏱️`);
   broadcast(room);
   room.timer = setTimeout(() => finishTimer(room), room.timerTargetMs + TIMER_EXTRA_MS);
 }
@@ -283,11 +328,9 @@ function finishTimer(room: Room) {
   room.winnerId = winners[0]?.id;
   const ranked = [...room.players].sort((a, b) => dist(a) - dist(b));
   room.lastLoserId = ranked.length ? ranked[ranked.length - 1].id : undefined;
-  room.message = winners.length
-    ? (winners.length === 1
-        ? `${winners[0].name} nailed it at ${fmtMs(winners[0].stopMs!)} 🏆`
-        : `${winners.map((p) => p.name).join(" & ")} tied at ${fmtMs(winners[0].stopMs!)} — ${winners.length} winners! 🏆`)
-    : "Nobody hit stop — no winner!";
+  if (!winners.length) setMsg(room, "timerNone", undefined, "Nobody hit stop — no winner!");
+  else if (winners.length === 1) setMsg(room, "timerWin", { name: winners[0].name, t: fmtMs(winners[0].stopMs!) }, `${winners[0].name} nailed it at ${fmtMs(winners[0].stopMs!)} 🏆`);
+  else setMsg(room, "timerTie", { names: winners.map((p) => p.name).join(" & "), t: fmtMs(winners[0].stopMs!), n: winners.length }, `${winners.map((p) => p.name).join(" & ")} tied at ${fmtMs(winners[0].stopMs!)} — ${winners.length} winners! 🏆`);
   broadcast(room);
   const rows = stoppers.map((p) => ({
     userId: p.id, name: p.name, score: Math.max(0, timerTarget(room) - Math.round(dist(p))),
@@ -329,7 +372,7 @@ function start789(room: Room) {
   room.status = "playing";
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
   room.turnIdx = Math.floor(Math.random() * room.players.length);
-  room.message = `${room.players[room.turnIdx].name} starts — roll the dice! 🎲`;
+  setMsg(room, "s789Start", { name: room.players[room.turnIdx].name }, `${room.players[room.turnIdx].name} starts — roll the dice! 🎲`);
   arm789(room);
   broadcast(room);
 }
@@ -352,22 +395,27 @@ function seven789Roll(room: Room, uid: string) {
   const d1 = rollD(), d2 = rollD(), sum = d1 + d2;
   const p = room.players[idx];
   let action = "none", text = "", rollAgain = false, reverse = false, chooseNow = false;
+  let tm: Msg | null = null; // translatable form of `text`
   if (d1 === 1 && d2 === 1) {
     chooseNow = true; action = "choose";
-    text = `🎯 Snake eyes! ${p.name} picks anyone to down the whole cup`;
+    text = `🎯 Snake eyes! ${p.name} picks anyone to down the whole cup`; tm = { k: "s789Snake", v: { name: p.name } };
   } else {
-    if (sum === 7) { room.cupUnits = (room.cupUnits || 0) + 1; action = "add"; text = `${p.name} rolled 7 — top up the cup 🍺 (+1)`; }
-    else if (sum === 8) { room.cupUnits = Math.floor((room.cupUnits || 0) / 2); action = "half"; text = `${p.name} rolled 8 — drink HALF the cup 🍺`; }
-    else if (sum === 9) { room.cupUnits = 0; action = "whole"; text = `${p.name} rolled 9 — DOWN the whole cup 🍺🍺`; }
-    if (d1 === d2) { reverse = true; text = text ? `${text} · doubles reverse 🔄` : `${p.name} rolled doubles (${d1}+${d2}) — turn reverses 🔄`; }
-    else if (sum === 7 || sum === 8 || sum === 9) { rollAgain = true; text += " — roll again!"; }
-    if (!text) text = `${p.name} rolled ${sum}`;
+    if (sum === 7) { room.cupUnits = (room.cupUnits || 0) + 1; action = "add"; text = `${p.name} rolled 7 — top up the cup 🍺 (+1)`; tm = { k: "s789Add", v: { name: p.name } }; }
+    else if (sum === 8) { room.cupUnits = Math.floor((room.cupUnits || 0) / 2); action = "half"; text = `${p.name} rolled 8 — drink HALF the cup 🍺`; tm = { k: "s789Half", v: { name: p.name } }; }
+    else if (sum === 9) { room.cupUnits = 0; action = "whole"; text = `${p.name} rolled 9 — DOWN the whole cup 🍺🍺`; tm = { k: "s789Whole", v: { name: p.name } }; }
+    if (d1 === d2) {
+      reverse = true;
+      if (text && tm) { text = `${text} · doubles reverse 🔄`; tm = { k: "s789Rev", v: { text: tm } }; }
+      else { text = `${p.name} rolled doubles (${d1}+${d2}) — turn reverses 🔄`; tm = { k: "s789Doubles", v: { name: p.name, a: d1, b: d2 } }; }
+    }
+    else if ((sum === 7 || sum === 8 || sum === 9) && tm) { rollAgain = true; text += " — roll again!"; tm = { k: "s789Again", v: { text: tm } }; }
+    if (!text || !tm) { text = `${p.name} rolled ${sum}`; tm = { k: "s789Rolled", v: { name: p.name, n: sum } }; }
   }
   room.lastRoll = { d1, d2, sum, by: uid, byName: p.name, action, text };
-  if (chooseNow) { room.chooseFor = uid; room.message = text; arm789(room); broadcast(room); return; }
-  if (reverse) { room.dir = (room.dir || 1) * -1; room.turnIdx = stepIdx789(room, idx); room.message = `${text} — ${room.players[room.turnIdx].name}'s turn`; }
-  else if (rollAgain) { room.message = text; }
-  else { room.turnIdx = stepIdx789(room, idx); room.message = `${text} — ${room.players[room.turnIdx].name}'s turn`; }
+  if (chooseNow) { room.chooseFor = uid; setMsg(room, tm.k, tm.v, text); arm789(room); broadcast(room); return; }
+  if (reverse) { room.dir = (room.dir || 1) * -1; room.turnIdx = stepIdx789(room, idx); setMsg(room, "s789Turn", { text: tm, name: room.players[room.turnIdx].name }, `${text} — ${room.players[room.turnIdx].name}'s turn`); }
+  else if (rollAgain) { setMsg(room, tm.k, tm.v, text); }
+  else { room.turnIdx = stepIdx789(room, idx); setMsg(room, "s789Turn", { text: tm, name: room.players[room.turnIdx].name }, `${text} — ${room.players[room.turnIdx].name}'s turn`); }
   arm789(room);
   broadcast(room);
 }
@@ -380,7 +428,7 @@ function seven789Choose(room: Room, roller: string, targetId: string) {
   room.chooseFor = null;
   room.turnIdx = ti;
   room.lastRoll = { ...(room.lastRoll || { d1: 1, d2: 1, sum: 2 }), action: "chosen", text: `${t.name} downs the whole cup 🍺 — their turn now` };
-  room.message = `${t.name} downs the whole cup 🍺 — ${t.name}'s turn`;
+  setMsg(room, "s789Downs", { name: t.name }, `${t.name} downs the whole cup 🍺 — ${t.name}'s turn`);
   arm789(room);
   broadcast(room);
 }
@@ -421,7 +469,7 @@ function armStack(room: Room) {
   room.stackMove = { axis, x: top.x, y: top.y, w: top.w, h: top.h, from: true, t0: Date.now() + 700, speed: Math.min(0.36, 0.12 + h * 0.012) };
   const p = room.players[room.turnIdx ?? 0];
   room.deadline = Date.now() + STACK_TURN_MS + 700;
-  room.message = `${p?.name}'s turn — tap to drop! 🧱`;
+  setMsg(room, "stackTurn", { name: p?.name || "" }, `${p?.name}'s turn — tap to drop! 🧱`);
   broadcast(room);
   room.timer = setTimeout(() => finishStack(room, p?.id, "ran out of time"), STACK_TURN_MS + 700);
 }
@@ -444,7 +492,8 @@ function finishStack(room: Room, loserId?: string, why = "missed the tower") {
   const winners = room.players.filter((p) => p.id !== loser?.id);
   room.stackWinners = winners.map((p) => p.id);
   room.winnerId = winners[0]?.id;
-  room.message = loser ? `${loser.name} ${why} — the tower fell at ${height} blocks! 💥` : `Tower stands at ${height} blocks!`;
+  if (loser) setMsg(room, why === "ran out of time" ? "stackFellTime" : "stackFellMiss", { name: loser.name, h: height }, `${loser.name} ${why} — the tower fell at ${height} blocks! 💥`);
+  else setMsg(room, "stackStands", { h: height }, `Tower stands at ${height} blocks!`);
   broadcast(room);
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: height, result: (p.id === loser?.id ? "lose" : "win") as "win" | "lose" })));
   scheduleCleanup(room);
@@ -513,7 +562,7 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
     clearTimers(room); room.status = "done";
     const w = room.players.find((p) => p.alive) || room.players[0];
     room.winnerId = w?.id;
-    room.message = w ? `${w.name} wins — everyone else left! 🏆` : "Everyone left.";
+    if (w) setMsg(room, "soloWin", { name: w.name }, `${w.name} wins — everyone else left! 🏆`); else setMsg(room, "allLeft", undefined, "Everyone left.");
     broadcast(room);
     if (w) saveScores(room, [{ userId: w.id, name: w.name, score: 1, result: "win" }]);
     scheduleCleanup(room);
@@ -530,12 +579,12 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       return broadcast(room);
     case "dice": {
       if (diceAlive(room).length <= 1) return soloWin();
-      if (leavingWasTurn) { armDiceTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; }
+      if (leavingWasTurn) { armDiceTimer(room); setMsg(room, "turn", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn`); }
       return broadcast(room);
     }
     case "draw": {
-      if (room.dg && !room.players.some((p) => p.id === room.dg!.drawer)) return finishDraw(room, null, "✏️ The drawer left!");
-      if (room.dg && room.players.length < 2) return finishDraw(room, null, "Everyone else left!");
+      if (room.dg && !room.players.some((p) => p.id === room.dg!.drawer)) return finishDraw(room, null, "drawDrawerLeft");
+      if (room.dg && room.players.length < 2) return finishDraw(room, null, "drawAllLeft");
       return broadcast(room);
     }
     case "bridge": {
@@ -546,7 +595,7 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       if (room.players.length < 2) return soloWin();
       if (leavingWasTurn && room.mem) { // hand the turn on with a clean board
         room.mem.open = []; room.mem.busy = false;
-        room.message = `${room.players[room.turnIdx ?? 0].name}'s turn — flip 2 cards`;
+        setMsg(room, "memTurn", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn — flip 2 cards`);
         armMem(room);
       }
       return broadcast(room);
@@ -563,21 +612,21 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
     }
     case "poker3": {
       if (room.players.length < 2) return soloWin();
-      if (room.pk) { room.pk.pot = Math.max(room.pk.pot, 1); if (leavingWasTurn) { room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`; armPoker(room); } }
+      if (room.pk) { room.pk.pot = Math.max(room.pk.pot, 1); if (leavingWasTurn) { setMsg(room, "turn", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn`); armPoker(room); } }
       return broadcast(room);
     }
     case "cards": {
       if (room.players.length < 2) return soloWin();
-      if (leavingWasTurn) { room.phase = "draw"; room.drawnFrom = null; room.message = `${room.players[room.turnIdx ?? 0].name}'s turn — take the discard or draw`; armCardTimer(room); }
+      if (leavingWasTurn) { room.phase = "draw"; room.drawnFrom = null; setMsg(room, "cardsTurnDraw", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn — take the discard or draw`); armCardTimer(room); }
       return broadcast(room);
     }
     case "wheel": {
-      if ((room.wheelSpun || []).length >= room.players.length) { clearTimers(room); room.status = "done"; room.message = "Everyone's spun — cheers! 🍻"; broadcast(room); scheduleCleanup(room); return; }
+      if ((room.wheelSpun || []).length >= room.players.length) { clearTimers(room); room.status = "done"; setMsg(room, "wheelAllSpun", undefined, "Everyone's spun — cheers! 🍻"); broadcast(room); scheduleCleanup(room); return; }
       if (leavingWasTurn) {
         let guard = 0;
         while ((room.wheelSpun || []).includes(room.players[room.turnIdx ?? 0].id) && guard++ < room.players.length) room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length;
         room.status = "playing"; room.wheelResult = null;
-        room.message = `${room.players[room.turnIdx ?? 0].name}'s turn — spin!`;
+        setMsg(room, "wheelTurn", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn — spin!`);
         room.deadline = Date.now() + WHEEL_TURN_SECONDS * 1000 + 300;
         clearTimers(room);
         room.timer = setTimeout(() => wheelSpin(room, room.players[room.turnIdx ?? 0]?.id), WHEEL_TURN_SECONDS * 1000 + 300);
@@ -585,13 +634,13 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       return broadcast(room);
     }
     case "riding": {
-      if (leavingWasTurn) { room.flippedThisTurn = 0; armRidingTimer(room); room.message = `${room.players[room.turnIdx ?? 0].name}, tap ${room.ridingClicks} granny${(room.ridingClicks || 1) > 1 ? "s" : ""}!`; }
+      if (leavingWasTurn) { room.flippedThisTurn = 0; armRidingTimer(room); ridingTurnMsg(room); }
       return broadcast(room);
     }
     case "789": {
       if (room.chooseFor && !room.players.find((p) => p.id === room.chooseFor)) { room.chooseFor = null; arm789(room); }
       else if (leavingWasTurn) arm789(room);
-      room.message = `${room.players[room.turnIdx ?? 0].name}'s turn`;
+      setMsg(room, "turn", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn`);
       return broadcast(room);
     }
     case "stack":
@@ -615,7 +664,7 @@ function resetRoom(room: Room) {
   clearTimers(room);
   if (room.cleanupTimer) { clearTimeout(room.cleanupTimer); room.cleanupTimer = undefined; }
   room.status = "lobby";
-  room.round = 1; room.deadline = 0; room.message = "Waiting for players…";
+  room.round = 1; room.deadline = 0; setMsg(room, "lobbyWait", undefined, "Waiting for players…");
   room.eliminatedThisRound = []; room.winnerId = undefined; room.lastLoserId = undefined;
   room.deck = undefined; room.discardTop = null; room.discardBy = null; room.turnIdx = undefined; room.phase = undefined; room.drawnFrom = null; room.cardReveal = null;
   room.bid = null; room.jokerActive = true; room.jokerReenableAt = undefined; room.diceReveal = null;
@@ -671,7 +720,7 @@ function startCards(room: Room) {
   // Host may already have 3 pairs on the deal.
   if (hasThreePairs(host.hand!)) return cardsWin(room, host.id, "deck");
   room.phase = "discard"; // host discards to open
-  room.message = `${host.name}'s turn — discard a card to open`;
+  setMsg(room, "cardsOpen", { name: host.name }, `${host.name}'s turn — discard a card to open`);
   armCardTimer(room);
   broadcast(room);
 }
@@ -704,17 +753,18 @@ function cardsWin(room: Room, winnerId: string, via: "deck" | "discard") {
   // Reveal the winning hand to everyone first (don't pop the win instantly).
   room.status = "reveal";
   room.cardReveal = { winnerId, winnerName: winner.name, hand: winner.hand, via, loserId: loser?.id || null, winCard: via === "discard" ? undefined : (winner.hand || [])[winner.hand!.length - 1] };
-  room.message = `${winner.name} completed 3 pairs — take a look! 🃏`;
+  setMsg(room, "cardsReveal", { name: winner.name }, `${winner.name} completed 3 pairs — take a look! 🃏`);
   broadcast(room);
   room.timer = setTimeout(async () => {
     room.status = "done";
     room.winnerId = winnerId;
     const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [{ userId: winner.id, name: winner.name, score: 1, result: "win" }];
     if (via === "deck") {
-      room.message = `${winner.name} drew the winning card — BIG WIN, everyone else loses! 🏆`;
+      setMsg(room, "cardsDeckWin", { name: winner.name }, `${winner.name} drew the winning card — BIG WIN, everyone else loses! 🏆`);
       for (const p of room.players) if (p.id !== winnerId) rows.push({ userId: p.id, name: p.name, score: 0, result: "lose" });
     } else {
-      room.message = `${winner.name} matched ${loser ? loser.name + "'s" : "the"} discard and wins! 🏆`;
+      if (loser) setMsg(room, "cardsDiscardWinFrom", { name: winner.name, loser: loser.name }, `${winner.name} matched ${loser.name}'s discard and wins! 🏆`);
+      else setMsg(room, "cardsDiscardWin", { name: winner.name }, `${winner.name} matched the discard and wins! 🏆`);
       if (loser && loser.id !== winnerId) rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" });
     }
     broadcast(room);
@@ -727,7 +777,7 @@ function cardsWin(room: Room, winnerId: string, via: "deck" | "discard") {
 function cardsTie(room: Room) {
   clearTimers(room);
   room.status = "done";
-  room.message = "Deck ran out — it's a tie, no winner.";
+  setMsg(room, "cardsTie", undefined, "Deck ran out — it's a tie, no winner.");
   broadcast(room);
   scheduleCleanup(room);
 }
@@ -755,7 +805,7 @@ function autoPlayCards(room: Room) {
   const rIdx = Math.floor(Math.random() * p.hand!.length);
   const [card] = p.hand!.splice(rIdx, 1);
   room.discardTop = card; room.discardBy = p.id;
-  room.message = `${p.name} ran out of time — auto-discarded`;
+  setMsg(room, "cardsAuto", { name: p.name }, `${p.name} ran out of time — auto-discarded`);
   nextCardTurn(room);
 }
 
@@ -767,7 +817,7 @@ function nextCardTurn(room: Room) {
   room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length;
   room.phase = "draw"; room.drawnFrom = null;
   if (!room.deck!.length && !room.discardTop) return cardsTie(room);
-  room.message = `${room.players[room.turnIdx].name}'s turn — take the discard or draw`;
+  setMsg(room, "cardsTurnDraw", { name: room.players[room.turnIdx].name }, `${room.players[room.turnIdx].name}'s turn — take the discard or draw`);
   armCardTimer(room);
   broadcast(room);
 }
@@ -788,7 +838,7 @@ function cardAction(room: Room, uid: string, body: any): { error?: string } {
     // Completed on pickup?
     if (hasThreePairs(p.hand!)) { cardsWin(room, p.id, room.drawnFrom === "deck" ? "deck" : "discard"); return {}; }
     room.phase = "discard";
-    room.message = `${p.name} — discard a card`;
+    setMsg(room, "cardsDiscard", { name: p.name }, `${p.name} — discard a card`);
     armCardTimer(room);
     broadcast(room);
     return {};
@@ -843,13 +893,14 @@ function diceTimeout(room: Room) {
   room.lastLoserId = loserId;
   room.diceReveal = { timeout: true, bid: room.bid || null, loserId, hands: handsSnapshot };
   room.status = "reveal";
-  room.message = `${p.name} ran out of time — LOSES! 🍻`;
+  setMsg(room, "diceTimeout", { name: p.name }, `${p.name} ran out of time — LOSES! 🍻`);
   broadcast(room);
   room.timer = setTimeout(() => {
     room.status = "done";
     room.winnerId = winnerId;
     const winner = room.players.find((x) => x.id === winnerId);
-    room.message = `${p.name} ran out of time and loses! 🍻${winner ? "  " + winner.name + " wins 🏆" : ""}`;
+    if (winner) setMsg(room, "diceTimeoutDoneW", { name: p.name, winner: winner.name }, `${p.name} ran out of time and loses! 🍻  ${winner.name} wins 🏆`);
+    else setMsg(room, "diceTimeoutDone", { name: p.name }, `${p.name} ran out of time and loses! 🍻`);
     broadcast(room);
     bumpSeries(room, winnerId);
     const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [{ userId: loserId, name: p.name, score: 0, result: "lose" }];
@@ -867,7 +918,7 @@ function startDiceRound(room: Room, starterId?: string) {
   if (idx < 0) idx = room.players.indexOf(alive[Math.floor(Math.random() * alive.length)]);
   room.turnIdx = idx;
   room.status = "playing";
-  room.message = `${room.players[idx].name} opens — bid at least ${minOpenBid(room)} dice`;
+  setMsg(room, "diceOpen", { name: room.players[idx].name, n: minOpenBid(room) }, `${room.players[idx].name} opens — bid at least ${minOpenBid(room)} dice`);
   armDiceTimer(room);
   broadcast(room);
 }
@@ -876,18 +927,18 @@ function nextAliveIdx(room: Room, from: number): number {
   return from;
 }
 // Validate + apply a bid. Returns error string or "".
-function applyDiceBid(room: Room, uid: string, face: number, qty: number, strike: boolean): string {
+function applyDiceBid(room: Room, uid: string, face: number, qty: number, strike: boolean): string | Tri {
   const idx = room.players.findIndex((p) => p.id === uid);
   if (idx !== room.turnIdx) return "Not your turn";
   face = Math.max(1, Math.min(6, Math.floor(face))); qty = Math.floor(qty);
-  if (!room.bid) { if (qty < minOpenBid(room)) return `Opening bid must be at least ${minOpenBid(room)} dice`; }
-  else { if (!(qty > room.bid.qty || (qty === room.bid.qty && face > room.bid.face))) return `Too low! The call is ${room.bid.qty} × ${room.bid.face === 1 ? "①" : room.bid.face}. You must raise the number, or bid more total dice (above ${room.bid.qty}).`; }
+  if (!room.bid) { if (qty < minOpenBid(room)) return { en: `Opening bid must be at least ${minOpenBid(room)} dice`, zh: `开局叫数至少 ${minOpenBid(room)} 颗骰子`, id: `Tawaran pembuka minimal ${minOpenBid(room)} dadu` }; }
+  else { if (!(qty > room.bid.qty || (qty === room.bid.qty && face > room.bid.face))) { const q = room.bid.qty, f = room.bid.face === 1 ? "①" : room.bid.face; return { en: `Too low! The call is ${q} × ${f}. You must raise the number, or bid more total dice (above ${q}).`, zh: `太低了！当前叫数是 ${q} × ${f}。你必须叫更大的点数，或叫更多骰子（超过 ${q} 颗）。`, id: `Terlalu rendah! Tawaran sekarang ${q} × ${f}. Naikkan angkanya, atau tawar lebih banyak dadu (di atas ${q}).` }; } }
   // Re-enable joker if this bid reaches the threshold, THEN a 1s-bid or strike disables it.
   if (!room.jokerActive && room.jokerReenableAt && qty >= room.jokerReenableAt) { room.jokerActive = true; room.jokerReenableAt = undefined; }
   if (face === 1 || strike) { room.jokerActive = false; room.jokerReenableAt = Math.floor(qty * 1.5) + 1; }
   room.bid = { face, qty, by: uid, strike };
   room.turnIdx = nextAliveIdx(room, idx);
-  room.message = `${room.players[idx].name} bid ${qty}× ${face === 1 ? "①(ones)" : face}${strike ? " · strike" : ""} — ${room.players[room.turnIdx].name}'s turn`;
+  setMsg(room, strike ? "diceBidStrike" : "diceBid", { name: room.players[idx].name, qty, face: face === 1 ? { k: "diceOnes" } : face, next: room.players[room.turnIdx].name }, `${room.players[idx].name} bid ${qty}× ${face === 1 ? "①(ones)" : face}${strike ? " · strike" : ""} — ${room.players[room.turnIdx].name}'s turn`);
   armDiceTimer(room);
   broadcast(room);
   return "";
@@ -911,15 +962,15 @@ function resolveDiceCatch(room: Room, challengerId: string) {
   const winnerId = lie ? challengerId : bid.by; // the one who was right
   const winner = room.players.find((p) => p.id === winnerId);
   room.status = "reveal";
-  room.message = lie
-    ? `Caught the bluff! Only ${actual}× ${bid.face} — ${loser?.name} LOSES! 💀`
-    : `There were ${actual}× ${bid.face} — ${loser?.name} caught wrong and LOSES! 💀`;
+  if (lie) setMsg(room, "diceLie", { n: actual, face: bid.face, name: loser?.name || "" }, `Caught the bluff! Only ${actual}× ${bid.face} — ${loser?.name} LOSES! 💀`);
+  else setMsg(room, "diceTrue", { n: actual, face: bid.face, name: loser?.name || "" }, `There were ${actual}× ${bid.face} — ${loser?.name} caught wrong and LOSES! 💀`);
   broadcast(room);
   // Game ends on the first loss.
   room.timer = setTimeout(() => {
     room.status = "done";
     room.winnerId = winnerId;
-    room.message = `${loser?.name} loses! 🍻  ${winner ? winner.name + " called it right 🏆" : ""}`;
+    if (winner) setMsg(room, "diceDoneW", { name: loser?.name || "", winner: winner.name }, `${loser?.name} loses! 🍻  ${winner.name} called it right 🏆`);
+    else setMsg(room, "diceDone", { name: loser?.name || "" }, `${loser?.name} loses! 🍻`);
     broadcast(room);
     bumpSeries(room, winnerId);
     const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [];
@@ -956,7 +1007,7 @@ function startWheel(room: Room) {
   room.wheelSpun = []; room.wheelResult = null;
   room.turnIdx = Math.floor(Math.random() * room.players.length);
   room.status = "playing";
-  room.message = `${room.players[room.turnIdx].name}'s turn — spin the wheel!`;
+  setMsg(room, "wheelStart", { name: room.players[room.turnIdx].name }, `${room.players[room.turnIdx].name}'s turn — spin the wheel!`);
   room.deadline = Date.now() + WHEEL_TURN_SECONDS * 1000 + 300;
   room.timer = setTimeout(() => wheelSpin(room, room.players[room.turnIdx ?? 0]?.id), WHEEL_TURN_SECONDS * 1000 + 300);
   broadcast(room);
@@ -976,18 +1027,19 @@ function wheelSpin(room: Room, uid: string) {
   const pass = !!(prize as any).pass;
   room.wheelResult = { playerId: uid, name: p.name, index: pi, label: prize.label, cups: prize.cups, emoji: prize.emoji, pass };
   room.status = "reveal";
-  room.message = pass ? `${p.name} hit PASS — no drink! ${prize.emoji}` : `${p.name} must drink ${prize.label}! ${prize.emoji}`;
+  if (pass) setMsg(room, "wheelPass", { name: p.name, emoji: prize.emoji || "" }, `${p.name} hit PASS — no drink! ${prize.emoji}`);
+  else setMsg(room, "wheelDrink", { name: p.name, prize: WHEEL_LABEL_KEY[prize.label] || prize.label, emoji: prize.emoji || "" }, `${p.name} must drink ${prize.label}! ${prize.emoji}`);
   broadcast(room);
   room.timer = setTimeout(() => {
     if ((room.wheelSpun || []).length >= room.players.length) {
-      room.status = "done"; room.message = "Everyone's spun — cheers! 🍻"; broadcast(room); scheduleCleanup(room);
+      room.status = "done"; setMsg(room, "wheelAllSpun", undefined, "Everyone's spun — cheers! 🍻"); broadcast(room); scheduleCleanup(room);
     } else {
       room.turnIdx = nextAliveIdx(room, room.turnIdx ?? 0);
       // skip players who already spun
       let guard = 0;
       while ((room.wheelSpun || []).includes(room.players[room.turnIdx].id) && guard++ < room.players.length) room.turnIdx = (room.turnIdx + 1) % room.players.length;
       room.status = "playing"; room.wheelResult = null;
-      room.message = `${room.players[room.turnIdx].name}'s turn — spin!`;
+      setMsg(room, "wheelTurn", { name: room.players[room.turnIdx].name }, `${room.players[room.turnIdx].name}'s turn — spin!`);
       room.deadline = Date.now() + WHEEL_TURN_SECONDS * 1000 + 300;
       room.timer = setTimeout(() => wheelSpin(room, room.players[room.turnIdx ?? 0]?.id), WHEEL_TURN_SECONDS * 1000 + 300);
       broadcast(room);
@@ -1000,6 +1052,10 @@ function wheelView(room: Room) {
 
 // ── Red Riding Hood (flip grandma faces, avoid the laughing one; wolves = drink double) ──
 const RIDING_TURN_SECONDS = 20;
+function ridingTurnMsg(room: Room) {
+  const name = room.players[room.turnIdx ?? 0].name, n = room.ridingClicks || 1;
+  setMsg(room, n > 1 ? "ridingTurnN" : "ridingTurn1", { name, n }, `${name}, tap ${room.ridingClicks} granny${n > 1 ? "s" : ""}!`);
+}
 function startRiding(room: Room) {
   clearTimers(room);
   const n = Math.max(9, Math.min(36, room.facesCount || 16));
@@ -1015,7 +1071,7 @@ function startRiding(room: Room) {
   room.wolfCounts = {}; room.flippedThisTurn = 0; room.ridingReveal = false;
   room.turnIdx = Math.floor(Math.random() * room.players.length);
   room.status = "playing";
-  room.message = `${room.players[room.turnIdx].name}, tap ${room.ridingClicks} granny${(room.ridingClicks || 1) > 1 ? "s" : ""}!`;
+  ridingTurnMsg(room);
   armRidingTimer(room);
   broadcast(room);
 }
@@ -1049,12 +1105,11 @@ function ridingFlip(room: Room, uid: string, tileId: number, auto = false): bool
     room.lastLoserId = uid;
     room.ridingReveal = true;
     room.status = "reveal";
-    room.message = t.kind === "witch"
-      ? `🧙 It's the WITCH! ${p.name} loses — drink DOUBLE! 🍻🍻`
-      : `🐺 A WOLF in granny's clothes! ${p.name} loses — drink 1 cup! 🍻`;
+    if (t.kind === "witch") setMsg(room, "ridingWitch", { name: p.name }, `🧙 It's the WITCH! ${p.name} loses — drink DOUBLE! 🍻🍻`);
+    else setMsg(room, "ridingWolf", { name: p.name }, `🐺 A WOLF in granny's clothes! ${p.name} loses — drink 1 cup! 🍻`);
     broadcast(room);
     room.timer = setTimeout(async () => {
-      room.status = "done"; room.message = `${p.name} loses!`;
+      room.status = "done"; setMsg(room, "ridingLoses", { name: p.name }, `${p.name} loses!`);
       broadcast(room);
       await saveScores(room, [{ userId: uid, name: p.name, score: 0, result: "lose" }]);
       scheduleCleanup(room);
@@ -1066,7 +1121,7 @@ function ridingFlip(room: Room, uid: string, tileId: number, auto = false): bool
   if ((room.flippedThisTurn || 0) >= (room.ridingClicks || 1) || room.tiles!.every((x) => x.flipped)) {
     room.flippedThisTurn = 0;
     room.turnIdx = nextAliveIdx(room, idx);
-    room.message = `${room.players[room.turnIdx].name}, tap ${room.ridingClicks} granny${(room.ridingClicks || 1) > 1 ? "s" : ""}!`;
+    ridingTurnMsg(room);
     armRidingTimer(room);
   }
   broadcast(room);
@@ -1132,11 +1187,11 @@ function startPoker(room: Room) {
   room.pk = { hands, seen, stake: min, pot: room.players.length * min, reveal: null };
   room.status = "playing";
   room.turnIdx = Math.floor(Math.random() * room.players.length);
-  room.message = `Cards dealt face-down 🂠 — ${room.players[room.turnIdx].name} starts. Everyone's in for ${cupsText(min)}.`;
+  setMsg(room, "pkStart", { name: room.players[room.turnIdx].name, cups: cupsMsg(min) }, `Cards dealt face-down 🂠 — ${room.players[room.turnIdx].name} starts. Everyone's in for ${cupsText(min)}.`);
   armPoker(room); broadcast(room);
 }
 const cupsText = (u: number) => (u % 2 ? (u === 1 ? "½" : `${Math.floor(u / 2)}½`) : `${u / 2}`) + (u <= 2 ? " cup" : " cups");
-function finishPoker(room: Room, loserIds: string[], why: string) {
+function finishPoker(room: Room, loserIds: string[], why: string, whyMsg: Msg) {
   clearTimers(room);
   const pk = room.pk!;
   pk.pot = Math.min(pk.pot, pkCap(room)); // never more than the host's max
@@ -1148,16 +1203,16 @@ function finishPoker(room: Room, loserIds: string[], why: string) {
     .sort((a, b) => b.score - a.score);
   pk.reveal = { results, why, pot: pk.pot };
   const names = room.players.filter((p) => loserIds.includes(p.id)).map((p) => p.name).join(" & ");
-  room.message = `${why} — ${names} drink${loserIds.length > 1 ? "" : "s"} the whole pot: ${cupsText(pk.pot)} 🍻`;
+  setMsg(room, loserIds.length > 1 ? "pkFinishN" : "pkFinish1", { why: whyMsg, names, cups: cupsMsg(pk.pot) }, `${why} — ${names} drink${loserIds.length > 1 ? "" : "s"} the whole pot: ${cupsText(pk.pot)} 🍻`);
   broadcast(room);
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: loserIds.includes(p.id) ? 0 : 1, result: (loserIds.includes(p.id) ? "lose" : "win") as "win" | "lose" })));
   scheduleCleanup(room);
 }
-function pokerShowdown(room: Room, why: string) {
+function pokerShowdown(room: Room, why: string, whyMsg: Msg) {
   const pk = room.pk!;
   const scores = room.players.map((p) => ({ id: p.id, score: pkScore(pk.hands[p.id]).score }));
   const low = Math.min(...scores.map((x) => x.score));
-  finishPoker(room, scores.filter((x) => x.score === low).map((x) => x.id), why);
+  finishPoker(room, scores.filter((x) => x.score === low).map((x) => x.id), why, whyMsg);
 }
 function pokerAction(room: Room, uid: string, act: string) {
   if (room.status !== "playing" || room.game !== "poker3" || !room.pk) return "Not playing";
@@ -1166,18 +1221,18 @@ function pokerAction(room: Room, uid: string, act: string) {
   if (act === "look") { pk.seen[uid] = true; broadcast(room); return ""; } // looking is allowed any time
   if (idx !== room.turnIdx) return "Not your turn";
   const p = room.players[idx], seen = !!pk.seen[uid];
-  const advance = (msg: string) => {
+  const advance = (msg: string, mm: Msg) => {
     pk.lastBy = uid;
-    if (pk.pot >= pkCap(room)) return pokerShowdown(room, `The pot hit the ${cupsText(pkCap(room))} max — everybody opens`);
+    if (pk.pot >= pkCap(room)) return pokerShowdown(room, `The pot hit the ${cupsText(pkCap(room))} max — everybody opens`, { k: "pkPotMax", v: { cups: cupsMsg(pkCap(room)) } });
     room.turnIdx = (idx + 1) % room.players.length;
     const n = room.players[room.turnIdx];
-    room.message = `${msg} · ${n.name}'s turn${pk.seen[n.id] ? " (seen — pays double)" : ""}`;
+    setMsg(room, pk.seen[n.id] ? "pkNextSeen" : "pkNext", { msg: mm, name: n.name }, `${msg} · ${n.name}'s turn${pk.seen[n.id] ? " (seen — pays double)" : ""}`);
     armPoker(room); broadcast(room);
   };
-  if (!seen && act === "call") { pk.pot += pk.stake; advance(`${p.name} stays blind and calls ${cupsText(pk.stake)}`); return ""; }
-  if (!seen && act === "raise") { pk.stake += 1; pk.pot += pk.stake; advance(`${p.name} raises blind to ${cupsText(pk.stake)} 😈`); return ""; }
-  if (seen && act === "follow") { pk.pot += pk.stake * 2; pokerShowdown(room, `${p.name} looked and dared to follow (double ${cupsText(pk.stake * 2)}) — cards open!`); return ""; }
-  if (seen && act === "fold") { finishPoker(room, [uid], `${p.name} looked and didn't dare 😱`); return ""; }
+  if (!seen && act === "call") { pk.pot += pk.stake; advance(`${p.name} stays blind and calls ${cupsText(pk.stake)}`, { k: "pkCall", v: { name: p.name, cups: cupsMsg(pk.stake) } }); return ""; }
+  if (!seen && act === "raise") { pk.stake += 1; pk.pot += pk.stake; advance(`${p.name} raises blind to ${cupsText(pk.stake)} 😈`, { k: "pkRaise", v: { name: p.name, cups: cupsMsg(pk.stake) } }); return ""; }
+  if (seen && act === "follow") { pk.pot += pk.stake * 2; pokerShowdown(room, `${p.name} looked and dared to follow (double ${cupsText(pk.stake * 2)}) — cards open!`, { k: "pkFollow", v: { name: p.name, cups: cupsMsg(pk.stake * 2) } }); return ""; }
+  if (seen && act === "fold") { finishPoker(room, [uid], `${p.name} looked and didn't dare 😱`, { k: "pkFold", v: { name: p.name } }); return ""; }
   return seen ? "You've seen your cards — follow (double) or fold" : "Call, raise or look";
 }
 function pokerView(room: Room, forUserId?: string) {
@@ -1222,12 +1277,12 @@ function gbAdvance(room: Room) {
   if (g.pos >= GB_ROWS) { // the whole path is known — walk straight across
     g.done.push(id);
     g.last = { id, crossed: true, free: true };
-    room.message = `🌉 ${gbName(room, id)} walks the known path and crosses safely!`;
+    setMsg(room, "gbFree", { name: gbName(room, id) }, `🌉 ${gbName(room, id)} walks the known path and crosses safely!`);
     g.cur++; broadcast(room);
     clearTimers(room); room.timer = setTimeout(() => gbAdvance(room), GB_PAUSE_MS);
     return;
   }
-  room.message = `${gbName(room, id)}'s turn — row ${g.pos + 1}: LEFT or RIGHT?`;
+  setMsg(room, "gbTurn", { name: gbName(room, id), n: g.pos + 1 }, `${gbName(room, id)}'s turn — row ${g.pos + 1}: LEFT or RIGHT?`);
   armGb(room); broadcast(room);
 }
 function startBridge(room: Room) {
@@ -1250,19 +1305,19 @@ function gbStep(room: Room, uid: string, side: number, auto = false): string {
     while (g.pos < GB_ROWS && g.known[g.pos] !== null) g.pos++;
     if (g.pos >= GB_ROWS) {
       g.done.push(uid); g.last = { id: uid, crossed: true, row };
-      room.message = `🎉 ${gbName(room, uid)} made it across the bridge!`;
+      setMsg(room, "gbAcross", { name: gbName(room, uid) }, `🎉 ${gbName(room, uid)} made it across the bridge!`);
       g.cur++; broadcast(room);
       room.timer = setTimeout(() => gbAdvance(room), GB_PAUSE_MS);
       return "";
     }
     g.last = { id: uid, safe: true, row, side };
-    room.message = `✅ ${gbName(room, uid)} stepped ${side ? "RIGHT" : "LEFT"} — safe! Row ${g.pos + 1} next${auto ? " (time ran out — random step)" : ""}`;
+    setMsg(room, auto ? "gbSafeAuto" : "gbSafe", { name: gbName(room, uid), side: { k: side ? "right" : "left" }, n: g.pos + 1 }, `✅ ${gbName(room, uid)} stepped ${side ? "RIGHT" : "LEFT"} — safe! Row ${g.pos + 1} next${auto ? " (time ran out — random step)" : ""}`);
     armGb(room); broadcast(room);
     return "";
   }
   g.broken[row] = side; g.fell.push(uid);
   g.last = { id: uid, fell: true, row, side };
-  room.message = `💥 The glass shattered! ${gbName(room, uid)} fell at row ${row + 1} — drink 1 cup 🍺${auto ? " (time ran out)" : ""}`;
+  setMsg(room, auto ? "gbFellAuto" : "gbFell", { name: gbName(room, uid), n: row + 1 }, `💥 The glass shattered! ${gbName(room, uid)} fell at row ${row + 1} — drink 1 cup 🍺${auto ? " (time ran out)" : ""}`);
   g.cur++; broadcast(room);
   room.timer = setTimeout(() => gbAdvance(room), GB_PAUSE_MS + 400);
   return "";
@@ -1274,9 +1329,10 @@ function finishBridge(room: Room) {
   const winners = room.players.filter((p) => g.done.includes(p.id));
   const losers = room.players.filter((p) => !g.done.includes(p.id));
   room.winnerId = winners[0]?.id; room.lastLoserId = losers[0]?.id;
-  room.message = winners.length
-    ? `🌉 ${winners.map((p) => p.name).join(", ")} crossed! ${losers.length ? `${losers.map((p) => p.name).join(", ")} fell — drink 1 cup each 🍺` : "Nobody fell!"}`
-    : "Nobody made it across — no winners! Everyone drinks 🍺";
+  const wn = winners.map((p) => p.name).join(", "), ln = losers.map((p) => p.name).join(", ");
+  if (!winners.length) setMsg(room, "gbNone", undefined, "Nobody made it across — no winners! Everyone drinks 🍺");
+  else if (losers.length) setMsg(room, "gbDoneFell", { names: wn, fell: ln }, `🌉 ${wn} crossed! ${ln} fell — drink 1 cup each 🍺`);
+  else setMsg(room, "gbDoneAll", { names: wn }, `🌉 ${wn} crossed! Nobody fell!`);
   broadcast(room);
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: g.done.includes(p.id) ? GB_ROWS : 0, result: (g.done.includes(p.id) ? "win" : "lose") as "win" | "lose" })));
   scheduleCleanup(room);
@@ -1314,7 +1370,7 @@ function startDraw(room: Room) {
   const drawer = room.players[Math.floor(Math.random() * room.players.length)];
   room.dg = { word: list[Math.floor(Math.random() * list.length)], category, drawer: drawer.id, strokes: [], feed: [], reveal: [], lastGuess: {}, startedAt: Date.now() };
   room.status = "playing";
-  room.message = `✏️ ${drawer.name} is drawing — guess the ${category.toLowerCase()}!`;
+  setMsg(room, "dgStart" + category, { name: drawer.name }, `✏️ ${drawer.name} is drawing — guess the ${category.toLowerCase()}!`);
   clearTimers(room);
   room.deadline = Date.now() + DG_SECONDS * 1000;
   room.timer = setTimeout(() => finishDraw(room, null), DG_SECONDS * 1000);
@@ -1332,7 +1388,7 @@ function dgArmHints(room: Room) {
     const hidden = g.word.split("").map((_, i) => i).filter((i) => g.word[i] !== " " && !g.reveal.includes(i));
     if (hidden.length <= 1) return;
     g.reveal.push(hidden[Math.floor(Math.random() * hidden.length)]);
-    room.message = "💡 Hint: a letter was revealed!";
+    setMsg(room, "dgHint", undefined, "💡 Hint: a letter was revealed!");
     broadcast(room);
   }, 2000);
 }
@@ -1378,7 +1434,8 @@ function dgAction(room: Room, uid: string, body: any): string {
   }
   return "Unknown action";
 }
-function finishDraw(room: Room, winnerId: string | null, reason?: string) {
+const DG_REASON_EN: Record<string, string> = { drawDrawerLeft: "✏️ The drawer left!", drawAllLeft: "Everyone else left!", dgTimeUp: "⏰ Time's up!" };
+function finishDraw(room: Room, winnerId: string | null, reason?: "drawDrawerLeft" | "drawAllLeft") {
   clearTimers(room);
   const g = room.dg!;
   room.status = "done";
@@ -1388,9 +1445,15 @@ function finishDraw(room: Room, winnerId: string | null, reason?: string) {
   const wins = new Set(winner ? [g.drawer, winner.id] : []);
   const losers = room.players.filter((p) => !wins.has(p.id));
   room.winnerId = winner?.id; room.lastLoserId = losers[0]?.id;
-  room.message = winner
-    ? `🎉 ${winner.name} guessed "${g.word}"! ${winner.name} & ${drawer?.name || "the drawer"} win — ${losers.map((p) => p.name).join(", ") || "nobody"} drink${losers.length === 1 ? "s" : ""} 🍺`
-    : `${reason || "⏰ Time's up!"} The word was "${g.word}" — nobody got it, everyone drinks (drawer too) 🍺`;
+  if (winner) {
+    const lnames = losers.map((p) => p.name).join(", ");
+    setMsg(room, losers.length === 0 ? "dgWin0" : losers.length === 1 ? "dgWin1" : "dgWinN",
+      { name: winner.name, word: g.word, drawer: drawer?.name || { k: "theDrawer" }, losers: lnames },
+      `🎉 ${winner.name} guessed "${g.word}"! ${winner.name} & ${drawer?.name || "the drawer"} win — ${lnames || "nobody"} drink${losers.length === 1 ? "s" : ""} 🍺`);
+  } else {
+    const rk = reason || "dgTimeUp";
+    setMsg(room, "dgLose", { reason: { k: rk }, word: g.word }, `${DG_REASON_EN[rk]} The word was "${g.word}" — nobody got it, everyone drinks (drawer too) 🍺`);
+  }
   broadcast(room);
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: wins.has(p.id) ? 1 : 0, result: (wins.has(p.id) ? "win" : "lose") as "win" | "lose" })));
   scheduleCleanup(room);
@@ -1432,7 +1495,7 @@ function startMemory(room: Room) {
   room.mem = { tiles: vals.map((v) => ({ v })), open: [], score: Object.fromEntries(room.players.map((p) => [p.id, 0])) };
   room.status = "playing";
   room.turnIdx = Math.floor(Math.random() * room.players.length);
-  room.message = `${room.players[room.turnIdx].name} goes first — flip 2 cards 🃏`;
+  setMsg(room, "memFirst", { name: room.players[room.turnIdx].name }, `${room.players[room.turnIdx].name} goes first — flip 2 cards 🃏`);
   armMem(room); broadcast(room);
 }
 function memFlip(room: Room, uid: string, idx: number, auto = false): string {
@@ -1449,17 +1512,17 @@ function memFlip(room: Room, uid: string, idx: number, auto = false): string {
     m.tiles[a].by = m.tiles[b].by = uid; m.open = [];
     m.score[uid] = (m.score[uid] || 0) + 1;
     if (m.tiles.every((t) => t.by)) return finishMemory(room), "";
-    room.message = `✨ ${p.name} matched ${m.tiles[a].v}! +1 — go again`;
+    setMsg(room, "memMatch", { name: p.name, n: m.tiles[a].v }, `✨ ${p.name} matched ${m.tiles[a].v}! +1 — go again`);
     armMem(room); broadcast(room); return "";
   }
   m.busy = true; clearTimers(room);
-  room.message = `${p.name} missed (${m.tiles[a].v} ≠ ${m.tiles[b].v})`;
+  setMsg(room, "memMiss", { name: p.name, a: m.tiles[a].v, b: m.tiles[b].v }, `${p.name} missed (${m.tiles[a].v} ≠ ${m.tiles[b].v})`);
   broadcast(room);
   room.timer = setTimeout(() => {
     if (!room.mem) return;
     room.mem.open = []; room.mem.busy = false;
     room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length;
-    room.message = `${room.players[room.turnIdx].name}'s turn — flip 2 cards`;
+    setMsg(room, "memTurn", { name: room.players[room.turnIdx].name }, `${room.players[room.turnIdx].name}'s turn — flip 2 cards`);
     armMem(room); broadcast(room);
   }, MEM_PEEK_MS);
   return "";
@@ -1478,7 +1541,8 @@ function finishMemory(room: Room) {
   const losers = tie ? room.players : room.players.filter((p) => !winners.includes(p));
   room.winnerId = tie ? undefined : winners[0]?.id;
   room.lastLoserId = losers[0]?.id;
-  room.message = tie ? `Tie at ${top} pairs — ${room.players.length > 2 ? "everyone drinks" : "both drink"} 🍻` : `${winners.map((p) => p.name).join(" & ")} wins with ${top} pairs 🏆 — ${losers.map((p) => p.name).join(", ")} drinks 🍺`;
+  if (tie) setMsg(room, room.players.length > 2 ? "memTieAll" : "memTie2", { n: top }, `Tie at ${top} pairs — ${room.players.length > 2 ? "everyone drinks" : "both drink"} 🍻`);
+  else setMsg(room, "memWin", { names: winners.map((p) => p.name).join(" & "), n: top, losers: losers.map((p) => p.name).join(", ") }, `${winners.map((p) => p.name).join(" & ")} wins with ${top} pairs 🏆 — ${losers.map((p) => p.name).join(", ")} drinks 🍺`);
   broadcast(room);
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: m.score[p.id] || 0, result: (losers.includes(p) ? "lose" : "win") as "win" | "lose" })));
   scheduleCleanup(room);
@@ -1510,7 +1574,7 @@ function rlSchedule(room: Room) {
     if (room.status !== "playing" || !room.rl) return;
     room.rl.light = next; room.rl.lightAt = Date.now();
     room.rl.lightUntil = next === "green" ? room.rl.lightAt + room.rl.nextGreenMs! : undefined;
-    room.message = next === "green" ? "🟢 GREEN LIGHT — walk!" : "🔴 RED LIGHT — freeze!";
+    if (next === "green") setMsg(room, "rlGreen", undefined, "🟢 GREEN LIGHT — walk!"); else setMsg(room, "rlRed", undefined, "🔴 RED LIGHT — freeze!");
     broadcast(room); rlSchedule(room);
   }, dur) as any;
 }
@@ -1521,10 +1585,10 @@ function startRlgl(room: Room) {
   room.status = "playing";
   room.rl = { light: "red", lightAt: now, startAt: now + 3000, endsAt: now + 3000 + RL_TIME_MS, st: Object.fromEntries(room.players.map((p, i) => [p.id, { steps: 0, num: nums[i] }])) };
   room.deadline = room.rl.endsAt;
-  room.message = "Get ready… 🔴 (don't move!)";
+  setMsg(room, "rlReady", undefined, "Get ready… 🔴 (don't move!)");
   broadcast(room);
   // first green after the 3s countdown, then random red/green cycles
-  room.ticker = setTimeout(() => { if (!room.rl) return; room.rl.light = "green"; room.rl.lightAt = Date.now(); room.rl.lightUntil = room.rl.lightAt + 2500 + Math.random() * 4000; room.message = "🟢 GREEN LIGHT — walk!"; broadcast(room); rlSchedule(room); }, 3000) as any;
+  room.ticker = setTimeout(() => { if (!room.rl) return; room.rl.light = "green"; room.rl.lightAt = Date.now(); room.rl.lightUntil = room.rl.lightAt + 2500 + Math.random() * 4000; setMsg(room, "rlGreen", undefined, "🟢 GREEN LIGHT — walk!"); broadcast(room); rlSchedule(room); }, 3000) as any;
   room.timer = setTimeout(() => finishRlgl(room), 3000 + RL_TIME_MS);
 }
 function rlStep(room: Room, uid: string, n: number) {
@@ -1536,13 +1600,13 @@ function rlStep(room: Room, uid: string, n: number) {
   n = Math.max(0, Math.floor(n) || 0);
   if (!n) return;
   if (now < r.startAt || (r.light === "red" && now - r.lightAt > RL_GRACE_MS)) {
-    s.out = true; room.message = `💥 ${room.players.find((p) => p.id === uid)?.name} moved on RED — eliminated!`;
+    s.out = true; { const nm = room.players.find((p) => p.id === uid)?.name || ""; setMsg(room, "rlOut", { name: nm }, `💥 ${nm} moved on RED — eliminated!`); }
     broadcast(room); return rlCheckEnd(room);
   }
   const cap = s.last ? Math.ceil(((now - s.last) / 1000) * RL_MAX_RATE) + 2 : 10; // anti-autoclicker
   s.last = now;
   s.steps = Math.min(RL_GOAL, s.steps + Math.min(n, cap));
-  if (s.steps >= RL_GOAL) { s.done = true; s.ms = now - r.startAt; room.message = `🏁 ${room.players.find((p) => p.id === uid)?.name} crossed the line!`; broadcast(room); return rlCheckEnd(room); }
+  if (s.steps >= RL_GOAL) { s.done = true; s.ms = now - r.startAt; { const nm = room.players.find((p) => p.id === uid)?.name || ""; setMsg(room, "rlCross", { name: nm }, `🏁 ${nm} crossed the line!`); } broadcast(room); return rlCheckEnd(room); }
   broadcast(room);
 }
 function rlCheckEnd(room: Room) {
@@ -1558,9 +1622,10 @@ function finishRlgl(room: Room) {
   const losers = room.players.filter((p) => !r.st[p.id]?.done);
   room.winnerId = winners.sort((a, b) => (r.st[a.id].ms || 0) - (r.st[b.id].ms || 0))[0]?.id;
   room.lastLoserId = losers[0]?.id;
-  room.message = losers.length
-    ? `${winners.length ? `${winners.length} made it 🏁 · ` : "Nobody made it! "}${losers.map((p) => p.name).join(", ")} drink 🍺`
-    : "Everybody made it — nobody drinks! 🎉";
+  const ln = losers.map((p) => p.name).join(", ");
+  if (!losers.length) setMsg(room, "rlDoneAll", undefined, "Everybody made it — nobody drinks! 🎉");
+  else if (winners.length) setMsg(room, "rlDoneSome", { n: winners.length, losers: ln }, `${winners.length} made it 🏁 · ${ln} drink 🍺`);
+  else setMsg(room, "rlDoneNone", { losers: ln }, `Nobody made it! ${ln} drink 🍺`);
   broadcast(room);
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: r.st[p.id]?.steps || 0, result: (r.st[p.id]?.done ? "win" : "lose") as "win" | "lose" })));
   scheduleCleanup(room);
@@ -1584,7 +1649,7 @@ function frogWait(room: Room) {
   f.phase = "wait"; f.picks = {};
   const p = room.players[room.turnIdx ?? 0];
   room.deadline = Date.now() + FROG_WAIT_MS;
-  room.message = `${p.name}'s turn — press START 🐸`;
+  setMsg(room, "frogWait", { name: p.name }, `${p.name}'s turn — press START 🐸`);
   broadcast(room);
   room.timer = setTimeout(() => frogStart(room, p.id, true), FROG_WAIT_MS);
 }
@@ -1602,7 +1667,7 @@ function frogStart(room: Room, uid: string, auto = false) {
   clearTimers(room);
   f.phase = "pick"; f.picks = {}; f.turnNo += 1;
   room.deadline = Date.now() + FROG_PICK_MS;
-  room.message = `GO! Everyone tap a frog in 5 seconds 🐸🐸🐸${auto ? " (auto-started)" : ""}`;
+  setMsg(room, auto ? "frogGoAuto" : "frogGo", undefined, `GO! Everyone tap a frog in 5 seconds 🐸🐸🐸${auto ? " (auto-started)" : ""}`);
   broadcast(room);
   room.timer = setTimeout(() => frogReveal(room), FROG_PICK_MS + 250);
   return "";
@@ -1632,7 +1697,8 @@ function frogReveal(room: Room) {
   for (const d of drinkers) f.drinks[d.id] = (f.drinks[d.id] || 0) + 1;
   f.phase = "reveal";
   f.last = { leaderId: leader?.id, leaderPick: lp ?? null, picks: { ...f.picks }, drinkers };
-  room.message = drinkers.length ? `${drinkers.map((d) => d.name).join(", ")} drink${drinkers.length > 1 ? "" : "s"} ½ cup 🍺` : "Nobody matched — safe! 🎉";
+  if (drinkers.length) { const dn = drinkers.map((d) => d.name).join(", "); setMsg(room, drinkers.length > 1 ? "frogDrinkN" : "frogDrink1", { names: dn }, `${dn} drink${drinkers.length > 1 ? "" : "s"} ½ cup 🍺`); }
+  else setMsg(room, "frogSafe", undefined, "Nobody matched — safe! 🎉");
   room.deadline = Date.now() + FROG_REVEAL_MS;
   broadcast(room);
   room.timer = setTimeout(() => { if (room.status !== "playing") return; room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length; frogWait(room); }, FROG_REVEAL_MS);
@@ -1754,11 +1820,11 @@ export function registerGameRoutes(app: Express) {
   });
   app.get("/api/reborn/rank/leaderboard", async (_req, res) => {
     const rows = await db.select().from(gameRanks).orderBy(desc(gameRanks.stars)).limit(50);
-    res.json(rows.map((r) => ({ userId: r.userId, name: r.userName || "Player", stars: r.stars, peakStars: r.peakStars })));
+    res.json(rows.map((r) => ({ userId: r.userId, name: r.userName || tr(_req, { en: "Player", zh: "玩家", id: "Pemain" }), stars: r.stars, peakStars: r.peakStars })));
   });
   app.post("/api/reborn/rank/config", requireAuth, async (req, res) => {
     const uid = getUserId(req); const [u] = uid ? await db.select().from(users).where(eq(users.id, uid)) : [];
-    if (!u || u.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    if (!u || u.role !== "admin") return res.status(403).json({ message: tr(req, { en: "Admin only", zh: "仅限管理员", id: "Khusus admin" }) });
     const cur = await getRankConfig();
     const tiers = Array.isArray(req.body?.tiers) && req.body.tiers.length ? req.body.tiers : cur.tiers;
     await saveRankConfig({ season: cur.season, seasonStarDrop: Math.max(0, Number(req.body?.seasonStarDrop) ?? cur.seasonStarDrop), tiers });
@@ -1766,7 +1832,7 @@ export function registerGameRoutes(app: Express) {
   });
   app.post("/api/reborn/rank/new-season", requireAuth, async (req, res) => {
     const uid = getUserId(req); const [u] = uid ? await db.select().from(users).where(eq(users.id, uid)) : [];
-    if (!u || u.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    if (!u || u.role !== "admin") return res.status(403).json({ message: tr(req, { en: "Admin only", zh: "仅限管理员", id: "Khusus admin" }) });
     const cfg = await getRankConfig();
     const drop = cfg.seasonStarDrop;
     await db.update(gameRanks).set({ stars: sql`greatest(0, ${gameRanks.stars} - ${drop})`, season: cfg.season + 1, updatedAt: new Date() });
@@ -1782,7 +1848,7 @@ export function registerGameRoutes(app: Express) {
   });
   app.post("/api/reborn/games/config", requireAuth, async (req, res) => {
     const uid = getUserId(req); const [u] = uid ? await db.select().from(users).where(eq(users.id, uid)) : [];
-    if (!u || u.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    if (!u || u.role !== "admin") return res.status(403).json({ message: tr(req, { en: "Admin only", zh: "仅限管理员", id: "Khusus admin" }) });
     if (req.body?.config) {
       const cfg = req.body.config;
       await db.insert(appSettings).values({ key: "gamesConfig", value: JSON.stringify(cfg), updatedAt: new Date() })
@@ -1812,17 +1878,17 @@ export function registerGameRoutes(app: Express) {
   // Submit a guess; first correct one ends the round and rolls a new secret.
   app.post("/api/reborn/games/number/guess", requireAuth, async (req, res) => {
     const cfg = await getGamesConfig();
-    if (!availableToday(cfg, await getCategoryConfig()).number) return res.status(400).json({ message: "The number game isn't available today." });
+    if (!availableToday(cfg, await getCategoryConfig()).number) return res.status(400).json({ message: tr(req, { en: "The number game isn't available today.", zh: "猜数字游戏今天未开放。", id: "Permainan tebak angka tidak tersedia hari ini." }) });
     const cid = await resolveCompanyId(req);
     const uid = getUserId(req)!;
     const guess = Math.floor(Number(req.body?.guess));
-    if (!Number.isFinite(guess) || guess < 0 || guess > NUM_MAX) return res.status(400).json({ message: "Enter a number from 0 to 9999." });
+    if (!Number.isFinite(guess) || guess < 0 || guess > NUM_MAX) return res.status(400).json({ message: tr(req, { en: "Enter a number from 0 to 9999.", zh: "请输入 0 到 9999 之间的数字。", id: "Masukkan angka dari 0 sampai 9999." }) });
     const g = await loadNumberGame(cid);
     const limit = cfg.number.dailyLimit || 0;
     const day = new Date().toISOString().slice(0, 10);
     if (!g.counts || g.counts.day !== day) g.counts = { day, byUser: {} };
     const used = g.counts.byUser[uid] || 0;
-    if (limit > 0 && used >= limit) return res.status(429).json({ message: `You've used all ${limit} guess${limit === 1 ? "" : "es"} for today — come back tomorrow!` });
+    if (limit > 0 && used >= limit) return res.status(429).json({ message: tr(req, { en: limit === 1 ? "You've used your 1 guess for today — come back tomorrow!" : "You've used all {n} guesses for today — come back tomorrow!", zh: "你今天的 {n} 次猜测已用完——明天再来吧！", id: "Kamu sudah memakai {n} tebakan hari ini — kembali lagi besok!" }, { n: limit }) });
     g.counts.byUser[uid] = used + 1;
     const remaining = limit > 0 ? Math.max(0, limit - g.counts.byUser[uid]) : null;
     const name = await nameFor(uid);
@@ -1838,7 +1904,7 @@ export function registerGameRoutes(app: Express) {
       g.round += 1; g.secret = newSecret(); g.startedAt = at; g.low = 0; g.high = NUM_MAX; g.history = [];
       g.lastWinner = { name, guess: solved, round: wonRound, at };
       await saveNumberGame(cid, g);
-      return res.json({ correct: true, solved, message: `🎉 ${name} cracked ${solved}! A new number is ready — keep guessing.`, dailyLimit: limit, used: g.counts.byUser[uid], remaining, ...numberPublic(g) });
+      return res.json({ correct: true, solved, message: tr(req, { en: "🎉 {name} cracked {n}! A new number is ready — keep guessing.", zh: "🎉 {name} 猜中了 {n}！新数字已就绪——继续猜吧。", id: "🎉 {name} menebak {n} dengan tepat! Angka baru sudah siap — terus menebak." }, { name, n: solved }), dailyLimit: limit, used: g.counts.byUser[uid], remaining, ...numberPublic(g) });
     }
     const hint = guess < g.secret ? "higher" : "lower";
     if (guess < g.secret) g.low = Math.max(g.low, guess + 1);
@@ -1846,7 +1912,7 @@ export function registerGameRoutes(app: Express) {
     g.history.push({ userId: uid, name, guess, hint, at });
     if (g.history.length > NUM_HISTORY) g.history = g.history.slice(-NUM_HISTORY);
     await saveNumberGame(cid, g);
-    res.json({ correct: false, hint, guess, message: hint === "higher" ? `Higher than ${guess} ⬆️` : `Lower than ${guess} ⬇️`, dailyLimit: limit, used: g.counts.byUser[uid], remaining, ...numberPublic(g) });
+    res.json({ correct: false, hint, guess, message: hint === "higher" ? tr(req, { en: "Higher than {n} ⬆️", zh: "比 {n} 大 ⬆️", id: "Lebih besar dari {n} ⬆️" }, { n: guess }) : tr(req, { en: "Lower than {n} ⬇️", zh: "比 {n} 小 ⬇️", id: "Lebih kecil dari {n} ⬇️" }, { n: guess }), dailyLimit: limit, used: g.counts.byUser[uid], remaining, ...numberPublic(g) });
   });
 
   // Leaderboard per game
@@ -1861,12 +1927,12 @@ export function registerGameRoutes(app: Express) {
   });
 
   // Browse all open rooms (in the lobby, not yet started)
-  app.get("/api/reborn/games/rooms", requireAuth, async (_req, res) => {
+  app.get("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const list = Array.from(rooms.values())
       .filter((r) => r.status === "lobby")
       .map((r) => ({
         code: r.code, game: r.game,
-        hostName: r.players.find((p) => p.id === r.hostId)?.name || "Host",
+        hostName: r.players.find((p) => p.id === r.hostId)?.name || tr(req, { en: "Host", zh: "房主", id: "Host" }),
         players: r.players.length, max: r.game === "cards" ? CARDS_MAX : r.game === "poker3" ? 8 : r.game === "memory" ? MEMORY_MAX : MAX_PLAYERS,
         hasPassword: !!r.password, createdAt: r.createdAt,
       }))
@@ -1880,7 +1946,7 @@ export function registerGameRoutes(app: Express) {
     const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
-    if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: "That game isn't available today." });
+    if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: tr(req, { en: "That game isn't available today.", zh: "该游戏今天未开放。", id: "Permainan itu tidak tersedia hari ini." }) });
     const name = await nameFor(uid);
     const companyId = await resolveCompanyId(req);
     // Double/triple taps on "Create room" must not open several rooms: reuse the
@@ -1891,7 +1957,7 @@ export function registerGameRoutes(app: Express) {
     const room: Room = {
       code: code4(), game, hostId: uid, password: String(req.body?.password || "").trim(), companyId,
       status: "lobby", players: [{ id: uid, name, alive: true, taps: 0, connected: true }],
-      round: 1, deadline: 0, message: "Waiting for players…", eliminatedThisRound: [],
+      round: 1, deadline: 0, message: "Waiting for players…", msg: { k: "lobbyWait" }, eliminatedThisRound: [],
       winTarget: Math.max(1, Math.min(10, Math.floor(Number(req.body?.winTarget) || 1))), seriesScore: {},
       ridingClicks: Math.max(1, Math.min(4, Math.floor(Number(req.body?.ridingClicks) || 1))),
       facesCount: Math.max(9, Math.min(36, Math.floor(Number(req.body?.facesCount) || 16))),
@@ -1910,16 +1976,16 @@ export function registerGameRoutes(app: Express) {
   // Join a room
   app.post("/api/reborn/games/rooms/:code/join", requireAuth, async (req, res) => {
     const room = rooms.get(String(req.params.code).toUpperCase());
-    if (!room) return res.status(404).json({ message: "Room not found (it may have ended)." });
+    if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found (it may have ended).", zh: "找不到房间（可能已结束）。", id: "Room tidak ditemukan (mungkin sudah selesai)." }) });
     const uid = getUserId(req)!;
     const existing = room.players.find((p) => p.id === uid);
     // Already in this room → allow rejoin/reconnect any time (after backgrounding
     // the app, etc.), even mid-game, so you never lose control of your room.
     if (existing) return res.json({ code: room.code });
-    if (room.status !== "lobby") return res.status(400).json({ message: "This game has already started." });
-    if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: "Wrong room password." });
+    if (room.status !== "lobby") return res.status(400).json({ message: tr(req, { en: "This game has already started.", zh: "游戏已经开始了。", id: "Permainan ini sudah dimulai." }) });
+    if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: tr(req, { en: "Wrong room password.", zh: "房间密码错误。", id: "Kata sandi room salah." }) });
     const cap = room.game === "cards" ? CARDS_MAX : room.game === "poker3" ? 8 : room.game === "memory" ? MEMORY_MAX : MAX_PLAYERS;
-    if (room.players.length >= cap) return res.status(400).json({ message: `Room is full (${cap} players).` });
+    if (room.players.length >= cap) return res.status(400).json({ message: tr(req, { en: "Room is full ({n} players).", zh: "房间已满（{n} 人）。", id: "Room penuh ({n} pemain)." }, { n: cap }) });
     room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
     broadcast(room);
     res.json({ code: room.code });
@@ -1928,11 +1994,11 @@ export function registerGameRoutes(app: Express) {
   // Host starts the game (any time, min 2 players)
   app.post("/api/reborn/games/rooms/:code/start", requireAuth, async (req, res) => {
     const room = rooms.get(String(req.params.code).toUpperCase());
-    if (!room) return res.status(404).json({ message: "Room not found" });
-    if (getUserId(req) !== room.hostId) return res.status(403).json({ message: "Only the host can start." });
-    if (room.status !== "lobby") return res.status(400).json({ message: "Already started." });
-    if (room.players.length < 2) return res.status(400).json({ message: "Need at least 2 players." });
-    if (room.game === "draw" && room.players.length < 3) return res.status(400).json({ message: "Draw & Guess needs at least 3 players." });
+    if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found", zh: "找不到房间", id: "Room tidak ditemukan" }) });
+    if (getUserId(req) !== room.hostId) return res.status(403).json({ message: tr(req, { en: "Only the host can start.", zh: "只有房主可以开始。", id: "Hanya host yang bisa memulai." }) });
+    if (room.status !== "lobby") return res.status(400).json({ message: tr(req, { en: "Already started.", zh: "已经开始了。", id: "Sudah dimulai." }) });
+    if (room.players.length < 2) return res.status(400).json({ message: tr(req, { en: "Need at least 2 players.", zh: "至少需要 2 名玩家。", id: "Butuh minimal 2 pemain." }) });
+    if (room.game === "draw" && room.players.length < 3) return res.status(400).json({ message: tr(req, { en: "Draw & Guess needs at least 3 players.", zh: "你画我猜至少需要 3 名玩家。", id: "Gambar & Tebak butuh minimal 3 pemain." }) });
     if (room.game === "rps") { room.round = 1; startRpsRound(room); }
     else if (room.game === "cards") startCards(room);
     else if (room.game === "poker3") startPoker(room);
@@ -1954,9 +2020,9 @@ export function registerGameRoutes(app: Express) {
   // Play again — host recycles the finished room back to the lobby.
   app.post("/api/reborn/games/rooms/:code/restart", requireAuth, async (req, res) => {
     const room = rooms.get(String(req.params.code).toUpperCase());
-    if (!room) return res.status(404).json({ message: "Room not found" });
-    if (getUserId(req) !== room.hostId) return res.status(403).json({ message: "Only the host can restart." });
-    if (room.status !== "done") return res.status(400).json({ message: "Game still in progress." });
+    if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found", zh: "找不到房间", id: "Room tidak ditemukan" }) });
+    if (getUserId(req) !== room.hostId) return res.status(403).json({ message: tr(req, { en: "Only the host can restart.", zh: "只有房主可以重新开始。", id: "Hanya host yang bisa memulai ulang." }) });
+    if (room.status !== "done") return res.status(400).json({ message: tr(req, { en: "Game still in progress.", zh: "游戏仍在进行中。", id: "Permainan masih berlangsung." }) });
     resetRoom(room);
     res.json({ ok: true });
   });
@@ -1964,9 +2030,9 @@ export function registerGameRoutes(app: Express) {
   // Player action: {choice} for rps, {tap:true} for tap
   app.post("/api/reborn/games/rooms/:code/action", requireAuth, async (req, res) => {
     const room = rooms.get(String(req.params.code).toUpperCase());
-    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found", zh: "找不到房间", id: "Room tidak ditemukan" }) });
     const p = room.players.find((x) => x.id === getUserId(req));
-    if (!p) return res.status(403).json({ message: "You're not in this room." });
+    if (!p) return res.status(403).json({ message: tr(req, { en: "You're not in this room.", zh: "你不在这个房间。", id: "Kamu tidak ada di room ini." }) });
     if (room.status !== "playing") return res.json({ ok: false });
     if (room.game === "wheel") {
       if (req.body?.act === "spin") wheelSpin(room, getUserId(req)!);
@@ -1989,7 +2055,7 @@ export function registerGameRoutes(app: Express) {
     if (room.game === "riding") {
       if (req.body?.act === "flip") {
         const uid = getUserId(req)!;
-        if (room.players[room.turnIdx ?? 0]?.id !== uid) return res.status(400).json({ message: "Not your turn" });
+        if (room.players[room.turnIdx ?? 0]?.id !== uid) return res.status(400).json({ message: errText(req, "Not your turn") });
         ridingFlip(room, uid, Number(req.body?.tileId));
       }
       return res.json({ ok: true });
@@ -1998,30 +2064,30 @@ export function registerGameRoutes(app: Express) {
       const uid = getUserId(req)!;
       const act = req.body?.act;
       if (act === "catch") {
-        if (!room.bid) return res.status(400).json({ message: "No bid to catch yet." });
-        if (uid === room.bid.by) return res.status(400).json({ message: "You can't catch your own bid." });
-        if (!p.alive) return res.status(400).json({ message: "You're out." });
+        if (!room.bid) return res.status(400).json({ message: tr(req, { en: "No bid to catch yet.", zh: "还没有可以抓的叫数。", id: "Belum ada tawaran untuk ditangkap." }) });
+        if (uid === room.bid.by) return res.status(400).json({ message: tr(req, { en: "You can't catch your own bid.", zh: "你不能抓自己的叫数。", id: "Kamu tidak bisa menangkap tawaranmu sendiri." }) });
+        if (!p.alive) return res.status(400).json({ message: tr(req, { en: "You're out.", zh: "你已出局。", id: "Kamu sudah keluar." }) });
         resolveDiceCatch(room, uid);
         return res.json({ ok: true });
       }
       if (act === "bid") {
         const err = applyDiceBid(room, uid, Number(req.body?.face), Number(req.body?.qty), !!req.body?.strike);
-        if (err) return res.status(400).json({ message: err });
+        if (err) return res.status(400).json({ message: errText(req, err) });
         return res.json({ ok: true });
       }
-      return res.status(400).json({ message: "Bad action" });
+      return res.status(400).json({ message: tr(req, { en: "Bad action", zh: "无效操作", id: "Aksi tidak valid" }) });
     }
     if (room.game === "draw") {
       const err = dgAction(room, getUserId(req)!, req.body);
-      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "bridge") {
       const err = gbStep(room, getUserId(req)!, Number(req.body?.side));
-      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "memory") {
       const err = memFlip(room, getUserId(req)!, Number(req.body?.idx));
-      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "rlgl") {
       if (req.body?.act === "step") rlStep(room, getUserId(req)!, Number(req.body?.n));
@@ -2030,20 +2096,20 @@ export function registerGameRoutes(app: Express) {
     if (room.game === "frog") {
       const uid = getUserId(req)!;
       const err = req.body?.act === "start" ? frogStart(room, uid) : req.body?.act === "pick" ? frogPick(room, uid, Number(req.body?.frog)) : "Unknown action";
-      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "poker3") {
       const err = pokerAction(room, getUserId(req)!, String(req.body?.act || ""));
-      return err ? res.status(400).json({ message: err }) : res.json({ ok: true });
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "cards") {
       const r = cardAction(room, getUserId(req)!, req.body || {});
-      if (r.error) return res.status(400).json({ message: r.error });
+      if (r.error) return res.status(400).json({ message: errText(req, r.error) });
       return res.json({ ok: true });
     }
     if (room.game === "rps") {
       const choice = req.body?.choice as Choice;
-      if (!["rock", "paper", "scissors"].includes(choice)) return res.status(400).json({ message: "Bad choice" });
+      if (!["rock", "paper", "scissors"].includes(choice)) return res.status(400).json({ message: tr(req, { en: "Bad choice", zh: "无效选择", id: "Pilihan tidak valid" }) });
       if (p.alive && !p.choice) {
         p.choice = choice;
         // If everyone still alive has chosen, resolve early.

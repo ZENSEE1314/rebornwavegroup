@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { ImagePlus, Loader2 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
 
 // Reads an image file, resizes it to fit maxDim, and returns a compressed data URL.
 async function toWebp(file: File, maxDim = 640, quality = 0.82, mime = "image/webp"): Promise<string> {
@@ -25,10 +26,11 @@ async function toWebp(file: File, maxDim = 640, quality = 0.82, mime = "image/we
   return canvas.toDataURL(mime, quality);
 }
 
-export function ImageUpload({ value, onChange, shape = "square", label = "Upload image", output = "webp", maxDim = 640 }: {
+export function ImageUpload({ value, onChange, shape = "square", label, output = "webp", maxDim = 640 }: {
   value?: string; onChange: (dataUrl: string) => void; shape?: "square" | "circle"; label?: string; output?: "webp" | "jpeg"; maxDim?: number;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const rounded = shape === "circle" ? "rounded-full" : "rounded-xl";
 
@@ -48,7 +50,7 @@ export function ImageUpload({ value, onChange, shape = "square", label = "Upload
           <button
             type="button"
             onClick={() => onChange("")}
-            aria-label="Remove image"
+            aria-label={t("hm.img.remove")}
             className="absolute rounded-full bg-red-500 text-white flex items-center justify-center leading-none font-bold"
             style={{ top: -6, right: -6, width: 20, height: 20, fontSize: 13 }}
           >
@@ -60,7 +62,7 @@ export function ImageUpload({ value, onChange, shape = "square", label = "Upload
       )}
       <button type="button" onClick={() => ref.current?.click()} disabled={busy} className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-sm font-semibold flex items-center gap-1.5 disabled:opacity-50">
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-        {busy ? "Converting…" : (value ? "Change" : label)}
+        {busy ? t("hm.img.converting") : (value ? t("hm.img.change") : (label ?? t("hm.img.upload")))}
       </button>
     </div>
   );
