@@ -62,6 +62,7 @@ interface Room {
 const rooms = new Map<string, Room>();
 const MAX_PLAYERS = 20;
 const CARDS_MAX = 5;
+const MEMORY_MAX = 5;
 const RPS_SECONDS = 20;
 const TAP_SECONDS = 30;
 
@@ -543,6 +544,11 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
     }
     case "memory": {
       if (room.players.length < 2) return soloWin();
+      if (leavingWasTurn && room.mem) { // hand the turn on with a clean board
+        room.mem.open = []; room.mem.busy = false;
+        room.message = `${room.players[room.turnIdx ?? 0].name}'s turn — flip 2 cards`;
+        armMem(room);
+      }
       return broadcast(room);
     }
     case "rlgl": {
@@ -1402,11 +1408,11 @@ function dgView(room: Room, forUserId?: string) {
   };
 }
 
-// ── Memory Match (2 players) ────────────────────────────────────────────
+// ── Memory Match (2–5 players) ────────────────────────────────────────────
 // 30 face-down cards (6×5) = 15 pairs. On your turn flip 2: same number = +1
-// point and flip again; different = they flip back and it's the other
+// point and flip again; different = they flip back and it's the next
 // player's turn. When every pair is found, most pairs wins — the loser drinks
-// (a tie means both drink).
+// (if everyone ties, everyone drinks).
 const MEM_PAIRS = 15, MEM_TURN_SECONDS = 20, MEM_PEEK_MS = 1300;
 function armMem(room: Room) {
   clearTimers(room);
@@ -1472,7 +1478,7 @@ function finishMemory(room: Room) {
   const losers = tie ? room.players : room.players.filter((p) => !winners.includes(p));
   room.winnerId = tie ? undefined : winners[0]?.id;
   room.lastLoserId = losers[0]?.id;
-  room.message = tie ? `Tie at ${top} pairs — both drink 🍻` : `${winners.map((p) => p.name).join(" & ")} wins with ${top} pairs 🏆 — ${losers.map((p) => p.name).join(", ")} drinks 🍺`;
+  room.message = tie ? `Tie at ${top} pairs — ${room.players.length > 2 ? "everyone drinks" : "both drink"} 🍻` : `${winners.map((p) => p.name).join(" & ")} wins with ${top} pairs 🏆 — ${losers.map((p) => p.name).join(", ")} drinks 🍺`;
   broadcast(room);
   saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: m.score[p.id] || 0, result: (losers.includes(p) ? "lose" : "win") as "win" | "lose" })));
   scheduleCleanup(room);
@@ -1861,7 +1867,7 @@ export function registerGameRoutes(app: Express) {
       .map((r) => ({
         code: r.code, game: r.game,
         hostName: r.players.find((p) => p.id === r.hostId)?.name || "Host",
-        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : r.game === "poker3" ? 8 : r.game === "memory" ? 2 : MAX_PLAYERS,
+        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : r.game === "poker3" ? 8 : r.game === "memory" ? MEMORY_MAX : MAX_PLAYERS,
         hasPassword: !!r.password, createdAt: r.createdAt,
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -1912,7 +1918,7 @@ export function registerGameRoutes(app: Express) {
     if (existing) return res.json({ code: room.code });
     if (room.status !== "lobby") return res.status(400).json({ message: "This game has already started." });
     if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: "Wrong room password." });
-    const cap = room.game === "cards" ? CARDS_MAX : room.game === "poker3" ? 8 : room.game === "memory" ? 2 : MAX_PLAYERS;
+    const cap = room.game === "cards" ? CARDS_MAX : room.game === "poker3" ? 8 : room.game === "memory" ? MEMORY_MAX : MAX_PLAYERS;
     if (room.players.length >= cap) return res.status(400).json({ message: `Room is full (${cap} players).` });
     room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
     broadcast(room);

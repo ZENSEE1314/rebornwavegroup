@@ -16,7 +16,7 @@ const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
   draw: { name: "Draw & Guess", emoji: "🎨", blurb: "One draws the secret word · first right guess wins with the drawer" },
   bridge: { name: "Glass Bridge", emoji: "🌉", blurb: "10 rows of glass · pick left or right · wrong = fall & drink" },
-  memory: { name: "Memory Match", emoji: "🧠", blurb: "2 players · flip 2 cards, same number = point & go again" },
+  memory: { name: "Memory Match", emoji: "🧠", blurb: "2–5 players · flip 2 cards, same number = point & go again" },
   rlgl: { name: "Red Light, Green Light", emoji: "🚦", blurb: "tap left-right to walk on green · freeze on red · 3 min to cross" },
   frog: { name: "Frog Jump", emoji: "🐸", blurb: "tap a frog in 5s · same frog as the turn player = ½ cup" },
   poker3: { name: "3-Card Poker", emoji: "🂡", blurb: "play blind, raise ½ cup · look = pay double · worst hand drinks the pot" },
@@ -75,11 +75,11 @@ const RULES: Record<string, string[]> = {
     "Everyone who reaches the end wins 🏁 (many winners possible). If nobody makes it, nobody wins. Up to 20 players.",
   ],
   memory: [
-    "2 players. 30 cards face-down (6 × 5) — 15 pairs of numbers.",
+    "2 to 5 players. 30 cards face-down (6 × 5) — 15 pairs of numbers.",
     "On your turn flip any 2 cards.",
     "Same number = +1 point and you flip 2 more!",
-    "Different = they flip back and it's the other player's turn. Remember where they were 🧠",
-    "When all pairs are found, most pairs wins — the loser drinks 🍺 (tie = both drink). 20s per flip.",
+    "Different = they flip back and it's the next player's turn. Remember where they were 🧠",
+    "When all pairs are found, most pairs wins — everyone else drinks 🍺 (all tied = everyone drinks). 20s per flip.",
   ],
   rlgl: [
     "Everyone gets a player number and starts at the bottom of the field.",
@@ -1260,6 +1260,9 @@ function RlglGame({ room, code, me }: any) {
   );
 }
 
+// One colour per player (up to 5) for their matched cards and score chip.
+const MEM_COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ec4899", "#a855f7"];
+
 function MemoryGame({ room, code, me }: any) {
   const m = room.memory || {};
   const { toast } = useToast();
@@ -1272,7 +1275,7 @@ function MemoryGame({ room, code, me }: any) {
     } catch (e: any) { toast({ title: "Can't flip", description: String(e?.message || e).replace(/^\d+:\s*/, ""), variant: "destructive" }); }
   };
   const me0 = room.players.find((p: any) => p.id === me);
-  const colorOf = (id: string) => (room.players.findIndex((p: any) => p.id === id) === 0 ? "#22c55e" : "#3b82f6");
+  const colorOf = (id: string) => MEM_COLORS[Math.max(0, room.players.findIndex((p: any) => p.id === id)) % MEM_COLORS.length];
   const done = room.status === "done";
   const iLost = done && room.lastLoserId && (m.score?.[me] || 0) <= Math.min(...room.players.map((p: any) => m.score?.[p.id] || 0));
   return (
