@@ -9,7 +9,6 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { useTranslation } from "@/lib/i18n";
 import { COUNTRIES, DIAL_CODES } from "@/lib/countries";
 import { User, Lock, Globe, Copy, CreditCard, ReceiptText } from "lucide-react";
-import { NotificationToggle } from "@/components/NotificationToggle";
 
 const LANGS: { code: "en" | "zh" | "id"; label: string; flag: string }[] = [
   { code: "en", label: "English", flag: "🇬🇧" },
@@ -42,7 +41,6 @@ export default function RebornProfile() {
   });
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
   const { data: pushStatus, refetch: refetchPush } = useQuery<any>({ queryKey: ["/api/v1/app/device-tokens/status"], queryFn: () => apiRequest("GET", "/api/v1/app/device-tokens/status").then((r) => r.json()), refetchInterval: 10000 });
-  const inNativeApp = typeof window !== "undefined" && ((window as any).__REBORN_NATIVE_APP__ || (() => { try { return localStorage.getItem("reborn.nativeApp") === "true"; } catch { return false; } })());
   // Push setup status reported by the phone app (build 15+): stage, error detail
   // and the token itself. When the phone has a token but isn't registered yet,
   // register it from here too, and show the server's answer if it's refused.
@@ -117,10 +115,6 @@ export default function RebornProfile() {
       </div>
 
       <a href="/history" className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 mb-4 flex items-center gap-3"><ReceiptText className="w-5 h-5 text-amber-300" /><span className="flex-1"><b className="block">{t("ac.prof.historyTitle")}</b><span className="text-xs text-white/50">{t("ac.prof.historyDesc")}</span></span></a>
-
-      {/* In the phone app, alerts are set up automatically (see the effect above) — no box needed.
-          In a browser, members turn web push on here. */}
-      {!inNativeApp && <NotificationToggle />}
 
       {/* Language */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">
