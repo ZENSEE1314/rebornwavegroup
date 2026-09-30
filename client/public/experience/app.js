@@ -75,6 +75,7 @@ const APP_TEXT = {
   body: { en: "Book rooms, order drinks, request songs, play live games, raise your pet and send KOS gifts — all in one app.", zh: "预订包厢、点饮品、点歌、玩实时游戏、养宠物、送 KOS 礼物——一个应用全搞定。", id: "Booking ruangan, pesan minuman, request lagu, main game live, rawat peliharaan dan kirim hadiah KOS — semua dalam satu aplikasi." },
   android: { en: "Download for Android", zh: "下载安卓版", id: "Unduh untuk Android" },
   ios: { en: "Download for iPhone", zh: "下载 iPhone 版", id: "Unduh untuk iPhone" },
+  iosSoon: { en: "iPhone · coming soon", zh: "iPhone 版 · 即将推出", id: "iPhone · segera hadir" },
   web: { en: "Open in browser", zh: "在浏览器中打开", id: "Buka di browser" },
   note: { en: "Android: tap Download, open the file and allow the install.", zh: "安卓：点击下载，打开文件并允许安装。", id: "Android: ketuk Unduh, buka file lalu izinkan pemasangan." },
   floorBtn: { en: "Download the app", zh: "下载应用", id: "Unduh aplikasi" },
@@ -1211,7 +1212,10 @@ document.querySelectorAll("[data-t-label]").forEach((el) => { const v = APP_TEXT
 fetch("/api/public/app-links").then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((links) => {
   const a = document.getElementById("dl-android"), i = document.getElementById("dl-ios"), n = document.getElementById("dl-note");
   if (a) a.hidden = !links.android;
-  if (i) i.hidden = !links.ios;
+  if (i && !links.ios) { // no App Store link yet: show a "coming soon" badge instead of a link
+    i.removeAttribute("href"); i.setAttribute("aria-disabled", "true"); i.classList.add("btn-soon");
+    i.textContent = tl(APP_TEXT.iosSoon);
+  }
   if (n) n.hidden = !links.android;
 });
 
