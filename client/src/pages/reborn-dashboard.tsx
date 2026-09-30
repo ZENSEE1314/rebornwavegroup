@@ -93,7 +93,7 @@ export default function RebornDashboard() {
       </div>
 
       {/* Bottle-keep reminder */}
-      {expiringBottles > 0 && (
+      {expiringBottles > 0 && !featuresOff.has("bottles") && (
         <button onClick={() => navigate("/bottles")} className="arc-room-row w-full mb-4 text-left" style={{ ["--c1" as any]: "#f3b52f" }}>
           <Wine className="w-5 h-5 text-amber-300 flex-shrink-0" />
           <span className="text-sm text-amber-100">{expiringBottles} {t("dash.bottleReminder")}</span>
@@ -122,6 +122,7 @@ export default function RebornDashboard() {
       {showTopup && <TopupModal onClose={() => setShowTopup(false)} />}
 
       {/* Pet quick status / CTA */}
+      {!featuresOff.has("pet") && (
       <button onClick={() => navigate("/pet")} className="arc-tile w-full mb-4 text-left" style={{ ["--c1" as any]: "#fb7185", ["--c2" as any]: "#db2777" }}>
         <span className="arc-icon"><span><PawPrint className="w-7 h-7 text-white" /></span></span>
         <div className="flex-1 min-w-0">
@@ -139,6 +140,7 @@ export default function RebornDashboard() {
         </div>
         <span className="arc-play"><ChevronRight className="w-4 h-4" /></span>
       </button>
+      )}
 
       {/* All feature buttons */}
       <p className="arc-head">✨ {t("nav.allFeatures")}</p>

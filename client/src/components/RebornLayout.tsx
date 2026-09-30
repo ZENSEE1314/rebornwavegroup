@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
-import { useDisabledFeatures, featureForPath } from "@/lib/features";
+import { useFeatureState, featureForPath } from "@/lib/features";
 import {
   Home, PawPrint, Disc3, Headphones, X, Gift, Coins,
   Calendar, Trophy, Users, User, Music, Mic2, LogOut, Sparkles, MessageCircle,
@@ -113,8 +113,9 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   const brand = useTenantBrand();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const tokens = (user as any)?.tokens ?? 0;
-  const featuresOff = useDisabledFeatures();
-  const navItems = MAIN_NAV.filter((it) => !featuresOff.has(featureForPath(it.path) || ""));
+  // Switched-off features leave the dock; while the list loads they show faded and can't be tapped.
+  const { off: featuresOff, loaded: featuresLoaded } = useFeatureState();
+  const navItems = MAIN_NAV.filter((it) => !featuresLoaded || !featuresOff.has(featureForPath(it.path) || ""));
   const gx = active ? GX_ACCENT[active] : undefined;
 
   const logout = async () => {
@@ -158,7 +159,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
             {navItems.map((it) => {
               const isActive = active === it.path || active === it.label.toLowerCase();
               return (
-                <button key={it.path} onClick={() => go(it.path)} className={`rwg-nav-item ${isActive ? "is-active" : ""}`}>
+                <button key={it.path} onClick={() => go(it.path)} disabled={!featuresLoaded && !!featureForPath(it.path)} className={`rwg-nav-item ${isActive ? "is-active" : ""} disabled:opacity-40`}>
                   <span className="rwg-nav-ic">{it.icon}</span>
                   <span className="rwg-nav-lbl">{t(it.tkey)}</span>
                 </button>
