@@ -407,20 +407,21 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
 
   if (!room) return <div className="rwg-card p-8 text-center text-white/50">{t("gm.room.connecting", { code })}</div>;
   const isHost = room.hostId === me;
+  const [c1, c2] = gameColors(room.game);
 
   return (
-    <div className="space-y-4">
+    <div className="arc-room space-y-4" style={{ ["--c1" as any]: c1, ["--c2" as any]: c2 }}>
       {help && <HowToPlay game={room.game} onClose={() => setHelp(false)} />}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-white/40">{t("gm.room.code")}</p>
-          <p className="text-3xl font-black tracking-[0.3em] text-amber-300">{room.code}</p>
+      {/* Game HUD: game, room code, controls */}
+      <div className="arc-hud">
+        <span className="arc-icon" style={{ width: 46, height: 46, fontSize: 25, borderRadius: 14 }}><span>{GAMES[room.game]?.emoji}</span></span>
+        <div className="relative z-[1] min-w-0 flex-1">
+          <p className="arc-title" style={{ fontSize: 15, lineHeight: 1.1 }}>{gameName(t, room.game)}</p>
+          <p className="arc-code" title={t("gm.room.code")}>#{room.code}</p>
         </div>
-        <div className="flex gap-2">
-          <MuteToggle />
-          <button onClick={() => setHelp(true)} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/70 font-bold" title={t("gm.howTo")} aria-label={t("gm.howTo")}>?</button>
-          <button onClick={leave} className="px-3 py-2 rounded-xl bg-red-500/15 border border-red-400/40 text-red-200 text-sm font-bold inline-flex items-center gap-1.5"><LogOut className="w-4 h-4" /> {t("gm.room.leave")}</button>
-        </div>
+        <MuteToggle className="arc-btn" />
+        <button onClick={() => setHelp(true)} className="arc-btn" title={t("gm.howTo")} aria-label={t("gm.howTo")}>?</button>
+        <button onClick={leave} className="arc-btn arc-btn-red" title={t("gm.room.leave")} aria-label={t("gm.room.leave")}><span aria-hidden style={{ fontSize: 18 }}>🚪</span></button>
       </div>
 
       {room.status === "lobby" && <><SeriesBoard room={room} /><LobbyRoom room={room} code={code} isHost={isHost} /></>}
@@ -467,23 +468,30 @@ function LobbyRoom({ room, code, isHost }: any) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const start = async () => { const { ok, d } = await post(`/api/reborn/games/rooms/${code}/start`); if (!ok) toast({ title: t("gm.toast.cantStart"), description: d.message, variant: "destructive" }); };
+  const minPlayers = room.game === "draw" ? 3 : 2;
+  const ready = room.players.length >= minPlayers;
+  // Show at least 4 slots (empty ones blink) so it feels like a match lobby.
+  const empty = Math.max(0, Math.max(4, minPlayers) - room.players.length);
   return (
     <div className="rwg-card p-4">
-      <p className="font-bold text-white mb-1">{GAMES[room.game]?.emoji} {gameName(t, room.game)}</p>
-      <p className="text-[11px] text-white/50 mb-3">{gameBlurb(t, room.game)} · {room.hasPassword ? t("gm.room.private") : t("gm.room.open")}</p>
-      <p className="text-xs text-white/50 mb-2 flex items-center gap-1.5"><Users className="w-4 h-4" /> {t("gm.lobby.playersOf", { n: room.players.length, max: 20 })}</p>
-      <div className="flex flex-wrap gap-2 mb-4">
+      <p className="text-[11px] text-white/55 mb-3 text-center">{gameBlurb(t, room.game)} · {room.hasPassword ? `🔒 ${t("gm.room.private")}` : `🌐 ${t("gm.room.open")}`}</p>
+      <div className="arc-status mb-3"><span className="dot" />{ready ? t("gm.room.readyToStart") : t("gm.room.waitingPlayers")}<span className="text-white/50 tracking-normal">· <Users className="w-3.5 h-3.5 inline -mt-0.5" /> {t("gm.lobby.playersOf", { n: room.players.length, max: 20 })}</span></div>
+      <div className="arc-slots mb-5">
         {room.players.map((p: any) => (
-          <span key={p.id} className={`px-3 py-1.5 rounded-full text-sm ${p.id === room.hostId ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/70"}`}>
-            {p.id === room.hostId && <Crown className="w-3 h-3 inline mb-0.5 mr-1" />}{p.name}
-          </span>
+          <div key={p.id} className="arc-slot">
+            <span className="arc-ava">{p.id === room.hostId && <span className="arc-crown">👑</span>}{String(p.name || "?").trim().charAt(0).toUpperCase() || "?"}</span>
+            <span className="arc-name">{p.name}</span>
+          </div>
+        ))}
+        {Array.from({ length: empty }).map((_, i) => (
+          <div key={`e${i}`} className="arc-slot"><span className="arc-ava arc-ava-empty">?</span><span className="arc-name text-white/30">{t("gm.room.emptySlot")}</span></div>
         ))}
       </div>
       {isHost ? (
-        <button onClick={start} disabled={room.players.length < (room.game === "draw" ? 3 : 2)} className="cbtn cbtn-gold w-full py-4 text-lg inline-flex items-center justify-center gap-2">
-          <Play className="w-5 h-5" /> {room.players.length < (room.game === "draw" ? 3 : 2) ? t("gm.room.waitPlayers", { n: room.game === "draw" ? 3 : 2 }) : t("gm.room.start")}
+        <button onClick={start} disabled={!ready} className={`cbtn cbtn-gold w-full py-4 text-lg inline-flex items-center justify-center gap-2 font-black italic uppercase tracking-wide ${ready ? "arc-start" : ""}`}>
+          <Play className="w-5 h-5" /> {!ready ? t("gm.room.waitPlayers", { n: minPlayers }) : t("gm.room.start")}
         </button>
-      ) : <p className="text-center text-white/50 text-sm py-3">{t("gm.room.waitHost")}</p>}
+      ) : <p className="text-center text-white/60 text-sm py-3">⏳ {t("gm.room.waitHost")}</p>}
       <p className="text-center text-[11px] text-white/40 mt-3">{t(room.hasPassword ? "gm.room.sharePw" : "gm.room.share", { code: "\u0000" }).split("\u0000")[0]}<b className="text-amber-300">{room.code}</b>{t(room.hasPassword ? "gm.room.sharePw" : "gm.room.share", { code: "\u0000" }).split("\u0000")[1]}</p>
     </div>
   );
@@ -492,7 +500,7 @@ function LobbyRoom({ room, code, isHost }: any) {
 function MuteToggle({ className = "" }: { className?: string }) {
   const { t } = useTranslation();
   const [m, setM] = useState(sfx.isMuted());
-  return <button onClick={() => { const nm = !m; sfx.setMuted(nm); setM(nm); }} className={`w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/70 ${className}`} title={t("gm.sound")} aria-label={t("gm.sound")}>{m ? "🔇" : "🔊"}</button>;
+  return <button onClick={() => { const nm = !m; sfx.setMuted(nm); setM(nm); }} className={className || "w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/70"} title={t("gm.sound")} aria-label={t("gm.sound")}>{m ? "🔇" : "🔊"}</button>;
 }
 
 function RankFlash({ win, lose }: { win: boolean; lose: boolean }) {

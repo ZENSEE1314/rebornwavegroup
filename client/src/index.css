@@ -2025,5 +2025,57 @@ button, .interactive {
 .arc-head::after { content:""; flex:1; height:1px; background: linear-gradient(90deg, rgba(247,215,116,.6), transparent); }
 @media (prefers-reduced-motion: reduce) { .arc-tile::after, .arc-icon { animation: none; } }
 
+/* Game room — arcade frame. .arc-room sets --c1/--c2 from the game's colours and
+   restyles every game card inside it, so all games get the same look. */
+.arc-room { --c1:#f0d787; --c2:#c9a84c; }
+.arc-room .rwg-card { position:relative; border-radius:22px; overflow:hidden;
+  background: radial-gradient(90% 60% at 50% 0%, color-mix(in srgb, var(--c1) 16%, transparent), transparent 70%), linear-gradient(160deg, #1d1838 0%, #0e0b1d 100%);
+  border:1px solid color-mix(in srgb, var(--c1) 45%, transparent);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.5), 0 0 26px color-mix(in srgb, var(--c1) 18%, transparent); }
+/* corner brackets like a game HUD */
+.arc-room .rwg-card::before { content:""; position:absolute; inset:6px; pointer-events:none; border-radius:16px;
+  background:
+    linear-gradient(var(--c1),var(--c1)) top left/14px 2px no-repeat, linear-gradient(var(--c1),var(--c1)) top left/2px 14px no-repeat,
+    linear-gradient(var(--c1),var(--c1)) top right/14px 2px no-repeat, linear-gradient(var(--c1),var(--c1)) top right/2px 14px no-repeat,
+    linear-gradient(var(--c1),var(--c1)) bottom left/14px 2px no-repeat, linear-gradient(var(--c1),var(--c1)) bottom left/2px 14px no-repeat,
+    linear-gradient(var(--c1),var(--c1)) bottom right/14px 2px no-repeat, linear-gradient(var(--c1),var(--c1)) bottom right/2px 14px no-repeat;
+  opacity:.7; }
+.arc-hud { position:relative; overflow:hidden; display:flex; align-items:center; gap:12px; padding:12px; border-radius:22px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--c1) 30%, #15112a) 0%, #120e24 55%, #0d0a1a 100%);
+  border:1px solid color-mix(in srgb, var(--c1) 55%, transparent);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45), 0 0 24px color-mix(in srgb, var(--c1) 25%, transparent); }
+.arc-hud::after { content:""; position:absolute; inset:0; pointer-events:none; opacity:.14;
+  background: repeating-linear-gradient(115deg, transparent 0 14px, var(--c2) 14px 16px);
+  -webkit-mask-image: linear-gradient(90deg, transparent 35%, #000); mask-image: linear-gradient(90deg, transparent 35%, #000); }
+.arc-code { display:inline-flex; align-items:center; gap:6px; margin-top:4px; padding:2px 8px; border-radius:9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:16px; font-weight:900; letter-spacing:.28em; color:#fff3c4; background: rgba(0,0,0,.45); border:1px solid color-mix(in srgb, var(--c1) 50%, transparent);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--c1) 80%, transparent); }
+.arc-btn { position:relative; z-index:1; width:36px; height:36px; border-radius:11px; font-size:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  color:#fff; background: rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); font-weight:900; }
+.arc-btn:active { transform: scale(.94); }
+.arc-btn-red { color:#ffd0d0; background: linear-gradient(180deg, rgba(239,68,68,.45), rgba(127,29,29,.55)); border-color: rgba(248,113,113,.55); }
+/* waiting lobby: player slots */
+.arc-slots { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; }
+.arc-slot { display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; }
+.arc-ava { position:relative; width:54px; height:54px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#fff;
+  background: linear-gradient(145deg, var(--c1), var(--c2)); box-shadow: 0 0 0 3px rgba(0,0,0,.5), 0 0 0 5px color-mix(in srgb, var(--c1) 70%, transparent), 0 0 18px color-mix(in srgb, var(--c1) 50%, transparent);
+  text-shadow: 0 2px 0 rgba(0,0,0,.35); animation: arcPop .35s ease-out both; }
+.arc-ava-empty { background: transparent; color: rgba(255,255,255,.3); box-shadow:none; border:2px dashed rgba(255,255,255,.2); animation: arcBlink 1.6s ease-in-out infinite; }
+.arc-ava .arc-crown { position:absolute; top:-12px; font-size:16px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+.arc-name { max-width:100%; font-size:11px; font-weight:700; color: rgba(255,255,255,.8); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@keyframes arcPop { from { transform: scale(.4); opacity:0; } to { transform: scale(1); opacity:1; } }
+@keyframes arcBlink { 0%,100% { opacity:.45; } 50% { opacity:1; } }
+.arc-status { display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; color: var(--c1);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--c1) 60%, transparent); }
+.arc-status .dot { width:8px; height:8px; border-radius:50%; background: var(--c1); box-shadow: 0 0 10px var(--c1); animation: arcBlink 1s ease-in-out infinite; }
+.arc-start { animation: arcGlow 1.6s ease-in-out infinite; }
+@keyframes arcGlow { 0%,100% { box-shadow: 0 6px 0 #a06a0c, 0 0 0 rgba(243,181,47,0); } 50% { box-shadow: 0 6px 0 #a06a0c, 0 0 26px rgba(243,181,47,.65); } }
+/* inside a room: glowing countdowns and neon-edged buttons for every game */
+.arc-room .tabular-nums.font-black { color:#fff; text-shadow: 0 0 12px var(--c1), 0 0 26px color-mix(in srgb, var(--c1) 60%, transparent); }
+.arc-room .cbtn-dark { background: linear-gradient(180deg, color-mix(in srgb, var(--c1) 26%, #2a2445), #17132b); border:1px solid color-mix(in srgb, var(--c1) 45%, transparent);
+  box-shadow: 0 5px 0 rgba(0,0,0,.6), 0 0 14px color-mix(in srgb, var(--c1) 20%, transparent), inset 0 2px 0 rgba(255,255,255,.10); }
+.arc-room .cbtn-dark:active { box-shadow: 0 1px 0 rgba(0,0,0,.6), 0 0 18px color-mix(in srgb, var(--c1) 40%, transparent); }
+@media (prefers-reduced-motion: reduce) { .arc-ava, .arc-ava-empty, .arc-status .dot, .arc-start { animation:none; } }
+
 /* Red Riding Hood full-screen reveal */
 @keyframes rwgZoom { 0% { transform: scale(0.2) rotate(-8deg); opacity: 0; } 55% { transform: scale(1.12) rotate(4deg); opacity: 1; } 70% { transform: scale(.98) rotate(-2deg); } 100% { transform: scale(1.05) rotate(0deg); opacity: 1; } }
