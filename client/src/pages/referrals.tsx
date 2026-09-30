@@ -8,11 +8,14 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Users, Copy, Share2, TrendingUp, DollarSign, Gift } from "lucide-react";
 import ReferralTree from "@/components/referral-tree";
+import { useTranslation, localeTag } from "@/lib/i18n";
 
 export default function Referrals() {
   const { user } = useAuth();
   const [referralCode, setReferralCode] = useState("");
   const { toast } = useToast();
+  const { t, language } = useTranslation();
+  const loc = localeTag(language);
   const queryClient = useQueryClient();
 
   const { data: referrals, isLoading } = useQuery({
@@ -28,13 +31,13 @@ export default function Referrals() {
       return await apiRequest("POST", "/api/users/apply-referral", { referralCode: code });
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Referral code applied successfully!" });
+      toast({ title: t("ac.ref.success"), description: t("ac.ref.applied") });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/referrals"] });
       setReferralCode("");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to apply referral code", variant: "destructive" });
+      toast({ title: t("ac.ref.error"), description: error.message || t("ac.ref.applyFailed"), variant: "destructive" });
     },
   });
 
@@ -42,15 +45,15 @@ export default function Referrals() {
     if (user?.referralCode) {
       const referralLink = `${window.location.origin}/login?ref=${user.referralCode}`;
       navigator.clipboard.writeText(referralLink);
-      toast({ title: "Copied!", description: "Referral link copied to clipboard" });
+      toast({ title: t("ac.ref.copied"), description: t("ac.ref.linkCopied") });
     }
   };
 
   const handleShareReferralCode = () => {
     if (navigator.share && user?.referralCode) {
       navigator.share({
-        title: "Join Reborn Wave Group",
-        text: `Use my referral code to join Reborn Wave Group and get exclusive benefits!`,
+        title: t("ac.ref.shareTitle"),
+        text: t("ac.ref.shareText"),
         url: `${window.location.origin}/login?ref=${user.referralCode}`,
       });
     } else {
@@ -72,7 +75,7 @@ export default function Referrals() {
       <div className="rwg-page-bg min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-white/40 text-sm">Loading...</p>
+          <p className="text-white/40 text-sm">{t("ac.ref.loading")}</p>
         </div>
       </div>
     );
@@ -84,7 +87,7 @@ export default function Referrals() {
       <div className="rwg-orb-2" />
       <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
 
-        <h1 className="text-3xl font-bold text-white mb-8">Referral Program</h1>
+        <h1 className="text-3xl font-bold text-white mb-8">{t("ac.ref.title")}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
@@ -95,27 +98,27 @@ export default function Referrals() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
                 {
-                  label: "Total Referrals",
+                  label: t("ac.ref.total"),
                   value: referrals?.length || 0,
-                  sub: "All levels",
+                  sub: t("ac.ref.allLevels"),
                   subColor: "text-emerald-400",
                   icon: Users,
                   iconBg: "bg-emerald-500/15 border-emerald-500/25",
                   iconColor: "text-emerald-400"
                 },
                 {
-                  label: "Total Earnings",
-                  value: `RP ${(referralEarnings?.earnings || 0).toLocaleString()}`,
-                  sub: "From referrals",
+                  label: t("ac.ref.totalEarnings"),
+                  value: `RP ${(referralEarnings?.earnings || 0).toLocaleString(loc)}`,
+                  sub: t("ac.ref.fromReferrals"),
                   subColor: "text-violet-400",
                   icon: DollarSign,
                   iconBg: "bg-violet-500/15 border-violet-500/25",
                   iconColor: "text-violet-400"
                 },
                 {
-                  label: "Network Growth",
+                  label: t("ac.ref.growth"),
                   value: level1Referrals.length,
-                  sub: "Active network",
+                  sub: t("ac.ref.activeNetwork"),
                   subColor: "text-amber-400",
                   icon: TrendingUp,
                   iconBg: "bg-amber-500/15 border-amber-500/25",
@@ -139,33 +142,33 @@ export default function Referrals() {
 
             {/* Referral Network Tree */}
             <div className="rwg-card p-6">
-              <h3 className="text-white font-bold text-lg mb-4">Your Referral Network</h3>
+              <h3 className="text-white font-bold text-lg mb-4">{t("ac.ref.network")}</h3>
               <ReferralTree referrals={referrals} />
             </div>
 
             {/* Network Breakdown */}
             <div className="rwg-card p-6">
-              <h3 className="text-white font-bold text-lg mb-6">Network Breakdown</h3>
+              <h3 className="text-white font-bold text-lg mb-6">{t("ac.ref.breakdown")}</h3>
               <div className="border-l-4 border-emerald-500 pl-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-base font-semibold text-white">Level 1 - Direct Referrals</h4>
+                  <h4 className="text-base font-semibold text-white">{t("ac.ref.level1")}</h4>
                   <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs px-3 py-1 rounded-full">
-                    {level1Referrals.length} users · 10% commission
+                    {t("ac.ref.usersCommission", { n: level1Referrals.length })}
                   </span>
                 </div>
                 {level1Referrals.length > 0 ? (
                   <div className="space-y-2">
                     {level1Referrals.map((referral: any) => (
                       <div key={referral.id} className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                        <span className="font-medium text-white text-sm">{referral.name || `User #${referral.referredId}`}</span>
+                        <span className="font-medium text-white text-sm">{referral.name || t("ac.ref.userN", { id: referral.referredId })}</span>
                         <span className="text-sm text-emerald-400">
-                          Earned: RP {(referral.totalEarnings || 0).toLocaleString()}
+                          {t("ac.ref.earned", { n: (referral.totalEarnings || 0).toLocaleString(loc) })}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-white/40 text-sm">No direct referrals yet</p>
+                  <p className="text-white/40 text-sm">{t("ac.ref.noDirect")}</p>
                 )}
               </div>
             </div>
@@ -176,10 +179,10 @@ export default function Referrals() {
 
             {/* Share Code */}
             <div className="bg-gradient-to-br from-emerald-500/20 to-violet-600/20 border border-emerald-500/30 rounded-2xl p-6">
-              <h3 className="text-white font-bold text-lg mb-4">Share Your Referral Code</h3>
+              <h3 className="text-white font-bold text-lg mb-4">{t("ac.ref.shareYourCode")}</h3>
               <div className="bg-white/10 rounded-xl p-4 mb-4">
                 <div className="flex items-center justify-between">
-                  <code className="text-lg font-mono font-bold text-white">{user?.referralCode || 'Loading...'}</code>
+                  <code className="text-lg font-mono font-bold text-white">{user?.referralCode || t("ac.ref.loading")}</code>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -195,18 +198,18 @@ export default function Referrals() {
                 className="w-full bg-white text-emerald-700 font-semibold hover:bg-white/90 rounded-xl mb-2"
               >
                 <Share2 className="h-4 w-4 mr-2" />
-                Share Code
+                {t("ac.ref.shareCode")}
               </Button>
-              <p className="text-emerald-300 text-sm text-center">Earn 10% commission on referrals!</p>
+              <p className="text-emerald-300 text-sm text-center">{t("ac.ref.earn10")}</p>
             </div>
 
             {/* Apply Referral Code */}
             {!user?.referredById && (
               <div className="rwg-card p-6">
-                <h3 className="text-white font-bold text-base mb-4">Have a Referral Code?</h3>
+                <h3 className="text-white font-bold text-base mb-4">{t("ac.ref.haveCode")}</h3>
                 <form onSubmit={handleApplyReferral} className="space-y-4">
                   <div>
-                    <Label htmlFor="referralCode" className="text-white/70 text-sm">Enter Referral Code</Label>
+                    <Label htmlFor="referralCode" className="text-white/70 text-sm">{t("ac.ref.enterCode")}</Label>
                     <Input
                       id="referralCode"
                       value={referralCode}
@@ -221,7 +224,7 @@ export default function Referrals() {
                     className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl"
                     disabled={applyReferralMutation.isPending}
                   >
-                    {applyReferralMutation.isPending ? "Applying..." : "Apply Code"}
+                    {applyReferralMutation.isPending ? t("ac.ref.applying") : t("ac.ref.apply")}
                   </Button>
                 </form>
               </div>
@@ -229,34 +232,34 @@ export default function Referrals() {
 
             {/* Commission Structure */}
             <div className="rwg-card p-6">
-              <h3 className="text-white font-bold text-base mb-4">Commission Structure</h3>
+              <h3 className="text-white font-bold text-base mb-4">{t("ac.ref.commission")}</h3>
               <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-sm">1</div>
-                  <span className="font-medium text-white text-sm">Direct Referral</span>
+                  <span className="font-medium text-white text-sm">{t("ac.ref.direct")}</span>
                 </div>
                 <span className="font-bold text-emerald-400">10%</span>
               </div>
               <p className="text-sm text-white/50 text-center">
-                Earn 10% on all verified purchases from your referrals
+                {t("ac.ref.commissionDesc")}
               </p>
             </div>
 
             {/* Tips */}
             <div className="rwg-card p-6">
-              <h3 className="text-white font-bold text-base mb-4">Referral Tips</h3>
+              <h3 className="text-white font-bold text-base mb-4">{t("ac.ref.tips")}</h3>
               <div className="space-y-3 text-sm text-white/60">
                 <div className="flex items-start space-x-2">
                   <Gift className="h-4 w-4 mt-0.5 text-violet-400 flex-shrink-0" />
-                  <p>Share your code with friends and family to start earning commissions</p>
+                  <p>{t("ac.ref.tip1")}</p>
                 </div>
                 <div className="flex items-start space-x-2">
                   <TrendingUp className="h-4 w-4 mt-0.5 text-emerald-400 flex-shrink-0" />
-                  <p>Build a strong network by helping your referrals succeed</p>
+                  <p>{t("ac.ref.tip2")}</p>
                 </div>
                 <div className="flex items-start space-x-2">
                   <DollarSign className="h-4 w-4 mt-0.5 text-amber-400 flex-shrink-0" />
-                  <p>Earn passive income from your referral network</p>
+                  <p>{t("ac.ref.tip3")}</p>
                 </div>
               </div>
             </div>

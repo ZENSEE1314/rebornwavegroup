@@ -6,6 +6,37 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { Calendar, Clock, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import MobileBackButton from "@/components/mobile-back-button";
+import { useTranslation, localeTag, translate, getCurrentLanguage, tData } from "@/lib/i18n";
+
+// Booking titles/descriptions are stored in English ("KTV Lounge (Level 1) ·
+// Table V1 · Party of 4") — translate the fixed words for display.
+function localizeBooking(text: string): string {
+  return (text || "")
+    .replace(/Party of (\d+)/g, (_m, n) => translate("bk.partyOf", { n }))
+    .replace(/\bTable (\S+)/g, (_m, tb) => translate("bk.tableX", { t: tb }))
+    .replace(/([^·/()]+?) \((Level [^)]+)\)/g, (_m, name, lvl) => { const lang = getCurrentLanguage(); return `${areaName({ name: name.trim() }, lang)} (${areaLevel(lvl, lang)})`; });
+}
+// Area names/levels in the current language: admin-entered translations first,
+// then the standard names, then "Level N".
+const AREA_KEYS: Record<string, string> = { "game house": "bk.area.gameHouse", "ktv lounge": "bk.area.ktvLounge", "beauty service": "bk.area.beauty", "ktv room": "bk.area.ktvRoom", "vip ktv room": "bk.area.vipKtv", "pet room": "bk.area.petRoom", "restaurant": "bk.area.restaurant" };
+function areaName(a: any, lang: string): string {
+  if (lang === "zh" || lang === "id") { const own = a?.names?.[lang]; if (own) return own; const k = AREA_KEYS[String(a?.name || "").trim().toLowerCase()]; if (k) return translate(k); }
+  return a?.name || "";
+}
+function areaLevel(level: string, lang: string): string {
+  if (!level || (lang !== "zh" && lang !== "id")) return level;
+  return level.replace(/^Level\s+(.+)$/i, (_m, n) => translate("bk.levelN", { n }));
+}
+
+// Opening hours: "5:00pm – 2:00am" in English, "17:00 – 02:00" in Chinese/Bahasa.
+function hoursIn(text: string, lang: string): string {
+  if (!text) return "";
+  if (text === "Closed") return translate("bk.closedToday");
+  if (lang === "en") return text;
+  return text.replace(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/gi, (_m, h, mi, ap) => { let hh = Number(h) % 12; if (/pm/i.test(ap)) hh += 12; return `${String(hh).padStart(2, "0")}:${mi || "00"}`; });
+}
+
+const STATUS_KEY: Record<string, string> = { confirmed: "bk.st.confirmed", pending: "bk.st.pending", scheduled: "bk.st.scheduled", completed: "bk.st.completed", cancelled: "bk.st.cancelled", blocked: "bk.st.blocked", no_show: "bk.st.noShow" };
 
 const STATUS_STYLE: Record<string, string> = {
   confirmed: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
@@ -16,15 +47,16 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function Bookings() {
+  const { t } = useTranslation();
   return (
-    <RebornLayout active="/bookings" title="BOOKINGS"><div>
+    <RebornLayout active="/bookings" title={t("bk.pageTitleCaps")}><div>
       <div className="rwg-orb-1" />
       <div className="rwg-orb-2" />
       <div className="max-w-3xl mx-auto py-2 relative z-10">
         <MobileBackButton className="mb-4" />
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Bookings</h1>
-          <p className="text-white/50 mt-1 text-sm">Reserve your spot — see your bookings below.</p>
+          <h1 className="text-2xl font-bold text-white">{t("bk.pageTitle")}</h1>
+          <p className="text-white/50 mt-1 text-sm">{t("bk.pageSub")}</p>
         </div>
 
         <TableBookingCard />
@@ -35,19 +67,20 @@ export default function Bookings() {
 }
 
 function MyBookings() {
+  const { t, language } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/my-bookings"], queryFn: () => apiRequest("GET", "/api/reborn/my-bookings").then((r) => r.json()) });
   const cancel = useMutation({
     mutationFn: (id: number) => apiRequest("POST", `/api/reborn/my-bookings/${id}/cancel`, {}).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Booking cancelled" }); qc.invalidateQueries({ queryKey: ["/api/reborn/my-bookings"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onSuccess: () => { toast({ title: t("bk.cancelled") }); qc.invalidateQueries({ queryKey: ["/api/reborn/my-bookings"] }); },
+    onError: (e: any) => toast({ title: t("bk.failed"), description: e.message, variant: "destructive" }),
   });
-  const fmt = (iso: string) => { const d = new Date(iso); return d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true }); };
+  const fmt = (iso: string) => { const d = new Date(iso); return d.toLocaleString(localeTag(language), { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true }); };
   if (!rows.length) return null;
   return (
     <div className="mt-6">
-      <h2 className="text-lg font-bold text-white mb-3">My bookings</h2>
+      <h2 className="text-lg font-bold text-white mb-3">{t("bk.mine")}</h2>
       <div className="space-y-3">
         {rows.map((b) => {
           const upcoming = new Date(b.appointmentDate).getTime() > Date.now();
@@ -55,19 +88,19 @@ function MyBookings() {
           return (
             <div key={b.id} className="rwg-card p-4">
               <div className="flex items-start justify-between gap-2 mb-1">
-                <h3 className="text-base font-semibold text-white leading-snug">{b.title}</h3>
-                <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLE[b.status] || STATUS_STYLE.pending}`}>{b.status}</span>
+                <h3 className="text-base font-semibold text-white leading-snug">{localizeBooking(b.title)}</h3>
+                <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLE[b.status] || STATUS_STYLE.pending}`}>{STATUS_KEY[b.status] ? t(STATUS_KEY[b.status]) : b.status}</span>
               </div>
-              {b.description && <p className="text-white/50 text-sm mb-2">{b.description}</p>}
-              {b.adminNote && b.status === "cancelled" && <p className="text-red-300/80 text-xs mb-2">Note: {b.adminNote}</p>}
+              {b.description && <p className="text-white/50 text-sm mb-2">{localizeBooking(b.description)}</p>}
+              {b.adminNote && b.status === "cancelled" && <p className="text-red-300/80 text-xs mb-2">{t("bk.note")}: {tData(b.adminNote)}</p>}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/40">
                 <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {fmt(b.appointmentDate)}</span>
                 <span className="text-white/30">·</span>
-                <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {Math.round((b.duration || 120) / 60)}h</span>
+                <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {t("bk.hoursShort", { n: Math.round((b.duration || 120) / 60) })}</span>
               </div>
               {canCancel && (
-                <button onClick={() => { if (confirm("Cancel this booking?")) cancel.mutate(b.id); }} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-red-500/15 border border-red-400/40 text-red-200">
-                  <XCircle className="w-4 h-4" /> Cancel
+                <button onClick={() => { if (confirm(t("bk.cancelConfirm"))) cancel.mutate(b.id); }} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-red-500/15 border border-red-400/40 text-red-200">
+                  <XCircle className="w-4 h-4" /> {t("bk.cancel")}
                 </button>
               )}
             </div>
@@ -79,6 +112,7 @@ function MyBookings() {
 }
 
 function TableBookingCard() {
+  const { t, language } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()) });
@@ -92,6 +126,7 @@ function TableBookingCard() {
   const areas: any[] = data?.areas || [];
   const area = areas.find((a) => a.id === areaId) || null;
   const needTable = !!area && area.tables?.length > 0;
+  const askHours = data?.askHours !== false; // admin can switch the hours question off
   // Slots + taken tables for the chosen area+date (respects the weekly schedule).
   const { data: avail } = useQuery<any>({
     queryKey: ["/api/reborn/booking/availability", areaId, date],
@@ -104,62 +139,62 @@ function TableBookingCard() {
   const capFor = (tb: string) => caps[tb] || avail?.maxPax || 50;
   const partyCap = table ? capFor(table) : (avail?.maxPax || 50);
   const book = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours: askHours ? hours : 2 }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => {
-      if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; }
-      toast({ title: "Requested!", description: d.message }); setSlot(""); setTable("");
+      if (!ok) { toast({ title: t("bk.failed"), description: d.message, variant: "destructive" }); return; }
+      toast({ title: t("bk.requested"), description: d.message }); setSlot(""); setTable("");
       qc.invalidateQueries({ queryKey: ["/api/reborn/my-bookings"] });
       qc.invalidateQueries({ queryKey: ["/api/reborn/booking/availability", areaId, date] });
     },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("bk.failed"), description: e.message, variant: "destructive" }),
   });
 
   return (
     <div className="rwg-card p-5 mb-5">
-      <h3 className="text-lg font-bold text-white mb-1">🗓️ Book at Reborn Wave</h3>
-      <p className="text-white/50 text-sm mb-3">{data?.hoursSummary || "Hours vary by area · 2-hour slots (stay longer if you like)"}</p>
+      <h3 className="text-lg font-bold text-white mb-1">🗓️ {t("bk.bookAt")}</h3>
+      <p className="text-white/50 text-sm mb-3">{t("bk.hoursVary")}</p>
 
       {/* 1. Choose area / level */}
-      <p className="text-xs text-white/50 mb-1">What would you like to book?</p>
+      <p className="text-xs text-white/50 mb-1">{t("bk.whatToBook")}</p>
       <div className="grid grid-cols-2 gap-2 mb-4">
         {areas.map((a) => (
           <button key={a.id} onClick={() => { setAreaId(a.id); setTable(""); setSlot(""); }} className={`p-3 rounded-xl text-left ${areaId === a.id ? "bg-gradient-to-br from-violet-600/40 to-blue-600/30 border border-violet-400/50" : "bg-white/5 border border-white/10"}`}>
-            <span className="block text-sm font-bold text-white">{a.name}</span>
-            <span className="block text-[11px] text-white/50">{a.level}</span>
-            <span className="block text-[10px] text-amber-300/80 mt-0.5">{a.hours}</span>
+            <span className="block text-sm font-bold text-white">{areaName(a, language)}</span>
+            <span className="block text-[11px] text-white/50">{areaLevel(a.level, language)}</span>
+            <span className="block text-[10px] text-amber-300/80 mt-0.5">{hoursIn(a.hours, language)}</span>
           </button>
         ))}
       </div>
 
       {area && (<>
-        {area.hasImage && <img src={`/api/reborn/booking/area-image/${area.id}`} alt={`${area.name} layout`} loading="lazy" className="w-full rounded-xl border border-white/10 mb-3" style={{ maxHeight: 340, objectFit: "contain" }} />}
+        {area.hasImage && <img src={`/api/reborn/booking/area-image/${area.id}`} alt={t("bk.layoutAlt", { a: areaName(area, language) })} loading="lazy" className="w-full rounded-xl border border-white/10 mb-3" style={{ maxHeight: 340, objectFit: "contain" }} />}
         {data?.note && <p className="text-white/60 text-sm mb-3">{data.note}</p>}
 
-        <p className="text-xs text-white/50 mb-1">Date</p>
+        <p className="text-xs text-white/50 mb-1">{t("bk.date")}</p>
         <input type="date" value={date} min={todayStr} onChange={(e) => setDate(e.target.value)}
           className="w-full mb-3 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" style={{ colorScheme: "dark" }} />
 
-        <p className="text-xs text-white/50 mb-1">Start time <span className="text-white/30">· {avail?.hours || area.hours}</span></p>
+        <p className="text-xs text-white/50 mb-1">{t("bk.startTime")} <span className="text-white/30">· {hoursIn(avail?.hours || area.hours, language)}</span></p>
         {avail?.closed ? (
-          <p className="text-sm text-amber-300 mb-3">Closed on this day — please pick another date.</p>
+          <p className="text-sm text-amber-300 mb-3">{t("bk.closedDay")}</p>
         ) : avail?.fullyBooked ? (
-          <p className="text-sm text-red-300 mb-3 font-semibold">Fully booked on this day — please pick another date.</p>
+          <p className="text-sm text-red-300 mb-3 font-semibold">{t("bk.fullDay")}</p>
         ) : (
           <div className="grid grid-cols-3 gap-2 mb-3">
             {areaSlots.map((s: any) => (
-              <button key={s.value} onClick={() => setSlot(s.value)} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{s.label}</button>
+              <button key={s.value} onClick={() => setSlot(s.value)} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{language === "en" ? s.label : s.value}</button>
             ))}
           </div>
         )}
 
         {needTable && (<>
-          <p className="text-xs text-white/50 mb-1">{area.name.includes("KTV") ? "Room" : "Table"} <span className="text-white/30">(see the plan above)</span></p>
-          {!slot && <p className="text-[11px] text-amber-300/80 mb-2">Pick a start time first to see which are free.</p>}
+          <p className="text-xs text-white/50 mb-1">{area.name.includes("KTV") ? t("bk.room") : t("bk.table")} <span className="text-white/30">{t("bk.seePlan")}</span></p>
+          {!slot && <p className="text-[11px] text-amber-300/80 mb-2">{t("bk.pickTimeFirst")}</p>}
           <div className="grid grid-cols-4 gap-2 mb-3">
             {area.tables.map((tb: string) => {
               const taken = takenForSlot.includes(tb);
               return (
-                <button key={tb} disabled={taken} onClick={() => { setTable(tb); setParty((p) => Math.min(p, capFor(tb))); }} className={`py-2 rounded-xl text-xs font-bold leading-tight ${taken ? "bg-white/5 text-white/25 line-through cursor-not-allowed" : table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}<span className="block text-[9px] font-normal opacity-70">≤{capFor(tb)} pax</span></button>
+                <button key={tb} disabled={taken} onClick={() => { setTable(tb); setParty((p) => Math.min(p, capFor(tb))); }} className={`py-2 rounded-xl text-xs font-bold leading-tight ${taken ? "bg-white/5 text-white/25 line-through cursor-not-allowed" : table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}<span className="block text-[9px] font-normal opacity-70">{t("bk.upToPax", { n: capFor(tb) })}</span></button>
               );
             })}
           </div>
@@ -167,21 +202,21 @@ function TableBookingCard() {
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-4">
           <div className="flex items-center gap-3">
-            <span className="text-xs text-white/50">Party <span className="text-white/30">(max {partyCap})</span></span>
+            <span className="text-xs text-white/50">{t("bk.party")} <span className="text-white/30">{t("bk.maxN", { n: partyCap })}</span></span>
             <button onClick={() => setParty((p) => Math.max(1, p - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
             <span className="w-8 text-center font-extrabold text-white">{party}</span>
             <button onClick={() => setParty((p) => Math.min(partyCap, p + 1))} disabled={party >= partyCap} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold disabled:opacity-40" style={{ fontSize: 18 }}>+</button>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-white/50">Hours</span>
+          {askHours && <div className="flex items-center gap-3">
+            <span className="text-xs text-white/50">{t("bk.hours")}</span>
             <button onClick={() => setHours((h) => Math.max(2, h - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
             <span className="w-8 text-center font-extrabold text-white">{hours}</span>
             <button onClick={() => setHours((h) => Math.min(8, h + 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>+</button>
-          </div>
+          </div>}
         </div>
 
         <Button onClick={() => book.mutate()} disabled={!slot || (needTable && !table) || book.isPending} className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl disabled:opacity-50">
-          {book.isPending ? "Booking…" : !slot ? "Pick a time" : needTable && !table ? "Pick a table/room" : "Request booking"}
+          {book.isPending ? t("bk.booking") : !slot ? t("bk.pickTime") : needTable && !table ? t("bk.pickTable") : t("bk.request")}
         </Button>
       </>)}
     </div>

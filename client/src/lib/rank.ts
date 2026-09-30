@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
+import { translate } from "./i18n";
 
 export interface Tier { name: string; perDiv: number }
 export interface RankConfig { seasonStarDrop: number; season: number; tiers: Tier[] }
@@ -37,3 +38,8 @@ export function useMyRank() {
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/rank/me"], queryFn: () => apiRequest("GET", "/api/reborn/rank/me").then((r) => r.json()), staleTime: 15_000 });
   return data;
 }
+
+// Display name of a tier in the current language — the default ladder names are
+// translated; names an admin typed themselves are shown as they are.
+const TIER_KEYS: Record<string, string> = { Rookie: "hm.tier.rookie", Warrior: "hm.tier.warrior", Fighter: "hm.tier.fighter", Elite: "hm.tier.elite", Master: "hm.tier.master", Grandmaster: "hm.tier.grandmaster", Epic: "hm.tier.epic", Champion: "hm.tier.champion", Legend: "hm.tier.legend" };
+export function tierName(name: string): string { return TIER_KEYS[name] ? translate(TIER_KEYS[name]) : name; }

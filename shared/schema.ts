@@ -1096,6 +1096,7 @@ export const faqItems = pgTable("faq_items", {
   question: varchar("question").notNull(),
   answer: text("answer").notNull(),
   keywords: text("keywords"), // comma-separated, used for auto-reply matching
+  i18n: jsonb("i18n"), // { zh: { question, answer }, id: { question, answer } } — translated FAQ
   sortOrder: integer("sort_order").default(0),
   active: boolean("active").default(true),
   createdAt: timestamp("created_at").defaultNow(),

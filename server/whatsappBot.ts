@@ -17,10 +17,11 @@ import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
 import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, getBookingTimezone, type BookingArea } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
+import { localeOf, asLang, faqIn } from "./i18n";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -149,11 +150,11 @@ function asksForLocation(text: string): boolean {
 }
 
 // Exported so the app booking endpoints can include the same address + map pin.
-export async function locationReply(): Promise<string> {
+export async function locationReply(lang: Lang = "en"): Promise<string> {
   const address = (await settingVal("businessAddress")).trim() || WEBSITE_ADDRESS;
   const savedMap = (await settingVal("businessMapUrl")).trim();
   const mapUrl = savedMap || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-  return `📍 Reborn Wave Group\n${address}\n\nOpen the map pin here:\n${mapUrl}`;
+  return L(lang, "mapPin", { address, url: mapUrl });
 }
 
 // --- CRM -----------------------------------------------------------------
@@ -218,7 +219,7 @@ function looksLikeName(s: string): boolean {
 }
 
 // --- Localisation (en / zh / id) ----------------------------------------
-type Lang = "en" | "zh" | "id";
+export type Lang = "en" | "zh" | "id";
 // Trilingual first message — shown to every new contact before they pick a language.
 const WELCOME_TRILINGUAL =
   "🌊 Welcome to Reborn Wave Group! Please choose your language:\n" +
@@ -257,6 +258,122 @@ function parseLangSwitch(text: string): Lang | null {
 
 function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
   const T: Record<string, Record<Lang, string>> = {
+    mapPin: {
+      en: "📍 Reborn Wave Group\n{address}\n\nOpen the map pin here:\n{url}",
+      zh: "📍 Reborn Wave Group\n{address}\n\n点击打开地图定位：\n{url}",
+      id: "📍 Reborn Wave Group\n{address}\n\nBuka titik lokasi di peta:\n{url}",
+    },
+    hoursSummary: {
+      en: "hours vary by area — pick a day and I'll show the free times",
+      zh: "各区域营业时间不同——选好日期后我会显示可预订的时间",
+      id: "jam buka berbeda per area — pilih hari dan saya tunjukkan jam yang kosong",
+    },
+    closed: { en: "Closed", zh: "休息", id: "Tutup" },
+    tableLine: { en: "{i}. {t} (up to {cap} pax)", zh: "{i}. {t}（最多 {cap} 人）", id: "{i}. {t} (maks {cap} orang)" },
+    tableTaken: {
+      en: "Sorry, {t} is already booked for {time} on {day}. Pick another:\n{list}",
+      zh: "抱歉，{t} 在 {day} {time} 已被预订。请选择其他：\n{list}",
+      id: "Maaf, {t} sudah dipesan untuk {day} jam {time}. Pilih yang lain:\n{list}",
+    },
+    tableTakenDay: {
+      en: "Sorry, {t} is already booked on {day}. Pick another:\n{list}",
+      zh: "抱歉，{t} 在 {day} 已被预订。请选择其他：\n{list}",
+      id: "Maaf, {t} sudah dipesan pada {day}. Pilih yang lain:\n{list}",
+    },
+    overCap: {
+      en: "{t} seats up to {cap} pax, but you asked for {n}. Let me help you pick a suitable spot 👇",
+      zh: "{t} 最多容纳 {cap} 人，您需要 {n} 人。我来帮您选合适的位置 👇",
+      id: "{t} maksimal {cap} orang, tapi Anda {n} orang. Saya bantu pilih tempat yang cocok 👇",
+    },
+    replyNumber: { en: "Reply a number 1-{n}.", zh: "请回复 1-{n} 的数字。", id: "Balas angka 1-{n}." },
+    closedDay: {
+      en: "📅 {day}: sorry, {area} is closed that day. Please reply another date (e.g. tomorrow or \"next friday\").",
+      zh: "📅 {day}：抱歉，{area} 当天不营业。请回复其他日期（例如：明天）。",
+      id: "📅 {day}: maaf, {area} tutup hari itu. Silakan balas tanggal lain (mis. besok).",
+    },
+    fullDay: {
+      en: "📅 {day}: sorry, {area} is fully booked that day. Please reply another date.",
+      zh: "📅 {day}：抱歉，{area} 当天已订满。请回复其他日期。",
+      id: "📅 {day}: maaf, {area} sudah penuh hari itu. Silakan balas tanggal lain.",
+    },
+    dateOk: { en: "✅ Date: *{day}*", zh: "✅ 日期：*{day}*", id: "✅ Tanggal: *{day}*" },
+    slotFilled: {
+      en: "Sorry, that time just filled up. Reply another number 1-{n}.",
+      zh: "抱歉，该时段刚刚订满。请回复其他数字 1-{n}。",
+      id: "Maaf, jam itu baru saja penuh. Balas angka lain 1-{n}.",
+    },
+    tableTooSmall: {
+      en: "{t} seats up to {cap} pax, but you have {n}. Reply another table number, or reply \"book\" to restart.",
+      zh: "{t} 最多容纳 {cap} 人，您有 {n} 人。请回复其他桌位编号，或回复「预订」重新开始。",
+      id: "{t} maksimal {cap} orang, tapi Anda {n} orang. Balas nomor meja lain, atau balas \"booking\" untuk mulai lagi.",
+    },
+    askPaxFor: { en: "👥 How many pax? ({t} seats up to {cap})", zh: "👥 几位客人？（{t} 最多 {cap} 人）", id: "👥 Berapa orang? ({t} maks {cap} orang)" },
+    paxTooMany: {
+      en: "Sorry, the most is {cap} pax. Please reply a number up to {cap}.",
+      zh: "抱歉，最多 {cap} 人。请回复不超过 {cap} 的数字。",
+      id: "Maaf, maksimal {cap} orang. Balas angka sampai {cap}.",
+    },
+    justBooked: {
+      en: "Sorry, {t} was just booked. Reply \"book\" to try another.",
+      zh: "抱歉，{t} 刚刚被预订。回复「预订」选择其他。",
+      id: "Maaf, {t} baru saja dipesan. Balas \"booking\" untuk pilih yang lain.",
+    },
+    hoursSuffix: { en: " ({n}h)", zh: "（{n} 小时）", id: " ({n} jam)" },
+    reviewGoogle: { en: "Please leave us a Google review 🙏 {url}", zh: "欢迎在 Google 给我们留下评价 🙏 {url}", id: "Mohon beri ulasan Google untuk kami 🙏 {url}" },
+    reviewSeeYou: { en: "See you again soon! 💜", zh: "期待再次见到您！💜", id: "Sampai jumpa lagi! 💜" },
+    reviewBetter: { en: "Thank you — we'll do better. 💜", zh: "谢谢您——我们会做得更好。💜", id: "Terima kasih — kami akan lebih baik lagi. 💜" },
+    reviewLinkApp: { en: "\nFeedback in the app: {url}", zh: "\n在应用中反馈：{url}", id: "\nBeri masukan di aplikasi: {url}" },
+    reviewLinkGoogle: { en: "\nGoogle review: {url}", zh: "\nGoogle 评价：{url}", id: "\nUlasan Google: {url}" },
+    bottleLine: { en: "• {emoji} {type} — {name}{left} · {days} day(s) left", zh: "• {emoji} {type} — {name}{left} · 剩 {days} 天", id: "• {emoji} {type} — {name}{left} · sisa {days} hari" },
+    bottleLeft: { en: " ({n} left)", zh: "（剩 {n}）", id: " (sisa {n})" },
+    "type.whisky": { en: "Whisky", zh: "威士忌", id: "Wiski" },
+    "type.beer": { en: "Beer", zh: "啤酒", id: "Bir" },
+    "type.wine": { en: "Wine", zh: "葡萄酒", id: "Anggur" },
+    "type.drink": { en: "Drink", zh: "酒水", id: "Minuman" },
+    left10m: { en: "10 minutes", zh: "10 分钟", id: "10 menit" },
+    left1h: { en: "1 hour", zh: "1 小时", id: "1 jam" },
+    left3h: { en: "3 hours", zh: "3 小时", id: "3 jam" },
+    pushRemindTitle: { en: "⏰ {club} in {left}", zh: "⏰ {left}后 {club} 见", id: "⏰ {club} dalam {left}" },
+    yourBooking: { en: "Your booking", zh: "您的预订", id: "Booking Anda" },
+    pushNoShowTitle: { en: "😔 Booking cancelled — no-show", zh: "😔 预订已取消——未到店", id: "😔 Booking dibatalkan — tidak datang" },
+    pushNoShowBody: { en: "{what} · {when}. Tap to book again.", zh: "{what} · {when}。点击重新预订。", id: "{what} · {when}. Ketuk untuk booking lagi." },
+    noticeNoShowTitle: { en: "Booking cancelled (no-show)", zh: "预订已取消（未到店）", id: "Booking dibatalkan (tidak datang)" },
+    noticeNoShowBody: { en: "{what} · {when} — you didn't arrive within 15 minutes. Book again any time.", zh: "{what} · {when}——您未在 15 分钟内到达。欢迎随时重新预订。", id: "{what} · {when} — Anda tidak datang dalam 15 menit. Silakan booking lagi kapan saja." },
+    "st.pending": { en: "pending", zh: "待确认", id: "menunggu" },
+    "st.scheduled": { en: "scheduled", zh: "已安排", id: "terjadwal" },
+    "st.confirmed": { en: "confirmed", zh: "已确认", id: "dikonfirmasi" },
+    tableX: { en: "Table {t}", zh: "桌位 {t}", id: "Meja {t}" },
+    partyOf: { en: "Party of {n}", zh: "{n} 人", id: "{n} orang" },
+    booking: { en: "Booking", zh: "预订", id: "Booking" },
+    friend: { en: "there", zh: "朋友", id: "Kak" },
+    appReceipt: {
+      en: "✅ Booking received at {club}: {area} · {day} {time}{table} · {n} pax. Our team will confirm shortly. 💜",
+      zh: "✅ 已收到您在 {club} 的预订：{area} · {day} {time}{table} · {n} 位。我们的团队会尽快确认。💜",
+      id: "✅ Booking diterima di {club}: {area} · {day} {time}{table} · {n} orang. Tim kami akan segera konfirmasi. 💜",
+    },
+    staffConfirmed: {
+      en: "✅ Your booking is confirmed: {what} on {when}. See you! 💜",
+      zh: "✅ 您的预订已确认：{what}，{when}。期待您的光临！💜",
+      id: "✅ Booking Anda dikonfirmasi: {what} pada {when}. Sampai jumpa! 💜",
+    },
+    staffCancelled: {
+      en: "😔 Sorry, your booking ({what} on {when}) has been cancelled{note} Please rebook a new date by typing \"booking\". 💜",
+      zh: "😔 抱歉，您的预订（{what}，{when}）已被取消{note} 请回复「预订」选择新的日期。💜",
+      id: "😔 Maaf, booking Anda ({what} pada {when}) dibatalkan{note} Silakan pesan tanggal baru dengan mengetik \"booking\". 💜",
+    },
+    pushConfirmedTitle: { en: "✅ Booking confirmed", zh: "✅ 预订已确认", id: "✅ Booking dikonfirmasi" },
+    pushCancelledTitle: { en: "😔 Booking cancelled", zh: "😔 预订已取消", id: "😔 Booking dibatalkan" },
+    tapRebook: { en: "Tap to rebook.", zh: "点击重新预订。", id: "Ketuk untuk booking ulang." },
+    "status.confirmed": { en: "Booking confirmed", zh: "预订已确认", id: "Booking dikonfirmasi" },
+    "status.cancelled": { en: "Booking cancelled", zh: "预订已取消", id: "Booking dibatalkan" },
+    "status.completed": { en: "Booking completed", zh: "预订已完成", id: "Booking selesai" },
+    "status.pending": { en: "Booking pending", zh: "预订待确认", id: "Booking menunggu" },
+    staffBooked: {
+      en: "✅ We've booked you at {club}: {area} on {when}{table}. See you! 💜",
+      zh: "✅ 已为您在 {club} 预订：{area}，{when}{table}。期待您的光临！💜",
+      id: "✅ Kami sudah memesankan Anda di {club}: {area} pada {when}{table}. Sampai jumpa! 💜",
+    },
+    pushBookedTitle: { en: "✅ You're booked", zh: "✅ 预订成功", id: "✅ Booking berhasil" },
     langChanged: {
       en: "✅ Okay! I'll reply in English from now on. (Type \"change Chinese\" or \"change Bahasa\" to switch.)",
       zh: "✅ 好的！接下来我会用中文回复您。（输入「change English」或「change Bahasa」可切换语言。）",
@@ -414,8 +531,8 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
     },
     songDone: {
       en: "🎤 Added your request: {title}{artist}. See it in the app under Song Requests. 💜",
-      zh: "🎤 已收到你的点歌：{title}{artist}。可在应用的点歌记录查看。💜",
-      id: "🎤 Permintaan lagu dicatat: {title}{artist}. Lihat di app pada Song Requests. 💜",
+      zh: "🎤 已收到你的点歌：{title}{artist}。可在应用的点歌页面查看。💜",
+      id: "🎤 Permintaan lagu dicatat: {title}{artist}. Lihat di aplikasi pada menu Permintaan Lagu. 💜",
     },
     review: {
       en: "Thanks for coming to {club}! ⭐ How was it? Reply 1-5 stars.{link}",
@@ -458,8 +575,34 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
   return s;
 }
 
+export { L as waText };
+
+// A start time for display: "7pm" in English, "19:00" in Chinese/Bahasa.
+export function timeText(lang: Lang, slot: string, enLabel?: string): string {
+  return lang === "en" ? (enLabel || slot) : slot;
+}
+// Opening-hours text ("5pm – 2am" / "Closed") in the member's language.
+function hoursText(lang: Lang, s: string): string {
+  if (!s || s === "Closed") return L(lang, "closed");
+  if (lang === "en") return s;
+  return s.replace(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/gi, (_m, h, mi, ap) => {
+    let hh = Number(h) % 12; if (/pm/i.test(ap)) hh += 12;
+    return `${String(hh).padStart(2, "0")}:${mi || "00"}`;
+  });
+}
+// Booking titles are stored in English ("KTV Lounge (Level 1) · Table V1 · Party of 4").
+export function localizeBookingText(lang: Lang, s: string | null | undefined): string {
+  if (!s) return L(lang, "booking");
+  if (s === "Booking") return L(lang, "booking");
+  return s.replace(/Party of (\d+)/g, (_m, n) => L(lang, "partyOf", { n })).replace(/\bTable (\S+)/g, (_m, t) => L(lang, "tableX", { t }))
+    .replace(/([^·/()]+?) \((Level [^)]+)\)/g, (_m, name, lvl) => `${areaNameIn({ name: name.trim() }, lang)} (${areaLevelIn(lvl, lang)})`);
+}
+function tableList(lang: Lang, area: BookingArea, tables: string[]): string {
+  return tables.map((t, i) => L(lang, "tableLine", { i: String(i + 1), t, cap: String(tableCap(area, t)) })).join("\n");
+}
+
 function memberMenu(lang: Lang, contact: Contact): string {
-  return L(lang, "menu", { name: (contact.name || "there").split(" ")[0] });
+  return L(lang, "menu", { name: (contact.name || L(lang, "friend")).split(" ")[0] });
 }
 
 function memberMenuChoices(lang: Lang): WhatsAppChoice[] {
@@ -469,7 +612,7 @@ function memberMenuChoices(lang: Lang): WhatsAppChoice[] {
 }
 
 async function sendMemberMenu(from: string, contact: Contact, lang: Lang, welcomeBack = false) {
-  const name = (contact.name || "there").split(" ")[0];
+  const name = (contact.name || L(lang, "friend")).split(" ")[0];
   const text = welcomeBack ? L(lang, "welcomeBackMenu", { name }) : memberMenu(lang, contact);
   await sendWhatsAppChoices(from, text, memberMenuChoices(lang));
   await logMsg(contact.id, contact.phone, "out", text, true);
@@ -540,11 +683,16 @@ function parseMenuIntent(s: string): "book" | "song" | "bottle" | "menu" | null 
   return null;
 }
 const isoFrom = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-// Display a YYYY-MM-DD date as "Mon 30-09-2025" for members.
-function fmtDMY(iso: string): string {
+// Display a YYYY-MM-DD date as "Mon 30-09-2025" (周一 / Sen) for members.
+const WD: Record<Lang, string[]> = {
+  en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  zh: ["周日", "周一", "周二", "周三", "周四", "周五", "周六"],
+  id: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
+};
+export function fmtDMY(iso: string, lang: Lang = "en"): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, (m || 1) - 1, d || 1);
-  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.getDay()];
+  const wd = WD[lang][dt.getDay()];
   return `${wd} ${String(d).padStart(2, "0")}-${String(m).padStart(2, "0")}-${y}`;
 }
 // Accepts DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD, today/tomorrow, and
@@ -632,7 +780,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // Always answer a location question immediately, even for a first-time number.
   if (asksForLocation(body)) {
-    const reply = await locationReply();
+    const reply = await locationReply(await langForPhone(c.phone, c.userId));
     await sendWhatsApp(from, reply);
     await logMsg(c.id, c.phone, "out", reply, true);
     return;
@@ -655,7 +803,12 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     }
   }
 
-  const lang = (c.lang as Lang) || "en";
+  // A linked member's language follows their account (set in the app or here).
+  let lang = (c.lang as Lang) || "en";
+  if (c.userId && !switchTo) {
+    const ul = await accountLang(c.userId);
+    if (ul && ul !== lang) { lang = ul; await patchContact(c.id, { lang: ul }); c = { ...c, lang: ul } as Contact; }
+  }
   const say = async (msg: string) => { await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); };
   const wa: any = (c.waState as any) || {};
 
@@ -714,14 +867,14 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     const { email, created } = await createMemberFromContact({ ...c, email: m[0].toLowerCase() } as Contact); // sets stage=member
     await say(created ? L(lang, "ready", { url: APP_BASE_URL, email, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBack", { url: APP_BASE_URL, email }));
     // Second message: the WhatsApp menu shortcuts.
-    await sendMemberMenu(from, { ...c, name: c.name || "there" } as Contact, lang);
+    await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
   }
 
   // --- REVIEW REPLY (after payment) ---
   if (wa.flow === "review") {
     const stars = Number((body.match(/[1-5]/) || [])[0] || 0);
-    const extra = stars >= 4 ? (wa.reviewUrl ? `Please leave us a Google review 🙏 ${wa.reviewUrl}` : "See you again soon! 💜") : "Thank you — we'll do better. 💜";
+    const extra = stars >= 4 ? (wa.reviewUrl ? L(lang, "reviewGoogle", { url: wa.reviewUrl }) : L(lang, "reviewSeeYou")) : L(lang, "reviewBetter");
     if (stars) { await say(L(lang, "reviewThanks", { n: String(stars), extra })); await notifyAdmin(`⭐ ${c.name || from} rated ${stars}/5`); return patchContact(c.id, { waState: { flow: null } }); }
     // not a rating → fall through to normal handling
   }
@@ -757,10 +910,10 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   // --- No recognized command ---
   if (c.stage === "member" || c.stage === "active") {
     // Answer general enquiries from the FAQ knowledge base.
-    const ans = await faqAnswer(body);
+    const ans = await faqAnswer(body, lang);
     if (ans) { await say(ans); return; }
     // Greeting with no FAQ hit → show the menu.
-    if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu)\b/i.test(body)) {
+    if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu|halo|hai|selamat|tanya|bantuan)\b|你好|您好|咨询|请问|帮助|菜单/i.test(body)) {
       await sendMemberMenu(from, c, lang, true);
       return;
     }
@@ -787,7 +940,7 @@ async function linkExistingUserByPhone(phone: string) {
 }
 
 // Match the message against active FAQ items with an answer.
-async function faqAnswer(body: string): Promise<string | null> {
+async function faqAnswer(body: string, lang: Lang = "en"): Promise<string | null> {
   const lc = body.toLowerCase();
   const faqs = await db.select().from(faqItems).where(eq(faqItems.active, true));
   let best: any = null, bestScore = 0;
@@ -796,10 +949,11 @@ async function faqAnswer(body: string): Promise<string | null> {
     const kws = (f.keywords || "").toLowerCase().split(",").map((k) => k.trim()).filter(Boolean);
     let score = 0;
     for (const k of kws) if (k && lc.includes(k)) score += 2;
-    if (f.question && lc.includes(f.question.toLowerCase().slice(0, 12))) score += 1;
+    // match the question in any language (the member may ask in 中文 or Bahasa)
+    for (const q of [f.question, faqIn(f as any, "zh").question, faqIn(f as any, "id").question]) if (q && lc.includes(q.toLowerCase().slice(0, 12))) { score += 1; break; }
     if (score > bestScore) { bestScore = score; best = f; }
   }
-  return bestScore > 0 ? best.answer : null;
+  return bestScore > 0 ? faqIn(best, lang).answer : null;
 }
 
 // Log an unanswered question as an inactive FAQ item (admin fills the answer later).
@@ -815,7 +969,7 @@ async function createPendingFaq(question: string) {
 
 // Offer a booking (used right after signup). Sends an area image if one is set.
 async function offerBooking(c: Contact, lang: Lang, from: string) {
-  const caption = L(lang, "bookOffer", { hours: bookingHoursSummary() });
+  const caption = L(lang, "bookOffer", { hours: L(lang, "hoursSummary") });
   const areas = enabledAreas(await settingVal("bookingAreas"));
   const img = areas.find((a) => a.image)?.image || await settingVal("bookingImageUrl");
   if (img) await sendWhatsAppImage(from, img, caption); else await sendWhatsApp(from, caption);
@@ -847,32 +1001,31 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
       if (table) {
         if (await isTableTaken(area, table, bookingWhen(openH, date, slot))) {
           const free = await freeTablesForDateSlot(area, date, slot);
-          const list = free.map((t, i) => `${i + 1}. ${t} (up to ${tableCap(area, t)} pax)`).join("\n");
-          await say(`Sorry, ${table} is already booked for ${label} on ${fmtDMY(date)}. Pick another:\n${list}`);
+          const list = tableList(lang, area, free);
+          await say(L(lang, tableDayLockOn() ? "tableTakenDay" : "tableTaken", { t: table, time: timeText(lang, slot, label), day: fmtDMY(date, lang), list }));
           return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
         }
         const cap = tableCap(area, table);
-        if (party > cap) { await say(`${table} seats up to ${cap} pax, but you asked for ${party}. Let me help you pick a suitable spot 👇`); return startBooking(c, lang, from, say); }
+        if (party > cap) { await say(L(lang, "overCap", { t: table, cap: String(cap), n: String(party) })); return startBooking(c, lang, from, say); }
         const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH, companyId: (await defaultCompanyId()) ?? undefined });
         await pushWhatsAppBooking(row, c, area, date, label, party);
-        await say(L(lang, "bookDone", { day: fmtDMY(date), time: label, n: String(party), url: APP_BASE_URL }));
-        await say(await locationReply()); // so the guest knows where to find us
+        await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: APP_BASE_URL }));
+        await say(await locationReply(lang)); // so the guest knows where to find us
         await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
         await sendMemberMenu(from, c, lang);
         return patchContact(c.id, { waState: { flow: null } });
       }
       // Area needs a table but none named → ask, showing only free tables + caps.
       const free = await freeTablesForDateSlot(area, date, slot);
-      const list = free.map((t, i) => `${i + 1}. ${t} (up to ${tableCap(area, t)} pax)`).join("\n");
+      const list = tableList(lang, area, free);
       const caption = L(lang, "bookAskTable", { list });
-      if (area.image) await sendWhatsAppImage(from, area.image, caption); else await say(caption);
-      await logMsg(c.id, c.phone, "out", caption, true);
+      if (area.image) { await sendWhatsAppImage(from, area.image, caption); await logMsg(c.id, c.phone, "out", caption, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
     }
     const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: openH });
     await pushWhatsAppBooking(row, c, area, date, label, party);
-    await say(L(lang, "bookDone", { day: fmtDMY(date), time: label, n: String(party), url: APP_BASE_URL }));
-    await say(await locationReply()); // so the guest knows where to find us
+    await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: APP_BASE_URL }));
+    await say(await locationReply(lang)); // so the guest knows where to find us
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · ${party} pax — confirm in the app.`);
     await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
@@ -884,14 +1037,14 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
 async function startBooking(c: Contact, lang: Lang, from: string, say: (m: string) => Promise<void>) {
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
   const areas = enabledAreas(await settingVal("bookingAreas"));
-  const list = areas.map((a, i) => `${i + 1}. ${a.name} (${a.level})`).join("\n");
+  const list = areas.map((a, i) => `${i + 1}. ${areaNameIn(a, lang)} (${areaLevelIn(a.level, lang)})`).join("\n");
   await say(L(lang, "bookAskArea", { list }));
   return patchContact(c.id, { waState: { flow: "book", step: "area" } });
 }
 
 const CANCEL_BOOKING_RE = /\b(cancel|batal(kan)?)\b.*\b(book(ing)?|reserv\w*|tempahan|meja)\b|取消(预订|预约|订位)/i;
 const MEMBER_ACTIVE = ["pending", "scheduled", "confirmed"];
-const fmtBookingWhen = (d: Date | string) => new Date(d).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
+export const fmtBookingWhen = (d: Date | string, lang: Lang = "en") => new Date(d).toLocaleString(localeOf(lang), { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: lang === "en", timeZone: getBookingTimezone() });
 
 async function startCancelBooking(c: Contact, lang: Lang, say: (m: string) => Promise<void>) {
   if (!c.userId) { await say(L(lang, "cancelNone")); return patchContact(c.id, { waState: { flow: null } }); }
@@ -900,7 +1053,7 @@ async function startCancelBooking(c: Contact, lang: Lang, say: (m: string) => Pr
   )).orderBy(appointments.appointmentDate).limit(5);
   if (!rows.length) { await say(L(lang, "cancelNone")); return patchContact(c.id, { waState: { flow: null } }); }
   if (rows.length === 1) return finishCancelBooking(c, lang, rows[0].id, say);
-  const list = rows.map((r, i) => `${i + 1}️⃣ ${r.title} · ${fmtBookingWhen(r.appointmentDate)} (${r.status})`).join("\n");
+  const list = rows.map((r, i) => `${i + 1}️⃣ ${localizeBookingText(lang, r.title)} · ${fmtBookingWhen(r.appointmentDate, lang)} (${L(lang, "st." + r.status) || r.status})`).join("\n");
   await say(L(lang, "cancelPick", { list }));
   return patchContact(c.id, { waState: { flow: "cancelbk", ids: rows.map((r) => r.id) } });
 }
@@ -910,7 +1063,7 @@ async function finishCancelBooking(c: Contact, lang: Lang, id: number, say: (m: 
   const [a] = await db.update(appointments).set({ status: "cancelled", adminNote: "Cancelled by member (WhatsApp)", updatedAt: new Date() })
     .where(and(eq(appointments.id, id), eq(appointments.userId, c.userId || "__none__"), inArray(appointments.status, MEMBER_ACTIVE))).returning();
   if (!a) { await say(L(lang, "cancelNone")); return; }
-  await say(L(lang, "cancelDone", { what: `${a.title} · ${fmtBookingWhen(a.appointmentDate)}` }));
+  await say(L(lang, "cancelDone", { what: `${localizeBookingText(lang, a.title)} · ${fmtBookingWhen(a.appointmentDate, lang)}` }));
   await notifyBookingCancelledByMember(a, "WhatsApp");
 }
 
@@ -929,39 +1082,39 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
   const areas = enabledAreas(await settingVal("bookingAreas"));
   if (wa.step === "area") {
     const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
-    if (idx < 0 || idx >= areas.length) { await say(`Reply a number 1-${areas.length}.`); return; }
+    if (idx < 0 || idx >= areas.length) { await say(L(lang, "replyNumber", { n: String(areas.length) })); return; }
     await say(L(lang, "bookAskDate"));
     return patchContact(c.id, { waState: { flow: "book", step: "date", areaId: areas[idx].id } });
   }
   const area = areas.find((a) => a.id === wa.areaId) || areas[0];
-  if (!area) { await say(L(lang, "bookAskArea", { list: areas.map((a, i) => `${i + 1}. ${a.name} (${a.level})`).join("\n") })); return patchContact(c.id, { waState: { flow: "book", step: "area" } }); }
+  if (!area) { await say(L(lang, "bookAskArea", { list: areas.map((a, i) => `${i + 1}. ${areaNameIn(a, lang)} (${areaLevelIn(a.level, lang)})`).join("\n") })); return patchContact(c.id, { waState: { flow: "book", step: "area" } }); }
   const slots = wa.date ? areaSlotsForDate(area, wa.date) : [];
   const labels = wa.date ? areaSlotLabelsForDate(area, wa.date) : [];
   const labelFor = (slot: string) => labels[slots.indexOf(slot)] || slot;
   if (wa.step === "date") {
     const date = parseBookDate(body);
     if (!date) { await say(L(lang, "bookAskDate")); return; }
-    if (!areaSlotsForDate(area, date).length) { await say(`📅 ${fmtDMY(date)}: sorry, ${area.name} is closed that day. Please reply another date (e.g. ${fmtDMY(todayStr())} or "next friday").`); return; }
+    if (!areaSlotsForDate(area, date).length) { await say(L(lang, "closedDay", { day: fmtDMY(date, lang), area: areaNameIn(area, lang) })); return; }
     const avail = await availableSlotsForDate(area, date);
-    if (!avail.length) { await say(`📅 ${fmtDMY(date)}: sorry, ${area.name} is fully booked that day. Please reply another date.`); return; }
+    if (!avail.length) { await say(L(lang, "fullDay", { day: fmtDMY(date, lang), area: areaNameIn(area, lang) })); return; }
     // Confirm the resolved date, then list only the times that still have space.
-    const list = avail.map((s, i) => `${i + 1}. ${labelFor(s)}`).join("\n");
-    const caption = `✅ Date: *${fmtDMY(date)}*\n\n${L(lang, "bookAskSlot", { day: `${area.name}`, hours: areaHoursTextForDate(area, date), list })}`;
+    const dSlots = areaSlotsForDate(area, date), dLabels = areaSlotLabelsForDate(area, date);
+    const list = avail.map((s, i) => `${i + 1}. ${timeText(lang, s, dLabels[dSlots.indexOf(s)])}`).join("\n");
+    const caption = `${L(lang, "dateOk", { day: fmtDMY(date, lang) })}\n\n${L(lang, "bookAskSlot", { day: areaNameIn(area, lang), hours: hoursText(lang, areaHoursTextForDate(area, date)), list })}`;
     await say(caption);
     return patchContact(c.id, { waState: { flow: "book", step: "slot", areaId: area.id, date } });
   }
   if (wa.step === "slot") {
     const avail = await availableSlotsForDate(area, wa.date);
     const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
-    if (idx < 0 || idx >= avail.length) { await say(`Reply a number 1-${avail.length}.`); return; }
+    if (idx < 0 || idx >= avail.length) { await say(L(lang, "replyNumber", { n: String(avail.length) })); return; }
     const picked = avail[idx];
     if (area.tables.length) {
       const free = await freeTablesForDateSlot(area, wa.date, picked);
-      if (!free.length) { await say(`Sorry, that time just filled up. Reply another number 1-${avail.length}.`); return; }
-      const list = free.map((t, i) => `${i + 1}. ${t} (up to ${tableCap(area, t)} pax)`).join("\n");
+      if (!free.length) { await say(L(lang, "slotFilled", { n: String(avail.length) })); return; }
+      const list = tableList(lang, area, free);
       const caption = L(lang, "bookAskTable", { list });
-      if (area.image) await sendWhatsAppImage(from, area.image, caption); else await say(caption);
-      await logMsg(c.id, c.phone, "out", caption, true);
+      if (area.image) { await sendWhatsAppImage(from, area.image, caption); await logMsg(c.id, c.phone, "out", caption, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date: wa.date, slot: picked } });
     }
     await say(L(lang, "bookAskParty"));
@@ -970,38 +1123,51 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
   if (wa.step === "table") {
     const free = await freeTablesForDateSlot(area, wa.date, wa.slot);
     const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
-    if (idx < 0 || idx >= free.length) { await say(`Reply a number 1-${free.length}.`); return; }
+    if (idx < 0 || idx >= free.length) { await say(L(lang, "replyNumber", { n: String(free.length) })); return; }
     const picked = free[idx];
     const cap = tableCap(area, picked);
     if (wa.party) {
-      if (wa.party > cap) { await say(`${picked} seats up to ${cap} pax, but you have ${wa.party}. Reply a smaller table number, or reply "book" to restart.`); return; }
+      if (wa.party > cap) { await say(L(lang, "tableTooSmall", { t: picked, cap: String(cap), n: String(wa.party) })); return; }
+      const next = { ...wa, table: picked };
+      if (!(await askHoursOn())) return completeStepBooking(c, lang, from, area, next, 2, say);
       await say(L(lang, "bookAskHours")); return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: picked, party: wa.party } });
     }
-    await say(`👥 How many pax? (${picked} seats up to ${cap})`);
+    await say(L(lang, "askPaxFor", { t: picked, cap: String(cap) }));
     return patchContact(c.id, { waState: { flow: "book", step: "party", areaId: area.id, date: wa.date, slot: wa.slot, table: picked } });
   }
   if (wa.step === "party") {
     const cap = tableCap(area, wa.table);
     const n = Math.max(1, Number((body.match(/\d+/) || [])[0] || 2));
-    if (n > cap) { await say(`Sorry, ${wa.table ? wa.table + " seats" : "that seats"} up to ${cap} pax. Please reply a number up to ${cap}.`); return; }
+    if (n > cap) { await say(L(lang, "paxTooMany", { cap: String(cap) })); return; }
+    if (!(await askHoursOn())) return completeStepBooking(c, lang, from, area, { ...wa, party: n }, 2, say);
     await say(L(lang, "bookAskHours"));
     return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: wa.table, party: n } });
   }
   if (wa.step === "hours") {
     const hrs = Math.max(2, Math.min(8, Number((body.match(/\d+/) || [])[0] || 2)));
-    if (wa.table && await isTableTaken(area, wa.table, bookingWhen(areaOpenHourForDate(area, wa.date), wa.date, wa.slot))) {
-      await say(`Sorry, ${wa.table} was just booked for that time. Reply "book" to try another.`);
-      return patchContact(c.id, { waState: { flow: null } });
-    }
-    const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date), companyId: (await defaultCompanyId()) ?? undefined });
-    const label = labelFor(wa.slot);
-    await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
-    await say(L(lang, "bookDone", { day: fmtDMY(wa.date), time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
-    await say(await locationReply()); // so the guest knows where to find us
-    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
-    await sendMemberMenu(from, c, lang);
+    return completeStepBooking(c, lang, from, area, wa, hrs, say);
+  }
+}
+
+// Whether to ask guests how many hours (admin switch; off → book 2 hours).
+async function askHoursOn(): Promise<boolean> { return (await settingVal("bookingAskHours")) !== "false"; }
+
+// Final step of the guided WhatsApp booking: save it and confirm with the address.
+async function completeStepBooking(c: Contact, lang: Lang, from: string, area: BookingArea, wa: any, hrs: number, say: (m: string) => Promise<void>) {
+  if (wa.table && await isTableTaken(area, wa.table, bookingWhen(areaOpenHourForDate(area, wa.date), wa.date, wa.slot))) {
+    await say(L(lang, "justBooked", { t: wa.table }));
     return patchContact(c.id, { waState: { flow: null } });
   }
+  const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date), companyId: (await defaultCompanyId()) ?? undefined });
+  const slots = areaSlotsForDate(area, wa.date), labels = areaSlotLabelsForDate(area, wa.date);
+  const label = labels[slots.indexOf(wa.slot)] || wa.slot;
+  await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
+  const hoursPart = (await askHoursOn()) ? L(lang, "hoursSuffix", { n: String(hrs) }) : "";
+  await say(L(lang, "bookDone", { day: fmtDMY(wa.date, lang), time: `${timeText(lang, wa.slot, label)}${hoursPart}`, n: String(wa.party || 2), url: APP_BASE_URL }));
+  await say(await locationReply(lang)); // so the guest knows where to find us
+  await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
+  await sendMemberMenu(from, c, lang);
+  return patchContact(c.id, { waState: { flow: null } });
 }
 
 async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: any, say: (m: string) => Promise<void>) {
@@ -1112,8 +1278,8 @@ async function showBottles(c: Contact, lang: Lang, say: (m: string) => Promise<v
   const list = rows.map((b) => {
     const days = b.expiresAt ? Math.max(0, Math.ceil((new Date(b.expiresAt).getTime() - Date.now()) / DAY_MS)) : 0;
     const emoji = b.type === "whisky" ? "🥃" : b.type === "beer" ? "🍺" : "🍾";
-    const typeLabel = (b.type || "drink").charAt(0).toUpperCase() + (b.type || "drink").slice(1);
-    return `• ${emoji} ${typeLabel} — ${b.name}${b.type === "beer" ? ` (${b.quantity} left)` : ""} · ${days} day(s) left`;
+    const typeKey = ["whisky", "beer", "wine"].includes(b.type || "") ? `type.${b.type}` : "type.drink";
+    return L(lang, "bottleLine", { emoji, type: L(lang, typeKey), name: b.name, left: b.type === "beer" ? L(lang, "bottleLeft", { n: String(b.quantity) }) : "", days: String(days) });
   }).join("\n");
   await say(L(lang, "bottlesList", { n: String(rows.length), list }));
   await sendMemberMenu(c.phone, c, lang);
@@ -1128,9 +1294,9 @@ export async function sendReviewRequest(opts: { phone?: string | null; userId?: 
     if (!contact && opts.userId) { [contact] = await db.select().from(crmContacts).where(eq(crmContacts.userId, opts.userId)); if (contact) num = contact.phone; }
     if (!num && opts.userId) { const [u] = await db.select().from(users).where(eq(users.id, opts.userId)); if (u?.phoneNumber) num = u.phoneNumber.replace(/\D/g, ""); }
     if (!num) return;
-    const lang = ((contact?.lang as Lang) || "en");
+    const lang = await langForPhone(num, opts.userId || contact?.userId);
     const feedbackUrl = `${APP_BASE_URL.replace(/\/$/, "")}/staff-feedback`;
-    const link = `\nFeedback in the app: ${feedbackUrl}${opts.reviewUrl ? `\nGoogle review: ${opts.reviewUrl}` : ""}`;
+    const link = L(lang, "reviewLinkApp", { url: feedbackUrl }) + (opts.reviewUrl ? L(lang, "reviewLinkGoogle", { url: opts.reviewUrl }) : "");
     const msg = L(lang, "review", { club: opts.club, link });
     const ok = await sendWhatsApp(num, msg);
     if (contact) { await logMsg(contact.id, num, "out", msg, true); await patchContact(contact.id, { waState: { flow: "review", reviewUrl: opts.reviewUrl || "" } }); }
@@ -1208,7 +1374,7 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
       if (b.lastReminderAt && now - new Date(b.lastReminderAt).getTime() < gapNeeded) continue;
       const phone = await phoneForBottle(b);
       if (!phone) continue;
-      const blang = await langForPhone(phone);
+      const blang = await langForPhone(phone, b.userId);
       const ok = await sendWhatsApp(phone, L(blang, "bottle", { name: b.memberName || "", item: b.name, qty: String(b.quantity), days: String(daysLeft) }));
       if (ok) { await db.update(bottleKeeps).set({ lastReminderAt: new Date() }).where(eq(bottleKeeps.id, b.id)); out.bottles++; }
     }
@@ -1223,7 +1389,7 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
       const age = now - visit;
       if (age < 3 * DAY_MS || age > 4 * DAY_MS) continue; // once, ~3 days after
       if (c.lastComebackReminderAt && new Date(c.lastComebackReminderAt).getTime() > visit) continue;
-      const ok = await sendWhatsApp(c.phone, L((c.lang as Lang) || "en", "comeback", { name: c.name || "" }));
+      const ok = await sendWhatsApp(c.phone, L(await langForPhone(c.phone, c.userId), "comeback", { name: c.name || "" }));
       if (ok) { await patchContact(c.id, { lastComebackReminderAt: new Date() }); out.comeback++; }
     }
   } catch (e) { console.error("[wa] comeback reminders", e); }
@@ -1238,7 +1404,7 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
         const visit = c.lastVisitAt ? new Date(c.lastVisitAt).getTime() : 0;
         if (now - visit > DAY_MS) continue; // visited today
         if (c.lastFeedbackReminderAt && new Date(c.lastFeedbackReminderAt).getTime() > visit) continue;
-        const ok = await sendWhatsApp(c.phone, L((c.lang as Lang) || "en", "feedback", { name: c.name || "" }));
+        const ok = await sendWhatsApp(c.phone, L(await langForPhone(c.phone, c.userId), "feedback", { name: c.name || "" }));
         if (ok) { await patchContact(c.id, { lastFeedbackReminderAt: new Date() }); out.feedback++; }
       }
     }
@@ -1260,23 +1426,23 @@ export async function runBookingReminders(): Promise<number> {
     for (const a of rows) {
       if (!["pending", "scheduled", "confirmed"].includes(a.status)) continue;
       const mins = (new Date(a.appointmentDate).getTime() - now) / 60000;
-      let tag = ""; let left = "";
-      if (mins <= 10) { tag = "10m"; left = "10 minutes"; }
-      else if (mins <= 60) { tag = "1h"; left = "1 hour"; }
-      else if (mins <= 180) { tag = "3h"; left = "3 hours"; }
+      let tag = "";
+      if (mins <= 10) tag = "10m";
+      else if (mins <= 60) tag = "1h";
+      else if (mins <= 180) tag = "3h";
       if (!tag) continue;
       const already = (a.remindersSent || "").split(",").filter(Boolean);
       if (already.includes(tag)) continue;
       const [u] = await db.select().from(users).where(eq(users.id, a.userId));
       const phone = (u?.phoneNumber || "").replace(/\D/g, "");
       const markSet = Array.from(new Set([...already, ...REMINDER_ORDER.slice(0, REMINDER_ORDER.indexOf(tag) + 1)]));
-      const d = new Date(a.appointmentDate);
-      const when = d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: getBookingTimezone() });
-      const where = a.notes ? ` (${a.notes})` : "";
+      const lang = await langForPhone(phone, a.userId);
+      const left = L(lang, tag === "10m" ? "left10m" : tag === "1h" ? "left1h" : "left3h");
+      const when = fmtBookingWhen(a.appointmentDate, lang);
+      const where = a.notes ? ` (${localizeBookingText(lang, a.notes.replace(/ \/ /g, " · "))})` : "";
       // Real phone push — fires even when WhatsApp is offline or the member has no phone on file.
-      await sendPushToUser(a.userId, { title: `⏰ ${club} in ${left}`, body: `${a.title || "Your booking"} — ${when}${where}`, url: "/bookings", tag: `remind-${a.id}-${tag}` }).catch(() => {});
+      await sendPushToUser(a.userId, { title: L(lang, "pushRemindTitle", { club, left }), body: `${a.title ? localizeBookingText(lang, a.title) : L(lang, "yourBooking")} — ${when}${where}`, url: "/bookings", tag: `remind-${a.id}-${tag}` }).catch(() => {});
       if (waAvail && phone) {
-        const lang = await langForPhone(phone);
         const ok = await sendWhatsApp(phone, L(lang, "bookReminder", { club, when, left, where }));
         if (ok) sent++;
       }
@@ -1310,12 +1476,14 @@ export async function runNoShowCancels(): Promise<number> {
     const waAvail = await whatsappAvailable();
     for (const a of rows) {
       cancelled++;
-      const when = fmtBookingWhen(a.appointmentDate);
       const [u] = a.userId ? await db.select().from(users).where(eq(users.id, a.userId)) : [];
       const phone = (u?.phoneNumber || "").replace(/\D/g, "");
-      if (waAvail && phone) sendWhatsApp(phone, L(await langForPhone(phone), "bookNoShow", { club, when, url: `${APP_BASE_URL}/bookings` })).catch(() => {});
-      sendPushToUser(a.userId, { title: "😔 Booking cancelled — no-show", body: `${a.title} · ${when}. Tap to book again.`, url: "/bookings", tag: `noshow-${a.id}` }).catch(() => {});
-      await sendRebornUserNotification(a.userId, { type: "booking_status", title: "Booking cancelled (no-show)", body: `${a.title} · ${when} — you didn't arrive within 15 minutes. Book again any time.`, data: { path: "/bookings", bookingId: a.id, status: "cancelled" } }).catch(() => {});
+      const lang = await langForPhone(phone, a.userId);
+      const when = fmtBookingWhen(a.appointmentDate, lang);
+      const what = localizeBookingText(lang, a.title);
+      if (waAvail && phone) sendWhatsApp(phone, L(lang, "bookNoShow", { club, when, url: `${APP_BASE_URL}/bookings` })).catch(() => {});
+      sendPushToUser(a.userId, { title: L(lang, "pushNoShowTitle"), body: L(lang, "pushNoShowBody", { what, when }), url: "/bookings", tag: `noshow-${a.id}` }).catch(() => {});
+      await sendRebornUserNotification(a.userId, { type: "booking_status", title: L(lang, "noticeNoShowTitle"), body: L(lang, "noticeNoShowBody", { what, when }), data: { path: "/bookings", bookingId: a.id, status: "cancelled" } }).catch(() => {});
       const who = [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Member";
       await sendRebornStaffNotification({ type: "booking_cancelled", title: "⏱️ No-show auto-cancelled", body: `${who} · ${a.title} · ${when} — slot is free again`, data: { path: "/reborn-admin", bookingId: a.id } }).catch(() => {});
     }
@@ -1337,10 +1505,18 @@ async function phoneForBottle(b: typeof bottleKeeps.$inferSelect): Promise<strin
   return null;
 }
 
-// Preferred language for a phone number, from its CRM contact (defaults to English).
-async function langForPhone(phone: string): Promise<Lang> {
-  const [c] = await db.select().from(crmContacts).where(eq(crmContacts.phone, phone.replace(/\D/g, "")));
-  return ((c?.lang as Lang) || "en");
+// A member account's saved language (null when there's no such account).
+async function accountLang(userId?: string | null): Promise<Lang | null> {
+  if (!userId) return null;
+  const [u] = await db.select({ l: users.preferredLanguage }).from(users).where(eq(users.id, userId));
+  return u ? asLang(u.l) : null;
+}
+// Language to message someone in: their member account's language when linked
+// (so choosing 中文 in the app also switches WhatsApp), else the WhatsApp contact's.
+export async function langForPhone(phone: string, userId?: string | null): Promise<Lang> {
+  const num = (phone || "").replace(/\D/g, "");
+  const [c] = num ? await db.select().from(crmContacts).where(eq(crmContacts.phone, num)) : [];
+  return (await accountLang(userId || c?.userId)) || ((c?.lang as Lang) || "en");
 }
 
 let schedulerStarted = false;

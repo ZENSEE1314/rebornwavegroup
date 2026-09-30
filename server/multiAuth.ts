@@ -6,6 +6,7 @@ import { storage } from './storage';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import type { Express, Request, Response } from 'express';
+import { tr, pick, reqLang } from './i18n';
 
 // Helper function to extract user ID from different auth formats
 export function getUserId(req: any): string | null {
@@ -117,18 +118,18 @@ export function setupAuthRoutes(app: Express) {
       const { email, password, firstName, lastName, phoneNumber, dateOfBirth, gender, referralCode } = req.body;
 
       if (!email || !password || !firstName || !lastName || !phoneNumber || !dateOfBirth || !gender) {
-        return res.status(400).json({ message: 'All fields are required (email, password, firstName, lastName, phoneNumber, dateOfBirth, gender)' });
+        return res.status(400).json({ message: tr(req, { en: 'All fields are required (email, password, firstName, lastName, phoneNumber, dateOfBirth, gender)', zh: '请填写所有必填项（邮箱、密码、名字、姓氏、电话号码、出生日期、性别）', id: 'Semua kolom wajib diisi (email, kata sandi, nama depan, nama belakang, nomor telepon, tanggal lahir, jenis kelamin)' }) });
       }
 
       // Validate gender field
       if (gender !== 'male' && gender !== 'female') {
-        return res.status(400).json({ message: 'Gender must be either male or female' });
+        return res.status(400).json({ message: tr(req, { en: 'Gender must be either male or female', zh: '性别必须是男或女', id: 'Jenis kelamin harus laki-laki atau perempuan' }) });
       }
 
       // Check if user already exists (case-insensitive)
       const existingUser = await storage.getUserByEmail(email.toLowerCase());
       if (existingUser) {
-        return res.status(400).json({ message: 'User already exists with this email' });
+        return res.status(400).json({ message: tr(req, { en: 'User already exists with this email', zh: '该邮箱已被注册', id: 'Email ini sudah terdaftar' }) });
       }
 
       // Create user with plain password (storage will handle hashing)
@@ -162,7 +163,7 @@ export function setupAuthRoutes(app: Express) {
       // Log in the user
       req.login(newUser, (err) => {
         if (err) {
-          return res.status(500).json({ message: 'Registration successful but login failed' });
+          return res.status(500).json({ message: tr(req, { en: 'Registration successful but login failed', zh: '注册成功，但登录失败', id: 'Pendaftaran berhasil, tetapi gagal masuk' }) });
         }
         if (/RebornWaveGroupApp/i.test(String(req.headers['user-agent'] || ''))) req.session.cookie.maxAge = 10 * 365 * 24 * 60 * 60 * 1000;
         res.json({
@@ -178,7 +179,7 @@ export function setupAuthRoutes(app: Express) {
       });
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(500).json({ message: 'Registration failed' });
+      res.status(500).json({ message: tr(req, { en: 'Registration failed', zh: '注册失败', id: 'Pendaftaran gagal' }) });
     }
   });
 
@@ -190,18 +191,18 @@ export function setupAuthRoutes(app: Express) {
     passport.authenticate('local', (err: any, user: any, info: any) => {
       if (err) {
 
-        return res.status(500).json({ message: 'Authentication error' });
+        return res.status(500).json({ message: tr(req, { en: 'Authentication error', zh: '验证出错', id: 'Terjadi kesalahan autentikasi' }) });
       }
       if (!user) {
 
-        return res.status(401).json({ message: info?.message || 'Invalid credentials' });
+        return res.status(401).json({ message: info?.message === 'Missing credentials' ? tr(req, { en: 'Please enter your email and password', zh: '请输入邮箱和密码', id: 'Masukkan email dan kata sandi' }) : tr(req, { en: 'Invalid email or password', zh: '邮箱或密码错误', id: 'Email atau kata sandi salah' }) });
       }
 
 
       req.login(user, (err) => {
         if (err) {
 
-          return res.status(500).json({ message: 'Login failed' });
+          return res.status(500).json({ message: tr(req, { en: 'Login failed', zh: '登录失败', id: 'Gagal masuk' }) });
         }
 
         const rememberMe = req.body?.rememberMe === true;
@@ -231,7 +232,7 @@ export function setupAuthRoutes(app: Express) {
       const requestedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
       if (!requestedEmail) {
-        return res.status(400).json({ message: 'Email is required' });
+        return res.status(400).json({ message: tr(req, { en: 'Email is required', zh: '请输入邮箱', id: 'Email wajib diisi' }) });
       }
 
       // Check if user exists
@@ -258,7 +259,7 @@ export function setupAuthRoutes(app: Express) {
           console.warn(`Created owner recovery account for ${requestedEmail}; sending password reset email now.`);
         } else {
         // For security, return success even if user doesn't exist
-        return res.json({ message: 'If an account with that email exists, you will receive a password reset email.' });
+        return res.json({ message: tr(req, { en: 'If an account with that email exists, you will receive a password reset email.', zh: '如果该邮箱已注册账户，你将收到一封重置密码的邮件。', id: 'Jika ada akun dengan email tersebut, kamu akan menerima email untuk mengatur ulang kata sandi.' }) });
         }
       }
 
@@ -287,40 +288,54 @@ export function setupAuthRoutes(app: Express) {
       console.log(`Attempting to send password reset email to: ${requestedEmail}`);
       console.log(`Reset token generated for ${requestedEmail}: ${resetToken}`);
       
+      const lang = reqLang(req);
+      const L = {
+        subject: pick(lang, { en: 'Password Reset Request - Reborn Wave Pet Care', zh: '重置密码请求 - Reborn Wave Pet Care', id: 'Permintaan Atur Ulang Kata Sandi - Reborn Wave Pet Care' }),
+        heading: pick(lang, { en: 'Password Reset Request', zh: '重置密码请求', id: 'Permintaan Atur Ulang Kata Sandi' }),
+        intro: pick(lang, { en: 'You requested a password reset for your Reborn Wave Pet Care account.', zh: '你申请了重置 Reborn Wave Pet Care 账户的密码。', id: 'Kamu meminta atur ulang kata sandi untuk akun Reborn Wave Pet Care kamu.' }),
+        tokenLabel: pick(lang, { en: 'Your reset token is:', zh: '你的重置码是：', id: 'Token atur ulang kamu:' }),
+        button: pick(lang, { en: 'Reset password now', zh: '立即重置密码', id: 'Atur ulang kata sandi sekarang' }),
+        buttonHelp: pick(lang, { en: 'If the button does not work, copy and paste this token into the password reset form on our website.', zh: '如果按钮无法使用，请复制此重置码并粘贴到我们网站的重置密码表单中。', id: 'Jika tombol tidak berfungsi, salin dan tempel token ini ke formulir atur ulang kata sandi di situs kami.' }),
+        linkHelp: pick(lang, { en: 'If the link does not work, copy and paste this token into the password reset form on our website.', zh: '如果链接无法打开，请复制此重置码并粘贴到我们网站的重置密码表单中。', id: 'Jika tautan tidak berfungsi, salin dan tempel token ini ke formulir atur ulang kata sandi di situs kami.' }),
+        linkLabel: pick(lang, { en: 'Reset link:', zh: '重置链接：', id: 'Tautan atur ulang:' }),
+        expiry: pick(lang, { en: 'This token will expire in 1 hour.', zh: '此重置码将在 1 小时后失效。', id: 'Token ini akan kedaluwarsa dalam 1 jam.' }),
+        ignore: pick(lang, { en: "If you didn't request this password reset, please ignore this email.", zh: '如果你没有申请重置密码，请忽略此邮件。', id: 'Jika kamu tidak meminta atur ulang kata sandi, abaikan email ini.' }),
+        footer: pick(lang, { en: 'Reborn Wave Pet Care - Digital Pet Adventure', zh: 'Reborn Wave Pet Care - 数字宠物冒险', id: 'Reborn Wave Pet Care - Petualangan Hewan Digital' }),
+      };
       const emailResult = await sendEmailDetailed({
         to: requestedEmail,
         from: process.env.RESEND_FROM || process.env.EMAIL_FROM || 'Reborn Wave Group <onboarding@resend.dev>',
-        subject: 'Password Reset Request - Reborn Wave Pet Care',
+        subject: L.subject,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Password Reset Request</h2>
-            <p>You requested a password reset for your Reborn Wave Pet Care account.</p>
+            <h2 style="color: #333;">${L.heading}</h2>
+            <p>${L.intro}</p>
             <div style="background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px;">
-              <p><strong>Your reset token is:</strong></p>
+              <p><strong>${L.tokenLabel}</strong></p>
               <h3 style="color: #007bff; font-family: monospace; letter-spacing: 2px;">${resetToken}</h3>
             </div>
-            <p><a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#111827;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold;">Reset password now</a></p>
-            <p>If the button does not work, copy and paste this token into the password reset form on our website.</p>
-            <p><strong>This token will expire in 1 hour.</strong></p>
-            <p>If you didn't request this password reset, please ignore this email.</p>
+            <p><a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#111827;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold;">${L.button}</a></p>
+            <p>${L.buttonHelp}</p>
+            <p><strong>${L.expiry}</strong></p>
+            <p>${L.ignore}</p>
             <hr style="margin: 30px 0;">
-            <p style="color: #666; font-size: 12px;">Reborn Wave Pet Care - Digital Pet Adventure</p>
+            <p style="color: #666; font-size: 12px;">${L.footer}</p>
           </div>
         `,
         text: `
-Password Reset Request
+${L.heading}
 
-You requested a password reset for your Reborn Wave Pet Care account.
+${L.intro}
 
-Your reset token is: ${resetToken}
+${L.tokenLabel} ${resetToken}
 
-Reset link: ${resetUrl}
+${L.linkLabel} ${resetUrl}
 
-If the link does not work, copy and paste this token into the password reset form on our website.
+${L.linkHelp}
 
-This token will expire in 1 hour.
+${L.expiry}
 
-If you didn't request this password reset, please ignore this email.
+${L.ignore}
         `
       });
 
@@ -328,7 +343,7 @@ If you didn't request this password reset, please ignore this email.
         console.error(`Failed to send password reset email to: ${requestedEmail}. Provider=${emailResult.provider}, From=${emailResult.from}, Error=${emailResult.error}`);
         if (recoveryEmails.has(requestedEmail)) {
           return res.json({
-            message: 'Email provider failed. Use the recovery token shown to reset your password.',
+            message: tr(req, { en: 'Email provider failed. Use the recovery token shown to reset your password.', zh: '邮件服务发送失败。请使用下方显示的恢复码重置密码。', id: 'Layanan email gagal. Gunakan token pemulihan yang ditampilkan untuk mengatur ulang kata sandi.' }),
             recoveryToken: resetToken,
             resetUrl,
             emailStatus: {
@@ -340,14 +355,14 @@ If you didn't request this password reset, please ignore this email.
             },
           });
         }
-        return res.status(500).json({ message: 'Failed to send reset email. Please try again later.' });
+        return res.status(500).json({ message: tr(req, { en: 'Failed to send reset email. Please try again later.', zh: '重置邮件发送失败，请稍后再试。', id: 'Gagal mengirim email atur ulang. Silakan coba lagi nanti.' }) });
       }
 
       console.log(`Password reset email sent successfully to: ${requestedEmail} via ${emailResult.provider}`);
-      res.json({ message: 'Password reset email sent successfully' });
+      res.json({ message: tr(req, { en: 'Password reset email sent successfully', zh: '重置密码邮件已发送', id: 'Email atur ulang kata sandi berhasil dikirim' }) });
     } catch (error) {
       console.error('Forgot password error:', error);
-      res.status(500).json({ message: 'Failed to send reset email' });
+      res.status(500).json({ message: tr(req, { en: 'Failed to send reset email', zh: '重置邮件发送失败', id: 'Gagal mengirim email atur ulang' }) });
     }
   });
 
@@ -357,17 +372,17 @@ If you didn't request this password reset, please ignore this email.
       const { token, newPassword } = req.body;
 
       if (!token || !newPassword) {
-        return res.status(400).json({ message: 'Token and new password are required' });
+        return res.status(400).json({ message: tr(req, { en: 'Token and new password are required', zh: '请输入重置码和新密码', id: 'Token dan kata sandi baru wajib diisi' }) });
       }
 
       if (newPassword.length < 6) {
-        return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        return res.status(400).json({ message: tr(req, { en: 'Password must be at least 6 characters', zh: '密码至少需要 6 个字符', id: 'Kata sandi minimal 6 karakter' }) });
       }
 
       // Verify reset token
       const userId = await storage.verifyPasswordResetToken(token);
       if (!userId) {
-        return res.status(400).json({ message: 'Invalid or expired reset token' });
+        return res.status(400).json({ message: tr(req, { en: 'Invalid or expired reset token', zh: '重置码无效或已过期', id: 'Token atur ulang tidak valid atau sudah kedaluwarsa' }) });
       }
 
       // Hash new password
@@ -377,23 +392,23 @@ If you didn't request this password reset, please ignore this email.
       await storage.updateUserPassword(userId, hashedPassword);
       await storage.clearPasswordResetToken(userId);
 
-      res.json({ message: 'Password reset successfully' });
+      res.json({ message: tr(req, { en: 'Password reset successfully', zh: '密码已重置', id: 'Kata sandi berhasil diatur ulang' }) });
     } catch (error) {
       console.error('Reset password error:', error);
-      res.status(500).json({ message: 'Failed to reset password' });
+      res.status(500).json({ message: tr(req, { en: 'Failed to reset password', zh: '密码重置失败', id: 'Gagal mengatur ulang kata sandi' }) });
     }
   });
 
   // Apply referral code for authenticated users
   app.post('/api/auth/apply-referral', async (req: Request, res: Response) => {
     if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return res.status(401).json({ message: tr(req, { en: 'Not authenticated', zh: '尚未登录', id: 'Belum masuk' }) });
     }
     
     try {
       const { referralCode } = req.body;
       if (!referralCode) {
-        return res.status(400).json({ message: 'Referral code is required' });
+        return res.status(400).json({ message: tr(req, { en: 'Referral code is required', zh: '请输入推荐码', id: 'Kode referral wajib diisi' }) });
       }
       
       const userId = (req.user as any).id;
@@ -401,20 +416,20 @@ If you didn't request this password reset, please ignore this email.
       // Check if user already has a referral applied
       const user = await storage.getUser(userId);
       if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+        return res.status(404).json({ message: tr(req, { en: 'User not found', zh: '找不到该用户', id: 'Pengguna tidak ditemukan' }) });
       }
       
       if (user.referredById) {
-        return res.status(400).json({ message: 'Referral code already applied to this account' });
+        return res.status(400).json({ message: tr(req, { en: 'Referral code already applied to this account', zh: '此账户已使用过推荐码', id: 'Kode referral sudah digunakan di akun ini' }) });
       }
       
       // Apply the referral code
       await storage.handleReferral(userId, referralCode);
       
-      res.json({ message: 'Referral code applied successfully' });
+      res.json({ message: tr(req, { en: 'Referral code applied successfully', zh: '推荐码已成功使用', id: 'Kode referral berhasil diterapkan' }) });
     } catch (error) {
       console.error('Error applying referral code:', error);
-      res.status(500).json({ message: 'Failed to apply referral code' });
+      res.status(500).json({ message: tr(req, { en: 'Failed to apply referral code', zh: '推荐码使用失败', id: 'Gagal menerapkan kode referral' }) });
     }
   });
 
@@ -423,12 +438,12 @@ If you didn't request this password reset, please ignore this email.
     try {
       const userId = getUserId(req);
       if (!userId) {
-        return res.status(401).json({ message: 'Not authenticated' });
+        return res.status(401).json({ message: tr(req, { en: 'Not authenticated', zh: '尚未登录', id: 'Belum masuk' }) });
       }
       
       const user = await storage.getUser(userId);
       if (!user) {
-        return res.status(401).json({ message: 'User not found' });
+        return res.status(401).json({ message: tr(req, { en: 'User not found', zh: '找不到该用户', id: 'Pengguna tidak ditemukan' }) });
       }
       
       res.json({
@@ -461,7 +476,7 @@ If you didn't request this password reset, please ignore this email.
       });
     } catch (error) {
       console.error('Error fetching user:', error);
-      res.status(500).json({ message: 'Failed to fetch user' });
+      res.status(500).json({ message: tr(req, { en: 'Failed to fetch user', zh: '获取用户信息失败', id: 'Gagal memuat data pengguna' }) });
     }
   });
 
@@ -469,14 +484,14 @@ If you didn't request this password reset, please ignore this email.
   app.post('/api/auth/logout', (req: Request, res: Response) => {
     req.logout((err) => {
       if (err) {
-        return res.status(500).json({ message: 'Logout failed' });
+        return res.status(500).json({ message: tr(req, { en: 'Logout failed', zh: '退出登录失败', id: 'Gagal keluar' }) });
       }
       req.session.destroy((err) => {
         if (err) {
-          return res.status(500).json({ message: 'Session destruction failed' });
+          return res.status(500).json({ message: tr(req, { en: 'Session destruction failed', zh: '会话清除失败', id: 'Gagal mengakhiri sesi' }) });
         }
         res.clearCookie('reborn.sid'); // Use custom session name
-        res.json({ message: 'Logged out successfully' });
+        res.json({ message: tr(req, { en: 'Logged out successfully', zh: '已退出登录', id: 'Berhasil keluar' }) });
       });
     });
   });
@@ -510,7 +525,7 @@ If you didn't request this password reset, please ignore this email.
 export function requireAuth(req: Request, res: Response, next: Function) {
   // Check if user is authenticated via session
   if (!req.user || !req.user.id) {
-    return res.status(401).json({ message: 'Unauthorized', redirect: '/login' });
+    return res.status(401).json({ message: tr(req, { en: 'Unauthorized', zh: '未授权，请先登录', id: 'Tidak diizinkan, silakan masuk' }), redirect: '/login' });
   }
   
   next();

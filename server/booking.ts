@@ -42,6 +42,20 @@ function venueYmd(at: Date = new Date()): { y: number; mo: number; d: number } {
 }
 
 const OPEN_HOUR = 17; // 5pm
+
+// --- Admin booking rules --------------------------------------------------
+// tableDayLock: once a table/room is booked at any time on a day, it can't be
+// booked again that day (every slot for it disappears in the app & WhatsApp).
+// Set from the `bookingTableDayLock` setting at boot and whenever settings change.
+let TABLE_DAY_LOCK = false;
+export function setBookingRules(r: { tableDayLock?: boolean }) { if (r.tableDayLock !== undefined) TABLE_DAY_LOCK = !!r.tableDayLock; }
+export function tableDayLockOn(): boolean { return TABLE_DAY_LOCK; }
+// The business day (YYYY-MM-DD) a start time belongs to — after-midnight slots
+// count towards the previous evening.
+function businessDay(openHour: number, at: Date): string {
+  const { y, mo, d } = venueYmd(new Date(at.getTime() - openHour * 3600_000));
+  return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
 export const SLOT_TIMES = ["17:00", "19:00", "21:00", "23:00", "01:00"]; // 2-hour intervals
 
 export function isWeekendNight(weekday: number): boolean {
@@ -100,7 +114,7 @@ export function parseTables(raw?: string): string[] {
 // open/close are "HH:MM" (close may be after midnight, e.g. "03:00"). When omitted the
 // area uses the default nightlife hours (5pm → 2am weekday / 3am weekend).
 export interface DaySchedule { enabled?: boolean; open?: string; close?: string; }
-export interface BookingArea { id: string; name: string; level: string; image?: string; tables: string[]; tableCaps?: Record<string, number>; maxPax?: number; enabled?: boolean; open?: string; close?: string; schedule?: Record<string, DaySchedule>; }
+export interface BookingArea { id: string; name: string; level: string; names?: { zh?: string; id?: string }; image?: string; tables: string[]; tableCaps?: Record<string, number>; maxPax?: number; enabled?: boolean; open?: string; close?: string; schedule?: Record<string, DaySchedule>; }
 
 // Max pax allowed for a table (per-table cap → area default → generous fallback).
 export function tableCap(a: BookingArea, table?: string): number {
@@ -124,6 +138,7 @@ export function parseAreas(raw?: string): BookingArea[] {
       if (Array.isArray(a) && a.length) return a.map((x: any, i: number) => ({
         id: String(x.id || `area-${i}`), name: String(x.name || `Area ${i + 1}`), level: String(x.level || ""),
         image: x.image || "", tables: Array.isArray(x.tables) ? x.tables.map(String) : [],
+        names: (x.names && typeof x.names === "object") ? { zh: x.names.zh ? String(x.names.zh) : undefined, id: x.names.id ? String(x.names.id) : undefined } : undefined,
         tableCaps: (x.tableCaps && typeof x.tableCaps === "object") ? x.tableCaps : undefined,
         maxPax: Number(x.maxPax) > 0 ? Number(x.maxPax) : undefined,
         enabled: x.enabled !== false, open: x.open || "", close: x.close || "",
@@ -133,6 +148,26 @@ export function parseAreas(raw?: string): BookingArea[] {
   }
   return DEFAULT_AREAS;
 }
+// Area names/levels in the member's language. Admin-entered translations win;
+// the standard area names and "Level N" are translated automatically.
+const AREA_NAME_T: Record<string, { zh: string; id: string }> = {
+  "game house": { zh: "游戏屋", id: "Rumah Permainan" },
+  "ktv lounge": { zh: "KTV 酒廊", id: "Lounge KTV" },
+  "beauty service": { zh: "美容服务", id: "Layanan Kecantikan" },
+  "ktv room": { zh: "KTV 包厢", id: "Ruang KTV" },
+  "vip ktv room": { zh: "VIP KTV 包厢", id: "Ruang KTV VIP" },
+  "pet room": { zh: "宠物房", id: "Ruang Hewan Peliharaan" },
+  "restaurant": { zh: "餐厅", id: "Restoran" },
+};
+export function areaNameIn(a: { name: string; names?: { zh?: string; id?: string } }, lang: string): string {
+  if (lang !== "zh" && lang !== "id") return a.name;
+  return a.names?.[lang] || AREA_NAME_T[a.name.trim().toLowerCase()]?.[lang] || a.name;
+}
+export function areaLevelIn(level: string, lang: string): string {
+  if (!level || (lang !== "zh" && lang !== "id")) return level;
+  return level.replace(/^Level\s+(.+)$/i, (_m, n) => (lang === "zh" ? `${n} 楼` : `Lantai ${n}`));
+}
+
 export function enabledAreas(raw?: string): BookingArea[] { return parseAreas(raw).filter((a) => a.enabled !== false); }
 
 // --- Per-area hours & slots ---------------------------------------------
@@ -224,6 +259,16 @@ export async function isAreaBlocked(a: BookingArea, when: Date): Promise<boolean
 export async function isTableTaken(a: BookingArea, table: string, when: Date): Promise<boolean> {
   if (await isAreaBlocked(a, when)) return true;
   if (!table) return false;
+  if (TABLE_DAY_LOCK) {
+    // Any active booking of this table on the same business day blocks it.
+    const day = businessDay(areaOpenHour(a), when);
+    const rows = await db.select().from(appointments).where(and(
+      eq(appointments.notes, `${areaLabel(a)} / ${table}`),
+      gte(appointments.appointmentDate, new Date(when.getTime() - 30 * 3600_000)),
+      lte(appointments.appointmentDate, new Date(when.getTime() + 30 * 3600_000)),
+    ));
+    return rows.some((r) => ACTIVE_BOOKING.includes(r.status) && businessDay(areaOpenHour(a), new Date(r.appointmentDate)) === day);
+  }
   const rows = await db.select().from(appointments).where(and(
     eq(appointments.notes, `${areaLabel(a)} / ${table}`),
     eq(appointments.appointmentDate, when),
@@ -253,6 +298,17 @@ export async function takenTablesForDate(a: BookingArea, dateStr: string): Promi
     if (idx < 0) continue;
     if (table === BLOCK_ALL) { out[slots[idx]] = [...a.tables]; continue; } // whole slot blocked
     if (!(out[slots[idx]] || []).includes(BLOCK_ALL)) (out[slots[idx]] ||= []).push(table);
+  }
+  if (TABLE_DAY_LOCK) {
+    // A table booked at any time today is taken for every slot today.
+    const bookedToday = new Set<string>();
+    for (const list of Object.values(out)) for (const tb of list) if (tb !== BLOCK_ALL) bookedToday.add(tb);
+    for (const sl of slots) {
+      const cur = out[sl] || [];
+      if (cur.includes(BLOCK_ALL)) continue;
+      out[sl] = Array.from(new Set([...cur, ...Array.from(bookedToday)]));
+      if (!out[sl].length) delete out[sl];
+    }
   }
   return out;
 }

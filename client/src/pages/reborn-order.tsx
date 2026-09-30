@@ -3,17 +3,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
+import { useTranslation, localeTag } from "@/lib/i18n";
 import { Plus, Minus, ShoppingCart, Utensils, Clock } from "lucide-react";
 
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; soldOut?: boolean; }
 
-const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
+const rp = (n: number) => "RP " + (n || 0).toLocaleString(localeTag());
 
 export default function RebornOrder() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [cart, setCart] = useState<Record<number, number>>({});
   const [table, setTable] = useState("");
+  const { t } = useTranslation();
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["/api/reborn/shop/products"],
@@ -44,27 +46,27 @@ export default function RebornOrder() {
       items: lines.map(([id, q]) => ({ productId: Number(id), qty: q })),
     }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => {
-      if (!ok) { toast({ title: "Couldn't order", description: d.message, variant: "destructive" }); return; }
-      toast({ title: "Order sent 🎉", description: d.message });
+      if (!ok) { toast({ title: t("vn.order.couldntOrder"), description: d.message, variant: "destructive" }); return; }
+      toast({ title: t("vn.order.sentToast"), description: d.message });
       setCart({});
       qc.invalidateQueries({ queryKey: ["/api/reborn/shop/my-orders"] });
       qc.invalidateQueries({ queryKey: ["/api/reborn/shop/products"] });
     },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("vn.common.failed"), description: e.message, variant: "destructive" }),
   });
 
   return (
-    <RebornLayout active="/order" title="ORDER">
+    <RebornLayout active="/order" title={t("vn.order.title")}>
       <div className="flex items-center gap-2 mb-4">
         <span className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "rgba(78,205,196,0.15)", color: "#4ecdc4" }}><Utensils className="w-5 h-5" /></span>
-        <div><h1 className="text-xl font-extrabold leading-none">Order to your table</h1><p className="text-sm text-white/50">Pay at the table — cash or card</p></div>
+        <div><h1 className="text-xl font-extrabold leading-none">{t("vn.order.heading")}</h1><p className="text-sm text-white/50">{t("vn.order.payAtTable")}</p></div>
       </div>
 
       {myOrders.filter((o) => o.status === "open").length > 0 && (
         <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-3 space-y-2">
           {myOrders.filter((o) => o.status === "open").map((o) => (
             <div key={o.id} className="text-sm">
-              <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-amber-300" /><span>Order <b>{o.orderNo}</b> · Table {o.tableNumber} · {rp(Number(o.total))}</span></div>
+              <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-amber-300" /><span>{t("vn.order.orderLabel")} <b>{o.orderNo}</b> · {t("vn.order.tableN", { n: o.tableNumber })} · {rp(Number(o.total))}</span></div>
               {Array.isArray(o.items) && o.items.length > 0 && (
                 <div className="mt-1 pl-6 space-y-0.5">
                   {o.items.map((it: any) => (
@@ -75,7 +77,7 @@ export default function RebornOrder() {
                         it.status === "accepted" ? "text-blue-300 text-xs font-semibold" :
                         it.status === "rejected" ? "text-red-300 text-xs font-semibold" : "text-amber-300 text-xs font-semibold"
                       }>
-                        {it.status === "served" ? "✓ Served" : it.status === "accepted" ? "👍 Preparing" : it.status === "rejected" ? `✕ ${it.rejectReason || "Unavailable"}` : "⏳ Waiting"}
+                        {it.status === "served" ? `✓ ${t("vn.order.served")}` : it.status === "accepted" ? `👍 ${t("vn.order.preparing")}` : it.status === "rejected" ? `✕ ${it.rejectReason || t("vn.order.unavailable")}` : `⏳ ${t("vn.order.waiting")}`}
                       </span>
                     </div>
                   ))}
@@ -97,23 +99,23 @@ export default function RebornOrder() {
                   : <span className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-lg">🍸</span>}
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{p.name}</p>
-                  <p className="text-sm text-amber-300">{rp(Number(p.price))}{p.soldOut && <span className="text-red-400 ml-2">Sold out</span>}</p>
+                  <p className="text-sm text-amber-300">{rp(Number(p.price))}{p.soldOut && <span className="text-red-400 ml-2">{t("vn.order.soldOut")}</span>}</p>
                 </div>
                 {p.soldOut ? null : (cart[p.id] || 0) > 0 ? (
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => sub(p.id)} style={{ width: 36, height: 36 }} className="rounded-full bg-white/15 text-white flex items-center justify-center text-2xl leading-none font-bold flex-shrink-0">−</button>
+                    <button onClick={() => sub(p.id)} aria-label={t("vn.order.decrease")} style={{ width: 36, height: 36 }} className="rounded-full bg-white/15 text-white flex items-center justify-center text-2xl leading-none font-bold flex-shrink-0">−</button>
                     <span style={{ minWidth: 20 }} className="text-center font-bold">{cart[p.id]}</span>
-                    <button onClick={() => add(p.id)} style={{ width: 36, height: 36 }} className="rounded-full bg-amber-400 text-black flex items-center justify-center text-2xl leading-none font-bold flex-shrink-0">+</button>
+                    <button onClick={() => add(p.id)} aria-label={t("vn.order.increase")} style={{ width: 36, height: 36 }} className="rounded-full bg-amber-400 text-black flex items-center justify-center text-2xl leading-none font-bold flex-shrink-0">+</button>
                   </div>
                 ) : (
-                  <button onClick={() => add(p.id)} className="px-4 py-2 rounded-xl bg-amber-400 text-black font-semibold text-sm flex-shrink-0">Add</button>
+                  <button onClick={() => add(p.id)} className="px-4 py-2 rounded-xl bg-amber-400 text-black font-semibold text-sm flex-shrink-0">{t("vn.order.add")}</button>
                 )}
               </div>
             ))}
           </div>
         </div>
       ))}
-      {products.length === 0 && <p className="text-center text-white/40 py-10">Menu coming soon.</p>}
+      {products.length === 0 && <p className="text-center text-white/40 py-10">{t("vn.order.menuSoon")}</p>}
 
       {/* Cart bar */}
       {lines.length > 0 && (
@@ -121,14 +123,14 @@ export default function RebornOrder() {
           <div className="max-w-2xl mx-auto rounded-2xl border border-amber-400/30 bg-[#160f2a] p-3 shadow-2xl">
             <div className="flex items-center gap-2 mb-2">
               <ShoppingCart className="w-4 h-4 text-amber-300" />
-              <span className="text-sm font-bold">{lines.reduce((s, [, q]) => s + q, 0)} items</span>
+              <span className="text-sm font-bold">{t("vn.order.itemsN", { n: lines.reduce((s, [, q]) => s + q, 0) })}</span>
               <span className="ml-auto font-extrabold text-amber-300">{rp(total)}</span>
             </div>
-            <input value={table} onChange={(e) => setTable(e.target.value)} placeholder="Your table number"
+            <input value={table} onChange={(e) => setTable(e.target.value)} placeholder={t("vn.order.tablePh")}
               className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white mb-2 text-sm" />
             <button onClick={() => place.mutate()} disabled={place.isPending || !table.trim()}
               className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
-              Send order to table
+              {t("vn.order.sendToTable")}
             </button>
           </div>
         </div>

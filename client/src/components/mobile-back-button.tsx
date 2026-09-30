@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n";
 
 interface MobileBackButtonProps {
   className?: string;
@@ -10,6 +11,7 @@ interface MobileBackButtonProps {
 
 export default function MobileBackButton({ className, onBack }: MobileBackButtonProps) {
   const [location, setLocation] = useLocation();
+  const { t } = useTranslation();
 
   // Don't show back button on home page
   if (location === "/") {
@@ -39,7 +41,7 @@ export default function MobileBackButton({ className, onBack }: MobileBackButton
         className="flex items-center gap-2 text-slate-600 hover:text-slate-900 p-2"
       >
         <ArrowLeft className="h-5 w-5" />
-        <span className="text-sm font-medium">Back</span>
+        <span className="text-sm font-medium">{t("hm.common.back")}</span>
       </Button>
     </div>
   );

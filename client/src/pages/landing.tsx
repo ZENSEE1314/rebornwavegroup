@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { WhatsAppFab } from "@/components/WhatsAppFab";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { useTranslation } from "@/lib/i18n";
 import rebornDemoVideo from "@assets/reborn-demo-video.mp4";
 import petMale from "@assets/Doluruu Boy_1749664545355.png";
 import petFemale from "@assets/doluruu-female-transparent.png";
@@ -142,53 +144,54 @@ const HERO_CSS = `
 }
 `;
 
+// Floor copy lives in i18n keys: ac.land.<id>.tag/.h1/.h2/.desc/.t1-.t3
 const FLOORS = [
-  { id: "l1", num: "01", accent: "var(--l1)", tag: "Sing Room · 🎤", src: "sing", h2: ["Sing It", "Loud"], desc: "An intimate singing lounge — grab the mic, order a round, and let the room hear you. Velvet booths, crystal glassware, zero judgement.", tags: ["Singing Lounge", "Premium Mics", "Bottle Service"] },
-  { id: "l2", num: "02", accent: "var(--l2)", tag: "KTV · 🎶", src: "ktv", h2: ["Your Private", "Stage"], desc: "A whole floor of private KTV rooms — big screens, deep song libraries and dedicated service behind every door.", tags: ["Private KTV Rooms", "Huge Song Library", "Room Service"] },
-  { id: "l3", num: "03", accent: "var(--l3)", tag: "VIP Room · 👑", src: "vip", h2: ["The", "Top Table"], desc: "A luxury VIP experience — champagne on arrival with sparklers, a private host, and the best seat in the building.", tags: ["VIP Tables", "Champagne Service", "Private Host"] },
-  { id: "l4", num: "04", accent: "var(--l4)", tag: "Pet Paradise · 🐾", src: "pet", h2: ["Bring the", "Whole Family"], desc: "A play area and café dedicated to your pets — Doloruu's favourite floor. Because a night out shouldn't leave anyone behind.", tags: ["Pet Play Area", "Pet Café", "Doloruu Meet & Greet"] },
-  { id: "l5", num: "05", accent: "var(--l5)", tag: "Live Stage · 🎵", src: "live", h2: ["Where the", "Night Peaks"], desc: "Live bands, performances and headline entertainment on the rooftop stage. The finale of every Reborn Wave night.", tags: ["Live Bands", "Headline Acts", "Rooftop Stage"] },
+  { id: "l1", num: "01", accent: "var(--l1)", src: "sing" },
+  { id: "l2", num: "02", accent: "var(--l2)", src: "ktv" },
+  { id: "l3", num: "03", accent: "var(--l3)", src: "vip" },
+  { id: "l4", num: "04", accent: "var(--l4)", src: "pet" },
+  { id: "l5", num: "05", accent: "var(--l5)", src: "live" },
 ];
 
 const RAIL = [
-  { target: "intro", label: "Home" },
-  { target: "l1", label: "Sing" },
-  { target: "l2", label: "KTV" },
-  { target: "l3", label: "VIP" },
-  { target: "l4", label: "Pet" },
-  { target: "l5", label: "Live" },
+  { target: "intro", label: "ac.land.rail.home" },
+  { target: "l1", label: "ac.land.rail.sing" },
+  { target: "l2", label: "ac.land.rail.ktv" },
+  { target: "l3", label: "ac.land.rail.vip" },
+  { target: "l4", label: "ac.land.rail.pet" },
+  { target: "l5", label: "ac.land.rail.live" },
 ];
 
 const ADDRESS = "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront – Batam Centre, Blok A No. 51, Sadai, Bengkong, Batam City, Riau Islands 29444";
 const MAPS_URL = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(ADDRESS);
 const INSTAGRAM_URL = "https://www.instagram.com/rebornwavegroup/";
 const TIKTOK_URL = "https://www.tiktok.com/@reborn.wave.group";
-const SERVICES = "KTV · Game House · Beauty · Pet Cafe · Live House · Blindbox Rewards";
 const ANDROID_APP_URL = "https://expo.dev/accounts/zensee/projects/reborn-wave-group/builds/c0731562-e3bd-4268-a4aa-8d31b2a2b5f9";
 
 const AUDIENCE = [
-  { icon: "🧳", title: "Tourists", desc: "A clear Batam destination for singing, food, pet cafe content, sea-view nightlife, and live performances." },
-  { icon: "👨‍👩‍👧", title: "Families", desc: "Kids game house, daytime KTV, pet cafe visits, beauty services, and safe group activities." },
-  { icon: "🎉", title: "Events", desc: "Singing competitions, live bands, performances, private rooms, birthday parties, and dance floor nights." },
+  { icon: "🧳", title: "ac.land.aud.tourists", desc: "ac.land.aud.touristsDesc" },
+  { icon: "👨‍👩‍👧", title: "ac.land.aud.families", desc: "ac.land.aud.familiesDesc" },
+  { icon: "🎉", title: "ac.land.aud.events", desc: "ac.land.aud.eventsDesc" },
 ];
 
 const PETS = [
-  { img: petMale, name: "Male pet", note: "1 token daily" },
-  { img: petFemale, name: "Female pet", note: "1 token daily" },
-  { img: petBaby, name: "Baby pet", note: "1 token daily" },
-  { img: petBlindbox, name: "Blindbox package", note: "Member reward box" },
-  { img: petBlindbox, name: "Member reward", note: "Campaign & event prizes" },
+  { img: petMale, name: "ac.land.pet.male", note: "ac.land.pet.daily" },
+  { img: petFemale, name: "ac.land.pet.female", note: "ac.land.pet.daily" },
+  { img: petBaby, name: "ac.land.pet.baby", note: "ac.land.pet.daily" },
+  { img: petBlindbox, name: "ac.land.pet.package", note: "ac.land.pet.box" },
+  { img: petBlindbox, name: "ac.land.pet.reward", note: "ac.land.pet.prizes" },
 ];
 
 const BENEFITS = [
-  { title: "Male + female = baby", desc: "If a user owns both male and female pets, they receive 1 baby pet free." },
-  { title: "3 pets = 3 daily tokens", desc: "Feeding male, female, and baby pets gives 3 tokens per day for prize exchange." },
-  { title: "Tokens drive repeat visits", desc: "Tokens can be used for rewards, upgrades, prizes, and club spending campaigns." },
+  { title: "ac.land.ben1", desc: "ac.land.ben1d" },
+  { title: "ac.land.ben2", desc: "ac.land.ben2d" },
+  { title: "ac.land.ben3", desc: "ac.land.ben3d" },
 ];
 
 export default function Landing() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const root = rootRef.current;
@@ -264,13 +267,16 @@ export default function Landing() {
 
       <header className="topbar">
         <div className="brand"><span className="dot" aria-hidden="true" /> Reborn{" "}Wave</div>
-        <nav aria-label="Floors">
+        <nav aria-label={t("ac.land.floorsNav")}>
           {RAIL.filter((r) => r.target !== "intro").map((r, i) => (
-            <a key={r.target} href={`#${r.target}`}>{FLOORS[i].num} · {r.label}</a>
+            <a key={r.target} href={`#${r.target}`}>{FLOORS[i].num} · {t(r.label)}</a>
           ))}
-          <a href="#app-download">Get the app</a>
+          <a href="#app-download">{t("ac.land.getApp")}</a>
         </nav>
-        <button className="login-btn" type="button" onClick={goLogin}>Login</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <LanguageSelector />
+          <button className="login-btn" type="button" onClick={goLogin}>{t("ac.land.login")}</button>
+        </div>
       </header>
 
       <div className="rail" aria-hidden="true">
@@ -278,7 +284,7 @@ export default function Landing() {
           <button
             key={r.target}
             data-target={r.target}
-            data-label={r.label}
+            data-label={t(r.label)}
             style={{ ["--c" as string]: r.target === "intro" ? "#fff" : `var(--${r.target})` } as React.CSSProperties}
           />
         ))}
@@ -292,10 +298,10 @@ export default function Landing() {
           <div className="aurora" aria-hidden="true"><span className="a" /><span className="b" /><span className="c" /></div>
           <div className="intro-inner">
             <p className="eyebrow reveal">Reborn Wave Group</p>
-            <h1 className="reveal">FIVE WORLDS<br />ONE BUILDING</h1>
-            <p className="sub reveal">A five-floor nightlife destination. Ride the elevator through singing rooms, KTV, VIP suites and more — guided by Doloruu.</p>
+            <h1 className="reveal">{t("ac.land.heroTitle1")}<br />{t("ac.land.heroTitle2")}</h1>
+            <p className="sub reveal">{t("ac.land.heroSub")}</p>
           </div>
-          <div className="scroll-cue" aria-hidden="true"><span className="mouse" />Scroll to enter</div>
+          <div className="scroll-cue" aria-hidden="true"><span className="mouse" />{t("ac.land.scroll")}</div>
         </section>
 
         {/* FLOORS */}
@@ -304,10 +310,10 @@ export default function Landing() {
             <video className="bg" src={`/videos/${f.src}.mp4`} poster={`/videos/${f.src}.jpg`} muted loop playsInline preload="none" />
             <div className="scrim" />
             <div className="content">
-              <span className="floor-tag reveal"><span className="floor-num" style={{ background: f.accent }}>{f.num}</span> {f.tag}</span>
-              <h2 className="reveal">{f.h2[0]}<br />{f.h2[1]}</h2>
-              <p className="desc reveal">{f.desc}</p>
-              <div className="tags reveal">{f.tags.map((t) => <span key={t}>{t}</span>)}</div>
+              <span className="floor-tag reveal"><span className="floor-num" style={{ background: f.accent }}>{f.num}</span> {t(`ac.land.${f.id}.tag`)}</span>
+              <h2 className="reveal">{t(`ac.land.${f.id}.h1`)}<br />{t(`ac.land.${f.id}.h2`)}</h2>
+              <p className="desc reveal">{t(`ac.land.${f.id}.desc`)}</p>
+              <div className="tags reveal">{["t1", "t2", "t3"].map((k) => <span key={k}>{t(`ac.land.${f.id}.${k}`)}</span>)}</div>
             </div>
           </section>
         ))}
@@ -315,16 +321,16 @@ export default function Landing() {
         {/* DEMO VIDEO / AUDIENCE */}
         <section className="info" id="experience">
           <div className="info-inner">
-            <span className="eyebrow reveal">Demo video</span>
-            <h2 className="info-h reveal">See the club in motion</h2>
-            <p className="info-lead reveal">A one-stop club for tourists and families. Built for full-day entertainment: family activities, services, singing competitions, social content, live shows, and evening events in one place.</p>
+            <span className="eyebrow reveal">{t("ac.land.demoEyebrow")}</span>
+            <h2 className="info-h reveal">{t("ac.land.demoTitle")}</h2>
+            <p className="info-lead reveal">{t("ac.land.demoLead")}</p>
             <video className="demo reveal" src={rebornDemoVideo} poster="/videos/live.jpg" muted loop playsInline controls preload="none" />
             <div className="info-grid reveal">
               {AUDIENCE.map((a) => (
                 <div className="info-card" key={a.title}>
                   <span className="ic" aria-hidden="true">{a.icon}</span>
-                  <h3>{a.title}</h3>
-                  <p>{a.desc}</p>
+                  <h3>{t(a.title)}</h3>
+                  <p>{t(a.desc)}</p>
                 </div>
               ))}
             </div>
@@ -334,24 +340,24 @@ export default function Landing() {
         {/* BLINDBOX PETS */}
         <section className="info" id="blindbox">
           <div className="info-inner">
-            <span className="eyebrow reveal">Member rewards</span>
-            <h2 className="info-h reveal">Blindbox pets turn members into daily users</h2>
-            <p className="info-lead reveal">The blindbox is not just a doll. It is a digital pet companion that members feed daily to earn tokens, exchange prizes, and keep coming back to the club.</p>
+            <span className="eyebrow reveal">{t("ac.land.rewardsEyebrow")}</span>
+            <h2 className="info-h reveal">{t("ac.land.petsTitle")}</h2>
+            <p className="info-lead reveal">{t("ac.land.petsLead")}</p>
             <div className="pet-grid reveal">
               {PETS.map((p, i) => (
                 <div className="pet-card" key={i}>
-                  <img src={p.img} alt={p.name} loading="lazy" />
-                  <strong>{p.name}</strong>
-                  <span>{p.note}</span>
+                  <img src={p.img} alt={t(p.name)} loading="lazy" />
+                  <strong>{t(p.name)}</strong>
+                  <span>{t(p.note)}</span>
                 </div>
               ))}
             </div>
-            <p className="pet-note reveal">Blindbox pets can be used for club campaigns, member rewards, and event prizes.</p>
+            <p className="pet-note reveal">{t("ac.land.petNote")}</p>
             <div className="info-grid reveal">
               {BENEFITS.map((b) => (
                 <div className="info-card" key={b.title}>
-                  <h3>{b.title}</h3>
-                  <p>{b.desc}</p>
+                  <h3>{t(b.title)}</h3>
+                  <p>{t(b.desc)}</p>
                 </div>
               ))}
             </div>
@@ -362,27 +368,27 @@ export default function Landing() {
         <section className="info app-download" id="app-download">
           <div className="info-inner app-grid">
             <div>
-              <span className="eyebrow reveal">Reborn mobile</span>
-              <h2 className="info-h reveal">Events, rewards and pet care in your pocket</h2>
-              <p className="info-lead reveal">Open Reborn straight from your phone, see new club events, care for your Doloruu pet, and keep member rewards close wherever you go.</p>
+              <span className="eyebrow reveal">{t("ac.land.mobileEyebrow")}</span>
+              <h2 className="info-h reveal">{t("ac.land.mobileTitle")}</h2>
+              <p className="info-lead reveal">{t("ac.land.mobileLead")}</p>
               <div className="app-points reveal">
-                <div className="app-point"><span aria-hidden="true">🎉</span><strong>New events</strong><p>Keep up with club nights, live shows and member activities.</p></div>
-                <div className="app-point"><span aria-hidden="true">🐾</span><strong>Pet care</strong><p>Feed your Doloruu, collect daily tokens and follow its progress.</p></div>
-                <div className="app-point"><span aria-hidden="true">🔔</span><strong>Notifications</strong><p>Get instant app alerts for orders, bookings, songs, events and staff updates.</p></div>
+                <div className="app-point"><span aria-hidden="true">🎉</span><strong>{t("ac.land.pt1")}</strong><p>{t("ac.land.pt1d")}</p></div>
+                <div className="app-point"><span aria-hidden="true">🐾</span><strong>{t("ac.land.pt2")}</strong><p>{t("ac.land.pt2d")}</p></div>
+                <div className="app-point"><span aria-hidden="true">🔔</span><strong>{t("ac.land.pt3")}</strong><p>{t("ac.land.pt3d")}</p></div>
               </div>
             </div>
             <div className="store-card reveal">
-              <h3>Get the Reborn app</h3>
-              <p>Android testing is open now. The Apple App Store release follows after Apple developer approval.</p>
+              <h3>{t("ac.land.storeTitle")}</h3>
+              <p>{t("ac.land.storeDesc")}</p>
               <a className="store-button" href={ANDROID_APP_URL} target="_blank" rel="noopener noreferrer">
                 <span className="store-icon" aria-hidden="true">◆</span>
-                <span className="store-copy"><small>Download for</small><strong>Android APK</strong></span>
+                <span className="store-copy"><small>{t("ac.land.downloadFor")}</small><strong>Android APK</strong></span>
               </a>
               <div className="store-button apple" aria-disabled="true">
                 <span className="store-icon" aria-hidden="true">●</span>
-                <span className="store-copy"><small>Coming soon on the</small><strong>Apple App Store</strong></span>
+                <span className="store-copy"><small>{t("ac.land.comingSoon")}</small><strong>Apple App Store</strong></span>
               </div>
-              <p className="store-note">Android may ask you to allow installation from your browser. Apple availability requires App Store review.</p>
+              <p className="store-note">{t("ac.land.storeNote")}</p>
             </div>
           </div>
         </section>
@@ -390,19 +396,19 @@ export default function Landing() {
         <footer>
           <div className="foot-top">
             <div>
-              <div className="big">Come find<br />your floor.</div>
-              <button className="cta" type="button" onClick={goLogin}>Enter the club →</button>
+              <div className="big">{t("ac.land.footBig1")}<br />{t("ac.land.footBig2")}</div>
+              <button className="cta" type="button" onClick={goLogin}>{t("ac.land.enter")}</button>
             </div>
             <div className="foot-cols">
               <div className="foot-col">
-                <h4>Visit us · Batam</h4>
+                <h4>{t("ac.land.visit")}</h4>
                 <a className="addr" href={MAPS_URL} target="_blank" rel="noopener noreferrer">
-                  {ADDRESS}
+                  {t("ac.land.address")}
                 </a>
-                <p className="sub-note">Waterfront Lifestyle Club · near Harbourfront, Batam Centre · tap for Google Maps</p>
+                <p className="sub-note">{t("ac.land.addrNote")}</p>
               </div>
               <div className="foot-col">
-                <h4>Follow</h4>
+                <h4>{t("ac.land.follow")}</h4>
                 <div className="socials">
                   <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>
@@ -413,12 +419,12 @@ export default function Landing() {
                     @reborn.wave.group
                   </a>
                 </div>
-                <p className="sub-note">{SERVICES}</p>
+                <p className="sub-note">{t("ac.land.services")}</p>
               </div>
             </div>
           </div>
           <div className="meta">
-            &copy; {year} Reborn Wave Group. All rights reserved. · Doloruu is our official mascot.
+            {t("ac.land.meta", { year })}
           </div>
         </footer>
       </main>

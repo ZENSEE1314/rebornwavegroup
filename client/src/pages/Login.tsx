@@ -8,42 +8,42 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users, Sparkles, ArrowLeft, CheckCircle, Crown, Star, Zap, Gift } from "lucide-react";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation, getCurrentLanguage } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import rwgLogo from "@assets/rwg-logo.png";
 
-/* ─── Validation schemas (unchanged) ─── */
+/* ─── Validation schemas (messages are i18n keys, translated where shown) ─── */
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().trim().toLowerCase().email("ac.login.v.email"),
+  password: z.string().min(6, "ac.login.v.passwordMin"),
   rememberMe: z.boolean().optional(),
 });
 
 const registerSchema = z.object({
-  email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
-  username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be less than 20 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  countryCode: z.string().min(1, "Please select a country code"),
-  phoneNumber: z.string().min(7, "Please enter a valid phone number"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  email: z.string().trim().toLowerCase().email("ac.login.v.email"),
+  username: z.string().min(3, "ac.login.v.usernameMin").max(20, "ac.login.v.usernameMax"),
+  password: z.string().min(6, "ac.login.v.passwordMin"),
+  firstName: z.string().min(1, "ac.login.v.firstName"),
+  lastName: z.string().min(1, "ac.login.v.lastName"),
+  countryCode: z.string().min(1, "ac.login.v.countryCode"),
+  phoneNumber: z.string().min(7, "ac.login.v.phone"),
+  dateOfBirth: z.string().min(1, "ac.login.v.dob"),
   gender: z.string().refine((val) => val === "male" || val === "female", {
-    message: "Please select a gender",
+    message: "ac.login.v.gender",
   }),
   referralCode: z.string().optional(),
 });
 
 const forgotPasswordSchema = z.object({
-  email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
+  email: z.string().trim().toLowerCase().email("ac.login.v.email"),
 });
 
 const resetPasswordSchema = z.object({
-  token: z.string().min(1, "Reset token is required"),
-  newPassword: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Please confirm your password"),
+  token: z.string().min(1, "ac.login.v.token"),
+  newPassword: z.string().min(6, "ac.login.v.passwordMin"),
+  confirmPassword: z.string().min(6, "ac.login.v.confirmPw"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
+  message: "ac.login.v.pwMismatch",
   path: ["confirmPassword"],
 });
 
@@ -54,11 +54,12 @@ type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 /* ─── Small helper components ─── */
 function FieldError({ msg }: { msg?: string }) {
+  const { t } = useTranslation();
   if (!msg) return null;
   return (
     <p className="text-xs text-red-400 flex items-center gap-1 mt-1.5">
       <AlertCircle className="w-3 h-3 flex-shrink-0" />
-      {msg}
+      {msg.startsWith("ac.") ? t(msg) : msg}
     </p>
   );
 }
@@ -91,10 +92,10 @@ function FormField({
 
 /* ─── Register benefit pills ─── */
 const REGISTER_PERKS = [
-  { icon: Crown, label: "Exclusive Membership Access" },
-  { icon: Gift, label: "Blind Box Rewards" },
-  { icon: Zap, label: "KTV & VIP Privileges" },
-  { icon: Star, label: "Referral Earnings" },
+  { icon: Crown, label: "ac.login.perk.membership" },
+  { icon: Gift, label: "ac.login.perk.blindbox" },
+  { icon: Zap, label: "ac.login.perk.ktv" },
+  { icon: Star, label: "ac.login.perk.referral" },
 ];
 
 /* ═══════════════════════════════════════
@@ -192,19 +193,19 @@ export default function Login() {
       try {
         const response = await fetch("/api/auth/login", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-Lang": getCurrentLanguage() },
           credentials: "include",
           body: JSON.stringify(data),
           signal: controller.signal,
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(result.message || "Login failed");
+          throw new Error(result.message || t("ac.login.err.loginFailed"));
         }
         return result;
       } catch (error: any) {
         if (error?.name === "AbortError") {
-          throw new Error("Login took too long. Check your connection and try again.");
+          throw new Error(t("ac.login.err.timeout"));
         }
         throw error;
       } finally {
@@ -220,11 +221,11 @@ export default function Login() {
         window.localStorage.removeItem("reborn.rememberedPassword");
       }
       queryClient.setQueryData(["/api/auth/user"], user);
-      toast({ title: "Welcome back!", description: "Logged in successfully." });
+      toast({ title: t("ac.login.toast.welcomeBack"), description: t("ac.login.toast.loggedIn") });
       const next = new URLSearchParams(window.location.search).get("next");
       window.location.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
     },
-    onError: (err: any) => setError(err.message || "Login failed. Please try again."),
+    onError: (err: any) => setError(err.message || t("ac.login.err.loginRetry")),
   });
 
   const registerMutation = useMutation({
@@ -234,32 +235,32 @@ export default function Login() {
       delete (registrationData as any).countryCode;
       const response = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Lang": getCurrentLanguage() },
         body: JSON.stringify(registrationData),
       });
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.message || "Registration failed");
+        throw new Error(err.message || t("ac.login.err.registerFailed"));
       }
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Account created!", description: "Welcome to Reborn Wave Group!" });
+      toast({ title: t("ac.login.toast.accountCreated"), description: t("ac.login.toast.welcomeRwg") });
       window.location.href = "/";
     },
-    onError: (err: any) => setError(err.message || "Registration failed. Please try again."),
+    onError: (err: any) => setError(err.message || t("ac.login.err.registerRetry")),
   });
 
   const forgotPasswordMutation = useMutation({
     mutationFn: async (data: ForgotPasswordFormData) => {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Lang": getCurrentLanguage() },
         body: JSON.stringify(data),
       });
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.message || "Failed to send reset email");
+        throw new Error(err.message || t("ac.login.err.resetEmail"));
       }
       return response.json();
     },
@@ -274,29 +275,29 @@ export default function Login() {
       }
       setResetEmailSent(true);
       toast({
-        title: data?.recoveryToken ? "Recovery token ready" : "Reset email sent!",
-        description: data?.recoveryToken ? "Email failed, but you can reset with the token shown." : "Check your inbox.",
+        title: data?.recoveryToken ? t("ac.login.toast.recoveryReady") : t("ac.login.toast.resetSent"),
+        description: data?.recoveryToken ? t("ac.login.toast.recoveryDesc") : t("ac.login.toast.checkInbox"),
       });
     },
     onError: (err: any) =>
-      toast({ title: "Error", description: err.message || "Failed to send reset email.", variant: "destructive" }),
+      toast({ title: t("ac.login.toast.error"), description: err.message || t("ac.login.err.resetEmail"), variant: "destructive" }),
   });
 
   const resetPasswordMutation = useMutation({
     mutationFn: async (data: ResetPasswordFormData) => {
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Lang": getCurrentLanguage() },
         body: JSON.stringify(data),
       });
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.message || "Failed to reset password");
+        throw new Error(err.message || t("ac.login.err.reset"));
       }
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Password reset!", description: "You can now log in with your new password." });
+      toast({ title: t("ac.login.toast.pwReset"), description: t("ac.login.toast.pwResetDesc") });
       setActiveTab("login");
       setResetEmailSent(false);
       setRecoveryToken("");
@@ -304,7 +305,7 @@ export default function Login() {
       resetPasswordForm.reset();
     },
     onError: (err: any) =>
-      toast({ title: "Error", description: err.message || "Failed to reset password.", variant: "destructive" }),
+      toast({ title: t("ac.login.toast.error"), description: err.message || t("ac.login.err.reset"), variant: "destructive" }),
   });
 
   const onLogin = (data: LoginFormData) => { setError(""); loginMutation.mutate(data); };
@@ -433,7 +434,7 @@ export default function Login() {
                 <span className="text-sm font-bold text-white/70 group-hover:text-white transition-colors block leading-tight">
                   Reborn Wave Group
                 </span>
-                <span className="text-[10px] text-amber-400/60 tracking-widest uppercase">Elite Experience</span>
+                <span className="text-[10px] text-amber-400/60 tracking-widest uppercase">{t("ac.login.eliteExperience")}</span>
               </div>
             </a>
             <LanguageSelector />
@@ -443,7 +444,7 @@ export default function Login() {
           <div className="flex justify-center mb-5">
             <span className="rwg-member-badge">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              12,847+ members worldwide
+              {t("ac.login.members")}
             </span>
           </div>
 
@@ -471,13 +472,13 @@ export default function Login() {
               {activeTab === "register" && (
                 <>
                   <h1 className="text-2xl font-bold text-white">{t("auth.signUp")}</h1>
-                  <p className="text-white/40 text-sm mt-1">Join Reborn Wave Group today</p>
+                  <p className="text-white/40 text-sm mt-1">{t("ac.login.joinToday")}</p>
                 </>
               )}
               {(activeTab === "forgot" || activeTab === "reset") && (
                 <>
-                  <h1 className="text-2xl font-bold text-white">Reset Password</h1>
-                  <p className="text-white/40 text-sm mt-1">We'll help you get back in</p>
+                  <h1 className="text-2xl font-bold text-white">{t("ac.login.resetTitle")}</h1>
+                  <p className="text-white/40 text-sm mt-1">{t("ac.login.resetSub")}</p>
                 </>
               )}
             </div>
@@ -555,7 +556,7 @@ export default function Login() {
                       className="w-3.5 h-3.5 rounded border-white/20 accent-amber-500"
                       {...loginForm.register("rememberMe")}
                     />
-                    <span className="text-xs text-white/40">Remember me</span>
+                    <span className="text-xs text-white/40">{t("ac.login.rememberMe")}</span>
                   </label>
                   <button
                     type="button"
@@ -572,13 +573,13 @@ export default function Login() {
 
                 {/* Register CTA */}
                 <p className="text-center text-xs text-white/30 mt-3">
-                  New here?{" "}
+                  {t("ac.login.newHere")}{" "}
                   <button
                     type="button"
                     onClick={() => { setActiveTab("register"); setError(""); }}
                     className="text-amber-400/80 hover:text-amber-300 font-semibold transition-colors"
                   >
-                    Create a free account →
+                    {t("ac.login.createFree")}
                   </button>
                 </p>
               </form>
@@ -593,7 +594,7 @@ export default function Login() {
                 {referralCodeFromUrl && (
                   <div className="rwg-referral-banner">
                     <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                    Referral code applied from your invitation link
+                    {t("ac.login.referralApplied")}
                   </div>
                 )}
 
@@ -602,7 +603,7 @@ export default function Login() {
                   {REGISTER_PERKS.map(({ icon: Icon, label }) => (
                     <div key={label} className="rwg-perk-pill">
                       <Icon className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                      <span className="text-[10px] leading-tight">{label}</span>
+                      <span className="text-[10px] leading-tight">{t(label)}</span>
                     </div>
                   ))}
                 </div>
@@ -612,10 +613,10 @@ export default function Login() {
                 {/* First + Last name */}
                 <div className="grid grid-cols-2 gap-3">
                   <FormField label={t("auth.firstName")} icon={User} error={registerForm.formState.errors.firstName?.message}>
-                    <Input placeholder="First name" className={inputBase} {...registerForm.register("firstName")} />
+                    <Input placeholder={t("ac.login.phFirstName")} className={inputBase} {...registerForm.register("firstName")} />
                   </FormField>
                   <FormField label={t("auth.lastName")} icon={User} error={registerForm.formState.errors.lastName?.message}>
-                    <Input placeholder="Last name" className={inputBase} {...registerForm.register("lastName")} />
+                    <Input placeholder={t("ac.login.phLastName")} className={inputBase} {...registerForm.register("lastName")} />
                   </FormField>
                 </div>
 
@@ -623,8 +624,8 @@ export default function Login() {
                   <Input placeholder={t("auth.enterEmail")} className={inputBase} autoComplete="email" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} {...registerForm.register("email")} />
                 </FormField>
 
-                <FormField label="Username" icon={User} error={registerForm.formState.errors.username?.message}>
-                  <Input placeholder="Choose a username" className={inputBase} autoComplete="username" {...registerForm.register("username")} />
+                <FormField label={t("ac.login.username")} icon={User} error={registerForm.formState.errors.username?.message}>
+                  <Input placeholder={t("ac.login.phUsername")} className={inputBase} autoComplete="username" {...registerForm.register("username")} />
                 </FormField>
 
                 <FormField
@@ -639,7 +640,7 @@ export default function Login() {
                 >
                   <Input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Create a password"
+                    placeholder={t("ac.login.phCreatePw")}
                     className={`${inputBase} pr-10`}
                     autoComplete="new-password"
                     {...registerForm.register("password")}
@@ -691,7 +692,7 @@ export default function Login() {
                     <div className="relative flex-1">
                       <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400/40 pointer-events-none z-10" />
                       <Input
-                        placeholder="Phone number"
+                        placeholder={t("ac.login.phPhone")}
                         className={`${inputBase} pl-10`}
                         type="tel"
                         {...registerForm.register("phoneNumber")}
@@ -734,7 +735,7 @@ export default function Login() {
                   <label className="text-amber-200/70 text-xs font-semibold uppercase tracking-wider mb-2 block">
                     {t("auth.referralCodeOptional")}
                     {referralCodeFromUrl && (
-                      <span className="text-emerald-400 normal-case font-normal ml-2">(from invite link)</span>
+                      <span className="text-emerald-400 normal-case font-normal ml-2">{t("ac.login.fromInvite")}</span>
                     )}
                   </label>
                   <Input
@@ -761,9 +762,9 @@ export default function Login() {
             ══════════════════════════════ */}
             {activeTab === "forgot" && !resetEmailSent && (
               <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPassword)} className="space-y-4">
-                <FormField label="Email address" icon={Mail} error={forgotPasswordForm.formState.errors.email?.message}>
+                <FormField label={t("ac.login.emailAddress")} icon={Mail} error={forgotPasswordForm.formState.errors.email?.message}>
                   <Input
-                    placeholder="Enter your email"
+                    placeholder={t("ac.login.phEnterEmail")}
                     className={inputBase}
                     autoComplete="email"
                     type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
@@ -772,7 +773,7 @@ export default function Login() {
                 </FormField>
 
                 <Button type="submit" disabled={forgotPasswordMutation.isPending} className={submitBtn}>
-                  {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Email"}
+                  {forgotPasswordMutation.isPending ? t("ac.login.sending") : t("ac.login.sendReset")}
                 </Button>
 
                 <button
@@ -781,7 +782,7 @@ export default function Login() {
                   className="w-full flex items-center justify-center gap-1.5 text-sm text-white/35 hover:text-amber-300/60 transition-colors py-2"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  Back to Login
+                  {t("ac.login.backToLogin")}
                 </button>
               </form>
             )}
@@ -796,46 +797,46 @@ export default function Login() {
                     <CheckCircle className="w-7 h-7 text-emerald-400" />
                   </div>
                   <h3 className="font-semibold text-white mb-1">
-                    {recoveryToken ? "Email Failed - Recovery Token Ready" : "Reset Email Sent!"}
+                    {recoveryToken ? t("ac.login.emailFailedTitle") : t("ac.login.resetSentTitle")}
                   </h3>
                   <p className="text-sm text-white/40">
-                    {recoveryToken ? "Resend did not deliver the email. Use the token below now." : "Check your inbox. The link expires in 1 hour."}
+                    {recoveryToken ? t("ac.login.emailFailedDesc") : t("ac.login.resetSentDesc")}
                   </p>
                 </div>
 
                 {recoveryToken && (
                   <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 p-4">
                     <p className="text-xs text-amber-100/80 mb-2">
-                      Email sending failed, so use this owner recovery token now:
+                      {t("ac.login.recoveryIntro")}
                     </p>
                     <code className="block rounded-xl bg-black/30 px-3 py-2 text-amber-200 break-all text-sm">
                       {recoveryToken}
                     </code>
                     {emailStatus && (
                       <div className="mt-3 rounded-xl bg-black/20 p-3 text-[11px] leading-relaxed text-amber-100/70">
-                        <div>Email provider: {emailStatus.provider || "none"}</div>
-                        <div>Sender: {emailStatus.from || "not set"}</div>
-                        <div>Resend key in Railway: {emailStatus.hasResendKey ? "yes" : "no"}</div>
-                        {emailStatus.error && <div className="mt-1 break-words">Error: {emailStatus.error}</div>}
+                        <div>{t("ac.login.emailProvider", { v: emailStatus.provider || t("ac.login.none") })}</div>
+                        <div>{t("ac.login.sender", { v: emailStatus.from || t("ac.login.notSet") })}</div>
+                        <div>{t("ac.login.resendKey", { v: emailStatus.hasResendKey ? t("ac.login.yes") : t("ac.login.no") })}</div>
+                        {emailStatus.error && <div className="mt-1 break-words">{t("ac.login.errorLine", { v: emailStatus.error })}</div>}
                       </div>
                     )}
                   </div>
                 )}
 
                 <div className="rwg-divider-gold" />
-                <p className="text-xs text-white/35 text-center">Have your reset token? Enter it below:</p>
+                <p className="text-xs text-white/35 text-center">{t("ac.login.haveToken")}</p>
 
                 <form onSubmit={resetPasswordForm.handleSubmit(onResetPassword)} className="space-y-3">
-                  <FormField label="Reset Token" error={resetPasswordForm.formState.errors.token?.message}>
+                  <FormField label={t("ac.login.resetToken")} error={resetPasswordForm.formState.errors.token?.message}>
                     <Input
-                      placeholder="Paste token from email"
+                      placeholder={t("ac.login.phPasteToken")}
                       className={inputBase}
                       {...resetPasswordForm.register("token")}
                     />
                   </FormField>
 
                   <FormField
-                    label="New Password"
+                    label={t("ac.login.newPassword")}
                     icon={Lock}
                     error={resetPasswordForm.formState.errors.newPassword?.message}
                     rightSlot={
@@ -846,14 +847,14 @@ export default function Login() {
                   >
                     <Input
                       type={showNewPassword ? "text" : "password"}
-                      placeholder="Enter new password"
+                      placeholder={t("ac.login.phNewPw")}
                       className={`${inputBase} pr-10`}
                       {...resetPasswordForm.register("newPassword")}
                     />
                   </FormField>
 
                   <FormField
-                    label="Confirm Password"
+                    label={t("ac.login.confirmPassword")}
                     icon={Lock}
                     error={resetPasswordForm.formState.errors.confirmPassword?.message}
                     rightSlot={
@@ -864,14 +865,14 @@ export default function Login() {
                   >
                     <Input
                       type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm new password"
+                      placeholder={t("ac.login.phConfirmPw")}
                       className={`${inputBase} pr-10`}
                       {...resetPasswordForm.register("confirmPassword")}
                     />
                   </FormField>
 
                   <Button type="submit" disabled={resetPasswordMutation.isPending} className={submitBtn}>
-                    {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+                    {resetPasswordMutation.isPending ? t("ac.login.resetting") : t("ac.login.resetBtn")}
                   </Button>
                 </form>
 
@@ -881,7 +882,7 @@ export default function Login() {
                   className="w-full flex items-center justify-center gap-1.5 text-sm text-white/35 hover:text-amber-300/60 transition-colors py-1"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  Back to Login
+                  {t("ac.login.backToLogin")}
                 </button>
               </div>
             )}
@@ -889,8 +890,8 @@ export default function Login() {
 
           {/* ── Footer ── */}
           <div className="text-center mt-6 space-y-1">
-            <p className="text-white/20 text-xs">© 2026 Reborn Wave Group · All rights reserved</p>
-            <p className="text-white/15 text-[10px] tracking-wider uppercase">Batam · Singapore · Expanding Worldwide</p>
+            <p className="text-white/20 text-xs">{t("ac.login.copyright")}</p>
+            <p className="text-white/15 text-[10px] tracking-wider uppercase">{t("ac.login.locations")}</p>
           </div>
         </div>
       </div>

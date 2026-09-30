@@ -1,5 +1,6 @@
 // Builds and prints 80mm receipts / kitchen dockets via the browser's print
 // dialog. Set your thermal printer as the default printer (or "Save as PDF").
+import { translate as tr, localeTag } from "@/lib/i18n";
 
 interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; }
 interface Order {
@@ -12,7 +13,9 @@ interface Order {
 interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; serviceFeePercent?: number; taxPercent?: number; }
 
 const rp = (n: any) => "RP " + Math.round(Number(n) || 0).toLocaleString("en-US");
-const mode = (m?: string) => (m === "take_away" ? "TAKE AWAY" : "DINE IN");
+const mode = (m?: string) => (m === "take_away" ? tr("pos.rc.takeAway") : tr("pos.rc.dineIn"));
+// Translated payment method, falling back to the raw value for unknown methods.
+const payLabel = (p: string) => { const k = `pos.rc.${p}`; const v = tr(k); return v === k ? p : v; };
 const esc = (s: any) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 
 const CSS = `
@@ -32,11 +35,11 @@ const CSS = `
 `;
 
 function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
-  const when = new Date(o.paidAt || o.createdAt || Date.now()).toLocaleString();
+  const when = new Date(o.paidAt || o.createdAt || Date.now()).toLocaleString(localeTag());
   const items = (o.items || []).map((it) => `<div class="row"><span>${it.qty}× ${esc(it.name)}</span><span>${rp(it.lineTotal)}</span></div>`).join("");
-  const disc = Number(o.discount) > 0 ? `<div class="row"><span>Discount</span><span>- ${rp(o.discount)}</span></div>` : "";
-  const service = Number(o.serviceFee) > 0 ? `<div class="row"><span>Service fee${m.serviceFeePercent ? ` (${m.serviceFeePercent}%)` : ""}</span><span>${rp(o.serviceFee)}</span></div>` : "";
-  const tax = Number(o.tax) > 0 ? `<div class="row"><span>Tax${m.taxPercent ? ` (${m.taxPercent}%)` : ""}</span><span>${rp(o.tax)}</span></div>` : "";
+  const disc = Number(o.discount) > 0 ? `<div class="row"><span>${tr("pos.rc.discount")}</span><span>- ${rp(o.discount)}</span></div>` : "";
+  const service = Number(o.serviceFee) > 0 ? `<div class="row"><span>${m.serviceFeePercent ? tr("pos.rc.serviceFeePct", { n: m.serviceFeePercent }) : tr("pos.rc.serviceFee")}</span><span>${rp(o.serviceFee)}</span></div>` : "";
+  const tax = Number(o.tax) > 0 ? `<div class="row"><span>${m.taxPercent ? tr("pos.rc.taxPct", { n: m.taxPercent }) : tr("pos.rc.tax")}</span><span>${rp(o.tax)}</span></div>` : "";
   return `
     <div class="c">
       ${m.logoUrl ? `<img class="logo" src="${m.logoUrl}" />` : ""}
@@ -44,35 +47,35 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
       <div class="mode">${mode(o.orderMode)}</div>
     </div>
     <hr/>
-    <div class="row"><span>Order</span><span class="b">${esc(o.orderNo)}</span></div>
-    ${o.tableNumber ? `<div class="row"><span>Table</span><span>${esc(o.tableNumber)}</span></div>` : ""}
-    ${o.memberName ? `<div class="row"><span>Member</span><span>${esc(o.memberName)}</span></div>` : ""}
-    ${o.salesStaffName ? `<div class="row"><span>Served by</span><span>${esc(o.salesStaffName)}</span></div>` : ""}
-    <div class="row"><span>Date</span><span>${esc(when)}</span></div>
+    <div class="row"><span>${tr("pos.rc.order")}</span><span class="b">${esc(o.orderNo)}</span></div>
+    ${o.tableNumber ? `<div class="row"><span>${tr("pos.rc.table")}</span><span>${esc(o.tableNumber)}</span></div>` : ""}
+    ${o.memberName ? `<div class="row"><span>${tr("pos.rc.member")}</span><span>${esc(o.memberName)}</span></div>` : ""}
+    ${o.salesStaffName ? `<div class="row"><span>${tr("pos.rc.servedBy")}</span><span>${esc(o.salesStaffName)}</span></div>` : ""}
+    <div class="row"><span>${tr("pos.rc.date")}</span><span>${esc(when)}</span></div>
     <hr/>
     ${items}
     <hr/>
-    <div class="row"><span>Subtotal</span><span>${rp(o.subtotal ?? o.total)}</span></div>
+    <div class="row"><span>${tr("pos.rc.subtotal")}</span><span>${rp(o.subtotal ?? o.total)}</span></div>
     ${disc}${service}${tax}
-    <div class="row big"><span>TOTAL</span><span>${rp(o.total)}</span></div>
-    ${o.paymentMethod ? `<div class="row"><span>Paid</span><span class="b">${esc(String(o.paymentMethod).toUpperCase())}</span></div>` : ""}
-    ${o.paymentReference ? `<div class="row"><span>Card / receipt ref.</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
-    ${o.paymentMethod === "cash" ? `<div class="row"><span>Cash received</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>Change</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
-    ${o.status === "refunded" ? `<div class="c b" style="font-size:18px;margin-top:6px;">REFUNDED</div>` : ""}
+    <div class="row big"><span>${tr("pos.rc.total")}</span><span>${rp(o.total)}</span></div>
+    ${o.paymentMethod ? `<div class="row"><span>${tr("pos.rc.paid")}</span><span class="b">${esc(payLabel(String(o.paymentMethod)).toUpperCase())}</span></div>` : ""}
+    ${o.paymentReference ? `<div class="row"><span>${tr("pos.rc.cardRef")}</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
+    ${o.paymentMethod === "cash" ? `<div class="row"><span>${tr("pos.rc.cashReceived")}</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>${tr("pos.rc.change")}</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
+    ${o.status === "refunded" ? `<div class="c b" style="font-size:18px;margin-top:6px;">${tr("pos.rc.refunded")}</div>` : ""}
     <hr/>
-    <div class="c muted">${esc(m.footer || "Thank you!")}</div>
+    <div class="c muted">${esc(m.footer || tr("pos.rc.thanks"))}</div>
     <div class="c muted b" style="margin-top:4px;">— ${copyLabel} —</div>
   `;
 }
 
 function kitchenHtml(o: Order) {
-  const when = new Date(o.createdAt || Date.now()).toLocaleTimeString();
+  const when = new Date(o.createdAt || Date.now()).toLocaleTimeString(localeTag());
   const items = (o.items || []).map((it) => `<div class="kitem">${it.qty} × ${esc(it.name)}</div>`).join("");
   return `
-    <h1 class="k">KITCHEN</h1>
+    <h1 class="k">${tr("pos.rc.kitchen")}</h1>
     <div class="c mode">${mode(o.orderMode)}</div>
     <hr/>
-    <div class="row b" style="font-size:15px;"><span>Table ${esc(o.tableNumber || "-")}</span><span>${esc(o.orderNo)}</span></div>
+    <div class="row b" style="font-size:15px;"><span>${esc(tr("pos.rc.tableN", { n: o.tableNumber || "-" }))}</span><span>${esc(o.orderNo)}</span></div>
     <div class="row muted"><span>${esc(o.memberName || "")}</span><span>${esc(when)}</span></div>
     <hr/>
     ${items}
@@ -80,7 +83,7 @@ function kitchenHtml(o: Order) {
 }
 
 function printDoc(inner: string): boolean {
-  const fullHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Receipt</title><style>${CSS}</style></head><body>${inner}</body></html>`;
+  const fullHtml = `<!doctype html><html lang="${localeTag()}"><head><meta charset="utf-8"><title>${tr("pos.rc.docTitle")}</title><style>${CSS}</style></head><body>${inner}</body></html>`;
   const nativeBridge = (window as any).ReactNativeWebView;
   if (nativeBridge?.postMessage) {
     nativeBridge.postMessage(JSON.stringify({ type: "PRINT_HTML", html: fullHtml }));
@@ -106,7 +109,7 @@ function printDoc(inner: string): boolean {
 
 // Prints a merchant copy + customer copy in one job.
 export function printReceipt(order: Order, meta: ReceiptMeta) {
-  return printDoc(receiptHtml(order, meta, "MERCHANT COPY") + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, "CUSTOMER COPY"));
+  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy")) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy")));
 }
 export function printKitchen(order: Order) {
   return printDoc(kitchenHtml(order));
@@ -115,5 +118,5 @@ export function printKitchen(order: Order) {
 export function printClosingReport(report: any, meta: ReceiptMeta = {}) {
   const items = (report.items || []).map((item: any) => `<div class="row"><span>${item.quantity}× ${esc(item.name)}</span><span>${rp(item.sales)}</span></div>`).join("");
   const t = report.totals || {};
-  return printDoc(`<div class="c">${meta.logoUrl ? `<img class="logo" src="${meta.logoUrl}" />` : ""}<div class="name">${esc(meta.clubName || "Reborn Wave Group")}</div><div class="mode">END OF DAY</div><div class="muted">${esc(report.day || "")}</div></div><hr/><div class="row"><span>Paid orders</span><span>${Number(report.ticketCount || 0)}</span></div><hr/>${items || '<div class="c muted">No items sold</div>'}<hr/><div class="row"><span>Gross sales</span><span>${rp(t.subtotal)}</span></div><div class="row"><span>Discounts</span><span>- ${rp(t.discount)}</span></div><div class="row"><span>Service fee</span><span>${rp(t.serviceFee)}</span></div><div class="row"><span>Tax</span><span>${rp(t.tax)}</span></div><div class="row big"><span>TOTAL REVENUE</span><span>${rp(t.revenue)}</span></div><div class="row"><span>Cash</span><span>${rp(t.cash)}</span></div><div class="row"><span>Card</span><span>${rp(t.card)}</span></div><hr/><div class="row"><span>Product cost</span><span>- ${rp(t.cost)}</span></div><div class="row big"><span>GROSS PROFIT</span><span>${rp(t.profit)}</span></div><hr/><div class="c muted">Closed ${esc(new Date(report.closedAt || Date.now()).toLocaleString())}</div>`);
+  return printDoc(`<div class="c">${meta.logoUrl ? `<img class="logo" src="${meta.logoUrl}" />` : ""}<div class="name">${esc(meta.clubName || "Reborn Wave Group")}</div><div class="mode">${tr("pos.rc.endOfDay")}</div><div class="muted">${esc(report.day || "")}</div></div><hr/><div class="row"><span>${tr("pos.rc.paidOrders")}</span><span>${Number(report.ticketCount || 0)}</span></div><hr/>${items || `<div class="c muted">${tr("pos.rc.noItems")}</div>`}<hr/><div class="row"><span>${tr("pos.rc.grossSales")}</span><span>${rp(t.subtotal)}</span></div><div class="row"><span>${tr("pos.rc.discounts")}</span><span>- ${rp(t.discount)}</span></div><div class="row"><span>${tr("pos.rc.serviceFee")}</span><span>${rp(t.serviceFee)}</span></div><div class="row"><span>${tr("pos.rc.tax")}</span><span>${rp(t.tax)}</span></div><div class="row big"><span>${tr("pos.rc.totalRevenue")}</span><span>${rp(t.revenue)}</span></div><div class="row"><span>${tr("pos.rc.cash")}</span><span>${rp(t.cash)}</span></div><div class="row"><span>${tr("pos.rc.card")}</span><span>${rp(t.card)}</span></div><hr/><div class="row"><span>${tr("pos.rc.productCost")}</span><span>- ${rp(t.cost)}</span></div><div class="row big"><span>${tr("pos.rc.grossProfit")}</span><span>${rp(t.profit)}</span></div><hr/><div class="c muted">${esc(tr("pos.rc.closed", { when: new Date(report.closedAt || Date.now()).toLocaleString(localeTag()) }))}</div>`);
 }

@@ -30,6 +30,7 @@ export type LayaSupportRequest = {
   message: string;
   category?: string | null;
   faqContext?: string;
+  language?: "en" | "zh" | "id";
 };
 
 const conversationIds = new Map<number, string>();
@@ -116,6 +117,7 @@ export async function generateLayaSupportReply(request: LayaSupportRequest): Pro
       RWG_SUPPORT_CONTEXT,
       `Current support category: ${request.category || "general"}.`,
       request.faqContext ? `Approved RWG FAQ knowledge:\n${request.faqContext}` : "",
+      `Always reply in ${request.language === "zh" ? "Simplified Chinese (中文)" : request.language === "id" ? "Bahasa Indonesia" : "English"} — the member's chosen app language.`,
     ].filter(Boolean).join("\n\n");
 
     const response = await layaFetch("/chat", {

@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "wouter";
+import { useTranslation } from "@/lib/i18n";
 
 export default function PaymentSuccess() {
+  const { t } = useTranslation();
   const [paymentStatus, setPaymentStatus] = useState<'loading' | 'succeeded' | 'failed'>('loading');
 
   useEffect(() => {
@@ -34,22 +36,22 @@ export default function PaymentSuccess() {
             <div className="w-16 h-16 rounded-2xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center mx-auto mb-6">
               <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
             </div>
-            <h1 className="text-xl font-bold text-white mb-2">Processing...</h1>
-            <p className="text-white/40 text-sm">Verifying your payment</p>
+            <h1 className="text-xl font-bold text-white mb-2">{t("ac.ps.processing")}</h1>
+            <p className="text-white/40 text-sm">{t("ac.ps.verifying")}</p>
           </>
         ) : paymentStatus === 'succeeded' ? (
           <>
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-8 h-8 text-emerald-400" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Payment Successful!</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">{t("ac.ps.success")}</h1>
             <p className="text-white/45 text-sm mb-8">
-              Your payment has been processed. Credits have been added to your account.
+              {t("ac.ps.successDesc")}
             </p>
             <Link href="/">
               <Button className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold h-11">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Return to Dashboard
+                {t("ac.ps.return")}
               </Button>
             </Link>
           </>
@@ -58,20 +60,20 @@ export default function PaymentSuccess() {
             <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/25 flex items-center justify-center mx-auto mb-6">
               <XCircle className="w-8 h-8 text-red-400" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Payment Failed</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">{t("ac.ps.failed")}</h1>
             <p className="text-white/45 text-sm mb-8">
-              There was an issue processing your payment. No charges were made.
+              {t("ac.ps.failedDesc")}
             </p>
             <div className="flex flex-col gap-3">
               <Link href="/checkout">
                 <Button className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold h-11">
-                  Try Again
+                  {t("ac.ps.tryAgain")}
                 </Button>
               </Link>
               <Link href="/">
                 <Button variant="ghost" className="w-full text-white/50 hover:text-white/80 hover:bg-white/8 rounded-xl h-11">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Return to Dashboard
+                  {t("ac.ps.return")}
                 </Button>
               </Link>
             </div>

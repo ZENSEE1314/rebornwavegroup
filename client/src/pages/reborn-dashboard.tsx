@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { RebornLayout, MENU_ITEMS } from "@/components/RebornLayout";
 import { useModules, moduleEnabled, NAV_MODULE } from "@/lib/modules";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation, localeTag } from "@/lib/i18n";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
@@ -15,23 +15,23 @@ import {
 } from "lucide-react";
 
 const TILES = [
-  { label: "Pet Care", desc: "Feed your Doluruu", icon: <PawPrint className="w-6 h-6" />, path: "/pet", color: "#fb7185" },
-  { label: "Order to Table", desc: "Drinks & food to your seat", icon: <Utensils className="w-6 h-6" />, path: "/order", color: "#4ecdc4" },
-  { label: "Bottle Keep", desc: "Your kept drinks", icon: <Wine className="w-6 h-6" />, path: "/bottles", color: "#c9a84c" },
-  { label: "Spin & Win", desc: "Spend tokens for prizes", icon: <Disc3 className="w-6 h-6" />, path: "/spin", color: "#c9a84c" },
-  { label: "Live Games", desc: "PvP — RPS & Gold Rush", icon: <Gamepad2 className="w-6 h-6" />, path: "/games", color: "#f59e0b" },
-  { label: "My Prizes", desc: "Claim what you won", icon: <Gift className="w-6 h-6" />, path: "/spin?tab=prizes", color: "#22c55e" },
-  { label: "Bookings", desc: "Reserve your visit", icon: <Calendar className="w-6 h-6" />, path: "/bookings", color: "#4ecdc4" },
-  { label: "Loyalty", desc: "Rewards & perks", icon: <Trophy className="w-6 h-6" />, path: "/loyalty-program", color: "#a855f7" },
-  { label: "Kings of Singers", desc: "Gift & rank", icon: <Mic2 className="w-6 h-6" />, path: "/kos", color: "#ec4899" },
-  { label: "Song Request", desc: "Request & Top 500", icon: <Music className="w-6 h-6" />, path: "/songs", color: "#8b5cf6" },
-  { label: "Referrals", desc: "Invite friends", icon: <Users className="w-6 h-6" />, path: "/my-referral", color: "#6366f1" },
-  { label: "Support", desc: "Chat & FAQ", icon: <Headphones className="w-6 h-6" />, path: "/support", color: "#45b7d1" },
-  { label: "Profile", desc: "Your account", icon: <User className="w-6 h-6" />, path: "/profile", color: "#94a3b8" },
-  { label: "My History", desc: "Payments, receipts & gifts", icon: <ReceiptText className="w-6 h-6" />, path: "/history", color: "#f0d787" },
+  { label: "hm.tile.petCare", desc: "hm.tile.petCareDesc", icon: <PawPrint className="w-6 h-6" />, path: "/pet", color: "#fb7185" },
+  { label: "hm.tile.order", desc: "hm.tile.orderDesc", icon: <Utensils className="w-6 h-6" />, path: "/order", color: "#4ecdc4" },
+  { label: "hm.tile.bottles", desc: "hm.tile.bottlesDesc", icon: <Wine className="w-6 h-6" />, path: "/bottles", color: "#c9a84c" },
+  { label: "hm.tile.spin", desc: "hm.tile.spinDesc", icon: <Disc3 className="w-6 h-6" />, path: "/spin", color: "#c9a84c" },
+  { label: "hm.tile.games", desc: "hm.tile.gamesDesc", icon: <Gamepad2 className="w-6 h-6" />, path: "/games", color: "#f59e0b" },
+  { label: "hm.tile.prizes", desc: "hm.tile.prizesDesc", icon: <Gift className="w-6 h-6" />, path: "/spin?tab=prizes", color: "#22c55e" },
+  { label: "hm.tile.bookings", desc: "hm.tile.bookingsDesc", icon: <Calendar className="w-6 h-6" />, path: "/bookings", color: "#4ecdc4" },
+  { label: "hm.tile.loyalty", desc: "hm.tile.loyaltyDesc", icon: <Trophy className="w-6 h-6" />, path: "/loyalty-program", color: "#a855f7" },
+  { label: "hm.tile.kos", desc: "hm.tile.kosDesc", icon: <Mic2 className="w-6 h-6" />, path: "/kos", color: "#ec4899" },
+  { label: "hm.tile.songs", desc: "hm.tile.songsDesc", icon: <Music className="w-6 h-6" />, path: "/songs", color: "#8b5cf6" },
+  { label: "hm.tile.referrals", desc: "hm.tile.referralsDesc", icon: <Users className="w-6 h-6" />, path: "/my-referral", color: "#6366f1" },
+  { label: "hm.tile.support", desc: "hm.tile.supportDesc", icon: <Headphones className="w-6 h-6" />, path: "/support", color: "#45b7d1" },
+  { label: "hm.tile.profile", desc: "hm.tile.profileDesc", icon: <User className="w-6 h-6" />, path: "/profile", color: "#94a3b8" },
+  { label: "hm.tile.history", desc: "hm.tile.historyDesc", icon: <ReceiptText className="w-6 h-6" />, path: "/history", color: "#f0d787" },
 ];
 
-function formatRp(n: number) { return "RP " + (n || 0).toLocaleString("en-US"); }
+function formatRp(n: number) { return "RP " + (n || 0).toLocaleString(localeTag()); }
 
 export default function RebornDashboard() {
   const [, navigate] = useLocation();
@@ -59,7 +59,7 @@ export default function RebornDashboard() {
   });
   const expiringBottles = bottles.filter((b) => b.expiringSoon).length;
   const livePet = pets.find((p) => !p.isEgg && p.lifeStatus === "active");
-  const firstName = (user as any)?.firstName || "there";
+  const firstName = (user as any)?.firstName || t("hm.dash.there");
 
   return (
     <RebornLayout active="/">
@@ -121,8 +121,8 @@ export default function RebornDashboard() {
         <div className="flex-1 min-w-0">
           {livePet ? (
             <>
-              <p className="font-bold">{livePet.name} · {livePet.daysLeft} days left</p>
-              <p className="text-sm text-white/60">Fed {livePet.feedsToday}/{livePet.feedsNeeded} today {livePet.tokenEarnedToday ? "· token earned ✓" : "· feed 2× for a token"}</p>
+              <p className="font-bold">{livePet.name} · {t("hm.dash.daysLeft", { n: livePet.daysLeft })}</p>
+              <p className="text-sm text-white/60">{t("hm.dash.fedToday", { fed: livePet.feedsToday, need: livePet.feedsNeeded })} {livePet.tokenEarnedToday ? t("hm.dash.tokenEarned") : t("hm.dash.feedForToken")}</p>
             </>
           ) : (
             <>
@@ -137,25 +137,25 @@ export default function RebornDashboard() {
       {/* All feature buttons */}
       <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1">{t("nav.allFeatures")}</h2>
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
-        {TILES.filter((t) => moduleEnabled(modules, NAV_MODULE[t.path])).map((t) => (
-          <button key={t.label} onClick={() => navigate(t.path)} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all">
-            <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `${t.color}22`, color: t.color }}>{t.icon}</span>
-            <span className="text-xs font-semibold text-center leading-tight">{t.label}</span>
-            <span className="text-[10px] text-white/40 text-center leading-tight">{t.desc}</span>
+        {TILES.filter((tile) => moduleEnabled(modules, NAV_MODULE[tile.path])).map((tile) => (
+          <button key={tile.label} onClick={() => navigate(tile.path)} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all">
+            <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `${tile.color}22`, color: tile.color }}>{tile.icon}</span>
+            <span className="text-xs font-semibold text-center leading-tight">{t(tile.label)}</span>
+            <span className="text-[10px] text-white/40 text-center leading-tight">{t(tile.desc)}</span>
           </button>
         ))}
         {isAdmin && (
           <button onClick={() => navigate("/pos")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-amber-500/30 hover:bg-white/10 active:scale-95 transition-all">
             <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(201,168,76,0.15)", color: "#f0d787" }}><Store className="w-6 h-6" /></span>
-            <span className="text-xs font-semibold text-center">POS</span>
-            <span className="text-[10px] text-white/40 text-center">Ring up sales</span>
+            <span className="text-xs font-semibold text-center">{t("nav.pos")}</span>
+            <span className="text-[10px] text-white/40 text-center">{t("hm.dash.posDesc")}</span>
           </button>
         )}
         {isAdmin && (
           <button onClick={() => navigate("/reborn-admin")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-purple-500/30 hover:bg-white/10 active:scale-95 transition-all">
             <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.15)", color: "#c084fc" }}><Shield className="w-6 h-6" /></span>
-            <span className="text-xs font-semibold text-center">Admin</span>
-            <span className="text-[10px] text-white/40 text-center">Manage everything</span>
+            <span className="text-xs font-semibold text-center">{t("hm.dash.admin")}</span>
+            <span className="text-[10px] text-white/40 text-center">{t("hm.dash.adminDesc")}</span>
           </button>
         )}
       </div>
@@ -170,13 +170,14 @@ export default function RebornDashboard() {
 
 function TopupModal({ onClose }: { onClose: () => void }) {
   const { toast } = useToast();
+  const { t, language } = useTranslation();
   const qc = useQueryClient();
   const [amount, setAmount] = useState(100000);
   const [method, setMethod] = useState("cash");
   const submit = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/topup", { amount, paymentMethod: method }).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: "Request sent", description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/topup/mine"] }); onClose(); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onSuccess: (d) => { toast({ title: t("hm.topup.requestSent"), description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/topup/mine"] }); onClose(); },
+    onError: (e: any) => toast({ title: t("hm.common.failed"), description: e.message, variant: "destructive" }),
   });
   const { data: mine = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/topup/mine"], queryFn: () => apiRequest("GET", "/api/reborn/topup/mine").then((r) => r.json()), refetchInterval: 12000 });
   return (
@@ -184,23 +185,23 @@ function TopupModal({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div className="relative w-full sm:max-w-sm bg-[#160f2a] border border-white/10 rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><X className="w-4 h-4" /></button>
-        <h3 className="text-xl font-extrabold mb-1">Top up RP</h3>
-        <p className="text-sm text-white/60 mb-4">Request to add RP credits (use them to buy KGOLD or pay in-app). Staff will confirm your payment.</p>
-        <label className="text-xs text-white/60 block mb-1">Amount (RP)</label>
+        <h3 className="text-xl font-extrabold mb-1">{t("hm.topup.title")}</h3>
+        <p className="text-sm text-white/60 mb-4">{t("hm.topup.desc")}</p>
+        <label className="text-xs text-white/60 block mb-1">{t("hm.topup.amount")}</label>
         <input type="number" min={10000} step={10000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-3" />
-        <label className="text-xs text-white/60 block mb-1">Payment method</label>
+        <label className="text-xs text-white/60 block mb-1">{t("hm.topup.method")}</label>
         <div className="grid grid-cols-2 gap-2 mb-4">
-          {[{ v: "cash", l: "Cash" }, { v: "card", l: "Card" }].map((m) => (
+          {[{ v: "cash", l: t("hm.topup.cash") }, { v: "card", l: t("hm.topup.card") }].map((m) => (
             <button key={m.v} type="button" onClick={() => setMethod(m.v)} className={`py-3 rounded-xl border font-semibold ${method === m.v ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/70"}`}>{m.l}</button>
           ))}
         </div>
-        <button onClick={() => submit.mutate()} disabled={submit.isPending || amount < 10000} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Send request</button>
+        <button onClick={() => submit.mutate()} disabled={submit.isPending || amount < 10000} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("hm.topup.send")}</button>
         {mine.length > 0 && (
           <div className="mt-4 space-y-1">
-            <p className="text-xs text-white/40">Recent requests</p>
+            <p className="text-xs text-white/40">{t("hm.topup.recent")}</p>
             {mine.slice(0, 4).map((r) => (
-              <div key={r.id} className="flex justify-between text-xs"><span>RP {Number(r.amount).toLocaleString()}</span>
-                <span className={r.status === "approved" ? "text-emerald-400" : r.status === "rejected" ? "text-red-400" : "text-amber-300"}>{r.status}</span></div>
+              <div key={r.id} className="flex justify-between text-xs"><span>RP {Number(r.amount).toLocaleString(localeTag(language))}</span>
+                <span className={r.status === "approved" ? "text-emerald-400" : r.status === "rejected" ? "text-red-400" : "text-amber-300"}>{t(`hm.status.${r.status}`)}</span></div>
             ))}
           </div>
         )}

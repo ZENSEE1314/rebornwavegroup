@@ -151,13 +151,13 @@ export function TooltipGuide({
               <div className="w-12 h-12 rounded-full bg-white p-1 mr-3">
                 <img 
                   src={characterImage} 
-                  alt="Doluruu Grandpa Guide"
+                  alt={t("hm.tip.guideAlt")}
                   className="w-full h-full object-cover rounded-full"
                 />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold">Doluruu Grandpa</span>
+                  <span className="text-lg font-bold">{t("hm.tip.grandpa")}</span>
                   <span className={`px-2 py-1 rounded-full text-xs ${getCategoryColor(currentStepData.category)} text-white`}>
                     {getCategoryIcon(currentStepData.category)} {t(`tooltip.${currentStepData.category}`)}
                   </span>
@@ -170,6 +170,7 @@ export function TooltipGuide({
                 variant="ghost"
                 size="sm"
                 onClick={onSkip}
+                aria-label={t("hm.tour.skip")}
                 className="text-white hover:bg-white hover:bg-opacity-20"
               >
                 <X className="w-4 h-4" />
