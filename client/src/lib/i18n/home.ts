@@ -296,7 +296,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.guide.me.code.t': { en: "Member code", zh: "会员码", id: "Kode member" },
   'hm.guide.me.code.x': { en: "Show it to staff so they find you fast. Tap the copy icon to copy it.", zh: "出示给工作人员以便快速找到你。点击复制图标即可复制。", id: "Tunjukkan ke staf agar mereka cepat menemukanmu. Ketuk ikon salin untuk menyalinnya." },
   'hm.guide.me.notif.t': { en: "Notifications", zh: "通知", id: "Notifikasi" },
-  'hm.guide.me.notif.x': { en: "In the app, alerts for bookings, orders and rewards turn on by themselves. In a browser, tap Turn on notifications on your Profile.", zh: "在应用中，预订、订单和奖励通知会自动开启。在浏览器中，请在“我的”页面点击“开启通知”。", id: "Di aplikasi, notifikasi booking, pesanan dan hadiah aktif otomatis. Di browser, ketuk Aktifkan notifikasi di Profil." },
+  'hm.guide.me.notif.x': { en: "Alerts for bookings, orders and rewards turn on by themselves in the app — just allow notifications when your phone asks.", zh: "在应用中，预订、订单和奖励通知会自动开启 — 手机询问时请点允许即可。", id: "Notifikasi booking, pesanan dan hadiah aktif otomatis di aplikasi — cukup izinkan notifikasi saat ponselmu bertanya." },
   'hm.guide.me.lang.t': { en: "Language", zh: "语言", id: "Bahasa" },
   'hm.guide.me.lang.x': { en: "English, 中文 or Bahasa. WhatsApp replies follow the same language.", zh: "English、中文或 Bahasa。WhatsApp 回复也会使用相同语言。", id: "English, 中文, atau Bahasa. Balasan WhatsApp mengikuti bahasa yang sama." },
   'hm.guide.me.edit.t': { en: "Save profile · Update password", zh: "保存资料 · 更新密码", id: "Simpan profil · Ubah kata sandi" },
