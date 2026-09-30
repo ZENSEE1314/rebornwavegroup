@@ -245,7 +245,7 @@ function Overlay({ children, onClose }: any) {
     <div className="kos-sheet fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div className="kos-sheet-box relative w-full sm:max-w-sm rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="arc-btn absolute top-4 right-4" style={{ width: 32, height: 32 }}><X className="w-4 h-4" /></button>
+        <button onClick={onClose} className="arc-btn" style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32 }}><X className="w-4 h-4" /></button>
         {children}
       </div>
     </div>

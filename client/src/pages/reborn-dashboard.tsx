@@ -66,30 +66,30 @@ export default function RebornDashboard() {
       {showTour && <OnboardingWalkthrough isOpen={showTour} onClose={closeTour} onComplete={closeTour} />}
 
       {/* Welcome + balances */}
-      <div className="rounded-3xl p-5 mb-4 border border-white/10" style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.25), rgba(201,168,76,0.12))" }}>
-        <p className="text-white/60 text-sm">{t("dash.welcomeBack")}</p>
-        <h1 className="text-2xl font-extrabold mb-4">{firstName} 👋</h1>
-        <div className="grid grid-cols-3 gap-2">
+      <div className="home-hero mb-4">
+        <p className="home-hi">{t("dash.welcomeBack")}</p>
+        <h1 className="home-name mb-4">{firstName} 👋</h1>
+        <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
           {[
             { label: t("dash.credits"), value: formatRp(parseFloat((user as any)?.credits || "0")), icon: <DollarSign className="w-4 h-4" />, c: "#22c55e" },
             { label: t("dash.points"), value: (user as any)?.loyaltyPoints ?? 0, icon: <Star className="w-4 h-4" />, c: "#a855f7" },
             { label: t("dash.tokens"), value: (user as any)?.tokens ?? 0, icon: <Coins className="w-4 h-4" />, c: "#c9a84c" },
           ].map((b) => (
-            <div key={b.label} className="rounded-2xl bg-black/25 p-3 text-center">
-              <span className="inline-flex mb-1" style={{ color: b.c }}>{b.icon}</span>
-              <div className="text-lg font-bold leading-none">{b.value}</div>
-              <div className="text-[11px] text-white/50 mt-1">{b.label}</div>
+            <div key={b.label} className="home-stat" style={{ ["--c" as any]: b.c }}>
+              <span className="ic">{b.icon}</span>
+              <div className="v">{b.value}</div>
+              <div className="l">{b.label}</div>
             </div>
           ))}
         </div>
-        <button onClick={() => setShowTopup(true)} className="mt-3 w-full py-2.5 rounded-xl font-bold text-black flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
+        <button onClick={() => setShowTopup(true)} className="arc-play arc-start mt-3 w-full justify-center" style={{ padding: 12, fontSize: 13 }}>
           <Plus className="w-4 h-4" /> {t("dash.topUp")}
         </button>
       </div>
 
       {/* Bottle-keep reminder */}
       {expiringBottles > 0 && (
-        <button onClick={() => navigate("/bottles")} className="w-full mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3 flex items-center gap-2 text-left">
+        <button onClick={() => navigate("/bottles")} className="arc-room-row w-full mb-4 text-left" style={{ ["--c1" as any]: "#f3b52f" }}>
           <Wine className="w-5 h-5 text-amber-300 flex-shrink-0" />
           <span className="text-sm text-amber-100">{expiringBottles} {t("dash.bottleReminder")}</span>
           <ChevronRight className="w-4 h-4 text-amber-300/60 ml-auto" />
@@ -100,11 +100,14 @@ export default function RebornDashboard() {
       {events.length > 0 && (
         <div className="mb-4 space-y-2">
           {events.map((ev) => (
-            <div key={ev.id} className="rounded-2xl border border-amber-400/25 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.18), rgba(236,72,153,0.12))" }}>
+            <div key={ev.id} className="arc-panel" style={{ padding: 0, ["--c1" as any]: "#f59e0b" }}>
               {ev.imageUrl && <img src={ev.imageUrl} alt="" className="w-full h-32 object-cover" />}
-              <div className="p-4">
-                <p className="font-bold flex items-center gap-2"><Megaphone className="w-4 h-4 text-amber-300" /> {ev.title}</p>
+              <div className="p-4 flex items-start gap-3">
+                <span className="arc-icon shrink-0" style={{ width: 44, height: 44, fontSize: 20, ["--c1" as any]: "#fbbf24", ["--c2" as any]: "#ea580c" }}><span><Megaphone className="w-5 h-5 text-white" /></span></span>
+                <div className="min-w-0 flex-1">
+                <p className="arc-title" style={{ ["--c1" as any]: "#f59e0b", fontSize: 17 }}>{ev.title}</p>
                 {ev.body && <p className="text-sm text-white/70 mt-1 whitespace-pre-line">{ev.body}</p>}
+                </div>
               </div>
             </div>
           ))}
@@ -114,24 +117,22 @@ export default function RebornDashboard() {
       {showTopup && <TopupModal onClose={() => setShowTopup(false)} />}
 
       {/* Pet quick status / CTA */}
-      <button onClick={() => navigate("/pet")} className="w-full rounded-2xl p-4 mb-4 border border-white/10 bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-3 text-left">
-        <span className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(251,113,133,0.15)", color: "#fb7185" }}>
-          <PawPrint className="w-6 h-6" />
-        </span>
+      <button onClick={() => navigate("/pet")} className="arc-tile w-full mb-4 text-left" style={{ ["--c1" as any]: "#fb7185", ["--c2" as any]: "#db2777" }}>
+        <span className="arc-icon"><span><PawPrint className="w-7 h-7 text-white" /></span></span>
         <div className="flex-1 min-w-0">
           {livePet ? (
             <>
-              <p className="font-bold">{livePet.name} · {t("hm.dash.daysLeft", { n: livePet.daysLeft })}</p>
-              <p className="text-sm text-white/60">{t("hm.dash.fedToday", { fed: livePet.feedsToday, need: livePet.feedsNeeded })} {livePet.tokenEarnedToday ? t("hm.dash.tokenEarned") : t("hm.dash.feedForToken")}</p>
+              <p className="arc-title" style={{ fontSize: 16 }}>{livePet.name} · {t("hm.dash.daysLeft", { n: livePet.daysLeft })}</p>
+              <p className="text-sm text-white/60">{t("hm.dash.fedToday", { fed: livePet.feedsToday ?? livePet.feedsInCycle ?? 0, need: livePet.feedsNeeded })} {livePet.tokenEarnedToday ? t("hm.dash.tokenEarned") : t("hm.dash.feedForToken")}</p>
             </>
           ) : (
             <>
-              <p className="font-bold">{t("dash.activatePet")}</p>
+              <p className="arc-title" style={{ fontSize: 16 }}>{t("dash.activatePet")}</p>
               <p className="text-sm text-white/60">{t("dash.activatePetDesc")}</p>
             </>
           )}
         </div>
-        <ChevronRight className="w-5 h-5 text-white/40" />
+        <span className="arc-play"><ChevronRight className="w-4 h-4" /></span>
       </button>
 
       {/* All feature buttons */}
@@ -173,21 +174,21 @@ function TopupModal({ onClose }: { onClose: () => void }) {
   });
   const { data: mine = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/topup/mine"], queryFn: () => apiRequest("GET", "/api/reborn/topup/mine").then((r) => r.json()), refetchInterval: 12000 });
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+    <div className="kos-sheet fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative w-full sm:max-w-sm bg-[#160f2a] border border-white/10 rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><X className="w-4 h-4" /></button>
-        <h3 className="text-xl font-extrabold mb-1">{t("hm.topup.title")}</h3>
+      <div className="kos-sheet-box relative w-full sm:max-w-sm rounded-3xl p-6" style={{ borderColor: "rgba(247,215,116,.5)" }} onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="arc-btn" style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32 }}><X className="w-4 h-4" /></button>
+        <h3 className="arc-title mb-1" style={{ ["--c1" as any]: "#f3b52f" }}>{t("hm.topup.title")}</h3>
         <p className="text-sm text-white/60 mb-4">{t("hm.topup.desc")}</p>
         <label className="text-xs text-white/60 block mb-1">{t("hm.topup.amount")}</label>
-        <input type="number" min={10000} step={10000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-3" />
+        <input type="number" min={10000} step={10000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="arc-input w-full mb-3 font-black text-lg" style={{ ["--c1" as any]: "#f3b52f" }} />
         <label className="text-xs text-white/60 block mb-1">{t("hm.topup.method")}</label>
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           {[{ v: "cash", l: t("hm.topup.cash") }, { v: "card", l: t("hm.topup.card") }].map((m) => (
-            <button key={m.v} type="button" onClick={() => setMethod(m.v)} className={`py-3 rounded-xl border font-semibold ${method === m.v ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/70"}`}>{m.l}</button>
+            <button key={m.v} type="button" onClick={() => setMethod(m.v)} className={`pet-tab ${method === m.v ? "on" : "border border-white/10 bg-black/30"}`}>{m.l}</button>
           ))}
         </div>
-        <button onClick={() => submit.mutate()} disabled={submit.isPending || amount < 10000} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("hm.topup.send")}</button>
+        <button onClick={() => submit.mutate()} disabled={submit.isPending || amount < 10000} className="arc-play w-full justify-center disabled:opacity-50" style={{ padding: 12, fontSize: 13 }}>{t("hm.topup.send")}</button>
         {mine.length > 0 && (
           <div className="mt-4 space-y-1">
             <p className="text-xs text-white/40">{t("hm.topup.recent")}</p>
