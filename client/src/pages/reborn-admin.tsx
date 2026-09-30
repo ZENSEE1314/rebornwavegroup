@@ -723,31 +723,33 @@ function WeeklySchedule({ area, onChange }: { area: any; onChange: (s: any) => v
 
 function Songs() {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const { data: songs = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/songs"], queryFn: () => apiRequest("GET", "/api/reborn/songs").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] });
-  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/songs", { title: "New hit song", isHit: true }).then((r) => r.json()), onSuccess: inv });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/songs", { title: t("admin.song.newTitle"), isHit: true }).then((r) => r.json()), onSuccess: inv });
   const save = useMutation({ mutationFn: (s: any) => apiRequest("PUT", `/api/reborn/admin/songs/${s.id}`, s).then((r) => r.json()), onSuccess: inv });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/songs/${id}`), onSuccess: inv });
   return (
     <div>
-      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add hit song</button>
+      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> {t("admin.song.add")}</button>
       <div className="space-y-3">{songs.map((s) => <SongRow key={s.id} s={s} onSave={save.mutate} onDelete={del.mutate} />)}</div>
     </div>
   );
 }
 function SongRow({ s, onSave, onDelete }: any) {
   const [e, setE] = useState(s);
+  const { t } = useTranslation();
   return (
     <Card>
       <div className="grid grid-cols-2 gap-2 mb-2">
-        <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder="Song name 中文" className={inp} />
-        <input value={e.titlePinyin || ""} onChange={(x) => setE({ ...e, titlePinyin: x.target.value })} placeholder="Song pinyin" className={inp} />
-        <input value={e.artist || ""} onChange={(x) => setE({ ...e, artist: x.target.value })} placeholder="Singer 中文" className={inp} />
-        <input value={e.artistPinyin || ""} onChange={(x) => setE({ ...e, artistPinyin: x.target.value })} placeholder="Singer pinyin" className={inp} />
+        <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder={t("admin.song.name")} className={inp} />
+        <input value={e.titlePinyin || ""} onChange={(x) => setE({ ...e, titlePinyin: x.target.value })} placeholder={t("admin.song.pinyin")} className={inp} />
+        <input value={e.artist || ""} onChange={(x) => setE({ ...e, artist: x.target.value })} placeholder={t("admin.song.singer")} className={inp} />
+        <input value={e.artistPinyin || ""} onChange={(x) => setE({ ...e, artistPinyin: x.target.value })} placeholder={t("admin.song.singerPinyin")} className={inp} />
       </div>
-      <input value={e.spotifyUrl || ""} onChange={(x) => setE({ ...e, spotifyUrl: x.target.value })} placeholder="Spotify link" className={inp + " w-full mb-2"} />
-      <div className="mb-2"><p className="text-xs text-white/50 mb-1">Singer photo</p><ImageUpload value={e.artistPhoto} onChange={(v) => setE({ ...e, artistPhoto: v })} shape="circle" label="Upload photo" /></div>
-      <label className="text-xs text-white/50 flex items-center gap-1 mb-2"><input type="checkbox" checked={e.isHit} onChange={(x) => setE({ ...e, isHit: x.target.checked })} /> hit song (Top list)</label>
+      <input value={e.spotifyUrl || ""} onChange={(x) => setE({ ...e, spotifyUrl: x.target.value })} placeholder={t("admin.song.spotify")} className={inp + " w-full mb-2"} />
+      <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.song.photo")}</p><ImageUpload value={e.artistPhoto} onChange={(v) => setE({ ...e, artistPhoto: v })} shape="circle" label={t("admin.c.uploadPhoto")} /></div>
+      <label className="text-xs text-white/50 flex items-center gap-1 mb-2"><input type="checkbox" checked={e.isHit} onChange={(x) => setE({ ...e, isHit: x.target.checked })} /> {t("admin.song.hit")}</label>
       <div className="flex gap-2">
         <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
         <button onClick={() => onDelete(s.id)} className={btnDel}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
@@ -758,18 +760,19 @@ function SongRow({ s, onSave, onDelete }: any) {
 
 function SongRequests() {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/song-requests"], queryFn: () => apiRequest("GET", "/api/reborn/admin/song-requests").then((r) => r.json()) });
   const act = useMutation({ mutationFn: ({ id, approve, comment }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}`, { approve, comment }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/song-requests"] }) });
-  if (rows.length === 0) return <Empty text="No pending song requests." />;
+  if (rows.length === 0) return <Empty text={t("admin.req.empty")} />;
   return (
     <div className="space-y-2">
       {rows.map((r) => (
         <Card key={r.id}>
           <div className="flex items-center gap-3">
             <Music2 className="w-5 h-5 text-amber-300 flex-shrink-0" />
-            <div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{r.title}</p><p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? "By singer" : "Self sing"} · user {r.userId?.slice(0, 8)}</p></div>
-            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Confirm</button>
-            <button onClick={() => { const comment = prompt("Reject — reason/comment (optional):", "") ?? undefined; act.mutate({ id: r.id, approve: false, comment }); }} className={btnDel}><X className="w-4 h-4" /> Reject</button>
+            <div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{r.title}</p><p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("admin.req.bySinger") : t("admin.req.self")} · {t("admin.c.userShort", { id: r.userId?.slice(0, 8) })}</p></div>
+            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.confirm")}</button>
+            <button onClick={() => { const comment = prompt(t("admin.req.rejectPrompt"), "") ?? undefined; act.mutate({ id: r.id, approve: false, comment }); }} className={btnDel}><X className="w-4 h-4" /> {t("admin.c.reject")}</button>
           </div>
         </Card>
       ))}
@@ -784,29 +787,30 @@ function useCrud(key: string) {
 
 function Codes() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { qc } = useCrud("/api/reborn/admin/codes");
   const [count, setCount] = useState(5);
   const [gender, setGender] = useState("male");
   const { data: codes = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/codes"], queryFn: () => apiRequest("GET", "/api/reborn/admin/codes").then((r) => r.json()) });
   const gen = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/codes", { count, gender }).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: `${d.codes.length} codes generated` }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/codes"] }); },
+    onSuccess: (d) => { toast({ title: t("admin.code.generated", { n: d.codes.length }) }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/codes"] }); },
   });
   return (
     <div>
       <Card>
-        <h3 className="font-bold mb-3 flex items-center gap-2"><Ticket className="w-4 h-4 text-amber-300" /> Generate activation codes</h3>
+        <h3 className="font-bold mb-3 flex items-center gap-2"><Ticket className="w-4 h-4 text-amber-300" /> {t("admin.code.title")}</h3>
         <div className="flex flex-wrap gap-2 items-center">
           <input type="number" min={1} max={200} value={count} onChange={(e) => setCount(Number(e.target.value))} className={inp + " w-20"} />
-          <select value={gender} onChange={(e) => setGender(e.target.value)} className={inp}><option value="male">Male pet</option><option value="female">Female pet</option></select>
-          <button onClick={() => gen.mutate()} className={btn}><Plus className="w-4 h-4" /> Generate</button>
+          <select value={gender} onChange={(e) => setGender(e.target.value)} className={inp}><option value="male">{t("admin.code.male")}</option><option value="female">{t("admin.code.female")}</option></select>
+          <button onClick={() => gen.mutate()} className={btn}><Plus className="w-4 h-4" /> {t("admin.code.generate")}</button>
         </div>
       </Card>
       <div className="mt-4 space-y-1">
         {codes.map((c) => (
           <div key={c.id} className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm">
             <span className="font-mono font-bold tracking-wider">{c.code}</span>
-            <span className="text-xs text-white/50">{c.petGender} · {c.used ? "used" : "unused"}</span>
+            <span className="text-xs text-white/50">{tv(t, "admin.code.g." + c.petGender, c.petGender)} · {c.used ? t("admin.code.used") : t("admin.code.unused")}</span>
           </div>
         ))}
       </div>
@@ -816,43 +820,45 @@ function Codes() {
 
 function Prizes() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: prizes = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/prizes"], queryFn: () => apiRequest("GET", "/api/reborn/admin/prizes").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/prizes"] });
-  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/prizes", { label: "New prize", prizeType: "item", weight: 10 }).then((r) => r.json()), onSuccess: inv });
-  const save = useMutation({ mutationFn: (p: any) => apiRequest("PUT", `/api/reborn/admin/prizes/${p.id}`, p).then((r) => r.json()), onSuccess: () => { toast({ title: "Saved" }); inv(); } });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/prizes", { label: t("admin.prize.newLabel"), prizeType: "item", weight: 10 }).then((r) => r.json()), onSuccess: inv });
+  const save = useMutation({ mutationFn: (p: any) => apiRequest("PUT", `/api/reborn/admin/prizes/${p.id}`, p).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.c.saved") }); inv(); } });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/prizes/${id}`), onSuccess: inv });
   const totalWeight = prizes.reduce((s, p) => s + (p.active ? Number(p.weight) || 0 : 0), 0) || 1;
   const [award, setAward] = useState({ username: "", prizeId: 0 });
   const giveAward = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/prizes/award", award).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { toast({ title: ok ? d.message : "Failed", description: ok ? undefined : d.message, variant: ok ? undefined : "destructive" }); if (ok) setAward({ username: "", prizeId: 0 }); },
+    onSuccess: ({ ok, d }: any) => { toast({ title: ok ? d.message : t("admin.c.failed"), description: ok ? undefined : d.message, variant: ok ? undefined : "destructive" }); if (ok) setAward({ username: "", prizeId: 0 }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div>
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Disc3 className="w-4 h-4 text-amber-300" /> Give a prize to a member</p>
-        <p className="text-[11px] text-white/50 mb-2">Hand a prize directly to a member (no spin, no tokens). They'll be notified and can redeem with staff.</p>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Disc3 className="w-4 h-4 text-amber-300" /> {t("admin.prize.giveTitle")}</p>
+        <p className="text-[11px] text-white/50 mb-2">{t("admin.prize.giveHint")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-          <UserPicker value={award.username} onChange={(code) => setAward({ ...award, username: code })} placeholder="Search member by name…" />
+          <UserPicker value={award.username} onChange={(code) => setAward({ ...award, username: code })} placeholder={t("admin.prize.searchMember")} />
           <select value={award.prizeId} onChange={(e) => setAward({ ...award, prizeId: Number(e.target.value) })} className={inp}>
-            <option value={0}>Choose prize…</option>
+            <option value={0}>{t("admin.prize.choose")}</option>
             {prizes.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </div>
-        <button onClick={() => giveAward.mutate()} disabled={!award.username.trim() || !award.prizeId || giveAward.isPending} className={btn + " disabled:opacity-50"}><Gift className="w-4 h-4" /> Give prize</button>
+        <button onClick={() => giveAward.mutate()} disabled={!award.username.trim() || !award.prizeId || giveAward.isPending} className={btn + " disabled:opacity-50"}><Gift className="w-4 h-4" /> {t("admin.prize.give")}</button>
       </Card>
-      <button onClick={() => add.mutate()} className={btn + " my-4"}><Plus className="w-4 h-4" /> Add prize</button>
+      <button onClick={() => add.mutate()} className={btn + " my-4"}><Plus className="w-4 h-4" /> {t("admin.prize.add")}</button>
       <div className="space-y-3">
         {prizes.map((p) => <PrizeRow key={p.id} p={p} totalWeight={totalWeight} onSave={save.mutate} onDelete={del.mutate} />)}
       </div>
-      <p className="text-xs text-white/40 mt-3">Win rate = the chance each prize is won (higher = more often). Set big prizes low so members can't keep winning them. Types: item, voucher_percent, voucher_amount, pill (revives a pet), free_spin, nothing.</p>
+      <p className="text-xs text-white/40 mt-3">{t("admin.prize.hint")}</p>
     </div>
   );
 }
 function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
   const [e, setE] = useState(p);
+  const { t } = useTranslation();
   const pct = e.active ? Math.round(((Number(e.weight) || 0) / totalWeight) * 100) : 0;
   return (
     <Card>
@@ -862,14 +868,14 @@ function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
       </div>
       <div className="flex flex-wrap gap-2 items-center mt-2">
         <select value={e.prizeType} onChange={(x) => setE({ ...e, prizeType: x.target.value })} className={inp}>
-          {["item", "voucher_percent", "voucher_amount", "pill", "free_spin", "nothing"].map((t) => <option key={t} value={t}>{t}</option>)}
+          {["item", "voucher_percent", "voucher_amount", "pill", "free_spin", "nothing"].map((pt) => <option key={pt} value={pt}>{t("admin.ptype." + pt)}</option>)}
         </select>
-        <label className="text-xs text-white/50" title="For % voucher: the discount %. For RP voucher: the RP amount.">value<input type="number" inputMode="numeric" value={e.value || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
+        <label className="text-xs text-white/50" title={t("admin.prize.valueTip")}>{t("admin.prize.value")}<input type="number" inputMode="numeric" value={e.value || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
         {e.prizeType === "voucher_percent"
-          ? <span className="text-[11px] text-white/40" title="Cost is auto = value% × the assumed bill (Settings)">cost: auto {e.value || 0}% of bill</span>
-          : <label className="text-xs text-white/50" title="RP drawn from the prize pool when won (0 = free outcome)">cost RP<input type="number" inputMode="numeric" value={e.costRp || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, costRp: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>}
-        <label className="text-xs text-white/50">win rate<input type="number" inputMode="numeric" value={e.weight || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
-        <span className="text-xs font-bold text-amber-300" title="Chance of winning this prize">≈{pct}%</span>
+          ? <span className="text-[11px] text-white/40" title={t("admin.prize.autoTip")}>{t("admin.prize.autoCost", { n: e.value || 0 })}</span>
+          : <label className="text-xs text-white/50" title={t("admin.prize.costTip")}>{t("admin.prize.cost")}<input type="number" inputMode="numeric" value={e.costRp || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, costRp: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>}
+        <label className="text-xs text-white/50">{t("admin.prize.winRate")}<input type="number" inputMode="numeric" value={e.weight || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
+        <span className="text-xs font-bold text-amber-300" title={t("admin.prize.chanceTip")}>≈{pct}%</span>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> {t("admin.c.active")}</label>
       </div>
       <div className="flex gap-2 mt-3">
@@ -882,22 +888,23 @@ function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
 
 function Redemptions() {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/redemptions"], queryFn: () => apiRequest("GET", "/api/reborn/admin/redemptions").then((r) => r.json()) });
   const act = useMutation({ mutationFn: ({ id, approve }: any) => apiRequest("POST", `/api/reborn/admin/redemptions/${id}`, { approve }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/redemptions"] }) });
   return (
     <div className="space-y-2">
       <Card>
-        <p className="font-bold text-sm flex items-center gap-2"><Gift className="w-4 h-4 text-amber-300" /> Prize redemptions</p>
-        <p className="text-[11px] text-white/50 mt-1">When a member wins on the Lucky Spin and taps "Use", the prize lands here. <b>Approve</b> once you've given them the reward in person, or <b>reject</b> if it can't be honoured.</p>
+        <p className="font-bold text-sm flex items-center gap-2"><Gift className="w-4 h-4 text-amber-300" /> {t("admin.ov.redemptions")}</p>
+        <p className="text-[11px] text-white/50 mt-1">{t("admin.red.hint")}</p>
       </Card>
-      {rows.length === 0 && <Empty text="No prizes waiting to be redeemed right now." />}
+      {rows.length === 0 && <Empty text={t("admin.red.empty")} />}
       {rows.map((r) => (
         <Card key={r.id}>
           <div className="flex items-center gap-3">
             <Gift className="w-5 h-5 text-amber-300" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">{r.prizeLabel}</p>
-              <p className="text-xs text-white/40">{r.memberName || "Member"} · {new Date(r.createdAt).toLocaleString()}</p>
+              <p className="text-xs text-white/40">{r.memberName || t("admin.c.member")} · {new Date(r.createdAt).toLocaleString(localeTag())}</p>
             </div>
             <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.approve")}</button>
             <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
@@ -910,6 +917,7 @@ function Redemptions() {
 
 function Pills() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [userId, setUserId] = useState("");
   const grant = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/grant-pill", { userId: userId.trim() }).then((r) => r.json()),
@@ -918,11 +926,11 @@ function Pills() {
   });
   return (
     <Card>
-      <h3 className="font-bold mb-2 flex items-center gap-2"><Pill className="w-4 h-4 text-rose-400" /> Grant revival pill</h3>
-      <p className="text-sm text-white/60 mb-3">After a member spends 300,000 RP, grant them a pill to revive/extend their pet 15 days. Enter their user ID (from their profile).</p>
+      <h3 className="font-bold mb-2 flex items-center gap-2"><Pill className="w-4 h-4 text-rose-400" /> {t("admin.pill.title")}</h3>
+      <p className="text-sm text-white/60 mb-3">{t("admin.pill.hint")}</p>
       <div className="flex gap-2">
-        <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="user id" className={inp + " flex-1"} />
-        <button onClick={() => grant.mutate()} disabled={!userId.trim()} className={btn}>Grant pill</button>
+        <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder={t("admin.pill.userId")} className={inp + " flex-1"} />
+        <button onClick={() => grant.mutate()} disabled={!userId.trim()} className={btn}>{t("admin.pill.grant")}</button>
       </div>
     </Card>
   );
@@ -930,26 +938,28 @@ function Pills() {
 
 function Faq() {
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const { data: items = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/faq"], queryFn: () => apiRequest("GET", "/api/reborn/admin/faq").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/faq"] });
-  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/faq", { question: "New question", answer: "Answer", keywords: "" }).then((r) => r.json()), onSuccess: inv });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/faq", { question: t("admin.faq.newQ"), answer: t("admin.faq.answer"), keywords: "" }).then((r) => r.json()), onSuccess: inv });
   const save = useMutation({ mutationFn: (f: any) => apiRequest("PUT", `/api/reborn/admin/faq/${f.id}`, f).then((r) => r.json()), onSuccess: inv });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/faq/${id}`), onSuccess: inv });
   return (
     <div>
-      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add FAQ</button>
+      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> {t("admin.faq.add")}</button>
       <div className="space-y-3">{items.map((f) => <FaqRow key={f.id} f={f} onSave={save.mutate} onDelete={del.mutate} />)}</div>
-      <p className="text-xs text-white/40 mt-3">Keywords (comma-separated) are matched against member questions for instant auto-replies.</p>
+      <p className="text-xs text-white/40 mt-3">{t("admin.faq.hint")}</p>
     </div>
   );
 }
 function FaqRow({ f, onSave, onDelete }: any) {
   const [e, setE] = useState(f);
+  const { t } = useTranslation();
   return (
     <Card>
-      <input value={e.question} onChange={(x) => setE({ ...e, question: x.target.value })} placeholder="Question" className={inp + " w-full mb-2"} />
-      <textarea value={e.answer} onChange={(x) => setE({ ...e, answer: x.target.value })} placeholder="Answer" rows={2} className={inp + " w-full mb-2"} />
-      <input value={e.keywords || ""} onChange={(x) => setE({ ...e, keywords: x.target.value })} placeholder="keywords, comma, separated" className={inp + " w-full mb-2"} />
+      <input value={e.question} onChange={(x) => setE({ ...e, question: x.target.value })} placeholder={t("admin.faq.question")} className={inp + " w-full mb-2"} />
+      <textarea value={e.answer} onChange={(x) => setE({ ...e, answer: x.target.value })} placeholder={t("admin.faq.answer")} rows={2} className={inp + " w-full mb-2"} />
+      <input value={e.keywords || ""} onChange={(x) => setE({ ...e, keywords: x.target.value })} placeholder={t("admin.faq.keywords")} className={inp + " w-full mb-2"} />
       <div className="flex gap-2">
         <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
         <button onClick={() => onDelete(f.id)} className={btnDel + " justify-center"}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
@@ -973,6 +983,7 @@ function UserPicker({ value, onChange, onPick, placeholder }: { value: string; o
   const [q, setQ] = useState(value || "");
   const [open, setOpen] = useState(false);
   const [debounced, setDebounced] = useState("");
+  const { t: tr } = useTranslation();
   useEffect(() => { setQ(value || ""); }, [value]);
   useEffect(() => { const t = setTimeout(() => setDebounced(q), 200); return () => clearTimeout(t); }, [q]);
   const { data: results = [] } = useQuery<any[]>({
@@ -987,7 +998,7 @@ function UserPicker({ value, onChange, onPick, placeholder }: { value: string; o
         onChange={(e) => { setQ(e.target.value); onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={placeholder || "Type a name, username or code…"}
+        placeholder={placeholder || tr("admin.up.placeholder")}
         className={inp + " w-full"}
       />
       {open && results.length > 0 && (
@@ -1009,29 +1020,32 @@ function UserPicker({ value, onChange, onPick, placeholder }: { value: string; o
 const HR_STATUS: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-300", approved: "bg-emerald-500/20 text-emerald-300", rejected: "bg-red-500/20 text-red-300",
 };
-const timeStr = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "—";
+const timeStr = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString(localeTag(), { hour: "numeric", minute: "2-digit" }) : "—";
 
 function StaffLeaderboard() {
+  const { t } = useTranslation();
   const [industry,setIndustry]=useState("");
   const { data: industries=[] }=useQuery<string[]>({queryKey:["/api/reborn/industries"],queryFn:()=>apiRequest("GET","/api/reborn/industries").then(r=>r.json())});
   const { data: rows=[] }=useQuery<any[]>({queryKey:["/api/reborn/staff/leaderboard",industry],queryFn:()=>apiRequest("GET",`/api/reborn/staff/leaderboard${industry?`?industry=${encodeURIComponent(industry)}`:""}`).then(r=>r.json()),refetchInterval:5000});
   return <div className="space-y-3">
-    {industries.length>0&&<div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">Industry:</span>{["",...industries].map((d)=><button key={d||"all"} onClick={()=>setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry===d?"bg-amber-400 text-black font-bold":"bg-white/5 text-white/60"}`}>{d||"All sales"}</button>)}</div>}
-    {rows.length===0&&<Empty text="No ranked staff yet."/>}{rows.map((r:any)=><Card key={r.user_id}><div className={`flex items-center justify-between ${r.redFlag?"text-red-300":""}`}><div><b>#{r.rank} · {r.name}</b><p className="text-xs text-white/45">{r.position||"Staff"}</p></div><div className="text-right"><b>⭐ {Number(r.rating).toFixed(1)}</b><p className="text-xs text-white/45">RP {Number(r.weekly_sales).toLocaleString()}{industry?` · ${industry}`:""} · {r.review_count} review(s)</p></div></div>{r.redFlag&&<p className="mt-2 text-xs text-red-300">Needs management attention because of repeated low reviews.</p>}</Card>)}</div>;
+    {industries.length>0&&<div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["",...industries].map((d)=><button key={d||"all"} onClick={()=>setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry===d?"bg-amber-400 text-black font-bold":"bg-white/5 text-white/60"}`}>{d?indLabel(d):t("admin.lb.allSales")}</button>)}</div>}
+    {rows.length===0&&<Empty text={t("admin.lb.empty")}/>}{rows.map((r:any)=><Card key={r.user_id}><div className={`flex items-center justify-between ${r.redFlag?"text-red-300":""}`}><div><b>#{r.rank} · {r.name}</b><p className="text-xs text-white/45">{r.position||t("admin.c.staff")}</p></div><div className="text-right"><b>⭐ {Number(r.rating).toFixed(1)}</b><p className="text-xs text-white/45">RP {Number(r.weekly_sales).toLocaleString()}{industry?` · ${indLabel(industry)}`:""} · {t("admin.lb.reviews", { n: r.review_count })}</p></div></div>{r.redFlag&&<p className="mt-2 text-xs text-red-300">{t("admin.lb.redFlag")}</p>}</Card>)}</div>;
 }
 function CompanyFeedback() {
+  const { t } = useTranslation();
   const { data: rows=[] }=useQuery<any[]>({queryKey:["/api/reborn/staff/feedback"],queryFn:()=>apiRequest("GET","/api/reborn/staff/feedback").then(r=>r.json()),refetchInterval:5000});
-  return <div className="space-y-3"><a href="/staff-feedback" className={btn+" w-full justify-center"}>Open customer feedback form</a>{rows.length===0&&<Empty text="No customer feedback yet."/>}{rows.map((f:any)=><Card key={f.id}><div className="flex justify-between gap-3"><b className="capitalize">{f.category} feedback</b><span className="text-xs text-white/35">{new Date(f.created_at).toLocaleString()}</span></div><p className="mt-2 text-sm text-white/75">{f.message}</p><p className="mt-2 text-xs text-white/40">{f.user_name||"Customer"}{f.staff_name?` → ${f.staff_name}`:""}{f.rating?` · ${f.rating}/5 stars`:""}</p></Card>)}</div>;
+  return <div className="space-y-3"><a href="/staff-feedback" className={btn+" w-full justify-center"}>{t("admin.fb.open")}</a>{rows.length===0&&<Empty text={t("admin.fb.empty")}/>}{rows.map((f:any)=><Card key={f.id}><div className="flex justify-between gap-3"><b className="capitalize">{t("admin.fb.category", { c: tv(t, "admin.fb.cat." + f.category, f.category) })}</b><span className="text-xs text-white/35">{new Date(f.created_at).toLocaleString(localeTag())}</span></div><p className="mt-2 text-sm text-white/75">{f.message}</p><p className="mt-2 text-xs text-white/40">{f.user_name||t("admin.c.customer")}{f.staff_name?` → ${f.staff_name}`:""}{f.rating?` · ${t("admin.fb.stars", { n: f.rating })}`:""}</p></Card>)}</div>;
 }
 
 function StaffHr({ isAdmin }: { isAdmin: boolean }) {
+  const { t } = useTranslation();
   const [view, setView] = useState<"me" | "manage">(isAdmin ? "manage" : "me");
   return (
     <div className="space-y-3">
       {isAdmin && (
         <div className="flex gap-2">
-          <button onClick={() => setView("manage")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "manage" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>Manage team</button>
-          <button onClick={() => setView("me")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "me" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>My attendance</button>
+          <button onClick={() => setView("manage")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "manage" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.hr.manage")}</button>
+          <button onClick={() => setView("me")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "me" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.hr.mine")}</button>
         </div>
       )}
       {view === "me" ? <MyHr /> : <ManageHr />}
@@ -1041,6 +1055,7 @@ function StaffHr({ isAdmin }: { isAdmin: boolean }) {
 
 // Live camera QR scanner overlay — reads the workplace attendance QR and returns its code.
 function QrScanOverlay({ onDetect, onClose }: { onDetect: (code: string) => void; onClose: () => void }) {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [err, setErr] = useState("");
   useEffect(() => {
@@ -1058,22 +1073,23 @@ function QrScanOverlay({ onDetect, onClose }: { onDetect: (code: string) => void
           onDetect(code);
         }, { returnDetailedScanResult: true, highlightScanRegion: true, preferredCamera: "environment" });
         await scanner.start();
-      } catch (e: any) { setErr(e?.message || "Cannot open camera — allow camera access and try again."); }
+      } catch (e: any) { setErr(e?.message || translate("admin.qr.camErr")); }
     })();
     return () => { cancelled = true; try { scanner?.stop(); scanner?.destroy(); } catch {} };
   }, []);
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-4">
       <video ref={videoRef} className="w-full max-w-sm rounded-2xl aspect-square object-cover bg-black" muted playsInline />
-      <p className="text-white/70 text-sm mt-3 text-center">Point at the workplace attendance QR</p>
+      <p className="text-white/70 text-sm mt-3 text-center">{t("admin.qr.point")}</p>
       {err && <p className="text-red-400 text-sm mt-2 text-center max-w-sm">{err}</p>}
-      <button onClick={onClose} className="mt-4 px-6 py-2.5 rounded-xl font-bold bg-white/10 text-white">Cancel</button>
+      <button onClick={onClose} className="mt-4 px-6 py-2.5 rounded-xl font-bold bg-white/10 text-white">{t("admin.c.cancel")}</button>
     </div>
   );
 }
 
 function MyHr() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [scan, setScan] = useState(false);
   const { data: att = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-attendance"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-attendance").then((r) => r.json()) });
@@ -1084,55 +1100,55 @@ function MyHr() {
   const [photo, setPhoto] = useState("");
   const doAct = useMutation({
     mutationFn: (v: { path: string; body?: any }) => apiRequest("POST", v.path, v.body || {}).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Done" }); setPhoto(""); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-attendance"] }); },
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: t("admin.c.done") }); setPhoto(""); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-attendance"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const [lv, setLv] = useState<any>({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" });
   const applyLeave = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/staff/leave", lv).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Leave requested" }); setLv({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-leave"] }); },
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: t("admin.hr.leaveRequested") }); setLv({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-leave"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div className="space-y-3">
       <Card>
-        <h3 className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> Attendance</h3>
+        <h3 className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> {t("admin.hr.attendance")}</h3>
         {openToday ? (
           <div className="space-y-2">
-            <p className="text-[11px] text-white/50">Checked in since {timeStr(openToday.checkInAt)}{openToday.onBreak ? " · on break ☕" : ""}</p>
+            <p className="text-[11px] text-white/50">{t("admin.hr.checkedInSince", { time: timeStr(openToday.checkInAt) })}{openToday.onBreak ? t("admin.hr.onBreak") : ""}</p>
             <div className="grid grid-cols-2 gap-2">
               {openToday.onBreak
-                ? <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/break", body: { start: false } })} disabled={doAct.isPending} className="py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black">▶ Back from break</button>
-                : <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/break", body: { start: true } })} disabled={doAct.isPending} className="py-2.5 rounded-xl text-sm font-bold bg-white/5 border border-white/10 text-white/80">☕ Break</button>}
-              <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-out" })} disabled={doAct.isPending || openToday.onBreak} className="py-2.5 rounded-xl text-sm font-bold bg-red-400 text-black disabled:opacity-50 inline-flex items-center justify-center gap-1"><LogOut className="w-4 h-4" /> Check out</button>
+                ? <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/break", body: { start: false } })} disabled={doAct.isPending} className="py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black">{t("admin.hr.backFromBreak")}</button>
+                : <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/break", body: { start: true } })} disabled={doAct.isPending} className="py-2.5 rounded-xl text-sm font-bold bg-white/5 border border-white/10 text-white/80">{t("admin.hr.break")}</button>}
+              <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-out" })} disabled={doAct.isPending || openToday.onBreak} className="py-2.5 rounded-xl text-sm font-bold bg-red-400 text-black disabled:opacity-50 inline-flex items-center justify-center gap-1"><LogOut className="w-4 h-4" /> {t("admin.hr.checkOut")}</button>
             </div>
-            {openToday.onBreak && <p className="text-[11px] text-amber-300/80">End your break before checking out.</p>}
+            {openToday.onBreak && <p className="text-[11px] text-amber-300/80">{t("admin.hr.endBreakFirst")}</p>}
           </div>
         ) : (
           <div className="space-y-2">
-            <button onClick={() => setScan(true)} className="w-full justify-center inline-flex items-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black"><QrCode className="w-4 h-4" /> Scan QR to check in</button>
-            <p className="text-[11px] text-white/40 text-center">— or check in with a photo —</p>
-            <p className="text-[11px] text-white/50">Take a photo showing <b>today's date written on your hand</b> with the <b>shop in the background</b>, then check in.</p>
-            <ImageUpload value={photo} onChange={(v: any) => setPhoto(v)} label="📸 Take check-in photo" output="webp" maxDim={1000} />
-            <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-in", body: { photo } })} disabled={!photo || doAct.isPending} className={btn + " w-full justify-center disabled:opacity-50"}><LogIn className="w-4 h-4" /> Check in</button>
+            <button onClick={() => setScan(true)} className="w-full justify-center inline-flex items-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black"><QrCode className="w-4 h-4" /> {t("admin.hr.scanQr")}</button>
+            <p className="text-[11px] text-white/40 text-center">{t("admin.hr.orPhoto")}</p>
+            <p className="text-[11px] text-white/50">{t("admin.hr.photoHint")}</p>
+            <ImageUpload value={photo} onChange={(v: any) => setPhoto(v)} label={t("admin.hr.takePhoto")} output="webp" maxDim={1000} />
+            <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-in", body: { photo } })} disabled={!photo || doAct.isPending} className={btn + " w-full justify-center disabled:opacity-50"}><LogIn className="w-4 h-4" /> {t("admin.hr.checkIn")}</button>
           </div>
         )}
       </Card>
       {scan && <QrScanOverlay onClose={() => setScan(false)} onDetect={(code) => { setScan(false); doAct.mutate({ path: "/api/reborn/staff/check-in", body: { code } }); }} />}
       <Card>
-        <p className="font-bold mb-2 text-sm">Recent days</p>
-        {att.length === 0 && <p className="text-xs text-white/40">No records yet.</p>}
+        <p className="font-bold mb-2 text-sm">{t("admin.hr.recent")}</p>
+        {att.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noRecords")}</p>}
         {att.slice(0, 14).map((a) => (
           <div key={a.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
             <span className="text-white/70">{a.workDate}</span>
-            <span className="text-white/50 text-xs">{timeStr(a.checkInAt)} – {timeStr(a.checkOutAt)}{a.overtimeSeconds > 0 ? ` · OT ${(a.overtimeSeconds / 3600).toFixed(1)}h` : ""}</span>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full ${HR_STATUS[a.status] || HR_STATUS.approved}`}>{a.status}</span>
+            <span className="text-white/50 text-xs">{timeStr(a.checkInAt)} – {timeStr(a.checkOutAt)}{a.overtimeSeconds > 0 ? ` · ${t("admin.hr.ot", { h: (a.overtimeSeconds / 3600).toFixed(1) })}` : ""}</span>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full ${HR_STATUS[a.status] || HR_STATUS.approved}`}>{tv(t, "admin.st." + a.status, a.status)}</span>
           </div>
         ))}
       </Card>
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> My upcoming shifts</p>
-        {shifts.filter((s) => s.shiftDate >= today).length === 0 && <p className="text-xs text-white/40">No shifts scheduled.</p>}
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> {t("admin.hr.myShifts")}</p>
+        {shifts.filter((s) => s.shiftDate >= today).length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noShifts")}</p>}
         {shifts.filter((s) => s.shiftDate >= today).slice(0, 20).map((s) => (
           <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
             <span className="text-white/70">{s.shiftDate}{s.role ? ` · ${s.role}` : ""}</span>
@@ -1141,27 +1157,27 @@ function MyHr() {
         ))}
       </Card>
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Plane className="w-4 h-4 text-amber-300" /> Apply for leave / MC</p>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Plane className="w-4 h-4 text-amber-300" /> {t("admin.hr.applyLeave")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-          <select value={lv.type} onChange={(e) => setLv({ ...lv, type: e.target.value })} className={inp}><option value="leave">Leave</option><option value="mc">Medical (MC)</option></select>
+          <select value={lv.type} onChange={(e) => setLv({ ...lv, type: e.target.value })} className={inp}><option value="leave">{t("admin.hr.leave")}</option><option value="mc">{t("admin.hr.mcLong")}</option></select>
           <div />
-          <label className="text-xs text-white/50">From<input type="date" value={lv.startDate} onChange={(e) => setLv({ ...lv, startDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-          <label className="text-xs text-white/50">To<input type="date" value={lv.endDate} onChange={(e) => setLv({ ...lv, endDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-xs text-white/50">{t("admin.hr.from")}<input type="date" value={lv.startDate} onChange={(e) => setLv({ ...lv, startDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-xs text-white/50">{t("admin.hr.to")}<input type="date" value={lv.endDate} onChange={(e) => setLv({ ...lv, endDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
         </div>
-        <textarea value={lv.reason} onChange={(e) => setLv({ ...lv, reason: e.target.value })} placeholder="Reason (required)" rows={2} className={inp + " w-full mb-2"} />
-        {lv.type === "mc" && <div className="mb-2"><p className="text-[11px] text-white/50 mb-1">📸 MC / document (optional)</p><ImageUpload value={lv.attachmentUrl} onChange={(v: any) => setLv({ ...lv, attachmentUrl: v })} label="Upload MC" output="jpeg" maxDim={1200} /></div>}
-        <button onClick={() => applyLeave.mutate()} disabled={!lv.reason.trim() || applyLeave.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Submit request</button>
+        <textarea value={lv.reason} onChange={(e) => setLv({ ...lv, reason: e.target.value })} placeholder={t("admin.hr.reasonReq")} rows={2} className={inp + " w-full mb-2"} />
+        {lv.type === "mc" && <div className="mb-2"><p className="text-[11px] text-white/50 mb-1">{t("admin.hr.mcDoc")}</p><ImageUpload value={lv.attachmentUrl} onChange={(v: any) => setLv({ ...lv, attachmentUrl: v })} label={t("admin.hr.uploadMc")} output="jpeg" maxDim={1200} /></div>}
+        <button onClick={() => applyLeave.mutate()} disabled={!lv.reason.trim() || applyLeave.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.hr.submit")}</button>
       </Card>
       <Card>
-        <p className="font-bold mb-2 text-sm">My leave requests</p>
-        {leave.length === 0 && <p className="text-xs text-white/40">None yet.</p>}
+        <p className="font-bold mb-2 text-sm">{t("admin.hr.myLeave")}</p>
+        {leave.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noneYet")}</p>}
         {leave.map((l) => (
           <div key={l.id} className="py-1.5 border-b border-white/5 last:border-0">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/70">{l.type === "mc" ? "MC" : "Leave"} · {l.startDate}{l.endDate !== l.startDate ? `→${l.endDate}` : ""}</span>
-              <span className={`text-[11px] px-2 py-0.5 rounded-full ${HR_STATUS[l.status]}`}>{l.status}{l.status === "approved" ? (l.paid ? " · paid" : " · unpaid") : ""}</span>
+              <span className="text-white/70">{l.type === "mc" ? t("admin.hr.mc") : t("admin.hr.leave")} · {l.startDate}{l.endDate !== l.startDate ? `→${l.endDate}` : ""}</span>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full ${HR_STATUS[l.status]}`}>{tv(t, "admin.st." + l.status, l.status)}{l.status === "approved" ? (l.paid ? ` · ${t("admin.hr.paidLc")}` : ` · ${t("admin.hr.unpaidLc")}`) : ""}</span>
             </div>
-            {l.decisionNote && <p className="text-[11px] text-white/40 mt-0.5">Note: {l.decisionNote}</p>}
+            {l.decisionNote && <p className="text-[11px] text-white/40 mt-0.5">{t("admin.hr.note", { note: l.decisionNote })}</p>}
           </div>
         ))}
       </Card>
@@ -1171,17 +1187,18 @@ function MyHr() {
 
 function ManageHr() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: attendance = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/attendance"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance").then((r) => r.json()) });
   const { data: staff = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-list"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-list").then((r) => r.json()) });
   const { data: leave = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/leave", "pending"], queryFn: () => apiRequest("GET", "/api/reborn/admin/leave?status=pending").then((r) => r.json()) });
   const delPhoto = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/attendance/${id}/photo`, {}).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Photo deleted" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/attendance"] }); },
+    onSuccess: () => { toast({ title: t("admin.hr.photoDeleted") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/attendance"] }); },
   });
   const decideLeave = useMutation({
     mutationFn: (v: any) => apiRequest("POST", `/api/reborn/admin/leave/${v.id}/decide`, v).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Updated" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/leave", "pending"] }); },
+    onSuccess: () => { toast({ title: t("admin.c.updated") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/leave", "pending"] }); },
   });
   const today = new Date().toISOString().slice(0, 10);
   const [sh, setSh] = useState<any>({ userId: "", shiftDate: today, startTime: "18:00", endTime: "02:00", role: "" });
@@ -1189,7 +1206,7 @@ function ManageHr() {
   const { data: shifts = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/shifts", schedFrom], queryFn: () => apiRequest("GET", `/api/reborn/admin/shifts?from=${schedFrom}&to=2999-12-31`).then((r) => r.json()) });
   const addShift = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/shifts", sh).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Shift added" }); setSh({ ...sh, role: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/shifts", schedFrom] }); },
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: t("admin.hr.shiftAdded") }); setSh({ ...sh, role: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/shifts", schedFrom] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const delShift = useMutation({
@@ -1199,82 +1216,82 @@ function ManageHr() {
   const { data: attendCode } = useQuery<any>({ queryKey: ["/api/reborn/admin/attendance/code"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance/code").then((r) => r.json()) });
   const rotateCode = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/attendance/rotate", {}).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "New QR generated", description: "Re-print and post it. The old one no longer works." }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/attendance/code"] }); },
+    onSuccess: () => { toast({ title: t("admin.hr.qrNew"), description: t("admin.hr.qrNewDesc") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/attendance/code"] }); },
   });
   return (
     <div className="space-y-3">
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><QrCode className="w-4 h-4 text-amber-300" /> Workplace attendance QR</p>
-        <p className="text-[11px] text-white/40 mb-3">Print this and post it at the workplace. Staff scan it (or open the app and go to Attendance) to check in — no photo needed.</p>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><QrCode className="w-4 h-4 text-amber-300" /> {t("admin.hr.qrTitle")}</p>
+        <p className="text-[11px] text-white/40 mb-3">{t("admin.hr.qrHint")}</p>
         <div className="flex flex-col items-center gap-3">
-          <div className="bg-white rounded-2xl p-3 w-44"><img src={`/api/reborn/admin/attendance/qr?v=${encodeURIComponent(attendCode?.code || "")}`} alt="Workplace attendance QR" className="w-full aspect-square" /></div>
+          <div className="bg-white rounded-2xl p-3 w-44"><img src={`/api/reborn/admin/attendance/qr?v=${encodeURIComponent(attendCode?.code || "")}`} alt={t("admin.hr.qrTitle")} className="w-full aspect-square" /></div>
           <div className="flex gap-2 w-full">
-            <button onClick={() => window.open(`/api/reborn/admin/attendance/qr?v=${encodeURIComponent(attendCode?.code || "")}`, "_blank")} className={btnSm + " flex-1 justify-center"}>Open / print</button>
-            <button onClick={() => { if (confirm("Generate a new QR? The current printed QR will stop working until you re-post the new one.")) rotateCode.mutate(); }} disabled={rotateCode.isPending} className={btnSm + " flex-1 justify-center disabled:opacity-50"}><RefreshCw className="w-4 h-4" /> New QR</button>
+            <button onClick={() => window.open(`/api/reborn/admin/attendance/qr?v=${encodeURIComponent(attendCode?.code || "")}`, "_blank")} className={btnSm + " flex-1 justify-center"}>{t("admin.hr.openPrint")}</button>
+            <button onClick={() => { if (confirm(t("admin.hr.qrConfirm"))) rotateCode.mutate(); }} disabled={rotateCode.isPending} className={btnSm + " flex-1 justify-center disabled:opacity-50"}><RefreshCw className="w-4 h-4" /> {t("admin.hr.newQr")}</button>
           </div>
         </div>
       </Card>
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> Attendance</p>
-        <p className="text-[11px] text-white/40 mb-2">Staff check in by scanning the workplace QR (or with a dated photo) — no approval needed. Delete a photo to free space (the record stays).</p>
-        {attendance.length === 0 && <p className="text-xs text-white/40">No check-ins yet.</p>}
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> {t("admin.hr.attendance")}</p>
+        <p className="text-[11px] text-white/40 mb-2">{t("admin.hr.attHint")}</p>
+        {attendance.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noCheckins")}</p>}
         {attendance.slice(0, 60).map((a) => (
           <div key={a.id} className="flex items-center gap-2 text-sm py-2 border-b border-white/5 last:border-0">
             {a.checkInPhoto
-              ? <a href={a.checkInPhoto} target="_blank" rel="noreferrer"><img src={a.checkInPhoto} alt="check-in" className="w-11 h-11 rounded-lg object-cover border border-white/10 flex-shrink-0" /></a>
-              : <span className="w-11 h-11 rounded-lg bg-white/5 flex-shrink-0 flex items-center justify-center text-[9px] text-white/30">no photo</span>}
+              ? <a href={a.checkInPhoto} target="_blank" rel="noreferrer"><img src={a.checkInPhoto} alt={t("admin.hr.checkInAlt")} className="w-11 h-11 rounded-lg object-cover border border-white/10 flex-shrink-0" /></a>
+              : <span className="w-11 h-11 rounded-lg bg-white/5 flex-shrink-0 flex items-center justify-center text-[9px] text-white/30">{t("admin.hr.noPhoto")}</span>}
             <div className="min-w-0 flex-1">
               <p className="truncate text-white/80">{a.staffName}{a.onBreak ? " ☕" : ""}</p>
-              <p className="text-[11px] text-white/40">{a.workDate} · {timeStr(a.checkInAt)}–{timeStr(a.checkOutAt)}{a.overtimeSeconds > 0 ? ` · OT ${(a.overtimeSeconds / 3600).toFixed(1)}h` : ""}{a.breakSeconds > 0 ? ` · break ${Math.round(a.breakSeconds / 60)}m` : ""}</p>
+              <p className="text-[11px] text-white/40">{a.workDate} · {timeStr(a.checkInAt)}–{timeStr(a.checkOutAt)}{a.overtimeSeconds > 0 ? ` · ${t("admin.hr.ot", { h: (a.overtimeSeconds / 3600).toFixed(1) })}` : ""}{a.breakSeconds > 0 ? ` · ${t("admin.hr.breakMin", { m: Math.round(a.breakSeconds / 60) })}` : ""}</p>
             </div>
-            {a.checkInPhoto && <button onClick={() => { if (confirm("Delete this check-in photo?")) delPhoto.mutate(a.id); }} className={btnSm + " flex-shrink-0"} title="Delete photo"><Trash2 className="w-4 h-4" /></button>}
+            {a.checkInPhoto && <button onClick={() => { if (confirm(t("admin.hr.delPhotoConfirm"))) delPhoto.mutate(a.id); }} className={btnSm + " flex-shrink-0"} title={t("admin.hr.delPhoto")}><Trash2 className="w-4 h-4" /></button>}
           </div>
         ))}
       </Card>
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Plane className="w-4 h-4 text-amber-300" /> Leave / MC to approve</p>
-        {leave.length === 0 && <p className="text-xs text-white/40">Nothing pending.</p>}
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Plane className="w-4 h-4 text-amber-300" /> {t("admin.hr.toApprove")}</p>
+        {leave.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.nothingPending")}</p>}
         {leave.map((l) => (
           <div key={l.id} className="py-2 border-b border-white/5 last:border-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm text-white/80">{l.staffName}</span>
-              <span className="text-[11px] text-white/40">{l.type === "mc" ? "MC" : "Leave"} · {l.startDate}{l.endDate !== l.startDate ? `→${l.endDate}` : ""}</span>
-              {l.attachmentUrl && <a href={l.attachmentUrl} target="_blank" rel="noreferrer" className="text-[11px] text-amber-300 underline">doc</a>}
+              <span className="text-[11px] text-white/40">{l.type === "mc" ? t("admin.hr.mc") : t("admin.hr.leave")} · {l.startDate}{l.endDate !== l.startDate ? `→${l.endDate}` : ""}</span>
+              {l.attachmentUrl && <a href={l.attachmentUrl} target="_blank" rel="noreferrer" className="text-[11px] text-amber-300 underline">{t("admin.hr.doc")}</a>}
             </div>
             <p className="text-xs text-white/50 mb-2">{l.reason}</p>
             <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => decideLeave.mutate({ id: l.id, approve: true, paid: true })} className={btnSave}><Check className="w-4 h-4" /> Paid</button>
-              <button onClick={() => decideLeave.mutate({ id: l.id, approve: true, paid: false })} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold bg-amber-400 text-black hover:bg-amber-300"><Check className="w-4 h-4" /> Unpaid</button>
-              <button onClick={() => { const note = prompt("Reject — reason (optional):", "") ?? undefined; decideLeave.mutate({ id: l.id, approve: false, note }); }} className={btnDel}><X className="w-4 h-4" /> Reject</button>
+              <button onClick={() => decideLeave.mutate({ id: l.id, approve: true, paid: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.hr.paid")}</button>
+              <button onClick={() => decideLeave.mutate({ id: l.id, approve: true, paid: false })} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold bg-amber-400 text-black hover:bg-amber-300"><Check className="w-4 h-4" /> {t("admin.hr.unpaid")}</button>
+              <button onClick={() => { const note = prompt(t("admin.hr.rejectPrompt"), "") ?? undefined; decideLeave.mutate({ id: l.id, approve: false, note }); }} className={btnDel}><X className="w-4 h-4" /> {t("admin.c.reject")}</button>
             </div>
           </div>
         ))}
       </Card>
       <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> Add a shift</p>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> {t("admin.hr.addShiftTitle")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
           <select value={sh.userId} onChange={(e) => setSh({ ...sh, userId: e.target.value })} className={inp + " col-span-2"}>
-            <option value="">Choose worker…</option>
-            {staff.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+            <option value="">{t("admin.hr.chooseWorker")}</option>
+            {staff.map((s) => <option key={s.id} value={s.id}>{s.name} ({tv(t, "admin.role." + s.role, s.role)})</option>)}
           </select>
-          <label className="text-xs text-white/50 col-span-2">Date<input type="date" value={sh.shiftDate} onChange={(e) => setSh({ ...sh, shiftDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-          <label className="text-xs text-white/50">Start<input type="time" value={sh.startTime} onChange={(e) => setSh({ ...sh, startTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-          <label className="text-xs text-white/50">End<input type="time" value={sh.endTime} onChange={(e) => setSh({ ...sh, endTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-          <input value={sh.role} onChange={(e) => setSh({ ...sh, role: e.target.value })} placeholder="Position (e.g. Bartender)" className={inp + " col-span-2"} />
+          <label className="text-xs text-white/50 col-span-2">{t("admin.hr.date")}<input type="date" value={sh.shiftDate} onChange={(e) => setSh({ ...sh, shiftDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-xs text-white/50">{t("admin.hr.start")}<input type="time" value={sh.startTime} onChange={(e) => setSh({ ...sh, startTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-xs text-white/50">{t("admin.hr.end")}<input type="time" value={sh.endTime} onChange={(e) => setSh({ ...sh, endTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <input value={sh.role} onChange={(e) => setSh({ ...sh, role: e.target.value })} placeholder={t("admin.hr.positionPh")} className={inp + " col-span-2"} />
         </div>
-        <button onClick={() => addShift.mutate()} disabled={!sh.userId || addShift.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add shift</button>
+        <button onClick={() => addShift.mutate()} disabled={!sh.userId || addShift.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.hr.addShift")}</button>
       </Card>
       <Card>
         <div className="flex items-center justify-between mb-2">
-          <p className="font-bold text-sm">Schedule</p>
-          <label className="text-xs text-white/50 flex items-center gap-1">from <input type="date" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} className={inp + " w-36"} style={{ colorScheme: "dark" }} /></label>
+          <p className="font-bold text-sm">{t("admin.hr.schedule")}</p>
+          <label className="text-xs text-white/50 flex items-center gap-1">{t("admin.hr.fromLc")} <input type="date" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} className={inp + " w-36"} style={{ colorScheme: "dark" }} /></label>
         </div>
-        {shifts.length === 0 && <p className="text-xs text-white/40">No shifts in range.</p>}
+        {shifts.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noShiftsRange")}</p>}
         {shifts.map((s) => (
           <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 gap-2">
             <div className="min-w-0"><p className="truncate text-white/80">{s.staffName}{s.role ? ` · ${s.role}` : ""}</p><p className="text-[11px] text-white/40">{s.shiftDate}</p></div>
             <span className="text-amber-300 text-xs font-semibold flex-shrink-0">{s.startTime}–{s.endTime}</span>
-            <button onClick={() => { if (confirm("Remove this shift?")) delShift.mutate(s.id); }} className={btnSm + " flex-shrink-0"}><Trash2 className="w-4 h-4" /></button>
+            <button onClick={() => { if (confirm(t("admin.hr.removeShift"))) delShift.mutate(s.id); }} className={btnSm + " flex-shrink-0"}><Trash2 className="w-4 h-4" /></button>
           </div>
         ))}
       </Card>

@@ -650,22 +650,22 @@ const fmtClock = (ms: number | null) => {
 };
 function TimerGame({ room, code, me }: any) {
   const { t } = useTranslation();
-  const t = room.timer || {};
-  const TIMER_TARGET_MS: number = t.targetMs || 10_000;
-  const iStopped = !!t.stopped?.[me];
-  const iWon = room.status === "done" && (t.winners || []).includes(me);
+  const tm = room.timer || {};
+  const TIMER_TARGET_MS: number = tm.targetMs || 10_000;
+  const iStopped = !!tm.stopped?.[me];
+  const iWon = room.status === "done" && (tm.winners || []).includes(me);
   const stop = () => { if (room.status === "playing" && !iStopped) { sfx.coin?.(); post(`/api/reborn/games/rooms/${code}/action`, { act: "stop" }); } };
   // Keep the local clock aligned to the server's start time despite clock skew.
   const offsetRef = useRef(0);
-  useEffect(() => { if (t.serverNow) offsetRef.current = t.serverNow - Date.now(); }, [t.serverNow]);
+  useEffect(() => { if (tm.serverNow) offsetRef.current = tm.serverNow - Date.now(); }, [tm.serverNow]);
   const [, force] = useState(0);
   useEffect(() => {
-    if (room.status !== "playing" || iStopped || !t.startedAt) return;
+    if (room.status !== "playing" || iStopped || !tm.startedAt) return;
     const id = setInterval(() => force((x) => x + 1), 43);
     return () => clearInterval(id);
-  }, [room.status, iStopped, t.startedAt]);
-  const liveMs = t.startedAt ? Math.max(0, Date.now() + offsetRef.current - t.startedAt) : 0;
-  const shown = iStopped ? (t.yourMs ?? 0) : liveMs;
+  }, [room.status, iStopped, tm.startedAt]);
+  const liveMs = tm.startedAt ? Math.max(0, Date.now() + offsetRef.current - tm.startedAt) : 0;
+  const shown = iStopped ? (tm.yourMs ?? 0) : liveMs;
   const near = shown >= TIMER_TARGET_MS - 1000 && shown <= TIMER_TARGET_MS + 1000;
   return (
     <div className="rwg-card p-5 text-center">
@@ -675,8 +675,8 @@ function TimerGame({ room, code, me }: any) {
           <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "⏱️"}</div>
           <p className={`text-2xl font-black mb-3 ${iWon ? "text-emerald-300" : "text-white/70"}`}>{iWon ? t("gm.timer.closest", { t: fmtClock(TIMER_TARGET_MS) }) : t("gm.gameOver")}</p>
           <div className="text-left">
-            {(t.results || []).map((r: any, i: number) => {
-              const win = (t.winners || []).includes(r.id);
+            {(tm.results || []).map((r: any, i: number) => {
+              const win = (tm.winners || []).includes(r.id);
               return (
                 <div key={r.id} className={`flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 ${win ? "text-emerald-300 font-bold" : "text-white/70"}`}>
                   <span>{win ? "🏆" : `${i + 1}.`} {r.id === me ? t("gm.you") : r.name}</span>
