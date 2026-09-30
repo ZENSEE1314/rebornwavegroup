@@ -146,7 +146,10 @@ function clearTimers(room: Room) {
   if (room.ticker) { clearInterval(room.ticker); room.ticker = undefined; }
 }
 
-// ── Rock Paper Scissors (elimination) ───────────────────────────────────
+// ── Rock Paper Scissors (loser hunt) ────────────────────────────────────
+// Winners are safe and leave; losers keep throwing until one player is left,
+// and that last player loses (drinks). e.g. 5 players: 3 win / 2 lose → the 2
+// play on; 4 win / 1 lose → that 1 loses straight away.
 const BEATS: Record<Choice, Choice> = { rock: "scissors", paper: "rock", scissors: "paper" };
 
 function startRpsRound(room: Room) {
@@ -162,44 +165,53 @@ function startRpsRound(room: Room) {
 
 function resolveRps(room: Room) {
   clearTimers(room);
-  const alive = room.players.filter((p) => p.alive);
-  // Anyone who didn't pick is eliminated immediately.
+  const alive = room.players.filter((p) => p.alive); // still in danger
   const noPick = alive.filter((p) => !p.choice);
   const choosers = alive.filter((p) => p.choice);
-  let eliminated: Player[] = [...noPick];
 
-  if (choosers.length >= 2) {
-    const kinds = new Set(choosers.map((p) => p.choice!));
-    if (kinds.size === 2) {
-      // Exactly two signs out — the losing sign is eliminated.
-      const [a, b] = Array.from(kinds);
-      const losingKind = BEATS[a] === b ? b : a; // whichever is beaten
-      eliminated.push(...choosers.filter((p) => p.choice === losingKind));
-    }
-    // size 1 or 3 among choosers = stand-off, no elimination beyond no-picks.
+  // `alive` = still playing (not yet safe). Winners of a round become safe.
+  let safe: Player[] = [];
+  const kinds = new Set(choosers.map((p) => p.choice!));
+  if (kinds.size === 2) {
+    // Exactly two signs out — the winning sign is safe; the losing sign (and
+    // anyone who didn't pick) plays on.
+    const [a, b] = Array.from(kinds);
+    const winningKind = BEATS[a] === b ? a : b;
+    safe = choosers.filter((p) => p.choice === winningKind);
+  } else if (choosers.length && noPick.length) {
+    // Stand-off among the pickers, but some didn't pick — the pickers are safe.
+    safe = choosers;
   }
-  for (const p of eliminated) p.alive = false;
-  room.eliminatedThisRound = eliminated.map((p) => p.id);
-  if (eliminated.length) room.lastLoserId = eliminated[eliminated.length - 1].id;
+  // Nobody picked at all → end the game rather than looping on idle players.
+  // (With one player left — e.g. the others left the room — they simply lose.)
+  if (!choosers.length && alive.length >= 2) {
+    room.status = "done";
+    room.winnerId = undefined; room.lastLoserId = undefined;
+    room.message = "Nobody picked — game over.";
+    broadcast(room);
+    scheduleCleanup(room);
+    return;
+  }
+  for (const p of safe) p.alive = false;
+  room.eliminatedThisRound = safe.map((p) => p.id); // who got safe this round
 
-  const survivors = room.players.filter((p) => p.alive);
+  const remaining = room.players.filter((p) => p.alive);
   room.status = "reveal";
-  if (survivors.length <= 1) {
-    room.winnerId = survivors[0]?.id;
-    room.message = survivors[0] ? `${survivors[0].name} wins! 🏆` : "No winner — everyone out!";
+  if (remaining.length <= 1) {
+    const loser = remaining[0];
+    room.winnerId = undefined;
+    room.lastLoserId = loser?.id;
+    room.message = loser ? `${loser.name} loses — drink! 🍺` : "Everyone is safe!";
     room.status = "done";
     broadcast(room);
-    const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [];
-    if (survivors[0]) rows.push({ userId: survivors[0].id, name: survivors[0].name, score: 1, result: "win" });
-    if (room.lastLoserId) { const l = room.players.find((p) => p.id === room.lastLoserId); if (l && l.id !== survivors[0]?.id) rows.push({ userId: l.id, name: l.name, score: 0, result: "lose" }); }
-    bumpSeries(room, survivors[0]?.id);
+    const rows = room.players.map((p) => ({ userId: p.id, name: p.name, score: p.id === loser?.id ? 0 : 1, result: (p.id === loser?.id ? "lose" : "win") as "win" | "lose" }));
     saveScores(room, rows);
     scheduleCleanup(room);
     return;
   }
-  room.message = eliminated.length ? `${eliminated.map((p) => p.name).join(", ")} out!` : "Stand-off — go again!";
+  room.message = safe.length ? `${safe.map((p) => p.name).join(", ")} safe! ${remaining.length} left — go again!` : "Stand-off — go again!";
   broadcast(room);
-  // Short reveal pause, then next round with survivors.
+  // Short reveal pause, then next round with the players still in.
   room.round += 1;
   room.timer = setTimeout(() => startRpsRound(room), 2600);
 }

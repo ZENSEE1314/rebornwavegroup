@@ -11,7 +11,7 @@ import { useRankConfig, useMyRank, computeRank } from "@/lib/rank";
 import { sfx } from "@/lib/sfx";
 
 const GAMES: Record<string, { name: string; emoji: string; blurb: string }> = {
-  rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · no pick = out · last one standing wins" },
+  rps: { name: "Rock Paper Scissors", emoji: "✊", blurb: "20s to throw · winners are safe · last one left drinks" },
   tap: { name: "Gold Rush (Tap)", emoji: "⛏️", blurb: "30s dig — most gold coins wins" },
   cards: { name: "Card Match", emoji: "🃏", blurb: "3 pairs to win (A+9,2+8…J+J) · max 5 players" },
   draw: { name: "Draw & Guess", emoji: "🎨", blurb: "One draws the secret word · first right guess wins with the drawer" },
@@ -49,9 +49,10 @@ const GAME_CATEGORIES: { name: string; emoji: string; games: string[] }[] = [
 const RULES: Record<string, string[]> = {
   rps: [
     "Everyone throws ✊ ✋ ✌️ within 20 seconds.",
-    "Didn't pick in time? You're out instantly.",
-    "The losing sign is knocked out each round.",
-    "Last player standing wins 🏆 — the last one out is the loser (drink!).",
+    "The winning sign is safe 🎉 — the losers play on.",
+    "Didn't pick in time? You stay in and play on.",
+    "All the same sign or all three signs = draw, go again.",
+    "Last player left loses — drink! 🍺",
   ],
   tap: [
     "When it says DIG, tap the button as fast as you can.",
@@ -620,9 +621,9 @@ function RpsGame({ room, code, me }: any) {
   const alive = meP?.alive;
   const canPick = room.status === "playing" && alive && !meP?.choice;
   const pick = (choice: string) => { sfx.click(); return post(`/api/reborn/games/rooms/${code}/action`, { choice }); };
-  const iWon = room.status === "done" && room.winnerId === me;
-  const iLost = room.status === "done" && room.winnerId !== me;
-  const eliminatedMe = room.status === "reveal" && room.eliminatedThisRound?.includes(me);
+  // alive = still playing (in danger); the winners of each round become safe.
+  const iLost = room.status === "done" && room.lastLoserId === me;
+  const safeMe = room.status === "reveal" && room.eliminatedThisRound?.includes(me);
   const secs = useLocalCountdown(room.secondsLeft, `${room.round}-${room.status}`);
 
   return (
@@ -632,8 +633,8 @@ function RpsGame({ room, code, me }: any) {
 
       {room.status === "done" ? (
         <div className="py-6">
-          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iWon ? "🏆" : "💀"}</div>
-          <p className={`text-2xl font-black ${iWon ? "text-amber-300" : "text-red-300"}`}>{iWon ? "YOU WIN!" : "You're out"}</p>
+          <div style={{ animation: "rwgPop .5s ease-out" }} className="text-7xl mb-2">{iLost ? "🍺" : "🎉"}</div>
+          <p className={`text-2xl font-black ${iLost ? "text-red-300" : "text-emerald-300"}`}>{iLost ? "YOU LOSE — DRINK!" : room.lastLoserId ? "YOU'RE SAFE!" : "Game over"}</p>
         </div>
       ) : (
         <>
@@ -641,7 +642,7 @@ function RpsGame({ room, code, me }: any) {
           <div className="flex flex-wrap justify-center gap-3 my-4">
             {room.players.map((p: any) => (
               <div key={p.id} className={`flex flex-col items-center transition ${!p.alive ? "opacity-30" : ""}`}>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl bg-white/5 border ${room.eliminatedThisRound?.includes(p.id) ? "border-red-400/60" : "border-white/10"}`}
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl bg-white/5 border ${room.eliminatedThisRound?.includes(p.id) ? "border-emerald-400/60" : "border-white/10"}`}
                   style={room.status === "reveal" && p.choice ? { animation: "rwgPop .4s ease-out" } : undefined}>
                   {p.choice ? HAND[p.choice] : (room.status === "playing" && p.chose ? "🔒" : "…")}
                 </div>
@@ -650,8 +651,8 @@ function RpsGame({ room, code, me }: any) {
             ))}
           </div>
 
-          {eliminatedMe && <p className="text-red-300 font-bold mb-2">You were eliminated 💀</p>}
-          {!alive && room.status !== "done" && <p className="text-white/40 text-sm mb-2">You're out — watch who wins!</p>}
+          {safeMe && <p className="text-emerald-300 font-bold mb-2">You won — you're safe! 🎉</p>}
+          {!alive && !safeMe && room.status !== "done" && <p className="text-white/40 text-sm mb-2">You're safe — watch who drinks!</p>}
 
           {canPick ? (
             <div className="grid grid-cols-3 gap-3 mt-2">
