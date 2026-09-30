@@ -92,51 +92,51 @@ export default function RebornKos() {
       <style dangerouslySetInnerHTML={{ __html: ANIM_CSS }} />
 
       {/* Wallet */}
-      <div className="rounded-3xl p-5 mb-4 border border-white/10" style={{ background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(201,168,76,0.14))" }}>
+      <div className="kos-wallet mb-4">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-white/60 text-sm">{t("vn.kos.yourKgold")}</p>
-            <div className="text-3xl font-extrabold flex items-center gap-2">🪙 {fmt(wallet?.kgold ?? 0)}</div>
-            <p className="text-white/50 text-xs mt-1">{t("vn.kos.receivedGifts", { n: fmt(wallet?.starsReceived ?? 0) })}</p>
+          <div className="min-w-0">
+            <p className="kos-lbl">{t("vn.kos.yourKgold")}</p>
+            <div className="kos-num flex items-center gap-2"><span className="kos-coin">🪙</span> {fmt(wallet?.kgold ?? 0)}</div>
+            <p className="arc-badge">🎁 {t("vn.kos.receivedGifts", { n: fmt(wallet?.starsReceived ?? 0) })}</p>
           </div>
           <div className="flex items-center gap-2">
-          <button onClick={() => setScanning(true)} title={t("vn.kos.scanVenueQr")} aria-label={t("vn.kos.scanVenueQr")} className="w-10 h-10 rounded-full bg-black/25 flex items-center justify-center">
+          <button onClick={() => setScanning(true)} title={t("vn.kos.scanVenueQr")} aria-label={t("vn.kos.scanVenueQr")} className="arc-btn" style={{ width: 40, height: 40 }}>
             <Camera className="w-5 h-5 text-amber-300" />
           </button>
-          <button onClick={() => { setShowNotif(true); }} title={t("vn.kos.giftNotifs")} aria-label={t("vn.kos.giftNotifs")} className="relative w-10 h-10 rounded-full bg-black/25 flex items-center justify-center">
+          <button onClick={() => { setShowNotif(true); }} title={t("vn.kos.giftNotifs")} aria-label={t("vn.kos.giftNotifs")} className="arc-btn" style={{ width: 40, height: 40 }}>
             <Bell className="w-5 h-5 text-amber-300" />
-            {notifs.length > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-[11px] font-bold flex items-center justify-center">{notifs.length}</span>}
+            {notifs.length > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-[11px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(244,63,94,.8)] animate-pulse">{notifs.length}</span>}
           </button>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={() => setModal("buy")} className="py-2.5 rounded-xl font-bold text-black flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}><Plus className="w-4 h-4" /> {t("vn.kos.buyKgold")}</button>
-          <button onClick={() => setModal("cashout")} className="py-2.5 rounded-xl font-bold bg-black/25 border border-white/10 flex items-center justify-center gap-1.5"><ArrowDownToLine className="w-4 h-4" /> {t("vn.kos.cashOut")}</button>
+        <div className="grid gap-2 mt-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <button onClick={() => setModal("buy")} className="arc-play justify-center" style={{ padding: "10px" }}><Plus className="w-4 h-4" /> {t("vn.kos.buyKgold")}</button>
+          <button onClick={() => setModal("cashout")} className="kos-dark"><ArrowDownToLine className="w-4 h-4" /> {t("vn.kos.cashOut")}</button>
         </div>
-        <p className="text-white/40 text-[11px] mt-2 text-center">{t("vn.kos.rateInfo", { per: wallet?.kgoldPerRp ?? 100, pct: 100 - (wallet?.feePercent ?? 30) })}</p>
+        <p className="text-white/50 text-[11px] mt-2.5 text-center">{t("vn.kos.rateInfo", { per: wallet?.kgoldPerRp ?? 100, pct: 100 - (wallet?.feePercent ?? 30) })}</p>
       </div>
 
       {/* Venue check-in */}
       {venue && !venue.checkedIn && (
-        <button onClick={() => setScanning(true)} className="w-full mb-4 flex items-center gap-3 p-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-left">
-          <span className="w-11 h-11 rounded-full bg-amber-400 flex items-center justify-center text-black shrink-0"><Camera className="w-5 h-5" /></span>
-          <span className="min-w-0"><span className="block font-bold">{t("vn.kos.scanVenueQr")}</span><span className="block text-xs text-white/55">{t("vn.kos.scanHint")}</span></span>
+        <button onClick={() => setScanning(true)} className="arc-room-row kos-checkin w-full mb-4 text-left" style={{ ["--c1" as any]: "#f3b52f", ["--c" as any]: "#f3b52f" }}>
+          <span className="arc-icon shrink-0" style={{ width: 46, height: 46, fontSize: 22, ["--c1" as any]: "#ffe89a", ["--c2" as any]: "#f3b52f" }}><span>📷</span></span>
+          <span className="min-w-0"><span className="block font-black italic uppercase tracking-wide">{t("vn.kos.scanVenueQr")}</span><span className="block text-xs text-white/55">{t("vn.kos.scanHint")}</span></span>
         </button>
       )}
-      {venue?.checkedIn && <p className="mb-4 flex items-center gap-1.5 text-xs text-emerald-300"><CheckCircle2 className="w-4 h-4" /> {t("vn.kos.checkedInToday")}</p>}
+      {venue?.checkedIn && <p className="arc-badge mb-4" style={{ ["--c1" as any]: "#22c55e", marginTop: 0 }}><CheckCircle2 className="w-4 h-4" /> {t("vn.kos.checkedInToday")}</p>}
       {isAdmin && (
-        <button onClick={() => setVenueOpen(true)} className="w-full mb-4 flex items-center gap-3 p-3 rounded-2xl border border-white/10 bg-white/5 text-left">
-          <span className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center shrink-0"><QrCode className="w-5 h-5 text-amber-300" /></span>
-          <span className="min-w-0"><span className="block font-bold">{t("vn.kos.venueQr")} <span className="text-[10px] font-bold text-black bg-amber-300 rounded px-1.5 py-0.5 ml-1 align-middle">{t("vn.kos.admin")}</span></span><span className="block text-xs text-white/55">{t("vn.kos.showTodayQr")}</span></span>
+        <button onClick={() => setVenueOpen(true)} className="arc-room-row w-full mb-4 text-left" style={{ ["--c1" as any]: "#8b5cf6" }}>
+          <span className="arc-icon shrink-0" style={{ width: 46, height: 46, fontSize: 22, ["--c1" as any]: "#a78bfa", ["--c2" as any]: "#6d28d9" }}><span><QrCode className="w-5 h-5 text-white" /></span></span>
+          <span className="min-w-0"><span className="block font-black italic uppercase tracking-wide">{t("vn.kos.venueQr")} <span className="text-[10px] font-bold text-black bg-amber-300 rounded px-1.5 py-0.5 ml-1 align-middle">{t("vn.kos.admin")}</span></span><span className="block text-xs text-white/55">{t("vn.kos.showTodayQr")}</span></span>
         </button>
       )}
 
       {/* Search */}
       <div className="relative mb-5">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("vn.kos.searchPh")} className="w-full pl-9 pr-4 py-3 rounded-full bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60" />
+        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-pink-300 z-10" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("vn.kos.searchPh")} className="arc-input w-full placeholder-white/35" style={{ ["--c1" as any]: "#ec4899", paddingLeft: 38, paddingTop: 12, paddingBottom: 12, borderColor: "rgba(236,72,153,.4)" }} />
         {results.length > 0 && (
-          <div className="absolute z-20 left-0 right-0 mt-2 rounded-2xl bg-[#160f2a] border border-white/10 overflow-hidden shadow-2xl">
+          <div className="absolute z-20 left-0 right-0 mt-2 rounded-2xl bg-[#160f2a] border border-pink-400/40 overflow-hidden shadow-2xl shadow-pink-500/20">
             {results.map((u) => (
               <button key={u.id} onClick={() => { setTarget(u); setQ(""); }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left"><Avatar u={u} /><span className="text-sm">{nameOf(u)}</span></button>
             ))}
@@ -145,29 +145,34 @@ export default function RebornKos() {
       </div>
 
       {/* Leaderboard */}
-      <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1 flex items-center gap-2"><Crown className="w-4 h-4 text-amber-400" /> {t("vn.kos.ranking")}</h2>
+      <div className="arc-panel" style={{ ["--c1" as any]: "#ec4899" }}>
+      <h2 className="arc-head"><Crown className="w-4 h-4 text-amber-400" /> {t("vn.kos.ranking")}</h2>
       {board.length === 0 && <div className="text-center py-10 text-white/40"><Mic2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.kos.noGifts")}</p></div>}
-      <div className="space-y-2">
-        {board.map((u, i) => (
-          <div key={u.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
-            <span className={`w-7 text-center font-extrabold ${i === 0 ? "text-amber-300" : i === 1 ? "text-slate-300" : i === 2 ? "text-orange-400" : "text-white/40"}`}>{i + 1}</span>
+      <div>
+        {board.map((u, i) => {
+          const top = ["#f3c14b", "#cbd5e1", "#d08a4f"][i];
+          return (
+          <div key={u.id} className={`arc-row ${top ? "arc-row-top" : ""}`} style={top ? { ["--rc" as any]: top } : undefined}>
+            <span className="arc-medal">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span>
             <Avatar u={u} />
-            <div className="flex-1 min-w-0"><p className="font-semibold truncate">{nameOf(u)}</p><p className="text-xs text-amber-300">🪙 {fmt(u.stars)}</p></div>
-            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">{t("vn.kos.you")}</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title={t("vn.kos.addFriend")} aria-label={t("vn.kos.addAsFriend", { name: nameOf(u) })} className="w-11 h-11 rounded-full bg-amber-400 border border-amber-200 shadow-lg flex items-center justify-center text-black"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">{t("vn.kos.pending")}</span>}<button onClick={() => setTarget(u)} className="px-4 py-2 rounded-full text-sm font-bold text-black" style={{ background: "linear-gradient(90deg,#ec4899,#c9a84c)" }}>{t("vn.kos.gift")}</button></>}
+            <div className="flex-1 min-w-0"><p className="font-bold truncate">{nameOf(u)}</p><p className="text-xs font-black text-amber-300" style={{ textShadow: "0 0 8px rgba(247,215,116,.5)" }}>🪙 {fmt(u.stars)}</p></div>
+            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">{t("vn.kos.you")}</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title={t("vn.kos.addFriend")} aria-label={t("vn.kos.addAsFriend", { name: nameOf(u) })} className="kos-add"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">{t("vn.kos.pending")}</span>}<button onClick={() => setTarget(u)} className="kos-gift">🎁 {t("vn.kos.gift")}</button></>}
           </div>
-        ))}
+          );
+        })}
+      </div>
       </div>
 
       {/* Gift picker */}
       {target && (
         <Overlay onClose={() => setTarget(null)}>
           <div className="flex items-center gap-3 mb-4"><Avatar u={target} /><div><p className="font-bold">{nameOf(target)}</p><p className="text-xs text-white/50">🪙 {fmt(wallet?.kgold ?? 0)} KGOLD</p></div></div>
-          <div className="grid grid-cols-3 gap-3 max-h-[46vh] overflow-y-auto">
+          <div className="grid gap-2.5 max-h-[46vh] overflow-y-auto p-0.5" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
             {gifts.map((g) => (
-              <button key={g.id} onClick={() => gift.mutate(g.id)} disabled={gift.isPending || (wallet?.kgold ?? 0) < g.kgoldCost} className="flex flex-col items-center gap-1 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-40">
+              <button key={g.id} onClick={() => gift.mutate(g.id)} disabled={gift.isPending || (wallet?.kgold ?? 0) < g.kgoldCost} className="pet-item p-3 disabled:opacity-40">
                 {g.imageUrl ? <img src={g.imageUrl} alt={g.name} className="w-10 h-10 object-contain" /> : <span className="text-3xl">{g.emoji}</span>}
                 <span className="text-[11px] font-semibold text-center leading-tight">{g.name}</span>
-                <span className="text-[11px] text-amber-300">🪙 {fmt(g.kgoldCost)}</span>
+                <span className="pet-price text-amber-200">🪙 {fmt(g.kgoldCost)}</span>
               </button>
             ))}
           </div>
@@ -237,10 +242,10 @@ function VenueQr() {
 
 function Overlay({ children, onClose }: any) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+    <div className="kos-sheet fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative w-full sm:max-w-sm bg-[#160f2a] border border-white/10 rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><X className="w-4 h-4" /></button>
+      <div className="kos-sheet-box relative w-full sm:max-w-sm rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="arc-btn absolute top-4 right-4" style={{ width: 32, height: 32 }}><X className="w-4 h-4" /></button>
         {children}
       </div>
     </div>
@@ -262,11 +267,11 @@ function BuyModal({ wallet, onClose, onDone, onTopup }: any) {
   });
   return (
     <Overlay onClose={onClose}>
-      <h3 className="text-xl font-extrabold mb-1">{t("vn.kos.buyKgold")}</h3>
+      <h3 className="arc-title mb-1" style={{ ["--c1" as any]: "#ec4899" }}>{t("vn.kos.buyKgold")}</h3>
       <p className="text-sm text-white/60 mb-4">{t("vn.kos.buyRate", { per, min: fmt(min) })}</p>
-      <input type="number" min={min} step={min} value={kg} onChange={(e) => setKg(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-2" />
+      <input type="number" min={min} step={min} value={kg} onChange={(e) => setKg(Number(e.target.value))} className="arc-input w-full mb-2 font-black text-lg" style={{ ["--c1" as any]: "#f3b52f" }} />
       <p className="text-sm text-white/60 mb-4">{t("vn.kos.costLabel")} <b className="text-amber-300">RP {fmt(cost)}</b> {t("vn.kos.costFrom", { n: fmt(wallet?.credits ?? 0) })}</p>
-      <button onClick={() => insufficient ? onTopup() : buy.mutate()} disabled={buy.isPending || kg < min} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{insufficient ? t("vn.kos.topupToContinue") : t("vn.kos.buyN", { n: fmt(kg) })}</button>
+      <button onClick={() => insufficient ? onTopup() : buy.mutate()} disabled={buy.isPending || kg < min} className="arc-play w-full justify-center disabled:opacity-50" style={{ padding: 12, fontSize: 13 }}>{insufficient ? t("vn.kos.topupToContinue") : t("vn.kos.buyN", { n: fmt(kg) })}</button>
     </Overlay>
   );
 }
@@ -285,13 +290,13 @@ function CashoutModal({ wallet, onClose, onDone }: any) {
   });
   return (
     <Overlay onClose={onClose}>
-      <h3 className="text-xl font-extrabold mb-1">{t("vn.kos.cashoutTitle")}</h3>
+      <h3 className="arc-title mb-1" style={{ ["--c1" as any]: "#22c55e" }}>{t("vn.kos.cashoutTitle")}</h3>
       <p className="text-sm text-white/60 mb-4">{t("vn.kos.cashoutDesc", { rp: fmt(minRp), kg: fmt(minRp * per) })}</p>
-      <div className="rounded-2xl bg-black/25 p-4 mb-4 text-center">
-        <p className="text-2xl font-extrabold">🪙 {fmt(bal)}</p>
+      <div className="rounded-2xl bg-black/35 border border-amber-300/25 p-4 mb-4 text-center">
+        <p className="kos-num" style={{ fontSize: 28 }}>🪙 {fmt(bal)}</p>
         <p className="text-white/60 text-sm">{t("vn.kos.eqCredits", { n: fmt(rp) })}</p>
       </div>
-      <button onClick={() => cash.mutate()} disabled={cash.isPending || rp < minRp} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#22c55e,#86efac)" }}>{t("vn.kos.cashoutAll", { n: fmt(rp) })}</button>
+      <button onClick={() => cash.mutate()} disabled={cash.isPending || rp < minRp} className="pet-act w-full disabled:opacity-50" style={{ padding: 12, ["--c" as any]: "#22c55e", fontWeight: 900, fontStyle: "italic", textTransform: "uppercase", letterSpacing: ".06em" }}>{t("vn.kos.cashoutAll", { n: fmt(rp) })}</button>
       {rp < minRp && <p className="text-xs text-white/40 mt-2 text-center">{t("vn.kos.needMore")}</p>}
     </Overlay>
   );
@@ -317,7 +322,7 @@ function GiftInbox({ notifs, onClose }: any) {
         </div>
         <p className="text-white text-lg font-extrabold mt-4">{t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName })}</p>
         <p className="text-amber-300 font-bold mt-1">🪙 +{fmt(g.recipientKgold)} KGOLD</p>
-        <button onClick={next} className="mt-6 px-8 py-2.5 rounded-full font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{i < notifs.length - 1 ? t("vn.common.next") : t("vn.kos.awesome")}</button>
+        <button onClick={next} className="arc-play arc-start mt-6 mx-auto px-8 justify-center" style={{ padding: "12px 32px", fontSize: 14 }}>{i < notifs.length - 1 ? t("vn.common.next") : t("vn.kos.awesome")}</button>
         {notifs.length > 1 && <p className="text-white/40 text-xs mt-2">{i + 1} / {notifs.length}</p>}
       </div>
     </div>
