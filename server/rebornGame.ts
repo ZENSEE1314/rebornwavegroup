@@ -716,6 +716,12 @@ async function autoCheckinFromBooking(userId: string) {
   if (cur && (cur.tableLabel || cur.checkedOutAt)) return cur.checkedOutAt ? null : cur;
   return venueCheckIn(userId, table);
 }
+// "By table" song queue: a member must be checked in at a table (table QR or
+// confirmed table booking) before they can request a song — app and WhatsApp.
+export async function songNeedsTableScan(userId: string): Promise<boolean> {
+  if ((await getSettings()).songQueueMode !== "table") return false;
+  return !(await activeCheckin(userId).catch(() => null))?.tableLabel;
+}
 // The member's live check-in for today (auto check-in from their booking first).
 async function activeCheckin(userId: string) {
   const session = await ensureVenueSession();
@@ -1548,6 +1554,7 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/songs/request", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
+      if (await songNeedsTableScan(userId)) return res.status(400).json({ needTable: true, message: tr(req, { en: "Song requests go by table. Scan the QR code on your table first (KOS → camera), then request your song.", zh: "点歌按桌排队。请先扫描桌上的二维码（歌王之王 → 相机），再点歌。", id: "Permintaan lagu berdasarkan meja. Pindai dulu QR di mejamu (KOS → kamera), lalu minta lagumu." }) });
       let { songId, title, titlePinyin, artist, artistPinyin, spotifyUrl, artistPhoto, performanceMode } = req.body || {};
       const songSettings = await getSettings();
       performanceMode = songSettings.songRequestModeEnabled && performanceMode === "singer" ? "singer" : "self";
@@ -1748,9 +1755,10 @@ export function registerRebornRoutes(app: Express) {
       return { ...r, requester: { id: r.userId, username: u?.username || "", name, phone: u?.phone || "" } };
     }));
   }));
-  app.get("/api/reborn/song-queue-info", requireAuth, async (_req, res) => {
+  app.get("/api/reborn/song-queue-info", requireAuth, async (req, res) => {
     const s = await getSettings();
-    res.json({ mode: s.songQueueMode, perTurn: s.songsPerTurn });
+    const seat = s.songQueueMode === "table" ? await activeCheckin(getUserId(req)!).catch(() => null) : null;
+    res.json({ mode: s.songQueueMode, perTurn: s.songsPerTurn, table: seat?.tableLabel || null, needTable: s.songQueueMode === "table" && !seat?.tableLabel });
   });
   app.post("/api/reborn/admin/song-requests/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;

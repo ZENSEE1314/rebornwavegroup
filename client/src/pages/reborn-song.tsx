@@ -112,11 +112,21 @@ function NewRequest() {
     onError: (e: any) => toast({ title: t("vn.common.failed"), description: e.message, variant: "destructive" }),
   });
   const inp = "w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60";
-  const canSend = f.title.trim() || f.titlePinyin.trim();
+  const { data: qi } = useQuery<any>({ queryKey: ["/api/reborn/song-queue-info"], queryFn: () => apiRequest("GET", "/api/reborn/song-queue-info").then((r) => r.json()), refetchInterval: 15000, refetchOnWindowFocus: true });
+  const needTable = !!qi?.needTable;
+  const canSend = !needTable && (f.title.trim() || f.titlePinyin.trim());
   return (
     <div className="rounded-3xl p-5 border border-white/10 bg-white/5">
       <h3 className="font-bold mb-1 flex items-center gap-2"><Mic2 className="w-5 h-5 text-amber-300" /> {t("vn.song.requestASong")}</h3>
       <p className="text-sm text-white/60 mb-4">{t("vn.song.requestHelp")}</p>
+      {needTable && (
+        <a href="/kos" className="block mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3.5">
+          <span className="block font-bold text-amber-200">📷 {t("vn.song.needTableTitle")}</span>
+          <span className="block text-xs text-white/65 mt-1">{t("vn.song.needTableBody")}</span>
+          <span className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-amber-300 text-black text-xs font-bold">{t("vn.kos.scanTableQr")}</span>
+        </a>
+      )}
+      {qi?.mode === "table" && qi?.table && <p className="mb-3 text-xs font-bold text-emerald-300">✓ {t("vn.kos.checkedInTable", { t: qi.table })}</p>}
       {songSettings?.performanceModeEnabled && <ModePicker value={f.performanceMode} onChange={(performanceMode)=>setF({...f,performanceMode})}/>}
       <div className="relative mb-3">
         <input value={f.title} onChange={(e) => { setF({ ...f, title: e.target.value }); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} placeholder={t("vn.song.namePh")} className={inp} autoComplete="off" />

@@ -449,6 +449,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "抱歉，此功能目前已关闭。🙏 回复 MENU 查看其他选项。",
       id: "Maaf, fitur ini sedang dinonaktifkan. 🙏 Balas MENU untuk pilihan lain.",
     },
+    songNeedTable: {
+      en: "🎤 Song requests go by table tonight. Please scan the QR code on your table first (open the app → KOS → camera), then send your song request again. If you booked a table, you'll be checked in once staff confirm your booking.",
+      zh: "🎤 今晚点歌按桌排队。请先扫描桌上的二维码（打开应用 → 歌王之王 → 相机），然后再发送点歌请求。如果你已订桌，员工确认预订后会自动为你签到。",
+      id: "🎤 Malam ini permintaan lagu berdasarkan meja. Pindai dulu QR di mejamu (buka aplikasi → KOS → kamera), lalu kirim lagi permintaan lagumu. Jika kamu booking meja, kamu otomatis check-in setelah staf mengonfirmasi booking.",
+    },
     songAskName: {
       en: "🎤 What's the song name? (Chinese or pinyin — or both)",
       zh: "🎤 歌名是什么？（中文或拼音都可以）",
@@ -952,7 +957,10 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   const offKey = intent === "book" ? "bookings" : intent === "song" ? "songs" : intent === "bottle" ? "bottles" : "";
   if (offKey && await featureOff(offKey)) { await say(L(lang, "featureOff")); return; }
   if (intent === "book") return handleBookIntent(c, lang, from, body, say);
-  if (intent === "song") { await say(withNav(lang, L(lang, "songAskName"))); return patchContact(c.id, { waState: { flow: "song", step: "name" } }); }
+  if (intent === "song") {
+    if (c.userId && await songTableBlocked(c.userId)) { await say(L(lang, "songNeedTable")); return patchContact(c.id, { waState: { flow: null } }); }
+    await say(withNav(lang, L(lang, "songAskName"))); return patchContact(c.id, { waState: { flow: "song", step: "name" } });
+  }
   if (intent === "bottle") return showBottles(c, lang, say);
   if (intent === "menu") { await sendMemberMenu(from, c, lang); return; }
 
@@ -1327,9 +1335,15 @@ async function songBack(c: Contact, lang: Lang, wa: any, say: (m: string) => Pro
   return patchContact(c.id, { waState: { flow: "song", step: "name" } });
 }
 
+// "By table" song queue: the member must scan their table QR (or have a confirmed table booking) first.
+async function songTableBlocked(userId: string): Promise<boolean> {
+  try { const { songNeedsTableScan } = await import("./rebornGame"); return await songNeedsTableScan(userId); } catch (e) { console.warn("[wa] song table check", e); return false; }
+}
+
 async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: any, sayRaw: (m: string) => Promise<void>) {
   const say = (m: string) => sayRaw(withNav(lang, m));
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
+  if (await songTableBlocked(c.userId)) { await sayRaw(L(lang, "songNeedTable")); return patchContact(c.id, { waState: { flow: null } }); }
   if (wa.step === "name") {
     const title = body.trim();
     if (!title) { await say(L(lang, "songAskName")); return; }
