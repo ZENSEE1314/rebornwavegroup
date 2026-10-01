@@ -45,3 +45,5 @@ text.
 - `songQueueMode` (`user` | `table`) and `songsPerTurn` (1–3) — the song queue
   gives each member/table that many songs per turn, first come first served;
   extra songs wait for the next round (`fairSongQueue` in server/rebornGame.ts).
+  In `table` mode a member must be checked in at a table (table QR or confirmed
+  table booking) before requesting — app and WhatsApp (`songNeedsTableScan`).

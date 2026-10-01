@@ -102,6 +102,8 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.song.fairNoteUser': { en: 'Fair queue: each member sings {n} song(s) per turn, first come first served. Your extra songs wait until everyone else has had their turn.', zh: '公平排队：每位会员每轮唱 {n} 首，先到先唱。你的其他歌曲会等其他人轮完再排上。', id: 'Antrean adil: setiap member menyanyi {n} lagu per giliran, siapa cepat dia dapat. Lagu tambahanmu menunggu sampai semua orang dapat giliran.' },
   'vn.song.fairNoteTable': { en: 'Fair queue by table: each table sings {n} song(s) per turn, first come first served. Extra songs wait until every table has had its turn.', zh: '按桌公平排队：每桌每轮唱 {n} 首，先到先唱。多出的歌曲会等所有桌轮完再排上。', id: 'Antrean adil per meja: setiap meja menyanyi {n} lagu per giliran, siapa cepat dia dapat. Lagu tambahan menunggu sampai semua meja dapat giliran.' },
   'vn.song.yourTable': { en: 'Your table: {t}.', zh: '你的桌号：{t}。', id: 'Mejamu: {t}.' },
+  'vn.song.needTableTitle': { en: 'Scan your table QR to request songs', zh: '请先扫描桌上的二维码再点歌', id: 'Pindai QR mejamu untuk minta lagu' },
+  'vn.song.needTableBody': { en: 'Songs are queued by table tonight. Scan the QR code on your table in KOS first. If you booked a table, you are checked in automatically once staff confirm it.', zh: '今晚点歌按桌排队。请先在歌王之王中扫描桌上的二维码。如果你已订桌，员工确认后会自动签到。', id: 'Malam ini lagu diantrekan per meja. Pindai dulu QR di mejamu lewat KOS. Jika kamu booking meja, kamu otomatis check-in setelah staf mengonfirmasi.' },
   'vn.song.noRequests': { en: "You haven't requested any songs yet.", zh: '你还没有点过歌。', id: 'Anda belum meminta lagu apa pun.' },
   'vn.song.confirmed': { en: 'Confirmed', zh: '已确认', id: 'Dikonfirmasi' },
   'vn.song.declined': { en: 'Declined', zh: '已拒绝', id: 'Ditolak' },
