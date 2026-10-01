@@ -8,7 +8,8 @@ import petMale from "@assets/Doluruu Boy_1749664545355.png";
 import petFemale from "@assets/doluruu-female-transparent.png";
 import eggImg from "@assets/doluruu-blindbox-box.jpeg";
 import { ItemArt, COSTUME_FIT, PET_ART } from "@/components/pet-art";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation, translate, getCurrentLanguage } from "@/lib/i18n";
+import { sfx } from "@/lib/sfx";
 
 const WALK_CSS = `
 @keyframes rwpetWaddle{0%,100%{transform:translateY(0) rotate(-3deg)}25%{transform:translateY(-4%) rotate(0)}50%{transform:translateY(0) rotate(3deg)}75%{transform:translateY(-4%) rotate(0)}}
@@ -71,7 +72,19 @@ export default function RebornPet() {
     onSuccess: (d) => { qc.setQueryData(["/api/reborn/pet-home"], d); if (d.message) toast({ title: d.message }); },
     onError: (e: any) => toast({ title: t("hm.pet.cantDo"), description: e.message, variant: "destructive" }),
   });
+  // Doluruu greets you when Pet Care opens (once per visit to the page).
+  useEffect(() => { const lang = getCurrentLanguage(); sfx.welcome(translate("hm.pet.voiceWelcome", {}, lang), lang); }, []);
+  // Each care button has its own sound, played on the tap.
+  const actionSound = (action: string) => {
+    const lang = getCurrentLanguage();
+    if (action === "feed") sfx.yummy();
+    else if (action === "clean") sfx.scrub();
+    else if (action === "play") sfx.playFun();
+    else if (action === "sleep") sfx.sweetDreams(translate("hm.pet.voiceSweetDreams", {}, lang), lang);
+    else if (action === "wake") sfx.wakeUp();
+  };
   const setLight = (on: boolean) => {
+    sfx.lightSwitch();
     qc.setQueryData(["/api/reborn/pet-home"], (h: any) => h && { ...h, lightOn: on }); // flip instantly
     homeCall.mutate({ path: "light", body: { on } });
   };
@@ -125,7 +138,7 @@ export default function RebornPet() {
       <div className="space-y-4">
         {pets.map((pet) => (
           <PetCard key={pet.id} pet={pet}
-            onAction={(action: string) => act.mutate({ petId: pet.id, action })} busy={act.isPending}
+            onAction={(action: string) => { actionSound(action); act.mutate({ petId: pet.id, action }); }} busy={act.isPending}
             onPill={() => usePill.mutate(pet.id)} pilling={usePill.isPending} pillsAvailable={pills?.available || 0}
             home={home} onLight={setLight} />
         ))}
@@ -146,7 +159,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
   const img = pet.isEgg ? eggImg : pet.gender === "female" ? petFemale : petMale;
   const sick = pet.lifeStatus === "sick";
   const [pop, setPop] = useState(false);
-  const poke = () => { setPop(true); setTimeout(() => setPop(false), 550); }; // reaction only — no energy cost
+  const poke = () => { sfx.poke(); setPop(true); setTimeout(() => setPop(false), 550); }; // reaction only — no energy cost
 
   return (
     <div className="arc-panel" style={{ padding: 0, ["--c1" as any]: pet.isEgg ? "#fb7185" : sick ? "#ef4444" : "#f472b6" }}>
@@ -438,11 +451,15 @@ const PLAIN_PET = {
 };
 // Soften the lower edge of hat / glasses overlays so they blend into the head.
 const OVERLAY_FADE = "linear-gradient(to bottom, #000 70%, transparent 100%)";
+// Shoes: the body layers end in cut-off feet, so with shoes on the body is trimmed just
+// above the feet and the shoes sit a little smaller and lower, on the ground below.
+const SHOE_PAD = 40, BODY_CUT = 338, SHOE_SCALE = 0.86, SHOE_DROP = 30;
 function DressedPet({ home, worn, alt, gender, className = "" }: any) {
   const plain = !worn.clothing && !worn.footwear && PLAIN_PET[gender === "female" ? "female" : "male"];
   const layers = plain ? [] : outfitLayers(home, worn) || [];
   const cloth = worn.clothing && itemById(home, worn.clothing);
-  const cw = plain ? plain.box[2] : CANVAS_W, ch = plain ? plain.box[3] : CANVAS_H;
+  const shoes = !plain && layers.length > 1;
+  const cw = plain ? plain.box[2] : CANVAS_W, ch = plain ? plain.box[3] : CANVAS_H + (shoes ? SHOE_PAD : 0);
   const eyes: number[] | undefined = plain ? plain.eyes : cloth?.eyes || home?.baseEyes;
   // Neck first (under the chin), then glasses, then hats.
   const extras = ["neck", "face", "head"].map((k) => worn[k] && itemById(home, worn[k])).filter((i: any) => i?.overlay && i.anchor);
@@ -450,7 +467,13 @@ function DressedPet({ home, worn, alt, gender, className = "" }: any) {
     <div className="absolute bottom-0 left-1/2 h-full -translate-x-1/2" style={{ aspectRatio: `${cw} / ${ch}` }}>
       {plain && <img src={plain.src} alt={alt} draggable={false} className={`rwpet-layer absolute ${className}`}
         style={{ left: `${(-plain.box[0] / cw) * 100}%`, top: `${(-plain.box[1] / ch) * 100}%`, width: `${(plain.w / cw) * 100}%` }} />}
-      {layers.map((src, i) => <img key={src} src={src} alt={i === 0 ? alt : ""} className={`absolute inset-0 h-full w-full ${className}`} draggable={false} />)}
+      {layers.map((src, i) => {
+        const isShoe = shoes && i === layers.length - 1;
+        const s = isShoe ? SHOE_SCALE : 1, top = isShoe ? CANVAS_H * (1 - s) + SHOE_DROP : 0;
+        return <img key={src} src={src} alt={i === 0 ? alt : ""} className={`absolute ${className}`} draggable={false}
+          style={{ left: `${((CANVAS_W * (1 - s)) / 2 / cw) * 100}%`, top: `${(top / ch) * 100}%`, width: `${s * 100}%`, height: `${((CANVAS_H * s) / ch) * 100}%`,
+            ...(shoes && !isShoe ? { clipPath: `inset(0 0 ${(((CANVAS_H - BODY_CUT) / CANVAS_H) * 100).toFixed(2)}% 0)` } : {}) }} />;
+      })}
       {eyes && extras.map((it: any) => {
         const [ax, ay, d, ow] = it.anchor; const s = eyes[2] / d;
         return <img key={it.id} src={it.overlay} alt="" draggable={false} className={`rwpet-layer absolute ${className}`}
