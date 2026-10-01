@@ -2,10 +2,12 @@
 // Every sound is triggered by a user tap or an SSE update, so the audio
 // context resumes fine under mobile autoplay rules.
 let ctx: AudioContext | null = null;
+let lastPlayed = 0; // when any sound last started — the menu tick skips buttons that made their own
 let muted = false;
 try { muted = localStorage.getItem("rw_sfx_off") === "1"; } catch {}
 
 function ac(): AudioContext | null {
+  lastPlayed = performance.now();
   try {
     if (!ctx) ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
@@ -184,3 +186,20 @@ export const sfx = {
   setMuted(m: boolean) { muted = m; try { localStorage.setItem("rw_sfx_off", m ? "1" : "0"); } catch {} if (!m) ac(); },
   isMuted() { return muted; },
 };
+
+// Every button, link and tab in the member app (.rwg-app) gives a soft tick when tapped — unless the
+// button already played its own sound (games, pet care, gifts…) during that tap.
+// Listens on window in the bubble phase, after React's handlers have run.
+export function installUiClicks() {
+  if ((window as any).__rwUiClicks) return; (window as any).__rwUiClicks = true;
+  const sel = 'button, a[href], [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], summary, select, input[type="checkbox"], input[type="radio"]';
+  window.addEventListener("click", (e) => {
+    if (muted) return;
+    const t = e.target as HTMLElement | null;
+    const el = t?.closest?.(sel) as HTMLElement | null;
+    if (!el || !document.querySelector(".rwg-app") || (el as any).disabled || el.getAttribute("aria-disabled") === "true" || el.closest("[data-no-click-sound]")) return;
+    if (performance.now() - lastPlayed < 40) return; // a sound started during this tap's handlers → it has its own
+    uiTick();
+  });
+}
+function uiTick() { tone(1150, 0.035, "triangle", 0.12); tone(1700, 0.03, "sine", 0.05, 0.012); }
