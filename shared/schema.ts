@@ -240,6 +240,7 @@ export const venueCheckins = pgTable("venue_checkins", {
   userId: varchar("user_id").notNull(),
   venueDay: varchar("venue_day").notNull(),
   sessionCode: varchar("session_code").notNull(),
+  tableLabel: varchar("table_label"), // table scanned (table QR) or from a confirmed booking
   checkedInAt: timestamp("checked_in_at").defaultNow().notNull(),
   checkedOutAt: timestamp("checked_out_at"),
 }, (table) => [
@@ -810,6 +811,7 @@ export const songRequests = pgTable("song_requests", {
   title: varchar("title").notNull(),
   artist: varchar("artist").default(""),
   performanceMode: varchar("performance_mode").default("self").notNull(), // self | singer
+  tableLabel: varchar("table_label"), // requester's table (table-turn song queue)
   status: varchar("status").default("pending"), // pending | confirmed | rejected
   adminNote: text("admin_note"), // optional note/comment from admin (e.g. reason for reject)
   createdAt: timestamp("created_at").defaultNow(),

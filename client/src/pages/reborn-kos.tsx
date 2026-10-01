@@ -65,8 +65,15 @@ export default function RebornKos() {
   const isAdmin = (user as any)?.role === "admin";
   const { t } = useTranslation();
 
-  const checkIn = (code: string) => {
-    apiRequest("POST", "/api/reborn/venue/checkin", { code }).then(async (response) => {
+  // Accepts today's venue code, a /kos?venue=CODE link or a table QR link (/kos?table=T&k=SIG).
+  const checkIn = (scanned: string) => {
+    let body: any = { code: scanned };
+    try {
+      const u = new URL(scanned, window.location.origin);
+      if (u.searchParams.get("table")) body = { table: u.searchParams.get("table"), k: u.searchParams.get("k") || "" };
+      else if (u.searchParams.get("venue")) body = { code: u.searchParams.get("venue") };
+    } catch { /* raw code */ }
+    apiRequest("POST", "/api/reborn/venue/checkin", body).then(async (response) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || t("vn.kos.checkinFailed"));
       toast({ title: t("vn.kos.checkinDone"), description: data.message });
@@ -76,10 +83,11 @@ export default function RebornKos() {
   };
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("venue");
-    if (!code) return;
+    const qs = new URLSearchParams(window.location.search);
+    if (!qs.get("venue") && !qs.get("table")) return;
+    const link = window.location.href;
     window.history.replaceState({}, "", "/kos");
-    checkIn(code);
+    checkIn(link);
   }, []);
 
   const { data: venue } = useQuery<any>({ queryKey: ["/api/reborn/venue/status"], queryFn: () => apiRequest("GET", "/api/reborn/venue/status").then((r) => r.json()), refetchInterval: 30000 });
@@ -150,7 +158,10 @@ export default function RebornKos() {
           <span className="min-w-0"><span className="block font-black italic uppercase tracking-wide">{t("vn.kos.scanVenueQr")}</span><span className="block text-xs text-white/55">{t("vn.kos.scanHint")}</span></span>
         </button>
       )}
-      {venue?.checkedIn && <p className="arc-badge mb-4" style={{ ["--c1" as any]: "#22c55e", marginTop: 0 }}><CheckCircle2 className="w-4 h-4" /> {t("vn.kos.checkedInToday")}</p>}
+      {venue?.checkedIn && <div className="flex flex-wrap items-center gap-2 mb-4">
+        <p className="arc-badge" style={{ ["--c1" as any]: "#22c55e", marginTop: 0 }}><CheckCircle2 className="w-4 h-4" /> {venue.table ? t("vn.kos.checkedInTable", { t: venue.table }) : t("vn.kos.checkedInToday")}</p>
+        {!venue.table && <button onClick={() => setScanning(true)} className="text-xs font-bold text-amber-300 underline">{t("vn.kos.scanTableQr")}</button>}
+      </div>}
       {isAdmin && (
         <button onClick={() => setVenueOpen(true)} className="arc-room-row w-full mb-4 text-left" style={{ ["--c1" as any]: "#8b5cf6" }}>
           <span className="arc-icon shrink-0" style={{ width: 46, height: 46, fontSize: 22, ["--c1" as any]: "#a78bfa", ["--c2" as any]: "#6d28d9" }}><span><QrCode className="w-5 h-5 text-white" /></span></span>
@@ -230,11 +241,9 @@ function VenueScanner({ onDetect, onClose }: { onDetect: (code: string) => void;
         scanner = new QrScanner(videoRef.current, (result: any) => {
           const data = typeof result === "string" ? result : result?.data;
           if (!data || done) return;
-          let code = data;
-          try { code = new URL(data).searchParams.get("venue") || data; } catch { /* raw code, not a URL */ }
           done = true;
           try { scanner?.stop(); } catch {}
-          onDetect(code);
+          onDetect(data); // venue/table link or raw code — checkIn() reads it
         }, { returnDetailedScanResult: true, highlightScanRegion: true, preferredCamera: "environment" });
         await scanner.start();
       } catch (e: any) { setErr(e?.message || translate("vn.kos.cameraError")); }
@@ -251,9 +260,40 @@ function VenueScanner({ onDetect, onClose }: { onDetect: (code: string) => void;
   );
 }
 
+// Admin-only: the fixed QR for every table, laid out to print and stick on tables.
+function TableQrSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const { data: tables = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/venue/tables"], queryFn: () => apiRequest("GET", "/api/reborn/admin/venue/tables").then((r) => r.json()), refetchInterval: 15000 });
+  return (
+    <div className="table-qr-sheet fixed inset-0 z-[60] overflow-y-auto bg-[#0d0818] p-4">
+      <style>{`@media print{body *{visibility:hidden}.table-qr-sheet,.table-qr-sheet *{visibility:visible}.table-qr-sheet{position:absolute;inset:0;background:#fff;color:#000;overflow:visible}.no-print{display:none!important}.tq-card{break-inside:avoid;border:1px solid #999!important;background:#fff!important;color:#000!important}}`}</style>
+      <div className="no-print flex items-center gap-2 mb-3">
+        <h3 className="font-bold text-lg flex-1 flex items-center gap-2"><QrCode className="w-5 h-5 text-amber-300" /> {t("vn.kos.tableQrs")}</h3>
+        <button onClick={() => window.print()} className="px-3 py-2 rounded-xl bg-amber-300 text-black text-sm font-bold">{t("vn.kos.print")}</button>
+        <button onClick={onClose} className="arc-btn" style={{ width: 36, height: 36 }}><X className="w-4 h-4" /></button>
+      </div>
+      <p className="no-print text-xs text-white/55 mb-4">{t("vn.kos.tableQrsDesc")}</p>
+      {isLoading && <p className="text-white/50 text-sm">…</p>}
+      {!isLoading && tables.length === 0 && <p className="text-white/50 text-sm">{t("vn.kos.noTables")}</p>}
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
+        {tables.map((tb) => (
+          <div key={tb.label} className="tq-card rounded-2xl bg-white text-black p-3 text-center">
+            <div className="w-full aspect-square [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: tb.svg }} />
+            <p className="font-black text-xl mt-1">{t("vn.kos.tableN", { t: tb.label })}</p>
+            <p className="text-[11px] text-black/60 truncate">{tb.area}</p>
+            <p className="text-[11px] text-black/70 mt-0.5">{t("vn.kos.scanToCheckin")}</p>
+            <p className="no-print text-[11px] font-bold text-emerald-700 mt-1">{t("vn.kos.seatedNow", { n: tb.checkedIn })}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Admin-only: today's venue QR and live check-in count.
 function VenueQr() {
   const { t } = useTranslation();
+  const [tablesOpen, setTablesOpen] = useState(false);
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/venue/session"], queryFn: () => apiRequest("GET", "/api/reborn/admin/venue/session").then((r) => r.json()), refetchInterval: 5000 });
   return <div>
     <h3 className="font-bold text-lg flex items-center gap-2 pr-8"><QrCode className="w-5 h-5 text-amber-300" /> {t("vn.kos.dailyCheckin")}</h3>
@@ -264,6 +304,8 @@ function VenueQr() {
       <div><p className="text-[11px] text-white/45">{t("vn.kos.checkedIn")}</p><p className="font-extrabold text-2xl text-amber-300">{data?.count ?? 0}</p></div>
       <div><p className="text-[11px] text-white/45">{t("vn.kos.code")}</p><p className="font-mono tracking-[0.2em] font-bold text-sm">{data?.code || "—"}</p></div>
     </div>
+    <button onClick={() => setTablesOpen(true)} className="mt-4 w-full py-2.5 rounded-xl bg-white/5 border border-amber-300/40 text-amber-200 font-bold text-sm flex items-center justify-center gap-2"><QrCode className="w-4 h-4" /> {t("vn.kos.tableQrs")}</button>
+    {tablesOpen && <TableQrSheet onClose={() => setTablesOpen(false)} />}
   </div>;
 }
 

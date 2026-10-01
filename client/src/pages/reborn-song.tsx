@@ -145,11 +145,13 @@ function NewRequest() {
 
 function MyRequests() {
   const { t, language } = useTranslation();
+  const { data: qi } = useQuery<any>({ queryKey: ["/api/reborn/song-queue-info"], queryFn: () => apiRequest("GET", "/api/reborn/song-queue-info").then((r) => r.json()) });
+  const { data: venue } = useQuery<any>({ queryKey: ["/api/reborn/venue/status"], queryFn: () => apiRequest("GET", "/api/reborn/venue/status").then((r) => r.json()) });
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/songs/my-requests"], queryFn: () => apiRequest("GET", "/api/reborn/songs/my-requests").then((r) => r.json()), refetchInterval: 10000, refetchOnWindowFocus: true });
   if (rows.length === 0) return <div className="text-center py-12 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.song.noRequests")}</p></div>;
   return (
     <div className="space-y-2">
-      {rows.some((r) => r.status === "pending") && <p className="text-xs text-white/50 px-1">{t("vn.song.fairNote")}</p>}
+      {rows.some((r) => r.status === "pending") && <p className="text-xs text-white/50 px-1">{qi?.mode === "table" ? t("vn.song.fairNoteTable", { n: qi?.perTurn ?? 1 }) : t("vn.song.fairNoteUser", { n: qi?.perTurn ?? 1 })}{venue?.table ? ` ${t("vn.song.yourTable", { t: venue.table })}` : ""}</p>}
       {rows.map((r) => (
         <div key={r.id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10">
           <div className="flex-1 min-w-0"><p className="font-semibold truncate">{r.title}</p><p className="text-xs text-white/50 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("vn.song.bySinger") : t("vn.song.selfSing")} · {new Date(r.createdAt).toLocaleDateString(localeTag(language))}</p></div>

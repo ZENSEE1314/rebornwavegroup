@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,9 @@ export default function RebornOrder() {
   const [cart, setCart] = useState<Record<number, number>>({});
   const [table, setTable] = useState("");
   const { t } = useTranslation();
+  // Checked in at a table (table QR or confirmed booking) → that's the order table.
+  const { data: venue } = useQuery<any>({ queryKey: ["/api/reborn/venue/status"], queryFn: () => apiRequest("GET", "/api/reborn/venue/status").then((r) => r.json()) });
+  useEffect(() => { if (venue?.table && !table) setTable(venue.table); }, [venue?.table]);
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["/api/reborn/shop/products"],

@@ -643,6 +643,18 @@ function Settings() {
       <Card>
         <h3 className="font-bold mb-2 flex items-center gap-2"><Music2 className="w-4 h-4 text-amber-300"/> {t("admin.set.songOpts")}</h3>
         <label className="flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.songRequestModeEnabled !== false} onChange={(e)=>setStr("songRequestModeEnabled",e.target.checked)}/> {t("admin.set.songMode")}</label>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.set.songQueueBy")}</span>
+            <select value={cur.songQueueMode || "user"} onChange={(e) => setStr("songQueueMode", e.target.value)} className={inp + " w-full"}>
+              <option value="user">{t("admin.set.songQueueUser")}</option><option value="table">{t("admin.set.songQueueTable")}</option>
+            </select></label>
+          <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.set.songsPerTurn")}</span>
+            <select value={String(cur.songsPerTurn || 1)} onChange={(e) => setStr("songsPerTurn", Number(e.target.value))} className={inp + " w-full"}>
+              {[1, 2, 3].map((n) => <option key={n} value={n}>{t("admin.set.songsN", { n })}</option>)}
+            </select></label>
+        </div>
+        <p className="text-[11px] text-white/40 mt-2">{t("admin.set.songQueueHint")}</p>
+        <button onClick={()=>save.mutate()} disabled={save.isPending} className={btn+" mt-3 w-full justify-center"}>{save.isPending?t("admin.c.saving"):t("admin.c.save")}</button>
       </Card>
       <Card>
         <h3 className="font-bold mb-1 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-amber-300" /> {t("admin.set.reviews")}</h3>
@@ -851,19 +863,20 @@ function SongRow({ s, onSave, onDelete }: any) {
 function SongRequests() {
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const { data: qi } = useQuery<any>({ queryKey: ["/api/reborn/song-queue-info"], queryFn: () => apiRequest("GET", "/api/reborn/song-queue-info").then((r) => r.json()) });
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/song-requests"], queryFn: () => apiRequest("GET", "/api/reborn/admin/song-requests").then((r) => r.json()), refetchInterval: 10000, refetchOnWindowFocus: true });
   const act = useMutation({ mutationFn: ({ id, approve, comment }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}`, { approve, comment }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/song-requests"] }) });
   if (rows.length === 0) return <Empty text={t("admin.req.empty")} />;
   return (
     <div className="space-y-2">
-      <p className="text-xs text-white/50 px-1">{t("admin.req.fairNote")}</p>
+      <p className="text-xs text-white/50 px-1">{qi?.mode === "table" ? t("admin.req.fairNoteTable", { n: qi?.perTurn ?? 1 }) : t("admin.req.fairNoteUser", { n: qi?.perTurn ?? 1 })}</p>
       {rows.map((r) => (
         <Card key={r.id}>
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm text-black" style={{ background: "linear-gradient(135deg,#c9a84c,#f0d787)" }}>#{r.position ?? "?"}</div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm truncate"><Music2 className="w-3.5 h-3.5 inline mr-1 text-amber-300" />{r.title}</p>
-              <p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("admin.req.bySinger") : t("admin.req.self")} · {t("admin.req.round", { n: (r.round ?? 0) + 1 })}</p>
+              <p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("admin.req.bySinger") : t("admin.req.self")} · {t("admin.req.round", { n: (r.round ?? 0) + 1 })}{r.table ? <> · <b className="text-cyan-300">{t("admin.req.table", { t: r.table })}</b></> : null}</p>
               <p className="text-xs text-amber-200/90 truncate">{r.requester?.name || r.requester?.username || t("admin.req.unknownUser")}{r.requester?.username && r.requester?.name ? ` (@${r.requester.username})` : ""}{r.requester?.phone ? ` · ${r.requester.phone}` : ""}</p>
               <p className="text-[11px] text-white/50 font-mono break-all">{t("admin.req.userId", { id: r.userId })}</p>
               <div className="flex gap-2 mt-2">
