@@ -74,6 +74,8 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.pet.sickDesc': { en: "Your pet is sick and won't earn tokens. Visit us and spend 300,000 RP to get a free revival pill from staff.", zh: "你的宠物生病了，无法获得代币。到店消费 300,000 RP，即可向工作人员领取一颗免费复活药丸。", id: "Peliharaanmu sakit dan tidak akan mendapat token. Kunjungi kami dan belanjakan 300.000 RP untuk mendapat pil pemulihan gratis dari staf." },
   'hm.pet.usePill': { en: "Use revival pill", zh: "使用复活药丸", id: "Gunakan pil pemulihan" },
   'hm.pet.noPill': { en: "No pill yet (visit + spend 300,000 RP)", zh: "还没有药丸（到店消费 300,000 RP）", id: "Belum ada pil (datang + belanja 300.000 RP)" },
+  'hm.pet.voiceWelcome': { en: "Rawr! Welcome to Doluruu Pet Care!", zh: "嗷呜！欢迎来到 Doluruu 宠物乐园！", id: "Rawr! Selamat datang di Doluruu Pet Care!" },
+  'hm.pet.voiceSweetDreams': { en: "Sweet dreams, Doluruu!", zh: "Doluruu，做个好梦！", id: "Mimpi indah, Doluruu!" },
   'hm.pet.feed': { en: "Feed", zh: "喂食", id: "Makan" },
   'hm.pet.play': { en: "Play", zh: "玩耍", id: "Main" },
   'hm.pet.clean': { en: "Clean", zh: "清洁", id: "Mandi" },

@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
+import { sfx } from "@/lib/sfx";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, Camera, QrCode, CheckCircle2 } from "lucide-react";
 
 const ANIM_CSS = `
@@ -103,7 +104,7 @@ export default function RebornKos() {
   const refreshWallet = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/wallet"] }); qc.invalidateQueries({ queryKey: ["/api/auth/user"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] }); };
   const gift = useMutation({
     mutationFn: (giftTypeId: number) => apiRequest("POST", "/api/reborn/kos/gift", { toUserId: target.id, giftTypeId }).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: t("vn.kos.giftSent"), description: d.message }); setTarget(null); refreshWallet(); },
+    onSuccess: (d, giftTypeId) => { sfx.gift(giftSoundOf(gifts.find((g: any) => g.id === giftTypeId))); toast({ title: t("vn.kos.giftSent"), description: d.message }); setTarget(null); refreshWallet(); },
     onError: (e: any) => toast({ title: t("vn.kos.cantGift"), description: e.message, variant: "destructive" }),
   });
   const addFriend = useMutation({
@@ -355,6 +356,19 @@ function sceneOf(g: any): Scene | null {
   if (/💎|diamond/i.test(e)) return "diamonds";
   return null;
 }
+// Each gift plays its own sound: the scene kinds first, then by emoji / name.
+function giftSoundOf(g: any): string {
+  const scene = sceneOf(g); if (scene) return scene;
+  const e = `${g?.emoji || ""} ${g?.giftName || g?.name || ""}`;
+  if (/🌹|🌷|🌸|💐|🌺|rose|flower|bunga|花/i.test(e)) return "rose";
+  if (/❤|💖|💕|💗|💘|heart|love|hati|心/i.test(e)) return "heart";
+  if (/🍾|🥂|🍷|🍸|🍺|🍹|beer|wine|champagne|drink|酒/i.test(e)) return "drink";
+  if (/🎂|🍰|🧁|cake|kue|蛋糕/i.test(e)) return "cake";
+  if (/🧸|🐶|🐱|🦖|🐉|teddy|bear|doluruu/i.test(e)) return "teddy";
+  if (/🚀|✈|🛩|rocket|plane|jet/i.test(e)) return "rocket";
+  if (/💰|💵|💸|🪙|money|cash|coin|uang|钱/i.test(e)) return "money";
+  return "sparkle";
+}
 const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 // Where the gift text sits so it doesn't cover the scene.
 const SCENE_TEXT: Record<Scene, CSSProperties> = {
@@ -451,7 +465,7 @@ function GiftInbox({ notifs, onClose }: any) {
   const [i, setI] = useState(0);
   const g = notifs[i];
   useEffect(() => { if (notifs.length === 0) onClose(); }, [notifs.length]);
-  useEffect(() => { try { navigator.vibrate?.([60, 40, 120]); } catch {} }, [i]);
+  useEffect(() => { try { navigator.vibrate?.([60, 40, 120]); } catch {} if (notifs[i]) sfx.gift(giftSoundOf(notifs[i])); }, [i]);
   const kg = Number(g?.recipientKgold || 0);
   const shown = useCountUp(kg, 1400, i);
   if (!g) return null;
