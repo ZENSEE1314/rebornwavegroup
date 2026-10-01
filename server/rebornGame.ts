@@ -615,6 +615,29 @@ const FEATURE_API: Array<[string, RegExp]> = [
   ["support", /^\/api\/reborn\/support\/ask/],
 ];
 
+// Fair song queue: each member gets one turn per round, so someone with many
+// requests can't hog the mic. A member's round = songs of theirs already
+// confirmed tonight + the order of this request among their pending ones.
+// A1 A2 A3 then B1 → A1 B1 A2 A3; if nobody else is waiting A's songs run back
+// to back, and a newcomer slots in right after the current round.
+async function fairSongQueue(cid: number | null) {
+  const where = cid == null ? eq(songRequests.status, "pending") : and(eq(songRequests.companyId, cid), eq(songRequests.status, "pending"));
+  const pending = await db.select().from(songRequests).where(where).orderBy(songRequests.createdAt, songRequests.id).limit(300);
+  if (!pending.length) return [] as (typeof pending[number] & { position: number; round: number })[];
+  const since = new Date(Date.now() - 12 * 3600 * 1000);
+  const ids = Array.from(new Set(pending.map((r) => r.userId)));
+  const doneWhere = and(inArray(songRequests.userId, ids), eq(songRequests.status, "confirmed"), sql`${songRequests.confirmedAt} >= ${since}`, ...(cid == null ? [] : [eq(songRequests.companyId, cid)]));
+  const done = await db.select({ userId: songRequests.userId, n: sql<number>`count(*)::int` }).from(songRequests).where(doneWhere).groupBy(songRequests.userId);
+  const sung = new Map(done.map((d) => [d.userId, Number(d.n) || 0]));
+  const seen = new Map<string, number>();
+  const ranked = pending.map((r, i) => {
+    const k = seen.get(r.userId) || 0; seen.set(r.userId, k + 1);
+    return { ...r, round: (sung.get(r.userId) || 0) + k, order: i };
+  });
+  ranked.sort((a, b) => a.round - b.round || a.order - b.order);
+  return ranked.map(({ order, ...r }, i) => ({ ...r, position: i + 1 }));
+}
+
 export function registerRebornRoutes(app: Express) {
   console.log("*** REBORN GAME ROUTES REGISTERED");
 
@@ -1467,7 +1490,9 @@ export function registerRebornRoutes(app: Express) {
       const userId = getUserId(req)!;
       const cid = await rebornCompanyId(req);
       const rows = await db.select().from(songRequests).where(and(eq(songRequests.companyId, cid), eq(songRequests.userId, userId))).orderBy(desc(songRequests.createdAt)).limit(100);
-      res.json(rows);
+      const queue = await fairSongQueue(cid);
+      const pos = new Map(queue.map((r) => [r.id, r.position]));
+      res.json(rows.map((r) => (r.status === "pending" && pos.has(r.id) ? { ...r, position: pos.get(r.id), queueSize: queue.length } : r)));
     } catch { res.json([]); }
   });
   app.get("/api/reborn/song-settings", requireAuth, async (_req, res) => {
@@ -1606,8 +1631,15 @@ export function registerRebornRoutes(app: Express) {
   // Admin: song requests + song library
   app.get("/api/reborn/admin/song-requests", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(songRequests).where(and(eq(songRequests.companyId, cid), eq(songRequests.status, "pending"))).orderBy(desc(songRequests.createdAt)).limit(200);
-    res.json(rows);
+    const queue = await fairSongQueue(cid);
+    const ids = Array.from(new Set(queue.map((r) => r.userId)));
+    const people = ids.length ? await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName, phone: users.phoneNumber }).from(users).where(inArray(users.id, ids)) : [];
+    const byId = new Map(people.map((u) => [u.id, u]));
+    res.json(queue.map((r) => {
+      const u = byId.get(r.userId);
+      const name = u ? [u.firstName, u.lastName].filter(Boolean).join(" ").trim() : "";
+      return { ...r, requester: { id: r.userId, username: u?.username || "", name, phone: u?.phone || "" } };
+    }));
   }));
   app.post("/api/reborn/admin/song-requests/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;

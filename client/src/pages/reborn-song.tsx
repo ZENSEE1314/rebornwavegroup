@@ -149,12 +149,13 @@ function MyRequests() {
   if (rows.length === 0) return <div className="text-center py-12 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.song.noRequests")}</p></div>;
   return (
     <div className="space-y-2">
+      {rows.some((r) => r.status === "pending") && <p className="text-xs text-white/50 px-1">{t("vn.song.fairNote")}</p>}
       {rows.map((r) => (
         <div key={r.id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10">
           <div className="flex-1 min-w-0"><p className="font-semibold truncate">{r.title}</p><p className="text-xs text-white/50 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("vn.song.bySinger") : t("vn.song.selfSing")} · {new Date(r.createdAt).toLocaleDateString(localeTag(language))}</p></div>
           {r.status === "confirmed" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400"><Check className="w-4 h-4" /> {t("vn.song.confirmed")}</span>
             : r.status === "rejected" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-red-400"><X className="w-4 h-4" /> {t("vn.song.declined")}</span>
-            : <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300"><Clock className="w-4 h-4" /> {t("vn.kos.pending")}</span>}
+            : <span className="inline-flex flex-col items-end text-xs font-bold text-amber-300"><span className="inline-flex items-center gap-1"><Clock className="w-4 h-4" /> {t("vn.kos.pending")}</span>{r.position ? <span className="text-[11px] text-amber-200/80">{t("vn.song.queuePos", { n: r.position })}</span> : null}</span>}
         </div>
       ))}
     </div>
