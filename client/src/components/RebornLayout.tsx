@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
+import { installUiClicks } from "@/lib/sfx";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
@@ -123,6 +124,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
     window.location.href = "/";
   };
   const go = (p: string) => navigate(p);
+  useEffect(() => { installUiClicks(); }, []); // a soft tick on every button tap
 
   return (
     <div className="rwg-app min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
