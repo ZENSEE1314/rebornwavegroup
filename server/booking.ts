@@ -48,7 +48,13 @@ const OPEN_HOUR = 17; // 5pm
 // booked again that day (every slot for it disappears in the app & WhatsApp).
 // Set from the `bookingTableDayLock` setting at boot and whenever settings change.
 let TABLE_DAY_LOCK = false;
-export function setBookingRules(r: { tableDayLock?: boolean }) { if (r.tableDayLock !== undefined) TABLE_DAY_LOCK = !!r.tableDayLock; }
+// Last booking time ("HH:MM"): no start times from this time onward (app + WhatsApp).
+// Venue-wide default; an area's own lastBooking overrides it.
+let LAST_BOOKING = "";
+export function setBookingRules(r: { tableDayLock?: boolean; lastBooking?: string }) {
+  if (r.tableDayLock !== undefined) TABLE_DAY_LOCK = !!r.tableDayLock;
+  if (r.lastBooking !== undefined) LAST_BOOKING = /^\d{1,2}:\d{2}$/.test(r.lastBooking) ? r.lastBooking : "";
+}
 export function tableDayLockOn(): boolean { return TABLE_DAY_LOCK; }
 // The business day (YYYY-MM-DD) a start time belongs to — after-midnight slots
 // count towards the previous evening.
@@ -114,7 +120,7 @@ export function parseTables(raw?: string): string[] {
 // open/close are "HH:MM" (close may be after midnight, e.g. "03:00"). When omitted the
 // area uses the default nightlife hours (5pm → 2am weekday / 3am weekend).
 export interface DaySchedule { enabled?: boolean; open?: string; close?: string; }
-export interface BookingArea { id: string; name: string; level: string; names?: { zh?: string; id?: string }; image?: string; tables: string[]; tableCaps?: Record<string, number>; maxPax?: number; enabled?: boolean; open?: string; close?: string; schedule?: Record<string, DaySchedule>; }
+export interface BookingArea { id: string; name: string; level: string; names?: { zh?: string; id?: string }; image?: string; tables: string[]; tableCaps?: Record<string, number>; maxPax?: number; enabled?: boolean; open?: string; close?: string; lastBooking?: string; schedule?: Record<string, DaySchedule>; }
 
 // Max pax allowed for a table (per-table cap → area default → generous fallback).
 export function tableCap(a: BookingArea, table?: string): number {
@@ -141,7 +147,7 @@ export function parseAreas(raw?: string): BookingArea[] {
         names: (x.names && typeof x.names === "object") ? { zh: x.names.zh ? String(x.names.zh) : undefined, id: x.names.id ? String(x.names.id) : undefined } : undefined,
         tableCaps: (x.tableCaps && typeof x.tableCaps === "object") ? x.tableCaps : undefined,
         maxPax: Number(x.maxPax) > 0 ? Number(x.maxPax) : undefined,
-        enabled: x.enabled !== false, open: x.open || "", close: x.close || "",
+        enabled: x.enabled !== false, open: x.open || "", close: x.close || "", lastBooking: /^\d{1,2}:\d{2}$/.test(x.lastBooking || "") ? x.lastBooking : "",
         schedule: (x.schedule && typeof x.schedule === "object") ? x.schedule : undefined,
       }));
     } catch { /* fall back */ }
@@ -213,7 +219,16 @@ export function areaSlotsForDate(a: BookingArea, dateStr: string): string[] {
   if (!cfg.enabled) return []; // closed this weekday
   const open = hourOf(cfg.open) ?? OPEN_HOUR, close = hourOf(cfg.close) ?? 2;
   const out = slotsFromHours(open, close);
-  return out.length ? out : [...SLOT_TIMES];
+  return cutAtLastBooking(out.length ? out : [...SLOT_TIMES], open, a.lastBooking || LAST_BOOKING);
+}
+// Drop start times at/after the last booking time (minutes counted from opening,
+// so a cut-off after midnight works for late-night areas).
+function cutAtLastBooking(slots: string[], openHour: number, last: string): string[] {
+  if (!last) return slots;
+  const fromOpen = (hhmm: string) => { const [h, m] = hhmm.split(":").map(Number); return ((h * 60 + (m || 0)) - openHour * 60 + 1440) % 1440; };
+  const cut = fromOpen(last);
+  if (cut <= 0) return slots; // a cut-off at opening time would close the day — ignore it
+  return slots.filter((s) => fromOpen(s) < cut);
 }
 export function areaSlotLabelsForDate(a: BookingArea, dateStr: string): string[] { return areaSlotsForDate(a, dateStr).map(labelTime); }
 export function areaHoursTextForDate(a: BookingArea, dateStr: string): string {

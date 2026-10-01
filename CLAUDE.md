@@ -31,3 +31,5 @@ text.
 - `bookingAskSpecial` — when on, the app and WhatsApp ask for a special request
   (birthday, company event, anniversary, celebration + a note); it is saved on
   the booking. When off, the question is skipped.
+- `bookingLastTime` (and an area's own `lastBooking`) — no booking start times
+  from that time onward, in the app and WhatsApp.
