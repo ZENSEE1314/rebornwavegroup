@@ -217,3 +217,28 @@ body.static .beat a { pointer-events: auto; }
 
 .btn-ig { background: linear-gradient(45deg, #feda75, #fa7e1e 30%, #d62976 60%, #962fbf 85%, #4f5bd5); color: #fff; border: 0; }
 .btn-tt { background: #050505; color: #fff; border: 1px solid #25f4ee; box-shadow: 2px 2px 0 #fe2c55; }
+
+/* Sound toggle */
+.sound-wrap { position: relative; display: inline-flex; }
+.sound-btn {
+  width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; line-height: 1;
+  border: 1px solid rgba(240, 215, 135, .45); background: rgba(10, 7, 20, .55); color: var(--c-ink);
+  display: grid; place-items: center; transition: background .2s, border-color .2s;
+}
+.sound-btn:hover, .sound-btn.on { border-color: var(--c-gold-1); background: rgba(240, 215, 135, .16); }
+.sound-btn:focus-visible { outline: 2px solid var(--c-gold-1); outline-offset: 2px; }
+.sound-btn.pulse { animation: sound-pulse 2s ease-in-out infinite; }
+@keyframes sound-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(240, 215, 135, .5); } 50% { box-shadow: 0 0 0 8px rgba(240, 215, 135, 0); } }
+.sound-hint {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font: 600 11px/1 var(--f-body); letter-spacing: .04em; color: var(--c-night-1, #0a0714);
+  background: var(--c-gold-1); padding: 6px 9px; border-radius: 999px; pointer-events: none;
+}
+.sound-btn.on + .sound-hint { display: none; }
+@media (prefers-reduced-motion: reduce) { .sound-btn.pulse { animation: none; } }
+.brand, .nav-links .btn { white-space: nowrap; }
+@media (max-width: 760px) {
+  .nav-links { gap: 8px; }
+  .sound-btn { width: 34px; height: 34px; font-size: 15px; }
+  .sound-hint { display: none; } /* the pulsing button is the hint on phones */
+}

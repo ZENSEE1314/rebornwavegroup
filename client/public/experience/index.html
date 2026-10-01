@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Montserrat:wght@400;500;600;800;900&display=swap" rel="stylesheet" />
   <!-- Bump ?v= on every release: CDN caches these for 4h, the HTML is uncached. -->
-  <link rel="stylesheet" href="./style.css?v=20261001-15" />
+  <link rel="stylesheet" href="./style.css?v=20261001-16" />
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
   </script>
@@ -43,6 +43,7 @@
     <nav class="nav-links" aria-label="Primary">
       <a href="/bookings">Book</a>
       <a href="https://wa.me/6281336361314?text=Hi%20Reborn%20Wave%20Group%2C%20I%20have%20some%20enquiries." target="_blank" rel="noopener noreferrer">WhatsApp</a>
+      <span class="sound-wrap"><button id="sound-btn" class="sound-btn" type="button" aria-label="Turn sound on">🔇</button><span id="sound-hint" class="sound-hint" aria-hidden="true">Tap for music</span></span>
       <a class="btn btn-gold btn-sm" href="/login">Open the app</a>
     </nav>
   </header>
@@ -234,6 +235,6 @@
     <video id="vplayer" controls playsinline loop></video>
   </dialog>
 
-  <script type="module" src="./app.js?v=20261001-15"></script>
+  <script type="module" src="./app.js?v=20261001-16"></script>
 </body>
 </html>
