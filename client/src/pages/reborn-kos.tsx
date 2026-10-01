@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { sfx } from "@/lib/sfx";
+import { VenueScanner, useVenueCheckIn } from "@/components/VenueScan";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, Camera, QrCode, CheckCircle2 } from "lucide-react";
 
 const ANIM_CSS = `
@@ -65,22 +66,7 @@ export default function RebornKos() {
   const isAdmin = (user as any)?.role === "admin";
   const { t } = useTranslation();
 
-  // Accepts today's venue code, a /kos?venue=CODE link or a table QR link (/kos?table=T&k=SIG).
-  const checkIn = (scanned: string) => {
-    let body: any = { code: scanned };
-    try {
-      const u = new URL(scanned, window.location.origin);
-      if (u.searchParams.get("table")) body = { table: u.searchParams.get("table"), k: u.searchParams.get("k") || "" };
-      else if (u.searchParams.get("venue")) body = { code: u.searchParams.get("venue") };
-    } catch { /* raw code */ }
-    apiRequest("POST", "/api/reborn/venue/checkin", body).then(async (response) => {
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || t("vn.kos.checkinFailed"));
-      toast({ title: t("vn.kos.checkinDone"), description: data.message });
-      qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] });
-      qc.invalidateQueries({ queryKey: ["/api/reborn/venue/status"] });
-    }).catch((error) => toast({ title: t("vn.kos.checkinFailed"), description: error.message, variant: "destructive" }));
-  };
+  const checkIn = useVenueCheckIn();
 
   useEffect(() => {
     const qs = new URLSearchParams(window.location.search);
@@ -224,39 +210,6 @@ export default function RebornKos() {
       {modal === "cashout" && <CashoutModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} />}
       {showNotif && <GiftInbox notifs={notifs} onClose={() => { setShowNotif(false); apiRequest("POST", "/api/reborn/kos/notifications/seen").then(() => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/notifications"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/badges"] }); }); }} />}
     </RebornLayout>
-  );
-}
-
-// Live camera scanner for the venue check-in QR (encodes /kos?venue=CODE).
-function VenueScanner({ onDetect, onClose }: { onDetect: (code: string) => void; onClose: () => void }) {
-  const { t } = useTranslation();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    let scanner: any; let cancelled = false; let done = false;
-    (async () => {
-      try {
-        const QrScanner = (await import("qr-scanner")).default;
-        if (!videoRef.current || cancelled) return;
-        scanner = new QrScanner(videoRef.current, (result: any) => {
-          const data = typeof result === "string" ? result : result?.data;
-          if (!data || done) return;
-          done = true;
-          try { scanner?.stop(); } catch {}
-          onDetect(data); // venue/table link or raw code — checkIn() reads it
-        }, { returnDetailedScanResult: true, highlightScanRegion: true, preferredCamera: "environment" });
-        await scanner.start();
-      } catch (e: any) { setErr(e?.message || translate("vn.kos.cameraError")); }
-    })();
-    return () => { cancelled = true; try { scanner?.stop(); scanner?.destroy(); } catch {} };
-  }, []);
-  return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-4">
-      <video ref={videoRef} className="w-full max-w-sm rounded-2xl aspect-square object-cover bg-black" muted playsInline />
-      <p className="text-white/70 text-sm mt-3 text-center">{t("vn.kos.pointAt")}</p>
-      {err && <p className="text-red-400 text-sm mt-2 text-center max-w-sm">{err}</p>}
-      <button onClick={onClose} className="mt-4 px-6 py-2.5 rounded-xl font-bold bg-white/10 text-white">{t("vn.common.cancel")}</button>
-    </div>
   );
 }
 

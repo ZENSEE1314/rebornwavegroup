@@ -8,6 +8,7 @@ import { RebornLayout, MENU_ITEMS } from "@/components/RebornLayout";
 import { useModules, moduleEnabled, NAV_MODULE } from "@/lib/modules";
 import { useDisabledFeatures, featureForPath } from "@/lib/features";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
+import { ScanTableCard } from "@/components/VenueScan";
 import { useTranslation, localeTag } from "@/lib/i18n";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
@@ -91,6 +92,9 @@ export default function RebornDashboard() {
           <Plus className="w-4 h-4" /> {t("dash.topUp")}
         </button>
       </div>
+
+      {/* Scan the table QR: KOS check-in, order table and song requests */}
+      {!featuresOff.has("kos") && <ScanTableCard />}
 
       {/* Bottle-keep reminder */}
       {expiringBottles > 0 && !featuresOff.has("bottles") && (

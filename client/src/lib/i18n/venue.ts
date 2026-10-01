@@ -47,7 +47,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.kos.gift': { en: 'Gift', zh: '送礼', id: 'Beri hadiah' },
   'vn.kos.addFriendChat': { en: 'Add friend to chat', zh: '加好友聊天', id: 'Tambah teman untuk mengobrol' },
   'vn.kos.cameraError': { en: 'Cannot open camera — allow camera access and try again.', zh: '无法打开相机 — 请允许相机权限后重试。', id: 'Tidak bisa membuka kamera — izinkan akses kamera lalu coba lagi.' },
-  'vn.kos.pointAt': { en: 'Point at the venue check-in QR', zh: '对准场馆签到二维码', id: 'Arahkan ke QR check-in venue' },
+  'vn.kos.pointAt': { en: 'Point at the QR code on your table', zh: '对准桌上的二维码', id: 'Arahkan ke kode QR di mejamu' },
   'vn.kos.dailyCheckin': { en: 'Daily venue check-in', zh: '每日场馆签到', id: 'Check-in venue harian' },
   'vn.kos.dailyCheckinDesc': { en: 'Show this QR at the entrance. Checked-in members appear in Kings of Singers and can receive gifts.', zh: '在入口处展示此二维码。已签到的会员会出现在歌王之王中，并可接收礼物。', id: 'Tampilkan QR ini di pintu masuk. Anggota yang sudah check-in tampil di Raja Penyanyi dan bisa menerima hadiah.' },
   'vn.kos.dailyQrAlt': { en: 'Daily venue check-in QR', zh: '每日场馆签到二维码', id: 'QR check-in venue harian' },

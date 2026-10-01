@@ -2,6 +2,9 @@
 export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.tile.petCare': { en: "Pet Care", zh: "宠物护理", id: "Perawatan Peliharaan" },
   'hm.tile.petCareDesc': { en: "Feed your Doluruu", zh: "喂养你的 Doluruu", id: "Beri makan Doluruu-mu" },
+  'hm.scan.desc': { en: 'Check in to KOS at your table — order to your table and request songs', zh: '在你的桌位签到歌王之王——点餐到桌、点歌', id: 'Check-in ke KOS di mejamu — pesan ke meja dan minta lagu' },
+  'hm.scan.again': { en: 'Moved table? Scan the new table QR', zh: '换桌了？扫描新桌的二维码', id: 'Pindah meja? Pindai QR meja baru' },
+  'hm.scan.btn': { en: 'Scan', zh: '扫码', id: 'Pindai' },
   'hm.tile.order': { en: "Order to Table", zh: "点餐到桌", id: "Pesan ke Meja" },
   'hm.tile.orderDesc': { en: "Drinks & food to your seat", zh: "酒水美食送到座位", id: "Minuman & makanan ke tempat dudukmu" },
   'hm.tile.bottles': { en: "Bottle Keep", zh: "寄存酒水", id: "Simpan Botol" },
