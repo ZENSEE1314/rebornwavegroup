@@ -36,7 +36,11 @@
         "NSCameraUsageDescription": "Reborn Wave Group uses the camera to scan QR codes and upload account or payment images.",
         "NSPhotoLibraryUsageDescription": "Reborn Wave Group uses your photo library when you choose an account or payment image.",
         "NSMicrophoneUsageDescription": "Reborn Wave Group uses the microphone for karaoke and media features you start."
-      }
+      },
+      "associatedDomains": [
+        "applinks:rebornwave.group",
+        "applinks:www.rebornwave.group"
+      ]
     },
     "android": {
       "package": "com.zensee.rebornwavegroup",
@@ -50,7 +54,29 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "rebornwave.group",
+              "pathPrefix": "/kos"
+            },
+            {
+              "scheme": "https",
+              "host": "www.rebornwave.group",
+              "pathPrefix": "/kos"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

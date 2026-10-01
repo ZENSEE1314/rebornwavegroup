@@ -25,6 +25,21 @@ const APP_URL = /\/login(?:[?#]|$)/i.test(configuredAppUrl)
   ? configuredAppUrl
   : `${configuredAppUrl.replace(/\/$/, "")}/login`;
 const APP_NAME = process.env.EXPO_PUBLIC_APP_NAME || "Reborn Wave Group";
+const APP_ORIGIN = (APP_URL.match(/^https?:\/\/[^/?#]+/i) || ["https://rebornwave.group"])[0];
+const APP_HOST = APP_ORIGIN.replace(/^https?:\/\//i, "").replace(/^www\./i, "").toLowerCase();
+
+// A link that opened the app — a table QR scanned with the phone camera
+// (https://rebornwave.group/kos?table=…) or the website's "Open in app" button
+// (rebornwave://open?path=/kos?table=…) — becomes the page the WebView shows.
+function linkTarget(url: string | null): string | null {
+  if (!url) return null;
+  const web = url.match(/^https:\/\/(?:www\.)?([^/?#]+)(\/[^#]*)?/i);
+  if (web) return web[1].toLowerCase() === APP_HOST ? `${APP_ORIGIN}${web[2] || "/"}` : null;
+  const path = url.match(/[?&]path=([^&#]+)/);
+  if (!path) return null;
+  const decoded = decodeURIComponent(path[1]);
+  return decoded.startsWith("/") && !decoded.startsWith("//") ? `${APP_ORIGIN}${decoded}` : null;
+}
 const PUSH_DIAGNOSTIC_URL = "https://rebornwave.group/api/v1/app/push-diagnostics";
 
 Notifications.setNotificationHandler({
@@ -71,6 +86,20 @@ function RebornApp() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [startUrl, setStartUrl] = useState(APP_URL);
+
+  // Open table-QR / "Open in app" links inside the app (cold start or while running).
+  useEffect(() => {
+    const open = (url: string | null) => {
+      const target = linkTarget(url);
+      if (!target) return;
+      setStartUrl(target);
+      setReloadKey((value) => value + 1);
+    };
+    Linking.getInitialURL().then(open).catch(() => undefined);
+    const sub = Linking.addEventListener("url", ({ url }) => open(url));
+    return () => sub.remove();
+  }, []);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [notificationIssue, setNotificationIssue] = useState<"permission" | "token" | null>(null);
   const [notificationDetail, setNotificationDetail] = useState("");
@@ -253,7 +282,7 @@ function RebornApp() {
       <WebView
         key={reloadKey}
         ref={webViewRef}
-        source={{ uri: APP_URL }}
+        source={{ uri: startUrl }}
         style={styles.webView}
         originWhitelist={["*"]}
         javaScriptEnabled

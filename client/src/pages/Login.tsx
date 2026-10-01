@@ -104,6 +104,10 @@ const REGISTER_PERKS = [
 export default function Login() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot" | "reset">("login");
+  // ?next=/kos?table=V1&k=… — the member scanned a table QR before logging in.
+  const nextPath = new URLSearchParams(window.location.search).get("next") || "";
+  const scannedTable = (() => { try { return new URL(nextPath, window.location.origin).searchParams.get("table") || ""; } catch { return ""; } })();
+  const isPhoneBrowser = /Android|iPhone|iPad/i.test(navigator.userAgent) && !(window as any).__REBORN_NATIVE_APP__ && !/RebornWaveGroupApp/i.test(navigator.userAgent);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -246,7 +250,8 @@ export default function Login() {
     },
     onSuccess: () => {
       toast({ title: t("ac.login.toast.accountCreated"), description: t("ac.login.toast.welcomeRwg") });
-      window.location.href = "/";
+      const next = new URLSearchParams(window.location.search).get("next");
+      window.location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
     },
     onError: (err: any) => setError(err.message || t("ac.login.err.registerRetry")),
   });
@@ -481,6 +486,17 @@ export default function Login() {
                 </>
               )}
             </div>
+
+            {/* Came from a table QR scanned with the phone camera */}
+            {scannedTable && (activeTab === "login" || activeTab === "register") && (
+              <div className="mb-5 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3.5 text-center">
+                <p className="font-bold text-amber-200 text-sm">📷 {t("ac.login.tableScan", { t: scannedTable })}</p>
+                <p className="text-xs text-white/60 mt-1">{t("ac.login.tableScanHint")}</p>
+                {isPhoneBrowser && (
+                  <a href={`rebornwave://open?path=${encodeURIComponent(nextPath)}`} className="inline-block mt-2.5 px-4 py-2 rounded-xl bg-amber-300 text-black text-xs font-bold">{t("ac.login.openInApp")}</a>
+                )}
+              </div>
+            )}
 
             {/* ── Tab switcher ── */}
             {(activeTab === "login" || activeTab === "register") && (

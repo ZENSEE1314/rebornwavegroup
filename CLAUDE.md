@@ -41,6 +41,12 @@ text.
   number of people per table. A confirmed table booking checks the member in at
   that table automatically (from 2h before until it ends). The venue day runs
   08:00 → 08:00 WIB; at 8am everyone is checked out.
+- A table QR opened while logged out (phone camera → website) goes to
+  `/login?next=…` with a "Table X — log in or sign up" banner; after login or
+  sign-up (any method) the member lands back on the link and is checked in.
+  With the app installed, `rebornwave.group/kos…` opens in the app (Android App
+  Links / iOS Universal Links via `/.well-known/*` — needs the
+  `ANDROID_CERT_SHA256` and `APPLE_TEAM_ID` env vars on the server).
 - The checked-in table pre-fills the member's order table.
 - `songQueueMode` (`user` | `table`) and `songsPerTurn` (1–3) — the song queue
   gives each member/table that many songs per turn, first come first served;

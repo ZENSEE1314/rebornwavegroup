@@ -1849,6 +1849,22 @@ export function registerRebornRoutes(app: Express) {
     if (/^https?:\/\//i.test(url)) return res.redirect(302, url);
     res.redirect(302, "/login");
   });
+  // App Links / Universal Links: lets a table QR (https://…/kos?table=…) scanned
+  // with the phone camera open straight in the installed app. Needs the Android
+  // signing-cert SHA-256 (ANDROID_CERT_SHA256, comma-separated) and the Apple
+  // Team ID (APPLE_TEAM_ID) — without them phones just open the website.
+  app.get("/.well-known/assetlinks.json", (_req, res) => {
+    const fingerprints = String(process.env.ANDROID_CERT_SHA256 || "").split(",").map((f) => f.trim().toUpperCase()).filter(Boolean);
+    res.type("application/json").json(fingerprints.length ? [{
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: { namespace: "android_app", package_name: process.env.ANDROID_PACKAGE || "com.zensee.rebornwavegroup", sha256_cert_fingerprints: fingerprints },
+    }] : []);
+  });
+  app.get(["/.well-known/apple-app-site-association", "/apple-app-site-association"], (_req, res) => {
+    const team = String(process.env.APPLE_TEAM_ID || "").trim();
+    const appID = `${team}.${process.env.IOS_BUNDLE_ID || "com.zensee.rebornwavegroup"}`;
+    res.type("application/json").json({ applinks: { apps: [], details: team ? [{ appID, appIDs: [appID], paths: ["/kos", "/kos*"], components: [{ "/": "/kos*" }] }] : [] } });
+  });
 
   app.get("/api/reborn/admin/settings", requireAdmin(async (_req, res) => {
     res.json(await getSettings());
