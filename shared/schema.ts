@@ -2225,6 +2225,8 @@ export const chatMessages = pgTable("chat_messages", {
   receiverId: varchar("receiver_id").notNull(),
   content: text("content").notNull(),
   isRead: boolean("is_read").default(false),
+  imageData: text("image_data"),                  // a photo, as a data URL (shrunk on the phone first)
+  hiddenFor: jsonb("hidden_for").$type<string[]>().notNull().default([]), // user ids who deleted it for themselves
   createdAt: timestamp("created_at").defaultNow(),
 });
 

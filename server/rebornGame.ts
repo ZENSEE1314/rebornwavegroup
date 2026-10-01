@@ -1281,7 +1281,7 @@ export function registerRebornRoutes(app: Express) {
       const otherIds = Array.from(new Set(all.map((f) => (f.requesterId === me ? f.addresseeId : f.requesterId))));
       const userRows = otherIds.length ? await db.select({ id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl }).from(users).where(sql`${users.id} in (${sql.join(otherIds.map((i) => sql`${i}`), sql`, `)})`) : [];
       const umap = Object.fromEntries(userRows.map((u) => [u.id, u]));
-      const messages = otherIds.length ? await db.select().from(chatMessages).where(or(and(eq(chatMessages.senderId, me), inArray(chatMessages.receiverId, otherIds)), and(eq(chatMessages.receiverId, me), inArray(chatMessages.senderId, otherIds)))).orderBy(desc(chatMessages.createdAt)) : [];
+      const messages = otherIds.length ? (await db.select(CHAT_COLS).from(chatMessages).where(or(and(eq(chatMessages.senderId, me), inArray(chatMessages.receiverId, otherIds)), and(eq(chatMessages.receiverId, me), inArray(chatMessages.senderId, otherIds)))).orderBy(desc(chatMessages.createdAt))).filter((m) => !hiddenFrom(m, me)).map(chatView) : [];
       const latest = new Map<string, any>();
       const unread = new Map<string, number>();
       for (const message of messages) {
@@ -1319,6 +1319,12 @@ export function registerRebornRoutes(app: Express) {
     } catch (e) { console.error("badges", e); res.json({ chat: 0, kos: 0, pet: 0 }); }
   });
 
+  // Chat messages without the photo bytes; photos load separately from /chat/image/:id.
+  const CHAT_COLS = { id: chatMessages.id, senderId: chatMessages.senderId, receiverId: chatMessages.receiverId, content: chatMessages.content, isRead: chatMessages.isRead, createdAt: chatMessages.createdAt, hiddenFor: chatMessages.hiddenFor, hasImage: sql<boolean>`${chatMessages.imageData} is not null` };
+  const hiddenFrom = (m: { hiddenFor: string[] | null }, me: string) => Array.isArray(m.hiddenFor) && m.hiddenFor.includes(me);
+  const chatView = ({ hiddenFor, ...m }: any) => ({ ...m, imageUrl: m.hasImage ? `/api/reborn/chat/image/${m.id}` : null });
+  const MAX_CHAT_IMAGE = 3_000_000; // ~2 MB photo as a data URL (the app shrinks photos before sending)
+
   async function areFriends(a: string, b: string) {
     const rows = await db.select().from(friendships).where(and(eq(friendships.status, "accepted"), or(
       and(eq(friendships.requesterId, a), eq(friendships.addresseeId, b)),
@@ -1332,10 +1338,10 @@ export function registerRebornRoutes(app: Express) {
       const me = getUserId(req)!;
       const other = req.params.otherId;
       if (!(await areFriends(me, other))) return res.status(403).json({ message: tr(req, { en: "You're not friends yet", zh: "你们还不是好友", id: "Kalian belum berteman" }) });
-      const msgs = await db.select().from(chatMessages).where(or(
+      const msgs = (await db.select(CHAT_COLS).from(chatMessages).where(or(
         and(eq(chatMessages.senderId, me), eq(chatMessages.receiverId, other)),
         and(eq(chatMessages.senderId, other), eq(chatMessages.receiverId, me)),
-      )).orderBy(chatMessages.createdAt).limit(200);
+      )).orderBy(desc(chatMessages.createdAt)).limit(300)).filter((m) => !hiddenFrom(m, me)).reverse().map(chatView);
       await db.update(chatMessages).set({ isRead: true }).where(and(eq(chatMessages.senderId, other), eq(chatMessages.receiverId, me), eq(chatMessages.isRead, false)));
       res.json(msgs);
     } catch (e) { console.error("chat msgs", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
@@ -1345,14 +1351,50 @@ export function registerRebornRoutes(app: Express) {
     try {
       const me = getUserId(req)!;
       const toUserId = String(req.body?.toUserId || "");
-      const content = String(req.body?.content || "").trim();
-      if (!content) return res.status(400).json({ message: tr(req, { en: "Empty message", zh: "消息不能为空", id: "Pesan kosong" }) });
+      const content = String(req.body?.content || "").trim().slice(0, 4000);
+      const image = typeof req.body?.image === "string" ? req.body.image : "";
+      if (image && (!/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(image) || image.length > MAX_CHAT_IMAGE))
+        return res.status(400).json({ message: tr(req, { en: "That photo can't be sent — try a smaller one.", zh: "无法发送该图片，请换一张较小的图片。", id: "Foto itu tidak bisa dikirim — coba yang lebih kecil." }) });
+      if (!content && !image) return res.status(400).json({ message: tr(req, { en: "Empty message", zh: "消息不能为空", id: "Pesan kosong" }) });
       if (!(await areFriends(me, toUserId))) return res.status(403).json({ message: tr(req, { en: "You're not friends yet", zh: "你们还不是好友", id: "Kalian belum berteman" }) });
-      await db.insert(chatMessages).values({ senderId: me, receiverId: toUserId, content });
+      await db.insert(chatMessages).values({ senderId: me, receiverId: toUserId, content, imageData: image || null });
       const sender = await storage.getUser(me);
-      await notifyUserI18n(toUserId, "chat_message", (lang) => ({ title: sender?.firstName || sender?.username || pick(lang, { en: "New message", zh: "新消息", id: "Pesan baru" }), body: content.slice(0, 140) }), { path: "/chat", fromUserId: me });
+      await notifyUserI18n(toUserId, "chat_message", (lang) => ({ title: sender?.firstName || sender?.username || pick(lang, { en: "New message", zh: "新消息", id: "Pesan baru" }), body: content ? content.slice(0, 140) : pick(lang, { en: "📷 Photo", zh: "📷 图片", id: "📷 Foto" }) }), { path: "/chat", fromUserId: me });
       res.json({ message: tr(req, { en: "sent", zh: "已发送", id: "Terkirim" }) });
     } catch (e) { console.error("chat send", e); res.status(500).json({ message: tr(req, { en: "Send failed", zh: "发送失败", id: "Gagal mengirim" }) }); }
+  });
+
+  // A chat photo (only the two people in the conversation can open it).
+  app.get("/api/reborn/chat/image/:id", requireAuth, async (req, res) => {
+    const me = getUserId(req)!;
+    const [m] = await db.select().from(chatMessages).where(eq(chatMessages.id, Number(req.params.id)));
+    const ok = m && (m.senderId === me || m.receiverId === me) && !hiddenFrom(m, me);
+    const d = ok && m.imageData && /^data:([^;]+);base64,(.+)$/.exec(m.imageData);
+    if (!d) return res.status(404).end();
+    res.set("Content-Type", d[1]).set("Cache-Control", "private, max-age=31536000, immutable").send(Buffer.from(d[2], "base64"));
+  });
+
+  // Delete one message. Your own message is removed for both of you; a message
+  // you received is removed only from your side.
+  app.delete("/api/reborn/chat/messages/:id", requireAuth, async (req, res) => {
+    try {
+      const me = getUserId(req)!;
+      const [m] = await db.select({ id: chatMessages.id, senderId: chatMessages.senderId, receiverId: chatMessages.receiverId, hiddenFor: chatMessages.hiddenFor }).from(chatMessages).where(eq(chatMessages.id, Number(req.params.id)));
+      if (!m || (m.senderId !== me && m.receiverId !== me)) return res.status(404).json({ message: tr(req, { en: "Message not found", zh: "找不到该消息", id: "Pesan tidak ditemukan" }) });
+      if (m.senderId === me) await db.delete(chatMessages).where(eq(chatMessages.id, m.id));
+      else await db.update(chatMessages).set({ hiddenFor: Array.from(new Set([...(m.hiddenFor || []), me])) }).where(eq(chatMessages.id, m.id));
+      res.json({ message: tr(req, { en: "Message deleted", zh: "消息已删除", id: "Pesan dihapus" }) });
+    } catch (e) { console.error("chat delete", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
+  });
+
+  // Clear a whole conversation from your side (the friend still sees their copy).
+  app.delete("/api/reborn/chat/conversation/:otherId", requireAuth, async (req, res) => {
+    try {
+      const me = getUserId(req)!, other = String(req.params.otherId);
+      await db.execute(sql`UPDATE chat_messages SET hidden_for = hidden_for || ${JSON.stringify([me])}::jsonb, is_read = CASE WHEN receiver_id = ${me} THEN true ELSE is_read END
+        WHERE ((sender_id = ${me} AND receiver_id = ${other}) OR (sender_id = ${other} AND receiver_id = ${me})) AND NOT (hidden_for ? ${me})`);
+      res.json({ message: tr(req, { en: "Chat cleared", zh: "聊天记录已清空", id: "Obrolan dihapus" }) });
+    } catch (e) { console.error("chat clear", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
   });
 
   // ── Song requests + Top 500 library ──────────────────────────────────────
