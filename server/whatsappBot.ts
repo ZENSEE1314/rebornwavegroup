@@ -17,7 +17,7 @@ import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
 import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, type BookingArea } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, BOOKING_OCCASIONS, specialRequestText, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
@@ -557,6 +557,25 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "几位客人？（请回复数字）",
       id: "Berapa orang? (balas angka)",
     },
+    bookAskSpecial: {
+      en: "Any special request? 🎉\n1️⃣ Birthday 🎂\n2️⃣ Company event 🏢\n3️⃣ Anniversary 💕\n4️⃣ Celebration / party 🎉\n5️⃣ No, that's all\n\nOr just type your request (e.g. \"birthday, please prepare a cake\").",
+      zh: "有什么特别需求吗？🎉\n1️⃣ 生日 🎂\n2️⃣ 公司活动 🏢\n3️⃣ 纪念日 💕\n4️⃣ 庆祝 / 派对 🎉\n5️⃣ 没有了\n\n也可以直接输入您的需求（例如：“生日，请准备蛋糕”）。",
+      id: "Ada permintaan khusus? 🎉\n1️⃣ Ulang tahun 🎂\n2️⃣ Acara kantor 🏢\n3️⃣ Anniversary 💕\n4️⃣ Perayaan / pesta 🎉\n5️⃣ Tidak ada\n\nAtau ketik permintaanmu (mis. \"ulang tahun, tolong siapkan kue\").",
+    },
+    bookAskSpecialNote: {
+      en: "Anything we should prepare? Type it, or reply 5 to skip.",
+      zh: "需要我们准备什么吗？请直接输入，或回复 5 跳过。",
+      id: "Ada yang perlu kami siapkan? Ketik saja, atau balas 5 untuk lewati.",
+    },
+    "occ.birthday": { en: "🎂 Birthday", zh: "🎂 生日", id: "🎂 Ulang tahun" },
+    "occ.company": { en: "🏢 Company event", zh: "🏢 公司活动", id: "🏢 Acara kantor" },
+    "occ.anniversary": { en: "💕 Anniversary", zh: "💕 纪念日", id: "💕 Anniversary" },
+    "occ.celebration": { en: "🎉 Celebration / party", zh: "🎉 庆祝派对", id: "🎉 Perayaan / pesta" },
+    specialNoted: {
+      en: "Special request noted: {r} ✨",
+      zh: "已记录特别需求：{r} ✨",
+      id: "Permintaan khusus dicatat: {r} ✨",
+    },
     bookAskHours: {
       en: "How many hours? (minimum 2 — reply a number)",
       zh: "预订几小时？（最少 2 小时，请回复数字）",
@@ -1037,6 +1056,8 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         }
         const cap = tableCap(area, table);
         if (party > cap) { await say(L(lang, "overCap", { t: table, cap: String(cap), n: String(party) })); return startBooking(c, lang, from, say); }
+        // all details given in one message: ask for a special request first if that's on
+        if (await askSpecialOn()) return askSpecialOrFinish(c, lang, from, area, { date, slot, table, party }, 2, say);
         const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH, companyId: (await defaultCompanyId()) ?? undefined });
         await pushWhatsAppBooking(row, c, area, date, label, party);
         await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: APP_BASE_URL }));
@@ -1122,6 +1143,10 @@ async function bookingBack(c: Contact, lang: Lang, from: string, wa: any, say: (
       await say(withNav(lang, L(lang, "bookAskDate")));
       return patchContact(c.id, { waState: { flow: "book", step: "date", areaId } });
     case "table":
+      return bookingStep(c, lang, from, "", { flow: "book", step: "date", areaId, confirmedDate: wa.date }, say);
+    case "special": case "specialNote":
+      if (await askHoursOn()) { await say(withNav(lang, L(lang, "bookAskHours"))); return patchContact(c.id, { waState: { ...wa, step: "hours" } }); }
+      if (wa.table) { await say(withNav(lang, L(lang, "bookAskParty"))); return patchContact(c.id, { waState: { ...wa, step: "party" } }); }
       return bookingStep(c, lang, from, "", { flow: "book", step: "date", areaId, confirmedDate: wa.date }, say);
     case "party": case "hours": {
       if (wa.table) { // back to the table list for that time
@@ -1224,7 +1249,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     if (wa.party) {
       if (wa.party > cap) { await say(L(lang, "tableTooSmall", { t: picked, cap: String(cap), n: String(wa.party) })); return; }
       const next = { ...wa, table: picked };
-      if (!(await askHoursOn())) return completeStepBooking(c, lang, from, area, next, 2, sayRaw);
+      if (!(await askHoursOn())) return askSpecialOrFinish(c, lang, from, area, next, 2, sayRaw);
       await say(L(lang, "bookAskHours")); return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: picked, party: wa.party } });
     }
     await say(L(lang, "askPaxFor", { t: picked, cap: String(cap) }));
@@ -1234,14 +1259,36 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     const cap = tableCap(area, wa.table);
     const n = Math.max(1, Number((body.match(/\d+/) || [])[0] || 2));
     if (n > cap) { await say(L(lang, "paxTooMany", { cap: String(cap) })); return; }
-    if (!(await askHoursOn())) return completeStepBooking(c, lang, from, area, { ...wa, party: n }, 2, sayRaw);
+    if (!(await askHoursOn())) return askSpecialOrFinish(c, lang, from, area, { ...wa, party: n }, 2, sayRaw);
     await say(L(lang, "bookAskHours"));
     return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: wa.table, party: n } });
   }
   if (wa.step === "hours") {
     const hrs = Math.max(2, Math.min(8, Number((body.match(/\d+/) || [])[0] || 2)));
-    return completeStepBooking(c, lang, from, area, wa, hrs, sayRaw);
+    return askSpecialOrFinish(c, lang, from, area, wa, hrs, sayRaw);
   }
+  if (wa.step === "special") {
+    // 1-4 = an occasion, 5 = nothing; anything else is their request in their own words
+    const text = body.trim(), num = /^\d+$/.test(text) ? Number(text) : 0;
+    if (num >= 1 && num <= BOOKING_OCCASIONS.length) { // occasion picked: ask if they want to add a note
+      await say(L(lang, "bookAskSpecialNote"));
+      return patchContact(c.id, { waState: { ...wa, step: "specialNote", occasion: BOOKING_OCCASIONS[num - 1].id } });
+    }
+    const note = num === BOOKING_OCCASIONS.length + 1 ? undefined : text;
+    return completeStepBooking(c, lang, from, area, { ...wa, special: specialRequestText(undefined, note) }, wa.hours || 2, sayRaw);
+  }
+  if (wa.step === "specialNote") {
+    const text = body.trim(), skip = /^\d+$/.test(text);
+    return completeStepBooking(c, lang, from, area, { ...wa, special: specialRequestText(wa.occasion, skip ? undefined : text) }, wa.hours || 2, sayRaw);
+  }
+}
+
+// Whether to ask for a special request (admin switch; off → book straight away).
+async function askSpecialOn(): Promise<boolean> { return (await settingVal("bookingAskSpecial")) !== "false"; }
+async function askSpecialOrFinish(c: Contact, lang: Lang, from: string, area: BookingArea, wa: any, hrs: number, sayRaw: (m: string) => Promise<void>): Promise<unknown> {
+  if (!(await askSpecialOn())) return completeStepBooking(c, lang, from, area, wa, hrs, sayRaw);
+  await sayRaw(withNav(lang, L(lang, "bookAskSpecial")));
+  return patchContact(c.id, { waState: { flow: "book", step: "special", areaId: area.id, date: wa.date, slot: wa.slot, table: wa.table, party: wa.party, hours: hrs } });
 }
 
 // Whether to ask guests how many hours (admin switch; off → book 2 hours).
@@ -1253,14 +1300,18 @@ async function completeStepBooking(c: Contact, lang: Lang, from: string, area: B
     await say(L(lang, "justBooked", { t: wa.table }));
     return patchContact(c.id, { waState: { flow: null } });
   }
-  const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date), companyId: (await defaultCompanyId()) ?? undefined });
+  const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, note: wa.special, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date), companyId: (await defaultCompanyId()) ?? undefined });
   const slots = areaSlotsForDate(area, wa.date), labels = areaSlotLabelsForDate(area, wa.date);
   const label = labels[slots.indexOf(wa.slot)] || wa.slot;
   await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
   const hoursPart = (await askHoursOn()) ? L(lang, "hoursSuffix", { n: String(hrs) }) : "";
   await say(L(lang, "bookDone", { day: fmtDMY(wa.date, lang), time: `${timeText(lang, wa.slot, label)}${hoursPart}`, n: String(wa.party || 2), url: APP_BASE_URL }));
+  if (wa.special) { // echo it back in their language (it's saved in English for staff)
+    const o = BOOKING_OCCASIONS.find((x) => wa.special.startsWith(`${x.emoji} ${x.en}`));
+    await say(L(lang, "specialNoted", { r: o ? wa.special.replace(`${o.emoji} ${o.en}`, L(lang, `occ.${o.id}`)) : wa.special }));
+  }
   await say(await locationReply(lang)); // so the guest knows where to find us
-  await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
+  await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax${wa.special ? ` · ${wa.special}` : ""} — confirm in the app.`);
   await sendMemberMenu(from, c, lang);
   return patchContact(c.id, { waState: { flow: null } });
 }

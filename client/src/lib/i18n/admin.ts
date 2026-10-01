@@ -3,6 +3,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.bk.dayLock': { en: 'Lock a table for the whole day once it is booked', zh: '桌位一经预订，当天整天不可再订', id: 'Kunci meja sepanjang hari setelah dipesan' },
   'admin.bk.dayLockHint': { en: 'When on, a table/room booked at any time disappears from every time slot that day — in the app and on WhatsApp.', zh: '开启后，桌位/包厢在任何时段被预订，当天所有时段都不再显示（应用和 WhatsApp 同步）。', id: 'Jika aktif, meja/ruangan yang dipesan di jam mana pun hilang dari semua jam hari itu — di aplikasi dan WhatsApp.' },
   'admin.bk.askHours': { en: 'Ask guests how many hours they will stay', zh: '询问客人预计停留几个小时', id: 'Tanyakan tamu berapa jam mereka akan tinggal' },
+  'admin.bk.askSpecial': { en: 'Ask for a special request (birthday, company event…)', zh: '询问特别需求（生日、公司活动等）', id: 'Tanyakan permintaan khusus (ulang tahun, acara kantor…)' },
+  'admin.bk.askSpecialHint': { en: 'When on, the app and WhatsApp let guests pick an occasion and add a note; it shows on the booking. When off, the question is skipped.', zh: '开启后，应用和 WhatsApp 会让客人选择场合并填写备注，显示在预订上。关闭后跳过此问题。', id: 'Jika aktif, aplikasi dan WhatsApp meminta tamu memilih acara dan menambah catatan; tampil di booking. Jika nonaktif, pertanyaan dilewati.' },
   'admin.bk.askHoursHint': { en: 'When off, the app and WhatsApp skip the hours question and book 2 hours.', zh: '关闭后，应用和 WhatsApp 不再询问时长，默认预订 2 小时。', id: 'Jika nonaktif, aplikasi dan WhatsApp melewati pertanyaan jam dan memesan 2 jam.' },
   'admin.title': { en: "ADMIN", zh: "管理后台", id: "ADMIN" },
   'admin.companySetup': { en: "Company setup (super admin)", zh: "公司设置（超级管理员）", id: "Pengaturan perusahaan (super admin)" },
