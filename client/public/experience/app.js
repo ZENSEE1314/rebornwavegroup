@@ -2729,18 +2729,175 @@ function openVideo(name) {
   vplayer.poster = `./media/${name}.jpg`;
   vplayer.muted = !isDemo;
   vmodal.showModal(); vplayer.play().catch(() => {});
+  if (isDemo) soundDuck(true); // let the demo's own sound through
 }
 canvas.addEventListener("click", (ev) => {
   const hit = pick(ev);
   if (hit?.link) window.open(hit.link, "_blank", "noopener");
   else if (hit?.screen) openVideo(hit.screen.name);
-  else if (hit?.zoom) hoveredZoom = hoveredZoom === hit.zoom ? null : hit.zoom; // tap to zoom on touch screens
+  else if (hit?.zoom) { hoveredZoom = hoveredZoom === hit.zoom ? null : hit.zoom; if (hoveredZoom) sfxPop(); } // tap to zoom on touch screens
   else hoveredZoom = null;
 });
 document.getElementById("play-demo").addEventListener("click", () => openVideo("demo"));
 const closeModal = () => { vplayer.pause(); vmodal.close(); };
 vmodal.querySelector(".vclose").addEventListener("click", closeModal);
+vmodal.addEventListener("close", () => soundDuck(false));
 vmodal.addEventListener("click", (e) => { if (e.target === vmodal) closeModal(); });
+
+// ── Sound: music made live in the browser (Web Audio) + lift / tap / crowd effects ──
+// Off until the visitor turns it on (browsers block sound before a tap); the choice is remembered.
+const SOUND_TEXT = {
+  on: { en: "Turn sound on", zh: "打开声音", id: "Nyalakan suara" },
+  off: { en: "Turn sound off", zh: "关闭声音", id: "Matikan suara" },
+  hint: { en: "Tap for music", zh: "点击播放音乐", id: "Ketuk untuk musik" },
+};
+// Each page has its own groove. Chords are [root midi, quality] per bar.
+const MIN = "m", MAJ = "M", MAJ7 = "M7", MIN7 = "m7";
+const GROOVES = {
+  calm:    { bpm: 96,  kick: 0,   hat: 0.2, clap: 0,   bass: 0.4, pad: 1,   arp: 0.3, cutoff: 1400, chords: [[45, MIN7], [41, MAJ7], [48, MAJ7], [43, MAJ]] },
+  lounge:  { bpm: 118, kick: 1,   hat: 0.8, clap: 0.7, bass: 1,   pad: 0.6, arp: 0.2, cutoff: 1800, chords: [[45, MIN7], [50, MIN7], [43, MAJ], [48, MAJ7]] },
+  pop:     { bpm: 110, kick: 0.9, hat: 0.6, clap: 1,   bass: 0.8, pad: 0.8, arp: 0.6, cutoff: 2600, chords: [[48, MAJ], [43, MAJ], [45, MIN], [41, MAJ]] },
+  vip:     { bpm: 122, kick: 1,   hat: 1,   clap: 0.5, bass: 1,   pad: 0.5, arp: 0.3, cutoff: 900,  chords: [[40, MIN7], [40, MIN7], [43, MAJ7], [38, MIN7]] },
+  cafe:    { bpm: 88,  kick: 0.4, hat: 0.5, clap: 0.2, bass: 0.6, pad: 1,   arp: 0.7, cutoff: 2000, chords: [[41, MAJ7], [43, MIN7], [45, MIN7], [36, MAJ7]] },
+  fest:    { bpm: 128, kick: 1,   hat: 1,   clap: 1,   bass: 1,   pad: 0.7, arp: 1,   cutoff: 3200, chords: [[45, MIN], [41, MAJ], [48, MAJ], [43, MAJ]] },
+  play:    { bpm: 108, kick: 0.7, hat: 0.6, clap: 0.6, bass: 0.6, pad: 0.6, arp: 1,   cutoff: 3000, chords: [[48, MAJ], [45, MIN], [41, MAJ], [43, MAJ]] },
+};
+const SEG_GROOVE = { arrival: "calm", ktv: "lounge", private: "pop", vip: "vip", pet: "cafe", live: "fest", blindbox: "play", demo: "calm", location: "calm", app: "play", social: "pop", finale: "lounge" };
+const CHORD_STEPS = { m: [0, 3, 7], M: [0, 4, 7], M7: [0, 4, 7, 11], m7: [0, 3, 7, 10] };
+const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+const sound = { ctx: null, on: false, groove: GROOVES.calm, step: 0, next: 0, timer: 0, duck: 1 };
+function audioInit() {
+  if (sound.ctx) return sound.ctx;
+  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+  const ctx = new AC(); sound.ctx = ctx;
+  sound.master = ctx.createGain(); sound.master.gain.value = 0;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+  sound.master.connect(comp).connect(ctx.destination);
+  sound.music = ctx.createGain(); sound.music.gain.value = 0.55; sound.music.connect(sound.master);
+  sound.sfx = ctx.createGain(); sound.sfx.gain.value = 0.8; sound.sfx.connect(sound.master);
+  sound.filter = ctx.createBiquadFilter(); sound.filter.type = "lowpass"; sound.filter.frequency.value = 1800; sound.filter.Q.value = 0.7;
+  sound.filter.connect(sound.music);
+  const len = ctx.sampleRate; const buf = ctx.createBuffer(1, len, ctx.sampleRate); const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  sound.noise = buf;
+  return ctx;
+}
+// Instruments
+function envGain(t, peak, attack, decay, dest) {
+  const g = sound.ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+  g.connect(dest); return g;
+}
+function kick(t, v) {
+  const o = sound.ctx.createOscillator(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+  o.connect(envGain(t, 0.9 * v, 0.003, 0.28, sound.music)); o.start(t); o.stop(t + 0.32);
+}
+function noiseHit(t, v, type, freq, decay, dest = sound.music) {
+  const s = sound.ctx.createBufferSource(); s.buffer = sound.noise;
+  const f = sound.ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = type === "bandpass" ? 1.2 : 0.7;
+  s.connect(f).connect(envGain(t, v, 0.002, decay, dest)); s.start(t, Math.random() * 0.5); s.stop(t + decay + 0.05);
+}
+function tone(t, midi, dur, v, type, dest) {
+  const o = sound.ctx.createOscillator(); o.type = type; o.frequency.value = mtof(midi);
+  o.connect(envGain(t, v, Math.min(0.02, dur * 0.2), dur, dest)); o.start(t); o.stop(t + dur + 0.05);
+}
+function padChord(t, notes, dur, v) {
+  for (const n of notes) for (const det of [-7, 7]) {
+    const o = sound.ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = mtof(n); o.detune.value = det;
+    const g = sound.ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v, t + dur * 0.3); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(sound.filter); o.start(t); o.stop(t + dur + 0.05);
+  }
+}
+// One 16th-note step of the current groove
+function playStep(t) {
+  const G = sound.groove, s = sound.step % 16, bar = Math.floor(sound.step / 16) % G.chords.length;
+  const [root, q] = G.chords[bar], notes = CHORD_STEPS[q].map((x) => root + 12 + x), stepDur = 60 / G.bpm / 4;
+  if (G.kick && s % 4 === 0) kick(t, G.kick);
+  if (G.clap && (s === 4 || s === 12)) noiseHit(t, 0.35 * G.clap, "bandpass", 1500, 0.16);
+  if (G.hat && s % 2 === 0) noiseHit(t, (s % 4 === 2 ? 0.16 : 0.07) * G.hat, "highpass", 8000, 0.04);
+  if (G.bass && (s === 0 || s === 6 || s === 10 || s === 14)) tone(t, root - 12 + (s === 10 ? 12 : 0), stepDur * 1.6, 0.32 * G.bass, "triangle", sound.music);
+  if (G.pad && s === 0) padChord(t, notes, stepDur * 16, 0.045 * G.pad);
+  if (G.arp && s % 2 === 1) tone(t, notes[(s >> 1) % notes.length] + 12, stepDur * 0.9, 0.06 * G.arp, "square", sound.filter);
+}
+function scheduler() {
+  const ctx = sound.ctx;
+  while (sound.next < ctx.currentTime + 0.12) {
+    playStep(sound.next);
+    sound.next += 60 / sound.groove.bpm / 4; sound.step++;
+  }
+}
+// Effects
+function sfxDing() { // lift arrival: two soft bell tones
+  if (!sound.on) return; const t = sound.ctx.currentTime;
+  tone(t, 88, 1.2, 0.18, "sine", sound.sfx); tone(t + 0.28, 84, 1.6, 0.16, "sine", sound.sfx);
+  tone(t, 100, 0.5, 0.04, "sine", sound.sfx);
+}
+function sfxDoors() { // doors sliding: a soft filtered whoosh
+  if (!sound.on) return; const t = sound.ctx.currentTime + 0.35;
+  const s = sound.ctx.createBufferSource(); s.buffer = sound.noise;
+  const f = sound.ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 0.8;
+  f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(1600, t + 0.6);
+  s.connect(f).connect(envGain(t, 0.12, 0.15, 0.6, sound.sfx)); s.start(t); s.stop(t + 0.9);
+}
+function sfxPop() { // tapping a card
+  if (!sound.on) return; const t = sound.ctx.currentTime;
+  const o = sound.ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(980, t + 0.08);
+  o.connect(envGain(t, 0.2, 0.005, 0.12, sound.sfx)); o.start(t); o.stop(t + 0.2);
+}
+function sfxCheer() { // crowd roar on the rooftop
+  if (!sound.on) return; const t = sound.ctx.currentTime;
+  for (let i = 0; i < 3; i++) noiseHit(t + i * 0.05, 0.12, "bandpass", 900 + i * 500, 1.6, sound.sfx);
+  for (let i = 0; i < 8; i++) noiseHit(t + 0.2 + i * 0.11, 0.08, "bandpass", 2400, 0.05, sound.sfx); // claps
+}
+let cheerTimer = 0;
+function soundSegment(id, fromFloor, toFloor) {
+  sound.groove = GROOVES[SEG_GROOVE[id] || "calm"];
+  if (!sound.on) return;
+  const t = sound.ctx.currentTime;
+  sound.filter.frequency.cancelScheduledValues(t); sound.filter.frequency.setTargetAtTime(sound.groove.cutoff, t, 0.4);
+  if (fromFloor || toFloor) { sfxDing(); sfxDoors(); }
+  clearInterval(cheerTimer);
+  if (id === "live") { sfxCheer(); cheerTimer = setInterval(() => { if (Math.random() < 0.5) sfxCheer(); }, 9000); }
+}
+function soundDuck(down) { // quieter while a video with sound is open
+  if (!sound.ctx) return; const t = sound.ctx.currentTime;
+  sound.music.gain.setTargetAtTime(down ? 0.05 : 0.55, t, 0.3);
+}
+function setSound(on) {
+  if (on && !audioInit()) return;
+  sound.on = on;
+  try { localStorage.setItem("rw-sound", on ? "1" : "0"); } catch {}
+  const btn = document.getElementById("sound-btn");
+  if (btn) { btn.textContent = on ? "🔊" : "🔇"; btn.setAttribute("aria-label", tl(on ? SOUND_TEXT.off : SOUND_TEXT.on)); btn.classList.toggle("on", on); btn.classList.remove("pulse"); }
+  const hint = document.getElementById("sound-hint"); if (hint) hint.hidden = true;
+  if (!sound.ctx) return;
+  const t = sound.ctx.currentTime;
+  if (on) {
+    sound.ctx.resume();
+    sound.master.gain.cancelScheduledValues(t); sound.master.gain.setTargetAtTime(0.9, t, 0.5);
+    sound.next = sound.ctx.currentTime + 0.05; sound.step = 0;
+    clearInterval(sound.timer); sound.timer = setInterval(scheduler, 25);
+    soundSegment(SEGS[activeSeg] ? SEGS[activeSeg].id : "arrival");
+  } else {
+    sound.master.gain.setTargetAtTime(0, t, 0.2);
+    clearInterval(sound.timer); clearInterval(cheerTimer);
+    setTimeout(() => { if (!sound.on) sound.ctx.suspend(); }, 600);
+  }
+}
+(function soundButton() {
+  const btn = document.getElementById("sound-btn"); if (!btn) return;
+  btn.setAttribute("aria-label", tl(SOUND_TEXT.on));
+  const hint = document.getElementById("sound-hint"); if (hint) hint.textContent = tl(SOUND_TEXT.hint);
+  btn.addEventListener("click", () => setSound(!sound.on));
+  let wanted = false; try { wanted = localStorage.getItem("rw-sound") === "1"; } catch {}
+  if (wanted) { // they had it on last time: start on their first tap anywhere
+    const go = () => { if (!sound.on) setSound(true); };
+    window.addEventListener("pointerdown", go, { once: true }); window.addEventListener("keydown", go, { once: true });
+  } else btn.classList.add("pulse");
+  document.addEventListener("visibilitychange", () => { if (!sound.ctx || !sound.on) return; if (document.hidden) sound.ctx.suspend(); else sound.ctx.resume(); });
+})();
 
 // ── Main loop ──────────────────────────────────────────────────────────────
 let target = 0, cur = 0, activeSeg = -1;
@@ -2760,7 +2917,9 @@ function segmentAt(p) {
 }
 function setActiveSegment(i) {
   if (i === activeSeg) return;
+  const prev = activeSeg;
   activeSeg = i;
+  soundSegment(SEGS[i].id, SEGS[prev] && SEGS[prev].floor, SEGS[i].floor); // music for this page, a lift ding between floors
   zones.forEach((z, zi) => { z.visible = Math.abs(zi - i) <= 1; });
   for (const pn of panos) pn.mesh.visible = pn.zone === i;
   for (const s of screens) {
