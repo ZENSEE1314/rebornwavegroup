@@ -1776,6 +1776,7 @@ function dressPrivate(ctx) {
   Z.add(place(videoScreen("ktv", 6.6, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
   // Three KTV rooms and the dance room laid out as an open floor plan, with people inside
   dressRoomFloor(ctx);
+  dressSalon(ctx, -28); // hair salon in the middle of the floor, past the rooms
   // Beauty corner (where the camera turns during the beauty beat): mirror + chair + cards
   const bx = ctx.clusterX, bRot = ctx.clusterRot;
   const mirror = card(2, 2.8, (x, W, H) => {
@@ -1807,6 +1808,115 @@ function dressPrivate(ctx) {
   cap.position.set(0, Y + 0.6, -46.2); Z.add(cap);
 }
 
+// ── Beauty: a spa on 3F and a hair salon on 2F, with clients and staff at work ──
+const BEAUTY_TEXT = {
+  spa: { en: "BEAUTY SPA", zh: "美容水疗", id: "SPA KECANTIKAN" },
+  salon: { en: "HAIR SALON", zh: "美发沙龙", id: "SALON RAMBUT" },
+};
+function beautySign(text, glow) {
+  return card(3.4, 0.8, (x, W, H) => {
+    rr(x, 4, 4, W - 8, H - 8, 18); x.fillStyle = "rgba(24,10,30,.95)"; x.fill(); x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, W); x.stroke();
+    x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffd6ec"; x.shadowColor = "#ff7ac0"; x.shadowBlur = 14;
+    let fs = H * 0.5; x.font = `800 ${fs}px Montserrat`; while (x.measureText(text).width > W - 40) { fs *= 0.92; x.font = `800 ${fs}px Montserrat`; }
+    x.fillText(text, W / 2, H / 2 + 2);
+  }, { frame: false, glow, pxPerUnit: 180 });
+}
+function plant(h = 1.1) {
+  const g = new THREE.Group();
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.4, 12), pmat(0xf2efe8)); pot.position.y = 0.2; g.add(pot);
+  const leaves = new THREE.Mesh(new THREE.ConeGeometry(0.4, h, 10), pmat(0x2f8f55)); leaves.position.y = 0.4 + h / 2; g.add(leaves);
+  return g;
+}
+// A guest lying face-up on a treatment bed (head towards -z).
+function lyingGuest(r) {
+  const p = randomGuest(r); p.rotation.x = -Math.PI / 2; return p;
+}
+function dressSpa(ctx, cx, cz) {
+  const { Z, zi, Y } = ctx;
+  const r = rnd(61), portrait = PORTRAIT(), W = portrait ? 7 : 9, D = 9;
+  const g = new THREE.Group(); g.position.set(cx, Y, cz); Z.add(g);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ color: 0x2a1626, roughness: 0.6 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = 0.02; g.add(floor);
+  const pool = glowPlane(0xff9dcf, W * 0.95, D * 0.95, 0.35); pool.rotation.x = -Math.PI / 2; pool.position.y = 0.03; g.add(pool);
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x3a1f36, roughness: 0.5 });
+  for (const [w, x, z, ry] of [[W, 0, -D / 2, 0], [D, -W / 2, 0, Math.PI / 2], [D, W / 2, 0, Math.PI / 2]]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, 0.12), wallMat); m.position.set(x, 0.55, z); m.rotation.y = ry; g.add(m);
+  }
+  const trim = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W, 1.1, D)), new THREE.LineBasicMaterial({ color: 0xff9dcf })); trim.position.y = 0.55; g.add(trim);
+  // four treatment beds, a client on each and a therapist at the head
+  const bedMat = pmat(0xf7efe9), towel = pmat(0xffc2dc);
+  const staff = [], beds = [[-W / 4, -D / 4], [W / 4, -D / 4], [-W / 4, D / 4 - 0.4], [W / 4, D / 4 - 0.4]];
+  beds.forEach(([bx, bz]) => {
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.6, 2.1), bedMat); bed.position.set(bx, 0.3, bz); g.add(bed);
+    const tw = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.05, 0.9), towel); tw.position.set(bx, 0.63, bz + 0.4); g.add(tw);
+    const guest = lyingGuest(r); guest.position.set(bx, 0.8, bz + 0.88); // back resting on the bed g.add(guest);
+    const t = makePerson({ outfit: 0xffffff, skin: SKINS[Math.floor(r() * SKINS.length)], hair: HAIRS[Math.floor(r() * 3)], dress: true });
+    t.position.set(bx, 0, bz - 1.45); g.add(t); staff.push(t); // standing at the client's head, facing the bed
+    const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.12, 8), new THREE.MeshBasicMaterial({ color: 0xffd38a, toneMapped: false }));
+    candle.position.set(bx + 0.62, 0.06, bz - 0.9); g.add(candle);
+  });
+  for (const [px, pz] of [[-W / 2 + 0.5, -D / 2 + 0.5], [W / 2 - 0.5, -D / 2 + 0.5], [-W / 2 + 0.5, D / 2 - 0.6], [W / 2 - 0.5, D / 2 - 0.6]]) { const pl = plant(); pl.position.set(px, 0, pz); g.add(pl); }
+  const sign = beautySign(tl(BEAUTY_TEXT.spa), 0xff7ac0); sign.position.set(0, 2.2, -D / 2 - 0.1); g.add(sign);
+  const spaLight = new THREE.PointLight(0xffb0d8, 30, 14, 1.6); spaLight.position.set(cx, Y + 4, cz); Z.add(spaLight);
+  anims.push({ zone: zi, fn: (t) => {
+    if (REDUCED) return;
+    staff.forEach((p, i) => { // gentle facial massage: hands circling
+      const u = p.userData, a = t * 2 + i;
+      u.armL.rotation.set(-1.15 + Math.sin(a) * 0.12, 0, -0.25 + Math.cos(a) * 0.1);
+      u.armR.rotation.set(-1.15 + Math.cos(a) * 0.12, 0, 0.25 - Math.sin(a) * 0.1);
+      u.body.rotation.x = 0.18;
+    });
+  } });
+}
+function salonChair() {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.08, 16), M.chrome); base.position.y = 0.04; g.add(base);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.4, 8), M.chrome); post.position.y = 0.25; g.add(post);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.14, 0.6), pmat(0x141414)); seat.position.y = 0.48; g.add(seat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.1), pmat(0x141414)); back.position.set(0, 0.85, -0.3); g.add(back);
+  return g;
+}
+function dressSalon(ctx, cz) {
+  const { Z, zi, Y } = ctx;
+  const r = rnd(88), portrait = PORTRAIT();
+  const g = new THREE.Group(); g.position.set(0, Y, cz); Z.add(g);
+  const L = portrait ? 10 : 12;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(portrait ? 6 : 7, L + 3), new THREE.MeshStandardMaterial({ color: 0xece6ee, roughness: 0.35, metalness: 0.1 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = 0.02; g.add(floor);
+  // a double-sided mirror wall down the middle, a station every 3 units on both sides
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, L), pmat(0x1a1024)); wall.position.y = 1.1; g.add(wall);
+  const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xdfe6f2, metalness: 1, roughness: 0.04 });
+  const stylists = [];
+  const stations = portrait ? [-3.6, -1.2, 1.2, 3.6] : [-4.5, -1.5, 1.5, 4.5];
+  for (const sx of [-1, 1]) stations.forEach((z) => {
+    const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.3, 1.2), mirrorMat); mirror.position.set(sx * 0.12, 1.45, z); g.add(mirror);
+    const fr = new THREE.LineSegments(new THREE.EdgesGeometry(mirror.geometry), M.lineGold); fr.position.copy(mirror.position); g.add(fr);
+    const bulbs = glowPlane(0xfff0d0, 1.4, 0.4, 0.6); bulbs.position.set(sx * 0.16, 2.2, z); bulbs.rotation.y = sx * Math.PI / 2; g.add(bulbs);
+    const ch = salonChair(); ch.position.set(sx * 1.25, 0, z); ch.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2; g.add(ch); // facing the mirror
+    const client = randomGuest(r); client.position.set(sx * 1.25, 0.12, z); client.rotation.y = ch.rotation.y; poseSit(client); g.add(client);
+    const cape = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.75, 12), pmat(0x2b2b33)); cape.position.y = 0.95; client.userData.body.add(cape);
+    const st = makePerson({ outfit: 0x111114, skin: SKINS[Math.floor(r() * SKINS.length)], hair: HAIRS[Math.floor(r() * HAIRS.length)], longHair: r() < 0.5 });
+    st.position.set(sx * 2.0, 0, z); st.rotation.y = ch.rotation.y; g.add(st); stylists.push(st);
+    const sc = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.18), M.chrome); sc.position.set(0, -0.68, 0.06); st.userData.armR.add(sc); // scissors
+  });
+  // waiting sofa at the near end, with two guests chatting
+  const sofa = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.45, 0.8), pmat(0xd96aa6)); sofa.position.set(portrait ? 1.6 : 2, 0.23, L / 2 + 0.9); g.add(sofa);
+  for (let i = 0; i < 2; i++) { const p = randomGuest(r); p.position.set((portrait ? 1.6 : 2) - 0.5 + i, 0.05, L / 2 + 1); p.rotation.y = Math.PI; poseSit(p); g.add(p); }
+  for (const pz of [-L / 2 - 0.8, L / 2 + 0.9]) { const pl = plant(1.3); pl.position.set(portrait ? -2.2 : -2.8, 0, pz); g.add(pl); }
+  const sign = beautySign(tl(BEAUTY_TEXT.salon), 0xffb3d9); sign.position.set(0, 2.75, -L / 2); g.add(sign);
+  const sign2 = beautySign(tl(BEAUTY_TEXT.salon), 0xffb3d9); sign2.position.set(0, 2.75, L / 2); sign2.rotation.y = 0; g.add(sign2);
+  const salonLight = new THREE.PointLight(0xfff0e0, 35, 16, 1.5); salonLight.position.set(0, Y + 4.5, cz); Z.add(salonLight);
+  anims.push({ zone: zi, fn: (t) => {
+    if (REDUCED) return;
+    stylists.forEach((p, i) => { // snipping at head height, comb in the other hand
+      const u = p.userData, a = t * 3 + i * 1.3;
+      u.armR.rotation.set(-1.7 + Math.sin(a) * 0.15, 0, 0.35 + Math.sin(a * 2) * 0.1);
+      u.armL.rotation.set(-1.5 + Math.cos(a) * 0.1, 0, -0.3);
+      u.body.position.x = Math.sin(t * 0.5 + i) * 0.08;
+    });
+  } });
+}
+
 // 3F — private VIP KTV rooms for Gold tier members, by invitation.
 function dressVIP(ctx) {
   const { Z, zi, Y, seg } = ctx;
@@ -1823,6 +1933,7 @@ function dressVIP(ctx) {
   Z.add(zoomable(place(beauty, ctx.videoX * 0.9, Y + 2.9, -27, ctx.videoRot), zi));
   monumentRow(ctx, [["GOLD", "Gold tier only"], ["PRIORITY", "VIP room booking"], ["INVITE", "Members only"]]);
   monolith(ctx, ctx.videoX * 0.62, -35, "Private VIP rooms. Gold members only.", "3F VIP · BY INVITATION", 4.2, 2.6);
+  dressSpa(ctx, 0, -41); // beauty spa in front of the lift
 }
 
 // 4F — pet cafe & restaurant: our pets, food, kids and families.
