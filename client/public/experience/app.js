@@ -805,7 +805,8 @@ function liftCarTexture() {
   const quad = (pts, fill) => { x.beginPath(); x.moveTo(...pts[0]); for (const q of pts.slice(1)) x.lineTo(...q); x.closePath(); x.fillStyle = fill; x.fill(); };
   let key = "";
   const set = (floor, dir) => {
-    const k = `${floor}|${dir}`; if (k === key) return; key = k;
+    const ready = ["mum", "dad"].every((n) => IMG[`breed_${n}`] && IMG[`breed_${n}`].image);
+    const k = `${floor}|${dir}|${ready}`; if (k === key) return; key = k; // redraw once the posters have loaded
     const cg = x.createLinearGradient(0, 0, 0, by0); cg.addColorStop(0, "#fff6dc"); cg.addColorStop(1, "#f3d28a");
     quad([[0, 0], [W, 0], [bx1, by0], [bx0, by0]], cg);
     const fg = x.createLinearGradient(0, by1, 0, H); fg.addColorStop(0, "#3a2a1a"); fg.addColorStop(1, "#1a1008");
@@ -822,6 +823,12 @@ function liftCarTexture() {
     for (let i = 1; i < 3; i++) { const px = lerp(bx0, bx1, i / 3); x.beginPath(); x.moveTo(px, by0 + 90); x.lineTo(px, by1); x.stroke(); }
     x.strokeStyle = "#7a5518"; x.lineWidth = 10; x.beginPath(); x.moveTo(bx0, by0 + (by1 - by0) * 0.6); x.lineTo(bx1, by0 + (by1 - by0) * 0.6); x.stroke();
     x.fillStyle = "rgba(255,255,255,.9)"; for (let i = 0; i < 3; i++) x.fillRect(W * (0.3 + i * 0.15), by0 * 0.35, W * 0.1, 8);
+    // Doluruu Breeding posters on the back wall
+    [["mum", bx0 + 10], ["dad", bx1 - 10 - 92]].forEach(([k, px]) => {
+      const im = IMG[`breed_${k}`] && IMG[`breed_${k}`].image;
+      x.fillStyle = "#d9b45c"; x.fillRect(px - 4, by0 + 96, 100, 123);
+      if (im && im.width) x.drawImage(im, px, by0 + 100, 92, 115); else { x.fillStyle = "#3a1455"; x.fillRect(px, by0 + 100, 92, 115); }
+    });
     rr(x, W * 0.33, by0 + 14, W * 0.34, 66, 10); x.fillStyle = "#0a0612"; x.fill();
     x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffb347"; x.shadowColor = "#ff9d2e"; x.shadowBlur = 12;
     x.font = `800 46px "Courier New", monospace`;
@@ -1100,6 +1107,7 @@ const place = (obj, x, y, z, ry = 0) => { obj.position.set(x, y, z); obj.rotatio
 const LIFT_OUT_Z = 28;                        // the arrival lift's doors (the camera starts inside, behind them)
 const LIFT_IN = (seg) => (seg.id === "live" ? { x: 13.5, z: -38 } : { x: 0, z: -56 }); // the lift at the far end
 const LIFT_DOOR_W = 2.8, LIFT_DOOR_H = 5, LIFT_DEPTH = 4.4;
+let liftPosterN = 0; // each lift shows the next posters in the set
 // A small lift shaft. Local space: doors at z = 0, the car behind them towards +z.
 function liftShaft(label, backLabel) {
   const g = new THREE.Group();
@@ -1120,6 +1128,14 @@ function liftShaft(label, backLabel) {
   for (const sx of [-1, 1]) plane(cd, ch, sx * cw / 2, ch / 2, cz, 0, Math.PI / 2); // sides
   plane(cw, cd, 0, ch, cz, Math.PI / 2, 0);                  // ceiling
   plane(cw, cd, 0, 0.01, cz, -Math.PI / 2, 0);               // floor
+  // Doluruu Breeding posters on both side walls
+  for (const sx of [-1, 1]) {
+    const [key, aspect] = BREEDING_POSTERS[liftPosterN++ % BREEDING_POSTERS.length];
+    const ph = 1.5, pwid = ph * aspect;
+    const frameP = new THREE.Mesh(new THREE.PlaneGeometry(pwid + 0.1, ph + 0.1), new THREE.MeshBasicMaterial({ color: HEX.gold, toneMapped: false }));
+    const poster = new THREE.Mesh(new THREE.PlaneGeometry(pwid, ph), new THREE.MeshBasicMaterial({ map: IMG[`breed_${key}`], toneMapped: false }));
+    for (const [m, off] of [[frameP, 0.02], [poster, 0.03]]) { m.position.set(sx * (cw / 2 - off), 2.75, cz + 0.2); m.rotation.y = -sx * Math.PI / 2; g.add(m); }
+  }
   const lamp = glowPlane(0xfff1cc, 2.4, 2.4, 0.9); lamp.rotation.x = Math.PI / 2; lamp.position.set(0, LIFT_DOOR_H - 0.05, LIFT_DEPTH / 2); g.add(lamp);
   const light = new THREE.PointLight(0xffe2a8, 18, 7, 1.6); light.position.set(0, LIFT_DOOR_H - 0.6, LIFT_DEPTH / 2); g.add(light);
   box(LIFT_DOOR_W, 0.08, 0.08, 0, 1.9, LIFT_DEPTH - 0.45, M.gold);
@@ -1552,12 +1568,12 @@ function makePet(kind, color) {
 function dressPetLife(ctx) {
   const { Z, zi, Y } = ctx;
   const r = rnd(5), portrait = PORTRAIT();
-  const xr = portrait ? 4.6 : 7.5, zMin = -17, zMax = -2;
-  const blocked = [[-4.5, -9], [4.5, -12]]; // cafe tables in this stretch
-  const free = (x, z) => blocked.every(([bx, bz]) => Math.hypot(x - bx, z - bz) > 1.9);
+  const xr = portrait ? 5 : 8.5, zMin = -40, zMax = 10; // the whole floor, front to back
+  const blocked = [[-4.5, -9], [4.5, -12], [-6, -21], [5.5, -25], [-3.5, -33], [3.8, -38], [ctx.clusterX * 0.9, -41]]; // café tables and the ball pit
+  const free = (x, z) => blocked.every(([bx, bz]) => Math.hypot(x - bx, z - bz) > 2.1);
   const pick = () => { for (let k = 0; k < 20; k++) { const x = (r() * 2 - 1) * xr, z = zMin + r() * (zMax - zMin); if (free(x, z)) return [x, z]; } return [0, -6]; };
-  const roster = ["dog", "cat", "rabbit", "corgi", "guinea", "dog", "cat", "rabbit", "dog", "cat", "guinea", "corgi", "rabbit", "dog"];
-  const pets = roster.slice(0, MOBILE ? 10 : roster.length).map((kind, i) => {
+  const kinds = ["dog", "cat", "rabbit", "corgi", "guinea", "dog", "cat", "rabbit"];
+  const pets = Array.from({ length: MOBILE ? 16 : 26 }, (_, i) => kinds[i % kinds.length]).map((kind, i) => {
     const K = PET_KINDS[kind];
     const pet = makePet(kind, K.colors[i % K.colors.length]);
     const [x, z] = pick(); pet.position.set(x, Y, z); pet.rotation.y = r() * Math.PI * 2;
@@ -1591,18 +1607,6 @@ function dressPetLife(ctx) {
       if (u.tail) u.tail.rotation.z = Math.sin(t * 6 + u.phase) * 0.3;
     }
   } });
-}
-// 5F: partygoers dancing in front of the stage
-function dressRooftopDancers(ctx) {
-  const { Z, zi, Y } = ctx;
-  const r = rnd(23), portrait = PORTRAIT(), n = MOBILE ? 10 : 16, xr = portrait ? 4.2 : 7;
-  const people = [];
-  for (let i = 0; i < n; i++) {
-    const p = randomGuest(r);
-    p.position.set((r() * 2 - 1) * xr, Y, -26 - r() * 10); p.rotation.y = Math.PI + (r() - 0.5) * 0.8; // facing the stage
-    Z.add(p); people.push(p);
-  }
-  anims.push({ zone: zi, fn: (t) => { if (!REDUCED) people.forEach((p, i) => (i % 3 ? poseDance : poseCheer)(p, t, i * 1.3)); } });
 }
 
 function dressKTV(ctx) {
@@ -1856,6 +1860,7 @@ function dressPet(ctx) {
   const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.6 });
   const cream = new THREE.MeshStandardMaterial({ color: 0xf3e6c4, roughness: 0.5 });
   const tables = [[-4.5, -9], [4.5, -12], [-6, -21], [5.5, -25], [-3.5, -33], [3.8, -38]];
+  const cafeR = rnd(77), cafeGuests = [];
   for (const [x, z] of tables) {
     const tb = new THREE.Group();
     const top = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.08, 28), wood); top.position.y = 1; tb.add(top);
@@ -1864,6 +1869,11 @@ function dressPet(ctx) {
       const a = (k / 3) * Math.PI * 2;
       const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.6, 16), M.velvet); stool.position.set(Math.cos(a) * 1.4, 0.3, Math.sin(a) * 1.4); tb.add(stool);
       const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.16, 12), cream); cup.position.set(Math.cos(a) * 0.5, 1.12, Math.sin(a) * 0.5); tb.add(cup);
+    }
+    for (let k = 0; k < 3; k++) { // a guest on each stool, facing the table
+      const a = (k / 3) * Math.PI * 2, p = randomGuest(cafeR);
+      p.position.set(Math.cos(a) * 1.4, 0.18, Math.sin(a) * 1.4); p.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a));
+      poseSit(p); tb.add(p); cafeGuests.push(p);
     }
     const warm = glowPlane(seg.accent, 3.2, 3.2, 0.3); warm.rotation.x = -Math.PI / 2; warm.position.y = 0.03; tb.add(warm);
     Z.add(place(tb, x, Y, z));
@@ -1881,6 +1891,17 @@ function dressPet(ctx) {
   const menu = card(6.4, 3.6, drawPanel({ eyebrow: "4F · Pet cafe & restaurant", title: "Pets, food & family", lines: ["☕  Coffee, tea & treats", "🍽️  Meals to share", "🐾  Meet our pets"], accent: "#ffcf8a" }), { glow: seg.accent });
   Z.add(zoomable(place(menu, 0, Y + 3, -47), zi));
   const back = glowPlane(seg.accent2, 14, 10, 0.25); back.position.set(0, Y + 3, -48); Z.add(back);
+  // café guests chatting: sipping, gesturing, nodding along
+  anims.push({ zone: zi, fn: (t) => {
+    if (REDUCED) return;
+    cafeGuests.forEach((p, i) => {
+      const u = p.userData, k = i * 1.9, sip = Math.max(0, Math.sin(t * 0.9 + k));
+      u.armR.rotation.set(-0.9 - sip * 1.5, 0, 0.15);
+      u.armL.rotation.set(-0.7 - Math.max(0, Math.sin(t * 1.7 + k)) * 0.6, 0, -0.2);
+      u.head.position.y = u.hips + 0.82 + Math.sin(t * 2.4 + k) * 0.015;
+      u.body.rotation.y = Math.sin(t * 0.6 + k) * 0.25;
+    });
+  } });
   dressPetLife(ctx);
 }
 
@@ -1938,6 +1959,47 @@ function doluruuSignals({ Z, zi, Y }) {
   } });
 }
 
+// A big crowd of dancing people drawn as instanced body parts (7 draw calls for the whole crowd).
+function dancingCrowd(Z, zi, Y, n, [x0, x1], [z0, z1]) {
+  const r = rnd(31), white = (rough = 0.75) => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: rough });
+  const parts = {
+    torso: new THREE.InstancedMesh(PERSON_GEO.torso, white(), n),
+    head: new THREE.InstancedMesh(PERSON_GEO.head, white(0.6), n),
+    hair: new THREE.InstancedMesh(PERSON_GEO.hair, white(0.6), n),
+    legL: new THREE.InstancedMesh(PERSON_GEO.leg, white(), n), legR: new THREE.InstancedMesh(PERSON_GEO.leg, white(), n),
+    armL: new THREE.InstancedMesh(PERSON_GEO.arm, white(), n), armR: new THREE.InstancedMesh(PERSON_GEO.arm, white(), n),
+  };
+  const col = new THREE.Color(), hips = 0.88;
+  const people = Array.from({ length: n }, (_, i) => {
+    const pp = { x: x0 + r() * (x1 - x0), z: z0 + r() * (z1 - z0), yaw: Math.PI + (r() - 0.5) * 1.2, ph: r() * 6, mode: i % 3, s: 0.92 + r() * 0.16 };
+    const outfit = OUTFITS[Math.floor(r() * OUTFITS.length)], skin = SKINS[Math.floor(r() * SKINS.length)], hair = HAIRS[Math.floor(r() * HAIRS.length)];
+    for (const [k, c] of [["torso", outfit], ["armL", outfit], ["armR", outfit], ["head", skin], ["hair", hair], ["legL", 0x22222c], ["legR", 0x22222c]]) parts[k].setColorAt(i, col.set(c));
+    return pp;
+  });
+  for (const m of Object.values(parts)) { m.instanceColor.needsUpdate = true; m.frustumCulled = false; Z.add(m); }
+  // one reusable skeleton: root → parts, copied into each instance
+  const root = new THREE.Object3D(), node = {};
+  for (const k of Object.keys(parts)) { node[k] = new THREE.Object3D(); root.add(node[k]); }
+  node.torso.position.set(0, hips + 0.33, 0); node.head.position.set(0, hips + 0.82, 0); node.hair.position.set(0, hips + 0.84, -0.01); node.hair.rotation.x = -0.25;
+  node.legL.position.set(-0.1, hips, 0); node.legR.position.set(0.1, hips, 0); node.armL.position.set(-0.25, hips + 0.58, 0); node.armR.position.set(0.25, hips + 0.58, 0);
+  const pose = (t) => {
+    people.forEach((pp, i) => {
+      const b = Math.sin(t * 5 + pp.ph), up = Math.abs(b);
+      root.position.set(pp.x, Y + (pp.mode === 0 ? up * 0.22 : up * 0.06), pp.z);
+      root.rotation.set(0, pp.yaw + (pp.mode === 1 ? Math.sin(t * 2 + pp.ph) * 0.35 : 0), pp.mode === 2 ? b * 0.06 : 0);
+      root.scale.setScalar(pp.s);
+      if (pp.mode === 0) { node.armL.rotation.set(-2.8, 0, -0.45 - b * 0.25); node.armR.rotation.set(-2.8, 0, 0.45 - b * 0.25); }       // jumping, both hands up
+      else if (pp.mode === 1) { node.armL.rotation.set(-0.5, 0, -0.3); node.armR.rotation.set(-2.4 - b * 0.5, 0, 0.3); }                 // fist pumping
+      else { const c = Math.abs(Math.sin(t * 4 + pp.ph)); node.armL.rotation.set(-2.9, 0, -0.35 + c * 0.3); node.armR.rotation.set(-2.9, 0, 0.35 - c * 0.3); } // clapping overhead
+      node.legL.rotation.x = pp.mode === 1 ? b * 0.25 : 0; node.legR.rotation.x = pp.mode === 1 ? -b * 0.25 : 0;
+      root.updateMatrixWorld(true);
+      for (const k in parts) parts[k].setMatrixAt(i, node[k].matrixWorld);
+    });
+    for (const m of Object.values(parts)) m.instanceMatrix.needsUpdate = true;
+  };
+  pose(0);
+  anims.push({ zone: zi, fn: (t) => { if (!REDUCED) pose(t); } });
+}
 function dressLive(ctx) {
   const { Z, zi, Y, seg } = ctx;
   // Stage + truss + giant screen
@@ -1955,20 +2017,8 @@ function dressLive(ctx) {
     const ph = i * 0.9;
     anims.push({ zone: zi, fn: (t) => { pivot.rotation.x = REDUCED ? 0.5 : 0.55 + Math.sin(t * 0.9 + ph) * 0.35; pivot.rotation.z = REDUCED ? 0 : Math.sin(t * 0.6 + ph) * 0.45; } });
   }
-  // Crowd (instanced) — the camera flies over it
-  const n = MOBILE ? 90 : 240;
-  const crowd = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.26, 0.9, 4, 8), new THREE.MeshStandardMaterial({ color: 0x2a1845, roughness: 0.8, emissive: 0x120828 }), n);
-  const seeds = []; const mtx = new THREE.Matrix4();
-  for (let i = 0; i < n; i++) {
-    const s = { x: rand(-9, 9), z: rand(-37, -12), h: rand(0.9, 1.25), ph: rand(0, 6) }; seeds.push(s);
-    mtx.makeScale(1, s.h, 1).setPosition(s.x, Y + 0.75 * s.h, s.z); crowd.setMatrixAt(i, mtx);
-  }
-  Z.add(crowd);
-  anims.push({ zone: zi, fn: (t) => {
-    if (REDUCED) return;
-    for (let i = 0; i < n; i++) { const s = seeds[i]; mtx.makeScale(1, s.h, 1).setPosition(s.x, Y + 0.75 * s.h + Math.abs(Math.sin(t * 5 + s.ph)) * 0.25, s.z); crowd.setMatrixAt(i, mtx); }
-    crowd.instanceMatrix.needsUpdate = true;
-  } });
+  // Crowd of dancing people (instanced body parts) — the camera flies over it
+  dancingCrowd(Z, zi, Y, MOBILE ? 90 : 200, [-9, 9], [-37, -12]);
   // Confetti
   const cn = MOBILE ? 160 : 420; const cpos = new Float32Array(cn * 3); const ccol = new Float32Array(cn * 3);
   const palette = [new THREE.Color(0xf0d787), new THREE.Color(0xff5a5f), new THREE.Color(0x4fc3ff), new THREE.Color(0xff9db0)];
@@ -1988,7 +2038,6 @@ function dressLive(ctx) {
     anims.push({ zone: zi, fn: (t) => { if (!REDUCED) c.position.y = Y + 3.2 + (i % 2) * 1.1 + Math.sin(t * 1.6 + i) * 0.15; } });
   });
   monolith(ctx, ctx.clusterX * 0.85, -24, "Real crowds. Real energy. Every night.", "5F ROOFTOP · LIVE", 4.2, 2.6);
-  dressRooftopDancers(ctx);
   doluruuSignals(ctx);
 }
 
