@@ -89,6 +89,8 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.song.singerPinyinPh': { en: 'Singer pinyin (optional)', zh: '歌手拼音（可选）', id: 'Pinyin penyanyi (opsional)' },
   'vn.song.spotifyPh': { en: 'Spotify link (optional)', zh: 'Spotify 链接（可选）', id: 'Tautan Spotify (opsional)' },
   'vn.song.sendRequest': { en: 'Send request', zh: '发送点歌', id: 'Kirim permintaan' },
+  'vn.song.queuePos': { en: "#{n} in queue", zh: "排队第 {n} 位", id: "Antrean ke-{n}" },
+  'vn.song.fairNote': { en: "Fair queue: everyone sings one song per round. Your extra songs wait behind other members' turns.", zh: "公平排队：每人每轮唱一首。你的其他歌曲会排在其他会员之后。", id: "Antrean adil: setiap orang menyanyi satu lagu per putaran. Lagu tambahanmu menunggu setelah giliran member lain." },
   'vn.song.noRequests': { en: "You haven't requested any songs yet.", zh: '你还没有点过歌。', id: 'Anda belum meminta lagu apa pun.' },
   'vn.song.confirmed': { en: 'Confirmed', zh: '已确认', id: 'Dikonfirmasi' },
   'vn.song.declined': { en: 'Declined', zh: '已拒绝', id: 'Ditolak' },

@@ -856,13 +856,21 @@ function SongRequests() {
   if (rows.length === 0) return <Empty text={t("admin.req.empty")} />;
   return (
     <div className="space-y-2">
+      <p className="text-xs text-white/50 px-1">{t("admin.req.fairNote")}</p>
       {rows.map((r) => (
         <Card key={r.id}>
-          <div className="flex items-center gap-3">
-            <Music2 className="w-5 h-5 text-amber-300 flex-shrink-0" />
-            <div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{r.title}</p><p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("admin.req.bySinger") : t("admin.req.self")} · {t("admin.c.userShort", { id: r.userId?.slice(0, 8) })}</p></div>
-            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.confirm")}</button>
-            <button onClick={() => { const comment = prompt(t("admin.req.rejectPrompt"), "") ?? undefined; act.mutate({ id: r.id, approve: false, comment }); }} className={btnDel}><X className="w-4 h-4" /> {t("admin.c.reject")}</button>
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm text-black" style={{ background: "linear-gradient(135deg,#c9a84c,#f0d787)" }}>#{r.position ?? "?"}</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate"><Music2 className="w-3.5 h-3.5 inline mr-1 text-amber-300" />{r.title}</p>
+              <p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("admin.req.bySinger") : t("admin.req.self")} · {t("admin.req.round", { n: (r.round ?? 0) + 1 })}</p>
+              <p className="text-xs text-amber-200/90 truncate">{r.requester?.name || r.requester?.username || t("admin.req.unknownUser")}{r.requester?.username && r.requester?.name ? ` (@${r.requester.username})` : ""}{r.requester?.phone ? ` · ${r.requester.phone}` : ""}</p>
+              <p className="text-[11px] text-white/50 font-mono break-all">{t("admin.req.userId", { id: r.userId })}</p>
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.confirm")}</button>
+                <button onClick={() => { const comment = prompt(t("admin.req.rejectPrompt"), "") ?? undefined; act.mutate({ id: r.id, approve: false, comment }); }} className={btnDel}><X className="w-4 h-4" /> {t("admin.c.reject")}</button>
+              </div>
+            </div>
           </div>
         </Card>
       ))}
