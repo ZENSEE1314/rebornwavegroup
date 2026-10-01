@@ -178,8 +178,33 @@ function HomeRedirect() {
   return null;
 }
 
+// Member pages opened while logged out (e.g. a table QR scanned with the phone
+// camera): send them to login / sign-up and come back to the same link after.
+const AFTER_LOGIN_KEY = "reborn.afterLogin";
+function LoginFirst() {
+  const to = window.location.pathname + window.location.search;
+  try { localStorage.setItem(AFTER_LOGIN_KEY, JSON.stringify({ to, at: Date.now() })); } catch {}
+  window.location.replace(`/login?next=${encodeURIComponent(to)}`);
+  return null;
+}
+function takeAfterLogin(): string | null {
+  try {
+    const raw = localStorage.getItem(AFTER_LOGIN_KEY);
+    if (!raw) return null;
+    localStorage.removeItem(AFTER_LOGIN_KEY);
+    const { to, at } = JSON.parse(raw);
+    return typeof to === "string" && to.startsWith("/") && !to.startsWith("//") && Date.now() - Number(at) < 60 * 60_000 ? to : null;
+  } catch { return null; }
+}
+
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  // Signed in (any way — password, sign-up, Google, Apple) after scanning a link → finish that link.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const to = takeAfterLogin();
+    if (to && window.location.pathname + window.location.search !== to) window.location.replace(to);
+  }, [isAuthenticated]);
   const { toast } = useToast();
   const bridgeXHost = /bridgexpos/i.test(window.location.hostname) || (import.meta.env.VITE_BRIDGEX_DOMAIN && window.location.hostname === import.meta.env.VITE_BRIDGEX_DOMAIN);
   const [brandLoc] = useLocation();
@@ -310,7 +335,10 @@ function Router() {
         <Route path="/t/:slug" component={TenantEntry} />
 
         {!isAuthenticated ? (
-          <Route path="/" component={bridgeXHost ? BridgeXLanding : HomeRedirect} />
+          <>
+            <Route path="/" component={bridgeXHost ? BridgeXLanding : HomeRedirect} />
+            {["/kos", "/songs", "/order", "/pet", "/bookings", "/chat", "/games", "/spin", "/bottles", "/profile", "/history"].map((p) => <Route key={p} path={p} component={LoginFirst} />)}
+          </>
         ) : (
           <>
             {/* New member dashboard is the home; full legacy app still at /complete-app */}
