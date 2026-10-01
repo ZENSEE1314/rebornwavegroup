@@ -211,7 +211,7 @@ export default function RebornKos() {
       {venueOpen && <Overlay onClose={() => setVenueOpen(false)}><VenueQr /></Overlay>}
       {modal === "buy" && <BuyModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} onTopup={() => navigate("/?topup=1")} />}
       {modal === "cashout" && <CashoutModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} />}
-      {showNotif && <GiftInbox notifs={notifs} onClose={() => { setShowNotif(false); apiRequest("POST", "/api/reborn/kos/notifications/seen").then(() => qc.invalidateQueries({ queryKey: ["/api/reborn/kos/notifications"] })); }} />}
+      {showNotif && <GiftInbox notifs={notifs} onClose={() => { setShowNotif(false); apiRequest("POST", "/api/reborn/kos/notifications/seen").then(() => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/notifications"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/badges"] }); }); }} />}
     </RebornLayout>
   );
 }

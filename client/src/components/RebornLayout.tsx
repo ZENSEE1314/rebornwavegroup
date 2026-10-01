@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { useFeatureState, featureForPath } from "@/lib/features";
 import {
   Home, PawPrint, Disc3, Headphones, X, Gift, Coins,
@@ -125,6 +126,13 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   };
   const go = (p: string) => navigate(p);
   useEffect(() => { installUiClicks(); }, []); // a soft tick on every button tap
+  // Red count badges on the dock: unread chats, unopened gifts, pet needs.
+  const { data: badges } = useQuery<{ chat: number; kos: number; pet: number }>({
+    queryKey: ["/api/reborn/badges"],
+    queryFn: () => apiRequest("GET", "/api/reborn/badges").then((r) => r.json()),
+    enabled: !!user && !hideNav, refetchInterval: 15000, refetchOnWindowFocus: true,
+  });
+  const badgeFor = (path: string) => (path === "/chat" ? badges?.chat : path === "/kos" ? badges?.kos : path === "/pet" ? badges?.pet : 0) || 0;
 
   return (
     <div className="rwg-app min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
@@ -163,6 +171,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
               return (
                 <button key={it.path} onClick={() => go(it.path)} disabled={!featuresLoaded && !!featureForPath(it.path)} className={`rwg-nav-item ${isActive ? "is-active" : ""} disabled:opacity-40`}>
                   <span className="rwg-nav-ic">{it.icon}</span>
+                  {badgeFor(it.path) > 0 && <span className="rwg-nav-badge" aria-label={t("nav.badge", { n: badgeFor(it.path) })}>{badgeFor(it.path) > 99 ? "99+" : badgeFor(it.path)}</span>}
                   <span className="rwg-nav-lbl">{t(it.tkey)}</span>
                 </button>
               );

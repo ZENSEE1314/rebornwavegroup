@@ -1279,12 +1279,40 @@ export function registerRebornRoutes(app: Express) {
       const umap = Object.fromEntries(userRows.map((u) => [u.id, u]));
       const messages = otherIds.length ? await db.select().from(chatMessages).where(or(and(eq(chatMessages.senderId, me), inArray(chatMessages.receiverId, otherIds)), and(eq(chatMessages.receiverId, me), inArray(chatMessages.senderId, otherIds)))).orderBy(desc(chatMessages.createdAt)) : [];
       const latest = new Map<string, any>();
-      for (const message of messages) { const oid = message.senderId === me ? message.receiverId : message.senderId; if (!latest.has(oid)) latest.set(oid, message); }
-      const friends = all.filter((f) => f.status === "accepted").map((f) => { const oid = f.requesterId === me ? f.addresseeId : f.requesterId; return { friendshipId: f.id, user: umap[oid] || { id: oid }, lastMessage: latest.get(oid) || null }; }).sort((a, b) => new Date(b.lastMessage?.createdAt || 0).getTime() - new Date(a.lastMessage?.createdAt || 0).getTime());
+      const unread = new Map<string, number>();
+      for (const message of messages) {
+        const oid = message.senderId === me ? message.receiverId : message.senderId; if (!latest.has(oid)) latest.set(oid, message);
+        if (message.receiverId === me && !message.isRead) unread.set(oid, (unread.get(oid) || 0) + 1);
+      }
+      const friends = all.filter((f) => f.status === "accepted").map((f) => { const oid = f.requesterId === me ? f.addresseeId : f.requesterId; return { friendshipId: f.id, user: umap[oid] || { id: oid }, lastMessage: latest.get(oid) || null, unread: unread.get(oid) || 0 }; }).sort((a, b) => new Date(b.lastMessage?.createdAt || 0).getTime() - new Date(a.lastMessage?.createdAt || 0).getTime());
       const incoming = all.filter((f) => f.status === "pending" && f.addresseeId === me).map((f) => ({ friendshipId: f.id, user: umap[f.requesterId] || { id: f.requesterId } }));
       const outgoing = all.filter((f) => f.status === "pending" && f.requesterId === me).map((f) => ({ friendshipId: f.id, user: umap[f.addresseeId] || { id: f.addresseeId } }));
       res.json({ friends, incoming, outgoing });
     } catch (e) { console.error("chat friends", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
+  });
+
+  // Counts for the badges on the bottom menu: unread chats (+ friend requests),
+  // gifts not yet opened on KOS, and things the member's pets need right now.
+  app.get("/api/reborn/badges", requireAuth, async (req, res) => {
+    try {
+      const me = getUserId(req)!;
+      const friendRows = await db.select().from(friendships).where(and(eq(friendships.status, "accepted"), or(eq(friendships.requesterId, me), eq(friendships.addresseeId, me))));
+      const friendIds = friendRows.map((f) => (f.requesterId === me ? f.addresseeId : f.requesterId));
+      const [{ n: msgs }] = friendIds.length
+        ? await db.select({ n: sql<number>`count(*)::int` }).from(chatMessages).where(and(eq(chatMessages.receiverId, me), eq(chatMessages.isRead, false), inArray(chatMessages.senderId, friendIds)))
+        : [{ n: 0 }];
+      const [{ n: requests }] = await db.select({ n: sql<number>`count(*)::int` }).from(friendships).where(and(eq(friendships.addresseeId, me), eq(friendships.status, "pending")));
+      const [{ n: gifts }] = await db.select({ n: sql<number>`count(*)::int` }).from(kosGifts).where(and(eq(kosGifts.companyId, await rebornCompanyId(req)), eq(kosGifts.toUserId, me), eq(kosGifts.seen, false)));
+      let pet = 0;
+      for (const p of await db.select().from(pets).where(and(eq(pets.userId, me), eq(pets.isActive, true)))) {
+        const v: any = petView(await refreshPet(p));
+        if (v.isEgg || v.lifeStatus === "dead") continue;
+        if (v.lifeStatus === "sick") { pet++; continue; }
+        const low = (k: string, at: number) => Number(v[k] ?? 100) < at;
+        pet += [low("hunger", 40), low("happiness", 40), low("cleanliness", 40), !v.isSleeping && low("energy", 20)].filter(Boolean).length;
+      }
+      res.json({ chat: Number(msgs) + Number(requests), kos: Number(gifts), pet });
+    } catch (e) { console.error("badges", e); res.json({ chat: 0, kos: 0, pet: 0 }); }
   });
 
   async function areFriends(a: string, b: string) {
