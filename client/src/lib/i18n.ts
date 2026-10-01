@@ -25,6 +25,7 @@ export const translations: Translations = {
   'nav.pet': { en: 'Pet', zh: '宠物', id: 'Peliharaan' },
   'nav.kos': { en: 'KOS', zh: '歌王', id: 'KOS' },
   'nav.chat': { en: 'Chat', zh: '聊天', id: 'Obrolan' },
+  'nav.badge': { en: '{n} new', zh: '{n} 条新通知', id: '{n} baru' },
   'nav.menu': { en: 'Menu', zh: '菜单', id: 'Menu' },
   'nav.order': { en: 'Order to Table', zh: '点餐到桌', id: 'Pesan ke Meja' },
   'nav.spin': { en: 'Spin & Win', zh: '转盘抽奖', id: 'Putar & Menang' },

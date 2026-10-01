@@ -92,6 +92,7 @@ export default function RebornPet() {
     qc.invalidateQueries({ queryKey: ["/api/reborn/pets"] });
     qc.invalidateQueries({ queryKey: ["/api/reborn/pills"] });
     qc.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    qc.invalidateQueries({ queryKey: ["/api/reborn/badges"] }); // care given → fewer pet alerts
   };
 
   const activate = useMutation({

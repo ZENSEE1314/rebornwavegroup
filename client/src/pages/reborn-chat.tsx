@@ -66,7 +66,9 @@ export default function RebornChat() {
           <button key={f.friendshipId} onClick={() => setActive(f)} className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-left">
             <Avatar u={f.user} />
             <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{nameOf(f.user)}</span><span className="block text-xs text-white/45 truncate">{f.lastMessage?.content || t("vn.chat.startConvo")}</span></span>
-            <MessageCircle className="w-5 h-5 text-white/40" />
+            {f.unread > 0
+              ? <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-rose-600 text-white text-xs font-black flex items-center justify-center" aria-label={t("nav.badge", { n: f.unread })}>{f.unread > 99 ? "99+" : f.unread}</span>
+              : <MessageCircle className="w-5 h-5 text-white/40" />}
           </button>
         ))}
       </div>
@@ -94,7 +96,10 @@ function ChatThread({ friend, onBack }: any) {
   const key = ["/api/reborn/chat/messages", friend.id];
   const { data: msgs = [] } = useQuery<any[]>({
     queryKey: key,
-    queryFn: () => apiRequest("GET", `/api/reborn/chat/messages/${friend.id}`).then((r) => r.json()),
+    // reading the thread marks it read, so refresh the friend list and the dock badge
+    queryFn: () => apiRequest("GET", `/api/reborn/chat/messages/${friend.id}`).then((r) => r.json()).finally(() => {
+      qc.invalidateQueries({ queryKey: ["/api/reborn/badges"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/chat/friends"] });
+    }),
     refetchInterval: 5000,
   });
   const send = useMutation({
