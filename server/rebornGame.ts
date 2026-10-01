@@ -65,7 +65,8 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
   bookingTableDayLock: "false", // a table booked at any time is closed for the rest of that day
   bookingAskHours: "true",      // ask guests how many hours they'll stay (off → default 2 hours)
-  bookingAskSpecial: "true",    // ask guests for a special request (birthday, company event, note)
+  bookingAskSpecial: "true",
+  bookingLastTime: "",          // "HH:MM" — no booking start times from this time onward (areas can override)    // ask guests for a special request (birthday, company event, note)
   appAndroidUrl: "https://expo.dev/artifacts/eas/0YiA8OVhLT7Ri54Uvn0Xe9j8x1aH_w84jTMgSmqiHts.apk", // where /download/android sends people (EAS build 16, expires 2026-10-14; admin Settings override)
   appIosUrl: "",                // where /download/ios sends people (App Store / TestFlight link)
 };
@@ -109,6 +110,7 @@ async function getSettings() {
     bookingTableDayLock: map.bookingTableDayLock === "true",
     bookingAskHours: map.bookingAskHours !== "false",
     bookingAskSpecial: map.bookingAskSpecial !== "false",
+    bookingLastTime: map.bookingLastTime || "",
     appAndroidUrl: map.appAndroidUrl || SETTINGS_DEFAULTS.appAndroidUrl,
     appIosUrl: map.appIosUrl || SETTINGS_DEFAULTS.appIosUrl,
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
@@ -643,7 +645,7 @@ export function registerRebornRoutes(app: Express) {
     res.json({ disabled: list, message: tr(req, { en: "Saved", zh: "已保存", id: "Tersimpan" }) });
   }));
   // Apply the club's saved timezone to booking/reminder time math at boot.
-  getSettings().then((s) => { setBookingTimezone(s.timezone); setBookingRules({ tableDayLock: s.bookingTableDayLock }); }).catch(() => {});
+  getSettings().then((s) => { setBookingTimezone(s.timezone); setBookingRules({ tableDayLock: s.bookingTableDayLock, lastBooking: s.bookingLastTime }); }).catch(() => {});
 
   // ── Pets ────────────────────────────────────────────────────────────────
   app.get("/api/reborn/pets", requireAuth, async (req, res) => {
@@ -1657,7 +1659,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "appAndroidUrl", "appIosUrl"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -1678,6 +1680,7 @@ export function registerRebornRoutes(app: Express) {
     }
     if (req.body?.timezone !== undefined) setBookingTimezone(String(req.body.timezone));
     if (req.body?.bookingTableDayLock !== undefined) setBookingRules({ tableDayLock: String(req.body.bookingTableDayLock) === "true" });
+    if (req.body?.bookingLastTime !== undefined) setBookingRules({ lastBooking: String(req.body.bookingLastTime || "") });
     res.json(await getSettings());
   }));
   // Prize pool status + manual adjust (top-up or set).

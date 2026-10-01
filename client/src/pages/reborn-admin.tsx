@@ -633,6 +633,10 @@ function Settings() {
         <label className="mt-3 flex items-start gap-2 rounded-xl border border-white/10 p-3 text-sm"><input className="mt-1" type="checkbox" checked={cur.bookingTableDayLock === true} onChange={(e) => setStr("bookingTableDayLock", e.target.checked)} /><span>{t("admin.bk.dayLock")}<span className="block text-[11px] text-white/40">{t("admin.bk.dayLockHint")}</span></span></label>
         <label className="mt-2 flex items-start gap-2 rounded-xl border border-white/10 p-3 text-sm"><input className="mt-1" type="checkbox" checked={cur.bookingAskHours !== false} onChange={(e) => setStr("bookingAskHours", e.target.checked)} /><span>{t("admin.bk.askHours")}<span className="block text-[11px] text-white/40">{t("admin.bk.askHoursHint")}</span></span></label>
         <label className="mt-2 flex items-start gap-2 rounded-xl border border-white/10 p-3 text-sm"><input className="mt-1" type="checkbox" checked={cur.bookingAskSpecial !== false} onChange={(e) => setStr("bookingAskSpecial", e.target.checked)} /><span>{t("admin.bk.askSpecial")}<span className="block text-[11px] text-white/40">{t("admin.bk.askSpecialHint")}</span></span></label>
+        <label className="mt-2 block rounded-xl border border-white/10 p-3 text-sm"><span>{t("admin.bk.lastTime")}</span>
+          <span className="flex items-center gap-2 mt-1.5"><input type="time" value={cur.bookingLastTime || ""} onChange={(e) => setStr("bookingLastTime", e.target.value)} className={inp + " w-40"} style={{ colorScheme: "dark" }} />
+            {cur.bookingLastTime && <button type="button" onClick={() => setStr("bookingLastTime", "")} className="text-xs text-white/50 underline">{t("admin.bk.lastTimeClear")}</button>}</span>
+          <span className="block text-[11px] text-white/40 mt-1">{t("admin.bk.lastTimeHint")}</span></label>
         <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">{t("admin.area.note")}</span><input value={cur.bookingNote || ""} onChange={(e) => setStr("bookingNote", e.target.value)} className={inp + " w-full"} /></label>
         <button onClick={()=>save.mutate()} disabled={save.isPending} className={btn+" mt-3 w-full justify-center"}>{save.isPending?t("admin.c.saving"):t("admin.area.save")}</button>
       </Card>
@@ -734,6 +738,7 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
             <label className="text-[11px] text-white/50">{t("admin.area.open")}<input type="time" value={a.open || ""} onChange={(e) => upd(i, { open: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
             <label className="text-[11px] text-white/50">{t("admin.area.close")}<input type="time" value={a.close || ""} onChange={(e) => upd(i, { close: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
           </div>
+          <label className="text-[11px] text-white/50 block mb-2">{t("admin.area.lastBooking")}<input type="time" value={a.lastBooking || ""} onChange={(e) => upd(i, { lastBooking: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
           <p className="text-[10px] text-white/35 mb-2">{t("admin.area.defaultHint")}</p>
           <WeeklySchedule area={a} onChange={(schedule: any) => upd(i, { schedule })} />
           <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder={t("admin.area.tables")} className={inp + " w-full mb-2 mt-2"} />
