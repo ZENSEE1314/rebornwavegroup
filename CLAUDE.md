@@ -33,3 +33,15 @@ text.
   the booking. When off, the question is skipped.
 - `bookingLastTime` (and an area's own `lastBooking`) — no booking start times
   from that time onward, in the app and WhatsApp.
+
+## KOS check-in + song queue set by the admin
+
+- Every table has a fixed QR (`/kos?table=T&k=SIG`, admin: KOS → Venue QR →
+  Table QR codes). Scanning checks the member in to KOS at that table; any
+  number of people per table. A confirmed table booking checks the member in at
+  that table automatically (from 2h before until it ends). The venue day runs
+  08:00 → 08:00 WIB; at 8am everyone is checked out.
+- The checked-in table pre-fills the member's order table.
+- `songQueueMode` (`user` | `table`) and `songsPerTurn` (1–3) — the song queue
+  gives each member/table that many songs per turn, first come first served;
+  extra songs wait for the next round (`fairSongQueue` in server/rebornGame.ts).

@@ -58,6 +58,8 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   spinAssumedBill: "500000", // representative bill used to estimate a %-voucher's pool cost
   mainAdminPassword: "",    // required to run the "reset numbers" action (set by the main admin)
   songRequestModeEnabled: "true",
+  songQueueMode: "user",    // song turns go per member ("user") or per checked-in table ("table")
+  songsPerTurn: "1",        // songs each member/table sings per turn (1–3)
   timezone: "Asia/Jakarta", // club country timezone — booking slots, "today" and WhatsApp reminders use this
   bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
   payrollDay: "1",          // day of month payroll is recorded/paid
@@ -102,6 +104,8 @@ async function getSettings() {
     spinAssumedBill: Math.max(0, Number(map.spinAssumedBill) || 500000),
     mainAdminPassword: map.mainAdminPassword || "",
     songRequestModeEnabled: map.songRequestModeEnabled !== "false",
+    songQueueMode: map.songQueueMode === "table" ? "table" : "user",
+    songsPerTurn: Math.min(3, Math.max(1, Math.floor(Number(map.songsPerTurn) || 1))),
     timezone: map.timezone || "Asia/Jakarta",
     bottleExpiryDays: Math.max(1, Number(map.bottleExpiryDays) || 90),
     payrollDay: Math.min(28, Math.max(1, Number(map.payrollDay) || 1)),
@@ -228,12 +232,16 @@ async function rotateAttendCode(): Promise<string> {
   return code;
 }
 
+// The venue day runs 08:00 → 08:00 (WIB); at 8am everyone is checked out.
+const VENUE_DAY_START_HOUR = 8;
 async function ensureVenueSession(rotate = false) {
-  const day = wibDay();
+  const day = wibDay(new Date(Date.now() - VENUE_DAY_START_HOUR * 3600_000));
   const rows = await db.select().from(appSettings).where(inArray(appSettings.key, ["venueSessionDay", "venueSessionCode"]));
   const values = Object.fromEntries(rows.map((row) => [row.key, row.value || ""]));
   let code = values.venueSessionCode;
   if (rotate || values.venueSessionDay !== day || !code) {
+    // New venue day (8am): everyone from earlier days is checked out of KOS.
+    if (values.venueSessionDay !== day) await db.update(venueCheckins).set({ checkedOutAt: new Date() }).where(and(sql`${venueCheckins.venueDay} <> ${day}`, sql`${venueCheckins.checkedOutAt} IS NULL`));
     code = randomVenueCode();
     for (const [key, value] of [["venueSessionDay", day], ["venueSessionCode", code]]) {
       await db.insert(appSettings).values({ key, value, updatedAt: new Date() })
@@ -615,27 +623,106 @@ const FEATURE_API: Array<[string, RegExp]> = [
   ["support", /^\/api\/reborn\/support\/ask/],
 ];
 
-// Fair song queue: each member gets one turn per round, so someone with many
-// requests can't hog the mic. A member's round = songs of theirs already
-// confirmed tonight + the order of this request among their pending ones.
-// A1 A2 A3 then B1 → A1 B1 A2 A3; if nobody else is waiting A's songs run back
-// to back, and a newcomer slots in right after the current round.
+// Fair song queue. The admin picks who takes turns — each member ("user") or
+// each table ("table", from the table QR / booking check-in) — and how many
+// songs a turn is (1–3). A group's round = floor((songs it already had
+// confirmed this venue day + this request's place among its pending ones) /
+// songs per turn). Rounds go first come, first served: within a round the
+// group that asked first sings first, and all its songs for that turn go
+// together. A1 A2 A3 then B1 with 2 per turn → A1 A2 B1 A3.
 async function fairSongQueue(cid: number | null) {
   const where = cid == null ? eq(songRequests.status, "pending") : and(eq(songRequests.companyId, cid), eq(songRequests.status, "pending"));
   const pending = await db.select().from(songRequests).where(where).orderBy(songRequests.createdAt, songRequests.id).limit(300);
-  if (!pending.length) return [] as (typeof pending[number] & { position: number; round: number })[];
-  const since = new Date(Date.now() - 12 * 3600 * 1000);
+  type Q = typeof pending[number] & { position: number; round: number; table: string | null; group: string };
+  if (!pending.length) return [] as Q[];
+  const s = await getSettings();
+  const byTable = s.songQueueMode === "table";
+  const perTurn = s.songsPerTurn;
+  const session = await ensureVenueSession();
+  const since = venueDayStart(session.day);
   const ids = Array.from(new Set(pending.map((r) => r.userId)));
-  const doneWhere = and(inArray(songRequests.userId, ids), eq(songRequests.status, "confirmed"), sql`${songRequests.confirmedAt} >= ${since}`, ...(cid == null ? [] : [eq(songRequests.companyId, cid)]));
-  const done = await db.select({ userId: songRequests.userId, n: sql<number>`count(*)::int` }).from(songRequests).where(doneWhere).groupBy(songRequests.userId);
-  const sung = new Map(done.map((d) => [d.userId, Number(d.n) || 0]));
+  // Where each requester is sitting right now (falls back to the table saved on the request).
+  const seats = await db.select({ userId: venueCheckins.userId, table: venueCheckins.tableLabel }).from(venueCheckins)
+    .where(and(inArray(venueCheckins.userId, ids), eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`));
+  const seatOf = new Map(seats.map((x) => [x.userId, x.table || null]));
+  const tableOf = (r: { userId: string; tableLabel: string | null }) => seatOf.get(r.userId) || r.tableLabel || null;
+  const groupOf = (userId: string, table: string | null) => (byTable && table ? `t:${table}` : `u:${userId}`);
+  const doneWhere = and(eq(songRequests.status, "confirmed"), sql`${songRequests.confirmedAt} >= ${since}`, ...(cid == null ? [] : [eq(songRequests.companyId, cid)]));
+  const done = await db.select({ userId: songRequests.userId, table: songRequests.tableLabel }).from(songRequests).where(doneWhere).limit(2000);
+  const sung = new Map<string, number>();
+  for (const d of done) { const g = groupOf(d.userId, d.table); sung.set(g, (sung.get(g) || 0) + 1); }
   const seen = new Map<string, number>();
   const ranked = pending.map((r, i) => {
-    const k = seen.get(r.userId) || 0; seen.set(r.userId, k + 1);
-    return { ...r, round: (sung.get(r.userId) || 0) + k, order: i };
+    const table = tableOf(r); const group = groupOf(r.userId, table);
+    const k = seen.get(group) || 0; seen.set(group, k + 1);
+    return { ...r, table, group, round: Math.floor(((sung.get(group) || 0) + k) / perTurn), order: i };
   });
-  ranked.sort((a, b) => a.round - b.round || a.order - b.order);
-  return ranked.map(({ order, ...r }, i) => ({ ...r, position: i + 1 }));
+  // When a group first asked within each round — that decides who goes first.
+  const firstAsk = new Map<string, number>();
+  for (const r of ranked) { const key = `${r.round}|${r.group}`; if (!firstAsk.has(key)) firstAsk.set(key, r.order); }
+  ranked.sort((a, b) => a.round - b.round || firstAsk.get(`${a.round}|${a.group}`)! - firstAsk.get(`${b.round}|${b.group}`)! || a.order - b.order);
+  return ranked.map(({ order, ...r }, i) => ({ ...r, position: i + 1 })) as Q[];
+}
+
+// ── Venue day + table check-in ──────────────────────────────────────────────
+function venueDayStart(day: string): Date { return new Date(`${day}T${String(VENUE_DAY_START_HOUR - 7).padStart(2, "0")}:00:00Z`); }
+// Every table gets one fixed QR (it never changes, so it can be printed and
+// stuck on the table). The signature stops people guessing other tables.
+async function tableQrSecret(): Promise<string> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "tableQrSecret"));
+  if (row?.value) return row.value;
+  const v = randomVenueCode() + randomVenueCode() + randomVenueCode();
+  await db.insert(appSettings).values({ key: "tableQrSecret", value: v, updatedAt: new Date() }).onConflictDoNothing();
+  const [again] = await db.select().from(appSettings).where(eq(appSettings.key, "tableQrSecret"));
+  return again?.value || v;
+}
+async function tableSig(label: string): Promise<string> {
+  const { createHmac } = await import("crypto");
+  return createHmac("sha256", await tableQrSecret()).update(label).digest("base64url").slice(0, 10);
+}
+// All tables set up in the booking areas (label + area name).
+async function venueTables(): Promise<{ label: string; area: string }[]> {
+  const s = await getSettings();
+  const out: { label: string; area: string }[] = []; const seen = new Set<string>();
+  for (const a of enabledAreas(s.bookingAreas)) for (const t of a.tables) if (!seen.has(t)) { seen.add(t); out.push({ label: t, area: a.name }); }
+  return out;
+}
+// The table a booking is for ("KTV Lounge (Level 1) · Table V1" → "V1").
+function bookingTable(title?: string | null): string | null {
+  const m = /·\s*Table\s+(.+)$/.exec(String(title || ""));
+  return m ? m[1].trim() : null;
+}
+async function venueCheckIn(userId: string, table: string | null) {
+  const session = await ensureVenueSession();
+  const company = await rebornCompany();
+  const [row] = await db.insert(venueCheckins).values({ companyId: company?.id || null, userId, venueDay: session.day, sessionCode: session.code, tableLabel: table, checkedInAt: new Date(), checkedOutAt: null })
+    .onConflictDoUpdate({ target: [venueCheckins.venueDay, venueCheckins.userId], set: { companyId: company?.id || null, sessionCode: session.code, ...(table ? { tableLabel: table } : {}), checkedInAt: new Date(), checkedOutAt: null } }).returning();
+  emitLiveUpdate("kos", { type: "venue_checkin", userId });
+  return row;
+}
+// A member whose table booking is confirmed is checked in to KOS at that table
+// automatically from 2 hours before the booking until it ends — no scan needed.
+async function autoCheckinFromBooking(userId: string) {
+  const now = Date.now();
+  const rows = await db.select({ title: appointments.title, at: appointments.appointmentDate, duration: appointments.duration }).from(appointments)
+    .where(and(eq(appointments.userId, userId), eq(appointments.status, "confirmed"), sql`${appointments.appointmentDate} BETWEEN ${new Date(now - 12 * 3600_000)} AND ${new Date(now + 2 * 3600_000)}`))
+    .orderBy(desc(appointments.appointmentDate)).limit(5);
+  const hit = rows.find((r) => bookingTable(r.title) && new Date(r.at).getTime() + (r.duration || 120) * 60_000 > now);
+  if (!hit) return null;
+  const table = bookingTable(hit.title)!;
+  const session = await ensureVenueSession();
+  const [cur] = await db.select().from(venueCheckins).where(and(eq(venueCheckins.userId, userId), eq(venueCheckins.venueDay, session.day))).limit(1);
+  // Respect a manual check-out / table scan already made today.
+  if (cur && (cur.tableLabel || cur.checkedOutAt)) return cur.checkedOutAt ? null : cur;
+  return venueCheckIn(userId, table);
+}
+// The member's live check-in for today (auto check-in from their booking first).
+async function activeCheckin(userId: string) {
+  const session = await ensureVenueSession();
+  const find = async () => (await db.select().from(venueCheckins).where(and(eq(venueCheckins.userId, userId), eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`)).limit(1))[0] || null;
+  const row = await find();
+  if (row?.tableLabel) return row;
+  return (await autoCheckinFromBooking(userId).catch(() => null)) ? await find() : row;
 }
 
 export function registerRebornRoutes(app: Express) {
@@ -1210,19 +1297,38 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/venue/status", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     const session = await ensureVenueSession();
-    const [row] = await db.select().from(venueCheckins).where(and(eq(venueCheckins.userId, userId), eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`)).limit(1);
-    res.json({ checkedIn: !!row, day: session.day, checkedInAt: row?.checkedInAt || null });
+    const row = await activeCheckin(userId);
+    res.json({ checkedIn: !!row, day: session.day, checkedInAt: row?.checkedInAt || null, table: row?.tableLabel || null });
   });
   app.post("/api/reborn/venue/checkin", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
+    // Table QR (fixed, printed on each table): checks in and seats you at that table.
+    const table = String(req.body?.table || "").trim();
+    if (table) {
+      if (String(req.body?.k || "") !== await tableSig(table)) return res.status(400).json({ message: tr(req, { en: "This table QR isn't valid. Ask staff for help.", zh: "此桌位二维码无效，请联系员工。", id: "QR meja ini tidak valid. Minta bantuan staf." }) });
+      const row = await venueCheckIn(userId, table);
+      return res.json({ message: tr(req, { en: "Checked in at table {t}. You now appear in Kings of Singers.", zh: "已在 {t} 号桌签到！你已出现在歌王之王中。", id: "Berhasil check-in di meja {t}. Kamu sekarang tampil di Raja Penyanyi." }, { t: table }), checkin: row, table });
+    }
     const session = await ensureVenueSession();
     if (String(req.body?.code || "").trim().toUpperCase() !== session.code) return res.status(400).json({ message: tr(req, { en: "This venue QR has expired. Scan today's QR.", zh: "此场地二维码已过期，请扫描今天的二维码。", id: "QR tempat ini sudah kedaluwarsa. Pindai QR hari ini." }) });
-    const company = await rebornCompany();
-    const [row] = await db.insert(venueCheckins).values({ companyId: company?.id || null, userId, venueDay: session.day, sessionCode: session.code, checkedInAt: new Date(), checkedOutAt: null })
-      .onConflictDoUpdate({ target: [venueCheckins.venueDay, venueCheckins.userId], set: { companyId: company?.id || null, sessionCode: session.code, checkedInAt: new Date(), checkedOutAt: null } }).returning();
-    emitLiveUpdate("kos", { type: "venue_checkin", userId });
-    res.json({ message: tr(req, { en: "Checked in. You now appear in Kings of Singers.", zh: "签到成功！你已出现在歌王之王中。", id: "Berhasil check-in. Kamu sekarang tampil di Raja Penyanyi." }), checkin: row });
+    const row = await venueCheckIn(userId, null);
+    res.json({ message: tr(req, { en: "Checked in. You now appear in Kings of Singers.", zh: "签到成功！你已出现在歌王之王中。", id: "Berhasil check-in. Kamu sekarang tampil di Raja Penyanyi." }), checkin: row, table: row?.tableLabel || null });
   });
+  // Admin: the fixed QR for every table (print once, stick on the table).
+  app.get("/api/reborn/admin/venue/tables", requireAdmin(async (req, res) => {
+    const host = `${req.protocol}://${req.get("host")}`;
+    const session = await ensureVenueSession();
+    const seated = await db.select({ table: venueCheckins.tableLabel, n: sql<number>`count(*)::int` }).from(venueCheckins)
+      .where(and(eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`, isNotNull(venueCheckins.tableLabel))).groupBy(venueCheckins.tableLabel);
+    const count = new Map(seated.map((x) => [x.table, Number(x.n) || 0]));
+    const out = [];
+    for (const t of await venueTables()) {
+      const link = `${host}/kos?table=${encodeURIComponent(t.label)}&k=${await tableSig(t.label)}`;
+      const svg = await QRCode.toString(link, { type: "svg", width: 360, margin: 1, color: { dark: "#120b20", light: "#ffffff" } });
+      out.push({ ...t, link, svg, checkedIn: count.get(t.label) || 0 });
+    }
+    res.json(out);
+  }));
   app.get("/api/reborn/admin/venue/session", requireAdmin(async (req, res) => {
     const session = await ensureVenueSession();
     const [count] = await db.select({ count: sql<number>`count(*)` }).from(venueCheckins).where(and(eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`));
@@ -1476,7 +1582,8 @@ export function registerRebornRoutes(app: Express) {
         }
         songId = song.id;
       }
-      const [reqRow] = await db.insert(songRequests).values({ companyId: await rebornCompanyId(req), userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, status: "pending" }).returning();
+      const seat = await activeCheckin(userId).catch(() => null);
+      const [reqRow] = await db.insert(songRequests).values({ companyId: await rebornCompanyId(req), userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, tableLabel: seat?.tableLabel || null, status: "pending" }).returning();
       await notifyStaffI18n("song_request", (lang) => ({
         title: pick(lang, { en: "New app song request", zh: "新的应用点歌请求", id: "Permintaan lagu baru dari aplikasi" }),
         body: `${song.title}${song.artist ? ` - ${song.artist}` : ""} · ${performanceMode === "singer" ? pick(lang, { en: "By singer", zh: "歌手演唱", id: "Dinyanyikan penyanyi" }) : pick(lang, { en: "Self sing", zh: "自己唱", id: "Nyanyi sendiri" })}`,
@@ -1641,11 +1748,17 @@ export function registerRebornRoutes(app: Express) {
       return { ...r, requester: { id: r.userId, username: u?.username || "", name, phone: u?.phone || "" } };
     }));
   }));
+  app.get("/api/reborn/song-queue-info", requireAuth, async (_req, res) => {
+    const s = await getSettings();
+    res.json({ mode: s.songQueueMode, perTurn: s.songsPerTurn });
+  });
   app.post("/api/reborn/admin/song-requests/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const approve = req.body?.approve !== false;
     const comment = String(req.body?.comment || "").trim() || null;
-    const [row] = await db.update(songRequests).set({ status: approve ? "confirmed" : "rejected", confirmedAt: new Date(), adminId, adminNote: comment }).where(eq(songRequests.id, Number(req.params.id))).returning();
+    const [prev] = await db.select({ userId: songRequests.userId, tableLabel: songRequests.tableLabel }).from(songRequests).where(eq(songRequests.id, Number(req.params.id))).limit(1);
+    const seat = prev ? await activeCheckin(prev.userId).catch(() => null) : null;
+    const [row] = await db.update(songRequests).set({ status: approve ? "confirmed" : "rejected", confirmedAt: new Date(), adminId, adminNote: comment, tableLabel: seat?.tableLabel || prev?.tableLabel || null }).where(eq(songRequests.id, Number(req.params.id))).returning();
     await logAdmin(req, { targetUserId: row?.userId, targetType: "song_request", targetId: req.params.id, action: approve ? "approve" : "reject", entityType: "song_request", description: `${approve ? "Confirmed" : "Rejected"} song "${row?.title}"${comment ? ` (${comment})` : ""}` });
     await notifyUserI18n(row?.userId, "song_request_update", (lang) => ({
       title: approve ? pick(lang, { en: "Song request confirmed", zh: "点歌已确认", id: "Permintaan lagu dikonfirmasi" }) : pick(lang, { en: "Song request update", zh: "点歌请求有更新", id: "Kabar permintaan lagu" }),
@@ -1733,7 +1846,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -2369,7 +2482,7 @@ export function registerRebornRoutes(app: Express) {
   // Member orders from the app — merges into their table's open ticket (or opens one).
   app.post("/api/reborn/shop/order", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
-    const tableNumber = String(req.body?.tableNumber || "").trim();
+    const tableNumber = String(req.body?.tableNumber || "").trim() || (await activeCheckin(getUserId(req)!).catch(() => null))?.tableLabel || "";
     if (!tableNumber) return res.status(400).json({ message: tr(req, { en: "Enter your table number", zh: "请输入你的桌号", id: "Masukkan nomor mejamu" }) });
     const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
     if (error) return res.status(400).json({ message: error });
@@ -3203,6 +3316,8 @@ export function registerRebornRoutes(app: Express) {
     const note = String(req.body?.note || "").trim() || undefined;
     const [row] = await db.update(appointments).set({ status, ...(note ? { adminNote: note } : {}), updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
+    // A confirmed table booking checks the member in to KOS at that table (from 2h before).
+    if (status === "confirmed" && row.userId) await autoCheckinFromBooking(row.userId).catch((e) => console.warn("auto check-in", e));
     // Tell the member on WhatsApp when a booking is confirmed or rejected.
     if ((status === "confirmed" || status === "cancelled") && row.userId) {
       const phone = await memberWaPhone(row.userId);
