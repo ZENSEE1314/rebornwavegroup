@@ -1186,6 +1186,299 @@ function monolith(ctx, x, z, quote, sub, w = 4.6, h = 3) {
 
 // 1F — open KTV lounge + game house: KOS (earn K-GOLD), tokens, spin, blind box,
 // arcade games, pool and darts. The whole party floor.
+// ── People: low-poly guests and waitresses that walk, sing, sit and party ──
+const PERSON_MATS = new Map();
+const pmat = (color, opts = {}) => {
+  const key = `${color}|${opts.emissive || 0}`;
+  if (!PERSON_MATS.has(key)) PERSON_MATS.set(key, new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, ...opts }));
+  return PERSON_MATS.get(key);
+};
+const PERSON_GEO = {
+  leg: (() => { const g = new THREE.CylinderGeometry(0.085, 0.075, 0.82, 8); g.translate(0, -0.41, 0); return g; })(),
+  arm: (() => { const g = new THREE.CylinderGeometry(0.06, 0.05, 0.62, 8); g.translate(0, -0.31, 0); return g; })(),
+  torso: new THREE.CylinderGeometry(0.2, 0.16, 0.62, 10),
+  skirt: new THREE.CylinderGeometry(0.17, 0.32, 0.55, 12),
+  head: new THREE.SphereGeometry(0.14, 12, 10),
+  hair: new THREE.SphereGeometry(0.155, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55),
+  bun: new THREE.SphereGeometry(0.08, 8, 6),
+  long: new THREE.BoxGeometry(0.26, 0.38, 0.08),
+  shoe: new THREE.BoxGeometry(0.11, 0.06, 0.2),
+  mic: new THREE.CylinderGeometry(0.025, 0.018, 0.2, 6),
+  micHead: new THREE.SphereGeometry(0.04, 8, 6),
+};
+const SKINS = [0xf1c9a5, 0xe0ac82, 0xc68c5d, 0x8d5a3b, 0xf6d7bd];
+const HAIRS = [0x1a1210, 0x3b2416, 0x0c0c0c, 0x6b4423, 0xc9a25a];
+const OUTFITS = [0xc04dff, 0xff4fa3, 0x4fc3ff, 0xffd23f, 0x7ee081, 0xf4f1ea, 0x222233, 0xff7a3d, 0x3a6bff];
+// A person ~1.75 tall standing at the origin, facing +z. Parts are exposed for posing.
+function makePerson({ outfit = 0xc04dff, skin = SKINS[0], hair = HAIRS[0], dress = false, longHair = false, legs = 0x22222c, apron = false } = {}) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const hips = 0.88;
+  const mk = (geo, mat, x, y, z, parent = body) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  const leg = (sx) => { const p = new THREE.Group(); p.position.set(sx * 0.1, hips, 0); body.add(p); mk(PERSON_GEO.leg, pmat(dress ? skin : legs), 0, 0, 0, p); mk(PERSON_GEO.shoe, pmat(0x111111), 0, -0.82, 0.04, p); return p; };
+  const legL = leg(-1), legR = leg(1);
+  mk(PERSON_GEO.torso, pmat(outfit), 0, hips + 0.33, 0);
+  if (dress) mk(PERSON_GEO.skirt, pmat(outfit), 0, hips - 0.1, 0);
+  if (apron) { const a = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.5), pmat(0xffffff)); a.position.set(0, hips - 0.02, 0.33); body.add(a); }
+  const head = mk(PERSON_GEO.head, pmat(skin), 0, hips + 0.82, 0);
+  const hr = mk(PERSON_GEO.hair, pmat(hair), 0, hips + 0.84, -0.01); hr.rotation.x = -0.25;
+  if (longHair) mk(PERSON_GEO.long, pmat(hair), 0, hips + 0.68, -0.12);
+  if (dress && !longHair) mk(PERSON_GEO.bun, pmat(hair), 0, hips + 0.92, -0.14);
+  const arm = (sx) => { const p = new THREE.Group(); p.position.set(sx * 0.25, hips + 0.58, 0); body.add(p); mk(PERSON_GEO.arm, pmat(outfit), 0, 0, 0, p); mk(PERSON_GEO.head, pmat(skin), 0, -0.64, 0, p).scale.setScalar(0.4); return p; };
+  const armL = arm(-1), armR = arm(1);
+  g.userData = { body, head, legL, legR, armL, armR, hips };
+  return g;
+}
+// Put a microphone in the right hand.
+function giveMic(p) {
+  const hand = new THREE.Group(); hand.position.set(0, -0.64, 0.02); p.userData.armR.add(hand);
+  const m = new THREE.Mesh(PERSON_GEO.mic, pmat(0x111111)); m.position.y = 0.08; hand.add(m);
+  const h = new THREE.Mesh(PERSON_GEO.micHead, pmat(0xc9c9c9)); h.position.y = 0.2; hand.add(h);
+}
+// Poses
+function poseWalk(p, phase, amt = 1) {
+  const u = p.userData, s = Math.sin(phase) * 0.5 * amt;
+  u.legL.rotation.x = s; u.legR.rotation.x = -s; u.armL.rotation.x = -s * 0.8;
+  u.body.position.y = Math.abs(Math.cos(phase)) * 0.04 * amt;
+}
+function poseSit(p) {
+  const u = p.userData;
+  u.legL.rotation.x = u.legR.rotation.x = -Math.PI / 2; u.body.position.y = -0.42;
+}
+function poseSing(p, t, k = 0) {
+  const u = p.userData;
+  u.armR.rotation.set(-2.5 + Math.sin(t * 2 + k) * 0.05, 0, 0.35); // mic to the mouth
+  u.armL.rotation.set(-0.6 - Math.max(0, Math.sin(t * 1.3 + k)) * 1.6, 0, -0.3 - Math.sin(t * 1.3 + k) * 0.2); // free hand waving
+  u.body.rotation.z = Math.sin(t * 1.6 + k) * 0.07;
+  u.head.position.x = Math.sin(t * 1.6 + k) * 0.02;
+}
+function poseCheer(p, t, k = 0) {
+  const u = p.userData, a = Math.sin(t * 4 + k);
+  u.armL.rotation.set(-2.6 - a * 0.3, 0, -0.4); u.armR.rotation.set(-2.6 + a * 0.3, 0, 0.4);
+  u.body.rotation.z = a * 0.05;
+}
+function poseClap(p, t, k = 0) {
+  const u = p.userData, c = Math.abs(Math.sin(t * 5 + k));
+  u.armL.rotation.set(-1.3, 0, -0.5 + c * 0.45); u.armR.rotation.set(-1.3, 0, 0.5 - c * 0.45);
+}
+function poseDance(p, t, k = 0) {
+  const u = p.userData, b = Math.sin(t * 5 + k);
+  u.body.position.y = Math.abs(b) * 0.08;
+  u.armL.rotation.set(-2.8, 0, -0.5 - b * 0.3); u.armR.rotation.set(-2.8, 0, 0.5 - b * 0.3);
+  u.body.rotation.y = Math.sin(t * 2 + k) * 0.4;
+}
+function randomGuest(r) {
+  const female = r() < 0.5;
+  return makePerson({ outfit: OUTFITS[Math.floor(r() * OUTFITS.length)], skin: SKINS[Math.floor(r() * SKINS.length)], hair: HAIRS[Math.floor(r() * HAIRS.length)], longHair: female && r() < 0.7, dress: female && r() < 0.4 });
+}
+// A waitress with a tray of drinks, walking a loop of stops and pausing at each to serve.
+function makeWaitress(r) {
+  const w = makePerson({ outfit: 0x111114, skin: SKINS[Math.floor(r() * SKINS.length)], hair: HAIRS[Math.floor(r() * 3)], dress: true, apron: true });
+  const tray = new THREE.Group(); tray.position.set(0.3, 1.5, 0.22); w.add(tray);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.02, 16), M.gold); tray.add(disc);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0xffd38a, transparent: true, opacity: 0.8, roughness: 0.1, emissive: 0x3a2200 });
+  for (const [gx, gz] of [[-0.1, 0], [0.08, 0.08], [0.06, -0.1]]) { const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.14, 8), glassMat); gl.position.set(gx, 0.08, gz); tray.add(gl); }
+  w.userData.armR.rotation.set(-1.6, 0, 0.25); // hand up under the tray
+  w.userData.tray = tray;
+  return w;
+}
+// Walk a closed loop of stops: [{x, z, face}] — pausing `pause` seconds at each, facing `face` (radians).
+function walkLoop(person, stops, { speed = 0.7, pause = 2.2, offset = 0, Y = 0 } = {}) {
+  const legs = stops.map((s, i) => { const n = stops[(i + 1) % stops.length]; return { s, n, d: Math.hypot(n.x - s.x, n.z - s.z) }; });
+  const cycle = legs.reduce((a, l) => a + l.d / speed + pause, 0);
+  return (t) => {
+    let u = ((t + offset * cycle) % cycle + cycle) % cycle;
+    for (const l of legs) {
+      if (u < pause) { // serving
+        person.position.set(l.s.x, Y, l.s.z); person.rotation.y = l.s.face ?? person.rotation.y;
+        poseWalk(person, 0, 0);
+        if (person.userData.tray) { person.userData.tray.position.y = 1.5 - Math.sin((u / pause) * Math.PI) * 0.25; person.userData.armR.rotation.x = -1.6 + Math.sin((u / pause) * Math.PI) * 0.35; }
+        return;
+      }
+      u -= pause;
+      const dur = l.d / speed;
+      if (u < dur) {
+        const f = u / dur;
+        person.position.set(l.s.x + (l.n.x - l.s.x) * f, Y, l.s.z + (l.n.z - l.s.z) * f);
+        person.rotation.y = Math.atan2(l.n.x - l.s.x, l.n.z - l.s.z);
+        poseWalk(person, t * 5.5);
+        if (person.userData.tray) { person.userData.tray.position.y = 1.5; person.userData.armR.rotation.x = -1.6; }
+        return;
+      }
+      u -= dur;
+    }
+  };
+}
+
+// 1F: lounge tables — guests singing, two birthday parties, waitresses serving.
+function birthdayCake() {
+  const g = new THREE.Group();
+  const cake = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.18, 18), pmat(0xfff1f6)); cake.position.y = 0.09; g.add(cake);
+  const icing = new THREE.Mesh(new THREE.CylinderGeometry(0.225, 0.225, 0.04, 18), pmat(0xff6fae)); icing.position.y = 0.17; g.add(icing);
+  const flame = new THREE.MeshBasicMaterial({ color: 0xffc04d, toneMapped: false });
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), pmat(0xfffbd0)); c.position.set(Math.cos(a) * 0.12, 0.24, Math.sin(a) * 0.12); g.add(c);
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), flame); f.position.set(Math.cos(a) * 0.12, 0.31, Math.sin(a) * 0.12); f.scale.y = 1.6; g.add(f);
+  }
+  const glow = glowPlane(0xffb347, 1.2, 1.2, 0.5); glow.position.y = 0.35; g.add(glow);
+  return g;
+}
+function partyHat(color) {
+  const h = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.26, 10), pmat(color)); return h;
+}
+function balloons(r) {
+  const g = new THREE.Group();
+  const cols = [0xff4fa3, 0xffd23f, 0x4fc3ff, 0xc04dff, 0x7ee081];
+  for (let i = 0; i < 5; i++) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), pmat(cols[i], { roughness: 0.25 }));
+    b.scale.y = 1.2; b.position.set((r() - 0.5) * 0.7, 2.4 + r() * 0.6, (r() - 0.5) * 0.7); g.add(b);
+    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, b.position.y - 0.5, 4), pmat(0xffffff));
+    str.position.set(b.position.x * 0.5, (b.position.y + 0.5) / 2, b.position.z * 0.5); g.add(str);
+  }
+  return g;
+}
+function loungeTable(kind, r) {
+  const g = new THREE.Group();
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.07, 24), M.gold); top.position.y = 0.72; g.add(top);
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.25, 0.72, 10), M.night); leg.position.y = 0.36; g.add(leg);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0xffd38a, transparent: true, opacity: 0.8, roughness: 0.1, emissive: 0x3a2200 });
+  for (let i = 0; i < 3; i++) { const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.14, 8), glassMat); gl.position.set(Math.cos(i * 2.1) * 0.4, 0.83, Math.sin(i * 2.1) * 0.4); g.add(gl); }
+  const glow = glowPlane(kind === "birthday" ? 0xff6fae : 0xc04dff, 3.4, 3.4, 0.35); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.02; g.add(glow);
+  const people = [], n = 3;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + 0.5;
+    const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.2, 0.45, 12), M.velvet); stool.position.set(Math.cos(a) * 1.15, 0.22, Math.sin(a) * 1.15); g.add(stool);
+    const p = randomGuest(r);
+    p.position.set(Math.cos(a) * 1.15, 0, Math.sin(a) * 1.15); p.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a)); // face the table
+    poseSit(p);
+    g.add(p); people.push(p);
+  }
+  if (kind === "birthday") {
+    const cake = birthdayCake(); cake.position.y = 0.76; g.add(cake);
+    people.forEach((p, i) => { const h = partyHat([0xff4fa3, 0xffd23f, 0x4fc3ff][i]); h.position.set(0, p.userData.hips + 1.06, 0); p.userData.body.add(h); });
+    const bl = balloons(r); bl.position.set(0.9, 0, -0.9); g.add(bl);
+  } else {
+    giveMic(people[0]); giveMic(people[1]);
+  }
+  g.userData = { kind, people, top };
+  return g;
+}
+function dressLoungeLife(ctx) {
+  const { Z, zi, Y } = ctx;
+  const r = rnd(42), tx = PORTRAIT() ? 5.4 : 6.6, aisle = PORTRAIT() ? 3.6 : 4.2;
+  const rows = [0, -5, -10];
+  const kinds = [["sing", "birthday", "sing"], ["birthday", "sing", "sing"]];
+  const tables = [];
+  [-1, 1].forEach((sx, si) => rows.forEach((z, ri) => {
+    const tb = loungeTable(kinds[si][ri], r); tb.position.set(sx * tx, Y, z); Z.add(tb); tables.push(tb);
+  }));
+  anims.push({ zone: zi, fn: (t) => {
+    if (REDUCED) return;
+    tables.forEach((tb, ti) => tb.userData.people.forEach((p, pi) => {
+      const k = ti * 1.7 + pi;
+      if (tb.userData.kind === "birthday") (pi === 1 ? poseCheer : poseClap)(p, t, k);
+      else if (pi < 2) poseSing(p, t, k);
+      else poseClap(p, t, k);
+    }));
+  } });
+  // Four waitresses: one up and down each inner aisle, one along each outer side, stopping at every table.
+  [-1, 1].forEach((sx) => {
+    const inner = rows.map((z) => ({ x: sx * aisle, z: z + 0.6, face: sx > 0 ? Math.PI / 2 : -Math.PI / 2 }));
+    const outer = rows.map((z) => ({ x: sx * (tx + 2.4), z: z - 0.6, face: sx > 0 ? -Math.PI / 2 : Math.PI / 2 }));
+    [[...inner, ...inner.slice(1, -1).reverse()], [...outer, ...outer.slice(1, -1).reverse()]].forEach((stops, wi) => {
+      const w = makeWaitress(r); Z.add(w);
+      // face the table: inner stops face outward to it, outer stops face inward
+      for (const s of stops) s.face = wi === 0 ? (sx > 0 ? Math.PI / 2 : -Math.PI / 2) : (sx > 0 ? -Math.PI / 2 : Math.PI / 2);
+      const step = walkLoop(w, stops, { speed: 0.55, pause: 2.6, offset: wi * 0.5 + (sx > 0 ? 0.25 : 0), Y });
+      step(0);
+      anims.push({ zone: zi, fn: (t) => { if (!REDUCED) step(t); } });
+    });
+  });
+}
+
+// 2F: an open-top floor plan of four rooms — TV, L-shaped sofa, table and people singing.
+function ktvRoom(title, photoKey, glow, dance, r) {
+  const g = new THREE.Group();
+  const W = PORTRAIT() ? 4 : 4.8, D = 4.4, H = 1.5;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ color: 0x1a0d26, roughness: 0.8 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = 0.02; g.add(floor);
+  const lightPool = glowPlane(glow, W * 0.9, D * 0.9, 0.4); lightPool.rotation.x = -Math.PI / 2; lightPool.position.y = 0.03; g.add(lightPool);
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x241034, roughness: 0.6, metalness: 0.2 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x8fb8ff, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.3, depthWrite: false });
+  const wall = (w, h, x, z, ry, mat = wallMat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.12), mat); m.position.set(x, h / 2, z); m.rotation.y = ry; g.add(m); return m; };
+  wall(W, H, 0, -D / 2, 0);                       // back
+  wall(D, H, -W / 2, 0, Math.PI / 2);             // TV wall
+  wall(D, H, W / 2, 0, Math.PI / 2);              // far side
+  wall(W * 0.62, H * 0.7, -W * 0.19, D / 2, 0, glassMat); // glass front, with the door on the right
+  const strip = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W, H, D)), new THREE.LineBasicMaterial({ color: glow, transparent: true, opacity: 0.9 }));
+  strip.position.y = H / 2; g.add(strip);
+  // TV on the left wall showing lyrics
+  const tv = card(2.1, 1.25, (x, CW, CH) => {
+    const bg = x.createLinearGradient(0, 0, CW, CH); bg.addColorStop(0, "#2b0f4a"); bg.addColorStop(1, "#0a2a5a"); x.fillStyle = bg; x.fillRect(0, 0, CW, CH);
+    x.textAlign = "center"; x.fillStyle = "#ffffff"; x.font = `800 ${CH * 0.13}px Montserrat`; x.fillText("♪ ♫ ♪", CW / 2, CH * 0.42);
+    x.fillStyle = "#ffd23f"; x.fillRect(CW * 0.15, CH * 0.62, CW * 0.45, CH * 0.06); x.fillStyle = "rgba(255,255,255,.6)"; x.fillRect(CW * 0.6, CH * 0.62, CW * 0.25, CH * 0.06);
+  }, { frame: true, glow, pxPerUnit: 160 });
+  tv.position.set(-W / 2 + 0.1, 1.55, -0.2); tv.rotation.y = Math.PI / 2; g.add(tv);
+  // L-shaped sofa along the back and right walls, coffee table in the middle
+  const sofaMat = new THREE.MeshStandardMaterial({ color: dance ? 0x3a3a46 : 0x5a1430, roughness: 0.9 });
+  const sofa = (w, d, x, z) => { const s = new THREE.Mesh(new THREE.BoxGeometry(w, 0.45, d), sofaMat); s.position.set(x, 0.23, z); g.add(s); const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.18), sofaMat); return { s, b }; };
+  const back = sofa(W - 0.6, 0.75, 0.1, -D / 2 + 0.5); back.b.position.set(0.1, 0.6, -D / 2 + 0.17); g.add(back.b);
+  const side = sofa(0.75, D - 1.6, W / 2 - 0.5, 0.35); side.b.rotation.y = Math.PI / 2; side.b.position.set(W / 2 - 0.17, 0.6, 0.35); g.add(side.b);
+  const table = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.38, 0.75), M.gold); table.position.set(0.3, 0.19, -0.3); g.add(table);
+  const people = [];
+  if (dance) {
+    for (let i = 0; i < 4; i++) { const p = randomGuest(r); p.position.set(-0.9 + (i % 2) * 1.4, 0, -0.4 + Math.floor(i / 2) * 1.1); p.rotation.y = (r() - 0.5) * 2; g.add(p); people.push(p); }
+    const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 1), M.chrome); ball.position.set(0, H + 0.6, 0); g.add(ball); g.userData.ball = ball;
+  } else {
+    // two singers standing, facing the TV; two friends on the sofa
+    for (let i = 0; i < 2; i++) { const p = randomGuest(r); p.position.set(-0.6, 0, 0.5 - i * 1.1); p.rotation.y = -Math.PI / 2; giveMic(p); g.add(p); people.push(p); }
+    for (let i = 0; i < 2; i++) { const p = randomGuest(r); p.position.set(-0.3 + i * 1.1, 0.02, -D / 2 + 0.55); poseSit(p); g.add(p); people.push(p); }
+  }
+  // sign with the room's photo, standing on the back wall
+  const sign = card(2.5, 1.75, (x, CW, CH) => {
+    rr(x, 4, 4, CW - 8, CH - 8, 16); x.fillStyle = "rgba(14,9,26,.96)"; x.fill(); x.lineWidth = 5; x.strokeStyle = goldGrad(x, 0, CW); x.stroke();
+    x.textAlign = "center"; x.fillStyle = "#fbf6ea"; x.font = `800 ${CH * 0.12}px Montserrat`; x.fillText(title, CW / 2, CH * 0.9);
+  }, { frame: false, glow, pxPerUnit: 180 });
+  if (photoKey) { const ph = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.2), new THREE.MeshBasicMaterial({ map: IMG[`room_${photoKey}`], toneMapped: false })); ph.position.set(0, 0.14, 0.02); sign.add(ph); }
+  sign.position.set(0, H + 1.15, -D / 2); g.add(sign);
+  g.userData = { people, dance, sign };
+  return g;
+}
+function dressRoomFloor(ctx) {
+  const { Z, zi, Y } = ctx;
+  const r = rnd(7), cx = PORTRAIT() ? 4.6 : 7, z0 = -6.5, z1 = -12.2;
+  const rooms = [
+    ["KTV Room 1", "ktv-room-1", 0xc04dff, false, -1, z0], ["KTV Room 2", "ktv-room-2", 0x8a3dff, false, -1, z1],
+    ["KTV Room 3", "ktv-room-3", 0xff4fa3, false, 1, z0], ["Dance Room", "dance-room", 0xffd23f, true, 1, z1],
+  ].map(([title, photo, glow, dance, sx, z]) => {
+    const room = ktvRoom(title, photo, glow, dance, r);
+    room.position.set(sx * cx, Y, z); room.rotation.y = sx < 0 ? Math.PI / 2 : -Math.PI / 2; // glass front faces the corridor
+    Z.add(room); zoomable(room.userData.sign, zi);
+    return room;
+  });
+  anims.push({ zone: zi, fn: (t) => {
+    if (REDUCED) return;
+    rooms.forEach((room, ri) => room.userData.people.forEach((p, pi) => {
+      const k = ri * 2.3 + pi;
+      if (room.userData.dance) poseDance(p, t, k);
+      else if (pi < 2) poseSing(p, t, k);
+      else poseClap(p, t, k);
+    }));
+    rooms.forEach((room) => { if (room.userData.ball) room.userData.ball.rotation.y = t; });
+  } });
+  // two waitresses walking the corridor between the rooms, stopping at each door
+  const doorX = cx - 2.6; // just outside the glass fronts
+  [-1, 1].forEach((sx, wi) => {
+    const stops = [{ x: sx * doorX, z: -3.5 }, { x: sx * doorX, z: z0 + 1 }, { x: sx * doorX, z: z1 + 1 }, { x: sx * doorX, z: z1 - 3.5 }];
+    for (const s of stops) s.face = sx > 0 ? Math.PI / 2 : -Math.PI / 2;
+    const loop = [...stops, stops[2], stops[1]];
+    const w = makeWaitress(r); Z.add(w);
+    const step = walkLoop(w, loop, { speed: 0.6, pause: 2.2, offset: wi * 0.4, Y });
+    step(0);
+    anims.push({ zone: zi, fn: (t) => { if (!REDUCED) step(t); } });
+  });
+}
+
 function dressKTV(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("sing", 5.4, seg.accent2, zi), ctx.clusterX, Y + 3.6, -27, ctx.clusterRot));
@@ -1263,6 +1556,7 @@ function dressKTV(ctx) {
   Z.add(place(box, ctx.clusterX * 0.8, Y + 1.6, -37, ctx.clusterRot));
   // Member economy: all earned and spent on 1F
   monumentRow(ctx, [["TOKENS", "Earn daily"], ["K-GOLD", "Win at KOS"], ["SPIN", "Win prizes"]]);
+  dressLoungeLife(ctx);
 }
 
 // Claw machine: base, glass case full of plush prizes, and a moving gold claw.
@@ -1376,9 +1670,8 @@ function poolAndDarts(accent) {
 function dressPrivate(ctx) {
   const { Z, zi, Y, seg } = ctx;
   Z.add(place(videoScreen("ktv", 6.6, seg.accent, zi), ctx.videoX, Y + 3.4, -17, ctx.videoRot));
-  // Three KTV rooms and the dance room: two past the video, two on the near cluster side
-  [[ctx.clusterX * 1.2, -9], [ctx.clusterX * 1.2, -16], [ctx.videoX * 1.2, -25], [ctx.videoX * 1.2, -32]]
-    .forEach(([x, z], i) => (i < 3 ? roomPod(ctx, "Private KTV", `KTV Room ${i + 1}`, x, z, i % 2 ? seg.accent : 0xc04dff, `ktv-room-${i + 1}`) : roomPod(ctx, "Lights & music", "Dance Room", x, z, 0xffd23f, "dance-room")));
+  // Three KTV rooms and the dance room laid out as an open floor plan, with people inside
+  dressRoomFloor(ctx);
   // Beauty corner (where the camera turns during the beauty beat): mirror + chair + cards
   const bx = ctx.clusterX, bRot = ctx.clusterRot;
   const mirror = card(2, 2.8, (x, W, H) => {
