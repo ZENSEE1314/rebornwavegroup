@@ -346,6 +346,22 @@ export async function isDateFullyBooked(a: BookingArea, dateStr: string): Promis
 }
 
 // Create a pending appointment (used by app + WhatsApp bot). Staff confirm in-app.
+// Special requests guests can add to a booking (admin switch: bookingAskSpecial).
+// Stored on the booking in English so every staff member reads the same thing.
+export const BOOKING_OCCASIONS: { id: string; emoji: string; en: string }[] = [
+  { id: "birthday", emoji: "🎂", en: "Birthday" },
+  { id: "company", emoji: "🏢", en: "Company event" },
+  { id: "anniversary", emoji: "💕", en: "Anniversary" },
+  { id: "celebration", emoji: "🎉", en: "Celebration / party" },
+];
+// "🎂 Birthday: please prepare a cake" — or just the note, or nothing.
+export function specialRequestText(occasion?: string, note?: string): string | undefined {
+  const o = BOOKING_OCCASIONS.find((x) => x.id === occasion);
+  const n = String(note || "").trim().slice(0, 300);
+  if (!o && !n) return undefined;
+  return o ? `${o.emoji} ${o.en}${n ? `: ${n}` : ""}` : `📝 ${n}`;
+}
+
 export async function createBooking(opts: {
   userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number; table?: string; area?: string; openHour?: number; companyId?: number; branchId?: number;
 }) {

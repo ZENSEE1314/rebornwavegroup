@@ -10,9 +10,11 @@ import { useTranslation, localeTag, translate, getCurrentLanguage, tData } from 
 
 // Booking titles/descriptions are stored in English ("KTV Lounge (Level 1) ·
 // Table V1 · Party of 4") — translate the fixed words for display.
+const OCC_KEY: Record<string, string> = { "🎂 Birthday": "birthday", "🏢 Company event": "company", "💕 Anniversary": "anniversary", "🎉 Celebration / party": "celebration" };
 function localizeBooking(text: string): string {
   return (text || "")
     .replace(/Party of (\d+)/g, (_m, n) => translate("bk.partyOf", { n }))
+    .replace(/🎂 Birthday|🏢 Company event|💕 Anniversary|🎉 Celebration \/ party/g, (m) => translate(`bk.occ.${OCC_KEY[m]}`)) // special request
     .replace(/\bTable (\S+)/g, (_m, tb) => translate("bk.tableX", { t: tb }))
     .replace(/([^·/()]+?) \((Level [^)]+)\)/g, (_m, name, lvl) => { const lang = getCurrentLanguage(); return `${areaName({ name: name.trim() }, lang)} (${areaLevel(lvl, lang)})`; });
 }
@@ -123,10 +125,14 @@ function TableBookingCard() {
   const [table, setTable] = useState<string>("");
   const [party, setParty] = useState(2);
   const [hours, setHours] = useState(2);
+  const [occasion, setOccasion] = useState("");
+  const [note, setNote] = useState("");
   const areas: any[] = data?.areas || [];
   const area = areas.find((a) => a.id === areaId) || null;
   const needTable = !!area && area.tables?.length > 0;
   const askHours = data?.askHours !== false; // admin can switch the hours question off
+  const askSpecial = data?.askSpecial !== false; // …and the special-request question
+  const occasions: string[] = data?.occasions || ["birthday", "company", "anniversary", "celebration"];
   // Slots + taken tables for the chosen area+date (respects the weekly schedule).
   const { data: avail } = useQuery<any>({
     queryKey: ["/api/reborn/booking/availability", areaId, date],
@@ -139,10 +145,10 @@ function TableBookingCard() {
   const capFor = (tb: string) => caps[tb] || avail?.maxPax || 50;
   const partyCap = table ? capFor(table) : (avail?.maxPax || 50);
   const book = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours: askHours ? hours : 2 }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours: askHours ? hours : 2, ...(askSpecial ? { occasion, note } : {}) }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => {
       if (!ok) { toast({ title: t("bk.failed"), description: d.message, variant: "destructive" }); return; }
-      toast({ title: t("bk.requested"), description: d.message }); setSlot(""); setTable("");
+      toast({ title: t("bk.requested"), description: d.message }); setSlot(""); setTable(""); setOccasion(""); setNote("");
       qc.invalidateQueries({ queryKey: ["/api/reborn/my-bookings"] });
       qc.invalidateQueries({ queryKey: ["/api/reborn/booking/availability", areaId, date] });
     },
@@ -214,6 +220,20 @@ function TableBookingCard() {
             <button onClick={() => setHours((h) => Math.min(8, h + 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>+</button>
           </div>}
         </div>
+
+        {askSpecial && <div className="mb-4">
+          <p className="text-xs text-white/50 mb-2">{t("bk.special")} <span className="text-white/30">· {t("bk.optional")}</span></p>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {occasions.map((o) => (
+              <button key={o} type="button" onClick={() => setOccasion(occasion === o ? "" : o)} aria-pressed={occasion === o}
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${occasion === o ? "bg-fuchsia-500/25 border-fuchsia-400 text-white" : "bg-white/5 border-white/10 text-white/70"}`}>
+                {t(`bk.occ.${o}`)}
+              </button>
+            ))}
+          </div>
+          <textarea value={note} onChange={(e) => setNote(e.target.value.slice(0, 300))} rows={2} placeholder={t("bk.specialPh")}
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-fuchsia-400" />
+        </div>}
 
         <Button onClick={() => book.mutate()} disabled={!slot || (needTable && !table) || book.isPending} className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl disabled:opacity-50">
           {book.isPending ? t("bk.booking") : !slot ? t("bk.pickTime") : needTable && !table ? t("bk.pickTable") : t("bk.request")}

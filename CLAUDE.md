@@ -28,3 +28,6 @@ text.
   that day (app + WhatsApp).
 - `bookingAskHours` — when off, the app and WhatsApp don't ask for hours and
   book 2 hours.
+- `bookingAskSpecial` — when on, the app and WhatsApp ask for a special request
+  (birthday, company event, anniversary, celebration + a note); it is saved on
+  the booking. When off, the question is skipped.
