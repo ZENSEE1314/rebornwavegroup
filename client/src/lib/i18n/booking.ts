@@ -19,6 +19,7 @@ export const bookingT: Record<string, { en: string; zh: string; id: string }> = 
   'bk.date': { en: 'Date', zh: '日期', id: 'Tanggal' },
   'bk.startTime': { en: 'Start time', zh: '开始时间', id: 'Jam mulai' },
   'bk.closedDay': { en: 'Closed on this day — please pick another date.', zh: '当天不营业，请选择其他日期。', id: 'Tutup pada hari ini — silakan pilih tanggal lain.' },
+  'bk.eventOnDay': { en: 'Event on this day', zh: '当天活动', id: 'Acara hari ini' },
   'bk.fullVenue': { en: "Sorry, we're fully booked on this day — every table is taken. Please pick another date.", zh: '抱歉，当天已全部订满——所有桌位都已被预订。请选择其他日期。', id: 'Maaf, kami sudah penuh pada hari ini — semua meja sudah dipesan. Silakan pilih tanggal lain.' },
   'bk.otherAreasFree': { en: 'These areas still have space that day:', zh: '当天以下区域仍有空位：', id: 'Area ini masih ada tempat hari itu:' },
   'bk.slotFull': { en: 'Full', zh: '已满', id: 'Penuh' },

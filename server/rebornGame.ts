@@ -232,6 +232,19 @@ async function rotateAttendCode(): Promise<string> {
   return code;
 }
 
+// Event dates are plain YYYY-MM-DD (or null = an ongoing announcement).
+function isoDay(v: any): string | null { const s = String(v || "").trim(); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null; }
+// Active events that haven't ended, nearest first (undated announcements last).
+// With `on`, only events happening that day.
+export async function upcomingEvents(on?: string) {
+  const today = todayStr();
+  const rows = await db.select().from(events).where(eq(events.active, true)).orderBy(desc(events.sortOrder), desc(events.createdAt)).limit(100);
+  const last = (e: typeof rows[number]) => e.endDate && e.startDate && e.endDate >= e.startDate ? e.endDate : e.startDate;
+  const live = rows.filter((e) => !e.startDate || (last(e) || "") >= today);
+  const list = on ? live.filter((e) => e.startDate && e.startDate <= on && on <= (last(e) || "")) : live;
+  return list.sort((a, b) => (a.startDate ? 0 : 1) - (b.startDate ? 0 : 1) || String(a.startDate || "").localeCompare(String(b.startDate || ""))).slice(0, 30);
+}
+
 // The venue day runs 08:00 → 08:00 (WIB); at 8am everyone is checked out.
 const VENUE_DAY_START_HOUR = 8;
 async function ensureVenueSession(rotate = false) {
@@ -2066,13 +2079,16 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Events (homepage / login announcements)
-  app.get("/api/reborn/events", async (_req, res) => {
-    res.json(await db.select().from(events).where(eq(events.active, true)).orderBy(desc(events.sortOrder), desc(events.createdAt)).limit(20));
+  // Upcoming events, nearest date first; an event disappears once its last day has passed.
+  // ?date=YYYY-MM-DD → only the events happening that day (shown when booking that date).
+  app.get("/api/reborn/events", async (req, res) => {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || "")) ? String(req.query.date) : "";
+    res.json(await upcomingEvents(date || undefined));
   });
   app.get("/api/reborn/admin/events", requireStaff(async (_req, res) => { res.json(await db.select().from(events).orderBy(desc(events.createdAt))); }));
   app.post("/api/reborn/admin/events", requireStaff(async (req, res) => {
     const b = req.body || {};
-    const [row] = await db.insert(events).values({ title: b.title || "New event", body: b.body || "", imageUrl: b.imageUrl || null, showOnLogin: b.showOnLogin !== false, active: b.active !== false, sortOrder: Number(b.sortOrder) || 0, createdBy: getUserId(req)! }).returning();
+    const [row] = await db.insert(events).values({ title: b.title || "New event", body: b.body || "", imageUrl: b.imageUrl || null, startDate: isoDay(b.startDate), endDate: isoDay(b.endDate), showOnLogin: b.showOnLogin !== false, active: b.active !== false, sortOrder: Number(b.sortOrder) || 0, createdBy: getUserId(req)! }).returning();
     await logAdmin(req, { targetType: "event", targetId: row.id, action: "create", entityType: "event", description: `Posted event "${row.title}"` });
     if (row.active) await notifyAllI18n("new_event", (lang) => ({ title: row.title, body: row.body?.slice(0, 140) || pick(lang, { en: "A new event was posted", zh: "发布了新活动", id: "Ada acara baru" }) }), { path: "/", eventId: row.id });
     res.json(row);
@@ -2080,6 +2096,8 @@ export function registerRebornRoutes(app: Express) {
   app.put("/api/reborn/admin/events/:id", requireStaff(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {}; const patch: any = {};
     for (const k of ["title", "body", "imageUrl"]) if (b[k] !== undefined) patch[k] = b[k];
+    if (b.startDate !== undefined) patch.startDate = isoDay(b.startDate);
+    if (b.endDate !== undefined) patch.endDate = isoDay(b.endDate);
     if (b.showOnLogin !== undefined) patch.showOnLogin = !!b.showOnLogin;
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);

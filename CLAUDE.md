@@ -46,6 +46,15 @@ text.
 - A booking holds its table for its whole length; full times show as Full in the
   app, and a full area/day suggests other areas with space (app + WhatsApp).
 
+## Events
+
+- Admin events have a date (`startDate`, optional `endDate`). The home page shows
+  upcoming events as a swipe-right row, nearest date first; an event disappears
+  after its last day (no date = ongoing announcement, shown last).
+  `upcomingEvents(date?)` in server/rebornGame.ts.
+- Booking a date that has an event shows its poster + text — app booking page
+  and WhatsApp (sent right after the date is confirmed).
+
 ## KOS check-in + song queue set by the admin
 
 - Every table has a fixed QR (`/kos?table=T&k=SIG`, admin: KOS → Venue QR →

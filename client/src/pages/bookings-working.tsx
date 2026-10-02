@@ -7,6 +7,7 @@ import { Calendar, Clock, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import MobileBackButton from "@/components/mobile-back-button";
 import { useTranslation, localeTag, translate, getCurrentLanguage, tData } from "@/lib/i18n";
+import { eventDates } from "@/lib/eventDates";
 
 // Booking titles/descriptions are stored in English ("KTV Lounge (Level 1) ·
 // Table V1 · Party of 4") — translate the fixed words for display.
@@ -141,6 +142,12 @@ function TableBookingCard() {
     enabled: !!areaId && !!date,
   });
   const areaSlots: any[] = avail?.slots || []; // [{value,label}]
+  // Events happening on the picked date — show the poster + text.
+  const { data: dayEvents = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/events", date],
+    queryFn: () => apiRequest("GET", `/api/reborn/events?date=${date}`).then((r) => r.json()),
+    enabled: !!date,
+  });
   const takenForSlot: string[] = (slot && avail?.taken?.[slot]) || [];
   const fullSlots = new Set<string>(avail?.fullSlots || []);
   const otherAreas: any[] = avail?.otherAreas || [];
@@ -184,6 +191,17 @@ function TableBookingCard() {
         <p className="text-xs text-white/50 mb-1">{t("bk.date")}</p>
         <input type="date" value={date} min={todayStr} onChange={(e) => setDate(e.target.value)}
           className="w-full mb-3 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" style={{ colorScheme: "dark" }} />
+
+        {dayEvents.map((ev) => (
+          <div key={ev.id} className="mb-3 rounded-xl overflow-hidden border border-amber-400/40 bg-amber-400/10">
+            {ev.imageUrl && <img src={ev.imageUrl} alt="" className="w-full max-h-72 object-cover" loading="lazy" />}
+            <div className="p-3">
+              <p className="text-[11px] font-black text-amber-300 uppercase tracking-wide">🎉 {t("bk.eventOnDay")} · {eventDates(ev, language)}</p>
+              <p className="font-bold text-white mt-0.5">{ev.title}</p>
+              {ev.body && <p className="text-sm text-white/70 mt-1 whitespace-pre-line">{ev.body}</p>}
+            </div>
+          </div>
+        ))}
 
         <p className="text-xs text-white/50 mb-1">{t("bk.startTime")} <span className="text-white/30">· {hoursIn(avail?.hours || area.hours, language)}</span></p>
         {avail?.closed ? (

@@ -828,6 +828,8 @@ export const events = pgTable("events", {
   body: text("body"),
   imageUrl: varchar("image_url"),
   showOnLogin: boolean("show_on_login").default(true),
+  startDate: varchar("start_date"), // YYYY-MM-DD the event happens (empty = ongoing announcement)
+  endDate: varchar("end_date"),     // last day (empty = same as startDate); hidden after it ends
   active: boolean("active").default(true),
   sortOrder: integer("sort_order").default(0),
   createdBy: varchar("created_by"),
