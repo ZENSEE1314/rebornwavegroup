@@ -160,3 +160,13 @@ text.
   (`{finishedId, skip}`) and `POST /api/karaoke/songs` (song list
   `[{code,title,artist}]` → `songs.karaoke_code`) with header `X-Karaoke-Token`.
   Admins can also paste the song list ("code, title, artist" per line).
+
+## Game rooms survive restarts
+
+- Game rooms live in memory (server/games.ts) but every change is also saved to
+  `game_rooms` (`persistRoom`, ~1/s per room). After a restart / deploy a room
+  is loaded back the first time anyone asks for it (`getRoom`) and its turn
+  timer restarts (`resumeRoom`): turn-based games (memory, cards, dice, 789,
+  stack, riding, poker3, bridge, frog) carry on; real-time ones (tap, timer,
+  wheel, rlgl, draw, rps) go back to the lobby ("restarted", host starts again).
+  Use `getRoom(code)` in routes, never `rooms.get` directly; `dropRoom` deletes.

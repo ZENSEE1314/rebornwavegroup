@@ -396,6 +396,7 @@ export const gamesT: Record<string, { en: string; zh: string; id: string }> = {
   "gm.srv.dgTimeUp": { en: "⏰ Time's up!", zh: "⏰ 时间到！", id: "⏰ Waktu habis!" },
   "gm.srv.drawDrawerLeft": { en: "✏️ The drawer left!", zh: "✏️ 画手离开了！", id: "✏️ Penggambar keluar!" },
   "gm.srv.drawAllLeft": { en: "Everyone else left!", zh: "其他人都离开了！", id: "Semua yang lain keluar!" },
+  "gm.srv.restarted": { en: "The game was restarted — host, press start to play again.", zh: "游戏已重新开始——房主请按开始再玩一局。", id: "Permainan dimulai ulang — host, tekan mulai untuk main lagi." },
   "gm.srv.lobbyWait": { en: "Waiting for players…", zh: "等待玩家中…", id: "Menunggu pemain…" },
   "gm.srv.gameOver": { en: "Game over", zh: "游戏结束", id: "Permainan selesai" },
   "gm.srv.turn": { en: "{name}'s turn", zh: "轮到 {name}", id: "Giliran {name}" },
