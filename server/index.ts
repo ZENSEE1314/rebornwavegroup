@@ -10,11 +10,12 @@ import { ensureMoneyColumns } from "./moneyColumns";
 import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
+import { installErrorWatch, recordError, startErrorCleanup } from "./errorWatch";
 
 // One failing request must never take the whole app down (Cloudflare 502 for
 // everyone): log async errors that nothing caught instead of exiting.
-process.on("unhandledRejection", (reason) => { console.error("[unhandledRejection]", reason); });
-process.on("uncaughtException", (err) => { console.error("[uncaughtException]", err); });
+process.on("unhandledRejection", (reason) => { console.error("[unhandledRejection]", reason); void recordError({ area: "server", source: "server", message: String((reason as any)?.message || reason).slice(0, 300), detail: String((reason as any)?.stack || "") }); });
+process.on("uncaughtException", (err) => { console.error("[uncaughtException]", err); void recordError({ area: "server", source: "server", message: String(err?.message || err).slice(0, 300), detail: String(err?.stack || "") }); });
 import { emitLiveUpdate, installLiveMutationBroadcast, registerLiveUpdateRoute } from "./liveUpdates";
 
 const app = express();
@@ -36,6 +37,8 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
+installErrorWatch(app); // Admin › Errors: failed song / booking / POS / order / WhatsApp calls
+startErrorCleanup();
 installLiveMutationBroadcast(app);
 
 // Global request logging for debugging star purchase issue

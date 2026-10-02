@@ -485,6 +485,8 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE events ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS start_date varchar; ALTER TABLE events ADD COLUMN IF NOT EXISTS end_date varchar;
     ALTER TABLE crm_contacts ADD COLUMN IF NOT EXISTS bot_paused boolean NOT NULL DEFAULT false;
+    CREATE TABLE IF NOT EXISTS app_errors (id serial PRIMARY KEY, area varchar NOT NULL, source varchar NOT NULL DEFAULT 'app', method varchar, path text, status integer NOT NULL DEFAULT 0, message text NOT NULL DEFAULT '', user_id varchar, detail text, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS app_errors_created_idx ON app_errors (created_at DESC);
     UPDATE appointments SET company_id = (SELECT id FROM bridge_companies WHERE slug='reborn-wave-group' LIMIT 1) WHERE company_id IS NULL AND EXISTS (SELECT 1 FROM bridge_companies WHERE slug='reborn-wave-group');
     ALTER TABLE appointments ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE appointments ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE spin_prizes ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE spin_results ADD COLUMN IF NOT EXISTS company_id integer;
