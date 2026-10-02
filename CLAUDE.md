@@ -34,6 +34,13 @@ text.
 - `bookingLastTime` (and an area's own `lastBooking`) — no booking start times
   from that time onward, in the app and WhatsApp.
 
+- WhatsApp "what do you have?" (facilities / 有什么 / ada apa saja) replies with
+  every enabled booking area + today's hours (`sendWhatWeHave`); members reply a
+  number to book it, new numbers are asked their name to sign up. Adding an area
+  in admin Settings adds it to this reply automatically.
+- A booking holds its table for its whole length; full times show as Full in the
+  app, and a full area/day suggests other areas with space (app + WhatsApp).
+
 ## KOS check-in + song queue set by the admin
 
 - Every table has a fixed QR (`/kos?table=T&k=SIG`, admin: KOS → Venue QR →
