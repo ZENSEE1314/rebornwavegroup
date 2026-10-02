@@ -1,6 +1,11 @@
 // Translations for the account area. Every key needs en, zh and id.
 export const accountT: Record<string, { en: string; zh: string; id: string }> = {
   // ─── Login: validation ───
+  'ac.login.v.emailOrPhone': { en: 'Enter your email or phone number', zh: '请输入邮箱或手机号', id: 'Masukkan email atau nomor HP' },
+  'ac.login.emailOrPhone': { en: 'Email or phone number', zh: '邮箱或手机号', id: 'Email atau nomor HP' },
+  'ac.login.enterEmailOrPhone': { en: 'Email, or phone number if you signed up without email', zh: '邮箱；没有邮箱注册的请填手机号', id: 'Email, atau nomor HP jika daftar tanpa email' },
+  'ac.login.emailOptional': { en: 'Email (optional)', zh: '邮箱（选填）', id: 'Email (opsional)' },
+  'ac.login.emailOptionalPh': { en: 'No email? Leave empty — log in with your phone number', zh: '没有邮箱？留空即可，用手机号登录', id: 'Tidak punya email? Kosongkan — login pakai nomor HP' },
   'ac.login.v.email': { en: 'Please enter a valid email address', zh: '请输入有效的电子邮箱地址', id: 'Masukkan alamat email yang valid' },
   'ac.login.v.passwordMin': { en: 'Password must be at least 6 characters', zh: '密码至少需要 6 个字符', id: 'Kata sandi minimal 6 karakter' },
   'ac.login.v.usernameMin': { en: 'Username must be at least 3 characters', zh: '用户名至少需要 3 个字符', id: 'Nama pengguna minimal 3 karakter' },

@@ -53,6 +53,23 @@ export function setupSession(app: Express) {
   }));
 }
 
+// A phone number in one form for matching: digits only, Indonesian 08… / 8… → 628….
+export function phoneKey(v: unknown): string {
+  let d = String(v || "").replace(/\D/g, "");
+  if (d.startsWith("0")) d = "62" + d.slice(1);
+  else if (d.startsWith("8") && d.length >= 9 && d.length <= 13) d = "62" + d;
+  return d;
+}
+// Accounts whose saved phone number is this number (any format).
+export async function usersByPhone(phone: unknown): Promise<any[]> {
+  const key = phoneKey(phone);
+  if (key.length < 8) return [];
+  const result: any = await db.execute(sql`SELECT id, email, password, phone_number FROM users WHERE phone_number LIKE ${"%" + key.slice(-8)} OR regexp_replace(phone_number, '\D', '', 'g') LIKE ${"%" + key.slice(-8)} ORDER BY updated_at DESC NULLS LAST LIMIT 20`);
+  return ((result.rows || result) as any[]).filter((u) => phoneKey(u.phone_number) === key);
+}
+// Login names: an email, or a phone number for accounts made without email.
+const looksLikePhone = (v: string) => !v.includes("@") && v.replace(/\D/g, "").length >= 8 && /^[\d\s()+.-]+$/.test(v.trim());
+
 // Setup Passport strategies for authentication
 export function setupLocalAuth() {
   // Local Strategy for email/password
@@ -60,6 +77,13 @@ export function setupLocalAuth() {
     { usernameField: 'email' },
     async (email: string, password: string, done) => {
       try {
+        // A phone number logs in the account saved with that number (sign-up without email).
+        if (looksLikePhone(String(email || ''))) {
+          for (const row of await usersByPhone(email)) {
+            if (row.password && await bcrypt.compare(password, row.password)) return done(null, row);
+          }
+          return done(null, false, { message: 'Invalid email or password' });
+        }
         // Capital letters and stray spaces in the email never matter.
         const result: any = await db.execute(sql`
           SELECT id, email, password
@@ -117,8 +141,12 @@ export function setupAuthRoutes(app: Express) {
     try {
       const { email, password, firstName, lastName, phoneNumber, dateOfBirth, gender, referralCode } = req.body;
 
-      if (!email || !password || !firstName || !lastName || !phoneNumber || !dateOfBirth || !gender) {
-        return res.status(400).json({ message: tr(req, { en: 'All fields are required (email, password, firstName, lastName, phoneNumber, dateOfBirth, gender)', zh: '请填写所有必填项（邮箱、密码、名字、姓氏、电话号码、出生日期、性别）', id: 'Semua kolom wajib diisi (email, kata sandi, nama depan, nama belakang, nomor telepon, tanggal lahir, jenis kelamin)' }) });
+      // Email is optional: without one, the member logs in with their phone number.
+      if (!password || !firstName || !lastName || !phoneNumber || !dateOfBirth || !gender) {
+        return res.status(400).json({ message: tr(req, { en: 'All fields are required (password, first name, last name, phone number, date of birth, gender)', zh: '请填写所有必填项（密码、名字、姓氏、电话号码、出生日期、性别）', id: 'Semua kolom wajib diisi (kata sandi, nama depan, nama belakang, nomor telepon, tanggal lahir, jenis kelamin)' }) });
+      }
+      if (!String(email || '').trim() && (await usersByPhone(phoneNumber)).length) {
+        return res.status(400).json({ message: tr(req, { en: 'This phone number already has an account. Log in with your phone number, or add an email to sign up.', zh: '该手机号已有账户。请用手机号登录，或填写邮箱注册。', id: 'Nomor HP ini sudah punya akun. Login dengan nomor HP, atau isi email untuk daftar.' }) });
       }
 
       // Validate gender field
@@ -127,7 +155,7 @@ export function setupAuthRoutes(app: Express) {
       }
 
       // Check if user already exists (case-insensitive)
-      const existingUser = await storage.getUserByEmail(email.toLowerCase());
+      const existingUser = String(email || '').trim() ? await storage.getUserByEmail(String(email).trim().toLowerCase()) : null;
       if (existingUser) {
         return res.status(400).json({ message: tr(req, { en: 'User already exists with this email', zh: '该邮箱已被注册', id: 'Email ini sudah terdaftar' }) });
       }
@@ -137,7 +165,7 @@ export function setupAuthRoutes(app: Express) {
       
       const newUser = await storage.createEmailUser({
         id: userId,
-        email: email.toLowerCase(),
+        email: String(email || '').trim().toLowerCase() || null,
         password, // Pass plain password, let storage handle hashing
         authProvider: 'email',
         firstName: firstName || '',
@@ -195,7 +223,7 @@ export function setupAuthRoutes(app: Express) {
       }
       if (!user) {
 
-        return res.status(401).json({ message: info?.message === 'Missing credentials' ? tr(req, { en: 'Please enter your email and password', zh: '请输入邮箱和密码', id: 'Masukkan email dan kata sandi' }) : tr(req, { en: 'Invalid email or password', zh: '邮箱或密码错误', id: 'Email atau kata sandi salah' }) });
+        return res.status(401).json({ message: info?.message === 'Missing credentials' ? tr(req, { en: 'Please enter your email or phone number and password', zh: '请输入邮箱或手机号和密码', id: 'Masukkan email atau nomor HP dan kata sandi' }) : tr(req, { en: 'Invalid email / phone number or password', zh: '邮箱/手机号或密码错误', id: 'Email / nomor HP atau kata sandi salah' }) });
       }
 
 
