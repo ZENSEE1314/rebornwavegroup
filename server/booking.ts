@@ -5,11 +5,13 @@
 //   Fri–Sat: 5:00pm → 3:00am next day
 // Start slots run every 2 hours from 5pm. Guests may book longer than one slot.
 import { defaultCompanyId } from "./tenant";
-import { and, eq, ne, gte, lte } from "drizzle-orm";
+import { and, eq, ne, gte, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { appointments } from "@shared/schema";
 
-const ACTIVE_BOOKING = ["pending", "scheduled", "confirmed", "blocked"];
+// "seated" = guest arrived (Admin › Bookings ✓ Arrived): still holds the table.
+// "completed" = bill paid and guest left: the table is free again (see releaseTableAfterPayment).
+const ACTIVE_BOOKING = ["pending", "scheduled", "confirmed", "seated", "blocked"];
 export const BLOCK_ALL = "*ALL*"; // whole-area block marker (admin closes a slot)
 
 // --- Venue timezone (admin-set) -----------------------------------------
@@ -438,4 +440,33 @@ export async function createBooking(opts: {
     status: "pending",
   }).returning();
   return row;
+}
+
+// The table's bill was paid and closed: the guest has left, so their booking stops
+// holding the table — it can be booked again for the rest of the night, even with
+// the "one booking per table per day" lock on. Marks today's booking of that table
+// "completed" and ends it now. Returns the released booking (or null).
+export async function releaseTableAfterPayment(table: string): Promise<{ id: number; title: string | null } | null> {
+  const label = String(table || "").trim();
+  if (!label) return null;
+  const now = Date.now();
+  const rows = await db.select().from(appointments).where(and(
+    sql`${appointments.notes} LIKE ${"% / " + label}`,
+    gte(appointments.appointmentDate, new Date(now - 14 * 3600_000)),
+    lte(appointments.appointmentDate, new Date(now + 30 * 60_000)), // arrived a little early
+  ));
+  const live = rows.filter((r) => ["pending", "scheduled", "confirmed", "seated"].includes(r.status) && (r.notes || "").endsWith(` / ${label}`));
+  const at = (r: { appointmentDate: Date | string }) => new Date(r.appointmentDate).getTime();
+  // Only a booking whose guests are here: marked seated (✓ Arrived), or still active
+  // 15+ min after its start (no-shows are auto-cancelled by then). Never a booking
+  // whose guests haven't come yet (a walk-in may pay at that table before them).
+  const hit = live.filter((r) => r.status === "seated" || at(r) <= now - 15 * 60_000).sort((a, b) => at(b) - at(a))[0];
+  if (!hit) return null;
+  const start = new Date(hit.appointmentDate).getTime();
+  const usedMin = Math.max(1, Math.round((now - start) / 60_000));
+  const duration = Math.min(Math.max(1, hit.duration || 120), usedMin); // free from now on
+  const hhmm = new Intl.DateTimeFormat("en-GB", { timeZone: VENUE_TZ, hour: "2-digit", minute: "2-digit" }).format(new Date(now));
+  const note = [hit.adminNote, `Bill paid ${hhmm} — table free again`].filter(Boolean).join(" · ");
+  await db.update(appointments).set({ status: "completed", duration, adminNote: note, updatedAt: new Date() }).where(eq(appointments.id, hit.id));
+  return { id: hit.id, title: hit.title };
 }
