@@ -1,7 +1,7 @@
 // Reborn Wave gamified economy: pet lifecycle, spin-the-wheel, support/FAQ, admin config.
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
-import { and, desc, eq, sql, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
@@ -3356,7 +3356,10 @@ export function registerRebornRoutes(app: Express) {
   // Admin — all bookings (recent + upcoming) with member name/phone.
   app.get("/api/reborn/admin/bookings", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(appointments).where(eq(appointments.companyId, cid)).orderBy(desc(appointments.appointmentDate)).limit(300);
+    // Bookings saved before every path tagged the business (company_id null) belong to the main club.
+    const mainId = (await rebornCompany())?.id;
+    const scope = cid === mainId ? or(eq(appointments.companyId, cid), isNull(appointments.companyId)) : eq(appointments.companyId, cid);
+    const rows = await db.select().from(appointments).where(scope).orderBy(desc(appointments.appointmentDate)).limit(300);
     const ids = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids as string[])) : [];
     const umap = new Map(us.map((u) => [u.id, u]));

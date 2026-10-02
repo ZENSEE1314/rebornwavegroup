@@ -1,3 +1,4 @@
+import { defaultCompanyId } from "./tenant";
 import type { Express } from "express";
 import express from "express";
 import path from "path";
@@ -2451,6 +2452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = {
         ...req.body,
         userId,
+        companyId: req.body.companyId ?? (await defaultCompanyId()), // so it shows in Admin › Bookings
         appointmentDate: new Date(req.body.appointmentDate),
         status: 'pending' // New appointments require admin confirmation
       };
