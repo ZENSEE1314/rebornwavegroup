@@ -41,16 +41,38 @@ export async function apiRequest(
     headers['Content-Type'] = 'application/json';
   }
   
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
+  } catch (e: any) {
+    if (method !== "GET") reportClientError(method, url, e?.message || "Network error");
+    throw e;
+  }
 
   await throwIfResNotOk(res);
   return res;
 }
+
+// Error watch (Admin › Errors): a song request / booking / POS / order call that
+// never reached the server is reported once the phone is back online.
+const pendingClientErrors: Array<Record<string, string>> = [];
+function flushClientErrors() {
+  while (pendingClientErrors.length) {
+    const body = pendingClientErrors.shift()!;
+    fetch("/api/client-error", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" }).catch(() => {});
+  }
+}
+function reportClientError(method: string, url: string, message: string) {
+  if (!/^\/api\/reborn\/(song|admin\/song|booking|my-bookings|admin\/bookings|pos|admin\/pos|shop|venue\/checkin)/.test(url)) return;
+  if (pendingClientErrors.length < 20) pendingClientErrors.push({ method, path: url, message, agent: navigator.userAgent });
+  if (navigator.onLine) setTimeout(flushClientErrors, 3000);
+}
+if (typeof window !== "undefined") window.addEventListener("online", () => setTimeout(flushClientErrors, 2000));
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {

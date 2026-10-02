@@ -14,11 +14,11 @@ import { APP_FEATURES } from "@/lib/features";
 import { printClosingReport, printReceipt } from "@/lib/receipt";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff", "Leaderboard", "Feedback"] as const;
+const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff", "Leaderboard", "Feedback", "Errors"] as const;
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
 const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Settings", "Logs"] as const;
+const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Settings", "Logs", "Errors"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -26,7 +26,8 @@ export default function RebornAdmin() {
   const modules = useModules();
   const ALL_TABS = (isFullAdmin ? ADMIN_TABS : STAFF_TABS) as readonly string[];
   const TABS = ALL_TABS.filter((t) => moduleEnabled(modules, ADMIN_TAB_MODULE[t]));
-  const [tab, setTab] = useState<string>("Overview");
+  // ?tab=Errors (from an error alert) opens that tab.
+  const [tab, setTab] = useState<string>(() => { try { return new URLSearchParams(window.location.search).get("tab") || "Overview"; } catch { return "Overview"; } });
   const { t } = useTranslation();
   return (
     <RebornLayout active="/reborn-admin" title={t("admin.title")}>
@@ -63,6 +64,7 @@ export default function RebornAdmin() {
       {tab === "Feedback" && <CompanyFeedback />}
       {tab === "CRM" && <Crm />}
       {tab === "Logs" && <Logs />}
+      {tab === "Errors" && <ErrorWatch canClear={isFullAdmin} />}
     </RebornLayout>
   );
 }
@@ -151,7 +153,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Songs: <Music2 className="w-4 h-4" />, Events: <Megaphone className="w-4 h-4" />, Broadcast: <Send className="w-4 h-4" />,
   Users: <UsersIcon className="w-4 h-4" />, Products: <Package className="w-4 h-4" />, Accounting: <Calculator className="w-4 h-4" />,
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
-  Features: <ToggleRight className="w-4 h-4" />, Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
+  Features: <ToggleRight className="w-4 h-4" />, Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />, Errors: <AlertTriangle className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
   Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />, Games: <Gamepad2 className="w-4 h-4" />,
 };
@@ -160,7 +162,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
 const TAB_COLOR: Record<string, string> = {
   Requests: "#a855f7", Redemptions: "#ec4899", "Top-ups": "#f59e0b", Codes: "#06b6d4", Pills: "#ef4444", Songs: "#8b5cf6",
   Events: "#f97316", Broadcast: "#3b82f6", Users: "#22c55e", Products: "#14b8a6", Accounting: "#10b981", Prizes: "#eab308",
-  Gifts: "#f472b6", FAQ: "#60a5fa", Settings: "#94a3b8", Logs: "#64748b", Inventory: "#0ea5e9", CRM: "#6366f1",
+  Gifts: "#f472b6", FAQ: "#60a5fa", Settings: "#94a3b8", Logs: "#64748b", Errors: "#ef4444", Inventory: "#0ea5e9", CRM: "#6366f1",
   Bookings: "#f59e0b", Bottles: "#e11d48", Staff: "#84cc16", Payroll: "#059669", Leaderboard: "#facc15", Feedback: "#fb7185", Games: "#d946ef",
 };
 
@@ -376,6 +378,61 @@ function Logs() {
           <span className="text-white/40">{l.action} · {l.entityType} · {t("admin.log.by")} <span className="text-amber-300/80">{l.adminName || l.adminUserId?.slice(0, 8)}</span></span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Admin › Errors: the error watcher (failed song requests, bookings, POS, orders, check-ins, WhatsApp).
+const ERROR_AREAS = ["song", "booking", "pos", "order", "checkin", "whatsapp", "server"];
+function ErrorWatch({ canClear }: { canClear: boolean }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [area, setArea] = useState("");
+  const [days, setDays] = useState(7);
+  const [open, setOpen] = useState<number | null>(null);
+  const url = `/api/reborn/admin/errors?days=${days}${area ? `&area=${area}` : ""}`;
+  const { data } = useQuery<any>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()), refetchInterval: 20000 });
+  const rows: any[] = data?.rows || [];
+  const counts = new Map<string, any>((data?.counts || []).map((c: any) => [c.area, c]));
+  const total = Array.from(counts.values()).reduce((n, c: any) => n + c.n, 0);
+  const clear = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/errors${area ? `?area=${area}` : ""}`).then((r) => r.json()),
+    onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/errors") }); },
+  });
+  const chip = (on: boolean) => `px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap ${on ? "bg-red-500/20 border-red-400/60 text-red-100" : "bg-white/5 border-white/10 text-white/60"}`;
+  return (
+    <div>
+      <h3 className="font-bold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-red-400" /> {t("admin.err.title")}</h3>
+      <p className="text-xs text-white/50 mt-1 mb-3">{t("admin.err.hint")}</p>
+      <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2">
+        <button onClick={() => setArea("")} className={chip(!area)}>{t("admin.err.all")} · {total}</button>
+        {ERROR_AREAS.map((a) => { const c = counts.get(a); return (
+          <button key={a} onClick={() => setArea(a)} className={chip(area === a)}>{t(`admin.err.area.${a}`)} · {c?.n || 0}{c?.today ? <span className="ml-1 text-red-300">({t("admin.err.today", { n: c.today })})</span> : null}</button>
+        ); })}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        {[1, 7, 30].map((d) => <button key={d} onClick={() => setDays(d)} className={chip(days === d)}>{t("admin.err.days", { n: d })}</button>)}
+        {canClear && rows.length > 0 && <button onClick={() => { if (confirm(t("admin.err.clearConfirm"))) clear.mutate(); }} className="ml-auto px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 text-white/60 inline-flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> {t("admin.err.clear")}</button>}
+      </div>
+      {rows.length === 0 ? <Empty text={t("admin.err.empty")} /> : (
+        <div className="space-y-1.5">
+          {rows.map((e) => (
+            <button key={e.id} onClick={() => setOpen(open === e.id ? null : e.id)} className="block w-full text-left px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">
+              <div className="flex items-start gap-2">
+                <span className={`shrink-0 px-1.5 py-0.5 rounded font-bold ${e.status >= 500 || e.status === 0 ? "bg-red-500/30 text-red-100" : "bg-amber-400/20 text-amber-100"}`}>{e.status || "!"}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block font-semibold text-white/90 break-words">{e.message}</span>
+                  <span className="block text-white/40 truncate">{t(`admin.err.area.${e.area}`)} · {e.method} {e.path}{e.source === "client" ? ` · ${t("admin.err.network")}` : ""}</span>
+                  {(e.userName || e.userId) && <span className="block text-amber-300/80">{t("admin.err.by", { name: e.userName || e.userId })}</span>}
+                </span>
+                <span className="shrink-0 text-white/30">{new Date(e.createdAt).toLocaleString(localeTag(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+              {open === e.id && e.detail && <pre className="mt-2 p-2 rounded-lg bg-black/40 text-[10px] text-white/60 whitespace-pre-wrap break-all">{e.detail.startsWith("{") ? t("admin.err.sent", { body: e.detail }) : e.detail}</pre>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

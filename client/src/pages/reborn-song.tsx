@@ -39,6 +39,26 @@ export default function RebornSong() {
   );
 }
 
+// "400: message" → "message" (the server's translated text).
+const errText = (e: any) => String(e?.message || "").replace(/^\d{3}:\s*/, "");
+// Table mode: members must scan their table QR before any song request.
+function useSongQueueInfo() {
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/song-queue-info"], queryFn: () => apiRequest("GET", "/api/reborn/song-queue-info").then((r) => r.json()), refetchInterval: 15000, refetchOnWindowFocus: true });
+  return data;
+}
+function TableScanNotice({ qi }: { qi: any }) {
+  const { t } = useTranslation();
+  if (qi?.needTable) return (
+    <a href="/kos" className="block mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3.5">
+      <span className="block font-bold text-amber-200">📷 {t("vn.song.needTableTitle")}</span>
+      <span className="block text-xs text-white/65 mt-1">{t("vn.song.needTableBody")}</span>
+      <span className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-amber-300 text-black text-xs font-bold">{t("vn.kos.scanTableQr")}</span>
+    </a>
+  );
+  if (qi?.mode === "table" && qi?.table) return <p className="mb-3 text-xs font-bold text-emerald-300">✓ {t("vn.kos.checkedInTable", { t: qi.table })}</p>;
+  return null;
+}
+
 function SongRow({ s, onRequest, pending }: any) {
   const { t } = useTranslation();
   return (
@@ -71,14 +91,16 @@ function TopList() {
   const req = useMutation({
     mutationFn: (song: any) => apiRequest("POST", "/api/reborn/songs/request", song.id && song.source !== "spotify" ? { songId: song.id, performanceMode } : { ...song, id: undefined, source: undefined, externalId: undefined, performanceMode }).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: t("vn.song.requested"), description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); },
-    onError: (e: any) => toast({ title: t("vn.common.failed"), description: e.message, variant: "destructive" }),
+    onError: (e: any) => { qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue-info"] }); toast({ title: t("vn.common.failed"), description: errText(e), variant: "destructive" }); },
   });
+  const qi = useSongQueueInfo();
   const filtered = search ? (searchResult?.songs || []) : songs;
   // Long lists render in pages of 60 so phones stay fast; "Show more" reveals the rest.
   const [shown, setShown] = useState(60);
   useEffect(() => setShown(60), [search]);
   return (
     <div>
+      <TableScanNotice qi={qi} />
       {songSettings?.performanceModeEnabled && <ModePicker value={performanceMode} onChange={setPerformanceMode}/>}
       <div className="relative mb-4">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
@@ -87,7 +109,7 @@ function TopList() {
       {search && <p className="mb-3 text-xs text-white/40">{isFetching ? t("vn.song.searchingAll") : searchResult?.spotifyConnected ? t("vn.song.resultsSpotify") : t("vn.song.resultsFree")}</p>}
       {filtered.length === 0 && <div className="text-center py-10 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.song.noSongs")}</p></div>}
       {!search && songs.length > 0 && <p className="mb-2 text-xs text-white/40">{t("vn.song.total", { n: songs.length })}</p>}
-      <div className="space-y-2">{filtered.slice(0, shown).map((s) => <SongRow key={`${s.source || "library"}-${s.id || s.externalId || `${s.title}-${s.artist}`}`} s={s} onRequest={(x: any) => req.mutate(x)} pending={req.isPending} />)}</div>
+      <div className="space-y-2">{filtered.slice(0, shown).map((s) => <SongRow key={`${s.source || "library"}-${s.id || s.externalId || `${s.title}-${s.artist}`}`} s={s} onRequest={(x: any) => (qi?.needTable ? toast({ title: t("vn.song.needTableTitle"), description: t("vn.song.needTableBody"), variant: "destructive" }) : req.mutate(x))} pending={req.isPending} />)}</div>
       {filtered.length > shown && <button onClick={() => setShown((n) => n + 60)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80">{t("vn.song.showMore", { n: filtered.length - shown })}</button>}
     </div>
   );
@@ -109,24 +131,17 @@ function NewRequest() {
   const req = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/songs/request", f).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: t("vn.song.requestSent"), description: d.message }); setF({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "", performanceMode: "self" }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); },
-    onError: (e: any) => toast({ title: t("vn.common.failed"), description: e.message, variant: "destructive" }),
+    onError: (e: any) => { qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue-info"] }); toast({ title: t("vn.common.failed"), description: errText(e), variant: "destructive" }); },
   });
   const inp = "w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60";
-  const { data: qi } = useQuery<any>({ queryKey: ["/api/reborn/song-queue-info"], queryFn: () => apiRequest("GET", "/api/reborn/song-queue-info").then((r) => r.json()), refetchInterval: 15000, refetchOnWindowFocus: true });
+  const qi = useSongQueueInfo();
   const needTable = !!qi?.needTable;
   const canSend = !needTable && (f.title.trim() || f.titlePinyin.trim());
   return (
     <div className="rounded-3xl p-5 border border-white/10 bg-white/5">
       <h3 className="font-bold mb-1 flex items-center gap-2"><Mic2 className="w-5 h-5 text-amber-300" /> {t("vn.song.requestASong")}</h3>
       <p className="text-sm text-white/60 mb-4">{t("vn.song.requestHelp")}</p>
-      {needTable && (
-        <a href="/kos" className="block mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3.5">
-          <span className="block font-bold text-amber-200">📷 {t("vn.song.needTableTitle")}</span>
-          <span className="block text-xs text-white/65 mt-1">{t("vn.song.needTableBody")}</span>
-          <span className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-amber-300 text-black text-xs font-bold">{t("vn.kos.scanTableQr")}</span>
-        </a>
-      )}
-      {qi?.mode === "table" && qi?.table && <p className="mb-3 text-xs font-bold text-emerald-300">✓ {t("vn.kos.checkedInTable", { t: qi.table })}</p>}
+      <TableScanNotice qi={qi} />
       {songSettings?.performanceModeEnabled && <ModePicker value={f.performanceMode} onChange={(performanceMode)=>setF({...f,performanceMode})}/>}
       <div className="relative mb-3">
         <input value={f.title} onChange={(e) => { setF({ ...f, title: e.target.value }); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} placeholder={t("vn.song.namePh")} className={inp} autoComplete="off" />

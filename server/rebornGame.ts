@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
 import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
+import { registerClientErrorRoute } from "./errorWatch";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
@@ -2202,6 +2203,17 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Admin activity log (full admin only) — resolves which admin account did each action
+  registerClientErrorRoute(app);
+  // Admin › Errors: the error watcher's log (song, booking, POS, order, check-in, WhatsApp).
+  app.get("/api/reborn/admin/errors", requireStaff(async (req, res) => {
+    const { listErrors } = await import("./errorWatch");
+    res.json(await listErrors({ area: String(req.query.area || ""), days: Number(req.query.days) || 7 }));
+  }));
+  app.delete("/api/reborn/admin/errors", requireAdmin(async (req, res) => {
+    const { clearErrors } = await import("./errorWatch");
+    await clearErrors(String(req.query.area || ""));
+    res.json({ message: tr(req, { en: "Cleared", zh: "已清除", id: "Dibersihkan" }) });
+  }));
   app.get("/api/reborn/admin/logs", requireAdmin(async (_req, res) => {
     const rows = await db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt)).limit(200);
     const adminIds = Array.from(new Set(rows.map((r) => r.adminUserId).filter(Boolean))) as string[];

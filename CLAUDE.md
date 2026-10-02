@@ -90,3 +90,18 @@ text.
   extra songs wait for the next round (`fairSongQueue` in server/rebornGame.ts).
   In `table` mode a member must be checked in at a table (table QR or confirmed
   table booking) before requesting — app and WhatsApp (`songNeedsTableScan`).
+
+## Error watch (Admin › Errors)
+
+- `server/errorWatch.ts` records every failed (4xx/5xx) song request, booking,
+  POS, shop order and KOS check-in API call (`areaForPath`), app calls that
+  never reached the server (`/api/client-error`, sent by `apiRequest`), WhatsApp
+  bot crashes / replies that didn't send / link errors (`waError`), and server
+  crashes into `app_errors` (kept 30 days). Passwords/tokens are masked.
+- Admin › Errors lists them by area with counts; staff get a notification on any
+  server error or 5+ errors of one area in 10 minutes (max one per kind per
+  15 min). Normal "do this first" replies (e.g. `needTable`) are logged but
+  never alerted. Add new areas to `areaForPath` + `admin.err.area.*`.
+- Song request 400 in table mode: the All songs list now shows the "scan your
+  table QR" card too, and app error toasts show the server's message without
+  the "400:" prefix.

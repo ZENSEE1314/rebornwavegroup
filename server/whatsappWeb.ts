@@ -161,7 +161,7 @@ export async function startWhatsAppWeb(): Promise<void> {
       }
     });
   } catch (e) {
-    console.error("[wa-web] start error", e);
+    console.error("[wa-web] start error", e); void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "LINK", path: "start error", status: 0, message: `WhatsApp link start error: ${(e as any)?.message || e}` })).catch(() => {});
     status = "idle";
   } finally {
     starting = false;
@@ -267,5 +267,5 @@ export async function resumeWhatsAppWebIfLinked(): Promise<void> {
     await ensureAuthTable();
     const creds = await readAuth("creds");
     if (creds?.me?.id) { console.log("[wa-web] resuming saved session"); startWhatsAppWeb().catch(() => {}); }
-  } catch (e) { console.error("[wa-web] resume", e); }
+  } catch (e) { console.error("[wa-web] resume", e); void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "LINK", path: "resume", status: 0, message: `WhatsApp link resume: ${(e as any)?.message || e}` })).catch(() => {}); }
 }

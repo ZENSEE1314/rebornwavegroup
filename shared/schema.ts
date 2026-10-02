@@ -2270,3 +2270,17 @@ export type SupportTicket = typeof supportTickets.$inferSelect;
 export type SupportMessage = typeof supportMessages.$inferSelect;
 export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
 export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
+
+// Error watcher (Admin › Errors): failed song requests, bookings, POS, orders, check-ins and WhatsApp.
+export const appErrors = pgTable("app_errors", {
+  id: serial("id").primaryKey(),
+  area: varchar("area").notNull(),
+  source: varchar("source").notNull().default("app"),
+  method: varchar("method"),
+  path: text("path"),
+  status: integer("status").notNull().default(0),
+  message: text("message").notNull().default(""),
+  userId: varchar("user_id"),
+  detail: text("detail"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

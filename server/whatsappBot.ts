@@ -50,8 +50,20 @@ export async function whatsappAvailable(): Promise<boolean> {
   try { const web = await import("./whatsappWeb"); return web.isWebConnected(); } catch { return false; }
 }
 
+// Logs a WhatsApp bot error and records it for Admin › Errors.
+function waError(tag: string, e: unknown) {
+  console.error(`[wa] ${tag}`, e);
+  void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "BOT", path: tag, status: 0, message: `${tag}: ${(e as any)?.message || e}`, detail: String((e as any)?.stack || "") })).catch(() => {});
+}
+
 // --- Sending -------------------------------------------------------------
 export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
+  const ok = await sendWhatsAppOnce(to, text);
+  // Watcher (Admin › Errors): a reply that didn't go out while WhatsApp is linked.
+  if (!ok && await whatsappAvailable()) void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "SEND", path: String(to).replace(/\D/g, ""), status: 0, message: `Reply not sent: ${text.slice(0, 120)}` })).catch(() => {});
+  return ok;
+}
+async function sendWhatsAppOnce(to: string, text: string): Promise<boolean> {
   const c = cfg();
   const num = String(to).replace(/\D/g, "");
   // Prefer a linked WhatsApp Web session (QR login) when available.
@@ -118,7 +130,7 @@ export async function sendWhatsAppChoices(to: string, text: string, choices: Wha
       });
       if (r.ok) return true;
       console.error(`[wa] interactive send failed ${r.status}: ${await r.text()}`);
-    } catch (e) { console.error("[wa] interactive send error", e); }
+    } catch (e) { waError("interactive send error", e); }
   }
   return sendWhatsApp(num, `${text}\n\n${buttons.map((button, index) => `${index + 1}️⃣ ${button.title}`).join("\n")}`);
 }
@@ -182,7 +194,7 @@ async function patchContact(id: number, patch: Partial<Contact>) {
 }
 async function logMsg(contactId: number, phone: string, direction: "in" | "out", body: string, viaBot: boolean) {
   try { await db.insert(crmMessages).values({ contactId, phone: phone.replace(/\D/g, ""), direction, body: body.slice(0, 4000), viaBot }); }
-  catch (e) { console.error("[wa] logMsg", e); }
+  catch (e) { waError("logMsg", e); }
 }
 
 // Admin replies to a contact from the web CRM. Sends over WhatsApp, logs it, and
@@ -214,7 +226,7 @@ export async function crmRecordVisit(opts: { phone?: string | null; userId?: str
     } else if (opts.userId) {
       await db.update(crmContacts).set({ lastVisitAt: now, updatedAt: now }).where(eq(crmContacts.userId, opts.userId));
     }
-  } catch (e) { console.error("[wa] recordVisit", e); }
+  } catch (e) { waError("recordVisit", e); }
 }
 
 // --- Conversation state machine -----------------------------------------
@@ -837,6 +849,10 @@ export async function handleInboundText(from: string, text: string, profileName?
 async function handleInboundOnce(from: string, text: string, profileName?: string) {
   try {
     return await handleInbound(from, text, profileName);
+  } catch (e: any) {
+    // Watcher (Admin › Errors): the bot crashed on this message.
+    void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "IN", path: from.replace(/\D/g, ""), status: 500, message: `Bot error on "${text.slice(0, 80)}": ${e?.message || e}`, detail: String(e?.stack || "") })).catch(() => {});
+    throw e;
   } finally {
     // WhatsApp updates happen outside the app's HTTP mutations. Wake every open
     // screen after processing so bookings, messages, songs and CRM data appear now.
@@ -883,7 +899,7 @@ async function alertStaffMessage(c: Contact, from: string, body: string, first =
     const title = (lang: Lang) => first ? pick(lang, { en: "🙋 {who} needs a reply", zh: "🙋 {who} 需要人工回复", id: "🙋 {who} perlu dibalas" }, { who }) : pick(lang, { en: "💬 {who} (WhatsApp)", zh: "💬 {who}（WhatsApp）", id: "💬 {who} (WhatsApp)" }, { who });
     await notifyStaffI18n("whatsapp_handoff", (lang) => ({ title: title(lang), body: body.slice(0, 140) }), { path: "/reborn-admin", crmContactId: c.id });
     await pushAdminsI18n((lang) => ({ title: title(lang), body: body.slice(0, 140), url: "/reborn-admin", tag: `wa-${c.id}` }));
-  } catch (e) { console.warn("[wa] staff alert", e); }
+  } catch (e) { waError("staff alert", e); }
 }
 
 // "What do you have?" / "facilities?" / "有什么？" / "ada apa saja?" → list everything we offer.
@@ -1233,7 +1249,7 @@ async function createPendingFaq(question: string) {
     if (existing.length) return;
     const kws = Array.from(new Set(q.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff\s]/gi, " ").split(/\s+/).filter((w) => w.length > 3))).slice(0, 8).join(",");
     await db.insert(faqItems).values({ question: q, answer: "", keywords: kws, active: false, sortOrder: 200 });
-  } catch (e) { console.error("[wa] pending faq", e); }
+  } catch (e) { waError("pending faq", e); }
 }
 
 // Offer a booking (used right after signup). Sends an area image if one is set.
@@ -1568,7 +1584,7 @@ async function sendEventsForDay(c: Contact, from: string, lang: Lang, date: stri
       if (ev.imageUrl) await sendWhatsAppImage(from, ev.imageUrl, text); else await sendWhatsApp(from, text);
       await logMsg(c.id, c.phone, "out", text, true);
     }
-  } catch (e) { console.warn("[wa] events for day", e); }
+  } catch (e) { waError("events for day", e); }
 }
 
 // "Events" (menu 4): every upcoming event, nearest first — poster + text for each.
@@ -1585,7 +1601,7 @@ async function sendAllEvents(c: Contact, from: string, lang: Lang) {
       await logMsg(c.id, c.phone, "out", text, true);
     }
     await say0(c, from, L(lang, "eventsFooter"));
-  } catch (e) { console.warn("[wa] events list", e); }
+  } catch (e) { waError("events list", e); }
 }
 
 // Step back one question in a WhatsApp song request.
@@ -1601,7 +1617,7 @@ async function songBack(c: Contact, lang: Lang, wa: any, say: (m: string) => Pro
 
 // "By table" song queue: the member must scan their table QR (or have a confirmed table booking) first.
 async function songTableBlocked(userId: string): Promise<boolean> {
-  try { const { songNeedsTableScan } = await import("./rebornGame"); return await songNeedsTableScan(userId); } catch (e) { console.warn("[wa] song table check", e); return false; }
+  try { const { songNeedsTableScan } = await import("./rebornGame"); return await songNeedsTableScan(userId); } catch (e) { waError("song table check", e); return false; }
 }
 
 async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: any, sayRaw: (m: string) => Promise<void>) {
@@ -1692,7 +1708,7 @@ async function finishWhatsAppSongRequest(c: Contact, lang: Lang, selected: SongS
         songId = saved.id;
       }
     }
-  } catch (e) { console.error("[wa] song upsert", e); }
+  } catch (e) { waError("song upsert", e); }
   await db.insert(songRequests).values({ companyId: await defaultCompanyId(), userId: c.userId!, songId, title, artist, performanceMode, status: "pending" });
   emitLiveUpdate("/api/reborn/admin/song-requests", { action: "WHATSAPP_SONG_REQUEST" });
   await sendRebornStaffNotification({
@@ -1737,7 +1753,7 @@ export async function sendReviewRequest(opts: { phone?: string | null; userId?: 
     const ok = await sendWhatsApp(num, msg);
     if (contact) { await logMsg(contact.id, num, "out", msg, true); await patchContact(contact.id, { waState: { flow: "review", reviewUrl: opts.reviewUrl || "" } }); }
     return ok;
-  } catch (e) { console.error("[wa] review request", e); }
+  } catch (e) { waError("review request", e); }
 }
 
 // --- Webhook -------------------------------------------------------------
@@ -1750,7 +1766,7 @@ export function registerWhatsAppBot(app: Express) {
       if (!cid) return;
       await db.update(appointments).set({ companyId: cid }).where(sql`${appointments.companyId} IS NULL`);
       await db.update(songRequests).set({ companyId: cid }).where(sql`${songRequests.companyId} IS NULL`);
-    } catch (e) { console.error("[wa] company backfill", e); }
+    } catch (e) { waError("company backfill", e); }
   })();
   app.get("/api/whatsapp/webhook", (req: Request, res: Response) => {
     const c = cfg();
@@ -1782,7 +1798,7 @@ export function registerWhatsAppBot(app: Express) {
           }
         }
       }
-    } catch (e) { console.error("[wa] webhook error", e); }
+    } catch (e) { waError("webhook error", e); }
   });
 
   // Kick off the reminder scheduler (hourly). Safe no-op until WhatsApp is configured.
@@ -1814,7 +1830,7 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
       const ok = await sendWhatsApp(phone, L(blang, "bottle", { name: b.memberName || "", item: b.name, qty: String(b.quantity), days: String(daysLeft) }));
       if (ok) { await db.update(bottleKeeps).set({ lastReminderAt: new Date() }).where(eq(bottleKeeps.id, b.id)); out.bottles++; }
     }
-  } catch (e) { console.error("[wa] bottle reminders", e); }
+  } catch (e) { waError("bottle reminders", e); }
 
   // 2) Come back after 3 days
   try {
@@ -1828,7 +1844,7 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
       const ok = await sendWhatsApp(c.phone, L(await langForPhone(c.phone, c.userId), "comeback", { name: c.name || "" }));
       if (ok) { await patchContact(c.id, { lastComebackReminderAt: new Date() }); out.comeback++; }
     }
-  } catch (e) { console.error("[wa] comeback reminders", e); }
+  } catch (e) { waError("comeback reminders", e); }
 
   // 3) Same-day feedback (evening, for visits earlier today)
   try {
@@ -1844,7 +1860,7 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
         if (ok) { await patchContact(c.id, { lastFeedbackReminderAt: new Date() }); out.feedback++; }
       }
     }
-  } catch (e) { console.error("[wa] feedback reminders", e); }
+  } catch (e) { waError("feedback reminders", e); }
 
   return out;
 }
@@ -1883,7 +1899,7 @@ export async function runBookingReminders(): Promise<number> {
       }
       await db.update(appointments).set({ remindersSent: markSet.join(",") }).where(eq(appointments.id, a.id));
     }
-  } catch (e) { console.error("[wa] booking reminders", e); }
+  } catch (e) { waError("booking reminders", e); }
   return sent;
 }
 
