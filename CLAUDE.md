@@ -55,6 +55,9 @@ text.
   for every new message, and an admin replies from Admin › CRM. The admin turns
   the bot back on per number in the CRM chat, or the member types *AI*
   (the hand-off reply tells them so) to get the auto-reply back.
+- Song names are never handed off: after "scan your table QR first" the next
+  message (30 min) is taken as the song name (`songWait`), and any message that
+  is a library song title / pinyin starts a song request (`isLibrarySong`).
 
 ## Events
 

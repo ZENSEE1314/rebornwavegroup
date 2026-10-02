@@ -513,6 +513,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "抱歉，此功能目前已关闭。🙏 回复 MENU 查看其他选项。",
       id: "Maaf, fitur ini sedang dinonaktifkan. 🙏 Balas MENU untuk pilihan lain.",
     },
+    songStillNeedTable: {
+      en: "🎤 Got it — \"{song}\". Please scan the QR code on your table first (app → KOS → camera), then send the song name again and I'll request it for you.",
+      zh: "🎤 收到——「{song}」。请先扫描桌上的二维码（应用 → 歌王之王 → 相机），然后再发送歌名，我就帮你点歌。",
+      id: "🎤 Oke — \"{song}\". Pindai dulu QR di mejamu (aplikasi → KOS → kamera), lalu kirim lagi judul lagunya dan akan saya mintakan.",
+    },
     songNeedTable: {
       en: "🎤 Song requests go by table tonight. Please scan the QR code on your table first (open the app → KOS → camera), then send your song request again. If you booked a table, you'll be checked in once staff confirm your booking.",
       zh: "🎤 今晚点歌按桌排队。请先扫描桌上的二维码（打开应用 → 歌王之王 → 相机），然后再发送点歌请求。如果你已订桌，员工确认预订后会自动为你签到。",
@@ -845,6 +850,17 @@ const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bo
 const AI_BACK_RE = /^\s*(ai|a\.i\.?|ai assistant|asisten ai|ai助手|ai 助手|人工智能)\s*[!.。]?\s*$/i;
 async function say0(c: Contact, from: string, msg: string) { await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); }
 
+// Is this message exactly a song in our library? (title, or its pinyin — "ni hao bu hao" = 你好不好)
+async function isLibrarySong(text: string): Promise<boolean> {
+  const t = text.trim().toLowerCase().replace(/\s+/g, " ");
+  if (t.length < 2 || t.length > 60) return false;
+  const py = textPinyin(t).toLowerCase().replace(/\s+/g, " ").trim();
+  const norm = (col: any) => sql`lower(regexp_replace(${col}, '\s+', ' ', 'g'))`;
+  const [hit] = await db.select({ id: songs.id }).from(songs)
+    .where(sql`${norm(songs.title)} = ${t} OR ${norm(songs.titlePinyin)} = ${t} OR ${norm(songs.titlePinyin)} = ${py}`).limit(1);
+  return !!hit;
+}
+
 // Messages that aren't about the club (delivery, courier, sales…) go straight to staff.
 const OFF_TOPIC_RE = /\b(deliver(y|ies|ing)?|courier|kurir|paket|parcel|package|shipment|ekspedisi|ojol|gojek|grab ?(food|express)|shopee ?food|cod\b|invoice|tagihan|supplier|vendor|sales|promosi|kerja ?sama|collaborat|partnership|job|lowongan|loker|interview|wawancara)\b|快递|外卖|送货|包裹|供应商|合作|应聘|招聘|发票/i;
 function guessLang(body: string, fallback: Lang): Lang {
@@ -1129,6 +1145,17 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   }
   if (wa.flow === "book") return bookingStep(c, lang, from, body, wa, say);
   if (wa.flow === "song") return songStep(c, lang, from, body, wa, say);
+  // Told to scan their table QR before requesting: the next message is almost
+  // always the song name — never hand it to staff as an unknown question.
+  if (wa.flow === "songWait") {
+    const fresh = Date.now() - Number(wa.at || 0) < 30 * 60_000;
+    const leaving = /^(menu|cancel|stop|0|batal|取消|菜单)$/i.test(body.trim()) || parseMenuIntent(body) !== null;
+    if (fresh && !leaving) {
+      if (c.userId && await songTableBlocked(c.userId)) { await say(L(lang, "songStillNeedTable", { song: body.trim().slice(0, 60) })); return; }
+      return songStep(c, lang, from, body, { flow: "song", step: "name" }, say); // checked in now → request it
+    }
+    await patchContact(c.id, { waState: { flow: null } }); // expired or they picked something else
+  }
 
   // --- WHAT WE HAVE --- ("what do you have?", "facilities", "有什么", "ada apa saja")
   if (ABOUT_RE.test(body)) return sendWhatWeHave(c, lang, say);
@@ -1139,7 +1166,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   if (offKey && await featureOff(offKey)) { await say(L(lang, "featureOff")); return; }
   if (intent === "book") return handleBookIntent(c, lang, from, body, say);
   if (intent === "song") {
-    if (c.userId && await songTableBlocked(c.userId)) { await say(L(lang, "songNeedTable")); return patchContact(c.id, { waState: { flow: null } }); }
+    if (c.userId && await songTableBlocked(c.userId)) { await say(L(lang, "songNeedTable")); return patchContact(c.id, { waState: { flow: "songWait", at: Date.now() } }); }
     await say(withNav(lang, L(lang, "songAskName"))); return patchContact(c.id, { waState: { flow: "song", step: "name" } });
   }
   if (intent === "bottle") return showBottles(c, lang, say);
@@ -1155,6 +1182,11 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu|halo|hai|selamat|tanya|bantuan)\b|你好|您好|咨询|请问|帮助|菜单/i.test(body)) {
       await sendMemberMenu(from, c, lang, true);
       return;
+    }
+    // A song from our library (title, Chinese or pinyin) → treat it as a song request.
+    if (c.userId && !(await featureOff("songs")) && await isLibrarySong(body)) {
+      if (await songTableBlocked(c.userId)) { await say(L(lang, "songNeedTable")); return patchContact(c.id, { waState: { flow: "songWait", at: Date.now() } }); }
+      return songStep(c, lang, from, body, { flow: "song", step: "name" }, say);
     }
     // Unknown → log a pending FAQ and hand the chat to staff (bot goes quiet).
     await createPendingFaq(body);
@@ -1575,7 +1607,7 @@ async function songTableBlocked(userId: string): Promise<boolean> {
 async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: any, sayRaw: (m: string) => Promise<void>) {
   const say = (m: string) => sayRaw(withNav(lang, m));
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
-  if (await songTableBlocked(c.userId)) { await sayRaw(L(lang, "songNeedTable")); return patchContact(c.id, { waState: { flow: null } }); }
+  if (await songTableBlocked(c.userId)) { await sayRaw(L(lang, "songNeedTable")); return patchContact(c.id, { waState: { flow: "songWait", at: Date.now() } }); }
   if (wa.step === "name") {
     const title = body.trim();
     if (!title) { await say(L(lang, "songAskName")); return; }
