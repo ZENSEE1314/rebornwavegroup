@@ -302,6 +302,31 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "📅 {day}: maaf, {area} sudah penuh hari itu. Silakan balas tanggal lain.",
     },
     dateOk: { en: "✅ Date: *{day}*", zh: "✅ 日期：*{day}*", id: "✅ Tanggal: *{day}*" },
+    aboutIntro: {
+      en: "🎉 Here's everything we have at {club}:",
+      zh: "🎉 {club} 的全部项目：",
+      id: "🎉 Ini semua yang ada di {club}:",
+    },
+    aboutTables: {
+      en: "{n} tables/rooms",
+      zh: "{n} 张桌/间房",
+      id: "{n} meja/ruang",
+    },
+    aboutBook: {
+      en: "Reply the number to book it 📅 — or 0 for the menu.",
+      zh: "回复编号即可预订 📅 — 或回复 0 返回菜单。",
+      id: "Balas nomornya untuk booking 📅 — atau 0 untuk menu.",
+    },
+    aboutJoin: {
+      en: "To book, you'll need a free member account (takes a minute). What's your name?",
+      zh: "预订需要一个免费会员账户（一分钟即可）。请问你的名字是？",
+      id: "Untuk booking, kamu perlu akun member gratis (hanya semenit). Siapa namamu?",
+    },
+    aboutMore: {
+      en: "Reply MENU for more options.",
+      zh: "回复 MENU 查看更多选项。",
+      id: "Balas MENU untuk pilihan lain.",
+    },
     fullVenue: {
       en: "😔 Sorry, we're fully booked on {day} — every table is taken. Please reply another date.",
       zh: "😔 抱歉，{day} 已全部订满——所有桌位都已被预订。请回复其他日期。",
@@ -756,6 +781,29 @@ async function handleInboundOnce(from: string, text: string, profileName?: strin
 
 const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
 
+// "What do you have?" / "facilities?" / "有什么？" / "ada apa saja?" → list everything we offer.
+const ABOUT_RE = /what (do |does )?(you|u|ur club|your club|the club)( guys)? (have|got|offer)|what('?s| is) (there|available|in (your|the) club)|what can (i|we) (do|book)|\bfacilit|\bamenit|\bservices\b|有什么|有啥|有哪些|设施|服务项目|\bada apa\b|\bfasilitas\b|\blayanan apa\b|\bpunya apa\b/i;
+const AREA_EMOJI: [RegExp, string][] = [[/vip/i, "👑"], [/ktv|karaoke/i, "🎤"], [/game/i, "🎮"], [/beauty|spa|salon/i, "💅"], [/pet/i, "🐾"], [/restaurant|food|dining|cafe/i, "🍽️"], [/bar|lounge/i, "🍸"]];
+// Everything set up in the booking areas, with today's hours — reply a number to book it.
+async function sendWhatWeHave(c: Contact, lang: Lang, say: (m: string) => Promise<void>) {
+  const areas = enabledAreas(await settingVal("bookingAreas"));
+  const club = (await settingVal("clubName")) || "Reborn Wave Group";
+  const today = todayStr();
+  const list = areas.map((a, i) => {
+    const emoji = (AREA_EMOJI.find(([re]) => re.test(a.name)) || [, "✨"])[1];
+    const count = a.tables.length ? ` · ${L(lang, "aboutTables", { n: String(a.tables.length) })}` : "";
+    return `${i + 1}. ${emoji} ${areaNameIn(a, lang)} (${areaLevelIn(a.level, lang)})${count}\n    🕒 ${hoursText(lang, areaHoursTextForDate(a, today))}`;
+  }).join("\n");
+  // Not signed up yet → ask their name to make the free member account (needed to book).
+  if (!c.userId) {
+    await say(`${L(lang, "aboutIntro", { club })}\n\n${list}\n\n${L(lang, "aboutJoin")}`);
+    return patchContact(c.id, { lang, stage: "await_name", waState: { flow: null } });
+  }
+  const canBook = areas.length > 0 && !(await featureOff("bookings"));
+  await say(`${L(lang, "aboutIntro", { club })}\n\n${list}\n\n${L(lang, canBook ? "aboutBook" : "aboutMore")}`);
+  if (canBook) return patchContact(c.id, { waState: { flow: "book", step: "area" } });
+}
+
 function parseMenuIntent(s: string): "book" | "song" | "bottle" | "menu" | null {
   const t = s.trim().toLowerCase();
   if (/^menu_book$|^1$|\bbook(ing)?\b|\btables?\b|\breserv|\bappointment|预订|订位|\bmeja\b|\bpesan meja\b/.test(t)) return "book";
@@ -883,6 +931,12 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     return patchContact(c.id, { waState: { flow: null } });
   }
 
+  // A new number asking "what do you have?" gets the list first (in the language they wrote in).
+  if (!c.userId && (c.stage === "new" || c.stage === "await_lang" || c.stage === "await_name") && ABOUT_RE.test(body)) {
+    const guess: Lang = c.stage === "await_name" && c.lang ? (c.lang as Lang) : /[\u4e00-\u9fff]/.test(body) ? "zh" : /\b(ada|apa|fasilitas|layanan|punya|saja|aja)\b/i.test(body) ? "id" : "en";
+    return sendWhatWeHave(c, guess, say);
+  }
+
   // --- ONBOARDING (new numbers) ---
   if (c.stage === "new") {
     await sendWhatsAppChoices(from, WELCOME_TRILINGUAL, [
@@ -961,6 +1015,9 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   }
   if (wa.flow === "book") return bookingStep(c, lang, from, body, wa, say);
   if (wa.flow === "song") return songStep(c, lang, from, body, wa, say);
+
+  // --- WHAT WE HAVE --- ("what do you have?", "facilities", "有什么", "ada apa saja")
+  if (ABOUT_RE.test(body)) return sendWhatWeHave(c, lang, say);
 
   // --- MENU INTENTS (work for members & returning contacts) ---
   const intent = parseMenuIntent(body);
