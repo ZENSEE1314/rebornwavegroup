@@ -231,6 +231,10 @@ export async function crmRecordVisit(opts: { phone?: string | null; userId?: str
 
 // --- Conversation state machine -----------------------------------------
 const EMAIL_RE = /[^\s@]+@[^\s@]+\.[^\s@]+/;
+// "I don't have an email" in any of our languages.
+const NO_EMAIL_RE = /^\s*(skip|no|nope|none|no email|don'?t have( an? email)?|dont have|nil|-|跳过|没有|沒有|无|無|没有邮箱|沒有郵箱|不用|lewati|tidak( ada)?( email)?|gak( ada)?|ga( ada)?|nggak( ada)?|tak ada|belum( ada)?|skip aja)\s*[.!。]*\s*$/i;
+// 6281234567890 → 081234567890 (how members type it when logging in).
+const localPhone = (p: string) => { const d = String(p || "").replace(/\D/g, ""); return d.startsWith("62") ? "0" + d.slice(2) : d; };
 
 function looksLikeName(s: string): boolean {
   const t = s.trim();
@@ -471,14 +475,24 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "Bagus! 👋 Boleh saya tahu nama Anda?",
     },
     askEmail: {
-      en: "Nice to meet you, {name}! 🎉 What's your email address? I'll set up your member account.",
-      zh: "很高兴认识你，{name}！🎉 请提供你的电子邮箱，我帮你开通会员账户。",
-      id: "Senang berkenalan, {name}! 🎉 Boleh minta alamat email Anda? Saya akan buatkan akun member.",
+      en: "Nice to meet you, {name}! 🎉 What's your email address? I'll set up your member account.\n\nNo email? Reply *skip* — you'll log in with this phone number.",
+      zh: "很高兴认识你，{name}！🎉 请提供你的电子邮箱，我帮你开通会员账户。\n\n没有邮箱？回复 *跳过*，以后用这个手机号登录。",
+      id: "Senang berkenalan, {name}! 🎉 Boleh minta alamat email Anda? Saya akan buatkan akun member.\n\nTidak punya email? Balas *lewati* — Anda login pakai nomor HP ini.",
     },
     badEmail: {
-      en: "That doesn't look like an email. Please send it like name@example.com 🙂",
-      zh: "这似乎不是有效的邮箱，请按 name@example.com 格式发送 🙂",
-      id: "Itu sepertinya bukan email. Kirim dalam format name@example.com ya 🙂",
+      en: "That doesn't look like an email. Please send it like name@example.com 🙂\nNo email? Reply *skip* to use your phone number.",
+      zh: "这似乎不是有效的邮箱，请按 name@example.com 格式发送 🙂\n没有邮箱？回复 *跳过*，用手机号登录。",
+      id: "Itu sepertinya bukan email. Kirim dalam format name@example.com ya 🙂\nTidak punya email? Balas *lewati* untuk pakai nomor HP.",
+    },
+    readyPhone: {
+      en: "All set! ✅ Your member account is ready.\n\n🔗 {url}\n📱 Log in with your phone number: {phone}\n🔑 Password: {pw}\n\nPlease log in and change your password. You can add an email later in your profile. 💜",
+      zh: "搞定啦！✅ 你的会员账户已开通。\n\n🔗 {url}\n📱 用手机号登录：{phone}\n🔑 密码：{pw}\n\n请登录并修改密码。之后可在个人资料里添加邮箱。💜",
+      id: "Selesai! ✅ Akun member Anda sudah siap.\n\n🔗 {url}\n📱 Login dengan nomor HP: {phone}\n🔑 Kata sandi: {pw}\n\nSilakan login dan ganti kata sandi. Email bisa ditambahkan nanti di profil. 💜",
+    },
+    welcomeBackPhone: {
+      en: "Welcome back! This number already has an account. Log in at {url} with your phone number {phone}. 💜",
+      zh: "欢迎回来！这个号码已有账户。请到 {url} 用手机号 {phone} 登录。💜",
+      id: "Selamat datang kembali! Nomor ini sudah punya akun. Login di {url} dengan nomor HP {phone}. 💜",
     },
     ready: {
       en: "All set! ✅ Your member account is ready.\n\n🔗 {url}\n📧 {email}\n🔑 Password: {pw}\n\nPlease log in and change your password. Our team will help you from here — reply anytime. 💜",
@@ -801,13 +815,14 @@ async function sendMemberMenu(from: string, contact: Contact, lang: Lang, welcom
 
 async function createMemberFromContact(c: Contact): Promise<{ email: string; created: boolean }> {
   const email = (c.email || "").toLowerCase();
-  const existing = await storage.getUserByEmail(email);
+  // No email: the account is made with the phone number only (login = phone number).
+  const existing = email ? await storage.getUserByEmail(email) : await linkExistingUserByPhone(c.phone);
   if (existing) {
     await patchContact(c.id, { userId: existing.id, stage: "member" });
     return { email, created: false };
   }
   const user = await storage.createUser({
-    email,
+    email: email || null,
     password: DEFAULT_PASSWORD,
     firstName: (c.name || "Guest").split(" ")[0],
     lastName: (c.name || "").split(" ").slice(1).join(" "),
@@ -1120,6 +1135,14 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   }
   if (c.stage === "await_email") {
     const m = body.match(EMAIL_RE);
+    if (!m && NO_EMAIL_RE.test(body)) {
+      // No email → sign up with the phone number; they log in with it.
+      const { created } = await createMemberFromContact({ ...c, email: null } as Contact);
+      const phone = localPhone(c.phone);
+      await say(created ? L(lang, "readyPhone", { url: APP_BASE_URL, phone, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBackPhone", { url: APP_BASE_URL, phone }));
+      await sendMemberMenu(from, c, lang);
+      return patchContact(c.id, { waState: { flow: null } });
+    }
     if (!m) { await say(L(lang, "badEmail")); return; }
     await patchContact(c.id, { email: m[0].toLowerCase() });
     const { email, created } = await createMemberFromContact({ ...c, email: m[0].toLowerCase() } as Contact); // sets stage=member

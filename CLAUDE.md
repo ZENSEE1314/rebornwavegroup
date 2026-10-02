@@ -123,3 +123,13 @@ text.
 - **Main admin** (`users.role = admin`): every tab.
 - Daily sales and the day close count by venue day (08:00 → 08:00 WIB,
   `VENUE_DAY_OF`).
+
+## Sign-up without email (phone-number login)
+
+- Email is optional. WhatsApp sign-up asks for an email; replying *skip / no /
+  tidak ada / 跳过 / 没有* (`NO_EMAIL_RE`) makes the account with the phone number
+  only and replies with the login: phone number + default password
+  (`readyPhone`). The app's sign-up form has "Email (optional)".
+- Login accepts an email **or** a phone number in any format (08…, +62 8…, 628…):
+  `usersByPhone` / `phoneKey` in server/multiAuth.ts. A phone number that
+  already has an account can't sign up again without an email.

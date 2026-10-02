@@ -13,14 +13,17 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import rwgLogo from "@assets/rwg-logo.png";
 
 /* ─── Validation schemas (messages are i18n keys, translated where shown) ─── */
+// Log in with an email, or with the phone number for accounts made without email.
+const isPhoneLogin = (v: string) => !v.includes("@") && v.replace(/\D/g, "").length >= 8 && /^[\d\s()+.-]+$/.test(v);
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email("ac.login.v.email"),
+  email: z.string().trim().toLowerCase().refine((v) => isPhoneLogin(v) || z.string().email().safeParse(v).success, "ac.login.v.emailOrPhone"),
   password: z.string().min(6, "ac.login.v.passwordMin"),
   rememberMe: z.boolean().optional(),
 });
 
 const registerSchema = z.object({
-  email: z.string().trim().toLowerCase().email("ac.login.v.email"),
+  // Optional: without an email the member logs in with their phone number.
+  email: z.string().trim().toLowerCase().email("ac.login.v.email").or(z.literal("")),
   username: z.string().min(3, "ac.login.v.usernameMin").max(20, "ac.login.v.usernameMax"),
   password: z.string().min(6, "ac.login.v.passwordMin"),
   firstName: z.string().min(1, "ac.login.v.firstName"),
@@ -235,7 +238,8 @@ export default function Login() {
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
       const fullPhoneNumber = `${data.countryCode}${data.phoneNumber}`;
-      const registrationData = { ...data, phoneNumber: fullPhoneNumber };
+      const registrationData: any = { ...data, phoneNumber: fullPhoneNumber };
+      if (!registrationData.email) delete registrationData.email; // no email → phone-number login
       delete (registrationData as any).countryCode;
       const response = await fetch("/api/auth/register", {
         method: "POST",
@@ -535,12 +539,12 @@ export default function Login() {
             ══════════════════════════════ */}
             {activeTab === "login" && (
               <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
-                <FormField label={t("auth.email")} icon={Mail} error={loginForm.formState.errors.email?.message}>
+                <FormField label={t("ac.login.emailOrPhone")} icon={Mail} error={loginForm.formState.errors.email?.message}>
                   <Input
-                    placeholder={t("auth.enterEmail")}
+                    placeholder={t("ac.login.enterEmailOrPhone")}
                     className={inputBase}
-                    autoComplete="email"
-                    type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                    autoComplete="username"
+                    type="text" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
                     {...loginForm.register("email")}
                   />
                 </FormField>
@@ -635,8 +639,8 @@ export default function Login() {
                   </FormField>
                 </div>
 
-                <FormField label={t("auth.email")} icon={Mail} error={registerForm.formState.errors.email?.message}>
-                  <Input placeholder={t("auth.enterEmail")} className={inputBase} autoComplete="email" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} {...registerForm.register("email")} />
+                <FormField label={t("ac.login.emailOptional")} icon={Mail} error={registerForm.formState.errors.email?.message}>
+                  <Input placeholder={t("ac.login.emailOptionalPh")} className={inputBase} autoComplete="email" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} {...registerForm.register("email")} />
                 </FormField>
 
                 <FormField label={t("ac.login.username")} icon={User} error={registerForm.formState.errors.username?.message}>
