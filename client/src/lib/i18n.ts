@@ -33,6 +33,7 @@ export const translations: Translations = {
   'nav.bookings': { en: 'Bookings', zh: '预订', id: 'Reservasi' },
   'nav.loyalty': { en: 'Loyalty Program', zh: '会员奖励', id: 'Program Loyalitas' },
   'nav.kingsOfSingers': { en: 'Kings of Singers', zh: '歌王之王', id: 'Raja Penyanyi' },
+  'nav.events': { en: 'Events', zh: '活动', id: 'Acara' },
   'nav.songRequest': { en: 'Song Request', zh: '点歌', id: 'Permintaan Lagu' },
   'nav.support': { en: 'Support & FAQ', zh: '客服与常见问题', id: 'Bantuan & FAQ' },
   'nav.staffFeedback': { en: 'Staff Feedback', zh: '员工评价', id: 'Ulasan Staf' },

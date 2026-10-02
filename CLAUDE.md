@@ -62,6 +62,9 @@ text.
   upcoming events as a swipe-right row, nearest date first; an event disappears
   after its last day (no date = ongoing announcement, shown last).
   `upcomingEvents(date?)` in server/rebornGame.ts.
+- App **Events page** (`/events`, home tile + menu) lists all upcoming events as
+  A4 posters; tap for the full poster + text. WhatsApp menu option **4 Events**
+  (or "events / 活动 / acara / promo") sends every upcoming event (poster + text).
 - Booking a date that has an event shows its poster + text — app booking page
   and WhatsApp (sent right after the date is confirmed).
 
