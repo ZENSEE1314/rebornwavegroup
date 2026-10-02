@@ -154,6 +154,94 @@ function broadcast(room: Room) {
     catch { dead.push(s); }
   }
   for (const d of dead) room.subs.delete(d);
+  persistRoom(room);
+}
+
+// ── Rooms survive a server restart (deploys) ─────────────────────────────
+// Rooms live in memory; every change is also saved to game_rooms (at most ~1/s
+// per room). After a restart a room is loaded back the first time anyone asks
+// for it, and its turn timer is started again — so a game half-way through
+// carries on instead of "room not found".
+const persistTimers = new Map<string, NodeJS.Timeout>();
+function roomData(room: Room) {
+  const { timer, ticker, cleanupTimer, subs, ...data } = room as any;
+  return data;
+}
+function persistRoom(room: Room) {
+  if (persistTimers.has(room.code) || !rooms.has(room.code)) return;
+  persistTimers.set(room.code, setTimeout(() => {
+    persistTimers.delete(room.code);
+    if (!rooms.has(room.code)) return;
+    let json = ""; try { json = JSON.stringify(roomData(room)); } catch { return; }
+    db.execute(sql`INSERT INTO game_rooms (code, data, updated_at) VALUES (${room.code}, ${json}::jsonb, now())
+      ON CONFLICT (code) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`).catch((e) => console.warn("[games] save room", e?.message));
+  }, 1000));
+}
+function dropRoom(code: string) {
+  rooms.delete(code);
+  const t = persistTimers.get(code); if (t) { clearTimeout(t); persistTimers.delete(code); }
+  db.execute(sql`DELETE FROM game_rooms WHERE code = ${code}`).catch(() => {});
+}
+// Start the game's clock again after a restart. Turn-based games carry on where
+// they were; real-time races (tap, timer, wheel, red light, draw, RPS) go back
+// to the lobby so the host can start a fresh round.
+function resumeRoom(room: Room) {
+  if (room.status === "reveal") room.status = "done";
+  if (room.status === "done") { scheduleCleanup(room); return; }
+  if (room.status !== "playing") return;
+  try {
+    switch (room.game) {
+      case "memory": {
+        const m = room.mem!;
+        if (m.busy) { m.open = []; m.busy = false; room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length; }
+        return armMem(room);
+      }
+      case "789": return arm789(room);
+      case "stack": return armStack(room);
+      case "cards": return armCardTimer(room);
+      case "dice": return armDiceTimer(room);
+      case "riding": return armRidingTimer(room);
+      case "poker3": return armPoker(room);
+      case "bridge": return armGb(room);
+      case "frog": return frogWait(room);
+      default:
+        resetRoom(room);
+        setMsg(room, "restarted", undefined, "The game was restarted — host, press start to play again.");
+        return;
+    }
+  } catch (e) {
+    console.warn("[games] resume", room.code, e);
+    resetRoom(room);
+    setMsg(room, "restarted", undefined, "The game was restarted — host, press start to play again.");
+  }
+}
+function restoreRoom(data: any): Room {
+  const room = { ...data, subs: new Set() } as Room;
+  rooms.set(room.code, room);
+  resumeRoom(room);
+  return room;
+}
+async function getRoom(codeRaw: unknown): Promise<Room | undefined> {
+  const code = String(codeRaw || "").toUpperCase();
+  const live = rooms.get(code);
+  if (live) return live;
+  try {
+    const r: any = await db.execute(sql`SELECT data FROM game_rooms WHERE code = ${code} AND updated_at > now() - interval '6 hours'`);
+    const row = ((r.rows || r) as any[])[0];
+    if (!row?.data || rooms.has(code)) return rooms.get(code);
+    return restoreRoom(row.data);
+  } catch (e) { console.warn("[games] load room", e); return undefined; }
+}
+// Lobby list after a restart: bring back the open rooms saved before it.
+let restoredLobbies = false;
+async function restoreSavedRooms() {
+  if (restoredLobbies) return;
+  restoredLobbies = true;
+  try {
+    const r: any = await db.execute(sql`SELECT data FROM game_rooms WHERE updated_at > now() - interval '6 hours'`);
+    for (const row of (r.rows || r) as any[]) if (row?.data?.code && !rooms.has(row.data.code)) restoreRoom(row.data);
+    await db.execute(sql`DELETE FROM game_rooms WHERE updated_at < now() - interval '1 day'`);
+  } catch (e) { console.warn("[games] restore rooms", e); }
 }
 
 async function nameFor(userId: string): Promise<string> {
@@ -545,7 +633,7 @@ function removePlayer(room: Room, uid?: string) {
   const curTurnId = room.players[room.turnIdx ?? 0]?.id;
   const leavingWasTurn = curTurnId === uid;
   room.players = room.players.filter((p) => p.id !== uid);
-  if (!room.players.length) { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } rooms.delete(room.code); return; }
+  if (!room.players.length) { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } dropRoom(room.code); return; }
   if (room.hostId === uid) room.hostId = room.players[0].id;
   // Keep the turn pointer on the same live player (or the slot the leaver held).
   if (room.turnIdx != null) {
@@ -656,7 +744,7 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
 // after a long idle so abandoned rooms don't linger forever.
 function scheduleCleanup(room: Room) {
   if (room.cleanupTimer) clearTimeout(room.cleanupTimer);
-  room.cleanupTimer = setTimeout(() => { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } rooms.delete(room.code); }, 10 * 60_000);
+  room.cleanupTimer = setTimeout(() => { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } dropRoom(room.code); }, 10 * 60_000);
 }
 
 // Recycle a finished room back to the lobby for another round.
@@ -2061,6 +2149,7 @@ export function registerGameRoutes(app: Express) {
 
   // Browse all open rooms (in the lobby, not yet started)
   app.get("/api/reborn/games/rooms", requireAuth, async (req, res) => {
+    await restoreSavedRooms();
     const list = Array.from(rooms.values())
       .filter((r) => r.status === "lobby")
       .map((r) => ({
@@ -2108,7 +2197,7 @@ export function registerGameRoutes(app: Express) {
 
   // Join a room
   app.post("/api/reborn/games/rooms/:code/join", requireAuth, async (req, res) => {
-    const room = rooms.get(String(req.params.code).toUpperCase());
+    const room = await getRoom(req.params.code);
     if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found (it may have ended).", zh: "找不到房间（可能已结束）。", id: "Room tidak ditemukan (mungkin sudah selesai)." }) });
     const uid = getUserId(req)!;
     const existing = room.players.find((p) => p.id === uid);
@@ -2126,7 +2215,7 @@ export function registerGameRoutes(app: Express) {
 
   // Host starts the game (any time, min 2 players)
   app.post("/api/reborn/games/rooms/:code/start", requireAuth, async (req, res) => {
-    const room = rooms.get(String(req.params.code).toUpperCase());
+    const room = await getRoom(req.params.code);
     if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found", zh: "找不到房间", id: "Room tidak ditemukan" }) });
     if (getUserId(req) !== room.hostId) return res.status(403).json({ message: tr(req, { en: "Only the host can start.", zh: "只有房主可以开始。", id: "Hanya host yang bisa memulai." }) });
     if (room.status !== "lobby") return res.status(400).json({ message: tr(req, { en: "Already started.", zh: "已经开始了。", id: "Sudah dimulai." }) });
@@ -2152,7 +2241,7 @@ export function registerGameRoutes(app: Express) {
 
   // Play again — host recycles the finished room back to the lobby.
   app.post("/api/reborn/games/rooms/:code/restart", requireAuth, async (req, res) => {
-    const room = rooms.get(String(req.params.code).toUpperCase());
+    const room = await getRoom(req.params.code);
     if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found", zh: "找不到房间", id: "Room tidak ditemukan" }) });
     if (getUserId(req) !== room.hostId) return res.status(403).json({ message: tr(req, { en: "Only the host can restart.", zh: "只有房主可以重新开始。", id: "Hanya host yang bisa memulai ulang." }) });
     if (room.status !== "done") return res.status(400).json({ message: tr(req, { en: "Game still in progress.", zh: "游戏仍在进行中。", id: "Permainan masih berlangsung." }) });
@@ -2162,7 +2251,7 @@ export function registerGameRoutes(app: Express) {
 
   // Player action: {choice} for rps, {tap:true} for tap
   app.post("/api/reborn/games/rooms/:code/action", requireAuth, async (req, res) => {
-    const room = rooms.get(String(req.params.code).toUpperCase());
+    const room = await getRoom(req.params.code);
     if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found", zh: "找不到房间", id: "Room tidak ditemukan" }) });
     const p = room.players.find((x) => x.id === getUserId(req));
     if (!p) return res.status(403).json({ message: tr(req, { en: "You're not in this room.", zh: "你不在这个房间。", id: "Kamu tidak ada di room ini." }) });
@@ -2257,7 +2346,7 @@ export function registerGameRoutes(app: Express) {
 
   // Leave / close
   app.post("/api/reborn/games/rooms/:code/leave", requireAuth, async (req, res) => {
-    const room = rooms.get(String(req.params.code).toUpperCase());
+    const room = await getRoom(req.params.code);
     // A player leaving no longer ends the game — it keeps running for whoever's
     // left, and the host role passes on. The room only closes when it's empty.
     if (room) removePlayer(room, getUserId(req) || undefined);
@@ -2266,7 +2355,7 @@ export function registerGameRoutes(app: Express) {
 
   // Live state stream (SSE)
   app.get("/api/reborn/games/rooms/:code/stream", requireAuth, async (req, res) => {
-    const room = rooms.get(String(req.params.code).toUpperCase());
+    const room = await getRoom(req.params.code);
     if (!room) return res.status(404).end();
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" });
     const sub = { res, uid: getUserId(req) || undefined };
