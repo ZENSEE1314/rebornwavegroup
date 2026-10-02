@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -122,6 +123,7 @@ function TableBookingCard() {
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()) });
   const todayStr = new Date().toISOString().slice(0, 10);
   const [areaId, setAreaId] = useState<string>("");
+  const [planOpen, setPlanOpen] = useState(false); // floor plan full screen
   const [date, setDate] = useState<string>(todayStr);
   const [slot, setSlot] = useState<string>("");
   const [table, setTable] = useState<string>("");
@@ -186,7 +188,13 @@ function TableBookingCard() {
       </div>
 
       {area && (<>
-        {area.hasImage && <img src={`/api/reborn/booking/area-image/${area.id}`} alt={t("bk.layoutAlt", { a: areaName(area, language) })} loading="lazy" className="w-full rounded-xl border border-white/10 mb-3" style={{ maxHeight: 340, objectFit: "contain" }} />}
+        {area.hasImage && (
+          <button type="button" onClick={() => setPlanOpen(true)} className="relative block w-full mb-3 rounded-xl overflow-hidden border border-white/10 bg-white p-0" aria-label={t("bk.layoutOpen")}>
+            <img src={`/api/reborn/booking/area-image/${area.id}`} alt={t("bk.layoutAlt", { a: areaName(area, language) })} loading="lazy" className="w-full" style={{ maxHeight: 340, objectFit: "contain", filter: "brightness(1.12) contrast(1.05)" }} />
+            <span className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-bold text-white">🔍 {t("bk.layoutTap")}</span>
+          </button>
+        )}
+        {planOpen && area.hasImage && <FloorPlanViewer src={`/api/reborn/booking/area-image/${area.id}`} title={areaName(area, language)} onClose={() => setPlanOpen(false)} />}
         {data?.note && <p className="text-white/60 text-sm mb-3">{data.note}</p>}
 
         <p className="text-xs text-white/50 mb-1">{t("bk.date")}</p>
@@ -287,5 +295,36 @@ function TableBookingCard() {
         </Button>
       </>)}
     </div>
+  );
+}
+
+// Floor plan full screen: bright white background, brightened image, pinch to zoom.
+function FloorPlanViewer({ src, title, onClose }: { src: string; title: string; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [zoom, setZoom] = useState(1);
+  // ☀️ steps the brightness up for dark plans: bright → brighter → brightest → normal.
+  const LEVELS = [1.25, 1.6, 2.1, 1];
+  const [lv, setLv] = useState(0);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", k);
+    const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", k); document.body.style.overflow = prev; };
+  }, [onClose]);
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex flex-col bg-white">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-black/10 bg-white">
+        <p className="flex-1 min-w-0 truncate text-sm font-bold text-gray-900">{t("bk.layoutAlt", { a: title })}</p>
+        <button type="button" onClick={() => setLv((v) => (v + 1) % LEVELS.length)} className="h-9 min-w-[44px] px-2 rounded-full bg-amber-300 text-gray-900 text-sm font-bold" aria-label={t("bk.layoutBright")}>☀️{lv < 3 ? "+".repeat(lv + 1) : ""}</button>
+        <button type="button" onClick={() => setZoom((z) => Math.max(1, z - 0.5))} className="h-9 min-w-[36px] rounded-full bg-gray-100 text-gray-900 text-lg font-bold" aria-label="−">−</button>
+        <button type="button" onClick={() => setZoom((z) => Math.min(4, z + 0.5))} className="h-9 min-w-[36px] rounded-full bg-gray-100 text-gray-900 text-lg font-bold" aria-label="+">+</button>
+        <button type="button" onClick={onClose} className="h-9 px-3 rounded-full bg-gray-900 text-white text-sm font-bold">{t("bk.layoutClose")}</button>
+      </div>
+      <div className="flex-1 overflow-auto flex" style={{ touchAction: "pan-x pan-y pinch-zoom" }}>
+        <img src={src} alt={t("bk.layoutAlt", { a: title })} className="block m-auto" style={{ width: `${zoom * 100}%`, maxWidth: "none", filter: `brightness(${LEVELS[lv]}) contrast(1.08)` }} />
+      </div>
+      <p className="py-2 text-center text-[11px] text-gray-500 bg-white">{t("bk.layoutHelp")}</p>
+    </div>,
+    document.body,
   );
 }
