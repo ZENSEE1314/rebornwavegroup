@@ -32,6 +32,8 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.tile.history': { en: "My History", zh: "我的记录", id: "Riwayat Saya" },
   'hm.tile.historyDesc': { en: "Payments, receipts & gifts", zh: "付款、收据与礼物", id: "Pembayaran, struk & hadiah" },
   'hm.dash.there': { en: "there", zh: "朋友", id: "kawan" },
+  'hm.ev.readMore': { en: 'Tap to read more', zh: '点击查看详情', id: 'Ketuk untuk selengkapnya' },
+  'hm.ev.close': { en: 'Close', zh: '关闭', id: 'Tutup' },
   'hm.ev.swipe': { en: "Swipe → to see all {n} upcoming events", zh: "向右滑动查看全部 {n} 个活动 →", id: "Geser → untuk melihat {n} acara mendatang" },
   'hm.dash.daysLeft': { en: "{n} days left", zh: "剩余 {n} 天", id: "Sisa {n} hari" },
   'hm.dash.fedToday': { en: "Fed {fed}/{need} today", zh: "今日已喂 {fed}/{need}", id: "Diberi makan {fed}/{need} hari ini" },
