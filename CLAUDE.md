@@ -38,6 +38,11 @@ text.
   every enabled booking area + today's hours (`sendWhatWeHave`); members reply a
   number to book it, new numbers are asked their name to sign up. Adding an area
   in admin Settings adds it to this reply automatically.
+- Table max pax: each table has its own max, "no max" (∞ in admin, stored as
+  `tableCaps[t] = -1`), or falls back to the area's default (empty = no max).
+  WhatsApp shows "Choose your preferred table" with the pax range.
+- Birthday (chip or typed) asks "prepare a cake with decorations? yes / no,
+  I'll bring my own" in the app and WhatsApp; saved on the booking.
 - A booking holds its table for its whole length; full times show as Full in the
   app, and a full area/day suggests other areas with space (app + WhatsApp).
 

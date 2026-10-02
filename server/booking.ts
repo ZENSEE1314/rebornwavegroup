@@ -123,11 +123,17 @@ export interface DaySchedule { enabled?: boolean; open?: string; close?: string;
 export interface BookingArea { id: string; name: string; level: string; names?: { zh?: string; id?: string }; image?: string; tables: string[]; tableCaps?: Record<string, number>; maxPax?: number; enabled?: boolean; open?: string; close?: string; lastBooking?: string; schedule?: Record<string, DaySchedule>; }
 
 // Max pax allowed for a table (per-table cap → area default → generous fallback).
+// Max guests for a table: its own max, else the area's max. The admin can also
+// choose "no max" (stored as -1) for a table; no max set anywhere = no max.
+export const NO_MAX_PAX = 999;
 export function tableCap(a: BookingArea, table?: string): number {
-  if (table && a.tableCaps && a.tableCaps[table] > 0) return a.tableCaps[table];
+  const own = table && a.tableCaps ? Number(a.tableCaps[table]) : 0;
+  if (own === -1) return NO_MAX_PAX;
+  if (own > 0) return own;
   if (a.maxPax && a.maxPax > 0) return a.maxPax;
-  return 50;
+  return NO_MAX_PAX;
 }
+export function hasPaxLimit(cap: number): boolean { return cap > 0 && cap < NO_MAX_PAX; }
 export const DEFAULT_AREAS: BookingArea[] = [
   { id: "l1-game", name: "Game House", level: "Level 1", image: "", tables: [], enabled: true },
   { id: "l1-ktv", name: "KTV Lounge", level: "Level 1", image: "", tables: ["V1", "V2", "1", "2", "3", "4", "5", "T6", "T7", "T8", "T9"], enabled: true },
@@ -392,13 +398,18 @@ export const BOOKING_OCCASIONS: { id: string; emoji: string; en: string }[] = [
   { id: "anniversary", emoji: "💕", en: "Anniversary" },
   { id: "celebration", emoji: "🎉", en: "Celebration / party" },
 ];
-// "🎂 Birthday: please prepare a cake" — or just the note, or nothing.
-export function specialRequestText(occasion?: string, note?: string): string | undefined {
+// "🎂 Birthday · 🍰 Cake & decorations: we prepare: blue theme" — or just the note, or nothing.
+// cake: "us" = guest wants us to prepare a cake with decorations, "self" = they bring their own.
+export function specialRequestText(occasion?: string, note?: string, cake?: string): string | undefined {
   const o = BOOKING_OCCASIONS.find((x) => x.id === occasion);
   const n = String(note || "").trim().slice(0, 300);
-  if (!o && !n) return undefined;
-  return o ? `${o.emoji} ${o.en}${n ? `: ${n}` : ""}` : `📝 ${n}`;
+  const c = cake === "us" ? "🍰 Cake & decorations: WE PREPARE" : cake === "self" ? "🍰 Cake & decorations: guest brings own" : "";
+  if (!o && !n && !c) return undefined;
+  const head = o ? `${o.emoji} ${o.en}` : c ? "🎂 Birthday" : "";
+  return [head, c].filter(Boolean).join(" · ") + (n ? `${head || c ? ": " : "📝 "}${n}` : "");
 }
+// Does free text mention a birthday? (en / zh / id)
+export function mentionsBirthday(text: string): boolean { return /birthday|bday|b-day|生日|ulang tahun|ultah/i.test(text); }
 
 export async function createBooking(opts: {
   userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number; table?: string; area?: string; openHour?: number; companyId?: number; branchId?: number;

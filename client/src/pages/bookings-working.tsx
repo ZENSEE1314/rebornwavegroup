@@ -126,6 +126,7 @@ function TableBookingCard() {
   const [party, setParty] = useState(2);
   const [hours, setHours] = useState(2);
   const [occasion, setOccasion] = useState("");
+  const [cake, setCake] = useState<"" | "us" | "self">(""); // birthday: we prepare the cake + decorations, or they bring their own
   const [note, setNote] = useState("");
   const areas: any[] = data?.areas || [];
   const area = areas.find((a) => a.id === areaId) || null;
@@ -144,13 +145,15 @@ function TableBookingCard() {
   const fullSlots = new Set<string>(avail?.fullSlots || []);
   const otherAreas: any[] = avail?.otherAreas || [];
   const caps: Record<string, number> = avail?.caps || {};
-  const capFor = (tb: string) => caps[tb] || avail?.maxPax || 50;
-  const partyCap = table ? capFor(table) : (avail?.maxPax || 50);
+  // 0 = the admin set "no max" for that table (or no max anywhere).
+  const capFor = (tb: string) => (tb in caps ? caps[tb] : avail?.maxPax || 0);
+  const NO_MAX = 99;
+  const partyCap = (table ? capFor(table) : avail?.maxPax || 0) || NO_MAX;
   const book = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours: askHours ? hours : 2, ...(askSpecial ? { occasion, note } : {}) }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours: askHours ? hours : 2, ...(askSpecial ? { occasion, note, cake: occasion === "birthday" ? cake : undefined } : {}) }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => {
       if (!ok) { toast({ title: t("bk.failed"), description: d.message, variant: "destructive" }); return; }
-      toast({ title: t("bk.requested"), description: d.message }); setSlot(""); setTable(""); setOccasion(""); setNote("");
+      toast({ title: t("bk.requested"), description: d.message }); setSlot(""); setTable(""); setOccasion(""); setNote(""); setCake("");
       qc.invalidateQueries({ queryKey: ["/api/reborn/my-bookings"] });
       qc.invalidateQueries({ queryKey: ["/api/reborn/booking/availability", areaId, date] });
     },
@@ -214,7 +217,7 @@ function TableBookingCard() {
             {area.tables.map((tb: string) => {
               const taken = takenForSlot.includes(tb);
               return (
-                <button key={tb} disabled={taken} onClick={() => { setTable(tb); setParty((p) => Math.min(p, capFor(tb))); }} className={`py-2 rounded-xl text-xs font-bold leading-tight ${taken ? "bg-white/5 text-white/25 line-through cursor-not-allowed" : table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}<span className="block text-[9px] font-normal opacity-70">{t("bk.upToPax", { n: capFor(tb) })}</span></button>
+                <button key={tb} disabled={taken} onClick={() => { setTable(tb); setParty((p) => Math.min(p, capFor(tb) || NO_MAX)); }} className={`py-2 rounded-xl text-xs font-bold leading-tight ${taken ? "bg-white/5 text-white/25 line-through cursor-not-allowed" : table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}<span className="block text-[9px] font-normal opacity-70">{capFor(tb) ? t("bk.upToPax", { n: capFor(tb) }) : t("bk.noMax")}</span></button>
               );
             })}
           </div>
@@ -222,7 +225,7 @@ function TableBookingCard() {
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-4">
           <div className="flex items-center gap-3">
-            <span className="text-xs text-white/50">{t("bk.party")} <span className="text-white/30">{t("bk.maxN", { n: partyCap })}</span></span>
+            <span className="text-xs text-white/50">{t("bk.party")} {partyCap < NO_MAX && <span className="text-white/30">{t("bk.maxN", { n: partyCap })}</span>}</span>
             <button onClick={() => setParty((p) => Math.max(1, p - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
             <span className="w-8 text-center font-extrabold text-white">{party}</span>
             <button onClick={() => setParty((p) => Math.min(partyCap, p + 1))} disabled={party >= partyCap} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold disabled:opacity-40" style={{ fontSize: 18 }}>+</button>
@@ -245,6 +248,17 @@ function TableBookingCard() {
               </button>
             ))}
           </div>
+          {occasion === "birthday" && (
+            <div className="mb-2 rounded-xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-3">
+              <p className="text-sm font-semibold text-white mb-2">🎂 {t("bk.cakeQ")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([["us", "bk.cakeUs"], ["self", "bk.cakeSelf"]] as const).map(([v, k]) => (
+                  <button key={v} type="button" onClick={() => setCake(v)} aria-pressed={cake === v}
+                    className={`px-2 py-2 rounded-lg text-xs font-bold border ${cake === v ? "bg-fuchsia-500/30 border-fuchsia-400 text-white" : "bg-white/5 border-white/10 text-white/70"}`}>{t(k)}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <textarea value={note} onChange={(e) => setNote(e.target.value.slice(0, 300))} rows={2} placeholder={t("bk.specialPh")}
             className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-fuchsia-400" />
         </div>}

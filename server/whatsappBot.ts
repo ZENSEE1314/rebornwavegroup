@@ -17,7 +17,7 @@ import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
 import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, areasWithSpace, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, BOOKING_OCCASIONS, specialRequestText, type BookingArea } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, areasWithSpace, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
@@ -277,6 +277,20 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
     },
     closed: { en: "Closed", zh: "休息", id: "Tutup" },
     tableLine: { en: "{i}. {t} (up to {cap} pax)", zh: "{i}. {t}（最多 {cap} 人）", id: "{i}. {t} (maks {cap} orang)" },
+    tableLineNoMax: { en: "{i}. {t} (no max)", zh: "{i}. {t}（人数不限）", id: "{i}. {t} (tanpa batas)" },
+    paxRange: { en: "👥 {lo} pax to {hi} pax", zh: "👥 {lo} 至 {hi} 人", id: "👥 {lo} sampai {hi} orang" },
+    paxRangeOne: { en: "👥 Up to {n} pax", zh: "👥 最多 {n} 人", id: "👥 Maks {n} orang" },
+    paxRangeFrom: { en: "👥 From {lo} pax (some tables have no max)", zh: "👥 {lo} 人起（部分桌位人数不限）", id: "👥 Mulai {lo} orang (beberapa meja tanpa batas)" },
+    askPax: { en: "👥 How many pax?", zh: "👥 几位客人？", id: "👥 Berapa orang?" },
+    bookAskCake: {
+      en: "🎂 Would you like us to prepare a birthday cake with decorations?\n1️⃣ Yes, please prepare it\n2️⃣ No, I'll prepare it myself",
+      zh: "🎂 需要我们为您准备生日蛋糕和布置吗？\n1️⃣ 需要，请帮我准备\n2️⃣ 不用，我自己准备",
+      id: "🎂 Mau kami siapkan kue ulang tahun dan dekorasi?\n1️⃣ Ya, tolong siapkan\n2️⃣ Tidak, saya siapkan sendiri",
+    },
+    cakeUs: { en: "🍰 Noted — we'll prepare the cake and decorations. Our team will confirm the details with you.", zh: "🍰 已记录——我们会为您准备蛋糕和布置，团队会与您确认细节。", id: "🍰 Dicatat — kami akan siapkan kue dan dekorasinya. Tim kami akan konfirmasi detailnya." },
+    cakeNoteUs: { en: "🍰 Cake & decorations: we prepare", zh: "🍰 蛋糕和布置：由我们准备", id: "🍰 Kue & dekorasi: kami siapkan" },
+    cakeNoteSelf: { en: "🍰 Cake & decorations: you bring your own", zh: "🍰 蛋糕和布置：您自行准备", id: "🍰 Kue & dekorasi: kamu bawa sendiri" },
+    cakeSelf: { en: "🎈 Noted — you'll bring your own cake and decorations.", zh: "🎈 已记录——您将自行准备蛋糕和布置。", id: "🎈 Dicatat — kamu akan membawa kue dan dekorasi sendiri." },
     tableTaken: {
       en: "Sorry, {t} is already booked for {time} on {day}. Pick another:\n{list}",
       zh: "抱歉，{t} 在 {day} {time} 已被预订。请选择其他：\n{list}",
@@ -595,9 +609,14 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "{day} · {hours}\nPilih jam mulai:\n{list}\nBalas nomornya.",
     },
     bookAskTable: {
-      en: "Which table? (see the layout image above)\n{list}\nReply the number.",
-      zh: "选择哪张桌位？（见上方平面图）\n{list}\n回复数字。",
-      id: "Meja mana? (lihat gambar denah di atas)\n{list}\nBalas nomornya.",
+      en: "🪑 Choose your preferred table\n(check out our layout above)\n{range}\n{list}\n\nReply the number.",
+      zh: "🪑 请选择您喜欢的桌位\n（请参考上方平面图）\n{range}\n{list}\n\n回复数字。",
+      id: "🪑 Pilih meja favoritmu\n(lihat denah kami di atas)\n{range}\n{list}\n\nBalas nomornya.",
+    },
+    bookAskTableNoImg: {
+      en: "🪑 Choose your preferred table\n{range}\n{list}\n\nReply the number.",
+      zh: "🪑 请选择您喜欢的桌位\n{range}\n{list}\n\n回复数字。",
+      id: "🪑 Pilih meja favoritmu\n{range}\n{list}\n\nBalas nomornya.",
     },
     bookAskParty: {
       en: "How many people? (reply a number)",
@@ -712,7 +731,24 @@ export function localizeBookingText(lang: Lang, s: string | null | undefined): s
     .replace(/([^·/()]+?) \((Level [^)]+)\)/g, (_m, name, lvl) => `${areaNameIn({ name: name.trim() }, lang)} (${areaLevelIn(lvl, lang)})`);
 }
 function tableList(lang: Lang, area: BookingArea, tables: string[]): string {
-  return tables.map((t, i) => L(lang, "tableLine", { i: String(i + 1), t, cap: String(tableCap(area, t)) })).join("\n");
+  return tables.map((t, i) => {
+    const cap = tableCap(area, t);
+    return hasPaxLimit(cap) ? L(lang, "tableLine", { i: String(i + 1), t, cap: String(cap) }) : L(lang, "tableLineNoMax", { i: String(i + 1), t });
+  }).join("\n");
+}
+// "👥 4 to 6 pax" for the tables on offer (blank when none has a max).
+function paxRange(lang: Lang, area: BookingArea, tables: string[]): string {
+  const caps = tables.map((t) => tableCap(area, t));
+  const limited = caps.filter(hasPaxLimit);
+  if (!limited.length) return "";
+  const lo = Math.min(...limited), hi = Math.max(...limited);
+  if (limited.length < caps.length) return L(lang, "paxRangeFrom", { lo: String(lo) });
+  return lo === hi ? L(lang, "paxRangeOne", { n: String(hi) }) : L(lang, "paxRange", { lo: String(lo), hi: String(hi) });
+}
+// The "choose your table" question for the free tables.
+function tableQuestion(lang: Lang, area: BookingArea, tables: string[]): string {
+  const range = paxRange(lang, area, tables);
+  return L(lang, area.image ? "bookAskTable" : "bookAskTableNoImg", { range: range ? `${range}\n` : "", list: tableList(lang, area, tables) });
 }
 
 function memberMenu(lang: Lang, contact: Contact): string {
@@ -895,8 +931,10 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   await patchContact(c.id, { lastInboundAt: new Date() });
   await logMsg(c.id, c.phone, "in", body, false); // store every incoming message for the admin inbox
 
-  // Always answer a location question immediately, even for a first-time number.
-  if (asksForLocation(body)) {
+  // Always answer a location question immediately, even for a first-time number —
+  // except while they're typing a special request mid-booking ("靠窗的位置" = a seat).
+  const midRequest = ["special", "specialNote", "cake"].includes(((c.waState as any) || {}).step);
+  if (asksForLocation(body) && !midRequest) {
     const reply = await locationReply(await langForPhone(c.phone, c.userId));
     await sendWhatsApp(from, reply);
     await logMsg(c.id, c.phone, "out", reply, true);
@@ -1155,8 +1193,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
       }
       // Area needs a table but none named → ask, showing only free tables + caps.
       const free = await freeTablesForDateSlot(area, date, slot);
-      const list = tableList(lang, area, free);
-      const caption = withNav(lang, L(lang, "bookAskTable", { list }));
+      const caption = withNav(lang, tableQuestion(lang, area, free));
       if (area.image) { await sendWhatsAppImage(from, area.image, caption); await logMsg(c.id, c.phone, "out", caption, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
     }
@@ -1231,7 +1268,7 @@ async function bookingBack(c: Contact, lang: Lang, from: string, wa: any, say: (
       return patchContact(c.id, { waState: { flow: "book", step: "date", areaId } });
     case "table":
       return bookingStep(c, lang, from, "", { flow: "book", step: "date", areaId, confirmedDate: wa.date }, say);
-    case "special": case "specialNote":
+    case "special": case "specialNote": case "cake":
       if (await askHoursOn()) { await say(withNav(lang, L(lang, "bookAskHours"))); return patchContact(c.id, { waState: { ...wa, step: "hours" } }); }
       if (wa.table) { await say(withNav(lang, L(lang, "bookAskParty"))); return patchContact(c.id, { waState: { ...wa, step: "party" } }); }
       return bookingStep(c, lang, from, "", { flow: "book", step: "date", areaId, confirmedDate: wa.date }, say);
@@ -1325,8 +1362,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     if (area.tables.length) {
       const free = await freeTablesForDateSlot(area, wa.date, picked);
       if (!free.length) { await say(L(lang, "slotFilled", { n: String(avail.length) })); return; }
-      const list = tableList(lang, area, free);
-      const caption = L(lang, "bookAskTable", { list });
+      const caption = tableQuestion(lang, area, free);
       if (area.image) { const cap = withNav(lang, caption); await sendWhatsAppImage(from, area.image, cap); await logMsg(c.id, c.phone, "out", cap, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date: wa.date, slot: picked } });
     }
@@ -1340,18 +1376,18 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     const picked = free[idx];
     const cap = tableCap(area, picked);
     if (wa.party) {
-      if (wa.party > cap) { await say(L(lang, "tableTooSmall", { t: picked, cap: String(cap), n: String(wa.party) })); return; }
+      if (hasPaxLimit(cap) && wa.party > cap) { await say(L(lang, "tableTooSmall", { t: picked, cap: String(cap), n: String(wa.party) })); return; }
       const next = { ...wa, table: picked };
       if (!(await askHoursOn())) return askSpecialOrFinish(c, lang, from, area, next, 2, sayRaw);
       await say(L(lang, "bookAskHours")); return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: picked, party: wa.party } });
     }
-    await say(L(lang, "askPaxFor", { t: picked, cap: String(cap) }));
+    await say(hasPaxLimit(cap) ? L(lang, "askPaxFor", { t: picked, cap: String(cap) }) : L(lang, "askPax"));
     return patchContact(c.id, { waState: { flow: "book", step: "party", areaId: area.id, date: wa.date, slot: wa.slot, table: picked } });
   }
   if (wa.step === "party") {
     const cap = tableCap(area, wa.table);
     const n = Math.max(1, Number((body.match(/\d+/) || [])[0] || 2));
-    if (n > cap) { await say(L(lang, "paxTooMany", { cap: String(cap) })); return; }
+    if (hasPaxLimit(cap) && n > cap) { await say(L(lang, "paxTooMany", { cap: String(cap) })); return; }
     if (!(await askHoursOn())) return askSpecialOrFinish(c, lang, from, area, { ...wa, party: n }, 2, sayRaw);
     await say(L(lang, "bookAskHours"));
     return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: wa.table, party: n } });
@@ -1363,16 +1399,30 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
   if (wa.step === "special") {
     // 1-4 = an occasion, 5 = nothing; anything else is their request in their own words
     const text = body.trim(), num = /^\d+$/.test(text) ? Number(text) : 0;
-    if (num >= 1 && num <= BOOKING_OCCASIONS.length) { // occasion picked: ask if they want to add a note
+    if (num >= 1 && num <= BOOKING_OCCASIONS.length) { // occasion picked
+      const occasion = BOOKING_OCCASIONS[num - 1].id;
+      // Birthday: first ask whether we should prepare the cake + decorations.
+      if (occasion === "birthday") { await say(L(lang, "bookAskCake")); return patchContact(c.id, { waState: { ...wa, step: "cake", occasion } }); }
       await say(L(lang, "bookAskSpecialNote"));
-      return patchContact(c.id, { waState: { ...wa, step: "specialNote", occasion: BOOKING_OCCASIONS[num - 1].id } });
+      return patchContact(c.id, { waState: { ...wa, step: "specialNote", occasion } });
     }
     const note = num === BOOKING_OCCASIONS.length + 1 ? undefined : text;
+    // They typed a birthday request themselves → still ask about the cake.
+    if (note && mentionsBirthday(note)) { await say(L(lang, "bookAskCake")); return patchContact(c.id, { waState: { ...wa, step: "cake", typedNote: note } }); }
     return completeStepBooking(c, lang, from, area, { ...wa, special: specialRequestText(undefined, note) }, wa.hours || 2, sayRaw);
+  }
+  if (wa.step === "cake") {
+    const t = body.trim().toLowerCase();
+    const cake = /^1\b|^(yes|y|ya|iya|ok|好|要|是)/i.test(t) ? "us" : /^2\b|^(no|n|tidak|nggak|gak|不|自己)/i.test(t) ? "self" : "";
+    if (!cake) { await say(L(lang, "bookAskCake")); return; }
+    await say(L(lang, cake === "us" ? "cakeUs" : "cakeSelf"));
+    if (wa.typedNote) return completeStepBooking(c, lang, from, area, { ...wa, special: specialRequestText("birthday", wa.typedNote, cake) }, wa.hours || 2, sayRaw);
+    await say(L(lang, "bookAskSpecialNote"));
+    return patchContact(c.id, { waState: { ...wa, step: "specialNote", cake } });
   }
   if (wa.step === "specialNote") {
     const text = body.trim(), skip = /^\d+$/.test(text);
-    return completeStepBooking(c, lang, from, area, { ...wa, special: specialRequestText(wa.occasion, skip ? undefined : text) }, wa.hours || 2, sayRaw);
+    return completeStepBooking(c, lang, from, area, { ...wa, special: specialRequestText(wa.occasion, skip ? undefined : text, wa.cake) }, wa.hours || 2, sayRaw);
   }
 }
 
@@ -1401,7 +1451,10 @@ async function completeStepBooking(c: Contact, lang: Lang, from: string, area: B
   await say(L(lang, "bookDone", { day: fmtDMY(wa.date, lang), time: `${timeText(lang, wa.slot, label)}${hoursPart}`, n: String(wa.party || 2), url: APP_BASE_URL }));
   if (wa.special) { // echo it back in their language (it's saved in English for staff)
     const o = BOOKING_OCCASIONS.find((x) => wa.special.startsWith(`${x.emoji} ${x.en}`));
-    await say(L(lang, "specialNoted", { r: o ? wa.special.replace(`${o.emoji} ${o.en}`, L(lang, `occ.${o.id}`)) : wa.special }));
+    // Shown in the member's language (the booking itself keeps the English text for staff).
+    const shown = (o ? wa.special.replace(`${o.emoji} ${o.en}`, L(lang, `occ.${o.id}`)) : wa.special.replace("🎂 Birthday", L(lang, "occ.birthday")))
+      .replace("🍰 Cake & decorations: WE PREPARE", L(lang, "cakeNoteUs")).replace("🍰 Cake & decorations: guest brings own", L(lang, "cakeNoteSelf"));
+    await say(L(lang, "specialNoted", { r: shown }));
   }
   await say(await locationReply(lang)); // so the guest knows where to find us
   await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax${wa.special ? ` · ${wa.special}` : ""} — confirm in the app.`);

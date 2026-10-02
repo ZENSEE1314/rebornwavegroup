@@ -754,15 +754,20 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
           <p className="text-[10px] text-white/35 mb-2">{t("admin.area.defaultHint")}</p>
           <WeeklySchedule area={a} onChange={(schedule: any) => upd(i, { schedule })} />
           <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder={t("admin.area.tables")} className={inp + " w-full mb-2 mt-2"} />
-          <label className="text-[11px] text-white/50 block mb-2">{t("admin.area.maxPax")} {(a.tables || []).length ? t("admin.area.maxPaxTables") : t("admin.area.maxPaxWhole")}<input type="number" min={1} value={a.maxPax || ""} onChange={(e) => upd(i, { maxPax: Math.max(0, Number(e.target.value) || 0) })} placeholder={t("admin.c.eg", { v: 10 })} className={inp + " w-full"} /></label>
+          <label className="text-[11px] text-white/50 block mb-2">{t("admin.area.maxPax")} {(a.tables || []).length ? t("admin.area.maxPaxTables") : t("admin.area.maxPaxWhole")}<input type="number" min={1} value={a.maxPax > 0 ? a.maxPax : ""} onChange={(e) => upd(i, { maxPax: Math.max(0, Number(e.target.value) || 0) })} placeholder={t("admin.area.noMaxPh")} className={inp + " w-full"} /></label>
           {(a.tables || []).length > 0 && (
             <div className="mb-2">
               <p className="text-[11px] text-white/50 mb-1">{t("admin.area.maxPerTable")}</p>
+              <p className="text-[10px] text-white/35 mb-1.5">{t("admin.area.maxPerTableHint")}</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {(a.tables || []).map((tb: string) => (
                   <label key={tb} className="flex items-center gap-1.5 text-[11px] text-white/60 bg-black/20 rounded-lg px-2 py-1">
                     <span className="truncate flex-1">{tb}</span>
-                    <input type="number" min={1} value={(a.tableCaps || {})[tb] || ""} onChange={(e) => upd(i, { tableCaps: { ...(a.tableCaps || {}), [tb]: Math.max(0, Number(e.target.value) || 0) } })} placeholder={t("admin.area.max")} className="w-14 px-1.5 py-1 rounded bg-black/30 border border-white/10 text-white text-xs" />
+                    {(a.tableCaps || {})[tb] === -1
+                      ? <span className="px-1.5 py-1 rounded bg-emerald-500/15 text-emerald-300 text-[10px] font-bold">{t("admin.area.noMax")}</span>
+                      : <input type="number" min={1} value={(a.tableCaps || {})[tb] > 0 ? a.tableCaps[tb] : ""} onChange={(e) => upd(i, { tableCaps: { ...(a.tableCaps || {}), [tb]: Math.max(0, Number(e.target.value) || 0) } })} placeholder={t("admin.area.max")} className="w-14 px-1.5 py-1 rounded bg-black/30 border border-white/10 text-white text-xs" />}
+                    <button type="button" title={t("admin.area.noMax")} onClick={() => upd(i, { tableCaps: { ...(a.tableCaps || {}), [tb]: (a.tableCaps || {})[tb] === -1 ? 0 : -1 } })}
+                      className={`px-1.5 py-1 rounded text-[10px] font-bold border ${(a.tableCaps || {})[tb] === -1 ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300" : "bg-white/5 border-white/10 text-white/50"}`}>∞</button>
                   </label>
                 ))}
               </div>
