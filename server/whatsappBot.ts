@@ -17,7 +17,7 @@ import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
 import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, BOOKING_OCCASIONS, specialRequestText, type BookingArea } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, areasWithSpace, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, BOOKING_OCCASIONS, specialRequestText, type BookingArea } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
@@ -302,6 +302,16 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "📅 {day}: maaf, {area} sudah penuh hari itu. Silakan balas tanggal lain.",
     },
     dateOk: { en: "✅ Date: *{day}*", zh: "✅ 日期：*{day}*", id: "✅ Tanggal: *{day}*" },
+    fullVenue: {
+      en: "😔 Sorry, we're fully booked on {day} — every table is taken. Please reply another date.",
+      zh: "😔 抱歉，{day} 已全部订满——所有桌位都已被预订。请回复其他日期。",
+      id: "😔 Maaf, kami sudah penuh pada {day} — semua meja sudah dipesan. Silakan balas tanggal lain.",
+    },
+    fullOtherAreas: {
+      en: "These areas still have space that day:\n{list}\nReply B to choose another area.",
+      zh: "当天以下区域仍有空位：\n{list}\n回复 B 选择其他区域。",
+      id: "Area ini masih ada tempat hari itu:\n{list}\nBalas B untuk memilih area lain.",
+    },
     slotFilled: {
       en: "Sorry, that time just filled up. Reply another number 1-{n}.",
       zh: "抱歉，该时段刚刚订满。请回复其他数字 1-{n}。",
@@ -1224,7 +1234,13 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     }
     if (!areaSlotsForDate(area, date).length) { await say(L(lang, "closedDay", { day: fmtDMY(date, lang), area: areaNameIn(area, lang) })); return; }
     const avail = await availableSlotsForDate(area, date);
-    if (!avail.length) { await say(L(lang, "fullDay", { day: fmtDMY(date, lang), area: areaNameIn(area, lang) })); return; }
+    if (!avail.length) {
+      // Area full that day: point to areas that still have space, or say we're fully booked.
+      const others = await areasWithSpace(areas, date, area.id);
+      if (!others.length) { await say(L(lang, "fullVenue", { day: fmtDMY(date, lang) })); return; }
+      await say(`${L(lang, "fullDay", { day: fmtDMY(date, lang), area: areaNameIn(area, lang) })}\n\n${L(lang, "fullOtherAreas", { list: others.map((x) => `• ${areaNameIn(x, lang)} (${areaLevelIn(x.level, lang)})`).join("\n") })}`);
+      return;
+    }
     // Confirm the resolved date, then list only the times that still have space.
     const dSlots = areaSlotsForDate(area, date), dLabels = areaSlotLabelsForDate(area, date);
     const list = avail.map((s, i) => `${i + 1}. ${timeText(lang, s, dLabels[dSlots.indexOf(s)])}`).join("\n");

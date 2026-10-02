@@ -141,6 +141,8 @@ function TableBookingCard() {
   });
   const areaSlots: any[] = avail?.slots || []; // [{value,label}]
   const takenForSlot: string[] = (slot && avail?.taken?.[slot]) || [];
+  const fullSlots = new Set<string>(avail?.fullSlots || []);
+  const otherAreas: any[] = avail?.otherAreas || [];
   const caps: Record<string, number> = avail?.caps || {};
   const capFor = (tb: string) => caps[tb] || avail?.maxPax || 50;
   const partyCap = table ? capFor(table) : (avail?.maxPax || 50);
@@ -184,12 +186,24 @@ function TableBookingCard() {
         {avail?.closed ? (
           <p className="text-sm text-amber-300 mb-3">{t("bk.closedDay")}</p>
         ) : avail?.fullyBooked ? (
-          <p className="text-sm text-red-300 mb-3 font-semibold">{t("bk.fullDay")}</p>
+          <div className="mb-3 rounded-xl border border-red-400/30 bg-red-500/10 p-3">
+            <p className="text-sm text-red-300 font-semibold">{otherAreas.length ? t("bk.fullDay") : t("bk.fullVenue")}</p>
+            {otherAreas.length > 0 && <>
+              <p className="text-xs text-white/60 mt-2 mb-1.5">{t("bk.otherAreasFree")}</p>
+              <div className="flex flex-wrap gap-2">
+                {otherAreas.map((a) => <button key={a.id} onClick={() => { setAreaId(a.id); setTable(""); setSlot(""); }} className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/15 text-xs font-bold text-amber-200">{areaName(a, language)}</button>)}
+              </div>
+            </>}
+          </div>
         ) : (
           <div className="grid grid-cols-3 gap-2 mb-3">
-            {areaSlots.map((s: any) => (
-              <button key={s.value} onClick={() => setSlot(s.value)} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{language === "en" ? s.label : s.value}</button>
-            ))}
+            {areaSlots.map((s: any) => {
+              const full = fullSlots.has(s.value);
+              return <button key={s.value} disabled={full} onClick={() => { setSlot(s.value); setTable(""); }} className={`py-2.5 rounded-xl text-sm font-semibold ${full ? "bg-white/5 text-white/25 cursor-not-allowed" : slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>
+                <span className={full ? "line-through" : ""}>{language === "en" ? s.label : s.value}</span>
+                {full && <span className="block text-[10px] font-bold text-red-300/80 no-underline">{t("bk.slotFull")}</span>}
+              </button>;
+            })}
           </div>
         )}
 
