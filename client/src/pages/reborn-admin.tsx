@@ -944,13 +944,36 @@ function SongRow({ s, onSave, onDelete }: any) {
 function SongRequests() {
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const role = useAdminRole();
   const { data: qi } = useQuery<any>({ queryKey: ["/api/reborn/song-queue-info"], queryFn: () => apiRequest("GET", "/api/reborn/song-queue-info").then((r) => r.json()) });
-  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/song-requests"], queryFn: () => apiRequest("GET", "/api/reborn/admin/song-requests").then((r) => r.json()), refetchInterval: 10000, refetchOnWindowFocus: true });
-  const act = useMutation({ mutationFn: ({ id, approve, comment }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}`, { approve, comment }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/song-requests"] }) });
-  if (rows.length === 0) return <Empty text={t("admin.req.empty")} />;
+  const { data: all = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/song-requests"], queryFn: () => apiRequest("GET", "/api/reborn/admin/song-requests").then((r) => r.json()), refetchInterval: 8000, refetchOnWindowFocus: true });
+  const inv = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/song-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue"] }); };
+  const done = (d: any) => { toast({ title: d.message }); inv(); };
+  const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
+  const next = useMutation({ mutationFn: (skip: boolean) => apiRequest("POST", "/api/reborn/admin/song-queue/next", { skip }).then((r) => r.json()), onSuccess: done, onError: fail });
+  const cancel = useMutation({ mutationFn: ({ id, note }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}/cancel`, { note }).then((r) => r.json()), onSuccess: done, onError: fail });
+  const cancelGroup = useMutation({ mutationFn: (v: { table?: string; userId?: string }) => apiRequest("POST", "/api/reborn/admin/song-queue/cancel-group", v).then((r) => r.json()), onSuccess: done, onError: fail });
+  const playing = all.find((r) => r.playing);
+  const rows = all.filter((r) => !r.playing);
+  const nameOf = (r: any) => r.requester?.name || r.requester?.username || t("admin.req.unknownUser");
   return (
     <div className="space-y-2">
+      <Card>
+        <p className="text-[11px] font-bold tracking-wider text-fuchsia-200/80 uppercase">🎤 {t("admin.req.nowPlaying")}</p>
+        {playing ? (<>
+          <p className="text-lg font-black mt-1">{playing.title}{playing.artist ? <span className="text-sm font-normal text-white/50"> · {playing.artist}</span> : null}</p>
+          <p className="text-xs text-amber-200/90">{playing.table ? `${t("admin.req.table", { t: playing.table })} · ` : ""}{nameOf(playing)}{playing.requester?.phone ? ` · ${playing.requester.phone}` : ""}</p>
+        </>) : <p className="text-sm text-white/55 mt-1">{t("admin.req.nothingPlaying")}</p>}
+        <div className="flex gap-2 mt-3">
+          <button onClick={() => next.mutate(false)} disabled={next.isPending || (!playing && !rows.length)} className={btnSave}>▶ {playing ? t("admin.req.next") : t("admin.req.start")}</button>
+          {playing && <button onClick={() => { if (confirm(t("admin.req.skipConfirm"))) next.mutate(true); }} disabled={next.isPending} className={btnDel}>⏭ {t("admin.req.skip")}</button>}
+          {playing && <button onClick={() => { const note = prompt(t("admin.req.cancelPrompt"), "") ?? undefined; if (note !== undefined) cancel.mutate({ id: playing.id, note }); }} className="px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white/70">{t("admin.req.stop")}</button>}
+        </div>
+        <p className="text-[11px] text-white/45 mt-2">{t("admin.req.autoNote")}</p>
+      </Card>
       <p className="text-xs text-white/50 px-1">{qi?.mode === "table" ? t("admin.req.fairNoteTable", { n: qi?.perTurn ?? 1 }) : t("admin.req.fairNoteUser", { n: qi?.perTurn ?? 1 })}</p>
+      {rows.length === 0 && <Empty text={t("admin.req.empty")} />}
       {rows.map((r) => (
         <Card key={r.id}>
           <div className="flex items-start gap-3">
@@ -958,17 +981,47 @@ function SongRequests() {
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm truncate"><Music2 className="w-3.5 h-3.5 inline mr-1 text-amber-300" />{r.title}</p>
               <p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("admin.req.bySinger") : t("admin.req.self")} · {t("admin.req.round", { n: (r.round ?? 0) + 1 })}{r.table ? <> · <b className="text-cyan-300">{t("admin.req.table", { t: r.table })}</b></> : null}</p>
-              <p className="text-xs text-amber-200/90 truncate">{r.requester?.name || r.requester?.username || t("admin.req.unknownUser")}{r.requester?.username && r.requester?.name ? ` (@${r.requester.username})` : ""}{r.requester?.phone ? ` · ${r.requester.phone}` : ""}</p>
-              <p className="text-[11px] text-white/50 font-mono break-all">{t("admin.req.userId", { id: r.userId })}</p>
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.confirm")}</button>
-                <button onClick={() => { const comment = prompt(t("admin.req.rejectPrompt"), "") ?? undefined; act.mutate({ id: r.id, approve: false, comment }); }} className={btnDel}><X className="w-4 h-4" /> {t("admin.c.reject")}</button>
+              <p className="text-xs text-amber-200/90 truncate">{nameOf(r)}{r.requester?.username && r.requester?.name ? ` (@${r.requester.username})` : ""}{r.requester?.phone ? ` · ${r.requester.phone}` : ""}</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button onClick={() => { const note = prompt(t("admin.req.cancelPrompt"), "") ?? undefined; if (note !== undefined) cancel.mutate({ id: r.id, note }); }} className={btnDel}><X className="w-4 h-4" /> {t("admin.req.cancel")}</button>
+                {r.table
+                  ? <button onClick={() => { if (confirm(t("admin.req.cancelTableConfirm", { t: r.table }))) cancelGroup.mutate({ table: r.table }); }} className="px-3 py-2 rounded-lg text-xs font-semibold bg-white/10 text-white/70">{t("admin.req.cancelTable", { t: r.table })}</button>
+                  : <button onClick={() => { if (confirm(t("admin.req.cancelMemberConfirm", { name: nameOf(r) }))) cancelGroup.mutate({ userId: r.userId }); }} className="px-3 py-2 rounded-lg text-xs font-semibold bg-white/10 text-white/70">{t("admin.req.cancelMember")}</button>}
               </div>
             </div>
           </div>
         </Card>
       ))}
+      {role === "admin" && <KaraokeBridge />}
     </div>
+  );
+}
+// Admin › Requests › Karaoke system: token for the bridge program at the club + song-list import.
+function KaraokeBridge() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [token, setToken] = useState("");
+  const [text, setText] = useState("");
+  const { data: k } = useQuery<any>({ queryKey: ["/api/reborn/admin/karaoke"], queryFn: () => apiRequest("GET", "/api/reborn/admin/karaoke").then((r) => r.json()), refetchInterval: 30000 });
+  const mk = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/karaoke/token", {}).then((r) => r.json()), onSuccess: (d: any) => { setToken(d.token); toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/karaoke"] }); } });
+  const imp = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/karaoke/import", { text }).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message }); setText(""); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/karaoke"] }); } });
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  return (
+    <Card>
+      <p className="font-bold flex items-center gap-2"><Disc3 className="w-4 h-4 text-fuchsia-300" /> {t("admin.kar.title")}</p>
+      <p className="text-xs text-white/50 mt-1">{t("admin.kar.hint")}</p>
+      <p className="text-xs mt-2">{k?.online ? <b className="text-emerald-300">● {t("admin.kar.online")}</b> : <span className="text-white/50">○ {k?.lastSeen ? t("admin.kar.lastSeen", { at: new Date(k.lastSeen).toLocaleString(localeTag()) }) : t("admin.kar.never")}</span>} · {t("admin.kar.linked", { n: k?.linkedSongs ?? 0 })}</p>
+      <button onClick={() => { if (!k?.hasToken || confirm(t("admin.kar.newTokenConfirm"))) mk.mutate(); }} className={btn + " mt-3"}>{k?.hasToken ? t("admin.kar.newToken") : t("admin.kar.makeToken")}</button>
+      {token && <div className="mt-2 p-2 rounded-lg bg-black/40 text-[11px] font-mono break-all text-amber-200">{token}<p className="text-white/45 font-sans mt-1">{t("admin.kar.copyOnce")}</p></div>}
+      <pre className="mt-3 p-2 rounded-lg bg-black/40 text-[10px] text-white/60 whitespace-pre-wrap break-all">{`GET  ${base}/api/karaoke/queue
+POST ${base}/api/karaoke/next   {"finishedId": <id>, "skip": false}
+POST ${base}/api/karaoke/songs  [{"code":"10234","title":"…","artist":"…"}]
+Header: X-Karaoke-Token: <token>`}</pre>
+      <p className="text-xs text-white/60 mt-3">{t("admin.kar.importHint")}</p>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={"10234, 七里香, 周杰伦\n10235, Separuh Aku, Noah"} className={inp + " w-full mt-1 font-mono text-xs"} />
+      <button onClick={() => imp.mutate()} disabled={!text.trim() || imp.isPending} className={btn + " mt-2"}>{t("admin.kar.import")}</button>
+    </Card>
   );
 }
 

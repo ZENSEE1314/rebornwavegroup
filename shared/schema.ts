@@ -799,6 +799,7 @@ export const songs = pgTable("songs", {
   isHit: boolean("is_hit").default(false),
   requestCount: integer("request_count").default(0),
   createdBy: varchar("created_by"),
+  karaokeCode: varchar("karaoke_code"), // the song's number in the club's karaoke system (bridge import)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -812,7 +813,7 @@ export const songRequests = pgTable("song_requests", {
   artist: varchar("artist").default(""),
   performanceMode: varchar("performance_mode").default("self").notNull(), // self | singer
   tableLabel: varchar("table_label"), // requester's table (table-turn song queue)
-  status: varchar("status").default("pending"), // pending | confirmed | rejected
+  status: varchar("status").default("pending"), // pending (queued) | playing | confirmed (sung) | skipped | rejected / cancelled
   adminNote: text("admin_note"), // optional note/comment from admin (e.g. reason for reject)
   createdAt: timestamp("created_at").defaultNow(),
   confirmedAt: timestamp("confirmed_at"),

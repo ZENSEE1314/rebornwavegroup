@@ -688,15 +688,16 @@ const FEATURE_API: Array<[string, RegExp]> = [
 // group that asked first sings first, and all its songs for that turn go
 // together. A1 A2 A3 then B1 with 2 per turn → A1 A2 B1 A3.
 async function fairSongQueue(cid: number | null) {
-  const where = cid == null ? eq(songRequests.status, "pending") : and(eq(songRequests.companyId, cid), eq(songRequests.status, "pending"));
+  const session = await ensureVenueSession();
+  const since = venueDayStart(session.day);
+  // Tonight's waiting songs only (the venue day starts 8am) — yesterday's leftovers never block the queue.
+  const where = and(eq(songRequests.status, "pending"), sql`${songRequests.createdAt} >= ${since}`, ...(cid == null ? [] : [eq(songRequests.companyId, cid)]));
   const pending = await db.select().from(songRequests).where(where).orderBy(songRequests.createdAt, songRequests.id).limit(300);
   type Q = typeof pending[number] & { position: number; round: number; table: string | null; group: string };
   if (!pending.length) return [] as Q[];
   const s = await getSettings();
   const byTable = s.songQueueMode === "table";
   const perTurn = s.songsPerTurn;
-  const session = await ensureVenueSession();
-  const since = venueDayStart(session.day);
   const ids = Array.from(new Set(pending.map((r) => r.userId)));
   // Where each requester is sitting right now (falls back to the table saved on the request).
   const seats = await db.select({ userId: venueCheckins.userId, table: venueCheckins.tableLabel }).from(venueCheckins)
@@ -704,7 +705,8 @@ async function fairSongQueue(cid: number | null) {
   const seatOf = new Map(seats.map((x) => [x.userId, x.table || null]));
   const tableOf = (r: { userId: string; tableLabel: string | null }) => seatOf.get(r.userId) || r.tableLabel || null;
   const groupOf = (userId: string, table: string | null) => (byTable && table ? `t:${table}` : `u:${userId}`);
-  const doneWhere = and(eq(songRequests.status, "confirmed"), sql`${songRequests.confirmedAt} >= ${since}`, ...(cid == null ? [] : [eq(songRequests.companyId, cid)]));
+  // Songs already sung / on now / skipped tonight use up that member's (or table's) turns.
+  const doneWhere = and(inArray(songRequests.status, ["confirmed", "playing", "skipped"]), sql`${songRequests.confirmedAt} >= ${since}`, ...(cid == null ? [] : [eq(songRequests.companyId, cid)]));
   const done = await db.select({ userId: songRequests.userId, table: songRequests.tableLabel }).from(songRequests).where(doneWhere).limit(2000);
   const sung = new Map<string, number>();
   for (const d of done) { const g = groupOf(d.userId, d.table); sung.set(g, (sung.get(g) || 0) + 1); }
@@ -719,6 +721,113 @@ async function fairSongQueue(cid: number | null) {
   for (const r of ranked) { const key = `${r.round}|${r.group}`; if (!firstAsk.has(key)) firstAsk.set(key, r.order); }
   ranked.sort((a, b) => a.round - b.round || firstAsk.get(`${a.round}|${a.group}`)! - firstAsk.get(`${b.round}|${b.group}`)! || a.order - b.order);
   return ranked.map(({ order, ...r }, i) => ({ ...r, position: i + 1 })) as Q[];
+}
+
+// ── Song queue: now playing + advance (no staff approval) ───────────────────
+// A request joins the fair queue straight away. The karaoke bridge (or staff with
+// Next / Skip) moves the queue on: the song on now is marked sung (or skipped) and
+// the first song of the fair queue starts playing.
+async function songNowPlaying(cid: number | null) {
+  const since = venueDayStart((await ensureVenueSession()).day);
+  const [row] = await db.select().from(songRequests).where(and(eq(songRequests.status, "playing"), sql`${songRequests.confirmedAt} >= ${since}`, ...(cid == null ? [] : [eq(songRequests.companyId, cid)]))).orderBy(desc(songRequests.confirmedAt)).limit(1);
+  return row || null;
+}
+async function karaokeCodes(songIds: number[]) {
+  const ids = Array.from(new Set(songIds.filter(Boolean)));
+  if (!ids.length) return new Map<number, string | null>();
+  const rows = await db.select({ id: songs.id, code: songs.karaokeCode }).from(songs).where(inArray(songs.id, ids));
+  return new Map(rows.map((r) => [r.id, r.code || null]));
+}
+async function advanceSongQueue(cid: number | null, how: "done" | "skip", by?: string | null) {
+  const current = await songNowPlaying(cid);
+  if (current) await db.update(songRequests).set({ status: how === "skip" ? "skipped" : "confirmed", adminId: by || current.adminId }).where(eq(songRequests.id, current.id));
+  const queue = await fairSongQueue(cid);
+  const next = queue[0];
+  let playing: any = null;
+  if (next) {
+    [playing] = await db.update(songRequests).set({ status: "playing", confirmedAt: new Date(), tableLabel: next.table || next.tableLabel || null }).where(and(eq(songRequests.id, next.id), eq(songRequests.status, "pending"))).returning();
+    if (playing) {
+      const song = [playing.title, playing.artist].filter(Boolean).join(" — ");
+      notifyUserI18n(playing.userId, "song_now", (lang) => ({
+        title: pick(lang, { en: "🎤 You're on now!", zh: "🎤 轮到你唱了！", id: "🎤 Giliranmu sekarang!" }),
+        body: song,
+      }), { path: "/songs", songRequestId: playing.id, status: "playing" }).catch(() => {});
+      memberWaPhone(playing.userId).then(async (phone) => {
+        if (!phone) return;
+        const lang = await langForPhone(phone, playing.userId);
+        await sendWhatsApp(phone, waText(lang, "songOnNow", { song }));
+      }).catch(() => {});
+      // The member after them: "you're up next".
+      const after = queue[1];
+      if (after && after.userId !== playing.userId) notifyUserI18n(after.userId, "song_next", (lang) => ({
+        title: pick(lang, { en: "🎶 You're up next", zh: "🎶 下一首就是你", id: "🎶 Kamu berikutnya" }),
+        body: [after.title, after.artist].filter(Boolean).join(" — "),
+      }), { path: "/songs", songRequestId: after.id }).catch(() => {});
+    }
+  }
+  emitLiveUpdate("/api/reborn/song-queue", { action: how === "skip" ? "SKIPPED" : "NEXT" });
+  emitLiveUpdate("/api/reborn/songs/my-requests", { action: "QUEUE_MOVED" });
+  emitLiveUpdate("/api/reborn/admin/song-requests", { action: "QUEUE_MOVED" });
+  return { finished: current, playing };
+}
+// A request's place in tonight's fair queue (1 = next), for replies.
+export async function songQueuePosition(cid: number | null, requestId: number): Promise<number | null> {
+  return (await fairSongQueue(cid)).find((r) => r.id === requestId)?.position || null;
+}
+// The queue everyone can see: now singing + every waiting song (first name + table only).
+async function songQueueBoard(cid: number | null, viewerId?: string | null) {
+  const [now, queue] = await Promise.all([songNowPlaying(cid), fairSongQueue(cid)]);
+  const ids = Array.from(new Set([...(now ? [now.userId] : []), ...queue.map((r) => r.userId)]));
+  const people = ids.length ? await db.select({ id: users.id, firstName: users.firstName, username: users.username }).from(users).where(inArray(users.id, ids)) : [];
+  const nameOf = new Map(people.map((u) => [u.id, (u.firstName || u.username || "").trim()]));
+  const codes = await karaokeCodes([...(now?.songId ? [now.songId] : []), ...queue.map((r) => r.songId || 0)]);
+  const view = (r: any) => ({ id: r.id, title: r.title, artist: r.artist || "", performanceMode: r.performanceMode, table: r.table || r.tableLabel || null, name: nameOf.get(r.userId) || "", mine: !!viewerId && r.userId === viewerId, karaokeCode: r.songId ? codes.get(r.songId) || null : null });
+  const s = await getSettings();
+  return {
+    mode: s.songQueueMode, perTurn: s.songsPerTurn,
+    nowPlaying: now ? { ...view(now), startedAt: now.confirmedAt } : null,
+    queue: queue.map((r) => ({ ...view(r), position: r.position, round: r.round + 1 })),
+  };
+}
+
+// ── Karaoke system bridge ────────────────────────────────────────────────────
+// A small program at the club (next to the karaoke system) uses these with the
+// token from Admin › Requests › Karaoke system: it reads the queue, plays the song
+// on now, and calls "next" when a song ends. It can also upload the karaoke
+// system's song list so requests carry the system's song number (karaoke_code).
+async function karaokeAuth(req: Request): Promise<boolean> {
+  const given = String(req.get("x-karaoke-token") || req.query.token || "");
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "karaokeToken"));
+  const want = row?.value || "";
+  if (!want || given.length !== want.length) return false;
+  let diff = 0; for (let i = 0; i < want.length; i++) diff |= want.charCodeAt(i) ^ given.charCodeAt(i);
+  if (diff) return false;
+  const now = Date.now();
+  if (now - karaokeLastSeenWrite > 60_000) { // remember the bridge is online (at most once a minute)
+    karaokeLastSeenWrite = now;
+    await db.insert(appSettings).values({ key: "karaokeLastSeen", value: new Date(now).toISOString(), updatedAt: new Date() })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value: new Date(now).toISOString(), updatedAt: new Date() } }).catch(() => {});
+  }
+  return true;
+}
+let karaokeLastSeenWrite = 0;
+const normSong = (v: unknown) => String(v || "").toLowerCase().replace(/[\s·・\-–—_'"“”‘’()（）\[\]【】.,，。!！?？]/g, "");
+// Add / update songs from the karaoke system's list: [{ code, title, artist }].
+async function importKaraokeCatalog(list: Array<{ code?: unknown; title?: unknown; artist?: unknown }>) {
+  const rows = (list || []).map((x) => ({ code: String(x?.code ?? "").trim(), title: String(x?.title ?? "").trim(), artist: String(x?.artist ?? "").trim() }))
+    .filter((x) => x.code && x.title).slice(0, 60000);
+  const all = await db.select({ id: songs.id, title: songs.title, artist: songs.artist, code: songs.karaokeCode }).from(songs);
+  const byCode = new Map(all.filter((x) => x.code).map((x) => [x.code!, x.id]));
+  const byName = new Map(all.map((x) => [`${normSong(x.title)}|${normSong(x.artist)}`, x.id]));
+  let linked = 0, added = 0;
+  for (const r of rows) {
+    if (byCode.has(r.code)) continue;
+    const id = byName.get(`${normSong(r.title)}|${normSong(r.artist)}`);
+    if (id) { await db.update(songs).set({ karaokeCode: r.code }).where(eq(songs.id, id)); byCode.set(r.code, id); linked++; continue; }
+    const [row] = await db.insert(songs).values({ title: r.title, titlePinyin: textPinyin(r.title), artist: r.artist, artistPinyin: textPinyin(r.artist), karaokeCode: r.code, isHit: false, requestCount: 0 }).returning({ id: songs.id });
+    byCode.set(r.code, row.id); byName.set(`${normSong(r.title)}|${normSong(r.artist)}`, row.id); added++;
+  }
+  return { received: rows.length, linked, added };
 }
 
 // ── Venue day + table check-in ──────────────────────────────────────────────
@@ -1412,6 +1521,10 @@ export function registerRebornRoutes(app: Express) {
     if (saved) await db.update(ledgerEntries).set({ note: reportNote, userId: getUserId(req)! }).where(eq(ledgerEntries.id, saved.id));
     else await db.insert(ledgerEntries).values({ kind: "income", category: "daily_closing", amount: "0", note: reportNote, refType: "pos_closing", refId: current.day, userId: getUserId(req)! });
     await db.update(venueCheckins).set({ checkedOutAt: new Date() }).where(and(eq(venueCheckins.venueDay, current.day), eq(venueCheckins.sessionCode, current.code), sql`${venueCheckins.checkedOutAt} IS NULL`));
+    // Day closed: the song on now counts as sung, waiting songs are cleared.
+    await db.update(songRequests).set({ status: "confirmed" }).where(eq(songRequests.status, "playing"));
+    await db.update(songRequests).set({ status: "cancelled", adminNote: "Day closed" }).where(eq(songRequests.status, "pending"));
+    emitLiveUpdate("/api/reborn/song-queue", { action: "DAY_CLOSED" });
     const next = await ensureVenueSession(true);
     emitLiveUpdate("kos", { type: "venue_closed" });
     await logAdmin(req, { targetType: "pos_closing", targetId: current.day, action: "close_pos_day", entityType: "accounting", description: `Closed POS day ${current.day}: RP ${report.totals.revenue.toLocaleString()} revenue, RP ${report.totals.profit.toLocaleString()} profit` });
@@ -1648,11 +1761,11 @@ export function registerRebornRoutes(app: Express) {
       }
       const seat = await activeCheckin(userId).catch(() => null);
       const [reqRow] = await db.insert(songRequests).values({ companyId: await rebornCompanyId(req), userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, tableLabel: seat?.tableLabel || null, status: "pending" }).returning();
-      await notifyStaffI18n("song_request", (lang) => ({
-        title: pick(lang, { en: "New app song request", zh: "新的应用点歌请求", id: "Permintaan lagu baru dari aplikasi" }),
-        body: `${song.title}${song.artist ? ` - ${song.artist}` : ""} · ${performanceMode === "singer" ? pick(lang, { en: "By singer", zh: "歌手演唱", id: "Dinyanyikan penyanyi" }) : pick(lang, { en: "Self sing", zh: "自己唱", id: "Nyanyi sendiri" })}`,
-      }), { path: "/reborn-admin", songRequestId: reqRow.id, source: "app" });
-      res.json({ message: tr(req, { en: "Request sent! Staff will confirm it shortly.", zh: "请求已发送！员工会尽快确认。", id: "Permintaan terkirim! Staf akan segera mengonfirmasi." }), request: reqRow });
+      // No staff approval: the song joins the fair queue straight away.
+      emitLiveUpdate("/api/reborn/song-queue", { action: "QUEUED" });
+      emitLiveUpdate("/api/reborn/admin/song-requests", { action: "QUEUED" });
+      const position = (await fairSongQueue(reqRow.companyId)).find((r) => r.id === reqRow.id)?.position || null;
+      res.json({ message: position ? tr(req, { en: "Added to the queue — you're #{n}. Watch the Queue tab for your turn.", zh: "已加入队列——你排第 {n} 位。请在「队列」页查看何时轮到你。", id: "Masuk antrean — kamu nomor {n}. Pantau tab Antrean untuk giliranmu." }, { n: position }) : tr(req, { en: "Added to the queue!", zh: "已加入队列！", id: "Masuk antrean!" }), request: reqRow, position });
     } catch (e) { console.error("song request", e); res.status(500).json({ message: tr(req, { en: "Request failed", zh: "请求失败", id: "Permintaan gagal" }) }); }
   });
 
@@ -1802,7 +1915,8 @@ export function registerRebornRoutes(app: Express) {
   // Admin: song requests + song library
   app.get("/api/reborn/admin/song-requests", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const queue = await fairSongQueue(cid);
+    const now = await songNowPlaying(cid);
+    const queue = [...(now ? [{ ...now, position: 0, round: 0, table: now.tableLabel, group: "", playing: true } as any] : []), ...(await fairSongQueue(cid))];
     const ids = Array.from(new Set(queue.map((r) => r.userId)));
     const people = ids.length ? await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName, phone: users.phoneNumber }).from(users).where(inArray(users.id, ids)) : [];
     const byId = new Map(people.map((u) => [u.id, u]));
@@ -1817,6 +1931,90 @@ export function registerRebornRoutes(app: Express) {
     const seat = s.songQueueMode === "table" ? await activeCheckin(getUserId(req)!).catch(() => null) : null;
     res.json({ mode: s.songQueueMode, perTurn: s.songsPerTurn, table: seat?.tableLabel || null, needTable: s.songQueueMode === "table" && !seat?.tableLabel });
   });
+  // ── Karaoke bridge API (token, no login) ──
+  app.get("/api/karaoke/queue", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    res.json(await songQueueBoard(await rebornCompanyId(req)));
+  });
+  // The song on now ended (or { skip: true } cut it short) → start the next one; returns it.
+  app.post("/api/karaoke/next", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    const cid = await rebornCompanyId(req);
+    // Optional guard: only finish the song the bridge thinks is playing.
+    const cur = await songNowPlaying(cid);
+    if (req.body?.finishedId && cur && Number(req.body.finishedId) !== cur.id) return res.json({ nowPlaying: (await songQueueBoard(cid)).nowPlaying, stale: true });
+    await advanceSongQueue(cid, req.body?.skip === true ? "skip" : "done", null);
+    res.json({ nowPlaying: (await songQueueBoard(cid)).nowPlaying });
+  });
+  app.post("/api/karaoke/songs", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    res.json(await importKaraokeCatalog(Array.isArray(req.body) ? req.body : req.body?.songs || []));
+  });
+  // Admin › Requests › Karaoke system: bridge token, online status, song-list import.
+  app.get("/api/reborn/admin/karaoke", requireAdmin(async (_req, res) => {
+    const rows = await db.select().from(appSettings).where(inArray(appSettings.key, ["karaokeToken", "karaokeLastSeen"]));
+    const m = Object.fromEntries(rows.map((r) => [r.key, r.value || ""]));
+    const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(songs).where(isNotNull(songs.karaokeCode));
+    res.json({ hasToken: !!m.karaokeToken, lastSeen: m.karaokeLastSeen || null, online: !!m.karaokeLastSeen && Date.now() - new Date(m.karaokeLastSeen).getTime() < 3 * 60_000, linkedSongs: Number(n) || 0 });
+  }));
+  app.post("/api/reborn/admin/karaoke/token", requireAdmin(async (req, res) => {
+    const token = randomVenueCode() + randomVenueCode() + randomVenueCode() + randomVenueCode();
+    await db.insert(appSettings).values({ key: "karaokeToken", value: token, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: token, updatedAt: new Date() } });
+    await logAdmin(req, { targetType: "system", action: "karaoke_token", entityType: "settings", description: "Made a new karaoke bridge token" });
+    res.json({ token, message: tr(req, { en: "New token made — the old one stops working", zh: "已生成新令牌——旧令牌失效", id: "Token baru dibuat — token lama tidak berlaku" }) });
+  }));
+  // Paste the karaoke system's song list: one song per line "code, title, artist" (tab or comma).
+  app.post("/api/reborn/admin/karaoke/import", requireAdmin(async (req, res) => {
+    const lines = String(req.body?.text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const list = lines.map((l) => { const [code, title, ...rest] = l.split(/\t|,|;|\|/).map((x) => x.trim()); return { code, title, artist: rest.join(" ").trim() }; });
+    const r = await importKaraokeCatalog(list);
+    res.json({ ...r, message: tr(req, { en: "{n} songs read · {l} linked to the library · {a} added", zh: "读取 {n} 首 · 关联 {l} 首 · 新增 {a} 首", id: "{n} lagu dibaca · {l} ditautkan · {a} ditambahkan" }, { n: r.received, l: r.linked, a: r.added }) });
+  }));
+
+  // Everyone sees the queue: who's singing now (table + first name) and every waiting song.
+  app.get("/api/reborn/song-queue", requireAuth, async (req, res) => {
+    res.json(await songQueueBoard(await rebornCompanyId(req), getUserId(req)));
+  });
+  // A member takes back their own song that hasn't started yet.
+  app.post("/api/reborn/songs/my-requests/:id/cancel", requireAuth, async (req, res) => {
+    const [row] = await db.update(songRequests).set({ status: "cancelled", adminNote: "Cancelled by member" })
+      .where(and(eq(songRequests.id, Number(req.params.id)), eq(songRequests.userId, getUserId(req)!), eq(songRequests.status, "pending"))).returning();
+    if (!row) return res.status(400).json({ message: tr(req, { en: "This song can't be cancelled any more", zh: "这首歌已无法取消", id: "Lagu ini tidak bisa dibatalkan lagi" }) });
+    emitLiveUpdate("/api/reborn/song-queue", { action: "CANCELLED" });
+    emitLiveUpdate("/api/reborn/admin/song-requests", { action: "CANCELLED" });
+    res.json({ message: tr(req, { en: "Song removed from the queue", zh: "已从队列移除", id: "Lagu dihapus dari antrean" }) });
+  });
+  // Staff: the song on now is done → next song in the fair queue (skip = cut it short).
+  app.post("/api/reborn/admin/song-queue/next", requireStaff(async (req, res) => {
+    const skip = req.body?.skip === true;
+    const r = await advanceSongQueue(await rebornCompanyId(req), skip ? "skip" : "done", getUserId(req));
+    if (r.finished) await logAdmin(req, { targetUserId: r.finished.userId, targetType: "song_request", targetId: String(r.finished.id), action: skip ? "skip" : "done", entityType: "song_request", description: `${skip ? "Skipped" : "Finished"} "${r.finished.title}"` });
+    res.json({ message: r.playing ? tr(req, { en: "Now playing: {song}", zh: "正在播放：{song}", id: "Sedang diputar: {song}" }, { song: r.playing.title }) : tr(req, { en: "The queue is empty", zh: "队列已空", id: "Antrean kosong" }), playing: r.playing });
+  }));
+  // Staff: cancel one waiting song, or every waiting song of a table / member (they're leaving).
+  app.post("/api/reborn/admin/song-requests/:id/cancel", requireStaff(async (req, res) => {
+    const note = String(req.body?.note || "").trim() || "Cancelled by staff";
+    const [row] = await db.update(songRequests).set({ status: "rejected", adminNote: note, adminId: getUserId(req) })
+      .where(and(eq(songRequests.id, Number(req.params.id)), inArray(songRequests.status, ["pending", "playing"]))).returning();
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
+    await logAdmin(req, { targetUserId: row.userId, targetType: "song_request", targetId: String(row.id), action: "cancel", entityType: "song_request", description: `Cancelled "${row.title}" (${note})` });
+    emitLiveUpdate("/api/reborn/song-queue", { action: "CANCELLED" });
+    emitLiveUpdate("/api/reborn/songs/my-requests", { action: "CANCELLED" });
+    res.json({ message: tr(req, { en: "Song cancelled", zh: "已取消这首歌", id: "Lagu dibatalkan" }) });
+  }));
+  app.post("/api/reborn/admin/song-queue/cancel-group", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const table = String(req.body?.table || "").trim();
+    const userId = String(req.body?.userId || "").trim();
+    if (!table && !userId) return res.status(400).json({ message: tr(req, { en: "Pick a table or member", zh: "请选择桌位或会员", id: "Pilih meja atau member" }) });
+    // The queue knows each song's current table (check-in), so match on that.
+    const ids = (await fairSongQueue(cid)).filter((r) => (table ? (r.table || r.tableLabel) === table : r.userId === userId)).map((r) => r.id);
+    if (ids.length) await db.update(songRequests).set({ status: "rejected", adminNote: "Customer left — cancelled by staff", adminId: getUserId(req) }).where(and(inArray(songRequests.id, ids), eq(songRequests.status, "pending")));
+    await logAdmin(req, { targetUserId: userId || undefined, targetType: "song_request", action: "cancel_group", entityType: "song_request", description: `Cancelled ${ids.length} waiting song(s) for ${table ? `table ${table}` : `member ${userId}`}` });
+    emitLiveUpdate("/api/reborn/song-queue", { action: "CANCELLED" });
+    emitLiveUpdate("/api/reborn/songs/my-requests", { action: "CANCELLED" });
+    res.json({ message: tr(req, { en: "{n} waiting songs cancelled", zh: "已取消 {n} 首排队中的歌", id: "{n} lagu dalam antrean dibatalkan" }, { n: ids.length }), count: ids.length });
+  }));
   app.post("/api/reborn/admin/song-requests/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const approve = req.body?.approve !== false;
