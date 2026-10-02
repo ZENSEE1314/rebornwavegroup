@@ -140,3 +140,23 @@ text.
 - Login accepts an email **or** a phone number in any format (08…, +62 8…, 628…):
   `usersByPhone` / `phoneKey` in server/multiAuth.ts. A phone number that
   already has an account can't sign up again without an email.
+
+## Song queue without approval + karaoke system bridge
+
+- No staff approval: a request (app or WhatsApp) joins tonight's fair queue
+  straight away (`pending`), and the reply says the queue position. Statuses: `pending` (waiting)
+  → `playing` (on now, one at a time) → `confirmed` (sung) / `skipped`;
+  `rejected`/`cancelled` = cancelled. `advanceSongQueue` finishes the song on now and starts
+  the first song of `fairSongQueue`; the singer gets "you're on now" (push +
+  WhatsApp `songOnNow`) and the next one "you're up next". Only tonight's
+  requests (venue day from 08:00) are in the queue; closing the day clears it.
+- Everyone sees the queue: app Songs › **Queue** tab + a "Now singing" banner
+  (`/api/reborn/song-queue`, first name + table only). Members can cancel their
+  own waiting song.
+- Staff (Admin › Requests): Start / Done → next song / Skip, cancel one song,
+  or cancel every waiting song of a table / guest who left.
+- Karaoke bridge (Admin › Requests › Karaoke system, main admin): make a token;
+  a program at the club calls `GET /api/karaoke/queue`, `POST /api/karaoke/next`
+  (`{finishedId, skip}`) and `POST /api/karaoke/songs` (song list
+  `[{code,title,artist}]` → `songs.karaoke_code`) with header `X-Karaoke-Token`.
+  Admins can also paste the song list ("code, title, artist" per line).

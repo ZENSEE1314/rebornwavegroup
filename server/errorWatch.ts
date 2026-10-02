@@ -12,7 +12,7 @@ export const ERROR_AREAS: ErrorArea[] = ["song", "booking", "pos", "order", "che
 
 // Which API calls are watched, by area.
 export function areaForPath(path: string): ErrorArea | null {
-  if (/^\/api\/reborn\/(songs?|song-|admin\/songs?|admin\/song-)/.test(path)) return "song";
+  if (/^\/api\/reborn\/(songs?|song-|admin\/songs?|admin\/song-|admin\/karaoke)|^\/api\/karaoke\//.test(path)) return "song";
   if (/^\/api\/reborn\/(booking|my-bookings|admin\/bookings)/.test(path)) return "booking";
   if (/^\/api\/reborn\/(pos|admin\/pos)\b/.test(path)) return "pos";
   if (/^\/api\/reborn\/(shop|admin\/accounting\/orders)/.test(path)) return "order";

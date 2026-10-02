@@ -707,9 +707,15 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "🎤 Lagu apa? Kirim: Judul lagu - Penyanyi",
     },
     songDone: {
-      en: "🎤 Added your request: {title}{artist}. See it in the app under Song Requests. 💜",
-      zh: "🎤 已收到你的点歌：{title}{artist}。可在应用的点歌页面查看。💜",
-      id: "🎤 Permintaan lagu dicatat: {title}{artist}. Lihat di aplikasi pada menu Permintaan Lagu. 💜",
+      en: "🎤 Added to the queue: {title}{artist}{pos}. We'll message you when it's your turn — see the full queue in the app (Songs › Queue). 💜",
+      zh: "🎤 已加入点歌队列：{title}{artist}{pos}。轮到你时我们会通知你——完整队列请在应用查看（点歌 › 队列）。💜",
+      id: "🎤 Masuk antrean: {title}{artist}{pos}. Kami kabari saat giliranmu — lihat antrean lengkap di aplikasi (Lagu › Antrean). 💜",
+    },
+    songPos: { en: " — you're #{n}", zh: "——你排第 {n} 位", id: " — kamu nomor {n}" },
+    songOnNow: {
+      en: "🎤 You're on now: {song}! Grab the mic. 💜",
+      zh: "🎤 轮到你唱了：{song}！拿起麦克风吧。💜",
+      id: "🎤 Giliranmu sekarang: {song}! Ambil mic-nya. 💜",
     },
     review: {
       en: "Thanks for coming to {club}! ⭐ How was it? Reply 1-5 stars.{link}",
@@ -1732,16 +1738,14 @@ async function finishWhatsAppSongRequest(c: Contact, lang: Lang, selected: SongS
       }
     }
   } catch (e) { waError("song upsert", e); }
-  await db.insert(songRequests).values({ companyId: await defaultCompanyId(), userId: c.userId!, songId, title, artist, performanceMode, status: "pending" });
+  // No staff approval: the song joins the fair queue straight away.
+  const cid = await defaultCompanyId();
+  const [reqRow] = await db.insert(songRequests).values({ companyId: cid, userId: c.userId!, songId, title, artist, performanceMode, status: "pending" }).returning();
   emitLiveUpdate("/api/reborn/admin/song-requests", { action: "WHATSAPP_SONG_REQUEST" });
-  await sendRebornStaffNotification({
-    type: "song_request",
-    title: "New WhatsApp song request",
-    body: `${c.name || "Guest"}: ${title}${artist ? ` - ${artist}` : ""} · ${performanceMode === "singer" ? "By singer" : "Self sing"}`,
-    data: { path: "/reborn-admin", source: "whatsapp" },
-  });
-  await say(L(lang, "songDone", { title, artist: artist ? ` - ${artist}` : "" }));
-  await notifyAdmin(`🎤 WhatsApp song request from ${c.name || c.phone}: ${title}${artist ? " - " + artist : ""} · ${performanceMode === "singer" ? "By singer" : "Self sing"}`);
+  emitLiveUpdate("/api/reborn/song-queue", { action: "QUEUED" });
+  let pos = "";
+  try { const { songQueuePosition } = await import("./rebornGame"); const n = await songQueuePosition(cid, reqRow.id); if (n) pos = L(lang, "songPos", { n: String(n) }); } catch (e) { waError("song position", e); }
+  await say(L(lang, "songDone", { title, artist: artist ? ` - ${artist}` : "", pos }));
   await sendMemberMenu(c.phone, c, lang);
   return patchContact(c.id, { waState: { flow: null } });
 }
