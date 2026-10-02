@@ -53,7 +53,8 @@ text.
   will get back to you shortly" reply, then the number is paused
   (`crm_contacts.bot_paused`): no more bot replies, staff get a notification
   for every new message, and an admin replies from Admin › CRM. The admin turns
-  the bot back on per number in the CRM chat.
+  the bot back on per number in the CRM chat, or the member types *AI*
+  (the hand-off reply tells them so) to get the auto-reply back.
 
 ## Events
 
