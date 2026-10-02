@@ -98,10 +98,28 @@ text.
   never reached the server (`/api/client-error`, sent by `apiRequest`), WhatsApp
   bot crashes / replies that didn't send / link errors (`waError`), and server
   crashes into `app_errors` (kept 30 days). Passwords/tokens are masked.
-- Admin › Errors lists them by area with counts; staff get a notification on any
+- Admin › Errors (main admin only) lists them by area with counts; main admins get a notification on any
   server error or 5+ errors of one area in 10 minutes (max one per kind per
   15 min). Normal "do this first" replies (e.g. `needTable`) are logged but
   never alerted. Add new areas to `areaForPath` + `admin.err.area.*`.
 - Song request 400 in table mode: the All songs list now shows the "scan your
   table QR" card too, and app error toasts show the server's message without
   the "400:" prefix.
+
+## Admin panel roles (client/src/pages/reborn-admin.tsx `tabsFor`)
+
+- **Staff** (`users.role = staff`): Bookings, Requests, Redemptions, Bottles,
+  Top-ups, Pet (activation codes + revival pills in one tab), Songs, Games,
+  Events, Staff, Leaderboard, Feedback, POS. The Staff tab shows each
+  salesperson's own target for the month (`/api/reborn/staff/my-target`) and
+  links to Bookings to book or block a table and time for a customer.
+- **Manager** = a staff account whose company role is `manager`
+  (`bridge_company_members.role`; set as "manager" in Admin › Users). Managers get
+  the staff tabs + **Daily sales** (`/api/reborn/manager/daily-sales`): the venue
+  day's total, a cash/card/credits breakdown, best sellers, "close the day & clear guests"
+  (`/api/reborn/admin/venue/close`, `requireManager`), and every salesperson's
+  month sales vs target (target set in Payroll). Server: `adminRole()` /
+  `requireManager`; the app asks `/api/reborn/my-role`.
+- **Main admin** (`users.role = admin`): every tab.
+- Daily sales and the day close count by venue day (08:00 → 08:00 WIB,
+  `VENUE_DAY_OF`).
