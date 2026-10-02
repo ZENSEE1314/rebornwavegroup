@@ -308,14 +308,14 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
     },
     replyNumber: { en: "Reply a number 1-{n}.", zh: "请回复 1-{n} 的数字。", id: "Balas angka 1-{n}." },
     closedDay: {
-      en: "📅 {day}: sorry, {area} is closed that day. Please reply another date (e.g. tomorrow or \"next friday\").",
-      zh: "📅 {day}：抱歉，{area} 当天不营业。请回复其他日期（例如：明天）。",
-      id: "📅 {day}: maaf, {area} tutup hari itu. Silakan balas tanggal lain (mis. besok).",
+      en: "{day}: sorry, {area} is closed that day. Please reply another date (e.g. tomorrow or \"next friday\").",
+      zh: "{day}：抱歉，{area} 当天不营业。请回复其他日期（例如：明天）。",
+      id: "{day}: maaf, {area} tutup hari itu. Silakan balas tanggal lain (mis. besok).",
     },
     fullDay: {
-      en: "📅 {day}: sorry, {area} is fully booked that day. Please reply another date.",
-      zh: "📅 {day}：抱歉，{area} 当天已订满。请回复其他日期。",
-      id: "📅 {day}: maaf, {area} sudah penuh hari itu. Silakan balas tanggal lain.",
+      en: "{day}: sorry, {area} is fully booked that day. Please reply another date.",
+      zh: "{day}：抱歉，{area} 当天已订满。请回复其他日期。",
+      id: "{day}: maaf, {area} sudah penuh hari itu. Silakan balas tanggal lain.",
     },
     dateOk: { en: "✅ Date: *{day}*", zh: "✅ 日期：*{day}*", id: "✅ Tanggal: *{day}*" },
     aboutIntro: {
@@ -329,9 +329,9 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "{n} meja/ruang",
     },
     aboutBook: {
-      en: "Reply the number to book it 📅 — or 0 for the menu.",
-      zh: "回复编号即可预订 📅 — 或回复 0 返回菜单。",
-      id: "Balas nomornya untuk booking 📅 — atau 0 untuk menu.",
+      en: "Reply the number to book it — or 0 for the menu.",
+      zh: "回复编号即可预订 — 或回复 0 返回菜单。",
+      id: "Balas nomornya untuk booking — atau 0 untuk menu.",
     },
     aboutJoin: {
       en: "To book, you'll need a free member account (takes a minute). What's your name?",
@@ -345,7 +345,7 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
     },
     eventsIntro: { en: "🎉 Our upcoming events ({n}):", zh: "🎉 即将举行的活动（{n} 个）：", id: "🎉 Acara mendatang kami ({n}):" },
     eventsNone: { en: "No upcoming events right now — check back soon! 🎉 Reply MENU for other options.", zh: "目前暂无活动——请稍后再来看看！🎉 回复 MENU 查看其他选项。", id: "Belum ada acara mendatang — cek lagi nanti! 🎉 Balas MENU untuk pilihan lain." },
-    eventsFooter: { en: "Want a table for one of these? Reply *1* to book 📅 — or MENU for other options.", zh: "想为这些活动订桌吗？回复 *1* 预订 📅 —— 或回复 MENU 查看其他选项。", id: "Mau booking meja untuk acara ini? Balas *1* untuk booking 📅 — atau MENU untuk pilihan lain." },
+    eventsFooter: { en: "Want a table for one of these? Reply *1* to book — or MENU for other options.", zh: "想为这些活动订桌吗？回复 *1* 预订 —— 或回复 MENU 查看其他选项。", id: "Mau booking meja untuk acara ini? Balas *1* untuk booking — atau MENU untuk pilihan lain." },
     eventOnDay: {
       en: "🎉 Happening on {day}: *{title}*{body}",
       zh: "🎉 {day} 的活动：*{title}*{body}",
@@ -597,9 +597,9 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
     weekThis: { en: "this week", zh: "这个礼拜", id: "minggu ini" },
     weekLater: { en: "in two weeks", zh: "下下个礼拜", id: "dua minggu lagi" },
     confirmDate: {
-      en: "📅 Is it *{day}*?\n1️⃣ Yes\n2️⃣ No",
-      zh: "📅 是 *{day}* 吗？\n1️⃣ 是\n2️⃣ 不是",
-      id: "📅 Apakah *{day}*?\n1️⃣ Ya\n2️⃣ Tidak",
+      en: "Is it *{day}*?\n1️⃣ Yes\n2️⃣ No",
+      zh: "是 *{day}* 吗？\n1️⃣ 是\n2️⃣ 不是",
+      id: "Apakah *{day}*?\n1️⃣ Ya\n2️⃣ Tidak",
     },
     navHint: {
       en: "↩️ Reply *B* to go back · ❌ *0* to cancel",
@@ -612,9 +612,9 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "↩️ Balas *B* untuk kembali · ❌ *BATAL* untuk berhenti",
     },
     datePast: {
-      en: "📅 {day} has already passed. Please reply another date.",
-      zh: "📅 {day} 已经过去了，请回复其他日期。",
-      id: "📅 {day} sudah lewat. Silakan balas tanggal lain.",
+      en: "{day} has already passed. Please reply another date.",
+      zh: "{day} 已经过去了，请回复其他日期。",
+      id: "{day} sudah lewat. Silakan balas tanggal lain.",
     },
     bookAskSlot: {
       en: "{day} · {hours}\nChoose your start time:\n{list}\nReply the number.",
@@ -769,9 +769,9 @@ function memberMenu(lang: Lang, contact: Contact): string {
 }
 
 function memberMenuChoices(lang: Lang): WhatsAppChoice[] {
-  if (lang === "zh") return [{ id: "menu_book", title: "📅 预订" }, { id: "menu_song", title: "🎤 点歌" }, { id: "menu_bottle", title: "🍾 我的寄存酒" }];
-  if (lang === "id") return [{ id: "menu_book", title: "📅 Booking" }, { id: "menu_song", title: "🎤 Minta lagu" }, { id: "menu_bottle", title: "🍾 Botol saya" }];
-  return [{ id: "menu_book", title: "📅 Booking" }, { id: "menu_song", title: "🎤 Request song" }, { id: "menu_bottle", title: "🍾 Kept bottles" }];
+  if (lang === "zh") return [{ id: "menu_book", title: "🗓️ 预订" }, { id: "menu_song", title: "🎤 点歌" }, { id: "menu_bottle", title: "🍾 我的寄存酒" }];
+  if (lang === "id") return [{ id: "menu_book", title: "🗓️ Booking" }, { id: "menu_song", title: "🎤 Minta lagu" }, { id: "menu_bottle", title: "🍾 Botol saya" }];
+  return [{ id: "menu_book", title: "🗓️ Booking" }, { id: "menu_song", title: "🎤 Request song" }, { id: "menu_bottle", title: "🍾 Kept bottles" }];
 }
 
 // welcomeBack: greeting menu · "more": "anything else meanwhile?" after we hand over to staff.
@@ -1250,7 +1250,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         await pushWhatsAppBooking(row, c, area, date, label, party);
         await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: APP_BASE_URL }));
         await say(await locationReply(lang)); // so the guest knows where to find us
-        await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
+        await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
         await sendMemberMenu(from, c, lang);
         return patchContact(c.id, { waState: { flow: null } });
       }
@@ -1264,7 +1264,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
     await pushWhatsAppBooking(row, c, area, date, label, party);
     await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: APP_BASE_URL }));
     await say(await locationReply(lang)); // so the guest knows where to find us
-    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · ${party} pax — confirm in the app.`);
+    await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · ${party} pax — confirm in the app.`);
     await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
   }
@@ -1522,7 +1522,7 @@ async function completeStepBooking(c: Contact, lang: Lang, from: string, area: B
     await say(L(lang, "specialNoted", { r: shown }));
   }
   await say(await locationReply(lang)); // so the guest knows where to find us
-  await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax${wa.special ? ` · ${wa.special}` : ""} — confirm in the app.`);
+  await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax${wa.special ? ` · ${wa.special}` : ""} — confirm in the app.`);
   await sendMemberMenu(from, c, lang);
   return patchContact(c.id, { waState: { flow: null } });
 }
@@ -1547,7 +1547,7 @@ async function sendAllEvents(c: Contact, from: string, lang: Lang) {
     if (!list.length) { await say0(c, from, L(lang, "eventsNone")); return; }
     await say0(c, from, L(lang, "eventsIntro", { n: String(list.length) }));
     for (const ev of list) {
-      const when = ev.startDate ? `📅 ${fmtDMY(ev.startDate, lang)}${ev.endDate && ev.endDate > ev.startDate ? ` – ${fmtDMY(ev.endDate, lang)}` : ""}\n` : "";
+      const when = ev.startDate ? `${fmtDMY(ev.startDate, lang)}${ev.endDate && ev.endDate > ev.startDate ? ` – ${fmtDMY(ev.endDate, lang)}` : ""}\n` : "";
       const text = `${when}*${ev.title}*${ev.body ? `\n${ev.body}` : ""}`;
       if (ev.imageUrl) await sendWhatsAppImage(from, ev.imageUrl, text); else await sendWhatsApp(from, text);
       await logMsg(c.id, c.phone, "out", text, true);
