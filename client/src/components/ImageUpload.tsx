@@ -22,12 +22,13 @@ async function toWebp(file: File, maxDim = 640, quality = 0.82, mime = "image/we
   const canvas = document.createElement("canvas");
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; // keep resized posters sharp
   ctx.drawImage(img, 0, 0, width, height);
   return canvas.toDataURL(mime, quality);
 }
 
-export function ImageUpload({ value, onChange, shape = "square", label, output = "webp", maxDim = 640 }: {
-  value?: string; onChange: (dataUrl: string) => void; shape?: "square" | "circle"; label?: string; output?: "webp" | "jpeg"; maxDim?: number;
+export function ImageUpload({ value, onChange, shape = "square", label, output = "webp", maxDim = 640, quality = 0.82 }: {
+  value?: string; onChange: (dataUrl: string) => void; shape?: "square" | "circle"; label?: string; output?: "webp" | "jpeg"; maxDim?: number; quality?: number;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
@@ -38,7 +39,7 @@ export function ImageUpload({ value, onChange, shape = "square", label, output =
     const file = e.target.files?.[0];
     if (!file) return;
     setBusy(true);
-    try { onChange(await toWebp(file, maxDim, 0.82, output === "jpeg" ? "image/jpeg" : "image/webp")); } catch { /* ignore bad image */ } finally { setBusy(false); if (ref.current) ref.current.value = ""; }
+    try { onChange(await toWebp(file, maxDim, quality, output === "jpeg" ? "image/jpeg" : "image/webp")); } catch { /* ignore bad image */ } finally { setBusy(false); if (ref.current) ref.current.value = ""; }
   };
 
   return (

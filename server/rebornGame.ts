@@ -232,6 +232,12 @@ async function rotateAttendCode(): Promise<string> {
   return code;
 }
 
+// A stored poster (data URL) → a cacheable link that changes whenever the poster does.
+function eventImageLink(e: { id: number; imageUrl: string | null }): string | null {
+  if (!e.imageUrl || !e.imageUrl.startsWith("data:")) return e.imageUrl;
+  let h = 0; for (let i = 0; i < e.imageUrl.length; i += 97) h = (h * 31 + e.imageUrl.charCodeAt(i)) | 0;
+  return `/api/reborn/events/${e.id}/image?v=${(h >>> 0).toString(36)}${e.imageUrl.length.toString(36)}`;
+}
 // Event dates are plain YYYY-MM-DD (or null = an ongoing announcement).
 function isoDay(v: any): string | null { const s = String(v || "").trim(); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null; }
 // Active events that haven't ended, nearest first (undated announcements last).
@@ -2083,7 +2089,14 @@ export function registerRebornRoutes(app: Express) {
   // ?date=YYYY-MM-DD → only the events happening that day (shown when booking that date).
   app.get("/api/reborn/events", async (req, res) => {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || "")) ? String(req.query.date) : "";
-    res.json(await upcomingEvents(date || undefined));
+    // Posters are big (sharp A4) — send a cached link instead of the bytes in the list.
+    res.json((await upcomingEvents(date || undefined)).map((e) => ({ ...e, imageUrl: eventImageLink(e) })));
+  });
+  app.get("/api/reborn/events/:id/image", async (req, res) => {
+    const [ev] = await db.select({ imageUrl: events.imageUrl }).from(events).where(eq(events.id, Number(req.params.id))).limit(1);
+    const m = /^data:([^;]+);base64,(.+)$/.exec(ev?.imageUrl || "");
+    if (!m) return ev?.imageUrl && /^https?:\/\//.test(ev.imageUrl) ? res.redirect(302, ev.imageUrl) : res.status(404).end();
+    res.set("Cache-Control", "public, max-age=31536000, immutable").type(m[1]).send(Buffer.from(m[2], "base64"));
   });
   app.get("/api/reborn/admin/events", requireStaff(async (_req, res) => { res.json(await db.select().from(events).orderBy(desc(events.createdAt))); }));
   app.post("/api/reborn/admin/events", requireStaff(async (req, res) => {
