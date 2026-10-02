@@ -443,6 +443,8 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
   const { toast } = useToast();
   const [help, setHelp] = useState(true); // show the tutorial when you enter
   const leave = async () => { await post(`/api/reborn/games/rooms/${code}/leave`); onLeave(); };
+  // Mid-game, ask first — the game carries on for the others without you.
+  const leaveMidGame = () => { if (window.confirm(t("gm.room.leaveConfirm"))) leave(); };
 
   if (!room) return <div className="rwg-card p-8 text-center text-white/50">{t("gm.room.connecting", { code })}</div>;
   const isHost = room.hostId === me;
@@ -460,7 +462,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
         </div>
         <MuteToggle className="arc-btn" />
         <button onClick={() => setHelp(true)} className="arc-btn" title={t("gm.howTo")} aria-label={t("gm.howTo")}>?</button>
-        <button onClick={leave} className="arc-btn arc-btn-red" title={t("gm.room.leave")} aria-label={t("gm.room.leave")}><span aria-hidden style={{ fontSize: 18 }}>🚪</span></button>
+        <button onClick={room.status === "playing" || room.status === "reveal" ? leaveMidGame : leave} className="arc-btn arc-btn-red" title={t("gm.room.leave")} aria-label={t("gm.room.leave")}><span aria-hidden style={{ fontSize: 18 }}>🚪</span></button>
       </div>
 
       {room.status === "lobby" && <><SeriesBoard room={room} /><LobbyRoom room={room} code={code} isHost={isHost} onLeave={leave} /></>}
@@ -479,6 +481,11 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "timer" && <TimerGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "789" && <SevenGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "stack" && <StackGame room={room} code={code} me={me} />}
+
+      {/* Every game (incl. party games with no end, like Frog and 789) can be left any time. */}
+      {(room.status === "playing" || room.status === "reveal") && (
+        <button onClick={leaveMidGame} className="cbtn cbtn-dark w-full py-3 inline-flex items-center justify-center gap-2"><LogOut className="w-4 h-4" /> {t("gm.room.leaveGame")}</button>
+      )}
 
       {room.status === "done" && (
         <div className="space-y-2">

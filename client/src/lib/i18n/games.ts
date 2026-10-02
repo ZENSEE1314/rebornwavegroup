@@ -214,6 +214,8 @@ export const gamesT: Record<string, { en: string; zh: string; id: string }> = {
   "gm.room.playAgain": { en: "🔄 Play again", zh: "🔄 再玩一次", id: "🔄 Main lagi" },
   "gm.room.waitNextRound": { en: "Waiting for the host to start the next round… you can stay or leave.", zh: "等待房主开始下一局……你可以留下或离开。", id: "Menunggu host memulai ronde berikutnya… kamu bisa tetap atau keluar." },
   "gm.room.waitAnother": { en: "Waiting for the host to start another game… you can stay or leave.", zh: "等待房主开始新一局……你可以留下或离开。", id: "Menunggu host memulai permainan lain… kamu bisa tetap atau keluar." },
+  "gm.room.leaveGame": { en: "Leave game", zh: "离开游戏", id: "Keluar dari permainan" },
+  "gm.room.leaveConfirm": { en: "Leave this game? It keeps going for the other players.", zh: "确定离开这局游戏？其他玩家会继续玩。", id: "Keluar dari permainan ini? Pemain lain tetap lanjut bermain." },
   "gm.room.leaveRoom": { en: "Leave room", zh: "离开房间", id: "Keluar room" },
   "gm.room.private": { en: "🔒 private", zh: "🔒 私密", id: "🔒 privat" },
   "gm.room.open": { en: "open", zh: "公开", id: "terbuka" },
