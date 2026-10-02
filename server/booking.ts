@@ -284,11 +284,19 @@ export async function isTableTaken(a: BookingArea, table: string, when: Date): P
     ));
     return rows.some((r) => ACTIVE_BOOKING.includes(r.status) && businessDay(areaOpenHour(a), new Date(r.appointmentDate)) === day);
   }
+  // A booking holds its table for its whole length (e.g. 19:00 for 4h also covers 21:00).
+  const t = when.getTime();
   const rows = await db.select().from(appointments).where(and(
     eq(appointments.notes, `${areaLabel(a)} / ${table}`),
-    eq(appointments.appointmentDate, when),
+    gte(appointments.appointmentDate, new Date(t - 12 * 3600_000)),
+    lte(appointments.appointmentDate, when),
   ));
-  return rows.some((r) => ACTIVE_BOOKING.includes(r.status));
+  return rows.some((r) => ACTIVE_BOOKING.includes(r.status) && occupies(r, t));
+}
+// Does this booking hold its table at time t? (start ≤ t < start + length)
+function occupies(r: { appointmentDate: Date | string; duration: number | null }, t: number): boolean {
+  const start = new Date(r.appointmentDate).getTime();
+  return start <= t && t < start + Math.max(1, r.duration || 120) * 60_000;
 }
 
 // Tables already taken for an area across a whole day, grouped by slot value → [tables].
@@ -299,7 +307,8 @@ export async function takenTablesForDate(a: BookingArea, dateStr: string): Promi
   if (!slots.length) return out;
   const openHour = areaOpenHourForDate(a, dateStr);
   const whens = slots.map((s) => bookingWhen(openHour, dateStr, s));
-  const lo = new Date(Math.min(...whens.map((w) => w.getTime())));
+  // Look back far enough to catch a long booking that started before the first slot.
+  const lo = new Date(Math.min(...whens.map((w) => w.getTime())) - 12 * 3600_000);
   const hi = new Date(Math.max(...whens.map((w) => w.getTime())) + 60_000);
   const rows = await db.select().from(appointments).where(and(
     gte(appointments.appointmentDate, lo), lte(appointments.appointmentDate, hi),
@@ -309,10 +318,17 @@ export async function takenTablesForDate(a: BookingArea, dateStr: string): Promi
     if (!ACTIVE_BOOKING.includes(r.status) || !r.notes || !r.notes.startsWith(prefix)) continue;
     const table = r.notes.slice(prefix.length);
     const t = new Date(r.appointmentDate).getTime();
-    const idx = whens.findIndex((w) => w.getTime() === t);
-    if (idx < 0) continue;
-    if (table === BLOCK_ALL) { out[slots[idx]] = [...a.tables]; continue; } // whole slot blocked
-    if (!(out[slots[idx]] || []).includes(BLOCK_ALL)) (out[slots[idx]] ||= []).push(table);
+    if (table === BLOCK_ALL) { // whole slot blocked
+      const idx = whens.findIndex((w) => w.getTime() === t);
+      if (idx >= 0) out[slots[idx]] = [...a.tables];
+      continue;
+    }
+    // A booking holds its table for every slot it covers, not just its start time.
+    whens.forEach((w, idx) => {
+      if (!occupies(r, w.getTime())) return;
+      const list = (out[slots[idx]] ||= []);
+      if (!list.includes(BLOCK_ALL) && !list.includes(table)) list.push(table);
+    });
   }
   if (TABLE_DAY_LOCK) {
     // A table booked at any time today is taken for every slot today.
@@ -352,6 +368,13 @@ export async function freeTablesForDateSlot(a: BookingArea, dateStr: string, slo
   const taken = (await takenTablesForDate(a, dateStr))[slot] || [];
   if (taken.includes(BLOCK_ALL)) return [];
   return a.tables.filter((tb) => !taken.includes(tb));
+}
+
+// Other enabled areas that still have space on a date (to suggest when one is full).
+export async function areasWithSpace(areas: BookingArea[], dateStr: string, except?: string): Promise<BookingArea[]> {
+  const out: BookingArea[] = [];
+  for (const x of areas) if (x.id !== except && (await availableSlotsForDate(x, dateStr)).length) out.push(x);
+  return out;
 }
 
 // A date is fully booked when no slot has any availability.

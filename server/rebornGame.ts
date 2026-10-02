@@ -17,7 +17,7 @@ import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, type PushPayload } from "./push";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText } from "./booking";
 import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, type Lang } from "./i18n";
 import { translateTexts } from "./autoTranslate";
 import {
@@ -3294,9 +3294,14 @@ export function registerRebornRoutes(app: Express) {
     const slots = values.map((v, i) => ({ value: v, label: labels[i] }));
     const taken = await takenTablesForDate(area, date);
     const fullyBooked = values.length > 0 && (await isDateFullyBooked(area, date));
+    // Times where every table is taken (shown as "Full"), and — when the whole
+    // area is full — the other areas that still have space that day.
+    const open = new Set(values.length ? await availableSlotsForDate(area, date) : []);
+    const fullSlots = values.filter((v) => !open.has(v));
+    const otherAreas = fullyBooked ? (await areasWithSpace(enabledAreas(s.bookingAreas), date, area.id)).map((x) => ({ id: x.id, name: x.name, names: x.names, level: x.level })) : [];
     const caps: Record<string, number> = {};
     for (const t of area.tables) caps[t] = tableCap(area, t);
-    res.json({ slots, hours: areaHoursTextForDate(area, date), closed: values.length === 0, fullyBooked, taken, caps, maxPax: area.maxPax || 0 });
+    res.json({ slots, hours: areaHoursTextForDate(area, date), closed: values.length === 0, fullyBooked, fullSlots, otherAreas, taken, caps, maxPax: area.maxPax || 0 });
   });
   // A member's own bookings (includes ones made over WhatsApp — same account).
   app.get("/api/reborn/my-bookings", requireAuth, async (req, res) => {
