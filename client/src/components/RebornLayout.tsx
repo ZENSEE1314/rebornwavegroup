@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { installUiClicks } from "@/lib/sfx";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { LevelUpWatcher } from "@/components/LevelRing";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
@@ -140,6 +141,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   return (
     <div className="rwg-app min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
       <PullToRefresh />
+      <LevelUpWatcher userId={(user as any)?.id} />
       {/* Top bar */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-white/10 backdrop-blur-md" style={{ background: "rgba(10,7,20,0.75)" }}>
         <button onClick={() => go("/")} className="flex items-center gap-2 font-extrabold tracking-widest text-sm">

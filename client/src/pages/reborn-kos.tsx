@@ -8,6 +8,7 @@ import { useLocation } from "wouter";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { sfx } from "@/lib/sfx";
 import { VenueScanner, useVenueCheckIn } from "@/components/VenueScan";
+import { LevelAvatar, LevelChips } from "@/components/LevelRing";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, Camera, QrCode, CheckCircle2 } from "lucide-react";
 
 const ANIM_CSS = `
@@ -82,7 +83,8 @@ export default function RebornKos() {
   const pendingIds = new Set<string>([...(friendData?.outgoing || []), ...(friendData?.incoming || [])].map((f: any) => f.user?.id));
 
   const { data: wallet } = useQuery<any>({ queryKey: ["/api/reborn/kos/wallet"], queryFn: () => apiRequest("GET", "/api/reborn/kos/wallet").then((r) => r.json()), refetchInterval: 20000 });
-  const { data: board = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/leaderboard"], queryFn: () => apiRequest("GET", "/api/reborn/kos/leaderboard").then((r) => r.json()), refetchInterval: 15000 });
+  const [period, setPeriod] = useState<"tonight" | "month">("tonight");
+  const { data: board = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/leaderboard", period], queryFn: () => apiRequest("GET", `/api/reborn/kos/leaderboard?period=${period}`).then((r) => r.json()), refetchInterval: 15000 });
   const { data: gifts = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/gifttypes"], queryFn: () => apiRequest("GET", "/api/reborn/kos/gifttypes").then((r) => r.json()) });
   const { data: notifs = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/notifications"], queryFn: () => apiRequest("GET", "/api/reborn/kos/notifications").then((r) => r.json()), refetchInterval: 12000 });
   const { data: results = [] } = useQuery<any[]>({
@@ -95,7 +97,7 @@ export default function RebornKos() {
     if (notifs.length > 0) setShowNotif(true);
   }, [notifs.length]);
 
-  const refreshWallet = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/wallet"] }); qc.invalidateQueries({ queryKey: ["/api/auth/user"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] }); };
+  const refreshWallet = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/wallet"] }); qc.invalidateQueries({ queryKey: ["/api/auth/user"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/kos/levels/me"] }); };
   const gift = useMutation({
     mutationFn: (giftTypeId: number) => apiRequest("POST", "/api/reborn/kos/gift", { toUserId: target.id, giftTypeId }).then((r) => r.json()),
     onSuccess: (d, giftTypeId) => { sfx.gift(giftSoundOf(gifts.find((g: any) => g.id === giftTypeId))); toast({ title: t("vn.kos.giftSent"), description: d.message }); setTarget(null); refreshWallet(); },
@@ -171,6 +173,11 @@ export default function RebornKos() {
       {/* Leaderboard */}
       <div className="arc-panel" style={{ ["--c1" as any]: "#ec4899" }}>
       <h2 className="arc-head"><Crown className="w-4 h-4 text-amber-400" /> {t("vn.kos.ranking")}</h2>
+      <div className="flex gap-1 p-1 mb-3 rounded-full bg-black/30 border border-white/10">
+        {(["tonight", "month"] as const).map((p) => (
+          <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-1.5 rounded-full text-xs font-black ${period === p ? "text-black" : "text-white/60"}`} style={period === p ? { background: "linear-gradient(90deg,#f472b6,#fbbf24)" } : undefined}>{p === "tonight" ? t("vn.kos.tabTonight") : t("vn.kos.tabMonth")}</button>
+        ))}
+      </div>
       {board.length === 0 && <div className="text-center py-10 text-white/40"><Mic2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.kos.noGifts")}</p></div>}
       <div>
         {board.map((u, i) => {
@@ -178,9 +185,23 @@ export default function RebornKos() {
           return (
           <div key={u.id} className={`arc-row ${top ? "arc-row-top" : ""}`} style={top ? { ["--rc" as any]: top } : undefined}>
             <span className="arc-medal">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span>
-            <Avatar u={u} />
-            <div className="flex-1 min-w-0"><p className="font-bold truncate">{nameOf(u)}</p><p className="text-xs font-black text-amber-300" style={{ textShadow: "0 0 8px rgba(247,215,116,.5)" }}>🪙 {fmt(u.stars)}</p></div>
-            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">{t("vn.kos.you")}</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title={t("vn.kos.addFriend")} aria-label={t("vn.kos.addAsFriend", { name: nameOf(u) })} className="kos-add"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">{t("vn.kos.pending")}</span>}<button onClick={() => setTarget(u)} className="kos-gift">🎁 {t("vn.kos.gift")}</button></>}
+            <LevelAvatar u={u} level={Math.max(u.senderLevel || 1, u.receiverLevel || 1)} size={44} />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold truncate">{nameOf(u)}</p>
+              <p className="flex items-center gap-1.5"><LevelChips sender={u.senderLevel} receiver={u.receiverLevel} small /></p>
+              <p className="text-xs font-black text-amber-300 mt-0.5" style={{ textShadow: "0 0 8px rgba(247,215,116,.5)" }}>🪙 {fmt(u.stars)}</p>
+              {(u.topGifters || []).length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  {u.topGifters.map((g: any, k: number) => (
+                    <span key={g.id} className="inline-flex items-center gap-0.5 min-w-0 rounded-full bg-black/30 pr-1.5" title={t("vn.kos.topGifter", { n: k + 1, name: nameOf(g) })}>
+                      <span className="relative"><LevelAvatar u={g} level={g.senderLevel || 1} size={20} /><span className="absolute -bottom-1 -right-1 text-[9px]">{["🥇", "🥈", "🥉"][k]}</span></span>
+                      <span className="text-[10px] text-white/70 truncate max-w-[52px] ml-1">{nameOf(g)}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">{t("vn.kos.you")}</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title={t("vn.kos.addFriend")} aria-label={t("vn.kos.addAsFriend", { name: nameOf(u) })} className="kos-add"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">{t("vn.kos.pending")}</span>}{u.checkedIn !== false && <button onClick={() => setTarget(u)} className="kos-gift">🎁 {t("vn.kos.gift")}</button>}</>}
           </div>
           );
         })}

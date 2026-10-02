@@ -10,6 +10,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useDisabledFeatures } from "@/lib/features";
 import { COUNTRIES, DIAL_CODES } from "@/lib/countries";
 import { User, Lock, Globe, Copy, CreditCard, ReceiptText } from "lucide-react";
+import { GiftLevelsCard } from "@/components/LevelRing";
 
 const LANGS: { code: "en" | "zh" | "id"; label: string; flag: string }[] = [
   { code: "en", label: "English", flag: "🇬🇧" },
@@ -99,6 +100,8 @@ export default function RebornProfile() {
           <p className="text-sm text-white/50 truncate">{u.email}</p>
         </div>
       </div>
+
+      <GiftLevelsCard photo={f.profileImageUrl} name={f.firstName || u.username} />
 
       {/* Member code + membership card */}
       <div className="grid grid-cols-2 gap-2 mb-4">

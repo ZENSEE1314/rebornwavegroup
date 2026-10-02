@@ -2584,3 +2584,10 @@ button, .interactive {
 .gr-icon-sm .gr-emoji { font-size:52px; }
 .gr-icon-sm .gr-rays { width:150px; height:150px; margin:-75px 0 0 -75px; }
 .gr-icon-none .gr-emoji { filter: drop-shadow(0 0 14px rgba(255,255,255,.25)); }
+
+/* Gift levels (components/LevelRing.tsx) */
+@keyframes lvSpin{to{transform:rotate(360deg)}}
+@keyframes lvPop{0%{transform:scale(.2);opacity:0}45%{transform:scale(1.15);opacity:1}70%{transform:scale(.96)}100%{transform:scale(1)}}
+@keyframes lvRays{to{transform:rotate(360deg)}}
+@keyframes lvRise{0%{transform:translateY(30px);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes lvSpark{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
