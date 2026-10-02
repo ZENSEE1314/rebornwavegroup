@@ -17,7 +17,7 @@ import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, type PushPayload } from "./push";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit } from "./booking";
 import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, type Lang } from "./i18n";
 import { translateTexts } from "./autoTranslate";
 import {
@@ -3264,7 +3264,7 @@ export function registerRebornRoutes(app: Express) {
     const cap = tableCap(area, table);
     if (party > cap) return res.status(400).json({ message: tr(req, { en: "{t} seats up to {n} pax. Please reduce the party size or pick a bigger spot.", zh: "{t} 最多容纳 {n} 人，请减少人数或选择更大的位置。", id: "{t} maksimal {n} orang. Kurangi jumlah orang atau pilih tempat yang lebih besar." }, { t: table || tr(req, { en: "This area", zh: "该区域", id: "Area ini" }), n: cap }) });
     const hours = s.bookingAskHours ? Math.max(2, Math.min(8, Number(b.hours) || 2)) : 2;
-    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: s.bookingAskSpecial ? specialRequestText(b.occasion, b.note) : undefined, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
+    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: s.bookingAskSpecial ? specialRequestText(b.occasion, b.note, b.occasion === "birthday" || mentionsBirthday(String(b.note || "")) ? b.cake : undefined) : undefined, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const [u] = await db.select().from(users).where(eq(users.id, userId));
     await notifyAdmins(`📅 New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
@@ -3300,8 +3300,8 @@ export function registerRebornRoutes(app: Express) {
     const fullSlots = values.filter((v) => !open.has(v));
     const otherAreas = fullyBooked ? (await areasWithSpace(enabledAreas(s.bookingAreas), date, area.id)).map((x) => ({ id: x.id, name: x.name, names: x.names, level: x.level })) : [];
     const caps: Record<string, number> = {};
-    for (const t of area.tables) caps[t] = tableCap(area, t);
-    res.json({ slots, hours: areaHoursTextForDate(area, date), closed: values.length === 0, fullyBooked, fullSlots, otherAreas, taken, caps, maxPax: area.maxPax || 0 });
+    for (const t of area.tables) caps[t] = hasPaxLimit(tableCap(area, t)) ? tableCap(area, t) : 0; // 0 = no max
+    res.json({ slots, hours: areaHoursTextForDate(area, date), closed: values.length === 0, fullyBooked, fullSlots, otherAreas, taken, caps, maxPax: area.maxPax && area.maxPax > 0 ? area.maxPax : 0 });
   });
   // A member's own bookings (includes ones made over WhatsApp — same account).
   app.get("/api/reborn/my-bookings", requireAuth, async (req, res) => {
