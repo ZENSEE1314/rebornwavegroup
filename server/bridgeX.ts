@@ -484,6 +484,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE events ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS start_date varchar; ALTER TABLE events ADD COLUMN IF NOT EXISTS end_date varchar;
+    ALTER TABLE crm_contacts ADD COLUMN IF NOT EXISTS bot_paused boolean NOT NULL DEFAULT false;
     ALTER TABLE appointments ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE appointments ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE spin_prizes ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE spin_results ADD COLUMN IF NOT EXISTS company_id integer;
     ALTER TABLE songs ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE kos_gift_types ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE kos_gifts ADD COLUMN IF NOT EXISTS company_id integer;

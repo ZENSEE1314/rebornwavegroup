@@ -147,7 +147,7 @@ async function pushUserI18n(userId: string | null | undefined, make: (lang: Lang
   return sendPushToUser(userId, make(await userLang(userId)));
 }
 // Same recipients as sendRebornStaffNotification, each in their own language.
-async function notifyStaffI18n(type: string, text: LangText, data?: Record<string, unknown>) {
+export async function notifyStaffI18n(type: string, text: LangText, data?: Record<string, unknown>) {
   const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
   if (!company) return;
   const members = await db.select({ userId: bridgeCompanyMembers.userId }).from(bridgeCompanyMembers).where(and(
@@ -170,7 +170,7 @@ async function notifyAllI18n(type: string, text: LangText, data?: Record<string,
   emitCompanyChange(company.id, String(data?.path || "notifications"));
 }
 // Same recipients as sendPushToAdmins (staff + admins), each in their own language.
-async function pushAdminsI18n(make: (lang: Lang) => PushPayload) {
+export async function pushAdminsI18n(make: (lang: Lang) => PushPayload) {
   const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ["staff", "admin"]));
   let sent = 0;
   for (const [lang, ids] of Array.from(await idsByLang(admins.map((a) => a.id)))) sent += await sendPushToUsers(ids, make(lang));
@@ -3518,6 +3518,7 @@ export function registerRebornRoutes(app: Express) {
     if (typeof b.notes === "string") patch.notes = b.notes;
     if (b.lang === "en" || b.lang === "zh" || b.lang === "id") patch.lang = b.lang;
     if (["new", "await_lang", "await_name", "await_email", "active", "member"].includes(b.stage)) patch.stage = b.stage;
+    if (typeof b.botPaused === "boolean") { patch.botPaused = b.botPaused; if (!b.botPaused) patch.waState = { flow: null }; }
     const [row] = await db.update(crmContacts).set(patch).where(eq(crmContacts.id, id)).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "Contact not found", zh: "找不到该联系人", id: "Kontak tidak ditemukan" }) });
     await logAdmin(req, { targetType: "crm_contact", targetId: id, action: "edit", entityType: "crm", description: `Edited contact ${row.name || row.phone}` });

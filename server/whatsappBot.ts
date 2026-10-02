@@ -21,7 +21,7 @@ import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas,
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
-import { localeOf, asLang, faqIn } from "./i18n";
+import { localeOf, asLang, faqIn, pick } from "./i18n";
 import { parseDateInput, yesNo, weekdayInWeek, weekdayOfIso } from "./dateParse";
 
 const GRAPH_VERSION = "v20.0";
@@ -561,9 +561,9 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "Hai {name}! 👋 Ada yang bisa dibantu hari ini?\n1️⃣ Booking / tanya\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\n\nAtau tanya apa saja — jam buka, alamat, kapasitas ruangan, dll.",
     },
     faqUnknown: {
-      en: "Thanks for your question! Our team will get back to you shortly. 💜",
-      zh: "谢谢你的提问！我们的团队会尽快回复你。💜",
-      id: "Terima kasih atas pertanyaannya! Tim kami akan segera membalas. 💜",
+      en: "Thanks for your message! Our team will get back to you shortly. 💜",
+      zh: "谢谢你的留言！我们的团队会尽快回复你。💜",
+      id: "Terima kasih atas pesannya! Tim kami akan segera membalas. 💜",
     },
     bookOffer: {
       en: "Would you like to book a table? 🪑\nOur hours — {hours}\nReply 1 to book, or 2 to request a song.",
@@ -833,6 +833,31 @@ async function handleInboundOnce(from: string, text: string, profileName?: strin
 
 const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
 
+// Messages that aren't about the club (delivery, courier, sales…) go straight to staff.
+const OFF_TOPIC_RE = /\b(deliver(y|ies|ing)?|courier|kurir|paket|parcel|package|shipment|ekspedisi|ojol|gojek|grab ?(food|express)|shopee ?food|cod\b|invoice|tagihan|supplier|vendor|sales|promosi|kerja ?sama|collaborat|partnership|job|lowongan|loker|interview|wawancara)\b|快递|外卖|送货|包裹|供应商|合作|应聘|招聘|发票/i;
+function guessLang(body: string, fallback: Lang): Lang {
+  return /[\u4e00-\u9fff]/.test(body) ? "zh" : /\b(saya|ada|untuk|mau|bisa|kirim|paket|tolong|dengan|yang|ini)\b/i.test(body) ? "id" : fallback;
+}
+// "We'll get back to you shortly" once, then the bot stays silent for this number
+// until an admin turns it back on (CRM inbox). Staff are told straight away.
+async function handOffToStaff(c: Contact, from: string, lang: Lang, body: string) {
+  const reply = L(lang, "faqUnknown");
+  await sendWhatsApp(from, reply);
+  await logMsg(c.id, c.phone, "out", reply, true);
+  await patchContact(c.id, { botPaused: true, waState: { flow: null } });
+  await notifyAdmin(`🙋 ${c.name || from} needs a person (bot paused for this number): "${body.slice(0, 160)}" — reply in Admin › CRM.`);
+  await alertStaffMessage(c, from, body, true);
+}
+async function alertStaffMessage(c: Contact, from: string, body: string, first = false) {
+  try {
+    const { notifyStaffI18n, pushAdminsI18n } = await import("./rebornGame");
+    const who = c.name || `+${from}`;
+    const title = (lang: Lang) => first ? pick(lang, { en: "🙋 {who} needs a reply", zh: "🙋 {who} 需要人工回复", id: "🙋 {who} perlu dibalas" }, { who }) : pick(lang, { en: "💬 {who} (WhatsApp)", zh: "💬 {who}（WhatsApp）", id: "💬 {who} (WhatsApp)" }, { who });
+    await notifyStaffI18n("whatsapp_handoff", (lang) => ({ title: title(lang), body: body.slice(0, 140) }), { path: "/reborn-admin", crmContactId: c.id });
+    await pushAdminsI18n((lang) => ({ title: title(lang), body: body.slice(0, 140), url: "/reborn-admin", tag: `wa-${c.id}` }));
+  } catch (e) { console.warn("[wa] staff alert", e); }
+}
+
 // "What do you have?" / "facilities?" / "有什么？" / "ada apa saja?" → list everything we offer.
 const ABOUT_RE = /what (do |does )?(you|u|ur club|your club|the club)( guys)? (have|got|offer)|what('?s| is) (there|available|in (your|the) club)|what can (i|we) (do|book)|\bfacilit|\bamenit|\bservices\b|有什么|有啥|有哪些|设施|服务项目|\bada apa\b|\bfasilitas\b|\blayanan apa\b|\bpunya apa\b/i;
 const AREA_EMOJI: [RegExp, string][] = [[/vip/i, "👑"], [/ktv|karaoke/i, "🎤"], [/game/i, "🎮"], [/beauty|spa|salon/i, "💅"], [/pet/i, "🐾"], [/restaurant|food|dining|cafe/i, "🍽️"], [/bar|lounge/i, "🍸"]];
@@ -936,6 +961,10 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   await patchContact(c.id, { lastInboundAt: new Date() });
   await logMsg(c.id, c.phone, "in", body, false); // store every incoming message for the admin inbox
 
+  // Handed to staff: the bot stays silent for this number (admin replies from the
+  // CRM inbox, and can turn the bot back on there). Staff just get a heads-up.
+  if (c.botPaused) { await alertStaffMessage(c, from, body); return; }
+
   // Always answer a location question immediately, even for a first-time number —
   // except while they're typing a special request mid-booking ("靠窗的位置" = a seat).
   const midRequest = ["special", "specialNote", "cake"].includes(((c.waState as any) || {}).step);
@@ -985,6 +1014,10 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     return patchContact(c.id, { waState: { flow: null } });
   }
 
+  // Not about the club at all (a delivery, courier, sales call…) → one "we'll get
+  // back to you" and hand the chat to staff; no more bot replies to this number.
+  if (OFF_TOPIC_RE.test(body) && !((c.waState as any) || {}).flow) return handOffToStaff(c, from, c.userId ? lang : guessLang(body, lang), body);
+
   // A new number asking "what do you have?" gets the list first (in the language they wrote in).
   if (!c.userId && (c.stage === "new" || c.stage === "await_lang" || c.stage === "await_name") && ABOUT_RE.test(body)) {
     const guess: Lang = c.stage === "await_name" && c.lang ? (c.lang as Lang) : /[\u4e00-\u9fff]/.test(body) ? "zh" : /\b(ada|apa|fasilitas|layanan|punya|saja|aja)\b/i.test(body) ? "id" : "en";
@@ -1004,6 +1037,9 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   if (c.stage === "await_lang") {
     const picked = parseLang(body);
     if (!picked) { // not a language answer — show the language menu again instead of guessing
+      // Ignored the language menu twice and wrote something else → a person should answer.
+      if (((c.waState as any) || {}).langTries >= 1 && body.split(/\s+/).length >= 3) return handOffToStaff(c, from, guessLang(body, "en"), body);
+      await patchContact(c.id, { waState: { ...((c.waState as any) || {}), langTries: (((c.waState as any) || {}).langTries || 0) + 1 } });
       await sendWhatsAppChoices(from, WELCOME_TRILINGUAL, [
         { id: "lang_en", title: "English" },
         { id: "lang_zh", title: "中文" },
@@ -1095,12 +1131,9 @@ async function handleInbound(from: string, text: string, profileName?: string) {
       await sendMemberMenu(from, c, lang, true);
       return;
     }
-    // Unknown → acknowledge, log a pending FAQ for admin, and hand to staff.
-    await say(L(lang, "faqUnknown"));
-    await sendMemberMenu(from, c, lang, "more"); // so they can carry on with something else meanwhile
+    // Unknown → log a pending FAQ and hand the chat to staff (bot goes quiet).
     await createPendingFaq(body);
-    await notifyAdmin(`❓ ${c.name || from}: "${body.slice(0, 160)}" — no FAQ answer (added as pending, please reply).`);
-    return;
+    return handOffToStaff(c, from, lang, body);
   }
   // Still onboarding-ish → nudge with the menu (capped).
   if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await sendMemberMenu(from, c, lang); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }

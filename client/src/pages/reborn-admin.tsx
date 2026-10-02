@@ -2148,7 +2148,7 @@ function Crm() {
         <button key={c.id} onClick={() => setOpenId(c.id)} className="w-full flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-left hover:bg-white/10">
           <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-black font-bold" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>{(c.name || c.phone || "?").slice(0, 1).toUpperCase()}</span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold truncate">{c.name || t("admin.crm.unknown")} <span className={`text-[11px] ${stageColor[c.stage] || "text-white/40"}`}>· {tv(t, "admin.stage." + c.stage, c.stage)}</span></span>
+            <span className="block text-sm font-semibold truncate">{c.name || t("admin.crm.unknown")} <span className={`text-[11px] ${stageColor[c.stage] || "text-white/40"}`}>· {tv(t, "admin.stage." + c.stage, c.stage)}</span>{c.botPaused && <span className="ml-1.5 text-[10px] font-bold text-black bg-amber-300 rounded px-1.5 py-0.5 align-middle">🙋 {t("admin.crm.botPaused")}</span>}</span>
             <span className="block text-[11px] text-white/40 truncate">{c.phone}{c.email ? ` · ${c.email}` : ""}{c.lastVisitAt ? ` · ${t("admin.crm.visit", { d: new Date(c.lastVisitAt).toLocaleDateString(localeTag()) })}` : ""}</span>
           </span>
           <MessageCircle className="w-4 h-4 text-emerald-300 flex-shrink-0" />
@@ -2184,6 +2184,12 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
     onSuccess: () => { toast({ title: t("admin.c.saved") }); setEditing(false); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); },
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
+  const [paused, setPaused] = useState(!!contact.botPaused);
+  const toggleBot = useMutation({
+    mutationFn: (botPaused: boolean) => apiRequest("PATCH", `/api/reborn/admin/crm/${contact.id}`, { botPaused }).then((r) => r.json()),
+    onSuccess: (row: any) => { setPaused(!!row.botPaused); toast({ title: row.botPaused ? t("admin.crm.pausedToast") : t("admin.crm.resumedToast") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
+  });
   const del = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/crm/${contact.id}`, {}).then((r) => r.json()),
     onSuccess: () => { toast({ title: t("admin.crm.deleted") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); onClose(); },
@@ -2203,6 +2209,12 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
           <button onClick={() => setEditing((v) => !v)} className={btnSm} title={t("admin.c.edit")}><Pencil className="w-4 h-4 text-white/70" /></button>
           <button onClick={() => { if (confirm(t("admin.crm.delConfirm", { name: contact.name || contact.phone }))) del.mutate(); }} className={btnSm} title={t("admin.c.delete")}><Trash2 className="w-4 h-4 text-red-300" /></button>
           <button onClick={onClose} className={btnSm} title={t("admin.c.close")}><X className="w-4 h-4 text-white/70" /></button>
+        </div>
+
+        {/* Bot on/off for this number (paused = handed to staff) */}
+        <div className={`flex items-center gap-2 px-3 py-2 border-b border-white/10 text-xs ${paused ? "bg-amber-400/10" : ""}`}>
+          <span className="flex-1 text-white/70">{paused ? `🙋 ${t("admin.crm.pausedHint")}` : `🤖 ${t("admin.crm.botOnHint")}`}</span>
+          <button onClick={() => toggleBot.mutate(!paused)} disabled={toggleBot.isPending} className={`px-2.5 py-1 rounded-lg font-bold ${paused ? "bg-emerald-500 text-black" : "bg-white/10 text-white/80"}`}>{paused ? t("admin.crm.resumeBot") : t("admin.crm.pauseBot")}</button>
         </div>
 
         {editing && (
