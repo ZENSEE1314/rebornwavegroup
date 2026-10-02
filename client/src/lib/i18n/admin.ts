@@ -135,6 +135,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.ev.startDate': { en: "Event date", zh: "活动日期", id: "Tanggal acara" },
   'admin.ev.endDate': { en: "Until (optional)", zh: "结束日期（可选）", id: "Sampai (opsional)" },
   'admin.ev.dateHint': { en: "Members see upcoming events nearest first; it disappears after its last day. Guests booking that date see the poster and text (app + WhatsApp). No date = an ongoing announcement.", zh: "会员按日期由近到远看到即将举行的活动，活动结束后自动消失。预订当天的客人会看到海报和文字（应用 + WhatsApp）。不设日期 = 长期公告。", id: "Member melihat acara mendatang dari yang terdekat; hilang setelah hari terakhirnya. Tamu yang booking tanggal itu melihat poster dan teksnya (aplikasi + WhatsApp). Tanpa tanggal = pengumuman tetap." },
+  'admin.ev.imageHint': { en: "Best: an A4 portrait poster (e.g. 1240×1754). Uploaded sharp, up to 2000px.", zh: "最佳：A4 竖版海报（如 1240×1754）。以高清上传，最大 2000px。", id: "Terbaik: poster A4 potret (mis. 1240×1754). Diunggah tajam, hingga 2000px." },
   'admin.ev.showLogin': { en: "show at login", zh: "登录时显示", id: "tampilkan saat login" },
   'admin.log.empty': { en: "No admin activity yet.", zh: "暂无管理操作记录。", id: "Belum ada aktivitas admin." },
   'admin.log.by': { en: "by", zh: "操作人", id: "oleh" },

@@ -350,7 +350,8 @@ function EventRow({ ev, onSave, onDelete }: any) {
         <label className="text-[11px] text-white/50">{t("admin.ev.endDate")}<input type="date" value={e.endDate || ""} min={e.startDate || undefined} onChange={(x) => setE({ ...e, endDate: x.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
       </div>
       <p className="text-[10px] text-white/35 mb-2">{t("admin.ev.dateHint")}</p>
-      <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.ev.image")}</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label={t("admin.c.uploadImage")} /></div>
+      <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.ev.image")}</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label={t("admin.c.uploadImage")} output="jpeg" maxDim={2000} quality={0.92} /></div>
+      <p className="text-[10px] text-white/35 -mt-1 mb-2">{t("admin.ev.imageHint")}</p>
       <div className="flex items-center gap-3">
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> {t("admin.c.active")}</label>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.showOnLogin} onChange={(x) => setE({ ...e, showOnLogin: x.target.checked })} /> {t("admin.ev.showLogin")}</label>
