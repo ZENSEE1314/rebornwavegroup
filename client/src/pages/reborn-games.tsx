@@ -1867,10 +1867,19 @@ function CardGame({ room, code, me }: any) {
           <div className="w-12 h-16 rounded-lg bg-gradient-to-br from-violet-700 to-blue-800 border border-white/20 flex items-center justify-center text-white/70 text-xs font-bold">{cards.deckLeft}</div>
           <p className="text-[10px] text-white/40 mt-1">{t("gm.cards.deck")}</p>
         </div>
-        <div className="text-center">
-          {cards.discardTop ? <PlayingCard c={cards.discardTop} /> : <div className="w-12 h-16 rounded-lg border-2 border-dashed border-white/15" />}
-          <p className="text-[10px] text-white/40 mt-1">{t("gm.cards.discard")}</p>
-        </div>
+        {/* The other player's discard: on your draw turn tap the card itself to take it. */}
+        {myTurn && cards.phase === "draw" && cards.discardTop ? (
+          <div role="button" tabIndex={0} onClick={() => act({ act: "take" })} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") act({ act: "take" }); }}
+            className="text-center rounded-xl p-1.5 -m-1.5 cursor-pointer select-none active:scale-95 transition-transform" style={{ boxShadow: "0 0 0 2px #fbbf24, 0 0 18px rgba(251,191,36,.55)" }}>
+            <PlayingCard c={cards.discardTop} />
+            <p className="text-[10px] font-black text-amber-300 mt-1">👆 {t("gm.cards.tapToTake")}</p>
+          </div>
+        ) : (
+          <div className="text-center">
+            {cards.discardTop ? <PlayingCard c={cards.discardTop} /> : <div className="w-12 h-16 rounded-lg border-2 border-dashed border-white/15" />}
+            <p className="text-[10px] text-white/40 mt-1">{t("gm.cards.discard")}</p>
+          </div>
+        )}
       </div>
 
       {/* my hand — matched pairs grouped on the left (green), singles on the right */}
@@ -1883,9 +1892,9 @@ function CardGame({ room, code, me }: any) {
 
       {myTurn ? (
         cards.phase === "draw" ? (
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => act({ act: "take" })} disabled={!cards.discardTop} className="cbtn cbtn-dark py-3 text-sm">{t("gm.cards.take")} {cards.discardTop ? `${cards.discardTop.v}${cards.discardTop.s}` : ""}</button>
-            <button onClick={() => act({ act: "drawDeck" })} className="cbtn cbtn-gold py-3">{t("gm.cards.drawDeck")}</button>
+          <div>
+            <p className="text-center text-emerald-300 font-bold text-sm mb-2">{cards.discardTop ? t("gm.cards.drawHint") : t("gm.cards.drawHintDeck")}</p>
+            <button onClick={() => act({ act: "drawDeck" })} className="cbtn cbtn-gold w-full py-4 text-lg">🂠 {t("gm.cards.drawDeckBig")}</button>
           </div>
         ) : (
           <p className="text-center text-emerald-300 font-bold text-sm">{t("gm.cards.tapDiscard")}</p>
