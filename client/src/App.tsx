@@ -112,6 +112,7 @@ const RebornSupport        = lazy(() => import("@/pages/reborn-support"));
 const RebornAdmin          = lazy(() => import("@/pages/reborn-admin"));
 const RebornKos            = lazy(() => import("@/pages/reborn-kos"));
 const RebornSong           = lazy(() => import("@/pages/reborn-song"));
+const RebornEvents         = lazy(() => import("@/pages/reborn-events"));
 const RebornChat           = lazy(() => import("@/pages/reborn-chat"));
 const RebornOrder          = lazy(() => import("@/pages/reborn-order"));
 const RebornPos            = lazy(() => import("@/pages/reborn-pos"));
@@ -337,7 +338,7 @@ function Router() {
         {!isAuthenticated ? (
           <>
             <Route path="/" component={bridgeXHost ? BridgeXLanding : HomeRedirect} />
-            {["/kos", "/songs", "/order", "/pet", "/bookings", "/chat", "/games", "/spin", "/bottles", "/profile", "/history"].map((p) => <Route key={p} path={p} component={LoginFirst} />)}
+            {["/kos", "/songs", "/events", "/order", "/pet", "/bookings", "/chat", "/games", "/spin", "/bottles", "/profile", "/history"].map((p) => <Route key={p} path={p} component={LoginFirst} />)}
           </>
         ) : (
           <>
@@ -349,6 +350,7 @@ function Router() {
             <Route path="/support" component={GatedRebornSupport} />
             <Route path="/kos" component={GatedRebornKos} />
             <Route path="/songs" component={GatedRebornSong} />
+            <Route path="/events" component={RebornEvents} />
             <Route path="/chat" component={GatedRebornChat} />
             <Route path="/order" component={GatedRebornOrder} />
             <Route path="/bottles" component={GatedRebornBottles} />

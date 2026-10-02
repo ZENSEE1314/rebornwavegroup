@@ -10,7 +10,7 @@ import { useFeatureState, featureForPath } from "@/lib/features";
 import {
   Home, PawPrint, Disc3, Headphones, X, Gift, Coins,
   Calendar, Trophy, Users, User, Music, Mic2, LogOut, Sparkles, MessageCircle,
-  Utensils, Star,
+  Utensils, Star, Megaphone,
 } from "lucide-react";
 
 // Pages that wear the gaming skin (.gx in index.css), with their accent colour.
@@ -37,6 +37,7 @@ export const MENU_ITEMS: NavItem[] = [
   { label: "My Prizes", tkey: "nav.myPrizes", icon: <Gift className="w-5 h-5" />, path: "/spin?tab=prizes" },
   { label: "Order to Table", tkey: "nav.order", icon: <Utensils className="w-5 h-5" />, path: "/order" },
   { label: "Bookings", tkey: "nav.bookings", icon: <Calendar className="w-5 h-5" />, path: "/bookings" },
+  { label: "Events", tkey: "nav.events", icon: <Megaphone className="w-5 h-5" />, path: "/events" },
   { label: "Loyalty Program", tkey: "nav.loyalty", icon: <Trophy className="w-5 h-5" />, path: "/loyalty-program" },
   { label: "Kings of Singers", tkey: "nav.kingsOfSingers", icon: <Mic2 className="w-5 h-5" />, path: "/kos" },
   { label: "Song Request", tkey: "nav.songRequest", icon: <Music className="w-5 h-5" />, path: "/songs" },

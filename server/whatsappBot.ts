@@ -343,6 +343,9 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "回复 MENU 查看更多选项。",
       id: "Balas MENU untuk pilihan lain.",
     },
+    eventsIntro: { en: "🎉 Our upcoming events ({n}):", zh: "🎉 即将举行的活动（{n} 个）：", id: "🎉 Acara mendatang kami ({n}):" },
+    eventsNone: { en: "No upcoming events right now — check back soon! 🎉 Reply MENU for other options.", zh: "目前暂无活动——请稍后再来看看！🎉 回复 MENU 查看其他选项。", id: "Belum ada acara mendatang — cek lagi nanti! 🎉 Balas MENU untuk pilihan lain." },
+    eventsFooter: { en: "Want a table for one of these? Reply *1* to book 📅 — or MENU for other options.", zh: "想为这些活动订桌吗？回复 *1* 预订 📅 —— 或回复 MENU 查看其他选项。", id: "Mau booking meja untuk acara ini? Balas *1* untuk booking 📅 — atau MENU untuk pilihan lain." },
     eventOnDay: {
       en: "🎉 Happening on {day}: *{title}*{body}",
       zh: "🎉 {day} 的活动：*{title}*{body}",
@@ -496,14 +499,14 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "Hai {name}! 🍾 Simpanan {item} Anda (sisa {qty}) menunggu di Reborn Wave — kedaluwarsa dalam {days} hari. Yuk habiskan sebelum hangus! 💜",
     },
     menuMore: {
-      en: "Meanwhile, anything else I can help with? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3, or ask anything you need.",
-      zh: "在此期间，还有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2、3，或直接提出任何问题。",
-      id: "Sambil menunggu, ada lagi yang bisa saya bantu? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2, 3, atau tanyakan apa saja yang Anda perlukan.",
+      en: "Meanwhile, anything else I can help with? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\n4️⃣ Events 🎉\nReply 1-4, or ask anything you need.",
+      zh: "在此期间，还有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n4️⃣ 活动 🎉\n请回复 1-4，或直接提出任何问题。",
+      id: "Sambil menunggu, ada lagi yang bisa saya bantu? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\n4️⃣ Acara 🎉\nBalas 1-4, atau tanyakan apa saja yang Anda perlukan.",
     },
     menu: {
-      en: "Hello {name}, how can I help you today? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3, or ask anything you need.\n❌ Type \"cancel booking\" to cancel a booking.",
-      zh: "你好 {name}，今天有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2、3，或直接提出任何问题。\n❌ 输入「取消预订」可取消预订。",
-      id: "Halo {name}, apa yang bisa saya bantu hari ini? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2, 3, atau tanyakan apa saja yang Anda perlukan.\n❌ Ketik \"batal booking\" untuk membatalkan booking.",
+      en: "Hello {name}, how can I help you today? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\n4️⃣ Events 🎉\nReply 1-4, or ask anything you need.\n❌ Type \"cancel booking\" to cancel a booking.",
+      zh: "你好 {name}，今天有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n4️⃣ 活动 🎉\n请回复 1-4，或直接提出任何问题。\n❌ 输入「取消预订」可取消预订。",
+      id: "Halo {name}, apa yang bisa saya bantu hari ini? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\n4️⃣ Acara 🎉\nBalas 1-4, atau tanyakan apa saja yang Anda perlukan.\n❌ Ketik \"batal booking\" untuk membatalkan booking.",
     },
     featureOff: {
       en: "Sorry, this is turned off right now. 🙏 Reply MENU for other options.",
@@ -556,9 +559,9 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "Anda belum ada botol simpanan. 🍾",
     },
     welcomeBackMenu: {
-      en: "Hi {name}! 👋 What can I do for you today?\n1️⃣ Booking / ask a question\n2️⃣ Song request\n3️⃣ My kept bottles\n\nYou can also just ask me anything — opening hours, address, room capacity, and more.",
-      zh: "你好 {name}！👋 今天需要什么帮助？\n1️⃣ 预订 / 咨询\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n\n也可以直接问我任何问题——营业时间、地址、房间容纳人数等。",
-      id: "Hai {name}! 👋 Ada yang bisa dibantu hari ini?\n1️⃣ Booking / tanya\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\n\nAtau tanya apa saja — jam buka, alamat, kapasitas ruangan, dll.",
+      en: "Hi {name}! 👋 What can I do for you today?\n1️⃣ Booking / ask a question\n2️⃣ Song request\n3️⃣ My kept bottles\n4️⃣ Events 🎉\n\nYou can also just ask me anything — opening hours, address, room capacity, and more.",
+      zh: "你好 {name}！👋 今天需要什么帮助？\n1️⃣ 预订 / 咨询\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n4️⃣ 活动 🎉\n\n也可以直接问我任何问题——营业时间、地址、房间容纳人数等。",
+      id: "Hai {name}! 👋 Ada yang bisa dibantu hari ini?\n1️⃣ Booking / tanya\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\n4️⃣ Acara 🎉\n\nAtau tanya apa saja — jam buka, alamat, kapasitas ruangan, dll.",
     },
     aiBack: {
       en: "🤖 Our AI assistant is back on — how can I help you?",
@@ -890,8 +893,9 @@ async function sendWhatWeHave(c: Contact, lang: Lang, say: (m: string) => Promis
   if (canBook) return patchContact(c.id, { waState: { flow: "book", step: "area" } });
 }
 
-function parseMenuIntent(s: string): "book" | "song" | "bottle" | "menu" | null {
+function parseMenuIntent(s: string): "book" | "song" | "bottle" | "events" | "menu" | null {
   const t = s.trim().toLowerCase();
+  if (/^menu_events$|^4$|\bevents?\b|\bpromos?\b|\bpromotions?\b|what'?s on|活动|活動|优惠|\bacara\b|\bpromo\b|\bevent\b/.test(t)) return "events";
   if (/^menu_book$|^1$|\bbook(ing)?\b|\btables?\b|\breserv|\bappointment|预订|订位|\bmeja\b|\bpesan meja\b/.test(t)) return "book";
   if (/^menu_song$|^2$|\bsongs?\b|^sing\b|\brequest a song\b|点歌|唱歌|\blagu\b/.test(t)) return "song";
   if (/^menu_bottle$|^3$|\bbottles?\b|\bmy drinks?\b|\bkept\b|\bkeep\b|寄存|存酒|\bbotol\b|\bsimpan\b/.test(t)) return "bottle";
@@ -1139,6 +1143,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     await say(withNav(lang, L(lang, "songAskName"))); return patchContact(c.id, { waState: { flow: "song", step: "name" } });
   }
   if (intent === "bottle") return showBottles(c, lang, say);
+  if (intent === "events") return sendAllEvents(c, from, lang);
   if (intent === "menu") { await sendMemberMenu(from, c, lang); return; }
 
   // --- No recognized command ---
@@ -1532,6 +1537,23 @@ async function sendEventsForDay(c: Contact, from: string, lang: Lang, date: stri
       await logMsg(c.id, c.phone, "out", text, true);
     }
   } catch (e) { console.warn("[wa] events for day", e); }
+}
+
+// "Events" (menu 4): every upcoming event, nearest first — poster + text for each.
+async function sendAllEvents(c: Contact, from: string, lang: Lang) {
+  try {
+    const { upcomingEvents } = await import("./rebornGame");
+    const list = (await upcomingEvents()).slice(0, 10);
+    if (!list.length) { await say0(c, from, L(lang, "eventsNone")); return; }
+    await say0(c, from, L(lang, "eventsIntro", { n: String(list.length) }));
+    for (const ev of list) {
+      const when = ev.startDate ? `📅 ${fmtDMY(ev.startDate, lang)}${ev.endDate && ev.endDate > ev.startDate ? ` – ${fmtDMY(ev.endDate, lang)}` : ""}\n` : "";
+      const text = `${when}*${ev.title}*${ev.body ? `\n${ev.body}` : ""}`;
+      if (ev.imageUrl) await sendWhatsAppImage(from, ev.imageUrl, text); else await sendWhatsApp(from, text);
+      await logMsg(c.id, c.phone, "out", text, true);
+    }
+    await say0(c, from, L(lang, "eventsFooter"));
+  } catch (e) { console.warn("[wa] events list", e); }
 }
 
 // Step back one question in a WhatsApp song request.
