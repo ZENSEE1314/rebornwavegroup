@@ -10,7 +10,7 @@ export const ADMIN_TAB_MODULE: Record<string, string> = {
   Bookings: "booking",
   Requests: "song_requests", Songs: "song_requests",
   Bottles: "bottle_keep",
-  Products: "pos", Inventory: "inventory", Accounting: "accounting",
+  Products: "pos", Inventory: "inventory", Accounting: "accounting", POS: "pos", Sales: "pos", Games: "games",
   Staff: "employees", Payroll: "payroll",
   CRM: "ai_whatsapp",
 };

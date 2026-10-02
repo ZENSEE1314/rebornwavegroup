@@ -148,9 +148,14 @@ async function pushUserI18n(userId: string | null | undefined, make: (lang: Lang
   return sendPushToUser(userId, make(await userLang(userId)));
 }
 // Same recipients as sendRebornStaffNotification, each in their own language.
-export async function notifyStaffI18n(type: string, text: LangText, data?: Record<string, unknown>) {
+export async function notifyStaffI18n(type: string, text: LangText, data?: Record<string, unknown>, opts?: { adminsOnly?: boolean }) {
   const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
   if (!company) return;
+  if (opts?.adminsOnly) { // main admins only (e.g. error alerts — Admin › Errors is admin-only)
+    const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
+    for (const [lang, ids] of Array.from(await idsByLang(admins.map((a) => a.id)))) await sendBridgeXNotifications(company.id, ids, { type, ...text(lang), data });
+    return;
+  }
   const members = await db.select({ userId: bridgeCompanyMembers.userId }).from(bridgeCompanyMembers).where(and(
     eq(bridgeCompanyMembers.companyId, company.id),
     eq(bridgeCompanyMembers.status, "active"),
@@ -275,10 +280,12 @@ function randomVenueCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+// Venue day (08:00 → 08:00 WIB) of a stored UTC timestamp: +7h for WIB, −8h for the 8am start.
+const VENUE_DAY_OF = (col: any) => sql`(${col} - interval '1 hour')::date`;
 async function buildDailyClosingReport(day: string) {
   const tickets = await db.select().from(posTickets).where(and(
     eq(posTickets.status, "paid"),
-    sql`(${posTickets.paidAt} AT TIME ZONE 'Asia/Jakarta')::date = ${day}::date`,
+    sql`${VENUE_DAY_OF(sql`${posTickets.paidAt}`)} = ${day}::date`,
   ));
   const ids = tickets.map((ticket) => ticket.id);
   const sold = ids.length ? await db.select({
@@ -421,6 +428,24 @@ function requireStaff(handler: (req: Request, res: Response) => Promise<any>) {
   return async (req: Request, res: Response) => {
     const uid = getUserId(req);
     if (!(await isStaff(uid))) return res.status(403).json({ message: tr(req, { en: "Staff only", zh: "仅限员工", id: "Khusus staf" }) });
+    return handler(req, res);
+  };
+}
+// Admin-panel role: "admin" (main admin), "manager" (staff account whose company
+// role is manager — staff tabs + daily sales), "staff", or "user".
+async function adminRole(userId: string | null): Promise<"admin" | "manager" | "staff" | "user"> {
+  if (!userId) return "user";
+  const u = await storage.getUser(userId);
+  if (u?.role === "admin") return "admin";
+  if (u?.role !== "staff") return "user";
+  const r = await db.execute(sql`SELECT m.role FROM bridge_company_members m JOIN bridge_companies c ON c.id=m.company_id WHERE c.slug='reborn-wave-group' AND m.user_id=${userId} LIMIT 1`);
+  const role = ((r as any).rows || r)[0]?.role;
+  return role === "manager" || role === "owner" || role === "admin" ? "manager" : "staff";
+}
+function requireManager(handler: (req: Request, res: Response) => Promise<any>) {
+  return async (req: Request, res: Response) => {
+    const role = await adminRole(getUserId(req));
+    if (role !== "admin" && role !== "manager") return res.status(403).json({ message: tr(req, { en: "Manager or admin only", zh: "仅限经理或管理员", id: "Khusus manajer atau admin" }) });
     return handler(req, res);
   };
 }
@@ -1367,7 +1392,7 @@ export function registerRebornRoutes(app: Express) {
     const svg = await QRCode.toString(`${host}/kos?venue=${encodeURIComponent(session.code)}`, { type: "svg", width: 720, margin: 2, color: { dark: "#120b20", light: "#ffffff" } });
     res.type("image/svg+xml").send(svg);
   }));
-  app.post("/api/reborn/admin/venue/close", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/venue/close", requireManager(async (req, res) => {
     const current = await ensureVenueSession();
     const report = await buildDailyClosingReport(current.day);
     const reportNote = JSON.stringify(report);
@@ -1946,7 +1971,7 @@ export function registerRebornRoutes(app: Express) {
     if (sort === "tokens") rows = [...rows].sort((a: any, b: any) => (b.tokens || 0) - (a.tokens || 0));
     // Whole-base summary (independent of the current page/filter) — scoped to this company.
     const [agg] = await db.select({ count: sql<number>`count(*)`, tokens: sql<number>`coalesce(sum(${users.tokens}),0)`, points: sql<number>`coalesce(sum(${users.loyaltyPoints}),0)` }).from(users).where(memberOf);
-    const result = await db.execute(sql`SELECT m.user_id, m.position_id, m.branch_id, p.name position_name FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${cid}`);
+    const result = await db.execute(sql`SELECT m.user_id, m.position_id, m.branch_id, m.role AS member_role, p.name position_name FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${cid}`);
     const positionRows = (result.rows || result) as any[];
     res.json({ users: rows.map((u:any) => ({ ...u, ...(positionRows.find(p => p.user_id === u.id) || {}) })), summary: { totalUsers: Number(agg?.count) || 0, totalTokens: Number(agg?.tokens) || 0, totalPoints: Number(agg?.points) || 0 } });
   }));
@@ -1979,7 +2004,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.loyaltyPoints !== undefined) patch.loyaltyPoints = Number(b.loyaltyPoints);
     if (b.tokens !== undefined) patch.tokens = Number(b.tokens);
     if (b.kgold !== undefined) patch.kgold = Number(b.kgold);
-    if (b.role !== undefined && ["admin", "staff", "user"].includes(b.role)) patch.role = b.role;
+    if (b.role !== undefined && ["admin", "staff", "user", "manager"].includes(b.role)) patch.role = b.role === "manager" ? "staff" : b.role; // manager = staff account + company role manager
     if (b.email !== undefined) patch.email = String(b.email).trim().toLowerCase() || null;
     if (b.firstName !== undefined) patch.firstName = b.firstName;
     if (b.lastName !== undefined) patch.lastName = b.lastName;
@@ -1994,7 +2019,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.membershipCardNumber !== undefined) patch.membershipCardNumber = String(b.membershipCardNumber).trim() || null;
     if (b.password) patch.password = await bcrypt.hash(String(b.password), 12);
     const [row] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
-    if (b.role === "staff" || b.role === "admin") {
+    if (b.role === "staff" || b.role === "admin" || b.role === "manager") {
       const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
       if (reborn) {
         await db.insert(bridgeCompanyMembers).values({ companyId: reborn.id, userId: id, positionId: b.positionId ? Number(b.positionId) : null, role: b.role }).onConflictDoUpdate({ target: [bridgeCompanyMembers.companyId, bridgeCompanyMembers.userId], set: { positionId: b.positionId ? Number(b.positionId) : null, role: b.role, status: "active", updatedAt: new Date() } });
@@ -2205,7 +2230,7 @@ export function registerRebornRoutes(app: Express) {
   // Admin activity log (full admin only) — resolves which admin account did each action
   registerClientErrorRoute(app);
   // Admin › Errors: the error watcher's log (song, booking, POS, order, check-in, WhatsApp).
-  app.get("/api/reborn/admin/errors", requireStaff(async (req, res) => {
+  app.get("/api/reborn/admin/errors", requireAdmin(async (req, res) => {
     const { listErrors } = await import("./errorWatch");
     res.json(await listErrors({ area: String(req.query.area || ""), days: Number(req.query.days) || 7 }));
   }));
@@ -2962,7 +2987,7 @@ export function registerRebornRoutes(app: Express) {
     const cid = await rebornCompanyId(req);
     const [order] = await db.select().from(posTickets).where(and(eq(posTickets.id, id), eq(posTickets.companyId, cid)));
     if (!order || order.status !== "paid") return res.status(400).json({ message: tr(req, { en: "Only a paid bill can be refunded", zh: "只有已付款的账单才能退款", id: "Hanya tagihan yang sudah dibayar yang bisa di-refund" }) });
-    const day = wibDay(new Date(order.paidAt || order.createdAt || Date.now()));
+    const day = wibDay(new Date(new Date(order.paidAt || order.createdAt || Date.now()).getTime() - VENUE_DAY_START_HOUR * 3600_000)); // its venue day (8am start)
     const [closed] = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType, "pos_closing"), eq(ledgerEntries.refId, day))).limit(1);
     if (closed) return res.status(400).json({ message: tr(req, { en: "That day is already closed — ask an admin to refund it from Accounting.", zh: "该营业日已结账——请让管理员在会计中退款。", id: "Hari itu sudah ditutup — minta admin melakukan refund dari Akuntansi." }) });
     const r = await doPosRefund(id, reason, getUserId(req)!, req);
@@ -3137,6 +3162,47 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/staff/my-leave", requireStaff(async (req, res) => {
     const uid = getUserId(req)!;
     res.json(await db.select().from(leaveRequests).where(eq(leaveRequests.userId, uid)).orderBy(desc(leaveRequests.id)).limit(60));
+  }));
+
+  // Which admin-panel view this account gets (admin / manager / staff).
+  app.get("/api/reborn/my-role", requireAuth, async (req, res) => {
+    res.json({ role: await adminRole(getUserId(req)) });
+  });
+  // Month-to-date paid sales per salesperson vs their target (WIB month).
+  async function salesTargets(cid: number, month: string, onlyUser?: string) {
+    const from = `${month}-01`;
+    const [y, m] = month.split("-").map(Number);
+    const to = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+    const today = (await ensureVenueSession()).day;
+    const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,u.email) name, m.role,
+        COALESCE(p.sales_target,0)::numeric target, COALESCE(s.sales,0) sales, COALESCE(s.tickets,0) tickets, COALESCE(s.today,0) today
+      FROM bridge_company_members m JOIN users u ON u.id=m.user_id
+      LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id
+      LEFT JOIN (SELECT sales_staff_id, sum(total::numeric) sales, count(*) tickets,
+          sum(total::numeric) FILTER (WHERE ${VENUE_DAY_OF(sql`paid_at`)} = ${today}::date) today
+        FROM pos_tickets WHERE status='paid' AND ${VENUE_DAY_OF(sql`paid_at`)} >= ${from}::date AND ${VENUE_DAY_OF(sql`paid_at`)} < ${to}::date GROUP BY sales_staff_id) s ON s.sales_staff_id=m.user_id
+      WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') ${onlyUser ? sql`AND m.user_id=${onlyUser}` : sql``}
+      ORDER BY COALESCE(s.sales,0) DESC, name`);
+    return (((result as any).rows || result) as any[])
+      .map((r) => ({ userId: r.user_id, name: r.name, role: r.role, target: Number(r.target) || 0, sales: Number(r.sales) || 0, tickets: Number(r.tickets) || 0, today: Number(r.today) || 0 }))
+      .map((r) => ({ ...r, percent: r.target > 0 ? Math.round((r.sales / r.target) * 100) : null }));
+  }
+  // Manager › Daily sales: today's (or a chosen day's) total + every salesperson's target.
+  app.get("/api/reborn/manager/daily-sales", requireManager(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.day || "")) ? String(req.query.day) : (await ensureVenueSession()).day;
+    const report = await buildDailyClosingReport(day);
+    const [closed] = await db.select({ id: ledgerEntries.id, at: ledgerEntries.createdAt }).from(ledgerEntries).where(and(eq(ledgerEntries.refType, "pos_closing"), eq(ledgerEntries.refId, day))).limit(1);
+    const month = day.slice(0, 7);
+    const targets = await salesTargets(cid, month);
+    res.json({ day, currentDay: (await ensureVenueSession()).day, closed: !!closed, report, month, monthTotal: targets.reduce((n, r) => n + r.sales, 0), targets: targets.filter((r) => r.target > 0 || r.sales > 0) });
+  }));
+  // Staff › My target: this month's sales credited to me vs my target.
+  app.get("/api/reborn/staff/my-target", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const month = (await ensureVenueSession()).day.slice(0, 7);
+    const [me] = await salesTargets(cid, month, getUserId(req)!);
+    res.json({ month, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }) });
   }));
 
   // Admin/manager (full admin)

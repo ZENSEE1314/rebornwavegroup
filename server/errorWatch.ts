@@ -1,6 +1,6 @@
 // Error watcher: records every failed song request, booking, POS, shop order,
 // KOS check-in and WhatsApp call into app_errors so admins see them in
-// Admin › Errors, and alerts staff when something is really breaking
+// Admin › Errors, and alerts the main admins when something is really breaking
 // (any 5xx, or a burst of the same kind of error).
 import type { Express, Request, Response, NextFunction } from "express";
 import { sql } from "drizzle-orm";
@@ -85,7 +85,7 @@ async function alertStaff(e: ErrorRecord, burst: number) {
     body: burst >= 5
       ? pick(lang, { en: `${burst} errors in 10 min. Latest: ${e.message}`, zh: `10 分钟内出错 ${burst} 次。最新：${e.message}`, id: `${burst} error dalam 10 menit. Terbaru: ${e.message}` }).slice(0, 240)
       : `${e.message}`.slice(0, 240),
-  }), { path: "/reborn-admin?tab=Errors", area: e.area });
+  }), { path: "/reborn-admin?tab=Errors", area: e.area }, { adminsOnly: true });
 }
 
 // Records failed (4xx/5xx) watched API calls, with the server's own message.

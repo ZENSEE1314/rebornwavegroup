@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages } from "lucide-react";
+import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
@@ -14,36 +14,48 @@ import { APP_FEATURES } from "@/lib/features";
 import { printClosingReport, printReceipt } from "@/lib/receipt";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff", "Leaderboard", "Feedback", "Errors"] as const;
+const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "POS"] as const;
+// Managers: the staff tabs + Daily sales (today's total, close the day, every salesperson's target).
+const MANAGER_TABS = [...STAFF_TABS.slice(0, -1), "Sales", "POS"] as const;
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
 const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Settings", "Logs", "Errors"] as const;
+const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
+type AdminRole = "admin" | "manager" | "staff" | "user";
+const tabsFor = (role: AdminRole) => (role === "admin" ? ADMIN_TABS : role === "manager" ? MANAGER_TABS : STAFF_TABS) as readonly string[];
+// The admin-panel view this account gets (manager = staff account with company role manager).
+function useAdminRole(): AdminRole {
+  const { user } = useAuth();
+  const { data } = useQuery<{ role: AdminRole }>({ queryKey: ["/api/reborn/my-role"], queryFn: () => apiRequest("GET", "/api/reborn/my-role").then((r) => r.json()), enabled: !!user });
+  return data?.role || ((user as any)?.role === "admin" ? "admin" : "staff");
+}
 
 export default function RebornAdmin() {
   const { user } = useAuth();
   const isFullAdmin = (user as any)?.role === "admin";
+  const role = useAdminRole();
   const modules = useModules();
-  const ALL_TABS = (isFullAdmin ? ADMIN_TABS : STAFF_TABS) as readonly string[];
+  const ALL_TABS = tabsFor(role);
   const TABS = ALL_TABS.filter((t) => moduleEnabled(modules, ADMIN_TAB_MODULE[t]));
   // ?tab=Errors (from an error alert) opens that tab.
   const [tab, setTab] = useState<string>(() => { try { return new URLSearchParams(window.location.search).get("tab") || "Overview"; } catch { return "Overview"; } });
   const { t } = useTranslation();
+  const go = (tb: string) => { if (tb === "POS") { window.location.href = "/pos"; return; } setTab(tb); };
   return (
     <RebornLayout active="/reborn-admin" title={t("admin.title")}>
       {isFullAdmin && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">{t("admin.companySetup")}</b><span className="text-xs text-cyan-100/60">{t("admin.companySetupHint")}</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">{t("admin.c.open")}</span></a>}
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
         {TABS.map((tb) => (
-          <button key={tb} onClick={() => setTab(tb)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === tb ? "text-black" : "text-white/60"}`} style={tab === tb ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[tb]}{t(tabKey(tb))}</button>
+          <button key={tb} onClick={() => go(tb)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === tb ? "text-black" : "text-white/60"}`} style={tab === tb ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[tb]}{t(tabKey(tb))}</button>
         ))}
       </div>
-      {tab === "Overview" && <Overview onGo={setTab} />}
+      {tab === "Overview" && <Overview onGo={go} />}
       {tab === "Bookings" && <AdminBookings />}
       {tab === "Bottles" && <AdminBottles />}
-      {tab === "Codes" && <Codes />}
+      {tab === "Pet" && <div className="space-y-6"><Codes /><Pills /></div>}
+      {tab === "Sales" && (role === "admin" || role === "manager") && <DailySales />}
       {tab === "Prizes" && <Prizes />}
       {tab === "Redemptions" && <Redemptions />}
-      {tab === "Pills" && <Pills />}
       {tab === "FAQ" && <Faq />}
       {tab === "Songs" && <Songs />}
       {tab === "Requests" && <SongRequests />}
@@ -149,7 +161,7 @@ function Broadcast() {
 
 const TAB_ICON: Record<string, JSX.Element> = {
   Overview: <LayoutGrid className="w-4 h-4" />, Requests: <Music2 className="w-4 h-4" />, Redemptions: <Gift className="w-4 h-4" />,
-  "Top-ups": <Coins className="w-4 h-4" />, Codes: <Ticket className="w-4 h-4" />, Pills: <Pill className="w-4 h-4" />,
+  "Top-ups": <Coins className="w-4 h-4" />, Pet: <PawPrint className="w-4 h-4" />, Sales: <Coins className="w-4 h-4" />, POS: <Receipt className="w-4 h-4" />,
   Songs: <Music2 className="w-4 h-4" />, Events: <Megaphone className="w-4 h-4" />, Broadcast: <Send className="w-4 h-4" />,
   Users: <UsersIcon className="w-4 h-4" />, Products: <Package className="w-4 h-4" />, Accounting: <Calculator className="w-4 h-4" />,
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
@@ -160,7 +172,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
 
 // Each admin section's colour for its tile.
 const TAB_COLOR: Record<string, string> = {
-  Requests: "#a855f7", Redemptions: "#ec4899", "Top-ups": "#f59e0b", Codes: "#06b6d4", Pills: "#ef4444", Songs: "#8b5cf6",
+  Requests: "#a855f7", Redemptions: "#ec4899", "Top-ups": "#f59e0b", Pet: "#06b6d4", Sales: "#22c55e", POS: "#f59e0b", Songs: "#8b5cf6",
   Events: "#f97316", Broadcast: "#3b82f6", Users: "#22c55e", Products: "#14b8a6", Accounting: "#10b981", Prizes: "#eab308",
   Gifts: "#f472b6", FAQ: "#60a5fa", Settings: "#94a3b8", Logs: "#64748b", Errors: "#ef4444", Inventory: "#0ea5e9", CRM: "#6366f1",
   Bookings: "#f59e0b", Bottles: "#e11d48", Staff: "#84cc16", Payroll: "#059669", Leaderboard: "#facc15", Feedback: "#fb7185", Games: "#d946ef",
@@ -170,12 +182,13 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const isFullAdmin = (user as any)?.role === "admin";
+  const role = useAdminRole();
   const { data: o } = useQuery<any>({ queryKey: ["/api/reborn/admin/overview"], queryFn: () => apiRequest("GET", "/api/reborn/admin/overview").then((r) => r.json()), refetchInterval: 15000 });
   const cards = [
     { tab: "Requests", label: t("admin.ov.songRequests"), count: o?.songRequests, hot: true },
     { tab: "Redemptions", label: t("admin.ov.redemptions"), count: o?.redemptions, hot: true },
     { tab: "Top-ups", label: t("admin.ov.topups"), count: o?.topups, hot: true },
-    { tab: "Users", label: t("admin.ov.members"), count: o?.users },
+    { tab: "Users", label: t("admin.ov.members"), count: o?.users, admin: true },
     { tab: "Products", label: t("admin.ov.products"), count: o?.products, admin: true },
     { tab: "Products", label: t("admin.ov.lowStock"), count: o?.lowStock, warn: true, admin: true },
   ];
@@ -200,7 +213,7 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
       <StaffGuideButton />
       <h2 className="arc-head">{t("admin.ov.openSection")}</h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((tb) => tb !== "Overview").map((tb, i) => (
+        {tabsFor(role).filter((tb) => tb !== "Overview").map((tb, i) => (
           <button key={tb} onClick={() => onGo(tb)} className="feat-tile" style={{ ["--c" as any]: TAB_COLOR[tb] || "#c9a84c", ["--d" as any]: `${(i % 6) * 0.8}s` }}>
             <span className="feat-badge">{TAB_ICON[tb]}</span>
             <span className="feat-title">{t(tabKey(tb))}</span>
@@ -259,7 +272,7 @@ function Members() {
   );
 }
 function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
-  const [e, setE] = useState(u);
+  const [e, setE] = useState(() => (u.role === "staff" && u.member_role === "manager" ? { ...u, role: "manager" } : u)); // manager shows as its own role
   const { t } = useTranslation();
   return (
     <Card>
@@ -283,11 +296,11 @@ function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
           </div>
           <div className="flex items-center gap-2 mt-2">
             <label className="text-xs text-white/50">{t("admin.m.role")}
-              <select value={e.role || "user"} onChange={(x) => setE({ ...e, role: x.target.value })} className={inp + " ml-1"}>
-                <option value="user">{t("admin.role.user")}</option><option value="staff">{t("admin.role.staffSub")}</option><option value="admin">{t("admin.role.admin")}</option>
+              <select value={e.role === "staff" && e.member_role === "manager" ? "manager" : e.role || "user"} onChange={(x) => setE({ ...e, role: x.target.value, member_role: x.target.value })} className={inp + " ml-1"}>
+                <option value="user">{t("admin.role.user")}</option><option value="staff">{t("admin.role.staffSub")}</option><option value="manager">{t("admin.role.managerSub")}</option><option value="admin">{t("admin.role.admin")}</option>
               </select>
             </label>
-            {(e.role === "staff" || e.role === "admin") && <label className="text-xs text-white/50">{t("admin.m.position")}
+            {(e.role === "staff" || e.role === "manager" || e.role === "admin") && <label className="text-xs text-white/50">{t("admin.m.position")}
               <select value={e.position_id || ""} onChange={(x) => setE({ ...e, positionId: x.target.value, position_id: x.target.value })} className={inp + " ml-1"}>
                 <option value="">{t("admin.m.selectPosition")}</option>{positions.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -297,7 +310,7 @@ function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
           </div>
         </>
       ) : (
-        <p className="text-xs text-white/60">{t("admin.m.summaryLine", { credits: u.credits, points: u.loyaltyPoints, tokens: u.tokens, kgold: u.kgold })} · <b>{tv(t, "admin.role." + u.role, u.role)}</b></p>
+        <p className="text-xs text-white/60">{t("admin.m.summaryLine", { credits: u.credits, points: u.loyaltyPoints, tokens: u.tokens, kgold: u.kgold })} · <b>{u.role === "staff" && u.member_role === "manager" ? t("admin.role.manager") : tv(t, "admin.role." + u.role, u.role)}</b></p>
       )}
     </Card>
   );
@@ -1239,6 +1252,88 @@ function CompanyFeedback() {
   return <div className="space-y-3"><a href="/staff-feedback" className={btn+" w-full justify-center"}>{t("admin.fb.open")}</a>{rows.length===0&&<Empty text={t("admin.fb.empty")}/>}{rows.map((f:any)=><Card key={f.id}><div className="flex justify-between gap-3"><b className="capitalize">{t("admin.fb.category", { c: tv(t, "admin.fb.cat." + f.category, f.category) })}</b><span className="text-xs text-white/35">{new Date(f.created_at).toLocaleString(localeTag())}</span></div><p className="mt-2 text-sm text-white/75">{f.message}</p><p className="mt-2 text-xs text-white/40">{f.user_name||t("admin.c.customer")}{f.staff_name?` → ${f.staff_name}`:""}{f.rating?` · ${t("admin.fb.stars", { n: f.rating })}`:""}</p></Card>)}</div>;
 }
 
+// Manager › Daily sales: the venue day's sales total, close the day, and every salesperson's target.
+function DailySales() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [day, setDay] = useState("");
+  const url = `/api/reborn/manager/daily-sales${day ? `?day=${day}` : ""}`;
+  const { data: d } = useQuery<any>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()), refetchInterval: 30000 });
+  const close = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/venue/close", {}).then((r) => r.json()),
+    onSuccess: (x: any) => { toast({ title: t("admin.sales.closedOk"), description: x.message }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/manager/daily-sales") }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  const money = (v: any) => "RP " + Math.round(Number(v) || 0).toLocaleString();
+  const tot = d?.report?.totals || {};
+  const isToday = d && d.day === d.currentDay;
+  return (
+    <div className="space-y-3">
+      <Card>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="font-extrabold flex items-center gap-2"><Coins className="w-5 h-5 text-emerald-300" /> {t("admin.sales.title")}</h3>
+          <input type="date" value={day || d?.day || ""} onChange={(e) => setDay(e.target.value)} className={inp} />
+        </div>
+        <p className="text-xs text-white/50 mt-1">{t("admin.sales.hint")}</p>
+        <p className="mt-3 text-3xl font-black text-emerald-300">{money(tot.revenue)}</p>
+        <p className="text-xs text-white/60">{t("admin.sales.bills", { n: d?.report?.ticketCount || 0 })}{d?.closed ? ` · ✓ ${t("admin.sales.closed")}` : ""}</p>
+        <div className="flex gap-2 mt-3 text-center">
+          {[["cash", tot.cash], ["card", tot.card], ["credits", tot.credits]].map(([k, v]) => (
+            <div key={k as string} className="flex-1 min-w-0 rounded-xl bg-black/30 border border-white/10 p-2"><p className="text-[11px] text-white/50">{t(`admin.sales.${k}`)}</p><p className="text-sm font-bold">{money(v)}</p></div>
+          ))}
+        </div>
+        <p className="text-[11px] text-white/45 mt-2">{t("admin.sales.breakdown", { discount: money(tot.discount), service: money(tot.serviceFee), tax: money(tot.tax) })}</p>
+        {isToday && (
+          <button onClick={() => { if (confirm(t("admin.sales.closeConfirm"))) close.mutate(); }} disabled={close.isPending} className={btn + " mt-3 w-full justify-center"}>
+            {d?.closed ? t("admin.sales.closeAgain") : t("admin.sales.close")}
+          </button>
+        )}
+      </Card>
+      {(d?.report?.items || []).length > 0 && <Card>
+        <p className="font-bold text-sm mb-2">{t("admin.sales.topItems")}</p>
+        <div className="space-y-1">{d.report.items.slice(0, 10).map((it: any) => (
+          <div key={it.name} className="flex justify-between text-xs"><span className="text-white/75 truncate">{it.quantity} × {it.name}</span><span className="text-amber-200 font-semibold">{money(it.sales)}</span></div>
+        ))}</div>
+      </Card>}
+      <Card>
+        <div className="flex items-center justify-between"><p className="font-bold text-sm">{t("admin.sales.targets", { month: d?.month || "" })}</p><p className="text-xs text-white/60">{t("admin.sales.monthTotal", { total: money(d?.monthTotal) })}</p></div>
+        {(d?.targets || []).length === 0 ? <p className="text-xs text-white/40 mt-2">{t("admin.sales.noTargets")}</p> : (
+          <div className="space-y-2.5 mt-3">{d.targets.map((r: any) => <TargetBar key={r.userId} r={r} money={money} />)}</div>
+        )}
+      </Card>
+    </div>
+  );
+}
+function TargetBar({ r, money }: { r: any; money: (v: any) => string }) {
+  const { t } = useTranslation();
+  const pct = r.percent ?? 0;
+  const col = r.target <= 0 ? "#64748b" : pct >= 100 ? "#22c55e" : pct >= 60 ? "#f59e0b" : "#ef4444";
+  return (
+    <div>
+      <div className="flex justify-between text-xs"><span className="font-semibold text-white/85">{r.name}</span><span className="text-white/60">{money(r.sales)}{r.target > 0 ? ` / ${money(r.target)} · ${pct}%` : ` · ${t("admin.target.none")}`}</span></div>
+      <div className="h-2 rounded-full bg-white/10 mt-1 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${Math.min(100, r.target > 0 ? pct : 0)}%`, background: col }} /></div>
+      <p className="text-[10px] text-white/40 mt-0.5">{t("admin.target.todayBills", { today: money(r.today), n: r.tickets })}</p>
+    </div>
+  );
+}
+// Staff › My target: my sales this month (credited on POS bills) vs the target the admin set.
+function MyTarget() {
+  const { t } = useTranslation();
+  const { data: r } = useQuery<any>({ queryKey: ["/api/reborn/staff/my-target"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-target").then((x) => x.json()), refetchInterval: 60000 });
+  const money = (v: any) => "RP " + Math.round(Number(v) || 0).toLocaleString();
+  if (!r) return null;
+  return (
+    <Card>
+      <p className="font-bold text-sm mb-2 flex items-center gap-2"><Star className="w-4 h-4 text-amber-300" /> {t("admin.target.mine", { month: r.month })}</p>
+      <TargetBar r={{ ...r, name: t("admin.target.thisMonth") }} money={money} />
+      {r.target > 0 && r.sales < r.target && <p className="text-xs text-amber-200/80 mt-2">{t("admin.target.left", { left: money(r.target - r.sales) })}</p>}
+      {r.target > 0 && r.sales >= r.target && <p className="text-xs text-emerald-300 mt-2">🎉 {t("admin.target.hit")}</p>}
+      <a href="/reborn-admin?tab=Bookings" onClick={(e) => { e.preventDefault(); window.location.href = "/reborn-admin?tab=Bookings"; }} className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-amber-300"><CalendarDays className="w-3.5 h-3.5" /> {t("admin.target.bookForCustomer")}</a>
+    </Card>
+  );
+}
+
 function StaffHr({ isAdmin }: { isAdmin: boolean }) {
   const { t } = useTranslation();
   const [view, setView] = useState<"me" | "manage">(isAdmin ? "manage" : "me");
@@ -1250,7 +1345,7 @@ function StaffHr({ isAdmin }: { isAdmin: boolean }) {
           <button onClick={() => setView("me")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "me" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.hr.mine")}</button>
         </div>
       )}
-      {view === "me" ? <MyHr /> : <ManageHr />}
+      {view === "me" ? <><MyTarget /><MyHr /></> : <ManageHr />}
     </div>
   );
 }

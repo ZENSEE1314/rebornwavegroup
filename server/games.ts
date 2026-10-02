@@ -1981,7 +1981,7 @@ export function registerGameRoutes(app: Express) {
   });
   app.post("/api/reborn/games/config", requireAuth, async (req, res) => {
     const uid = getUserId(req); const [u] = uid ? await db.select().from(users).where(eq(users.id, uid)) : [];
-    if (!u || u.role !== "admin") return res.status(403).json({ message: tr(req, { en: "Admin only", zh: "仅限管理员", id: "Khusus admin" }) });
+    if (!u || (u.role !== "admin" && u.role !== "staff")) return res.status(403).json({ message: tr(req, { en: "Staff only", zh: "仅限员工", id: "Khusus staf" }) });
     if (req.body?.config) {
       const cfg = req.body.config;
       await db.insert(appSettings).values({ key: "gamesConfig", value: JSON.stringify(cfg), updatedAt: new Date() })
