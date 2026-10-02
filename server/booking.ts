@@ -4,6 +4,7 @@
 //   Sun–Thu: 5:00pm → 2:00am next day
 //   Fri–Sat: 5:00pm → 3:00am next day
 // Start slots run every 2 hours from 5pm. Guests may book longer than one slot.
+import { defaultCompanyId } from "./tenant";
 import { and, eq, ne, gte, lte } from "drizzle-orm";
 import { db } from "./db";
 import { appointments } from "@shared/schema";
@@ -425,7 +426,7 @@ export async function createBooking(opts: {
   const bits = [opts.area, opts.table ? `Table ${opts.table}` : "", `Party of ${party}`, opts.note].filter(Boolean);
   const [row] = await db.insert(appointments).values({
     userId: opts.userId,
-    companyId: opts.companyId ?? null,
+    companyId: opts.companyId ?? (await defaultCompanyId()), // always tagged, so admin's (company-scoped) list shows it
     branchId: opts.branchId ?? null,
     title: [opts.area, opts.table && `Table ${opts.table}`].filter(Boolean).join(" · ") || "Booking",
     service: opts.area || "booking",

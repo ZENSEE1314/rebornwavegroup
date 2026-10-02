@@ -485,6 +485,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE events ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS start_date varchar; ALTER TABLE events ADD COLUMN IF NOT EXISTS end_date varchar;
     ALTER TABLE crm_contacts ADD COLUMN IF NOT EXISTS bot_paused boolean NOT NULL DEFAULT false;
+    UPDATE appointments SET company_id = (SELECT id FROM bridge_companies WHERE slug='reborn-wave-group' LIMIT 1) WHERE company_id IS NULL AND EXISTS (SELECT 1 FROM bridge_companies WHERE slug='reborn-wave-group');
     ALTER TABLE appointments ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE appointments ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE spin_prizes ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE spin_results ADD COLUMN IF NOT EXISTS company_id integer;
     ALTER TABLE songs ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE kos_gift_types ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE kos_gifts ADD COLUMN IF NOT EXISTS company_id integer;
