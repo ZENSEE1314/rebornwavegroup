@@ -10,6 +10,7 @@ import { useDisabledFeatures, featureForPath } from "@/lib/features";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import { ScanTableCard } from "@/components/VenueScan";
 import { useTranslation, localeTag } from "@/lib/i18n";
+import { eventDates } from "@/lib/eventDates";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
@@ -43,7 +44,7 @@ export default function RebornDashboard() {
   const modules = useModules();
   const featuresOff = useDisabledFeatures();
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const isAdmin = (user as any)?.role === "admin" || (user as any)?.role === "staff";
   const [showTour, setShowTour] = useState(() => {
     try { return !localStorage.getItem("onboarding-completed"); } catch { return true; }
@@ -105,21 +106,24 @@ export default function RebornDashboard() {
         </button>
       )}
 
-      {/* Events */}
+      {/* Upcoming events — swipe right; nearest date first, gone once finished */}
       {events.length > 0 && (
-        <div className="mb-4 space-y-2">
-          {events.map((ev) => (
-            <div key={ev.id} className="arc-panel" style={{ padding: 0, ["--c1" as any]: "#f59e0b" }}>
-              {ev.imageUrl && <img src={ev.imageUrl} alt="" className="w-full h-32 object-cover" />}
-              <div className="p-4 flex items-start gap-3">
-                <span className="arc-icon shrink-0" style={{ width: 44, height: 44, fontSize: 20, ["--c1" as any]: "#fbbf24", ["--c2" as any]: "#ea580c" }}><span><Megaphone className="w-5 h-5 text-white" /></span></span>
-                <div className="min-w-0 flex-1">
-                <p className="arc-title" style={{ ["--c1" as any]: "#f59e0b", fontSize: 17 }}>{ev.title}</p>
-                {ev.body && <p className="text-sm text-white/70 mt-1 whitespace-pre-line">{ev.body}</p>}
+        <div className="mb-4 -mx-4">
+          <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 px-4 pb-2" style={{ scrollbarWidth: "none" }}>
+            {events.map((ev) => (
+              <div key={ev.id} className="arc-panel snap-start shrink-0 overflow-hidden" style={{ padding: 0, width: events.length > 1 ? "82%" : "100%", ["--c1" as any]: "#f59e0b" }}>
+                {ev.imageUrl
+                  ? <img src={ev.imageUrl} alt="" className="w-full aspect-[4/3] object-cover" loading="lazy" />
+                  : <div className="w-full aspect-[4/3] flex items-center justify-center text-5xl" style={{ background: "radial-gradient(circle at 50% 40%,rgba(251,191,36,.35),rgba(234,88,12,.15) 60%,transparent)" }}><Megaphone className="w-12 h-12 text-amber-300" /></div>}
+                <div className="p-3.5">
+                  {ev.startDate && <span className="inline-block mb-1.5 rounded-full bg-amber-400 text-black text-[11px] font-black px-2.5 py-0.5">{eventDates(ev, language)}</span>}
+                  <p className="arc-title" style={{ ["--c1" as any]: "#f59e0b", fontSize: 16 }}>{ev.title}</p>
+                  {ev.body && <p className="text-sm text-white/70 mt-1 whitespace-pre-line line-clamp-4">{ev.body}</p>}
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          {events.length > 1 && <p className="px-4 text-[11px] text-white/40">{t("hm.ev.swipe", { n: events.length })}</p>}
         </div>
       )}
 

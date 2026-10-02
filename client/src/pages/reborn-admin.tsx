@@ -345,6 +345,11 @@ function EventRow({ ev, onSave, onDelete }: any) {
     <Card>
       <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder={t("admin.ev.title")} className={inp + " w-full mb-2"} />
       <textarea value={e.body || ""} onChange={(x) => setE({ ...e, body: x.target.value })} placeholder={t("admin.ev.details")} rows={2} className={inp + " w-full mb-2"} />
+      <div className="grid grid-cols-2 gap-2 mb-1">
+        <label className="text-[11px] text-white/50">{t("admin.ev.startDate")}<input type="date" value={e.startDate || ""} onChange={(x) => setE({ ...e, startDate: x.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+        <label className="text-[11px] text-white/50">{t("admin.ev.endDate")}<input type="date" value={e.endDate || ""} min={e.startDate || undefined} onChange={(x) => setE({ ...e, endDate: x.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+      </div>
+      <p className="text-[10px] text-white/35 mb-2">{t("admin.ev.dateHint")}</p>
       <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.ev.image")}</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label={t("admin.c.uploadImage")} /></div>
       <div className="flex items-center gap-3">
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> {t("admin.c.active")}</label>

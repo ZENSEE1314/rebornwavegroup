@@ -343,6 +343,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "回复 MENU 查看更多选项。",
       id: "Balas MENU untuk pilihan lain.",
     },
+    eventOnDay: {
+      en: "🎉 Happening on {day}: *{title}*{body}",
+      zh: "🎉 {day} 的活动：*{title}*{body}",
+      id: "🎉 Acara pada {day}: *{title}*{body}",
+    },
     fullVenue: {
       en: "😔 Sorry, we're fully booked on {day} — every table is taken. Please reply another date.",
       zh: "😔 抱歉，{day} 已全部订满——所有桌位都已被预订。请回复其他日期。",
@@ -1347,6 +1352,8 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
       await say(`${L(lang, "fullDay", { day: fmtDMY(date, lang), area: areaNameIn(area, lang) })}\n\n${L(lang, "fullOtherAreas", { list: others.map((x) => `• ${areaNameIn(x, lang)} (${areaLevelIn(x.level, lang)})`).join("\n") })}`);
       return;
     }
+    // An event that day? Send its poster + text first so they know what's on.
+    await sendEventsForDay(c, from, lang, date);
     // Confirm the resolved date, then list only the times that still have space.
     const dSlots = areaSlotsForDate(area, date), dLabels = areaSlotLabelsForDate(area, date);
     const list = avail.map((s, i) => `${i + 1}. ${timeText(lang, s, dLabels[dSlots.indexOf(s)])}`).join("\n");
@@ -1460,6 +1467,18 @@ async function completeStepBooking(c: Contact, lang: Lang, from: string, area: B
   await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax${wa.special ? ` · ${wa.special}` : ""} — confirm in the app.`);
   await sendMemberMenu(from, c, lang);
   return patchContact(c.id, { waState: { flow: null } });
+}
+
+// Events the admin set for a date (poster as an image with the text as its caption).
+async function sendEventsForDay(c: Contact, from: string, lang: Lang, date: string) {
+  try {
+    const { upcomingEvents } = await import("./rebornGame");
+    for (const ev of (await upcomingEvents(date)).slice(0, 3)) {
+      const text = L(lang, "eventOnDay", { day: fmtDMY(date, lang), title: ev.title, body: ev.body ? `\n${ev.body}` : "" });
+      if (ev.imageUrl) await sendWhatsAppImage(from, ev.imageUrl, text); else await sendWhatsApp(from, text);
+      await logMsg(c.id, c.phone, "out", text, true);
+    }
+  } catch (e) { console.warn("[wa] events for day", e); }
 }
 
 // Step back one question in a WhatsApp song request.
