@@ -168,6 +168,17 @@ export async function startWhatsAppWeb(): Promise<void> {
   }
 }
 
+// A WhatsApp Web call that never answers (media upload stuck, socket half-open)
+// must not hang the reply flow — each member's messages are handled in order,
+// so one stuck send would leave that chat silent. Give every call a time limit.
+const SEND_TIMEOUT_MS = 25_000;
+function timed<T>(p: Promise<T>, label: string, ms = SEND_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
 // Chat JID we last heard this number from — memory first, then the saved copy.
 async function knownJid(digits: string): Promise<string | undefined> {
   let jid = jidForPhone.get(digits);
@@ -185,10 +196,10 @@ export async function sendWhatsAppWeb(to: string, text: string): Promise<boolean
   let jid = await knownJid(digits);
   try {
     if (!jid) {
-      const res = await sock.onWhatsApp(digits).catch(() => null);
+      const res = await timed(sock.onWhatsApp(digits), "lookup").catch(() => null);
       jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`;
     }
-    await sock.sendMessage(jid, { text });
+    await timed(sock.sendMessage(jid, { text }), "text send");
     return true;
   } catch (e) { console.error("[wa-web] send error", e); return false; }
 }
@@ -199,7 +210,7 @@ export async function sendWhatsAppWebChoices(to: string, text: string, choices: 
   let jid = await knownJid(digits);
   try {
     if (!jid) {
-      const res = await sock.onWhatsApp(digits).catch(() => null);
+      const res = await timed(sock.onWhatsApp(digits), "lookup").catch(() => null);
       jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`;
     }
     const interactive = proto.Message.InteractiveMessage.create({
@@ -220,7 +231,7 @@ export async function sendWhatsAppWebChoices(to: string, text: string, choices: 
         },
       },
     }, { userJid: sock.user?.id || jid });
-    await sock.relayMessage(jid, message.message!, { messageId: message.key.id! });
+    await timed(sock.relayMessage(jid, message.message!, { messageId: message.key.id! }), "choices send");
     return true;
   } catch (e) {
     console.error("[wa-web] interactive send error", e);
@@ -233,10 +244,15 @@ export async function sendWhatsAppWebImage(to: string, image: Buffer, caption: s
   const digits = String(to).replace(/\D/g, "");
   let jid = await knownJid(digits);
   try {
-    if (!jid) { const res = await sock.onWhatsApp(digits).catch(() => null); jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`; }
-    await sock.sendMessage(jid, { image, caption });
+    if (!jid) { const res = await timed(sock.onWhatsApp(digits), "lookup").catch(() => null); jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`; }
+    await timed(sock.sendMessage(jid, { image, caption }), "image send", 40_000);
     return true;
-  } catch (e) { console.error("[wa-web] image send error", e); return false; }
+  } catch (e) {
+    // A slow image upload usually still arrives — don't resend the caption as text
+    // (the member would get the question twice); just carry on with the chat.
+    if (/timed out/.test(String((e as any)?.message))) { console.warn("[wa-web] image send", (e as any).message); return true; }
+    console.error("[wa-web] image send error", e); return false;
+  }
 }
 
 export async function logoutWhatsAppWeb(): Promise<void> {

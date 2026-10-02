@@ -68,6 +68,7 @@ export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
       method: "POST",
       headers: { Authorization: `Bearer ${c.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ messaging_product: "whatsapp", to: num, type: "text", text: { body: text } }),
+      signal: AbortSignal.timeout(20_000), // never hang the chat on a slow API call
     });
     if (!r.ok) { console.error(`[wa] send failed ${r.status}: ${await r.text()}`); return false; }
     return true;
@@ -113,6 +114,7 @@ export async function sendWhatsAppChoices(to: string, text: string, choices: Wha
             action: { buttons: buttons.map((button) => ({ type: "reply", reply: button })) },
           },
         }),
+        signal: AbortSignal.timeout(20_000),
       });
       if (r.ok) return true;
       console.error(`[wa] interactive send failed ${r.status}: ${await r.text()}`);
@@ -771,7 +773,10 @@ export async function handleInboundText(from: string, text: string, profileName?
   }
   const key = from.replace(/\D/g, "");
   const prev = phoneQueues.get(key) || Promise.resolve();
-  const run = prev.catch(() => {}).then(() => handleInboundOnce(from, text, profileName));
+  // Handle this number's messages in order — but never wait forever on a stuck
+  // earlier one (that left chats silent mid-booking): move on after 45s.
+  const waitPrev = Promise.race([prev.catch(() => {}), new Promise<void>((r) => setTimeout(r, 45_000))]);
+  const run = waitPrev.then(() => handleInboundOnce(from, text, profileName));
   phoneQueues.set(key, run);
   try { return await run; } finally { if (phoneQueues.get(key) === run) phoneQueues.delete(key); }
 }
