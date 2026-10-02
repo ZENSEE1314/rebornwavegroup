@@ -474,6 +474,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "你好 {name}！🍾 你寄存的 {item}（还剩 {qty}）正在 Reborn Wave 等你，将在 {days} 天后到期。快来喝完吧！💜",
       id: "Hai {name}! 🍾 Simpanan {item} Anda (sisa {qty}) menunggu di Reborn Wave — kedaluwarsa dalam {days} hari. Yuk habiskan sebelum hangus! 💜",
     },
+    menuMore: {
+      en: "Meanwhile, anything else I can help with? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3, or ask anything you need.",
+      zh: "在此期间，还有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2、3，或直接提出任何问题。",
+      id: "Sambil menunggu, ada lagi yang bisa saya bantu? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2, 3, atau tanyakan apa saja yang Anda perlukan.",
+    },
     menu: {
       en: "Hello {name}, how can I help you today? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3, or ask anything you need.\n❌ Type \"cancel booking\" to cancel a booking.",
       zh: "你好 {name}，今天有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2、3，或直接提出任何问题。\n❌ 输入「取消预订」可取消预订。",
@@ -718,9 +723,10 @@ function memberMenuChoices(lang: Lang): WhatsAppChoice[] {
   return [{ id: "menu_book", title: "📅 Booking" }, { id: "menu_song", title: "🎤 Request song" }, { id: "menu_bottle", title: "🍾 Kept bottles" }];
 }
 
-async function sendMemberMenu(from: string, contact: Contact, lang: Lang, welcomeBack = false) {
+// welcomeBack: greeting menu · "more": "anything else meanwhile?" after we hand over to staff.
+async function sendMemberMenu(from: string, contact: Contact, lang: Lang, welcomeBack: boolean | "more" = false) {
   const name = (contact.name || L(lang, "friend")).split(" ")[0];
-  const text = welcomeBack ? L(lang, "welcomeBackMenu", { name }) : memberMenu(lang, contact);
+  const text = welcomeBack === "more" ? L(lang, "menuMore") : welcomeBack ? L(lang, "welcomeBackMenu", { name }) : memberMenu(lang, contact);
   await sendWhatsAppChoices(from, text, memberMenuChoices(lang));
   await logMsg(contact.id, contact.phone, "out", text, true);
 }
@@ -1043,6 +1049,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     }
     // Unknown → acknowledge, log a pending FAQ for admin, and hand to staff.
     await say(L(lang, "faqUnknown"));
+    await sendMemberMenu(from, c, lang, "more"); // so they can carry on with something else meanwhile
     await createPendingFaq(body);
     await notifyAdmin(`❓ ${c.name || from}: "${body.slice(0, 160)}" — no FAQ answer (added as pending, please reply).`);
     return;
