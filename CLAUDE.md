@@ -25,7 +25,14 @@ text.
 ## Booking rules set by the admin
 
 - `bookingTableDayLock` — a table booked at any time is closed for the rest of
-  that day (app + WhatsApp).
+  that day (app + WhatsApp) — until the guests pay and leave (below).
+- Booking statuses: ✓ Arrived in Admin › Bookings = `seated` (still holds the
+  table; no-show auto-cancel skips it). When the table's last open POS bill is
+  paid (`freeTableAfterBill` → `releaseTableAfterPayment` in server/booking.ts),
+  or staff tap "✓ Paid & left", the booking becomes `completed` and ends at that
+  moment, so the table can be booked again for the rest of the night (even with
+  the day lock). Only a seated booking or one still active 15+ min after its
+  start is released — never a booking whose guests haven't arrived yet.
 - `bookingAskHours` — when off, the app and WhatsApp don't ask for hours and
   book 2 hours.
 - `bookingAskSpecial` — when on, the app and WhatsApp ask for a special request

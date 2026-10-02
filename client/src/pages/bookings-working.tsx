@@ -39,10 +39,11 @@ function hoursIn(text: string, lang: string): string {
   return text.replace(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/gi, (_m, h, mi, ap) => { let hh = Number(h) % 12; if (/pm/i.test(ap)) hh += 12; return `${String(hh).padStart(2, "0")}:${mi || "00"}`; });
 }
 
-const STATUS_KEY: Record<string, string> = { confirmed: "bk.st.confirmed", pending: "bk.st.pending", scheduled: "bk.st.scheduled", completed: "bk.st.completed", cancelled: "bk.st.cancelled", blocked: "bk.st.blocked", no_show: "bk.st.noShow" };
+const STATUS_KEY: Record<string, string> = { confirmed: "bk.st.confirmed", pending: "bk.st.pending", scheduled: "bk.st.scheduled", seated: "bk.st.seated", completed: "bk.st.completed", cancelled: "bk.st.cancelled", blocked: "bk.st.blocked", no_show: "bk.st.noShow" };
 
 const STATUS_STYLE: Record<string, string> = {
   confirmed: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+  seated: "bg-sky-500/20 text-sky-300 border border-sky-500/30",
   pending: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
   scheduled: "bg-blue-500/20 text-blue-300 border border-blue-500/30",
   completed: "bg-white/10 text-white/50 border border-white/20",

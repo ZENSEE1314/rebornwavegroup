@@ -18,7 +18,7 @@ import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, type PushPayload } from "./push";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, releaseTableAfterPayment } from "./booking";
 import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, type Lang } from "./i18n";
 import { translateTexts } from "./autoTranslate";
 import {
@@ -280,6 +280,18 @@ function randomVenueCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+// A table's bill was paid: once no other bill is open at that table, the guest has
+// left — their booking stops holding the table so it can be booked again tonight.
+async function freeTableAfterBill(companyId: number | null, table: string | null | undefined) {
+  const label = String(table || "").trim();
+  if (!label) return;
+  try {
+    const open = await db.select({ id: posTickets.id }).from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, label), ...(companyId ? [eq(posTickets.companyId, companyId)] : []))).limit(1);
+    if (open.length) return; // the table still has an open bill
+    const released = await releaseTableAfterPayment(label);
+    if (released) emitLiveUpdate("/api/reborn/admin/bookings", { action: "TABLE_FREED" });
+  } catch (e) { console.warn("free table after bill", e); }
+}
 // Venue day (08:00 → 08:00 WIB) of a stored UTC timestamp: +7h for WIB, −8h for the 8am start.
 const VENUE_DAY_OF = (col: any) => sql`(${col} - interval '1 hour')::date`;
 async function buildDailyClosingReport(day: string) {
@@ -750,7 +762,7 @@ async function venueCheckIn(userId: string, table: string | null) {
 async function autoCheckinFromBooking(userId: string) {
   const now = Date.now();
   const rows = await db.select({ title: appointments.title, at: appointments.appointmentDate, duration: appointments.duration }).from(appointments)
-    .where(and(eq(appointments.userId, userId), eq(appointments.status, "confirmed"), sql`${appointments.appointmentDate} BETWEEN ${new Date(now - 12 * 3600_000)} AND ${new Date(now + 2 * 3600_000)}`))
+    .where(and(eq(appointments.userId, userId), inArray(appointments.status, ["confirmed", "seated"]), sql`${appointments.appointmentDate} BETWEEN ${new Date(now - 12 * 3600_000)} AND ${new Date(now + 2 * 3600_000)}`))
     .orderBy(desc(appointments.appointmentDate)).limit(5);
   const hit = rows.find((r) => bookingTable(r.title) && new Date(r.at).getTime() + (r.duration || 120) * 60_000 > now);
   if (!hit) return null;
@@ -2567,6 +2579,7 @@ export function registerRebornRoutes(app: Express) {
       sendReviewRequest({ userId: u.id, phone: (u as any).phoneNumber, name: u.firstName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
     }
     contributeSpinPoolIfUnreferred(u?.id ?? null, total).catch(() => {});
+    await freeTableAfterBill(row.companyId, row.tableNumber); // paid at a table → the table's booking frees it
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
     res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + (points ? tr(req, { en: " · {p} points added", zh: " · 已增加 {p} 积分", id: " · {p} poin ditambahkan" }, { p: points }) : "") + (keptBottle ? tr(req, { en: " · bottle stored for 30 days", zh: " · 酒瓶已寄存 30 天", id: " · botol disimpan selama 30 hari" }) : ""), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
@@ -2799,6 +2812,7 @@ export function registerRebornRoutes(app: Express) {
       sendReviewRequest({ userId: o.memberId, name: o.memberName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
     }
     contributeSpinPoolIfUnreferred(o?.memberId ?? null, total).catch(() => {});
+    await freeTableAfterBill(o.companyId, o.tableNumber); // bill closed → the table's booking frees it
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + (points ? tr(req, { en: " · {p} points added", zh: " · 已增加 {p} 积分", id: " · {p} poin ditambahkan" }, { p: points }) : "") + (keptBottle ? tr(req, { en: " · bottle stored for 30 days", zh: " · 酒瓶已寄存 30 天", id: " · botol disimpan selama 30 hari" }) : ""), order: { ...fresh, items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
@@ -3446,19 +3460,19 @@ export function registerRebornRoutes(app: Express) {
       const u: any = umap.get(r.userId);
       const start = new Date(r.appointmentDate).getTime();
       // "upcoming" keeps a booking listed until it ends, so staff can still mark the guest Arrived.
-      return { ...r, memberName: u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email : "—", memberPhone: u?.phoneNumber || "", upcoming: start + (r.duration || 120) * 60_000 > now, started: start <= now };
+      return { ...r, memberName: u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email : "—", memberPhone: u?.phoneNumber || "", upcoming: r.status === "seated" || start + (r.duration || 120) * 60_000 > now, started: start <= now }; // seated guests stay listed until their bill is paid
     });
     res.json(out);
   }));
   app.post("/api/reborn/admin/bookings/:id/status", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
-    const status = ["confirmed", "cancelled", "completed", "pending"].includes(req.body?.status) ? req.body.status : null;
+    const status = ["confirmed", "cancelled", "completed", "pending", "seated"].includes(req.body?.status) ? req.body.status : null;
     if (!status) return res.status(400).json({ message: tr(req, { en: "Bad status", zh: "状态无效", id: "Status tidak valid" }) });
     const note = String(req.body?.note || "").trim() || undefined;
     const [row] = await db.update(appointments).set({ status, ...(note ? { adminNote: note } : {}), updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
     // A confirmed table booking checks the member in to KOS at that table (from 2h before).
-    if (status === "confirmed" && row.userId) await autoCheckinFromBooking(row.userId).catch((e) => console.warn("auto check-in", e));
+    if ((status === "confirmed" || status === "seated") && row.userId) await autoCheckinFromBooking(row.userId).catch((e) => console.warn("auto check-in", e));
     // Tell the member on WhatsApp when a booking is confirmed or rejected.
     if ((status === "confirmed" || status === "cancelled") && row.userId) {
       const phone = await memberWaPhone(row.userId);

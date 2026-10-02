@@ -1928,7 +1928,7 @@ export async function runBookingReminders(): Promise<number> {
 
 // No-shows: a booking still pending/confirmed 15 minutes after its start time is
 // auto-cancelled, which frees the table for app + WhatsApp booking again. Staff
-// mark guests who turned up as "Arrived" (status completed) in the admin app.
+// mark guests who turned up as "Arrived" (status seated) in the admin app.
 // Only bookings that started after this server booted (and within the last
 // hour) are touched, so history — and guests seated before staff could mark
 // them Arrived — is never mass-cancelled or messaged.

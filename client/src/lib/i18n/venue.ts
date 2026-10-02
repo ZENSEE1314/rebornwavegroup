@@ -233,6 +233,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.status.paid': { en: 'paid', zh: '已付款', id: 'lunas' },
   'vn.status.cancelled': { en: 'Cancelled', zh: '已取消', id: 'Dibatalkan' },
   'vn.status.completed': { en: 'completed', zh: '已完成', id: 'selesai' },
+  'vn.status.seated': { en: 'seated', zh: '已入座', id: 'sudah duduk' },
   'vn.status.pending': { en: 'pending', zh: '待处理', id: 'menunggu' },
   'vn.status.approved': { en: 'approved', zh: '已批准', id: 'disetujui' },
   'vn.status.rejected': { en: 'rejected', zh: '已拒绝', id: 'ditolak' },

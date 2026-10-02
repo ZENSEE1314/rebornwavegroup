@@ -8,7 +8,7 @@ import { ReceiptText, Coins, Gift, CreditCard, ChevronDown } from "lucide-react"
 
 const fmt = (n: any) => Math.abs(Number(n) || 0).toLocaleString(localeTag());
 const when = (v: any) => v ? new Date(v).toLocaleString(localeTag()) : "";
-const STATUS_WORDS = ["open", "paid", "cancelled", "completed", "pending", "approved", "rejected", "won", "available", "used", "confirmed", "claimed", "redeemed", "failed", "shipped", "processing", "refunded"];
+const STATUS_WORDS = ["open", "paid", "cancelled", "completed", "seated", "pending", "approved", "rejected", "won", "available", "used", "confirmed", "claimed", "redeemed", "failed", "shipped", "processing", "refunded"];
 const METHOD_WORDS = ["cash", "card", "credit", "credits", "rwg_credits", "rp_balance", "bank_transfer", "qr_pending", "qris", "transfer"];
 const status = (s: any) => s && STATUS_WORDS.includes(String(s).toLowerCase()) ? translate(`vn.status.${String(s).toLowerCase()}`) : (s || "");
 // Wallet lines are stored with an English description; show them in the member's
