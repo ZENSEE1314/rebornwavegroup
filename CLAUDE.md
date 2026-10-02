@@ -46,6 +46,15 @@ text.
 - A booking holds its table for its whole length; full times show as Full in the
   app, and a full area/day suggests other areas with space (app + WhatsApp).
 
+## WhatsApp hand-off to staff
+
+- A message the bot can't answer (no FAQ match), or one that isn't about the
+  club (delivery, courier, sales, jobs… — `OFF_TOPIC_RE`), gets one "Our team
+  will get back to you shortly" reply, then the number is paused
+  (`crm_contacts.bot_paused`): no more bot replies, staff get a notification
+  for every new message, and an admin replies from Admin › CRM. The admin turns
+  the bot back on per number in the CRM chat.
+
 ## Events
 
 - Admin events have a date (`startDate`, optional `endDate`). The home page shows
