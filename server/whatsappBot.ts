@@ -560,10 +560,15 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "你好 {name}！👋 今天需要什么帮助？\n1️⃣ 预订 / 咨询\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n\n也可以直接问我任何问题——营业时间、地址、房间容纳人数等。",
       id: "Hai {name}! 👋 Ada yang bisa dibantu hari ini?\n1️⃣ Booking / tanya\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\n\nAtau tanya apa saja — jam buka, alamat, kapasitas ruangan, dll.",
     },
+    aiBack: {
+      en: "🤖 Our AI assistant is back on — how can I help you?",
+      zh: "🤖 AI 助手已重新开启——有什么可以帮您？",
+      id: "🤖 Asisten AI kami aktif lagi — ada yang bisa dibantu?",
+    },
     faqUnknown: {
-      en: "Thanks for your message! Our team will get back to you shortly. 💜",
-      zh: "谢谢你的留言！我们的团队会尽快回复你。💜",
-      id: "Terima kasih atas pesannya! Tim kami akan segera membalas. 💜",
+      en: "Thanks for your message! Our team will get back to you shortly. 💜\n\nStill need our AI assistant? Type *AI* and the auto-reply will work again. 🤖",
+      zh: "谢谢你的留言！我们的团队会尽快回复你。💜\n\n还需要 AI 助手？输入 *AI*，自动回复就会重新开启。🤖",
+      id: "Terima kasih atas pesannya! Tim kami akan segera membalas. 💜\n\nMasih butuh asisten AI? Ketik *AI* dan balasan otomatis akan aktif lagi. 🤖",
     },
     bookOffer: {
       en: "Would you like to book a table? 🪑\nOur hours — {hours}\nReply 1 to book, or 2 to request a song.",
@@ -833,6 +838,10 @@ async function handleInboundOnce(from: string, text: string, profileName?: strin
 
 const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
 
+// "AI" (any case, with or without "assistant") turns a paused chat's auto-reply back on.
+const AI_BACK_RE = /^\s*(ai|a\.i\.?|ai assistant|asisten ai|ai助手|ai 助手|人工智能)\s*[!.。]?\s*$/i;
+async function say0(c: Contact, from: string, msg: string) { await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); }
+
 // Messages that aren't about the club (delivery, courier, sales…) go straight to staff.
 const OFF_TOPIC_RE = /\b(deliver(y|ies|ing)?|courier|kurir|paket|parcel|package|shipment|ekspedisi|ojol|gojek|grab ?(food|express)|shopee ?food|cod\b|invoice|tagihan|supplier|vendor|sales|promosi|kerja ?sama|collaborat|partnership|job|lowongan|loker|interview|wawancara)\b|快递|外卖|送货|包裹|供应商|合作|应聘|招聘|发票/i;
 function guessLang(body: string, fallback: Lang): Lang {
@@ -844,7 +853,7 @@ async function handOffToStaff(c: Contact, from: string, lang: Lang, body: string
   const reply = L(lang, "faqUnknown");
   await sendWhatsApp(from, reply);
   await logMsg(c.id, c.phone, "out", reply, true);
-  await patchContact(c.id, { botPaused: true, waState: { flow: null } });
+  await patchContact(c.id, { botPaused: true, waState: { flow: null }, ...(c.userId ? {} : { lang }) }); // remember their language for when they type "AI"
   await notifyAdmin(`🙋 ${c.name || from} needs a person (bot paused for this number): "${body.slice(0, 160)}" — reply in Admin › CRM.`);
   await alertStaffMessage(c, from, body, true);
 }
@@ -963,6 +972,17 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // Handed to staff: the bot stays silent for this number (admin replies from the
   // CRM inbox, and can turn the bot back on there). Staff just get a heads-up.
+  // …unless they type "AI": the auto-reply comes back on for them.
+  if (c.botPaused && AI_BACK_RE.test(body)) {
+    await patchContact(c.id, { botPaused: false, waState: { flow: null } });
+    c = { ...c, botPaused: false } as Contact;
+    const aiLang = c.userId ? ((await accountLang(c.userId)) || (c.lang as Lang) || "en") : ((c.lang as Lang) || "en");
+    const back = L(aiLang, "aiBack");
+    await sendWhatsApp(from, back); await logMsg(c.id, c.phone, "out", back, true);
+    if (c.stage === "member" || c.stage === "active") await sendMemberMenu(from, c, aiLang);
+    else { await say0(c, from, L(aiLang, "askName")); await patchContact(c.id, { lang: aiLang, stage: "await_name" }); }
+    return;
+  }
   if (c.botPaused) { await alertStaffMessage(c, from, body); return; }
 
   // Always answer a location question immediately, even for a first-time number —
