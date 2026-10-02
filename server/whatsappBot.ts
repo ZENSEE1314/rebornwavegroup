@@ -932,8 +932,8 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   }
 
   // A new number asking "what do you have?" gets the list first (in the language they wrote in).
-  if (!c.userId && (c.stage === "new" || c.stage === "await_lang") && ABOUT_RE.test(body)) {
-    const guess: Lang = /[\u4e00-\u9fff]/.test(body) ? "zh" : /\b(ada|apa|fasilitas|layanan|punya|saja|aja)\b/i.test(body) ? "id" : "en";
+  if (!c.userId && (c.stage === "new" || c.stage === "await_lang" || c.stage === "await_name") && ABOUT_RE.test(body)) {
+    const guess: Lang = c.stage === "await_name" && c.lang ? (c.lang as Lang) : /[\u4e00-\u9fff]/.test(body) ? "zh" : /\b(ada|apa|fasilitas|layanan|punya|saja|aja)\b/i.test(body) ? "id" : "en";
     return sendWhatWeHave(c, guess, say);
   }
 
