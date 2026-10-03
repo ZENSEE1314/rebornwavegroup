@@ -63,6 +63,23 @@ export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
   if (!ok && await whatsappAvailable()) void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "SEND", path: String(to).replace(/\D/g, ""), status: 0, message: `Reply not sent: ${text.slice(0, 120)}` })).catch(() => {});
   return ok;
 }
+// Messages the club sends a member outside a chat flow (booking confirmed /
+// cancelled, booking receipt, "you're on now"…): retried once if WhatsApp was
+// reconnecting, and saved to that member's chat in Admin › CRM so staff can see
+// it was sent (or that it failed).
+export async function sendToMember(to: string, text: string, userId?: string | null): Promise<boolean> {
+  const num = waDigits(to);
+  if (!num) return false;
+  let ok = await sendWhatsApp(num, text);
+  if (!ok && await whatsappAvailable()) { await new Promise((r) => setTimeout(r, 8000)); ok = await sendWhatsApp(num, text); }
+  try {
+    let [c] = await db.select().from(crmContacts).where(eq(crmContacts.phone, num));
+    if (!c && userId) [c] = await db.select().from(crmContacts).where(eq(crmContacts.userId, userId));
+    if (!c) [c] = await db.insert(crmContacts).values({ phone: num, userId: userId || null, stage: userId ? "member" : "new", source: "app" }).returning();
+    if (c) await logMsg(c.id, c.phone, "out", ok ? text : `⚠️ ${text}`, true);
+  } catch (e) { console.warn("[wa] log member message", e); }
+  return ok;
+}
 async function sendWhatsAppOnce(to: string, text: string): Promise<boolean> {
   const c = cfg();
   const num = String(to).replace(/\D/g, "");

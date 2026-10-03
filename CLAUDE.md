@@ -66,6 +66,12 @@ text.
   message (30 min) is taken as the song name (`songWait`), and any message that
   is a library song title / pinyin starts a song request (`isLibrarySong`).
 
+- Messages the club sends a member outside a chat flow (booking confirmed /
+  cancelled / staff-booked, booking receipt, song "you're on now") go through
+  `sendToMember` (server/whatsappBot.ts): retried once after 8s if WhatsApp was
+  reconnecting, and saved to the member's chat in Admin › CRM (⚠️ in front if it
+  couldn't be delivered).
+
 ## Events
 
 - Admin events have a date (`startDate`, optional `endDate`). The home page shows
