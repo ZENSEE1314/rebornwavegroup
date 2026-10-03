@@ -7,6 +7,7 @@ import { db } from "./db";
 import { users, pvpScores, appSettings, gameRanks } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
 import { resolveCompanyId } from "./tenant";
+import { DEFAULT_COMPANY_SLUG, homeCompanySlug } from "./tenantContext";
 import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 import { tr, type Tri } from "./i18n";
 
@@ -17,6 +18,7 @@ interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
 interface Room {
   code: string; game: GameKind; hostId: string; password: string; companyId?: number;
+  space?: string; // the company data space the room was opened in (rooms never cross companies)
   status: "lobby" | "playing" | "reveal" | "done";
   players: Player[];
   round: number; deadline: number; message: string;
@@ -105,6 +107,8 @@ function errText(req: Request, e: string | Tri): string {
 const WHEEL_LABEL_KEY: Record<string, string> = { PASS: "gm.wheel.pass", "½ cup": "gm.wheel.half", "1 cup": "gm.wheel.one", "2 cups": "gm.wheel.two" };
 
 const rooms = new Map<string, Room>();
+// Rooms live in one in-memory map; a room only exists for requests of its own company.
+const inThisSpace = (room: Room) => (room.space ?? DEFAULT_COMPANY_SLUG) === homeCompanySlug();
 const MAX_PLAYERS = 20;
 const CARDS_MAX = 5;
 const MEMORY_MAX = 5;
@@ -224,22 +228,22 @@ function restoreRoom(data: any): Room {
 async function getRoom(codeRaw: unknown): Promise<Room | undefined> {
   const code = String(codeRaw || "").toUpperCase();
   const live = rooms.get(code);
-  if (live) return live;
+  if (live) return inThisSpace(live) ? live : undefined;
   try {
     const r: any = await db.execute(sql`SELECT data FROM game_rooms WHERE code = ${code} AND updated_at > now() - interval '6 hours'`);
     const row = ((r.rows || r) as any[])[0];
-    if (!row?.data || rooms.has(code)) return rooms.get(code);
-    return restoreRoom(row.data);
+    if (!row?.data || rooms.has(code)) return undefined;
+    return restoreRoom({ ...row.data, space: row.data.space ?? homeCompanySlug() });
   } catch (e) { console.warn("[games] load room", e); return undefined; }
 }
 // Lobby list after a restart: bring back the open rooms saved before it.
-let restoredLobbies = false;
+const restoredLobbies = new Set<string>(); // per company data space
 async function restoreSavedRooms() {
-  if (restoredLobbies) return;
-  restoredLobbies = true;
+  if (restoredLobbies.has(homeCompanySlug())) return;
+  restoredLobbies.add(homeCompanySlug());
   try {
     const r: any = await db.execute(sql`SELECT data FROM game_rooms WHERE updated_at > now() - interval '6 hours'`);
-    for (const row of (r.rows || r) as any[]) if (row?.data?.code && !rooms.has(row.data.code)) restoreRoom(row.data);
+    for (const row of (r.rows || r) as any[]) if (row?.data?.code && !rooms.has(row.data.code)) restoreRoom({ ...row.data, space: row.data.space ?? homeCompanySlug() });
     await db.execute(sql`DELETE FROM game_rooms WHERE updated_at < now() - interval '1 day'`);
   } catch (e) { console.warn("[games] restore rooms", e); }
 }
@@ -2151,7 +2155,7 @@ export function registerGameRoutes(app: Express) {
   app.get("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     await restoreSavedRooms();
     const list = Array.from(rooms.values())
-      .filter((r) => r.status === "lobby")
+      .filter((r) => r.status === "lobby" && inThisSpace(r))
       .map((r) => ({
         code: r.code, game: r.game,
         hostName: r.players.find((p) => p.id === r.hostId)?.name || tr(req, { en: "Host", zh: "房主", id: "Host" }),
@@ -2174,10 +2178,10 @@ export function registerGameRoutes(app: Express) {
     // Double/triple taps on "Create room" must not open several rooms: reuse the
     // lobby room this host already has for this game. (No await between this
     // check and rooms.set, so concurrent requests can't both pass it.)
-    const already = Array.from(rooms.values()).find((r) => r.hostId === uid && r.game === game && r.status === "lobby");
+    const already = Array.from(rooms.values()).find((r) => inThisSpace(r) && r.hostId === uid && r.game === game && r.status === "lobby");
     if (already) return res.json({ code: already.code });
     const room: Room = {
-      code: code4(), game, hostId: uid, password: String(req.body?.password || "").trim(), companyId,
+      code: code4(), game, hostId: uid, password: String(req.body?.password || "").trim(), companyId, space: homeCompanySlug(),
       status: "lobby", players: [{ id: uid, name, alive: true, taps: 0, connected: true }],
       round: 1, deadline: 0, message: "Waiting for players…", msg: { k: "lobbyWait" }, eliminatedThisRound: [],
       winTarget: Math.max(1, Math.min(10, Math.floor(Number(req.body?.winTarget) || 1))), seriesScore: {},

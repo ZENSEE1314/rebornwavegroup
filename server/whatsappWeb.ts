@@ -15,6 +15,7 @@ import QRCode from "qrcode";
 import pino from "pino";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
+import { currentTenant } from "./tenantContext";
 import { handleInboundText } from "./whatsappBot";
 
 const logger = pino({ level: "silent" }) as any;
@@ -27,11 +28,16 @@ let starting = false;
 let selfNumber: string | null = null;
 const jidForPhone = new Map<string, string>(); // phone digits -> chat JID (handles LID)
 
+// The linked WhatsApp number belongs to the platform's own company. Inside another company's
+// data space it does not exist: nothing is sent from it and it can't be seen, linked or unlinked.
+const inAnotherCompany = () => !!currentTenant();
+
 export function getWaWebStatus() {
+  if (inAnotherCompany()) return { status: "disconnected", qr: null, number: null };
   return { status, qr: status === "qr" ? qrDataUrl : null, number: selfNumber };
 }
 export function isWebConnected() {
-  return status === "connected" && !!sock;
+  return !inAnotherCompany() && status === "connected" && !!sock;
 }
 
 // --- DB-backed auth state (adapted from Baileys' useMultiFileAuthState) ----
@@ -90,7 +96,7 @@ async function useDbAuthState(): Promise<{ state: AuthenticationState; saveCreds
 
 // --- Socket lifecycle ----------------------------------------------------
 export async function startWhatsAppWeb(): Promise<void> {
-  if (starting || isWebConnected()) return;
+  if (inAnotherCompany() || starting || isWebConnected()) return;
   starting = true;
   status = "connecting";
   try {
@@ -256,6 +262,7 @@ export async function sendWhatsAppWebImage(to: string, image: Buffer, caption: s
 }
 
 export async function logoutWhatsAppWeb(): Promise<void> {
+  if (inAnotherCompany()) return;
   try { await sock?.logout(); } catch {}
   sock = null; status = "loggedout"; qrDataUrl = null; selfNumber = null;
   await clearAllAuth().catch(() => {});

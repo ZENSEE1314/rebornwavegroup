@@ -22,6 +22,31 @@ text.
 - **Game room messages** (`server/games.ts`) are shared by players with different
   languages: send a message key + values and translate on the client.
 
+## Companies and their data (BridgeX tenants)
+
+- Every company other than Reborn keeps its member-app data apart. `bridge_companies.data_mode`:
+  `schema` = its own data space on this server (Postgres schema `tenant_<id>`, the default
+  for new companies), `dedicated` = its own server + database (`server_url`), `shared` =
+  the platform's own tables (only Reborn belongs there).
+- `server/tenantSpace.ts` resolves the company of each request (its own domain, else the
+  `X-Tenant-Slug` header / `bx_tenant` cookie on the platform host; `rebornwave.group`,
+  `/api/v1/*` and the `/bridgex` console are always platform data) and runs it inside that
+  space. `db` (server/db.ts) then talks to that schema only — never write `public.` in a
+  query, and never read `platformDb` from member-app code.
+- A tenant schema holds a copy of every table except `bridge_*` (exposed as views) and
+  `sessions`. It is kept in step at startup (`syncAllTenantSpaces`): new tables and columns
+  in `public` are mirrored. Column type changes need their own per-tenant step (see
+  `ensureMoneyColumns` in server/index.ts).
+- Use `homeCompanySlug()` (server/tenantContext.ts) instead of the literal
+  `"reborn-wave-group"`. Module-level caches and in-memory state must be keyed by it.
+- Logins are per space: each has its own `users`, and a session keeps one login slot per
+  space (server/multiAuth.ts). The owner of a new company is copied in as its main admin.
+- Not per company yet: the WhatsApp bot (platform only) and the background timers in
+  server/index.ts (pet decay, daily tokens, reminders run for Reborn only).
+- Test: `scripts/tenant-isolation-test.mts` against an empty scratch database.
+- A dedicated server sets `DEFAULT_COMPANY_SLUG` (+ `DEFAULT_COMPANY_NAME`) so the app
+  runs as that company instead of Reborn.
+
 ## Booking rules set by the admin
 
 - `bookingTableDayLock` — a table booked at any time is closed for the rest of

@@ -3,6 +3,7 @@ import { useRoute } from "wouter";
 import { CalendarCheck, UtensilsCrossed, Gift, Crown, ShoppingBag, UserRound, MapPin, type LucideIcon } from "lucide-react";
 
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { rememberTenantSlug } from "@/hooks/useTenantBrand";
 import { useTranslation, getCurrentLanguage } from "@/lib/i18n";
 
 interface Tenant {
@@ -12,6 +13,8 @@ interface Tenant {
   logo_url?: string;
   theme?: { primaryColor?: string; accentColor?: string };
   modules?: string[];
+  data_mode?: string;
+  server_url?: string | null;
   branches?: { name: string; address?: string | null }[];
 }
 
@@ -41,9 +44,11 @@ export default function TenantEntry() {
       const d = await r.json().catch(() => ({}));
       // An unknown slug falls back to the flagship company server-side; that is "not found" here.
       if (!r.ok || d?.slug !== slug) { setError(d?.message && !r.ok ? d.message : t("vn.tenant.notFound")); return; }
+      // A company with its own server lives there, not on this platform.
+      if (d.data_mode === "dedicated" && d.server_url) { window.location.replace(d.server_url); return; }
       setTenant(d);
       document.title = d.app_name || d.name;
-      try { localStorage.setItem("bridgexTenantSlug", slug); } catch {}
+      rememberTenantSlug(slug);
     }).catch(() => setError(t("vn.otable.networkError")));
   }, [slug]);
 

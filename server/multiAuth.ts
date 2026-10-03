@@ -4,6 +4,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
 import { db } from './db';
+import { currentTenant } from './tenantContext';
 import { sql } from 'drizzle-orm';
 import type { Express, Request, Response } from 'express';
 import { tr, pick, reqLang } from './i18n';
@@ -112,14 +113,15 @@ export function setupLocalAuth() {
 
 
 
+  // A login made inside a company's own data space is tagged with that space.
   passport.serializeUser((user: any, done) => {
-
-    done(null, user.id);
+    const tenant = currentTenant();
+    done(null, tenant ? { id: user.id, space: tenant.schema } : user.id);
   });
 
-  passport.deserializeUser(async (id: string, done) => {
+  passport.deserializeUser(async (stored: string | { id: string; space: string }, done) => {
     try {
-
+      const id = typeof stored === "string" ? stored : stored.id;
       const user = await storage.getUser(id);
       if (!user) {
 
@@ -560,9 +562,43 @@ export function requireAuth(req: Request, res: Response, next: Function) {
 }
 
 // Initialize multi-provider authentication
+// One browser session can be logged in to several companies' data spaces at once (e.g. an
+// owner in the BridgeX console and in their own app on the same host). A login remembers
+// the space it was made in; only the login of the space this request belongs to is live,
+// the others wait in their slots — so a login from one company is never offered to another,
+// and visiting one doesn't log out the other.
+const PLATFORM_SPACE = "platform";
+type StoredLogin = string | { id: string; space: string };
+const loginSpace = (stored: StoredLogin | undefined) => (stored && typeof stored === "object" ? stored.space : PLATFORM_SPACE);
+
+function loginSlotPerDataSpace(req: Request, _res: Response, next: Function) {
+  const session = req.session as any;
+  if (!session) return next();
+  const space = currentTenant()?.schema ?? PLATFORM_SPACE;
+  const slots: Record<string, unknown> = session.loginSlots ?? {};
+  const live = session.passport?.user as StoredLogin | undefined;
+  if (live && loginSpace(live) !== space) { slots[loginSpace(live)] = session.passport; delete session.passport; }
+  if (!session.passport && slots[space]) { session.passport = slots[space]; delete slots[space]; }
+  if (Object.keys(slots).length || session.loginSlots) session.loginSlots = slots;
+  next();
+}
+
+// Passport starts a fresh session on login; keep the other spaces' login slots across it.
+function keepLoginSlotsOnLogin(req: Request, _res: Response, next: Function) {
+  const login = req.login.bind(req) as (user: unknown, options: object, done: (error: unknown) => void) => void;
+  const keeping = (user: unknown, options: any, done?: any) => {
+    const callback = typeof options === "function" ? options : done;
+    return login(user, { ...(typeof options === "object" ? options : {}), keepSessionInfo: true }, callback);
+  };
+  req.login = req.logIn = keeping as typeof req.login;
+  next();
+}
+
 export function setupMultiAuth(app: Express) {
   setupSession(app);
+  app.use(loginSlotPerDataSpace);
   app.use(passport.initialize());
+  app.use(keepLoginSlotsOnLogin);
   app.use(passport.session());
   setupLocalAuth();
   setupAuthRoutes(app);

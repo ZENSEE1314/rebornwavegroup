@@ -2,16 +2,19 @@ import type { Request } from "express";
 import { db } from "./db";
 import { bridgeCompanies } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { currentTenant, homeCompanySlug } from "./tenantContext";
 
 // Shared multi-tenant resolver (same rules as rebornGame's companyForReq) so any
 // module can scope by the current business. Header → custom domain → Reborn default.
 const cache = new Map<string, { row: any; at: number }>();
-let rebornCache: { row: any; at: number } | null = null;
+// The home company of each data space (Reborn on the platform, the tenant in its own space), by slug.
+const homeCache = new Map<string, { row: any; at: number }>();
 
 async function rebornDefault() {
+  const rebornCache = homeCache.get(homeCompanySlug());
   if (rebornCache && Date.now() - rebornCache.at < 60000) return rebornCache.row;
-  const row = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0] || null;
-  rebornCache = { row, at: Date.now() };
+  const row = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0] || null;
+  homeCache.set(homeCompanySlug(), { row, at: Date.now() });
   return row;
 }
 
@@ -22,6 +25,8 @@ export async function defaultCompanyId(): Promise<number | null> {
 }
 
 export async function resolveCompany(req: Request) {
+  // Inside a company's own data space there is exactly one company: its own.
+  if (currentTenant()) return rebornDefault();
   const slug = String(req.header("x-tenant-slug") || "").toLowerCase().trim();
   const idHdr = Number(req.header("x-tenant-id")) || 0;
   const host = String(req.hostname || "").toLowerCase().split(":")[0];

@@ -987,5 +987,16 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
 
   'admin.guide.done.t': { en: "That's everything!", zh: '全部讲完了！', id: 'Itu semuanya!' },
   'admin.guide.done.i': { en: 'You can open this guide again any time from the Admin & POS guide button on the admin page or the POS.', zh: '你随时可以在管理页面或收银页面点击“管理与收银指南”按钮再次打开本指南。', id: 'Kamu bisa membuka panduan ini lagi kapan saja dari tombol Panduan Admin & POS di halaman admin atau POS.' },
+  'admin.bx.data.label': { en: 'Where its data lives', zh: '数据存放方式', id: 'Tempat data disimpan' },
+  'admin.bx.data.schema': { en: 'Own data space (this server)', zh: '独立数据空间（本服务器）', id: 'Ruang data sendiri (server ini)' },
+  'admin.bx.data.dedicated': { en: 'Own server + database', zh: '独立服务器和数据库', id: 'Server + database sendiri' },
+  'admin.bx.data.shared': { en: 'Shared with Reborn (not separate)', zh: '与 Reborn 共用（未隔离）', id: 'Bersama Reborn (tidak terpisah)' },
+  'admin.bx.data.platform': { en: 'Platform data (Reborn)', zh: '平台数据（Reborn）', id: 'Data platform (Reborn)' },
+  'admin.bx.data.serverUrl': { en: 'Its server address (https://…)', zh: '其服务器地址（https://…）', id: 'Alamat servernya (https://…)' },
+  'admin.bx.data.makeSchema': { en: 'Give own data space', zh: '分配独立数据空间', id: 'Beri ruang data sendiri' },
+  'admin.bx.data.makeDedicated': { en: 'Move to own server', zh: '迁至独立服务器', id: 'Pindah ke server sendiri' },
+  'admin.bx.data.askServerUrl': { en: "Address of this company's own server (https://…). Set the server up first.", zh: '该公司独立服务器的地址（https://…）。请先完成服务器部署。', id: 'Alamat server milik perusahaan ini (https://…). Siapkan servernya dulu.' },
+  'admin.bx.data.confirmSchema': { en: 'Give {name} its own data space? It starts empty: its members, bookings, POS and settings will be separate from every other company.', zh: '为 {name} 分配独立数据空间？它将从空白开始：会员、预订、POS 和设置都与其他公司完全分开。', id: 'Beri {name} ruang data sendiri? Dimulai kosong: anggota, pemesanan, POS, dan pengaturannya terpisah dari perusahaan lain.' },
+  'admin.bx.data.done': { en: 'Data setup updated', zh: '数据方式已更新', id: 'Pengaturan data diperbarui' },
   'admin.guide.done.p': { en: 'Have a great night at the club!', zh: '祝今晚生意兴隆！', id: 'Semoga malam ini ramai di klub!' },
 };
