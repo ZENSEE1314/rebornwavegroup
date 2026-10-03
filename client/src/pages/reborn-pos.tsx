@@ -54,6 +54,9 @@ export default function RebornPos() {
   const [tab, setTab] = useState<Tab>("tables");
   const [showDrawer, setShowDrawer] = useState(false);
   const { t } = useTranslation();
+  // Managers (staff with the company role "manager") close the day here too.
+  const { data: myRole } = useQuery<{ role: string }>({ queryKey: ["/api/reborn/my-role"], queryFn: () => apiRequest("GET", "/api/reborn/my-role").then((r) => r.json()), enabled: isStaff });
+  const companyRole = myRole?.role;
 
   if (!isLoading && !isStaff) {
     return <RebornLayout active="/pos" title={t("pos.title")}><div className="text-center py-16 text-white/50">{t("pos.staffOnly")} <button className="text-amber-300 underline" onClick={() => navigate("/")}>{t("pos.goHome")}</button></div></RebornLayout>;
@@ -66,7 +69,7 @@ export default function RebornPos() {
         <button onClick={() => setShowDrawer(true)} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70"><Settings className="w-4 h-4" /> {t("pos.cashDrawer")}</button>
       </div>
       <StaffGuideButton />
-      {role === "admin" && <ClosePosDay />}
+      {(role === "admin" || companyRole === "manager") && <ClosePosDay />}
       <div className="grid gap-2 mb-4 max-w-3xl" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
         {([["tables", t("pos.tab.tables"), <LayoutGrid className="w-4 h-4" />], ["sell", t("pos.tab.sell"), <Receipt className="w-4 h-4" />], ["sales", t("pos.tab.sales"), <History className="w-4 h-4" />], ["stock", t("pos.tab.stock"), <PackagePlus className="w-4 h-4" />], ["bottles", t("pos.tab.bottles"), <Wine className="w-4 h-4" />], ["packages", t("pos.tab.packages"), <Gift className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
           <button key={k} onClick={() => setTab(k as Tab)} className={`min-w-0 px-1 py-2 sm:py-2.5 rounded-xl border font-semibold text-[10px] sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 ${tab === k ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-white/5 text-white/60"}`}>{ic}<span className="hidden sm:inline">{l}</span><span className="sm:hidden max-w-full truncate">{l.split(" ")[0]}</span></button>
