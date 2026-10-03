@@ -1340,22 +1340,15 @@ function CompanyFeedback() {
   return <div className="space-y-3"><a href="/staff-feedback" className={btn+" w-full justify-center"}>{t("admin.fb.open")}</a>{rows.length===0&&<Empty text={t("admin.fb.empty")}/>}{rows.map((f:any)=><Card key={f.id}><div className="flex justify-between gap-3"><b className="capitalize">{t("admin.fb.category", { c: tv(t, "admin.fb.cat." + f.category, f.category) })}</b><span className="text-xs text-white/35">{new Date(f.created_at).toLocaleString(localeTag())}</span></div><p className="mt-2 text-sm text-white/75">{f.message}</p><p className="mt-2 text-xs text-white/40">{f.user_name||t("admin.c.customer")}{f.staff_name?` → ${f.staff_name}`:""}{f.rating?` · ${t("admin.fb.stars", { n: f.rating })}`:""}</p></Card>)}</div>;
 }
 
-// Manager › Daily sales: the venue day's sales total, close the day, and every salesperson's target.
+// Manager › Daily sales: the venue day's sales total and every salesperson's target
+// (the day is closed from the POS: "Close POS day").
 function DailySales() {
   const { t } = useTranslation();
-  const { toast } = useToast();
-  const qc = useQueryClient();
   const [day, setDay] = useState("");
   const url = `/api/reborn/manager/daily-sales${day ? `?day=${day}` : ""}`;
   const { data: d } = useQuery<any>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()), refetchInterval: 30000 });
-  const close = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/venue/close", {}).then((r) => r.json()),
-    onSuccess: (x: any) => { toast({ title: t("admin.sales.closedOk"), description: x.message }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/manager/daily-sales") }); },
-    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
-  });
   const money = (v: any) => "RP " + Math.round(Number(v) || 0).toLocaleString();
   const tot = d?.report?.totals || {};
-  const isToday = d && d.day === d.currentDay;
   return (
     <div className="space-y-3">
       <Card>
@@ -1367,16 +1360,11 @@ function DailySales() {
         <p className="mt-3 text-3xl font-black text-emerald-300">{money(tot.revenue)}</p>
         <p className="text-xs text-white/60">{t("admin.sales.bills", { n: d?.report?.ticketCount || 0 })}{d?.closed ? ` · ✓ ${t("admin.sales.closed")}` : ""}</p>
         <div className="flex gap-2 mt-3 text-center">
-          {[["cash", tot.cash], ["card", tot.card], ["credits", tot.credits]].map(([k, v]) => (
+          {[["cash", tot.cash], ["card", tot.card], ["credits", tot.credits], ...(Number(tot.packageCredit) > 0 ? [["packageCredit", tot.packageCredit]] : [])].map(([k, v]) => (
             <div key={k as string} className="flex-1 min-w-0 rounded-xl bg-black/30 border border-white/10 p-2"><p className="text-[11px] text-white/50">{t(`admin.sales.${k}`)}</p><p className="text-sm font-bold">{money(v)}</p></div>
           ))}
         </div>
         <p className="text-[11px] text-white/45 mt-2">{t("admin.sales.breakdown", { discount: money(tot.discount), service: money(tot.serviceFee), tax: money(tot.tax) })}</p>
-        {isToday && (
-          <button onClick={() => { if (confirm(t("admin.sales.closeConfirm"))) close.mutate(); }} disabled={close.isPending} className={btn + " mt-3 w-full justify-center"}>
-            {d?.closed ? t("admin.sales.closeAgain") : t("admin.sales.close")}
-          </button>
-        )}
       </Card>
       {(d?.report?.items || []).length > 0 && <Card>
         <p className="font-bold text-sm mb-2">{t("admin.sales.topItems")}</p>
@@ -2403,7 +2391,7 @@ function Crm() {
   });
   const runReminders = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/run-reminders", {}).then((r) => r.json()),
-    onSuccess: (d: any) => toast({ title: d.configured ? t("admin.crm.remSent") : t("admin.crm.remRun"), description: t("admin.crm.remDesc", { b: d.bottles, c: d.comeback, f: d.feedback }) }),
+    onSuccess: (d: any) => toast({ title: d.configured ? t("admin.crm.remSent") : t("admin.crm.remRun"), description: t("admin.crm.remDesc", { b: d.bottles, c: d.comeback, f: d.feedback, p: d.packages ?? 0 }) }),
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const contacts: any[] = data?.contacts || [];

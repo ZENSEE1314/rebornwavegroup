@@ -11,7 +11,7 @@ import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
-import { crmRecordVisit, whatsappConfigured, whatsappAvailable, waDigits, runReminders } from "./whatsappBot";
+import { crmRecordVisit, whatsappConfigured, whatsappAvailable, waDigits, runReminders, runPackageReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
@@ -4079,8 +4079,8 @@ export function registerRebornRoutes(app: Express) {
     res.json(getWaWebStatus());
   }));
   app.post("/api/reborn/admin/whatsapp/run-reminders", requireAdmin(async (req, res) => {
-    const out = await runReminders();
-    await logAdmin(req, { targetType: "whatsapp", action: "run_reminders", entityType: "whatsapp", description: `Reminders: ${out.bottles} bottle, ${out.comeback} comeback, ${out.feedback} feedback` });
+    const out = { ...(await runReminders()), packages: await runPackageReminders({ anyTime: true }) };
+    await logAdmin(req, { targetType: "whatsapp", action: "run_reminders", entityType: "whatsapp", description: `Reminders: ${out.bottles} bottle, ${out.comeback} comeback, ${out.feedback} feedback, ${out.packages} package` });
     res.json({ ...out, configured: whatsappConfigured() });
   }));
 }

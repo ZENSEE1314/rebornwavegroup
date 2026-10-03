@@ -897,6 +897,7 @@ export const memberPackages = pgTable("member_packages", {
   status: varchar("status").default("active").notNull(), // 'active' | 'used' | 'refunded'
   expiresAt: timestamp("expires_at"),
   usedUpAt: timestamp("used_up_at"),
+  lastReminderAt: timestamp("last_reminder_at"), // last "you still have … left" reminder (push + WhatsApp)
   createdAt: timestamp("created_at").defaultNow(),
 });
 // Every use of a package: uses taken or credit spent (negative = given back on a refund).

@@ -154,9 +154,10 @@ text.
 - **Manager** = a staff account whose company role is `manager`
   (`bridge_company_members.role`; set as "manager" in Admin › Users). Managers get
   the staff tabs + **Daily sales** (`/api/reborn/manager/daily-sales`): the venue
-  day's total, a cash/card/credits breakdown, best sellers, "close the day & clear guests"
-  (`/api/reborn/admin/venue/close`, `requireManager`), and every salesperson's
-  month sales vs target (target set in Payroll). Server: `adminRole()` /
+  day's total, a cash/card/credits/package-credit breakdown, best sellers and every
+  salesperson's month sales vs target (target set in Payroll). No close button there:
+  the day is closed in the POS ("Close POS day", shown to admins and managers;
+  `/api/reborn/admin/venue/close`, `requireManager`). Server: `adminRole()` /
   `requireManager`; the app asks `/api/reborn/my-role`.
 - **Main admin** (`users.role = admin`): every tab.
 - Daily sales and the day close count by venue day (08:00 → 08:00 WIB,
@@ -277,5 +278,10 @@ text.
   packages bought on that bill; cash refund = total − package credit. The day close /
   Daily sales show the package-credit part separately (`packageCredit`); its money was
   income when the package was sold.
+- Reminders (`runPackageReminders` in server/whatsappBot.ts, hourly, 10:00–20:00 WIB):
+  a package with visits / credit left gets a phone push + WhatsApp (saved in the CRM chat)
+  when it expires within 7 days (every 2 days, daily in the last 3) or hasn't been used
+  for 14 days (every 14 days); `member_packages.last_reminder_at`. Admin › CRM "run
+  reminders" sends them right away (any hour).
 - The POS asks `/api/reborn/pos/quote` for the bill (perk + credit) so the till shows
   exactly what the server will charge.

@@ -14,7 +14,7 @@ import type { Express, Request, Response } from "express";
 import { and, desc, eq, gte, inArray, isNotNull, lte, gt, ilike, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
-import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
+import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems, memberPackages, memberPackageUses } from "@shared/schema";
 import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, areasWithSpace, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, type BookingArea } from "./booking";
@@ -540,6 +540,26 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "谢谢你今晚光临 Reborn Wave，{name}！🙏 体验如何？欢迎回复我们，每条留言我们都会看。💜",
       id: "Terima kasih sudah datang ke Reborn Wave malam ini, {name}! 🙏 Bagaimana pengalaman Anda? Balas di sini — kami baca setiap pesan. 💜",
     },
+    pkgExpiring: {
+      en: "Hi {name}! 🎁 You still have {left} on your {item} — it expires in {days} day(s). Come use it before it's gone!{perk} 💜",
+      zh: "你好 {name}！🎁 你的 {item} 还剩 {left}，将在 {days} 天后到期。快来使用吧，别浪费了！{perk} 💜",
+      id: "Hai {name}! 🎁 {item} Anda masih tersisa {left} — kedaluwarsa dalam {days} hari. Yuk pakai sebelum hangus!{perk} 💜",
+    },
+    pkgIdle: {
+      en: "Hi {name}! 🎁 Just a reminder: you still have {left} on your {item} at Reborn Wave. See you soon!{perk} 💜",
+      zh: "你好 {name}！🎁 温馨提醒：你在 Reborn Wave 的 {item} 还剩 {left}。期待再见到你！{perk} 💜",
+      id: "Hai {name}! 🎁 Sekadar mengingatkan: {item} Anda di Reborn Wave masih tersisa {left}. Sampai jumpa!{perk} 💜",
+    },
+    pkgLeftUses: { en: "{n} visit(s)", zh: "{n} 次", id: "{n} kunjungan" },
+    pkgLeftCredit: { en: "RP {n} credit", zh: "RP {n} 余额", id: "kredit RP {n}" },
+    pkgPerkHint: {
+      en: " Use it all and you get {p}% off every bill.",
+      zh: " 全部用完后，每张账单可享 {p}% 折扣。",
+      id: " Habiskan dan dapatkan diskon {p}% setiap tagihan.",
+    },
+    pkgPushTitle: { en: "🎁 {item}: {left} left", zh: "🎁 {item}：还剩 {left}", id: "🎁 {item}: sisa {left}" },
+    pkgPushExpiring: { en: "Expires in {days} day(s) — come use it!", zh: "{days} 天后到期——快来使用吧！", id: "Kedaluwarsa dalam {days} hari — yuk dipakai!" },
+    pkgPushIdle: { en: "Still waiting for you — see you soon!", zh: "还在等你哦——期待再见！", id: "Masih menunggu Anda — sampai jumpa!" },
     bottle: {
       en: "Hi {name}! 🍾 Your kept {item} ({qty} left) is waiting at Reborn Wave — it expires in {days} day(s). Come finish it before it's gone! 💜",
       zh: "你好 {name}！🍾 你寄存的 {item}（还剩 {qty}）正在 Reborn Wave 等你，将在 {days} 天后到期。快来喝完吧！💜",
@@ -2038,6 +2058,50 @@ export async function langForPhone(phone: string, userId?: string | null): Promi
   return (await accountLang(userId || c?.userId)) || ((c?.lang as Lang) || "en");
 }
 
+// Packages bought at the POS (server/memberPackages.ts) with visits or credit left:
+// a phone push + WhatsApp (saved in the CRM chat), 10:00–20:00 WIB only.
+//  - expiring within 7 days → every 2 days, daily in the last 3 days;
+//  - not used for 14 days → once every 14 days.
+// `anyTime` = an admin pressed "run reminders now" (skips the daytime window).
+export async function runPackageReminders(opts: { anyTime?: boolean } = {}): Promise<number> {
+  const wibHour = (new Date().getUTCHours() + 7) % 24;
+  if (!opts.anyTime && (wibHour < 10 || wibHour >= 20)) return 0;
+  const now = Date.now();
+  let sent = 0;
+  try {
+    const rows = await db.select().from(memberPackages).where(and(eq(memberPackages.status, "active"), sql`(${memberPackages.usesLeft} > 0 OR ${memberPackages.creditLeft} > 0)`));
+    if (!rows.length) return 0;
+    const used = await db.select({ id: memberPackageUses.packageId, at: sql<Date>`max(${memberPackageUses.createdAt})` }).from(memberPackageUses)
+      .where(and(inArray(memberPackageUses.packageId, rows.map((r) => r.id)), sql`(${memberPackageUses.uses} > 0 OR ${memberPackageUses.credit} > 0)`)).groupBy(memberPackageUses.packageId);
+    const lastUse = new Map(used.map((u) => [u.id, new Date(u.at).getTime()]));
+    const waAvail = await whatsappAvailable();
+    for (const p of rows) {
+      const exp = p.expiresAt ? new Date(p.expiresAt).getTime() : 0;
+      if (exp && exp <= now) continue;
+      const daysLeft = exp ? Math.max(1, Math.ceil((exp - now) / DAY_MS)) : null;
+      const lastActive = Math.max(lastUse.get(p.id) || 0, p.createdAt ? new Date(p.createdAt).getTime() : 0);
+      let kind: "pkgExpiring" | "pkgIdle" | null = null, gap = 0;
+      if (daysLeft !== null && daysLeft <= 7) { kind = "pkgExpiring"; gap = daysLeft <= 3 ? 20 * HOUR_MS : 2 * DAY_MS; }
+      else if (now - lastActive >= 14 * DAY_MS) { kind = "pkgIdle"; gap = 14 * DAY_MS; }
+      if (!kind) continue;
+      if (p.lastReminderAt && now - new Date(p.lastReminderAt).getTime() < gap) continue;
+      const [u] = await db.select({ firstName: users.firstName }).from(users).where(eq(users.id, p.userId));
+      const phone = await memberWaPhone(p.userId);
+      const lang = await langForPhone(phone, p.userId);
+      const left = p.kind === "uses"
+        ? L(lang, "pkgLeftUses", { n: String(p.usesLeft) })
+        : L(lang, "pkgLeftCredit", { n: Math.round(Number(p.creditLeft)).toLocaleString(localeOf(lang)) });
+      const perk = p.kind === "credit" && Number(p.perkPercent) > 0 ? L(lang, "pkgPerkHint", { p: String(Number(p.perkPercent)) }) : "";
+      const vars = { name: u?.firstName || p.memberName || "", item: p.name, left, days: String(daysLeft ?? ""), perk };
+      await sendPushToUser(p.userId, { title: L(lang, "pkgPushTitle", vars), body: L(lang, kind === "pkgExpiring" ? "pkgPushExpiring" : "pkgPushIdle", vars), url: "/bottles", tag: `pkg-${p.id}` }).catch(() => {});
+      if (waAvail && phone) await sendToMember(phone, L(lang, kind, vars), p.userId);
+      await db.update(memberPackages).set({ lastReminderAt: new Date() }).where(eq(memberPackages.id, p.id));
+      sent++;
+    }
+  } catch (e) { waError("package reminders", e); }
+  return sent;
+}
+
 let schedulerStarted = false;
 function startReminderScheduler() {
   if (schedulerStarted) return;
@@ -2045,6 +2109,9 @@ function startReminderScheduler() {
   // Run ~10 min after boot, then hourly (bottle / comeback / feedback).
   setTimeout(() => { runReminders().catch(() => {}); }, 10 * 60 * 1000);
   setInterval(() => { runReminders().catch(() => {}); }, HOUR_MS);
+  // Package reminders (visits / credit left) — hourly, daytime only.
+  setTimeout(() => { runPackageReminders().catch(() => {}); }, 12 * 60 * 1000);
+  setInterval(() => { runPackageReminders().catch(() => {}); }, HOUR_MS);
   // Booking reminders need finer granularity (3h / 1h / 10min) — check every 5 minutes.
   setTimeout(() => { runBookingReminders().catch(() => {}); }, 60 * 1000);
   setInterval(() => { runBookingReminders().catch(() => {}); }, 5 * 60 * 1000);
