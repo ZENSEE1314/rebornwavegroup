@@ -240,3 +240,15 @@ text.
 - Keep images small: resize/compress before adding (logo 512px, favicon 192px,
   photos ≤ 800–1000px). Hashed `/assets` files are cached for a year and served
   gzipped (`compression`).
+- Videos: H.264 + AAC 96k with `-movflags +faststart` (plays while downloading);
+  the full demo (`/demo.mp4`) is 540p CRF 28, background loops (`/videos/*`) 720p
+  CRF 27.
+
+## Homepage tower: one page per swipe
+
+- The 3D tower (client/public/experience/app.js) moves one story card (`.beat`)
+  per swipe, wheel/trackpad flick or arrow key, however fast (`STOPS`,
+  `stepPage`, `goToStop`); input while a page is still sliding in is ignored, and
+  a scroll that stops between pages (scrollbar drag) settles on the nearest one.
+  Floor buttons and "skip" jump to a page. A new `.beat` becomes a page by itself.
+  Bump `?v=` on app.js/style.css in index.html after changing them.
