@@ -8,7 +8,8 @@ import { useLocation } from "wouter";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { sfx } from "@/lib/sfx";
 import { VenueScanner, useVenueCheckIn } from "@/components/VenueScan";
-import { LevelAvatar, LevelChips } from "@/components/LevelRing";
+import { LevelAvatar, LevelChips, GifterPodium } from "@/components/LevelRing";
+import doluruuImg from "@assets/Doluruu Boy_1749664545355.png";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, Camera, QrCode, CheckCircle2 } from "lucide-react";
 
 const ANIM_CSS = `
@@ -190,16 +191,7 @@ export default function RebornKos() {
               <p className="font-bold truncate">{nameOf(u)}</p>
               <p className="flex items-center gap-1.5"><LevelChips sender={u.senderLevel} receiver={u.receiverLevel} small /></p>
               <p className="text-xs font-black text-amber-300 mt-0.5" style={{ textShadow: "0 0 8px rgba(247,215,116,.5)" }}>🪙 {fmt(u.stars)}</p>
-              {(u.topGifters || []).length > 0 && (
-                <div className="mt-1 flex flex-wrap items-center gap-1">
-                  {u.topGifters.map((g: any, k: number) => (
-                    <span key={g.id} className="inline-flex items-center gap-0.5 min-w-0 rounded-full bg-black/30 pr-1.5" title={t("vn.kos.topGifter", { n: k + 1, name: nameOf(g) })}>
-                      <span className="relative"><LevelAvatar u={g} level={g.senderLevel || 1} size={20} /><span className="absolute -bottom-1 -right-1 text-[9px]">{["🥇", "🥈", "🥉"][k]}</span></span>
-                      <span className="text-[10px] text-white/70 truncate max-w-[52px] ml-1">{nameOf(g)}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <GifterPodium gifters={u.topGifters || []} nameOf={nameOf} />
             </div>
             {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">{t("vn.kos.you")}</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title={t("vn.kos.addFriend")} aria-label={t("vn.kos.addAsFriend", { name: nameOf(u) })} className="kos-add"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">{t("vn.kos.pending")}</span>}{u.checkedIn !== false && <button onClick={() => setTarget(u)} className="kos-gift">🎁 {t("vn.kos.gift")}</button>}</>}
           </div>
@@ -361,11 +353,17 @@ function useCountUp(target: number, ms = 1200, key?: any) {
 // ── Special gift scenes ─────────────────────────────────────────────────────
 // Picked by the gift's animation ("car" | "fireworks" | "crown" | "diamonds"),
 // or automatically from its emoji / name so existing gifts get them too.
-type Scene = "car" | "fireworks" | "crown" | "diamonds";
+type Scene = "car" | "fireworks" | "crown" | "diamonds" | "kiss" | "thumbsup" | "lion" | "whale" | "rocket";
+const SCENES: Scene[] = ["car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket"];
 function sceneOf(g: any): Scene | null {
-  const a = String(g?.animation || "");
-  if (a === "car" || a === "fireworks" || a === "crown" || a === "diamonds") return a;
+  const a = String(g?.animation || "") as Scene;
+  if (SCENES.includes(a)) return a;
   const e = `${g?.emoji || ""} ${g?.giftName || ""}`;
+  if (/💋|\bkiss\b|cium|亲/i.test(e)) return "kiss";
+  if (/👍|thumbs? ?up|jempol|点赞/i.test(e)) return "thumbsup";
+  if (/🦁|\blion\b|singa|狮/i.test(e)) return "lion";
+  if (/🐋|🐳|whale|paus|鲸/i.test(e)) return "whale";
+  if (/🚀|rocket|roket|火箭/i.test(e)) return "rocket";
   if (/🏎|🚗|🚙|🚘|sports ?car|\bcar\b/i.test(e)) return "car";
   if (/🎆|🎇|🧨|firework/i.test(e)) return "fireworks";
   if (/👑|crown/i.test(e)) return "crown";
@@ -389,7 +387,80 @@ const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-m
 // Where the gift text sits so it doesn't cover the scene.
 const SCENE_TEXT: Record<Scene, CSSProperties> = {
   car: { top: "9%" }, fireworks: { bottom: "7%" }, crown: { bottom: "7%" }, diamonds: { top: "47%" },
+  kiss: { bottom: "8%" }, thumbsup: { top: "5%" }, lion: { bottom: "7%" }, whale: { top: "8%" }, rocket: { bottom: "5%" },
 };
+// Text appears after the scene's big moment.
+const SCENE_TEXT_DELAY: Partial<Record<Scene, string>> = { lion: "2.2s", whale: "3.1s", rocket: "5s", thumbsup: "2.2s", kiss: "1.8s" };
+
+// 💋 Kiss: lips fly in and "mwah!", then hearts float up.
+function KissScene() {
+  return (
+    <div className="gs-kiss">
+      <div className="gs-kiss-sky" />
+      {Array.from({ length: 22 }).map((_, k) => <span key={k} className="gs-heart" style={{ left: `${(k * 41 + 5) % 95}%`, fontSize: 16 + (k % 4) * 8, animationDelay: `${0.9 + (k % 11) * 0.18}s`, ["--sway" as any]: `${(k % 2 ? 1 : -1) * (10 + (k % 5) * 6)}px` }}>{["💗", "💕", "💖", "❤️"][k % 4]}</span>)}
+      <div className="gs-lips">💋</div>
+      <div className="gs-mwah">MWAH!</div>
+    </div>
+  );
+}
+// 👍 Doluruu bounces in and gives a big thumbs up.
+function ThumbsUpScene() {
+  return (
+    <div className="gs-thumb">
+      <div className="gs-thumb-sky" />
+      <div className="gs-thumb-rays" />
+      {Array.from({ length: 14 }).map((_, k) => <span key={k} className="gs-star" style={{ left: `${(k * 37 + 6) % 92}%`, top: `${(k * 23 + 8) % 60}%`, animationDelay: `${1 + (k % 7) * 0.15}s` }}>⭐</span>)}
+      <img src={doluruuImg} alt="" className="gs-dolu" />
+      <div className="gs-bigthumb">👍</div>
+    </div>
+  );
+}
+// 🦁 The lion leaps in and ROARS — the screen shakes, shockwaves ripple out.
+function LionScene() {
+  return (
+    <div className="gs-lion">
+      <div className="gs-savanna" />
+      <div className="gs-sun" />
+      <div className="gs-grass" />
+      <div className="gs-shake">
+        <div className="gs-lionhead">🦁</div>
+        {[0, 1, 2].map((k) => <i key={k} className="gs-roarwave" style={{ animationDelay: `${1.05 + k * 0.28}s` }} />)}
+        <div className="gs-roar">ROAR!</div>
+      </div>
+    </div>
+  );
+}
+// 🐋 A huge whale swims up from the deep toward you, bubbles everywhere, then a splash.
+function WhaleScene() {
+  return (
+    <div className="gs-whale">
+      <div className="gs-ocean" />
+      <div className="gs-lightrays" />
+      {Array.from({ length: 26 }).map((_, k) => <i key={k} className="gs-bubble" style={{ left: `${(k * 31 + 3) % 96}%`, width: 6 + (k % 5) * 5, height: 6 + (k % 5) * 5, animationDelay: `${(k % 13) * 0.25}s`, animationDuration: `${2.2 + (k % 4) * 0.5}s` }} />)}
+      <div className="gs-whalebody">🐋</div>
+      <div className="gs-splash">💦</div>
+    </div>
+  );
+}
+// 🚀 3-2-1… lift off! The rocket blasts into the sky with fire and smoke, then bursts into fireworks.
+function RocketScene() {
+  return (
+    <div className="gs-rkt">
+      <div className="gs-rkt-sky" />
+      {Array.from({ length: 30 }).map((_, k) => <i key={k} className="gs-twinkle" style={{ left: `${(k * 29 + 7) % 97}%`, top: `${(k * 17 + 3) % 70}%`, animationDelay: `${(k % 9) * 0.3}s` }} />)}
+      <div className="gs-pad" />
+      {["3", "2", "1"].map((n, k) => <div key={n} className="gs-count" style={{ animationDelay: `${k * 0.6}s` }}>{n}</div>)}
+      <div className="gs-rocketbox">
+        <div className="gs-rocketship">🚀</div>
+        <div className="gs-flame" />
+      </div>
+      {Array.from({ length: 10 }).map((_, k) => <span key={k} className="gs-smoke" style={{ left: `${30 + (k * 7) % 40}%`, animationDelay: `${1.9 + (k % 5) * 0.12}s` }}>☁️</span>)}
+      <Burst x="50%" y="18%" n={48} size={160} delay={4.6} />
+      <Burst x="25%" y="28%" n={28} size={90} delay={5.1} loop />
+      <Burst x="75%" y="24%" n={28} size={90} delay={5.5} loop />
+    </div>
+  );
+}
 
 function CarScene({ art }: { art: ReactNode }) {
   return (
@@ -469,6 +540,11 @@ function DiamondsScene({ art }: { art: ReactNode }) {
 }
 
 function GiftScene({ kind, art }: { kind: Scene; art: ReactNode }) {
+  if (kind === "kiss") return <KissScene />;
+  if (kind === "thumbsup") return <ThumbsUpScene />;
+  if (kind === "lion") return <LionScene />;
+  if (kind === "whale") return <WhaleScene />;
+  if (kind === "rocket") return <RocketScene />;
   if (kind === "car") return <CarScene art={art} />;
   if (kind === "fireworks") return <FireworksScene />;
   if (kind === "crown") return <CrownScene art={art} />;
@@ -498,7 +574,7 @@ function GiftInbox({ notifs, onClose }: any) {
       <div className="kg-stage fixed inset-0 z-[60] overflow-hidden" onClick={next}>
         <div className="absolute inset-0 bg-black/90" />
         <div key={`scene-${i}`} className="absolute inset-0"><GiftScene kind={scene} art={sceneArt} /></div>
-        <div key={`txt-${i}`} className="gs-text absolute inset-x-0 text-center px-6" style={SCENE_TEXT[scene]} onClick={(e) => e.stopPropagation()}>
+        <div key={`txt-${i}`} className="gs-text absolute inset-x-0 text-center px-6" style={{ ...SCENE_TEXT[scene], ...(SCENE_TEXT_DELAY[scene] ? { animationDelay: SCENE_TEXT_DELAY[scene] } : {}) }} onClick={(e) => e.stopPropagation()}>
           <p className="kg-title text-white text-xl font-black">{t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName })}</p>
           <p className="kg-amount mt-2">🪙 +{fmt(shown)} KGOLD</p>
           <button onClick={next} className="arc-play arc-start mt-5 mx-auto px-8 justify-center" style={{ padding: "12px 32px", fontSize: 14 }}>{i < notifs.length - 1 ? t("vn.common.next") : t("vn.kos.awesome")}</button>

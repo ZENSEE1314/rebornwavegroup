@@ -27,7 +27,7 @@ export const tierOf = (level: number) => LEVEL_TIERS.find((t) => level >= t.min)
 // Keyframes (lvSpin, lvPop, lvRays, lvRise, lvSpark) live in index.css.
 
 // The member's photo (or initial) inside their level ring.
-export function LevelAvatar({ u, level = 1, size = 40, label }: { u: any; level?: number; size?: number; label?: string }) {
+export function LevelAvatar({ u, level = 1, size = 40, label, noCrown }: { u: any; level?: number; size?: number; label?: string; noCrown?: boolean }) {
   const tier = tierOf(level);
   const pad = level >= 5 ? Math.max(2, Math.round(size * 0.08)) : 2;
   const initial = label || (Array.from(String(u?.username || u?.firstName || "?"))[0] || "?").toUpperCase();
@@ -39,7 +39,7 @@ export function LevelAvatar({ u, level = 1, size = 40, label }: { u: any; level?
           ? <img src={u.photo} alt="" className="w-full h-full object-cover" />
           : <span className="w-full h-full flex items-center justify-center font-bold text-black" style={{ background: "linear-gradient(135deg,#ec4899,#c9a84c)", fontSize: size * 0.4 }}>{initial}</span>}
       </span>
-      {tier.crown && <span className="absolute -top-2 left-1/2 -translate-x-1/2" style={{ fontSize: size * 0.32 }}>👑</span>}
+      {tier.crown && !noCrown && <span className="absolute -top-2 left-1/2 -translate-x-1/2" style={{ fontSize: size * 0.32 }}>👑</span>}
     </span>
   );
 }
@@ -146,6 +146,46 @@ export function GiftLevelsCard({ photo, name }: { photo?: string | null; name?: 
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// A member's top 3 gifters as a mini podium: 2nd · 1st · 3rd. Each photo keeps the
+// gifter's own level ring inside a gold / silver / bronze medal ring with a crown.
+const MEDAL = [
+  { c1: "#fff2a8", c2: "#f5b301", glow: "rgba(245,179,1,.75)", text: "#3a2600" },
+  { c1: "#ffffff", c2: "#94a3b8", glow: "rgba(203,213,225,.7)", text: "#1e293b" },
+  { c1: "#ffd2a6", c2: "#b45309", glow: "rgba(217,119,6,.65)", text: "#2b1400" },
+];
+function Crown({ color1, color2, w }: { color1: string; color2: string; w: number }) {
+  const id = `cr${color2.replace("#", "")}`;
+  return (
+    <svg width={w} height={w * 0.7} viewBox="0 0 40 28" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,.5))" }}>
+      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={color1} /><stop offset="1" stopColor={color2} /></linearGradient></defs>
+      <path d="M3 24 L1 7 L11 15 L20 2 L29 15 L39 7 L37 24 Z" fill={`url(#${id})`} stroke="rgba(0,0,0,.25)" strokeWidth="1" />
+      <rect x="3" y="22" width="34" height="5" rx="2" fill={`url(#${id})`} />
+      <circle cx="20" cy="3" r="2.4" fill="#fff" /><circle cx="1.5" cy="7" r="2" fill="#fff" /><circle cx="38.5" cy="7" r="2" fill="#fff" />
+    </svg>
+  );
+}
+export function GifterPodium({ gifters, nameOf }: { gifters: any[]; nameOf: (u: any) => string }) {
+  if (!gifters?.length) return null;
+  const order = [1, 0, 2].filter((i) => gifters[i]); // 2nd · 1st · 3rd
+  return (
+    <div className="mt-1.5 flex items-end gap-2.5">
+      {order.map((i) => {
+        const g = gifters[i]; const m = MEDAL[i]; const size = i === 0 ? 38 : 30;
+        return (
+          <div key={g.id} className="flex flex-col items-center min-w-0" style={{ width: size + 18 }}>
+            <Crown color1={m.c1} color2={m.c2} w={i === 0 ? 22 : 18} />
+            <span className="relative rounded-full -mt-1" style={{ padding: 2, background: `linear-gradient(135deg,${m.c1},${m.c2})`, boxShadow: `0 0 10px ${m.glow}` }}>
+              <LevelAvatar u={g} level={g.senderLevel || 1} size={size} noCrown />
+              <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `linear-gradient(180deg,${m.c1},${m.c2})`, color: m.text, border: "1px solid rgba(0,0,0,.25)" }}>{i + 1}</span>
+            </span>
+            <span className="mt-1.5 text-[9px] leading-tight text-white/75 truncate max-w-full">{nameOf(g)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
