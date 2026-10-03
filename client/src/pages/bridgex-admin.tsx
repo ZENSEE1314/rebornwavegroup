@@ -300,7 +300,7 @@ export function PosPanel({companyId,customers,crmOn,pricingOn,onMsg}:{companyId:
   const [busy,setBusy] = useState(false);
   const [detail,setDetail] = useState<Row|null>(null);
   const load = () => { request("/api/v1/company/pos/products",{},companyId).then(setProducts).catch(()=>{}); request("/api/v1/company/pos/tickets",{},companyId).then(setTickets).catch(()=>{}); };
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
 
   const addToCart = (p:Row) => setCart(c=>({...c,[p.id]:{product:p,qty:(c[p.id]?.qty||0)+1}}));
   const setQty = (id:number,qty:number) => setCart(c=>{const n={...c}; if(qty<=0)delete n[id]; else n[id]={...n[id],qty}; return n;});
@@ -371,7 +371,7 @@ function TeamPanel({onMsg}:{onMsg:(m:string)=>void}) {
   const [admins,setAdmins] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",email:"",role:"sales",password:""});
   const load = () => request("/api/v1/platform/admins").then(setAdmins).catch(()=>{});
-  useEffect(load,[]);
+  useEffect(() => { load(); },[]);
   return <Panel title="BridgeX platform team" subtitle="Create logins for your sales, accountants and partners. They can see the dashboard, create companies, add branches and business types, and view the company list.">
     <div className="grid gap-2 sm:grid-cols-4"><input className={field} placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input className={field} placeholder="Email (their login)" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/><select className={field} value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>{["sales","accountant","partner","admin"].map(r=><option key={r} value={r}>{r}</option>)}</select><input className={field} placeholder="Temp password (optional)" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></div>
     <button className={button+" mt-3"} disabled={!form.email} onClick={async()=>{try{const r=await request("/api/v1/platform/admins",{method:"POST",body:JSON.stringify(form)});onMsg(r.temporaryPassword?`Team member added. Temp password: ${r.temporaryPassword}`:"Team member added");setForm({name:"",email:"",role:"sales",password:""});load();}catch(e:any){onMsg(e.message);}}}><Plus className="mr-1 inline h-4 w-4"/>Add team member</button>
@@ -424,7 +424,7 @@ export function PricingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string
   const [rules,setRules] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",type:"happy_hour",scopeCategory:"",percentOff:"10",startTime:"17:00",endTime:"19:00",days:[] as number[]});
   const load = () => request("/api/v1/company/pricing/rules",{},companyId).then(setRules).catch(()=>{});
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   const DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const toggleDay=(i:number)=>setForm(f=>({...f,days:f.days.includes(i)?f.days.filter(x=>x!==i):[...f.days,i]}));
   return <Panel title="Pricing rules" subtitle="Happy hour, member and category discounts. Rules apply automatically in the register during their day/time window (server clock).">
@@ -450,7 +450,7 @@ function BranchBusinessCard({companyId,branch,companyModules,registry,onMsg}:{co
   const [sel,setSel] = useState<string[]>([]);
   const [configured,setConfigured] = useState(false);
   const load = () => request(`/api/v1/company/branch-modules?branchId=${branch.id}`,{},companyId).then((r)=>{setSel(r.modules||[]);setConfigured(!!r.configured);}).catch(()=>{});
-  useEffect(load,[companyId,branch.id]);
+  useEffect(() => { load(); },[companyId,branch.id]);
   const toggle = (k:string) => setSel(s=>s.includes(k)?s.filter(x=>x!==k):[...s,k]);
   const businessKeys = companyModules.filter(k=>{const r=registry.find(x=>x.key===k);return r?["Industry","Engagement"].includes(r.category):false;});
   const label = (k:string) => registry.find(r=>r.key===k)?.name||k;
@@ -485,7 +485,7 @@ export function AccountingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:str
   const [expenses,setExpenses] = useState<Row[]>([]);
   const [form,setForm] = useState({category:"rent",amount:"",note:"",spentOn:new Date().toISOString().slice(0,10)});
   const load = () => { request(`/api/v1/company/accounting/summary?from=${from}&to=${to}`,{},companyId).then(setSum).catch(()=>{}); request("/api/v1/company/accounting/expenses",{},companyId).then(setExpenses).catch(()=>{}); };
-  useEffect(load,[companyId,from,to]);
+  useEffect(() => { load(); },[companyId,from,to]);
   const money=(n:any)=>Number(n||0).toLocaleString();
   return <div className="space-y-5">
     <div className="flex flex-wrap items-end gap-2"><label className="text-xs text-slate-400">From<input className={field+" mt-1"} type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="text-xs text-slate-400">To<input className={field+" mt-1"} type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div>
@@ -512,7 +512,7 @@ export function FoodcourtPanel({companyId,onMsg}:{companyId:number;onMsg:(m:stri
   const [settle,setSettle] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",commissionPct:"10",contact:""});
   const load = () => { request("/api/v1/company/foodcourt/stalls",{},companyId).then(setStalls).catch(()=>{}); request("/api/v1/company/pos/products",{},companyId).then(setProducts).catch(()=>{}); request("/api/v1/company/foodcourt/settlement",{},companyId).then(setSettle).catch(()=>{}); };
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   return <div className="grid gap-5 lg:grid-cols-2">
     <Panel title="Stalls" subtitle="Each stall gets a commission %. Assign products to a stall; sales are allocated automatically.">
       <div className="grid gap-2 sm:grid-cols-3"><input className={field} placeholder="Stall name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><label className="text-xs text-slate-400">Commission %<input className={field+" mt-1"} type="number" value={form.commissionPct} onChange={e=>setForm({...form,commissionPct:e.target.value})}/></label><input className={field} placeholder="Contact" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/></div>
@@ -532,7 +532,7 @@ export function GiftsPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[]
   const [form,setForm] = useState({name:"",emoji:"🎁",price:"0",sharePct:"50"});
   const [send,setSend] = useState({giftId:"",toUserId:"",fromName:""});
   const load = () => { request("/api/v1/company/live-gifts/catalog",{},companyId).then(setCatalog).catch(()=>{}); request("/api/v1/company/live-gifts/leaderboard",{},companyId).then(setBoard).catch(()=>{}); };
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   return <div className="grid gap-5 lg:grid-cols-2">
     <Panel title="Gift catalog & send" subtitle="Virtual gifts guests buy for performers. Performer gets the share %; the house keeps the rest.">
       <div className="grid gap-2 sm:grid-cols-4"><input className={field} placeholder="Gift" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input className={field} placeholder="Emoji" value={form.emoji} onChange={e=>setForm({...form,emoji:e.target.value})}/><input className={field} type="number" placeholder="Price" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/><input className={field} type="number" placeholder="Share %" value={form.sharePct} onChange={e=>setForm({...form,sharePct:e.target.value})}/></div>
@@ -550,7 +550,7 @@ export function DrawsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)=
   const [name,setName] = useState(""); const [pool,setPool] = useState("0");
   const [ent,setEnt] = useState({name:"",tickets:"1"});
   const load = () => request("/api/v1/company/draws",{},companyId).then(setDraws).catch(()=>{});
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   const openD = async (d:Row) => { setSel(d); setEntries(await request(`/api/v1/company/draws/${d.id}/entries`,{},companyId)); };
   return <div className="grid gap-5 lg:grid-cols-2">
     <Panel title="Lucky draws" subtitle="Create a prize pool, add entrants with ticket counts, then draw a weighted random winner.">
@@ -572,7 +572,7 @@ export function PayrollPanel({companyId}:{companyId:number}) {
   const [from,setFrom] = useState(first.toISOString().slice(0,10));
   const [to,setTo] = useState(new Date().toISOString().slice(0,10));
   const load = () => request(`/api/v1/company/payroll/summary?from=${from}&to=${to}`,{},companyId).then(setRows).catch(()=>{});
-  useEffect(load,[companyId,from,to]);
+  useEffect(() => { load(); },[companyId,from,to]);
   const total = rows.reduce((s,r)=>s+Number(r.total),0);
   return <Panel title="Payroll summary" subtitle="Base pay (salaried) plus booking commission for the period. Hourly staff show their rate — log hours via attendance.">
     <div className="mb-3 flex gap-2"><label className="text-xs text-slate-400">From<input className={field+" mt-1"} type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="text-xs text-slate-400">To<input className={field+" mt-1"} type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div>
@@ -584,7 +584,7 @@ export function WholesalePanel({companyId,onMsg}:{companyId:number;onMsg:(m:stri
   const [accts,setAccts] = useState<Row[]>([]);
   const [form,setForm] = useState({name:"",contact:"",phone:"",priceTier:"standard",discountPct:"0",creditLimit:"0"});
   const load = () => request("/api/v1/company/wholesale/accounts",{},companyId).then(setAccts).catch(()=>{});
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   return <Panel title="Wholesale / B2B accounts" subtitle="Trade customers with a price tier, discount, credit limit and a running balance (charge on delivery, reduce on payment).">
     <div className="grid gap-2 sm:grid-cols-3"><input className={field} placeholder="Account name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input className={field} placeholder="Contact" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/><input className={field} placeholder="Phone" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/><input className={field} placeholder="Price tier" value={form.priceTier} onChange={e=>setForm({...form,priceTier:e.target.value})}/><label className="text-xs text-slate-400">Discount %<input className={field+" mt-1"} type="number" value={form.discountPct} onChange={e=>setForm({...form,discountPct:e.target.value})}/></label><label className="text-xs text-slate-400">Credit limit<input className={field+" mt-1"} type="number" value={form.creditLimit} onChange={e=>setForm({...form,creditLimit:e.target.value})}/></label></div>
     <button className={button+" mt-3"} disabled={!form.name} onClick={async()=>{try{await request("/api/v1/company/wholesale/accounts",{method:"POST",body:JSON.stringify(form)},companyId);setForm({name:"",contact:"",phone:"",priceTier:"standard",discountPct:"0",creditLimit:"0"});onMsg("Account added");load();}catch(e:any){onMsg(e.message);}}}><Plus className="mr-1 inline h-4 w-4"/>Add account</button>
@@ -598,7 +598,7 @@ export function ProjectsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:strin
   const [form,setForm] = useState({client:"",name:"",budget:"0",rate:"0"});
   const [te,setTe] = useState({hours:"",note:""});
   const load = () => request("/api/v1/company/projects",{},companyId).then(setProjects).catch(()=>{});
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   const openP = async (p:Row) => { setSel(p); setEntries(await request(`/api/v1/company/projects/${p.id}/time`,{},companyId)); };
   return <div className="grid gap-5 lg:grid-cols-2">
     <Panel title="Projects" subtitle="Client work with an hourly rate and budget. Billable = logged hours × rate.">
@@ -620,7 +620,7 @@ export function MarketingPanel({companyId,onMsg}:{companyId:number;onMsg:(m:stri
   const [form,setForm] = useState({name:"",channel:"whatsapp",segment:"all",message:""});
   const [aud,setAud] = useState<Row|null>(null);
   const load = () => request("/api/v1/company/marketing/campaigns",{},companyId).then(setCampaigns).catch(()=>{});
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   const preview = async (seg:string) => { const r=await request(`/api/v1/company/marketing/audience?segment=${seg}`,{},companyId); setAud(r); };
   useEffect(()=>{preview(form.segment);},[form.segment,companyId]);
   return <Panel title="Marketing campaigns" subtitle="Build an audience from your CRM segments, save the campaign, then export recipients (WhatsApp/email auto-send connects later).">
@@ -642,7 +642,7 @@ export function EventsPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)
   const [issue,setIssue] = useState({ticketTypeId:"",buyerName:"",qty:"1"});
   const [scan,setScan] = useState(""); const [scanRes,setScanRes] = useState<Row|null>(null);
   const loadEvents = () => request("/api/v1/company/events",{},companyId).then(setEvents).catch(()=>{});
-  useEffect(loadEvents,[companyId]);
+  useEffect(() => { loadEvents(); },[companyId]);
   const openEvent = async (e:Row) => { setSel(e); setTypes(await request(`/api/v1/company/events/${e.id}/types`,{},companyId)); setTickets(await request(`/api/v1/company/events/${e.id}/tickets`,{},companyId)); };
   const reloadSel = () => sel&&openEvent(sel);
   return <div className="grid gap-5 lg:grid-cols-2">
@@ -675,7 +675,7 @@ export function RepairPanel({companyId,staff,onMsg}:{companyId:number;staff:Row[
   const [tickets,setTickets] = useState<Row[]>([]);
   const [form,setForm] = useState({customerName:"",customerPhone:"",device:"",serialImei:"",problem:"",quote:"0",deposit:"0",assignedUserId:""});
   const load = () => request("/api/v1/company/repair/tickets",{},companyId).then(setTickets).catch(()=>{});
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   return <div className="grid gap-5 lg:grid-cols-2">
     <Panel title="New repair ticket" subtitle="Log a device in. Track it through the workflow to collection.">
       <div className="grid gap-2 sm:grid-cols-2"><input className={field} placeholder="Customer name" value={form.customerName} onChange={e=>setForm({...form,customerName:e.target.value})}/><input className={field} placeholder="Phone" value={form.customerPhone} onChange={e=>setForm({...form,customerPhone:e.target.value})}/><input className={field} placeholder="Device (e.g. iPhone 13)" value={form.device} onChange={e=>setForm({...form,device:e.target.value})}/><input className={field} placeholder="Serial / IMEI" value={form.serialImei} onChange={e=>setForm({...form,serialImei:e.target.value})}/><input className={field+" sm:col-span-2"} placeholder="Problem reported" value={form.problem} onChange={e=>setForm({...form,problem:e.target.value})}/><input className={field} type="number" placeholder="Quote" value={form.quote} onChange={e=>setForm({...form,quote:e.target.value})}/><input className={field} type="number" placeholder="Deposit" value={form.deposit} onChange={e=>setForm({...form,deposit:e.target.value})}/><select className={field+" sm:col-span-2"} value={form.assignedUserId} onChange={e=>setForm({...form,assignedUserId:e.target.value})}><option value="">Assign technician (optional)</option>{staff.map(s=><option key={s.user_id} value={s.user_id}>{[s.first_name,s.last_name].filter(Boolean).join(" ")||s.email}</option>)}</select></div>
@@ -701,7 +701,7 @@ export function BookingPanel({companyId,staff,customers,onMsg}:{companyId:number
   const loadBookings = () => request(`/api/v1/company/booking/bookings?date=${date}`,{},companyId).then(setBookings).catch(()=>{});
   const loadComms = () => { const from=new Date(); from.setDate(1); request(`/api/v1/company/booking/commissions?from=${from.toISOString().slice(0,10)}`,{},companyId).then(setComms).catch(()=>{}); };
   useEffect(()=>{ loadRes(); loadComms(); },[companyId]);
-  useEffect(loadBookings,[companyId,date]);
+  useEffect(() => { loadBookings(); },[companyId,date]);
   const act = async (run:()=>Promise<any>,msg:string) => { setBusy(true); onMsg(""); try{await run(); onMsg(msg); loadBookings(); loadComms();}catch(e:any){onMsg(e.message);}finally{setBusy(false);} };
   const create = () => act(async()=>{ const startsAt=new Date(`${date}T${form.time}:00`); await request("/api/v1/company/booking/bookings",{method:"POST",body:JSON.stringify({...form,resourceId:form.resourceId||null,customerId:form.customerId||null,startsAt:startsAt.toISOString(),durationMin:Number(form.durationMin),price:Number(form.price),deposit:Number(form.deposit),staffUserId:form.staffUserId||null})},companyId); setForm({...form,service:"",customerName:"",customerPhone:"",customerId:"",price:"0",deposit:"0",note:""}); },"Booking created");
 
@@ -739,7 +739,7 @@ export function TablesPanel({companyId,onMsg}:{companyId:number;onMsg:(m:string)
   const [pay,setPay] = useState({method:"cash"});
   const [busy,setBusy] = useState(false);
   const load = () => { request("/api/v1/company/restaurant/tables",{},companyId).then(setTables).catch(()=>{}); request("/api/v1/company/pos/products",{},companyId).then(setProducts).catch(()=>{}); };
-  useEffect(load,[companyId]);
+  useEffect(() => { load(); },[companyId]);
   const openTable = async (t:Row) => { setBusy(true); try { const tk = await request(`/api/v1/company/restaurant/tables/${t.id}/open`,{method:"POST",body:"{}"},companyId); await refreshDrawer(t.id); load(); } catch(e:any){onMsg(e.message);} finally{setBusy(false);} };
   const refreshDrawer = async (id:number) => { const d = await request(`/api/v1/company/restaurant/tables/${id}`,{},companyId); setOpen(d); };
   const addItem = async (productId:number) => { if(!open?.ticket) return; setBusy(true); try { await request(`/api/v1/company/pos/tickets/${open.ticket.id}/items`,{method:"POST",body:JSON.stringify({items:[{productId,qty:1}]})},companyId); await refreshDrawer(open.id); } catch(e:any){onMsg(e.message);} finally{setBusy(false);} };

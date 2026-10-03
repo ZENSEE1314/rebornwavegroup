@@ -59,16 +59,33 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 // ── Error boundary that catches failed lazy-chunk loads ────────────────────────
+// While an update is rolling out a page file can be missing for a short while: the error
+// screen reloads by itself a few times before leaving it to the Retry button.
+const AUTO_RETRY_KEY = "rwg-chunk-auto-retries";
+const AUTO_RETRY_MAX = 3;
+const AUTO_RETRY_DELAY_MS = 6_000;
+
 class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
   static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() {
+    let attempts = AUTO_RETRY_MAX;
+    try { attempts = Number(sessionStorage.getItem(AUTO_RETRY_KEY) || 0); } catch { /* storage blocked: no auto retry */ }
+    if (attempts >= AUTO_RETRY_MAX) return;
+    this.retryTimer = setTimeout(() => {
+      try { sessionStorage.setItem(AUTO_RETRY_KEY, String(attempts + 1)); sessionStorage.removeItem(RELOAD_KEY); } catch {}
+      window.location.reload();
+    }, AUTO_RETRY_DELAY_MS);
+  }
+  componentWillUnmount() { clearTimeout(this.retryTimer); }
   render() {
     if (this.state.failed) {
       return (
         <div className="rwg-page-bg min-h-screen w-full flex items-center justify-center">
           <div className="text-center">
             <p className="text-white/60 text-sm mb-4 px-6">{translate("app.loadFailed")}</p>
-            <button type="button" onClick={() => { try { sessionStorage.removeItem(RELOAD_KEY); } catch {} window.location.reload(); }} className="px-4 py-2 bg-violet-700 text-white rounded-lg text-sm cursor-pointer">
+            <button type="button" onClick={() => { try { sessionStorage.removeItem(RELOAD_KEY); sessionStorage.removeItem(AUTO_RETRY_KEY); } catch {} window.location.reload(); }} className="px-4 py-2 bg-violet-700 text-white rounded-lg text-sm cursor-pointer">
               {translate("app.retry")}
             </button>
           </div>
@@ -395,6 +412,11 @@ function Router() {
 }
 
 function App() {
+  // The app has stayed up: a later page-file failure starts its retries from zero again.
+  useEffect(() => {
+    const settled = setTimeout(() => { try { sessionStorage.removeItem(AUTO_RETRY_KEY); } catch {} }, 20_000);
+    return () => clearTimeout(settled);
+  }, []);
   useEffect(() => {
     const host = window.location.hostname;
     const isBridgeX = /bridgexpos/i.test(host) || window.location.pathname.startsWith("/bridgex");
