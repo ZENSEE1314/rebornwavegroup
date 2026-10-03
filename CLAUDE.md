@@ -191,6 +191,8 @@ text.
   `sceneOf` / `GiftScene`, index.css `gs-*`, lib/sfx.ts `gift(kind)`): Kiss 💋
   250,000 · Doluruu Thumbs Up 👍 750,000 · Lion Roar 🦁 1,250,000 · Big Whale 🐋
   1,750,000 · Rocket 🚀 1,000,000,000 (plus car / fireworks / crown / diamonds).
-  Added once to venues that already have gifts (`giftsV2Added_<company>`).
+  Added once to venues that already have gifts (`giftsV2Added_<company>`, claimed
+  atomically so parallel requests never add duplicates; `dedupeGiftTypes` cleans
+  old copies at startup). Gift lists are sorted cheapest first.
 - Each ranked member's top 3 gifters show as a podium (`GifterPodium`: 2nd · 1st
   · 3rd, gold / silver / bronze crown + medal ring around their own level ring).
