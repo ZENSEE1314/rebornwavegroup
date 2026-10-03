@@ -4,6 +4,7 @@ import { accrueEnergy } from "./petEnergy";
 import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { registerClientErrorRoute } from "./errorWatch";
+import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL } from "./giftLevels";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
@@ -72,6 +73,9 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   bookingLastTime: "",          // "HH:MM" — no booking start times from this time onward (areas can override)    // ask guests for a special request (birthday, company event, note)
   appAndroidUrl: "https://expo.dev/artifacts/eas/0YiA8OVhLT7Ri54Uvn0Xe9j8x1aH_w84jTMgSmqiHts.apk", // where /download/android sends people (EAS build 16, expires 2026-10-14; admin Settings override)
   appIosUrl: "",                // where /download/ios sends people (App Store / TestFlight link)
+  // Gift levels (KOS): KGOLD needed per level = base × growth^(level-2), or an exact list.
+  giftLevelSenderBase: "10000", giftLevelSenderGrowth: "1.2", giftLevelSenderList: "",
+  giftLevelReceiverBase: "10000", giftLevelReceiverGrowth: "1.2", giftLevelReceiverList: "",
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -118,6 +122,12 @@ async function getSettings() {
     bookingLastTime: map.bookingLastTime || "",
     appAndroidUrl: map.appAndroidUrl || SETTINGS_DEFAULTS.appAndroidUrl,
     appIosUrl: map.appIosUrl || SETTINGS_DEFAULTS.appIosUrl,
+    giftLevelSenderBase: Math.max(1, Number(map.giftLevelSenderBase) || 10000),
+    giftLevelSenderGrowth: Math.min(3, Math.max(1, Number(map.giftLevelSenderGrowth) || 1.2)),
+    giftLevelSenderList: map.giftLevelSenderList || "",
+    giftLevelReceiverBase: Math.max(1, Number(map.giftLevelReceiverBase) || 10000),
+    giftLevelReceiverGrowth: Math.min(3, Math.max(1, Number(map.giftLevelReceiverGrowth) || 1.2)),
+    giftLevelReceiverList: map.giftLevelReceiverList || "",
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
 }
@@ -1320,18 +1330,55 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // ── KOS (Kings of Singers) — KGOLD gifting + leaderboard ─────────────────
+  // KOS ranking: "tonight" (checked-in members, KGOLD received since check-in) or
+  // "month" (everyone, KGOLD received this month). Each row carries the member's
+  // top 3 gifters for that period and their Gifter / Star levels.
   app.get("/api/reborn/kos/leaderboard", requireAuth, async (req, res) => {
     try {
       const session = await ensureVenueSession();
       const cid = await rebornCompanyId(req);
-      const result = await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::bigint AS stars
-        FROM venue_checkins v JOIN users u ON u.id=v.user_id
-        LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at AND g.company_id=${cid}
-        WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL
-        GROUP BY u.id,u.first_name,u.username,u.profile_image_url,v.checked_in_at ORDER BY stars DESC,v.checked_in_at ASC LIMIT 100`);
-      res.json(((result.rows || result) as any[]).map((r) => ({ ...r, stars: Number(r.stars || 0) })));
+      const period = req.query.period === "month" ? "month" : "tonight";
+      const monthStart = new Date(`${session.day.slice(0, 7)}-01T${String(VENUE_DAY_START_HOUR - 7).padStart(2, "0")}:00:00Z`);
+      const since = period === "month" ? monthStart : venueDayStart(session.day);
+      const result = period === "month"
+        ? await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,SUM(g.recipient_kgold)::bigint AS stars,
+              EXISTS(SELECT 1 FROM venue_checkins v WHERE v.user_id=u.id AND v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL) AS "checkedIn"
+            FROM kos_gifts g JOIN users u ON u.id=g.to_user_id
+            WHERE g.company_id=${cid} AND g.created_at>=${since}
+            GROUP BY u.id,u.first_name,u.username,u.profile_image_url ORDER BY stars DESC LIMIT 100`)
+        : await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::bigint AS stars, true AS "checkedIn"
+            FROM venue_checkins v JOIN users u ON u.id=v.user_id
+            LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at AND g.company_id=${cid}
+            WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL
+            GROUP BY u.id,u.first_name,u.username,u.profile_image_url,v.checked_in_at ORDER BY stars DESC,v.checked_in_at ASC LIMIT 100`);
+      const rows = ((result.rows || result) as any[]).map((r) => ({ ...r, stars: Number(r.stars || 0) }));
+      // Top 3 gifters of each member in this period.
+      const ids = rows.map((r) => r.id);
+      const tops = new Map<string, any[]>();
+      if (ids.length) {
+        const t: any = await db.execute(sql`SELECT g.to_user_id AS "to", g.from_user_id AS id, u.first_name AS "firstName", u.username, u.profile_image_url AS photo, SUM(g.kgold_cost)::bigint AS sent
+          FROM kos_gifts g JOIN users u ON u.id=g.from_user_id
+          WHERE g.company_id=${cid} AND g.created_at>=${since} AND g.to_user_id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+          GROUP BY g.to_user_id, g.from_user_id, u.first_name, u.username, u.profile_image_url ORDER BY sent DESC`);
+        for (const r of (t.rows || t) as any[]) { const list = tops.get(r.to) || []; if (list.length < 3) list.push({ id: r.id, firstName: r.firstName, username: r.username, photo: r.photo, sent: Number(r.sent) || 0 }); tops.set(r.to, list); }
+      }
+      const s = await getSettings();
+      const lv = await giftLevels(cid, [...ids, ...Array.from(tops.values()).flat().map((x) => x.id)], s);
+      const lvOf = (id: string) => ({ senderLevel: lv.get(id)?.sender.level || 1, receiverLevel: lv.get(id)?.receiver.level || 1 });
+      res.json(rows.map((r) => ({ ...r, ...lvOf(r.id), topGifters: (tops.get(r.id) || []).map((g) => ({ ...g, ...lvOf(g.id) })) })));
     } catch (e) { console.error("kos leaderboard", e); res.status(500).json({ message: tr(req, { en: "Failed to load leaderboard", zh: "排行榜加载失败", id: "Gagal memuat papan peringkat" }) }); }
   });
+  // My Gifter + Star levels (profile page, level-up animation).
+  app.get("/api/reborn/kos/levels/me", requireAuth, async (req, res) => {
+    const uid = getUserId(req)!;
+    const lv = (await giftLevels(await rebornCompanyId(req), [uid], await getSettings())).get(uid);
+    res.json({ maxLevel: MAX_LEVEL, sender: lv?.sender, receiver: lv?.receiver });
+  });
+  // Admin preview: KGOLD needed for every level with the current settings.
+  app.get("/api/reborn/admin/gift-levels", requireAdmin(async (_req, res) => {
+    const c = levelConfigs(await getSettings());
+    res.json({ sender: levelCurve(c.sender).slice(1), receiver: levelCurve(c.receiver).slice(1) });
+  }));
 
   app.get("/api/reborn/kos/search", requireAuth, async (req, res) => {
     try {
@@ -1422,6 +1469,7 @@ export function registerRebornRoutes(app: Express) {
       if (!giver || (giver.kgold || 0) < cost) return res.status(400).json({ message: tr(req, { en: "Need {n} KGOLD for a {gift}. Buy more KGOLD first.", zh: "送出 {gift} 需要 {n} KGOLD，请先购买更多 KGOLD。", id: "Butuh {n} KGOLD untuk {gift}. Beli KGOLD dulu." }, { n: fmtN(cost, reqLang(req)), gift: gt.name }) });
       const s = await getSettings();
       const recipientKgold = Math.floor(cost * (100 - s.giftFeePercent) / 100);
+      const before = await giftLevels(cid, [fromUserId, toUserId], s);
       const now = new Date();
       await db.update(users).set({ kgold: sql`${users.kgold} - ${cost}`, updatedAt: now }).where(eq(users.id, fromUserId));
       await db.update(users).set({ kgold: sql`${users.kgold} + ${recipientKgold}`, updatedAt: now }).where(eq(users.id, toUserId));
@@ -1436,8 +1484,16 @@ export function registerRebornRoutes(app: Express) {
         body: pick(lang, { en: "You received {n} KGOLD", zh: "你收到了 {n} KGOLD", id: "Kamu menerima {n} KGOLD" }, { n: fmtN(recipientKgold, lang) }),
       }), { path: "/kos" });
       pushUserI18n(toUserId, (lang) => ({ title: pick(lang, { en: "🎁 You received a gift!", zh: "🎁 你收到了一份礼物！", id: "🎁 Kamu menerima hadiah!" }), body: pick(lang, { en: "{name} sent you a {gift} · +{n} KGOLD", zh: "{name} 送了你 {gift} · +{n} KGOLD", id: "{name} mengirimimu {gift} · +{n} KGOLD" }, { name: giverName(lang), gift: gt.name, n: fmtN(recipientKgold, lang) }), url: "/reborn-kos", tag: "gift" })).catch(() => {});
+      // Level ups: the sender's Gifter level, the recipient's Star level.
+      const after = await giftLevels(cid, [fromUserId, toUserId], s);
+      const senderUp = (after.get(fromUserId)?.sender.level || 1) > (before.get(fromUserId)?.sender.level || 1) ? after.get(fromUserId)!.sender.level : null;
+      const starUp = (after.get(toUserId)?.receiver.level || 1) > (before.get(toUserId)?.receiver.level || 1) ? after.get(toUserId)!.receiver.level : null;
+      if (starUp) notifyUserI18n(toUserId, "kos_level", (lang) => ({
+        title: pick(lang, { en: "⭐ Star level up — Lv.{n}!", zh: "⭐ 明星等级提升——Lv.{n}！", id: "⭐ Level Bintang naik — Lv.{n}!" }, { n: starUp }),
+        body: pick(lang, { en: "Your gifts received took you to Star Lv.{n}. New ring unlocked when you hit a new tier!", zh: "你收到的礼物让你升到明星 Lv.{n}。达到新段位会解锁新头像框！", id: "Hadiah yang kamu terima membawamu ke Bintang Lv.{n}. Bingkai baru terbuka di tingkat baru!" }, { n: starUp }),
+      }), { path: "/profile" }).catch(() => {});
       const fresh = await storage.getUser(fromUserId);
-      res.json({ message: tr(req, { en: "Sent a {gift}!", zh: "已送出 {gift}！", id: "{gift} terkirim!" }, { gift: gt.name }), kgold: fresh?.kgold ?? 0 });
+      res.json({ message: tr(req, { en: "Sent a {gift}!", zh: "已送出 {gift}！", id: "{gift} terkirim!" }, { gift: gt.name }), kgold: fresh?.kgold ?? 0, levelUp: senderUp ? { kind: "sender", level: senderUp } : null });
     } catch (e) { console.error("kos gift", e); res.status(500).json({ message: tr(req, { en: "Gift failed", zh: "送礼失败", id: "Gagal mengirim hadiah" }) }); }
   });
 
@@ -2125,7 +2181,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);

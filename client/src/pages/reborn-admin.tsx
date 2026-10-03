@@ -657,6 +657,7 @@ function Settings() {
         <Field label={t("admin.set.minBuy")} value={cur.minBuyKgold} onChange={(v: any) => set("minBuyKgold", v)} />
         <Field label={t("admin.set.minCashout")} value={cur.minCashoutRp} onChange={(v: any) => set("minCashoutRp", v)} />
       </Card>
+      <GiftLevelSettings cur={cur} set={set} setStr={setStr} />
       <Card>
         <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> {t("admin.set.pos")}</h3>
         <Field label={t("admin.set.tax")} value={cur.taxPercent} onChange={(v: any) => set("taxPercent", v)} />
@@ -765,6 +766,39 @@ function Settings() {
     </div>
   );
 }
+// Admin › Settings › Gift levels: KGOLD needed per level (Gifter = sent, Star = received).
+function levelPreview(base: number, growth: number, list: string) {
+  const nums = String(list || "").split(/[\s,;]+/).map(Number).filter((x) => Number.isFinite(x) && x > 0);
+  const at = [0, 0];
+  for (let lv = 2; lv <= 50; lv++) at[lv] = at[lv - 1] + (nums.length >= lv - 1 ? nums[lv - 2] : Math.max(1, Math.round((base || 10000) * Math.pow(Math.min(3, Math.max(1, growth || 1.2)), lv - 2))));
+  return at;
+}
+function GiftLevelSettings({ cur, set, setStr }: any) {
+  const { t } = useTranslation();
+  const block = (p: "Sender" | "Receiver") => {
+    const at = levelPreview(Number(cur[`giftLevel${p}Base`]), Number(cur[`giftLevel${p}Growth`]), cur[`giftLevel${p}List`]);
+    return (
+      <div className="rounded-xl bg-black/20 border border-white/10 p-3 mb-3">
+        <p className="font-bold text-sm mb-2">{p === "Sender" ? t("admin.lv.sender") : t("admin.lv.receiver")}</p>
+        <Field label={t("admin.lv.base")} value={cur[`giftLevel${p}Base`]} onChange={(v: any) => set(`giftLevel${p}Base`, v)} />
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.growth")}</span><input type="number" step="0.05" min="1" max="3" value={cur[`giftLevel${p}Growth`] ?? ""} onChange={(e) => set(`giftLevel${p}Growth`, e.target.value)} className={inp + " w-full"} /></label>
+        <label className="block mb-2"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.list")}</span><textarea rows={2} value={cur[`giftLevel${p}List`] || ""} onChange={(e) => setStr(`giftLevel${p}List`, e.target.value)} placeholder="10000, 12000, 15000, …" className={inp + " w-full font-mono text-xs"} /></label>
+        <div className="grid gap-1 text-[10px]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+          {[2, 5, 10, 15, 20, 30, 40, 50].map((lv) => <div key={lv} className="rounded bg-white/5 px-1.5 py-1"><b className="text-amber-200">Lv.{lv}</b><span className="block text-white/60">{at[lv].toLocaleString()}</span></div>)}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <Card>
+      <h3 className="font-bold mb-1 flex items-center gap-2"><Sparkles className="w-4 h-4 text-fuchsia-300" /> {t("admin.lv.title")}</h3>
+      <p className="text-xs text-white/50 mb-3">{t("admin.lv.hint")}</p>
+      {block("Sender")}
+      {block("Receiver")}
+    </Card>
+  );
+}
+
 function Field({ label, value, onChange }: any) {
   // Show blank instead of a lone 0 and select-on-focus, so typing a value
   // never leaves a leading zero (e.g. "05000").

@@ -170,3 +170,20 @@ text.
   stack, riding, poker3, bridge, frog) carry on; real-time ones (tap, timer,
   wheel, rlgl, draw, rps) go back to the lobby ("restarted", host starts again).
   Use `getRoom(code)` in routes, never `rooms.get` directly; `dropRoom` deletes.
+
+## KOS gift levels + ranking tabs
+
+- Two levels per member, 50 each (server/giftLevels.ts): **Gifter** (🎁, all
+  KGOLD sent) and **Star** (⭐, all KGOLD received). KGOLD for the next level =
+  base × growth^(level−2), or an exact 49-number list — admin Settings › Gift
+  levels (`giftLevelSender*` / `giftLevelReceiver*`; preview table there).
+- The avatar ring (components/LevelRing.tsx `LevelAvatar`, by the higher of the
+  two levels) changes every 5 levels: bronze 5, silver 10, gold 15, emerald 20,
+  sapphire 25, amethyst 30, ruby 35, diamond 40 (spins), rainbow 45, legend 50 (👑).
+- Level up → full-screen "LEVEL UP" animation (`LevelUpWatcher` in RebornLayout
+  compares /api/reborn/kos/levels/me with the last seen levels); Star level ups
+  also send a notification. Profile shows "My gift levels" with progress.
+- KOS ranking tabs: Tonight (checked in, received since check-in) / This month
+  (everyone, received this month); every row shows the member's top 3 gifters
+  for that period (`/api/reborn/kos/leaderboard?period=`). Gift only to members
+  checked in tonight.
