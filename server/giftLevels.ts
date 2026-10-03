@@ -1,7 +1,8 @@
 // Gift levels (like TikTok): a Gifter level from all KGOLD a member has SENT and a
-// Star level from all KGOLD they have RECEIVED in KOS. 50 levels each. The EXP
-// (KGOLD) needed for each level is set by the admin: a base + growth per level,
-// or an exact list of 49 numbers (EXP needed to reach level 2, 3, … 50).
+// Star level from all KGOLD they have RECEIVED in KOS. 50 levels each. The total
+// KGOLD needed for each level is set by the admin: Lv.2 at `base`, then each
+// level needs `growth` × the previous level's total (default 1,000,000 × 2:
+// Lv.2 = 1M, Lv.3 = 2M, Lv.4 = 4M …), or an exact list of 49 totals.
 import { sql } from "drizzle-orm";
 import { db } from "./db";
 
@@ -9,12 +10,12 @@ export const MAX_LEVEL = 50;
 export type LevelCfg = { base: number; growth: number; list?: number[] };
 export type LevelInfo = { level: number; exp: number; levelStart: number; nextAt: number | null; progress: number };
 
-// Cumulative KGOLD needed to reach each level: at[1] = 0 … at[50].
+// Total KGOLD needed to reach each level: at[1] = 0, at[2] = base, at[n] = at[n-1] × growth.
 export function levelCurve(cfg: LevelCfg): number[] {
   const at = [0, 0];
   for (let lv = 2; lv <= MAX_LEVEL; lv++) {
-    const step = cfg.list && cfg.list.length >= lv - 1 ? Math.max(1, cfg.list[lv - 2]) : Math.max(1, Math.round(cfg.base * Math.pow(cfg.growth, lv - 2)));
-    at[lv] = at[lv - 1] + step;
+    const want = cfg.list && cfg.list.length >= lv - 1 ? cfg.list[lv - 2] : lv === 2 ? cfg.base : Math.round(at[lv - 1] * cfg.growth);
+    at[lv] = Math.max(at[lv - 1] + 1, want); // always increasing
   }
   return at;
 }
@@ -33,8 +34,8 @@ const parseList = (v: unknown) => {
 // Admin settings → the two curves.
 export function levelConfigs(s: Record<string, any>) {
   const cfg = (p: "Sender" | "Receiver"): LevelCfg => ({
-    base: Math.max(1, Number(s[`giftLevel${p}Base`]) || 10000),
-    growth: Math.min(3, Math.max(1, Number(s[`giftLevel${p}Growth`]) || 1.2)),
+    base: Math.max(1, Number(s[`giftLevel${p}Base`]) || 1000000),
+    growth: Math.min(10, Math.max(1, Number(s[`giftLevel${p}Growth`]) || 2)),
     list: parseList(s[`giftLevel${p}List`]),
   });
   return { sender: cfg("Sender"), receiver: cfg("Receiver") };

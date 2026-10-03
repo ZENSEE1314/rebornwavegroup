@@ -73,9 +73,9 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   bookingLastTime: "",          // "HH:MM" — no booking start times from this time onward (areas can override)    // ask guests for a special request (birthday, company event, note)
   appAndroidUrl: "https://expo.dev/artifacts/eas/0YiA8OVhLT7Ri54Uvn0Xe9j8x1aH_w84jTMgSmqiHts.apk", // where /download/android sends people (EAS build 16, expires 2026-10-14; admin Settings override)
   appIosUrl: "",                // where /download/ios sends people (App Store / TestFlight link)
-  // Gift levels (KOS): KGOLD needed per level = base × growth^(level-2), or an exact list.
-  giftLevelSenderBase: "10000", giftLevelSenderGrowth: "1.2", giftLevelSenderList: "",
-  giftLevelReceiverBase: "10000", giftLevelReceiverGrowth: "1.2", giftLevelReceiverList: "",
+  // Gift levels (KOS): Lv.2 needs `Base` KGOLD in total, each next level `Growth` × that (2 = double), or an exact list.
+  giftLevelSenderBase: "1000000", giftLevelSenderGrowth: "2", giftLevelSenderList: "",
+  giftLevelReceiverBase: "1000000", giftLevelReceiverGrowth: "2", giftLevelReceiverList: "",
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -122,11 +122,11 @@ async function getSettings() {
     bookingLastTime: map.bookingLastTime || "",
     appAndroidUrl: map.appAndroidUrl || SETTINGS_DEFAULTS.appAndroidUrl,
     appIosUrl: map.appIosUrl || SETTINGS_DEFAULTS.appIosUrl,
-    giftLevelSenderBase: Math.max(1, Number(map.giftLevelSenderBase) || 10000),
-    giftLevelSenderGrowth: Math.min(3, Math.max(1, Number(map.giftLevelSenderGrowth) || 1.2)),
+    giftLevelSenderBase: Math.max(1, Number(map.giftLevelSenderBase) || 1000000),
+    giftLevelSenderGrowth: Math.min(10, Math.max(1, Number(map.giftLevelSenderGrowth) || 2)),
     giftLevelSenderList: map.giftLevelSenderList || "",
-    giftLevelReceiverBase: Math.max(1, Number(map.giftLevelReceiverBase) || 10000),
-    giftLevelReceiverGrowth: Math.min(3, Math.max(1, Number(map.giftLevelReceiverGrowth) || 1.2)),
+    giftLevelReceiverBase: Math.max(1, Number(map.giftLevelReceiverBase) || 1000000),
+    giftLevelReceiverGrowth: Math.min(10, Math.max(1, Number(map.giftLevelReceiverGrowth) || 2)),
     giftLevelReceiverList: map.giftLevelReceiverList || "",
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
