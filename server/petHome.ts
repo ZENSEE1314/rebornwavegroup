@@ -4,6 +4,7 @@
 import type { Express } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
+import { homeCompanySlug } from "./tenantContext";
 import { requireAuth, getUserId } from "./multiAuth";
 import { getBookingTimezone } from "./booking";
 import { reqLang, tr, type Lang } from "./i18n";
@@ -173,9 +174,12 @@ export const COINS_PER_WIN = 20;
 export const COINS_NUMBER_CRACK = 50;
 export const DAILY_COIN_CAP = 300;
 
-let ready: Promise<void> | null = null;
+// Created on first use, once per data space (each company has its own pet_homes).
+const readyBySpace = new Map<string, Promise<void>>();
 function ensureTable() {
-  ready ??= db.execute(sql`CREATE TABLE IF NOT EXISTS pet_homes (
+  const space = homeCompanySlug();
+  let ready = readyBySpace.get(space);
+  if (!ready) readyBySpace.set(space, ready = db.execute(sql`CREATE TABLE IF NOT EXISTS pet_homes (
     user_id varchar PRIMARY KEY,
     coins integer NOT NULL DEFAULT 0,
     owned jsonb NOT NULL DEFAULT '[]',
@@ -185,7 +189,7 @@ function ensureTable() {
     earned_day varchar,
     earned_today integer NOT NULL DEFAULT 0,
     updated_at timestamp NOT NULL DEFAULT now()
-  )`).then(() => undefined).catch((e) => { ready = null; throw e; });
+  )`).then(() => undefined).catch((e) => { readyBySpace.delete(space); throw e; }));
   return ready;
 }
 

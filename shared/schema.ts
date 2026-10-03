@@ -90,6 +90,11 @@ export const bridgeCompanies = pgTable("bridge_companies", {
   currency: varchar("currency").notNull().default("IDR"),
   subscriptionStatus: varchar("subscription_status").notNull().default("trialing"),
   trialEndsAt: timestamp("trial_ends_at"),
+  // Where the company's member-app data lives: "shared" (platform tables, legacy),
+  // "schema" (own data space on this server, dbSchema) or "dedicated" (own server, serverUrl).
+  dataMode: varchar("data_mode").notNull().default("shared"),
+  dbSchema: varchar("db_schema"),
+  serverUrl: text("server_url"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

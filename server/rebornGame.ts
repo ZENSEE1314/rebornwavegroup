@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
 import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
+import { currentTenant, homeCompanySlug } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL } from "./giftLevels";
 import { storage } from "./storage";
@@ -81,7 +82,7 @@ async function getSettings() {
   const rows = await db.select().from(appSettings);
   const map: Record<string, string> = { ...SETTINGS_DEFAULTS };
   for (const r of rows) if (r.key in map || true) map[r.key] = r.value ?? map[r.key];
-  const companySettingsResult = await db.execute(sql`SELECT s.config FROM bridge_company_settings s JOIN bridge_companies c ON c.id=s.company_id WHERE c.slug='reborn-wave-group' LIMIT 1`);
+  const companySettingsResult = await db.execute(sql`SELECT s.config FROM bridge_company_settings s JOIN bridge_companies c ON c.id=s.company_id WHERE c.slug=${homeCompanySlug()} LIMIT 1`);
   const companyConfig: any = (companySettingsResult.rows || companySettingsResult as any)[0]?.config || {};
   return {
     giftFeePercent: Number(map.giftFeePercent) || 30,
@@ -159,7 +160,7 @@ async function pushUserI18n(userId: string | null | undefined, make: (lang: Lang
 }
 // Same recipients as sendRebornStaffNotification, each in their own language.
 export async function notifyStaffI18n(type: string, text: LangText, data?: Record<string, unknown>, opts?: { adminsOnly?: boolean }) {
-  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
   if (!company) return;
   if (opts?.adminsOnly) { // main admins only (e.g. error alerts — Admin › Errors is admin-only)
     const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
@@ -178,7 +179,7 @@ export async function notifyStaffI18n(type: string, text: LangText, data?: Recor
 }
 // Same recipients as sendRebornAllNotification (every user), each in their own language.
 async function notifyAllI18n(type: string, text: LangText, data?: Record<string, unknown>) {
-  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
   if (!company) return;
   const allUsers = await db.select({ id: users.id }).from(users);
   const groups = await idsByLang(allUsers.map((u) => u.id));
@@ -200,14 +201,18 @@ export async function pushAdminsI18n(make: (lang: Lang) => PushPayload) {
 // on every call. When nothing matches (localhost, railway host, no header) it
 // returns Reborn, so existing behaviour is unchanged.
 const _tenantCache = new Map<string, { row: any; at: number }>();
-let _rebornCache: { row: any; at: number } | null = null;
+// The home company of each data space (Reborn on the platform, the tenant in its own space), by slug.
+const _homeCache = new Map<string, { row: any; at: number }>();
 async function rebornDefault() {
+  const _rebornCache = _homeCache.get(homeCompanySlug());
   if (_rebornCache && Date.now() - _rebornCache.at < 60000) return _rebornCache.row;
-  const row = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0] || null;
-  _rebornCache = { row, at: Date.now() };
+  const row = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0] || null;
+  _homeCache.set(homeCompanySlug(), { row, at: Date.now() });
   return row;
 }
 async function companyForReq(req: Request) {
+  // Inside a company's own data space there is exactly one company: its own.
+  if (currentTenant()) return rebornDefault();
   const slug = String(req.header("x-tenant-slug") || "").toLowerCase().trim();
   const idHdr = Number(req.header("x-tenant-id")) || 0;
   const host = String(req.hostname || "").toLowerCase().split(":")[0];
@@ -510,7 +515,7 @@ async function adminRole(userId: string | null): Promise<"admin" | "manager" | "
   const u = await storage.getUser(userId);
   if (u?.role === "admin") return "admin";
   if (u?.role !== "staff") return "user";
-  const r = await db.execute(sql`SELECT m.role FROM bridge_company_members m JOIN bridge_companies c ON c.id=m.company_id WHERE c.slug='reborn-wave-group' AND m.user_id=${userId} LIMIT 1`);
+  const r = await db.execute(sql`SELECT m.role FROM bridge_company_members m JOIN bridge_companies c ON c.id=m.company_id WHERE c.slug=${homeCompanySlug()} AND m.user_id=${userId} LIMIT 1`);
   const role = ((r as any).rows || r)[0]?.role;
   return role === "manager" || role === "owner" || role === "admin" ? "manager" : "staff";
 }
@@ -718,13 +723,15 @@ async function seedSongsIfEmpty() {
 // ── App features the admin can switch off for members ─────────────────────
 // Stored as a JSON array of feature keys in app_settings.disabledFeatures.
 export const APP_FEATURE_KEYS = ["pet", "order", "bottles", "spin", "games", "bookings", "loyalty", "kos", "songs", "referral", "support", "chat", "history"] as const;
-let _disabledCache: { at: number; list: string[] } | null = null;
+// Per data space: each company switches its own features on and off.
+const _disabledCaches = new Map<string, { at: number; list: string[] }>();
 export async function disabledFeatures(): Promise<string[]> {
+  const _disabledCache = _disabledCaches.get(homeCompanySlug());
   if (_disabledCache && Date.now() - _disabledCache.at < 15000) return _disabledCache.list;
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "disabledFeatures"));
   let list: string[] = [];
   try { const v = JSON.parse(row?.value || "[]"); if (Array.isArray(v)) list = v.filter((k) => (APP_FEATURE_KEYS as readonly string[]).includes(k)); } catch {}
-  _disabledCache = { at: Date.now(), list };
+  _disabledCaches.set(homeCompanySlug(), { at: Date.now(), list });
   return list;
 }
 // Member actions that belong to each feature (POST/PUT/DELETE only; reads stay open).
@@ -983,7 +990,7 @@ export function registerRebornRoutes(app: Express) {
     const v = JSON.stringify(list);
     await db.insert(appSettings).values({ key: "disabledFeatures", value: v, updatedAt: new Date() })
       .onConflictDoUpdate({ target: appSettings.key, set: { value: v, updatedAt: new Date() } });
-    _disabledCache = null;
+    _disabledCaches.delete(homeCompanySlug());
     await logAdmin(req, { targetType: "settings", action: "features", entityType: "settings", description: `App features off: ${list.join(", ") || "none"}` });
     res.json({ disabled: list, message: tr(req, { en: "Saved", zh: "已保存", id: "Tersimpan" }) });
   }));
@@ -2249,7 +2256,7 @@ export function registerRebornRoutes(app: Express) {
         rewardsEnabled: loyalty.rewardsEnabled !== false,
         tiers: Array.isArray(loyalty.tiers) ? loyalty.tiers.slice(0, 20) : [],
       };
-      await db.execute(sql`UPDATE bridge_company_settings s SET config=jsonb_set(COALESCE(s.config,'{}'::jsonb),'{loyalty}',${JSON.stringify(clean)}::jsonb,true), updated_at=now() FROM bridge_companies c WHERE s.company_id=c.id AND c.slug='reborn-wave-group'`);
+      await db.execute(sql`UPDATE bridge_company_settings s SET config=jsonb_set(COALESCE(s.config,'{}'::jsonb),'{loyalty}',${JSON.stringify(clean)}::jsonb,true), updated_at=now() FROM bridge_companies c WHERE s.company_id=c.id AND c.slug=${homeCompanySlug()}`);
     }
     if (req.body?.timezone !== undefined) setBookingTimezone(String(req.body.timezone));
     if (req.body?.bookingTableDayLock !== undefined) setBookingRules({ tableDayLock: String(req.body.bookingTableDayLock) === "true" });
@@ -2337,7 +2344,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.password) patch.password = await bcrypt.hash(String(b.password), 12);
     const [row] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
     if (b.role === "staff" || b.role === "admin" || b.role === "manager") {
-      const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+      const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
       if (reborn) {
         await db.insert(bridgeCompanyMembers).values({ companyId: reborn.id, userId: id, positionId: b.positionId ? Number(b.positionId) : null, role: b.role }).onConflictDoUpdate({ target: [bridgeCompanyMembers.companyId, bridgeCompanyMembers.userId], set: { positionId: b.positionId ? Number(b.positionId) : null, role: b.role, status: "active", updatedAt: new Date() } });
         await db.insert(bridgeStaffProfiles).values({ companyId: reborn.id, userId: id, positionId: b.positionId ? Number(b.positionId) : null }).onConflictDoUpdate({ target: [bridgeStaffProfiles.companyId, bridgeStaffProfiles.userId], set: { positionId: b.positionId ? Number(b.positionId) : null, updatedAt: new Date() } });
@@ -2610,7 +2617,7 @@ export function registerRebornRoutes(app: Express) {
 
   // ── POS · Inventory · In-app ordering · Accounting ──────────────────────────
   async function pointsSpendRp() {
-    const result = await db.execute(sql`SELECT COALESCE((s.config->'loyalty'->>'pointsSpendRp')::numeric,1000) value FROM bridge_company_settings s JOIN bridge_companies c ON c.id=s.company_id WHERE c.slug='reborn-wave-group' LIMIT 1`);
+    const result = await db.execute(sql`SELECT COALESCE((s.config->'loyalty'->>'pointsSpendRp')::numeric,1000) value FROM bridge_company_settings s JOIN bridge_companies c ON c.id=s.company_id WHERE c.slug=${homeCompanySlug()} LIMIT 1`);
     return Math.max(1, Number((result.rows || result as any)[0]?.value) || 1000);
   }
 
@@ -3345,14 +3352,14 @@ export function registerRebornRoutes(app: Express) {
 
   app.get("/api/reborn/admin/payroll", requireAdmin(async (req,res)=>{
     const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
-    const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,"reborn-wave-group")).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
+    const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
     const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
     const staff=((result.rows||result) as any[]).map((x)=>{const basic=x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary);const salesCommission=Number(x.sales)*Number(x.commission_rate)/100;const overtimePay=Number(x.ot_hours)*otRate;return{...x,basic,salesCommission,overtimePay,otRate,total:basic+salesCommission+overtimePay,targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
     res.json({month,from,to,staff,referrals:refs.rows||refs});
   }));
-  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,"reborn-wave-group")).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
+  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
   app.post("/api/reborn/admin/payroll/pay", requireAdmin(async(req,res)=>{const b=req.body||{};const amount=Math.max(0,Number(b.amount)||0);const month=String(b.month||"");const userId=String(b.userId||"");if(!amount||!month||!userId)return res.status(400).json({message:tr(req, { en: "Staff, month and amount are required", zh: "请填写员工、月份和金额", id: "Staf, bulan, dan jumlah wajib diisi" })});const existing=await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType,"payroll"),eq(ledgerEntries.refId,`${userId}:${month}`))).limit(1);if(existing.length)return res.status(409).json({message:tr(req, { en: "This staff payroll has already been recorded for the month", zh: "该员工本月的工资已记录", id: "Gaji staf ini sudah dicatat untuk bulan tersebut" })});const[row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(amount),note:`Payroll ${b.name||userId} · ${month} (basic + commission)`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();res.json({message:tr(req, { en: "Payroll recorded as an expense", zh: "工资已记为支出", id: "Gaji dicatat sebagai pengeluaran" }),row});}));
 
   // White-label feature flags — read the club's enabled modules from the
@@ -3554,7 +3561,7 @@ export function registerRebornRoutes(app: Express) {
     res.json((rows.rows || rows as any[]).map((r: any) => r.dep));
   }));
   app.get("/api/reborn/staff/feedback", requireStaff(async (_req, res) => {
-    const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]; if (!reborn) return res.json([]);
+    const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0]; if (!reborn) return res.json([]);
     const result=await db.execute(sql`SELECT f.*, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) user_name, COALESCE(NULLIF(trim(concat(s.first_name,' ',s.last_name)),''),s.email) staff_name FROM bridge_feedback f LEFT JOIN users u ON u.id=f.user_id LEFT JOIN users s ON s.id=f.staff_user_id WHERE f.company_id=${reborn.id} ORDER BY f.id DESC LIMIT 300`); res.json(result.rows||result);
   }));
   app.get("/api/reborn/admin/attendance", requireAdmin(async (req, res) => {

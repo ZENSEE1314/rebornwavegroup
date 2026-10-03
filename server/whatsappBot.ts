@@ -21,6 +21,7 @@ import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas,
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
+import { currentTenant } from "./tenantContext";
 import { localeOf, asLang, faqIn, pick } from "./i18n";
 import { parseDateInput, yesNo, weekdayInWeek, weekdayOfIso } from "./dateParse";
 
@@ -40,6 +41,8 @@ function cfg() {
   };
 }
 export function whatsappConfigured(): boolean {
+  // The WhatsApp number is the platform company's; other companies' data spaces have none (yet).
+  if (currentTenant()) return false;
   const c = cfg();
   return Boolean(c.token && c.phoneId);
 }
@@ -113,6 +116,7 @@ type WhatsAppChoice = { id: string; title: string };
 // official interactive payload; QR-linked WhatsApp Web uses the matching
 // Baileys native-flow message and falls back to numbered text when unavailable.
 export async function sendWhatsAppChoices(to: string, text: string, choices: WhatsAppChoice[]): Promise<boolean> {
+  if (currentTenant()) return false;
   const c = cfg();
   const num = String(to).replace(/\D/g, "");
   const buttons = choices.slice(0, 3).map((choice) => ({ id: choice.id.slice(0, 256), title: choice.title.slice(0, 20) }));

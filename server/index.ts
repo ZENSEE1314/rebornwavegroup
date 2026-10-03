@@ -11,12 +11,16 @@ import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
 import { installErrorWatch, recordError, startErrorCleanup } from "./errorWatch";
+import { keepTenantContextAcrossMiddleware, listTenantSpaces, syncAllTenantSpaces, tenantSpaceMiddleware } from "./tenantSpace";
+import { runInTenant } from "./tenantContext";
 
 // One failing request must never take the whole app down (Cloudflare 502 for
 // everyone): log async errors that nothing caught instead of exiting.
 process.on("unhandledRejection", (reason) => { console.error("[unhandledRejection]", reason); void recordError({ area: "server", source: "server", message: String((reason as any)?.message || reason).slice(0, 300), detail: String((reason as any)?.stack || "") }); });
 process.on("uncaughtException", (err) => { console.error("[uncaughtException]", err); void recordError({ area: "server", source: "server", message: String(err?.message || err).slice(0, 300), detail: String(err?.stack || "") }); });
 import { emitLiveUpdate, installLiveMutationBroadcast, registerLiveUpdateRoute } from "./liveUpdates";
+
+const LATE_TABLE_SYNC_MS = 60_000;
 
 const app = express();
 app.use(compression());
@@ -37,6 +41,9 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
+// Route each request to its company's own data space (before sessions, so logins are per company).
+keepTenantContextAcrossMiddleware();
+app.use(tenantSpaceMiddleware);
 installErrorWatch(app); // Admin › Errors: failed song / booking / POS / order / WhatsApp calls
 startErrorCleanup();
 installLiveMutationBroadcast(app);
@@ -104,6 +111,10 @@ app.use((req, res, next) => {
   // BridgeXPOS uses the same authenticated session and seeds Reborn as tenant one.
   await ensureBridgeXSchema();
   await ensureMoneyColumns();
+  // Bring every company's own data space up to this version (new tables/columns), then apply
+  // the same column fixes the platform tables just received.
+  await syncAllTenantSpaces();
+  for (const tenant of await listTenantSpaces()) await runInTenant(tenant, () => ensureMoneyColumns()).catch((error) => console.error(`[tenant] money columns ${tenant.schema}`, error));
   registerBridgeXRoutes(app);
 
   // Reborn game routes need the session/passport middleware that registerRoutes sets up
@@ -356,6 +367,11 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
+
+  // Routes registered above create a few tables of their own (some a moment after startup):
+  // mirror those into every company's data space too.
+  await syncAllTenantSpaces();
+  setTimeout(() => { void syncAllTenantSpaces(); }, LATE_TABLE_SYNC_MS);
 
   // Use PORT env var (required by Render/Railway) or fallback to 5000 for local dev
   const port = parseInt(process.env.PORT || "5000", 10);

@@ -80,7 +80,7 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 }
 
 // ── Eagerly loaded — critical first-paint pages ────────────────────────────────
-import { FLAGSHIP_TENANT_SLUG, rememberedTenantSlug } from "@/hooks/useTenantBrand";
+import { FLAGSHIP_TENANT_SLUG, rememberedTenantSlug, useTenantBrand } from "@/hooks/useTenantBrand";
 import Login from "@/pages/Login";
 
 // ── Lazy-loaded — secondary pages, each gets its own chunk ────────────────────
@@ -125,7 +125,7 @@ const RebornPos            = withText("staff", () => import("@/pages/reborn-pos"
 const RebornProfile        = lazy(() => import("@/pages/reborn-profile"));
 const RebornBottles        = lazy(() => import("@/pages/reborn-bottles"));
 const RebornHistory        = lazy(() => import("@/pages/reborn-history"));
-const BridgeXAdmin         = lazy(() => import("@/pages/bridgex-admin"));
+const BridgeXAdmin         = withText("staff", () => import("@/pages/bridgex-admin"));
 const StaffFeedback        = lazy(() => import("@/pages/staff-feedback"));
 const BridgeXLanding       = lazy(() => import("@/pages/bridgex-landing"));
 const BridgeXLogin         = lazy(() => import("@/pages/bridgex-login"));
@@ -179,7 +179,11 @@ const GatedLoyaltyProgram = gated("/loyalty-program", LoyaltyProgram);
 const GatedRebornHistory = gated("/history", RebornHistory);
 
 function HomeRedirect() {
-  if (INITIAL_PATH === "/") window.location.replace(`/experience/${window.location.search}`);
+  const brand = useTenantBrand();
+  if (brand.isLoading) return null;
+  // Another company's app (its own server, or entered through /t/<slug>) opens its own page.
+  if (brand.isWhiteLabel && brand.slug) window.location.replace(`/t/${brand.slug}`);
+  else if (INITIAL_PATH === "/") window.location.replace(`/experience/${window.location.search}`);
   else window.location.assign(`/${window.location.search}`);
   return null;
 }

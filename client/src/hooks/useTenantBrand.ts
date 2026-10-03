@@ -11,14 +11,27 @@ export interface TenantBrand {
 
 export const FLAGSHIP_TENANT_SLUG = "reborn-wave-group";
 const TENANT_SLUG_KEY = "bridgexTenantSlug";
+const TENANT_COOKIE = "bx_tenant";
+const ONE_YEAR_S = 365 * 24 * 60 * 60;
+
+// Remember which business this browser is in. The cookie rides on every request (images,
+// live streams, plain fetches) so the server can keep all of them in that business's data.
+export function rememberTenantSlug(slug: string) {
+  const value = slug.toLowerCase();
+  try { localStorage.setItem(TENANT_SLUG_KEY, value); } catch {}
+  document.cookie = `${TENANT_COOKIE}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR_S}; SameSite=Lax`;
+}
 
 // The business this visitor entered through: `?tenant=<slug>` (app start URL) wins and
 // is remembered, otherwise the last /t/<slug> they opened.
 export function rememberedTenantSlug(): string {
   try {
     const fromUrl = new URLSearchParams(window.location.search).get("tenant");
-    if (fromUrl) localStorage.setItem(TENANT_SLUG_KEY, fromUrl.toLowerCase());
-    return localStorage.getItem(TENANT_SLUG_KEY) || "";
+    if (fromUrl) rememberTenantSlug(fromUrl);
+    const slug = localStorage.getItem(TENANT_SLUG_KEY) || "";
+    // Browsers that entered before the cookie existed get it on their next visit.
+    if (slug && !document.cookie.includes(`${TENANT_COOKIE}=`)) rememberTenantSlug(slug);
+    return slug;
   } catch {
     return "";
   }

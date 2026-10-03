@@ -4,6 +4,8 @@ import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
+import { DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT, homeCompanySlug } from "./tenantContext";
+import { DATA_MODES, DEFAULT_DATA_MODE, setCompanyDataMode, type DataMode } from "./tenantSpace";
 import { getUserId } from "./multiAuth";
 import {
   bridgeBranches,
@@ -300,7 +302,7 @@ async function notifyKitchen(companyId: number, ticket: any, lines: any[]) {
   // Reborn's admins/staff are flagged on users.role and usually have no
   // bridge_company_members row, so the query above finds nobody for them.
   const [company] = await db.select({ slug: bridgeCompanies.slug }).from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
-  const isReborn = company?.slug === "reborn-wave-group";
+  const isReborn = company?.slug === homeCompanySlug();
   if (isReborn) ids.push(...(await db.select({ id: users.id }).from(users).where(inArray(users.role, ["admin", "staff"]))).map((u) => u.id));
   await sendBridgeXNotifications(companyId, ids, { type: "new_order", title: `Order ${ticket.orderNo}`, body: `${lines.length} item${lines.length === 1 ? "" : "s"}${ticket.tableNumber ? ` · Table ${ticket.tableNumber}` : ""}`, data: { ticketId: ticket.id, ...(isReborn ? { path: "/reborn-pos" } : {}) } });
 }
@@ -356,7 +358,10 @@ async function createCompany(req: Request, ownerUserId: string, body: any) {
   const selected = Array.from(new Set([...chosen, ...CORE_MODULES]));
   if (selected.length) await db.insert(bridgeCompanyModules).values(selected.map((moduleKey: string) => ({ companyId: company.id, moduleKey })));
   await db.insert(bridgeCompanyMembers).values({ companyId: company.id, userId: ownerUserId, branchId: branch.id, positionId: positions[0]?.id, role: "owner" });
-  return { company, branch, modules: selected };
+  // Every new company gets its own data (never Reborn's tables): its own space here, or its own server.
+  const dataMode: DataMode = DATA_MODES.includes(body.dataMode) && body.dataMode !== "shared" ? body.dataMode : DEFAULT_DATA_MODE;
+  await setCompanyDataMode(company.id, dataMode, body.serverUrl);
+  return { company: { ...company, dataMode, serverUrl: dataMode === "dedicated" ? body.serverUrl || null : null }, branch, modules: selected };
 }
 
 export interface PushOutcome { status: "sent" | "failed" | "no_device" | "no_recipients"; devices: number; errors: string[] }
@@ -415,7 +420,7 @@ export function emitCompanyChange(companyId: number, resource = "all") {
 }
 
 export async function sendRebornStaffNotification(payload: { type: string; title: string; body: string; data?: Record<string, unknown> }) {
-  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
   if (!company) return;
   const members = await db.select().from(bridgeCompanyMembers).where(and(
     eq(bridgeCompanyMembers.companyId, company.id),
@@ -429,7 +434,7 @@ export async function sendRebornStaffNotification(payload: { type: string; title
 
 export async function sendRebornUserNotification(userId: string | null | undefined, payload: { type: string; title: string; body: string; data?: Record<string, unknown> }): Promise<PushOutcome | undefined> {
   if (!userId) return;
-  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
   if (!company) return;
   const outcome = await sendBridgeXNotifications(company.id, [userId], payload);
   emitCompanyChange(company.id, String(payload.data?.path || "notifications"));
@@ -437,7 +442,7 @@ export async function sendRebornUserNotification(userId: string | null | undefin
 }
 
 export async function sendRebornAllNotification(payload: { type: string; title: string; body: string; data?: Record<string, unknown> }) {
-  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
   if (!company) return;
   const allUsers = await db.select({ id: users.id }).from(users);
   await sendBridgeXNotifications(company.id, allUsers.map((user) => user.id), payload);
@@ -447,6 +452,7 @@ export async function sendRebornAllNotification(payload: { type: string; title: 
 export async function ensureBridgeXSchema() {
   await db.execute(sql.raw(`
     CREATE TABLE IF NOT EXISTS bridge_companies (id serial PRIMARY KEY, slug varchar UNIQUE NOT NULL, name varchar NOT NULL, app_name varchar NOT NULL, industry varchar NOT NULL DEFAULT 'other', logo_url text, website_domain varchar UNIQUE, app_icon_url text, android_package varchar UNIQUE, ios_bundle_id varchar UNIQUE, theme jsonb NOT NULL DEFAULT '{}', status varchar NOT NULL DEFAULT 'active', subscription_plan varchar NOT NULL DEFAULT 'starter', billing_model varchar NOT NULL DEFAULT 'subscription', billing_cycle varchar NOT NULL DEFAULT 'monthly', price numeric(14,2) NOT NULL DEFAULT 0, currency varchar NOT NULL DEFAULT 'IDR', subscription_status varchar NOT NULL DEFAULT 'trialing', trial_ends_at timestamp, created_by varchar, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+    ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS data_mode varchar NOT NULL DEFAULT 'shared'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS db_schema varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS server_url text;
     ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS website_domain varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS app_icon_url text; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS android_package varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS ios_bundle_id varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS billing_model varchar NOT NULL DEFAULT 'subscription'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS billing_cycle varchar NOT NULL DEFAULT 'monthly'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS price numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS currency varchar NOT NULL DEFAULT 'IDR';
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_companies_website_domain_key ON bridge_companies(website_domain) WHERE website_domain IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_companies_android_package_key ON bridge_companies(android_package) WHERE android_package IS NOT NULL;
@@ -491,7 +497,7 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS game_rooms (code varchar PRIMARY KEY, data jsonb NOT NULL, updated_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS app_errors (id serial PRIMARY KEY, area varchar NOT NULL, source varchar NOT NULL DEFAULT 'app', method varchar, path text, status integer NOT NULL DEFAULT 0, message text NOT NULL DEFAULT '', user_id varchar, detail text, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS app_errors_created_idx ON app_errors (created_at DESC);
-    UPDATE appointments SET company_id = (SELECT id FROM bridge_companies WHERE slug='reborn-wave-group' LIMIT 1) WHERE company_id IS NULL AND EXISTS (SELECT 1 FROM bridge_companies WHERE slug='reborn-wave-group');
+    UPDATE appointments SET company_id = (SELECT id FROM bridge_companies WHERE slug='${DEFAULT_COMPANY_SLUG}' LIMIT 1) WHERE company_id IS NULL AND EXISTS (SELECT 1 FROM bridge_companies WHERE slug='${DEFAULT_COMPANY_SLUG}');
     ALTER TABLE appointments ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE appointments ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE spin_prizes ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE spin_results ADD COLUMN IF NOT EXISTS company_id integer;
     ALTER TABLE songs ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE kos_gift_types ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE kos_gifts ADD COLUMN IF NOT EXISTS company_id integer;
@@ -580,9 +586,10 @@ export async function ensureBridgeXSchema() {
     -- Platform team: sub-admins the super admin creates (sales/accountant/partner/admin).
     CREATE TABLE IF NOT EXISTS bridge_platform_admins (user_id varchar PRIMARY KEY, role varchar NOT NULL DEFAULT 'sales', created_at timestamp NOT NULL DEFAULT now());
   `));
-  const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
-    || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
-  await db.update(bridgeCompanies).set({ appName: "Reborn", industry: "entertainment", websiteDomain: "rebornwave.group", androidPackage: "com.rebornwave.group", iosBundleId: "com.rebornwave.group", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active", updatedAt: new Date() }).where(eq(bridgeCompanies.id, reborn.id));
+  const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, DEFAULT_COMPANY_SLUG)).limit(1))[0]
+    || (await db.insert(bridgeCompanies).values({ slug: DEFAULT_COMPANY_SLUG, name: process.env.DEFAULT_COMPANY_NAME || "Reborn Wave Group", appName: process.env.DEFAULT_COMPANY_NAME || "Reborn", industry: process.env.DEFAULT_COMPANY_INDUSTRY || "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
+  // Reborn's own identity is pinned on the main platform only; a dedicated server keeps what its owner set.
+  if (IS_REBORN_DEPLOYMENT) await db.update(bridgeCompanies).set({ appName: "Reborn", industry: "entertainment", websiteDomain: "rebornwave.group", androidPackage: "com.rebornwave.group", iosBundleId: "com.rebornwave.group", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active", updatedAt: new Date() }).where(eq(bridgeCompanies.id, reborn.id));
   let branch = (await db.select().from(bridgeBranches).where(and(eq(bridgeBranches.companyId, reborn.id), eq(bridgeBranches.code, "MAIN"))).limit(1))[0];
   if (!branch) [branch] = await db.insert(bridgeBranches).values({ companyId: reborn.id, name: "Reborn Batam", code: "MAIN", address: "Batam, Indonesia" }).returning();
   await db.execute(sql.raw(`INSERT INTO bridge_company_modules (company_id, module_key, enabled) SELECT ${reborn.id}, module_key, true FROM unnest(ARRAY[${BRIDGEX_MODULES.map((key) => `'${key}'`).join(",")}]::text[]) module_key ON CONFLICT (company_id, module_key) DO NOTHING`));
@@ -783,16 +790,24 @@ export function registerBridgeXRoutes(app: Express) {
     if (req.body?.subscriptionStatus === "active") allowed.status = "active";
     if (["past_due", "unpaid", "cancelled"].includes(req.body?.subscriptionStatus)) allowed.status = "suspended";
     allowed.updatedAt = new Date();
-    res.json((await db.update(bridgeCompanies).set(allowed).where(eq(bridgeCompanies.id, Number(req.params.id))).returning())[0]);
+    const companyId = Number(req.params.id);
+    await db.update(bridgeCompanies).set(allowed).where(eq(bridgeCompanies.id, companyId));
+    // Moving a company to its own data space / own server (Reborn itself stays on the platform tables).
+    if (DATA_MODES.includes(req.body?.dataMode)) {
+      const [target] = await db.select({ slug: bridgeCompanies.slug }).from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
+      if (target?.slug === DEFAULT_COMPANY_SLUG) return res.status(400).json({ message: "The platform's own company keeps its data where it is." });
+      await setCompanyDataMode(companyId, req.body.dataMode, req.body.serverUrl);
+    }
+    res.json((await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1))[0]);
   }));
 
   // Public tenant lookup lets custom domains load the correct branding before login.
   app.get("/api/v1/tenant/resolve", route(async (req, res) => {
     const host = String(req.query.host || req.hostname).toLowerCase().split(":")[0];
     const slug = String(req.query.slug || "").toLowerCase();
-    let tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status FROM bridge_companies WHERE (${host} <> '' AND website_domain=${host}) OR (${slug} <> '' AND slug=${slug}) ORDER BY CASE WHEN website_domain=${host} THEN 0 ELSE 1 END LIMIT 1`)).rows?.[0] as any; // a business's own domain wins over a remembered /t/<slug>
+    let tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status, data_mode, server_url FROM bridge_companies WHERE (${host} <> '' AND website_domain=${host}) OR (${slug} <> '' AND slug=${slug}) ORDER BY CASE WHEN website_domain=${host} THEN 0 ELSE 1 END LIMIT 1`)).rows?.[0] as any; // a business's own domain wins over a remembered /t/<slug>
     // Default host (no domain/slug match) is the flagship Reborn app.
-    if (!tenant) tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status FROM bridge_companies WHERE slug='reborn-wave-group' LIMIT 1`)).rows?.[0] as any;
+    if (!tenant) tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status, data_mode, server_url FROM bridge_companies WHERE slug=${DEFAULT_COMPANY_SLUG} LIMIT 1`)).rows?.[0] as any;
     if (!tenant) return res.status(404).json({ message: "Company not found" });
     const modules = (await db.execute(sql`SELECT module_key FROM bridge_company_modules WHERE company_id=${tenant.id} AND enabled=true`)).rows.map((m: any) => m.module_key);
     // Public branch list (name + address) for the business's web page.
@@ -816,7 +831,7 @@ export function registerBridgeXRoutes(app: Express) {
     });
   }));
   app.get("/api/v1/tenant/settings", route(async (req, res) => {
-    const slug = String(req.query.slug || "reborn-wave-group").toLowerCase();
+    const slug = String(req.query.slug || DEFAULT_COMPANY_SLUG).toLowerCase();
     const result = await db.execute(sql`SELECT s.config FROM bridge_company_settings s JOIN bridge_companies c ON c.id=s.company_id WHERE c.slug=${slug} LIMIT 1`);
     res.json((result.rows || result as any)[0]?.config || { loyalty: { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] }, services: {} });
   }));
