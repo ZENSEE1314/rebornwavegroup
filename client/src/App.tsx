@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import { setLanguage, translate } from "@/lib/i18n";
+import { setLanguage, translate, loadTranslations } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useEffect, Component, lazy as reactLazy, Suspense, type ReactNode, type ComponentType } from "react";
@@ -28,6 +28,10 @@ function lazy<T extends ComponentType<any>>(load: () => Promise<{ default: T }>)
     if (reloadForNewVersion()) return new Promise<{ default: T }>(() => {}); // page is reloading
     throw err;
   }));
+}
+// A page whose texts live in a separately loaded dictionary (lib/i18n.ts): fetch both at once.
+function withText<T extends ComponentType<any>>(part: Parameters<typeof loadTranslations>[0], load: () => Promise<{ default: T }>) {
+  return lazy(() => Promise.all([load(), loadTranslations(part)]).then(([page]) => page));
 }
 if (typeof window !== "undefined") {
   // Vite's own preload failures (CSS/JS of a page) — same fix.
@@ -76,12 +80,13 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 }
 
 // ── Eagerly loaded — critical first-paint pages ────────────────────────────────
-import Landing from "@/pages/landing";
 import { FLAGSHIP_TENANT_SLUG, rememberedTenantSlug } from "@/hooks/useTenantBrand";
 import Login from "@/pages/Login";
-import CompleteApp from "@/pages/complete-app";   // main app — must never hang
 
 // ── Lazy-loaded — secondary pages, each gets its own chunk ────────────────────
+// Loaded only when opened, so the first page loads fast.
+const Landing              = lazy(() => import("@/pages/landing"));
+const CompleteApp          = withText("games", () => import("@/pages/complete-app"));
 const Bookings             = lazy(() => import("@/pages/bookings-working"));
 const Marketplace          = lazy(() => import("@/pages/marketplace-working"));
 const Referrals            = lazy(() => import("@/pages/referrals"));
@@ -104,19 +109,19 @@ const InvestorAdmin        = lazy(() => import("@/pages/investor-admin"));
 const RebornDashboard      = lazy(() => import("@/pages/reborn-dashboard"));
 const RebornPet            = lazy(() => import("@/pages/reborn-pet"));
 const RebornSpin           = lazy(() => import("@/pages/reborn-spin"));
-const RebornGames          = lazy(() => import("@/pages/reborn-games"));
+const RebornGames          = withText("games", () => import("@/pages/reborn-games"));
 const RebornAttend         = lazy(() => import("@/pages/reborn-attend"));
 const OrderTable           = lazy(() => import("@/pages/order-table"));
 const TicketView           = lazy(() => import("@/pages/ticket-view"));
 const TenantEntry          = lazy(() => import("@/pages/tenant-entry"));
 const RebornSupport        = lazy(() => import("@/pages/reborn-support"));
-const RebornAdmin          = lazy(() => import("@/pages/reborn-admin"));
+const RebornAdmin          = withText("staff", () => import("@/pages/reborn-admin"));
 const RebornKos            = lazy(() => import("@/pages/reborn-kos"));
 const RebornSong           = lazy(() => import("@/pages/reborn-song"));
 const RebornEvents         = lazy(() => import("@/pages/reborn-events"));
 const RebornChat           = lazy(() => import("@/pages/reborn-chat"));
 const RebornOrder          = lazy(() => import("@/pages/reborn-order"));
-const RebornPos            = lazy(() => import("@/pages/reborn-pos"));
+const RebornPos            = withText("staff", () => import("@/pages/reborn-pos"));
 const RebornProfile        = lazy(() => import("@/pages/reborn-profile"));
 const RebornBottles        = lazy(() => import("@/pages/reborn-bottles"));
 const RebornHistory        = lazy(() => import("@/pages/reborn-history"));

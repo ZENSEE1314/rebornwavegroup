@@ -202,3 +202,16 @@ text.
   old copies at startup). Gift lists are sorted cheapest first.
 - Each ranked member's top 3 gifters show as a podium (`GifterPodium`: 2nd · 1st
   · 3rd, gold / silver / bronze crown + medal ring around their own level ring).
+
+## Fast first load
+
+- Pages are lazy-loaded in client/src/App.tsx (only `Login` is loaded up front);
+  new pages use `lazy(() => import(...))`.
+- Admin + POS texts (`i18n/admin.ts`, `i18n/pos.ts`) and games texts
+  (`i18n/games.ts`) aren't in the main bundle: they load with their pages via
+  `withText("staff" | "games", …)` / `loadTranslations()` in lib/i18n.ts. A
+  member page that needs `admin.*`, `pos.*` or `gm.*` keys must load them the
+  same way (or put the keys in another area file).
+- Keep images small: resize/compress before adding (logo 512px, favicon 192px,
+  photos ≤ 800–1000px). Hashed `/assets` files are cached for a year and served
+  gzipped (`compression`).
