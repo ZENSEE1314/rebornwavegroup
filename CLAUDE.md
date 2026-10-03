@@ -41,8 +41,13 @@ text.
   `"reborn-wave-group"`. Module-level caches and in-memory state must be keyed by it.
 - Logins are per space: each has its own `users`, and a session keeps one login slot per
   space (server/multiAuth.ts). The owner of a new company is copied in as its main admin.
-- Not per company yet: the WhatsApp bot (platform only) and the background timers in
-  server/index.ts (pet decay, daily tokens, reminders run for Reborn only).
+- WhatsApp is per company through Meta's Cloud API: each company saves its own phone
+  number ID + token in Admin > CRM (stored in its own `app_settings`), and Meta calls
+  `/api/whatsapp/webhook/<slug>` with that company's verify token. The QR-linked number
+  (server/whatsappWeb.ts) and the `WHATSAPP_*` env vars belong to the platform company only.
+- Timers must run once per company: wrap the job in `inEveryDataSpace()` (server/tenantSpace.ts)
+  as pet decay, daily tokens, the WhatsApp reminders and the error clean-up do. Not per
+  company yet: the star-routes tournament timer.
 - Test: `scripts/tenant-isolation-test.mts` against an empty scratch database.
 - A dedicated server sets `DEFAULT_COMPANY_SLUG` (+ `DEFAULT_COMPANY_NAME`) so the app
   runs as that company instead of Reborn.

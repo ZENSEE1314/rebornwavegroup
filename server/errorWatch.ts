@@ -5,6 +5,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
+import { inEveryDataSpace } from "./tenantSpace";
 import { getUserId } from "./multiAuth";
 
 export type ErrorArea = "song" | "booking" | "pos" | "order" | "checkin" | "whatsapp" | "server";
@@ -140,7 +141,7 @@ export async function clearErrors(area?: string) {
 
 // Keep 30 days.
 export function startErrorCleanup() {
-  const run = () => db.execute(sql`DELETE FROM app_errors WHERE created_at < now() - interval '30 days'`).catch(() => {});
+  const run = () => inEveryDataSpace(() => db.execute(sql`DELETE FROM app_errors WHERE created_at < now() - interval '30 days'`));
   setTimeout(run, 60_000);
   setInterval(run, 6 * 3600_000);
 }

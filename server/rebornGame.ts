@@ -11,7 +11,7 @@ import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
-import { crmRecordVisit, whatsappConfigured, whatsappAvailable, waDigits, runReminders, runPackageReminders } from "./whatsappBot";
+import { crmRecordVisit, whatsappConfigured, whatsappAvailable, waDigits, runReminders, runPackageReminders, getWhatsAppCloudSettings, saveWhatsAppCloudSettings, testWhatsAppCloud } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
@@ -4063,7 +4063,20 @@ export function registerRebornRoutes(app: Express) {
 
   // WhatsApp status + manual reminder trigger.
   app.get("/api/reborn/admin/whatsapp/status", requireAdmin(async (_req, res) => {
+    await whatsappAvailable(); // loads this company's saved WhatsApp settings
     res.json({ configured: whatsappConfigured(), adminNumber: Boolean(process.env.WA_ADMIN_NUMBER), web: getWaWebStatus() });
+  }));
+  // This company's own WhatsApp Business number (Meta Cloud API): settings, save, test.
+  app.get("/api/reborn/admin/whatsapp/cloud", requireAdmin(async (req, res) => {
+    res.json(await getWhatsAppCloudSettings(`https://${req.hostname}`));
+  }));
+  app.post("/api/reborn/admin/whatsapp/cloud", requireAdmin(async (req, res) => {
+    await saveWhatsAppCloudSettings({ phoneId: req.body?.phoneId, token: req.body?.token, adminNumber: req.body?.adminNumber });
+    await logAdmin(req, { targetType: "whatsapp", action: "cloud_settings", entityType: "whatsapp", description: "Updated WhatsApp Business (Meta) settings" });
+    res.json({ ...(await getWhatsAppCloudSettings(`https://${req.hostname}`)), test: await testWhatsAppCloud() });
+  }));
+  app.post("/api/reborn/admin/whatsapp/cloud/test", requireAdmin(async (_req, res) => {
+    res.json(await testWhatsAppCloud());
   }));
   // QR login (WhatsApp Web / Linked Devices).
   app.post("/api/reborn/admin/whatsapp/web/connect", requireAdmin(async (_req, res) => {

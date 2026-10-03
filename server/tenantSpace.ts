@@ -217,6 +217,15 @@ export function keepTenantContextAcrossMiddleware() {
   Layer.prototype.__tenantAware = true;
 }
 
+// Background jobs (timers) have no request to tell them whose data to work on: run the job
+// for the platform's own company, then once inside every other company's data space.
+export async function inEveryDataSpace(job: () => Promise<unknown>) {
+  await job().catch((error) => console.error("[job] platform", error));
+  for (const tenant of await tenants().catch(() => [])) {
+    await runInTenant(tenant, job).catch((error) => console.error(`[job] ${tenant.schema}`, error));
+  }
+}
+
 // Keep every existing data space in step with the current app version (new tables/columns).
 export async function syncAllTenantSpaces() {
   for (const tenant of await tenants()) {

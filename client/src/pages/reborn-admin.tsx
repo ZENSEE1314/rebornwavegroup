@@ -2369,6 +2369,52 @@ function BlockSlot({ onDone }: { onDone: () => void }) {
   );
 }
 
+// Each company connects its own WhatsApp Business number (Meta Cloud API). The access token
+// is write-only: the server never sends it back, only whether one is saved.
+function WhatsAppBusinessCard() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const CLOUD = "/api/reborn/admin/whatsapp/cloud";
+  const { data } = useQuery<any>({ queryKey: [CLOUD], queryFn: () => apiRequest("GET", CLOUD).then((r) => r.json()) });
+  const [phoneId, setPhoneId] = useState("");
+  const [token, setToken] = useState("");
+  const [adminNumber, setAdminNumber] = useState("");
+  useEffect(() => { if (data) { setPhoneId(data.phoneId || ""); setAdminNumber(data.adminNumber || ""); } }, [data?.phoneId, data?.adminNumber]);
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", CLOUD, { phoneId, token, adminNumber }).then((r) => r.json()),
+    onSuccess: (d: any) => {
+      setToken("");
+      qc.invalidateQueries({ queryKey: [CLOUD] });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/admin/whatsapp/status"] });
+      if (d?.test?.ok) toast({ title: t("admin.wa.ok", { number: d.test.number || d.test.name || "" }) });
+      else toast({ title: d?.test?.error === "missing" ? t("admin.wa.missing") : t("admin.wa.fail"), description: d?.test?.error === "missing" ? undefined : d?.test?.error, variant: "destructive" });
+    },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
+  });
+  const copy = (value: string) => { navigator.clipboard?.writeText(value).then(() => toast({ title: t("admin.wa.copied") })).catch(() => {}); };
+  const field = "mt-1 w-full rounded-lg bg-black/30 border border-white/15 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400";
+  return (
+    <div className="rounded-2xl border bg-white/5 border-white/10 p-4">
+      <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-300" /> {t("admin.wa.title")}</p>
+      <p className="text-[11px] text-white/50 mt-1">{t("admin.wa.hint")}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="text-[11px] text-white/60">{t("admin.wa.phoneId")}<input className={field} inputMode="numeric" value={phoneId} onChange={(e) => setPhoneId(e.target.value)} /></label>
+        <label className="text-[11px] text-white/60">{t("admin.wa.token")}{data?.tokenSet ? ` (${t("admin.wa.tokenSaved")})` : ""}<input className={field} type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></label>
+        <label className="text-[11px] text-white/60">{t("admin.wa.adminNumber")}<input className={field} inputMode="tel" placeholder="628…" value={adminNumber} onChange={(e) => setAdminNumber(e.target.value)} /></label>
+      </div>
+      {data && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="text-[11px] text-white/60">{t("admin.wa.webhook")}<input className={field + " cursor-pointer"} readOnly value={data.webhookUrl} onClick={() => copy(data.webhookUrl)} /></label>
+          <label className="text-[11px] text-white/60">{t("admin.wa.verify")}<input className={field + " cursor-pointer"} readOnly value={data.verifyToken} onClick={() => copy(data.verifyToken)} /></label>
+        </div>
+      )}
+      <p className="text-[11px] text-white/40 mt-2">{t("admin.wa.subscribe")}</p>
+      <button onClick={() => save.mutate()} disabled={save.isPending} className="mt-3 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-black inline-flex items-center gap-1.5 disabled:opacity-60">{t("admin.wa.save")}</button>
+    </div>
+  );
+}
+
 function Crm() {
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -2399,10 +2445,13 @@ function Crm() {
   const openContact = contacts.find((c) => c.id === openId) || null;
   const stageColor: Record<string, string> = { new: "text-white/50", await_lang: "text-amber-300", await_name: "text-amber-300", await_email: "text-amber-300", active: "text-emerald-300", member: "text-emerald-300" };
   const live = webStatus === "connected" || wa?.configured;
+  // The QR-linked number belongs to the platform's own company; other companies use Meta only.
+  const { data: cloud } = useQuery<any>({ queryKey: ["/api/reborn/admin/whatsapp/cloud"], queryFn: () => apiRequest("GET", "/api/reborn/admin/whatsapp/cloud").then((r) => r.json()) });
   return (
     <div className="space-y-3">
+      <WhatsAppBusinessCard />
       {/* QR login — link an existing WhatsApp number */}
-      <div className={`rounded-2xl border p-4 ${webStatus === "connected" ? "bg-emerald-500/10 border-emerald-400/30" : "bg-white/5 border-white/10"}`}>
+      <div hidden={cloud?.qrLinkAvailable === false} className={`rounded-2xl border p-4 ${webStatus === "connected" ? "bg-emerald-500/10 border-emerald-400/30" : "bg-white/5 border-white/10"}`}>
         <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-300" /> {t("admin.crm.connectTitle")}</p>
         {webStatus === "connected" ? (
           <div className="mt-2">

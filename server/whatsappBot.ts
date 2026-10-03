@@ -21,7 +21,10 @@ import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas,
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
-import { currentTenant } from "./tenantContext";
+import { currentTenant, homeCompanySlug, runInTenant } from "./tenantContext";
+import { inEveryDataSpace, listTenantSpaces } from "./tenantSpace";
+import { bridgeBranches, bridgeCompanies } from "@shared/schema";
+import { randomUUID } from "node:crypto";
 import { localeOf, asLang, faqIn, pick } from "./i18n";
 import { parseDateInput, yesNo, weekdayInWeek, weekdayOfIso } from "./dateParse";
 
@@ -32,7 +35,19 @@ const WEBSITE_ADDRESS = "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront – Ba
 const HOUR_MS = 3600_000;
 const DAY_MS = 24 * HOUR_MS;
 
-function cfg() {
+// Where another company's members open their app when it has no domain of its own.
+const TENANT_APP_BASE_URL = (process.env.TENANT_APP_BASE_URL || "https://bridgexpos.up.railway.app").replace(/\/$/, "");
+const WA_CONFIG_TTL_MS = 60_000;
+const WA_SETTING_KEYS = ["waToken", "waPhoneId", "waVerifyToken", "waAdminNumber", "clubName"] as const;
+
+// Each company has its own WhatsApp Business number (Meta Cloud API), saved in its own
+// settings: phone number ID + access token + the verify token of its webhook. The platform
+// company can also keep using the server's env vars or a QR-linked number.
+interface WaConfig { token: string; phoneId: string; verifyToken: string; adminNumber: string; club: string; appUrl: string; at: number }
+const waConfigs = new Map<string, WaConfig>();
+
+function envWaConfig() {
+  if (currentTenant()) return { token: "", phoneId: "", verifyToken: "", adminNumber: "" };
   return {
     token: process.env.WHATSAPP_TOKEN || "",
     phoneId: process.env.WHATSAPP_PHONE_ID || "",
@@ -40,15 +55,107 @@ function cfg() {
     adminNumber: (process.env.WA_ADMIN_NUMBER || "").replace(/\D/g, ""),
   };
 }
+
+// Loads (and briefly caches) this company's WhatsApp settings, club name and app address.
+async function loadWaConfig(force = false): Promise<WaConfig> {
+  const space = homeCompanySlug();
+  const cached = waConfigs.get(space);
+  if (!force && cached && Date.now() - cached.at < WA_CONFIG_TTL_MS) return cached;
+  const rows = await db.select().from(appSettings).where(inArray(appSettings.key, [...WA_SETTING_KEYS]));
+  const saved = (key: (typeof WA_SETTING_KEYS)[number]) => rows.find((row) => row.key === key)?.value?.trim() || "";
+  const env = envWaConfig();
+  const [company] = await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, space)).limit(1);
+  const tenant = currentTenant();
+  const appUrl = !tenant ? APP_BASE_URL.replace(/\/$/, "")
+    : company?.websiteDomain ? `https://${company.websiteDomain}` : TENANT_APP_BASE_URL;
+  const config: WaConfig = {
+    token: saved("waToken") || env.token,
+    phoneId: saved("waPhoneId") || env.phoneId,
+    verifyToken: saved("waVerifyToken") || env.verifyToken,
+    adminNumber: saved("waAdminNumber").replace(/\D/g, "") || env.adminNumber,
+    club: saved("clubName") || company?.appName || company?.name || "",
+    appUrl,
+    at: Date.now(),
+  };
+  waConfigs.set(space, config);
+  return config;
+}
+
+function cfg() {
+  return waConfigs.get(homeCompanySlug()) ?? { ...envWaConfig(), club: "", appUrl: APP_BASE_URL.replace(/\/$/, "") };
+}
 export function whatsappConfigured(): boolean {
-  // The WhatsApp number is the platform company's; other companies' data spaces have none (yet).
-  if (currentTenant()) return false;
   const c = cfg();
   return Boolean(c.token && c.phoneId);
+}
+
+// Link into the member app for the current company. Without its own domain, a company's
+// members use the shared host and the link says which business it is.
+function memberAppUrl(path = ""): string {
+  const tenant = currentTenant();
+  const base = cfg().appUrl;
+  if (!tenant || base !== TENANT_APP_BASE_URL) return `${base}${path}`;
+  return `${base}${path || "/login"}?tenant=${tenant.slug}`;
+}
+
+// The message texts were written for Reborn; another company's bot speaks under its own name.
+function inCompanyVoice(text: string): string {
+  const club = currentTenant() ? cfg().club : "";
+  return club ? text.replaceAll("Reborn Wave Group", club).replaceAll("Reborn Wave", club) : text;
+}
+
+// ── Admin: WhatsApp Business (Meta Cloud API) settings ──────────────────────
+export async function getWhatsAppCloudSettings(origin: string) {
+  const c = await loadWaConfig(true);
+  let verifyToken = c.verifyToken;
+  if (!verifyToken) {
+    verifyToken = randomUUID().replace(/-/g, "");
+    await db.insert(appSettings).values({ key: "waVerifyToken", value: verifyToken }).onConflictDoUpdate({ target: appSettings.key, set: { value: verifyToken, updatedAt: new Date() } });
+    await loadWaConfig(true);
+  }
+  const tenant = currentTenant();
+  return {
+    phoneId: c.phoneId,
+    adminNumber: c.adminNumber,
+    tokenSet: Boolean(c.token), // the token itself is never sent back
+    verifyToken,
+    webhookUrl: `${origin}/api/whatsapp/webhook${tenant ? `/${tenant.slug}` : ""}`,
+    qrLinkAvailable: !tenant,
+  };
+}
+
+export async function saveWhatsAppCloudSettings(input: { phoneId?: string; token?: string; adminNumber?: string }) {
+  const values: Record<string, string> = {
+    waPhoneId: String(input.phoneId ?? "").replace(/\D/g, ""),
+    waAdminNumber: String(input.adminNumber ?? "").replace(/\D/g, ""),
+  };
+  // An empty token field means "keep the one already saved".
+  if (String(input.token ?? "").trim()) values.waToken = String(input.token).trim();
+  for (const [key, value] of Object.entries(values)) {
+    await db.insert(appSettings).values({ key, value }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  }
+  await loadWaConfig(true);
+}
+
+// Asks Meta which number these credentials belong to — proves they work before going live.
+export async function testWhatsAppCloud(): Promise<{ ok: boolean; number?: string; name?: string; error?: string }> {
+  const c = await loadWaConfig(true);
+  if (!c.token || !c.phoneId) return { ok: false, error: "missing" };
+  try {
+    const r = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${c.phoneId}?fields=display_phone_number,verified_name`, {
+      headers: { Authorization: `Bearer ${c.token}` }, signal: AbortSignal.timeout(15_000),
+    });
+    const body: any = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, error: body?.error?.message || `HTTP ${r.status}` };
+    return { ok: true, number: body.display_phone_number, name: body.verified_name };
+  } catch (e) {
+    return { ok: false, error: (e as Error)?.message || "network" };
+  }
 }
 // True when we can actually send — either Cloud API is configured or a QR-linked
 // WhatsApp Web session is connected.
 export async function whatsappAvailable(): Promise<boolean> {
+  await loadWaConfig();
   if (whatsappConfigured()) return true;
   try { const web = await import("./whatsappWeb"); return web.isWebConnected(); } catch { return false; }
 }
@@ -83,8 +190,9 @@ export async function sendToMember(to: string, text: string, userId?: string | n
   } catch (e) { console.warn("[wa] log member message", e); }
   return ok;
 }
-async function sendWhatsAppOnce(to: string, text: string): Promise<boolean> {
-  const c = cfg();
+async function sendWhatsAppOnce(to: string, rawText: string): Promise<boolean> {
+  const c = await loadWaConfig();
+  const text = inCompanyVoice(rawText);
   const num = String(to).replace(/\D/g, "");
   // Prefer a linked WhatsApp Web session (QR login) when available.
   try {
@@ -115,9 +223,9 @@ type WhatsAppChoice = { id: string; title: string };
 // WhatsApp supports up to three quick-reply buttons. Cloud API receives the
 // official interactive payload; QR-linked WhatsApp Web uses the matching
 // Baileys native-flow message and falls back to numbered text when unavailable.
-export async function sendWhatsAppChoices(to: string, text: string, choices: WhatsAppChoice[]): Promise<boolean> {
-  if (currentTenant()) return false;
-  const c = cfg();
+export async function sendWhatsAppChoices(to: string, rawText: string, choices: WhatsAppChoice[]): Promise<boolean> {
+  const c = await loadWaConfig();
+  const text = inCompanyVoice(rawText);
   const num = String(to).replace(/\D/g, "");
   const buttons = choices.slice(0, 3).map((choice) => ({ id: choice.id.slice(0, 256), title: choice.title.slice(0, 20) }));
   try {
@@ -156,14 +264,16 @@ export async function sendWhatsAppChoices(to: string, text: string, choices: Wha
   return sendWhatsApp(num, `${text}\n\n${buttons.map((button, index) => `${index + 1}️⃣ ${button.title}`).join("\n")}`);
 }
 async function notifyAdmin(text: string) {
-  const c = cfg();
+  const c = await loadWaConfig();
   if (c.adminNumber) await sendWhatsApp(c.adminNumber, text);
 }
 export async function notifyAdmins(text: string) { await notifyAdmin(text); }
 
 // Send an image (data URL or http URL) with a caption. Falls back to text when the
 // linked Web session isn't available (Cloud API image upload not implemented).
-export async function sendWhatsAppImage(to: string, imageUrl: string, caption: string): Promise<boolean> {
+export async function sendWhatsAppImage(to: string, imageUrl: string, rawCaption: string): Promise<boolean> {
+  await loadWaConfig();
+  const caption = inCompanyVoice(rawCaption);
   const num = String(to).replace(/\D/g, "");
   try {
     const web = await import("./whatsappWeb");
@@ -189,9 +299,17 @@ function asksForLocation(text: string): boolean {
   return /\b(address|location|located|directions?|map|maps|where are you|how to get there|alamat|lokasi|peta|dimana|di mana)\b|地址|位置|在哪里|在哪儿|怎么走/i.test(text);
 }
 
+// Reborn's own address on the platform; another company's comes from its first branch.
+async function defaultAddress(): Promise<string> {
+  const tenant = currentTenant();
+  if (!tenant) return WEBSITE_ADDRESS;
+  const [branch] = await db.select().from(bridgeBranches).where(and(eq(bridgeBranches.companyId, tenant.companyId), eq(bridgeBranches.active, true))).limit(1);
+  return branch?.address || "";
+}
+
 // Exported so the app booking endpoints can include the same address + map pin.
 export async function locationReply(lang: Lang = "en"): Promise<string> {
-  const address = (await settingVal("businessAddress")).trim() || WEBSITE_ADDRESS;
+  const address = (await settingVal("businessAddress")).trim() || (await defaultAddress());
   const savedMap = (await settingVal("businessMapUrl")).trim();
   const mapUrl = savedMap || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
   return L(lang, "mapPin", { address, url: mapUrl });
@@ -894,6 +1012,7 @@ async function createMemberFromContact(c: Contact): Promise<{ email: string; cre
 const seenMsgIds = new Map<string, number>();
 const phoneQueues = new Map<string, Promise<unknown>>();
 export async function handleInboundText(from: string, text: string, profileName?: string, msgId?: string) {
+  await loadWaConfig();
   if (msgId) {
     if (seenMsgIds.has(msgId)) return;
     seenMsgIds.set(msgId, Date.now());
@@ -970,7 +1089,7 @@ const AREA_EMOJI: [RegExp, string][] = [[/vip/i, "👑"], [/ktv|karaoke/i, "🎤
 // Everything set up in the booking areas, with today's hours — reply a number to book it.
 async function sendWhatWeHave(c: Contact, lang: Lang, say: (m: string) => Promise<void>) {
   const areas = enabledAreas(await settingVal("bookingAreas"));
-  const club = (await settingVal("clubName")) || "Reborn Wave Group";
+  const club = (await settingVal("clubName")) || (await loadWaConfig()).club || "Reborn Wave Group";
   const today = todayStr();
   const list = areas.map((a, i) => {
     const emoji = (AREA_EMOJI.find(([re]) => re.test(a.name)) || [, "✨"])[1];
@@ -1186,14 +1305,14 @@ async function handleInbound(from: string, text: string, profileName?: string) {
       // No email → sign up with the phone number; they log in with it.
       const { created } = await createMemberFromContact({ ...c, email: null } as Contact);
       const phone = localPhone(c.phone);
-      await say(created ? L(lang, "readyPhone", { url: APP_BASE_URL, phone, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBackPhone", { url: APP_BASE_URL, phone }));
+      await say(created ? L(lang, "readyPhone", { url: memberAppUrl(), phone, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBackPhone", { url: memberAppUrl(), phone }));
       await sendMemberMenu(from, c, lang);
       return patchContact(c.id, { waState: { flow: null } });
     }
     if (!m) { await say(L(lang, "badEmail")); return; }
     await patchContact(c.id, { email: m[0].toLowerCase() });
     const { email, created } = await createMemberFromContact({ ...c, email: m[0].toLowerCase() } as Contact); // sets stage=member
-    await say(created ? L(lang, "ready", { url: APP_BASE_URL, email, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBack", { url: APP_BASE_URL, email }));
+    await say(created ? L(lang, "ready", { url: memberAppUrl(), email, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBack", { url: memberAppUrl(), email }));
     // Second message: the WhatsApp menu shortcuts.
     await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
@@ -1366,7 +1485,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         if (await askSpecialOn()) return askSpecialOrFinish(c, lang, from, area, { date, slot, table, party }, 2, say);
         const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH, companyId: (await defaultCompanyId()) ?? undefined });
         await pushWhatsAppBooking(row, c, area, date, label, party);
-        await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: APP_BASE_URL }));
+        await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: memberAppUrl() }));
         await say(await locationReply(lang)); // so the guest knows where to find us
         await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
         await sendMemberMenu(from, c, lang);
@@ -1380,7 +1499,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
     }
     const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: openH });
     await pushWhatsAppBooking(row, c, area, date, label, party);
-    await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: APP_BASE_URL }));
+    await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: memberAppUrl() }));
     await say(await locationReply(lang)); // so the guest knows where to find us
     await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · ${party} pax — confirm in the app.`);
     await sendMemberMenu(from, c, lang);
@@ -1631,7 +1750,7 @@ async function completeStepBooking(c: Contact, lang: Lang, from: string, area: B
   const label = labels[slots.indexOf(wa.slot)] || wa.slot;
   await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
   const hoursPart = (await askHoursOn()) ? L(lang, "hoursSuffix", { n: String(hrs) }) : "";
-  await say(L(lang, "bookDone", { day: fmtDMY(wa.date, lang), time: `${timeText(lang, wa.slot, label)}${hoursPart}`, n: String(wa.party || 2), url: APP_BASE_URL }));
+  await say(L(lang, "bookDone", { day: fmtDMY(wa.date, lang), time: `${timeText(lang, wa.slot, label)}${hoursPart}`, n: String(wa.party || 2), url: memberAppUrl() }));
   if (wa.special) { // echo it back in their language (it's saved in English for staff)
     const o = BOOKING_OCCASIONS.find((x) => wa.special.startsWith(`${x.emoji} ${x.en}`));
     // Shown in the member's language (the booking itself keeps the English text for staff).
@@ -1815,7 +1934,7 @@ export async function sendReviewRequest(opts: { phone?: string | null; userId?: 
     if (!num && opts.userId) { const [u] = await db.select().from(users).where(eq(users.id, opts.userId)); if (u?.phoneNumber) num = u.phoneNumber.replace(/\D/g, ""); }
     if (!num) return;
     const lang = await langForPhone(num, opts.userId || contact?.userId);
-    const feedbackUrl = `${APP_BASE_URL.replace(/\/$/, "")}/staff-feedback`;
+    const feedbackUrl = memberAppUrl("/staff-feedback");
     const link = L(lang, "reviewLinkApp", { url: feedbackUrl }) + (opts.reviewUrl ? L(lang, "reviewLinkGoogle", { url: opts.reviewUrl }) : "");
     const msg = L(lang, "review", { club: opts.club, link });
     const ok = await sendWhatsApp(num, msg);
@@ -1836,38 +1955,52 @@ export function registerWhatsAppBot(app: Express) {
       await db.update(songRequests).set({ companyId: cid }).where(sql`${songRequests.companyId} IS NULL`);
     } catch (e) { waError("company backfill", e); }
   })();
-  app.get("/api/whatsapp/webhook", (req: Request, res: Response) => {
-    const c = cfg();
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
-    if (mode === "subscribe" && token === c.verifyToken && c.verifyToken) return res.status(200).send(challenge);
-    return res.sendStatus(403);
-  });
+  // Meta calls one webhook address per WhatsApp Business number: the platform company's is
+  // /api/whatsapp/webhook, every other company's is /api/whatsapp/webhook/<its slug>.
+  const inCompany = async <T>(slug: string | undefined, run: () => Promise<T>): Promise<T | null> => {
+    if (!slug) return run();
+    const tenant = (await listTenantSpaces()).find((space) => space.slug === slug.toLowerCase());
+    return tenant ? runInTenant(tenant, run) : null;
+  };
 
-  app.post("/api/whatsapp/webhook", async (req: Request, res: Response) => {
+  const verifyWebhook = async (req: Request, res: Response) => {
+    const answered = await inCompany(req.params.slug, async () => {
+      const c = await loadWaConfig(true);
+      const matches = req.query["hub.mode"] === "subscribe" && Boolean(c.verifyToken) && req.query["hub.verify_token"] === c.verifyToken;
+      return matches ? String(req.query["hub.challenge"] ?? "") : null;
+    }).catch(() => null);
+    return answered === null ? res.sendStatus(403) : res.status(200).send(answered);
+  };
+  app.get("/api/whatsapp/webhook", verifyWebhook);
+  app.get("/api/whatsapp/webhook/:slug", verifyWebhook);
+
+  const receiveWebhook = async (req: Request, res: Response) => {
     res.sendStatus(200); // ack immediately; Meta retries on non-200
     try {
-      const entries = req.body?.entry || [];
-      for (const entry of entries) {
-        for (const change of entry.changes || []) {
-          const value = change.value || {};
-          const contacts = value.contacts || [];
-          for (const msg of value.messages || []) {
-            if (msg.type !== "text" && msg.type !== "interactive" && msg.type !== "button") continue;
-            const from = msg.from;
-            const profileName = contacts.find((x: any) => x.wa_id === from)?.profile?.name;
-            const selected = msg.interactive?.button_reply?.id
-              || msg.interactive?.list_reply?.id
-              || msg.button?.payload
-              || msg.text?.body
-              || "";
-            await handleInboundText(from, selected, profileName, msg.id);
+      await inCompany(req.params.slug, async () => {
+        const entries = req.body?.entry || [];
+        for (const entry of entries) {
+          for (const change of entry.changes || []) {
+            const value = change.value || {};
+            const contacts = value.contacts || [];
+            for (const msg of value.messages || []) {
+              if (msg.type !== "text" && msg.type !== "interactive" && msg.type !== "button") continue;
+              const from = msg.from;
+              const profileName = contacts.find((x: any) => x.wa_id === from)?.profile?.name;
+              const selected = msg.interactive?.button_reply?.id
+                || msg.interactive?.list_reply?.id
+                || msg.button?.payload
+                || msg.text?.body
+                || "";
+              await handleInboundText(from, selected, profileName, msg.id);
+            }
           }
         }
-      }
+      });
     } catch (e) { waError("webhook error", e); }
-  });
+  };
+  app.post("/api/whatsapp/webhook", receiveWebhook);
+  app.post("/api/whatsapp/webhook/:slug", receiveWebhook);
 
   // Kick off the reminder scheduler (hourly). Safe no-op until WhatsApp is configured.
   startReminderScheduler();
@@ -1942,7 +2075,7 @@ export async function runBookingReminders(): Promise<number> {
   try {
     const soon = new Date(now + 3 * 60 * 60_000 + 15 * 60_000); // up to ~3h15m ahead
     const rows = await db.select().from(appointments).where(and(gt(appointments.appointmentDate, new Date(now)), lte(appointments.appointmentDate, soon)));
-    const club = (await settingVal("clubName")) || "Reborn Wave";
+    const club = (await settingVal("clubName")) || (await loadWaConfig()).club || "Reborn Wave";
     for (const a of rows) {
       if (!["pending", "scheduled", "confirmed"].includes(a.status)) continue;
       const mins = (new Date(a.appointmentDate).getTime() - now) / 60000;
@@ -1991,7 +2124,7 @@ export async function runNoShowCancels(): Promise<number> {
         ne(appointments.title, "BLOCKED"),
       )).returning();
     if (!rows.length) return 0;
-    const club = (await settingVal("clubName")) || "Reborn Wave";
+    const club = (await settingVal("clubName")) || (await loadWaConfig()).club || "Reborn Wave";
     const waAvail = await whatsappAvailable();
     for (const a of rows) {
       cancelled++;
@@ -2000,7 +2133,7 @@ export async function runNoShowCancels(): Promise<number> {
       const lang = await langForPhone(phone, a.userId);
       const when = fmtBookingWhen(a.appointmentDate, lang);
       const what = localizeBookingText(lang, a.title);
-      if (waAvail && phone) sendWhatsApp(phone, L(lang, "bookNoShow", { club, when, url: `${APP_BASE_URL}/bookings` })).catch(() => {});
+      if (waAvail && phone) sendWhatsApp(phone, L(lang, "bookNoShow", { club, when, url: memberAppUrl("/bookings") })).catch(() => {});
       sendPushToUser(a.userId, { title: L(lang, "pushNoShowTitle"), body: L(lang, "pushNoShowBody", { what, when }), url: "/bookings", tag: `noshow-${a.id}` }).catch(() => {});
       await sendRebornUserNotification(a.userId, { type: "booking_status", title: L(lang, "noticeNoShowTitle"), body: L(lang, "noticeNoShowBody", { what, when }), data: { path: "/bookings", bookingId: a.id, status: "cancelled" } }).catch(() => {});
       const who = [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Member";
@@ -2107,15 +2240,16 @@ function startReminderScheduler() {
   if (schedulerStarted) return;
   schedulerStarted = true;
   // Run ~10 min after boot, then hourly (bottle / comeback / feedback).
-  setTimeout(() => { runReminders().catch(() => {}); }, 10 * 60 * 1000);
-  setInterval(() => { runReminders().catch(() => {}); }, HOUR_MS);
+  // Every job runs for each company in turn (its own bookings, contacts and WhatsApp number).
+  setTimeout(() => { void inEveryDataSpace(runReminders); }, 10 * 60 * 1000);
+  setInterval(() => { void inEveryDataSpace(runReminders); }, HOUR_MS);
   // Package reminders (visits / credit left) — hourly, daytime only.
-  setTimeout(() => { runPackageReminders().catch(() => {}); }, 12 * 60 * 1000);
-  setInterval(() => { runPackageReminders().catch(() => {}); }, HOUR_MS);
+  setTimeout(() => { void inEveryDataSpace(runPackageReminders); }, 12 * 60 * 1000);
+  setInterval(() => { void inEveryDataSpace(runPackageReminders); }, HOUR_MS);
   // Booking reminders need finer granularity (3h / 1h / 10min) — check every 5 minutes.
-  setTimeout(() => { runBookingReminders().catch(() => {}); }, 60 * 1000);
-  setInterval(() => { runBookingReminders().catch(() => {}); }, 5 * 60 * 1000);
+  setTimeout(() => { void inEveryDataSpace(runBookingReminders); }, 60 * 1000);
+  setInterval(() => { void inEveryDataSpace(runBookingReminders); }, 5 * 60 * 1000);
   // No-show auto-cancel (15 min after start) — checked every minute.
-  setTimeout(() => { runNoShowCancels().catch(() => {}); }, 90 * 1000);
-  setInterval(() => { runNoShowCancels().catch(() => {}); }, 60 * 1000);
+  setTimeout(() => { void inEveryDataSpace(runNoShowCancels); }, 90 * 1000);
+  setInterval(() => { void inEveryDataSpace(runNoShowCancels); }, 60 * 1000);
 }

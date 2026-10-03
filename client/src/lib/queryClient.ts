@@ -1,6 +1,8 @@
 import { translate } from "@/lib/i18n";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+import { rememberedTenantSlug } from "@/hooks/useTenantBrand";
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -19,7 +21,8 @@ async function throwIfResNotOk(res: Response) {
 // for the shared host + slug access; absent = the default (Reborn) company.
 function tenantHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
-  try { const slug = localStorage.getItem("bridgexTenantSlug"); if (slug) h["X-Tenant-Slug"] = slug; } catch {}
+  const slug = rememberedTenantSlug(); // also picks up ?tenant=<slug> from a link
+  if (slug) h["X-Tenant-Slug"] = slug;
   // The app language, so server messages come back translated.
   try { const lang = localStorage.getItem("language"); if (lang) h["X-Lang"] = lang; } catch {}
   return h;

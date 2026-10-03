@@ -11,7 +11,7 @@ import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
 import { installErrorWatch, recordError, startErrorCleanup } from "./errorWatch";
-import { keepTenantContextAcrossMiddleware, listTenantSpaces, syncAllTenantSpaces, tenantSpaceMiddleware } from "./tenantSpace";
+import { inEveryDataSpace, keepTenantContextAcrossMiddleware, listTenantSpaces, syncAllTenantSpaces, tenantSpaceMiddleware } from "./tenantSpace";
 import { runInTenant } from "./tenantContext";
 
 // One failing request must never take the whole app down (Cloudflare 502 for
@@ -132,7 +132,7 @@ app.use((req, res, next) => {
 
   // Background pet decay system - runs every 3 minutes
   const startBackgroundDecay = () => {
-    setInterval(async () => {
+    setInterval(() => inEveryDataSpace(async () => {
       try {
         const { db } = await import("./db.js");
         const { pets } = await import("../shared/schema.js");
@@ -228,7 +228,7 @@ app.use((req, res, next) => {
       } catch (error) {
         console.error("Background decay error:", error);
       }
-    }, 180000); // Run every 3 minutes (180,000ms)
+    }), 180000); // Run every 3 minutes (180,000ms), for every company
   };
 
   // Start background decay system
@@ -239,7 +239,7 @@ app.use((req, res, next) => {
 
   // Background daily token distribution system - runs every 10 minutes
   const startDailyTokenDistribution = () => {
-    setInterval(async () => {
+    setInterval(() => inEveryDataSpace(async () => {
       try {
         const { db } = await import("./db.js");
         const { pets, users, tokenTransactions } = await import(
@@ -340,7 +340,7 @@ app.use((req, res, next) => {
       } catch (error) {
         console.error("Daily token distribution error:", error);
       }
-    }, 600000); // Run every 10 minutes (600,000ms)
+    }), 600000); // Run every 10 minutes (600,000ms), for every company
   };
 
   // Start daily token distribution system
