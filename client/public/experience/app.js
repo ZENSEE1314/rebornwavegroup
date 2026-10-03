@@ -2651,11 +2651,83 @@ const hint = document.getElementById("hint");
 
 function maxScroll() { return Math.max(1, document.documentElement.scrollHeight - innerHeight); }
 function scrollToProgress(p) { window.scrollTo({ top: p * maxScroll(), behavior: REDUCED ? "auto" : "smooth" }); }
+// ── One page at a time: each story card (.beat) is a page. A swipe, wheel flick or
+// arrow key moves to the next / previous page only, however fast it is, and a
+// scroll that stops between pages (scrollbar drag) settles on the nearest one.
+const STOPS = beats.map(({ a, b }) => (a <= 0 ? 0 : b >= 1 ? 1 : (a + b) / 2));
+let goingTo = -1, goingUntil = 0;
+const progressNow = () => clamp(scrollY / maxScroll());
+function nearestStop(p = progressNow()) {
+  let k = 0;
+  for (let i = 1; i < STOPS.length; i++) if (Math.abs(STOPS[i] - p) < Math.abs(STOPS[k] - p)) k = i;
+  return k;
+}
+function goToStop(i) {
+  goingTo = Math.max(0, Math.min(STOPS.length - 1, i));
+  goingUntil = performance.now() + 2500; // until it arrives (see the scroll listener), at most 2.5 s
+  scrollToProgress(STOPS[goingTo]);
+}
+function stepPage(dir) {
+  if (performance.now() < goingUntil) return goToStop(goingTo + dir); // already moving: one more page
+  const p = progressNow(), eps = 0.002;
+  if (dir > 0) { const i = STOPS.findIndex((x) => x > p + eps); goToStop(i < 0 ? STOPS.length - 1 : i); }
+  else { let i = 0; for (let k = 0; k < STOPS.length; k++) if (STOPS[k] < p - eps) i = k; goToStop(i); }
+}
+// Wheel / trackpad: one page per gesture (a gesture ends after 220 ms without wheel
+// events); wheel input while a page is still sliding in is ignored.
+let wheelLast = 0, wheelSum = 0, wheelDone = false;
+addEventListener("wheel", (e) => {
+  if (e.ctrlKey || vmodal.open) return; // pinch-zoom / video player
+  e.preventDefault();
+  const now = performance.now();
+  if (now - wheelLast > 220) { wheelSum = 0; wheelDone = false; }
+  wheelLast = now;
+  if (wheelDone || now < goingUntil) { wheelDone = true; return; } // still moving: the rest of this flick is ignored
+  wheelSum += e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? innerHeight : 1);
+  if (Math.abs(wheelSum) >= 25) { wheelDone = true; stepPage(Math.sign(wheelSum)); }
+}, { passive: false });
+// Touch: a swipe up / down of 40px+ moves one page; the page itself doesn't fling.
+let touchY = null;
+addEventListener("touchstart", (e) => { touchY = e.touches.length === 1 && !vmodal.open ? e.touches[0].clientY : null; }, { passive: true });
+addEventListener("touchmove", (e) => { if (touchY !== null && e.cancelable) e.preventDefault(); }, { passive: false });
+addEventListener("touchend", (e) => {
+  if (touchY === null) return;
+  const dy = touchY - e.changedTouches[0].clientY;
+  touchY = null;
+  if (Math.abs(dy) >= 40) stepPage(Math.sign(dy));
+}, { passive: true });
+addEventListener("touchcancel", () => { touchY = null; }, { passive: true });
+addEventListener("keydown", (e) => {
+  if (vmodal.open || e.altKey || e.ctrlKey || e.metaKey) return;
+  const typing = e.target.closest?.("input, textarea, select, [contenteditable]");
+  if (typing) return;
+  const onControl = e.target.closest?.("button, a");
+  let dir = 0;
+  if (e.key === "ArrowDown" || e.key === "PageDown" || (e.key === " " && !e.shiftKey && !onControl)) dir = 1;
+  else if (e.key === "ArrowUp" || e.key === "PageUp" || (e.key === " " && e.shiftKey && !onControl)) dir = -1;
+  else if (e.key === "Home") { e.preventDefault(); return goToStop(0); }
+  else if (e.key === "End") { e.preventDefault(); return goToStop(STOPS.length - 1); }
+  if (dir) { e.preventDefault(); stepPage(dir); }
+});
+// Scrollbar drags and anything else that stops between pages: settle on the nearest page.
+let settleTimer = 0;
+addEventListener("scroll", () => {
+  if (performance.now() < goingUntil && Math.abs(progressNow() - STOPS[goingTo]) * maxScroll() < 2) goingUntil = performance.now() + 250; // arrived
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => {
+    if (touchY !== null) return;
+    const p = progressNow(), k = nearestStop(p);
+    if (Math.abs(STOPS[k] - p) * maxScroll() > 2) goToStop(k);
+    else goingUntil = Math.min(goingUntil, performance.now() + 250); // arrived
+  }, 180);
+}, { passive: true });
+
 floorBtns.forEach((btn) => btn.addEventListener("click", () => {
   const s = SEGS.find((x) => x.id === btn.dataset.seg);
-  scrollToProgress(s.id === "arrival" ? 0 : s.id === "finale" ? 1 : s.a + (s.b - s.a) * 0.1);
+  const i = s.id === "arrival" ? 0 : s.id === "finale" ? STOPS.length - 1 : STOPS.findIndex((x) => x >= s.a);
+  goToStop(i < 0 ? STOPS.length - 1 : i);
 }));
-document.querySelector(".skip").addEventListener("click", (e) => { e.preventDefault(); scrollToProgress(1); });
+document.querySelector(".skip").addEventListener("click", (e) => { e.preventDefault(); goToStop(STOPS.length - 1); });
 
 function updateOverlays(p, segIdx) {
   for (const { el, a, b } of beats) {
