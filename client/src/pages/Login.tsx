@@ -11,6 +11,7 @@ import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users, Spa
 import { useTranslation, getCurrentLanguage } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import rwgLogo from "@assets/rwg-logo.png";
+import { useTenantBrand, rememberedTenantSlug, FLAGSHIP_TENANT_SLUG } from "@/hooks/useTenantBrand";
 
 /* ─── Validation schemas (messages are i18n keys, translated where shown) ─── */
 // Log in with an email, or with the phone number for accounts made without email.
@@ -106,7 +107,14 @@ const REGISTER_PERKS = [
 ═══════════════════════════════════════ */
 export default function Login() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot" | "reset">("login");
+  const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot" | "reset">(
+    () => (new URLSearchParams(window.location.search).get("tab") === "register" ? "register" : "login"),
+  );
+  // Another business's app (white-label) signs in under its own name and logo, not Reborn's.
+  const brand = useTenantBrand();
+  const enteredSlug = rememberedTenantSlug();
+  const isWhiteLabel = brand.isLoading ? !!enteredSlug && enteredSlug !== FLAGSHIP_TENANT_SLUG : brand.isWhiteLabel;
+  const brandName = isWhiteLabel ? brand.appName : "Reborn Wave Group";
   // ?next=/kos?table=V1&k=… — the member scanned a table QR before logging in.
   const nextPath = new URLSearchParams(window.location.search).get("next") || "";
   const scannedTable = (() => { try { return new URL(nextPath, window.location.origin).searchParams.get("table") || ""; } catch { return ""; } })();
@@ -435,27 +443,35 @@ export default function Login() {
         <div className="relative z-10 w-full max-w-[440px]">
           {/* ── Top bar ── */}
           <div className="flex items-center justify-between mb-6">
-            <a href="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-amber-500/20 group-hover:ring-amber-400/50 transition-all shadow-lg shadow-amber-900/30">
-                <img src={rwgLogo} alt="RWG" className="w-full h-full object-contain" />
+            <a href={isWhiteLabel && brand.slug ? `/t/${brand.slug}` : "/"} className="flex items-center gap-2.5 group">
+              <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-amber-500/20 group-hover:ring-amber-400/50 transition-all shadow-lg shadow-amber-900/30 grid place-items-center bg-white/5">
+                {!isWhiteLabel ? (
+                  <img src={rwgLogo} alt="RWG" className="w-full h-full object-contain" />
+                ) : brand.logoUrl ? (
+                  <img src={brand.logoUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-base font-black text-amber-300">{brandName.charAt(0).toUpperCase()}</span>
+                )}
               </div>
               <div>
                 <span className="text-sm font-bold text-white/70 group-hover:text-white transition-colors block leading-tight">
-                  Reborn Wave Group
+                  {brandName}
                 </span>
-                <span className="text-[10px] text-amber-400/60 tracking-widest uppercase">{t("ac.login.eliteExperience")}</span>
+                {!isWhiteLabel && <span className="text-[10px] text-amber-400/60 tracking-widest uppercase">{t("ac.login.eliteExperience")}</span>}
               </div>
             </a>
             <LanguageSelector />
           </div>
 
           {/* ── Social proof strip ── */}
-          <div className="flex justify-center mb-5">
-            <span className="rwg-member-badge">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              {t("ac.login.members")}
-            </span>
-          </div>
+          {!isWhiteLabel && (
+            <div className="flex justify-center mb-5">
+              <span className="rwg-member-badge">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {t("ac.login.members")}
+              </span>
+            </div>
+          )}
 
           {/* ── Card ── */}
           <div className="auth-card rwg-card rwg-card-glow p-7">
@@ -473,8 +489,8 @@ export default function Login() {
 
               {activeTab === "login" && (
                 <>
-                  <h1 className="auth-title">{t("auth.title")}</h1>
-                  <p className="text-white/40 text-sm mt-1">{t("auth.subtitle")}</p>
+                  <h1 className="auth-title">{isWhiteLabel ? brandName : t("auth.title")}</h1>
+                  <p className="text-white/40 text-sm mt-1">{isWhiteLabel ? t("vn.tenant.signInHere") : t("auth.subtitle")}</p>
                 </>
               )}
               {activeTab === "register" && (

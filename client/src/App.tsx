@@ -77,6 +77,7 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 
 // ── Eagerly loaded — critical first-paint pages ────────────────────────────────
 import Landing from "@/pages/landing";
+import { FLAGSHIP_TENANT_SLUG, rememberedTenantSlug } from "@/hooks/useTenantBrand";
 import Login from "@/pages/Login";
 import CompleteApp from "@/pages/complete-app";   // main app — must never hang
 
@@ -137,7 +138,6 @@ function PageLoader() {
   );
 }
 
-const FLAGSHIP_TENANT_SLUG = "reborn-wave-group";
 
 // The public homepage is the standalone 3D tower (client/public/experience), served
 // by the server as static files — leave the SPA so it loads.
@@ -394,7 +394,9 @@ function App() {
       const description = document.querySelector("meta[name='description']");
       description?.setAttribute("content", "Create a multi-branch POS, staff system, website and branded Android or iOS app for your company.");
     }
-    fetch(`/api/v1/tenant/resolve?host=${encodeURIComponent(host)}`)
+    // Outside the BridgeX console, a business entered via /t/<slug> keeps its name, colours and icon.
+    const tenantSlug = window.location.pathname.startsWith("/bridgex") ? "" : rememberedTenantSlug();
+    fetch(`/api/v1/tenant/resolve?host=${encodeURIComponent(host)}&slug=${encodeURIComponent(tenantSlug)}`)
       .then((response) => response.ok ? response.json() : null)
       .then((tenant) => {
         if (!tenant) return;
