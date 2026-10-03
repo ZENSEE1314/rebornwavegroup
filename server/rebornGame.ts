@@ -413,20 +413,47 @@ function NEW_GIFT_TYPES_V2() {
     { name: "Rocket", emoji: "🚀", animation: "rocket", kgoldCost: 1000000000, sortOrder: 10 },
   ];
 }
-async function seedGiftTypesIfEmpty(companyId?: number) {
+// Runs once per venue at a time: the gift list is loaded by many phones at once,
+// and each used to add the new gifts again (duplicates). Now one in-process run
+// per venue + an atomic "claim" of the flag row, so only one request ever adds them.
+const giftSeedRuns = new Map<string, Promise<void>>();
+function seedGiftTypesIfEmpty(companyId?: number): Promise<void> {
+  const key = String(companyId ?? "all");
+  const running = giftSeedRuns.get(key);
+  if (running) return running;
+  const run = seedGiftTypesOnce(companyId).finally(() => giftSeedRuns.delete(key));
+  giftSeedRuns.set(key, run);
+  return run;
+}
+async function claimFlag(flag: string): Promise<boolean> {
+  const rows = await db.insert(appSettings).values({ key: flag, value: "1", updatedAt: new Date() }).onConflictDoNothing().returning({ key: appSettings.key });
+  return rows.length > 0;
+}
+async function seedGiftTypesOnce(companyId?: number) {
   const cond = companyId ? eq(kosGiftTypes.companyId, companyId) : undefined;
   const existing = await db.select({ id: kosGiftTypes.id }).from(kosGiftTypes).where(cond as any).limit(1);
-  if (existing.length === 0) await db.insert(kosGiftTypes).values(DEFAULT_GIFT_TYPES.map((g) => ({ ...g, companyId: companyId ?? null })));
-  else {
-    const flag = `giftsV2Added_${companyId ?? "all"}`;
-    const [done] = await db.select().from(appSettings).where(eq(appSettings.key, flag));
-    if (!done) {
-      const names = new Set((await db.select({ name: kosGiftTypes.name }).from(kosGiftTypes).where(cond as any)).map((r) => r.name));
-      const add = NEW_GIFT_TYPES_V2().filter((g) => !names.has(g.name));
-      if (add.length) await db.insert(kosGiftTypes).values(add.map((g) => ({ ...g, companyId: companyId ?? null })));
-      await db.insert(appSettings).values({ key: flag, value: "1", updatedAt: new Date() }).onConflictDoNothing();
-    }
+  if (existing.length === 0) {
+    if (await claimFlag(`giftsSeeded_${companyId ?? "all"}`)) await db.insert(kosGiftTypes).values(DEFAULT_GIFT_TYPES.map((g) => ({ ...g, companyId: companyId ?? null })));
+    await claimFlag(`giftsV2Added_${companyId ?? "all"}`); // defaults already include the new gifts
+    return;
   }
+  if (!(await claimFlag(`giftsV2Added_${companyId ?? "all"}`))) return; // added before (or right now by another request)
+  const names = new Set((await db.select({ name: kosGiftTypes.name }).from(kosGiftTypes).where(cond as any)).map((r) => r.name));
+  const add = NEW_GIFT_TYPES_V2().filter((g) => !names.has(g.name));
+  if (add.length) await db.insert(kosGiftTypes).values(add.map((g) => ({ ...g, companyId: companyId ?? null })));
+}
+// One-off cleanup of the duplicate gifts that race created: keep the oldest of each
+// (venue, name, price); gifts already sent are moved onto the one we keep.
+async function dedupeGiftTypes() {
+  try {
+    await db.execute(sql`UPDATE kos_gifts g SET gift_type_id = k.keep FROM (
+        SELECT id, MIN(id) OVER (PARTITION BY company_id, name, kgold_cost) AS keep FROM kos_gift_types) k
+      WHERE g.gift_type_id = k.id AND k.id <> k.keep`);
+    const r: any = await db.execute(sql`DELETE FROM kos_gift_types t USING kos_gift_types k
+      WHERE t.company_id IS NOT DISTINCT FROM k.company_id AND t.name = k.name AND t.kgold_cost = k.kgold_cost AND t.id > k.id`);
+    const n = r?.rowCount ?? 0;
+    if (n) console.log(`[kos] removed ${n} duplicate gift types`);
+  } catch (e) { console.warn("[kos] dedupe gift types", e); }
 }
 
 const LIFE_DAYS = 15;
@@ -932,6 +959,7 @@ async function activeCheckin(userId: string) {
 
 export function registerRebornRoutes(app: Express) {
   console.log("*** REBORN GAME ROUTES REGISTERED");
+  void dedupeGiftTypes();
 
   // Block member actions for features the admin turned off (admins/staff can still test them).
   app.use(async (req, res, next) => {
@@ -1420,7 +1448,7 @@ export function registerRebornRoutes(app: Express) {
     try {
       const cid = await rebornCompanyId(req);
       await seedGiftTypesIfEmpty(cid);
-      const rows = await db.select().from(kosGiftTypes).where(and(eq(kosGiftTypes.companyId, cid), eq(kosGiftTypes.active, true))).orderBy(kosGiftTypes.sortOrder);
+      const rows = await db.select().from(kosGiftTypes).where(and(eq(kosGiftTypes.companyId, cid), eq(kosGiftTypes.active, true))).orderBy(kosGiftTypes.kgoldCost, kosGiftTypes.sortOrder, kosGiftTypes.id); // cheapest first
       res.json(rows);
     } catch (e) { console.error("gifttypes", e); res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) }); }
   });
@@ -2144,7 +2172,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/gifttypes", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
     await seedGiftTypesIfEmpty(cid);
-    res.json(await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.companyId, cid)).orderBy(kosGiftTypes.sortOrder));
+    res.json(await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.companyId, cid)).orderBy(kosGiftTypes.kgoldCost, kosGiftTypes.sortOrder, kosGiftTypes.id));
   }));
   app.post("/api/reborn/admin/gifttypes", requireAdmin(async (req, res) => {
     const b = req.body || {};
