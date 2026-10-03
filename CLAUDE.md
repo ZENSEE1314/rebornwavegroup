@@ -174,8 +174,8 @@ text.
 ## KOS gift levels + ranking tabs
 
 - Two levels per member, 50 each (server/giftLevels.ts): **Gifter** (🎁, all
-  KGOLD sent) and **Star** (⭐, all KGOLD received). KGOLD for the next level =
-  base × growth^(level−2), or an exact 49-number list — admin Settings › Gift
+  KGOLD sent) and **Star** (⭐, all KGOLD received). Total KGOLD per level:
+  Lv.2 at 1,000,000 then ×2 each level (base + growth), or an exact 49-number list of totals — admin Settings › Gift
   levels (`giftLevelSender*` / `giftLevelReceiver*`; preview table there).
 - The avatar ring (components/LevelRing.tsx `LevelAvatar`, by the higher of the
   two levels) changes every 5 levels: bronze 5, silver 10, gold 15, emerald 20,

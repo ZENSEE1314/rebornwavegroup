@@ -769,8 +769,9 @@ function Settings() {
 // Admin › Settings › Gift levels: KGOLD needed per level (Gifter = sent, Star = received).
 function levelPreview(base: number, growth: number, list: string) {
   const nums = String(list || "").split(/[\s,;]+/).map(Number).filter((x) => Number.isFinite(x) && x > 0);
+  const g = Math.min(10, Math.max(1, growth || 2));
   const at = [0, 0];
-  for (let lv = 2; lv <= 50; lv++) at[lv] = at[lv - 1] + (nums.length >= lv - 1 ? nums[lv - 2] : Math.max(1, Math.round((base || 10000) * Math.pow(Math.min(3, Math.max(1, growth || 1.2)), lv - 2))));
+  for (let lv = 2; lv <= 50; lv++) at[lv] = Math.max(at[lv - 1] + 1, nums.length >= lv - 1 ? nums[lv - 2] : lv === 2 ? (base || 1000000) : Math.round(at[lv - 1] * g));
   return at;
 }
 function GiftLevelSettings({ cur, set, setStr }: any) {
@@ -781,8 +782,8 @@ function GiftLevelSettings({ cur, set, setStr }: any) {
       <div className="rounded-xl bg-black/20 border border-white/10 p-3 mb-3">
         <p className="font-bold text-sm mb-2">{p === "Sender" ? t("admin.lv.sender") : t("admin.lv.receiver")}</p>
         <Field label={t("admin.lv.base")} value={cur[`giftLevel${p}Base`]} onChange={(v: any) => set(`giftLevel${p}Base`, v)} />
-        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.growth")}</span><input type="number" step="0.05" min="1" max="3" value={cur[`giftLevel${p}Growth`] ?? ""} onChange={(e) => set(`giftLevel${p}Growth`, e.target.value)} className={inp + " w-full"} /></label>
-        <label className="block mb-2"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.list")}</span><textarea rows={2} value={cur[`giftLevel${p}List`] || ""} onChange={(e) => setStr(`giftLevel${p}List`, e.target.value)} placeholder="10000, 12000, 15000, …" className={inp + " w-full font-mono text-xs"} /></label>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.growth")}</span><input type="number" step="0.1" min="1" max="10" value={cur[`giftLevel${p}Growth`] ?? ""} onChange={(e) => set(`giftLevel${p}Growth`, e.target.value)} className={inp + " w-full"} /></label>
+        <label className="block mb-2"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.list")}</span><textarea rows={2} value={cur[`giftLevel${p}List`] || ""} onChange={(e) => setStr(`giftLevel${p}List`, e.target.value)} placeholder="1000000, 2000000, 4000000, …" className={inp + " w-full font-mono text-xs"} /></label>
         <div className="grid gap-1 text-[10px]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
           {[2, 5, 10, 15, 20, 30, 40, 50].map((lv) => <div key={lv} className="rounded bg-white/5 px-1.5 py-1"><b className="text-amber-200">Lv.{lv}</b><span className="block text-white/60">{at[lv].toLocaleString()}</span></div>)}
         </div>

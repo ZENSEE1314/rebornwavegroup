@@ -486,6 +486,8 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE events ADD COLUMN IF NOT EXISTS start_date varchar; ALTER TABLE events ADD COLUMN IF NOT EXISTS end_date varchar;
     ALTER TABLE crm_contacts ADD COLUMN IF NOT EXISTS bot_paused boolean NOT NULL DEFAULT false;
     ALTER TABLE songs ADD COLUMN IF NOT EXISTS karaoke_code varchar;
+    UPDATE app_settings SET value = CASE WHEN key LIKE '%Base' THEN '1000000' WHEN key LIKE '%Growth' THEN '2' ELSE '' END WHERE key IN ('giftLevelSenderBase','giftLevelSenderGrowth','giftLevelSenderList','giftLevelReceiverBase','giftLevelReceiverGrowth','giftLevelReceiverList') AND NOT EXISTS (SELECT 1 FROM app_settings WHERE key = 'giftLevelsDoubleV2');
+    INSERT INTO app_settings (key, value) VALUES ('giftLevelsDoubleV2', '1') ON CONFLICT (key) DO NOTHING;
     CREATE TABLE IF NOT EXISTS game_rooms (code varchar PRIMARY KEY, data jsonb NOT NULL, updated_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS app_errors (id serial PRIMARY KEY, area varchar NOT NULL, source varchar NOT NULL DEFAULT 'app', method varchar, path text, status integer NOT NULL DEFAULT 0, message text NOT NULL DEFAULT '', user_id varchar, detail text, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS app_errors_created_idx ON app_errors (created_at DESC);
