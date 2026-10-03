@@ -399,11 +399,34 @@ const DEFAULT_GIFT_TYPES = [
   { name: "Diamond", emoji: "💎", animation: "diamonds", kgoldCost: 20000, sortOrder: 3 },
   { name: "Crown", emoji: "👑", animation: "crown", kgoldCost: 100000, sortOrder: 4 },
   { name: "Sports Car", emoji: "🏎️", animation: "car", kgoldCost: 500000, sortOrder: 5 },
+  ...NEW_GIFT_TYPES_V2(),
 ];
+// Big gifts added later (each with its own full-screen scene + sound). Added once
+// to every venue that already has gifts (`giftsV2Added_<company>` flag), so an
+// admin who deletes one doesn't get it back.
+function NEW_GIFT_TYPES_V2() {
+  return [
+    { name: "Kiss", emoji: "💋", animation: "kiss", kgoldCost: 250000, sortOrder: 6 },
+    { name: "Doluruu Thumbs Up", emoji: "👍", animation: "thumbsup", kgoldCost: 750000, sortOrder: 7 },
+    { name: "Lion Roar", emoji: "🦁", animation: "lion", kgoldCost: 1250000, sortOrder: 8 },
+    { name: "Big Whale", emoji: "🐋", animation: "whale", kgoldCost: 1750000, sortOrder: 9 },
+    { name: "Rocket", emoji: "🚀", animation: "rocket", kgoldCost: 1000000000, sortOrder: 10 },
+  ];
+}
 async function seedGiftTypesIfEmpty(companyId?: number) {
   const cond = companyId ? eq(kosGiftTypes.companyId, companyId) : undefined;
   const existing = await db.select({ id: kosGiftTypes.id }).from(kosGiftTypes).where(cond as any).limit(1);
   if (existing.length === 0) await db.insert(kosGiftTypes).values(DEFAULT_GIFT_TYPES.map((g) => ({ ...g, companyId: companyId ?? null })));
+  else {
+    const flag = `giftsV2Added_${companyId ?? "all"}`;
+    const [done] = await db.select().from(appSettings).where(eq(appSettings.key, flag));
+    if (!done) {
+      const names = new Set((await db.select({ name: kosGiftTypes.name }).from(kosGiftTypes).where(cond as any)).map((r) => r.name));
+      const add = NEW_GIFT_TYPES_V2().filter((g) => !names.has(g.name));
+      if (add.length) await db.insert(kosGiftTypes).values(add.map((g) => ({ ...g, companyId: companyId ?? null })));
+      await db.insert(appSettings).values({ key: flag, value: "1", updatedAt: new Date() }).onConflictDoNothing();
+    }
+  }
 }
 
 const LIFE_DAYS = 15;

@@ -623,7 +623,7 @@ function GiftRow({ g, onSave, onDelete }: any) {
       <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.gift.image")}</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label={t("admin.c.uploadImage")} /></div>
       <div className="flex flex-wrap gap-2 items-center">
         <label className="text-xs text-white/50">KGOLD<input type="number" inputMode="numeric" value={e.kgoldCost || ""} onFocus={(x) => x.currentTarget.select()} onChange={(x) => setE({ ...e, kgoldCost: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
-        <select value={e.animation} onChange={(x) => setE({ ...e, animation: x.target.value })} className={inp}>{["pop", "float", "zoom", "rain", "car", "fireworks", "crown", "diamonds"].map((a) => <option key={a} value={a}>{t("admin.anim." + a)}</option>)}</select>
+        <select value={e.animation} onChange={(x) => setE({ ...e, animation: x.target.value })} className={inp}>{["pop", "float", "zoom", "rain", "car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket"].map((a) => <option key={a} value={a}>{t("admin.anim." + a)}</option>)}</select>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> {t("admin.c.active")}</label>
       </div>
       <div className="flex gap-2 mt-3">

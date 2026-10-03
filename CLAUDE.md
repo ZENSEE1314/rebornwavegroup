@@ -187,3 +187,10 @@ text.
   (everyone, received this month); every row shows the member's top 3 gifters
   for that period (`/api/reborn/kos/leaderboard?period=`). Gift only to members
   checked in tonight.
+- Big gifts with their own full-screen scene + synthesized sound (reborn-kos.tsx
+  `sceneOf` / `GiftScene`, index.css `gs-*`, lib/sfx.ts `gift(kind)`): Kiss 💋
+  250,000 · Doluruu Thumbs Up 👍 750,000 · Lion Roar 🦁 1,250,000 · Big Whale 🐋
+  1,750,000 · Rocket 🚀 1,000,000,000 (plus car / fireworks / crown / diamonds).
+  Added once to venues that already have gifts (`giftsV2Added_<company>`).
+- Each ranked member's top 3 gifters show as a podium (`GifterPodium`: 2nd · 1st
+  · 3rd, gold / silver / bronze crown + medal ring around their own level ring).

@@ -175,8 +175,35 @@ export const sfx = {
         glide(300, 520, 0.35, "sawtooth", 0.12); [784, 988, 1175].forEach((f, i) => tone(f, 0.18, "triangle", 0.14, 0.4 + i * 0.1)); break;
       case "teddy": case "pet": // squeaky toy
         glide(900, 1400, 0.12, "square", 0.1); glide(1400, 900, 0.12, "square", 0.08, 0.14); break;
-      case "rocket": case "plane": // lift off
-        band(1.2, 300, 0.25, 0, 0.5); glide(200, 1600, 1.2, "sawtooth", 0.08); break;
+      case "kiss": // "mwah!" smooch + sweet chime + hearts
+        band(0.08, 2500, 0.35, 0.15, 4); glide(500, 1400, 0.16, "sine", 0.18, 0.2); band(0.05, 3000, 0.2, 0.38, 5);
+        [1046, 1318, 1568, 2093].forEach((f, i) => tone(f, 0.35, "sine", 0.08, 0.6 + i * 0.12));
+        [0, 0.18].forEach((d) => tone(80, 0.12, "sine", 0.3, 1.3 + d));
+        break;
+      case "thumbsup": // boing in + "ta-da!" + cheering crowd
+        glide(180, 520, 0.25, "sine", 0.22, 0.2); glide(520, 260, 0.2, "sine", 0.16, 0.45);
+        [523, 659, 784, 1046].forEach((f, i) => { tone(f, 0.22, "square", 0.07, 1.0 + i * 0.1); tone(f * 2, 0.22, "triangle", 0.05, 1.0 + i * 0.1); });
+        band(1.4, 1200, 0.12, 1.4, 0.5); for (let i = 0; i < 6; i++) band(0.05, 3000 + i * 300, 0.08, 1.5 + i * 0.12, 4);
+        dinoRoar(2.0);
+        break;
+      case "lion": { // deep ROAR with rumble + shockwave
+        glide(160, 70, 1.6, "sawtooth", 0.22, 0.25); glide(240, 95, 1.5, "square", 0.08, 0.3);
+        band(1.7, 320, 0.45, 0.25, 0.6); band(1.4, 900, 0.18, 0.35, 0.8);
+        tone(45, 1.8, "sine", 0.35, 0.25); noise(0.5, 0.12, 1.6);
+        break;
+      }
+      case "whale": // deep whale song + bubbles + splash
+        glide(220, 520, 1.1, "sine", 0.16, 0.2); glide(520, 260, 1.0, "sine", 0.14, 1.3); glide(300, 700, 0.9, "triangle", 0.06, 2.0);
+        for (let i = 0; i < 12; i++) glide(700 + (i % 4) * 180, 1500 + (i % 3) * 300, 0.06, "sine", 0.07, 0.4 + i * 0.17);
+        band(0.9, 700, 0.35, 2.9, 0.5); band(0.6, 2500, 0.15, 3.0, 1);
+        break;
+      case "rocket": case "plane": { // countdown 3-2-1 → ignition rumble → lift off → boom
+        [0, 0.6, 1.2].forEach((d) => tone(880, 0.12, "square", 0.1, d)); tone(1760, 0.35, "square", 0.12, 1.8);
+        band(3.2, 160, 0.5, 1.9, 0.4); band(3.0, 500, 0.25, 2.0, 0.6); tone(40, 3.0, "sine", 0.3, 1.9);
+        glide(120, 1800, 2.6, "sawtooth", 0.07, 2.2);
+        band(0.8, 200, 0.5, 4.6, 0.5); for (let i = 0; i < 10; i++) tone(1500 + Math.random() * 2500, 0.3, "sine", 0.06, 4.8 + i * 0.07);
+        break;
+      }
       case "money": // cash register
         tone(2200, 0.06, "square", 0.1); tone(2900, 0.3, "sine", 0.14, 0.08); for (let i = 0; i < 5; i++) tone(1300 + i * 120, 0.05, "triangle", 0.1, 0.4 + i * 0.05); break;
       default: // magic sparkle
