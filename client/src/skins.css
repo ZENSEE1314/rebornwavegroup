@@ -1,0 +1,241 @@
+/* ════════════════════════════════════════════════════════════════════════
+   App designs ("skins"). A company picks one in BridgeX › White label; the app puts
+   its id on <html data-skin="…"> (client/src/lib/appSkin.ts). No attribute = "royal",
+   the original gold-and-purple arcade look in index.css.
+
+   Every skin sets the same variables; the shared rules below apply them to the
+   layout, the cards and the arcade pieces. A skin's own block after that changes
+   shape: dock, corners, lettering, shadows.
+   ════════════════════════════════════════════════════════════════════════ */
+
+html[data-skin="ocean"] {
+  --sk-page: radial-gradient(120% 90% at 50% 0%, #0a2f4d 0%, #03101f 62%);
+  --sk-bar: rgba(3,16,31,.78); --sk-dock: linear-gradient(180deg, rgba(11,40,66,.94), rgba(4,18,34,.97));
+  --sk-line: linear-gradient(90deg, transparent, #22d3ee 30%, #3b82f6 70%, transparent);
+  --sk-s1: #0d2a45; --sk-s2: #061627; --sk-panel: linear-gradient(160deg, rgba(34,211,238,.10), rgba(59,130,246,.04));
+  --sk-edge: rgba(34,211,238,.28); --sk-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 24px rgba(0,0,0,.4), 0 0 18px rgba(34,211,238,.10);
+  --sk-a: #22d3ee; --sk-a2: #a5f3fc; --sk-ink: #021a24; --sk-deep: #0e7490; --sk-glow: rgba(34,211,238,.55);
+  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="sunset"] {
+  --sk-page: radial-gradient(130% 80% at 50% 0%, #4a1630 0%, #1a0b16 60%);
+  --sk-bar: rgba(26,11,22,.8); --sk-dock: linear-gradient(180deg, rgba(52,22,40,.97), rgba(22,9,18,.98));
+  --sk-line: linear-gradient(90deg, transparent, #ff7a3d 25%, #ff4f9a 75%, transparent);
+  --sk-s1: #32162a; --sk-s2: #1c0c18; --sk-panel: linear-gradient(165deg, rgba(255,122,61,.11), rgba(255,79,154,.05));
+  --sk-edge: rgba(255,140,110,.24); --sk-shadow: 0 10px 28px rgba(0,0,0,.38);
+  --sk-a: #ff7a3d; --sk-a2: #ffc29e; --sk-ink: #2a0d05; --sk-deep: #b3401a; --sk-glow: rgba(255,122,61,.4);
+  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="emerald"] {
+  --sk-page: linear-gradient(180deg, #0a2a1f 0%, #04140f 55%);
+  --sk-bar: rgba(4,20,15,.86); --sk-dock: #06190f;
+  --sk-line: linear-gradient(90deg, transparent, #d4af37 50%, transparent);
+  --sk-s1: #0d2a20; --sk-s2: #071a13; --sk-panel: linear-gradient(180deg, #0e2b21, #0a2019);
+  --sk-edge: rgba(212,175,55,.34); --sk-shadow: 0 6px 18px rgba(0,0,0,.35);
+  --sk-a: #d4af37; --sk-a2: #f1dc8e; --sk-ink: #1a1403; --sk-deep: #8a6f1c; --sk-glow: transparent;
+  --sk-font: inherit; --sk-head-font: Georgia, "Times New Roman", "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="mono"] {
+  --sk-page: #0b0b0c;
+  --sk-bar: rgba(11,11,12,.9); --sk-dock: #0b0b0c;
+  --sk-line: rgba(255,255,255,.14);
+  --sk-s1: #161618; --sk-s2: #121214; --sk-panel: #141416;
+  --sk-edge: rgba(255,255,255,.14); --sk-shadow: none;
+  --sk-a: #f5f5f5; --sk-a2: #ffffff; --sk-ink: #0b0b0c; --sk-deep: #8a8a8f; --sk-glow: transparent;
+  --sk-font: "Helvetica Neue", Helvetica, Arial, "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="sakura"] {
+  --sk-page: radial-gradient(120% 80% at 50% 0%, #4a1a3a 0%, #1c0a17 62%);
+  --sk-bar: rgba(28,10,23,.8); --sk-dock: linear-gradient(180deg, #3a1630, #220c1c);
+  --sk-line: linear-gradient(90deg, transparent, #ff8fb8 50%, transparent);
+  --sk-s1: #361530; --sk-s2: #200b1b; --sk-panel: linear-gradient(170deg, rgba(255,143,184,.13), rgba(255,143,184,.04));
+  --sk-edge: rgba(255,143,184,.26); --sk-shadow: 0 12px 30px rgba(20,4,14,.45), inset 0 1px 0 rgba(255,255,255,.07);
+  --sk-a: #ff8fb8; --sk-a2: #ffd1e3; --sk-ink: #3a0a20; --sk-deep: #c2497a; --sk-glow: rgba(255,143,184,.4);
+  --sk-font: ui-rounded, "SF Pro Rounded", "Nunito", "Hiragino Maru Gothic ProN", "Segoe UI", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="cyber"] {
+  --sk-page: linear-gradient(rgba(57,255,20,.05) 1px, transparent 1px) 0 0/100% 28px, linear-gradient(90deg, rgba(57,255,20,.05) 1px, transparent 1px) 0 0/28px 100%, #030507;
+  --sk-bar: rgba(3,5,7,.9); --sk-dock: #030507;
+  --sk-line: linear-gradient(90deg, #39ff14, #ff2bd6);
+  --sk-s1: #0a1216; --sk-s2: #05090b; --sk-panel: rgba(8,14,18,.92);
+  --sk-edge: rgba(57,255,20,.45); --sk-shadow: 0 0 0 1px rgba(57,255,20,.08), 0 0 18px rgba(57,255,20,.12);
+  --sk-a: #39ff14; --sk-a2: #b6ffa6; --sk-ink: #021200; --sk-deep: #ff2bd6; --sk-glow: rgba(57,255,20,.6);
+  --sk-font: inherit; --sk-head-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --sk-italic: normal; --sk-corners: 1;
+}
+html[data-skin="coffee"] {
+  --sk-page: linear-gradient(180deg, #24180f 0%, #17100b 50%);
+  --sk-bar: rgba(23,16,11,.9); --sk-dock: #1f150e;
+  --sk-line: rgba(217,160,102,.35);
+  --sk-s1: #2d1f15; --sk-s2: #21170f; --sk-panel: #2a1d14;
+  --sk-edge: rgba(217,160,102,.22); --sk-shadow: 0 4px 12px rgba(0,0,0,.3);
+  --sk-a: #d9a066; --sk-a2: #f3dcc0; --sk-ink: #24160a; --sk-deep: #8a5a2e; --sk-glow: transparent;
+  --sk-font: inherit; --sk-head-font: Georgia, "Times New Roman", "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="arctic"] {
+  --sk-page: radial-gradient(90% 60% at 15% 0%, rgba(120,180,255,.30), transparent 60%), radial-gradient(80% 60% at 100% 30%, rgba(160,140,255,.20), transparent 60%), #0b1422;
+  --sk-bar: rgba(11,20,34,.55); --sk-dock: rgba(16,28,46,.72);
+  --sk-line: rgba(255,255,255,.22);
+  --sk-s1: #1b2a40; --sk-s2: #121e30; --sk-panel: rgba(255,255,255,.075);
+  --sk-edge: rgba(255,255,255,.22); --sk-shadow: 0 10px 30px rgba(3,8,18,.35), inset 0 1px 0 rgba(255,255,255,.14);
+  --sk-a: #9fd4ff; --sk-a2: #e3f3ff; --sk-ink: #06203a; --sk-deep: #4a86bf; --sk-glow: transparent;
+  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="candy"] {
+  --sk-page: #1b1040;
+  --sk-bar: #1b1040; --sk-dock: #2a1a5e;
+  --sk-line: #000;
+  --sk-s1: #2f1d6a; --sk-s2: #2a1a5e; --sk-panel: #2a1a5e;
+  --sk-edge: #000; --sk-shadow: 4px 4px 0 #000;
+  --sk-a: #ffd60a; --sk-a2: #fff3a6; --sk-ink: #1a1200; --sk-deep: #000; --sk-glow: transparent;
+  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
+}
+
+/* ── shared: layout ─────────────────────────────────────────────────────── */
+html[data-skin] .rwg-app { background: var(--sk-page) !important; font-family: var(--sk-font); }
+html[data-skin] .rwg-app > header { background: var(--sk-bar) !important; border-color: var(--sk-edge) !important; }
+html[data-skin] .rwg-app :is(h1, h2, h3, .arc-title, .home-name) { font-family: var(--sk-head-font); }
+html[data-skin] .rwg-token-chip { background: color-mix(in srgb, var(--sk-a) 14%, transparent) !important; border-color: color-mix(in srgb, var(--sk-a) 45%, transparent) !important; box-shadow: 0 0 14px var(--sk-glow); }
+html[data-skin] .rwg-dock { background: var(--sk-dock) !important; }
+html[data-skin] .rwg-dock::before { background: var(--sk-line); box-shadow: 0 0 12px var(--sk-glow); }
+html[data-skin] .rwg-nav-item.is-active { color: var(--sk-a2); }
+html[data-skin] .rwg-nav-item.is-active .rwg-nav-ic { color: var(--sk-ink); background: linear-gradient(180deg, var(--sk-a2), var(--sk-a)); border-color: var(--sk-a2);
+  box-shadow: 0 4px 0 var(--sk-deep), 0 0 18px var(--sk-glow), inset 0 1px 0 rgba(255,255,255,.6); }
+html[data-skin] .rwg-nav-item.is-active .rwg-nav-lbl { text-shadow: 0 0 10px var(--sk-glow); }
+html[data-skin] .rwg-nav-badge { border-color: var(--sk-s2); }
+
+/* ── shared: the accent colour replaces gold ────────────────────────────── */
+html[data-skin] .gx { --gx: var(--sk-a) !important; }
+html[data-skin] .rwg-app :is(.text-amber-200, .text-amber-300, .text-amber-400, .text-yellow-300, .text-yellow-400) { color: var(--sk-a2) !important; }
+html[data-skin] .rwg-app .bg-amber-400 { background-color: var(--sk-a) !important; color: var(--sk-ink) !important; }
+html[data-skin] .rwg-app :is([class*="bg-amber-400/"], [class*="bg-amber-500/"]) { background-color: color-mix(in srgb, var(--sk-a) 14%, transparent) !important; }
+html[data-skin] .rwg-app :is(.border-amber-400, [class*="border-amber-400/"], [class*="border-amber-300/"]) { border-color: color-mix(in srgb, var(--sk-a) 45%, transparent) !important; }
+/* React writes the app's inline gold gradient as rgb() values */
+html[data-skin] .rwg-app [style*="rgb(201, 168, 76), rgb(240, 215, 135)"] { background: linear-gradient(90deg, var(--sk-a), var(--sk-a2)) !important; color: var(--sk-ink) !important; }
+html[data-skin] .gx :is(.text-amber-300, .text-amber-400):is(.font-bold, .font-extrabold) { text-shadow: 0 0 10px var(--sk-glow); }
+html[data-skin] .rwg-app :is(.arc-play, .pet-tab.on, .kos-add) { color: var(--sk-ink); background: linear-gradient(180deg, var(--sk-a2), var(--sk-a));
+  box-shadow: 0 3px 0 var(--sk-deep), 0 0 14px var(--sk-glow), inset 0 1px 0 rgba(255,255,255,.5); }
+html[data-skin] .rwg-app .arc-head { color: var(--sk-a2); text-shadow: 0 0 10px var(--sk-glow); }
+html[data-skin] .rwg-app .arc-head::after { background: linear-gradient(90deg, color-mix(in srgb, var(--sk-a) 60%, transparent), transparent); }
+html[data-skin] .rwg-app .pet-seg.on { background: linear-gradient(90deg, var(--sk-a), var(--sk-a2)); box-shadow: 0 0 8px var(--sk-glow); }
+html[data-skin] .rwg-app :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select):focus { border-color: var(--sk-a) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sk-a) 20%, transparent) !important; }
+
+/* ── shared: cards, panels, rows ────────────────────────────────────────── */
+html[data-skin] .rwg-app :is(.rwg-card, .bg-white\/5.border-white\/10),
+html[data-skin] .gx :is(.rwg-card, .rounded-3xl.bg-white\/5, div.rounded-2xl.bg-white\/5.border),
+html[data-skin] .rwg-app :is(.arc-panel, .arc-room .rwg-card, .guide-card) {
+  background: var(--sk-panel) !important; border-color: var(--sk-edge) !important; box-shadow: var(--sk-shadow) !important; }
+html[data-skin] .gx :is(.rwg-card, .rounded-3xl.bg-white\/5, div.rounded-2xl.bg-white\/5.border):is(.p-4, .p-5, .p-6)::before,
+html[data-skin] .rwg-app :is(.arc-panel, .arc-room .rwg-card)::before { opacity: var(--sk-corners); }
+html[data-skin] .rwg-app .rwg-card:hover { border-color: color-mix(in srgb, var(--sk-a) 45%, transparent) !important; }
+html[data-skin] .gx :is(button.bg-white\/5.border, a.bg-white\/5.border, button.bg-white\/15.border) {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--sk-a) 10%, var(--sk-s1)), var(--sk-s2) 70%) !important; border-color: var(--sk-edge) !important; }
+html[data-skin] .rwg-app .arc-tile { background: radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--c1) 32%, transparent) 0%, transparent 55%), linear-gradient(135deg, var(--sk-s1), var(--sk-s2)); }
+html[data-skin] .rwg-app :is(.arc-hud, .arc-room-row, .guide-item) { background: linear-gradient(110deg, color-mix(in srgb, var(--c1) 24%, var(--sk-s1)), var(--sk-s2) 60%); }
+/* the gold pulse on start buttons is drawn by an animation, which would beat the skin's own shadow */
+html[data-skin] .rwg-app .arc-start { animation: none; }
+html[data-skin] .rwg-app .feat-tile { background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--c) 26%, transparent), transparent 62%), linear-gradient(170deg, var(--sk-s1), var(--sk-s2)); }
+html[data-skin] .rwg-app .stat-tile { background: radial-gradient(110% 90% at 100% 0%, color-mix(in srgb, var(--c) 26%, transparent), transparent 60%), linear-gradient(160deg, var(--sk-s1), var(--sk-s2)); }
+html[data-skin] .rwg-app .pet-item { background: linear-gradient(170deg, var(--sk-s1), var(--sk-s2)); }
+html[data-skin] .rwg-app .pet-item.on { border-color: var(--sk-a); box-shadow: 0 0 0 1px color-mix(in srgb, var(--sk-a) 40%, transparent) inset, 0 0 18px var(--sk-glow); background: linear-gradient(170deg, color-mix(in srgb, var(--sk-a) 22%, var(--sk-s1)), var(--sk-s2)); }
+html[data-skin] .rwg-app .bg-\[\#160f2a\] { background-color: var(--sk-s1) !important; }
+html[data-skin] .rwg-app .home-hero { background: radial-gradient(80% 90% at 100% 0%, color-mix(in srgb, var(--sk-a2) 20%, transparent), transparent 60%), radial-gradient(90% 90% at 0% 100%, color-mix(in srgb, var(--sk-a) 26%, transparent), transparent 60%), linear-gradient(150deg, var(--sk-s1), var(--sk-s2));
+  border-color: var(--sk-edge); box-shadow: var(--sk-shadow); }
+html[data-skin] .rwg-app .home-hero::before { background: repeating-linear-gradient(115deg, transparent 0 14px, var(--sk-a2) 14px 16px); opacity: calc(.14 * var(--sk-corners)); }
+html[data-skin] .rwg-app .home-hi { color: var(--sk-a2); text-shadow: 0 0 10px var(--sk-glow); }
+html[data-skin] .rwg-app .home-name { text-shadow: 0 2px 0 rgba(0,0,0,.4), 0 0 16px var(--sk-glow); }
+
+/* ── shared: lettering ──────────────────────────────────────────────────── */
+html[data-skin] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-style: var(--sk-italic); text-shadow: 0 2px 0 rgba(0,0,0,.35), 0 0 14px var(--sk-glow); }
+html[data-skin] .gx button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500) { font-style: var(--sk-italic); }
+html[data-skin] .rwg-app :is(.arc-title, .arc-play, .home-name, .home-stat .v, .stat-tile .num, .kos-num) { font-style: var(--sk-italic); }
+html[data-skin] .rwg-app .italic { font-style: var(--sk-italic); }
+html[data-skin] .gx :is(h2, h3, p).uppercase.tracking-wider { text-shadow: 0 0 10px var(--sk-glow); }
+
+/* ── Ocean Neon: floating pill dock, round keys, pill buttons ───────────── */
+html[data-skin="ocean"] .rwg-dock { left: 12px; right: 12px; bottom: 10px; border-radius: 28px; border: 1px solid var(--sk-edge) !important; overflow: hidden; }
+html[data-skin="ocean"] .rwg-dock::before { display: none; }
+html[data-skin="ocean"] .rwg-nav-ic { border-radius: 50%; width: 38px; height: 38px; box-shadow: none; }
+html[data-skin="ocean"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: 0 0 20px var(--sk-glow); }
+html[data-skin="ocean"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+html[data-skin="ocean"] .rwg-app main button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400) { border-radius: 999px !important; }
+
+/* ── Sunset Lounge: soft big corners, gradient tab, no 3D ───────────────── */
+html[data-skin="sunset"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 26px !important; }
+html[data-skin="sunset"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; width: 52px; border-radius: 999px; }
+html[data-skin="sunset"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: linear-gradient(90deg, #ff7a3d, #ff4f9a); border-color: transparent; box-shadow: 0 6px 18px rgba(255,90,100,.4); color: #fff; }
+html[data-skin="sunset"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+html[data-skin="sunset"] .rwg-app [style*="rgb(201, 168, 76), rgb(240, 215, 135)"],
+html[data-skin="sunset"] .rwg-app .bg-amber-400 { background: linear-gradient(90deg, #ff7a3d, #ff4f9a) !important; color: #fff !important; }
+
+/* ── Emerald Luxe: serif titles, hairline gold frames, underlined tab ───── */
+html[data-skin="emerald"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 8px !important; }
+html[data-skin="emerald"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 600 !important; letter-spacing: .02em; }
+html[data-skin="emerald"] .rwg-app .arc-title { font-weight: 600; text-transform: none; letter-spacing: .02em; }
+html[data-skin="emerald"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; }
+html[data-skin="emerald"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: transparent; color: var(--sk-a); box-shadow: 0 2px 0 var(--sk-a); border-radius: 0; border-color: transparent; }
+html[data-skin="emerald"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+html[data-skin="emerald"] .rwg-nav-lbl { font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 9.5px; }
+
+/* ── Mono Minimal: flat, hairlines, no glow, no 3D ──────────────────────── */
+html[data-skin="mono"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .stat-tile) { border-radius: 6px !important; }
+html[data-skin="mono"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero, .home-stat) { background: var(--sk-panel) !important; border-color: var(--sk-edge) !important; box-shadow: none !important; }
+html[data-skin="mono"] .rwg-app :is(.arc-tile, .home-hero)::before, html[data-skin="mono"] .rwg-app :is(.arc-tile, .home-hero)::after { display: none; }
+html[data-skin="mono"] .rwg-app :is(button, .arc-play) { box-shadow: none !important; }
+html[data-skin="mono"] .rwg-app :is(h1, h2, h3, .arc-title, .home-name, .stat-tile .num) { text-shadow: none !important; }
+html[data-skin="mono"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 700 !important; letter-spacing: -.01em; }
+html[data-skin="mono"] .rwg-dock { box-shadow: none; border-top: 1px solid var(--sk-edge) !important; }
+html[data-skin="mono"] .rwg-dock::before { display: none; }
+html[data-skin="mono"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; border-radius: 6px; }
+html[data-skin="mono"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: none; background: var(--sk-a); }
+html[data-skin="mono"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+
+/* ── Sakura: very round, soft, rounded lettering, lifted dock ───────────── */
+html[data-skin="sakura"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 30px !important; }
+html[data-skin="sakura"] .rwg-app main :is(.rounded-xl, .rounded-lg) { border-radius: 18px !important; }
+html[data-skin="sakura"] .rwg-dock { border-radius: 30px 30px 0 0; overflow: hidden; }
+html[data-skin="sakura"] .rwg-nav-ic { border-radius: 50%; width: 38px; height: 38px; box-shadow: none; }
+html[data-skin="sakura"] .rwg-nav-item.is-active .rwg-nav-ic { box-shadow: 0 6px 16px var(--sk-glow); }
+html[data-skin="sakura"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 800 !important; }
+
+/* ── Cyber Grid: square, mono titles, neon outlines ─────────────────────── */
+html[data-skin="cyber"] .rwg-app main :is(.rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .arc-play, .feat-tile, .feat-badge, .home-hero, .home-stat, .stat-tile) { border-radius: 2px !important; }
+html[data-skin="cyber"] .gx :is(h1, h2, h3):not(.arc-title) { text-transform: uppercase; letter-spacing: .08em; font-weight: 700 !important; }
+html[data-skin="cyber"] .rwg-nav-ic { border-radius: 2px; background: transparent; border-color: rgba(57,255,20,.3); box-shadow: none; }
+html[data-skin="cyber"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: transparent; color: var(--sk-a); border-color: var(--sk-a); box-shadow: 0 0 14px var(--sk-glow), inset 0 0 10px rgba(57,255,20,.25); }
+html[data-skin="cyber"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+html[data-skin="cyber"] .rwg-nav-lbl { font-family: var(--sk-head-font); text-transform: uppercase; font-weight: 600; }
+
+/* ── Coffee House: paper-solid cards, serif titles, calm ────────────────── */
+html[data-skin="coffee"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 14px !important; }
+html[data-skin="coffee"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 700 !important; }
+html[data-skin="coffee"] .rwg-app .arc-title { text-transform: none; font-weight: 700; }
+html[data-skin="coffee"] .rwg-app :is(.arc-tile, .home-hero)::before, html[data-skin="coffee"] .rwg-app :is(.arc-tile, .home-hero)::after { display: none; }
+html[data-skin="coffee"] .rwg-dock { box-shadow: none; border-top: 1px solid var(--sk-edge) !important; }
+html[data-skin="coffee"] .rwg-dock::before { display: none; }
+html[data-skin="coffee"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; }
+html[data-skin="coffee"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: none; background: var(--sk-a); border-radius: 12px; }
+html[data-skin="coffee"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+
+/* ── Arctic Glass: frosted panels, thin lines, light lettering ──────────── */
+html[data-skin="arctic"] .rwg-app :is(.rwg-card, .bg-white\/5.border-white\/10, .arc-panel, .arc-tile, .arc-hud, .feat-tile, .home-hero, .stat-tile) { -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
+html[data-skin="arctic"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero) { background: var(--sk-panel) !important; border-color: var(--sk-edge) !important; box-shadow: var(--sk-shadow) !important; }
+html[data-skin="arctic"] .rwg-app :is(.arc-tile, .home-hero)::before { display: none; }
+html[data-skin="arctic"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 600 !important; text-shadow: none; }
+html[data-skin="arctic"] .rwg-app .arc-title { font-weight: 600; text-transform: none; text-shadow: none; }
+html[data-skin="arctic"] .rwg-dock { left: 10px; right: 10px; bottom: 10px; border-radius: 22px; border: 1px solid var(--sk-edge) !important; overflow: hidden; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(3,8,18,.4); }
+html[data-skin="arctic"] .rwg-dock::before { display: none; }
+html[data-skin="arctic"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; }
+html[data-skin="arctic"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: rgba(255,255,255,.14); color: var(--sk-a2); border-color: rgba(255,255,255,.3); box-shadow: none; }
+html[data-skin="arctic"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+
+/* ── Candy Pop: thick outlines, hard offset shadows ─────────────────────── */
+html[data-skin="candy"] .rwg-app :is(.rwg-card, .bg-white\/5.border-white\/10, .arc-panel, .arc-tile, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .stat-tile, .home-stat) { border: 2px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; }
+html[data-skin="candy"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 14px !important; }
+html[data-skin="candy"] .rwg-app main button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500, .arc-play) { border: 2px solid #000 !important; box-shadow: 3px 3px 0 #000 !important; }
+html[data-skin="candy"] .rwg-app main button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500, .arc-play):not(:disabled):active { transform: translate(3px, 3px) !important; box-shadow: 0 0 0 #000 !important; }
+html[data-skin="candy"] .rwg-app :is(h1, h2, h3, .arc-title, .home-name) { text-shadow: 2px 2px 0 #000 !important; }
+html[data-skin="candy"] .rwg-app > header { border-bottom: 2px solid #000 !important; }
+html[data-skin="candy"] .rwg-dock { border-top: 2px solid #000 !important; box-shadow: none; }
+html[data-skin="candy"] .rwg-dock::before { display: none; }
+html[data-skin="candy"] .rwg-nav-ic { border: 2px solid #000; box-shadow: 2px 2px 0 #000; background: #3a2580; }
+html[data-skin="candy"] .rwg-nav-item.is-active .rwg-nav-ic { transform: translateY(-5px); background: var(--sk-a); border-color: #000; box-shadow: 3px 3px 0 #000; }

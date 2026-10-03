@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { LevelUpWatcher } from "@/components/LevelRing";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
+import { applyAppSkin } from "@/lib/appSkin";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
@@ -117,6 +118,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   const { user } = useAuth();
   const { t } = useTranslation();
   const brand = useTenantBrand();
+  useEffect(() => { if (!brand.isLoading) applyAppSkin(brand.skin); }, [brand.isLoading, brand.skin]);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const tokens = (user as any)?.tokens ?? 0;
   // Switched-off features leave the dock; while the list loads they show faded and can't be tapped.

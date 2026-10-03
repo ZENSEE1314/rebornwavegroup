@@ -6,7 +6,7 @@ export interface TenantBrand {
   name: string;
   app_name?: string;
   logo_url?: string;
-  theme?: { primaryColor?: string; accentColor?: string };
+  theme?: { primaryColor?: string; accentColor?: string; skin?: string };
 }
 
 export const FLAGSHIP_TENANT_SLUG = "reborn-wave-group";
@@ -60,5 +60,6 @@ export function useTenantBrand() {
     logoUrl: data?.logo_url || "",
     primary: data?.theme?.primaryColor || "",
     accent: data?.theme?.accentColor || "",
+    skin: data?.theme?.skin || "",
   };
 }

@@ -3,6 +3,7 @@ import { Building2, ChevronLeft, Plus, ShieldCheck, Smartphone, Star, Users, Wan
 import { Link } from "wouter";
 
 import { useTranslation } from "@/lib/i18n";
+import { APP_SKINS, DEFAULT_APP_SKIN } from "@shared/appSkins";
 
 const MODULES = ["pos", "restaurant", "retail", "ktv", "beauty", "booking", "inventory", "employees", "payroll", "membership", "loyalty", "qr_ordering", "kitchen_display", "accounting", "analytics", "ai_whatsapp", "ai_telegram", "song_requests", "bottle_keep", "faq_automation", "games"];
 type Company = { id:number; slug?:string; dataMode?:string; serverUrl?:string; name:string; appName:string; industry:string; status:string; logoUrl?:string; websiteDomain?:string; subscriptionPlan:string; subscriptionStatus:string; trialEndsAt?:string; billingModel?:string; billingCycle?:string; price?:string; currency?:string; theme?:any };
@@ -26,6 +27,36 @@ const FLAGSHIP_SLUG = "reborn-wave-group";
 
 export const field = "w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400";
 export const button = "rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-cyan-300 disabled:opacity-50";
+
+// The ten app designs, each drawn as a small phone so the admin sees what they are choosing.
+function AppSkinPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-5">
+      <p className="text-sm font-bold text-white">{t("admin.bx.skin.title")}</p>
+      <p className="mt-1 text-xs text-slate-400">{t("admin.bx.skin.hint")}</p>
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {APP_SKINS.map((skin) => (
+          <button key={skin.id} type="button" aria-pressed={value === skin.id} onClick={() => onChange(skin.id)} className={`rounded-2xl border p-2 text-left ${value === skin.id ? "border-cyan-400 bg-cyan-400/10" : "border-white/10 bg-white/5"}`}>
+            <div className="flex h-36 flex-col gap-1.5 overflow-hidden rounded-xl p-2" style={{ background: skin.page }}>
+              <div className="flex items-center justify-between"><span className="h-2 w-10 rounded-full" style={{ background: skin.accentSoft }} /><span className="h-2.5 w-6 rounded-full" style={{ background: skin.accent }} /></div>
+              <div className="flex-1 p-2" style={{ background: skin.panel, border: `1px solid ${skin.edge}`, borderRadius: skin.radius }}>
+                <span className="block text-[10px] font-bold" style={{ color: skin.accentSoft }}>{t("admin.bx.skin.sample")}</span>
+                <span className="mt-1.5 block h-1.5 w-3/4 rounded-full bg-white/25" />
+                <span className="mt-1 block h-1.5 w-1/2 rounded-full bg-white/15" />
+                <span className="mt-2 block h-4 w-14" style={{ background: skin.accent, borderRadius: skin.radius }} />
+              </div>
+              <div className="flex justify-around">{[0, 1, 2, 3].map((slot) => <span key={slot} className="h-3 w-5" style={{ background: slot === 1 ? skin.accent : skin.panel, border: `1px solid ${skin.edge}`, borderRadius: Math.min(skin.radius, 6) }} />)}</div>
+            </div>
+            <span className="mt-2 block text-xs font-bold text-white">{t(`admin.bx.skin.${skin.id}`)}</span>
+            <span className="block text-[11px] leading-snug text-slate-400">{t(`admin.bx.skin.${skin.id}.d`)}</span>
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-slate-500">{t("admin.bx.skin.saveNote")}</p>
+    </div>
+  );
+}
 
 export default function BridgeXAdmin() {
   const { t } = useTranslation();
@@ -81,7 +112,7 @@ export default function BridgeXAdmin() {
     src.forEach(m=>{(g[m.category]=g[m.category]||[]).push(m);});
     return g;
   },[registry]);
-  const [brand,setBrand] = useState({ appName:"", logoUrl:"", appIconUrl:"", websiteDomain:"", androidPackage:"", iosBundleId:"", primaryColor:"#06b6d4", accentColor:"#f59e0b", billingModel:"subscription", billingCycle:"monthly", subscriptionPlan:"starter", price:"0", currency:"IDR" });
+  const [brand,setBrand] = useState({ appName:"", logoUrl:"", appIconUrl:"", websiteDomain:"", androidPackage:"", iosBundleId:"", primaryColor:"#06b6d4", accentColor:"#f59e0b", skin:DEFAULT_APP_SKIN, billingModel:"subscription", billingCycle:"monthly", subscriptionPlan:"starter", price:"0", currency:"IDR" });
 
   async function loadCompanies() {
     const [boot,list] = await Promise.all([request("/api/v1/platform/bootstrap"),request("/api/v1/companies")]);
@@ -101,7 +132,7 @@ export default function BridgeXAdmin() {
     setFeedback(fb); if(hydrateForms) setSettings(cfg.config || settings); setAccess(gate);
     try { const bm = await request(`/api/v1/company/branch-modules?branchId=${activeBranchId||0}`,{},id); setEffectiveModules(Array.isArray(bm.modules)?bm.modules:en); } catch { setEffectiveModules(en); }
     await loadModuleData(id, en);
-    if(hydrateForms) setBrand({ appName:wl.appName || "", logoUrl:wl.logoUrl || "", appIconUrl:wl.appIconUrl || "", websiteDomain:wl.websiteDomain || "", androidPackage:wl.androidPackage || "", iosBundleId:wl.iosBundleId || "", primaryColor:wl.theme?.primaryColor || "#06b6d4", accentColor:wl.theme?.accentColor || "#f59e0b", billingModel:wl.billingModel || "subscription", billingCycle:wl.billingCycle || "monthly", subscriptionPlan:wl.subscriptionPlan || "starter", price:wl.price || "0", currency:wl.currency || "IDR" });
+    if(hydrateForms) setBrand({ appName:wl.appName || "", logoUrl:wl.logoUrl || "", appIconUrl:wl.appIconUrl || "", websiteDomain:wl.websiteDomain || "", androidPackage:wl.androidPackage || "", iosBundleId:wl.iosBundleId || "", primaryColor:wl.theme?.primaryColor || "#06b6d4", accentColor:wl.theme?.accentColor || "#f59e0b", skin:wl.theme?.skin || DEFAULT_APP_SKIN, billingModel:wl.billingModel || "subscription", billingCycle:wl.billingCycle || "monthly", subscriptionPlan:wl.subscriptionPlan || "starter", price:wl.price || "0", currency:wl.currency || "IDR" });
   }
   async function loadModuleData(id:number, en:string[]) {
     try {
@@ -169,8 +200,9 @@ export default function BridgeXAdmin() {
 
       {tab === "brand" && <Panel title="White-label website and app" subtitle="Use one platform to publish a separate brand, custom domain and mobile app for this company.">
         <div className="grid gap-3 md:grid-cols-2"><input className={field} placeholder="App name" value={brand.appName} onChange={e=>setBrand({...brand,appName:e.target.value})}/><input className={field} placeholder="company.example.com" value={brand.websiteDomain} onChange={e=>setBrand({...brand,websiteDomain:e.target.value})}/><input className={field} placeholder="Logo URL" value={brand.logoUrl} onChange={e=>setBrand({...brand,logoUrl:e.target.value})}/><input className={field} placeholder="Square app icon URL" value={brand.appIconUrl} onChange={e=>setBrand({...brand,appIconUrl:e.target.value})}/><input className={field} placeholder="com.company.pos (Android)" value={brand.androidPackage} onChange={e=>setBrand({...brand,androidPackage:e.target.value})}/><input className={field} placeholder="com.company.pos (iOS)" value={brand.iosBundleId} onChange={e=>setBrand({...brand,iosBundleId:e.target.value})}/><label className="text-xs text-slate-400">Primary colour<input type="color" className={field+" mt-1 h-11"} value={brand.primaryColor} onChange={e=>setBrand({...brand,primaryColor:e.target.value})}/></label><label className="text-xs text-slate-400">Accent colour<input type="color" className={field+" mt-1 h-11"} value={brand.accentColor} onChange={e=>setBrand({...brand,accentColor:e.target.value})}/></label></div>
+        <AppSkinPicker value={brand.skin} onChange={(skin)=>setBrand({...brand,skin})}/>
         <div className="mt-4 grid gap-3 md:grid-cols-4"><select className={field} value={brand.billingModel} onChange={e=>setBrand({...brand,billingModel:e.target.value,billingCycle:e.target.value==="one_time"?"one_time":brand.billingCycle})}><option value="subscription">Subscription</option><option value="one_time">One-time</option></select><select className={field} value={brand.billingCycle} disabled={brand.billingModel==="one_time"} onChange={e=>setBrand({...brand,billingCycle:e.target.value})}><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="one_time">One time</option></select><input className={field} type="number" value={brand.price} onChange={e=>setBrand({...brand,price:e.target.value})}/><select className={field} value={brand.currency} onChange={e=>setBrand({...brand,currency:e.target.value})}><option>IDR</option><option>SGD</option><option>USD</option><option>MYR</option></select></div>
-        <div className="mt-4 flex flex-wrap gap-3"><button disabled={busy||!companyId} className={button} onClick={()=>act(()=>request("/api/v1/company/white-label",{method:"PUT",body:JSON.stringify({...brand,theme:{primaryColor:brand.primaryColor,accentColor:brand.accentColor}})},companyId),"Brand and commercial terms saved")}>Save white label</button><button disabled={busy||!companyId||Number(brand.price)<=0} className="rounded-xl border border-cyan-400 px-4 py-2.5 text-sm font-bold text-cyan-300 disabled:opacity-40" onClick={()=>act(async()=>{await request("/api/v1/company/white-label",{method:"PUT",body:JSON.stringify({...brand,theme:{primaryColor:brand.primaryColor,accentColor:brand.accentColor}})},companyId);const checkout=await request("/api/v1/company/billing/checkout",{method:"POST",body:"{}"},companyId);location.href=checkout.url;},"Opening secure checkout")}>Pay / start subscription</button></div>
+        <div className="mt-4 flex flex-wrap gap-3"><button disabled={busy||!companyId} className={button} onClick={()=>act(()=>request("/api/v1/company/white-label",{method:"PUT",body:JSON.stringify({...brand,theme:{primaryColor:brand.primaryColor,accentColor:brand.accentColor,skin:brand.skin}})},companyId),"Brand and commercial terms saved")}>Save white label</button><button disabled={busy||!companyId||Number(brand.price)<=0} className="rounded-xl border border-cyan-400 px-4 py-2.5 text-sm font-bold text-cyan-300 disabled:opacity-40" onClick={()=>act(async()=>{await request("/api/v1/company/white-label",{method:"PUT",body:JSON.stringify({...brand,theme:{primaryColor:brand.primaryColor,accentColor:brand.accentColor,skin:brand.skin}})},companyId);const checkout=await request("/api/v1/company/billing/checkout",{method:"POST",body:"{}"},companyId);location.href=checkout.url;},"Opening secure checkout")}>Pay / start subscription</button></div>
         <div className="mt-5 rounded-2xl p-5" style={{background:brand.primaryColor}}><div className="flex items-center gap-3">{brand.logoUrl?<img src={brand.logoUrl} className="h-12 w-12 rounded-xl object-cover"/>:<Smartphone/>}<div><b className="text-slate-950">{brand.appName || selected?.name || "Your app"}</b><p className="text-xs text-slate-900/70">{brand.websiteDomain || "your-company.com"}</p></div></div></div>
       </Panel>}
 

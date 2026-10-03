@@ -7,6 +7,7 @@ import { db } from "./db";
 import { DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT, homeCompanySlug } from "./tenantContext";
 import { DATA_MODES, DEFAULT_DATA_MODE, setCompanyDataMode, type DataMode } from "./tenantSpace";
 import { getUserId } from "./multiAuth";
+import { DEFAULT_APP_SKIN, isAppSkin } from "../shared/appSkins";
 import {
   bridgeBranches,
   bridgeCompanies,
@@ -201,6 +202,15 @@ function requestedBranchId(req: Request): number | null {
 function branchClause(req: Request, col: string) {
   const bid = requestedBranchId(req);
   return bid ? sql`AND ${sql.raw(col)}=${bid}` : sql``;
+}
+
+// A saved theme keeps what the request didn't mention (colours, app design) and never
+// stores a design the app doesn't have.
+async function mergedCompanyTheme(companyId: number, incoming: Record<string, unknown>) {
+  const [company] = await db.select({ theme: bridgeCompanies.theme }).from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
+  const theme = { ...((company?.theme as Record<string, unknown>) || {}), ...incoming };
+  if (!isAppSkin(theme.skin)) theme.skin = DEFAULT_APP_SKIN;
+  return theme;
 }
 
 async function companyAccess(req: Request, res: Response, management = false) {
@@ -1085,6 +1095,7 @@ export function registerBridgeXRoutes(app: Express) {
     }
     if (allowed.websiteDomain) allowed.websiteDomain = String(allowed.websiteDomain).toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
     if (allowed.billingModel === "one_time") allowed.billingCycle = "one_time";
+    if (allowed.theme) allowed.theme = await mergedCompanyTheme(access.companyId, allowed.theme);
     allowed.updatedAt = new Date();
     res.json((await db.update(bridgeCompanies).set(allowed).where(eq(bridgeCompanies.id, access.companyId)).returning())[0]);
   }));

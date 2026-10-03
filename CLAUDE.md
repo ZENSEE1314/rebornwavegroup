@@ -48,6 +48,10 @@ text.
 - Timers must run once per company: wrap the job in `inEveryDataSpace()` (server/tenantSpace.ts)
   as pet decay, daily tokens, the WhatsApp reminders and the error clean-up do. Not per
   company yet: the star-routes tournament timer.
+- App designs: a company picks one of the designs in `shared/appSkins.ts` (BridgeX > White
+  label; saved as `bridge_companies.theme.skin`). The app puts it on `<html data-skin>`
+  and `client/src/skins.css` restyles the member app through variables. New shared app
+  classes with hard-coded gold/purple need a line in that file's shared rules.
 - Test: `scripts/tenant-isolation-test.mts` against an empty scratch database.
 - A dedicated server sets `DEFAULT_COMPANY_SLUG` (+ `DEFAULT_COMPANY_NAME`) so the app
   runs as that company instead of Reborn.
