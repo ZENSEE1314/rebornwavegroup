@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
 import { bookingT } from './i18n/booking';
-import { gamesT } from './i18n/games';
 import { homeT } from './i18n/home';
 import { venueT } from './i18n/venue';
 import { accountT } from './i18n/account';
-import { adminT } from './i18n/admin';
-import { posT } from './i18n/pos';
 import { serverT } from './i18n/server';
 
 export type Language = 'en' | 'zh' | 'id';
@@ -6159,7 +6156,20 @@ export const translations: Translations = {
 
 };
 
-Object.assign(translations, bookingT, gamesT, homeT, venueT, accountT, adminT, posT, serverT);
+Object.assign(translations, bookingT, homeT, venueT, accountT, serverT);
+
+// Admin + POS text (staff only) and games text are loaded with the pages that
+// use them (App.tsx) instead of slowing down every member's first load.
+const lazyTranslations = {
+  staff: () => Promise.all([import('./i18n/admin'), import('./i18n/pos')]).then(([a, p]) => [a.adminT, p.posT]),
+  games: () => import('./i18n/games').then((g) => [g.gamesT]),
+};
+const loadedTranslations: Partial<Record<keyof typeof lazyTranslations, Promise<void>>> = {};
+export function loadTranslations(...parts: (keyof typeof lazyTranslations)[]): Promise<void> {
+  return Promise.all(parts.map((part) => loadedTranslations[part] ??= lazyTranslations[part]()
+    .then((dicts) => { for (const d of dicts) Object.assign(translations, d); })
+    .catch((err) => { delete loadedTranslations[part]; throw err; }))).then(() => undefined);
+}
 
 // Language context and hook
 let currentLanguage: Language = 'en';
