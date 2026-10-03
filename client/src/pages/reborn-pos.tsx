@@ -9,16 +9,16 @@ import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serial
 import { printClosingReport, printReceipt, printKitchen } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
-import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw } from "lucide-react";
+import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 
-interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; imageUrl?: string; }
+interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
 interface Staff { id: string; name: string; role: string; }
 interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
-type Tab = "tables" | "sell" | "sales" | "stock" | "bottles";
+type Tab = "tables" | "sell" | "sales" | "stock" | "bottles" | "packages";
 // Translate a server-provided enum value, falling back to the raw value when no key exists.
 const tOr = (t: (k: string) => string, key: string, fallback: string) => { const v = t(key); return v === key ? fallback : v; };
 const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
@@ -67,8 +67,8 @@ export default function RebornPos() {
       </div>
       <StaffGuideButton />
       {role === "admin" && <ClosePosDay />}
-      <div className="grid grid-cols-5 gap-2 mb-4 max-w-2xl">
-        {([["tables", t("pos.tab.tables"), <LayoutGrid className="w-4 h-4" />], ["sell", t("pos.tab.sell"), <Receipt className="w-4 h-4" />], ["sales", t("pos.tab.sales"), <History className="w-4 h-4" />], ["stock", t("pos.tab.stock"), <PackagePlus className="w-4 h-4" />], ["bottles", t("pos.tab.bottles"), <Wine className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
+      <div className="grid gap-2 mb-4 max-w-3xl" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
+        {([["tables", t("pos.tab.tables"), <LayoutGrid className="w-4 h-4" />], ["sell", t("pos.tab.sell"), <Receipt className="w-4 h-4" />], ["sales", t("pos.tab.sales"), <History className="w-4 h-4" />], ["stock", t("pos.tab.stock"), <PackagePlus className="w-4 h-4" />], ["bottles", t("pos.tab.bottles"), <Wine className="w-4 h-4" />], ["packages", t("pos.tab.packages"), <Gift className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
           <button key={k} onClick={() => setTab(k as Tab)} className={`min-w-0 px-1 py-2 sm:py-2.5 rounded-xl border font-semibold text-[10px] sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 ${tab === k ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-white/5 text-white/60"}`}>{ic}<span className="hidden sm:inline">{l}</span><span className="sm:hidden max-w-full truncate">{l.split(" ")[0]}</span></button>
         ))}
       </div>
@@ -77,6 +77,7 @@ export default function RebornPos() {
       {tab === "sales" && <SalesTodayTab />}
       {tab === "stock" && <StockTab />}
       {tab === "bottles" && <BottlesTab />}
+      {tab === "packages" && <PackagesTab />}
       {showDrawer && <DrawerSetup onClose={() => setShowDrawer(false)} />}
     </RebornLayout>
   );
@@ -118,7 +119,7 @@ function ClosePosDay() {
 function ClosingReport({ report, onClose }: { report: any; onClose: () => void }) {
   const { t: tr } = useTranslation();
   const t=report.totals||{};
-  return <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/85 p-4 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-md rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={onClose} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10" aria-label={tr("pos.report.closeAria")}><X className="h-5 w-5"/></button><h2 className="pr-10 text-xl font-black">{tr("pos.report.title")}</h2><p className="text-sm text-white/50">{report.day} · {tr("pos.report.paidOrders", { n: report.ticketCount })}</p><div className="my-4 max-h-56 space-y-2 overflow-y-auto border-y border-white/10 py-3">{(report.items||[]).map((item:any)=><div key={item.name} className="flex justify-between gap-3 text-sm"><span>{item.quantity}× {item.name}</span><span>{rp(item.sales)}</span></div>)}{!(report.items||[]).length&&<p className="text-sm text-white/40">{tr("pos.report.noItems")}</p>}</div><div className="space-y-1 text-sm"><div className="flex justify-between"><span>{tr("pos.report.gross")}</span><span>{rp(t.subtotal)}</span></div><div className="flex justify-between"><span>{tr("pos.report.discounts")}</span><span>- {rp(t.discount)}</span></div><div className="flex justify-between"><span>{tr("pos.serviceFee")}</span><span>{rp(t.serviceFee)}</span></div><div className="flex justify-between"><span>{tr("pos.tax")}</span><span>{rp(t.tax)}</span></div><div className="flex justify-between text-lg font-black text-amber-300"><span>{tr("pos.report.revenue")}</span><span>{rp(t.revenue)}</span></div><div className="flex justify-between text-white/60"><span>{tr("pos.report.cashCard")}</span><span>{rp(t.cash)} / {rp(t.card)}</span></div>{Number(t.credits) > 0 && <div className="flex justify-between text-white/60"><span>{tr("pos.pay.credits")}</span><span>{rp(t.credits)}</span></div>}<div className="mt-2 flex justify-between border-t border-white/10 pt-2"><span>{tr("pos.report.cost")}</span><span>- {rp(t.cost)}</span></div><div className="flex justify-between text-lg font-black text-emerald-300"><span>{tr("pos.report.profit")}</span><span>{rp(t.profit)}</span></div></div><div className="mt-5 grid grid-cols-2 gap-2"><button onClick={()=>printClosingReport(report,{clubName:"Reborn Wave Group"})} className="flex items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-bold text-black"><Printer className="h-4 w-4"/> {tr("pos.print")}</button><button onClick={onClose} className="rounded-xl bg-white/10 px-4 py-3 font-bold">{tr("pos.done")}</button></div><p className="mt-3 text-center text-xs text-white/40">{tr("pos.report.saved")}</p></div></div>;
+  return <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/85 p-4 backdrop-blur-sm"><div className="relative mx-auto my-4 max-w-md rounded-3xl border border-white/15 bg-[#160f2a] p-5"><button onClick={onClose} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10" aria-label={tr("pos.report.closeAria")}><X className="h-5 w-5"/></button><h2 className="pr-10 text-xl font-black">{tr("pos.report.title")}</h2><p className="text-sm text-white/50">{report.day} · {tr("pos.report.paidOrders", { n: report.ticketCount })}</p><div className="my-4 max-h-56 space-y-2 overflow-y-auto border-y border-white/10 py-3">{(report.items||[]).map((item:any)=><div key={item.name} className="flex justify-between gap-3 text-sm"><span>{item.quantity}× {item.name}</span><span>{rp(item.sales)}</span></div>)}{!(report.items||[]).length&&<p className="text-sm text-white/40">{tr("pos.report.noItems")}</p>}</div><div className="space-y-1 text-sm"><div className="flex justify-between"><span>{tr("pos.report.gross")}</span><span>{rp(t.subtotal)}</span></div><div className="flex justify-between"><span>{tr("pos.report.discounts")}</span><span>- {rp(t.discount)}</span></div><div className="flex justify-between"><span>{tr("pos.serviceFee")}</span><span>{rp(t.serviceFee)}</span></div><div className="flex justify-between"><span>{tr("pos.tax")}</span><span>{rp(t.tax)}</span></div><div className="flex justify-between text-lg font-black text-amber-300"><span>{tr("pos.report.revenue")}</span><span>{rp(t.revenue)}</span></div><div className="flex justify-between text-white/60"><span>{tr("pos.report.cashCard")}</span><span>{rp(t.cash)} / {rp(t.card)}</span></div>{Number(t.credits) > 0 && <div className="flex justify-between text-white/60"><span>{tr("pos.pay.credits")}</span><span>{rp(t.credits)}</span></div>}{Number(t.packageCredit) > 0 && <div className="flex justify-between text-white/60"><span>{tr("pos.rc.packageCredit")}</span><span>{rp(t.packageCredit)}</span></div>}<div className="mt-2 flex justify-between border-t border-white/10 pt-2"><span>{tr("pos.report.cost")}</span><span>- {rp(t.cost)}</span></div><div className="flex justify-between text-lg font-black text-emerald-300"><span>{tr("pos.report.profit")}</span><span>{rp(t.profit)}</span></div></div><div className="mt-5 grid grid-cols-2 gap-2"><button onClick={()=>printClosingReport(report,{clubName:"Reborn Wave Group"})} className="flex items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-bold text-black"><Printer className="h-4 w-4"/> {tr("pos.print")}</button><button onClick={onClose} className="rounded-xl bg-white/10 px-4 py-3 font-bold">{tr("pos.done")}</button></div><p className="mt-3 text-center text-xs text-white/40">{tr("pos.report.saved")}</p></div></div>;
 }
 
 function SalesPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
@@ -162,14 +163,14 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
               the phone-wide grid-cols-* override would make it one huge column). */}
           <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 112px), 1fr))" }}>
             {items.map((p) => (
-              <button key={p.id} onClick={() => add(p.id)} disabled={p.stock <= 0} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 text-left active:scale-95 transition-all disabled:opacity-40 relative overflow-hidden">
+              <button key={p.id} onClick={() => add(p.id)} disabled={!p.packageKind && p.stock <= 0} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 text-left active:scale-95 transition-all disabled:opacity-40 relative overflow-hidden">
                 {p.imageUrl
                   ? <img src={p.imageUrl} alt="" className="w-full aspect-square object-cover" />
-                  : <div className="w-full aspect-square flex items-center justify-center text-2xl bg-white/5">🍸</div>}
+                  : <div className="w-full aspect-square flex items-center justify-center text-2xl bg-white/5">{p.packageKind === "uses" ? "📦" : p.packageKind === "credit" ? "💳" : "🍸"}</div>}
                 <div className="p-2">
                   <p className="text-[13px] font-semibold leading-tight line-clamp-2 break-words">{p.name}</p>
                   <p className="text-xs text-amber-300">{rp(Number(p.price))}</p>
-                  <p className="text-[10px] text-white/40">{t("pos.stockCount", { n: p.stock })}</p>
+                  <p className="text-[10px] text-white/40">{p.packageKind === "uses" ? t("pos.pkg.tileUses", { n: p.packageUses || 1 }) : p.packageKind === "credit" ? t("pos.pkg.tileCredit", { n: rp(Number(p.packageCredit)) }) : t("pos.stockCount", { n: p.stock })}</p>
                 </div>
                 {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}
               </button>
@@ -315,6 +316,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const [discReason, setDiscReason] = useState((order as any).discountReason || "");
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
+  const [useCredit, setUseCredit] = useState(false);
   const { data: posSettings } = usePosSettings();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] });
   const addItems = useMutation({
@@ -328,7 +330,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: t("pos.notFound"), description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: t("pos.drawerNotOpened"), description: t("pos.checkDrawerSetup") }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
@@ -365,8 +367,11 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   });
   const { data: openTickets = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/orders"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=open").then((r) => r.json()) });
   const subtotal = Number(order.subtotal ?? order.total);
-  const due = billTotals(subtotal, discount, posSettings);
+  // The server's quote adds the member's perk and package credit (lib: server/memberPackages.ts).
+  const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}` }, true);
+  const due = quoteTotals(quote, billTotals(subtotal, discount, posSettings));
   const total = due.total;
+  const payable = due.payable;
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1 text-white/60 text-sm mb-3"><ChevronLeft className="w-4 h-4" /> {t("pos.allTables")}</button>
@@ -457,12 +462,13 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
               ))}
             </div>
-            <div className="mb-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs"><div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div><div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number(posSettings?.serviceFeePercent)||0 })}</span><span>{rp(due.serviceFee)}</span></div><div className="flex justify-between"><span>{t("pos.taxPct", { n: Number(posSettings?.taxPercent)||0 })}</span><span>{rp(due.tax)}</span></div><div className="flex justify-between text-sm font-black text-amber-300"><span>{t("pos.total")}</span><span>{rp(total)}</span></div></div>
-            {pay === "credits" && <CreditsLine code={order.memberCode} total={total} onBalance={setCreditBal} />}
-            {pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
-            {pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={total} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(total)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-total))}</p></div></div>}
+            <MemberWallet code={order.memberCode} quote={quote} useCredit={useCredit} onUseCredit={setUseCredit} ticketId={order.id} />
+            <BillSummary due={due} settings={posSettings} />
+            {payable > 0 && pay === "credits" && <CreditsLine code={order.memberCode} total={payable} onBalance={setCreditBal} />}
+            {payable > 0 && pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
+            {payable > 0 && pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={payable} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(payable)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
             <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks}/>
-            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < total) || (pay === "credits" && (creditBal === null || creditBal < total)) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("pos.chargeAmount", { amount: rp(total), method: t(`pos.pay.${pay}`) })}</button>
+            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (quote?.hasPackages && !order.memberCode) || (payable > 0 && ((pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "credits" && (creditBal === null || creditBal < payable)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{payable > 0 ? t("pos.chargeAmount", { amount: rp(payable), method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(total) })}</button>
             <button onClick={() => { if (confirm(t("pos.cancelConfirm"))) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">{t("pos.cancelTicket")}</button>
           </div>
         </div>
@@ -488,26 +494,29 @@ function QuickSaleTab() {
   const [discount, setDiscount] = useState(0);
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">("dine_in");
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
+  const [useCredit, setUseCredit] = useState(false);
   const { data: posSettings } = usePosSettings();
   const cartSubtotal = cartItems.reduce((sum,item)=>sum+Number(item.price)*Number(item.qty),0);
-  const due = billTotals(cartSubtotal, discount, posSettings);
+  const quote = useQuote({ items: cartItems.map((x) => ({ productId: x.id, price: Number(x.price), qty: x.qty })), memberCode: member?.code || "", discount, usePackageCredit: useCredit }, cartItems.length > 0);
+  const due = quoteTotals(cartItems.length ? quote : null, billTotals(cartSubtotal, discount, posSettings));
+  const payable = due.payable;
   const lookup = useMutation({
     mutationFn: () => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent(code.trim())}`).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: t("pos.memberFound"), description: d.name }); } else toast({ title: t("pos.notFound"), description: d.message, variant: "destructive" }); },
   });
   const sell = useMutation({
-    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items }),
+    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit }),
     onSuccess: async (d) => {
       if (pay === "cash") await openCashDrawer();
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
-      toast({ title: t("pos.saleComplete"), description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setPaymentReference(""); setCashReceived(""); setKeepBottle(emptyBottle()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+      toast({ title: t("pos.saleComplete"), description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setUseCredit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); setPaymentReference(""); setCashReceived(""); setKeepBottle(emptyBottle()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   return (
     <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
       <div className="order-2 lg:order-1">
-        <ProductPicker label={t("pos.chargeMethod", { method: t(`pos.pay.${pay}`) })} displayTotal={due.total} busy={sell.isPending || (pay === "credits" && (!member || Number(member.credits || 0) < due.total)) || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < due.total) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
+        <ProductPicker label={payable > 0 || !cartItems.length ? t("pos.chargeMethod", { method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(due.total) })} displayTotal={payable} busy={sell.isPending || (quote?.hasPackages && !member) || (payable > 0 && ((pay === "credits" && (!member || Number(member.credits || 0) < payable)) || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
       </div>
       <div className="order-1 lg:order-2 mb-3 lg:mb-0 space-y-3 h-fit">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -531,16 +540,17 @@ function QuickSaleTab() {
         </div>
         <SalesPicker value={sales} onChange={setSales} />
         <label className="text-xs text-white/50 block">{t("pos.discountRp")}<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
-        {cartSubtotal>0&&<div className="space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs"><div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div><div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number(posSettings?.serviceFeePercent)||0 })}</span><span>{rp(due.serviceFee)}</span></div><div className="flex justify-between"><span>{t("pos.taxPct", { n: Number(posSettings?.taxPercent)||0 })}</span><span>{rp(due.tax)}</span></div><div className="flex justify-between text-sm font-black text-amber-300"><span>{t("pos.total")}</span><span>{rp(due.total)}</span></div></div>}
+        <MemberWallet code={member?.code} quote={cartItems.length ? quote : null} useCredit={useCredit} onUseCredit={setUseCredit} />
+        {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} />}
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
         <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
           {(["cash", "card", "credits"] as const).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
           ))}
         </div>
-        {pay === "credits" && <CreditsLine code={member?.code} total={due.total} onBalance={() => {}} />}
+        {payable > 0 && pay === "credits" && <CreditsLine code={member?.code} total={payable} onBalance={() => {}} />}
         {pay === "card" && <label className="block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
-        {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={t("pos.required")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-due.total))}</p></div></div>}
+        {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={t("pos.required")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
         <p className="text-[11px] text-white/40 text-center">{t("pos.receiptNote")}</p>
       </div>
       {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>setReceiptResult(null)} />}
@@ -776,11 +786,12 @@ function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone
       <div className="my-4 border-t border-dashed border-black/50" />
       <div className="space-y-1 text-sm">
         <div className="flex justify-between"><span>{t("pos.rc.subtotal")}</span><span>{rp(Number(order.subtotal ?? order.total))}</span></div>
-        {Number(order.discount)>0 && <div className="flex justify-between"><span>{t("pos.discount")}</span><span>- {rp(Number(order.discount))}</span></div>}
+        {Number(order.discount)>0 && <div className="flex justify-between gap-3"><span>{t("pos.discount")}{order.discountReason ? ` (${order.discountReason})` : ""}</span><span>- {rp(Number(order.discount))}</span></div>}
         {Number(order.serviceFee)>0 && <div className="flex justify-between"><span>{meta?.serviceFeePercent ? t("pos.serviceFeePct", { n: meta.serviceFeePercent }) : t("pos.serviceFee")}</span><span>{rp(Number(order.serviceFee))}</span></div>}
         {Number(order.tax)>0 && <div className="flex justify-between"><span>{t("pos.tax")}</span><span>{rp(Number(order.tax))}</span></div>}
         <div className="flex justify-between text-lg font-black"><span>{t("pos.rc.total")}</span><span>{rp(Number(order.total))}</span></div>
-        <div className="flex justify-between"><span>{t("pos.rc.paid")}</span><b>{order.paymentMethod === "cash" || order.paymentMethod === "card" || order.paymentMethod === "credits" ? t(`pos.pay.${order.paymentMethod}`).toUpperCase() : String(order.paymentMethod || "").toUpperCase()}</b></div>
+        {Number(order.packageCreditUsed)>0 && <><div className="flex justify-between"><span>{t("pos.rc.packageCredit")}</span><span>- {rp(Number(order.packageCreditUsed))}</span></div><div className="flex justify-between font-bold"><span>{t("pos.rc.toPay")}</span><span>{rp(Number(order.total) - Number(order.packageCreditUsed))}</span></div></>}
+        <div className="flex justify-between"><span>{t("pos.rc.paid")}</span><b>{order.paymentMethod === "cash" || order.paymentMethod === "card" || order.paymentMethod === "credits" || order.paymentMethod === "package" ? t(`pos.pay.${order.paymentMethod}`).toUpperCase() : String(order.paymentMethod || "").toUpperCase()}</b></div>
         {order.paymentReference && <div className="flex justify-between gap-3"><span>{t("pos.rc.cardRef")}</span><b className="text-right">{order.paymentReference}</b></div>}
         {order.paymentMethod === "cash" && <><div className="flex justify-between"><span>{t("pos.cashReceived")}</span><b>{rp(Number(order.cashReceived))}</b></div><div className="flex justify-between"><span>{t("pos.change")}</span><b>{rp(Number(order.changeGiven))}</b></div></>}
       </div>
@@ -848,6 +859,114 @@ function CreditsLine({ code, total, onBalance }: { code?: string | null; total: 
     <div className={`mb-2 rounded-xl border px-3 py-2 text-xs ${ok ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-100" : "border-red-400/40 bg-red-500/10 text-red-100"}`}>
       <div className="flex justify-between font-semibold"><span>{t("pos.credits.balance")}</span><b>{rp(bal)}</b></div>
       <div className="flex justify-between mt-0.5"><span>{ok ? t("pos.credits.after") : t("pos.credits.short")}</span><b>{ok ? rp(bal - total) : rp(total - bal)}</b></div>
+    </div>
+  );
+}
+
+// ── Packages (server/memberPackages.ts) ─────────────────────────────────────
+// The bill as the server will charge it: the member's perk and package credit applied.
+function useQuote(body: any, enabled: boolean) {
+  return useQuery<any>({ queryKey: ["/api/reborn/pos/quote", JSON.stringify(body)], queryFn: () => post("/api/reborn/pos/quote", body), enabled, placeholderData: (prev: any) => prev }).data;
+}
+// Bill numbers for the pay panel: the server quote when there is one, else the local estimate.
+function quoteTotals(q: any, local: { taxable: number; serviceFee: number; tax: number; total: number }) {
+  if (!q) return { ...local, perkAmount: 0, perkPercent: 0, creditUse: 0, payable: local.total };
+  return { taxable: q.subtotal - q.discount, serviceFee: q.serviceFee, tax: q.tax, total: q.total, perkAmount: q.perkAmount, perkPercent: q.perkPercent, creditUse: q.creditUse, payable: q.due };
+}
+function BillSummary({ due, settings }: { due: ReturnType<typeof quoteTotals>; settings: any }) {
+  const { t } = useTranslation();
+  return (
+    <div className="mb-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
+      {due.perkAmount > 0 && <div className="flex justify-between text-sky-200"><span>{t("pos.pkg.perkLine", { p: due.perkPercent })}</span><span>- {rp(due.perkAmount)}</span></div>}
+      <div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div>
+      <div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number(settings?.serviceFeePercent) || 0 })}</span><span>{rp(due.serviceFee)}</span></div>
+      <div className="flex justify-between"><span>{t("pos.taxPct", { n: Number(settings?.taxPercent) || 0 })}</span><span>{rp(due.tax)}</span></div>
+      <div className="flex justify-between text-sm font-black text-amber-300"><span>{t("pos.total")}</span><span>{rp(due.total)}</span></div>
+      {due.creditUse > 0 && <>
+        <div className="flex justify-between text-sky-200"><span>{t("pos.rc.packageCredit")}</span><span>- {rp(due.creditUse)}</span></div>
+        <div className="flex justify-between text-sm font-black text-emerald-300"><span>{t("pos.rc.toPay")}</span><span>{rp(due.payable)}</span></div>
+      </>}
+    </div>
+  );
+}
+const fmtDay = (d: any, lang: string) => new Date(d).toLocaleDateString(localeTag(lang as any), { day: "numeric", month: "short", year: "numeric" });
+// The member's perk, package credit and visit packages on the pay panel.
+function MemberWallet({ code, quote, useCredit, onUseCredit, ticketId }: { code?: string | null; quote: any; useCredit: boolean; onUseCredit: (v: boolean) => void; ticketId?: number }) {
+  const { t, language } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: w } = useQuery<any>({
+    queryKey: ["/api/reborn/pos/member-packages", code],
+    queryFn: () => apiRequest("GET", `/api/reborn/pos/member-packages?code=${encodeURIComponent(code || "")}`).then((r) => (r.ok ? r.json() : null)),
+    enabled: !!code,
+  });
+  const use = useMutation({
+    mutationFn: (id: number) => post(`/api/reborn/pos/packages/${id}/use`, { uses: 1, ticketId }),
+    onSuccess: (d) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/member-packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] }); },
+    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+  });
+  useEffect(() => { if (!w?.creditBalance && useCredit) onUseCredit(false); }, [w?.creditBalance]);
+  if (!code) return quote?.hasPackages ? <p className="mb-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200">{t("pos.pkg.needMember")}</p> : null;
+  if (!w) return null;
+  const visits = (w.packages || []).filter((p: any) => p.kind === "uses");
+  if (!w.perk && !(w.creditBalance > 0) && !visits.length) return null;
+  return (
+    <div className="mb-2 space-y-1.5 rounded-xl border border-sky-400/30 bg-sky-500/10 p-2.5 text-xs">
+      <p className="font-semibold text-sky-200 flex items-center gap-1.5"><Gift className="w-3.5 h-3.5" /> {t("pos.pkg.wallet")}</p>
+      {w.perk && <p>{t("pos.pkg.perk", { p: w.perk.percent })} · {w.perk.until ? t("pos.pkg.until", { d: fmtDay(w.perk.until, language) }) : t("pos.pkg.lifetime")}</p>}
+      {w.creditBalance > 0 && (
+        <label className="flex items-center gap-2 rounded-lg bg-black/20 px-2 py-1.5">
+          <input type="checkbox" checked={useCredit} onChange={(e) => onUseCredit(e.target.checked)} />
+          <span className="flex-1">{t("pos.pkg.useCredit", { n: rp(w.creditBalance) })}</span>
+        </label>
+      )}
+      {useCredit && quote && quote.creditable < quote.total && <p className="text-white/50">{t("pos.pkg.someNotCredit")}</p>}
+      {visits.map((p: any) => (
+        <div key={p.id} className="flex items-center gap-2 rounded-lg bg-black/20 px-2 py-1.5">
+          <span className="flex-1 min-w-0 truncate">{p.name} · {t("pos.pkg.left", { n: p.usesLeft, total: p.usesTotal })}</span>
+          <button onClick={() => use.mutate(p.id)} disabled={use.isPending} className="rounded-lg bg-sky-400/90 px-2.5 py-1 text-[11px] font-bold text-black disabled:opacity-50">{t("pos.pkg.use1")}</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+// POS › Packages: every member's active packages; take a visit from here.
+function PackagesTab() {
+  const { t, language } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [q, setQ] = useState("");
+  const { data: list = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/pos/packages", q],
+    queryFn: () => apiRequest("GET", `/api/reborn/pos/packages${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()),
+    refetchInterval: 30000,
+  });
+  const use = useMutation({
+    mutationFn: (id: number) => post(`/api/reborn/pos/packages/${id}/use`, { uses: 1 }),
+    onSuccess: (d) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/member-packages"] }); },
+    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+  });
+  return (
+    <div>
+      <p className="text-xs text-white/50 mb-2">{t("pos.pkg.tabHint")}</p>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("pos.pkg.search")} className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm mb-3" />
+      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))" }}>
+        {list.map((p: any) => (
+          <div key={p.id} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div className="flex items-start gap-3">
+              <span className="w-11 h-11 rounded-xl bg-sky-400/15 flex items-center justify-center flex-shrink-0 text-lg">{p.kind === "uses" ? "📦" : "💳"}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">{p.name}</p>
+                <p className="text-xs text-white/50 truncate">{p.memberName || "—"}{p.memberCode ? ` · ${p.memberCode}` : ""}</p>
+                <p className="text-xs text-sky-200 mt-0.5">{p.kind === "uses" ? t("pos.pkg.left", { n: p.usesLeft, total: p.usesTotal }) : t("pos.pkg.creditLeft", { n: rp(p.creditLeft), total: rp(p.creditTotal) })}</p>
+                <p className="text-[11px] text-white/40">{p.expiresAt ? t("pos.pkg.expires", { d: fmtDay(p.expiresAt, language) }) : t("pos.pkg.noExpiry")}{p.kind === "credit" && p.perkPercent > 0 ? ` · ${t("pos.pkg.perkAfter", { p: p.perkPercent })}` : ""}</p>
+              </div>
+              {p.kind === "uses" && <button onClick={() => use.mutate(p.id)} disabled={use.isPending} className="px-3 py-2 rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-200 text-sm font-semibold flex-shrink-0">{t("pos.pkg.use1")}</button>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {list.length === 0 && <p className="text-center text-white/40 py-10 text-sm">{t("pos.pkg.none")}</p>}
     </div>
   );
 }

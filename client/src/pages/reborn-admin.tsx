@@ -1704,13 +1704,70 @@ function IndustryPicker({ value, options, onChange }: { value: string; options: 
   );
 }
 
+// Package settings of a POS product (server/memberPackages.ts): a normal product (that
+// can or can't be paid with package credit), a visits package or a prepaid credit package.
+const pkgOf = (p: any) => ({ packageKind: p?.packageKind || "", packageUses: p?.packageUses || "", packageCredit: p?.packageCredit ? Number(p.packageCredit) : "", packageValidDays: p?.packageValidDays || "", perkPercent: p?.perkPercent ? Number(p.perkPercent) : "", perkDays: p?.perkDays || "", creditOk: p?.creditOk !== false });
+function PackageFields({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const { t } = useTranslation();
+  const set = (k: string, v: any) => onChange({ ...value, [k]: v });
+  const num = (k: string, label: string, hint?: string) => (
+    <label className="text-xs text-white/50">{label}<input type="number" inputMode="numeric" min={0} value={value[k] ?? ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => set(k, e.target.value === "" ? "" : Number(e.target.value))} placeholder={hint} className={inp + " w-full"} /></label>
+  );
+  return (
+    <div className="mb-2 rounded-xl border border-white/10 p-2.5">
+      <p className="text-xs font-semibold text-white/70 mb-1.5">📦 {t("admin.pkg.title")}</p>
+      <div className="grid gap-1.5 mb-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        {([["", t("admin.pkg.normal")], ["uses", t("admin.pkg.uses")], ["credit", t("admin.pkg.credit")]] as const).map(([k, l]) => (
+          <div key={k} role="button" tabIndex={0} onClick={() => set("packageKind", k)} onKeyDown={(e) => { if (e.key === "Enter") set("packageKind", k); }} className={`cursor-pointer rounded-lg px-2 py-1.5 text-center text-xs font-semibold ${value.packageKind === k ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{l}</div>
+        ))}
+      </div>
+      {!value.packageKind && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={value.creditOk !== false} onChange={(e) => set("creditOk", e.target.checked)} /> {t("admin.pkg.creditOk")} <span className="text-white/40 text-xs">{t("admin.pkg.creditOkHint")}</span></label>}
+      {value.packageKind === "uses" && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{num("packageUses", t("admin.pkg.usesN"), "10")}{num("packageValidDays", t("admin.pkg.validDays"), t("admin.pkg.never"))}</div>}
+      {value.packageKind === "credit" && <>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{num("packageCredit", t("admin.pkg.creditAmt"), "10000000")}{num("packageValidDays", t("admin.pkg.validDays"), t("admin.pkg.never"))}{num("perkPercent", t("admin.pkg.perkPct"), "5")}{num("perkDays", t("admin.pkg.perkDays"), t("admin.pkg.lifetime"))}</div>
+        <p className="mt-1.5 text-[11px] text-white/40">{t("admin.pkg.creditHint")}</p>
+      </>}
+      {value.packageKind && <p className="mt-1.5 text-[11px] text-white/40">{t("admin.pkg.sellHint")}</p>}
+    </div>
+  );
+}
+// Short label of a product's package setting (lists and the table's Package button).
+function pkgTag(p: any, t: (k: string, v?: any) => string) {
+  if (p.packageKind === "uses") return t("admin.pkg.tagUses", { n: p.packageUses || 1 });
+  if (p.packageKind === "credit") return t("admin.pkg.tagCredit", { n: Number(p.packageCredit || 0).toLocaleString() });
+  return p.creditOk === false ? t("admin.pkg.tagNoCredit") : "";
+}
+// Desktop table: package settings open in a small dialog.
+function PackageButton({ p }: { p: any }) {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [v, setV] = useState(pkgOf(p));
+  const save = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, v).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("admin.c.saved") }); setOpen(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
+  });
+  return <>
+    <button onClick={() => { setV(pkgOf(p)); setOpen(true); }} className="rounded-lg bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10 whitespace-nowrap">{pkgTag(p, t) || "—"}</button>
+    {open && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" onClick={() => setOpen(false)}>
+      <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#160f2a] p-4 text-left" onClick={(e) => e.stopPropagation()}>
+        <p className="mb-2 font-bold">{p.name}</p>
+        <PackageFields value={v} onChange={setV} />
+        <div className="flex justify-end gap-2"><button onClick={() => setOpen(false)} className={btnSm + " text-white/60"}><X className="w-4 h-4" /></button><button onClick={() => save.mutate()} disabled={save.isPending} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button></div>
+      </div>
+    </div>}
+  </>;
+}
+
 function Products() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
   const modules = useModules();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
-  const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true });
+  const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) });
   const [industry, setIndustry] = useState("");
   const [mode, setMode] = useState<"new" | "restock">("new");
   const [rs, setRs] = useState<any>({ productId: "", supplier: "", qty: 1, unitCost: 0 });
@@ -1720,7 +1777,7 @@ function Products() {
   const shown = industry ? products.filter((p) => deptHas(p.department, industry)) : products;
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
-    onSuccess: () => { toast({ title: t("admin.prod.added") }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: t("admin.prod.added") }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const restock = useMutation({
@@ -1746,6 +1803,7 @@ function Products() {
         </div>
         <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHint")}</span></label>
+        <PackageFields value={n} onChange={setN} />
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.c.add")}</button>
         </> : <>
@@ -1787,6 +1845,7 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
               <th className="py-2 px-2 font-semibold">{t("admin.prod.supplier")}</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.pkg.col")}</th>
               <th className="py-2 px-2 font-semibold text-center">{t("admin.prod.pos")}</th>
               <th className="py-2 px-2 font-semibold text-center">{t("admin.prod.activeCol")}</th>
               <th className="py-2 px-2 font-semibold text-right"></th>
@@ -1823,6 +1882,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={cell + " text-right w-24"} /></td>
       <td className={`px-2 py-1 text-right font-semibold tabular-nums ${p.stock <= (p.lowStock ?? 0) ? "text-red-300" : "text-white/70"}`}>{p.stock}</td>
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
+      <td className="px-2 py-1"><PackageButton p={p} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
       <td className="px-2 py-1 text-right"><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></td>
@@ -1836,7 +1896,7 @@ function ProductRow({ p }: any) {
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "" });
+  const [f, setF] = useState<any>({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
   const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...deptList(p.department)])).sort();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
@@ -1849,7 +1909,7 @@ function ProductRow({ p }: any) {
         <div className="flex items-start gap-3">
           {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" /> : <span className="w-14 h-14 rounded-xl bg-white/5 flex-shrink-0" />}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">{t("admin.prod.hiddenTag")}</span>} {p.posVisible === false && <span className="text-xs text-amber-400">{t("admin.prod.notInPosTag")}</span>}</p>
+            <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">{t("admin.prod.hiddenTag")}</span>} {p.posVisible === false && <span className="text-xs text-amber-400">{t("admin.prod.notInPosTag")}</span>} {pkgTag(p, t) && <span className="text-xs text-sky-300">{pkgTag(p, t)}</span>}</p>
             <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · RP {Number(p.price).toLocaleString()} · {t("admin.prod.stockN", { n: p.stock })}</p>
             {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">{t("admin.prod.supplierLbl")} {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
@@ -1866,6 +1926,7 @@ function ProductRow({ p }: any) {
             <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHintLong")}</span></label>
+          <PackageFields value={f} onChange={setF} />
           <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
           <div className="flex gap-2 justify-end">

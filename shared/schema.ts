@@ -862,6 +862,53 @@ export const posProducts = pgTable("pos_products", {
   department: varchar("department"), // industry/section this product belongs to (KTV, Beauty, Restaurant, Retail…) — for per-industry data
   stallId: integer("stall_id"), // food-court stall this product belongs to
   sortOrder: integer("sort_order").default(0),
+  // Packages sold at the POS (server/memberPackages.ts): 'uses' = N visits (e.g. spa ×10),
+  // 'credit' = prepaid credit (pay 5,000,000 → 10,000,000 credit). null = a normal product.
+  packageKind: varchar("package_kind"),
+  packageUses: integer("package_uses"),
+  packageCredit: decimal("package_credit", { precision: 14, scale: 2 }),
+  packageValidDays: integer("package_valid_days"),            // null = never expires
+  perkPercent: decimal("perk_percent", { precision: 5, scale: 2 }), // credit used up → member discount %
+  perkDays: integer("perk_days"),                              // how long the perk lasts; null = lifetime
+  creditOk: boolean("credit_ok").default(true).notNull(),      // can be paid with package credit
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// A package a member bought (their inventory, like kept bottles).
+export const memberPackages = pgTable("member_packages", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  userId: varchar("user_id").notNull(),
+  memberName: varchar("member_name"),
+  memberCode: varchar("member_code"),
+  productId: integer("product_id"),
+  ticketId: integer("ticket_id"),                 // the bill it was bought on
+  kind: varchar("kind").notNull(),                // 'uses' | 'credit'
+  name: varchar("name").notNull(),
+  usesTotal: integer("uses_total").default(0).notNull(),
+  usesLeft: integer("uses_left").default(0).notNull(),
+  creditTotal: decimal("credit_total", { precision: 14, scale: 2 }).default("0").notNull(),
+  creditLeft: decimal("credit_left", { precision: 14, scale: 2 }).default("0").notNull(),
+  pricePaid: decimal("price_paid", { precision: 14, scale: 2 }).default("0").notNull(),
+  perkPercent: decimal("perk_percent", { precision: 5, scale: 2 }).default("0").notNull(),
+  perkDays: integer("perk_days"),
+  perkFrom: timestamp("perk_from"),               // set when the credit is used up
+  perkUntil: timestamp("perk_until"),             // null with perkFrom set = lifetime
+  status: varchar("status").default("active").notNull(), // 'active' | 'used' | 'refunded'
+  expiresAt: timestamp("expires_at"),
+  usedUpAt: timestamp("used_up_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+// Every use of a package: uses taken or credit spent (negative = given back on a refund).
+export const memberPackageUses = pgTable("member_package_uses", {
+  id: serial("id").primaryKey(),
+  packageId: integer("package_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  ticketId: integer("ticket_id"),
+  uses: integer("uses").default(0).notNull(),
+  credit: decimal("credit", { precision: 14, scale: 2 }).default("0").notNull(),
+  staffId: varchar("staff_id"),
+  note: text("note"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -903,6 +950,7 @@ export const posTickets = pgTable("pos_tickets", {
   salesStaffId: varchar("sales_staff_id"),   // staff credited with the sale (commission)
   salesStaffName: varchar("sales_staff_name"),
   note: text("note"),
+  packageCreditUsed: decimal("package_credit_used", { precision: 14, scale: 2 }).default("0").notNull(), // part of the total paid with package credit
   createdAt: timestamp("created_at").defaultNow(),
   paidAt: timestamp("paid_at"),
 });
