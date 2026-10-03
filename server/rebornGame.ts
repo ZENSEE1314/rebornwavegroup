@@ -11,7 +11,7 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, whatsappAvailable, waDigits, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
-import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
+import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
@@ -815,7 +815,7 @@ async function advanceSongQueue(cid: number | null, how: "done" | "skip", by?: s
       memberWaPhone(playing.userId).then(async (phone) => {
         if (!phone) return;
         const lang = await langForPhone(phone, playing.userId);
-        await sendWhatsApp(phone, waText(lang, "songOnNow", { song }));
+        await sendToMember(phone, waText(lang, "songOnNow", { song }), playing.userId);
       }).catch(() => {});
       // The member after them: "you're up next".
       const after = queue[1];
@@ -2141,7 +2141,7 @@ export function registerRebornRoutes(app: Express) {
         const lang = await langForPhone(phone, row.userId);
         const song = [row.title, row.artist].filter(Boolean).join(" — ");
         const msg = waText(lang, approve ? "songConfirmed" : "songRejected", { song, note: comment ? ` (${comment})` : "" });
-        sendWhatsApp(phone, msg).then((ok) => { if (!ok) console.warn(`[wa] song request #${row.id}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
+        sendToMember(phone, msg, row.userId).then((ok) => { if (!ok) console.warn(`[wa] song request #${row.id}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
       }
     }
     emitLiveUpdate("/api/reborn/songs/my-requests", { action: approve ? "CONFIRMED" : "REJECTED" });
@@ -3705,7 +3705,7 @@ export function registerRebornRoutes(app: Express) {
       (async () => {
         const lang = await langForPhone(phone, userId);
         const msg = waText(lang, "appReceipt", { club: s.clubName || "Reborn Wave", area: area.name, day: fmtDMY(date, lang), time: timeText(lang, slot, label), table: table ? ` · ${table}` : "", n: String(party) });
-        await sendWhatsApp(phone, `${msg}\n\n${await locationReply(lang)}`);
+        await sendToMember(phone, `${msg}\n\n${await locationReply(lang)}`, userId);
       })().catch(() => {});
     }
     await logAdmin(req, { targetUserId: userId, targetType: "appointment", targetId: row.id, action: "book", entityType: "booking", description: `Booked ${date} ${label}` });
@@ -3788,7 +3788,7 @@ export function registerRebornRoutes(app: Express) {
         const msg = status === "confirmed"
           ? waText(lang, "staffConfirmed", { what, when })
           : waText(lang, "staffCancelled", { what, when, note: note ? `: ${note}.` : "." });
-        sendWhatsApp(phone, msg).then((ok) => { if (!ok) console.warn(`[wa] booking #${id} ${status}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
+        sendToMember(phone, msg, row.userId).then((ok) => { if (!ok) console.warn(`[wa] booking #${id} ${status}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
       } else console.warn(`[wa] booking #${id} ${status}: member has no WhatsApp number`);
       sendPushToUser(row.userId, {
         title: waText(lang, status === "confirmed" ? "pushConfirmedTitle" : "pushCancelledTitle"),
@@ -3852,7 +3852,7 @@ export function registerRebornRoutes(app: Express) {
     if (memberPhone) {
       const phone = memberPhone;
       locationReply(mLang)
-        .then((loc) => sendWhatsApp(phone, `${waText(mLang, "staffBooked", { club: s.clubName || "Reborn Wave", area: area.name, when: whenTxt, table: table ? ` · ${table}` : "" })}\n\n${loc}`))
+        .then((loc) => sendToMember(phone, `${waText(mLang, "staffBooked", { club: s.clubName || "Reborn Wave", area: area.name, when: whenTxt, table: table ? ` · ${table}` : "" })}\n\n${loc}`, u.id))
         .catch(() => {});
     }
     sendPushToUser(u.id, { title: waText(mLang, "pushBookedTitle"), body: `${area.name} — ${whenTxt}${table ? ` · ${table}` : ""}`, url: "/bookings", tag: `booking-${row.id}` }).catch(() => {});
