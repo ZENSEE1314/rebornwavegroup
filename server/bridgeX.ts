@@ -497,6 +497,15 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS game_rooms (code varchar PRIMARY KEY, data jsonb NOT NULL, updated_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS app_errors (id serial PRIMARY KEY, area varchar NOT NULL, source varchar NOT NULL DEFAULT 'app', method varchar, path text, status integer NOT NULL DEFAULT 0, message text NOT NULL DEFAULT '', user_id varchar, detail text, created_at timestamp NOT NULL DEFAULT now());
     CREATE INDEX IF NOT EXISTS app_errors_created_idx ON app_errors (created_at DESC);
+    -- POS packages (visits / prepaid credit) — server/memberPackages.ts
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_kind varchar; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_uses integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_credit numeric(14,2);
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_valid_days integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS perk_percent numeric(5,2); ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS perk_days integer;
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS credit_ok boolean NOT NULL DEFAULT true;
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS package_credit_used numeric(14,2) NOT NULL DEFAULT 0;
+    CREATE TABLE IF NOT EXISTS member_packages (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, member_name varchar, member_code varchar, product_id integer, ticket_id integer, kind varchar NOT NULL, name varchar NOT NULL, uses_total integer NOT NULL DEFAULT 0, uses_left integer NOT NULL DEFAULT 0, credit_total numeric(14,2) NOT NULL DEFAULT 0, credit_left numeric(14,2) NOT NULL DEFAULT 0, price_paid numeric(14,2) NOT NULL DEFAULT 0, perk_percent numeric(5,2) NOT NULL DEFAULT 0, perk_days integer, perk_from timestamp, perk_until timestamp, status varchar NOT NULL DEFAULT 'active', expires_at timestamp, used_up_at timestamp, created_at timestamp DEFAULT now());
+    CREATE INDEX IF NOT EXISTS member_packages_user ON member_packages (user_id, status);
+    CREATE TABLE IF NOT EXISTS member_package_uses (id serial PRIMARY KEY, package_id integer NOT NULL, user_id varchar NOT NULL, ticket_id integer, uses integer NOT NULL DEFAULT 0, credit numeric(14,2) NOT NULL DEFAULT 0, staff_id varchar, note text, created_at timestamp DEFAULT now());
+    CREATE INDEX IF NOT EXISTS member_package_uses_ticket ON member_package_uses (ticket_id);
     UPDATE appointments SET company_id = (SELECT id FROM bridge_companies WHERE slug='${DEFAULT_COMPANY_SLUG}' LIMIT 1) WHERE company_id IS NULL AND EXISTS (SELECT 1 FROM bridge_companies WHERE slug='${DEFAULT_COMPANY_SLUG}');
     ALTER TABLE appointments ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE appointments ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE spin_prizes ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE spin_results ADD COLUMN IF NOT EXISTS company_id integer;

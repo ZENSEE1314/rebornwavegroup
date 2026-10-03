@@ -6,6 +6,7 @@ import { db } from "./db";
 import { currentTenant, homeCompanySlug } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL } from "./giftLevels";
+import { packageFields, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
@@ -340,11 +341,14 @@ async function buildDailyClosingReport(day: string) {
     sum.serviceFee += Number(ticket.serviceFee) || 0;
     sum.tax += Number(ticket.tax) || 0;
     sum.revenue += Number(ticket.total) || 0;
-    if (ticket.paymentMethod === "cash") sum.cash += Number(ticket.total) || 0;
-    if (ticket.paymentMethod === "card") sum.card += Number(ticket.total) || 0;
-    if (ticket.paymentMethod === "credits") sum.credits += Number(ticket.total) || 0;
+    const pkg = Number(ticket.packageCreditUsed) || 0; // paid with package credit (its money came in when the package was sold)
+    const paid = (Number(ticket.total) || 0) - pkg;
+    sum.packageCredit += pkg;
+    if (ticket.paymentMethod === "cash") sum.cash += paid;
+    if (ticket.paymentMethod === "card") sum.card += paid;
+    if (ticket.paymentMethod === "credits") sum.credits += paid;
     return sum;
-  }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, cash: 0, card: 0, credits: 0 });
+  }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, cash: 0, card: 0, credits: 0, packageCredit: 0 });
   const items = Array.from(grouped.values()).sort((a, b) => b.sales - a.sales);
   const cost = items.reduce((sum, item) => sum + item.cost, 0);
   return { day, closedAt: new Date().toISOString(), ticketCount: tickets.length, items, totals: { ...totals, cost, profit: totals.revenue - totals.tax - cost } };
@@ -361,7 +365,8 @@ async function payWithCredits(userId: string, total: number, orderNo: string, ti
   return { ok: true, balance: Number(row.credits) };
 }
 const posMethod = (m: any) => (m === "card" ? "card" : m === "credits" ? "credits" : "cash");
-const methodLabel = (m: string, lang: Lang) => m === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : m === "credits" ? pick(lang, { en: "RP CREDITS", zh: "RP 余额", id: "KREDIT RP" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" });
+// "package" = the whole bill was paid with package credit (server/memberPackages.ts).
+const methodLabel = (m: string, lang: Lang) => m === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : m === "credits" ? pick(lang, { en: "RP CREDITS", zh: "RP 余额", id: "KREDIT RP" }) : m === "package" ? pick(lang, { en: "PACKAGE CREDIT", zh: "套餐余额", id: "KREDIT PAKET" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" });
 const notEnoughCredits = (req: Request, total: number, balance: number) => tr(req, { en: "Not enough RP credits: the bill is RP {n}, the member has RP {b}.", zh: "RP 余额不足：账单 RP {n}，会员余额 RP {b}。", id: "Kredit RP tidak cukup: tagihan RP {n}, saldo member RP {b}." }, { n: fmtN(total, reqLang(req)), b: fmtN(balance, reqLang(req)) });
 
 // Contribute the pool % only for UN-referred buyers (a referred buyer's 10% is their
@@ -2637,6 +2642,39 @@ export function registerRebornRoutes(app: Express) {
     return row;
   }
 
+  // ── Packages (server/memberPackages.ts) ──
+  const needMemberForPackage = (req: Request) => tr(req, { en: "Select a member to sell a package — it goes into their packages", zh: "出售套餐前请先选择会员——套餐会存入会员账户", id: "Pilih member untuk menjual paket — paket masuk ke akun member" });
+  const packageCreditChanged = (req: Request) => tr(req, { en: "The member's package credit just changed — please try again", zh: "会员的套餐余额刚刚有变动——请重试", id: "Kredit paket member baru saja berubah — silakan coba lagi" });
+  // The extra lines after "Paid RP …" on a POS payment.
+  function paidExtras(req: Request, x: { points: number; bottle: boolean; creditUse: number; perkAmount: number; perkPercent: number; packages: number }) {
+    const lang = reqLang(req);
+    return (x.creditUse ? tr(req, { en: " · RP {n} paid with package credit", zh: " · 套餐余额支付 RP {n}", id: " · RP {n} dibayar dengan kredit paket" }, { n: fmtN(x.creditUse, lang) }) : "")
+      + (x.perkAmount ? tr(req, { en: " · member {p}% off: RP {n}", zh: " · 会员 {p}% 折扣：RP {n}", id: " · diskon member {p}%: RP {n}" }, { p: x.perkPercent, n: fmtN(x.perkAmount, lang) }) : "")
+      + (x.packages ? tr(req, { en: " · {n} package(s) added to the member", zh: " · 已为会员添加 {n} 个套餐", id: " · {n} paket ditambahkan ke member" }, { n: x.packages }) : "")
+      + (x.points ? tr(req, { en: " · {p} points added", zh: " · 已增加 {p} 积分", id: " · {p} poin ditambahkan" }, { p: x.points }) : "")
+      + (x.bottle ? tr(req, { en: " · bottle stored for 30 days", zh: " · 酒瓶已寄存 30 天", id: " · botol disimpan selama 30 hari" }) : "");
+  }
+  // Packages bought on a paid bill → the member's inventory + a notification.
+  async function afterPackageSale(member: any, ticketId: number, companyId: number | null, items: { productId?: number | null; qty: number; price: any }[]) {
+    const made = await issuePackages({ id: member.id, name: [member.firstName, member.lastName].filter(Boolean).join(" ") || member.username || member.email, code: member.referralCode }, ticketId, companyId, items);
+    for (const p of made) await notifyUserI18n(member.id, "package_added", (lang) => ({
+      title: pick(lang, { en: "🎁 Package added: {name}", zh: "🎁 已添加套餐：{name}", id: "🎁 Paket ditambahkan: {name}" }, { name: p.name }),
+      body: p.kind === "uses"
+        ? pick(lang, { en: "{n} visits ready to use. Show your member code at the counter.", zh: "共 {n} 次可用。在柜台出示会员码即可使用。", id: "{n} kunjungan siap dipakai. Tunjukkan kode member di kasir." }, { n: p.usesTotal })
+        : pick(lang, { en: "RP {n} credit ready to spend.", zh: "RP {n} 余额可以使用了。", id: "Kredit RP {n} siap dipakai." }, { n: fmtN(Number(p.creditTotal), lang) }),
+    }), { path: "/bottles" });
+    return made;
+  }
+  // A credit package was used up → tell the member about their new discount.
+  async function notifyPerks(userId: string, perks: { percent: number; until: Date | null; name: string }[]) {
+    for (const k of perks) await notifyUserI18n(userId, "package_perk", (lang) => ({
+      title: pick(lang, { en: "🎉 You now get {p}% off", zh: "🎉 你现在享有 {p}% 折扣", id: "🎉 Kamu sekarang dapat diskon {p}%" }, { p: k.percent }),
+      body: k.until
+        ? pick(lang, { en: "Your {name} credit is used up — {p}% off every bill until {d}.", zh: "你的 {name} 余额已用完——{d} 前每张账单享 {p}% 折扣。", id: "Kredit {name} kamu sudah habis — diskon {p}% setiap tagihan sampai {d}." }, { name: k.name, p: k.percent, d: k.until.toISOString().slice(0, 10) })
+        : pick(lang, { en: "Your {name} credit is used up — {p}% off every bill, for life.", zh: "你的 {name} 余额已用完——终身每张账单享 {p}% 折扣。", id: "Kredit {name} kamu sudah habis — diskon {p}% setiap tagihan, seumur hidup." }, { name: k.name, p: k.percent }),
+    }), { path: "/bottles" });
+  }
+
   // Products — staff can read (to sell); admin manages catalogue/prices/stock.
   app.get("/api/reborn/pos/products", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
@@ -2647,7 +2685,7 @@ export function registerRebornRoutes(app: Express) {
     const cid = await rebornCompanyId(req);
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
     const allowNegative = (await getSettings()).allowNegativeStock;
-    res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: !allowNegative && (p.stock ?? 0) <= 0 })));
+    res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
   });
   app.post("/api/reborn/admin/pos/products", requireAdmin(async (req, res) => {
     const b = req.body || {};
@@ -2659,6 +2697,7 @@ export function registerRebornRoutes(app: Express) {
       cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
       active: b.active !== false, posVisible: b.posVisible !== false, sortOrder: Number(b.sortOrder) || 0,
+      ...packageFields(b),
     }).returning();
     if ((row.stock ?? 0) > 0) await db.insert(stockMovements).values({ productId: row.id, delta: row.stock, reason: "stock_in", supplier: b.supplierName || null, note: "Initial stock", userId: getUserId(req)! });
     await logAdmin(req, { targetType: "pos_product", targetId: row.id, action: "create", entityType: "product", description: `Added product "${row.name}" @ RP ${row.price}` });
@@ -2675,6 +2714,8 @@ export function registerRebornRoutes(app: Express) {
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
+    if (b.packageKind !== undefined) Object.assign(patch, packageFields(b));
+    else if (b.creditOk !== undefined && !prev.packageKind) patch.creditOk = !!b.creditOk;
     const [row] = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning();
     if (b.price !== undefined && String(prev.price) !== String(row.price))
       await logAdmin(req, { targetType: "pos_product", targetId: id, action: "edit_price", entityType: "product", oldValues: { price: prev.price }, newValues: { price: row.price }, description: `Price of "${row.name}" RP ${prev.price} → RP ${row.price}` });
@@ -2699,7 +2740,7 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/pos/stock", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    res.json(await db.select().from(posProducts).where(eq(posProducts.companyId, cid)).orderBy(posProducts.stock));
+    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind))).orderBy(posProducts.stock)); // packages hold no stock
   }));
 
   // Member lookup by member code (referral code), email, or phone — for POS key-in.
@@ -2731,7 +2772,7 @@ export function registerRebornRoutes(app: Express) {
       await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source });
       if (it.productId) {
         const [before] = await db.select().from(posProducts).where(eq(posProducts.id, it.productId));
-        await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${it.qty}` }).where(eq(posProducts.id, it.productId));
+        await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${it.qty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
         await db.insert(stockMovements).values({ productId: it.productId, delta: -it.qty, reason: "sale", note: `Ticket ${orderNo}`, userId });
         const remaining = (before?.stock ?? 0) - it.qty;
         if ((before?.stock ?? 0) > 5 && remaining <= 5) await notifyStaffI18n("low_stock", (lang) => ({ title: pick(lang, { en: "Low stock warning", zh: "库存不足提醒", id: "Peringatan stok menipis" }), body: pick(lang, { en: "{item}: {n} left", zh: "{item}：剩余 {n}", id: "{item}: sisa {n}" }, { item: it.name, n: Math.max(0, remaining) }) }), { path: "/reborn-pos", productId: it.productId });
@@ -2758,7 +2799,7 @@ export function registerRebornRoutes(app: Express) {
       const p = byId.get(Number(it.productId));
       if (!p || !p.active) return { error: pick(lang, { en: "An item is no longer available", zh: "有商品已不再供应", id: "Ada item yang sudah tidak tersedia" }) };
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
-      if (!allowNegative && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
+      if (!allowNegative && !p.packageKind && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
       clean.push({ productId: p.id, name: p.name, price: Number(p.price), qty });
     }
     return { clean };
@@ -2846,54 +2887,57 @@ export function registerRebornRoutes(app: Express) {
     const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
-    const paymentMethod = posMethod(req.body?.paymentMethod);
     const paymentReference = String(req.body?.paymentReference || "").trim();
-    if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const u = await findMemberByCode(req.body?.memberCode || "");
-    if (paymentMethod === "credits" && !u) return res.status(400).json({ message: tr(req, { en: "Enter the member code to pay with their RP credits", zh: "使用 RP 余额付款前请输入会员码", id: "Masukkan kode member untuk membayar dengan kredit RP" }) });
+    if (req.body?.paymentMethod === "credits" && !u) return res.status(400).json({ message: tr(req, { en: "Enter the member code to pay with their RP credits", zh: "使用 RP 余额付款前请输入会员码", id: "Masukkan kode member untuk membayar dengan kredit RP" }) });
     if (req.body?.keepBottle?.enabled && !u) return res.status(400).json({ message: tr(req, { en: "Select a member before keeping a bottle at checkout", zh: "结账寄存酒瓶前请先选择会员", id: "Pilih member sebelum menitipkan botol saat pembayaran" }) });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }) });
     const settings = await getSettings();
-    const subtotal = clean!.reduce((s, it) => s + it.price * it.qty, 0);
-    const discount = Math.min(subtotal, Math.max(0, Number(req.body?.discount) || 0));
-    const serviceFee = Math.round((subtotal - discount) * settings.serviceFeePercent / 100);
-    const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
-    const total = subtotal - discount + serviceFee + tax;
+    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent });
+    const { subtotal, discount, serviceFee, tax, total, due } = q;
+    if (q.hasPackages && !u) return res.status(400).json({ message: needMemberForPackage(req) });
+    const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
+    if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const cashReceived = paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
-    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < total)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(total, reqLang(req)) }) });
-    const changeGiven = paymentMethod === "cash" ? cashReceived! - total : null;
+    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < due)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(due, reqLang(req)) }) });
+    const changeGiven = paymentMethod === "cash" ? cashReceived! - due : null;
     const keepType = String(req.body?.keepBottle?.type || "");
     if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: tr(req, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }) });
-    if (paymentMethod === "credits" && Number(u!.credits || 0) < total) return res.status(400).json({ message: notEnoughCredits(req, total, Number(u!.credits || 0)) });
-    const points = u ? Math.floor(total / await pointsSpendRp()) : 0;
+    if (paymentMethod === "credits" && Number(u!.credits || 0) < due) return res.status(400).json({ message: notEnoughCredits(req, due, Number(u!.credits || 0)) });
+    const points = u ? Math.floor(due / await pointsSpendRp()) : 0;
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : "dine_in";
+    const staffId = getUserId(req)!;
     const [row] = await db.insert(posTickets).values({
       companyId: await rebornCompanyId(req),
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid",
       ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null,
-      subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), orderMode,
-      paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
+      subtotal: String(subtotal), discount: String(discount), discountReason: q.perkAmount > 0 ? `Member ${q.perkPercent}%` : null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
+      paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: new Date(),
     }).returning();
+    const spent = await spendPackageCredit(u?.id || "", q.creditUse, row.id, staffId);
+    if (spent.spent < q.creditUse) { await restorePackageCredit(row.id, staffId, "Payment not completed"); await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(409).json({ message: packageCreditChanged(req) }); }
     if (paymentMethod === "credits") {
-      const paid = await payWithCredits(u!.id, total, row.orderNo, row.id);
-      if (!paid.ok) { await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(400).json({ message: notEnoughCredits(req, total, paid.balance) }); }
+      const paid = await payWithCredits(u!.id, due, row.orderNo, row.id);
+      if (!paid.ok) { if (spent.spent) await restorePackageCredit(row.id, staffId, "Payment not completed"); await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(400).json({ message: notEnoughCredits(req, due, paid.balance) }); }
     }
-    await appendItems(row.id, row.orderNo, clean!, getUserId(req)!);
+    await appendItems(row.id, row.orderNo, clean!, staffId);
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
-    if (paymentMethod !== "credits") await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
+    if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: row.id });
     if (u?.id) await notifyUserI18n(u.id, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: row.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: row.id });
-    const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, getUserId(req)!, reqLang(req)) : null;
-    await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
+    const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, staffId, reqLang(req)) : null;
+    const packagesAdded = u && q.hasPackages ? await afterPackageSale(u, row.id, row.companyId, clean!) : [];
+    if (u) await notifyPerks(u.id, spent.perks);
+    await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}${q.creditUse ? ` · package credit RP ${q.creditUse}` : ""}` });
     if (u) {
       crmRecordVisit({ userId: u.id, phone: (u as any).phoneNumber, name: [u.firstName, u.lastName].filter(Boolean).join(" ") }).catch(() => {});
       sendReviewRequest({ userId: u.id, phone: (u as any).phoneNumber, name: u.firstName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
     }
-    contributeSpinPoolIfUnreferred(u?.id ?? null, total).catch(() => {});
+    contributeSpinPoolIfUnreferred(u?.id ?? null, due).catch(() => {});
     await freeTableAfterBill(row.companyId, row.tableNumber); // paid at a table → the table's booking frees it
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
-    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + (points ? tr(req, { en: " · {p} points added", zh: " · 已增加 {p} 积分", id: " · {p} poin ditambahkan" }, { p: points }) : "") + (keptBottle ? tr(req, { en: " · bottle stored for 30 days", zh: " · 酒瓶已寄存 30 天", id: " · botol disimpan selama 30 hari" }) : ""), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
 
   // Member orders from the app — merges into their table's open ticket (or opens one).
@@ -2942,7 +2986,7 @@ export function registerRebornRoutes(app: Express) {
     if (status === "rejected") {
       patch.rejectReason = String(req.body?.reason || "").trim() || "Unavailable";
       if (it.status !== "rejected" && it.productId) { // return stock
-        await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(eq(posProducts.id, it.productId));
+        await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
         await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "order_reject", note: `Rejected item #${id}`, userId: getUserId(req)! });
       }
     }
@@ -2977,7 +3021,7 @@ export function registerRebornRoutes(app: Express) {
     const qty = req.body?.qty !== undefined ? Math.max(1, Math.floor(Number(req.body.qty))) : it.qty;
     const dQty = qty - it.qty;
     if (dQty !== 0 && it.productId) { // keep stock in sync
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${dQty}` }).where(eq(posProducts.id, it.productId));
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${dQty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
       await db.insert(stockMovements).values({ productId: it.productId, delta: -dQty, reason: "adjustment", note: `Edit item #${id}`, userId: getUserId(req)! });
     }
     await db.update(posTicketItems).set({ price: String(price), qty, lineTotal: String(price * qty) }).where(eq(posTicketItems.id, id));
@@ -2993,7 +3037,7 @@ export function registerRebornRoutes(app: Express) {
     const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
     if (!it) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
     if (it.status !== "rejected" && it.productId) {
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(eq(posProducts.id, it.productId));
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
       await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "adjustment", note: `Removed item #${id}`, userId: getUserId(req)! });
     }
     if (it.source === "app") await db.update(posTicketItems).set({ status: "rejected", rejectReason: reason || "Removed by staff" }).where(eq(posTicketItems.id, id));
@@ -3082,52 +3126,58 @@ export function registerRebornRoutes(app: Express) {
     res.json(withItems);
   }));
   app.post("/api/reborn/pos/orders/:id/pay", requireStaff(async (req, res) => {
-    const id = Number(req.params.id); const paymentMethod = posMethod(req.body?.paymentMethod);
+    const id = Number(req.params.id);
     const paymentReference = String(req.body?.paymentReference || "").trim();
-    if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Order not open", zh: "该订单未开启", id: "Pesanan tidak terbuka" }) });
-    if (paymentMethod === "credits" && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member to pay with their RP credits", zh: "使用 RP 余额付款前请先标记会员", id: "Tandai member untuk membayar dengan kredit RP" }) });
+    if (req.body?.paymentMethod === "credits" && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member to pay with their RP credits", zh: "使用 RP 余额付款前请先标记会员", id: "Tandai member untuk membayar dengan kredit RP" }) });
     if (req.body?.keepBottle?.enabled && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member before keeping a bottle at checkout", zh: "结账寄存酒瓶前请先标记会员", id: "Tandai member sebelum menitipkan botol saat pembayaran" }) });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }) });
     const settings = await getSettings();
-    const subtotal = Number(o.subtotal || o.total);
+    const lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id))).filter((x) => x.status !== "rejected");
     // Use the request discount if provided, else the discount already set on the ticket.
     const reqDisc = req.body?.discount !== undefined ? Number(req.body.discount) : Number(o.discount || 0);
-    const discount = Math.min(subtotal, Math.max(0, reqDisc || 0));
-    const serviceFee = Math.round((subtotal - discount) * settings.serviceFeePercent / 100);
-    const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
-    const total = subtotal - discount + serviceFee + tax;
+    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal) })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent });
+    const { subtotal, discount, serviceFee, tax, total, due } = q;
+    if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
+    const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
+    if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const cashReceived = paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
-    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < total)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(total, reqLang(req)) }) });
-    const changeGiven = paymentMethod === "cash" ? cashReceived! - total : null;
+    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < due)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(due, reqLang(req)) }) });
+    const changeGiven = paymentMethod === "cash" ? cashReceived! - due : null;
     const keepType = String(req.body?.keepBottle?.type || "");
     if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: tr(req, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }) });
-    const points = o.memberId ? Math.floor(total / await pointsSpendRp()) : 0;
+    const points = o.memberId ? Math.floor(due / await pointsSpendRp()) : 0;
     const sales = await salesTag(req.body); // optional salesperson override at checkout
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : (o.orderMode || "dine_in");
+    const staffId = getUserId(req)!;
+    const spent = await spendPackageCredit(o.memberId || "", q.creditUse, id, staffId);
+    if (spent.spent < q.creditUse) { await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(409).json({ message: packageCreditChanged(req) }); }
     if (paymentMethod === "credits") {
-      const paid = await payWithCredits(o.memberId!, total, o.orderNo, id);
-      if (!paid.ok) return res.status(400).json({ message: notEnoughCredits(req, total, paid.balance) });
+      const paid = await payWithCredits(o.memberId!, due, o.orderNo, id);
+      if (!paid.ok) { if (spent.spent) await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(400).json({ message: notEnoughCredits(req, due, paid.balance) }); }
     }
-    await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), orderMode, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
+    const discountReason = q.perkAmount > 0 ? [o.discountReason, `Member ${q.perkPercent}%`].filter(Boolean).join(" · ") : o.discountReason;
+    await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
-    if (paymentMethod !== "credits") await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
+    if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: o.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: id });
     if (o.memberId) await notifyUserI18n(o.memberId, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: o.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: id });
     const [member] = o.memberId ? await db.select().from(users).where(eq(users.id, o.memberId)).limit(1) : [];
-    const keptBottle = member ? await storeBottleForMember(member, req.body?.keepBottle, getUserId(req)!, reqLang(req)) : null;
-    await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${points ? ` · ${points} pts` : ""}` });
+    const keptBottle = member ? await storeBottleForMember(member, req.body?.keepBottle, staffId, reqLang(req)) : null;
+    const packagesAdded = member && q.hasPackages ? await afterPackageSale(member, id, o.companyId, lines.map((x) => ({ productId: x.productId, qty: x.qty, price: x.price }))) : [];
+    if (member) await notifyPerks(member.id, spent.perks);
+    await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${q.creditUse ? ` · package credit RP ${q.creditUse}` : ""}${points ? ` · ${points} pts` : ""}` });
     if (o.memberId) {
       crmRecordVisit({ userId: o.memberId, name: o.memberName }).catch(() => {});
       sendReviewRequest({ userId: o.memberId, name: o.memberName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
     }
-    contributeSpinPoolIfUnreferred(o?.memberId ?? null, total).catch(() => {});
+    contributeSpinPoolIfUnreferred(o?.memberId ?? null, due).catch(() => {});
     await freeTableAfterBill(o.companyId, o.tableNumber); // bill closed → the table's booking frees it
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
-    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + (points ? tr(req, { en: " · {p} points added", zh: " · 已增加 {p} 积分", id: " · {p} poin ditambahkan" }, { p: points }) : "") + (keptBottle ? tr(req, { en: " · bottle stored for 30 days", zh: " · 酒瓶已寄存 30 天", id: " · botol disimpan selama 30 hari" }) : ""), order: { ...fresh, items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...fresh, items }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
   app.post("/api/reborn/pos/orders/:id/cancel", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
@@ -3135,7 +3185,7 @@ export function registerRebornRoutes(app: Express) {
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Order not open", zh: "该订单未开启", id: "Pesanan tidak terbuka" }) });
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     for (const it of items) if (it.productId) {
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(eq(posProducts.id, it.productId));
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
       await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "order_cancel", note: `Cancelled ${o.orderNo}`, userId: getUserId(req)! });
     }
     await db.update(posTickets).set({ status: "cancelled" }).where(eq(posTickets.id, id));
@@ -3182,6 +3232,58 @@ export function registerRebornRoutes(app: Express) {
     const userId = getUserId(req)!;
     const rows = await db.select().from(bottleKeeps).where(and(eq(bottleKeeps.userId, userId), eq(bottleKeeps.status, "kept"))).orderBy(bottleKeeps.expiresAt);
     res.json(rows.map(bottleView));
+  });
+
+  // ── Packages: quote a bill, look up / list / use a member's packages ──
+  // The bill with the member's perk and package credit, for the POS pay panel.
+  app.post("/api/reborn/pos/quote", requireStaff(async (req, res) => {
+    const settings = await getSettings();
+    let lines: { productId?: number | null; lineTotal: number }[] = [];
+    let userId: string | null = null;
+    if (req.body?.ticketId) {
+      const [o] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.body.ticketId)));
+      if (!o) return res.status(404).json({ message: tr(req, { en: "Order not found", zh: "找不到该订单", id: "Pesanan tidak ditemukan" }) });
+      lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => x.status !== "rejected").map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal) }));
+      userId = o.memberId;
+    } else {
+      lines = (Array.isArray(req.body?.items) ? req.body.items : []).map((it: any) => ({ productId: Number(it.productId) || null, lineTotal: (Number(it.price) || 0) * Math.max(1, Math.floor(Number(it.qty) || 1)) }));
+      userId = (await findMemberByCode(req.body?.memberCode || ""))?.id || null;
+    }
+    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent });
+    res.json({ ...q, hasMember: !!userId });
+  }));
+  // A member's packages (by member code) — POS pay panel and Packages tab.
+  app.get("/api/reborn/pos/member-packages", requireStaff(async (req, res) => {
+    const u = await findMemberByCode(String(req.query.code || ""));
+    if (!u) return res.status(404).json({ message: tr(req, { en: "Member not found", zh: "找不到该会员", id: "Member tidak ditemukan" }) });
+    res.json({ member: { id: u.id, name: memberTag(u).memberName, code: u.referralCode }, ...(await memberWallet(u.id)) });
+  }));
+  app.get("/api/reborn/pos/packages", requireStaff(async (req, res) => {
+    res.json(await listActivePackages(String(req.query.q || "")));
+  }));
+  // Take visits from a member's package; with an open ticket it also shows on the bill (RP 0).
+  app.post("/api/reborn/pos/packages/:id/use", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const n = Math.max(1, Math.floor(Number(req.body?.uses) || 1));
+    const ticketId = Number(req.body?.ticketId) || null;
+    const [ticket] = ticketId ? await db.select().from(posTickets).where(eq(posTickets.id, ticketId)) : [];
+    if (ticketId && (!ticket || ticket.status !== "open")) return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
+    const after = await takePackageUses(id, n, getUserId(req)!, ticketId);
+    if (!after) return res.status(400).json({ message: tr(req, { en: "Not enough visits left on this package (or it has expired)", zh: "该套餐剩余次数不足（或已过期）", id: "Sisa kunjungan paket ini tidak cukup (atau sudah kedaluwarsa)" }) });
+    if (ticket) {
+      await db.insert(posTicketItems).values({ orderId: ticket.id, productId: null, name: `${after.name} · ${tr(req, { en: "package", zh: "套餐", id: "paket" })} (${after.usesLeft}/${after.usesTotal})`, price: "0", qty: n, lineTotal: "0", status: "accepted", source: "pos" });
+      emitLiveUpdate("/api/reborn/pos/orders", { action: "PACKAGE_USE", resource: String(ticket.id) });
+    }
+    await notifyUserI18n(after.userId, "package_used", (lang) => ({
+      title: pick(lang, { en: "{name}: {n} used", zh: "{name}：已使用 {n} 次", id: "{name}: {n} dipakai" }, { name: after.name, n }),
+      body: pick(lang, { en: "{left} of {total} left.", zh: "剩余 {left}/{total} 次。", id: "Sisa {left} dari {total}." }, { left: after.usesLeft, total: after.usesTotal }),
+    }), { path: "/bottles" });
+    await logAdmin(req, { targetUserId: after.userId, targetType: "member_package", targetId: String(id), action: "use", entityType: "package", description: `Used ${n}× ${after.name} for ${after.memberName} (${after.usesLeft}/${after.usesTotal} left)` });
+    res.json({ message: tr(req, { en: "Used {n} — {left} of {total} left", zh: "已使用 {n} 次——剩余 {left}/{total}", id: "Dipakai {n} — sisa {left} dari {total}" }, { n, left: after.usesLeft, total: after.usesTotal }), package: after });
+  }));
+  // Member: my packages, package credit and perk.
+  app.get("/api/reborn/my-packages", requireAuth, async (req, res) => {
+    res.json(await memberWallet(getUserId(req)!));
   });
 
   // Accounting — money in/out summary + ledger (admin only).
@@ -3286,16 +3388,20 @@ export function registerRebornRoutes(app: Express) {
     if (!order || order.status !== "paid") return { status: 400 as const, body: { message: tr(req, { en: "Only a paid bill can be refunded", zh: "只有已付款的账单才能退款", id: "Hanya tagihan yang sudah dibayar yang bisa di-refund" }) }, order: null as any };
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     for (const item of items.filter((x) => x.status !== "rejected" && x.productId)) {
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${item.qty}` }).where(eq(posProducts.id, item.productId!));
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${item.qty}` }).where(and(eq(posProducts.id, item.productId!), isNull(posProducts.packageKind)));
       await db.insert(stockMovements).values({ productId: item.productId!, delta: item.qty, reason: "refund", note: `Refund ${order.orderNo}: ${reason}`, userId: actorId });
     }
     if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints: sql`greatest(0,${users.loyaltyPoints}-${order.pointsEarned})`, lifetimePoints: sql`greatest(0,${users.lifetimePoints}-${order.pointsEarned})`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
     const [updated] = await db.update(posTickets).set({ status: "refunded", refundReason: reason, refundedBy: actorId, refundedAt: new Date() }).where(eq(posTickets.id, id)).returning();
+    // Package credit used on the bill goes back to the member's packages; packages bought on it are closed.
+    await restorePackageCredit(id, actorId, `Refund ${order.orderNo}: ${reason}`);
+    await refundPackagesOfTicket(id);
+    const paidAmount = Number(order.total) - Number(order.packageCreditUsed || 0); // what was paid in cash / card / RP credits
     if (order.paymentMethod === "credits" && order.memberId) {
       // Paid from RP credits → give the credits back (no cash left the till).
-      await db.update(users).set({ credits: sql`${users.credits} + ${Number(order.total)}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
-      await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund", rpAmount: String(Number(order.total)), kgoldAmount: 0, description: `Refund ${order.orderNo}: ${reason}`, referenceType: "pos_order", referenceId: String(id) });
-    } else await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(order.total), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
+      await db.update(users).set({ credits: sql`${users.credits} + ${paidAmount}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
+      await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund", rpAmount: String(paidAmount), kgoldAmount: 0, description: `Refund ${order.orderNo}: ${reason}`, referenceType: "pos_order", referenceId: String(id) });
+    } else if (paidAmount > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(paidAmount), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
     return { status: 200 as const, body: { message: tr(req, { en: "{no} refunded and stock restored", zh: "{no} 已退款，库存已恢复", id: "{no} di-refund dan stok dikembalikan" }, { no: order.orderNo }), order: { ...updated, items } }, order };
   };
   app.post("/api/reborn/admin/accounting/orders/:id/refund", requireAdmin(async (req, res) => {
@@ -3334,7 +3440,7 @@ export function registerRebornRoutes(app: Express) {
       const old=current.find((x)=>x.id===Number(change.id)); if(!old || old.status==="rejected") continue;
       const qty=Math.max(1,Math.floor(Number(change.qty)||1)); const price=Math.max(0,Number(change.price)||0); const delta=qty-old.qty;
       if(delta>0 && old.productId){ const [p]=await db.select().from(posProducts).where(eq(posProducts.id,old.productId)); if(!p || p.stock<delta) return res.status(400).json({message:tr(req, { en: "Not enough {item} stock for that edit", zh: "{item} 库存不足，无法这样修改", id: "Stok {item} tidak cukup untuk perubahan itu" }, { item: old.name })}); }
-      if(delta!==0 && old.productId){ await db.update(posProducts).set({stock:sql`${posProducts.stock}-${delta}`}).where(eq(posProducts.id,old.productId)); await db.insert(stockMovements).values({productId:old.productId,delta:-delta,reason:"bill_edit",note:`${order.orderNo}: ${reason}`,userId:getUserId(req)!}); }
+      if(delta!==0 && old.productId){ await db.update(posProducts).set({stock:sql`${posProducts.stock}-${delta}`}).where(and(eq(posProducts.id,old.productId), isNull(posProducts.packageKind))); await db.insert(stockMovements).values({productId:old.productId,delta:-delta,reason:"bill_edit",note:`${order.orderNo}: ${reason}`,userId:getUserId(req)!}); }
       await db.update(posTicketItems).set({qty,price:String(price),lineTotal:String(qty*price)}).where(eq(posTicketItems.id,old.id));
     }
     const freshItems=await db.select().from(posTicketItems).where(eq(posTicketItems.orderId,id));
@@ -3871,7 +3977,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(posProducts).where(eq(posProducts.companyId, cid)).orderBy(posProducts.category, posProducts.name);
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind))).orderBy(posProducts.category, posProducts.name); // packages hold no stock
     // Distinct suppliers each product has been restocked from (one item, many suppliers).
     const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier })
       .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));

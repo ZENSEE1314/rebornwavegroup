@@ -252,3 +252,30 @@ text.
   a scroll that stops between pages (scrollbar drag) settles on the nearest one.
   Floor buttons and "skip" jump to a page. A new `.beat` becomes a page by itself.
   Bump `?v=` on app.js/style.css in index.html after changing them.
+
+## POS packages (visits + prepaid credit)
+
+- Admin › Products › 📦 Package (`pos_products.package_kind`, server/memberPackages.ts):
+  **Visits package** (`uses`, e.g. Spa ×10, optional valid days) or **Credit package**
+  (`credit`: sell price e.g. 5,000,000 → `package_credit` 10,000,000, optional valid days,
+  `perk_percent` / `perk_days`). Normal items have "Can be paid with package credit"
+  (`credit_ok`) — untick for items credit can't buy. Packages hold no stock.
+- Sold in the POS like any item (a member must be tagged): on payment they go into the
+  member's packages (`member_packages`, `issuePackages`), shown in the app on /bottles
+  ("My packages") and in POS › Packages.
+- Visits: "Use 1" in POS › Packages or on the pay panel (adds an RP 0 line to the open
+  bill) — `takePackageUses`, atomic, never below 0. Member gets a push.
+- Credit: on the pay panel tick "Pay with package credit" — it pays only `credit_ok`
+  items (share of the total incl. fee/tax, `quoteBill`); the rest is paid by cash /
+  card / RP credits; a bill paid fully by credit has method `package`. Spent oldest-
+  expiring first with atomic updates (`spendPackageCredit`), logged per bill in
+  `member_package_uses`; `pos_tickets.package_credit_used` holds the amount.
+- Credit used up → the perk starts: X% off every bill (not on package items) for N days
+  or for life (`perk_from` / `perk_until`); applied automatically by the server (`quoteBill`,
+  shown as "Member X%" in the discount) and the member gets a push.
+- Refunds give package credit back (perk taken back if it was unlocked) and close the
+  packages bought on that bill; cash refund = total − package credit. The day close /
+  Daily sales show the package-credit part separately (`packageCredit`); its money was
+  income when the package was sold.
+- The POS asks `/api/reborn/pos/quote` for the bill (perk + credit) so the till shows
+  exactly what the server will charge.
