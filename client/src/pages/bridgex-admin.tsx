@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Building2, ChevronLeft, Plus, ShieldCheck, Smartphone, Star, Users, WandSparkles } from "lucide-react";
+import { Building2, ChevronLeft, LogOut, Plus, ShieldCheck, Smartphone, Star, Users, WandSparkles } from "lucide-react";
 import { Link } from "wouter";
 
 import { useTranslation } from "@/lib/i18n";
 import { APP_SKINS, DEFAULT_APP_SKIN } from "@shared/appSkins";
+import { canUseBridgeXConsole } from "@/hooks/useTenantBrand";
 
 const MODULES = ["pos", "restaurant", "retail", "ktv", "beauty", "booking", "inventory", "employees", "payroll", "membership", "loyalty", "qr_ordering", "kitchen_display", "accounting", "analytics", "ai_whatsapp", "ai_telegram", "song_requests", "bottle_keep", "faq_automation", "games"];
 type Company = { id:number; slug?:string; dataMode?:string; serverUrl?:string; name:string; appName:string; industry:string; status:string; logoUrl?:string; websiteDomain?:string; subscriptionPlan:string; subscriptionStatus:string; trialEndsAt?:string; billingModel?:string; billingCycle?:string; price?:string; currency?:string; theme?:any };
@@ -34,10 +35,11 @@ function CompanyAdmins({ company, onMsg }: { company: Company; onMsg: (message: 
   const { t } = useTranslation();
   const base = `/api/v1/platform/companies/${company.id}/admins`;
   const [admins, setAdmins] = useState<Row[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [busy, setBusy] = useState(false);
-  const load = () => request(base).then(setAdmins).catch((e) => { setAdmins([]); onMsg(e.message); });
-  useEffect(() => { load(); }, [company.id, company.dataMode]);
+  const load = () => request(base).then(setAdmins).catch((e) => { setAdmins([]); onMsg(e.message); }).finally(() => setLoaded(true));
+  useEffect(() => { setLoaded(false); load(); }, [company.id, company.dataMode]);
   const run = async (work: () => Promise<string>) => {
     setBusy(true);
     try { onMsg(await work()); await load(); } catch (e: any) { onMsg(e.message); } finally { setBusy(false); }
@@ -57,11 +59,11 @@ function CompanyAdmins({ company, onMsg }: { company: Company; onMsg: (message: 
     run(async () => { await request(`${base}/${admin.id}`, { method: "DELETE" }); return t("admin.bx.admins.removed", { email: admin.email }); });
   };
   return (
-    <div className="mt-6 rounded-xl border border-white/10 bg-white/[.03] p-4">
+    <div className="rounded-xl border border-white/10 bg-white/[.03] p-4">
       <b>{t("admin.bx.admins.title", { name: company.appName || company.name })}</b>
       <p className="mt-1 text-xs text-slate-400">{t("admin.bx.admins.hint")}</p>
       <div className="mt-3 grid gap-2">
-        {admins.length === 0 && <p className="text-sm text-amber-300">{t("admin.bx.admins.none")}</p>}
+        {loaded && admins.length === 0 && <p className="text-sm text-amber-300">{t("admin.bx.admins.none")}</p>}
         {admins.map((admin) => (
           <div key={admin.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 p-3">
             <div className="min-w-0"><b className="block truncate">{[admin.firstName, admin.lastName].filter(Boolean).join(" ") || admin.email}</b><span className="block truncate text-xs text-slate-400">{admin.email}</span></div>
@@ -168,11 +170,16 @@ export default function BridgeXAdmin() {
   },[registry]);
   const [brand,setBrand] = useState({ appName:"", logoUrl:"", appIconUrl:"", websiteDomain:"", androidPackage:"", iosBundleId:"", primaryColor:"#06b6d4", accentColor:"#f59e0b", skin:DEFAULT_APP_SKIN, billingModel:"subscription", billingCycle:"monthly", subscriptionPlan:"starter", price:"0", currency:"IDR" });
 
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
+    location.replace("/bridgexpos/login");
+  };
   async function loadCompanies() {
     const [boot,list] = await Promise.all([request("/api/v1/platform/bootstrap"),request("/api/v1/companies")]);
-    // Signed in, but not a BridgeX account (a member of Reborn or of another company): out.
-    if (!boot.platformAdmin && list.length === 0) { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {}); location.replace("/bridgexpos/login"); return; }
-    setPlatformAdmin(boot.platformAdmin); setSuperAdmin(!!boot.superAdmin); setCompanies(list); setCompanyId((current) => current || list[0]?.id); setLoaded(true);
+    // Signed in, but not allowed in the console (a company's owner, staff or member): out.
+    if (!canUseBridgeXConsole(!!boot.platformAdmin, list.map((company: Company) => company.slug || ""))) { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {}); location.replace("/bridgexpos/login"); return; }
+    const shown: Company[] = boot.platformAdmin ? list : list.filter((company: Company) => company.slug === FLAGSHIP_SLUG);
+    setPlatformAdmin(boot.platformAdmin); setSuperAdmin(!!boot.superAdmin); setCompanies(shown); setCompanyId((current) => current || shown[0]?.id); setLoaded(true);
     if (boot.platformAdmin) setApplications(await request("/api/v1/platform/applications"));
   }
   async function loadTenant(id:number, hydrateForms=true) {
@@ -225,6 +232,7 @@ export default function BridgeXAdmin() {
     <header className="border-b border-white/10 bg-slate-950/70 px-5 py-4 backdrop-blur"><div className="mx-auto flex max-w-7xl flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="flex items-center gap-3"><Link href="/"><ChevronLeft className="h-5 w-5" /></Link><div className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-400 font-black text-slate-950">BX</div><div><h1 className="font-black tracking-tight">BridgeXPOS</h1><p className="text-xs text-slate-400">Multi-company control centre</p></div></div>
       <div className="flex w-full gap-2 sm:w-auto">
+        <button type="button" onClick={logout} className="order-last inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-red-400/40 bg-red-500/10 px-3 py-2.5 text-sm font-bold text-red-200 hover:bg-red-500/20"><LogOut className="h-4 w-4" />{t("nav.logout")}</button>
         <select className={field+" w-full sm:max-w-xs"} value={companyId || ""} onChange={(e) => setCompanyId(Number(e.target.value))}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         {branches.length>0 && <select className={field+" w-40"} value={branchId || ""} onChange={(e)=>selectBranch(e.target.value?Number(e.target.value):undefined)} title="Outlet / branch"><option value="">All outlets</option>{branches.map((b)=><option key={b.id} value={b.id}>{b.name}</option>)}</select>}
       </div>
@@ -239,7 +247,7 @@ export default function BridgeXAdmin() {
           their modules, set branches & business types, white-label + billing.
           All day-to-day operations (POS, bookings, staff, inventory, accounting, …)
           live in the company's own app (Reborn), not here. */}
-      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["overview","All companies"]]:[]),...(superAdmin?[["team","Team"]]:[]),...(platformAdmin?[["applications","Applications"]]:[]),["modules","Services (enable/disable)"],["branches","Branches & business types"],["brand","White label & billing"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
+      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["overview","All companies"]]:[]),...(platformAdmin?[["admins",t("admin.bx.admins.tab")]]:[]),...(superAdmin?[["team","Team"]]:[]),...(platformAdmin?[["applications","Applications"]]:[]),["modules","Services (enable/disable)"],["branches","Branches & business types"],["brand","White label & billing"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
 
       {tab === "company" && <Panel title={platformAdmin?"Company accounts":"Your business"} subtitle={platformAdmin?"Create a business, its owner login, first branch, domain and billing.":"Businesses you own or manage."}>
         {platformAdmin && <>
@@ -250,8 +258,9 @@ export default function BridgeXAdmin() {
         <button disabled={busy || !companyForm.name} className={button+" mt-4"} onClick={()=>act(async()=>{const result=await request("/api/v1/platform/companies",{method:"POST",body:JSON.stringify(companyForm)}); if(result.temporaryPassword) setMessage(`Company created. Temporary owner password: ${result.temporaryPassword}`); setCompanyForm({...companyForm,name:"",appName:"",adminEmail:"",websiteDomain:""});},"Company created") }><Plus className="mr-1 inline h-4 w-4"/>Create company</button>
         </>}
         <div className="mt-5 grid gap-3 md:grid-cols-2">{companies.map(c=><div key={c.id} className={`rounded-xl border p-4 ${c.id===companyId?"border-cyan-400/60 bg-cyan-400/5":"border-white/10 bg-white/[.03]"}`}><button className="w-full text-left" onClick={()=>setCompanyId(c.id)}><div className="flex justify-between"><b>{c.name}</b><span className={`text-xs uppercase ${c.subscriptionStatus==="active"?"text-emerald-300":c.subscriptionStatus==="trialing"?"text-amber-300":"text-red-300"}`}>{c.subscriptionStatus||c.status}</span></div><p className="mt-1 text-sm text-slate-400">{c.appName} · {c.industry} · {c.billingCycle || "monthly"}</p></button><a className="mt-1 block truncate text-xs text-cyan-300 underline-offset-2 hover:underline" href={tenantUrl(c)} target="_blank" rel="noopener noreferrer">{tenantUrl(c)}</a><p className="mt-1 text-xs text-slate-400">{t("admin.bx.data.label")}: <span className={c.dataMode==="shared"&&c.slug!==FLAGSHIP_SLUG?"text-red-300":"text-slate-200"}>{c.slug===FLAGSHIP_SLUG?t("admin.bx.data.platform"):t(`admin.bx.data.${c.dataMode||"shared"}`)}</span></p>{c.trialEndsAt&&<p className="mt-1 text-xs text-slate-500">Trial ends {new Date(c.trialEndsAt).toLocaleDateString()}</p>}{platformAdmin&&<div className="mt-3 flex flex-wrap gap-3">{c.slug!==FLAGSHIP_SLUG&&c.dataMode!=="schema"&&<button className="text-xs text-cyan-300" onClick={()=>{ if(!window.confirm(t("admin.bx.data.confirmSchema",{name:c.name}))) return; act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({dataMode:"schema"})}),t("admin.bx.data.done")); }}>{t("admin.bx.data.makeSchema")}</button>}{c.slug!==FLAGSHIP_SLUG&&<button className="text-xs text-violet-300" onClick={()=>{ const url=window.prompt(t("admin.bx.data.askServerUrl"),c.serverUrl||"https://"); if(!url||!/^https?:\/\/.+/.test(url)) return; act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({dataMode:"dedicated",serverUrl:url})}),t("admin.bx.data.done")); }}>{t("admin.bx.data.makeDedicated")}</button>}<button className="text-xs text-emerald-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({subscriptionStatus:"active"})}),"Merchant marked paid and activated")}>Mark paid</button><button className="text-xs text-amber-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({trialDays:7})}),"Seven-day trial started")}>Give 7-day trial</button><button className="text-xs text-red-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({subscriptionStatus:"unpaid"})}),"Merchant marked unpaid and app locked")}>Mark unpaid</button></div>}</div>)}</div>
-      {platformAdmin && selected && <CompanyAdmins company={selected} onMsg={setMessage} />}
       </Panel>}
+
+      {tab === "admins" && platformAdmin && selected && <CompanyAdmins company={selected} onMsg={setMessage} />}
 
       {tab === "applications" && <Panel title="Merchant applications" subtitle="Review what each company requested, then approve or reject its activation."><div className="space-y-3">{applications.length===0&&<p className="text-sm text-slate-500">No applications yet.</p>}{applications.map(a=><div key={a.id} className="rounded-xl border border-white/10 bg-white/[.03] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><b>{a.company_name}</b><p className="text-sm text-slate-400">{a.contact_name} · {a.contact_email} · {a.contact_phone||"No phone"}</p><p className="mt-2 text-xs text-slate-500">{a.requirements?.outletCount||1} outlet(s) · {a.requirements?.expectedStaff||1} staff · {(a.requirements?.requestedModules||[]).join(", ")}</p>{a.requirements?.notes&&<p className="mt-2 text-sm text-slate-300">{a.requirements.notes}</p>}</div><span className="rounded-full bg-white/5 px-3 py-1 text-xs uppercase text-cyan-300">{a.status}</span></div>{a.status!=="approved"&&<div className="mt-3 flex gap-3"><button className="text-xs font-bold text-emerald-300" onClick={()=>act(()=>request(`/api/v1/platform/applications/${a.id}`,{method:"PATCH",body:JSON.stringify({status:"approved"})}),"Merchant approved")}>Approve</button><button className="text-xs font-bold text-red-300" onClick={()=>act(()=>request(`/api/v1/platform/applications/${a.id}`,{method:"PATCH",body:JSON.stringify({status:"rejected"})}),"Merchant rejected")}>Reject</button></div>}</div>)}</div></Panel>}
 

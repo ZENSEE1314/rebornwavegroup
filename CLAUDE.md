@@ -60,7 +60,7 @@ text.
 - BridgeX, Reborn and each company are separate places with separate logins. On the BridgeX
   host a browser is either inside a company (entered through `/t/<slug>`) or on BridgeX
   itself, which never opens the Reborn member app; opening `/bridgex*` leaves the company.
-  The BridgeX login only accepts its platform team and company owners/managers. A company's
+  The BridgeX console is for the platform team only (`canUseBridgeXConsole`); a company's owner is not let in (on Reborn's own site its staff still open it for Reborn). A company's
   app admins are created and reset from the console (Companies > "Admins of the … app").
 - App designs: a company picks one of the designs in `shared/appSkins.ts` (BridgeX > White
   label; saved as `bridge_companies.theme.skin`). The app puts it on `<html data-skin>`

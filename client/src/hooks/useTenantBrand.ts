@@ -22,6 +22,18 @@ export function rememberTenantSlug(slug: string) {
   document.cookie = `${TENANT_COOKIE}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR_S}; SameSite=Lax`;
 }
 
+// The BridgeX platform's own site, as opposed to Reborn's site or a company's own domain.
+export function isBridgeXHost(): boolean {
+  const host = window.location.hostname;
+  return /bridgexpos/i.test(host) || (!!import.meta.env.VITE_BRIDGEX_DOMAIN && host === import.meta.env.VITE_BRIDGEX_DOMAIN);
+}
+
+// Who may use the BridgeX console: the platform team. On Reborn's own site its company
+// staff also open it, for Reborn only. A company's owner (and any member) is neither.
+export function canUseBridgeXConsole(isPlatformAdmin: boolean, companySlugs: string[]): boolean {
+  return isPlatformAdmin || (!isBridgeXHost() && companySlugs.includes(FLAGSHIP_TENANT_SLUG));
+}
+
 // Leaving a business (opening BridgeX itself): this browser is no longer inside it.
 export function forgetTenantSlug() {
   try { localStorage.removeItem(TENANT_SLUG_KEY); } catch {}
