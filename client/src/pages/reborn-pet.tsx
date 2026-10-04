@@ -7,8 +7,9 @@ import { PawPrint, Egg, HeartPulse, Pill, Clock, Check, Coins, Sofa, Shirt } fro
 import petMale from "@assets/Doluruu Boy_1749664545355.png";
 import petFemale from "@assets/doluruu-female-transparent.png";
 import eggImg from "@assets/doluruu-blindbox-box.jpeg";
+import { usePetBrand } from "@/hooks/usePetBrand";
 import { ItemArt, COSTUME_FIT, PET_ART } from "@/components/pet-art";
-import { useTranslation, translate, getCurrentLanguage } from "@/lib/i18n";
+import { useTranslation, translate, getCurrentLanguage, brandText } from "@/lib/i18n";
 import { sfx } from "@/lib/sfx";
 
 const WALK_CSS = `
@@ -157,7 +158,8 @@ export default function RebornPet() {
 
 function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, onLight }: any) {
   const { t } = useTranslation();
-  const img = pet.isEgg ? eggImg : pet.gender === "female" ? petFemale : petMale;
+  const petBrand = usePetBrand();
+  const img = pet.isEgg ? petBrand.eggImageUrl || eggImg : petBrand.imageUrl || (pet.gender === "female" ? petFemale : petMale);
   const sick = pet.lifeStatus === "sick";
   const [pop, setPop] = useState(false);
   const poke = () => { sfx.poke(); setPop(true); setTimeout(() => setPop(false), 550); }; // reaction only — no energy cost
@@ -167,7 +169,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
       {/* header */}
       <div className="flex items-center justify-between px-4 pt-4">
         <div className="flex items-center gap-2">
-          <h3 className="arc-title">{pet.name}</h3>
+          <h3 className="arc-title">{brandText(pet.name)}</h3>
           {pet.isEgg ? <Badge color="#fb7185"><Egg className="w-3 h-3" /> {t("hm.pet.egg")}</Badge>
             : sick ? <Badge color="#ef4444"><HeartPulse className="w-3 h-3" /> {t("hm.pet.sick")}</Badge>
             : <Badge color="#22c55e"><Check className="w-3 h-3" /> {t("hm.pet.healthy")}</Badge>}
@@ -456,6 +458,12 @@ const OVERLAY_FADE = "linear-gradient(to bottom, #000 70%, transparent 100%)";
 // above the feet and the shoes sit a little smaller and lower, on the ground below.
 const SHOE_PAD = 40, BODY_CUT = 338, SHOE_SCALE = 0.86, SHOE_DROP = 30;
 function DressedPet({ home, worn, alt, gender, className = "" }: any) {
+  // The clothing pictures are drawn for Doluruu's body; a company's own pet is shown as it is.
+  const ownPicture = usePetBrand().imageUrl;
+  if (ownPicture) return <img src={ownPicture} alt={alt} draggable={false} className={`absolute inset-0 h-full w-full object-contain object-bottom ${className}`} />;
+  return <DoluruuFigure home={home} worn={worn} alt={alt} gender={gender} className={className} />;
+}
+function DoluruuFigure({ home, worn, alt, gender, className }: any) {
   const plain = !worn.clothing && !worn.footwear && PLAIN_PET[gender === "female" ? "female" : "male"];
   const layers = plain ? [] : outfitLayers(home, worn) || [];
   const cloth = worn.clothing && itemById(home, worn.clothing);

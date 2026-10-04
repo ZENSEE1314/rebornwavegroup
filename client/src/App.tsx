@@ -98,6 +98,8 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 
 // ── Eagerly loaded — critical first-paint pages ────────────────────────────────
 import { FLAGSHIP_TENANT_SLUG, rememberedTenantSlug, useTenantBrand } from "@/hooks/useTenantBrand";
+import { usePetBrand } from "@/hooks/usePetBrand";
+import { setBrandWords } from "@/lib/i18n";
 import Login from "@/pages/Login";
 
 // ── Lazy-loaded — secondary pages, each gets its own chunk ────────────────────
@@ -226,6 +228,10 @@ function takeAfterLogin(): string | null {
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  // Set while rendering, so every page below already reads the company's own names.
+  const tenantBrand = useTenantBrand();
+  const petBrand = usePetBrand();
+  setBrandWords({ company: tenantBrand.isWhiteLabel ? tenantBrand.appName : "", pet: petBrand.name });
   // Signed in (any way — password, sign-up, Google, Apple) after scanning a link → finish that link.
   useEffect(() => {
     if (!isAuthenticated) return;

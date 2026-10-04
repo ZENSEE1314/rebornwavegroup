@@ -4,14 +4,16 @@ import { CalendarCheck, UtensilsCrossed, Gift, Crown, ShoppingBag, UserRound, Ma
 
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { rememberTenantSlug } from "@/hooks/useTenantBrand";
+import { applyAppSkin } from "@/lib/appSkin";
 import { useTranslation, getCurrentLanguage } from "@/lib/i18n";
+import { APP_SKINS, DEFAULT_APP_SKIN } from "@shared/appSkins";
 
 interface Tenant {
   slug: string;
   name: string;
   app_name?: string;
   logo_url?: string;
-  theme?: { primaryColor?: string; accentColor?: string };
+  theme?: { primaryColor?: string; accentColor?: string; skin?: string };
   modules?: string[];
   data_mode?: string;
   server_url?: string | null;
@@ -49,21 +51,23 @@ export default function TenantEntry() {
       setTenant(d);
       document.title = d.app_name || d.name;
       rememberTenantSlug(slug);
+      applyAppSkin(d.theme?.skin || "");
     }).catch(() => setError(t("vn.otable.networkError")));
   }, [slug]);
 
-  const pageBg = { background: "radial-gradient(120% 100% at 50% 0%, #141024 0%, #0a0714 60%)" };
   if (error || !tenant) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6 text-white" style={pageBg}>
+      <div className="rwg-tenant flex min-h-screen items-center justify-center p-6 text-white">
         <p className={error ? "text-amber-300" : "text-white/50"}>{error || t("vn.common.loading")}</p>
       </div>
     );
   }
 
   const name = tenant.app_name || tenant.name;
-  const primary = tenant.theme?.primaryColor || DEFAULT_PRIMARY;
-  const accent = tenant.theme?.accentColor || DEFAULT_ACCENT;
+  // A chosen app design brings its own colours; without one the company's two brand colours are used.
+  const skin = APP_SKINS.find((s) => s.id === tenant.theme?.skin && s.id !== DEFAULT_APP_SKIN);
+  const primary = skin?.accent || tenant.theme?.primaryColor || DEFAULT_PRIMARY;
+  const accent = skin?.accentSoft || tenant.theme?.accentColor || DEFAULT_ACCENT;
   const modules = tenant.modules || [];
   const features = FEATURES.filter((f) => f.modules.some((m) => modules.includes(m)));
   const branches = (tenant.branches || []).filter((b) => b.name);
@@ -72,7 +76,7 @@ export default function TenantEntry() {
     : <span className="font-black" style={{ color: "#0a0714" }}>{name.charAt(0).toUpperCase()}</span>;
 
   return (
-    <div className="min-h-screen text-white" style={pageBg}>
+    <div className="rwg-tenant min-h-screen text-white">
       <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl text-lg" style={{ background: primary }}>{logo}</div>
@@ -99,7 +103,7 @@ export default function TenantEntry() {
           <h2 className="mb-5 text-center text-2xl font-bold">{t("vn.tenant.whatYouCanDo")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[...features, { key: "account", icon: UserRound }].map(({ key, icon: Icon }) => (
-              <article key={key} className="rounded-2xl border border-white/10 bg-white/[.04] p-5">
+              <article key={key} className="rwg-tenant-card rounded-2xl border border-white/10 bg-white/[.04] p-5">
                 <div className="mb-3 grid h-11 w-11 place-items-center rounded-xl" style={{ background: `${primary}22`, color: primary }}><Icon className="h-5 w-5" /></div>
                 <h3 className="font-bold">{t(`vn.tenant.f.${key}.t`)}</h3>
                 <p className="mt-1 text-sm text-white/55">{t(`vn.tenant.f.${key}.d`, { name })}</p>
@@ -113,7 +117,7 @@ export default function TenantEntry() {
             <h2 className="mb-5 text-center text-2xl font-bold">{t("vn.tenant.findUs")}</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {branches.map((b) => (
-                <article key={b.name} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-5">
+                <article key={b.name} className="rwg-tenant-card flex gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-5">
                   <MapPin className="mt-0.5 h-5 w-5 shrink-0" style={{ color: accent }} />
                   <div className="min-w-0">
                     <h3 className="font-bold">{b.name}</h3>
@@ -125,7 +129,7 @@ export default function TenantEntry() {
           </section>
         )}
 
-        <section className="mt-12 rounded-3xl border border-white/10 p-8 text-center" style={{ background: `linear-gradient(135deg, ${primary}26, ${accent}1f)` }}>
+        <section className="rwg-tenant-card mt-12 rounded-3xl border border-white/10 p-8 text-center" style={{ background: `linear-gradient(135deg, ${primary}26, ${accent}1f)` }}>
           <h2 className="text-2xl font-bold">{t("vn.tenant.ready")}</h2>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <a href="/login" className="min-h-[44px] rounded-xl px-7 py-3 font-bold text-black" style={{ background: primary }}>{t("vn.tenant.logIn")}</a>

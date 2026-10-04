@@ -984,6 +984,13 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
 
   'admin.guide.done.t': { en: "That's everything!", zh: '全部讲完了！', id: 'Itu semuanya!' },
   'admin.guide.done.i': { en: 'You can open this guide again any time from the Admin & POS guide button on the admin page or the POS.', zh: '你随时可以在管理页面或收银页面点击“管理与收银指南”按钮再次打开本指南。', id: 'Kamu bisa membuka panduan ini lagi kapan saja dari tombol Panduan Admin & POS di halaman admin atau POS.' },
+  'admin.petlook.title': { en: 'Your pet', zh: '你的宠物', id: 'Peliharaan Anda' },
+  'admin.petlook.hint': { en: 'Give the pet your own name and picture. Members see them everywhere the pet appears.', zh: '为宠物设置自己的名字和图片。会员在宠物出现的所有位置都会看到。', id: 'Beri peliharaan nama dan gambar Anda sendiri. Member melihatnya di semua tempat peliharaan muncul.' },
+  'admin.petlook.name': { en: 'Pet name', zh: '宠物名字', id: 'Nama peliharaan' },
+  'admin.petlook.picture': { en: 'Pet picture', zh: '宠物图片', id: 'Gambar peliharaan' },
+  'admin.petlook.egg': { en: 'Egg / blind box picture', zh: '宠物蛋 / 盲盒图片', id: 'Gambar telur / blind box' },
+  'admin.petlook.useBuiltIn': { en: 'Use the built-in picture', zh: '使用内置图片', id: 'Pakai gambar bawaan' },
+  'admin.petlook.clothesNote': { en: 'A picture with a clear (transparent) background looks best. With your own picture the pet is shown as it is — shop clothes are not drawn on it.', zh: '透明背景的图片效果最好。使用自己的图片时，宠物按原样显示——商店的服装不会画在上面。', id: 'Gambar dengan latar transparan paling bagus. Dengan gambar Anda sendiri, peliharaan tampil apa adanya — pakaian dari toko tidak digambar di atasnya.' },
   'admin.bx.skin.title': { en: 'App design', zh: '应用设计', id: 'Desain aplikasi' },
   'admin.bx.skin.hint': { en: "Pick the look of this company's app. Every design has the same functions.", zh: '为该公司的应用选择外观。所有设计功能相同。', id: 'Pilih tampilan aplikasi perusahaan ini. Semua desain punya fungsi yang sama.' },
   'admin.bx.skin.saveNote': { en: 'Press "Save white label" to apply. Members see it the next time they open the app.', zh: '点击“Save white label”生效。会员下次打开应用时可见。', id: 'Tekan "Save white label" untuk menerapkan. Member melihatnya saat membuka aplikasi lagi.' },

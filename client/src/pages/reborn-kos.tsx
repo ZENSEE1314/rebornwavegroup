@@ -10,6 +10,7 @@ import { sfx } from "@/lib/sfx";
 import { VenueScanner, useVenueCheckIn } from "@/components/VenueScan";
 import { LevelAvatar, LevelChips, GifterPodium } from "@/components/LevelRing";
 import doluruuImg from "@assets/Doluruu Boy_1749664545355.png";
+import { usePetBrand } from "@/hooks/usePetBrand";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, Camera, QrCode, CheckCircle2 } from "lucide-react";
 
 const ANIM_CSS = `
@@ -405,12 +406,13 @@ function KissScene() {
 }
 // 👍 Doluruu bounces in and gives a big thumbs up.
 function ThumbsUpScene() {
+  const petPicture = usePetBrand().imageUrl;
   return (
     <div className="gs-thumb">
       <div className="gs-thumb-sky" />
       <div className="gs-thumb-rays" />
       {Array.from({ length: 14 }).map((_, k) => <span key={k} className="gs-star" style={{ left: `${(k * 37 + 6) % 92}%`, top: `${(k * 23 + 8) % 60}%`, animationDelay: `${1 + (k % 7) * 0.15}s` }}>⭐</span>)}
-      <img src={doluruuImg} alt="" className="gs-dolu" />
+      <img src={petPicture || doluruuImg} alt="" className="gs-dolu" />
       <div className="gs-bigthumb">👍</div>
     </div>
   );

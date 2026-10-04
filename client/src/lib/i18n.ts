@@ -6194,6 +6194,19 @@ export function setLanguage(language: Language): void {
   if (typeof document !== 'undefined') document.documentElement.lang = language === 'zh' ? 'zh-CN' : language;
 }
 
+// Built-in texts name Reborn and its pet Doluruu. Another company's app shows its own
+// company name, and any company the pet name its admin chose (App.tsx sets these).
+const REBORN_NAMES = /Reborn Wave Group|Reborn Wave House|Reborn Wave|REBORN WAVE|Reborn/g;
+const DEFAULT_PET_NAME = "Doluruu";
+let brandWords = { company: "", pet: "" };
+export function setBrandWords(words: { company: string; pet: string }) {
+  brandWords = words;
+}
+export function brandText(text: string): string {
+  const named = brandWords.company ? text.replace(REBORN_NAMES, brandWords.company) : text;
+  return brandWords.pet && brandWords.pet !== DEFAULT_PET_NAME ? named.split(DEFAULT_PET_NAME).join(brandWords.pet) : named;
+}
+
 // Translate outside React (toasts built in helpers, etc.). `{name}` placeholders
 // are filled from `vars`.
 export function translate(key: string, vars?: Record<string, string | number | undefined | null>, lang: Language = getCurrentLanguage()): string {
@@ -6201,7 +6214,7 @@ export function translate(key: string, vars?: Record<string, string | number | u
   let s = tr ? (tr[lang] || tr.en || key) : key;
   if (!tr && typeof console !== 'undefined') console.warn(`Translation missing for key: ${key}`);
   if (vars) for (const k in vars) s = s.split(`{${k}}`).join(String(vars[k] ?? ""));
-  return s;
+  return brandText(s);
 }
 
 // Built-in data the server stores in English (default spin prizes, loyalty

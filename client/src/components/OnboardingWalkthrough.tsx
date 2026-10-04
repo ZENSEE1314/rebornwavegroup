@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import petGuideImage from "@assets/Doluruu Grandpa_1749903476706.png";
+import { usePetBrand } from "@/hooks/usePetBrand";
 
 // The app guide: one card per area of the app, explaining every button.
 // Texts live in client/src/lib/i18n/home.ts under hm.guide.<step>.* —
@@ -101,6 +102,7 @@ interface OnboardingWalkthroughProps {
 
 export function OnboardingWalkthrough({ isOpen, onClose, onComplete, steps = STEPS, prefix = "hm.guide" }: OnboardingWalkthroughProps) {
   const { t } = useTranslation();
+  const petBrand = usePetBrand();
   const [step, setStep] = useState(0);
   const total = steps.length;
   const data = steps[step];
@@ -147,7 +149,7 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete, steps = STE
         {/* Doluruu with a speech bubble */}
         <div className="relative -mt-12 px-5">
           <div className="flex items-end gap-3">
-            <img src={petGuideImage} alt={t("hm.tour.guideAlt")} className="w-20 h-20 object-contain drop-shadow-xl flex-shrink-0" />
+            <img src={petBrand.imageUrl || petGuideImage} alt={t("hm.tour.guideAlt")} className="w-20 h-20 object-contain drop-shadow-xl flex-shrink-0" />
             <div className="guide-bubble mb-2 rounded-2xl rounded-bl-sm px-3 py-2">
               <p className="text-[13px] leading-snug text-white/90">{k("p")}</p>
             </div>

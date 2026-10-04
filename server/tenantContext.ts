@@ -14,6 +14,8 @@ export interface TenantSpace {
   companyId: number;
   slug: string;
   schema: string;
+  // What the company calls itself; built-in texts say this instead of "Reborn".
+  name?: string;
 }
 
 const TENANT_POOL_MAX = 5;

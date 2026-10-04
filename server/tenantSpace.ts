@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import type { NextFunction, Request, Response } from "express";
 
 import { pool } from "./db";
-import { currentTenant, runInTenant, schemaNameFor, type TenantSpace } from "./tenantContext";
+import { DEFAULT_COMPANY_SLUG, currentTenant, runInTenant, schemaNameFor, type TenantSpace } from "./tenantContext";
 
 // ── Which tables a company owns ─────────────────────────────────────────────
 // Everything in `public` is copied into a company's data space except the platform's
@@ -142,7 +142,7 @@ async function tenants(): Promise<RegisteredTenant[]> {
   if (registry && Date.now() - registry.at < REGISTRY_TTL_MS) return registry.tenants;
   let result;
   try {
-    result = await pool.query(`SELECT id, slug, db_schema, website_domain FROM public.bridge_companies WHERE data_mode='schema' AND db_schema IS NOT NULL`);
+    result = await pool.query(`SELECT id, slug, db_schema, website_domain, COALESCE(NULLIF(app_name, ''), name) AS name FROM public.bridge_companies WHERE data_mode='schema' AND db_schema IS NOT NULL`);
   } catch (error) {
     // A database blip must not send a company's visitors to the wrong data: keep the last known list.
     if (registry) return registry.tenants;
@@ -150,7 +150,7 @@ async function tenants(): Promise<RegisteredTenant[]> {
   }
   registry = {
     at: Date.now(),
-    tenants: result.rows.map((row) => ({ companyId: row.id, slug: row.slug, schema: row.db_schema, domain: row.website_domain ? String(row.website_domain).toLowerCase() : null })),
+    tenants: result.rows.map((row) => ({ companyId: row.id, slug: row.slug, schema: row.db_schema, name: row.name, domain: row.website_domain ? String(row.website_domain).toLowerCase() : null })),
   };
   return registry.tenants;
 }
@@ -226,10 +226,40 @@ export async function inEveryDataSpace(job: () => Promise<unknown>) {
   }
 }
 
+// Several servers start at once on a deploy; only one of them may build tables at a time.
+const SPACE_SETUP_LOCK = 760417;
+async function oneServerAtATime(work: () => Promise<void>) {
+  const client = await pool.connect();
+  try {
+    await client.query("SELECT pg_advisory_lock($1)", [SPACE_SETUP_LOCK]);
+    await work();
+  } finally {
+    await client.query("SELECT pg_advisory_unlock($1)", [SPACE_SETUP_LOCK]).catch(() => {});
+    client.release();
+  }
+}
+
 // Keep every existing data space in step with the current app version (new tables/columns).
 export async function syncAllTenantSpaces() {
-  for (const tenant of await tenants()) {
-    try { await syncTenantSchema(tenant.schema); }
-    catch (error) { console.error(`[tenant] could not update ${tenant.schema}`, error); }
-  }
+  await oneServerAtATime(async () => {
+    for (const tenant of await tenants()) {
+      try { await syncTenantSchema(tenant.schema); }
+      catch (error) { console.error(`[tenant] could not update ${tenant.schema}`, error); }
+    }
+  });
+}
+
+// Only the home company lives in the platform's own tables. A company still there (made
+// before data spaces existed) gets its own space: empty, with its owners as main admins.
+export async function moveSharedCompaniesToOwnSpace() {
+  await oneServerAtATime(async () => {
+    const shared = await pool.query(`SELECT id, slug FROM public.bridge_companies WHERE data_mode='shared' AND slug <> $1`, [DEFAULT_COMPANY_SLUG]);
+    for (const company of shared.rows) {
+      try {
+        const schema = await provisionTenantSpace(company.id);
+        const admins = await pool.query(`SELECT count(*)::int AS n FROM ${ident(schema)}.users WHERE role='admin'`);
+        console.log(`[tenant] ${company.slug} now has its own data space ${schema} with ${admins.rows[0].n} admin account(s)`);
+      } catch (error) { console.error(`[tenant] could not give ${company.slug} its own data space`, error); }
+    }
+  });
 }

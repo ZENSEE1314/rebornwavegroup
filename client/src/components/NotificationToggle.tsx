@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Share } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation, brandText } from "@/lib/i18n";
 import { pushSupported, iosNeedsInstall, isIos, enablePush, disablePush, isPushActive, sendTestPush } from "@/lib/push";
 
 export function NotificationToggle() {
@@ -47,7 +47,7 @@ export function NotificationToggle() {
           <ol className="text-[12px] text-white/70 list-decimal ml-4 space-y-0.5">
             <li>{t("hm.notif.ios1a")} <Share className="w-3 h-3 inline mb-0.5" /> {t("hm.notif.ios1b")}</li>
             <li>{t("hm.notif.ios2a")} <b>{t("hm.notif.ios2b")}</b></li>
-            <li>{t("hm.notif.ios3a")} <b>Reborn Wave</b> {t("hm.notif.ios3b")}</li>
+            <li>{t("hm.notif.ios3a")} <b>{brandText("Reborn Wave")}</b> {t("hm.notif.ios3b")}</li>
             <li>{t("hm.notif.ios4a")} <b>{t("hm.notif.ios4b")}</b></li>
           </ol>
           <p className="text-[11px] text-white/40 mt-2">{t("hm.notif.appleOnly")}</p>

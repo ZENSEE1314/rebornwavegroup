@@ -239,3 +239,42 @@ html[data-skin="candy"] .rwg-dock { border-top: 2px solid #000 !important; box-s
 html[data-skin="candy"] .rwg-dock::before { display: none; }
 html[data-skin="candy"] .rwg-nav-ic { border: 2px solid #000; box-shadow: 2px 2px 0 #000; background: #3a2580; }
 html[data-skin="candy"] .rwg-nav-item.is-active .rwg-nav-ic { transform: translateY(-5px); background: var(--sk-a); border-color: #000; box-shadow: 3px 3px 0 #000; }
+
+/* ── Login / sign-up page (.rwg-auth) in the company's design ───────────── */
+html[data-skin] .rwg-auth { background: var(--sk-page) !important; font-family: var(--sk-font); }
+html[data-skin] .rwg-auth::before { display: none; }
+html[data-skin] .rwg-auth .auth-card { background: var(--sk-panel), linear-gradient(165deg, var(--sk-s1), var(--sk-s2)) !important; border-color: var(--sk-edge) !important; box-shadow: var(--sk-shadow) !important; }
+html[data-skin] .rwg-auth .auth-card::before { opacity: var(--sk-corners);
+  background:
+    linear-gradient(var(--sk-a),var(--sk-a)) top left/16px 2px no-repeat, linear-gradient(var(--sk-a),var(--sk-a)) top left/2px 16px no-repeat,
+    linear-gradient(var(--sk-a),var(--sk-a)) top right/16px 2px no-repeat, linear-gradient(var(--sk-a),var(--sk-a)) top right/2px 16px no-repeat,
+    linear-gradient(var(--sk-a),var(--sk-a)) bottom left/16px 2px no-repeat, linear-gradient(var(--sk-a),var(--sk-a)) bottom left/2px 16px no-repeat,
+    linear-gradient(var(--sk-a),var(--sk-a)) bottom right/16px 2px no-repeat, linear-gradient(var(--sk-a),var(--sk-a)) bottom right/2px 16px no-repeat; }
+html[data-skin] .rwg-auth .auth-title { font-family: var(--sk-head-font); font-style: var(--sk-italic); text-shadow: 0 2px 0 rgba(0,0,0,.4), 0 0 18px var(--sk-glow); }
+html[data-skin] .rwg-auth :is(.rwg-gold-tab-active, button[type="submit"]) { background: linear-gradient(180deg, var(--sk-a2), var(--sk-a)) !important; color: var(--sk-ink) !important; font-style: var(--sk-italic);
+  box-shadow: 0 4px 0 var(--sk-deep), 0 0 18px var(--sk-glow), inset 0 1px 0 rgba(255,255,255,.5) !important; animation: none; }
+html[data-skin] .rwg-auth .auth-emblem { background: linear-gradient(180deg, var(--sk-a2), var(--sk-a)) !important; color: var(--sk-ink); box-shadow: 0 4px 0 var(--sk-deep), 0 0 18px var(--sk-glow) !important; }
+html[data-skin] .rwg-auth label.uppercase { color: var(--sk-a2) !important; text-shadow: none; }
+html[data-skin] .rwg-auth :is(input.rwg-input, .rwg-select, select, input[type="date"]) { border-color: var(--sk-edge) !important; }
+html[data-skin] .rwg-auth :is(input.rwg-input, .rwg-select, select, input[type="date"]):focus { border-color: var(--sk-a) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sk-a) 20%, transparent) !important; }
+html[data-skin] .rwg-auth .auth-field-icon { color: var(--sk-a2); filter: none; }
+html[data-skin] .rwg-auth .rwg-perk-pill { background: color-mix(in srgb, var(--sk-a) 10%, transparent) !important; border-color: var(--sk-edge) !important; }
+html[data-skin] .rwg-auth .rwg-perk-pill svg { color: var(--sk-a2); filter: none; }
+html[data-skin] .rwg-auth button:has(> .lucide-globe) { border-color: var(--sk-edge) !important; box-shadow: none !important; }
+html[data-skin] .rwg-auth button:has(> .lucide-globe) :is(svg, span) { color: var(--sk-a2) !important; }
+html[data-skin] .rwg-auth :is(.text-amber-300, .text-amber-400, [class*="text-amber-400/"]) { color: var(--sk-a2) !important; }
+
+/* ── A company's web page (/t/<slug>, .rwg-tenant) in its design ────────── */
+.rwg-tenant { background: radial-gradient(120% 100% at 50% 0%, #141024 0%, #0a0714 60%); }
+html[data-skin] .rwg-tenant { background: var(--sk-page); font-family: var(--sk-font); }
+html[data-skin] .rwg-tenant :is(h1, h2, h3) { font-family: var(--sk-head-font); }
+html[data-skin] .rwg-tenant .rwg-tenant-card { background: var(--sk-panel) !important; border-color: var(--sk-edge); box-shadow: var(--sk-shadow); }
+
+html[data-skin="mono"] :is(.rwg-auth .auth-card, .rwg-tenant .rwg-tenant-card, .rwg-tenant a), html[data-skin="mono"] .rwg-auth :is(input, select, button) { border-radius: 6px !important; }
+html[data-skin="cyber"] :is(.rwg-auth .auth-card, .rwg-tenant .rwg-tenant-card, .rwg-tenant a), html[data-skin="cyber"] .rwg-auth :is(input, select, button) { border-radius: 2px !important; }
+html[data-skin="emerald"] :is(.rwg-auth .auth-card, .rwg-tenant .rwg-tenant-card, .rwg-tenant a), html[data-skin="emerald"] .rwg-auth :is(input, select, button) { border-radius: 8px !important; }
+html[data-skin="candy"] :is(.rwg-auth .auth-card, .rwg-tenant .rwg-tenant-card) { border: 2px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; }
+html[data-skin="candy"] :is(.rwg-auth button[type="submit"], .rwg-tenant a) { border: 2px solid #000 !important; box-shadow: 3px 3px 0 #000 !important; }
+html[data-skin="arctic"] :is(.rwg-auth .auth-card, .rwg-tenant .rwg-tenant-card) { -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); background: var(--sk-panel) !important; }
+html[data-skin="mono"] .rwg-auth :is(.auth-card, button) { box-shadow: none !important; }
+html[data-skin="sunset"] .rwg-auth :is(.rwg-gold-tab-active, button[type="submit"]) { background: linear-gradient(90deg, #ff7a3d, #ff4f9a) !important; color: #fff !important; }

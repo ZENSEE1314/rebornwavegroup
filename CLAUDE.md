@@ -48,6 +48,14 @@ text.
 - Timers must run once per company: wrap the job in `inEveryDataSpace()` (server/tenantSpace.ts)
   as pet decay, daily tokens, the WhatsApp reminders and the error clean-up do. Not per
   company yet: the star-routes tournament timer.
+- Only the home company stays in the platform's own tables: at startup any other company
+  still `shared` is given its own space (`moveSharedCompaniesToOwnSpace`), empty, with its
+  owners as admins. Starter content that describes Reborn (FAQ, club name, address, app
+  download link) is not given to another company.
+- Built-in texts say "Reborn" and "Doluruu": `brandText()` (client i18n) and `inBrandVoice()`
+  (server i18n) swap in the company's name and the pet name its admin set (Admin > Pet,
+  settings `petName` / `petImageUrl` / `petEggImageUrl`). Keep writing texts through
+  `t()` / `tr()` / `pick()` so this keeps working.
 - App designs: a company picks one of the designs in `shared/appSkins.ts` (BridgeX > White
   label; saved as `bridge_companies.theme.skin`). The app puts it on `<html data-skin>`
   and `client/src/skins.css` restyles the member app through variables. New shared app

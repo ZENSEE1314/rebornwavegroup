@@ -12,6 +12,7 @@ import { useTranslation, getCurrentLanguage } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import rwgLogo from "@assets/rwg-logo.png";
 import { useTenantBrand, rememberedTenantSlug, FLAGSHIP_TENANT_SLUG } from "@/hooks/useTenantBrand";
+import { applyAppSkin } from "@/lib/appSkin";
 
 /* ─── Validation schemas (messages are i18n keys, translated where shown) ─── */
 // Log in with an email, or with the phone number for accounts made without email.
@@ -115,6 +116,7 @@ export default function Login() {
   const enteredSlug = rememberedTenantSlug();
   const isWhiteLabel = brand.isLoading ? !!enteredSlug && enteredSlug !== FLAGSHIP_TENANT_SLUG : brand.isWhiteLabel;
   const brandName = isWhiteLabel ? brand.appName : "Reborn Wave Group";
+  useEffect(() => { if (!brand.isLoading) applyAppSkin(brand.skin); }, [brand.isLoading, brand.skin]);
   // ?next=/kos?table=V1&k=… — the member scanned a table QR before logging in.
   const nextPath = new URLSearchParams(window.location.search).get("next") || "";
   const scannedTable = (() => { try { return new URL(nextPath, window.location.origin).searchParams.get("table") || ""; } catch { return ""; } })();

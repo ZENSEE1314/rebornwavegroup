@@ -22,7 +22,7 @@ import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, type PushPayload } from "./push";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, releaseTableAfterPayment } from "./booking";
-import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, type Lang } from "./i18n";
+import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, rememberPetName, DEFAULT_PET_NAME, type Lang } from "./i18n";
 import { translateTexts } from "./autoTranslate";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -78,13 +78,20 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   // Gift levels (KOS): Lv.2 needs `Base` KGOLD in total, each next level `Growth` × that (2 = double), or an exact list.
   giftLevelSenderBase: "1000000", giftLevelSenderGrowth: "2", giftLevelSenderList: "",
   giftLevelReceiverBase: "1000000", giftLevelReceiverGrowth: "2", giftLevelReceiverList: "",
+  petName: DEFAULT_PET_NAME, // what the pet is called everywhere in the app
+  petImageUrl: "",          // the company's own pet picture (empty → Doluruu)
+  petEggImageUrl: "",       // the company's own egg / blind-box picture
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
-  const map: Record<string, string> = { ...SETTINGS_DEFAULTS };
+  // Another company starts from its own name, not Reborn's name, address and app download.
+  const tenant = currentTenant();
+  const defaults = tenant ? { ...SETTINGS_DEFAULTS, clubName: tenant.name || SETTINGS_DEFAULTS.clubName, businessAddress: "", appAndroidUrl: "" } : SETTINGS_DEFAULTS;
+  const map: Record<string, string> = { ...defaults };
   for (const r of rows) if (r.key in map || true) map[r.key] = r.value ?? map[r.key];
   const companySettingsResult = await db.execute(sql`SELECT s.config FROM bridge_company_settings s JOIN bridge_companies c ON c.id=s.company_id WHERE c.slug=${homeCompanySlug()} LIMIT 1`);
   const companyConfig: any = (companySettingsResult.rows || companySettingsResult as any)[0]?.config || {};
+  rememberPetName(map.petName?.trim() || DEFAULT_PET_NAME);
   return {
     giftFeePercent: Number(map.giftFeePercent) || 30,
     kgoldPerRp: Number(map.kgoldPerRp) || 100,
@@ -92,7 +99,7 @@ async function getSettings() {
     minCashoutRp: Number(map.minCashoutRp) || 1000,
     taxPercent: Number(map.taxPercent) || 0,
     serviceFeePercent: Number(map.serviceFeePercent) || 0,
-    clubName: map.clubName || "Reborn Wave Group",
+    clubName: map.clubName || defaults.clubName,
     receiptLogoUrl: map.receiptLogoUrl || "",
     receiptFooter: map.receiptFooter || "",
     posAutoPrint: map.posAutoPrint === "true",
@@ -101,7 +108,7 @@ async function getSettings() {
     bookingTables: map.bookingTables || "V1,V2,1,2,3,4,5,T6,T7,T8,T9",
     bookingAreas: map.bookingAreas || "",
     googleReviewUrl: map.googleReviewUrl || "",
-    businessAddress: map.businessAddress || SETTINGS_DEFAULTS.businessAddress,
+    businessAddress: map.businessAddress || defaults.businessAddress,
     businessMapUrl: map.businessMapUrl || "",
     houseReferralUserId: map.houseReferralUserId || "",
     spinPoolPercent: Number(map.spinPoolPercent) || 10,
@@ -122,7 +129,7 @@ async function getSettings() {
     bookingAskHours: map.bookingAskHours !== "false",
     bookingAskSpecial: map.bookingAskSpecial !== "false",
     bookingLastTime: map.bookingLastTime || "",
-    appAndroidUrl: map.appAndroidUrl || SETTINGS_DEFAULTS.appAndroidUrl,
+    appAndroidUrl: map.appAndroidUrl || defaults.appAndroidUrl,
     appIosUrl: map.appIosUrl || SETTINGS_DEFAULTS.appIosUrl,
     giftLevelSenderBase: Math.max(1, Number(map.giftLevelSenderBase) || 1000000),
     giftLevelSenderGrowth: Math.min(10, Math.max(1, Number(map.giftLevelSenderGrowth) || 2)),
@@ -130,6 +137,9 @@ async function getSettings() {
     giftLevelReceiverBase: Math.max(1, Number(map.giftLevelReceiverBase) || 1000000),
     giftLevelReceiverGrowth: Math.min(10, Math.max(1, Number(map.giftLevelReceiverGrowth) || 2)),
     giftLevelReceiverList: map.giftLevelReceiverList || "",
+    petName: map.petName?.trim() || DEFAULT_PET_NAME,
+    petImageUrl: map.petImageUrl || "",
+    petEggImageUrl: map.petEggImageUrl || "",
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
 }
@@ -641,6 +651,8 @@ async function seedPrizesIfEmpty(companyId?: number) {
   }
 }
 async function seedFaqIfEmpty() {
+  // The starter answers describe Reborn's club; another company writes its own in Admin > FAQ.
+  if (currentTenant()) return;
   const existing = await db.select({ id: faqItems.id }).from(faqItems).limit(1);
   if (existing.length === 0) {
     await db.insert(faqItems).values(DEFAULT_FAQ.map((f, i) => ({ ...f, sortOrder: i })));
@@ -985,6 +997,11 @@ export function registerRebornRoutes(app: Express) {
       if (u && ((u as any).role === "admin" || (u as any).role === "staff")) return next();
       return res.status(403).json({ message: tr(req, { en: "This feature is turned off right now.", zh: "此功能目前已关闭。", id: "Fitur ini sedang dinonaktifkan." }), featureOff: hit[0] });
     } catch { return next(); }
+  });
+  // The pet's name and pictures, set by the company's admin (Admin > Pet).
+  app.get("/api/reborn/pet-brand", async (_req, res) => {
+    const s = await getSettings();
+    res.set("Cache-Control", "no-cache").json({ name: s.petName, imageUrl: s.petImageUrl, eggImageUrl: s.petEggImageUrl });
   });
   app.get("/api/reborn/features", async (_req, res) => {
     res.set("Cache-Control", "no-cache").json({ disabled: await disabledFeatures() });
@@ -2244,7 +2261,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
+    const allowed = ["petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);

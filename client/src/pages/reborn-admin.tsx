@@ -52,7 +52,7 @@ export default function RebornAdmin() {
       {tab === "Overview" && <Overview onGo={go} />}
       {tab === "Bookings" && <AdminBookings />}
       {tab === "Bottles" && <AdminBottles />}
-      {tab === "Pet" && <div className="space-y-6"><Codes /><Pills /></div>}
+      {tab === "Pet" && <div className="space-y-6"><PetLook /><Codes /><Pills /></div>}
       {tab === "Sales" && (role === "admin" || role === "manager") && <DailySales />}
       {tab === "Prizes" && <Prizes />}
       {tab === "Redemptions" && <Redemptions />}
@@ -1191,6 +1191,49 @@ function Redemptions() {
           </div>
         </Card>
       ))}
+    </div>
+  );
+}
+
+// The company's own pet: what it is called everywhere in the app, and its pictures.
+function PetLook() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const SETTINGS = "/api/reborn/admin/settings";
+  const { data } = useQuery<any>({ queryKey: [SETTINGS], queryFn: () => apiRequest("GET", SETTINGS).then((r) => r.json()) });
+  const [look, setLook] = useState({ petName: "", petImageUrl: "", petEggImageUrl: "" });
+  useEffect(() => {
+    if (data) setLook({ petName: data.petName || "", petImageUrl: data.petImageUrl || "", petEggImageUrl: data.petEggImageUrl || "" });
+  }, [data?.petName, data?.petImageUrl, data?.petEggImageUrl]);
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", SETTINGS, look).then((r) => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [SETTINGS] });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/pet-brand"] });
+      toast({ title: t("admin.c.saved") });
+    },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
+  });
+  return (
+    <div className="rounded-2xl border bg-white/5 border-white/10 p-4">
+      <p className="text-sm font-bold flex items-center gap-2"><PawPrint className="w-4 h-4 text-amber-300" /> {t("admin.petlook.title")}</p>
+      <p className="text-[11px] text-white/50 mt-1">{t("admin.petlook.hint")}</p>
+      <label className="mt-3 block text-[11px] text-white/60">{t("admin.petlook.name")}
+        <input className={inp + " mt-1 w-full"} maxLength={24} value={look.petName} onChange={(e) => setLook({ ...look, petName: e.target.value })} />
+      </label>
+      <div className="mt-3 grid gap-4 sm:grid-cols-2">
+        <div>
+          <ImageUpload value={look.petImageUrl} onChange={(v) => setLook({ ...look, petImageUrl: v })} label={t("admin.petlook.picture")} />
+          {look.petImageUrl && <button onClick={() => setLook({ ...look, petImageUrl: "" })} className="mt-2 text-xs text-white/60 underline">{t("admin.petlook.useBuiltIn")}</button>}
+        </div>
+        <div>
+          <ImageUpload value={look.petEggImageUrl} onChange={(v) => setLook({ ...look, petEggImageUrl: v })} label={t("admin.petlook.egg")} />
+          {look.petEggImageUrl && <button onClick={() => setLook({ ...look, petEggImageUrl: "" })} className="mt-2 text-xs text-white/60 underline">{t("admin.petlook.useBuiltIn")}</button>}
+        </div>
+      </div>
+      <p className="text-[11px] text-white/40 mt-3">{t("admin.petlook.clothesNote")}</p>
+      <button onClick={() => save.mutate()} disabled={save.isPending} className={btnSave + " mt-3 disabled:opacity-60"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
     </div>
   );
 }

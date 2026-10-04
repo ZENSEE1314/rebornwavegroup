@@ -3,6 +3,8 @@
 // member can see must be given in all three languages: English, 中文, Bahasa.
 import type { Request } from "express";
 
+import { currentTenant, homeCompanySlug } from "./tenantContext";
+
 export type Lang = "en" | "zh" | "id";
 export const LANGS: Lang[] = ["en", "zh", "id"];
 
@@ -20,8 +22,27 @@ export type Tri = { en: string; zh: string; id: string };
 export function pick(lang: Lang, t: Tri, vars?: Record<string, string | number>): string {
   let s = t[lang] || t.en;
   if (vars) for (const k in vars) s = s.split(`{${k}}`).join(String(vars[k]));
-  return s;
+  return inBrandVoice(s);
 }
+
+const REBORN_NAMES = /Reborn Wave Group|Reborn Wave House|Reborn Wave|Reborn/g;
+export const DEFAULT_PET_NAME = "Doluruu";
+const petNames = new Map<string, string>();
+
+// The pet name a company's admin chose, kept per company so texts can be built without a database read.
+export function rememberPetName(name: string) {
+  petNames.set(homeCompanySlug(), name || DEFAULT_PET_NAME);
+}
+
+// Built-in texts name Reborn and its pet Doluruu; another company's members read their
+// own company name, and any company its own pet name.
+export function inBrandVoice(text: string): string {
+  const company = currentTenant()?.name;
+  const named = company ? text.replace(REBORN_NAMES, company) : text;
+  const pet = petNames.get(homeCompanySlug());
+  return pet && pet !== DEFAULT_PET_NAME ? named.split(DEFAULT_PET_NAME).join(pet) : named;
+}
+
 export function tr(req: Request, t: Tri, vars?: Record<string, string | number>): string {
   return pick(reqLang(req), t, vars);
 }
