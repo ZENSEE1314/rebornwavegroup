@@ -166,7 +166,7 @@ function RewardShow({ won, onClose }: { won: any; onClose: () => void }) {
   const head = kind === "big" ? t("hm.ci.bigWin") : kind === "week" ? t("hm.ci.weekWin") : t("hm.ci.dayWin", { n: won.day });
   const sub = t("hm.ci.loginDay", { n: won.day });
   return (
-    <div className={`fixed inset-0 z-[95] flex items-center justify-center overflow-hidden p-4 ${kind === "day" ? "bg-black/55" : "bg-black/85"}`} onClick={onClose}>
+    <div className={`keep-dark fixed inset-0 z-[95] flex items-center justify-center overflow-hidden p-4 ${kind === "day" ? "bg-black/55" : "bg-black/85"}`} onClick={onClose}>
       {kind !== "day" && <div className={`dc-rays ${kind === "big" ? "dc-rays-big" : ""}`} />}
       {pieces.map((i) => (
         <span key={i} className={kind === "day" ? "dc-coin" : "dc-confetti"} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i % 9) * 0.12}s`, ["--h" as any]: `${(i * 47) % 360}` }}>{kind === "day" ? "🪙" : ""}</span>

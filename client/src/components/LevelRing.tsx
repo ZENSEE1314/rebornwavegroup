@@ -89,7 +89,7 @@ export function LevelUpOverlay({ kind, level, onClose }: { kind: "sender" | "rec
     return { dx: `${Math.cos(a) * d}px`, dy: `${Math.sin(a) * d}px`, delay: `${(i % 6) * 0.05}s`, c: ["#fde047", "#f472b6", "#67e8f9", "#a78bfa"][i % 4] };
   });
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 backdrop-blur-sm" onClick={onClose}>
+    <div className="keep-dark fixed inset-0 z-[90] flex items-center justify-center bg-black/75 backdrop-blur-sm" onClick={onClose}>
       <div className="relative flex flex-col items-center text-center px-6" style={{ animation: "lvPop .7s cubic-bezier(.2,1.4,.4,1) both" }}>
         <div className="absolute top-6 w-64 h-64 rounded-full opacity-60" style={{ background: "repeating-conic-gradient(rgba(253,224,71,.35) 0 10deg, transparent 10deg 20deg)", animation: "lvRays 6s linear infinite" }} />
         {sparks.map((p, i) => <span key={i} className="absolute top-28 w-2.5 h-2.5 rounded-full" style={{ background: p.c, ["--dx" as any]: p.dx, ["--dy" as any]: p.dy, animation: `lvSpark 1.2s ease-out ${p.delay} both` }} />)}
