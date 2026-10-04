@@ -292,6 +292,12 @@ text.
   is ignored (one part per swipe, however hard), and native swipe-scroll is off
   (`touch-action: none` on html/body in style.css; the video dialog keeps it).
   Bump `?v=` on app.js/style.css in index.html after changing them.
+- Order of the pages: 1F lounge → game rooms → lift (▲ 2F) → 2F private KTV → beauty →
+  lift (▲ 3F) → 3F VIP → Gold members → beauty spa → lift (▲ 4F) → 4F … → lift (▲ 5F) → 5F.
+  Each floor ends with a short "The lift · Going up · next floor" card (`.lift-beat`,
+  texts `lift2`–`lift5` in `APP_TEXT`) placed where the camera is inside the car. A card's
+  `data-a`/`data-b` window decides where its stop is (the middle), so place it where the
+  camera frames that part (check with a screenshot); short windows still show fully.
 
 ## POS packages (visits + prepaid credit)
 
