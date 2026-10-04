@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint } from "lucide-react";
+import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
@@ -637,6 +637,57 @@ function GiftRow({ g, onSave, onDelete }: any) {
   );
 }
 
+// Settings › Daily check-in (server/dailyCheckin.ts): on/off, reset on a missed day, and
+// the reward for every day, every 7th day and day 30 (points, RP, tokens, KGOLD or a Prize).
+function DailyCheckinSettings() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/daily-checkin"], queryFn: () => apiRequest("GET", "/api/reborn/admin/daily-checkin").then((r) => r.json()) });
+  const { data: prizes = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/prizes"], queryFn: () => apiRequest("GET", "/api/reborn/admin/prizes").then((r) => r.json()) });
+  const [e, setE] = useState<any>(null);
+  const cur = e || data?.config;
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/daily-checkin", cur).then((r) => r.json()),
+    onSuccess: (d: any) => { toast({ title: d.message }); setE(null); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/daily-checkin"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/daily-checkin"] }); },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
+  });
+  if (!cur) return null;
+  const setR = (k: string, patch: any) => setE({ ...cur, [k]: { ...cur[k], ...patch } });
+  const row = (k: "daily" | "week" | "big", label: string) => {
+    const r = cur[k] || { type: "none", amount: 0 };
+    return (
+      <div key={k} className="rounded-xl border border-white/10 bg-black/20 p-2.5">
+        <p className="text-xs font-semibold text-white/70 mb-1.5">{label}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <select value={r.type} onChange={(ev) => setR(k, { type: ev.target.value })} className={inp}>
+            {["none", "points", "rp", "tokens", "kgold", "prize"].filter((x) => k !== "daily" || x !== "none" || r.type === "none").map((x) => <option key={x} value={x}>{t(`admin.ci.type.${x}`)}</option>)}
+          </select>
+          {r.type === "prize"
+            ? <select value={r.prizeId || ""} onChange={(ev) => setR(k, { prizeId: Number(ev.target.value) || null })} className={inp}><option value="">{t("admin.ci.pickPrize")}</option>{prizes.map((p: any) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
+            : r.type !== "none" && <input type="number" inputMode="numeric" min={0} value={r.amount || ""} onFocus={(ev) => ev.currentTarget.select()} onChange={(ev) => setR(k, { amount: Number(ev.target.value) })} placeholder={t("admin.ci.amount")} className={inp} />}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <Card>
+      <h3 className="font-bold mb-1 flex items-center gap-2"><CalendarCheck className="w-4 h-4 text-amber-300" /> {t("admin.ci.title")}</h3>
+      <p className="text-xs text-white/50 mb-3">{t("admin.ci.hint")}</p>
+      {data?.stats && <p className="text-xs text-white/60 mb-3">{t("admin.ci.stats", { today: data.stats.today, week: data.stats.week, members: data.stats.members })}</p>}
+      <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!cur.enabled} onChange={(ev) => setE({ ...cur, enabled: ev.target.checked })} /> {t("admin.ci.enabled")}</label>
+      <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={cur.resetOnMiss !== false} onChange={(ev) => setE({ ...cur, resetOnMiss: ev.target.checked })} /> {t("admin.ci.reset")} <span className="text-white/40 text-xs">{t("admin.ci.resetHint")}</span></label>
+      <div className="space-y-2 mb-3">
+        {row("daily", t("admin.ci.daily"))}
+        {row("week", t("admin.ci.week"))}
+        {row("big", t("admin.ci.big"))}
+      </div>
+      {prizes.length === 0 && <p className="text-[11px] text-white/40 mb-2">{t("admin.ci.noPrizes")}</p>}
+      <button onClick={() => save.mutate()} disabled={!e || save.isPending} className={btn + " disabled:opacity-50"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
+    </Card>
+  );
+}
+
 function Settings() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -653,6 +704,7 @@ function Settings() {
   const updateTier = (index: number, patch: any) => setLoyalty({ tiers: (loyalty.tiers || []).map((tier: any, i: number) => i === index ? { ...tier, ...patch } : tier) });
   return (
     <div className="space-y-4">
+      <DailyCheckinSettings />
       <Card>
         <h3 className="font-bold mb-3 flex items-center gap-2"><Coins className="w-4 h-4 text-amber-300" /> {t("admin.set.kgold")}</h3>
         <Field label={t("admin.set.giftFee")} value={cur.giftFeePercent} onChange={(v: any) => set("giftFeePercent", v)} />

@@ -6,6 +6,7 @@ import { db } from "./db";
 import { currentTenant, homeCompanySlug } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL } from "./giftLevels";
+import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
 import { packageFields, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
@@ -1980,6 +1981,58 @@ export function registerRebornRoutes(app: Express) {
     await db.delete(spinPrizes).where(and(eq(spinPrizes.id, Number(req.params.id)), eq(spinPrizes.companyId, cid)));
     res.json({ message: tr(req, { en: "Deleted", zh: "已删除", id: "Dihapus" }) });
   }));
+  // Give a member one of the Prizes (admin award, daily check-in): eggs / pills arrive at
+  // once, other prizes wait in Spin › My prizes for staff to redeem. Notifies the member.
+  async function awardPrizeToUser(userId: string, prize: typeof spinPrizes.$inferSelect, cid: number, note: string) {
+    const now = new Date();
+    if (prize.prizeType === "pill") await db.insert(petPills).values({ userId, grantedBy: "admin", note });
+    else if (prize.prizeType === "egg") await db.insert(pets).values({ userId, toyId: 0, name: "Doluruu Egg", type: "virtual", gender: Math.random() < 0.5 ? "male" : "female", isActive: true, isEgg: true, hatchAt: addDays(EGG_HATCH_DAYS, now), lifeStatus: "active" });
+    const status = ["nothing", "free_spin", "pill", "egg"].includes(prize.prizeType || "") ? "won" : "unused";
+    const [result] = await db.insert(spinResults).values({ userId, companyId: cid, prizeId: prize.id, prizeLabel: prize.label, prizeType: prize.prizeType, tokensSpent: 0, status }).returning();
+    const club = (await getSettings()).clubName;
+    await notifyUserI18n(userId, "prize", (lang) => ({ title: pick(lang, { en: "🎉 You won a prize!", zh: "🎉 你赢得了奖品！", id: "🎉 Kamu memenangkan hadiah!" }), body: pick(lang, { en: "{prize} — from {club}", zh: "{prize} — 来自 {club}", id: "{prize} — dari {club}" }, { prize: prize.label, club }) }), { path: "/spin" });
+    pushUserI18n(userId, (lang) => ({ title: pick(lang, { en: "🎉 You won a prize!", zh: "🎉 你赢得了奖品！", id: "🎉 Kamu memenangkan hadiah!" }), body: pick(lang, { en: "{prize} — show it to staff to redeem", zh: "{prize} — 出示给员工即可兑换", id: "{prize} — tunjukkan ke staf untuk menukarkannya" }, { prize: prize.label }), url: "/spin", tag: `award-${result.id}` })).catch(() => {});
+    return result;
+  }
+
+  // ── Daily check-in (server/dailyCheckin.ts) ──
+  // Rewards as the app shows them (a prize carries its label).
+  async function checkinRewardsView(cid: number) {
+    const cfg = await getCheckinConfig();
+    const ids = [cfg.daily, cfg.week, cfg.big].map((r) => r.prizeId).filter(Boolean) as number[];
+    const prizes = ids.length ? await db.select().from(spinPrizes).where(and(inArray(spinPrizes.id, ids), eq(spinPrizes.companyId, cid))) : [];
+    const view = (r: any) => ({ type: r.type, amount: r.amount, prizeId: r.prizeId || null, label: r.type === "prize" ? prizes.find((p) => p.id === r.prizeId)?.label || null : null });
+    return { cfg, rewards: { daily: view(cfg.daily), week: view(cfg.week), big: view(cfg.big) } };
+  }
+  app.get("/api/reborn/daily-checkin", requireAuth, async (req, res) => {
+    const { cfg, rewards } = await checkinRewardsView(await rebornCompanyId(req));
+    if (!cfg.enabled) return res.json({ enabled: false });
+    res.json({ enabled: true, cycleDays: CYCLE_DAYS, weekDays: WEEK_DAYS, resetOnMiss: cfg.resetOnMiss, rewards, ...(await checkinState(getUserId(req)!, cfg)) });
+  });
+  app.post("/api/reborn/daily-checkin", requireAuth, async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const cfg = await getCheckinConfig();
+    if (!cfg.enabled) return res.status(400).json({ message: tr(req, { en: "Daily check-in is turned off", zh: "每日签到已关闭", id: "Check-in harian sedang dimatikan" }) });
+    const userId = getUserId(req)!;
+    const out = await doCheckin(userId, cfg, async (uid, prizeId) => {
+      const [prize] = await db.select().from(spinPrizes).where(and(eq(spinPrizes.id, prizeId), eq(spinPrizes.companyId, cid)));
+      if (!prize) return null;
+      await awardPrizeToUser(uid, prize, cid, "Daily check-in reward");
+      return prize.label;
+    });
+    if (out.already) return res.status(409).json({ message: tr(req, { en: "You already checked in today — come back tomorrow!", zh: "你今天已经签到了——明天再来吧！", id: "Kamu sudah check-in hari ini — datang lagi besok!" }), ...out });
+    res.json(out);
+  });
+  app.get("/api/reborn/admin/daily-checkin", requireAdmin(async (req, res) => {
+    const { cfg } = await checkinRewardsView(await rebornCompanyId(req));
+    res.json({ config: cfg, stats: await checkinStats() });
+  }));
+  app.post("/api/reborn/admin/daily-checkin", requireAdmin(async (req, res) => {
+    const cfg = await saveCheckinConfig(req.body || {});
+    await logAdmin(req, { targetType: "settings", action: "daily_checkin", entityType: "settings", description: `Daily check-in ${cfg.enabled ? "on" : "off"}: daily ${cfg.daily.type} ${cfg.daily.amount}, 7-day ${cfg.week.type} ${cfg.week.amount}, 30-day ${cfg.big.type} ${cfg.big.amount}` });
+    res.json({ message: tr(req, { en: "Daily check-in saved", zh: "每日签到已保存", id: "Check-in harian disimpan" }), config: cfg });
+  }));
+
   // Admin hands a specific prize to a member by username/code — no spin needed.
   app.post("/api/reborn/admin/prizes/award", requireAdmin(async (req, res) => {
     const prizeId = Number(req.body?.prizeId);
@@ -1988,14 +2041,7 @@ export function registerRebornRoutes(app: Express) {
     if (!u) return res.status(404).json({ message: tr(req, { en: "Member not found (username / code / email)", zh: "找不到该会员（用户名 / 会员码 / 邮箱）", id: "Member tidak ditemukan (nama pengguna / kode / email)" }) });
     const [prize] = await db.select().from(spinPrizes).where(and(eq(spinPrizes.id, prizeId), eq(spinPrizes.companyId, cid)));
     if (!prize) return res.status(404).json({ message: tr(req, { en: "Prize not found", zh: "找不到该奖品", id: "Hadiah tidak ditemukan" }) });
-    const now = new Date();
-    if (prize.prizeType === "pill") await db.insert(petPills).values({ userId: u.id, grantedBy: "admin", note: "Awarded by admin" });
-    else if (prize.prizeType === "egg") await db.insert(pets).values({ userId: u.id, toyId: 0, name: "Doluruu Egg", type: "virtual", gender: Math.random() < 0.5 ? "male" : "female", isActive: true, isEgg: true, hatchAt: addDays(EGG_HATCH_DAYS, now), lifeStatus: "active" });
-    const status = ["nothing", "free_spin", "pill", "egg"].includes(prize.prizeType || "") ? "won" : "unused";
-    const [result] = await db.insert(spinResults).values({ userId: u.id, companyId: cid, prizeId: prize.id, prizeLabel: prize.label, prizeType: prize.prizeType, tokensSpent: 0, status }).returning();
-    const club = (await getSettings()).clubName;
-    await notifyUserI18n(u.id, "prize", (lang) => ({ title: pick(lang, { en: "🎉 You won a prize!", zh: "🎉 你赢得了奖品！", id: "🎉 Kamu memenangkan hadiah!" }), body: pick(lang, { en: "{prize} — from {club}", zh: "{prize} — 来自 {club}", id: "{prize} — dari {club}" }, { prize: prize.label, club }) }), { path: "/spin" });
-    pushUserI18n(u.id, (lang) => ({ title: pick(lang, { en: "🎉 You won a prize!", zh: "🎉 你赢得了奖品！", id: "🎉 Kamu memenangkan hadiah!" }), body: pick(lang, { en: "{prize} — show it to staff to redeem", zh: "{prize} — 出示给员工即可兑换", id: "{prize} — tunjukkan ke staf untuk menukarkannya" }, { prize: prize.label }), url: "/spin", tag: `award-${result.id}` })).catch(() => {});
+    const result = await awardPrizeToUser(u.id, prize, cid, "Awarded by admin");
     await logAdmin(req, { targetUserId: u.id, targetType: "spin_result", targetId: result.id, action: "award_prize", entityType: "prize", description: `Awarded "${prize.label}" to ${u.username || u.email}` });
     res.json({ message: tr(req, { en: "Awarded {prize} to {who}", zh: "已将 {prize} 颁发给 {who}", id: "{prize} diberikan kepada {who}" }, { prize: prize.label, who: u.username || u.email || u.id }) });
   }));
