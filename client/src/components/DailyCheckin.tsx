@@ -14,7 +14,7 @@ import { CalendarCheck, X } from "lucide-react";
 type Reward = { type: string; amount: number; label?: string | null };
 interface State {
   enabled: boolean; cycleDays: number; weekDays: number; resetOnMiss: boolean; autoClaim: boolean;
-  rewards: { daily: Reward; week: Reward; big: Reward };
+  days: Reward[]; // the admin's reward for each day: days[0] = day 1
   checkedToday: boolean; done: number; nextDay: number | null; today: string;
 }
 const POPUP_KEY = "reborn.checkinPopup";
@@ -26,6 +26,16 @@ function useRewardText() {
     if (r.type === "prize") return r.label || t("hm.ci.prize");
     if (["points", "rp", "tokens", "kgold"].includes(r.type)) return t(`hm.ci.r.${r.type}`, { n });
     return "";
+  };
+}
+// Short reward text for the small day boxes (compact numbers: 5K, 1.2M…).
+function useShortReward() {
+  const { t, language } = useTranslation();
+  const loc = language === "zh" ? "zh-CN" : language === "id" ? "id-ID" : "en-US";
+  return (r?: Reward) => {
+    if (!r || r.type === "none") return "";
+    if (r.type === "prize") return r.label || t("hm.ci.prize");
+    return t(`hm.ci.s.${r.type}`, { n: Number(r.amount || 0).toLocaleString(loc, { notation: "compact", maximumFractionDigits: 1 }) });
   };
 }
 const dayIcon = (d: number, cycle: number, week: number) => (d === cycle ? "👑" : d % week === 0 ? "🎁" : "🪙");
@@ -60,9 +70,8 @@ export function DailyCheckinCard() {
   const week = Array.from({ length: Math.min(s.weekDays, s.cycleDays - start + 1) }, (_, i) => start + i);
   const toWeek = s.weekDays - (s.done % s.weekDays);
   const legend = [
-    [t("hm.ci.everyDay"), rewardText(s.rewards.daily)],
-    [t("hm.ci.every7"), rewardText(s.rewards.week)],
-    [t("hm.ci.day30"), rewardText(s.rewards.big)],
+    [s.checkedToday ? t("hm.ci.todayGot") : t("hm.ci.todayReward"), rewardText(s.days[day - 1])],
+    ...(day < s.cycleDays ? [[t("hm.ci.day30"), rewardText(s.days[s.cycleDays - 1])]] : []),
   ].filter(([, v]) => v);
 
   return (
@@ -133,13 +142,15 @@ export function LoginRewardWatcher({ userId }: { userId?: string }) {
 
 function DayCell({ d, s }: { d: number; s: State }) {
   const { t } = useTranslation();
+  const short = useShortReward();
   const got = d <= s.done;
   const isNext = !s.checkedToday && d === s.nextDay;
   const special = d === s.cycleDays ? "big" : d % s.weekDays === 0 ? "week" : "";
   return (
     <div className={`relative rounded-xl border px-0.5 py-1.5 text-center ${got ? "border-amber-400/60 bg-amber-400/20" : isNext ? "border-amber-300 bg-white/10 dc-next" : special ? "border-fuchsia-400/40 bg-fuchsia-500/10" : "border-white/10 bg-black/20"}`}>
-      <div className={`text-base leading-none ${got ? "" : "opacity-70"}`}>{got ? "✅" : dayIcon(d, s.cycleDays, s.weekDays)}</div>
+      <div className={`text-base leading-none ${got ? "" : "opacity-70"}`}>{got ? "✅" : s.days[d - 1]?.type === "prize" ? "🎁" : dayIcon(d, s.cycleDays, s.weekDays)}</div>
       <div className="mt-1 text-[10px] font-bold text-white/70">{t("hm.ci.dayN", { n: d })}</div>
+      <div className="truncate px-0.5 text-[9px] leading-tight text-amber-200/90">{short(s.days[d - 1])}</div>
     </div>
   );
 }

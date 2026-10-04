@@ -1999,15 +1999,15 @@ export function registerRebornRoutes(app: Express) {
   // Rewards as the app shows them (a prize carries its label).
   async function checkinRewardsView(cid: number) {
     const cfg = await getCheckinConfig();
-    const ids = [cfg.daily, cfg.week, cfg.big].map((r) => r.prizeId).filter(Boolean) as number[];
+    const ids = Array.from(new Set(cfg.days.map((r) => r.prizeId).filter(Boolean))) as number[];
     const prizes = ids.length ? await db.select().from(spinPrizes).where(and(inArray(spinPrizes.id, ids), eq(spinPrizes.companyId, cid))) : [];
     const view = (r: any) => ({ type: r.type, amount: r.amount, prizeId: r.prizeId || null, label: r.type === "prize" ? prizes.find((p) => p.id === r.prizeId)?.label || null : null });
-    return { cfg, rewards: { daily: view(cfg.daily), week: view(cfg.week), big: view(cfg.big) } };
+    return { cfg, days: cfg.days.map(view) }; // days[0] = day 1
   }
   app.get("/api/reborn/daily-checkin", requireAuth, async (req, res) => {
-    const { cfg, rewards } = await checkinRewardsView(await rebornCompanyId(req));
+    const { cfg, days } = await checkinRewardsView(await rebornCompanyId(req));
     if (!cfg.enabled) return res.json({ enabled: false });
-    res.json({ enabled: true, cycleDays: CYCLE_DAYS, weekDays: WEEK_DAYS, resetOnMiss: cfg.resetOnMiss, autoClaim: cfg.autoClaim, rewards, ...(await checkinState(getUserId(req)!, cfg)) });
+    res.json({ enabled: true, cycleDays: CYCLE_DAYS, weekDays: WEEK_DAYS, resetOnMiss: cfg.resetOnMiss, autoClaim: cfg.autoClaim, days, ...(await checkinState(getUserId(req)!, cfg)) });
   });
   app.post("/api/reborn/daily-checkin", requireAuth, async (req, res) => {
     const cid = await rebornCompanyId(req);
@@ -2029,7 +2029,7 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.post("/api/reborn/admin/daily-checkin", requireAdmin(async (req, res) => {
     const cfg = await saveCheckinConfig(req.body || {});
-    await logAdmin(req, { targetType: "settings", action: "daily_checkin", entityType: "settings", description: `Daily login reward ${cfg.enabled ? "on" : "off"} (${cfg.autoClaim ? "auto" : "tap"}): daily ${cfg.daily.type} ${cfg.daily.amount}, 7-day ${cfg.week.type} ${cfg.week.amount}, 30-day ${cfg.big.type} ${cfg.big.amount}` });
+    await logAdmin(req, { targetType: "settings", action: "daily_checkin", entityType: "settings", description: `Daily login reward ${cfg.enabled ? "on" : "off"} (${cfg.autoClaim ? "auto" : "tap"}): ${cfg.days.map((r, i) => `D${i + 1} ${r.type === "prize" ? `prize#${r.prizeId}` : r.type === "none" ? "-" : `${r.type} ${r.amount}`}`).join(", ")}` });
     res.json({ message: tr(req, { en: "Daily login reward saved", zh: "每日登录奖励已保存", id: "Hadiah login harian disimpan" }), config: cfg });
   }));
 
