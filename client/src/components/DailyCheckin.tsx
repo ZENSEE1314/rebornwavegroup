@@ -1,8 +1,9 @@
-// Daily check-in (server/dailyCheckin.ts): a card on the home page with this week's
-// days, progress to the 30-day big reward and a "Check in" button. Every check-in shows
-// a reward animation: coins for a normal day, a gift box opening on every 7th day and
-// a treasure chest on day 30. The 30-day calendar opens by itself once a day until the
-// member has checked in.
+// Daily login reward (server/dailyCheckin.ts). `LoginRewardWatcher` (in RebornLayout,
+// every page) collects it by itself the first time the member opens the app each day
+// and plays the reward animation: coins for a normal day, a gift box opening on every
+// 7th day and a crown on day 30. The home card shows this week's days and progress to
+// day 30. With auto-collect off (admin), the member taps "Check in" instead and the
+// 30-day calendar opens by itself once a day until they do.
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -12,7 +13,7 @@ import { CalendarCheck, X } from "lucide-react";
 
 type Reward = { type: string; amount: number; label?: string | null };
 interface State {
-  enabled: boolean; cycleDays: number; weekDays: number; resetOnMiss: boolean;
+  enabled: boolean; cycleDays: number; weekDays: number; resetOnMiss: boolean; autoClaim: boolean;
   rewards: { daily: Reward; week: Reward; big: Reward };
   checkedToday: boolean; done: number; nextDay: number | null; today: string;
 }
@@ -48,10 +49,10 @@ export function DailyCheckinCard() {
   });
   // Open the 30-day calendar by itself once a day until the member checks in.
   useEffect(() => {
-    if (!s?.enabled || s.checkedToday) return;
+    if (!s?.enabled || s.checkedToday || s.autoClaim) return; // auto-collect: LoginRewardWatcher handles it
     try { if (localStorage.getItem(POPUP_KEY) === s.today) return; localStorage.setItem(POPUP_KEY, s.today); } catch {}
     setShowAll(true);
-  }, [s?.enabled, s?.checkedToday, s?.today]);
+  }, [s?.enabled, s?.checkedToday, s?.today, s?.autoClaim]);
   if (!s?.enabled) return null;
 
   const day = s.checkedToday ? s.done : s.nextDay || 1;
@@ -108,6 +109,28 @@ export function DailyCheckinCard() {
   );
 }
 
+// Collects today's login reward by itself on the first app open of the day (any page).
+let claimingDay = ""; // one attempt per day across page changes (the server also allows only one)
+export function LoginRewardWatcher({ userId }: { userId?: string }) {
+  const qc = useQueryClient();
+  const [won, setWon] = useState<any>(null);
+  const { data: s } = useQuery<State>({ queryKey: ["/api/reborn/daily-checkin"], queryFn: () => apiRequest("GET", "/api/reborn/daily-checkin").then((r) => r.json()), enabled: !!userId });
+  useEffect(() => {
+    if (!userId || !s?.enabled || !s.autoClaim || s.checkedToday || claimingDay === `${userId}:${s.today}`) return;
+    claimingDay = `${userId}:${s.today}`;
+    apiRequest("POST", "/api/reborn/daily-checkin", {}).then(async (r) => {
+      const d = await r.json().catch(() => null);
+      if (r.ok && d && !d.already) {
+        setWon(d);
+        if (d.milestone === "big") sfx.gift("fireworks"); else if (d.milestone === "week") sfx.rankUp(); else sfx.coin();
+      }
+      qc.invalidateQueries({ queryKey: ["/api/reborn/daily-checkin"] });
+      qc.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    }).catch(() => { claimingDay = ""; });
+  }, [userId, s?.enabled, s?.autoClaim, s?.checkedToday, s?.today]);
+  return won ? <RewardShow won={won} onClose={() => setWon(null)} /> : null;
+}
+
 function DayCell({ d, s }: { d: number; s: State }) {
   const { t } = useTranslation();
   const got = d <= s.done;
@@ -130,6 +153,7 @@ function RewardShow({ won, onClose }: { won: any; onClose: () => void }) {
   useEffect(() => { if (kind === "day") { const id = setTimeout(onClose, 2600); return () => clearTimeout(id); } }, [kind]);
   const pieces = Array.from({ length: kind === "day" ? 14 : 36 }, (_, i) => i);
   const head = kind === "big" ? t("hm.ci.bigWin") : kind === "week" ? t("hm.ci.weekWin") : t("hm.ci.dayWin", { n: won.day });
+  const sub = t("hm.ci.loginDay", { n: won.day });
   return (
     <div className={`fixed inset-0 z-[95] flex items-center justify-center overflow-hidden p-4 ${kind === "day" ? "bg-black/55" : "bg-black/85"}`} onClick={onClose}>
       {kind !== "day" && <div className={`dc-rays ${kind === "big" ? "dc-rays-big" : ""}`} />}
@@ -138,7 +162,8 @@ function RewardShow({ won, onClose }: { won: any; onClose: () => void }) {
       ))}
       <div className="relative z-10 text-center dc-pop">
         <div className={kind === "big" ? "dc-chest" : kind === "week" ? "dc-box" : "dc-bounce"} style={{ fontSize: kind === "day" ? 64 : 96 }}>{kind === "big" ? "👑" : kind === "week" ? "🎁" : "✅"}</div>
-        <p className={`mt-3 font-black tracking-wide ${kind === "big" ? "text-3xl dc-shine" : "text-2xl text-amber-200"}`}>{head}</p>
+        <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-white/60">{sub}</p>
+        <p className={`mt-1 font-black tracking-wide ${kind === "big" ? "text-3xl dc-shine" : "text-2xl text-amber-200"}`}>{head}</p>
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {(won.rewards || []).map((r: any, i: number) => (
             <span key={i} className="dc-chip rounded-full border border-amber-300/60 bg-amber-400/20 px-3 py-1.5 text-sm font-bold text-amber-100" style={{ animationDelay: `${0.5 + i * 0.25}s` }}>

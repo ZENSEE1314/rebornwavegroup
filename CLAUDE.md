@@ -317,14 +317,17 @@ text.
 - The POS asks `/api/reborn/pos/quote` for the bill (perk + credit) so the till shows
   exactly what the server will charge.
 
-## Daily check-in (rewards)
+## Daily login reward (daily check-in)
 
-- Admin › Settings › Daily check-in (`app_settings.dailyCheckin`, server/dailyCheckin.ts):
-  on/off, "missing a day starts again from day 1" (`resetOnMiss`), and three rewards —
+- Admin › Settings › Daily login reward (`app_settings.dailyCheckin`, server/dailyCheckin.ts):
+  on/off, "collect automatically when the member opens the app" (`autoClaim`, default on),
+  "missing a day starts again from day 1" (`resetOnMiss`), and three rewards —
   every day, every 7th day (bonus) and day 30 (big) — each points, RP credits (booked as a
   `checkin_reward` expense), tokens, KGOLD, a Prize from the Prizes tab, or none.
-- Members check in once per WIB calendar day on the home page (`DailyCheckinCard` in
-  components/DailyCheckin.tsx; the 30-day calendar pops up once a day until they do).
+- It's a login reward: the first app open of the WIB day, on any page, collects it and plays
+  the animation (`LoginRewardWatcher` in RebornLayout). With `autoClaim` off the member taps
+  "Collect" on the home card (`DailyCheckinCard` in components/DailyCheckin.tsx) and the
+  30-day calendar pops up once a day until they do.
   `daily_checkins` has one row per member per day (unique index, so double taps count
   once); `streak` is the day of the 30-day cycle; after day 30 a new round starts.
 - Animations: coins for a normal day, a gift box bursting open on every 7th day, a

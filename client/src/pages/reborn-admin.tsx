@@ -676,6 +676,7 @@ function DailyCheckinSettings() {
       <p className="text-xs text-white/50 mb-3">{t("admin.ci.hint")}</p>
       {data?.stats && <p className="text-xs text-white/60 mb-3">{t("admin.ci.stats", { today: data.stats.today, week: data.stats.week, members: data.stats.members })}</p>}
       <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!cur.enabled} onChange={(ev) => setE({ ...cur, enabled: ev.target.checked })} /> {t("admin.ci.enabled")}</label>
+      <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={cur.autoClaim !== false} onChange={(ev) => setE({ ...cur, autoClaim: ev.target.checked })} /> {t("admin.ci.auto")} <span className="text-white/40 text-xs">{t("admin.ci.autoHint")}</span></label>
       <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={cur.resetOnMiss !== false} onChange={(ev) => setE({ ...cur, resetOnMiss: ev.target.checked })} /> {t("admin.ci.reset")} <span className="text-white/40 text-xs">{t("admin.ci.resetHint")}</span></label>
       <div className="space-y-2 mb-3">
         {row("daily", t("admin.ci.daily"))}
