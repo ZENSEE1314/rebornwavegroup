@@ -142,7 +142,7 @@ async function tenants(): Promise<RegisteredTenant[]> {
   if (registry && Date.now() - registry.at < REGISTRY_TTL_MS) return registry.tenants;
   let result;
   try {
-    result = await pool.query(`SELECT id, slug, db_schema, website_domain, COALESCE(NULLIF(app_name, ''), name) AS name FROM public.bridge_companies WHERE data_mode='schema' AND db_schema IS NOT NULL`);
+    result = await pool.query(`SELECT id, slug, db_schema, website_domain, COALESCE(NULLIF(app_name, ''), name) AS name, local_currency, country FROM public.bridge_companies WHERE data_mode='schema' AND db_schema IS NOT NULL`);
   } catch (error) {
     // A database blip must not send a company's visitors to the wrong data: keep the last known list.
     if (registry) return registry.tenants;
@@ -150,10 +150,13 @@ async function tenants(): Promise<RegisteredTenant[]> {
   }
   registry = {
     at: Date.now(),
-    tenants: result.rows.map((row) => ({ companyId: row.id, slug: row.slug, schema: row.db_schema, name: row.name, domain: row.website_domain ? String(row.website_domain).toLowerCase() : null })),
+    tenants: result.rows.map((row) => ({ companyId: row.id, slug: row.slug, schema: row.db_schema, name: row.name, currency: row.local_currency || undefined, country: row.country || undefined, domain: row.website_domain ? String(row.website_domain).toLowerCase() : null })),
   };
   return registry.tenants;
 }
+
+// Forget the cached company list (a company's name, currency or country changed).
+export function forgetTenantRegistry() { registry = null; }
 
 export async function listTenantSpaces(): Promise<TenantSpace[]> {
   return tenants();

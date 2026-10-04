@@ -8,6 +8,9 @@ import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL } from "./giftLevels";
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
 import { packageFields, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
+import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
+import { formatMoneyIn } from "@shared/countries";
+import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
@@ -3161,7 +3164,7 @@ export function registerRebornRoutes(app: Express) {
     let amount: number, reason: string;
     const pct = Number(req.body?.percent);
     if (req.body?.percent !== undefined && req.body?.percent !== "" && Number.isFinite(pct) && pct > 0) {
-      amount = Math.round(subtotal * Math.min(100, pct) / 100);
+      amount = roundMoney(subtotal * Math.min(100, pct) / 100);
       reason = String(req.body?.reason || "").trim() || `${pct}% off`;
     } else {
       amount = Math.max(0, Number(req.body?.amount) || 0);
@@ -3391,13 +3394,13 @@ export function registerRebornRoutes(app: Express) {
       byStaff[key].sales += Number(t.total); byStaff[key].tickets += 1;
     }
     const list = Object.values(byStaff).sort((a, b) => b.sales - a.sales)
-      .map((s) => ({ ...s, commission: Math.round(s.sales * rate / 100) }));
+      .map((s) => ({ ...s, commission: roundMoney(s.sales * rate / 100) }));
     res.json({ days, rate, staff: list });
   }));
   // Record a commission payout as an RP cash expense (not app credits) — tracked in the ledger + admin log.
   app.post("/api/reborn/admin/accounting/commission/pay", requireAdmin(async (req, res) => {
     const name = String(req.body?.staffName || "").trim();
-    const amount = Math.round(Number(req.body?.amount) || 0);
+    const amount = roundMoney(Number(req.body?.amount) || 0);
     if (!name || amount <= 0) return res.status(400).json({ message: tr(req, { en: "Staff and amount required", zh: "请填写员工和金额", id: "Staf dan jumlah wajib diisi" }) });
     const [row] = await db.insert(ledgerEntries).values({ kind: "expense", category: "commission", amount: String(amount), note: `Commission paid to ${name} (RP)`, userId: getUserId(req)! }).returning();
     await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "pay_commission", entityType: "accounting", description: `Paid commission RP ${amount} to ${name}` });
@@ -3519,17 +3522,44 @@ export function registerRebornRoutes(app: Express) {
     res.json({message:tr(req, { en: "Bill updated with an audit record", zh: "账单已更新并留有审计记录", id: "Tagihan diperbarui dengan catatan audit" }),order:{...updated,items:freshItems}});
   }));
 
+  // Statutory contributions (CPF / BPJS / EPF…): the company's country rates, editable by the admin.
+  const payrollRules=async()=>{const [row]=await db.select().from(appSettings).where(eq(appSettings.key,"payrollRules"));let saved:any=null;try{saved=row?.value?JSON.parse(row.value):null}catch{}return saved?cleanPayrollRules(saved,companyCountry()):defaultPayrollRules(companyCountry());};
+  app.get("/api/reborn/admin/payroll/rules", requireAdmin(async(_req,res)=>{res.json({rules:await payrollRules(),country:companyCountry(),money:companyMoney(),defaults:defaultPayrollRules(companyCountry())});}));
+  app.post("/api/reborn/admin/payroll/rules", requireAdmin(async(req,res)=>{
+    const rules=req.body?.reset?defaultPayrollRules(companyCountry()):cleanPayrollRules(req.body?.rules,companyCountry());
+    const value=JSON.stringify(rules);
+    await db.insert(appSettings).values({key:"payrollRules",value,updatedAt:new Date()}).onConflictDoUpdate({target:appSettings.key,set:{value,updatedAt:new Date()}});
+    await logAdmin(req,{targetType:"settings",targetId:"payrollRules",action:"update_payroll_rules",entityType:"accounting",description:`Statutory contribution rates (${rules.country}) changed`});
+    res.json({message:tr(req,{en:"Contribution rates saved",zh:"缴费比例已保存",id:"Tarif iuran disimpan"}),rules});
+  }));
   app.get("/api/reborn/admin/payroll", requireAdmin(async (req,res)=>{
     const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
-    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
-    const staff=((result.rows||result) as any[]).map((x)=>{const basic=x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary);const salesCommission=Number(x.sales)*Number(x.commission_rate)/100;const overtimePay=Number(x.ot_hours)*otRate;return{...x,basic,salesCommission,overtimePay,otRate,total:basic+salesCommission+overtimePay,targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
+    const rules=await payrollRules(); const money=companyMoney();
+    const staff=((result.rows||result) as any[]).map((x)=>{const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
-    res.json({month,from,to,staff,referrals:refs.rows||refs});
+    res.json({month,from,to,staff,referrals:refs.rows||refs,rules,money,country:companyCountry()});
   }));
-  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
-  app.post("/api/reborn/admin/payroll/pay", requireAdmin(async(req,res)=>{const b=req.body||{};const amount=Math.max(0,Number(b.amount)||0);const month=String(b.month||"");const userId=String(b.userId||"");if(!amount||!month||!userId)return res.status(400).json({message:tr(req, { en: "Staff, month and amount are required", zh: "请填写员工、月份和金额", id: "Staf, bulan, dan jumlah wajib diisi" })});const existing=await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType,"payroll"),eq(ledgerEntries.refId,`${userId}:${month}`))).limit(1);if(existing.length)return res.status(409).json({message:tr(req, { en: "This staff payroll has already been recorded for the month", zh: "该员工本月的工资已记录", id: "Gaji staf ini sudah dicatat untuk bulan tersebut" })});const[row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(amount),note:`Payroll ${b.name||userId} · ${month} (basic + commission)`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();res.json({message:tr(req, { en: "Payroll recorded as an expense", zh: "工资已记为支出", id: "Gaji dicatat sebagai pengeluaran" }),row});}));
+  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),birthDate:/^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate||""))?String(b.birthDate):null,residency:asResidency(b.residency),statutoryOn:b.statutoryOn!==false,updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
+  // Record a month's pay: the gross salary as an expense, plus the employer's statutory
+  // contributions (CPF / BPJS…) as their own expense. The employee's share is part of the
+  // gross: it is withheld from the staff member and paid to the fund with the employer's.
+  app.post("/api/reborn/admin/payroll/pay", requireAdmin(async(req,res)=>{
+    const b=req.body||{};const amount=roundMoney(Math.max(0,Number(b.amount)||0));const month=String(b.month||"");const userId=String(b.userId||"");
+    if(!amount||!/^\d{4}-\d{2}$/.test(month)||!userId)return res.status(400).json({message:tr(req, { en: "Staff, month and amount are required", zh: "请填写员工、月份和金额", id: "Staf, bulan, dan jumlah wajib diisi" })});
+    const existing=await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType,"payroll"),eq(ledgerEntries.refId,`${userId}:${month}`))).limit(1);
+    if(existing.length)return res.status(409).json({message:tr(req, { en: "This staff payroll has already been recorded for the month", zh: "该员工本月的工资已记录", id: "Gaji staf ini sudah dicatat untuk bulan tersebut" })});
+    const company=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];
+    const [profile]=company?await db.select().from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId,company.id),eq(bridgeStaffProfiles.userId,userId))).limit(1):[];
+    const c=computeContributions(await payrollRules(),amount,{birthDate:profile?.birthDate,residency:profile?.residency,statutoryOn:profile?.statutoryOn},month,companyMoney().decimals);
+    const parts=c.lines.map((l)=>`${(l.label||l.code).toUpperCase()} ee ${l.ee} / er ${l.er}`).join(", ");
+    const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(amount),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}, net pay ${c.net}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
+    if(c.employer>0)await db.insert(ledgerEntries).values({kind:"expense",category:"statutory_contribution",amount:String(c.employer),note:`Employer contributions ${b.name||userId} · ${month}${parts?` (${parts})`:""}`,refType:"payroll_employer",refId:`${userId}:${month}`,userId});
+    await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, net ${c.net}, employer ${c.employer}`});
+    res.json({message:tr(req, { en: "Payroll recorded: net pay {net}, staff contributions {ee}, company contributions {er}", zh: "工资已记录：实发 {net}，员工缴费 {ee}，公司缴费 {er}", id: "Gaji dicatat: gaji bersih {net}, iuran staf {ee}, iuran perusahaan {er}" },{net:formatMoneyIn(companyMoney(),c.net),ee:formatMoneyIn(companyMoney(),c.employee),er:formatMoneyIn(companyMoney(),c.employer)}),row,contributions:c});
+  }));
 
   // White-label feature flags — read the club's enabled modules from the
   // BridgeX company config so the app/admin only show ticked functions.

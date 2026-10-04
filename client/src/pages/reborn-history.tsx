@@ -5,6 +5,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { useTranslation, translate, localeTag, tData } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { ReceiptText, Coins, Gift, CreditCard, ChevronDown } from "lucide-react";
+import { money, moneySymbol } from "@/lib/money";
 
 const fmt = (n: any) => Math.abs(Number(n) || 0).toLocaleString(localeTag());
 const when = (v: any) => v ? new Date(v).toLocaleString(localeTag()) : "";
@@ -39,24 +40,24 @@ export default function RebornHistory() {
     <p className="text-sm text-white/50 mb-5">{tr("vn.hist.sub")}</p>
     <div className="mb-5 rounded-2xl border border-emerald-400/35 p-4" style={{ background: "linear-gradient(120deg, rgba(16,185,129,.18), rgba(0,0,0,.3) 70%)" }}>
       <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200/90">{tr("vn.hist.creditsNow")}</p>
-      <p className="text-3xl font-black italic text-white" style={{ textShadow: "0 0 14px rgba(16,185,129,.6)" }}>RP {fmt((user as any)?.credits)}</p>
+      <p className="text-3xl font-black italic text-white" style={{ textShadow: "0 0 14px rgba(16,185,129,.6)" }}>{money((user as any)?.credits)}</p>
       <p className="mt-1 text-xs text-white/55">{tr("vn.hist.creditsHint")}</p>
     </div>
 
     <Section icon={<ReceiptText />} title={tr("vn.hist.orders")} empty={!data?.tickets?.length}>
       {data?.tickets?.map((t: any) => <div key={t.id} className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        <button onClick={() => setOpen(open === t.id ? null : t.id)} className="w-full p-4 flex items-center gap-3 text-left"><div className="flex-1"><p className="font-bold">{t.orderNo}</p><p className="text-xs text-white/45">{when(t.paidAt || t.createdAt)} · {status(t.status)}</p>{t.paymentMethod === "credits" && <span className="mt-1 inline-block rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-200">{tr("vn.hist.paidCredits")}</span>}</div><p className="font-bold text-amber-300">RP {fmt(t.total)}</p><ChevronDown className={`w-4 h-4 transition-transform ${open === t.id ? "rotate-180" : ""}`} /></button>
+        <button onClick={() => setOpen(open === t.id ? null : t.id)} className="w-full p-4 flex items-center gap-3 text-left"><div className="flex-1"><p className="font-bold">{t.orderNo}</p><p className="text-xs text-white/45">{when(t.paidAt || t.createdAt)} · {status(t.status)}</p>{t.paymentMethod === "credits" && <span className="mt-1 inline-block rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-200">{tr("vn.hist.paidCredits")}</span>}</div><p className="font-bold text-amber-300">{money(t.total)}</p><ChevronDown className={`w-4 h-4 transition-transform ${open === t.id ? "rotate-180" : ""}`} /></button>
         {open === t.id && <div className="border-t border-white/10 p-4 space-y-2">
-          {t.items?.map((i: any) => <div key={i.id} className="flex justify-between text-sm"><span>{i.qty}× {i.name}</span><span>RP {fmt(i.lineTotal)}</span></div>)}
+          {t.items?.map((i: any) => <div key={i.id} className="flex justify-between text-sm"><span>{i.qty}× {i.name}</span><span>{money(i.lineTotal)}</span></div>)}
           <div className="mt-3 space-y-1 border-t border-white/10 pt-3 text-sm">
-            <div className="flex justify-between text-white/65"><span>{tr("vn.hist.subtotal")}</span><span>RP {fmt(t.subtotal ?? t.total)}</span></div>
-            {Number(t.discount) > 0 && <div className="flex justify-between text-white/65"><span>{tr("vn.hist.discount")}</span><span>− RP {fmt(t.discount)}</span></div>}
-            {Number(t.serviceFee) > 0 && <div className="flex justify-between text-white/65"><span>{tr("vn.hist.serviceFee")}</span><span>RP {fmt(t.serviceFee)}</span></div>}
-            {Number(t.tax) > 0 && <div className="flex justify-between text-white/65"><span>{tr("vn.hist.tax")}</span><span>RP {fmt(t.tax)}</span></div>}
-            <div className="flex justify-between font-extrabold text-amber-300"><span>{tr("vn.hist.total")}</span><span>RP {fmt(t.total)}</span></div>
+            <div className="flex justify-between text-white/65"><span>{tr("vn.hist.subtotal")}</span><span>{money(t.subtotal ?? t.total)}</span></div>
+            {Number(t.discount) > 0 && <div className="flex justify-between text-white/65"><span>{tr("vn.hist.discount")}</span><span>− {money(t.discount)}</span></div>}
+            {Number(t.serviceFee) > 0 && <div className="flex justify-between text-white/65"><span>{tr("vn.hist.serviceFee")}</span><span>{money(t.serviceFee)}</span></div>}
+            {Number(t.tax) > 0 && <div className="flex justify-between text-white/65"><span>{tr("vn.hist.tax")}</span><span>{money(t.tax)}</span></div>}
+            <div className="flex justify-between font-extrabold text-amber-300"><span>{tr("vn.hist.total")}</span><span>{money(t.total)}</span></div>
             {t.paymentMethod && <div className="flex justify-between text-white/65"><span>{tr("vn.hist.paidBy")}</span><span className="uppercase">{method(t.paymentMethod)}</span></div>}
             {t.paymentReference && <div className="flex justify-between gap-3 text-white/65"><span>{tr("vn.hist.cardRef")}</span><span className="text-right">{t.paymentReference}</span></div>}
-            {t.paymentMethod === "cash" && <><div className="flex justify-between text-white/65"><span>{tr("vn.hist.cashReceived")}</span><span>RP {fmt(t.cashReceived)}</span></div><div className="flex justify-between text-white/65"><span>{tr("vn.hist.change")}</span><span>RP {fmt(t.changeGiven)}</span></div></>}
+            {t.paymentMethod === "cash" && <><div className="flex justify-between text-white/65"><span>{tr("vn.hist.cashReceived")}</span><span>{money(t.cashReceived)}</span></div><div className="flex justify-between text-white/65"><span>{tr("vn.hist.change")}</span><span>{money(t.changeGiven)}</span></div></>}
           </div>
           <p className="pt-2 text-center text-xs text-white/40">{tr("vn.hist.receiptSaved")}</p>
         </div>}
@@ -64,11 +65,11 @@ export default function RebornHistory() {
     </Section>
 
     <Section icon={<Coins />} title={tr("vn.hist.rpKgold")} empty={!data?.wallet?.length}>
-      {data?.wallet?.map((x: any) => <Row key={x.id} title={walletTitle(x)} date={x.createdAt} amount={`${Number(x.rpAmount) ? `${Number(x.rpAmount) > 0 ? "+" : "−"} RP ${fmt(x.rpAmount)}` : ""}${Number(x.rpAmount) && Number(x.kgoldAmount) ? " · " : ""}${Number(x.kgoldAmount) ? `${Number(x.kgoldAmount) > 0 ? "+" : "−"} ${fmt(x.kgoldAmount)} KGOLD` : ""}`} positive={Number(x.rpAmount) > 0 || Number(x.kgoldAmount) > 0} />)}
+      {data?.wallet?.map((x: any) => <Row key={x.id} title={walletTitle(x)} date={x.createdAt} amount={`${Number(x.rpAmount) ? `${Number(x.rpAmount) > 0 ? "+" : "−"} ${moneySymbol()} ${fmt(x.rpAmount)}` : ""}${Number(x.rpAmount) && Number(x.kgoldAmount) ? " · " : ""}${Number(x.kgoldAmount) ? `${Number(x.kgoldAmount) > 0 ? "+" : "−"} ${fmt(x.kgoldAmount)} KGOLD` : ""}`} positive={Number(x.rpAmount) > 0 || Number(x.kgoldAmount) > 0} />)}
     </Section>
 
     <Section icon={<CreditCard />} title={tr("vn.hist.topups")} empty={!data?.topups?.length}>
-      {data?.topups?.map((x: any) => <Row key={x.id} title={`${method(x.paymentMethod)} · ${status(x.status)}`} date={x.createdAt} amount={`RP ${fmt(x.amount)}`} positive={x.status === "approved"} />)}
+      {data?.topups?.map((x: any) => <Row key={x.id} title={`${method(x.paymentMethod)} · ${status(x.status)}`} date={x.createdAt} amount={money(x.amount)} positive={x.status === "approved"} />)}
     </Section>
 
     <Section icon={<Gift />} title={tr("vn.hist.gifts")} empty={!data?.gifts?.length}>

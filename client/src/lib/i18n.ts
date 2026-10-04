@@ -6198,13 +6198,15 @@ export function setLanguage(language: Language): void {
 // company name, and any company the pet name its admin chose (App.tsx sets these).
 const REBORN_NAMES = /Reborn Wave Group|Reborn Wave House|Reborn Wave|REBORN WAVE|Reborn/g;
 const DEFAULT_PET_NAME = "Doluruu";
-let brandWords = { company: "", pet: "" };
-export function setBrandWords(words: { company: string; pet: string }) {
-  brandWords = words;
+let brandWords = { company: "", pet: "", money: "RP" };
+export function setBrandWords(words: { company: string; pet: string; money?: string }) {
+  brandWords = { ...words, money: words.money || "RP" };
 }
 export function brandText(text: string): string {
   const named = brandWords.company ? text.replace(REBORN_NAMES, brandWords.company) : text;
-  return brandWords.pet && brandWords.pet !== DEFAULT_PET_NAME ? named.split(DEFAULT_PET_NAME).join(brandWords.pet) : named;
+  const withPet = brandWords.pet && brandWords.pet !== DEFAULT_PET_NAME ? named.split(DEFAULT_PET_NAME).join(brandWords.pet) : named;
+  // Texts write amounts as "RP …" (rupiah); a company with another currency shows its own symbol.
+  return brandWords.money === "RP" ? withPet : withPet.replace(/\bRP\b/g, brandWords.money);
 }
 
 // Translate outside React (toasts built in helpers, etc.). `{name}` placeholders

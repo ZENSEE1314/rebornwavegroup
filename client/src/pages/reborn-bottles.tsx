@@ -3,6 +3,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useTranslation, localeTag } from "@/lib/i18n";
 import { Wine, Beer, Clock, AlertTriangle, Gift } from "lucide-react";
+import { money } from "@/lib/money";
 
 interface Bottle { id: number; type: string; name: string; quantity: number; photoUrl?: string; daysLeft: number; expiringSoon: boolean; storedAt: string; }
 
@@ -25,7 +26,7 @@ export default function RebornBottles() {
   const packages: any[] = wallet?.packages || [];
   const hasPackages = packages.length > 0 || !!wallet?.perk;
   const day = (d: string) => new Date(d).toLocaleDateString(localeTag(language), { day: "numeric", month: "short", year: "numeric" });
-  const rp = (n: number) => "RP " + Math.round(n || 0).toLocaleString(localeTag(language));
+  const rp = (n: any) => money(n);
 
   return (
     <RebornLayout active="/bottles" title={t("vn.bottles.title")}>

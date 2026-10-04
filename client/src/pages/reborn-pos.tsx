@@ -11,6 +11,7 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
+import { money, roundMoney } from "@/lib/money";
 
 interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
@@ -21,7 +22,7 @@ interface Order { id: number; orderNo: string; tableNumber?: string; memberName?
 type Tab = "tables" | "sell" | "sales" | "stock" | "bottles" | "packages";
 // Translate a server-provided enum value, falling back to the raw value when no key exists.
 const tOr = (t: (k: string) => string, key: string, fallback: string) => { const v = t(key); return v === key ? fallback : v; };
-const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
+const rp = (n: any) => money(n);
 
 async function post(url: string, body?: any) {
   const r = await apiRequest("POST", url, body ?? {});
@@ -90,8 +91,8 @@ function usePosSettings() {
 }
 function billTotals(subtotal: number, discount: number, settings: any) {
   const taxable = Math.max(0, subtotal - Math.min(subtotal, Math.max(0, discount || 0)));
-  const serviceFee = Math.round(taxable * (Number(settings?.serviceFeePercent) || 0) / 100);
-  const tax = Math.round(taxable * (Number(settings?.taxPercent) || 0) / 100);
+  const serviceFee = roundMoney(taxable * (Number(settings?.serviceFeePercent) || 0) / 100);
+  const tax = roundMoney(taxable * (Number(settings?.taxPercent) || 0) / 100);
   return { taxable, serviceFee, tax, total: taxable + serviceFee + tax };
 }
 
@@ -854,7 +855,7 @@ function CreditsLine({ code, total, onBalance }: { code?: string | null; total: 
   });
   const bal = data?.credits !== undefined ? Number(data.credits) : null;
   useEffect(() => { onBalance(bal); }, [bal]);
-  const rp = (n: number) => "RP " + Math.round(n || 0).toLocaleString(localeTag());
+  const rp = (n: any) => money(n);
   if (!code) return <p className="mb-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200">{t("pos.credits.needMember")}</p>;
   if (isLoading || bal === null) return <p className="mb-2 text-xs text-white/50">…</p>;
   const ok = bal >= total;

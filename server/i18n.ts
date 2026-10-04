@@ -4,6 +4,7 @@
 import type { Request } from "express";
 
 import { currentTenant, homeCompanySlug } from "./tenantContext";
+import { companyMoney } from "./companyMoney";
 
 export type Lang = "en" | "zh" | "id";
 export const LANGS: Lang[] = ["en", "zh", "id"];
@@ -40,7 +41,10 @@ export function inBrandVoice(text: string): string {
   const company = currentTenant()?.name;
   const named = company ? text.replace(REBORN_NAMES, company) : text;
   const pet = petNames.get(homeCompanySlug());
-  return pet && pet !== DEFAULT_PET_NAME ? named.split(DEFAULT_PET_NAME).join(pet) : named;
+  const withPet = pet && pet !== DEFAULT_PET_NAME ? named.split(DEFAULT_PET_NAME).join(pet) : named;
+  // Texts write amounts as "RP …" (Reborn's rupiah); another currency shows its own symbol.
+  const { symbol } = companyMoney();
+  return symbol === "RP" ? withPet : withPet.replace(/\bRP\b/g, symbol);
 }
 
 export function tr(req: Request, t: Tri, vars?: Record<string, string | number>): string {

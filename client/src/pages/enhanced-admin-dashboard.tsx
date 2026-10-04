@@ -60,6 +60,7 @@ import {
   Shield,
   Send
 } from "lucide-react";
+import { moneySymbol } from "@/lib/money";
 
 // Admin Logs Section Component
 function AdminLogsSection() {
@@ -2468,7 +2469,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-200 text-sm font-medium">Total Commissions Paid</p>
-                  <p className="text-white text-3xl font-bold">RP {formatMoney(commissionStats?.totalCommissionsPaid || 0)}</p>
+                  <p className="text-white text-3xl font-bold">{moneySymbol()} {formatMoney(commissionStats?.totalCommissionsPaid || 0)}</p>
                 </div>
                 <DollarSign className="h-12 w-12 text-green-400" />
               </div>
@@ -2495,7 +2496,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-xs font-medium">Admin Fees</p>
-                  <p className="text-2xl font-semibold text-white">RP {formatMoney(dashboardStats?.totalCommissionsPaid || 0)}</p>
+                  <p className="text-2xl font-semibold text-white">{moneySymbol()} {formatMoney(dashboardStats?.totalCommissionsPaid || 0)}</p>
                 </div>
                 <DollarSign className="h-6 w-6 text-green-400" />
               </div>
@@ -2507,7 +2508,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-xs font-medium">Total Revenue</p>
-                  <p className="text-2xl font-semibold text-white">RP {formatMoney(dashboardStats?.totalRevenue || 0)}</p>
+                  <p className="text-2xl font-semibold text-white">{moneySymbol()} {formatMoney(dashboardStats?.totalRevenue || 0)}</p>
                 </div>
                 <TrendingUp className="h-6 w-6 text-green-400" />
               </div>
@@ -2804,7 +2805,7 @@ function EnhancedAdminDashboard() {
                         </TableCell>
                         <TableCell className="text-green-300">
                           <div className="flex items-center gap-2">
-                            <span>RP {formatMoney(user.credits || 0)}</span>
+                            <span>{moneySymbol()} {formatMoney(user.credits || 0)}</span>
                             <Button
                               size="sm"
                               variant="outline"
@@ -5219,21 +5220,21 @@ function EnhancedAdminDashboard() {
                       <div className="bg-purple-900/20 border border-purple-400/30 rounded-lg p-4">
                         <div className="text-purple-400 text-sm font-medium">Commission Earnings</div>
                         <div className="text-white text-2xl font-bold">
-                          RP {marketplaceEarningsStats?.totalEarnings?.toLocaleString() || '0'}
+                          {moneySymbol()} {marketplaceEarningsStats?.totalEarnings?.toLocaleString() || '0'}
                         </div>
                         <div className="text-purple-300 text-xs">User-to-user sales (10%)</div>
                       </div>
                       <div className="bg-orange-900/20 border border-orange-400/30 rounded-lg p-4">
                         <div className="text-orange-400 text-sm font-medium">Season Sales</div>
                         <div className="text-white text-2xl font-bold">
-                          RP {marketplaceEarningsStats?.monthlyEarnings?.toLocaleString() || '0'}
+                          {moneySymbol()} {marketplaceEarningsStats?.monthlyEarnings?.toLocaleString() || '0'}
                         </div>
                         <div className="text-orange-300 text-xs">Random seasonal toy purchases</div>
                       </div>
                       <div className="bg-green-900/20 border border-green-400/30 rounded-lg p-4">
                         <div className="text-green-400 text-sm font-medium">Total Earnings</div>
                         <div className="text-white text-2xl font-bold">
-                          RP {((marketplaceEarningsStats?.totalEarnings || 0) + (marketplaceEarningsStats?.monthlyEarnings || 0)).toLocaleString()}
+                          {moneySymbol()} {((marketplaceEarningsStats?.totalEarnings || 0) + (marketplaceEarningsStats?.monthlyEarnings || 0)).toLocaleString()}
                         </div>
                         <div className="text-green-300 text-xs">Combined platform revenue</div>
                       </div>
@@ -5247,7 +5248,7 @@ function EnhancedAdminDashboard() {
                       <div className="bg-purple-900/20 border border-purple-400/30 rounded-lg p-4">
                         <div className="text-purple-400 text-sm font-medium">Avg Commission</div>
                         <div className="text-white text-2xl font-bold">
-                          RP {marketplaceEarningsStats?.averageCommission?.toLocaleString() || '0'}
+                          {moneySymbol()} {marketplaceEarningsStats?.averageCommission?.toLocaleString() || '0'}
                         </div>
                         <div className="text-purple-300 text-xs">Per transaction</div>
                       </div>
@@ -5262,10 +5263,10 @@ function EnhancedAdminDashboard() {
                             <div key={earning.id || index} className="flex justify-between items-center bg-slate-800/60 rounded p-3 border border-slate-600/50">
                               <div>
                                 <div className="text-white font-medium">
-                                  Toy Sale - RP {parseInt(earning.amount).toLocaleString()}
+                                  Toy Sale - {moneySymbol()} {parseInt(earning.amount).toLocaleString()}
                                 </div>
                                 <div className="text-gray-300 text-sm">
-                                  Commission: RP {(parseInt(earning.amount) * 0.1).toLocaleString()} (10%)
+                                  Commission: {moneySymbol()} {(parseInt(earning.amount) * 0.1).toLocaleString()} (10%)
                                 </div>
                               </div>
                               <div className={`text-sm ${earning.status === 'confirmed' ? 'text-green-200' : 'text-yellow-200'}`}>
@@ -5570,7 +5571,7 @@ function EnhancedAdminDashboard() {
                                 <div className="bg-slate-800/50 rounded p-2">
                                   <div className="text-xs text-gray-400">Price</div>
                                   <div className="text-sm text-white">
-                                    RP {(toy.originalPrice || toy.basePrice || 0).toLocaleString()}
+                                    {moneySymbol()} {(toy.originalPrice || toy.basePrice || 0).toLocaleString()}
                                   </div>
                                 </div>
                               </div>

@@ -16,6 +16,9 @@ export interface TenantSpace {
   schema: string;
   // What the company calls itself; built-in texts say this instead of "Reborn".
   name?: string;
+  // Its money and country (bridge_companies.local_currency / country; server/companyMoney.ts).
+  currency?: string;
+  country?: string;
 }
 
 const TENANT_POOL_MAX = 5;

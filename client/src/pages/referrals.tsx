@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Users, Copy, Share2, TrendingUp, DollarSign, Gift } from "lucide-react";
 import ReferralTree from "@/components/referral-tree";
 import { useTranslation, localeTag } from "@/lib/i18n";
+import { moneySymbol } from "@/lib/money";
 
 export default function Referrals() {
   const { user } = useAuth();
@@ -108,7 +109,7 @@ export default function Referrals() {
                 },
                 {
                   label: t("ac.ref.totalEarnings"),
-                  value: `RP ${(referralEarnings?.earnings || 0).toLocaleString(loc)}`,
+                  value: `${moneySymbol()} ${(referralEarnings?.earnings || 0).toLocaleString(loc)}`,
                   sub: t("ac.ref.fromReferrals"),
                   subColor: "text-violet-400",
                   icon: DollarSign,

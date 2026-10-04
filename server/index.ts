@@ -6,6 +6,7 @@ import { registerRebornRoutes } from "./rebornGame";
 import { registerGameRoutes } from "./games";
 import { registerPetHomeRoutes } from "./petHome";
 import { ensureBridgeXSchema, registerBridgeXRoutes } from "./bridgeX";
+import { loadHomeMoney } from "./companyMoney";
 import { ensureMoneyColumns } from "./moneyColumns";
 import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
@@ -110,6 +111,7 @@ app.use((req, res, next) => {
 
   // BridgeXPOS uses the same authenticated session and seeds Reborn as tenant one.
   await ensureBridgeXSchema();
+  await loadHomeMoney();
   await ensureMoneyColumns();
   // Bring every company's own data space up to this version (new tables/columns), then apply
   // the same column fixes the platform tables just received.
