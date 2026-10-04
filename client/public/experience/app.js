@@ -2662,13 +2662,33 @@ function nearestStop(p = progressNow()) {
   for (let i = 1; i < STOPS.length; i++) if (Math.abs(STOPS[i] - p) < Math.abs(STOPS[k] - p)) k = i;
   return k;
 }
+// Our own slow, eased glide between pages (the browser's smooth scroll rushed past the
+// floors): ~1.2 s inside a floor, longer when the lift goes to another floor so the
+// ride up is seen. Nothing else moves the page until it lands.
+const floorAt = (p) => { const s = SEGS[segmentAt(clamp(p))]; return s.floor || s.id; };
+let glide = 0;
+function glideTo(p) {
+  cancelAnimationFrame(glide);
+  const from = scrollY, to = clamp(p) * maxScroll();
+  const lift = floorAt(progressNow()) !== floorAt(p);
+  const dur = REDUCED ? 0 : Math.min(3200, 1100 + Math.abs(to - from) / maxScroll() * 9000 + (lift ? 900 : 0));
+  goingUntil = performance.now() + dur + 400;
+  const t0 = performance.now();
+  const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+  const frame = (now) => {
+    const k = dur ? Math.min(1, (now - t0) / dur) : 1;
+    window.scrollTo(0, from + (to - from) * ease(k));
+    if (k < 1) glide = requestAnimationFrame(frame);
+    else goingUntil = performance.now() + 250; // landed: a short pause before the next page
+  };
+  glide = requestAnimationFrame(frame);
+}
 function goToStop(i) {
   goingTo = Math.max(0, Math.min(STOPS.length - 1, i));
-  goingUntil = performance.now() + 2500; // until it arrives (see the scroll listener), at most 2.5 s
-  scrollToProgress(STOPS[goingTo]);
+  glideTo(STOPS[goingTo]);
 }
 function stepPage(dir) {
-  if (performance.now() < goingUntil) return goToStop(goingTo + dir); // already moving: one more page
+  if (performance.now() < goingUntil) return; // still gliding to a page: wait for it
   const p = progressNow(), eps = 0.002;
   if (dir > 0) { const i = STOPS.findIndex((x) => x > p + eps); goToStop(i < 0 ? STOPS.length - 1 : i); }
   else { let i = 0; for (let k = 0; k < STOPS.length; k++) if (STOPS[k] < p - eps) i = k; goToStop(i); }
@@ -2712,13 +2732,11 @@ addEventListener("keydown", (e) => {
 // Scrollbar drags and anything else that stops between pages: settle on the nearest page.
 let settleTimer = 0;
 addEventListener("scroll", () => {
-  if (performance.now() < goingUntil && Math.abs(progressNow() - STOPS[goingTo]) * maxScroll() < 2) goingUntil = performance.now() + 250; // arrived
   clearTimeout(settleTimer);
   settleTimer = setTimeout(() => {
-    if (touchY !== null) return;
+    if (touchY !== null || performance.now() < goingUntil) return;
     const p = progressNow(), k = nearestStop(p);
     if (Math.abs(STOPS[k] - p) * maxScroll() > 2) goToStop(k);
-    else goingUntil = Math.min(goingUntil, performance.now() + 250); // arrived
   }, 180);
 }, { passive: true });
 

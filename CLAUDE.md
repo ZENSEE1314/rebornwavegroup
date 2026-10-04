@@ -269,6 +269,11 @@ text.
   `stepPage`, `goToStop`); input while a page is still sliding in is ignored, and
   a scroll that stops between pages (scrollbar drag) settles on the nearest one.
   Floor buttons and "skip" jump to a page. A new `.beat` becomes a page by itself.
+- Moves use our own eased glide (`glideTo`), not the browser's smooth scroll: ~1.2–1.5 s
+  inside a floor (e.g. 1F lounge → game rooms), ~2.4 s when the lift goes to another floor
+  (game rooms → 2F private KTV), so each part is introduced in turn. Input during a glide
+  is ignored (one part per swipe, however hard), and native swipe-scroll is off
+  (`touch-action: none` on html/body in style.css; the video dialog keeps it).
   Bump `?v=` on app.js/style.css in index.html after changing them.
 
 ## POS packages (visits + prepaid credit)
