@@ -66,7 +66,9 @@ text.
   rewrites the page head for a company or BridgeX (index.html itself is Reborn's), and the
   router in App.tsx keeps title + icon on the company while moving between pages.
 - App designs: a company picks one of the designs in `shared/appSkins.ts` (BridgeX > White
-  label; saved as `bridge_companies.theme.skin`). The app puts it on `<html data-skin>`
+  label, or the company's main admin in the app: Admin › Settings › App design,
+  `/api/reborn/admin/app-skin`; both save `bridge_companies.theme.skin`, picker in
+  components/AppSkinPicker.tsx). The app puts it on `<html data-skin>`
   and `client/src/skins.css` restyles the member app through variables. New shared app
   classes with hard-coded gold/purple need a line in that file's shared rules.
   Besides the ten dark looks there are five light business styles (`mode: "light"`):

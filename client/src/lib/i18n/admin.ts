@@ -1058,6 +1058,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.bx.admins.promoted': { en: '{email} already had an account here and is now an admin (password unchanged).', zh: '{email} 在此已有账号，现已成为管理员（密码未更改）。', id: '{email} sudah punya akun di sini dan sekarang menjadi admin (kata sandi tidak berubah).' },
   'admin.bx.admins.newPassword': { en: 'New temporary password for {email}: {password}', zh: '{email} 的新临时密码：{password}', id: 'Kata sandi sementara baru untuk {email}: {password}' },
   'admin.bx.admins.removed': { en: '{email} is no longer an admin.', zh: '{email} 不再是管理员。', id: '{email} bukan admin lagi.' },
+  'admin.set.skinNote': { en: "Tap a design, then Save. Members see it the next time they open the app.", zh: "点选一个设计，然后保存。会员下次打开应用时可见。", id: "Ketuk desain, lalu Simpan. Member melihatnya saat membuka aplikasi lagi." },
+  'admin.set.skinSave': { en: "Save app design", zh: "保存应用设计", id: "Simpan desain aplikasi" },
   'admin.bx.skin.title': { en: 'App design', zh: '应用设计', id: 'Desain aplikasi' },
   'admin.bx.skin.hint': { en: "Pick the look of this company's app — colours, fonts, shapes, header and menu all change. Every design has the same functions.", zh: '为该公司的应用选择外观——颜色、字体、形状、顶栏和菜单都会改变。所有设计功能相同。', id: 'Pilih tampilan aplikasi perusahaan ini — warna, huruf, bentuk, header dan menu ikut berubah. Semua desain punya fungsi yang sama.' },
   'admin.bx.skin.saveNote': { en: 'Press "Save white label" to apply. Members see it the next time they open the app.', zh: '点击“Save white label”生效。会员下次打开应用时可见。', id: 'Tekan "Save white label" untuk menerapkan. Member melihatnya saat membuka aplikasi lagi.' },

@@ -14,6 +14,8 @@ import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
 import { APP_FEATURES } from "@/lib/features";
 import { printClosingReport, printReceipt } from "@/lib/receipt";
 import { money, moneySymbol, moneyStep, roundMoney, appMoney } from "@/lib/money";
+import { AppSkinPicker } from "@/components/AppSkinPicker";
+import { applyAppSkin } from "@/lib/appSkin";
 import { computeContributions, type PayrollRules, type CpfRules } from "@shared/payrollRules";
 import { countryOf } from "@shared/countries";
 
@@ -695,6 +697,28 @@ function DailyCheckinSettings() {
   );
 }
 
+// App design for this company's member app (same choice as BridgeX › White label).
+function AppDesignSettings() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/app-skin"], queryFn: () => apiRequest("GET", "/api/reborn/admin/app-skin").then((r) => r.json()) });
+  const [pick, setPick] = useState<string | null>(null);
+  const skin = pick || data?.skin || "";
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/app-skin", { skin }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); applyAppSkin(d.skin); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/app-skin"] }); qc.invalidateQueries({ queryKey: ["tenant-brand"] }); setPick(null); },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+  if (!data) return null;
+  return (
+    <Card>
+      <AppSkinPicker value={skin} onChange={setPick} note={t("admin.set.skinNote")} />
+      <button onClick={() => save.mutate()} disabled={save.isPending || !pick || pick === data.skin} className="mt-3 w-full rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.set.skinSave")}</button>
+    </Card>
+  );
+}
+
 function Settings() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -711,6 +735,7 @@ function Settings() {
   const updateTier = (index: number, patch: any) => setLoyalty({ tiers: (loyalty.tiers || []).map((tier: any, i: number) => i === index ? { ...tier, ...patch } : tier) });
   return (
     <div className="space-y-4">
+      <AppDesignSettings />
       <DailyCheckinSettings />
       <Card>
         <h3 className="font-bold mb-3 flex items-center gap-2"><Coins className="w-4 h-4 text-amber-300" /> {t("admin.set.kgold")}</h3>
