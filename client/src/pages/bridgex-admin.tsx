@@ -28,6 +28,60 @@ const FLAGSHIP_SLUG = "reborn-wave-group";
 export const field = "w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400";
 export const button = "rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-cyan-300 disabled:opacity-50";
 
+// The admins of one company's own app. They live in that company's data, so BridgeX is
+// where a first admin is created or a lost password is replaced.
+function CompanyAdmins({ company, onMsg }: { company: Company; onMsg: (message: string) => void }) {
+  const { t } = useTranslation();
+  const base = `/api/v1/platform/companies/${company.id}/admins`;
+  const [admins, setAdmins] = useState<Row[]>([]);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [busy, setBusy] = useState(false);
+  const load = () => request(base).then(setAdmins).catch((e) => { setAdmins([]); onMsg(e.message); });
+  useEffect(() => { load(); }, [company.id, company.dataMode]);
+  const run = async (work: () => Promise<string>) => {
+    setBusy(true);
+    try { onMsg(await work()); await load(); } catch (e: any) { onMsg(e.message); } finally { setBusy(false); }
+  };
+  const create = () => run(async () => {
+    const made = await request(base, { method: "POST", body: JSON.stringify(form) });
+    setForm({ name: "", email: "", password: "" });
+    if (made.existing) return t("admin.bx.admins.promoted", { email: made.email });
+    return made.temporaryPassword ? t("admin.bx.admins.createdTemp", { email: made.email, password: made.temporaryPassword }) : t("admin.bx.admins.created", { email: made.email });
+  });
+  const resetPassword = (admin: Row) => run(async () => {
+    const reset = await request(`${base}/${admin.id}/password`, { method: "POST", body: "{}" });
+    return t("admin.bx.admins.newPassword", { email: admin.email, password: reset.temporaryPassword });
+  });
+  const remove = (admin: Row) => {
+    if (!window.confirm(t("admin.bx.admins.confirmRemove", { email: admin.email }))) return;
+    run(async () => { await request(`${base}/${admin.id}`, { method: "DELETE" }); return t("admin.bx.admins.removed", { email: admin.email }); });
+  };
+  return (
+    <div className="mt-6 rounded-xl border border-white/10 bg-white/[.03] p-4">
+      <b>{t("admin.bx.admins.title", { name: company.appName || company.name })}</b>
+      <p className="mt-1 text-xs text-slate-400">{t("admin.bx.admins.hint")}</p>
+      <div className="mt-3 grid gap-2">
+        {admins.length === 0 && <p className="text-sm text-amber-300">{t("admin.bx.admins.none")}</p>}
+        {admins.map((admin) => (
+          <div key={admin.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="min-w-0"><b className="block truncate">{[admin.firstName, admin.lastName].filter(Boolean).join(" ") || admin.email}</b><span className="block truncate text-xs text-slate-400">{admin.email}</span></div>
+            <div className="flex gap-3">
+              <button disabled={busy} className="text-xs text-cyan-300 disabled:opacity-40" onClick={() => resetPassword(admin)}>{t("admin.bx.admins.reset")}</button>
+              <button disabled={busy} className="text-xs text-red-300 disabled:opacity-40" onClick={() => remove(admin)}>{t("admin.bx.admins.remove")}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-3">
+        <input className={field} placeholder={t("admin.bx.admins.name")} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <input className={field} type="email" autoCapitalize="none" placeholder={t("admin.bx.admins.email")} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        <input className={field} type="text" autoComplete="off" placeholder={t("admin.bx.admins.password")} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+      </div>
+      <button disabled={busy || !form.email.includes("@")} className={button + " mt-3"} onClick={create}><Plus className="mr-1 inline h-4 w-4" />{t("admin.bx.admins.create")}</button>
+    </div>
+  );
+}
+
 // The ten app designs, each drawn as a small phone so the admin sees what they are choosing.
 function AppSkinPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const { t } = useTranslation();
@@ -116,6 +170,8 @@ export default function BridgeXAdmin() {
 
   async function loadCompanies() {
     const [boot,list] = await Promise.all([request("/api/v1/platform/bootstrap"),request("/api/v1/companies")]);
+    // Signed in, but not a BridgeX account (a member of Reborn or of another company): out.
+    if (!boot.platformAdmin && list.length === 0) { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {}); location.replace("/bridgexpos/login"); return; }
     setPlatformAdmin(boot.platformAdmin); setSuperAdmin(!!boot.superAdmin); setCompanies(list); setCompanyId((current) => current || list[0]?.id); setLoaded(true);
     if (boot.platformAdmin) setApplications(await request("/api/v1/platform/applications"));
   }
@@ -194,6 +250,7 @@ export default function BridgeXAdmin() {
         <button disabled={busy || !companyForm.name} className={button+" mt-4"} onClick={()=>act(async()=>{const result=await request("/api/v1/platform/companies",{method:"POST",body:JSON.stringify(companyForm)}); if(result.temporaryPassword) setMessage(`Company created. Temporary owner password: ${result.temporaryPassword}`); setCompanyForm({...companyForm,name:"",appName:"",adminEmail:"",websiteDomain:""});},"Company created") }><Plus className="mr-1 inline h-4 w-4"/>Create company</button>
         </>}
         <div className="mt-5 grid gap-3 md:grid-cols-2">{companies.map(c=><div key={c.id} className={`rounded-xl border p-4 ${c.id===companyId?"border-cyan-400/60 bg-cyan-400/5":"border-white/10 bg-white/[.03]"}`}><button className="w-full text-left" onClick={()=>setCompanyId(c.id)}><div className="flex justify-between"><b>{c.name}</b><span className={`text-xs uppercase ${c.subscriptionStatus==="active"?"text-emerald-300":c.subscriptionStatus==="trialing"?"text-amber-300":"text-red-300"}`}>{c.subscriptionStatus||c.status}</span></div><p className="mt-1 text-sm text-slate-400">{c.appName} · {c.industry} · {c.billingCycle || "monthly"}</p></button><a className="mt-1 block truncate text-xs text-cyan-300 underline-offset-2 hover:underline" href={tenantUrl(c)} target="_blank" rel="noopener noreferrer">{tenantUrl(c)}</a><p className="mt-1 text-xs text-slate-400">{t("admin.bx.data.label")}: <span className={c.dataMode==="shared"&&c.slug!==FLAGSHIP_SLUG?"text-red-300":"text-slate-200"}>{c.slug===FLAGSHIP_SLUG?t("admin.bx.data.platform"):t(`admin.bx.data.${c.dataMode||"shared"}`)}</span></p>{c.trialEndsAt&&<p className="mt-1 text-xs text-slate-500">Trial ends {new Date(c.trialEndsAt).toLocaleDateString()}</p>}{platformAdmin&&<div className="mt-3 flex flex-wrap gap-3">{c.slug!==FLAGSHIP_SLUG&&c.dataMode!=="schema"&&<button className="text-xs text-cyan-300" onClick={()=>{ if(!window.confirm(t("admin.bx.data.confirmSchema",{name:c.name}))) return; act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({dataMode:"schema"})}),t("admin.bx.data.done")); }}>{t("admin.bx.data.makeSchema")}</button>}{c.slug!==FLAGSHIP_SLUG&&<button className="text-xs text-violet-300" onClick={()=>{ const url=window.prompt(t("admin.bx.data.askServerUrl"),c.serverUrl||"https://"); if(!url||!/^https?:\/\/.+/.test(url)) return; act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({dataMode:"dedicated",serverUrl:url})}),t("admin.bx.data.done")); }}>{t("admin.bx.data.makeDedicated")}</button>}<button className="text-xs text-emerald-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({subscriptionStatus:"active"})}),"Merchant marked paid and activated")}>Mark paid</button><button className="text-xs text-amber-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({trialDays:7})}),"Seven-day trial started")}>Give 7-day trial</button><button className="text-xs text-red-300" onClick={()=>act(()=>request(`/api/v1/platform/companies/${c.id}`,{method:"PATCH",body:JSON.stringify({subscriptionStatus:"unpaid"})}),"Merchant marked unpaid and app locked")}>Mark unpaid</button></div>}</div>)}</div>
+      {platformAdmin && selected && <CompanyAdmins company={selected} onMsg={setMessage} />}
       </Panel>}
 
       {tab === "applications" && <Panel title="Merchant applications" subtitle="Review what each company requested, then approve or reject its activation."><div className="space-y-3">{applications.length===0&&<p className="text-sm text-slate-500">No applications yet.</p>}{applications.map(a=><div key={a.id} className="rounded-xl border border-white/10 bg-white/[.03] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><b>{a.company_name}</b><p className="text-sm text-slate-400">{a.contact_name} · {a.contact_email} · {a.contact_phone||"No phone"}</p><p className="mt-2 text-xs text-slate-500">{a.requirements?.outletCount||1} outlet(s) · {a.requirements?.expectedStaff||1} staff · {(a.requirements?.requestedModules||[]).join(", ")}</p>{a.requirements?.notes&&<p className="mt-2 text-sm text-slate-300">{a.requirements.notes}</p>}</div><span className="rounded-full bg-white/5 px-3 py-1 text-xs uppercase text-cyan-300">{a.status}</span></div>{a.status!=="approved"&&<div className="mt-3 flex gap-3"><button className="text-xs font-bold text-emerald-300" onClick={()=>act(()=>request(`/api/v1/platform/applications/${a.id}`,{method:"PATCH",body:JSON.stringify({status:"approved"})}),"Merchant approved")}>Approve</button><button className="text-xs font-bold text-red-300" onClick={()=>act(()=>request(`/api/v1/platform/applications/${a.id}`,{method:"PATCH",body:JSON.stringify({status:"rejected"})}),"Merchant rejected")}>Reject</button></div>}</div>)}</div></Panel>}

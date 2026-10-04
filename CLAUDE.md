@@ -56,6 +56,11 @@ text.
   (server i18n) swap in the company's name and the pet name its admin set (Admin > Pet,
   settings `petName` / `petImageUrl` / `petEggImageUrl`). Keep writing texts through
   `t()` / `tr()` / `pick()` so this keeps working.
+- BridgeX, Reborn and each company are separate places with separate logins. On the BridgeX
+  host a browser is either inside a company (entered through `/t/<slug>`) or on BridgeX
+  itself, which never opens the Reborn member app; opening `/bridgex*` leaves the company.
+  The BridgeX login only accepts its platform team and company owners/managers. A company's
+  app admins are created and reset from the console (Companies > "Admins of the … app").
 - App designs: a company picks one of the designs in `shared/appSkins.ts` (BridgeX > White
   label; saved as `bridge_companies.theme.skin`). The app puts it on `<html data-skin>`
   and `client/src/skins.css` restyles the member app through variables. New shared app

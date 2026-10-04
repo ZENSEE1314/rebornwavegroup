@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
-import { DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT, homeCompanySlug } from "./tenantContext";
+import { DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT, homeCompanySlug, runInTenant } from "./tenantContext";
 import { DATA_MODES, DEFAULT_DATA_MODE, setCompanyDataMode, type DataMode } from "./tenantSpace";
 import { getUserId } from "./multiAuth";
 import { DEFAULT_APP_SKIN, isAppSkin } from "../shared/appSkins";
@@ -317,6 +317,8 @@ async function notifyKitchen(companyId: number, ticket: any, lines: any[]) {
   await sendBridgeXNotifications(companyId, ids, { type: "new_order", title: `Order ${ticket.orderNo}`, body: `${lines.length} item${lines.length === 1 ? "" : "s"}${ticket.tableNumber ? ` · Table ${ticket.tableNumber}` : ""}`, data: { ticketId: ticket.id, ...(isReborn ? { path: "/reborn-pos" } : {}) } });
 }
 
+const MIN_ADMIN_PASSWORD = 8;
+
 async function ensureUser(email: string, name: string, password?: string) {
   const normalized = email.trim().toLowerCase();
   const existing = (await db.select().from(users).where(eq(users.email, normalized)).limit(1))[0];
@@ -329,6 +331,18 @@ async function ensureUser(email: string, name: string, password?: string) {
     mustChangePassword: true,
   }).returning();
   return { user, temporaryPassword };
+}
+
+// Runs `work` against the users of one company: its own data space, or the platform's
+// tables for the home company. A company on its own server is managed there.
+async function inCompanySpace<T>(companyId: number, work: () => Promise<T>): Promise<T> {
+  const [company] = await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
+  if (!company) throw new Error("Company not found");
+  if (company.dataMode === "schema" && company.dbSchema) {
+    return runInTenant({ companyId: company.id, slug: company.slug, schema: company.dbSchema, name: company.appName || company.name }, work);
+  }
+  if (company.slug === DEFAULT_COMPANY_SLUG) return work();
+  throw new Error("This company runs on its own server. Manage its admins there.");
 }
 
 async function createCompany(req: Request, ownerUserId: string, body: any) {
@@ -745,6 +759,48 @@ export function registerBridgeXRoutes(app: Express) {
   app.delete("/api/v1/platform/admins/:userId", route(async (req, res) => {
     if (!(await isSuperAdmin(req))) return res.status(403).json({ message: "Super admin only" });
     await db.execute(sql`DELETE FROM bridge_platform_admins WHERE user_id=${req.params.userId}`); res.json({ ok: true });
+  }));
+
+  // A company's admins live in that company's own data — BridgeX creates and resets them here.
+  app.get("/api/v1/platform/companies/:id/admins", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const admins = await inCompanySpace(Number(req.params.id), () =>
+      db.select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName, createdAt: users.createdAt }).from(users).where(eq(users.role, "admin")).orderBy(users.createdAt));
+    res.json(admins);
+  }));
+  app.post("/api/v1/platform/companies/:id/admins", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!email.includes("@")) return res.status(400).json({ message: "A valid email is required" });
+    const password = String(req.body?.password || "");
+    if (password && password.length < MIN_ADMIN_PASSWORD) return res.status(400).json({ message: `Password must be at least ${MIN_ADMIN_PASSWORD} characters` });
+    const created = await inCompanySpace(Number(req.params.id), async () => {
+      const ensured = await ensureUser(email, String(req.body?.name || "").trim() || "Admin", password || undefined);
+      await db.update(users).set({ role: "admin" }).where(eq(users.id, ensured.user.id));
+      return ensured;
+    });
+    res.status(201).json({ id: created.user.id, email, existing: !created.temporaryPassword, temporaryPassword: password ? null : created.temporaryPassword });
+  }));
+  app.post("/api/v1/platform/companies/:id/admins/:userId/password", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const temporaryPassword = `BX-${randomUUID().slice(0, 8)}`;
+    const hash = await bcrypt.hash(temporaryPassword, 12);
+    const changed = await inCompanySpace(Number(req.params.id), () =>
+      db.update(users).set({ password: hash, mustChangePassword: true }).where(and(eq(users.id, req.params.userId), eq(users.role, "admin"))).returning({ id: users.id }));
+    if (!changed.length) return res.status(404).json({ message: "Admin not found" });
+    res.json({ temporaryPassword });
+  }));
+  app.delete("/api/v1/platform/companies/:id/admins/:userId", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const companyId = Number(req.params.id);
+    const outcome = await inCompanySpace(companyId, async () => {
+      const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
+      if (admins.length <= 1) return "last";
+      await db.update(users).set({ role: "user" }).where(and(eq(users.id, req.params.userId), eq(users.role, "admin")));
+      return "ok";
+    });
+    if (outcome === "last") return res.status(400).json({ message: "A company needs at least one admin. Create another admin first." });
+    res.json({ ok: true });
   }));
 
   app.get("/api/v1/platform/companies", route(async (req, res) => {

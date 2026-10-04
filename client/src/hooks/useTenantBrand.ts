@@ -22,6 +22,12 @@ export function rememberTenantSlug(slug: string) {
   document.cookie = `${TENANT_COOKIE}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR_S}; SameSite=Lax`;
 }
 
+// Leaving a business (opening BridgeX itself): this browser is no longer inside it.
+export function forgetTenantSlug() {
+  try { localStorage.removeItem(TENANT_SLUG_KEY); } catch {}
+  document.cookie = `${TENANT_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+}
+
 // The business this visitor entered through: `?tenant=<slug>` (app start URL) wins and
 // is remembered, otherwise the last /t/<slug> they opened.
 export function rememberedTenantSlug(): string {

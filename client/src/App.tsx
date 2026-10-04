@@ -97,7 +97,8 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 }
 
 // ── Eagerly loaded — critical first-paint pages ────────────────────────────────
-import { FLAGSHIP_TENANT_SLUG, rememberedTenantSlug, useTenantBrand } from "@/hooks/useTenantBrand";
+import { FLAGSHIP_TENANT_SLUG, forgetTenantSlug, rememberedTenantSlug, useTenantBrand } from "@/hooks/useTenantBrand";
+import { applyAppSkin } from "@/lib/appSkin";
 import { usePetBrand } from "@/hooks/usePetBrand";
 import { setBrandWords } from "@/lib/i18n";
 import Login from "@/pages/Login";
@@ -197,6 +198,18 @@ const GatedMyReferral = gated("/my-referral", MyReferral);
 const GatedLoyaltyProgram = gated("/loyalty-program", LoyaltyProgram);
 const GatedRebornHistory = gated("/history", RebornHistory);
 
+// BridgeX and each company are separate places. Opening a BridgeX page leaves the company
+// this browser was in (its login, name and design), before anything is loaded.
+if (window.location.pathname.startsWith("/bridgex")) {
+  forgetTenantSlug();
+  applyAppSkin("");
+}
+
+function ToBridgeXConsole() {
+  window.location.replace("/bridgex");
+  return null;
+}
+
 function HomeRedirect() {
   const brand = useTenantBrand();
   if (brand.isLoading) return null;
@@ -241,12 +254,17 @@ function Router() {
   const { toast } = useToast();
   const bridgeXHost = /bridgexpos/i.test(window.location.hostname) || (import.meta.env.VITE_BRIDGEX_DOMAIN && window.location.hostname === import.meta.env.VITE_BRIDGEX_DOMAIN);
   const [brandLoc] = useLocation();
+  // On the BridgeX site a visitor is either inside a company (entered through /t/<slug>) or
+  // on BridgeX itself. BridgeX itself never opens the Reborn member app.
+  const enteredSlug = rememberedTenantSlug();
+  const inCompany = tenantBrand.isLoading ? !!enteredSlug && enteredSlug !== FLAGSHIP_TENANT_SLUG : tenantBrand.isWhiteLabel;
+  const onBridgeXItself = !!bridgeXHost && !inCompany;
 
   // BridgeX platform pages carry BridgeX branding (tab title + favicon), not the tenant's.
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
     if (link && !(link as any)._orig) { (link as any)._orig = link.href; (link as any)._origTitle = document.title; }
-    const onBridge = bridgeXHost || /^\/bridgex/i.test(brandLoc);
+    const onBridge = onBridgeXItself || /^\/bridgex/i.test(brandLoc);
     if (onBridge) {
       document.title = "BridgeXPOS — Business Operating System";
       if (link) link.href = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#22d3ee'/><text x='32' y='45' font-family='Arial,Helvetica,sans-serif' font-size='32' font-weight='bold' text-anchor='middle' fill='#06121d'>BX</text></svg>");
@@ -254,7 +272,7 @@ function Router() {
       document.title = (link as any)._origTitle || document.title;
       link.href = (link as any)._orig;
     }
-  }, [brandLoc, bridgeXHost]);
+  }, [brandLoc, onBridgeXItself]);
 
   // Keep every active screen current. Server-sent events update immediately;
   // the timer covers mobile networks that temporarily suspend the stream.
@@ -351,7 +369,7 @@ function Router() {
     <Suspense fallback={<PageLoader />}>
       <Switch>
         {/* Login route should always be accessible */}
-        <Route path="/login" component={Login} />
+        <Route path="/login" component={onBridgeXItself ? BridgeXLogin : Login} />
         <Route path="/bridgexpos" component={BridgeXLanding} />
         <Route path="/bridgexpos/login" component={BridgeXLogin} />
         <Route path="/bridgexpos/apply" component={BridgeXApply} />
@@ -369,9 +387,11 @@ function Router() {
 
         {!isAuthenticated ? (
           <>
-            <Route path="/" component={bridgeXHost ? BridgeXLanding : HomeRedirect} />
+            <Route path="/" component={onBridgeXItself ? BridgeXLanding : HomeRedirect} />
             {["/kos", "/songs", "/events", "/order", "/pet", "/bookings", "/chat", "/games", "/spin", "/bottles", "/profile", "/history"].map((p) => <Route key={p} path={p} component={LoginFirst} />)}
           </>
+        ) : onBridgeXItself ? (
+          <Route component={ToBridgeXConsole} />
         ) : (
           <>
             {/* New member dashboard is the home; full legacy app still at /complete-app */}
@@ -425,7 +445,7 @@ function App() {
   }, []);
   useEffect(() => {
     const host = window.location.hostname;
-    const isBridgeX = /bridgexpos/i.test(host) || window.location.pathname.startsWith("/bridgex");
+    const isBridgeX = (/bridgexpos/i.test(host) && !rememberedTenantSlug()) || window.location.pathname.startsWith("/bridgex");
     if (isBridgeX) {
       document.title = "BridgeXPOS | White-label POS for every business";
       const description = document.querySelector("meta[name='description']");

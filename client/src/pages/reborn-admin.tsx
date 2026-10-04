@@ -6,6 +6,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
 import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
+import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +33,8 @@ function useAdminRole(): AdminRole {
 
 export default function RebornAdmin() {
   const { user } = useAuth();
+  // BridgeX has its own accounts; another company's admin has no shortcut into it.
+  const { isWhiteLabel } = useTenantBrand();
   const isFullAdmin = (user as any)?.role === "admin";
   const role = useAdminRole();
   const modules = useModules();
@@ -43,7 +46,7 @@ export default function RebornAdmin() {
   const go = (tb: string) => { if (tb === "POS") { window.location.href = "/pos"; return; } setTab(tb); };
   return (
     <RebornLayout active="/reborn-admin" title={t("admin.title")}>
-      {isFullAdmin && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">{t("admin.companySetup")}</b><span className="text-xs text-cyan-100/60">{t("admin.companySetupHint")}</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">{t("admin.c.open")}</span></a>}
+      {isFullAdmin && !isWhiteLabel && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">{t("admin.companySetup")}</b><span className="text-xs text-cyan-100/60">{t("admin.companySetupHint")}</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">{t("admin.c.open")}</span></a>}
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
         {TABS.map((tb) => (
           <button key={tb} onClick={() => go(tb)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === tb ? "text-black" : "text-white/60"}`} style={tab === tb ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[tb]}{t(tabKey(tb))}</button>
