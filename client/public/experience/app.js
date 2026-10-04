@@ -72,6 +72,14 @@ const LANG = (() => {
 const tl = (o) => o[LANG] || o.en;
 // App-stop texts (the overlay uses data-t keys; the 3D icons use APP_FEATURES).
 const APP_TEXT = {
+  liftEyebrow: { en: "The lift", zh: "电梯", id: "Lift" },
+  lift2: { en: "Going up · 2F Private KTV & Beauty", zh: "上楼 · 2F 私人KTV与美容", id: "Naik · 2F KTV Privat & Kecantikan" },
+  lift3: { en: "Going up · 3F VIP & Beauty spa", zh: "上楼 · 3F VIP与美容SPA", id: "Naik · 3F VIP & Spa kecantikan" },
+  lift4: { en: "Going up · 4F Restaurant & Pet room", zh: "上楼 · 4F 餐厅与宠物房", id: "Naik · 4F Restoran & Ruang hewan" },
+  lift5: { en: "Going up · 5F Rooftop bar", zh: "上楼 · 5F 天台酒吧", id: "Naik · 5F Rooftop bar" },
+  spaEyebrow: { en: "3F · Beauty spa", zh: "3F · 美容SPA", id: "3F · Spa kecantikan" },
+  spaTitle: { en: "Relax, then party", zh: "先放松，再狂欢", id: "Santai dulu, lalu pesta" },
+  spaBody: { en: "Beauty rooms 6–8 for facials, massage and hair — right next to the VIP rooms.", zh: "6–8号美容室：面部护理、按摩和美发——就在VIP包厢旁边。", id: "Ruang kecantikan 6–8 untuk facial, pijat dan rambut — tepat di sebelah ruang VIP." },
   eyebrow: { en: "Get the app", zh: "下载应用", id: "Unduh aplikasi" },
   title: { en: "Reborn Wave in your pocket", zh: "把 Reborn Wave 装进口袋", id: "Reborn Wave di genggamanmu" },
   body: { en: "Book rooms, order drinks, request songs, play live games, raise your pet and send KOS gifts — all in one app.", zh: "预订包厢、点饮品、点歌、玩实时游戏、养宠物、送 KOS 礼物——一个应用全搞定。", id: "Booking ruangan, pesan minuman, request lagu, main game live, rawat peliharaan dan kirim hadiah KOS — semua dalam satu aplikasi." },
@@ -2749,8 +2757,9 @@ document.querySelector(".skip").addEventListener("click", (e) => { e.preventDefa
 
 function updateOverlays(p, segIdx) {
   for (const { el, a, b } of beats) {
-    const fin = a <= 0 ? 1 : clamp((p - a) / BEAT_FADE);
-    const fout = b >= 1 ? 1 : clamp((b - p) / BEAT_FADE);
+    const fade = Math.min(BEAT_FADE, (b - a) / 3); // short pages (the lift) still show fully at their stop
+    const fin = a <= 0 ? 1 : clamp((p - a) / fade);
+    const fout = b >= 1 ? 1 : clamp((b - p) / fade);
     const o = smooth(Math.min(fin, fout));
     el.style.opacity = o.toFixed(3);
     el.style.transform = `translateY(${((1 - o) * 18).toFixed(1)}px)`;
