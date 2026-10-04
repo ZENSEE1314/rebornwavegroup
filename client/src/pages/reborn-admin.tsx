@@ -653,20 +653,21 @@ function DailyCheckinSettings() {
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   if (!cur) return null;
-  const setR = (k: string, patch: any) => setE({ ...cur, [k]: { ...cur[k], ...patch } });
-  const row = (k: "daily" | "week" | "big", label: string) => {
-    const r = cur[k] || { type: "none", amount: 0 };
+  const days: any[] = cur.days || [];
+  const setDay = (i: number, patch: any) => setE({ ...cur, days: days.map((r, k) => (k === i ? { ...r, ...patch } : r)) });
+  // Copy day 1's reward to every normal day (not the 7th days or day 30).
+  const copyDay1 = () => setE({ ...cur, days: days.map((r, k) => ((k + 1) % 7 === 0 || k === 29 ? r : { ...days[0] })) });
+  const dayBox = (r: any, i: number) => {
+    const d = i + 1, kind = d === 30 ? "big" : d % 7 === 0 ? "week" : "";
     return (
-      <div key={k} className="rounded-xl border border-white/10 bg-black/20 p-2.5">
-        <p className="text-xs font-semibold text-white/70 mb-1.5">{label}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <select value={r.type} onChange={(ev) => setR(k, { type: ev.target.value })} className={inp}>
-            {["none", "points", "rp", "tokens", "kgold", "prize"].filter((x) => k !== "daily" || x !== "none" || r.type === "none").map((x) => <option key={x} value={x}>{t(`admin.ci.type.${x}`)}</option>)}
-          </select>
-          {r.type === "prize"
-            ? <select value={r.prizeId || ""} onChange={(ev) => setR(k, { prizeId: Number(ev.target.value) || null })} className={inp}><option value="">{t("admin.ci.pickPrize")}</option>{prizes.map((p: any) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
-            : r.type !== "none" && <input type="number" inputMode="numeric" min={0} value={r.amount || ""} onFocus={(ev) => ev.currentTarget.select()} onChange={(ev) => setR(k, { amount: Number(ev.target.value) })} placeholder={t("admin.ci.amount")} className={inp} />}
-        </div>
+      <div key={d} className={`rounded-xl border p-2 ${kind === "big" ? "border-amber-400/60 bg-amber-400/10" : kind === "week" ? "border-fuchsia-400/50 bg-fuchsia-500/10" : "border-white/10 bg-black/20"}`}>
+        <p className="text-[11px] font-bold text-white/75 mb-1">{kind === "big" ? "👑 " : kind === "week" ? "🎁 " : ""}{t("admin.ci.dayN", { n: d })}</p>
+        <select value={r?.type || "none"} onChange={(ev) => setDay(i, { type: ev.target.value })} className={inp + " w-full mb-1 !py-1.5 text-xs"}>
+          {["none", "points", "rp", "tokens", "kgold", "prize"].map((x) => <option key={x} value={x}>{t(`admin.ci.type.${x}`)}</option>)}
+        </select>
+        {r?.type === "prize"
+          ? <select value={r.prizeId || ""} onChange={(ev) => setDay(i, { prizeId: Number(ev.target.value) || null })} className={inp + " w-full !py-1.5 text-xs"}><option value="">{t("admin.ci.pickPrize")}</option>{prizes.map((p: any) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
+          : r?.type && r.type !== "none" && <input type="number" inputMode="numeric" min={0} value={r.amount || ""} onFocus={(ev) => ev.currentTarget.select()} onChange={(ev) => setDay(i, { amount: Number(ev.target.value) })} placeholder={t("admin.ci.amount")} className={inp + " w-full !py-1.5 text-xs"} />}
       </div>
     );
   };
@@ -678,10 +679,12 @@ function DailyCheckinSettings() {
       <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!cur.enabled} onChange={(ev) => setE({ ...cur, enabled: ev.target.checked })} /> {t("admin.ci.enabled")}</label>
       <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={cur.autoClaim !== false} onChange={(ev) => setE({ ...cur, autoClaim: ev.target.checked })} /> {t("admin.ci.auto")} <span className="text-white/40 text-xs">{t("admin.ci.autoHint")}</span></label>
       <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={cur.resetOnMiss !== false} onChange={(ev) => setE({ ...cur, resetOnMiss: ev.target.checked })} /> {t("admin.ci.reset")} <span className="text-white/40 text-xs">{t("admin.ci.resetHint")}</span></label>
-      <div className="space-y-2 mb-3">
-        {row("daily", t("admin.ci.daily"))}
-        {row("week", t("admin.ci.week"))}
-        {row("big", t("admin.ci.big"))}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-xs text-white/60">{t("admin.ci.daysHint")}</p>
+        <button onClick={copyDay1} className="shrink-0 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white/75">{t("admin.ci.copyDay1")}</button>
+      </div>
+      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(118px, 1fr))" }}>
+        {days.map(dayBox)}
       </div>
       {prizes.length === 0 && <p className="text-[11px] text-white/40 mb-2">{t("admin.ci.noPrizes")}</p>}
       <button onClick={() => save.mutate()} disabled={!e || save.isPending} className={btn + " disabled:opacity-50"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
@@ -830,19 +833,49 @@ function levelPreview(base: number, growth: number, list: string) {
   for (let lv = 2; lv <= 50; lv++) at[lv] = Math.max(at[lv - 1] + 1, nums.length >= lv - 1 ? nums[lv - 2] : lv === 2 ? (base || 1000000) : Math.round(at[lv - 1] * g));
   return at;
 }
+// Settings › Gift levels: all 50 levels of Gifter (KGOLD sent) and Star (KGOLD received),
+// each box the total KGOLD needed for that level. Editing a box saves the exact list
+// (`giftLevel*List`, 49 numbers for Lv.2–50); "Fill from formula" rewrites every box
+// from Lv.2 = base, then × growth each level.
 function GiftLevelSettings({ cur, set, setStr }: any) {
   const { t } = useTranslation();
   const block = (p: "Sender" | "Receiver") => {
-    const at = levelPreview(Number(cur[`giftLevel${p}Base`]), Number(cur[`giftLevel${p}Growth`]), cur[`giftLevel${p}List`]);
+    const key = `giftLevel${p}List`;
+    const at = levelPreview(Number(cur[`giftLevel${p}Base`]), Number(cur[`giftLevel${p}Growth`]), cur[key]);
+    const typed = String(cur[key] || "").split(/[\s,;]+/).map(Number).filter((x) => Number.isFinite(x) && x > 0);
+    const shown = (lv: number) => (typed.length >= lv - 1 ? typed[lv - 2] : at[lv]); // what the admin typed, else the formula
+    const setLv = (lv: number, v: string) => {
+      const n = Math.round(Number(v));
+      if (!(n > 0)) return; // an empty box keeps its value (type over it)
+      const list = Array.from({ length: 49 }, (_, i) => shown(i + 2));
+      list[lv - 2] = n;
+      setStr(key, list.join(","));
+    };
+    const fillFormula = () => setStr(key, levelPreview(Number(cur[`giftLevel${p}Base`]), Number(cur[`giftLevel${p}Growth`]), "").slice(2).join(","));
     return (
       <div className="rounded-xl bg-black/20 border border-white/10 p-3 mb-3">
         <p className="font-bold text-sm mb-2">{p === "Sender" ? t("admin.lv.sender") : t("admin.lv.receiver")}</p>
-        <Field label={t("admin.lv.base")} value={cur[`giftLevel${p}Base`]} onChange={(v: any) => set(`giftLevel${p}Base`, v)} />
-        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.growth")}</span><input type="number" step="0.1" min="1" max="10" value={cur[`giftLevel${p}Growth`] ?? ""} onChange={(e) => set(`giftLevel${p}Growth`, e.target.value)} className={inp + " w-full"} /></label>
-        <label className="block mb-2"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.list")}</span><textarea rows={2} value={cur[`giftLevel${p}List`] || ""} onChange={(e) => setStr(`giftLevel${p}List`, e.target.value)} placeholder="1000000, 2000000, 4000000, …" className={inp + " w-full font-mono text-xs"} /></label>
-        <div className="grid gap-1 text-[10px]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
-          {[2, 5, 10, 15, 20, 30, 40, 50].map((lv) => <div key={lv} className="rounded bg-white/5 px-1.5 py-1"><b className="text-amber-200">Lv.{lv}</b><span className="block text-white/60">{at[lv].toLocaleString()}</span></div>)}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end mb-3">
+          <Field label={t("admin.lv.base")} value={cur[`giftLevel${p}Base`]} onChange={(v: any) => set(`giftLevel${p}Base`, v)} />
+          <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{t("admin.lv.growth")}</span><input type="number" step="0.1" min="1" max="10" value={cur[`giftLevel${p}Growth`] ?? ""} onChange={(e) => set(`giftLevel${p}Growth`, e.target.value)} className={inp + " w-full"} /></label>
+          <button type="button" onClick={fillFormula} className="mb-3 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white/80">{t("admin.lv.fill")}</button>
         </div>
+        <p className="text-[11px] text-white/50 mb-2">{t("admin.lv.boxesHint")}</p>
+        <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))" }}>
+          {Array.from({ length: 50 }, (_, i) => i + 1).map((lv) => {
+            const v = lv === 1 ? 0 : shown(lv);
+            const bad = lv > 2 && v <= shown(lv - 1);
+            return (
+              <label key={lv} className={`rounded-lg border px-2 py-1.5 ${bad ? "border-red-400/70 bg-red-500/10" : lv % 5 === 0 ? "border-amber-400/40 bg-amber-400/5" : "border-white/10 bg-white/[0.03]"}`}>
+                <span className="block text-[10px] font-bold text-amber-200">Lv.{lv}</span>
+                {lv === 1
+                  ? <span className="block text-xs text-white/50 py-1">0</span>
+                  : <input type="number" inputMode="numeric" min={1} value={v || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setLv(lv, e.target.value)} className="w-full bg-transparent text-xs text-white outline-none py-0.5" />}
+              </label>
+            );
+          })}
+        </div>
+        {Array.from({ length: 48 }, (_, i) => i + 3).some((lv) => shown(lv) <= shown(lv - 1)) && <p className="mt-2 text-[11px] text-red-300">{t("admin.lv.mustRise")}</p>}
       </div>
     );
   };

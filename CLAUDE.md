@@ -234,7 +234,8 @@ text.
 - Two levels per member, 50 each (server/giftLevels.ts): **Gifter** (🎁, all
   KGOLD sent) and **Star** (⭐, all KGOLD received). Total KGOLD per level:
   Lv.2 at 1,000,000 then ×2 each level (base + growth), or an exact 49-number list of totals — admin Settings › Gift
-  levels (`giftLevelSender*` / `giftLevelReceiver*`; preview table there).
+  levels (`giftLevelSender*` / `giftLevelReceiver*`) shows all 50 level boxes for each; typing in a box saves
+  the exact list (`giftLevel*List`), "Fill all levels from the formula" rewrites them; boxes must keep rising.
 - The avatar ring (components/LevelRing.tsx `LevelAvatar`, by the higher of the
   two levels) changes every 5 levels: bronze 5, silver 10, gold 15, emerald 20,
   sapphire 25, amethyst 30, ruby 35, diamond 40 (spins), rainbow 45, legend 50 (👑).
@@ -321,15 +322,16 @@ text.
 
 - Admin › Settings › Daily login reward (`app_settings.dailyCheckin`, server/dailyCheckin.ts):
   on/off, "collect automatically when the member opens the app" (`autoClaim`, default on),
-  "missing a day starts again from day 1" (`resetOnMiss`), and three rewards —
-  every day, every 7th day (bonus) and day 30 (big) — each points, RP credits (booked as a
-  `checkin_reward` expense), tokens, KGOLD, a Prize from the Prizes tab, or none.
+  "missing a day starts again from day 1" (`resetOnMiss`), and the reward of each of the 30
+  days set one by one (`days[0..29]`) — points, RP credits (booked as a `checkin_reward`
+  expense), tokens, KGOLD, a Prize from the Prizes tab, or none ("Copy day 1 to normal days"
+  helper). Old daily/week/big settings convert on read (`cleanConfig`).
 - It's a login reward: the first app open of the WIB day, on any page, collects it and plays
   the animation (`LoginRewardWatcher` in RebornLayout). With `autoClaim` off the member taps
   "Collect" on the home card (`DailyCheckinCard` in components/DailyCheckin.tsx) and the
   30-day calendar pops up once a day until they do.
   `daily_checkins` has one row per member per day (unique index, so double taps count
   once); `streak` is the day of the 30-day cycle; after day 30 a new round starts.
-- Animations: coins for a normal day, a gift box bursting open on every 7th day, a
+- Animations (by day number, `dayKind`): coins for a normal day, a gift box bursting open on days 7/14/21/28, a
   crown with rays + confetti on day 30 (index.css `dc-*`, sounds from lib/sfx.ts).
   A Prize reward goes to Spin › My prizes (`awardPrizeToUser`) for staff to redeem.

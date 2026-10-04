@@ -1,10 +1,9 @@
 // Daily login reward (daily check-in): the first time a member opens the app each day
 // (WIB calendar day) it is collected by itself (`autoClaim`, default) — or, with
 // auto-collect off, they tap "Check in".
-// Every day gives the daily reward, every 7th day in a row a weekly reward, and day 30
-// the big reward; then the 30-day cycle starts again. The admin turns it on/off and
-// picks each reward (points, RP credits, tokens, KGOLD or one of the Prizes) in
-// Admin › Settings. Missing a day starts again from day 1 unless the admin turns
+// The admin sets the reward of each of the 30 days one by one (points, RP credits, tokens,
+// KGOLD, one of the Prizes, or nothing) in Admin › Settings; days 7/14/21/28 play the
+// gift-box animation and day 30 the crown. After day 30 the cycle starts again. Missing a day starts again from day 1 unless the admin turns
 // "reset on a missed day" off.
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -14,15 +13,14 @@ export const CYCLE_DAYS = 30;
 export const WEEK_DAYS = 7;
 export type RewardType = "none" | "points" | "rp" | "tokens" | "kgold" | "prize";
 export interface Reward { type: RewardType; amount: number; prizeId?: number | null }
-export interface CheckinConfig { enabled: boolean; resetOnMiss: boolean; autoClaim: boolean; daily: Reward; week: Reward; big: Reward }
+export interface CheckinConfig { enabled: boolean; resetOnMiss: boolean; autoClaim: boolean; days: Reward[] } // days[0] = day 1 … days[29] = day 30
 
 const TYPES: RewardType[] = ["none", "points", "rp", "tokens", "kgold", "prize"];
-const DEFAULTS: CheckinConfig = {
-  enabled: false, resetOnMiss: true, autoClaim: true,
-  daily: { type: "points", amount: 10 },
-  week: { type: "tokens", amount: 2 },
-  big: { type: "points", amount: 1000 },
-};
+// A day's kind: 7/14/21/28 = weekly gift box, 30 = big crown, the rest normal.
+export const dayKind = (day: number): "daily" | "week" | "big" => (day === CYCLE_DAYS ? "big" : day % WEEK_DAYS === 0 ? "week" : "daily");
+// Starting rewards: 10 points a day, 2 tokens on every 7th day, 1,000 points on day 30.
+const defaultDay = (day: number): Reward => (dayKind(day) === "big" ? { type: "points", amount: 1000 } : dayKind(day) === "week" ? { type: "tokens", amount: 2 } : { type: "points", amount: 10 });
+const DEFAULTS: CheckinConfig = { enabled: false, resetOnMiss: true, autoClaim: true, days: Array.from({ length: CYCLE_DAYS }, (_, i) => defaultDay(i + 1)) };
 const KEY = "dailyCheckin";
 
 function cleanReward(r: any, fallback: Reward): Reward {
@@ -30,14 +28,11 @@ function cleanReward(r: any, fallback: Reward): Reward {
   return { type, amount: Math.max(0, Math.round(Number(r?.amount) || 0)), prizeId: type === "prize" ? Number(r?.prizeId) || null : null };
 }
 export function cleanConfig(c: any): CheckinConfig {
-  return {
-    enabled: c?.enabled === true,
-    resetOnMiss: c?.resetOnMiss !== false,
-    autoClaim: c?.autoClaim !== false,
-    daily: cleanReward(c?.daily, DEFAULTS.daily),
-    week: cleanReward(c?.week, DEFAULTS.week),
-    big: cleanReward(c?.big, DEFAULTS.big),
-  };
+  // Settings saved before per-day rewards had daily / week / big: day 7/14/21/28 took the
+  // weekly reward, day 30 the big one, every other day the daily one.
+  const old = (day: number) => (c?.[dayKind(day)] ?? (dayKind(day) === "daily" ? undefined : c?.daily));
+  const days = Array.from({ length: CYCLE_DAYS }, (_, i) => cleanReward(Array.isArray(c?.days) ? c.days[i] : old(i + 1), defaultDay(i + 1)));
+  return { enabled: c?.enabled === true, resetOnMiss: c?.resetOnMiss !== false, autoClaim: c?.autoClaim !== false, days };
 }
 export async function getCheckinConfig(): Promise<CheckinConfig> {
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, KEY));
@@ -64,13 +59,10 @@ export async function checkinState(userId: string, cfg: CheckinConfig) {
   return { checkedToday, done, nextDay: checkedToday ? null : done + 1, today };
 }
 
-// Which rewards a given day of the cycle gives.
+// The reward a given day of the cycle gives (the admin's setting for that day).
 export function rewardsForDay(day: number, cfg: CheckinConfig) {
-  const out: { kind: "daily" | "week" | "big"; reward: Reward }[] = [];
-  if (cfg.daily.type !== "none") out.push({ kind: "daily", reward: cfg.daily });
-  if (day % WEEK_DAYS === 0 && cfg.week.type !== "none") out.push({ kind: "week", reward: cfg.week });
-  if (day === CYCLE_DAYS && cfg.big.type !== "none") out.push({ kind: "big", reward: cfg.big });
-  return out;
+  const reward = cfg.days[day - 1];
+  return reward && reward.type !== "none" ? [{ kind: dayKind(day), reward }] : [];
 }
 
 // Check in today: one row per member per WIB day (the unique index makes a double tap
