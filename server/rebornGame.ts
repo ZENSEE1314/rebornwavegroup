@@ -10,6 +10,7 @@ import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinSt
 import { packageFields, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn } from "@shared/countries";
+import { DEFAULT_APP_SKIN, isAppSkin } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
@@ -3522,6 +3523,19 @@ export function registerRebornRoutes(app: Express) {
     res.json({message:tr(req, { en: "Bill updated with an audit record", zh: "账单已更新并留有审计记录", id: "Tagihan diperbarui dengan catatan audit" }),order:{...updated,items:freshItems}});
   }));
 
+  // App design (shared/appSkins.ts): the company's main admin picks it here in the app; the
+  // BridgeX console's White label sets the same value (bridge_companies.theme.skin).
+  app.get("/api/reborn/admin/app-skin", requireAdmin(async(_req,res)=>{const [c]=await db.select({theme:bridgeCompanies.theme}).from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1);res.json({skin:(c?.theme as any)?.skin||DEFAULT_APP_SKIN});}));
+  app.post("/api/reborn/admin/app-skin", requireAdmin(async(req,res)=>{
+    const skin=String(req.body?.skin||"");
+    if(!isAppSkin(skin))return res.status(400).json({message:tr(req,{en:"Unknown app design",zh:"未知的应用设计",id:"Desain aplikasi tidak dikenal"})});
+    const [c]=await db.select({id:bridgeCompanies.id,theme:bridgeCompanies.theme}).from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1);
+    if(!c)return res.status(404).json({message:tr(req,{en:"Company not found",zh:"找不到该公司",id:"Perusahaan tidak ditemukan"})});
+    const before=(c.theme as any)?.skin||DEFAULT_APP_SKIN;
+    await db.update(bridgeCompanies).set({theme:{...((c.theme as any)||{}),skin},updatedAt:new Date()}).where(eq(bridgeCompanies.id,c.id));
+    await logAdmin(req,{targetType:"settings",targetId:"appSkin",action:"change_app_design",entityType:"settings",oldValues:{skin:before},newValues:{skin},description:`App design ${before} → ${skin}`});
+    res.json({message:tr(req,{en:"App design saved — members see it the next time they open the app",zh:"应用设计已保存——会员下次打开应用时可见",id:"Desain aplikasi disimpan — member melihatnya saat membuka aplikasi lagi"}),skin});
+  }));
   // Statutory contributions (CPF / BPJS / EPF…): the company's country rates, editable by the admin.
   const payrollRules=async()=>{const [row]=await db.select().from(appSettings).where(eq(appSettings.key,"payrollRules"));let saved:any=null;try{saved=row?.value?JSON.parse(row.value):null}catch{}return saved?cleanPayrollRules(saved,companyCountry()):defaultPayrollRules(companyCountry());};
   app.get("/api/reborn/admin/payroll/rules", requireAdmin(async(_req,res)=>{res.json({rules:await payrollRules(),country:companyCountry(),money:companyMoney(),defaults:defaultPayrollRules(companyCountry())});}));
