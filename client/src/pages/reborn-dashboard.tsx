@@ -11,6 +11,7 @@ import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import { ScanTableCard } from "@/components/VenueScan";
 import { useTranslation, localeTag } from "@/lib/i18n";
 import { EventCarousel } from "@/components/Events";
+import { DailyCheckinCard } from "@/components/DailyCheckin";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
@@ -94,6 +95,9 @@ export default function RebornDashboard() {
           <Plus className="w-4 h-4" /> {t("dash.topUp")}
         </button>
       </div>
+
+      {/* Daily check-in (only when the admin turned it on) */}
+      <DailyCheckinCard />
 
       {/* Scan the table QR: KOS check-in, order table and song requests */}
       {!featuresOff.has("kos") && <ScanTableCard />}

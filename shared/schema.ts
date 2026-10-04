@@ -756,6 +756,17 @@ export const spinResults = pgTable("spin_results", {
   adminId: varchar("admin_id"),
 });
 
+// Daily check-in (server/dailyCheckin.ts): one row per member per WIB day; `streak` is the
+// day of the 30-day cycle it counted as, `rewards` what it gave.
+export const dailyCheckins = pgTable("daily_checkins", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  day: varchar("day", { length: 10 }).notNull(), // YYYY-MM-DD (WIB)
+  streak: integer("streak").notNull(),
+  rewards: jsonb("rewards"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [uniqueIndex("daily_checkins_user_day").on(table.userId, table.day)]);
+
 // Simple key/value store for admin-configurable settings (gift fee %, mins…)
 export const appSettings = pgTable("app_settings", {
   key: varchar("key").primaryKey(),

@@ -316,3 +316,17 @@ text.
   reminders" sends them right away (any hour).
 - The POS asks `/api/reborn/pos/quote` for the bill (perk + credit) so the till shows
   exactly what the server will charge.
+
+## Daily check-in (rewards)
+
+- Admin › Settings › Daily check-in (`app_settings.dailyCheckin`, server/dailyCheckin.ts):
+  on/off, "missing a day starts again from day 1" (`resetOnMiss`), and three rewards —
+  every day, every 7th day (bonus) and day 30 (big) — each points, RP credits (booked as a
+  `checkin_reward` expense), tokens, KGOLD, a Prize from the Prizes tab, or none.
+- Members check in once per WIB calendar day on the home page (`DailyCheckinCard` in
+  components/DailyCheckin.tsx; the 30-day calendar pops up once a day until they do).
+  `daily_checkins` has one row per member per day (unique index, so double taps count
+  once); `streak` is the day of the 30-day cycle; after day 30 a new round starts.
+- Animations: coins for a normal day, a gift box bursting open on every 7th day, a
+  crown with rays + confetti on day 30 (index.css `dc-*`, sounds from lib/sfx.ts).
+  A Prize reward goes to Spin › My prizes (`awardPrizeToUser`) for staff to redeem.
