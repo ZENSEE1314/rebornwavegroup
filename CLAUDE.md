@@ -310,13 +310,17 @@ text.
   (`touch-action: none` on html/body in style.css; the video dialog keeps it).
   Bump `?v=` on app.js/style.css in index.html after changing them.
 - Order of the pages: 1F lounge → game rooms → floor plan → lift (▲ 2F) → 2F private KTV →
-  beauty → floor plan → lift (▲ 3F) → 3F VIP → Gold members → beauty spa → floor plan →
+  beauty → hair salon → floor plan → lift (▲ 3F) → 3F VIP → Gold members → beauty spa → floor plan →
   lift (▲ 4F) → 4F … → floor plan → lift (▲ 5F) → 5F live stage from afar → into the crowd →
   floor plan. Every floor shows its plans (`.plan-beat`, text `planTitle`, camera at ~78% of
   the floor) and ends with a short "The lift · Going up · next floor" card (`.lift-beat`,
   texts `lift2`–`lift5` in `APP_TEXT`) placed where the camera is inside the car.
 - Zoomed cards: every mesh of a zoomable card is drawn in the transparent pass (`zoomable()`),
-  so the dark zoom veil sits behind the floor plan / photo instead of greying it. A card's
+  so the dark zoom veil sits behind the floor plan / photo instead of greying it.
+- A card can steer the camera at its stop: `data-look="x,y,z"` / `data-pos="x,y,z"` (y above
+  the floor) blend the walk's look-at / position in around the stop (`steerBeats`), e.g. 2F
+  beauty looks at the facial cards, 2F hair salon steps right, 3F beauty spa turns left. Check
+  on a phone-size (portrait) screenshot: portrait screens are narrow. A card's
   `data-a`/`data-b` window decides where its stop is (the middle), so place it where the
   camera frames that part (check with a screenshot); short windows still show fully.
 
