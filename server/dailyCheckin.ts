@@ -1,4 +1,6 @@
-// Daily check-in: members tap "Check in" once a day (WIB calendar day) in the app.
+// Daily login reward (daily check-in): the first time a member opens the app each day
+// (WIB calendar day) it is collected by itself (`autoClaim`, default) — or, with
+// auto-collect off, they tap "Check in".
 // Every day gives the daily reward, every 7th day in a row a weekly reward, and day 30
 // the big reward; then the 30-day cycle starts again. The admin turns it on/off and
 // picks each reward (points, RP credits, tokens, KGOLD or one of the Prizes) in
@@ -12,11 +14,11 @@ export const CYCLE_DAYS = 30;
 export const WEEK_DAYS = 7;
 export type RewardType = "none" | "points" | "rp" | "tokens" | "kgold" | "prize";
 export interface Reward { type: RewardType; amount: number; prizeId?: number | null }
-export interface CheckinConfig { enabled: boolean; resetOnMiss: boolean; daily: Reward; week: Reward; big: Reward }
+export interface CheckinConfig { enabled: boolean; resetOnMiss: boolean; autoClaim: boolean; daily: Reward; week: Reward; big: Reward }
 
 const TYPES: RewardType[] = ["none", "points", "rp", "tokens", "kgold", "prize"];
 const DEFAULTS: CheckinConfig = {
-  enabled: false, resetOnMiss: true,
+  enabled: false, resetOnMiss: true, autoClaim: true,
   daily: { type: "points", amount: 10 },
   week: { type: "tokens", amount: 2 },
   big: { type: "points", amount: 1000 },
@@ -31,6 +33,7 @@ export function cleanConfig(c: any): CheckinConfig {
   return {
     enabled: c?.enabled === true,
     resetOnMiss: c?.resetOnMiss !== false,
+    autoClaim: c?.autoClaim !== false,
     daily: cleanReward(c?.daily, DEFAULTS.daily),
     week: cleanReward(c?.week, DEFAULTS.week),
     big: cleanReward(c?.big, DEFAULTS.big),

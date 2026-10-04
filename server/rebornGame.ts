@@ -2007,12 +2007,12 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/daily-checkin", requireAuth, async (req, res) => {
     const { cfg, rewards } = await checkinRewardsView(await rebornCompanyId(req));
     if (!cfg.enabled) return res.json({ enabled: false });
-    res.json({ enabled: true, cycleDays: CYCLE_DAYS, weekDays: WEEK_DAYS, resetOnMiss: cfg.resetOnMiss, rewards, ...(await checkinState(getUserId(req)!, cfg)) });
+    res.json({ enabled: true, cycleDays: CYCLE_DAYS, weekDays: WEEK_DAYS, resetOnMiss: cfg.resetOnMiss, autoClaim: cfg.autoClaim, rewards, ...(await checkinState(getUserId(req)!, cfg)) });
   });
   app.post("/api/reborn/daily-checkin", requireAuth, async (req, res) => {
     const cid = await rebornCompanyId(req);
     const cfg = await getCheckinConfig();
-    if (!cfg.enabled) return res.status(400).json({ message: tr(req, { en: "Daily check-in is turned off", zh: "每日签到已关闭", id: "Check-in harian sedang dimatikan" }) });
+    if (!cfg.enabled) return res.status(400).json({ message: tr(req, { en: "The daily login reward is turned off", zh: "每日登录奖励已关闭", id: "Hadiah login harian sedang dimatikan" }) });
     const userId = getUserId(req)!;
     const out = await doCheckin(userId, cfg, async (uid, prizeId) => {
       const [prize] = await db.select().from(spinPrizes).where(and(eq(spinPrizes.id, prizeId), eq(spinPrizes.companyId, cid)));
@@ -2020,7 +2020,7 @@ export function registerRebornRoutes(app: Express) {
       await awardPrizeToUser(uid, prize, cid, "Daily check-in reward");
       return prize.label;
     });
-    if (out.already) return res.status(409).json({ message: tr(req, { en: "You already checked in today — come back tomorrow!", zh: "你今天已经签到了——明天再来吧！", id: "Kamu sudah check-in hari ini — datang lagi besok!" }), ...out });
+    if (out.already) return res.status(409).json({ message: tr(req, { en: "You already collected today's reward — come back tomorrow!", zh: "你今天已经领取过奖励了——明天再来吧！", id: "Kamu sudah mengambil hadiah hari ini — datang lagi besok!" }), ...out });
     res.json(out);
   });
   app.get("/api/reborn/admin/daily-checkin", requireAdmin(async (req, res) => {
@@ -2029,8 +2029,8 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.post("/api/reborn/admin/daily-checkin", requireAdmin(async (req, res) => {
     const cfg = await saveCheckinConfig(req.body || {});
-    await logAdmin(req, { targetType: "settings", action: "daily_checkin", entityType: "settings", description: `Daily check-in ${cfg.enabled ? "on" : "off"}: daily ${cfg.daily.type} ${cfg.daily.amount}, 7-day ${cfg.week.type} ${cfg.week.amount}, 30-day ${cfg.big.type} ${cfg.big.amount}` });
-    res.json({ message: tr(req, { en: "Daily check-in saved", zh: "每日签到已保存", id: "Check-in harian disimpan" }), config: cfg });
+    await logAdmin(req, { targetType: "settings", action: "daily_checkin", entityType: "settings", description: `Daily login reward ${cfg.enabled ? "on" : "off"} (${cfg.autoClaim ? "auto" : "tap"}): daily ${cfg.daily.type} ${cfg.daily.amount}, 7-day ${cfg.week.type} ${cfg.week.amount}, 30-day ${cfg.big.type} ${cfg.big.amount}` });
+    res.json({ message: tr(req, { en: "Daily login reward saved", zh: "每日登录奖励已保存", id: "Hadiah login harian disimpan" }), config: cfg });
   }));
 
   // Admin hands a specific prize to a member by username/code — no spin needed.
