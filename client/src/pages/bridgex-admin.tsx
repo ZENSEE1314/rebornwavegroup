@@ -84,7 +84,7 @@ function CompanyAdmins({ company, onMsg }: { company: Company; onMsg: (message: 
   );
 }
 
-// The ten app designs, each drawn as a small phone so the admin sees what they are choosing.
+// The app designs (ten looks + five light industry styles), each drawn as a small phone so the admin sees what they are choosing.
 function AppSkinPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const { t } = useTranslation();
   return (
@@ -97,9 +97,9 @@ function AppSkinPicker({ value, onChange }: { value: string; onChange: (id: stri
             <div className="flex h-36 flex-col gap-1.5 overflow-hidden rounded-xl p-2" style={{ background: skin.page }}>
               <div className="flex items-center justify-between"><span className="h-2 w-10 rounded-full" style={{ background: skin.accentSoft }} /><span className="h-2.5 w-6 rounded-full" style={{ background: skin.accent }} /></div>
               <div className="flex-1 p-2" style={{ background: skin.panel, border: `1px solid ${skin.edge}`, borderRadius: skin.radius }}>
-                <span className="block text-[10px] font-bold" style={{ color: skin.accentSoft }}>{t("admin.bx.skin.sample")}</span>
-                <span className="mt-1.5 block h-1.5 w-3/4 rounded-full bg-white/25" />
-                <span className="mt-1 block h-1.5 w-1/2 rounded-full bg-white/15" />
+                <span className="block text-[10px] font-bold" style={{ color: skin.ink || skin.accentSoft }}>{t("admin.bx.skin.sample")}</span>
+                <span className={`mt-1.5 block h-1.5 w-3/4 rounded-full ${skin.mode === "light" ? "bg-black/15" : "bg-white/25"}`} />
+                <span className={`mt-1 block h-1.5 w-1/2 rounded-full ${skin.mode === "light" ? "bg-black/10" : "bg-white/15"}`} />
                 <span className="mt-2 block h-4 w-14" style={{ background: skin.accent, borderRadius: skin.radius }} />
               </div>
               <div className="flex justify-around">{[0, 1, 2, 3].map((slot) => <span key={slot} className="h-3 w-5" style={{ background: slot === 1 ? skin.accent : skin.panel, border: `1px solid ${skin.edge}`, borderRadius: Math.min(skin.radius, 6) }} />)}</div>

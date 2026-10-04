@@ -278,3 +278,241 @@ html[data-skin="candy"] :is(.rwg-auth button[type="submit"], .rwg-tenant a) { bo
 html[data-skin="arctic"] :is(.rwg-auth .auth-card, .rwg-tenant .rwg-tenant-card) { -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); background: var(--sk-panel) !important; }
 html[data-skin="mono"] .rwg-auth :is(.auth-card, button) { box-shadow: none !important; }
 html[data-skin="sunset"] .rwg-auth :is(.rwg-gold-tab-active, button[type="submit"]) { background: linear-gradient(90deg, #ff7a3d, #ff4f9a) !important; color: #fff !important; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Light industry designs (pro · salon · retail · spa · bistro), html[data-skin-mode="light"]
+   (set by client/src/lib/appSkin.ts). The member app is written for a dark page, so this
+   layer turns it light: inherited text, the white/NN text shades, the pale 200–400 colour
+   texts, white/black see-through panels, borders, fields and the arcade tiles. Scenes that
+   must stay dark (level-up, gift scenes, login-reward animation: .keep-dark / .kg-stage;
+   the KOS wallet card .kos-wallet stays a dark "card")
+   and text over photos ([class*="from-black"]) are left alone. Generic remaps use :where()
+   so the design's own rules below always win.
+   ════════════════════════════════════════════════════════════════════════ */
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) { color: var(--sk-text) !important; color-scheme: light; }
+html[data-skin-mode="light"] .rwg-app :is(.keep-dark, .kg-stage) { color: #fff; }
+html[data-skin-mode="light"] .rwg-app :where(*):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { text-shadow: none !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/10):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 28%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/15):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 33%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/20):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 38%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/25):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 43%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/30):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 48%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/35):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 53%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/40):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 58%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/45):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 63%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/50):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 68%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/55):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 73%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/60):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 78%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/65):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 83%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/70):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 88%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/75):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 93%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/80):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 96%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/85):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 96%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/90):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 96%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth, .rwg-tenant) :where(.text-white\/95):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: color-mix(in srgb, var(--sk-text) 96%, transparent) !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-emerald-100, .text-emerald-200, .text-emerald-300, .text-emerald-400, [class*="text-emerald-200/"], [class*="text-emerald-300/"], [class*="text-emerald-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #047857 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-green-100, .text-green-200, .text-green-300, .text-green-400, [class*="text-green-200/"], [class*="text-green-300/"], [class*="text-green-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #15803d !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-sky-100, .text-sky-200, .text-sky-300, .text-sky-400, [class*="text-sky-200/"], [class*="text-sky-300/"], [class*="text-sky-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #0369a1 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-cyan-100, .text-cyan-200, .text-cyan-300, .text-cyan-400, [class*="text-cyan-200/"], [class*="text-cyan-300/"], [class*="text-cyan-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #0e7490 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-blue-100, .text-blue-200, .text-blue-300, .text-blue-400, [class*="text-blue-200/"], [class*="text-blue-300/"], [class*="text-blue-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #1d4ed8 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-red-100, .text-red-200, .text-red-300, .text-red-400, [class*="text-red-200/"], [class*="text-red-300/"], [class*="text-red-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #b91c1c !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-rose-100, .text-rose-200, .text-rose-300, .text-rose-400, [class*="text-rose-200/"], [class*="text-rose-300/"], [class*="text-rose-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #be123c !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-pink-100, .text-pink-200, .text-pink-300, .text-pink-400, [class*="text-pink-200/"], [class*="text-pink-300/"], [class*="text-pink-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #be185d !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-fuchsia-100, .text-fuchsia-200, .text-fuchsia-300, .text-fuchsia-400, [class*="text-fuchsia-200/"], [class*="text-fuchsia-300/"], [class*="text-fuchsia-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #a21caf !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-purple-100, .text-purple-200, .text-purple-300, .text-purple-400, [class*="text-purple-200/"], [class*="text-purple-300/"], [class*="text-purple-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #7e22ce !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-violet-100, .text-violet-200, .text-violet-300, .text-violet-400, [class*="text-violet-200/"], [class*="text-violet-300/"], [class*="text-violet-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #6d28d9 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-indigo-100, .text-indigo-200, .text-indigo-300, .text-indigo-400, [class*="text-indigo-200/"], [class*="text-indigo-300/"], [class*="text-indigo-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #4338ca !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-orange-100, .text-orange-200, .text-orange-300, .text-orange-400, [class*="text-orange-200/"], [class*="text-orange-300/"], [class*="text-orange-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #c2410c !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-teal-100, .text-teal-200, .text-teal-300, .text-teal-400, [class*="text-teal-200/"], [class*="text-teal-300/"], [class*="text-teal-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #0f766e !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-lime-100, .text-lime-200, .text-lime-300, .text-lime-400, [class*="text-lime-200/"], [class*="text-lime-300/"], [class*="text-lime-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #4d7c0f !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-yellow-100, .text-yellow-200, .text-yellow-300, .text-yellow-400, [class*="text-yellow-200/"], [class*="text-yellow-300/"], [class*="text-yellow-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #a16207 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400, [class*="text-slate-200/"], [class*="text-slate-300/"], [class*="text-slate-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #334155 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-gray-100, .text-gray-200, .text-gray-300, .text-gray-400, [class*="text-gray-200/"], [class*="text-gray-300/"], [class*="text-gray-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #374151 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-zinc-100, .text-zinc-200, .text-zinc-300, .text-zinc-400, [class*="text-zinc-200/"], [class*="text-zinc-300/"], [class*="text-zinc-400/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: #3f3f46 !important; }
+html[data-skin-mode="light"] .rwg-app :where(.text-amber-100, .text-amber-200, .text-amber-300, .text-amber-400, .text-yellow-200, [class*="text-amber-300/"], [class*="text-amber-200/"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: var(--sk-a2) !important; }
+/* see-through panels, fields and lines */
+html[data-skin-mode="light"] .rwg-app :where([class*="bg-white/"]:not(.fixed)):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { background-color: color-mix(in srgb, var(--sk-text) 5%, var(--sk-s1)) !important; }
+html[data-skin-mode="light"] .rwg-app :where([class*="bg-black/"]:not(.fixed):not(.inset-0)):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { background-color: var(--sk-field) !important; }
+html[data-skin-mode="light"] .rwg-app :where([class*="bg-[#0"], [class*="bg-[#1"]):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { background-color: var(--sk-s1) !important; }
+html[data-skin-mode="light"] .rwg-app :where([class*="border-white/"], .border-white):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { border-color: var(--sk-line2) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth) :where(input, textarea, select):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { color: var(--sk-text) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth) :where(input, textarea)::placeholder { color: color-mix(in srgb, var(--sk-text) 42%, transparent) !important; }
+html[data-skin-mode="light"] :is(.rwg-app, .rwg-auth) option { background: #fff; color: var(--sk-text); }
+html[data-skin-mode="light"] .rwg-app main :where(button):not(:is(.keep-dark, .kg-stage, .kos-wallet, [class*="from-black"]) *) { box-shadow: none !important; }
+html[data-skin-mode="light"] .rwg-app .arc-start { animation: none; }
+/* top bar, token chip, menu */
+html[data-skin-mode="light"] .rwg-app > header { background: var(--sk-bar) !important; border-color: var(--sk-line2) !important; color: var(--sk-text); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+html[data-skin-mode="light"] .rwg-app .rwg-token-chip { box-shadow: none; background: color-mix(in srgb, var(--sk-a) 10%, #fff) !important; border-color: color-mix(in srgb, var(--sk-a) 30%, transparent) !important; }
+html[data-skin-mode="light"] .rwg-app .rwg-token-chip :is(svg, span) { color: var(--sk-a) !important; }
+html[data-skin-mode="light"] .rwg-dock { background: var(--sk-dock) !important; box-shadow: 0 -6px 24px rgba(20,20,40,.07); border-top: 1px solid var(--sk-line2) !important; }
+html[data-skin-mode="light"] .rwg-dock::before { display: none; }
+html[data-skin-mode="light"] .rwg-nav-item { color: color-mix(in srgb, var(--sk-text) 50%, transparent); }
+html[data-skin-mode="light"] .rwg-nav-ic { background: transparent !important; border-color: transparent !important; box-shadow: none !important; color: inherit; }
+html[data-skin-mode="light"] .rwg-nav-item.is-active { color: var(--sk-a); }
+html[data-skin-mode="light"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; }
+html[data-skin-mode="light"] .rwg-nav-item.is-active .rwg-nav-lbl { text-shadow: none; margin-top: 0; }
+html[data-skin-mode="light"] .rwg-nav-item.is-active svg { animation: none; }
+/* the app's arcade pieces, calm and light */
+html[data-skin-mode="light"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-stat, .home-hero, .arc-panel, .guide-item, .pet-item) { background: var(--sk-panel) !important; border: 1px solid var(--sk-line2) !important; box-shadow: var(--sk-shadow) !important; }
+html[data-skin-mode="light"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero, .arc-panel)::before, html[data-skin-mode="light"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none !important; }
+html[data-skin-mode="light"] .rwg-app :is(.arc-title, .feat-title, .home-name, .home-stat .v, .stat-tile .num) { color: var(--sk-text) !important; font-style: normal !important; text-shadow: none !important; }
+html[data-skin-mode="light"] .rwg-app :is(.feat-desc, .home-stat .l) { color: color-mix(in srgb, var(--sk-text) 58%, transparent) !important; }
+html[data-skin-mode="light"] .rwg-app .home-hi { color: var(--sk-a) !important; }
+html[data-skin-mode="light"] .rwg-app .arc-head { color: color-mix(in srgb, var(--sk-text) 70%, transparent) !important; text-shadow: none; }
+html[data-skin-mode="light"] .rwg-app .arc-head::after { background: var(--sk-line2); }
+html[data-skin-mode="light"] .rwg-app :is(.arc-play, .pet-tab.on, .kos-add) { background: var(--sk-a) !important; color: var(--sk-ink) !important; box-shadow: none !important; font-style: normal !important; }
+html[data-skin-mode="light"] .rwg-app .arc-icon > span { transform: none; }
+html[data-skin-mode="light"] .rwg-app .feat-badge { box-shadow: none !important; }
+html[data-skin-mode="light"] .rwg-app [style*="rgb(201, 168, 76), rgb(240, 215, 135)"] { background: var(--sk-a) !important; color: var(--sk-ink) !important; }
+html[data-skin-mode="light"] .rwg-app .bg-amber-400 { background-color: var(--sk-a) !important; color: var(--sk-ink) !important; }
+html[data-skin-mode="light"] .rwg-app :is(.rwg-card, .bg-white\/5.border-white\/10) { background: var(--sk-panel) !important; border-color: var(--sk-line2) !important; box-shadow: var(--sk-shadow) !important; }
+html[data-skin-mode="light"] .rwg-app .rwg-card:hover { transform: none; }
+html[data-skin-mode="light"] .rwg-app :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select):focus { border-color: var(--sk-a) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sk-a) 18%, transparent) !important; }
+/* login page + company web page */
+html[data-skin-mode="light"] .rwg-auth .auth-card { background: var(--sk-panel) !important; border-color: var(--sk-line2) !important; box-shadow: 0 10px 40px rgba(20,20,40,.08) !important; }
+html[data-skin-mode="light"] .rwg-auth .auth-card::before { display: none; }
+html[data-skin-mode="light"] .rwg-auth .auth-title { color: var(--sk-text) !important; text-shadow: none !important; font-style: normal !important; }
+html[data-skin-mode="light"] .rwg-auth :is(.rwg-gold-tab-active, button[type="submit"], .auth-emblem) { background: var(--sk-a) !important; color: var(--sk-ink) !important; box-shadow: none !important; font-style: normal !important; }
+html[data-skin-mode="light"] .rwg-auth :is(input.rwg-input, .rwg-select, select, input[type="date"]) { background: var(--sk-field) !important; border-color: var(--sk-line2) !important; }
+html[data-skin-mode="light"] .rwg-auth label.uppercase { color: color-mix(in srgb, var(--sk-text) 60%, transparent) !important; }
+
+/* ── Professional (clinic · office · consultancy): crisp white, navy-blue, Inter, square-ish cards, tab bar with a top indicator ── */
+html[data-skin="pro"] {
+  --sk-page: #f4f6fa; --sk-bar: rgba(255,255,255,.94); --sk-dock: #ffffff; --sk-line: #e3e8ef;
+  --sk-s1: #ffffff; --sk-s2: #f8fafc; --sk-panel: #ffffff; --sk-edge: #dfe4ec; --sk-line2: #e3e8ef; --sk-field: #f1f5f9;
+  --sk-shadow: 0 1px 2px rgba(15,23,42,.06), 0 4px 14px rgba(15,23,42,.05);
+  --sk-a: #1d4ed8; --sk-a2: #1e40af; --sk-ink: #ffffff; --sk-deep: #1e3a8a; --sk-glow: transparent; --sk-text: #0f172a;
+  --sk-font: "Inter", system-ui, -apple-system, "Segoe UI", "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="pro"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 12px !important; }
+html[data-skin="pro"] .rwg-app :is(h1, h2, h3) { font-weight: 700 !important; letter-spacing: -.01em; }
+html[data-skin="pro"] .rwg-app :is(.arc-title, .feat-title) { text-transform: none !important; font-weight: 650 !important; letter-spacing: 0 !important; }
+html[data-skin="pro"] .rwg-app .arc-head { font-size: 11px; letter-spacing: .08em; font-weight: 700; }
+html[data-skin="pro"] .rwg-app .home-hero { border-top: 4px solid var(--sk-a) !important; }
+html[data-skin="pro"] .rwg-app .home-name { font-size: 26px !important; font-weight: 700 !important; }
+html[data-skin="pro"] .rwg-app .feat-tile { align-items: flex-start !important; text-align: left !important; padding: 14px !important; }
+html[data-skin="pro"] .rwg-app .feat-badge { width: 40px !important; height: 40px !important; border-radius: 10px !important; }
+html[data-skin="pro"] .rwg-app .arc-tile { border-left: 4px solid var(--c1, var(--sk-a)) !important; }
+html[data-skin="pro"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400) { border-radius: 8px !important; text-transform: none !important; letter-spacing: 0 !important; font-weight: 600 !important; }
+html[data-skin="pro"] .rwg-nav-item { padding-top: 10px !important; }
+html[data-skin="pro"] .rwg-nav-item.is-active::before { content: ""; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--sk-a); }
+html[data-skin="pro"] .rwg-nav-lbl { font-weight: 600; letter-spacing: 0; }
+
+/* ── Beauty salon: blush & cream, rose-gold pill buttons, elegant serif titles, very round cards, floating menu ── */
+html[data-skin="salon"] {
+  --sk-page: radial-gradient(110% 70% at 100% 0%, #f7e3dd 0%, transparent 55%), radial-gradient(90% 60% at 0% 30%, #f3e7f0 0%, transparent 60%), #fbf4f1;
+  --sk-bar: rgba(251,244,241,.9); --sk-dock: #ffffff; --sk-line: #efd9d3;
+  --sk-s1: #ffffff; --sk-s2: #fdf7f5; --sk-panel: #ffffff; --sk-edge: #efd9d3; --sk-line2: #f0e1dc; --sk-field: #f8eeeb;
+  --sk-shadow: 0 10px 30px rgba(183,110,121,.10);
+  --sk-a: #b76e79; --sk-a2: #8c4a55; --sk-ink: #ffffff; --sk-deep: #8c4a55; --sk-glow: transparent; --sk-text: #3d2a2d;
+  --sk-font: "Lato", system-ui, "PingFang SC", sans-serif; --sk-head-font: "Playfair Display", Georgia, "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="salon"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .feat-tile, .home-hero, .stat-tile) { border-radius: 26px !important; }
+html[data-skin="salon"] .rwg-app main :is(.rounded-xl, .rounded-lg) { border-radius: 16px !important; }
+html[data-skin="salon"] .rwg-app :is(.arc-tile, .arc-panel, .feat-tile, .home-hero, .home-stat, .rwg-card) { border: 0 !important; }
+html[data-skin="salon"] .rwg-app :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-family: var(--sk-head-font) !important; font-weight: 500 !important; letter-spacing: .01em; text-transform: none !important; }
+html[data-skin="salon"] .rwg-app .home-name { font-style: italic !important; font-size: 30px !important; }
+html[data-skin="salon"] .rwg-app .home-hero { background: linear-gradient(135deg, #fff, #fbe9e6) !important; }
+html[data-skin="salon"] .rwg-app .arc-head { justify-content: center; font-family: var(--sk-head-font); font-size: 15px; font-weight: 500; letter-spacing: .12em; text-transform: none; color: var(--sk-a2) !important; }
+html[data-skin="salon"] .rwg-app .arc-head::before { content: ""; flex: 1; height: 1px; background: var(--sk-line2); }
+html[data-skin="salon"] .rwg-app .feat-badge { border-radius: 50% !important; background: linear-gradient(135deg, #f3d3cf, #d79aa3) !important; color: #fff !important; }
+html[data-skin="salon"] .rwg-app .arc-icon { border-radius: 50% !important; }
+html[data-skin="salon"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { background: linear-gradient(135deg, #d4a0a7, #b76e79) !important; color: #fff !important; border-radius: 999px !important; text-transform: none !important; font-style: normal !important; letter-spacing: .02em !important; }
+html[data-skin="salon"] .rwg-dock { left: 14px; right: 14px; bottom: 12px; border-radius: 999px; border: 1px solid var(--sk-line2) !important; box-shadow: 0 12px 34px rgba(183,110,121,.20) !important; overflow: hidden; }
+html[data-skin="salon"] .rwg-nav-item { padding: 8px 0 6px !important; }
+html[data-skin="salon"] .rwg-nav-item.is-active .rwg-nav-ic { background: linear-gradient(135deg, #d4a0a7, #b76e79) !important; color: #fff !important; border-radius: 50%; width: 36px; height: 36px; }
+html[data-skin="salon"] .rwg-nav-lbl { font-weight: 700; letter-spacing: .03em; }
+html[data-skin="salon"] .rwg-app > header { border-bottom: 0 !important; }
+html[data-skin="salon"] .rwg-app > header button:first-child { font-family: var(--sk-head-font); letter-spacing: .08em; font-weight: 700; }
+
+/* ── Retail shop: bright red header bar, white product-style cards, heavy uppercase titles, bold rectangular buttons ── */
+html[data-skin="retail"] {
+  --sk-page: #f2f2f4; --sk-bar: #e11d48; --sk-dock: #ffffff; --sk-line: #e2e2e6;
+  --sk-s1: #ffffff; --sk-s2: #f7f7f8; --sk-panel: #ffffff; --sk-edge: #e2e2e6; --sk-line2: #e4e4e8; --sk-field: #f2f2f4;
+  --sk-shadow: 0 1px 3px rgba(17,17,20,.08);
+  --sk-a: #e11d48; --sk-a2: #9f1239; --sk-ink: #ffffff; --sk-deep: #9f1239; --sk-glow: transparent; --sk-text: #111114;
+  --sk-font: "Montserrat", system-ui, "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="retail"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 6px !important; }
+html[data-skin="retail"] .rwg-app :is(.arc-tile, .arc-panel, .feat-tile, .home-stat, .rwg-card) { border: 0 !important; }
+html[data-skin="retail"] .rwg-app :is(h1, h2, h3, .arc-title, .feat-title) { font-weight: 900 !important; text-transform: uppercase; letter-spacing: .01em; }
+html[data-skin="retail"] .rwg-app > header { color: #fff !important; border-bottom: 0 !important; }
+html[data-skin="retail"] .rwg-app > header :is(button, span, svg) { color: #fff !important; }
+html[data-skin="retail"] .rwg-app > header .rwg-token-chip { background: rgba(255,255,255,.18) !important; border-color: rgba(255,255,255,.35) !important; }
+html[data-skin="retail"] .rwg-app > header .rwg-logout { background: rgba(0,0,0,.18) !important; border-color: transparent !important; }
+html[data-skin="retail"] .rwg-app .home-hero { background: #111114 !important; border: 0 !important; color: #fff !important; }
+html[data-skin="retail"] .rwg-app .home-hero :is(.home-name, .home-hi) { color: #fff !important; }
+html[data-skin="retail"] .rwg-app .home-hero .home-stat { background: rgba(255,255,255,.08) !important; border: 0 !important; box-shadow: none !important; }
+html[data-skin="retail"] .rwg-app .home-hero :is(.home-stat .v) { color: #fff !important; }
+html[data-skin="retail"] .rwg-app .home-hero .home-stat .l { color: rgba(255,255,255,.6) !important; }
+html[data-skin="retail"] .rwg-app .arc-head { font-weight: 900; letter-spacing: .06em; color: var(--sk-text) !important; }
+html[data-skin="retail"] .rwg-app .arc-head::before { content: ""; width: 4px; height: 14px; background: var(--sk-a); }
+html[data-skin="retail"] .rwg-app .arc-head::after { display: none; }
+html[data-skin="retail"] .rwg-app .feat-tile { align-items: stretch !important; padding: 0 0 12px !important; overflow: hidden; }
+html[data-skin="retail"] .rwg-app .feat-badge { width: 100% !important; height: 64px !important; border-radius: 0 !important; margin-bottom: 4px; }
+html[data-skin="retail"] .rwg-app .feat-tile :is(.feat-title, .feat-desc) { padding: 0 10px; text-align: left; }
+html[data-skin="retail"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 4px !important; text-transform: uppercase !important; font-weight: 800 !important; letter-spacing: .06em !important; }
+html[data-skin="retail"] .rwg-nav-item.is-active .rwg-nav-lbl { background: var(--sk-a); color: #fff; border-radius: 3px; padding: 1px 6px; }
+html[data-skin="retail"] .rwg-nav-lbl { font-weight: 800; text-transform: uppercase; font-size: 9.5px; letter-spacing: .04em; }
+
+/* ── Spa & wellness: sage green, calm airy cards, thin lines, graceful serif titles, rounded lettering ── */
+html[data-skin="spa"] {
+  --sk-page: linear-gradient(180deg, #eef3ec 0%, #f6f8f4 40%, #f2f5f0 100%);
+  --sk-bar: rgba(246,248,244,.9); --sk-dock: rgba(255,255,255,.96); --sk-line: #d9e4d6;
+  --sk-s1: #ffffff; --sk-s2: #f8faf6; --sk-panel: #ffffff; --sk-edge: #d9e4d6; --sk-line2: #dfe8dc; --sk-field: #eef3ec;
+  --sk-shadow: 0 6px 20px rgba(60,100,80,.07);
+  --sk-a: #5b8a72; --sk-a2: #3c6450; --sk-ink: #ffffff; --sk-deep: #3c6450; --sk-glow: transparent; --sk-text: #25332b;
+  --sk-font: "Nunito", ui-rounded, system-ui, "PingFang SC", sans-serif; --sk-head-font: "Cormorant Garamond", Georgia, "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="spa"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 20px !important; }
+html[data-skin="spa"] .rwg-app :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-family: var(--sk-head-font) !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: .01em; }
+html[data-skin="spa"] .rwg-app :is(.arc-title, .feat-title) { font-size: 1.12em; }
+html[data-skin="spa"] .rwg-app .home-name { font-size: 32px !important; }
+html[data-skin="spa"] .rwg-app .arc-head { justify-content: center; text-transform: none; font-family: var(--sk-head-font); font-size: 16px; letter-spacing: .06em; color: var(--sk-a2) !important; }
+html[data-skin="spa"] .rwg-app .arc-head::before { content: "❦"; color: var(--sk-a); }
+html[data-skin="spa"] .rwg-app .arc-head::after { display: none; }
+html[data-skin="spa"] .rwg-app .feat-badge { border-radius: 16px !important; background: color-mix(in srgb, var(--c, var(--sk-a)) 16%, #fff) !important; color: color-mix(in srgb, var(--c, var(--sk-a)) 75%, #000) !important; }
+html[data-skin="spa"] .rwg-app .feat-badge svg { filter: none !important; }
+html[data-skin="spa"] .rwg-app .arc-icon { border-radius: 18px !important; }
+html[data-skin="spa"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 999px !important; text-transform: none !important; font-weight: 700 !important; letter-spacing: .02em !important; }
+html[data-skin="spa"] .rwg-nav-item.is-active .rwg-nav-ic { background: color-mix(in srgb, var(--sk-a) 16%, #fff) !important; color: var(--sk-a2) !important; border-radius: 999px; width: 54px; }
+html[data-skin="spa"] .rwg-nav-lbl { font-weight: 700; }
+
+/* ── Restaurant & café: warm paper, terracotta, menu-card double frames, dotted menu headings, serif titles ── */
+html[data-skin="bistro"] {
+  --sk-page: #faf5ec; --sk-bar: rgba(250,245,236,.94); --sk-dock: #fffdf8; --sk-line: #e8dccb;
+  --sk-s1: #fffdf8; --sk-s2: #f7f0e4; --sk-panel: #fffdf8; --sk-edge: #e8dccb; --sk-line2: #e6d8c4; --sk-field: #f4ecdf;
+  --sk-shadow: 0 0 0 4px #fffdf8, 0 0 0 5px #e6d8c4, 0 6px 18px rgba(43,29,18,.08);
+  --sk-a: #c2410c; --sk-a2: #8a2f0a; --sk-ink: #ffffff; --sk-deep: #8a2f0a; --sk-glow: transparent; --sk-text: #2b1d12;
+  --sk-font: "DM Sans", system-ui, "PingFang SC", sans-serif; --sk-head-font: "DM Serif Display", Georgia, "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
+}
+html[data-skin="bistro"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 10px !important; }
+html[data-skin="bistro"] .rwg-app :is(.arc-tile, .arc-panel, .feat-tile, .home-hero, .rwg-card) { border: 0 !important; }
+html[data-skin="bistro"] .rwg-app :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-family: var(--sk-head-font) !important; font-weight: 400 !important; text-transform: none !important; letter-spacing: .005em; }
+html[data-skin="bistro"] .rwg-app .home-name { font-size: 30px !important; }
+html[data-skin="bistro"] .rwg-app .arc-head { text-transform: uppercase; font-family: var(--sk-font); font-weight: 700; font-size: 11px; letter-spacing: .22em; color: var(--sk-a2) !important; }
+html[data-skin="bistro"] .rwg-app .arc-head::after { height: 0; border-bottom: 2px dotted color-mix(in srgb, var(--sk-a) 45%, transparent); background: none; }
+html[data-skin="bistro"] .rwg-app .feat-badge { border-radius: 50% !important; }
+html[data-skin="bistro"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 10px !important; text-transform: none !important; font-weight: 700 !important; letter-spacing: .01em !important; }
+html[data-skin="bistro"] .rwg-dock { border-top: 3px double var(--sk-line2) !important; }
+html[data-skin="bistro"] .rwg-nav-item.is-active .rwg-nav-lbl { border-bottom: 2px solid var(--sk-a); }
+html[data-skin="bistro"] .rwg-nav-lbl { font-weight: 700; }
+html[data-skin="bistro"] .rwg-app > header { border-bottom: 3px double var(--sk-line2) !important; }
+html[data-skin="bistro"] .rwg-app > header button:first-child { font-family: var(--sk-head-font); font-weight: 400; letter-spacing: .04em; font-size: 16px; }
+
+/* light: the arcade page rules (.gx in index.css) — fields, titles and 3D keys */
+html[data-skin-mode="light"] .gx :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select) { background-color: var(--sk-field) !important; border-color: var(--sk-line2) !important; }
+html[data-skin-mode="light"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-style: normal !important; }
+html[data-skin-mode="light"] body .rwg-app .gx button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500) { box-shadow: none !important; font-style: normal !important; }
+html[data-skin-mode="light"] body .rwg-app .gx button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500):not(:disabled):active { transform: scale(.97) !important; }
+html[data-skin-mode="light"] .rwg-app .kos-wallet { color: #fff; }
+html[data-skin-mode="light"] .rwg-app .rwg-logout { background: #fff !important; color: color-mix(in srgb, var(--sk-text) 70%, transparent) !important; border: 1px solid var(--sk-line2) !important; box-shadow: none !important; }
+html[data-skin="retail"] .rwg-app > header .rwg-token-chip :is(svg, span) { color: #fff !important; }
+html[data-skin="retail"] .rwg-app > header .rwg-logout { background: rgba(0,0,0,.18) !important; color: #fff !important; border-color: transparent !important; }
+html[data-skin-mode="light"] .rwg-app main :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select) { background-color: var(--sk-field); border-color: var(--sk-line2); }
+html[data-skin-mode="light"] .rwg-app :is(.arc-input, .arc-input-code) { background: var(--sk-field) !important; border-color: var(--sk-line2) !important; color: var(--sk-text) !important; }
+html[data-skin-mode="light"] .rwg-app .arc-input-code::placeholder { color: color-mix(in srgb, var(--sk-text) 35%, transparent); }
+
+/* plain white text (headings etc.) → the design's text colour, but not on coloured buttons,
+   gradients, solid colour badges or icon tiles, where white stays white */
+html[data-skin-mode="light"] .rwg-app :where(.text-white):not(:is([class*="bg-gradient"], [style*="gradient"], [style*="background: rgb"], [style*="background-color"], .arc-icon, .feat-badge, .rwg-nav-badge, .kos-wallet, .keep-dark, .kg-stage, [class*="from-black"], [class*="bg-red-5"], [class*="bg-red-6"], [class*="bg-red-7"], [class*="bg-emerald-5"], [class*="bg-emerald-6"], [class*="bg-emerald-7"], [class*="bg-violet-5"], [class*="bg-violet-6"], [class*="bg-violet-7"], [class*="bg-purple-5"], [class*="bg-purple-6"], [class*="bg-purple-7"], [class*="bg-pink-5"], [class*="bg-pink-6"], [class*="bg-pink-7"], [class*="bg-blue-5"], [class*="bg-blue-6"], [class*="bg-blue-7"], [class*="bg-sky-5"], [class*="bg-sky-6"], [class*="bg-sky-7"], [class*="bg-amber-5"], [class*="bg-amber-6"], [class*="bg-amber-7"], [class*="bg-green-5"], [class*="bg-green-6"], [class*="bg-green-7"], [class*="bg-rose-5"], [class*="bg-rose-6"], [class*="bg-rose-7"], [class*="bg-fuchsia-5"], [class*="bg-fuchsia-6"], [class*="bg-fuchsia-7"], [class*="bg-indigo-5"], [class*="bg-indigo-6"], [class*="bg-indigo-7"], [class*="bg-cyan-5"], [class*="bg-cyan-6"], [class*="bg-cyan-7"], [class*="bg-orange-5"], [class*="bg-orange-6"], [class*="bg-orange-7"], [class*="bg-teal-5"], [class*="bg-teal-6"], [class*="bg-teal-7"], [class*="bg-yellow-5"], [class*="bg-yellow-6"], [class*="bg-yellow-7"], [class*="bg-lime-5"], [class*="bg-lime-6"], [class*="bg-lime-7"])):not(:is([class*="bg-gradient"], [style*="gradient"], [style*="background: rgb"], [style*="background-color"], .arc-icon, .feat-badge, .rwg-nav-badge, .kos-wallet, .keep-dark, .kg-stage, [class*="from-black"], [class*="bg-red-5"], [class*="bg-red-6"], [class*="bg-red-7"], [class*="bg-emerald-5"], [class*="bg-emerald-6"], [class*="bg-emerald-7"], [class*="bg-violet-5"], [class*="bg-violet-6"], [class*="bg-violet-7"], [class*="bg-purple-5"], [class*="bg-purple-6"], [class*="bg-purple-7"], [class*="bg-pink-5"], [class*="bg-pink-6"], [class*="bg-pink-7"], [class*="bg-blue-5"], [class*="bg-blue-6"], [class*="bg-blue-7"], [class*="bg-sky-5"], [class*="bg-sky-6"], [class*="bg-sky-7"], [class*="bg-amber-5"], [class*="bg-amber-6"], [class*="bg-amber-7"], [class*="bg-green-5"], [class*="bg-green-6"], [class*="bg-green-7"], [class*="bg-rose-5"], [class*="bg-rose-6"], [class*="bg-rose-7"], [class*="bg-fuchsia-5"], [class*="bg-fuchsia-6"], [class*="bg-fuchsia-7"], [class*="bg-indigo-5"], [class*="bg-indigo-6"], [class*="bg-indigo-7"], [class*="bg-cyan-5"], [class*="bg-cyan-6"], [class*="bg-cyan-7"], [class*="bg-orange-5"], [class*="bg-orange-6"], [class*="bg-orange-7"], [class*="bg-teal-5"], [class*="bg-teal-6"], [class*="bg-teal-7"], [class*="bg-yellow-5"], [class*="bg-yellow-6"], [class*="bg-yellow-7"], [class*="bg-lime-5"], [class*="bg-lime-6"], [class*="bg-lime-7"]):not(.rwg-app) *) { color: var(--sk-text) !important; }

@@ -69,6 +69,13 @@ text.
   label; saved as `bridge_companies.theme.skin`). The app puts it on `<html data-skin>`
   and `client/src/skins.css` restyles the member app through variables. New shared app
   classes with hard-coded gold/purple need a line in that file's shared rules.
+  Besides the ten dark looks there are five light business styles (`mode: "light"`):
+  Professional (`pro`), Beauty Salon (`salon`), Retail Shop (`retail`), Spa & Wellness
+  (`spa`), Restaurant & Café (`bistro`). Each has its own Google font (`font`, loaded by
+  `applyAppSkin`), shapes, header, menu and buttons. A light design also sets
+  `<html data-skin-mode="light">`, which turns the dark app's white text / dark panels /
+  pale colour texts light (skins.css "light layer"). A full-screen scene that must stay
+  dark (level up, login reward, gift scenes) gets the class `keep-dark`.
 - Test: `scripts/tenant-isolation-test.mts` against an empty scratch database.
 - A dedicated server sets `DEFAULT_COMPANY_SLUG` (+ `DEFAULT_COMPANY_NAME`) so the app
   runs as that company instead of Reborn.
