@@ -39,8 +39,9 @@ text.
   `ensureMoneyColumns` in server/index.ts).
 - Use `homeCompanySlug()` (server/tenantContext.ts) instead of the literal
   `"reborn-wave-group"`. Module-level caches and in-memory state must be keyed by it.
-- Logins are per space: each has its own `users`, and a session keeps one login slot per
-  space (server/multiAuth.ts). The owner of a new company is copied in as its main admin.
+- Logins are per space: each has its own `users` and its own session cookie
+  (`reborn.sid` for the platform, `reborn.sid.tenant_<id>` for a company; server/multiAuth.ts),
+  so tabs in different spaces never overwrite each other's login. The owner of a new company is copied in as its main admin.
 - WhatsApp is per company through Meta's Cloud API: each company saves its own phone
   number ID + token in Admin > CRM (stored in its own `app_settings`), and Meta calls
   `/api/whatsapp/webhook/<slug>` with that company's verify token. The QR-linked number

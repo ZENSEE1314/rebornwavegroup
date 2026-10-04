@@ -36,22 +36,39 @@ export function setupSession(app: Express) {
 
 
 
-  app.use(session({
-    secret: process.env.SESSION_SECRET || 'fallback-secret-for-dev',
-    store: sessionStore,
-    resave: false,
-    saveUninitialized: false,
-    rolling: true, // Reset expiration on each request to prevent auto logout
-    name: 'reborn.sid', // Custom session name to avoid conflicts
-    cookie: {
-      httpOnly: true,
-      secure: false, // Force false for all Replit environments (HTTP/HTTPS both work)
-      maxAge: sessionTtl,
-      sameSite: 'lax', // Allows cross-site requests needed for Replit
-      domain: undefined, // Let browser handle domain automatically
-      path: '/', // Ensure cookies work across all paths
-    },
-  }));
+  // Every company has its own session cookie, so a login in one company (or in BridgeX /
+  // Reborn) is a different session from a login in another — they cannot overwrite each other.
+  const sessions = new Map<string, ReturnType<typeof session>>();
+  const sessionFor = (cookieName: string) => {
+    let handler = sessions.get(cookieName);
+    if (!handler) {
+      handler = session({
+        secret: process.env.SESSION_SECRET || 'fallback-secret-for-dev',
+        store: sessionStore,
+        resave: false,
+        saveUninitialized: false,
+        rolling: true, // Reset expiration on each request to prevent auto logout
+        name: cookieName,
+        cookie: {
+          httpOnly: true,
+          secure: false, // Force false for all Replit environments (HTTP/HTTPS both work)
+          maxAge: sessionTtl,
+          sameSite: 'lax', // Allows cross-site requests needed for Replit
+          domain: undefined, // Let browser handle domain automatically
+          path: '/', // Ensure cookies work across all paths
+        },
+      });
+      sessions.set(cookieName, handler);
+    }
+    return handler;
+  };
+  app.use((req, res, next) => sessionFor(sessionCookieName())(req, res, next));
+}
+
+const PLATFORM_SESSION_COOKIE = 'reborn.sid';
+function sessionCookieName(): string {
+  const tenant = currentTenant();
+  return tenant ? `${PLATFORM_SESSION_COOKIE}.${tenant.schema}` : PLATFORM_SESSION_COOKIE;
 }
 
 // A phone number in one form for matching: digits only, Indonesian 08… / 8… → 628….
@@ -520,7 +537,7 @@ ${L.ignore}
         if (err) {
           return res.status(500).json({ message: tr(req, { en: 'Session destruction failed', zh: '会话清除失败', id: 'Gagal mengakhiri sesi' }) });
         }
-        res.clearCookie('reborn.sid'); // Use custom session name
+        res.clearCookie(sessionCookieName());
         res.json({ message: tr(req, { en: 'Logged out successfully', zh: '已退出登录', id: 'Berhasil keluar' }) });
       });
     });
@@ -538,7 +555,7 @@ ${L.ignore}
           console.error('Session destruction error:', err);
           return res.redirect('/');
         }
-        res.clearCookie('reborn.sid'); // Use custom session name
+        res.clearCookie(sessionCookieName());
         res.redirect('/');
       });
     });
@@ -562,43 +579,30 @@ export function requireAuth(req: Request, res: Response, next: Function) {
 }
 
 // Initialize multi-provider authentication
-// One browser session can be logged in to several companies' data spaces at once (e.g. an
-// owner in the BridgeX console and in their own app on the same host). A login remembers
-// the space it was made in; only the login of the space this request belongs to is live,
-// the others wait in their slots — so a login from one company is never offered to another,
-// and visiting one doesn't log out the other.
+// A login is tagged with the data space it was made in, and each space has its own session
+// cookie. A session is only ever honoured in its own space.
 const PLATFORM_SPACE = "platform";
 type StoredLogin = string | { id: string; space: string };
 const loginSpace = (stored: StoredLogin | undefined) => (stored && typeof stored === "object" ? stored.space : PLATFORM_SPACE);
 
-function loginSlotPerDataSpace(req: Request, _res: Response, next: Function) {
+function onlyThisSpacesLogin(req: Request, _res: Response, next: Function) {
   const session = req.session as any;
   if (!session) return next();
   const space = currentTenant()?.schema ?? PLATFORM_SPACE;
-  const slots: Record<string, unknown> = session.loginSlots ?? {};
-  const live = session.passport?.user as StoredLogin | undefined;
-  if (live && loginSpace(live) !== space) { slots[loginSpace(live)] = session.passport; delete session.passport; }
-  if (!session.passport && slots[space]) { session.passport = slots[space]; delete slots[space]; }
-  if (Object.keys(slots).length || session.loginSlots) session.loginSlots = slots;
-  next();
-}
-
-// Passport starts a fresh session on login; keep the other spaces' login slots across it.
-function keepLoginSlotsOnLogin(req: Request, _res: Response, next: Function) {
-  const login = req.login.bind(req) as (user: unknown, options: object, done: (error: unknown) => void) => void;
-  const keeping = (user: unknown, options: any, done?: any) => {
-    const callback = typeof options === "function" ? options : done;
-    return login(user, { ...(typeof options === "object" ? options : {}), keepSessionInfo: true }, callback);
-  };
-  req.login = req.logIn = keeping as typeof req.login;
+  // Sessions from before each company had its own cookie kept other spaces' logins in slots.
+  if (session.loginSlots) {
+    const waiting = session.loginSlots[space];
+    delete session.loginSlots;
+    if (waiting && loginSpace(session.passport?.user) !== space) session.passport = waiting;
+  }
+  if (session.passport?.user && loginSpace(session.passport.user) !== space) delete session.passport;
   next();
 }
 
 export function setupMultiAuth(app: Express) {
   setupSession(app);
-  app.use(loginSlotPerDataSpace);
+  app.use(onlyThisSpacesLogin);
   app.use(passport.initialize());
-  app.use(keepLoginSlotsOnLogin);
   app.use(passport.session());
   setupLocalAuth();
   setupAuthRoutes(app);
