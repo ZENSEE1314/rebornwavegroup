@@ -72,6 +72,9 @@ const LANG = (() => {
 const tl = (o) => o[LANG] || o.en;
 // App-stop texts (the overlay uses data-t keys; the 3D icons use APP_FEATURES).
 const APP_TEXT = {
+  salonEyebrow: { en: "2F · Hair salon", zh: "2F · 美发沙龙", id: "2F · Salon rambut" },
+  salonTitle: { en: "Cut, colour & style", zh: "剪发、染发与造型", id: "Potong, warna & tata rambut" },
+  salonBody: { en: "A full hair salon in the middle of the floor — styled and ready before the party.", zh: "楼层中央的完整美发沙龙——派对前打理好发型。", id: "Salon rambut lengkap di tengah lantai — tampil rapi sebelum pesta." },
   planTitle: { en: "Floor plan — tap a plan to zoom in", zh: "楼层平面图——点击平面图放大", id: "Denah lantai — ketuk denah untuk memperbesar" },
   crowdEyebrow: { en: "5F · Live stage", zh: "5F · 现场舞台", id: "5F · Panggung live" },
   crowdTitle: { en: "Step into the crowd", zh: "走进人群", id: "Masuk ke keramaian" },
@@ -2657,7 +2660,11 @@ fetch("/api/public/app-links").then((r) => (r.ok ? r.json() : {})).catch(() => (
 });
 
 // ── Overlays, nav, flash ───────────────────────────────────────────────────
-const beats = [...document.querySelectorAll(".beat")].map((el) => ({ el, a: +el.dataset.a, b: +el.dataset.b }));
+// A card can also steer the camera at its stop: data-look / data-pos = "x,y,z" (y above the
+// floor), blended in around the stop so the walk turns to show that part (e.g. 2F hair salon).
+const xyz = (v) => (v ? v.split(",").map(Number) : null);
+const beats = [...document.querySelectorAll(".beat")].map((el) => ({ el, a: +el.dataset.a, b: +el.dataset.b, look: xyz(el.dataset.look), pos: xyz(el.dataset.pos) }));
+const steerBeats = beats.filter((x) => x.look || x.pos);
 const floorBtns = [...document.querySelectorAll("#floors button")];
 const flashEl = document.getElementById("flash");
 const flashFloor = document.getElementById("flash-floor");
@@ -3106,6 +3113,13 @@ function frame(ts) {
 
   PATHS[si].pos.getPoint(lt, camPos);
   PATHS[si].look.getPoint(lt, camLook);
+  for (const sb of steerBeats) {
+    const mid = (sb.a + sb.b) / 2, half = (sb.b - sb.a) / 2;
+    const w = smooth(clamp((half * 1.6 - Math.abs(p - mid)) / half));
+    if (w <= 0) continue;
+    if (sb.pos) camPos.lerp(tmpV.set(sb.pos[0], seg.y + sb.pos[1], sb.pos[2]), w);
+    if (sb.look) camLook.lerp(tmpV.set(sb.look[0], seg.y + sb.look[1], sb.look[2]), w);
+  }
   camera.position.copy(camPos);
   camera.lookAt(camLook);
 
