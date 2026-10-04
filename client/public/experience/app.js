@@ -72,6 +72,21 @@ const LANG = (() => {
 const tl = (o) => o[LANG] || o.en;
 // App-stop texts (the overlay uses data-t keys; the 3D icons use APP_FEATURES).
 const APP_TEXT = {
+  kosEyebrow: { en: "1F · KOS board", zh: "1F · 歌王榜", id: "1F · Papan KOS" },
+  kosTitle: { en: "Who's the king tonight?", zh: "今晚谁是歌王？", id: "Siapa raja malam ini?" },
+  kosBody: { en: "The Kings of Singers board shows tonight's top singers and gifts — live.", zh: "歌王榜实时显示今晚最强歌手和礼物。", id: "Papan Kings of Singers menampilkan penyanyi dan hadiah teratas malam ini — langsung." },
+  ktvEyebrow: { en: "2F · Inside the rooms", zh: "2F · 包厢实景", id: "2F · Di dalam ruangan" },
+  ktvTitle: { en: "Big screens, real sound", zh: "大屏幕，好音响", id: "Layar besar, suara mantap" },
+  ktvBody: { en: "Every private room has its own big screen, pro sound and lights.", zh: "每间私人包厢都有大屏幕、专业音响和灯光。", id: "Setiap ruang privat punya layar besar, suara profesional dan lampu sendiri." },
+  vipBeautyEyebrow: { en: "3F · Beauty rooms 6–8", zh: "3F · 6–8号美容室", id: "3F · Ruang kecantikan 6–8" },
+  vipBeautyTitle: { en: "Pampered on the VIP floor", zh: "VIP楼层的专属护理", id: "Dimanjakan di lantai VIP" },
+  vipBeautyBody: { en: "Facials and hair, steps away from the VIP rooms.", zh: "面部护理与美发，离VIP包厢只有几步。", id: "Facial dan rambut, beberapa langkah dari ruang VIP." },
+  restEyebrow: { en: "4F · Restaurant", zh: "4F · 餐厅", id: "4F · Restoran" },
+  restTitle: { en: "Coffee, meals & treats", zh: "咖啡、美食与甜点", id: "Kopi, makanan & camilan" },
+  restBody: { en: "A full kitchen serving coffee, meals and treats — with the pets close by.", zh: "完整厨房供应咖啡、餐点和甜点——宠物就在身边。", id: "Dapur lengkap menyajikan kopi, makanan dan camilan — dekat dengan para peliharaan." },
+  liveBoardEyebrow: { en: "5F · Every night", zh: "5F · 夜夜精彩", id: "5F · Setiap malam" },
+  liveBoardTitle: { en: "Real crowds, real energy", zh: "真实人潮，真实能量", id: "Keramaian nyata, energi nyata" },
+  liveBoardBody: { en: "DJ nights, live bands and the KOS finals — every night on the rooftop.", zh: "DJ之夜、现场乐队和KOS总决赛——天台夜夜上演。", id: "Malam DJ, live band dan final KOS — setiap malam di rooftop." },
   salonEyebrow: { en: "2F · Hair salon", zh: "2F · 美发沙龙", id: "2F · Salon rambut" },
   salonTitle: { en: "Cut, colour & style", zh: "剪发、染发与造型", id: "Potong, warna & tata rambut" },
   salonBody: { en: "A full hair salon in the middle of the floor — styled and ready before the party.", zh: "楼层中央的完整美发沙龙——派对前打理好发型。", id: "Salon rambut lengkap di tengah lantai — tampil rapi sebelum pesta." },
@@ -2662,7 +2677,9 @@ fetch("/api/public/app-links").then((r) => (r.ok ? r.json() : {})).catch(() => (
 // ── Overlays, nav, flash ───────────────────────────────────────────────────
 // A card can also steer the camera at its stop: data-look / data-pos = "x,y,z" (y above the
 // floor), blended in around the stop so the walk turns to show that part (e.g. 2F hair salon).
-const xyz = (v) => (v ? v.split(",").map(Number) : null);
+// x may end in "s" = times SIDE_X(), the side boards' distance (narrower on portrait screens).
+const xyz = (v) => (v ? v.split(",").map((n) => (n.trim().endsWith("s") ? { s: parseFloat(n) } : Number(n))) : null);
+const xOf = (v) => (typeof v === "object" ? v.s * SIDE_X() : v);
 const beats = [...document.querySelectorAll(".beat")].map((el) => ({ el, a: +el.dataset.a, b: +el.dataset.b, look: xyz(el.dataset.look), pos: xyz(el.dataset.pos) }));
 const steerBeats = beats.filter((x) => x.look || x.pos);
 const floorBtns = [...document.querySelectorAll("#floors button")];
@@ -3117,8 +3134,8 @@ function frame(ts) {
     const mid = (sb.a + sb.b) / 2, half = (sb.b - sb.a) / 2;
     const w = smooth(clamp((half * 1.6 - Math.abs(p - mid)) / half));
     if (w <= 0) continue;
-    if (sb.pos) camPos.lerp(tmpV.set(sb.pos[0], seg.y + sb.pos[1], sb.pos[2]), w);
-    if (sb.look) camLook.lerp(tmpV.set(sb.look[0], seg.y + sb.look[1], sb.look[2]), w);
+    if (sb.pos) camPos.lerp(tmpV.set(xOf(sb.pos[0]), seg.y + sb.pos[1], sb.pos[2]), w);
+    if (sb.look) camLook.lerp(tmpV.set(xOf(sb.look[0]), seg.y + sb.look[1], sb.look[2]), w);
   }
   camera.position.copy(camPos);
   camera.lookAt(camLook);
