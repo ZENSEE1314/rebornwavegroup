@@ -72,6 +72,10 @@ const LANG = (() => {
 const tl = (o) => o[LANG] || o.en;
 // App-stop texts (the overlay uses data-t keys; the 3D icons use APP_FEATURES).
 const APP_TEXT = {
+  planTitle: { en: "Floor plan — tap a plan to zoom in", zh: "楼层平面图——点击平面图放大", id: "Denah lantai — ketuk denah untuk memperbesar" },
+  crowdEyebrow: { en: "5F · Live stage", zh: "5F · 现场舞台", id: "5F · Panggung live" },
+  crowdTitle: { en: "Step into the crowd", zh: "走进人群", id: "Masuk ke keramaian" },
+  crowdBody: { en: "Live bands, DJ nights and the KOS finals — get right to the front of the stage.", zh: "现场乐队、DJ之夜和KOS总决赛——直达舞台最前排。", id: "Live band, malam DJ dan final KOS — langsung ke depan panggung." },
   liftEyebrow: { en: "The lift", zh: "电梯", id: "Lift" },
   lift2: { en: "Going up · 2F Private KTV & Beauty", zh: "上楼 · 2F 私人KTV与美容", id: "Naik · 2F KTV Privat & Kecantikan" },
   lift3: { en: "Going up · 3F VIP & Beauty spa", zh: "上楼 · 3F VIP与美容SPA", id: "Naik · 3F VIP & Spa kecantikan" },
@@ -302,6 +306,9 @@ function card(w, h, draw, { frame = true, glow = null, pxPerUnit = 220 } = {}) {
 function zoomable(obj, zone) {
   const e = { obj, zone, face: obj.userData.face, ...obj.userData.size, k: 0, active: false, basePos: new THREE.Vector3(), baseQuat: new THREE.Quaternion() };
   e.face.userData.zoom = e;
+  // Everything on the card (floor plan, photos) draws in the transparent pass, after the
+  // dark zoom veil — an opaque picture was drawn first and the veil greyed it out.
+  obj.traverse((n) => { if (n.isMesh && n.material && !n.material.transparent) n.material.transparent = true; });
   zoomables.push(e);
   return obj;
 }
@@ -2591,8 +2598,8 @@ function floorPath(seg) {
   const back = PORTRAIT() ? 6 : 0;
   if (seg.id === "live") {
     return withLifts(seg,
-      [[0, Y + 3.6, 26 + back], [-0.8 * k, Y + 3.6, 16 + back * 0.5], [-1.2 * k, Y + 5.4, 6], [0.4 * k, Y + 8, -1.5], [-2.8 * k, Y + 3.0, -12], [2.4 * k, Y + 2.4, -21], [0, Y + 3.8, -30], [0, Y + 7.5, -37]],
-      [[0, Y + 3.4, 0], [0, Y + 3.4, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [-SIDE_X(), Y + 3.2, -17], [SIDE_X(), Y + 3.2, -24], [0, Y + 10.5, -48], [0, Y + PLAN_Y_LIVE + 2.6, -48]],
+      [[0, Y + 3.6, 26 + back], [-0.8 * k, Y + 3.6, 16 + back * 0.5], [-1.2 * k, Y + 5.4, 6], [0.4 * k, Y + 8, -1.5], [-2.8 * k, Y + 3.0, -12], [2.4 * k, Y + 2.4, -21], [0, Y + 3.8, -30], [0, Y + 15.2, -43.5]], // last: up close to the floor plan
+      [[0, Y + 3.4, 0], [0, Y + 3.4, 0], [0, Y + 4.4, -2], [0, Y + 3.4, -12], [-SIDE_X(), Y + 3.2, -17], [SIDE_X(), Y + 3.2, -24], [0, Y + 10.5, -48], [0, Y + PLAN_Y_LIVE + 2.2, -50]],
     );
   }
   const lookY = seg.id === "pet" ? 4.2 : 4.6; // frames the closing monuments and the floor plans above them
