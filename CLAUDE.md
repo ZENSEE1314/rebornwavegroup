@@ -62,6 +62,9 @@ text.
   itself, which never opens the Reborn member app; opening `/bridgex*` leaves the company.
   The BridgeX console is for the platform team only (`canUseBridgeXConsole`); a company's owner is not let in (on Reborn's own site its staff still open it for Reborn). A company's
   app admins are created and reset from the console (Companies > "Admins of the … app").
+- Tab title, tab icon and share preview follow the brand of the page: server/pageBrand.ts
+  rewrites the page head for a company or BridgeX (index.html itself is Reborn's), and the
+  router in App.tsx keeps title + icon on the company while moving between pages.
 - App designs: a company picks one of the designs in `shared/appSkins.ts` (BridgeX > White
   label; saved as `bridge_companies.theme.skin`). The app puts it on `<html data-skin>`
   and `client/src/skins.css` restyles the member app through variables. New shared app

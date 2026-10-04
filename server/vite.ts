@@ -7,6 +7,7 @@ import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 import { storage } from "./storage";
 import { getUserId } from "./multiAuth";
+import { brandPageShell } from "./pageBrand";
 
 const viteLogger = createLogger();
 const FLAGSHIP_HOSTS = new Set(["rebornwave.group", "www.rebornwave.group"]);
@@ -171,7 +172,7 @@ export function serveStatic(app: Express) {
     if (!baseHtml) {
       return res.sendFile(path.resolve(distPath!, "index.html"));
     }
-    const html = await injectSeoMeta(baseHtml, req.originalUrl);
+    const html = await brandPageShell(await injectSeoMeta(baseHtml, req.originalUrl), req, FLAGSHIP_HOSTS);
     res.status(200).set({ "Content-Type": "text/html" }).end(html);
   });
 }

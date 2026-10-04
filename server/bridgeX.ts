@@ -902,7 +902,7 @@ export function registerBridgeXRoutes(app: Express) {
         iconUrl: company.appIconUrl || company.logoUrl,
         androidPackage: company.androidPackage,
         iosBundleId: company.iosBundleId,
-        startUrl: company.websiteDomain ? `https://${company.websiteDomain}/login?tenant=${company.slug}` : `https://bridgexpos.up.railway.app/bridgexpos/login?tenant=${company.slug}`,
+        startUrl: company.websiteDomain ? `https://${company.websiteDomain}/login?tenant=${company.slug}` : `https://bridgexpos.up.railway.app/login?tenant=${company.slug}`,
       },
     });
   }));

@@ -205,6 +205,14 @@ if (window.location.pathname.startsWith("/bridgex")) {
   applyAppSkin("");
 }
 
+// A tab icon for a company that has not uploaded a logo: its first letter on its colour.
+const DEFAULT_ICON_COLOUR = "#1f2937";
+function letterIcon(name: string, colour: string): string {
+  const letter = name.trim().charAt(0).toUpperCase().replace(/[<>&'"]/g, "");
+  const fill = /^#[0-9a-f]{3,8}$/i.test(colour) ? colour : DEFAULT_ICON_COLOUR;
+  return "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='${fill}'/><text x='32' y='45' font-family='Arial,Helvetica,sans-serif' font-size='36' font-weight='bold' text-anchor='middle' fill='#ffffff'>${letter}</text></svg>`);
+}
+
 function ToBridgeXConsole() {
   window.location.replace("/bridgex");
   return null;
@@ -268,11 +276,17 @@ function Router() {
     if (onBridge) {
       document.title = "BridgeXPOS — Business Operating System";
       if (link) link.href = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#22d3ee'/><text x='32' y='45' font-family='Arial,Helvetica,sans-serif' font-size='32' font-weight='bold' text-anchor='middle' fill='#06121d'>BX</text></svg>");
+    } else if (inCompany) {
+      // Another company's app: its own name and icon, never Reborn's. Nothing changes until its details have loaded.
+      if (tenantBrand.appName) {
+        document.title = tenantBrand.appName;
+        if (link) link.href = tenantBrand.logoUrl || letterIcon(tenantBrand.appName, tenantBrand.primary);
+      }
     } else if (link && (link as any)._orig) {
       document.title = (link as any)._origTitle || document.title;
       link.href = (link as any)._orig;
     }
-  }, [brandLoc, onBridgeXItself]);
+  }, [brandLoc, onBridgeXItself, inCompany, tenantBrand.appName, tenantBrand.logoUrl, tenantBrand.primary]);
 
   // Keep every active screen current. Server-sent events update immediately;
   // the timer covers mobile networks that temporarily suspend the stream.
