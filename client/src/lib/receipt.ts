@@ -1,6 +1,7 @@
 // Builds and prints 80mm receipts / kitchen dockets via the browser's print
 // dialog. Set your thermal printer as the default printer (or "Save as PDF").
 import { translate as tr, localeTag } from "@/lib/i18n";
+import { money } from "@/lib/money";
 
 interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; }
 interface Order {
@@ -13,7 +14,7 @@ interface Order {
 }
 interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; serviceFeePercent?: number; taxPercent?: number; }
 
-const rp = (n: any) => "RP " + Math.round(Number(n) || 0).toLocaleString("en-US");
+const rp = (n: any) => money(n);
 const mode = (m?: string) => (m === "take_away" ? tr("pos.rc.takeAway") : tr("pos.rc.dineIn"));
 // Translated payment method, falling back to the raw value for unknown methods.
 const payLabel = (p: string) => { const k = `pos.rc.${p}`; const v = tr(k); return v === k ? p : v; };

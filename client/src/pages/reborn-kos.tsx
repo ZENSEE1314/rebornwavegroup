@@ -12,6 +12,7 @@ import { LevelAvatar, LevelChips, GifterPodium } from "@/components/LevelRing";
 import doluruuImg from "@assets/Doluruu Boy_1749664545355.png";
 import { usePetBrand } from "@/hooks/usePetBrand";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins, Camera, QrCode, CheckCircle2 } from "lucide-react";
+import { money } from "@/lib/money";
 
 const ANIM_CSS = `
 @keyframes kgPop{0%{transform:scale(.2);opacity:0}40%{transform:scale(1.25);opacity:1}70%{transform:scale(.95)}100%{transform:scale(1);opacity:1}}
@@ -306,7 +307,7 @@ function BuyModal({ wallet, onClose, onDone, onTopup }: any) {
       <h3 className="arc-title mb-1" style={{ ["--c1" as any]: "#ec4899" }}>{t("vn.kos.buyKgold")}</h3>
       <p className="text-sm text-white/60 mb-4">{t("vn.kos.buyRate", { per, min: fmt(min) })}</p>
       <input type="number" min={min} step={min} value={kg} onChange={(e) => setKg(Number(e.target.value))} className="arc-input w-full mb-2 font-black text-lg" style={{ ["--c1" as any]: "#f3b52f" }} />
-      <p className="text-sm text-white/60 mb-4">{t("vn.kos.costLabel")} <b className="text-amber-300">RP {fmt(cost)}</b> {t("vn.kos.costFrom", { n: fmt(wallet?.credits ?? 0) })}</p>
+      <p className="text-sm text-white/60 mb-4">{t("vn.kos.costLabel")} <b className="text-amber-300">{money(cost)}</b> {t("vn.kos.costFrom", { n: fmt(wallet?.credits ?? 0) })}</p>
       <button onClick={() => insufficient ? onTopup() : buy.mutate()} disabled={buy.isPending || kg < min} className="arc-play w-full justify-center disabled:opacity-50" style={{ padding: 12, fontSize: 13 }}>{insufficient ? t("vn.kos.topupToContinue") : t("vn.kos.buyN", { n: fmt(kg) })}</button>
     </Overlay>
   );

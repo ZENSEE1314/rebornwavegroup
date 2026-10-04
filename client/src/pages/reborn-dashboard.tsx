@@ -17,6 +17,7 @@ import {
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
   Utensils, Store, Wine, Mic2, ReceiptText, Gamepad2,
 } from "lucide-react";
+import { money, moneySymbol } from "@/lib/money";
 
 const TILES = [
   { label: "hm.tile.petCare", desc: "hm.tile.petCareDesc", icon: <PawPrint className="w-6 h-6" />, path: "/pet", color: "#fb7185" },
@@ -39,7 +40,7 @@ const TILES = [
 // Must match MAX_TOPUP_RP on the server.
 const MAX_TOPUP = 1_000_000_000;
 
-function formatRp(n: number) { return "RP " + (n || 0).toLocaleString(localeTag()); }
+function formatRp(n: number) { return money(n); }
 
 export default function RebornDashboard() {
   const [, navigate] = useLocation();
@@ -198,7 +199,7 @@ function TopupModal({ onClose }: { onClose: () => void }) {
           <div className="mt-4 space-y-1">
             <p className="text-xs text-white/40">{t("hm.topup.recent")}</p>
             {mine.slice(0, 4).map((r) => (
-              <div key={r.id} className="flex justify-between text-xs"><span>RP {Number(r.amount).toLocaleString(localeTag(language))}</span>
+              <div key={r.id} className="flex justify-between text-xs"><span>{moneySymbol()} {Number(r.amount).toLocaleString(localeTag(language))}</span>
                 <span className={r.status === "approved" ? "text-emerald-400" : r.status === "rejected" ? "text-red-400" : "text-amber-300"}>{t(`hm.status.${r.status}`)}</span></div>
             ))}
           </div>

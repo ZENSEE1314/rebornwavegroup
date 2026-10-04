@@ -5,10 +5,11 @@ import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useTranslation, localeTag } from "@/lib/i18n";
 import { Plus, Minus, ShoppingCart, Utensils, Clock } from "lucide-react";
+import { money } from "@/lib/money";
 
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; soldOut?: boolean; }
 
-const rp = (n: number) => "RP " + (n || 0).toLocaleString(localeTag());
+const rp = (n: any) => money(n);
 
 export default function RebornOrder() {
   const { toast } = useToast();

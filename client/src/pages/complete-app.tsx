@@ -34,6 +34,7 @@ import MobileBackButton from "@/components/mobile-back-button";
 import { TooltipGuide, useTooltipGuide } from "@/components/TooltipGuide";
 import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
 import DoluruuWonderland from "@/pages/doluruu-wonderland";
+import { moneySymbol } from "@/lib/money";
 
 // VoterCard Component for displaying individual voters
 function VoterCard({ 
@@ -664,7 +665,7 @@ function KOSSection({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate">{winner.name}</div>
-                        <div className="text-xs text-gray-600">RP {parseFloat(winner.reward || '0').toLocaleString()}</div>
+                        <div className="text-xs text-gray-600">{moneySymbol()} {parseFloat(winner.reward || '0').toLocaleString()}</div>
                       </div>
                     </div>
                   )) : null}
@@ -1077,7 +1078,7 @@ function KOSSection({
                             <div className={`text-sm font-semibold ${
                               isPurchase ? 'text-red-600' : 'text-green-600'
                             }`}>
-                              {isPurchase ? '-' : '+'}RP {parseInt(transaction.rpCost || 0).toLocaleString()}
+                              {isPurchase ? '-' : '+'}{moneySymbol()} {parseInt(transaction.rpCost || 0).toLocaleString()}
                             </div>
                           </div>
                         </div>
@@ -2098,12 +2099,12 @@ function KOSSection({
                   {starDialogType === 'buy' ? 'RP Cost:' : 'RP Return:'}
                 </span>
                 <span className="font-medium text-green-600">
-                  RP {starDialogType === 'buy' ? buyStarsCost.toLocaleString() : sellStarsReturn.toLocaleString()}
+                  {moneySymbol()} {starDialogType === 'buy' ? buyStarsCost.toLocaleString() : sellStarsReturn.toLocaleString()}
                 </span>
               </div>
               {starDialogType === 'sell' && (
                 <div className="text-xs text-gray-500 mt-2">
-                  Admin Fee (30%): RP {Math.floor((customStarsAmount ? parseInt(customStarsAmount) || 0 : starsAmount) * STAR_PRICE * 0.3).toLocaleString()}
+                  Admin Fee (30%): {moneySymbol()} {Math.floor((customStarsAmount ? parseInt(customStarsAmount) || 0 : starsAmount) * STAR_PRICE * 0.3).toLocaleString()}
                 </div>
               )}
             </div>
@@ -2412,7 +2413,7 @@ function POSTerminalSection({ user }: { user: any }) {
                         </div>
                         <div>
                           <div className="text-white text-sm font-medium">{u.firstName} {u.lastName}</div>
-                          <div className="text-white/40 text-xs">{u.email} · {u.loyaltyPoints||0} pts · RP {parseFloat(u.credits||'0').toLocaleString('id-ID')}</div>
+                          <div className="text-white/40 text-xs">{u.email} · {u.loyaltyPoints||0} pts · {moneySymbol()} {parseFloat(u.credits||'0').toLocaleString('id-ID')}</div>
                         </div>
                       </button>
                     ))}
@@ -2426,7 +2427,7 @@ function POSTerminalSection({ user }: { user: any }) {
                   </div>
                   <div className="flex-1">
                     <div className="text-white font-semibold">{selectedCustomer.firstName} {selectedCustomer.lastName}</div>
-                    <div className="text-xs text-amber-400">{selectedCustomer.loyaltyPoints||0} pts · RP {parseFloat(selectedCustomer.credits||'0').toLocaleString('id-ID')}</div>
+                    <div className="text-xs text-amber-400">{selectedCustomer.loyaltyPoints||0} pts · {moneySymbol()} {parseFloat(selectedCustomer.credits||'0').toLocaleString('id-ID')}</div>
                   </div>
                   {total > 0 && <div className="text-xs font-bold text-emerald-400">+{pointsPreview} pts</div>}
                   <button onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }} className="text-white/30 hover:text-white/80 ml-1"><X className="w-4 h-4" /></button>
@@ -2457,7 +2458,7 @@ function POSTerminalSection({ user }: { user: any }) {
                     style={{ background: inCart ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.04)', border: inCart ? '1px solid rgba(201,168,76,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
                     {inCart && <span className="absolute top-2 right-2 bg-amber-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{inCart.qty}</span>}
                     <div className="text-sm font-semibold text-white leading-tight mb-1">{item.name}</div>
-                    <div className="text-amber-400 font-bold text-xs">RP {item.price.toLocaleString('id-ID')}</div>
+                    <div className="text-amber-400 font-bold text-xs">{moneySymbol()} {item.price.toLocaleString('id-ID')}</div>
                   </button>
                 );
               })}
@@ -2489,7 +2490,7 @@ function POSTerminalSection({ user }: { user: any }) {
                   <div key={item.name} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
                     <div className="flex-1 min-w-0">
                       <div className="text-white text-xs font-medium truncate">{item.name}</div>
-                      <div className="text-amber-400 text-xs">RP {(item.price * item.qty).toLocaleString('id-ID')}</div>
+                      <div className="text-amber-400 text-xs">{moneySymbol()} {(item.price * item.qty).toLocaleString('id-ID')}</div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button onClick={() => changeQty(item.name, -1)} className="text-white/30 hover:text-white transition-colors"><MinusCircle className="w-4 h-4" /></button>
@@ -2503,13 +2504,13 @@ function POSTerminalSection({ user }: { user: any }) {
             )}
 
             <div className="border-t border-white/10 pt-3 space-y-2">
-              <div className="flex justify-between text-white/50 text-sm"><span>Subtotal</span><span>RP {subtotal.toLocaleString('id-ID')}</span></div>
+              <div className="flex justify-between text-white/50 text-sm"><span>Subtotal</span><span>{moneySymbol()} {subtotal.toLocaleString('id-ID')}</span></div>
               <div className="flex items-center gap-2">
                 <span className="text-white/50 text-sm flex-shrink-0">Discount (RP)</span>
                 <input type="number" value={discount || ''} onChange={e => setDiscount(parseFloat(e.target.value)||0)} placeholder="0"
                   className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-amber-400 text-sm text-right focus:outline-none min-w-0" />
               </div>
-              <div className="flex justify-between text-white font-bold text-xl pt-1"><span>Total</span><span>RP {total.toLocaleString('id-ID')}</span></div>
+              <div className="flex justify-between text-white font-bold text-xl pt-1"><span>Total</span><span>{moneySymbol()} {total.toLocaleString('id-ID')}</span></div>
               {selectedCustomer && total > 0 && (
                 <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-400/10 rounded-lg px-3 py-1.5">
                   <Star className="w-3 h-3" /><span>Customer earns <strong>{pointsPreview} pts</strong> on this order</span>
@@ -2559,7 +2560,7 @@ function POSTerminalSection({ user }: { user: any }) {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold block mb-1 ${order.paymentStatus === 'paid' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                         {order.paymentStatus}
                       </span>
-                      <span className="text-white font-bold text-sm">RP {parseFloat(order.total).toLocaleString('id-ID')}</span>
+                      <span className="text-white font-bold text-sm">{moneySymbol()} {parseFloat(order.total).toLocaleString('id-ID')}</span>
                       {order.pointsAwarded > 0 && <div className="text-emerald-400 text-[10px] mt-0.5">+{order.pointsAwarded} pts</div>}
                     </div>
                   </div>
@@ -2605,15 +2606,15 @@ function POSTerminalSection({ user }: { user: any }) {
                 {receiptData.items.map((item: any) => (
                   <div key={item.name} className="flex justify-between text-sm">
                     <span className="text-white/70">{item.qty}x {item.name}</span>
-                    <span className="text-white">RP {(item.price * item.qty).toLocaleString('id-ID')}</span>
+                    <span className="text-white">{moneySymbol()} {(item.price * item.qty).toLocaleString('id-ID')}</span>
                   </div>
                 ))}
               </div>
               <div className="border-t border-white/10 pt-3 space-y-1">
                 {receiptData.order?.discount > 0 && (
-                  <div className="flex justify-between text-sm text-white/50"><span>Discount</span><span>- RP {parseFloat(receiptData.order.discount).toLocaleString('id-ID')}</span></div>
+                  <div className="flex justify-between text-sm text-white/50"><span>Discount</span><span>- {moneySymbol()} {parseFloat(receiptData.order.discount).toLocaleString('id-ID')}</span></div>
                 )}
-                <div className="flex justify-between font-bold text-lg"><span className="text-white">Total</span><span className="text-amber-400">RP {parseFloat(receiptData.order?.total||'0').toLocaleString('id-ID')}</span></div>
+                <div className="flex justify-between font-bold text-lg"><span className="text-white">Total</span><span className="text-amber-400">{moneySymbol()} {parseFloat(receiptData.order?.total||'0').toLocaleString('id-ID')}</span></div>
                 <div className="flex justify-between text-sm text-white/50">
                   <span>Payment</span><span className="capitalize">{receiptData.paymentMethod?.replace('_',' ')}</span>
                 </div>
@@ -6270,7 +6271,7 @@ function PurchaseVerificationSection({ language, user, userTokens }: { language:
         if (result.newCredits) {
           toast({
             title: t('common.success'),
-            description: `Credit payment successful! New balance: RP ${parseFloat(result.newCredits).toLocaleString()}`,
+            description: `Credit payment successful! New balance: ${moneySymbol()} ${parseFloat(result.newCredits).toLocaleString()}`,
           });
         }
       }
@@ -6380,7 +6381,7 @@ function PurchaseVerificationSection({ language, user, userTokens }: { language:
       if (userCredits < purchaseAmount) {
         toast({
           title: 'Insufficient Credits',
-          description: `You need RP ${purchaseAmount.toLocaleString('id-ID')} but only have RP ${userCredits.toLocaleString('id-ID')}`,
+          description: `You need ${moneySymbol()} ${purchaseAmount.toLocaleString('id-ID')} but only have ${moneySymbol()} ${userCredits.toLocaleString('id-ID')}`,
           variant: "destructive",
         });
         return;
@@ -6505,7 +6506,7 @@ function PurchaseVerificationSection({ language, user, userTokens }: { language:
                     <div className="text-center">
                       <div className="text-lg font-semibold">Credit Payment</div>
                       <div className="text-sm text-gray-600">
-                        Balance: RP {parseFloat(userStats?.credits || '0').toLocaleString('id-ID')}
+                        Balance: {moneySymbol()} {parseFloat(userStats?.credits || '0').toLocaleString('id-ID')}
                       </div>
                     </div>
                   </button>
@@ -6611,14 +6612,14 @@ function PurchaseVerificationSection({ language, user, userTokens }: { language:
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-green-800">Current Balance:</span>
                     <span className="text-lg font-bold text-green-900">
-                      RP {parseFloat(userStats?.credits || '0').toLocaleString('id-ID')}
+                      {moneySymbol()} {parseFloat(userStats?.credits || '0').toLocaleString('id-ID')}
                     </span>
                   </div>
                   {amount && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-green-800">After Purchase:</span>
                       <span className="text-lg font-bold text-green-900">
-                        RP {Math.max(0, parseFloat(userStats?.credits || '0') - parseFloat(amount || '0')).toLocaleString('id-ID')}
+                        {moneySymbol()} {Math.max(0, parseFloat(userStats?.credits || '0') - parseFloat(amount || '0')).toLocaleString('id-ID')}
                       </span>
                     </div>
                   )}
@@ -6684,7 +6685,7 @@ function PurchaseVerificationSection({ language, user, userTokens }: { language:
                     <div key={verification.id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <p className="font-medium">RP {parseFloat(verification.amount).toLocaleString('id-ID')}</p>
+                          <p className="font-medium">{moneySymbol()} {parseFloat(verification.amount).toLocaleString('id-ID')}</p>
                           <p className="text-sm text-gray-600">{verification.description}</p>
                           <p className="text-xs text-gray-500">
                             {new Date(verification.createdAt).toLocaleDateString(t("date.format"))}
@@ -7313,7 +7314,7 @@ export default function CompleteApp() {
   const loyaltyLevels = configuredTiers.length ? configuredTiers.map((tier:any,index:number) => ({
     level:index+1, minPoints:Number(tier.minPoints||0), maxPoints:index<configuredTiers.length-1?Number(configuredTiers[index+1].minPoints||0)-1:Infinity,
     discount:Number(tier.discountPercent||0), name:tier.name||`Tier ${index+1}`, color:["from-orange-600 to-amber-600","from-gray-500 to-gray-600","from-yellow-500 to-yellow-600","from-purple-500 to-purple-600","from-blue-600 to-indigo-600"][index%5],
-    bgColor:"bg-gray-50", borderColor:"border-gray-200", icon:[Award,Medal,Star,Crown,Trophy][index%5], benefits:[...(tier.benefits||[]),...(Number(tier.freeRp||0)>0?[`RP ${Number(tier.freeRp).toLocaleString()} store gift`]:[])],
+    bgColor:"bg-gray-50", borderColor:"border-gray-200", icon:[Award,Medal,Star,Crown,Trophy][index%5], benefits:[...(tier.benefits||[]),...(Number(tier.freeRp||0)>0?[`${moneySymbol()} ${Number(tier.freeRp).toLocaleString()} store gift`]:[])],
   })) : defaultLoyaltyLevels;
 
   const getLoyaltyLevel = (points) => {
@@ -9125,7 +9126,7 @@ export default function CompleteApp() {
                     onClick={() => setTopUpAmount(amount)}
                     className={`text-xs ${topUpAmount === amount ? "bg-blue-100" : ""}`}
                   >
-                    RP {parseInt(amount).toLocaleString('id-ID')}
+                    {moneySymbol()} {parseInt(amount).toLocaleString('id-ID')}
                   </Button>
                 ))}
               </div>
@@ -9383,8 +9384,8 @@ export default function CompleteApp() {
                       </span>
                       <span className="text-white/40 text-xs">
                         {user?.role === 'admin'
-                          ? `${loyaltyPoints} pts · RP ${formatRupiah(userCredits)}`
-                          : `Level ${currentLoyaltyLevel.level} · ${loyaltyPoints} pts · RP ${formatRupiah(userCredits)}`}
+                          ? `${loyaltyPoints} pts · ${moneySymbol()} ${formatRupiah(userCredits)}`
+                          : `Level ${currentLoyaltyLevel.level} · ${loyaltyPoints} pts · ${moneySymbol()} ${formatRupiah(userCredits)}`}
                       </span>
                     </div>
                   </div>
@@ -9603,7 +9604,7 @@ export default function CompleteApp() {
                           </div>
                           <span className="text-white font-medium">Total Revenue</span>
                         </div>
-                        <span className="text-amber-300 font-bold">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
+                        <span className="text-amber-300 font-bold">{moneySymbol()} {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
                       </div>
                     </div>
 
@@ -9636,7 +9637,7 @@ export default function CompleteApp() {
                           </div>
                           <span className="text-white font-medium">{t('dashboard.credits')}</span>
                         </div>
-                        <span className="text-amber-300 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                        <span className="text-amber-300 font-bold">{moneySymbol()} {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                       </div>
                     </div>
 
@@ -9675,7 +9676,7 @@ export default function CompleteApp() {
                         <span className="text-white font-medium">{t('dashboard.credits')}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-amber-300 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                        <span className="text-amber-300 font-bold">{moneySymbol()} {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                         <ChevronDown className="w-4 h-4 text-white/30" />
                       </div>
                     </div>
@@ -9860,7 +9861,7 @@ export default function CompleteApp() {
                         </div>
                         <span className="text-white font-medium">{t('dashboard.referralEarnings')}</span>
                       </div>
-                      <span className="text-amber-300 font-bold">RP {formatRupiah(referralEarnings)}</span>
+                      <span className="text-amber-300 font-bold">{moneySymbol()} {formatRupiah(referralEarnings)}</span>
                     </div>
                   </div>
                 </div>
@@ -9940,7 +9941,7 @@ export default function CompleteApp() {
                             </div>
                             <span className="text-gray-700">Revenue</span>
                           </div>
-                          <span className="text-2xl font-bold text-gray-900">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
+                          <span className="text-2xl font-bold text-gray-900">{moneySymbol()} {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
                         </div>
                       </div>
                     </div>
@@ -9955,7 +9956,7 @@ export default function CompleteApp() {
                             </div>
                             <span className="text-gray-700">{t('dashboard.credits')}</span>
                           </div>
-                          <span className="text-2xl font-bold text-gray-900">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                          <span className="text-2xl font-bold text-gray-900">{moneySymbol()} {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -10001,7 +10002,7 @@ export default function CompleteApp() {
                       </div>
                       <span className="text-white font-medium text-lg">{t('dashboard.credits')}</span>
                     </div>
-                    <span className="text-amber-300 font-bold text-xl">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                    <span className="text-amber-300 font-bold text-xl">{moneySymbol()} {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                   </div>
                   <div id="desktop-credits-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
@@ -10178,7 +10179,7 @@ export default function CompleteApp() {
                         </div>
                         <span className="text-white font-medium text-lg">{t('dashboard.referralEarnings')}</span>
                       </div>
-                      <span className="text-amber-300 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
+                      <span className="text-amber-300 font-bold text-xl">{moneySymbol()} {formatRupiah(referralEarnings)}</span>
                     </div>
                   </div>
                 </div>
@@ -10941,7 +10942,7 @@ export default function CompleteApp() {
                   <div className="text-white/40 text-xs mt-0.5">{s.sub}</div>
                   {serviceCategories?.[s.key]?.startingPrice && (
                     <span className="mt-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold text-black" style={{ background: 'linear-gradient(90deg,#C9A84C,#f0c060)' }}>
-                      from RP {serviceCategories[s.key].startingPrice}
+                      from {moneySymbol()} {serviceCategories[s.key].startingPrice}
                     </span>
                   )}
                 </div>
@@ -11148,7 +11149,7 @@ export default function CompleteApp() {
                             <p className="text-sm text-yellow-600">Get a surprise toy from this season</p>
                             <div className="mt-3 text-center">
                               <span className="text-2xl font-bold text-green-700">
-                                RP {season.price ? Number(season.price).toLocaleString('id-ID') : '1,000,000'}
+                                {moneySymbol()} {season.price ? Number(season.price).toLocaleString('id-ID') : '1,000,000'}
                               </span>
                             </div>
                           </div>
@@ -11259,7 +11260,7 @@ export default function CompleteApp() {
                             
                             <div className="flex justify-between items-center">
                               <span className="text-2xl font-bold text-amber-400">
-                                RP {(() => {
+                                {moneySymbol()} {(() => {
                                   const price = listing.listingPrice || listing.price || listing.basePrice || '0';
                                   return parseInt(price.toString()).toLocaleString('id-ID');
                                 })()}
@@ -11829,7 +11830,7 @@ export default function CompleteApp() {
                           {t("purchase.purchased")}: {new Date(purchase.createdAt).toLocaleDateString()}
                         </p>
                         <p className="text-lg font-bold text-green-600">
-                          RP {parseFloat(purchase.amount || '0').toLocaleString('id-ID')}
+                          {moneySymbol()} {parseFloat(purchase.amount || '0').toLocaleString('id-ID')}
                         </p>
                         <div className="w-full bg-gray-100 text-gray-600 p-3 rounded text-sm">
                           {t("purchase.waitingShipment")}
@@ -11879,7 +11880,7 @@ export default function CompleteApp() {
                           {t("purchase.purchased")}: {new Date(purchase.createdAt).toLocaleDateString()}
                         </p>
                         <p className="text-lg font-bold text-green-600">
-                          RP {parseFloat(purchase.amount || '0').toLocaleString('id-ID')}
+                          {moneySymbol()} {parseFloat(purchase.amount || '0').toLocaleString('id-ID')}
                         </p>
                         <Button 
                           onClick={() => {
@@ -12092,7 +12093,7 @@ export default function CompleteApp() {
               <Card className="bg-blue-50 border-blue-200">
                 <CardContent className="p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-blue-600 mb-2" />
-                  <p className="text-2xl font-bold text-blue-800">RP {formatRupiah(referralEarnings)}</p>
+                  <p className="text-2xl font-bold text-blue-800">{moneySymbol()} {formatRupiah(referralEarnings)}</p>
                   <p className="text-sm text-blue-600">
                     {t("referral.totalEarnings")}
                   </p>
@@ -12177,7 +12178,7 @@ export default function CompleteApp() {
                       </p>
                       <p className="text-sm text-white">
                         {t("referral.totalEarningsLabel")}
-                        <span className="font-bold text-green-600">RP {formatRupiah(userStats?.referralEarnings || 0)}</span>
+                        <span className="font-bold text-green-600">{moneySymbol()} {formatRupiah(userStats?.referralEarnings || 0)}</span>
                       </p>
                     </div>
                   </div>
@@ -12510,7 +12511,7 @@ export default function CompleteApp() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(userCredits)}</p>
+                    <p className="text-2xl font-bold text-slate-900">{moneySymbol()} {formatRupiah(userCredits)}</p>
                     <p className="text-sm text-slate-600">
                       {t('account.currentCredits')}
                     </p>
@@ -12528,7 +12529,7 @@ export default function CompleteApp() {
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(referralEarnings)}</p>
+                    <p className="text-2xl font-bold text-slate-900">{moneySymbol()} {formatRupiah(referralEarnings)}</p>
                     <p className="text-sm text-slate-600">
                       {t('account.referralEarnings')}
                     </p>
@@ -12563,7 +12564,7 @@ export default function CompleteApp() {
                 </div>
                 <h4 className="font-bold text-slate-900">{selectedPurchaseListing.toy?.name}</h4>
                 <p className="text-xl font-bold text-green-600 mt-2">
-                  RP {parseFloat(selectedPurchaseListing.price || '0').toLocaleString('id-ID')}
+                  {moneySymbol()} {parseFloat(selectedPurchaseListing.price || '0').toLocaleString('id-ID')}
                 </p>
                 <p className="text-sm text-slate-500 mt-1">
                   +{Math.floor(parseFloat(selectedPurchaseListing.price || '0') / 10000)} {t('loyaltyProgram.points')}
@@ -12695,7 +12696,7 @@ export default function CompleteApp() {
                             </div>
                             <div className="text-right">
                               <p className={`font-bold ${entry.type === 'spent' ? 'text-red-600' : 'text-green-600'}`}>
-                                {entry.type === 'spent' ? '-' : '+'}RP {entry.amount.toLocaleString('id-ID')}
+                                {entry.type === 'spent' ? '-' : '+'}{moneySymbol()} {entry.amount.toLocaleString('id-ID')}
                               </p>
                               <p className="text-sm text-gray-600 capitalize">
                                 {entry.type}
@@ -12978,7 +12979,7 @@ export default function CompleteApp() {
                   </p>
                   {selectedReward.type === 'credit' && selectedReward.creditAmount && (
                     <p className="text-sm text-green-700 mt-1">
-                      {t('rewards.youWillReceive')}: <span className="font-bold text-green-600">RP {selectedReward.creditAmount}</span>
+                      {t('rewards.youWillReceive')}: <span className="font-bold text-green-600">{moneySymbol()} {selectedReward.creditAmount}</span>
                     </p>
                   )}
                 </div>
@@ -13160,7 +13161,7 @@ export default function CompleteApp() {
                                 </span>
                                 <span className="font-semibold">
                                   {modalHistoryFilter === 'credits' ? 
-                                    `${isPositive ? '+' : ''}RP ${Math.abs(amount).toLocaleString()}` :
+                                    `${isPositive ? '+' : ''}${moneySymbol()} ${Math.abs(amount).toLocaleString()}` :
                                     `${isPositive ? '+' : ''}${Math.abs(amount)} ${amountLabel}`
                                   }
                                 </span>

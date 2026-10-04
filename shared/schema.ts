@@ -87,7 +87,11 @@ export const bridgeCompanies = pgTable("bridge_companies", {
   billingModel: varchar("billing_model").notNull().default("subscription"), // subscription | one_time
   billingCycle: varchar("billing_cycle").notNull().default("monthly"), // monthly | yearly | one_time
   price: decimal("price", { precision: 14, scale: 2 }).default("0").notNull(),
-  currency: varchar("currency").notNull().default("IDR"),
+  currency: varchar("currency").notNull().default("IDR"), // what BridgeX bills the company in
+  // Where the company is: sets its money (localCurrency, shared/countries.ts) and its
+  // staff's statutory payroll contributions (CPF in Singapore, BPJS in Indonesia…).
+  country: varchar("country").notNull().default("ID"),
+  localCurrency: varchar("local_currency").notNull().default("IDR"),
   subscriptionStatus: varchar("subscription_status").notNull().default("trialing"),
   trialEndsAt: timestamp("trial_ends_at"),
   // Where the company's member-app data lives: "shared" (platform tables, legacy),
@@ -171,6 +175,11 @@ export const bridgeStaffProfiles = pgTable("bridge_staff_profiles", {
   commissionRate: decimal("commission_rate", { precision: 6, scale: 2 }).default("0").notNull(),
   salesTarget: decimal("sales_target", { precision: 14, scale: 2 }).default("0").notNull(),
   hireDate: varchar("hire_date"),
+  // Statutory contributions (shared/payrollRules.ts): age band from the birth date,
+  // residency for Singapore CPF (citizen | pr1 | pr2 | foreigner), or off for this person.
+  birthDate: varchar("birth_date"),
+  residency: varchar("residency").notNull().default("citizen"),
+  statutoryOn: boolean("statutory_on").notNull().default(true),
   status: varchar("status").notNull().default("active"),
   rankingScore: decimal("ranking_score", { precision: 10, scale: 2 }).default("0").notNull(),
   starGrade: decimal("star_grade", { precision: 3, scale: 2 }).default("0").notNull(),

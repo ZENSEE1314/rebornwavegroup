@@ -7,10 +7,11 @@
 import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "./db";
 import { memberPackages, memberPackageUses, posProducts } from "@shared/schema";
+import { roundMoney } from "./companyMoney";
 
 export type PackageKind = "uses" | "credit";
 const DAY_MS = 86_400_000;
-const money = (n: unknown) => Math.round(Number(n) || 0);
+const money = (n: unknown) => roundMoney(Number(n) || 0); // whole rupiah, or cents for SGD…
 
 // Not expired: no end date or it is still in the future.
 const notExpired = () => or(isNull(memberPackages.expiresAt), gt(memberPackages.expiresAt, new Date()));
@@ -63,23 +64,23 @@ export async function quoteBill(o: {
   let subtotal = 0, packageBase = 0, creditBase = 0;
   for (const l of o.lines) {
     const amt = Number(l.lineTotal) || 0, p = byId.get(Number(l.productId));
-    subtotal += amt;
+    subtotal = money(subtotal + amt);
     if (p?.packageKind) packageBase += amt;
     else if (p && p.creditOk !== false) creditBase += amt;
   }
   const manualDiscount = Math.min(subtotal, Math.max(0, Number(o.manualDiscount) || 0));
   const wallet = o.userId ? await memberWallet(o.userId) : null;
   const perkPercent = wallet?.perk?.percent || 0;
-  const perkAmount = Math.round(Math.max(0, subtotal - packageBase - manualDiscount) * perkPercent / 100);
+  const perkAmount = money(Math.max(0, subtotal - packageBase - manualDiscount) * perkPercent / 100);
   const discount = Math.min(subtotal, manualDiscount + perkAmount);
-  const taxable = subtotal - discount;
-  const serviceFee = Math.round(taxable * o.serviceFeePercent / 100);
-  const tax = Math.round(taxable * o.taxPercent / 100);
-  const total = taxable + serviceFee + tax;
-  const creditable = subtotal > 0 ? Math.round(total * creditBase / subtotal) : 0;
+  const taxable = money(subtotal - discount);
+  const serviceFee = money(taxable * o.serviceFeePercent / 100);
+  const tax = money(taxable * o.taxPercent / 100);
+  const total = money(taxable + serviceFee + tax);
+  const creditable = subtotal > 0 ? money(total * creditBase / subtotal) : 0;
   const creditBalance = wallet?.creditBalance || 0;
   const creditUse = o.usePackageCredit ? Math.min(creditable, creditBalance) : 0;
-  return { subtotal, manualDiscount, perkPercent, perkAmount, discount, serviceFee, tax, total, creditBalance, creditable, creditUse, due: total - creditUse, hasPackages: packageBase > 0 };
+  return { subtotal, manualDiscount, perkPercent, perkAmount, discount, serviceFee, tax, total, creditBalance, creditable, creditUse, due: money(total - creditUse), hasPackages: packageBase > 0 };
 }
 
 // Spend package credit, oldest-expiring first. Each package is taken with an atomic

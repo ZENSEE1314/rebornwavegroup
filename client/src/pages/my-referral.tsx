@@ -5,6 +5,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { Copy, Share2, Users, DollarSign, Gift, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation, localeTag } from "@/lib/i18n";
+import { moneySymbol } from "@/lib/money";
 
 export default function MyReferral() {
   const { user } = useAuth();
@@ -113,7 +114,7 @@ export default function MyReferral() {
                   </div>
                   <span className="text-white/70">{t("ac.myref.earnings")}</span>
                 </div>
-                <span className="font-bold text-white">RP {Number(typedUser?.referralEarnings || 0).toLocaleString(localeTag(language))}</span>
+                <span className="font-bold text-white">{moneySymbol()} {Number(typedUser?.referralEarnings || 0).toLocaleString(localeTag(language))}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">

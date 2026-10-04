@@ -13,6 +13,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Upload, CreditCard, Building, Wallet, History, Eye, X, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { useTranslation, localeTag } from "@/lib/i18n";
+import { money } from "@/lib/money";
 
 interface CreditTopUpModalProps {
   isOpen: boolean;
@@ -39,7 +40,7 @@ function StripeTab({ onClose }: { onClose: () => void }) {
     { amount: 500000000, price: "RP 500,000,000", credits: "500,000,000", popular: false },
   ];
 
-  const fmtRp = (n: number) => `RP ${n.toLocaleString(localeTag(language))}`;
+  const fmtRp = (n: any) => money(n);
 
   const handleStripePayment = () => {
     if (!selectedAmount) return;

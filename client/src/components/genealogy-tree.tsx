@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Users, TrendingUp, Calendar, Crown } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n';
+import { moneySymbol } from "@/lib/money";
 
 interface GenealogyNode {
   id: number;
@@ -92,7 +93,7 @@ export default function GenealogyTree() {
               
               <div className="text-right">
                 <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  RP {node.earnings.toLocaleString()}
+                  {moneySymbol()} {node.earnings.toLocaleString()}
                 </div>
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
                   <Calendar className="w-3 h-3 mr-1" />
@@ -104,7 +105,7 @@ export default function GenealogyTree() {
             {node.children && node.children.length > 0 && (
               <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                 {node.children.length} referral{node.children.length > 1 ? 's' : ''} • 
-                RP {node.children.reduce((sum, child) => sum + child.earnings, 0).toLocaleString()} earnings
+                {moneySymbol()} {node.children.reduce((sum, child) => sum + child.earnings, 0).toLocaleString()} earnings
               </div>
             )}
           </div>
@@ -129,7 +130,7 @@ export default function GenealogyTree() {
         
         <div className="bg-gray-50 dark:bg-gray-900/20 p-4 rounded-lg">
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            RP {genealogyData.totalEarnings.toLocaleString()}
+            {moneySymbol()} {genealogyData.totalEarnings.toLocaleString()}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Total Earnings</div>
         </div>

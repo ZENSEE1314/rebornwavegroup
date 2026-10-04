@@ -76,6 +76,23 @@ text.
   `<html data-skin-mode="light">`, which turns the dark app's white text / dark panels /
   pale colour texts light (skins.css "light layer"). A full-screen scene that must stay
   dark (level up, login reward, gift scenes) gets the class `keep-dark`.
+- Country + money: each company has a `country` (picked when it is created in BridgeX /
+  the merchant sign-up, changeable on its company card) and a `local_currency` from it
+  (shared/countries.ts: symbol, decimals — RP 0 decimals, S$ 2). The server knows the money
+  of the request's company (`companyMoney()` / `roundMoney()` in server/companyMoney.ts,
+  carried in the tenant registry); the app gets it from `/api/v1/tenant/resolve` (App.tsx →
+  `setAppMoney`). Show amounts with `money()` from client/src/lib/money.ts — never write
+  `"RP " +` — and round bills with `roundMoney` (cents for SGD). Texts may keep writing "RP":
+  `brandText()` / `inBrandVoice()` swap it for the company's symbol.
+- Payroll contributions (shared/payrollRules.ts, Admin › Payroll): each company starts with its
+  country's statutory rates — Singapore CPF by age band (+ PR 1st/2nd-year rates, Ordinary
+  Wage ceiling, employer-only SDL), Indonesia BPJS (JHT, JP, JKK, JKM, Kesehatan, with wage
+  caps), Malaysia EPF/SOCSO/EIS, others none — saved per company in `app_settings.payrollRules`;
+  the admin edits every number or resets to the country's. Staff profile: `birth_date`,
+  `residency` (citizen | pr1 | pr2 | foreigner) and `statutory_on`. Recording pay books the
+  gross as `salary` and the employer's share as `statutory_contribution`; the staff share is
+  withheld (net pay = gross − staff share). Rates change yearly — update the defaults when
+  governments do.
 - Test: `scripts/tenant-isolation-test.mts` against an empty scratch database.
 - A dedicated server sets `DEFAULT_COMPANY_SLUG` (+ `DEFAULT_COMPANY_NAME`) so the app
   runs as that company instead of Reborn.

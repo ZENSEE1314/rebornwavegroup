@@ -101,6 +101,7 @@ import { FLAGSHIP_TENANT_SLUG, forgetTenantSlug, rememberedTenantSlug, useTenant
 import { applyAppSkin } from "@/lib/appSkin";
 import { usePetBrand } from "@/hooks/usePetBrand";
 import { setBrandWords } from "@/lib/i18n";
+import { setAppMoney, moneySymbol } from "@/lib/money";
 import Login from "@/pages/Login";
 
 // ── Lazy-loaded — secondary pages, each gets its own chunk ────────────────────
@@ -252,7 +253,8 @@ function Router() {
   // Set while rendering, so every page below already reads the company's own names.
   const tenantBrand = useTenantBrand();
   const petBrand = usePetBrand();
-  setBrandWords({ company: tenantBrand.isWhiteLabel ? tenantBrand.appName : "", pet: petBrand.name });
+  setAppMoney(tenantBrand.currency);
+  setBrandWords({ company: tenantBrand.isWhiteLabel ? tenantBrand.appName : "", pet: petBrand.name, money: moneySymbol() });
   // Signed in (any way — password, sign-up, Google, Apple) after scanning a link → finish that link.
   useEffect(() => {
     if (!isAuthenticated) return;

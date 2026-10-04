@@ -5,7 +5,9 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT, homeCompanySlug, runInTenant } from "./tenantContext";
-import { DATA_MODES, DEFAULT_DATA_MODE, setCompanyDataMode, type DataMode } from "./tenantSpace";
+import { DATA_MODES, DEFAULT_DATA_MODE, forgetTenantRegistry, setCompanyDataMode, type DataMode } from "./tenantSpace";
+import { countryOf, moneyStyle } from "@shared/countries";
+import { loadHomeMoney } from "./companyMoney";
 import { getUserId } from "./multiAuth";
 import { DEFAULT_APP_SKIN, isAppSkin } from "../shared/appSkins";
 import {
@@ -339,7 +341,7 @@ async function inCompanySpace<T>(companyId: number, work: () => Promise<T>): Pro
   const [company] = await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
   if (!company) throw new Error("Company not found");
   if (company.dataMode === "schema" && company.dbSchema) {
-    return runInTenant({ companyId: company.id, slug: company.slug, schema: company.dbSchema, name: company.appName || company.name }, work);
+    return runInTenant({ companyId: company.id, slug: company.slug, schema: company.dbSchema, name: company.appName || company.name, currency: company.localCurrency, country: company.country }, work);
   }
   if (company.slug === DEFAULT_COMPANY_SLUG) return work();
   throw new Error("This company runs on its own server. Manage its admins there.");
@@ -349,6 +351,7 @@ async function createCompany(req: Request, ownerUserId: string, body: any) {
   const name = String(body.name || "").trim();
   if (!name) throw new Error("Company name is required");
   const baseSlug = slugify(body.slug || name) || `company-${Date.now()}`;
+  const country = countryOf(body.country);
   const slug = `${baseSlug}-${randomUUID().slice(0, 5)}`;
   const [company] = await db.insert(bridgeCompanies).values({
     slug, name, appName: String(body.appName || name).trim(),
@@ -362,12 +365,13 @@ async function createCompany(req: Request, ownerUserId: string, body: any) {
     billingModel: body.billingModel || "subscription",
     billingCycle: body.billingModel === "one_time" ? "one_time" : body.billingCycle || "monthly",
     price: String(body.price || 0), currency: body.currency || "IDR",
+    country: country.code, localCurrency: body.localCurrency ? moneyStyle(body.localCurrency).currency : country.currency,
     subscriptionStatus: body.subscriptionStatus || "trialing",
     trialEndsAt: new Date(Date.now() + 7 * 86400000), createdBy: ownerUserId,
   }).returning();
   const [branch] = await db.insert(bridgeBranches).values({
     companyId: company.id, name: body.branchName || "Main Outlet", code: "MAIN",
-    address: body.address || null, timezone: body.timezone || "Asia/Jakarta",
+    address: body.address || null, timezone: body.timezone || country.timezone,
   }).returning();
   const defaults = ["admin", "manager", "cashier", "waiter", "chef"];
   const positions = await db.insert(bridgePositions).values(defaults.map((name) => ({
@@ -477,7 +481,7 @@ export async function ensureBridgeXSchema() {
   await db.execute(sql.raw(`
     CREATE TABLE IF NOT EXISTS bridge_companies (id serial PRIMARY KEY, slug varchar UNIQUE NOT NULL, name varchar NOT NULL, app_name varchar NOT NULL, industry varchar NOT NULL DEFAULT 'other', logo_url text, website_domain varchar UNIQUE, app_icon_url text, android_package varchar UNIQUE, ios_bundle_id varchar UNIQUE, theme jsonb NOT NULL DEFAULT '{}', status varchar NOT NULL DEFAULT 'active', subscription_plan varchar NOT NULL DEFAULT 'starter', billing_model varchar NOT NULL DEFAULT 'subscription', billing_cycle varchar NOT NULL DEFAULT 'monthly', price numeric(14,2) NOT NULL DEFAULT 0, currency varchar NOT NULL DEFAULT 'IDR', subscription_status varchar NOT NULL DEFAULT 'trialing', trial_ends_at timestamp, created_by varchar, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS data_mode varchar NOT NULL DEFAULT 'shared'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS db_schema varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS server_url text;
-    ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS website_domain varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS app_icon_url text; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS android_package varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS ios_bundle_id varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS billing_model varchar NOT NULL DEFAULT 'subscription'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS billing_cycle varchar NOT NULL DEFAULT 'monthly'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS price numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS currency varchar NOT NULL DEFAULT 'IDR';
+    ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS website_domain varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS app_icon_url text; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS android_package varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS ios_bundle_id varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS billing_model varchar NOT NULL DEFAULT 'subscription'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS billing_cycle varchar NOT NULL DEFAULT 'monthly'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS price numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS currency varchar NOT NULL DEFAULT 'IDR'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS country varchar NOT NULL DEFAULT 'ID'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS local_currency varchar NOT NULL DEFAULT 'IDR';
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_companies_website_domain_key ON bridge_companies(website_domain) WHERE website_domain IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_companies_android_package_key ON bridge_companies(android_package) WHERE android_package IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_companies_ios_bundle_id_key ON bridge_companies(ios_bundle_id) WHERE ios_bundle_id IS NOT NULL;
@@ -506,7 +510,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS image_data text; ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS hidden_for jsonb NOT NULL DEFAULT '[]';
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS branch_id integer; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS payment_reference varchar;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS cash_received numeric(10,2); ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS change_given numeric(10,2); ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS adjustment_reason text; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS refund_reason text; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS refunded_by varchar; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS refunded_at timestamp;
-    ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS commission_rate numeric(6,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS sales_target numeric(14,2) NOT NULL DEFAULT 0;
+    ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS commission_rate numeric(6,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS sales_target numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS birth_date varchar; ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS residency varchar NOT NULL DEFAULT 'citizen'; ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS statutory_on boolean NOT NULL DEFAULT true;
     ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE ledger_entries ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE ledger_entries ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS branch_id integer;
@@ -713,6 +717,7 @@ export function registerBridgeXRoutes(app: Express) {
       address: body.address, timezone: body.timezone, modules: body.modules,
       subscriptionPlan: body.subscriptionPlan, billingModel: body.billingModel,
       billingCycle: body.billingCycle, price: body.price, currency: body.currency,
+      country: body.country, localCurrency: body.localCurrency,
     });
     const requirements = {
       outletCount: Math.max(1, Number(body.outletCount || 1)), expectedStaff: Math.max(1, Number(body.expectedStaff || 1)),
@@ -864,12 +869,16 @@ export function registerBridgeXRoutes(app: Express) {
   app.patch("/api/v1/platform/companies/:id", route(async (req, res) => {
     if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
     const allowed: any = {}; for (const key of ["name", "appName", "industry", "logoUrl", "websiteDomain", "appIconUrl", "androidPackage", "iosBundleId", "theme", "status", "subscriptionPlan", "billingModel", "billingCycle", "price", "currency", "subscriptionStatus"]) if (req.body?.[key] !== undefined) allowed[key] = key === "price" ? String(req.body[key]) : req.body[key];
+    // The country sets the company's money; a different currency can still be picked.
+    if (req.body?.country !== undefined) { const c = countryOf(req.body.country); allowed.country = c.code; allowed.localCurrency = c.currency; }
+    if (req.body?.localCurrency) allowed.localCurrency = moneyStyle(req.body.localCurrency).currency;
     if (req.body?.trialDays !== undefined) { const days = Math.max(0, Number(req.body.trialDays) || 0); allowed.trialEndsAt = new Date(Date.now() + days * 86400000); allowed.subscriptionStatus = "trialing"; allowed.status = "trial"; }
     if (req.body?.subscriptionStatus === "active") allowed.status = "active";
     if (["past_due", "unpaid", "cancelled"].includes(req.body?.subscriptionStatus)) allowed.status = "suspended";
     allowed.updatedAt = new Date();
     const companyId = Number(req.params.id);
     await db.update(bridgeCompanies).set(allowed).where(eq(bridgeCompanies.id, companyId));
+    if (allowed.country || allowed.localCurrency || allowed.name || allowed.appName) { forgetTenantRegistry(); await loadHomeMoney(); }
     // Moving a company to its own data space / own server (Reborn itself stays on the platform tables).
     if (DATA_MODES.includes(req.body?.dataMode)) {
       const [target] = await db.select({ slug: bridgeCompanies.slug }).from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
@@ -883,9 +892,9 @@ export function registerBridgeXRoutes(app: Express) {
   app.get("/api/v1/tenant/resolve", route(async (req, res) => {
     const host = String(req.query.host || req.hostname).toLowerCase().split(":")[0];
     const slug = String(req.query.slug || "").toLowerCase();
-    let tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status, data_mode, server_url FROM bridge_companies WHERE (${host} <> '' AND website_domain=${host}) OR (${slug} <> '' AND slug=${slug}) ORDER BY CASE WHEN website_domain=${host} THEN 0 ELSE 1 END LIMIT 1`)).rows?.[0] as any; // a business's own domain wins over a remembered /t/<slug>
+    let tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status, data_mode, server_url, country, local_currency FROM bridge_companies WHERE (${host} <> '' AND website_domain=${host}) OR (${slug} <> '' AND slug=${slug}) ORDER BY CASE WHEN website_domain=${host} THEN 0 ELSE 1 END LIMIT 1`)).rows?.[0] as any; // a business's own domain wins over a remembered /t/<slug>
     // Default host (no domain/slug match) is the flagship Reborn app.
-    if (!tenant) tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status, data_mode, server_url FROM bridge_companies WHERE slug=${DEFAULT_COMPANY_SLUG} LIMIT 1`)).rows?.[0] as any;
+    if (!tenant) tenant = (await db.execute(sql`SELECT id, slug, name, app_name, industry, logo_url, app_icon_url, website_domain, theme, status, data_mode, server_url, country, local_currency FROM bridge_companies WHERE slug=${DEFAULT_COMPANY_SLUG} LIMIT 1`)).rows?.[0] as any;
     if (!tenant) return res.status(404).json({ message: "Company not found" });
     const modules = (await db.execute(sql`SELECT module_key FROM bridge_company_modules WHERE company_id=${tenant.id} AND enabled=true`)).rows.map((m: any) => m.module_key);
     // Public branch list (name + address) for the business's web page.

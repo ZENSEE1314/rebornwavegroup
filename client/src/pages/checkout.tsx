@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, CreditCard } from "lucide-react";
 import { Link } from "wouter";
 import { useTranslation, localeTag } from "@/lib/i18n";
+import { moneySymbol } from "@/lib/money";
 
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
@@ -61,7 +62,7 @@ const CheckoutForm = ({ amount, description }: { amount: number; description: st
           {t("ac.co.complete")}
         </CardTitle>
         <CardDescription>
-          {descriptionText} - RP {amountText}
+          {descriptionText} - {moneySymbol()} {amountText}
         </CardDescription>
       </CardHeader>
       <CardContent>
