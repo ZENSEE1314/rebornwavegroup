@@ -22,7 +22,10 @@
 }
 
 * { box-sizing: border-box; }
-html { background: var(--c-night-0); }
+html { background: var(--c-night-0); overscroll-behavior: none; }
+/* The page moves one part at a time (app.js glideTo): no native swipe-scroll / fling. */
+html, body { touch-action: none; }
+#vmodal, #vmodal * { touch-action: auto; }
 body {
   margin: 0; color: var(--c-ink); font-family: var(--f-body);
   background: var(--c-night-0); -webkit-font-smoothing: antialiased; overflow-x: hidden;
