@@ -15,6 +15,7 @@ import { APP_FEATURES } from "@/lib/features";
 import { printClosingReport, printReceipt } from "@/lib/receipt";
 import { money, moneySymbol, moneyStep, roundMoney, appMoney } from "@/lib/money";
 import { AppSkinPicker } from "@/components/AppSkinPicker";
+import { CUSTOM_PALETTE, type AppColours } from "@shared/appSkins";
 import { applyAppSkin } from "@/lib/appSkin";
 import { computeContributions, type PayrollRules, type CpfRules } from "@shared/payrollRules";
 import { countryOf } from "@shared/countries";
@@ -697,7 +698,9 @@ function DailyCheckinSettings() {
   );
 }
 
-// App design for this company's member app (same choice as BridgeX › White label).
+// App design for this company's member app (same choice as BridgeX › White label): the
+// design (shape), a colour or the admin's own four colours, and the lettering. Shown live
+// while choosing; leaving without saving puts the saved look back.
 function AppDesignSettings() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -705,19 +708,38 @@ function AppDesignSettings() {
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/app-skin"], queryFn: () => apiRequest("GET", "/api/reborn/admin/app-skin").then((r) => r.json()) });
   const [pick, setPick] = useState<string | null>(null);
   const [pickedPalette, setPickedPalette] = useState<string | null>(null);
+  const [pickedColours, setPickedColours] = useState<AppColours | null>(null);
+  const [pickedFont, setPickedFont] = useState<string | null>(null);
   const skin = pick || data?.skin || "";
   const palette = pickedPalette ?? data?.palette ?? "";
-  const isUnchanged = skin === data?.skin && palette === (data?.palette ?? "");
+  const colours: AppColours | null = pickedColours ?? data?.colours ?? null;
+  const font = pickedFont ?? data?.font ?? "";
+  const isUnchanged = skin === data?.skin && palette === (data?.palette ?? "") && font === (data?.font ?? "")
+    && (palette !== CUSTOM_PALETTE || JSON.stringify(colours) === JSON.stringify(data?.colours ?? null));
+  const reset = () => { setPick(null); setPickedPalette(null); setPickedColours(null); setPickedFont(null); };
+  // Live preview of the choice; the saved look comes back when this screen closes.
+  useEffect(() => { if (data) applyAppSkin(skin, palette, { colours, font }); }, [data, skin, palette, JSON.stringify(colours), font]);
+  useEffect(() => () => { const saved = qc.getQueryData<any>(["/api/reborn/admin/app-skin"]); if (saved) applyAppSkin(saved.skin, saved.palette, { colours: saved.colours, font: saved.font }); }, []);
   const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/app-skin", { skin, palette }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
-    onSuccess: (d: any) => { toast({ title: d.message }); applyAppSkin(d.skin, d.palette); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/app-skin"] }); qc.invalidateQueries({ queryKey: ["tenant-brand"] }); setPick(null); setPickedPalette(null); },
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/app-skin", { skin, palette, colours: palette === CUSTOM_PALETTE ? colours : null, font }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => {
+      toast({ title: d.message });
+      qc.setQueryData(["/api/reborn/admin/app-skin"], { skin: d.skin, palette: d.palette, colours: d.colours, font: d.font });
+      applyAppSkin(d.skin, d.palette, { colours: d.colours, font: d.font });
+      qc.invalidateQueries({ queryKey: ["tenant-brand"] });
+      reset();
+    },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
   if (!data) return null;
   return (
     <Card>
-      <AppSkinPicker value={skin} onChange={setPick} palette={palette} onPaletteChange={setPickedPalette} note={t("admin.set.skinNote")} />
-      <button onClick={() => save.mutate()} disabled={save.isPending || isUnchanged} className="mt-3 w-full rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.set.skinSave")}</button>
+      <AppSkinPicker value={skin} onChange={setPick} palette={palette} onPaletteChange={setPickedPalette}
+        colours={colours} onColoursChange={setPickedColours} font={font} onFontChange={setPickedFont} note={t("admin.set.skinNote")} />
+      <div className="mt-3 flex gap-2">
+        {!isUnchanged && <button onClick={reset} disabled={save.isPending} className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-white/80 disabled:opacity-40">{t("admin.set.skinUndo")}</button>}
+        <button onClick={() => save.mutate()} disabled={save.isPending || isUnchanged} className="flex-1 rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.set.skinSave")}</button>
+      </div>
     </Card>
   );
 }

@@ -116,7 +116,8 @@ export default function Login() {
   const enteredSlug = rememberedTenantSlug();
   const isWhiteLabel = brand.isLoading ? !!enteredSlug && enteredSlug !== FLAGSHIP_TENANT_SLUG : brand.isWhiteLabel;
   const brandName = isWhiteLabel ? brand.appName : "Reborn Wave Group";
-  useEffect(() => { if (!brand.isLoading) applyAppSkin(brand.skin, brand.palette); }, [brand.isLoading, brand.skin, brand.palette]);
+  const brandLook = JSON.stringify(brand.look);
+  useEffect(() => { if (!brand.isLoading) applyAppSkin(brand.skin, brand.palette, brand.look); }, [brand.isLoading, brand.skin, brand.palette, brandLook]);
   // ?next=/kos?table=V1&k=… — the member scanned a table QR before logging in.
   const nextPath = new URLSearchParams(window.location.search).get("next") || "";
   const scannedTable = (() => { try { return new URL(nextPath, window.location.origin).searchParams.get("table") || ""; } catch { return ""; } })();

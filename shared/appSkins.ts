@@ -79,12 +79,75 @@ export function isAppPalette(id: unknown): id is string {
   return typeof id === "string" && APP_PALETTES.some((palette) => palette.id === id);
 }
 
+// "Own colours": the admin mixes the app's colours themselves (theme.palette = "custom",
+// the four picked colours in theme.colours). A dark design uses all four; a light industry
+// design keeps its pale page and takes only the main colour (accent) for its buttons and links.
+export const CUSTOM_PALETTE = "custom";
+
+export interface AppColours {
+  page: string;   // page background
+  panel: string;  // cards and menus
+  accent: string; // main colour: buttons, highlights
+  second: string; // second colour: glows, lines, badges
+}
+
+export const DEFAULT_CUSTOM_COLOURS: AppColours = { page: "#0a0714", panel: "#1d1838", accent: "#f3b52f", second: "#a855f7" };
+
+const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
+
+// Four valid #rrggbb colours (anything missing or malformed takes the default), or null when nothing was sent.
+export function cleanAppColours(raw: unknown): AppColours | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const pick = (key: keyof AppColours) => (typeof value[key] === "string" && HEX_COLOUR.test(value[key] as string) ? (value[key] as string).toLowerCase() : DEFAULT_CUSTOM_COLOURS[key]);
+  return { page: pick("page"), panel: pick("panel"), accent: pick("accent"), second: pick("second") };
+}
+
+// A palette the company may save: one of the ten, or its own colours.
+export function isPaletteChoice(id: unknown): id is string {
+  return id === CUSTOM_PALETTE || isAppPalette(id);
+}
+
 // The colour a design is shown in: the chosen one, else the design's own. The light
-// industry designs carry their own colours, so they have none (null).
+// industry designs carry their own colours, so they have none (null) — their own main
+// colour, if the admin set one, is applied separately (see client/src/lib/appSkin.ts).
 export function paletteFor(skinId: unknown, paletteId: unknown): string | null {
   const design = appSkin(isAppSkin(skinId) ? skinId : DEFAULT_APP_SKIN);
   if (!design || design.mode === "light") return null;
-  return isAppPalette(paletteId) ? paletteId : design.palette || DEFAULT_APP_PALETTE;
+  return isPaletteChoice(paletteId) ? paletteId : design.palette || DEFAULT_APP_PALETTE;
+}
+
+// Lettering the admin can put on any design instead of the design's own ("" = the design's).
+// `css` is the Google Fonts css2 query, `family` the CSS font stack.
+export interface AppFont { id: string; css: string; family: string }
+
+export const APP_FONTS: AppFont[] = [
+  { id: "inter", css: "family=Inter:wght@400;500;600;700;800", family: '"Inter", system-ui, "PingFang SC", sans-serif' },
+  { id: "poppins", css: "family=Poppins:wght@400;500;600;700", family: '"Poppins", system-ui, "PingFang SC", sans-serif' },
+  { id: "montserrat", css: "family=Montserrat:wght@500;600;700;800", family: '"Montserrat", system-ui, "PingFang SC", sans-serif' },
+  { id: "nunito", css: "family=Nunito:wght@400;600;700;800", family: '"Nunito", ui-rounded, system-ui, "PingFang SC", sans-serif' },
+  { id: "quicksand", css: "family=Quicksand:wght@500;600;700", family: '"Quicksand", ui-rounded, system-ui, "PingFang SC", sans-serif' },
+  { id: "playfair", css: "family=Playfair+Display:wght@500;600;700&family=Lato:wght@400;700", family: '"Lato", system-ui, "PingFang SC", sans-serif' },
+  { id: "serif", css: "family=DM+Serif+Display&family=DM+Sans:wght@400;500;700", family: '"DM Sans", system-ui, "PingFang SC", sans-serif' },
+  { id: "mono", css: "family=JetBrains+Mono:wght@400;600;700", family: '"JetBrains Mono", ui-monospace, "PingFang SC", monospace' },
+];
+
+// Headings of the two-font choices use their display face.
+const APP_FONT_HEADINGS: Record<string, string> = {
+  playfair: '"Playfair Display", Georgia, "Songti SC", serif',
+  serif: '"DM Serif Display", Georgia, "Songti SC", serif',
+};
+
+export function appFont(id: unknown): AppFont | undefined {
+  return APP_FONTS.find((font) => font.id === id);
+}
+
+export function appFontHeading(id: string): string | undefined {
+  return APP_FONT_HEADINGS[id];
+}
+
+export function isAppFont(id: unknown): id is string {
+  return typeof id === "string" && APP_FONTS.some((font) => font.id === id);
 }
 
 export function appSkin(id: unknown): AppSkin | undefined {

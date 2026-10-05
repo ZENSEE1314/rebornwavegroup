@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { AppColours } from "@shared/appSkins";
 
 export interface TenantBrand {
   id: number;
@@ -6,7 +7,7 @@ export interface TenantBrand {
   name: string;
   app_name?: string;
   logo_url?: string;
-  theme?: { primaryColor?: string; accentColor?: string; skin?: string; palette?: string };
+  theme?: { primaryColor?: string; accentColor?: string; skin?: string; palette?: string; colours?: AppColours; font?: string };
   country?: string;
   local_currency?: string;
 }
@@ -82,6 +83,8 @@ export function useTenantBrand() {
     accent: data?.theme?.accentColor || "",
     skin: data?.theme?.skin || "",
     palette: data?.theme?.palette || "",
+    // The admin's own colours (palette "custom") and lettering, on top of the design.
+    look: { colours: data?.theme?.colours || null, font: data?.theme?.font || "" },
     country: data?.country || "ID",
     currency: data?.local_currency || "IDR",
   };

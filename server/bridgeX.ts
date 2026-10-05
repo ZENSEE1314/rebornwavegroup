@@ -9,7 +9,7 @@ import { DATA_MODES, DEFAULT_DATA_MODE, forgetTenantRegistry, setCompanyDataMode
 import { countryOf, moneyStyle } from "@shared/countries";
 import { loadHomeMoney } from "./companyMoney";
 import { getUserId } from "./multiAuth";
-import { DEFAULT_APP_SKIN, isAppPalette, isAppSkin } from "../shared/appSkins";
+import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "../shared/appSkins";
 import {
   bridgeBranches,
   bridgeCompanies,
@@ -212,7 +212,11 @@ async function mergedCompanyTheme(companyId: number, incoming: Record<string, un
   const [company] = await db.select({ theme: bridgeCompanies.theme }).from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
   const theme = { ...((company?.theme as Record<string, unknown>) || {}), ...incoming };
   if (!isAppSkin(theme.skin)) theme.skin = DEFAULT_APP_SKIN;
-  if (!isAppPalette(theme.palette)) delete theme.palette; // none = the design's own colour
+  if (!isPaletteChoice(theme.palette)) delete theme.palette; // none = the design's own colour
+  // Own colours are kept only with the "custom" colour, always as four clean #rrggbb values.
+  const colours = theme.palette === CUSTOM_PALETTE ? (cleanAppColours(theme.colours) || DEFAULT_CUSTOM_COLOURS) : null;
+  if (colours) theme.colours = colours; else delete theme.colours;
+  if (!isAppFont(theme.font)) delete theme.font; // none = the design's own lettering
   return theme;
 }
 

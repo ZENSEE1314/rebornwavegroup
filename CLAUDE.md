@@ -76,6 +76,13 @@ text.
   sets `--pc-*` base colours (`html[data-palette]`); each design builds its `--sk-*` values
   from them — never write a fixed colour in a dark design's rules. No palette saved = the
   design's own colour (`paletteFor`); the light industry styles carry their own colours.
+  Own colours: `theme.palette = "custom"` + `theme.colours` (`page`, `panel`, `accent`, `second`,
+  #rrggbb, `cleanAppColours`) — `applyAppSkin` writes them as `--pc-*` on `<html style>` (the
+  rest mixed from them, text on buttons picked by brightness). A light design keeps its page
+  and takes only `accent` (`--sk-a`), so light-design rules must use `var(--sk-a)`, never their
+  fixed main colour. Lettering: `theme.font` (one of `APP_FONTS`, "" = the design's own) sets
+  `--sk-font` / `--sk-head-font`. Admin › Settings › App design shows the choice live and puts
+  the saved look back if the admin leaves without saving.
   The ten dark designs must stay different from one another in shape, not colour: each has
   its own font (`font`, Google Fonts), main button, card, feature tile, section heading and
   bottom menu (skins.css "The ten designs"). Check a new one beside the others in one colour.

@@ -563,17 +563,17 @@ html[data-skin="salon"] .rwg-app .arc-head { justify-content: center; font-famil
 html[data-skin="salon"] .rwg-app .arc-head::before { content: ""; flex: 1; height: 1px; background: var(--sk-line2); }
 html[data-skin="salon"] .rwg-app .feat-badge { border-radius: 50% !important; background: linear-gradient(135deg, #f3d3cf, #d79aa3) !important; color: #fff !important; }
 html[data-skin="salon"] .rwg-app .arc-icon { border-radius: 50% !important; }
-html[data-skin="salon"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { background: linear-gradient(135deg, #d4a0a7, #b76e79) !important; color: #fff !important; border-radius: 999px !important; text-transform: none !important; font-style: normal !important; letter-spacing: .02em !important; }
+html[data-skin="salon"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { background: linear-gradient(135deg, color-mix(in srgb, var(--sk-a) 65%, #ffffff), var(--sk-a)) !important; color: var(--sk-ink) !important; border-radius: 999px !important; text-transform: none !important; font-style: normal !important; letter-spacing: .02em !important; }
 html[data-skin="salon"] .rwg-dock { left: 14px; right: 14px; bottom: 12px; border-radius: 999px; border: 1px solid var(--sk-line2) !important; box-shadow: 0 12px 34px rgba(183,110,121,.20) !important; overflow: hidden; }
 html[data-skin="salon"] .rwg-nav-item { padding: 8px 0 6px !important; }
-html[data-skin="salon"] .rwg-nav-item.is-active .rwg-nav-ic { background: linear-gradient(135deg, #d4a0a7, #b76e79) !important; color: #fff !important; border-radius: 50%; width: 36px; height: 36px; }
+html[data-skin="salon"] .rwg-nav-item.is-active .rwg-nav-ic { background: linear-gradient(135deg, color-mix(in srgb, var(--sk-a) 65%, #ffffff), var(--sk-a)) !important; color: var(--sk-ink) !important; border-radius: 50%; width: 36px; height: 36px; }
 html[data-skin="salon"] .rwg-nav-lbl { font-weight: 700; letter-spacing: .03em; }
 html[data-skin="salon"] .rwg-app > header { border-bottom: 0 !important; }
 html[data-skin="salon"] .rwg-app > header button:first-child { font-family: var(--sk-head-font); letter-spacing: .08em; font-weight: 700; }
 
 /* ── Retail shop: bright red header bar, white product-style cards, heavy uppercase titles, bold rectangular buttons ── */
 html[data-skin="retail"] {
-  --sk-page: #f2f2f4; --sk-bar: #e11d48; --sk-dock: #ffffff; --sk-line: #e2e2e6;
+  --sk-page: #f2f2f4; --sk-bar: var(--sk-a); --sk-dock: #ffffff; --sk-line: #e2e2e6;
   --sk-s1: #ffffff; --sk-s2: #f7f7f8; --sk-panel: #ffffff; --sk-edge: #e2e2e6; --sk-line2: #e4e4e8; --sk-field: #f2f2f4;
   --sk-shadow: 0 1px 3px rgba(17,17,20,.08);
   --sk-a: #e11d48; --sk-a2: #9f1239; --sk-ink: #ffffff; --sk-deep: #9f1239; --sk-glow: transparent; --sk-text: #111114;

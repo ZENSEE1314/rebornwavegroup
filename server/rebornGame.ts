@@ -10,7 +10,7 @@ import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinSt
 import { packageFields, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn } from "@shared/countries";
-import { DEFAULT_APP_SKIN, isAppPalette, isAppSkin } from "@shared/appSkins";
+import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
@@ -3525,7 +3525,7 @@ export function registerRebornRoutes(app: Express) {
 
   // App design (shared/appSkins.ts): the company's main admin picks it here in the app; the
   // BridgeX console's White label sets the same value (bridge_companies.theme.skin).
-  app.get("/api/reborn/admin/app-skin", requireAdmin(async(_req,res)=>{const [c]=await db.select({theme:bridgeCompanies.theme}).from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1);res.json({skin:(c?.theme as any)?.skin||DEFAULT_APP_SKIN,palette:(c?.theme as any)?.palette||""});}));
+  app.get("/api/reborn/admin/app-skin", requireAdmin(async(_req,res)=>{const [c]=await db.select({theme:bridgeCompanies.theme}).from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1);const th=(c?.theme as any)||{};res.json({skin:th.skin||DEFAULT_APP_SKIN,palette:th.palette||"",colours:cleanAppColours(th.colours),font:isAppFont(th.font)?th.font:""});}));
   app.post("/api/reborn/admin/app-skin", requireAdmin(async(req,res)=>{
     const skin=String(req.body?.skin||"");
     if(!isAppSkin(skin))return res.status(400).json({message:tr(req,{en:"Unknown app design",zh:"未知的应用设计",id:"Desain aplikasi tidak dikenal"})});
@@ -3533,12 +3533,18 @@ export function registerRebornRoutes(app: Express) {
     if(!c)return res.status(404).json({message:tr(req,{en:"Company not found",zh:"找不到该公司",id:"Perusahaan tidak ditemukan"})});
     const before=(c.theme as any)?.skin||DEFAULT_APP_SKIN;
     // The colour is chosen apart from the design; none = the design's own colour.
-    const palette=isAppPalette(req.body?.palette)?req.body.palette:"";
-    const theme:any={...((c.theme as any)||{}),skin};
+    // "custom" = the admin's own four colours (theme.colours); the lettering is optional too ("" = the design's own).
+    const palette=isPaletteChoice(req.body?.palette)?req.body.palette:"";
+    const colours=palette===CUSTOM_PALETTE?(cleanAppColours(req.body?.colours)||DEFAULT_CUSTOM_COLOURS):null;
+    const font=isAppFont(req.body?.font)?req.body.font:"";
+    const old:any=(c.theme as any)||{};
+    const theme:any={...old,skin};
     if(palette)theme.palette=palette;else delete theme.palette;
+    if(colours)theme.colours=colours;else delete theme.colours;
+    if(font)theme.font=font;else delete theme.font;
     await db.update(bridgeCompanies).set({theme,updatedAt:new Date()}).where(eq(bridgeCompanies.id,c.id));
-    await logAdmin(req,{targetType:"settings",targetId:"appSkin",action:"change_app_design",entityType:"settings",oldValues:{skin:before},newValues:{skin},description:`App design ${before} → ${skin}`});
-    res.json({message:tr(req,{en:"App design saved — members see it the next time they open the app",zh:"应用设计已保存——会员下次打开应用时可见",id:"Desain aplikasi disimpan — member melihatnya saat membuka aplikasi lagi"}),skin,palette});
+    await logAdmin(req,{targetType:"settings",targetId:"appSkin",action:"change_app_design",entityType:"settings",oldValues:{skin:before,palette:old.palette||"",colours:old.colours||null,font:old.font||""},newValues:{skin,palette,colours,font},description:`App design ${before} → ${skin}${palette?` · colour ${palette}`:""}${font?` · font ${font}`:""}`});
+    res.json({message:tr(req,{en:"App design saved — members see it the next time they open the app",zh:"应用设计已保存——会员下次打开应用时可见",id:"Desain aplikasi disimpan — member melihatnya saat membuka aplikasi lagi"}),skin,palette,colours,font});
   }));
   // Statutory contributions (CPF / BPJS / EPF…): the company's country rates, editable by the admin.
   const payrollRules=async()=>{const [row]=await db.select().from(appSettings).where(eq(appSettings.key,"payrollRules"));let saved:any=null;try{saved=row?.value?JSON.parse(row.value):null}catch{}return saved?cleanPayrollRules(saved,companyCountry()):defaultPayrollRules(companyCountry());};
