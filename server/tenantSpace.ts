@@ -103,10 +103,29 @@ async function copyOwnerAccounts(schema: string, companyId: number) {
      ON CONFLICT DO NOTHING`,
     [companyId],
   );
+  // The copy is the same person, not the same member: what they earned or were given in the
+  // platform's own company (credits, points, tokens, level, referrals) stays there.
   await pool.query(
-    `UPDATE ${ident(schema)}.users SET role='admin' WHERE id IN (SELECT user_id FROM public.bridge_company_members WHERE company_id=$1 AND role IN ('owner','admin') AND status='active')`,
+    `UPDATE ${ident(schema)}.users SET role='admin', ${FRESH_MEMBER_BALANCES} WHERE id IN (SELECT user_id FROM public.bridge_company_members WHERE company_id=$1 AND role IN ('owner','admin') AND status='active')`,
     [companyId],
   );
+  await pool.query(`INSERT INTO ${ident(schema)}.app_settings (key, value) VALUES ($1, '1') ON CONFLICT (key) DO NOTHING`, [OWNER_BALANCES_CLEARED]);
+}
+
+const FRESH_MEMBER_BALANCES = `credits=DEFAULT, loyalty_points=DEFAULT, lifetime_points=DEFAULT, tokens=DEFAULT, kgold=DEFAULT, level=DEFAULT, mpoint=DEFAULT, referral_earnings=DEFAULT, referred_by_id=NULL, introducer_id=NULL`;
+const OWNER_BALANCES_CLEARED = "ownerBalancesCleared";
+
+// Companies set up before owner copies started at zero still show their owner's balances
+// from the platform's own company. Clear them once per company.
+async function clearCopiedOwnerBalances(tenant: TenantSpace) {
+  const done = await pool.query(`SELECT 1 FROM ${ident(tenant.schema)}.app_settings WHERE key=$1`, [OWNER_BALANCES_CLEARED]);
+  if (done.rowCount) return;
+  const cleared = await pool.query(
+    `UPDATE ${ident(tenant.schema)}.users SET ${FRESH_MEMBER_BALANCES} WHERE id IN (SELECT user_id FROM public.bridge_company_members WHERE company_id=$1 AND role IN ('owner','admin'))`,
+    [tenant.companyId],
+  );
+  await pool.query(`INSERT INTO ${ident(tenant.schema)}.app_settings (key, value) VALUES ($1, '1') ON CONFLICT (key) DO NOTHING`, [OWNER_BALANCES_CLEARED]);
+  console.log(`[tenant] ${tenant.slug}: cleared balances copied from the platform on ${cleared.rowCount} owner account(s)`);
 }
 
 // Give a company its own data space on this server and switch it over.
@@ -246,7 +265,7 @@ async function oneServerAtATime(work: () => Promise<void>) {
 export async function syncAllTenantSpaces() {
   await oneServerAtATime(async () => {
     for (const tenant of await tenants()) {
-      try { await syncTenantSchema(tenant.schema); }
+      try { await syncTenantSchema(tenant.schema); await clearCopiedOwnerBalances(tenant); }
       catch (error) { console.error(`[tenant] could not update ${tenant.schema}`, error); }
     }
   });

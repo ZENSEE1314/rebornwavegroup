@@ -321,6 +321,16 @@ async function notifyKitchen(companyId: number, ticket: any, lines: any[]) {
 
 const MIN_ADMIN_PASSWORD = 8;
 
+// These must be unique per company. A form sends "" for a field left empty, and two
+// companies with "" would count as the same value — an empty field is stored as none.
+const UNIQUE_COMPANY_FIELDS = ["websiteDomain", "androidPackage", "iosBundleId"] as const;
+function emptyUniqueFieldsToNone(fields: Record<string, unknown>) {
+  for (const key of UNIQUE_COMPANY_FIELDS) {
+    if (typeof fields[key] === "string" && !(fields[key] as string).trim()) fields[key] = null;
+  }
+}
+const isDuplicateValue = (error: unknown) => (error as { code?: string })?.code === "23505";
+
 async function ensureUser(email: string, name: string, password?: string) {
   const normalized = email.trim().toLowerCase();
   const existing = (await db.select().from(users).where(eq(users.email, normalized)).limit(1))[0];
@@ -480,6 +490,7 @@ export async function sendRebornAllNotification(payload: { type: string; title: 
 export async function ensureBridgeXSchema() {
   await db.execute(sql.raw(`
     CREATE TABLE IF NOT EXISTS bridge_companies (id serial PRIMARY KEY, slug varchar UNIQUE NOT NULL, name varchar NOT NULL, app_name varchar NOT NULL, industry varchar NOT NULL DEFAULT 'other', logo_url text, website_domain varchar UNIQUE, app_icon_url text, android_package varchar UNIQUE, ios_bundle_id varchar UNIQUE, theme jsonb NOT NULL DEFAULT '{}', status varchar NOT NULL DEFAULT 'active', subscription_plan varchar NOT NULL DEFAULT 'starter', billing_model varchar NOT NULL DEFAULT 'subscription', billing_cycle varchar NOT NULL DEFAULT 'monthly', price numeric(14,2) NOT NULL DEFAULT 0, currency varchar NOT NULL DEFAULT 'IDR', subscription_status varchar NOT NULL DEFAULT 'trialing', trial_ends_at timestamp, created_by varchar, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+    UPDATE bridge_companies SET website_domain=NULLIF(website_domain,''), android_package=NULLIF(android_package,''), ios_bundle_id=NULLIF(ios_bundle_id,'') WHERE website_domain='' OR android_package='' OR ios_bundle_id='';
     ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS data_mode varchar NOT NULL DEFAULT 'shared'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS db_schema varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS server_url text;
     ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS website_domain varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS app_icon_url text; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS android_package varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS ios_bundle_id varchar; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS billing_model varchar NOT NULL DEFAULT 'subscription'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS billing_cycle varchar NOT NULL DEFAULT 'monthly'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS price numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS currency varchar NOT NULL DEFAULT 'IDR'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS country varchar NOT NULL DEFAULT 'ID'; ALTER TABLE bridge_companies ADD COLUMN IF NOT EXISTS local_currency varchar NOT NULL DEFAULT 'IDR';
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_companies_website_domain_key ON bridge_companies(website_domain) WHERE website_domain IS NOT NULL;
@@ -869,6 +880,7 @@ export function registerBridgeXRoutes(app: Express) {
   app.patch("/api/v1/platform/companies/:id", route(async (req, res) => {
     if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
     const allowed: any = {}; for (const key of ["name", "appName", "industry", "logoUrl", "websiteDomain", "appIconUrl", "androidPackage", "iosBundleId", "theme", "status", "subscriptionPlan", "billingModel", "billingCycle", "price", "currency", "subscriptionStatus"]) if (req.body?.[key] !== undefined) allowed[key] = key === "price" ? String(req.body[key]) : req.body[key];
+    emptyUniqueFieldsToNone(allowed);
     // The country sets the company's money; a different currency can still be picked.
     if (req.body?.country !== undefined) { const c = countryOf(req.body.country); allowed.country = c.code; allowed.localCurrency = c.currency; }
     if (req.body?.localCurrency) allowed.localCurrency = moneyStyle(req.body.localCurrency).currency;
@@ -1162,9 +1174,15 @@ export function registerBridgeXRoutes(app: Express) {
     }
     if (allowed.websiteDomain) allowed.websiteDomain = String(allowed.websiteDomain).toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
     if (allowed.billingModel === "one_time") allowed.billingCycle = "one_time";
+    emptyUniqueFieldsToNone(allowed);
     if (allowed.theme) allowed.theme = await mergedCompanyTheme(access.companyId, allowed.theme);
     allowed.updatedAt = new Date();
-    res.json((await db.update(bridgeCompanies).set(allowed).where(eq(bridgeCompanies.id, access.companyId)).returning())[0]);
+    try {
+      res.json((await db.update(bridgeCompanies).set(allowed).where(eq(bridgeCompanies.id, access.companyId)).returning())[0]);
+    } catch (error) {
+      if (!isDuplicateValue(error)) throw error;
+      res.status(409).json({ message: "Another company already uses this domain or app ID. Choose a different one." });
+    }
   }));
 
   app.post("/api/v1/company/billing/checkout", route(async (req, res) => {
