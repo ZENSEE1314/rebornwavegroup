@@ -119,7 +119,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   const { user } = useAuth();
   const { t } = useTranslation();
   const brand = useTenantBrand();
-  useEffect(() => { if (!brand.isLoading) applyAppSkin(brand.skin); }, [brand.isLoading, brand.skin]);
+  useEffect(() => { if (!brand.isLoading) applyAppSkin(brand.skin, brand.palette); }, [brand.isLoading, brand.skin, brand.palette]);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const tokens = (user as any)?.tokens ?? 0;
   // Switched-off features leave the dock; while the list loads they show faded and can't be tapped.

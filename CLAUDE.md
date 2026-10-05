@@ -71,6 +71,11 @@ text.
   components/AppSkinPicker.tsx). The app puts it on `<html data-skin>`
   and `client/src/skins.css` restyles the member app through variables. New shared app
   classes with hard-coded gold/purple need a line in that file's shared rules.
+  Design and colour are separate choices: `theme.skin` is the shape, `theme.palette` one of
+  the ten colours (`APP_PALETTES`), so the ten dark designs come in any colour. A palette
+  sets `--pc-*` base colours (`html[data-palette]`); each design builds its `--sk-*` values
+  from them — never write a fixed colour in a dark design's rules. No palette saved = the
+  design's own colour (`paletteFor`); the light industry styles carry their own colours.
   Besides the ten dark looks there are five light business styles (`mode: "light"`):
   Professional (`pro`), Beauty Salon (`salon`), Retail Shop (`retail`), Spa & Wellness
   (`spa`), Restaurant & Café (`bistro`). Each has its own Google font (`font`, loaded by

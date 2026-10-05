@@ -6,7 +6,7 @@ export interface TenantBrand {
   name: string;
   app_name?: string;
   logo_url?: string;
-  theme?: { primaryColor?: string; accentColor?: string; skin?: string };
+  theme?: { primaryColor?: string; accentColor?: string; skin?: string; palette?: string };
   country?: string;
   local_currency?: string;
 }
@@ -81,6 +81,7 @@ export function useTenantBrand() {
     primary: data?.theme?.primaryColor || "",
     accent: data?.theme?.accentColor || "",
     skin: data?.theme?.skin || "",
+    palette: data?.theme?.palette || "",
     country: data?.country || "ID",
     currency: data?.local_currency || "IDR",
   };

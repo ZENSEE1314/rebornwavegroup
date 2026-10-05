@@ -1,92 +1,123 @@
 /* ════════════════════════════════════════════════════════════════════════
-   App designs ("skins"). A company picks one in BridgeX › White label; the app puts
-   its id on <html data-skin="…"> (client/src/lib/appSkin.ts). No attribute = "royal",
-   the original gold-and-purple arcade look in index.css.
+   App designs ("skins") and colours. A company picks a design and a colour; the app puts
+   them on <html data-skin="…" data-palette="…"> (client/src/lib/appSkin.ts). No attributes
+   = the Royal design in gold, the original arcade look in index.css.
 
-   Every skin sets the same variables; the shared rules below apply them to the
-   layout, the cards and the arcade pieces. A skin's own block after that changes
+   Every design sets the same --sk-* variables; the shared rules below apply them to the
+   layout, the cards and the arcade pieces. A design's own block after that changes
    shape: dock, corners, lettering, shadows.
    ════════════════════════════════════════════════════════════════════════ */
 
+/* Colours and designs are chosen separately (10 designs × 10 colours).
+   A colour (html[data-palette]) gives the base colours as --pc-*: page dark / page glow /
+   two surfaces / accent / pale accent / second accent / text on accent / accent edge.
+   A design (html[data-skin]) builds every --sk-* value the rules use from those, and adds
+   its own shape. The light industry designs further down carry their own colours. */
+html[data-palette="gold"] { --pc-bg0: #0a0714; --pc-bg1: #1a1030; --pc-s1: #1d1838; --pc-s2: #0f0c1f; --pc-a: #f3b52f; --pc-a2: #ffe89a; --pc-b: #a855f7; --pc-ink: #170f00; --pc-deep: #a06a0c; }
+html[data-palette="ocean"] { --pc-bg0: #03101f; --pc-bg1: #0a2f4d; --pc-s1: #0d2a45; --pc-s2: #061627; --pc-a: #22d3ee; --pc-a2: #a5f3fc; --pc-b: #3b82f6; --pc-ink: #021a24; --pc-deep: #0e7490; }
+html[data-palette="sunset"] { --pc-bg0: #1a0b16; --pc-bg1: #4a1630; --pc-s1: #32162a; --pc-s2: #1c0c18; --pc-a: #ff7a3d; --pc-a2: #ffc29e; --pc-b: #ff4f9a; --pc-ink: #2a0d05; --pc-deep: #b3401a; }
+html[data-palette="emerald"] { --pc-bg0: #04140f; --pc-bg1: #0a2a1f; --pc-s1: #0e2b21; --pc-s2: #0a2019; --pc-a: #d4af37; --pc-a2: #f1dc8e; --pc-b: #2f9e6e; --pc-ink: #1a1403; --pc-deep: #8a6f1c; }
+html[data-palette="mono"] { --pc-bg0: #0b0b0c; --pc-bg1: #18181b; --pc-s1: #161618; --pc-s2: #141416; --pc-a: #f5f5f5; --pc-a2: #ffffff; --pc-b: #9a9aa2; --pc-ink: #0b0b0c; --pc-deep: #8a8a8f; }
+html[data-palette="sakura"] { --pc-bg0: #1c0a17; --pc-bg1: #4a1a3a; --pc-s1: #361530; --pc-s2: #200b1b; --pc-a: #ff8fb8; --pc-a2: #ffd1e3; --pc-b: #c084fc; --pc-ink: #3a0a20; --pc-deep: #c2497a; }
+html[data-palette="neon"] { --pc-bg0: #030507; --pc-bg1: #0c1a14; --pc-s1: #0a1216; --pc-s2: #05090b; --pc-a: #39ff14; --pc-a2: #b6ffa6; --pc-b: #ff2bd6; --pc-ink: #021200; --pc-deep: #1f9a0c; }
+html[data-palette="coffee"] { --pc-bg0: #17100b; --pc-bg1: #24180f; --pc-s1: #2a1d14; --pc-s2: #21170f; --pc-a: #d9a066; --pc-a2: #f3dcc0; --pc-b: #b5653a; --pc-ink: #24160a; --pc-deep: #8a5a2e; }
+html[data-palette="ice"] { --pc-bg0: #0b1422; --pc-bg1: #16263d; --pc-s1: #1b2a40; --pc-s2: #121e30; --pc-a: #9fd4ff; --pc-a2: #e3f3ff; --pc-b: #a08cff; --pc-ink: #06203a; --pc-deep: #4a86bf; }
+html[data-palette="grape"] { --pc-bg0: #1b1040; --pc-bg1: #2c1a66; --pc-s1: #2f1d6a; --pc-s2: #2a1a5e; --pc-a: #ffd60a; --pc-a2: #fff3a6; --pc-b: #ff5fa2; --pc-ink: #1a1200; --pc-deep: #b89600; }
+
+html[data-palette] {
+  --sk-s1: var(--pc-s1); --sk-s2: var(--pc-s2);
+  --sk-a: var(--pc-a); --sk-a2: var(--pc-a2); --sk-b: var(--pc-b); --sk-ink: var(--pc-ink); --sk-deep: var(--pc-deep);
+}
+
+/* Royal: the original arcade shapes (index.css), here in any colour. */
+html[data-skin="royal"] {
+  --sk-page: radial-gradient(120% 100% at 50% 0%, var(--pc-bg1) 0%, var(--pc-bg0) 60%);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 75%, transparent); --sk-dock: linear-gradient(180deg, color-mix(in srgb, var(--pc-s1) 96%, transparent), color-mix(in srgb, var(--pc-bg0) 98%, transparent));
+  --sk-line: linear-gradient(90deg, transparent, var(--pc-b) 20%, var(--pc-a) 50%, var(--pc-b) 80%, transparent);
+  --sk-panel: linear-gradient(160deg, var(--pc-s1), var(--pc-s2));
+  --sk-edge: color-mix(in srgb, var(--pc-b) 40%, transparent); --sk-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 10px 26px rgba(0,0,0,.45), 0 0 20px color-mix(in srgb, var(--pc-a) 12%, transparent);
+  --sk-glow: color-mix(in srgb, var(--pc-a) 55%, transparent);
+  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: italic; --sk-corners: .75;
+}
 html[data-skin="ocean"] {
-  --sk-page: radial-gradient(120% 90% at 50% 0%, #0a2f4d 0%, #03101f 62%);
-  --sk-bar: rgba(3,16,31,.78); --sk-dock: linear-gradient(180deg, rgba(11,40,66,.94), rgba(4,18,34,.97));
-  --sk-line: linear-gradient(90deg, transparent, #22d3ee 30%, #3b82f6 70%, transparent);
-  --sk-s1: #0d2a45; --sk-s2: #061627; --sk-panel: linear-gradient(160deg, rgba(34,211,238,.10), rgba(59,130,246,.04));
-  --sk-edge: rgba(34,211,238,.28); --sk-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 24px rgba(0,0,0,.4), 0 0 18px rgba(34,211,238,.10);
-  --sk-a: #22d3ee; --sk-a2: #a5f3fc; --sk-ink: #021a24; --sk-deep: #0e7490; --sk-glow: rgba(34,211,238,.55);
+  --sk-page: radial-gradient(120% 90% at 50% 0%, var(--pc-bg1) 0%, var(--pc-bg0) 62%);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 78%, transparent); --sk-dock: linear-gradient(180deg, color-mix(in srgb, var(--pc-s1) 94%, transparent), color-mix(in srgb, var(--pc-s2) 97%, transparent));
+  --sk-line: linear-gradient(90deg, transparent, var(--pc-a) 30%, var(--pc-b) 70%, transparent);
+  --sk-panel: linear-gradient(160deg, color-mix(in srgb, var(--pc-a) 10%, transparent), color-mix(in srgb, var(--pc-b) 4%, transparent));
+  --sk-edge: color-mix(in srgb, var(--pc-a) 28%, transparent); --sk-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 24px rgba(0,0,0,.4), 0 0 18px color-mix(in srgb, var(--pc-a) 10%, transparent);
+  --sk-glow: color-mix(in srgb, var(--pc-a) 55%, transparent);
   --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="sunset"] {
-  --sk-page: radial-gradient(130% 80% at 50% 0%, #4a1630 0%, #1a0b16 60%);
-  --sk-bar: rgba(26,11,22,.8); --sk-dock: linear-gradient(180deg, rgba(52,22,40,.97), rgba(22,9,18,.98));
-  --sk-line: linear-gradient(90deg, transparent, #ff7a3d 25%, #ff4f9a 75%, transparent);
-  --sk-s1: #32162a; --sk-s2: #1c0c18; --sk-panel: linear-gradient(165deg, rgba(255,122,61,.11), rgba(255,79,154,.05));
-  --sk-edge: rgba(255,140,110,.24); --sk-shadow: 0 10px 28px rgba(0,0,0,.38);
-  --sk-a: #ff7a3d; --sk-a2: #ffc29e; --sk-ink: #2a0d05; --sk-deep: #b3401a; --sk-glow: rgba(255,122,61,.4);
+  --sk-page: radial-gradient(130% 80% at 50% 0%, var(--pc-bg1) 0%, var(--pc-bg0) 60%);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 80%, transparent); --sk-dock: linear-gradient(180deg, color-mix(in srgb, var(--pc-s1) 97%, transparent), color-mix(in srgb, var(--pc-bg0) 98%, transparent));
+  --sk-line: linear-gradient(90deg, transparent, var(--pc-a) 25%, var(--pc-b) 75%, transparent);
+  --sk-panel: linear-gradient(165deg, color-mix(in srgb, var(--pc-a) 11%, transparent), color-mix(in srgb, var(--pc-b) 5%, transparent));
+  --sk-edge: color-mix(in srgb, var(--pc-a) 24%, transparent); --sk-shadow: 0 10px 28px rgba(0,0,0,.38);
+  --sk-glow: color-mix(in srgb, var(--pc-a) 40%, transparent);
   --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="emerald"] {
-  --sk-page: linear-gradient(180deg, #0a2a1f 0%, #04140f 55%);
-  --sk-bar: rgba(4,20,15,.86); --sk-dock: #06190f;
-  --sk-line: linear-gradient(90deg, transparent, #d4af37 50%, transparent);
-  --sk-s1: #0d2a20; --sk-s2: #071a13; --sk-panel: linear-gradient(180deg, #0e2b21, #0a2019);
-  --sk-edge: rgba(212,175,55,.34); --sk-shadow: 0 6px 18px rgba(0,0,0,.35);
-  --sk-a: #d4af37; --sk-a2: #f1dc8e; --sk-ink: #1a1403; --sk-deep: #8a6f1c; --sk-glow: transparent;
+  --sk-page: linear-gradient(180deg, var(--pc-bg1) 0%, var(--pc-bg0) 55%);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 86%, transparent); --sk-dock: var(--pc-s2);
+  --sk-line: linear-gradient(90deg, transparent, var(--pc-a) 50%, transparent);
+  --sk-panel: linear-gradient(180deg, var(--pc-s1), var(--pc-s2));
+  --sk-edge: color-mix(in srgb, var(--pc-a) 34%, transparent); --sk-shadow: 0 6px 18px rgba(0,0,0,.35);
+  --sk-glow: transparent;
   --sk-font: inherit; --sk-head-font: Georgia, "Times New Roman", "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="mono"] {
-  --sk-page: #0b0b0c;
-  --sk-bar: rgba(11,11,12,.9); --sk-dock: #0b0b0c;
+  --sk-page: var(--pc-bg0);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 90%, transparent); --sk-dock: var(--pc-bg0);
   --sk-line: rgba(255,255,255,.14);
-  --sk-s1: #161618; --sk-s2: #121214; --sk-panel: #141416;
+  --sk-panel: var(--pc-s2);
   --sk-edge: rgba(255,255,255,.14); --sk-shadow: none;
-  --sk-a: #f5f5f5; --sk-a2: #ffffff; --sk-ink: #0b0b0c; --sk-deep: #8a8a8f; --sk-glow: transparent;
+  --sk-glow: transparent;
   --sk-font: "Helvetica Neue", Helvetica, Arial, "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="sakura"] {
-  --sk-page: radial-gradient(120% 80% at 50% 0%, #4a1a3a 0%, #1c0a17 62%);
-  --sk-bar: rgba(28,10,23,.8); --sk-dock: linear-gradient(180deg, #3a1630, #220c1c);
-  --sk-line: linear-gradient(90deg, transparent, #ff8fb8 50%, transparent);
-  --sk-s1: #361530; --sk-s2: #200b1b; --sk-panel: linear-gradient(170deg, rgba(255,143,184,.13), rgba(255,143,184,.04));
-  --sk-edge: rgba(255,143,184,.26); --sk-shadow: 0 12px 30px rgba(20,4,14,.45), inset 0 1px 0 rgba(255,255,255,.07);
-  --sk-a: #ff8fb8; --sk-a2: #ffd1e3; --sk-ink: #3a0a20; --sk-deep: #c2497a; --sk-glow: rgba(255,143,184,.4);
+  --sk-page: radial-gradient(120% 80% at 50% 0%, var(--pc-bg1) 0%, var(--pc-bg0) 62%);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 80%, transparent); --sk-dock: linear-gradient(180deg, var(--pc-s1), var(--pc-s2));
+  --sk-line: linear-gradient(90deg, transparent, var(--pc-a) 50%, transparent);
+  --sk-panel: linear-gradient(170deg, color-mix(in srgb, var(--pc-a) 13%, transparent), color-mix(in srgb, var(--pc-a) 4%, transparent));
+  --sk-edge: color-mix(in srgb, var(--pc-a) 26%, transparent); --sk-shadow: 0 12px 30px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.07);
+  --sk-glow: color-mix(in srgb, var(--pc-a) 40%, transparent);
   --sk-font: ui-rounded, "SF Pro Rounded", "Nunito", "Hiragino Maru Gothic ProN", "Segoe UI", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="cyber"] {
-  --sk-page: linear-gradient(rgba(57,255,20,.05) 1px, transparent 1px) 0 0/100% 28px, linear-gradient(90deg, rgba(57,255,20,.05) 1px, transparent 1px) 0 0/28px 100%, #030507;
-  --sk-bar: rgba(3,5,7,.9); --sk-dock: #030507;
-  --sk-line: linear-gradient(90deg, #39ff14, #ff2bd6);
-  --sk-s1: #0a1216; --sk-s2: #05090b; --sk-panel: rgba(8,14,18,.92);
-  --sk-edge: rgba(57,255,20,.45); --sk-shadow: 0 0 0 1px rgba(57,255,20,.08), 0 0 18px rgba(57,255,20,.12);
-  --sk-a: #39ff14; --sk-a2: #b6ffa6; --sk-ink: #021200; --sk-deep: #ff2bd6; --sk-glow: rgba(57,255,20,.6);
+  --sk-page: linear-gradient(color-mix(in srgb, var(--pc-a) 5%, transparent) 1px, transparent 1px) 0 0/100% 28px, linear-gradient(90deg, color-mix(in srgb, var(--pc-a) 5%, transparent) 1px, transparent 1px) 0 0/28px 100%, var(--pc-bg0);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 90%, transparent); --sk-dock: var(--pc-bg0);
+  --sk-line: linear-gradient(90deg, var(--pc-a), var(--pc-b));
+  --sk-panel: color-mix(in srgb, var(--pc-s2) 92%, transparent);
+  --sk-edge: color-mix(in srgb, var(--pc-a) 45%, transparent); --sk-shadow: 0 0 0 1px color-mix(in srgb, var(--pc-a) 8%, transparent), 0 0 18px color-mix(in srgb, var(--pc-a) 12%, transparent);
+  --sk-glow: color-mix(in srgb, var(--pc-a) 60%, transparent); --sk-deep: var(--pc-b);
   --sk-font: inherit; --sk-head-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --sk-italic: normal; --sk-corners: 1;
 }
 html[data-skin="coffee"] {
-  --sk-page: linear-gradient(180deg, #24180f 0%, #17100b 50%);
-  --sk-bar: rgba(23,16,11,.9); --sk-dock: #1f150e;
-  --sk-line: rgba(217,160,102,.35);
-  --sk-s1: #2d1f15; --sk-s2: #21170f; --sk-panel: #2a1d14;
-  --sk-edge: rgba(217,160,102,.22); --sk-shadow: 0 4px 12px rgba(0,0,0,.3);
-  --sk-a: #d9a066; --sk-a2: #f3dcc0; --sk-ink: #24160a; --sk-deep: #8a5a2e; --sk-glow: transparent;
+  --sk-page: linear-gradient(180deg, var(--pc-bg1) 0%, var(--pc-bg0) 50%);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 90%, transparent); --sk-dock: var(--pc-s2);
+  --sk-line: color-mix(in srgb, var(--pc-a) 35%, transparent);
+  --sk-panel: var(--pc-s1);
+  --sk-edge: color-mix(in srgb, var(--pc-a) 22%, transparent); --sk-shadow: 0 4px 12px rgba(0,0,0,.3);
+  --sk-glow: transparent;
   --sk-font: inherit; --sk-head-font: Georgia, "Times New Roman", "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="arctic"] {
-  --sk-page: radial-gradient(90% 60% at 15% 0%, rgba(120,180,255,.30), transparent 60%), radial-gradient(80% 60% at 100% 30%, rgba(160,140,255,.20), transparent 60%), #0b1422;
-  --sk-bar: rgba(11,20,34,.55); --sk-dock: rgba(16,28,46,.72);
+  --sk-page: radial-gradient(90% 60% at 15% 0%, color-mix(in srgb, var(--pc-a) 30%, transparent), transparent 60%), radial-gradient(80% 60% at 100% 30%, color-mix(in srgb, var(--pc-b) 22%, transparent), transparent 60%), var(--pc-bg0);
+  --sk-bar: color-mix(in srgb, var(--pc-bg0) 55%, transparent); --sk-dock: color-mix(in srgb, var(--pc-s1) 72%, transparent);
   --sk-line: rgba(255,255,255,.22);
-  --sk-s1: #1b2a40; --sk-s2: #121e30; --sk-panel: rgba(255,255,255,.075);
-  --sk-edge: rgba(255,255,255,.22); --sk-shadow: 0 10px 30px rgba(3,8,18,.35), inset 0 1px 0 rgba(255,255,255,.14);
-  --sk-a: #9fd4ff; --sk-a2: #e3f3ff; --sk-ink: #06203a; --sk-deep: #4a86bf; --sk-glow: transparent;
+  --sk-panel: rgba(255,255,255,.075);
+  --sk-edge: rgba(255,255,255,.22); --sk-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.14);
+  --sk-glow: transparent;
   --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="candy"] {
-  --sk-page: #1b1040;
-  --sk-bar: #1b1040; --sk-dock: #2a1a5e;
+  --sk-page: var(--pc-bg0);
+  --sk-bar: var(--pc-bg0); --sk-dock: var(--pc-s2);
   --sk-line: #000;
-  --sk-s1: #2f1d6a; --sk-s2: #2a1a5e; --sk-panel: #2a1a5e;
+  --sk-panel: var(--pc-s2);
   --sk-edge: #000; --sk-shadow: 4px 4px 0 #000;
-  --sk-a: #ffd60a; --sk-a2: #fff3a6; --sk-ink: #1a1200; --sk-deep: #000; --sk-glow: transparent;
+  --sk-glow: transparent;
   --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
 }
 
@@ -162,10 +193,10 @@ html[data-skin="ocean"] .rwg-app main button:is([style*="linear-gradient"], [cla
 /* ── Sunset Lounge: soft big corners, gradient tab, no 3D ───────────────── */
 html[data-skin="sunset"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 26px !important; }
 html[data-skin="sunset"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; width: 52px; border-radius: 999px; }
-html[data-skin="sunset"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: linear-gradient(90deg, #ff7a3d, #ff4f9a); border-color: transparent; box-shadow: 0 6px 18px rgba(255,90,100,.4); color: #fff; }
+html[data-skin="sunset"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: linear-gradient(90deg, var(--sk-a), var(--sk-b)); border-color: transparent; box-shadow: 0 6px 18px color-mix(in srgb, var(--sk-a) 40%, transparent); color: var(--sk-ink); }
 html[data-skin="sunset"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
 html[data-skin="sunset"] .rwg-app [style*="rgb(201, 168, 76), rgb(240, 215, 135)"],
-html[data-skin="sunset"] .rwg-app .bg-amber-400 { background: linear-gradient(90deg, #ff7a3d, #ff4f9a) !important; color: #fff !important; }
+html[data-skin="sunset"] .rwg-app .bg-amber-400 { background: linear-gradient(90deg, var(--sk-a), var(--sk-b)) !important; color: var(--sk-ink) !important; }
 
 /* ── Emerald Luxe: serif titles, hairline gold frames, underlined tab ───── */
 html[data-skin="emerald"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 8px !important; }
@@ -200,8 +231,8 @@ html[data-skin="sakura"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { f
 /* ── Cyber Grid: square, mono titles, neon outlines ─────────────────────── */
 html[data-skin="cyber"] .rwg-app main :is(.rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .arc-play, .feat-tile, .feat-badge, .home-hero, .home-stat, .stat-tile) { border-radius: 2px !important; }
 html[data-skin="cyber"] .gx :is(h1, h2, h3):not(.arc-title) { text-transform: uppercase; letter-spacing: .08em; font-weight: 700 !important; }
-html[data-skin="cyber"] .rwg-nav-ic { border-radius: 2px; background: transparent; border-color: rgba(57,255,20,.3); box-shadow: none; }
-html[data-skin="cyber"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: transparent; color: var(--sk-a); border-color: var(--sk-a); box-shadow: 0 0 14px var(--sk-glow), inset 0 0 10px rgba(57,255,20,.25); }
+html[data-skin="cyber"] .rwg-nav-ic { border-radius: 2px; background: transparent; border-color: color-mix(in srgb, var(--sk-a) 30%, transparent); box-shadow: none; }
+html[data-skin="cyber"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: transparent; color: var(--sk-a); border-color: var(--sk-a); box-shadow: 0 0 14px var(--sk-glow), inset 0 0 10px color-mix(in srgb, var(--sk-a) 25%, transparent); }
 html[data-skin="cyber"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
 html[data-skin="cyber"] .rwg-nav-lbl { font-family: var(--sk-head-font); text-transform: uppercase; font-weight: 600; }
 
@@ -237,7 +268,7 @@ html[data-skin="candy"] .rwg-app :is(h1, h2, h3, .arc-title, .home-name) { text-
 html[data-skin="candy"] .rwg-app > header { border-bottom: 2px solid #000 !important; }
 html[data-skin="candy"] .rwg-dock { border-top: 2px solid #000 !important; box-shadow: none; }
 html[data-skin="candy"] .rwg-dock::before { display: none; }
-html[data-skin="candy"] .rwg-nav-ic { border: 2px solid #000; box-shadow: 2px 2px 0 #000; background: #3a2580; }
+html[data-skin="candy"] .rwg-nav-ic { border: 2px solid #000; box-shadow: 2px 2px 0 #000; background: color-mix(in srgb, var(--sk-s1) 82%, #fff); }
 html[data-skin="candy"] .rwg-nav-item.is-active .rwg-nav-ic { transform: translateY(-5px); background: var(--sk-a); border-color: #000; box-shadow: 3px 3px 0 #000; }
 
 /* ── Login / sign-up page (.rwg-auth) in the company's design ───────────── */
@@ -277,7 +308,7 @@ html[data-skin="candy"] :is(.rwg-auth .auth-card, .rwg-tenant .rwg-tenant-card) 
 html[data-skin="candy"] :is(.rwg-auth button[type="submit"], .rwg-tenant a) { border: 2px solid #000 !important; box-shadow: 3px 3px 0 #000 !important; }
 html[data-skin="arctic"] :is(.rwg-auth .auth-card, .rwg-tenant .rwg-tenant-card) { -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); background: var(--sk-panel) !important; }
 html[data-skin="mono"] .rwg-auth :is(.auth-card, button) { box-shadow: none !important; }
-html[data-skin="sunset"] .rwg-auth :is(.rwg-gold-tab-active, button[type="submit"]) { background: linear-gradient(90deg, #ff7a3d, #ff4f9a) !important; color: #fff !important; }
+html[data-skin="sunset"] .rwg-auth :is(.rwg-gold-tab-active, button[type="submit"]) { background: linear-gradient(90deg, var(--sk-a), var(--sk-b)) !important; color: var(--sk-ink) !important; }
 
 /* ════════════════════════════════════════════════════════════════════════
    Light industry designs (pro · salon · retail · spa · bistro), html[data-skin-mode="light"]

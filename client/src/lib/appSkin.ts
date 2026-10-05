@@ -1,14 +1,18 @@
-import { DEFAULT_APP_SKIN, appSkin, isAppSkin } from "@shared/appSkins";
+import { DEFAULT_APP_PALETTE, DEFAULT_APP_SKIN, appSkin, isAppSkin, paletteFor } from "@shared/appSkins";
 
 const SKIN_KEY = "bridgexAppSkin";
+const PALETTE_KEY = "bridgexAppPalette";
 
-// Puts the company's chosen design on <html> (see client/src/skins.css) and remembers it,
-// so the next visit starts in that design before the company's details have loaded.
-export function applyAppSkin(skin: string) {
+// Puts the company's chosen design and colour on <html> (see client/src/skins.css) and
+// remembers them, so the next visit starts in that look before the company's details have loaded.
+export function applyAppSkin(skin: string, palette = "") {
   const id = isAppSkin(skin) ? skin : DEFAULT_APP_SKIN;
+  const colour = paletteFor(id, palette);
   const html = document.documentElement;
-  if (id === DEFAULT_APP_SKIN) delete html.dataset.skin;
-  else html.dataset.skin = id;
+  // Royal in gold is the app as written (index.css): no attributes at all.
+  const isOriginalLook = id === DEFAULT_APP_SKIN && colour === DEFAULT_APP_PALETTE;
+  if (isOriginalLook) delete html.dataset.skin; else html.dataset.skin = id;
+  if (isOriginalLook || !colour) delete html.dataset.palette; else html.dataset.palette = colour;
   const def = appSkin(id);
   // Light designs (industry styles) restyle the dark app's text, cards and fields too.
   if (def?.mode === "light") html.dataset.skinMode = "light"; else delete html.dataset.skinMode;
@@ -19,9 +23,9 @@ export function applyAppSkin(skin: string) {
     link.href = `https://fonts.googleapis.com/css2?${def.font}&display=swap`;
     document.head.appendChild(link);
   }
-  try { localStorage.setItem(SKIN_KEY, id); } catch {}
+  try { localStorage.setItem(SKIN_KEY, id); localStorage.setItem(PALETTE_KEY, colour || ""); } catch {}
 }
 
 export function applyRememberedAppSkin() {
-  try { applyAppSkin(localStorage.getItem(SKIN_KEY) || DEFAULT_APP_SKIN); } catch {}
+  try { applyAppSkin(localStorage.getItem(SKIN_KEY) || DEFAULT_APP_SKIN, localStorage.getItem(PALETTE_KEY) || ""); } catch {}
 }

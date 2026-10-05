@@ -6,14 +6,14 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { rememberTenantSlug } from "@/hooks/useTenantBrand";
 import { applyAppSkin } from "@/lib/appSkin";
 import { useTranslation, getCurrentLanguage } from "@/lib/i18n";
-import { APP_SKINS, DEFAULT_APP_SKIN } from "@shared/appSkins";
+import { DEFAULT_APP_PALETTE, DEFAULT_APP_SKIN, appPalette, appSkin, paletteFor } from "@shared/appSkins";
 
 interface Tenant {
   slug: string;
   name: string;
   app_name?: string;
   logo_url?: string;
-  theme?: { primaryColor?: string; accentColor?: string; skin?: string };
+  theme?: { primaryColor?: string; accentColor?: string; skin?: string; palette?: string };
   modules?: string[];
   data_mode?: string;
   server_url?: string | null;
@@ -51,7 +51,7 @@ export default function TenantEntry() {
       setTenant(d);
       document.title = d.app_name || d.name;
       rememberTenantSlug(slug);
-      applyAppSkin(d.theme?.skin || "");
+      applyAppSkin(d.theme?.skin || "", d.theme?.palette || "");
     }).catch(() => setError(t("vn.otable.networkError")));
   }, [slug]);
 
@@ -65,9 +65,12 @@ export default function TenantEntry() {
 
   const name = tenant.app_name || tenant.name;
   // A chosen app design brings its own colours; without one the company's two brand colours are used.
-  const skin = APP_SKINS.find((s) => s.id === tenant.theme?.skin && s.id !== DEFAULT_APP_SKIN);
-  const primary = skin?.accent || tenant.theme?.primaryColor || DEFAULT_PRIMARY;
-  const accent = skin?.accentSoft || tenant.theme?.accentColor || DEFAULT_ACCENT;
+  const design = appSkin(tenant.theme?.skin);
+  const colour = appPalette(paletteFor(tenant.theme?.skin, tenant.theme?.palette));
+  const isOriginalLook = (!design || design.id === DEFAULT_APP_SKIN) && (!colour || colour.id === DEFAULT_APP_PALETTE);
+  const look = isOriginalLook ? undefined : colour || design;
+  const primary = look?.accent || tenant.theme?.primaryColor || DEFAULT_PRIMARY;
+  const accent = look?.accentSoft || tenant.theme?.accentColor || DEFAULT_ACCENT;
   const modules = tenant.modules || [];
   const features = FEATURES.filter((f) => f.modules.some((m) => modules.includes(m)));
   const branches = (tenant.branches || []).filter((b) => b.name);

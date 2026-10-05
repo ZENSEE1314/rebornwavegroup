@@ -704,17 +704,20 @@ function AppDesignSettings() {
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/app-skin"], queryFn: () => apiRequest("GET", "/api/reborn/admin/app-skin").then((r) => r.json()) });
   const [pick, setPick] = useState<string | null>(null);
+  const [pickedPalette, setPickedPalette] = useState<string | null>(null);
   const skin = pick || data?.skin || "";
+  const palette = pickedPalette ?? data?.palette ?? "";
+  const isUnchanged = skin === data?.skin && palette === (data?.palette ?? "");
   const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/app-skin", { skin }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
-    onSuccess: (d: any) => { toast({ title: d.message }); applyAppSkin(d.skin); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/app-skin"] }); qc.invalidateQueries({ queryKey: ["tenant-brand"] }); setPick(null); },
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/app-skin", { skin, palette }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); applyAppSkin(d.skin, d.palette); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/app-skin"] }); qc.invalidateQueries({ queryKey: ["tenant-brand"] }); setPick(null); setPickedPalette(null); },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
   if (!data) return null;
   return (
     <Card>
-      <AppSkinPicker value={skin} onChange={setPick} note={t("admin.set.skinNote")} />
-      <button onClick={() => save.mutate()} disabled={save.isPending || !pick || pick === data.skin} className="mt-3 w-full rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.set.skinSave")}</button>
+      <AppSkinPicker value={skin} onChange={setPick} palette={palette} onPaletteChange={setPickedPalette} note={t("admin.set.skinNote")} />
+      <button onClick={() => save.mutate()} disabled={save.isPending || isUnchanged} className="mt-3 w-full rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.set.skinSave")}</button>
     </Card>
   );
 }

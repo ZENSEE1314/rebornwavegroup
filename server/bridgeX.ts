@@ -9,7 +9,7 @@ import { DATA_MODES, DEFAULT_DATA_MODE, forgetTenantRegistry, setCompanyDataMode
 import { countryOf, moneyStyle } from "@shared/countries";
 import { loadHomeMoney } from "./companyMoney";
 import { getUserId } from "./multiAuth";
-import { DEFAULT_APP_SKIN, isAppSkin } from "../shared/appSkins";
+import { DEFAULT_APP_SKIN, isAppPalette, isAppSkin } from "../shared/appSkins";
 import {
   bridgeBranches,
   bridgeCompanies,
@@ -212,6 +212,7 @@ async function mergedCompanyTheme(companyId: number, incoming: Record<string, un
   const [company] = await db.select({ theme: bridgeCompanies.theme }).from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1);
   const theme = { ...((company?.theme as Record<string, unknown>) || {}), ...incoming };
   if (!isAppSkin(theme.skin)) theme.skin = DEFAULT_APP_SKIN;
+  if (!isAppPalette(theme.palette)) delete theme.palette; // none = the design's own colour
   return theme;
 }
 
