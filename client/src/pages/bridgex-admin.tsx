@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, ChevronLeft, LogOut, Plus, ShieldCheck, Smartphone, Star, Users, WandSparkles } from "lucide-react";
 import { Link } from "wouter";
 
@@ -98,6 +98,9 @@ export default function BridgeXAdmin() {
   const [registry,setRegistry] = useState<{key:string;name:string;category:string;status:string;desc:string}[]>([]);
   const [industries,setIndustries] = useState<{key:string;name:string;modules:string[]}[]>([]);
   const [modules,setModules] = useState<string[]>([]);
+  // Ticks wait for "Save modules"; until then the live refresh must not put the saved list back over them.
+  const unsavedModules = useRef(false);
+  const editModules = (next:string[]) => { unsavedModules.current = true; setModules(next); };
   const [effectiveModules,setEffectiveModules] = useState<string[]>([]); // company modules, narrowed to the selected outlet's business types
   const [branches,setBranches] = useState<Row[]>([]);
   const [positions,setPositions] = useState<Row[]>([]);
@@ -164,7 +167,8 @@ export default function BridgeXAdmin() {
       request("/api/v1/company/feedback",{},id), request("/api/v1/company/settings",{},id), request("/api/v1/company/access-status",{},id),
     ]);
     const en = mods.filter((m:Row) => m.enabled).map((m:Row) => m.moduleKey);
-    setModules(en); setBranches(bs); setPositions(ps); setStaff(ss); setLeaders(ls); setMeetings(ms);
+    if (hydrateForms || !unsavedModules.current) { setModules(en); unsavedModules.current = false; }
+    setBranches(bs); setPositions(ps); setStaff(ss); setLeaders(ls); setMeetings(ms);
     setAttendance(att); setLeave(lv); setShifts(sh);
     setFeedback(fb); if(hydrateForms) setSettings(cfg.config || settings); setAccess(gate);
     try { const bm = await request(`/api/v1/company/branch-modules?branchId=${activeBranchId||0}`,{},id); setEffectiveModules(Array.isArray(bm.modules)?bm.modules:en); } catch { setEffectiveModules(en); }
@@ -248,10 +252,10 @@ export default function BridgeXAdmin() {
       </Panel>}
 
       {tab === "modules" && <Panel title="Modules & add-ons" subtitle="Core is the basic system every business gets (always on). Tick the add-ons this business needs; each ticked module becomes a button in their app. Apply an industry preset to set them fast.">
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>Quick apply an industry preset:</span>{industries.map(i=><button key={i.key} className="rounded-full bg-white/5 px-3 py-1 text-slate-200 hover:bg-cyan-400/15" onClick={()=>setModules(i.modules)}>{i.name}</button>)}</div>
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>Quick apply an industry preset:</span>{industries.map(i=><button key={i.key} className="rounded-full bg-white/5 px-3 py-1 text-slate-200 hover:bg-cyan-400/15" onClick={()=>editModules(i.modules)}>{i.name}</button>)}</div>
         {Object.entries(moduleGroups).map(([cat,items])=><div key={cat} className="mb-5">
           <h3 className="mb-2 text-sm font-black uppercase tracking-wider text-cyan-300">{cat}</h3>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{items.map(m=>{const core=(m as any).core;const on=core||modules.includes(m.key);const badge=m.status==="live"?"bg-emerald-400/15 text-emerald-300":m.status==="beta"?"bg-amber-400/15 text-amber-300":"bg-white/10 text-slate-400";return <label key={m.key} className={`flex items-start gap-3 rounded-xl border p-3 ${core?"cursor-default border-cyan-400/30 bg-cyan-400/[.04]":`cursor-pointer ${on?"border-cyan-400/50 bg-cyan-400/5":"border-white/10 bg-white/[.03]"}`}`}><input type="checkbox" className="mt-1" checked={on} disabled={core} onChange={core?undefined:()=>setModules(on?modules.filter(x=>x!==m.key):[...modules,m.key])}/><span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><b className="text-sm">{m.name}</b><span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ${badge}`}>{m.status}</span>{core?<span className="rounded-full bg-cyan-400/20 px-2 py-0.5 text-[10px] font-bold uppercase text-cyan-200">core</span>:<span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase text-slate-400">add-on</span>}</span>{m.desc&&<span className="mt-0.5 block text-[11px] text-slate-400">{m.desc}</span>}</span></label>;})}</div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{items.map(m=>{const core=(m as any).core;const on=core||modules.includes(m.key);const badge=m.status==="live"?"bg-emerald-400/15 text-emerald-300":m.status==="beta"?"bg-amber-400/15 text-amber-300":"bg-white/10 text-slate-400";return <label key={m.key} className={`flex items-start gap-3 rounded-xl border p-3 ${core?"cursor-default border-cyan-400/30 bg-cyan-400/[.04]":`cursor-pointer ${on?"border-cyan-400/50 bg-cyan-400/5":"border-white/10 bg-white/[.03]"}`}`}><input type="checkbox" className="mt-1" checked={on} disabled={core} onChange={core?undefined:()=>editModules(on?modules.filter(x=>x!==m.key):[...modules,m.key])}/><span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><b className="text-sm">{m.name}</b><span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ${badge}`}>{m.status}</span>{core?<span className="rounded-full bg-cyan-400/20 px-2 py-0.5 text-[10px] font-bold uppercase text-cyan-200">core</span>:<span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase text-slate-400">add-on</span>}</span>{m.desc&&<span className="mt-0.5 block text-[11px] text-slate-400">{m.desc}</span>}</span></label>;})}</div>
         </div>)}
         <button className={button+" mt-2"} disabled={busy} onClick={()=>act(()=>request("/api/v1/company/modules",{method:"PUT",body:JSON.stringify({modules})},companyId),"Services updated")}>Save modules</button>
       </Panel>}
