@@ -76,6 +76,9 @@ text.
   sets `--pc-*` base colours (`html[data-palette]`); each design builds its `--sk-*` values
   from them — never write a fixed colour in a dark design's rules. No palette saved = the
   design's own colour (`paletteFor`); the light industry styles carry their own colours.
+  The ten dark designs must stay different from one another in shape, not colour: each has
+  its own font (`font`, Google Fonts), main button, card, feature tile, section heading and
+  bottom menu (skins.css "The ten designs"). Check a new one beside the others in one colour.
   Besides the ten dark looks there are five light business styles (`mode: "light"`):
   Professional (`pro`), Beauty Salon (`salon`), Retail Shop (`retail`), Spa & Wellness
   (`spa`), Restaurant & Café (`bistro`). Each has its own Google font (`font`, loaded by

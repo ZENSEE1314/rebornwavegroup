@@ -46,7 +46,7 @@ html[data-skin="ocean"] {
   --sk-panel: linear-gradient(160deg, color-mix(in srgb, var(--pc-a) 10%, transparent), color-mix(in srgb, var(--pc-b) 4%, transparent));
   --sk-edge: color-mix(in srgb, var(--pc-a) 28%, transparent); --sk-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 24px rgba(0,0,0,.4), 0 0 18px color-mix(in srgb, var(--pc-a) 10%, transparent);
   --sk-glow: color-mix(in srgb, var(--pc-a) 55%, transparent);
-  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
+  --sk-font: "Poppins", system-ui, "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="sunset"] {
   --sk-page: radial-gradient(130% 80% at 50% 0%, var(--pc-bg1) 0%, var(--pc-bg0) 60%);
@@ -55,7 +55,7 @@ html[data-skin="sunset"] {
   --sk-panel: linear-gradient(165deg, color-mix(in srgb, var(--pc-a) 11%, transparent), color-mix(in srgb, var(--pc-b) 5%, transparent));
   --sk-edge: color-mix(in srgb, var(--pc-a) 24%, transparent); --sk-shadow: 0 10px 28px rgba(0,0,0,.38);
   --sk-glow: color-mix(in srgb, var(--pc-a) 40%, transparent);
-  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
+  --sk-font: "Outfit", system-ui, "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="emerald"] {
   --sk-page: linear-gradient(180deg, var(--pc-bg1) 0%, var(--pc-bg0) 55%);
@@ -64,7 +64,7 @@ html[data-skin="emerald"] {
   --sk-panel: linear-gradient(180deg, var(--pc-s1), var(--pc-s2));
   --sk-edge: color-mix(in srgb, var(--pc-a) 34%, transparent); --sk-shadow: 0 6px 18px rgba(0,0,0,.35);
   --sk-glow: transparent;
-  --sk-font: inherit; --sk-head-font: Georgia, "Times New Roman", "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
+  --sk-font: "Jost", system-ui, "PingFang SC", sans-serif; --sk-head-font: "Cormorant Garamond", Georgia, "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="mono"] {
   --sk-page: var(--pc-bg0);
@@ -73,7 +73,7 @@ html[data-skin="mono"] {
   --sk-panel: var(--pc-s2);
   --sk-edge: rgba(255,255,255,.14); --sk-shadow: none;
   --sk-glow: transparent;
-  --sk-font: "Helvetica Neue", Helvetica, Arial, "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
+  --sk-font: "Inter", system-ui, -apple-system, "Segoe UI", "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="sakura"] {
   --sk-page: radial-gradient(120% 80% at 50% 0%, var(--pc-bg1) 0%, var(--pc-bg0) 62%);
@@ -82,7 +82,7 @@ html[data-skin="sakura"] {
   --sk-panel: linear-gradient(170deg, color-mix(in srgb, var(--pc-a) 13%, transparent), color-mix(in srgb, var(--pc-a) 4%, transparent));
   --sk-edge: color-mix(in srgb, var(--pc-a) 26%, transparent); --sk-shadow: 0 12px 30px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.07);
   --sk-glow: color-mix(in srgb, var(--pc-a) 40%, transparent);
-  --sk-font: ui-rounded, "SF Pro Rounded", "Nunito", "Hiragino Maru Gothic ProN", "Segoe UI", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
+  --sk-font: "Quicksand", ui-rounded, system-ui, "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="cyber"] {
   --sk-page: linear-gradient(color-mix(in srgb, var(--pc-a) 5%, transparent) 1px, transparent 1px) 0 0/100% 28px, linear-gradient(90deg, color-mix(in srgb, var(--pc-a) 5%, transparent) 1px, transparent 1px) 0 0/28px 100%, var(--pc-bg0);
@@ -91,7 +91,7 @@ html[data-skin="cyber"] {
   --sk-panel: color-mix(in srgb, var(--pc-s2) 92%, transparent);
   --sk-edge: color-mix(in srgb, var(--pc-a) 45%, transparent); --sk-shadow: 0 0 0 1px color-mix(in srgb, var(--pc-a) 8%, transparent), 0 0 18px color-mix(in srgb, var(--pc-a) 12%, transparent);
   --sk-glow: color-mix(in srgb, var(--pc-a) 60%, transparent); --sk-deep: var(--pc-b);
-  --sk-font: inherit; --sk-head-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --sk-italic: normal; --sk-corners: 1;
+  --sk-font: inherit; --sk-head-font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --sk-italic: normal; --sk-corners: 1;
 }
 html[data-skin="coffee"] {
   --sk-page: linear-gradient(180deg, var(--pc-bg1) 0%, var(--pc-bg0) 50%);
@@ -100,7 +100,7 @@ html[data-skin="coffee"] {
   --sk-panel: var(--pc-s1);
   --sk-edge: color-mix(in srgb, var(--pc-a) 22%, transparent); --sk-shadow: 0 4px 12px rgba(0,0,0,.3);
   --sk-glow: transparent;
-  --sk-font: inherit; --sk-head-font: Georgia, "Times New Roman", "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
+  --sk-font: "DM Sans", system-ui, "PingFang SC", sans-serif; --sk-head-font: "DM Serif Display", Georgia, "Songti SC", serif; --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="arctic"] {
   --sk-page: radial-gradient(90% 60% at 15% 0%, color-mix(in srgb, var(--pc-a) 30%, transparent), transparent 60%), radial-gradient(80% 60% at 100% 30%, color-mix(in srgb, var(--pc-b) 22%, transparent), transparent 60%), var(--pc-bg0);
@@ -109,7 +109,7 @@ html[data-skin="arctic"] {
   --sk-panel: rgba(255,255,255,.075);
   --sk-edge: rgba(255,255,255,.22); --sk-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.14);
   --sk-glow: transparent;
-  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
+  --sk-font: "Manrope", system-ui, "PingFang SC", sans-serif; --sk-head-font: var(--sk-font); --sk-italic: normal; --sk-corners: 0;
 }
 html[data-skin="candy"] {
   --sk-page: var(--pc-bg0);
@@ -118,7 +118,7 @@ html[data-skin="candy"] {
   --sk-panel: var(--pc-s2);
   --sk-edge: #000; --sk-shadow: 4px 4px 0 #000;
   --sk-glow: transparent;
-  --sk-font: inherit; --sk-head-font: inherit; --sk-italic: normal; --sk-corners: 0;
+  --sk-font: "Space Grotesk", system-ui, "PingFang SC", sans-serif; --sk-head-font: "Archivo Black", Impact, "PingFang SC", sans-serif; --sk-italic: normal; --sk-corners: 0;
 }
 
 /* ── shared: layout ─────────────────────────────────────────────────────── */
@@ -182,94 +182,209 @@ html[data-skin] .rwg-app :is(.arc-title, .arc-play, .home-name, .home-stat .v, .
 html[data-skin] .rwg-app .italic { font-style: var(--sk-italic); }
 html[data-skin] .gx :is(h2, h3, p).uppercase.tracking-wider { text-shadow: 0 0 10px var(--sk-glow); }
 
-/* ── Ocean Neon: floating pill dock, round keys, pill buttons ───────────── */
-html[data-skin="ocean"] .rwg-dock { left: 12px; right: 12px; bottom: 10px; border-radius: 28px; border: 1px solid var(--sk-edge) !important; overflow: hidden; }
-html[data-skin="ocean"] .rwg-dock::before { display: none; }
-html[data-skin="ocean"] .rwg-nav-ic { border-radius: 50%; width: 38px; height: 38px; box-shadow: none; }
-html[data-skin="ocean"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: 0 0 20px var(--sk-glow); }
-html[data-skin="ocean"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
-html[data-skin="ocean"] .rwg-app main button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400) { border-radius: 999px !important; }
+/* ════════════════════════════════════════════════════════════════════════
+   The ten designs. Colour comes from the palette; everything below is shape, and each
+   design differs from the others in all of: lettering (its own font), the main button,
+   the cards, the feature tiles, the section headings and the bottom menu.
+   Royal is the app as written (index.css): chunky italic arcade, 3D keys, HUD corners.
+   ════════════════════════════════════════════════════════════════════════ */
 
-/* ── Sunset Lounge: soft big corners, gradient tab, no 3D ───────────────── */
-html[data-skin="sunset"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 26px !important; }
-html[data-skin="sunset"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; width: 52px; border-radius: 999px; }
+/* ── Glass Pill — Poppins, everything round: glass cards, pill buttons, circle icons, floating pill menu ── */
+html[data-skin="ocean"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 24px !important; }
+html[data-skin="ocean"] .rwg-app :is(.rwg-card, .arc-panel, .arc-tile, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .stat-tile, .home-stat) { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+html[data-skin="ocean"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero, .home-stat) { background: color-mix(in srgb, var(--sk-a) 7%, rgba(255,255,255,.04)) !important; border: 1px solid color-mix(in srgb, var(--sk-a) 22%, transparent) !important; box-shadow: 0 8px 24px rgba(0,0,0,.3) !important; }
+html[data-skin="ocean"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="ocean"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="ocean"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-weight: 600 !important; letter-spacing: 0 !important; font-style: normal !important; text-transform: none !important; text-shadow: none !important; }
+html[data-skin="ocean"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 999px !important; background: var(--sk-a) !important; color: var(--sk-ink) !important; border: 0 !important; box-shadow: 0 0 0 4px color-mix(in srgb, var(--sk-a) 20%, transparent) !important; font-weight: 600 !important; font-style: normal !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-skin="ocean"] .rwg-app :is(.feat-badge, .arc-icon, .home-stat .ic) { border-radius: 50% !important; }
+html[data-skin="ocean"] .rwg-app .arc-icon > span { transform: none; }
+html[data-skin="ocean"] .rwg-app .arc-head { justify-content: center; text-transform: none; letter-spacing: .02em; font-weight: 600; font-size: 14px; }
+html[data-skin="ocean"] .rwg-app .arc-head::before { content: ""; flex: 1; height: 1px; background: var(--sk-edge); }
+html[data-skin="ocean"] .rwg-app .arc-head::after { background: var(--sk-edge); }
+html[data-skin="ocean"] .rwg-dock { left: 14px; right: 14px; bottom: 12px; border-radius: 999px; border: 1px solid var(--sk-edge) !important; overflow: hidden; }
+html[data-skin="ocean"] .rwg-dock::before { display: none; }
+html[data-skin="ocean"] .rwg-nav-item { padding: 8px 0 6px !important; }
+html[data-skin="ocean"] .rwg-nav-ic { border-radius: 50%; width: 38px; height: 38px; background: transparent; border-color: transparent; box-shadow: none; }
+html[data-skin="ocean"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: var(--sk-a); box-shadow: 0 0 0 4px color-mix(in srgb, var(--sk-a) 22%, transparent); }
+html[data-skin="ocean"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; text-shadow: none; }
+html[data-skin="ocean"] .rwg-nav-lbl { font-weight: 600; letter-spacing: 0; }
+
+/* ── Gradient Lounge — Outfit, a full gradient welcome card, gradient buttons, feature tiles as rows (icon left) ── */
+html[data-skin="sunset"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 28px !important; }
+html[data-skin="sunset"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile) { background: color-mix(in srgb, var(--sk-a) 9%, var(--sk-s1)) !important; border: 0 !important; box-shadow: 0 10px 26px rgba(0,0,0,.32) !important; }
+html[data-skin="sunset"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="sunset"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="sunset"] .rwg-app .home-hero { background: linear-gradient(135deg, var(--sk-a), var(--sk-b)) !important; border: 0 !important; box-shadow: 0 16px 40px color-mix(in srgb, var(--sk-a) 30%, transparent) !important; }
+html[data-skin="sunset"] .rwg-app .home-hero :is(.home-name, .home-hi) { color: var(--sk-ink) !important; text-shadow: none !important; }
+html[data-skin="sunset"] .rwg-app .home-hero .home-stat { background: rgba(0,0,0,.22) !important; border: 0 !important; box-shadow: none !important; }
+html[data-skin="sunset"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-weight: 700 !important; letter-spacing: -.01em !important; font-style: normal !important; text-transform: none !important; text-shadow: none !important; }
+html[data-skin="sunset"] .rwg-app .home-name { font-size: 34px !important; }
+html[data-skin="sunset"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 16px !important; background: linear-gradient(90deg, var(--sk-a), var(--sk-b)) !important; color: var(--sk-ink) !important; border: 0 !important; box-shadow: 0 10px 24px color-mix(in srgb, var(--sk-a) 35%, transparent) !important; font-weight: 700 !important; font-style: normal !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-skin="sunset"] .rwg-app .home-hero .arc-play { background: rgba(0,0,0,.3) !important; color: #fff !important; box-shadow: none !important; }
+html[data-skin="sunset"] .rwg-app .feat-tile { display: grid !important; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 2px; align-items: center; text-align: left !important; padding: 12px !important; }
+html[data-skin="sunset"] .rwg-app .feat-badge { grid-row: span 2; width: 46px !important; height: 46px !important; border-radius: 15px !important; }
+html[data-skin="sunset"] .rwg-app .arc-head { text-transform: none; font-size: 19px; font-weight: 700; letter-spacing: -.01em; color: #fff !important; text-shadow: none; }
+html[data-skin="sunset"] .rwg-app .arc-head::after { display: none; }
+html[data-skin="sunset"] .rwg-dock::before { display: none; }
+html[data-skin="sunset"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; width: 54px; border-radius: 999px; }
 html[data-skin="sunset"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: linear-gradient(90deg, var(--sk-a), var(--sk-b)); border-color: transparent; box-shadow: 0 6px 18px color-mix(in srgb, var(--sk-a) 40%, transparent); color: var(--sk-ink); }
-html[data-skin="sunset"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
-html[data-skin="sunset"] .rwg-app [style*="rgb(201, 168, 76), rgb(240, 215, 135)"],
+html[data-skin="sunset"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; text-shadow: none; }
 html[data-skin="sunset"] .rwg-app .bg-amber-400 { background: linear-gradient(90deg, var(--sk-a), var(--sk-b)) !important; color: var(--sk-ink) !important; }
 
-/* ── Emerald Luxe: serif titles, hairline gold frames, underlined tab ───── */
-html[data-skin="emerald"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 8px !important; }
-html[data-skin="emerald"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 600 !important; letter-spacing: .02em; }
-html[data-skin="emerald"] .rwg-app .arc-title { font-weight: 600; text-transform: none; letter-spacing: .02em; }
-html[data-skin="emerald"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; }
-html[data-skin="emerald"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: transparent; color: var(--sk-a); box-shadow: 0 2px 0 var(--sk-a); border-radius: 0; border-color: transparent; }
-html[data-skin="emerald"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
-html[data-skin="emerald"] .rwg-nav-lbl { font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 9.5px; }
+/* ── Luxe Serif — Cormorant Garamond, square double-line frames, outlined (ghost) buttons, spaced capitals, text menu ── */
+html[data-skin="emerald"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 2px !important; }
+html[data-skin="emerald"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero, .home-stat) { background: var(--sk-s1) !important; border: 1px solid color-mix(in srgb, var(--sk-a) 50%, transparent) !important; box-shadow: none !important; outline: 1px solid color-mix(in srgb, var(--sk-a) 20%, transparent); outline-offset: 3px; }
+html[data-skin="emerald"] .rwg-app .home-stat { outline: 0; }
+html[data-skin="emerald"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="emerald"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="emerald"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-family: var(--sk-head-font) !important; font-weight: 600 !important; letter-spacing: .02em !important; font-style: normal !important; text-transform: none !important; text-shadow: none !important; }
+html[data-skin="emerald"] .rwg-app .home-name { font-size: 36px !important; font-style: italic !important; }
+html[data-skin="emerald"] .rwg-app :is(.arc-title, .feat-title) { font-size: 1.15em; }
+html[data-skin="emerald"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 0 !important; background: transparent !important; color: var(--sk-a2) !important; border: 1px solid var(--sk-a) !important; box-shadow: none !important; font-family: var(--sk-font) !important; font-weight: 500 !important; font-style: normal !important; font-size: 11px !important; text-transform: uppercase !important; letter-spacing: .24em !important; }
+html[data-skin="emerald"] .rwg-app :is(.feat-badge, .arc-icon, .home-stat .ic) { border-radius: 50% !important; background: transparent !important; border: 1px solid var(--sk-a) !important; color: var(--sk-a2) !important; box-shadow: none !important; }
+html[data-skin="emerald"] .rwg-app .feat-badge svg { filter: none !important; }
+html[data-skin="emerald"] .rwg-app .arc-head { justify-content: center; font-family: var(--sk-head-font); text-transform: none; font-size: 18px; font-weight: 600; letter-spacing: .12em; }
+html[data-skin="emerald"] .rwg-app .arc-head::before, html[data-skin="emerald"] .rwg-app .arc-head::after { content: "◆"; font-size: 8px; flex: none; height: auto; background: none; color: var(--sk-a); }
+html[data-skin="emerald"] .rwg-app > header button:first-child { font-family: var(--sk-head-font); letter-spacing: .2em; text-transform: uppercase; font-weight: 600; }
+html[data-skin="emerald"] .rwg-dock { box-shadow: none; border-top: 1px solid color-mix(in srgb, var(--sk-a) 45%, transparent) !important; }
+html[data-skin="emerald"] .rwg-dock::before { display: none; }
+html[data-skin="emerald"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; height: 26px; }
+html[data-skin="emerald"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: none; background: transparent; color: var(--sk-a); border-radius: 0; border-color: transparent; }
+html[data-skin="emerald"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; text-shadow: none; border-bottom: 1px solid var(--sk-a); padding-bottom: 2px; }
+html[data-skin="emerald"] .rwg-nav-lbl { font-weight: 500; letter-spacing: .18em; text-transform: uppercase; font-size: 9px; }
 
-/* ── Mono Minimal: flat, hairlines, no glow, no 3D ──────────────────────── */
-html[data-skin="mono"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .stat-tile) { border-radius: 6px !important; }
-html[data-skin="mono"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero, .home-stat) { background: var(--sk-panel) !important; border-color: var(--sk-edge) !important; box-shadow: none !important; }
-html[data-skin="mono"] .rwg-app :is(.arc-tile, .home-hero)::before, html[data-skin="mono"] .rwg-app :is(.arc-tile, .home-hero)::after { display: none; }
+/* ── Minimal — Inter, flat and quiet: hairlines, small corners, left-aligned tiles with outline icons, top-line menu ── */
+html[data-skin="mono"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 8px !important; }
+html[data-skin="mono"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero, .home-stat) { background: var(--sk-panel) !important; border: 1px solid var(--sk-edge) !important; box-shadow: none !important; }
+html[data-skin="mono"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="mono"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="mono"] .rwg-app .home-hero { border-left: 3px solid var(--sk-a) !important; }
+html[data-skin="mono"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-weight: 700 !important; letter-spacing: -.015em !important; font-style: normal !important; text-transform: none !important; text-shadow: none !important; }
 html[data-skin="mono"] .rwg-app :is(button, .arc-play) { box-shadow: none !important; }
-html[data-skin="mono"] .rwg-app :is(h1, h2, h3, .arc-title, .home-name, .stat-tile .num) { text-shadow: none !important; }
-html[data-skin="mono"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 700 !important; letter-spacing: -.01em; }
+html[data-skin="mono"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 8px !important; background: var(--sk-a) !important; color: var(--sk-ink) !important; border: 0 !important; font-weight: 600 !important; font-style: normal !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-skin="mono"] .rwg-app .feat-tile { align-items: flex-start !important; text-align: left !important; padding: 14px !important; }
+html[data-skin="mono"] .rwg-app :is(.feat-badge, .arc-icon, .home-stat .ic) { border-radius: 8px !important; background: transparent !important; border: 1px solid var(--sk-edge) !important; color: var(--sk-a2) !important; box-shadow: none !important; }
+html[data-skin="mono"] .rwg-app .feat-badge { width: 38px !important; height: 38px !important; }
+html[data-skin="mono"] .rwg-app .feat-badge svg { filter: none !important; width: 20px !important; height: 20px !important; }
+html[data-skin="mono"] .rwg-app .arc-icon > span { transform: none; }
+html[data-skin="mono"] .rwg-app .arc-head { font-size: 11px; letter-spacing: .08em; font-weight: 600; color: rgba(255,255,255,.6) !important; text-shadow: none; }
+html[data-skin="mono"] .rwg-app .arc-head::after { background: var(--sk-edge); }
 html[data-skin="mono"] .rwg-dock { box-shadow: none; border-top: 1px solid var(--sk-edge) !important; }
 html[data-skin="mono"] .rwg-dock::before { display: none; }
-html[data-skin="mono"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; border-radius: 6px; }
-html[data-skin="mono"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: none; background: var(--sk-a); }
-html[data-skin="mono"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+html[data-skin="mono"] .rwg-nav-item { padding-top: 10px !important; }
+html[data-skin="mono"] .rwg-nav-item.is-active::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; background: var(--sk-a); }
+html[data-skin="mono"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; }
+html[data-skin="mono"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: none; background: transparent; color: var(--sk-a2); border-color: transparent; }
+html[data-skin="mono"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; text-shadow: none; }
+html[data-skin="mono"] .rwg-nav-lbl { font-weight: 500; letter-spacing: 0; }
 
-/* ── Sakura: very round, soft, rounded lettering, lifted dock ───────────── */
-html[data-skin="sakura"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 30px !important; }
-html[data-skin="sakura"] .rwg-app main :is(.rounded-xl, .rounded-lg) { border-radius: 18px !important; }
-html[data-skin="sakura"] .rwg-dock { border-radius: 30px 30px 0 0; overflow: hidden; }
-html[data-skin="sakura"] .rwg-nav-ic { border-radius: 50%; width: 38px; height: 38px; box-shadow: none; }
-html[data-skin="sakura"] .rwg-nav-item.is-active .rwg-nav-ic { box-shadow: 0 6px 16px var(--sk-glow); }
-html[data-skin="sakura"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 800 !important; }
+/* ── Soft Bubble — Quicksand, puffy raised cards, very round, squeezy pill buttons, ringed circle icons, lifted menu bubble ── */
+html[data-skin="sakura"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 30px !important; }
+html[data-skin="sakura"] .rwg-app main :is(.rounded-lg, .home-stat) { border-radius: 20px !important; }
+html[data-skin="sakura"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero, .home-stat) { background: linear-gradient(145deg, color-mix(in srgb, var(--sk-a) 16%, var(--sk-s1)), var(--sk-s2)) !important; border: 0 !important; box-shadow: 8px 8px 20px rgba(0,0,0,.38), -4px -4px 12px color-mix(in srgb, var(--sk-a) 9%, transparent), inset 0 1px 0 rgba(255,255,255,.1) !important; }
+html[data-skin="sakura"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="sakura"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="sakura"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-weight: 700 !important; letter-spacing: 0 !important; font-style: normal !important; text-transform: none !important; text-shadow: none !important; }
+html[data-skin="sakura"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 999px !important; background: linear-gradient(180deg, var(--sk-a2), var(--sk-a)) !important; color: var(--sk-ink) !important; border: 0 !important; box-shadow: 0 6px 0 var(--sk-deep), 0 14px 22px color-mix(in srgb, var(--sk-a) 30%, transparent) !important; font-weight: 700 !important; font-style: normal !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-skin="sakura"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add):not(:disabled):active { transform: translateY(5px) !important; box-shadow: 0 1px 0 var(--sk-deep) !important; }
+html[data-skin="sakura"] .rwg-app :is(.feat-badge, .arc-icon, .home-stat .ic) { border-radius: 50% !important; border: 3px solid rgba(255,255,255,.4) !important; }
+html[data-skin="sakura"] .rwg-app .feat-tile { overflow: visible !important; margin-top: 26px; padding-top: 0 !important; }
+html[data-skin="sakura"] .rwg-app .feat-badge { margin-top: -26px; width: 62px !important; height: 62px !important; }
+html[data-skin="sakura"] .rwg-app .arc-head::before { content: "✿"; color: var(--sk-a); }
+html[data-skin="sakura"] .rwg-app .arc-head { text-transform: none; font-size: 17px; font-weight: 700; letter-spacing: 0; text-shadow: none; }
+html[data-skin="sakura"] .rwg-app .arc-head::after { display: none; }
+html[data-skin="sakura"] .rwg-dock { border-radius: 30px 30px 0 0; overflow: visible; }
+html[data-skin="sakura"] .rwg-dock::before { display: none; }
+html[data-skin="sakura"] .rwg-nav-ic { border-radius: 50%; width: 40px; height: 40px; background: transparent; border-color: transparent; box-shadow: none; }
+html[data-skin="sakura"] .rwg-nav-item.is-active .rwg-nav-ic { transform: translateY(-14px) scale(1.18); border: 4px solid var(--sk-s2); box-shadow: 0 8px 18px color-mix(in srgb, var(--sk-a) 45%, transparent); }
+html[data-skin="sakura"] .rwg-nav-lbl { font-weight: 700; letter-spacing: 0; }
 
-/* ── Cyber Grid: square, mono titles, neon outlines ─────────────────────── */
-html[data-skin="cyber"] .rwg-app main :is(.rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .arc-play, .feat-tile, .feat-badge, .home-hero, .home-stat, .stat-tile) { border-radius: 2px !important; }
-html[data-skin="cyber"] .gx :is(h1, h2, h3):not(.arc-title) { text-transform: uppercase; letter-spacing: .08em; font-weight: 700 !important; }
-html[data-skin="cyber"] .rwg-nav-ic { border-radius: 2px; background: transparent; border-color: color-mix(in srgb, var(--sk-a) 30%, transparent); box-shadow: none; }
-html[data-skin="cyber"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: transparent; color: var(--sk-a); border-color: var(--sk-a); box-shadow: 0 0 14px var(--sk-glow), inset 0 0 10px color-mix(in srgb, var(--sk-a) 25%, transparent); }
+/* ── Terminal — JetBrains Mono everywhere, square neon outlines, cut-corner buttons, [ bracket ] headings, grid menu ── */
+html[data-skin="cyber"] .rwg-app { font-family: var(--sk-head-font) !important; }
+html[data-skin="cyber"] .rwg-app main :is(.rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-full, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .arc-play, .feat-tile, .feat-badge, .arc-icon, .home-hero, .home-stat, .home-stat .ic, .stat-tile) { border-radius: 0 !important; }
+html[data-skin="cyber"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero, .home-stat) { background: color-mix(in srgb, var(--sk-s2) 92%, transparent) !important; border: 1px solid color-mix(in srgb, var(--sk-a) 45%, transparent) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sk-a) 8%, transparent), 0 0 16px color-mix(in srgb, var(--sk-a) 10%, transparent) !important; }
+html[data-skin="cyber"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="cyber"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="cyber"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-weight: 700 !important; font-style: normal !important; text-transform: uppercase !important; letter-spacing: .06em !important; }
+html[data-skin="cyber"] .rwg-app .home-name::before { content: "> "; color: var(--sk-a); }
+html[data-skin="cyber"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 0 !important; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); background: color-mix(in srgb, var(--sk-a) 16%, transparent) !important; color: var(--sk-a) !important; border: 1px solid var(--sk-a) !important; box-shadow: none !important; font-weight: 700 !important; font-style: normal !important; text-transform: uppercase !important; letter-spacing: .14em !important; }
+html[data-skin="cyber"] .rwg-app .feat-tile { align-items: flex-start !important; text-align: left !important; padding: 12px !important; }
+html[data-skin="cyber"] .rwg-app :is(.feat-badge, .arc-icon, .home-stat .ic) { background: transparent !important; border: 1px solid var(--c, var(--sk-a)) !important; color: var(--c, var(--sk-a)) !important; box-shadow: none !important; }
+html[data-skin="cyber"] .rwg-app .feat-badge { width: 40px !important; height: 40px !important; }
+html[data-skin="cyber"] .rwg-app .feat-badge svg { filter: none !important; width: 22px !important; height: 22px !important; }
+html[data-skin="cyber"] .rwg-app .arc-icon > span { transform: none; }
+html[data-skin="cyber"] .rwg-app .arc-head { letter-spacing: .14em; font-weight: 700; }
+html[data-skin="cyber"] .rwg-app .arc-head::before { content: "["; color: var(--sk-a); }
+html[data-skin="cyber"] .rwg-app .arc-head::after { content: "]"; flex: none; height: auto; background: none; color: var(--sk-a); }
+html[data-skin="cyber"] .rwg-dock { box-shadow: none; border-top: 1px solid var(--sk-a) !important; }
+html[data-skin="cyber"] .rwg-dock::before { display: none; }
+html[data-skin="cyber"] .rwg-nav-item { border-right: 1px solid color-mix(in srgb, var(--sk-a) 22%, transparent); padding: 8px 0 6px !important; }
+html[data-skin="cyber"] .rwg-nav-ic { border-radius: 0; background: transparent; border-color: transparent; box-shadow: none; }
+html[data-skin="cyber"] .rwg-nav-item.is-active { background: color-mix(in srgb, var(--sk-a) 14%, transparent); color: var(--sk-a); }
+html[data-skin="cyber"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: none; background: transparent; color: var(--sk-a); border-color: transparent; }
 html[data-skin="cyber"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
-html[data-skin="cyber"] .rwg-nav-lbl { font-family: var(--sk-head-font); text-transform: uppercase; font-weight: 600; }
+html[data-skin="cyber"] .rwg-nav-lbl { font-family: var(--sk-head-font); text-transform: uppercase; font-weight: 600; letter-spacing: .08em; }
 
-/* ── Coffee House: paper-solid cards, serif titles, calm ────────────────── */
-html[data-skin="coffee"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 14px !important; }
-html[data-skin="coffee"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 700 !important; }
-html[data-skin="coffee"] .rwg-app .arc-title { text-transform: none; font-weight: 700; }
-html[data-skin="coffee"] .rwg-app :is(.arc-tile, .home-hero)::before, html[data-skin="coffee"] .rwg-app :is(.arc-tile, .home-hero)::after { display: none; }
+/* ── Paper Menu — DM Serif Display, solid paper cards with a dashed inner frame, features as dotted menu lines, small-caps buttons ── */
+html[data-skin="coffee"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 12px !important; }
+html[data-skin="coffee"] .rwg-app :is(.rwg-card, .arc-panel, .arc-tile, .arc-hud, .arc-room-row, .home-hero, .stat-tile) { background: var(--sk-s1) !important; border: 1px solid color-mix(in srgb, var(--sk-a) 24%, transparent) !important; box-shadow: 0 2px 0 rgba(0,0,0,.28) !important; outline: 1px dashed color-mix(in srgb, var(--sk-a) 34%, transparent); outline-offset: -6px; }
+html[data-skin="coffee"] .rwg-app .home-stat { background: transparent !important; border: 0 !important; border-right: 1px dotted color-mix(in srgb, var(--sk-a) 45%, transparent) !important; border-radius: 0 !important; box-shadow: none !important; }
+html[data-skin="coffee"] .rwg-app .home-stat:last-child { border-right: 0 !important; }
+html[data-skin="coffee"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="coffee"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="coffee"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-family: var(--sk-head-font) !important; font-weight: 400 !important; letter-spacing: .005em !important; font-style: normal !important; text-transform: none !important; text-shadow: none !important; }
+html[data-skin="coffee"] .rwg-app .home-name { font-size: 34px !important; }
+html[data-skin="coffee"] .rwg-app :is(.arc-title, .feat-title) { font-size: 1.12em; }
+html[data-skin="coffee"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 6px !important; background: var(--sk-a) !important; color: var(--sk-ink) !important; border: 0 !important; box-shadow: 0 3px 0 var(--sk-deep) !important; font-weight: 700 !important; font-style: normal !important; font-variant: small-caps; text-transform: none !important; letter-spacing: .1em !important; }
+html[data-skin="coffee"] .rwg-app .feat-tile { display: grid !important; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 0; align-items: center; text-align: left !important; background: transparent !important; border: 0 !important; border-bottom: 2px dotted color-mix(in srgb, var(--sk-a) 45%, transparent) !important; border-radius: 0 !important; box-shadow: none !important; padding: 10px 2px !important; }
+html[data-skin="coffee"] .rwg-app .feat-badge { grid-row: span 2; width: 40px !important; height: 40px !important; border-radius: 50% !important; box-shadow: none !important; }
+html[data-skin="coffee"] .rwg-app .feat-badge svg { width: 20px !important; height: 20px !important; }
+html[data-skin="coffee"] .rwg-app .arc-head { font-family: var(--sk-head-font); text-transform: none; font-size: 20px; font-weight: 400; letter-spacing: 0; text-shadow: none; }
+html[data-skin="coffee"] .rwg-app .arc-head::after { height: 0; background: none; border-bottom: 2px dotted color-mix(in srgb, var(--sk-a) 55%, transparent); }
 html[data-skin="coffee"] .rwg-dock { box-shadow: none; border-top: 1px solid var(--sk-edge) !important; }
 html[data-skin="coffee"] .rwg-dock::before { display: none; }
 html[data-skin="coffee"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; }
-html[data-skin="coffee"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: none; background: var(--sk-a); border-radius: 12px; }
-html[data-skin="coffee"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+html[data-skin="coffee"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; box-shadow: none; background: transparent; color: var(--sk-a); border-color: transparent; }
+html[data-skin="coffee"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; text-shadow: none; }
+html[data-skin="coffee"] .rwg-nav-item.is-active .rwg-nav-lbl::after { content: ""; display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--sk-a); margin: 3px auto 0; }
+html[data-skin="coffee"] .rwg-nav-lbl { font-family: var(--sk-head-font); font-weight: 400; font-size: 12px; letter-spacing: 0; }
 
-/* ── Arctic Glass: frosted panels, thin lines, light lettering ──────────── */
-html[data-skin="arctic"] .rwg-app :is(.rwg-card, .bg-white\/5.border-white\/10, .arc-panel, .arc-tile, .arc-hud, .feat-tile, .home-hero, .stat-tile) { -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
-html[data-skin="arctic"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero) { background: var(--sk-panel) !important; border-color: var(--sk-edge) !important; box-shadow: var(--sk-shadow) !important; }
-html[data-skin="arctic"] .rwg-app :is(.arc-tile, .home-hero)::before { display: none; }
-html[data-skin="arctic"] .gx :is(h1, h2, h3):not(.uppercase):not(.arc-title) { font-weight: 600 !important; text-shadow: none; }
-html[data-skin="arctic"] .rwg-app .arc-title { font-weight: 600; text-transform: none; text-shadow: none; }
-html[data-skin="arctic"] .rwg-dock { left: 10px; right: 10px; bottom: 10px; border-radius: 22px; border: 1px solid var(--sk-edge) !important; overflow: hidden; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(3,8,18,.4); }
+/* ── Frost — Manrope, see-through frosted panels, large thin numbers, glass buttons with a thin accent line, floating glass menu ── */
+html[data-skin="arctic"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 18px !important; }
+html[data-skin="arctic"] .rwg-app :is(.rwg-card, .arc-panel, .arc-tile, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .stat-tile, .home-stat) { -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); }
+html[data-skin="arctic"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-hero, .home-stat) { background: rgba(255,255,255,.075) !important; border: 1px solid rgba(255,255,255,.22) !important; box-shadow: 0 10px 30px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.16) !important; }
+html[data-skin="arctic"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="arctic"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="arctic"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-weight: 600 !important; letter-spacing: -.01em !important; font-style: normal !important; text-transform: none !important; text-shadow: none !important; }
+html[data-skin="arctic"] .rwg-app .home-name { font-weight: 300 !important; font-size: 36px !important; letter-spacing: -.03em !important; }
+html[data-skin="arctic"] .rwg-app :is(.home-stat .v, .stat-tile .num) { font-weight: 300 !important; font-size: 24px !important; font-style: normal !important; text-shadow: none !important; }
+html[data-skin="arctic"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 14px !important; background: rgba(255,255,255,.14) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.4) !important; box-shadow: inset 0 -2px 0 var(--sk-a) !important; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); font-weight: 600 !important; font-style: normal !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-skin="arctic"] .rwg-app :is(.feat-badge, .arc-icon, .home-stat .ic) { border-radius: 14px !important; background: rgba(255,255,255,.12) !important; border: 1px solid rgba(255,255,255,.26) !important; color: var(--sk-a2) !important; box-shadow: none !important; }
+html[data-skin="arctic"] .rwg-app .feat-badge svg { filter: none !important; }
+html[data-skin="arctic"] .rwg-app .arc-icon > span { transform: none; }
+html[data-skin="arctic"] .rwg-app .arc-head { text-transform: none; font-size: 15px; font-weight: 500; letter-spacing: 0; color: #fff !important; text-shadow: none; }
+html[data-skin="arctic"] .rwg-app .arc-head::after { background: rgba(255,255,255,.2); }
+html[data-skin="arctic"] .rwg-dock { left: 10px; right: 10px; bottom: 10px; border-radius: 22px; border: 1px solid var(--sk-edge) !important; overflow: hidden; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0,0,0,.4); }
 html[data-skin="arctic"] .rwg-dock::before { display: none; }
 html[data-skin="arctic"] .rwg-nav-ic { background: transparent; border-color: transparent; box-shadow: none; }
-html[data-skin="arctic"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: rgba(255,255,255,.14); color: var(--sk-a2); border-color: rgba(255,255,255,.3); box-shadow: none; }
-html[data-skin="arctic"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; }
+html[data-skin="arctic"] .rwg-nav-item.is-active .rwg-nav-ic { transform: none; background: rgba(255,255,255,.16); color: var(--sk-a2); border-color: rgba(255,255,255,.32); box-shadow: none; }
+html[data-skin="arctic"] .rwg-nav-item.is-active .rwg-nav-lbl { margin-top: 0; text-shadow: none; }
+html[data-skin="arctic"] .rwg-nav-lbl { font-weight: 500; letter-spacing: 0; }
 
-/* ── Candy Pop: thick outlines, hard offset shadows ─────────────────────── */
-html[data-skin="candy"] .rwg-app :is(.rwg-card, .bg-white\/5.border-white\/10, .arc-panel, .arc-tile, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .stat-tile, .home-stat) { border: 2px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; }
-html[data-skin="candy"] .rwg-app main :is(.rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .feat-tile, .home-hero) { border-radius: 14px !important; }
-html[data-skin="candy"] .rwg-app main button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500, .arc-play) { border: 2px solid #000 !important; box-shadow: 3px 3px 0 #000 !important; }
-html[data-skin="candy"] .rwg-app main button:is([style*="linear-gradient"], [class*="bg-gradient-to"], .bg-amber-400, .bg-emerald-500, .bg-red-500, .arc-play):not(:disabled):active { transform: translate(3px, 3px) !important; box-shadow: 0 0 0 #000 !important; }
-html[data-skin="candy"] .rwg-app :is(h1, h2, h3, .arc-title, .home-name) { text-shadow: 2px 2px 0 #000 !important; }
-html[data-skin="candy"] .rwg-app > header { border-bottom: 2px solid #000 !important; }
-html[data-skin="candy"] .rwg-dock { border-top: 2px solid #000 !important; box-shadow: none; }
+/* ── Pop Sticker — Archivo Black, thick black outlines and hard shadows, tilted tiles, sticker headings, block buttons ── */
+html[data-skin="candy"] .rwg-app main :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rwg-card, .arc-tile, .arc-panel, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .home-stat, .stat-tile) { border-radius: 14px !important; }
+html[data-skin="candy"] .rwg-app :is(.rwg-card, .bg-white\/5.border-white\/10, .arc-panel, .arc-tile, .arc-hud, .arc-room-row, .feat-tile, .home-hero, .stat-tile, .home-stat) { border: 2.5px solid #000 !important; box-shadow: 5px 5px 0 #000 !important; }
+html[data-skin="candy"] .rwg-app :is(.arc-tile, .arc-hud, .arc-room-row, .feat-tile, .stat-tile, .home-stat) { background: var(--sk-s1) !important; }
+html[data-skin="candy"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::before, html[data-skin="candy"] .rwg-app :is(.arc-tile, .arc-hud, .feat-tile, .home-hero)::after { display: none; }
+html[data-skin="candy"] .rwg-app .home-hero { background: var(--sk-a) !important; }
+html[data-skin="candy"] .rwg-app .home-hero :is(.home-name, .home-hi) { color: var(--sk-ink) !important; text-shadow: none !important; }
+html[data-skin="candy"] .rwg-app .feat-tile:nth-child(odd) { transform: rotate(-1.4deg); }
+html[data-skin="candy"] .rwg-app .feat-tile:nth-child(even) { transform: rotate(1.1deg); }
+html[data-skin="candy"] .rwg-app main :is(h1, h2, h3, .arc-title, .feat-title, .home-name) { font-family: var(--sk-head-font) !important; font-weight: 400 !important; font-style: normal !important; text-transform: uppercase !important; letter-spacing: .01em !important; text-shadow: 2px 2px 0 #000 !important; }
+html[data-skin="candy"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add) { border-radius: 10px !important; background: var(--sk-b) !important; color: #fff !important; border: 2.5px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; font-family: var(--sk-head-font) !important; font-weight: 400 !important; font-style: normal !important; text-transform: uppercase !important; letter-spacing: .03em !important; text-shadow: 1px 1px 0 #000; }
+html[data-skin="candy"] .rwg-app :is(.arc-play, main button[style*="linear-gradient"], main button.bg-amber-400, .pet-tab.on, .kos-add):not(:disabled):active { transform: translate(4px, 4px) !important; box-shadow: 0 0 0 #000 !important; }
+html[data-skin="candy"] .rwg-app :is(.feat-badge, .arc-icon, .home-stat .ic) { border-radius: 10px !important; border: 2.5px solid #000 !important; box-shadow: 3px 3px 0 #000 !important; transform: rotate(-6deg); }
+html[data-skin="candy"] .rwg-app .arc-head { display: inline-flex; background: var(--sk-a); color: var(--sk-ink) !important; padding: 4px 12px; border: 2.5px solid #000; box-shadow: 3px 3px 0 #000; font-family: var(--sk-head-font); font-weight: 400; letter-spacing: .04em; text-shadow: none; transform: rotate(-1.5deg); }
+html[data-skin="candy"] .rwg-app .arc-head::after { display: none; }
+html[data-skin="candy"] .rwg-app > header { border-bottom: 2.5px solid #000 !important; }
+html[data-skin="candy"] .rwg-dock { border-top: 2.5px solid #000 !important; box-shadow: none; }
 html[data-skin="candy"] .rwg-dock::before { display: none; }
-html[data-skin="candy"] .rwg-nav-ic { border: 2px solid #000; box-shadow: 2px 2px 0 #000; background: color-mix(in srgb, var(--sk-s1) 82%, #fff); }
-html[data-skin="candy"] .rwg-nav-item.is-active .rwg-nav-ic { transform: translateY(-5px); background: var(--sk-a); border-color: #000; box-shadow: 3px 3px 0 #000; }
+html[data-skin="candy"] .rwg-nav-ic { border: 2.5px solid #000; box-shadow: 2px 2px 0 #000; background: color-mix(in srgb, var(--sk-s1) 82%, #fff); }
+html[data-skin="candy"] .rwg-nav-item.is-active .rwg-nav-ic { transform: translateY(-5px) rotate(-4deg); background: var(--sk-a); border-color: #000; box-shadow: 3px 3px 0 #000; }
+html[data-skin="candy"] .rwg-nav-lbl { font-family: var(--sk-head-font); font-weight: 400; text-transform: uppercase; letter-spacing: .02em; }
 
 /* ── Login / sign-up page (.rwg-auth) in the company's design ───────────── */
 html[data-skin] .rwg-auth { background: var(--sk-page) !important; font-family: var(--sk-font); }
