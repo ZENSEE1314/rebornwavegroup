@@ -1130,23 +1130,29 @@ function SongRequests() {
   const next = useMutation({ mutationFn: (skip: boolean) => apiRequest("POST", "/api/reborn/admin/song-queue/next", { skip }).then((r) => r.json()), onSuccess: done, onError: fail });
   const cancel = useMutation({ mutationFn: ({ id, note }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}/cancel`, { note }).then((r) => r.json()), onSuccess: done, onError: fail });
   const cancelGroup = useMutation({ mutationFn: (v: { table?: string; userId?: string }) => apiRequest("POST", "/api/reborn/admin/song-queue/cancel-group", v).then((r) => r.json()), onSuccess: done, onError: fail });
+  // Main admin only: skip, pause / resume, and moving a song up to play next.
+  const isMain = role === "admin";
+  const paused = !!qi?.paused;
+  const pause = useMutation({ mutationFn: (p: boolean) => apiRequest("POST", "/api/reborn/admin/song-queue/pause", { paused: p }).then((r) => r.json()), onSuccess: (d: any) => { done(d); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue-info"] }); }, onError: fail });
+  const playNext = useMutation({ mutationFn: (id: number) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}/play-next`, {}).then((r) => r.json()), onSuccess: done, onError: fail });
   const playing = all.find((r) => r.playing);
   const rows = all.filter((r) => !r.playing);
   const nameOf = (r: any) => r.requester?.name || r.requester?.username || t("admin.req.unknownUser");
   return (
     <div className="space-y-2">
       <Card>
-        <p className="text-[11px] font-bold tracking-wider text-fuchsia-200/80 uppercase">🎤 {t("admin.req.nowPlaying")}</p>
+        <p className="text-[11px] font-bold tracking-wider text-fuchsia-200/80 uppercase">🎤 {t("admin.req.nowPlaying")}{paused && <span className="ml-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] text-black">⏸ {t("admin.req.paused")}</span>}</p>
         {playing ? (<>
           <p className="text-lg font-black mt-1">{playing.title}{playing.artist ? <span className="text-sm font-normal text-white/50"> · {playing.artist}</span> : null}</p>
           <p className="text-xs text-amber-200/90">{playing.table ? `${t("admin.req.table", { t: playing.table })} · ` : ""}{nameOf(playing)}{playing.requester?.phone ? ` · ${playing.requester.phone}` : ""}</p>
         </>) : <p className="text-sm text-white/55 mt-1">{t("admin.req.nothingPlaying")}</p>}
-        <div className="flex gap-2 mt-3">
-          <button onClick={() => next.mutate(false)} disabled={next.isPending || (!playing && !rows.length)} className={btnSave}>▶ {playing ? t("admin.req.next") : t("admin.req.start")}</button>
-          {playing && <button onClick={() => { if (confirm(t("admin.req.skipConfirm"))) next.mutate(true); }} disabled={next.isPending} className={btnDel}>⏭ {t("admin.req.skip")}</button>}
+        <div className="flex flex-wrap gap-2 mt-3">
+          <button onClick={() => next.mutate(false)} disabled={next.isPending || paused || (!playing && !rows.length)} className={btnSave}>▶ {playing ? t("admin.req.next") : t("admin.req.start")}</button>
+          {isMain && playing && <button onClick={() => { if (confirm(t("admin.req.skipConfirm"))) next.mutate(true); }} disabled={next.isPending} className={btnDel}>⏭ {t("admin.req.skip")}</button>}
+          {isMain && <button onClick={() => pause.mutate(!paused)} disabled={pause.isPending} className="px-3 py-2 rounded-lg text-sm font-semibold bg-amber-400/15 text-amber-200">{paused ? `▶ ${t("admin.req.resume")}` : `⏸ ${t("admin.req.pause")}`}</button>}
           {playing && <button onClick={() => { const note = prompt(t("admin.req.cancelPrompt"), "") ?? undefined; if (note !== undefined) cancel.mutate({ id: playing.id, note }); }} className="px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white/70">{t("admin.req.stop")}</button>}
         </div>
-        <p className="text-[11px] text-white/45 mt-2">{t("admin.req.autoNote")}</p>
+        <p className="text-[11px] text-white/45 mt-2">{paused ? t("admin.req.pausedNote") : t("admin.req.autoNote")}</p>
       </Card>
       <p className="text-xs text-white/50 px-1">{qi?.mode === "table" ? t("admin.req.fairNoteTable", { n: qi?.perTurn ?? 1 }) : t("admin.req.fairNoteUser", { n: qi?.perTurn ?? 1 })}</p>
       {rows.length === 0 && <Empty text={t("admin.req.empty")} />}
@@ -1156,9 +1162,10 @@ function SongRequests() {
             <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm text-black" style={{ background: "linear-gradient(135deg,#c9a84c,#f0d787)" }}>#{r.position ?? "?"}</div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm truncate"><Music2 className="w-3.5 h-3.5 inline mr-1 text-amber-300" />{r.title}</p>
-              <p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? t("admin.req.bySinger") : t("admin.req.self")} · {t("admin.req.round", { n: (r.round ?? 0) + 1 })}{r.table ? <> · <b className="text-cyan-300">{t("admin.req.table", { t: r.table })}</b></> : null}</p>
+              <p className="text-xs text-white/40 truncate">{r.bumpedAt && <b className="text-emerald-300">⬆ {t("admin.req.playNextTag")} · </b>}{r.artist || "—"} · {r.performanceMode === "singer" ? t("admin.req.bySinger") : t("admin.req.self")} · {t("admin.req.round", { n: (r.round ?? 0) + 1 })}{r.table ? <> · <b className="text-cyan-300">{t("admin.req.table", { t: r.table })}</b></> : null}</p>
               <p className="text-xs text-amber-200/90 truncate">{nameOf(r)}{r.requester?.username && r.requester?.name ? ` (@${r.requester.username})` : ""}{r.requester?.phone ? ` · ${r.requester.phone}` : ""}</p>
               <div className="flex flex-wrap gap-2 mt-2">
+                {isMain && r.position !== 1 && <button onClick={() => playNext.mutate(r.id)} disabled={playNext.isPending} className="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-400/15 text-emerald-200">⬆ {t("admin.req.playNext")}</button>}
                 <button onClick={() => { const note = prompt(t("admin.req.cancelPrompt"), "") ?? undefined; if (note !== undefined) cancel.mutate({ id: r.id, note }); }} className={btnDel}><X className="w-4 h-4" /> {t("admin.req.cancel")}</button>
                 {r.table
                   ? <button onClick={() => { if (confirm(t("admin.req.cancelTableConfirm", { t: r.table }))) cancelGroup.mutate({ table: r.table }); }} className="px-3 py-2 rounded-lg text-xs font-semibold bg-white/10 text-white/70">{t("admin.req.cancelTable", { t: r.table })}</button>

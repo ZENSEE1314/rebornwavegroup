@@ -843,6 +843,7 @@ export const songRequests = pgTable("song_requests", {
   createdAt: timestamp("created_at").defaultNow(),
   confirmedAt: timestamp("confirmed_at"),
   adminId: varchar("admin_id"),
+  bumpedAt: timestamp("bumped_at"), // admin pressed "Play next": goes ahead of the fair queue
 });
 
 // Admin-posted events shown on the homepage / at login

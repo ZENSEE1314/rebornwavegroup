@@ -76,7 +76,7 @@ function NowSinging({ onOpen }: { onOpen: () => void }) {
     <button onClick={onOpen} className="w-full mb-4 text-left rounded-2xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-3 flex items-center gap-3">
       <Mic2 className="w-5 h-5 text-fuchsia-300 flex-shrink-0" />
       <span className="flex-1 min-w-0">
-        <span className="block text-[11px] text-fuchsia-200/80">{q.nowPlaying ? t("vn.song.nowSinging") : t("vn.song.nobodySinging")}</span>
+        <span className="block text-[11px] text-fuchsia-200/80">{q.nowPlaying ? t("vn.song.nowSinging") : t("vn.song.nobodySinging")}{q.paused ? ` · ⏸ ${t("vn.song.paused")}` : ""}</span>
         {q.nowPlaying && <span className="block text-sm font-bold truncate">{who(t, q.nowPlaying)} — {q.nowPlaying.title}</span>}
         <span className="block text-[11px] text-white/55">{mine ? t("vn.song.yourTurnIn", { n: mine.position }) : t("vn.song.waitingN", { n: q.queue?.length || 0 })}</span>
       </span>
@@ -92,7 +92,7 @@ function QueueBoard() {
   return (
     <div className="space-y-2">
       <div className="rounded-3xl p-4 border border-fuchsia-400/30" style={{ background: "linear-gradient(135deg,rgba(217,70,239,.18),rgba(201,168,76,.12))" }}>
-        <p className="text-[11px] font-bold tracking-wider text-fuchsia-200/80 uppercase">🎤 {t("vn.song.nowSinging")}</p>
+        <p className="text-[11px] font-bold tracking-wider text-fuchsia-200/80 uppercase">🎤 {t("vn.song.nowSinging")}{q.paused ? ` · ⏸ ${t("vn.song.paused")}` : ""}</p>
         {q.nowPlaying ? (<>
           <p className="text-lg font-black mt-1">{q.nowPlaying.title}</p>
           <p className="text-xs text-white/60">{q.nowPlaying.artist || "—"}</p>

@@ -101,6 +101,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.song.tabRequest': { en: 'Request', zh: '点歌', id: 'Minta Lagu' },
   'vn.song.tabQueue': { en: 'Queue', zh: '队列', id: 'Antrean' },
   'vn.song.nowSinging': { en: 'Now singing', zh: '正在演唱', id: 'Sedang bernyanyi' },
+  'vn.song.paused': { en: 'Paused for a moment', zh: '暂停中', id: 'Dijeda sebentar' },
   'vn.song.nobodySinging': { en: 'Nobody is singing yet — request a song!', zh: '还没有人在唱——快来点歌！', id: 'Belum ada yang bernyanyi — ayo minta lagu!' },
   'vn.song.queueEmpty': { en: 'No songs waiting. Yours could be next!', zh: '目前没有排队的歌，下一首可能就是你的！', id: 'Belum ada lagu antre. Lagumu bisa jadi berikutnya!' },
   'vn.song.tableShort': { en: 'Table {t}', zh: '{t} 桌', id: 'Meja {t}' },

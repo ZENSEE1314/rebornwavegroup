@@ -520,7 +520,7 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS bridge_company_settings (company_id integer PRIMARY KEY, config jsonb NOT NULL DEFAULT '{}', updated_at timestamp NOT NULL DEFAULT now());
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_name varchar; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_address text; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_phone varchar;
-    ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS performance_mode varchar NOT NULL DEFAULT 'self';
+    ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS performance_mode varchar NOT NULL DEFAULT 'self'; ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS bumped_at timestamp;
     ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS table_label varchar; ALTER TABLE venue_checkins ADD COLUMN IF NOT EXISTS table_label varchar;
     ALTER TABLE faq_items ADD COLUMN IF NOT EXISTS i18n jsonb;
     ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS image_data text; ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS hidden_for jsonb NOT NULL DEFAULT '[]';

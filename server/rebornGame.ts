@@ -776,6 +776,7 @@ const FEATURE_API: Array<[string, RegExp]> = [
 // songs per turn). Rounds go first come, first served: within a round the
 // group that asked first sings first, and all its songs for that turn go
 // together. A1 A2 A3 then B1 with 2 per turn → A1 A2 B1 A3.
+// Songs the admin moved up ("Play next", bumped_at) go before everyone, the latest move first.
 async function fairSongQueue(cid: number | null) {
   const session = await ensureVenueSession();
   const since = venueDayStart(session.day);
@@ -799,8 +800,11 @@ async function fairSongQueue(cid: number | null) {
   const done = await db.select({ userId: songRequests.userId, table: songRequests.tableLabel }).from(songRequests).where(doneWhere).limit(2000);
   const sung = new Map<string, number>();
   for (const d of done) { const g = groupOf(d.userId, d.table); sung.set(g, (sung.get(g) || 0) + 1); }
+  const bumped = pending.filter((r) => r.bumpedAt)
+    .sort((a, b) => new Date(b.bumpedAt!).getTime() - new Date(a.bumpedAt!).getTime())
+    .map((r) => { const table = tableOf(r); return { ...r, table, group: groupOf(r.userId, table), round: 0 }; });
   const seen = new Map<string, number>();
-  const ranked = pending.map((r, i) => {
+  const ranked = pending.filter((r) => !r.bumpedAt).map((r, i) => {
     const table = tableOf(r); const group = groupOf(r.userId, table);
     const k = seen.get(group) || 0; seen.set(group, k + 1);
     return { ...r, table, group, round: Math.floor(((sung.get(group) || 0) + k) / perTurn), order: i };
@@ -809,7 +813,7 @@ async function fairSongQueue(cid: number | null) {
   const firstAsk = new Map<string, number>();
   for (const r of ranked) { const key = `${r.round}|${r.group}`; if (!firstAsk.has(key)) firstAsk.set(key, r.order); }
   ranked.sort((a, b) => a.round - b.round || firstAsk.get(`${a.round}|${a.group}`)! - firstAsk.get(`${b.round}|${b.group}`)! || a.order - b.order);
-  return ranked.map(({ order, ...r }, i) => ({ ...r, position: i + 1 })) as Q[];
+  return [...bumped, ...ranked.map(({ order, ...r }) => r)].map((r, i) => ({ ...r, position: i + 1 })) as Q[];
 }
 
 // ── Song queue: now playing + advance (no staff approval) ───────────────────
@@ -827,10 +831,22 @@ async function karaokeCodes(songIds: number[]) {
   const rows = await db.select({ id: songs.id, code: songs.karaokeCode }).from(songs).where(inArray(songs.id, ids));
   return new Map(rows.map((r) => [r.id, r.code || null]));
 }
+// Admin › Requests › Pause: the song on now stops (the karaoke bridge reads `paused`) and the
+// queue doesn't move on until Resume. Its own app_settings key, so saving Settings never resets it.
+const SONG_PAUSE_KEY = "songQueuePaused";
+async function songQueuePaused(): Promise<boolean> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, SONG_PAUSE_KEY));
+  return row?.value === "true";
+}
+async function setSongQueuePaused(paused: boolean) {
+  const value = paused ? "true" : "false";
+  await db.insert(appSettings).values({ key: SONG_PAUSE_KEY, value, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+}
 async function advanceSongQueue(cid: number | null, how: "done" | "skip", by?: string | null) {
   const current = await songNowPlaying(cid);
   if (current) await db.update(songRequests).set({ status: how === "skip" ? "skipped" : "confirmed", adminId: by || current.adminId }).where(eq(songRequests.id, current.id));
-  const queue = await fairSongQueue(cid);
+  // Paused: the song on now may finish, but the next one waits for Resume.
+  const queue = (await songQueuePaused()) ? [] : await fairSongQueue(cid);
   const next = queue[0];
   let playing: any = null;
   if (next) {
@@ -865,7 +881,7 @@ export async function songQueuePosition(cid: number | null, requestId: number): 
 }
 // The queue everyone can see: now singing + every waiting song (first name + table only).
 async function songQueueBoard(cid: number | null, viewerId?: string | null) {
-  const [now, queue] = await Promise.all([songNowPlaying(cid), fairSongQueue(cid)]);
+  const [now, queue, paused] = await Promise.all([songNowPlaying(cid), fairSongQueue(cid), songQueuePaused()]);
   const ids = Array.from(new Set([...(now ? [now.userId] : []), ...queue.map((r) => r.userId)]));
   const people = ids.length ? await db.select({ id: users.id, firstName: users.firstName, username: users.username }).from(users).where(inArray(users.id, ids)) : [];
   const nameOf = new Map(people.map((u) => [u.id, (u.firstName || u.username || "").trim()]));
@@ -873,9 +889,9 @@ async function songQueueBoard(cid: number | null, viewerId?: string | null) {
   const view = (r: any) => ({ id: r.id, title: r.title, artist: r.artist || "", performanceMode: r.performanceMode, table: r.table || r.tableLabel || null, name: nameOf.get(r.userId) || "", mine: !!viewerId && r.userId === viewerId, karaokeCode: r.songId ? codes.get(r.songId) || null : null });
   const s = await getSettings();
   return {
-    mode: s.songQueueMode, perTurn: s.songsPerTurn,
+    mode: s.songQueueMode, perTurn: s.songsPerTurn, paused,
     nowPlaying: now ? { ...view(now), startedAt: now.confirmedAt } : null,
-    queue: queue.map((r) => ({ ...view(r), position: r.position, round: r.round + 1 })),
+    queue: queue.map((r) => ({ ...view(r), position: r.position, round: r.round + 1, playNext: !!r.bumpedAt })),
   };
 }
 
@@ -1665,6 +1681,7 @@ export function registerRebornRoutes(app: Express) {
     // Day closed: the song on now counts as sung, waiting songs are cleared.
     await db.update(songRequests).set({ status: "confirmed" }).where(eq(songRequests.status, "playing"));
     await db.update(songRequests).set({ status: "cancelled", adminNote: "Day closed" }).where(eq(songRequests.status, "pending"));
+    await setSongQueuePaused(false); // a new night starts unpaused
     emitLiveUpdate("/api/reborn/song-queue", { action: "DAY_CLOSED" });
     const next = await ensureVenueSession(true);
     emitLiveUpdate("kos", { type: "venue_closed" });
@@ -2115,7 +2132,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/song-queue-info", requireAuth, async (req, res) => {
     const s = await getSettings();
     const seat = s.songQueueMode === "table" ? await activeCheckin(getUserId(req)!).catch(() => null) : null;
-    res.json({ mode: s.songQueueMode, perTurn: s.songsPerTurn, table: seat?.tableLabel || null, needTable: s.songQueueMode === "table" && !seat?.tableLabel });
+    res.json({ mode: s.songQueueMode, perTurn: s.songsPerTurn, table: seat?.tableLabel || null, needTable: s.songQueueMode === "table" && !seat?.tableLabel, paused: await songQueuePaused() });
   });
   // ── Karaoke bridge API (token, no login) ──
   app.get("/api/karaoke/queue", async (req, res) => {
@@ -2173,6 +2190,7 @@ export function registerRebornRoutes(app: Express) {
   // Staff: the song on now is done → next song in the fair queue (skip = cut it short).
   app.post("/api/reborn/admin/song-queue/next", requireStaff(async (req, res) => {
     const skip = req.body?.skip === true;
+    if (skip && !(await isAdmin(getUserId(req)))) return res.status(403).json({ message: tr(req, { en: "Only the admin can skip a song", zh: "只有管理员可以跳过歌曲", id: "Hanya admin yang bisa melewati lagu" }) });
     const r = await advanceSongQueue(await rebornCompanyId(req), skip ? "skip" : "done", getUserId(req));
     if (r.finished) await logAdmin(req, { targetUserId: r.finished.userId, targetType: "song_request", targetId: String(r.finished.id), action: skip ? "skip" : "done", entityType: "song_request", description: `${skip ? "Skipped" : "Finished"} "${r.finished.title}"` });
     res.json({ message: r.playing ? tr(req, { en: "Now playing: {song}", zh: "正在播放：{song}", id: "Sedang diputar: {song}" }, { song: r.playing.title }) : tr(req, { en: "The queue is empty", zh: "队列已空", id: "Antrean kosong" }), playing: r.playing });
@@ -2187,6 +2205,31 @@ export function registerRebornRoutes(app: Express) {
     emitLiveUpdate("/api/reborn/song-queue", { action: "CANCELLED" });
     emitLiveUpdate("/api/reborn/songs/my-requests", { action: "CANCELLED" });
     res.json({ message: tr(req, { en: "Song cancelled", zh: "已取消这首歌", id: "Lagu dibatalkan" }) });
+  }));
+  // Admin only: pause / resume the song queue. Resume starts the next song if nothing is on.
+  app.post("/api/reborn/admin/song-queue/pause", requireAdmin(async (req, res) => {
+    const paused = req.body?.paused !== false;
+    const cid = await rebornCompanyId(req);
+    await setSongQueuePaused(paused);
+    let playing: any = null;
+    if (!paused && !(await songNowPlaying(cid))) playing = (await advanceSongQueue(cid, "done", getUserId(req))).playing;
+    await logAdmin(req, { targetType: "song_request", action: paused ? "pause_queue" : "resume_queue", entityType: "song_request", description: paused ? "Paused the song queue" : "Resumed the song queue" });
+    emitLiveUpdate("/api/reborn/song-queue", { action: paused ? "PAUSED" : "RESUMED" });
+    emitLiveUpdate("/api/reborn/admin/song-requests", { action: paused ? "PAUSED" : "RESUMED" });
+    res.json({ paused, playing, message: paused
+      ? tr(req, { en: "Song queue paused", zh: "点歌队列已暂停", id: "Antrean lagu dijeda" })
+      : tr(req, { en: "Song queue resumed", zh: "点歌队列已继续", id: "Antrean lagu dilanjutkan" }) });
+  }));
+  // Admin only: move a waiting song to the front — it plays right after the song on now.
+  app.post("/api/reborn/admin/song-requests/:id/play-next", requireAdmin(async (req, res) => {
+    const [row] = await db.update(songRequests).set({ bumpedAt: new Date(), adminId: getUserId(req) })
+      .where(and(eq(songRequests.id, Number(req.params.id)), eq(songRequests.status, "pending"))).returning();
+    if (!row) return res.status(404).json({ message: tr(req, { en: "This song isn't waiting any more", zh: "这首歌已不在排队中", id: "Lagu ini sudah tidak dalam antrean" }) });
+    await logAdmin(req, { targetUserId: row.userId, targetType: "song_request", targetId: String(row.id), action: "play_next", entityType: "song_request", description: `Moved "${row.title}" to play next` });
+    emitLiveUpdate("/api/reborn/song-queue", { action: "MOVED" });
+    emitLiveUpdate("/api/reborn/songs/my-requests", { action: "QUEUE_MOVED" });
+    emitLiveUpdate("/api/reborn/admin/song-requests", { action: "MOVED" });
+    res.json({ message: tr(req, { en: "\"{song}\" plays next", zh: "「{song}」将下一首播放", id: "\"{song}\" diputar berikutnya" }, { song: row.title }) });
   }));
   app.post("/api/reborn/admin/song-queue/cancel-group", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
