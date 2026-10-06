@@ -331,6 +331,20 @@ async function getOrCreateContact(phone: string, name?: string): Promise<Contact
 async function patchContact(id: number, patch: Partial<Contact>) {
   await db.update(crmContacts).set({ ...patch, updatedAt: new Date() }).where(eq(crmContacts.id, id));
 }
+// A Cloud API message Meta could not deliver: Admin › Errors gets the reason, and the member's
+// CRM chat gets a ⚠️ line so staff see the booking message never arrived.
+async function recordFailedDelivery(st: any) {
+  const num = String(st?.recipient_id || "").replace(/\D/g, "");
+  const err = st?.errors?.[0] || {};
+  const reason = [err.code, err.title || err.message, err.error_data?.details].filter(Boolean).join(" · ") || "unknown";
+  void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "DELIVERY", path: num, status: Number(err.code) || 0, message: `Not delivered to ${num}: ${reason}` })).catch(() => {});
+  if (!num) return;
+  try {
+    const [c] = await db.select().from(crmContacts).where(eq(crmContacts.phone, num));
+    if (c) await logMsg(c.id, num, "out", `⚠️ WhatsApp: ${reason}`, true);
+  } catch (e) { console.warn("[wa] log failed delivery", e); }
+}
+
 async function logMsg(contactId: number, phone: string, direction: "in" | "out", body: string, viaBot: boolean) {
   try { await db.insert(crmMessages).values({ contactId, phone: phone.replace(/\D/g, ""), direction, body: body.slice(0, 4000), viaBot }); }
   catch (e) { waError("logMsg", e); }
@@ -1983,6 +1997,9 @@ export function registerWhatsAppBot(app: Express) {
           for (const change of entry.changes || []) {
             const value = change.value || {};
             const contacts = value.contacts || [];
+            // Meta accepts a message first and reports later if it couldn't be delivered (e.g. 131047:
+            // more than 24h since the member last wrote, so free text is refused). Show that to staff.
+            for (const st of value.statuses || []) if (st?.status === "failed") await recordFailedDelivery(st);
             for (const msg of value.messages || []) {
               if (msg.type !== "text" && msg.type !== "interactive" && msg.type !== "button") continue;
               const from = msg.from;

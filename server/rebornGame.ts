@@ -4008,18 +4008,22 @@ export function registerRebornRoutes(app: Express) {
     if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
     // A confirmed table booking checks the member in to KOS at that table (from 2h before).
     if ((status === "confirmed" || status === "seated") && row.userId) await autoCheckinFromBooking(row.userId).catch((e) => console.warn("auto check-in", e));
-    // Tell the member on WhatsApp when a booking is confirmed or rejected.
+    // Tell the member on WhatsApp when a booking is confirmed or rejected. `whatsapp` tells the
+    // admin's screen whether it went out: sending | noPhone | offline (WhatsApp not linked).
+    let whatsapp: "sending" | "noPhone" | "offline" | undefined;
     if ((status === "confirmed" || status === "cancelled") && row.userId) {
       const phone = await memberWaPhone(row.userId);
+      whatsapp = !phone ? "noPhone" : (await whatsappAvailable()) ? "sending" : "offline";
+      if (whatsapp !== "sending") void import("./errorWatch").then((m) => m.recordError({ area: "booking", source: "whatsapp", method: "SEND", path: `/api/reborn/admin/bookings/${id}/status`, status: 0, message: `Booking #${id} ${status}: WhatsApp not sent (${whatsapp === "noPhone" ? "member has no phone number" : "WhatsApp is not connected"})` })).catch(() => {});
       const lang = await langForPhone(phone, row.userId);
       const when = fmtBookingWhen(row.appointmentDate, lang);
       const what = localizeBookingText(lang, row.title);
-      if (phone) {
+      if (whatsapp === "sending") {
         const msg = status === "confirmed"
           ? waText(lang, "staffConfirmed", { what, when })
           : waText(lang, "staffCancelled", { what, when, note: note ? `: ${note}.` : "." });
         sendToMember(phone, msg, row.userId).then((ok) => { if (!ok) console.warn(`[wa] booking #${id} ${status}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
-      } else console.warn(`[wa] booking #${id} ${status}: member has no WhatsApp number`);
+      } else console.warn(`[wa] booking #${id} ${status}: WhatsApp not sent (${whatsapp})`);
       sendPushToUser(row.userId, {
         title: waText(lang, status === "confirmed" ? "pushConfirmedTitle" : "pushCancelledTitle"),
         body: status === "confirmed" ? `${what} — ${when}` : `${what}${note ? ` — ${note}` : ""}. ${waText(lang, "tapRebook")}`,
@@ -4029,7 +4033,7 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetUserId: row.userId, targetType: "appointment", targetId: id, action: status, entityType: "booking", description: `Booking #${id} → ${status}${note ? ` (${note})` : ""}` });
     const nLang = await langForPhone("", row.userId);
     await sendRebornUserNotification(row.userId, { type: "booking_status", title: waText(nLang, `status.${status}`), body: `${localizeBookingText(nLang, row.title)}${note ? ` · ${note}` : ""}`, data: { path: "/bookings", bookingId: row.id, status } });
-    res.json(row);
+    res.json({ ...row, whatsapp });
   }));
   // Admin blocks a date/time (whole area, or one table/room) so guests can't book it.
   app.post("/api/reborn/admin/bookings/block", requireStaff(async (req, res) => {

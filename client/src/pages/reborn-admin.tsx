@@ -2414,7 +2414,12 @@ function AdminBookings() {
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/bookings"] });
   const setStatus = useMutation({
     mutationFn: (v: { id: number; status: string; note?: string }) => apiRequest("POST", `/api/reborn/admin/bookings/${v.id}/status`, { status: v.status, note: v.note }).then((r) => r.json()),
-    onSuccess: () => { toast({ title: t("admin.c.updated") }); inv(); },
+    // Says whether the member's WhatsApp message went out, and why not when it didn't.
+    onSuccess: (d: any) => {
+      if (d?.whatsapp === "noPhone" || d?.whatsapp === "offline") toast({ title: t("admin.c.updated"), description: t(`admin.bk.wa.${d.whatsapp}`), variant: "destructive" });
+      else toast({ title: t("admin.c.updated"), description: d?.whatsapp === "sending" ? t("admin.bk.wa.sending") : undefined });
+      inv();
+    },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const fmt = (iso: string) => new Date(iso).toLocaleString(localeTag(), { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });

@@ -162,7 +162,11 @@ text.
   cancelled / staff-booked, booking receipt, song "you're on now") go through
   `sendToMember` (server/whatsappBot.ts): retried once after 8s if WhatsApp was
   reconnecting, and saved to the member's chat in Admin › CRM (⚠️ in front if it
-  couldn't be delivered).
+  couldn't be delivered). Cloud API reports failures later in the webhook (`statuses`,
+  `recordFailedDelivery`): the reason goes to Admin › Errors and a ⚠️ line into the CRM chat —
+  e.g. 131047 = the member hasn't written in 24h, so Meta refuses free text (needs a template).
+  Confirming / rejecting a booking tells the admin whether the WhatsApp went out
+  (`whatsapp: sending | noPhone | offline` in the reply, shown in the toast).
 
 ## Events
 
