@@ -259,8 +259,8 @@ text.
 - Everyone sees the queue: app Songs › **Queue** tab + a "Now singing" banner
   (`/api/reborn/song-queue`, first name + table only). Members can cancel their
   own waiting song.
-- Staff (Admin › Requests): Start / Done → next song, cancel one song, or cancel every
-  waiting song of a table / guest who left. Main admin only (`requireAdmin`): **Skip** the
+- Staff, managers and admins (Admin › Requests, `requireStaff`): Start / Done → next song,
+  cancel one song, or cancel every waiting song of a table / guest who left, **Skip** the
   song on now, **Pause / Resume** (`songQueuePaused` app_settings key — while paused the song
   on now may end but the next doesn't start; `paused` is in the queue board so the karaoke
   bridge pauses playback; closing the day unpauses) and **Play next** on a waiting song

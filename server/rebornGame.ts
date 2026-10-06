@@ -2190,7 +2190,6 @@ export function registerRebornRoutes(app: Express) {
   // Staff: the song on now is done → next song in the fair queue (skip = cut it short).
   app.post("/api/reborn/admin/song-queue/next", requireStaff(async (req, res) => {
     const skip = req.body?.skip === true;
-    if (skip && !(await isAdmin(getUserId(req)))) return res.status(403).json({ message: tr(req, { en: "Only the admin can skip a song", zh: "只有管理员可以跳过歌曲", id: "Hanya admin yang bisa melewati lagu" }) });
     const r = await advanceSongQueue(await rebornCompanyId(req), skip ? "skip" : "done", getUserId(req));
     if (r.finished) await logAdmin(req, { targetUserId: r.finished.userId, targetType: "song_request", targetId: String(r.finished.id), action: skip ? "skip" : "done", entityType: "song_request", description: `${skip ? "Skipped" : "Finished"} "${r.finished.title}"` });
     res.json({ message: r.playing ? tr(req, { en: "Now playing: {song}", zh: "正在播放：{song}", id: "Sedang diputar: {song}" }, { song: r.playing.title }) : tr(req, { en: "The queue is empty", zh: "队列已空", id: "Antrean kosong" }), playing: r.playing });
@@ -2206,8 +2205,8 @@ export function registerRebornRoutes(app: Express) {
     emitLiveUpdate("/api/reborn/songs/my-requests", { action: "CANCELLED" });
     res.json({ message: tr(req, { en: "Song cancelled", zh: "已取消这首歌", id: "Lagu dibatalkan" }) });
   }));
-  // Admin only: pause / resume the song queue. Resume starts the next song if nothing is on.
-  app.post("/api/reborn/admin/song-queue/pause", requireAdmin(async (req, res) => {
+  // Admin panel (staff, managers, admin): pause / resume the song queue. Resume starts the next song if nothing is on.
+  app.post("/api/reborn/admin/song-queue/pause", requireStaff(async (req, res) => {
     const paused = req.body?.paused !== false;
     const cid = await rebornCompanyId(req);
     await setSongQueuePaused(paused);
@@ -2220,8 +2219,8 @@ export function registerRebornRoutes(app: Express) {
       ? tr(req, { en: "Song queue paused", zh: "点歌队列已暂停", id: "Antrean lagu dijeda" })
       : tr(req, { en: "Song queue resumed", zh: "点歌队列已继续", id: "Antrean lagu dilanjutkan" }) });
   }));
-  // Admin only: move a waiting song to the front — it plays right after the song on now.
-  app.post("/api/reborn/admin/song-requests/:id/play-next", requireAdmin(async (req, res) => {
+  // Admin panel (staff, managers, admin): move a waiting song to the front — it plays right after the song on now.
+  app.post("/api/reborn/admin/song-requests/:id/play-next", requireStaff(async (req, res) => {
     const [row] = await db.update(songRequests).set({ bumpedAt: new Date(), adminId: getUserId(req) })
       .where(and(eq(songRequests.id, Number(req.params.id)), eq(songRequests.status, "pending"))).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "This song isn't waiting any more", zh: "这首歌已不在排队中", id: "Lagu ini sudah tidak dalam antrean" }) });
