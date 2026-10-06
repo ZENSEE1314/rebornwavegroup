@@ -165,6 +165,9 @@ text.
   couldn't be delivered). Cloud API reports failures later in the webhook (`statuses`,
   `recordFailedDelivery`): the reason goes to Admin › Errors and a ⚠️ line into the CRM chat —
   e.g. 131047 = the member hasn't written in 24h, so Meta refuses free text (needs a template).
+  The address + map pin (`locationReply`) go out only once a booking is confirmed (staff
+  Confirm, or a booking staff make themselves) — never with the "Booked, we'll confirm"
+  reply (WhatsApp or app). `memberWaPhone` uses the chat the member last wrote from.
   Confirming / rejecting a booking tells the admin whether the WhatsApp went out
   (`whatsapp: sending | noPhone | offline` in the reply, shown in the toast).
 

@@ -1500,7 +1500,6 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
         const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH, companyId: (await defaultCompanyId()) ?? undefined });
         await pushWhatsAppBooking(row, c, area, date, label, party);
         await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: memberAppUrl() }));
-        await say(await locationReply(lang)); // so the guest knows where to find us
         await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
         await sendMemberMenu(from, c, lang);
         return patchContact(c.id, { waState: { flow: null } });
@@ -1514,7 +1513,6 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
     const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: openH });
     await pushWhatsAppBooking(row, c, area, date, label, party);
     await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: memberAppUrl() }));
-    await say(await locationReply(lang)); // so the guest knows where to find us
     await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${fmtDMY(date)} ${label} · ${party} pax — confirm in the app.`);
     await sendMemberMenu(from, c, lang);
     return patchContact(c.id, { waState: { flow: null } });
@@ -1772,7 +1770,6 @@ async function completeStepBooking(c: Contact, lang: Lang, from: string, area: B
       .replace("🍰 Cake & decorations: WE PREPARE", L(lang, "cakeNoteUs")).replace("🍰 Cake & decorations: guest brings own", L(lang, "cakeNoteSelf"));
     await say(L(lang, "specialNoted", { r: shown }));
   }
-  await say(await locationReply(lang)); // so the guest knows where to find us
   await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax${wa.special ? ` · ${wa.special}` : ""} — confirm in the app.`);
   await sendMemberMenu(from, c, lang);
   return patchContact(c.id, { waState: { flow: null } });
@@ -2196,7 +2193,14 @@ export function waDigits(raw: string | null | undefined): string {
 // from (CRM contact) when there is one, else the phone on their profile.
 export async function memberWaPhone(userId: string | null | undefined): Promise<string> {
   if (!userId) return "";
-  const [c] = await db.select().from(crmContacts).where(eq(crmContacts.userId, userId));
+  // A member can have more than one CRM contact (app + WhatsApp). Use the chat they last
+  // wrote to us from — that is the one WhatsApp delivers to — else their newest contact.
+  const [chat] = await db.select({ phone: crmContacts.phone }).from(crmMessages)
+    .innerJoin(crmContacts, eq(crmContacts.id, crmMessages.contactId))
+    .where(and(eq(crmContacts.userId, userId), eq(crmMessages.direction, "in")))
+    .orderBy(desc(crmMessages.createdAt)).limit(1);
+  if (chat?.phone) return chat.phone;
+  const [c] = await db.select().from(crmContacts).where(eq(crmContacts.userId, userId)).orderBy(desc(crmContacts.updatedAt)).limit(1);
   if (c?.phone) return c.phone;
   const [u] = await db.select().from(users).where(eq(users.id, userId));
   return waDigits(u?.phoneNumber);

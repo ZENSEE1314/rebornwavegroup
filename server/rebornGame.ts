@@ -3928,14 +3928,14 @@ export function registerRebornRoutes(app: Express) {
     await notifyAdmins(`New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
     await notifyStaffI18n("new_booking", (lang) => ({ title: pick(lang, { en: "New booking request", zh: "新的预订请求", id: "Permintaan booking baru" }), body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || pick(lang, { en: "Member", zh: "会员", id: "Member" })} · ${date} ${label}` }), { path: "/reborn-admin", bookingId: row.id });
     pushAdminsI18n((lang) => ({ title: pick(lang, { en: "New booking to confirm", zh: "有新预订待确认", id: "Booking baru perlu dikonfirmasi" }), body: `${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label}`, url: "/reborn-admin", tag: `newbk-${row.id}` })).catch(() => {});
-    // WhatsApp the member a booking receipt with our address + map pin.
+    // WhatsApp the member a booking receipt (the address + map pin follow when staff confirm).
     const receiptPhone = await memberWaPhone(userId);
     if (receiptPhone) {
       const phone = receiptPhone;
       (async () => {
         const lang = await langForPhone(phone, userId);
         const msg = waText(lang, "appReceipt", { club: s.clubName || "Reborn Wave", area: area.name, day: fmtDMY(date, lang), time: timeText(lang, slot, label), table: table ? ` · ${table}` : "", n: String(party) });
-        await sendToMember(phone, `${msg}\n\n${await locationReply(lang)}`, userId);
+        await sendToMember(phone, msg, userId);
       })().catch(() => {});
     }
     await logAdmin(req, { targetUserId: userId, targetType: "appointment", targetId: row.id, action: "book", entityType: "booking", description: `Booked ${date} ${label}` });
@@ -4022,7 +4022,9 @@ export function registerRebornRoutes(app: Express) {
         const msg = status === "confirmed"
           ? waText(lang, "staffConfirmed", { what, when })
           : waText(lang, "staffCancelled", { what, when, note: note ? `: ${note}.` : "." });
-        sendToMember(phone, msg, row.userId).then((ok) => { if (!ok) console.warn(`[wa] booking #${id} ${status}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
+        // A confirmation carries the club's address + map pin (the booking reply doesn't).
+        const full = status === "confirmed" ? `${msg}\n\n${await locationReply(lang)}` : msg;
+        sendToMember(phone, full, row.userId).then((ok) => { if (!ok) console.warn(`[wa] booking #${id} ${status}: WhatsApp not delivered to ${phone}`); }).catch(() => {});
       } else console.warn(`[wa] booking #${id} ${status}: WhatsApp not sent (${whatsapp})`);
       sendPushToUser(row.userId, {
         title: waText(lang, status === "confirmed" ? "pushConfirmedTitle" : "pushCancelledTitle"),
