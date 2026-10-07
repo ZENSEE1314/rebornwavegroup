@@ -12,7 +12,7 @@ import { awardPetCoins, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 import { tr, type Tri } from "./i18n";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "inbetween" | "updown" | "uno";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "inbetween" | "updown" | "uno" | "sixcup";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -52,8 +52,10 @@ interface Room {
   cd?: CdState;
   // uno (count to the limit) only
   uno?: UnoState;
+  // sixcup (6 Cups dice game) only
+  sc?: ScState; scDice?: number;
   // never-ending party games: wins / losses per player, and the final ranking
-  tally?: Record<string, { w: number; l: number }>;
+  tally?: Record<string, { w: number; l: number }>; tallyNames?: Record<string, string>;
   standings?: { id: string; name: string; w: number; l: number; place: number; win: boolean }[];
   // who won / lost the last finished game (rank flash on each player's screen)
   results?: { win: string[]; lose: string[] };
@@ -123,7 +125,7 @@ const MAX_PLAYERS = 20;
 const CARDS_MAX = 5;
 const MEMORY_MAX = 5;
 // Most players a room of this game takes.
-const roomCap = (g: GameKind) => (g === "cards" ? CARDS_MAX : g === "poker3" ? 8 : g === "memory" ? MEMORY_MAX : g === "inbetween" || g === "updown" ? CD_MAX : g === "uno" ? UNO_MAX : MAX_PLAYERS);
+const roomCap = (g: GameKind) => (g === "cards" ? CARDS_MAX : g === "poker3" ? 8 : g === "memory" ? MEMORY_MAX : g === "inbetween" || g === "updown" ? CD_MAX : g === "uno" ? UNO_MAX : g === "sixcup" ? SC_MAX : MAX_PLAYERS);
 const RPS_SECONDS = 20;
 const TAP_SECONDS = 30;
 
@@ -162,6 +164,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "draw" ? { draw: dgView(room, forUserId) } : {}),
     ...(room.game === "inbetween" || room.game === "updown" ? { cd: cdView(room) } : {}),
     ...(room.game === "uno" ? { uno: unoView(room, forUserId) } : {}),
+    ...(room.game === "sixcup" ? { sixcup: scView(room) } : {}),
     continuous: CONTINUOUS.has(room.game), tally: room.tally || {}, standings: room.standings || null, results: room.results || null,
   };
 }
@@ -217,6 +220,7 @@ function resumeRoom(room: Room) {
       }
       case "789": return arm789(room);
       case "inbetween": case "updown": return armCd(room);
+      case "sixcup": return armSc(room);
       case "uno": if (room.uno?.phase === "blast") { const i = room.players.findIndex((x) => x.id === room.uno!.blast?.by); unoNewRound(room, i < 0 ? 0 : i); } else unoBeginTurn(room); return;
       case "stack": return armStack(room);
       case "cards": return armCardTimer(room);
@@ -826,21 +830,118 @@ function unoView(room: Room, forUserId?: string) {
   };
 }
 
+// ── 6 Cups (dice drinking game, up to 20 players) ─────────────────────────────
+// A row of numbered cups starts empty: 6 cups (1–6) with 1 die, or 11 cups (2–12)
+// with 2 dice. Roll: if that cup is empty you fill it (half or full) and the turn
+// passes on; if it already has a drink you drink it (it empties) and roll again —
+// until you land on an empty cup and fill it. With 2 dice, doubles reverse the turn
+// order (the total still counts). Filling = a win, drinking = a loss on the tally.
+const SC_MAX = 20;
+const SC_ROLL_SECONDS = 30, SC_FILL_SECONDS = 20;
+interface ScState {
+  dice: 1 | 2; cups: Record<number, number>; // 0 empty, 1 half, 2 full
+  phase: "roll" | "fill"; pending?: number | null; dir: number;
+  last?: { by: string; name: string; d1: number; d2?: number; sum: number; action: "fill" | "drink"; amount?: number; reverse?: boolean } | null;
+}
+const scNumbers = (dice: number) => (dice === 2 ? [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6]);
+function armSc(room: Room) {
+  clearTimers(room);
+  const secs = room.sc?.phase === "fill" ? SC_FILL_SECONDS : SC_ROLL_SECONDS;
+  room.deadline = Date.now() + secs * 1000 + 300;
+  room.timer = setTimeout(() => scTimeout(room), secs * 1000 + 300);
+}
+function startSc(room: Room) {
+  clearTimers(room);
+  room.status = "playing";
+  const dice = room.scDice === 2 ? 2 : 1;
+  room.sc = { dice, cups: Object.fromEntries(scNumbers(dice).map((n) => [n, 0])), phase: "roll", pending: null, dir: 1, last: null };
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  const name = room.players[room.turnIdx].name;
+  setMsg(room, "scStart", { name, n: scNumbers(dice).length }, `${name} starts — roll the dice! 🎲`);
+  armSc(room);
+  broadcast(room);
+}
+function scTimeout(room: Room) {
+  if (room.status !== "playing" || room.game !== "sixcup" || !room.sc) return;
+  const p = room.players[room.turnIdx ?? 0]; if (!p) return;
+  if (room.sc.phase === "fill") scFill(room, p.id, 1); else scRoll(room, p.id);
+}
+const scStepTurn = (room: Room) => { const n = room.players.length; room.turnIdx = ((((room.turnIdx ?? 0) + (room.sc?.dir || 1)) % n) + n) % n; };
+function scRoll(room: Room, uid: string): string | null {
+  const s = room.sc;
+  if (room.status !== "playing" || !s) return "Not playing";
+  const p = room.players[room.turnIdx ?? 0];
+  if (p?.id !== uid) return "Not your turn";
+  if (s.phase !== "roll") return "Not now";
+  const d1 = rollD(), d2 = s.dice === 2 ? rollD() : undefined, sum = d1 + (d2 || 0);
+  const reverse = s.dice === 2 && d1 === d2;
+  if (reverse) s.dir = -s.dir;
+  const level = s.cups[sum] || 0;
+  if (level > 0) {
+    s.cups[sum] = 0;
+    tallyAdd(room, uid, 0, 1);
+    s.last = { by: uid, name: p.name, d1, d2, sum, action: "drink", amount: level, reverse };
+    setMsg(room, reverse ? "scDrinkRev" : "scDrink", { name: p.name, n: sum, amt: level === 2 ? "gm.sc.full" : "gm.sc.half" }, `${p.name} rolled ${sum} — drink cup ${sum}! Roll again 🎲`);
+  } else {
+    s.phase = "fill"; s.pending = sum;
+    s.last = { by: uid, name: p.name, d1, d2, sum, action: "fill", reverse };
+    setMsg(room, reverse ? "scFillAskRev" : "scFillAsk", { name: p.name, n: sum }, `${p.name} rolled ${sum} — cup ${sum} is empty: fill it half or full`);
+  }
+  armSc(room);
+  broadcast(room);
+  return null;
+}
+function scFill(room: Room, uid: string, amount: number): string | null {
+  const s = room.sc;
+  if (room.status !== "playing" || !s) return "Not playing";
+  const p = room.players[room.turnIdx ?? 0];
+  if (p?.id !== uid) return "Not your turn";
+  if (s.phase !== "fill" || s.pending == null) return "Not now";
+  const amt = amount === 2 ? 2 : 1;
+  const n = s.pending;
+  s.cups[n] = amt; s.pending = null; s.phase = "roll";
+  tallyAdd(room, uid, 1, 0);
+  if (s.last) s.last = { ...s.last, amount: amt };
+  scStepTurn(room);
+  const next = room.players[room.turnIdx ?? 0].name;
+  setMsg(room, "scFilled", { name: p.name, n, amt: amt === 2 ? "gm.sc.full" : "gm.sc.half", next }, `${p.name} filled cup ${n} — ${next}'s turn`);
+  armSc(room);
+  broadcast(room);
+  return null;
+}
+function scPlayerLeft(room: Room, leavingWasTurn: boolean) {
+  const s = room.sc; if (!s || !leavingWasTurn) return;
+  if (s.phase === "fill" && s.pending != null) { s.cups[s.pending] = 1; s.pending = null; } // their pending cup gets half
+  s.phase = "roll";
+  const name = room.players[room.turnIdx ?? 0].name;
+  setMsg(room, "turn", { name }, `${name}'s turn`);
+  armSc(room);
+}
+function scView(room: Room) {
+  const s = room.sc; if (!s) return null;
+  return { dice: s.dice, cups: scNumbers(s.dice).map((n) => ({ n, level: s.cups[n] || 0 })), phase: s.phase, pending: s.pending ?? null, dir: s.dir, last: s.last || null, turnId: room.players[room.turnIdx ?? 0]?.id };
+}
+
 // ── Win / lose tally for the never-ending party games ─────────────────────────
 // 789, Frog, In Between, Up or Down and Uno have no natural end. Each turn adds a
 // win or a loss; when the host ends the game, players are ranked by wins (then
 // fewest losses). 4+ players: the top 3 win (1st, 2nd, 3rd) and the rest lose;
 // 3 or fewer: only the top player wins.
-const CONTINUOUS = new Set<GameKind>(["789", "frog", "inbetween", "updown", "uno"]);
+const CONTINUOUS = new Set<GameKind>(["789", "frog", "inbetween", "updown", "uno", "sixcup"]);
 function tallyAdd(room: Room, uid: string, w: number, l: number) {
   room.tally = room.tally || {};
+  room.tallyNames = room.tallyNames || {};
+  const nm = room.players.find((p) => p.id === uid)?.name; if (nm) room.tallyNames[uid] = nm;
   const t = room.tally[uid] || (room.tally[uid] = { w: 0, l: 0 });
   t.w += w; t.l += l;
 }
 function finishContinuous(room: Room) {
   clearTimers(room);
   const t = room.tally || {};
-  const order = [...room.players].sort((a, b) => ((t[b.id]?.w || 0) - (t[a.id]?.w || 0)) || ((t[a.id]?.l || 0) - (t[b.id]?.l || 0)));
+  // Everyone who played counts — also players who left before the end.
+  const people = new Map<string, string>(Object.entries(room.tallyNames || {}));
+  for (const p of room.players) people.set(p.id, p.name);
+  const order = Array.from(people, ([id, name]) => ({ id, name })).sort((a, b) => ((t[b.id]?.w || 0) - (t[a.id]?.w || 0)) || ((t[a.id]?.l || 0) - (t[b.id]?.l || 0)));
   const winners = order.length >= 4 ? 3 : 1;
   room.standings = order.map((p, i) => ({ id: p.id, name: p.name, w: t[p.id]?.w || 0, l: t[p.id]?.l || 0, place: i + 1, win: i < winners }));
   room.status = "done";
@@ -969,6 +1070,8 @@ function removePlayer(room: Room, uid?: string) {
 
 function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean, leftId?: string) {
   const soloWin = () => {
+    // A party game down to its last player: rank everyone who played from the tally.
+    if (CONTINUOUS.has(room.game) && Object.values(room.tally || {}).some((x) => x.w + x.l > 0)) return finishContinuous(room);
     clearTimers(room); room.status = "done";
     const w = room.players.find((p) => p.alive) || room.players[0];
     room.winnerId = w?.id;
@@ -1053,6 +1156,10 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean, leftId?: strin
       setMsg(room, "turn", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn`);
       return broadcast(room);
     }
+    case "sixcup":
+      if (room.players.length < 2) return soloWin();
+      scPlayerLeft(room, leavingWasTurn);
+      return broadcast(room);
     case "uno":
       if (room.players.length < 2) return soloWin();
       unoPlayerLeft(room, leftId, leavingWasTurn);
@@ -1089,7 +1196,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined; room.cd = undefined; room.uno = undefined; room.tally = {}; room.standings = undefined; room.results = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined; room.cd = undefined; room.uno = undefined; room.sc = undefined; room.tally = {}; room.tallyNames = {}; room.standings = undefined; room.results = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -2268,11 +2375,11 @@ function frogView(room: Room, forUserId?: string) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "inbetween", "updown", "uno", "frog", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "inbetween", "updown", "uno", "sixcup", "frog", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
   number: "Guessing game", rps: "Guessing game", draw: "Guessing game",
-  dice: "Dice game", "789": "Dice game",
+  dice: "Dice game", "789": "Dice game", sixcup: "Dice game",
   cards: "Card game", poker3: "Card game", memory: "Card game", inbetween: "Card game", updown: "Card game", uno: "Card game",
   tap: "Who's the fastest", rlgl: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
   wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game", bridge: "Lucky game",
@@ -2496,7 +2603,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw", "inbetween", "updown", "uno"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw", "inbetween", "updown", "uno", "sixcup"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: tr(req, { en: "That game isn't available today.", zh: "该游戏今天未开放。", id: "Permainan itu tidak tersedia hari ini." }) });
@@ -2520,6 +2627,7 @@ export function registerGameRoutes(app: Express) {
       timerMode: req.body?.timerMode === "random" ? "random" : "fixed",
       pkMin: Math.max(1, Math.min(4, Math.floor(Number(req.body?.pkMin) || 1))),
       pkMax: Math.max(4, Math.min(40, Math.floor(Number(req.body?.pkMax) || 20))),
+      scDice: Number(req.body?.scDice) === 2 ? 2 : 1,
       createdAt: Date.now(), subs: new Set(),
     };
     rooms.set(room.code, room);
@@ -2567,6 +2675,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "789") start789(room);
     else if (room.game === "inbetween" || room.game === "updown") startCd(room);
     else if (room.game === "uno") startUno(room);
+    else if (room.game === "sixcup") startSc(room);
     else if (room.game === "stack") startStack(room);
     else startTap(room);
     res.json({ ok: true });
@@ -2613,6 +2722,11 @@ export function registerGameRoutes(app: Express) {
       if (req.body?.act === "roll") seven789Roll(room, uid);
       else if (req.body?.act === "choose") seven789Choose(room, uid, String(req.body?.targetId));
       return res.json({ ok: true });
+    }
+    if (room.game === "sixcup") {
+      const uid = getUserId(req)!;
+      const err = req.body?.act === "roll" ? scRoll(room, uid) : req.body?.act === "fill" ? scFill(room, uid, Number(req.body?.amount)) : "Unknown action";
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "uno") {
       const err = req.body?.act === "play" ? unoPlay(room, getUserId(req)!, String(req.body?.cardId || "")) : "Unknown action";
