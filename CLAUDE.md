@@ -323,13 +323,23 @@ text.
 - Every winner of a game: +1 rank star and 5 pet coins (`COINS_PER_WIN`); every loser: −1 rank
   star and no coins (`COINS_PER_PLAY` = 0). `room.results` ({win, lose}) drives each player's
   RANK UP / RANK DOWN flash.
-- Never-ending party games (`CONTINUOUS`: 789, Frog, In Between, Up or Down, Uno) keep a win /
+- Never-ending party games (`CONTINUOUS`: 789, Frog, In Between, Up or Down, Uno, 6 Cups) keep a win /
   loss tally per player (`tallyAdd`, shown live in `ContinuousBoard`). The host ends the game
   ("End game & rank", `/rooms/:code/finish`, needs at least one played round): players are ranked by
   wins, then fewest losses — 4+ players: top 3 win (1st/2nd/3rd), the rest lose; 3 or fewer:
-  only the top player wins. Tally: 789 = drinking 8/9 or downing the cup is a loss, other rolls a
+  only the top player wins. When a party game is down to its last player it is ranked the same
+  way, including players who left (`tallyNames`). Tally: 789 = drinking 8/9 or downing the cup is a loss, other rolls a
   win; Frog = drinkers lose, the others win each reveal; In Between / Up or Down = right call win,
-  wrong / same loss; Uno = the blaster loses, everyone else wins that game.
+  wrong / same loss; Uno = the blaster loses, everyone else wins that game; 6 Cups = filling a
+  cup is a win, drinking one a loss.
+
+## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)
+
+- Dice game category, 2–20 players. Host picks 1 die (6 cups, 1–6) or 2 dice (11 cups, 2–12 —
+  two dice can't total 1) in the lobby (`scDice`). Roll: empty cup → fill it half or full, turn
+  passes; cup with a drink → drink it (it empties) and roll again, until landing on an empty cup.
+  2 dice: doubles reverse the turn order (`sc.dir`), the total still counts. Timers: 30 s to roll,
+  20 s to fill (then half). Messages `gm.srv.sc*`, texts `gm.sc.*`.
 
 ## Uno (server/games.ts `uno*`, app `UnoGame`)
 

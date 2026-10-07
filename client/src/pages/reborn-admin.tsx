@@ -497,6 +497,7 @@ const GAME_META: Record<string, { emoji: string }> = {
   inbetween: { emoji: "🎴" },
   updown: { emoji: "↕️" },
   uno: { emoji: "💥" },
+  sixcup: { emoji: "🥤" },
 };
 const WDAYS = ["1", "2", "3", "4", "5", "6", "0"];
 function GamesAdmin() {
