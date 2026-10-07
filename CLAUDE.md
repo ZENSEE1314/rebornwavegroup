@@ -318,6 +318,28 @@ text.
   wheel, rlgl, draw, rps) go back to the lobby ("restarted", host starts again).
   Use `getRoom(code)` in routes, never `rooms.get` directly; `dropRoom` deletes.
 
+## Game rewards (server/games.ts `saveScores`)
+
+- Every winner of a game: +1 rank star and 5 pet coins (`COINS_PER_WIN`); every loser: −1 rank
+  star and no coins (`COINS_PER_PLAY` = 0). `room.results` ({win, lose}) drives each player's
+  RANK UP / RANK DOWN flash.
+- Never-ending party games (`CONTINUOUS`: 789, Frog, In Between, Up or Down, Uno) keep a win /
+  loss tally per player (`tallyAdd`, shown live in `ContinuousBoard`). The host ends the game
+  ("End game & rank", `/rooms/:code/finish`, needs at least one played round): players are ranked by
+  wins, then fewest losses — 4+ players: top 3 win (1st/2nd/3rd), the rest lose; 3 or fewer:
+  only the top player wins. Tally: 789 = drinking 8/9 or downing the cup is a loss, other rolls a
+  win; Frog = drinkers lose, the others win each reveal; In Between / Up or Down = right call win,
+  wrong / same loss; Uno = the blaster loses, everyone else wins that game.
+
+## Uno (server/games.ts `uno*`, app `UnoGame`)
+
+- Card games category, 2–6 players. 3 cards each; playing one draws one. Number cards add
+  (A = 1 … 10); power cards always play: 7 reverse, J skip the next player, Q −5, K −10 (total
+  never below 0). Limit: 3 players 29, 4 → 39, +10 per extra player, 2 players 19 (`unoLimit`).
+- A player with no card that keeps the total at the limit or under (and no power card) BLASTS:
+  drinks 1 cup and loses; after 4.5 s a new game starts with the blaster. 30 s turn timer
+  (auto-plays the smallest card that fits). Messages `gm.srv.uno*`, texts `gm.uno.*`.
+
 ## Card drinking games: In Between + Up or Down (server/games.ts `cd*`, app `CdGame`)
 
 - Card games category, 2–10 players (`roomCap`), one 52-card deck (A = 1 … K = 13).

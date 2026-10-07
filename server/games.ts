@@ -8,11 +8,11 @@ import { users, pvpScores, appSettings, gameRanks } from "@shared/schema";
 import { requireAuth, getUserId } from "./multiAuth";
 import { resolveCompanyId } from "./tenant";
 import { DEFAULT_COMPANY_SLUG, homeCompanySlug } from "./tenantContext";
-import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
+import { awardPetCoins, COINS_PER_WIN, COINS_NUMBER_CRACK } from "./petHome";
 import { tr, type Tri } from "./i18n";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "inbetween" | "updown";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "inbetween" | "updown" | "uno";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -50,6 +50,13 @@ interface Room {
   stackWinners?: string[];
   // inbetween / updown (card drinking games) only
   cd?: CdState;
+  // uno (count to the limit) only
+  uno?: UnoState;
+  // never-ending party games: wins / losses per player, and the final ranking
+  tally?: Record<string, { w: number; l: number }>;
+  standings?: { id: string; name: string; w: number; l: number; place: number; win: boolean }[];
+  // who won / lost the last finished game (rank flash on each player's screen)
+  results?: { win: string[]; lose: string[] };
   // draw (Draw & Guess) only
   dg?: { word: string; category: string; drawer: string; strokes: { id: number; c: string; w: number; p: number[] }[]; feed: { id: string; name: string; text: string }[]; reveal: number[]; lastGuess: Record<string, number>; startedAt: number; winner?: string | null };
   // bridge (Glass Bridge) only
@@ -99,6 +106,7 @@ const ERR: Record<string, Tri> = {
   "Only the turn player can start": { en: "Only the turn player can start", zh: "只有当前回合的玩家可以开始", id: "Hanya pemain yang sedang giliran yang bisa mulai" },
   "Wait for START": { en: "Wait for START", zh: "请等待开始", id: "Tunggu MULAI" },
   "Pick a frog": { en: "Pick a frog", zh: "请选一只青蛙", id: "Pilih seekor katak" },
+  "Pick a card": { en: "Pick a card", zh: "请选一张牌", id: "Pilih sebuah kartu" },
   "You already picked": { en: "You already picked", zh: "你已经选过了", id: "Kamu sudah memilih" },
 };
 function errText(req: Request, e: string | Tri): string {
@@ -115,7 +123,7 @@ const MAX_PLAYERS = 20;
 const CARDS_MAX = 5;
 const MEMORY_MAX = 5;
 // Most players a room of this game takes.
-const roomCap = (g: GameKind) => (g === "cards" ? CARDS_MAX : g === "poker3" ? 8 : g === "memory" ? MEMORY_MAX : g === "inbetween" || g === "updown" ? CD_MAX : MAX_PLAYERS);
+const roomCap = (g: GameKind) => (g === "cards" ? CARDS_MAX : g === "poker3" ? 8 : g === "memory" ? MEMORY_MAX : g === "inbetween" || g === "updown" ? CD_MAX : g === "uno" ? UNO_MAX : MAX_PLAYERS);
 const RPS_SECONDS = 20;
 const TAP_SECONDS = 30;
 
@@ -153,6 +161,8 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "bridge" ? { bridge: gbView(room) } : {}),
     ...(room.game === "draw" ? { draw: dgView(room, forUserId) } : {}),
     ...(room.game === "inbetween" || room.game === "updown" ? { cd: cdView(room) } : {}),
+    ...(room.game === "uno" ? { uno: unoView(room, forUserId) } : {}),
+    continuous: CONTINUOUS.has(room.game), tally: room.tally || {}, standings: room.standings || null, results: room.results || null,
   };
 }
 
@@ -207,6 +217,7 @@ function resumeRoom(room: Room) {
       }
       case "789": return arm789(room);
       case "inbetween": case "updown": return armCd(room);
+      case "uno": if (room.uno?.phase === "blast") { const i = room.players.findIndex((x) => x.id === room.uno!.blast?.by); unoNewRound(room, i < 0 ? 0 : i); } else unoBeginTurn(room); return;
       case "stack": return armStack(room);
       case "cards": return armCardTimer(room);
       case "dice": return armDiceTimer(room);
@@ -262,8 +273,12 @@ async function nameFor(userId: string): Promise<string> {
 async function saveScores(room: Room, rows: { userId: string; name: string; score: number; result: "win" | "lose" }[]) {
   if (!rows.length) return;
   await db.insert(pvpScores).values(rows.map((r) => ({ companyId: room.companyId ?? null, game: room.game, userId: r.userId, userName: r.name, score: r.score, result: r.result, roomCode: room.code }))).catch(() => {});
-  // Pet coins: everyone who played earns a little, winners earn more (daily cap in petHome).
-  for (const r of rows) await awardPetCoins(r.userId, r.result === "win" ? COINS_PER_WIN : COINS_PER_PLAY);
+  // Every winner: +1 rank star and pet coins; every loser: −1 rank star (no coins).
+  const loseIds = new Set(rows.filter((r) => r.result === "lose").map((r) => r.userId));
+  if (room.lastLoserId && !rows.some((r) => r.userId === room.lastLoserId)) loseIds.add(room.lastLoserId);
+  room.results = { win: rows.filter((r) => r.result === "win").map((r) => r.userId), lose: Array.from(loseIds) };
+  broadcast(room);
+  for (const r of rows) if (r.result === "win") await awardPetCoins(r.userId, COINS_PER_WIN);
   // Award +1 career rank star to each winner; the round's loser drops 1 star.
   const season = (await getRankConfig()).season;
   for (const r of rows.filter((x) => x.result === "win")) {
@@ -271,8 +286,8 @@ async function saveScores(room: Room, rows: { userId: string; name: string; scor
       .onConflictDoUpdate({ target: gameRanks.userId, set: { stars: sql`${gameRanks.stars} + 1`, peakStars: sql`greatest(${gameRanks.peakStars}, ${gameRanks.stars} + 1)`, userName: r.name, updatedAt: new Date() } })
       .catch(() => {});
   }
-  if (room.lastLoserId) {
-    await db.update(gameRanks).set({ stars: sql`greatest(0, ${gameRanks.stars} - 1)`, updatedAt: new Date() }).where(eq(gameRanks.userId, room.lastLoserId)).catch(() => {});
+  for (const id of Array.from(loseIds)) {
+    await db.update(gameRanks).set({ stars: sql`greatest(0, ${gameRanks.stars} - 1)`, updatedAt: new Date() }).where(eq(gameRanks.userId, id)).catch(() => {});
   }
 }
 
@@ -510,6 +525,8 @@ function seven789Roll(room: Room, uid: string) {
     if (!text || !tm) { text = `${p.name} rolled ${sum}`; tm = { k: "s789Rolled", v: { name: p.name, n: sum } }; }
   }
   room.lastRoll = { d1, d2, sum, by: uid, byName: p.name, action, text };
+  // Tally: drinking (8 / 9) is a loss, any other roll a win; snake eyes counts for whoever downs it.
+  if (action === "half" || action === "whole") tallyAdd(room, uid, 0, 1); else if (action !== "choose") tallyAdd(room, uid, 1, 0);
   if (chooseNow) { room.chooseFor = uid; setMsg(room, tm.k, tm.v, text); arm789(room); broadcast(room); return; }
   if (reverse) { room.dir = (room.dir || 1) * -1; room.turnIdx = stepIdx789(room, idx); setMsg(room, "s789Turn", { text: tm, name: room.players[room.turnIdx].name }, `${text} — ${room.players[room.turnIdx].name}'s turn`); }
   else if (rollAgain) { setMsg(room, tm.k, tm.v, text); }
@@ -525,6 +542,7 @@ function seven789Choose(room: Room, roller: string, targetId: string) {
   room.cupUnits = 0;
   room.chooseFor = null;
   room.turnIdx = ti;
+  tallyAdd(room, roller, 1, 0); tallyAdd(room, t.id, 0, 1);
   room.lastRoll = { ...(room.lastRoll || { d1: 1, d2: 1, sum: 2 }), action: "chosen", text: `${t.name} downs the whole cup 🍺 — their turn now` };
   setMsg(room, "s789Downs", { name: t.name }, `${t.name} downs the whole cup 🍺 — ${t.name}'s turn`);
   arm789(room);
@@ -620,6 +638,7 @@ function cdCall(room: Room, uid: string, call: CdCall): string | null {
     else result = (call === "up") === (c.r > cd.cur!.r) ? "right" : "wrong";
   }
   const cups = result === "same" ? 2 : result === "wrong" ? 1 : 0;
+  tallyAdd(room, uid, result === "right" ? 1 : 0, result === "right" ? 0 : 1);
   if (cups) cd.drinks[uid] = (cd.drinks[uid] || 0) + cups;
   cd.last = { by: uid, name: p.name, call, card: c, result, cups };
   const v = { name: p.name, call: CD_CALL_KEY[call], card: cdName(c) };
@@ -679,6 +698,158 @@ function cdView(room: Room) {
     last: cd.last ? { ...cd.last, card: card(cd.last.card) } : null,
     drinks: cd.drinks,
   };
+}
+
+// ── Uno (count to the limit without blasting, 2–6 players) ────────────────────
+// Everyone holds 3 cards; play one and you draw one. Number cards add their value
+// to the shared total (A = 1 … 10); power cards can always be played: 7 = reverse,
+// J = skip the next player, Q = −5, K = −10. The total may not go over the limit:
+// 3 players 29, 4 players 39, +10 for each player after that (2 players 19). A
+// player who can't play without going over BLASTS — drinks 1 cup and loses that
+// game; a new game starts (the blaster begins) and the party carries on.
+const UNO_MAX = 6;
+const UNO_TURN_SECONDS = 30, UNO_BLAST_MS = 4500;
+interface UnoState {
+  deck: CdCard[]; hands: Record<string, CdCard[]>; total: number; limit: number; dir: number;
+  phase: "play" | "blast"; roundNo: number;
+  last?: { by: string; name: string; card: CdCard; effect: "add" | "reverse" | "skip" | "minus"; total: number; skipped?: string } | null;
+  blast?: { by: string; name: string } | null;
+}
+const unoLimit = (n: number) => (n <= 2 ? 19 : 29 + (n - 3) * 10);
+const unoIsPower = (c: CdCard) => c.r === 7 || c.r === 11 || c.r === 12 || c.r === 13;
+const unoValue = (c: CdCard) => (c.r === 12 ? -5 : c.r === 13 ? -10 : unoIsPower(c) ? 0 : c.r);
+const unoCanPlay = (u: UnoState, c: CdCard) => unoIsPower(c) || u.total + c.r <= u.limit;
+const unoStep = (room: Room, from: number, steps = 1) => { const n = room.players.length; return (((from + (room.uno?.dir || 1) * steps) % n) + n) % n; };
+function unoDraw(u: UnoState): CdCard {
+  if (!u.deck.length) { // reshuffle a fresh deck without the cards still in hands
+    const held = new Set(Object.values(u.hands).flat().map((c) => `${c.r}${c.s}`));
+    u.deck = cdDeck().filter((c) => !held.has(`${c.r}${c.s}`));
+  }
+  return u.deck.pop()!;
+}
+function unoNewRound(room: Room, starterIdx: number) {
+  const u = room.uno!;
+  u.deck = cdDeck(); u.hands = {}; u.total = 0; u.dir = 1; u.phase = "play"; u.blast = null; u.last = null;
+  u.limit = unoLimit(room.players.length); u.roundNo += 1;
+  for (const p of room.players) u.hands[p.id] = [unoDraw(u), unoDraw(u), unoDraw(u)];
+  room.dir = 1;
+  room.turnIdx = starterIdx % room.players.length;
+  const name = room.players[room.turnIdx].name;
+  setMsg(room, u.roundNo > 1 ? "unoNewRound" : "unoStart", { name, limit: u.limit }, `${name} starts — keep the total at ${u.limit} or under!`);
+  unoBeginTurn(room);
+}
+function startUno(room: Room) {
+  clearTimers(room);
+  room.status = "playing";
+  room.uno = { deck: [], hands: {}, total: 0, limit: 29, dir: 1, phase: "play", roundNo: 0 };
+  unoNewRound(room, Math.floor(Math.random() * room.players.length));
+  broadcast(room);
+}
+// The turn player can't play anything → blast; otherwise start their clock.
+function unoBeginTurn(room: Room) {
+  const u = room.uno!, p = room.players[room.turnIdx ?? 0];
+  if (!p) return;
+  const hand = u.hands[p.id] || (u.hands[p.id] = [unoDraw(u), unoDraw(u), unoDraw(u)]);
+  if (!hand.some((c) => unoCanPlay(u, c))) return unoBlast(room, p);
+  clearTimers(room);
+  room.deadline = Date.now() + UNO_TURN_SECONDS * 1000 + 300;
+  room.timer = setTimeout(() => unoTimeout(room), UNO_TURN_SECONDS * 1000 + 300);
+}
+function unoBlast(room: Room, p: Player) {
+  const u = room.uno!;
+  clearTimers(room);
+  u.phase = "blast"; u.blast = { by: p.id, name: p.name };
+  tallyAdd(room, p.id, 0, 1);
+  for (const o of room.players) if (o.id !== p.id) tallyAdd(room, o.id, 1, 0);
+  setMsg(room, "unoBlast", { name: p.name, limit: u.limit, total: u.total }, `💥 ${p.name} can't stay at ${u.limit} or under — BLAST! Drink 1 cup 🍺`);
+  room.deadline = Date.now() + UNO_BLAST_MS;
+  room.timer = setTimeout(() => {
+    if (room.status !== "playing" || room.game !== "uno") return;
+    const idx = room.players.findIndex((x) => x.id === p.id);
+    unoNewRound(room, idx < 0 ? 0 : idx);
+    broadcast(room);
+  }, UNO_BLAST_MS);
+}
+function unoTimeout(room: Room) {
+  if (room.status !== "playing" || room.game !== "uno" || room.uno?.phase !== "play") return;
+  const u = room.uno, p = room.players[room.turnIdx ?? 0]; if (!p) return;
+  const hand = u.hands[p.id] || [];
+  // Auto-play the smallest number that fits, else a power card.
+  const pick = hand.filter((c) => !unoIsPower(c) && unoCanPlay(u, c)).sort((a, b) => a.r - b.r)[0] || hand.find((c) => unoIsPower(c));
+  if (pick) unoPlay(room, p.id, pick.id); else unoBlast(room, p);
+}
+function unoPlay(room: Room, uid: string, cardId: string): string | Tri | null {
+  const u = room.uno;
+  if (room.status !== "playing" || !u) return "Not playing";
+  if (u.phase !== "play") return "Wait…";
+  const idx = room.turnIdx ?? 0, p = room.players[idx];
+  if (p?.id !== uid) return "Not your turn";
+  const hand = u.hands[uid] || [];
+  const ci = hand.findIndex((c) => c.id === cardId);
+  if (ci < 0) return "Pick a card";
+  const c = hand[ci];
+  if (!unoCanPlay(u, c)) return { en: `That goes over ${u.limit}`, zh: `这样会超过 ${u.limit}`, id: `Itu melebihi ${u.limit}` };
+  hand.splice(ci, 1); hand.push(unoDraw(u));
+  u.total = Math.max(0, u.total + unoValue(c));
+  let effect: "add" | "reverse" | "skip" | "minus" = c.r === 7 ? "reverse" : c.r === 11 ? "skip" : c.r >= 12 ? "minus" : "add";
+  let next: number, skipped: string | undefined;
+  if (effect === "reverse") { u.dir = -u.dir; room.dir = u.dir; next = unoStep(room, idx); }
+  else if (effect === "skip") { const s = unoStep(room, idx); skipped = room.players[s]?.name; next = unoStep(room, idx, 2); }
+  else next = unoStep(room, idx);
+  u.last = { by: uid, name: p.name, card: c, effect, total: u.total, skipped };
+  room.turnIdx = next;
+  const v: MsgV = { name: p.name, card: cdName(c), total: u.total, next: room.players[next].name };
+  if (effect === "reverse") setMsg(room, "unoReverse", v, `${p.name} played 7 — reverse 🔄 · total ${u.total} · ${v.next}'s turn`);
+  else if (effect === "skip") setMsg(room, "unoSkip", { ...v, skipped: skipped || "" }, `${p.name} played J — ${skipped} is skipped ⏭ · total ${u.total} · ${v.next}'s turn`);
+  else if (effect === "minus") setMsg(room, "unoMinus", { ...v, n: unoValue(c) }, `${p.name} played ${v.card} (${unoValue(c)}) · total ${u.total} · ${v.next}'s turn`);
+  else setMsg(room, "unoAdd", v, `${p.name} played ${v.card} · total ${u.total} · ${v.next}'s turn`);
+  unoBeginTurn(room);
+  broadcast(room);
+  return null;
+}
+function unoPlayerLeft(room: Room, uid: string | undefined, leavingWasTurn: boolean) {
+  const u = room.uno; if (!u) return;
+  if (uid) delete u.hands[uid];
+  if (u.phase !== "play" || !leavingWasTurn) return;
+  const name = room.players[room.turnIdx ?? 0].name;
+  setMsg(room, "turn", { name }, `${name}'s turn`);
+  unoBeginTurn(room);
+}
+function unoView(room: Room, forUserId?: string) {
+  const u = room.uno; if (!u) return null;
+  const card = (c: CdCard) => ({ id: c.id, r: c.r, s: c.s, label: cdLabel(c.r), power: unoIsPower(c), ok: unoCanPlay(u, c) });
+  return {
+    turnId: room.players[room.turnIdx ?? 0]?.id, total: u.total, limit: u.limit, dir: u.dir, phase: u.phase, roundNo: u.roundNo,
+    deckLeft: u.deck.length, last: u.last ? { ...u.last, card: card(u.last.card) } : null, blast: u.blast || null,
+    myHand: forUserId && u.hands[forUserId] ? u.hands[forUserId].map(card) : [],
+    counts: Object.fromEntries(room.players.map((p) => [p.id, (u.hands[p.id] || []).length])),
+  };
+}
+
+// ── Win / lose tally for the never-ending party games ─────────────────────────
+// 789, Frog, In Between, Up or Down and Uno have no natural end. Each turn adds a
+// win or a loss; when the host ends the game, players are ranked by wins (then
+// fewest losses). 4+ players: the top 3 win (1st, 2nd, 3rd) and the rest lose;
+// 3 or fewer: only the top player wins.
+const CONTINUOUS = new Set<GameKind>(["789", "frog", "inbetween", "updown", "uno"]);
+function tallyAdd(room: Room, uid: string, w: number, l: number) {
+  room.tally = room.tally || {};
+  const t = room.tally[uid] || (room.tally[uid] = { w: 0, l: 0 });
+  t.w += w; t.l += l;
+}
+function finishContinuous(room: Room) {
+  clearTimers(room);
+  const t = room.tally || {};
+  const order = [...room.players].sort((a, b) => ((t[b.id]?.w || 0) - (t[a.id]?.w || 0)) || ((t[a.id]?.l || 0) - (t[b.id]?.l || 0)));
+  const winners = order.length >= 4 ? 3 : 1;
+  room.standings = order.map((p, i) => ({ id: p.id, name: p.name, w: t[p.id]?.w || 0, l: t[p.id]?.l || 0, place: i + 1, win: i < winners }));
+  room.status = "done";
+  room.winnerId = order[0]?.id;
+  room.lastLoserId = undefined;
+  if (order[0]) setMsg(room, "contDone", { name: order[0].name, n: t[order[0].id]?.w || 0 }, `🏆 ${order[0].name} is the winner! (${t[order[0].id]?.w || 0} ✔)`);
+  broadcast(room);
+  saveScores(room, room.standings.map((s) => ({ userId: s.id, name: s.name, score: s.w, result: (s.win ? "win" : "lose") as "win" | "lose" })));
+  scheduleCleanup(room);
 }
 
 // ── Tower Stack (shared tower, take turns) ───────────────────────────────
@@ -792,11 +963,11 @@ function removePlayer(room: Room, uid?: string) {
     if (idx < 0) idx = wasIdx % room.players.length;
     room.turnIdx = idx;
   }
-  if (room.status === "playing") onPlayerLeftMidGame(room, leavingWasTurn);
+  if (room.status === "playing") onPlayerLeftMidGame(room, leavingWasTurn, uid);
   else broadcast(room);
 }
 
-function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
+function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean, leftId?: string) {
   const soloWin = () => {
     clearTimers(room); room.status = "done";
     const w = room.players.find((p) => p.alive) || room.players[0];
@@ -882,6 +1053,10 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       setMsg(room, "turn", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn`);
       return broadcast(room);
     }
+    case "uno":
+      if (room.players.length < 2) return soloWin();
+      unoPlayerLeft(room, leftId, leavingWasTurn);
+      return broadcast(room);
     case "inbetween": case "updown":
       if (room.players.length < 2) return soloWin();
       cdPlayerLeft(room, leavingWasTurn);
@@ -914,7 +1089,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined; room.cd = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined; room.cd = undefined; room.uno = undefined; room.tally = {}; room.standings = undefined; room.results = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -2071,6 +2246,7 @@ function frogReveal(room: Room) {
     else if (p.id !== leader?.id && lp !== undefined && pick === lp) drinkers.push({ id: p.id, name: p.name, why: "same frog as " + leader.name });
   }
   for (const d of drinkers) f.drinks[d.id] = (f.drinks[d.id] || 0) + 1;
+  for (const p of room.players) tallyAdd(room, p.id, drinkers.some((d) => d.id === p.id) ? 0 : 1, drinkers.some((d) => d.id === p.id) ? 1 : 0);
   f.phase = "reveal";
   f.last = { leaderId: leader?.id, leaderPick: lp ?? null, picks: { ...f.picks }, drinkers };
   if (drinkers.length) { const dn = drinkers.map((d) => d.name).join(", "); setMsg(room, drinkers.length > 1 ? "frogDrinkN" : "frogDrink1", { names: dn }, `${dn} drink${drinkers.length > 1 ? "" : "s"} ½ cup 🍺`); }
@@ -2092,12 +2268,12 @@ function frogView(room: Room, forUserId?: string) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "inbetween", "updown", "frog", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "inbetween", "updown", "uno", "frog", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
   number: "Guessing game", rps: "Guessing game", draw: "Guessing game",
   dice: "Dice game", "789": "Dice game",
-  cards: "Card game", poker3: "Card game", memory: "Card game", inbetween: "Card game", updown: "Card game",
+  cards: "Card game", poker3: "Card game", memory: "Card game", inbetween: "Card game", updown: "Card game", uno: "Card game",
   tap: "Who's the fastest", rlgl: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
   wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game", bridge: "Lucky game",
 };
@@ -2320,7 +2496,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw", "inbetween", "updown"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw", "inbetween", "updown", "uno"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: tr(req, { en: "That game isn't available today.", zh: "该游戏今天未开放。", id: "Permainan itu tidak tersedia hari ini." }) });
@@ -2390,8 +2566,20 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "timer") startTimer(room);
     else if (room.game === "789") start789(room);
     else if (room.game === "inbetween" || room.game === "updown") startCd(room);
+    else if (room.game === "uno") startUno(room);
     else if (room.game === "stack") startStack(room);
     else startTap(room);
+    res.json({ ok: true });
+  });
+
+  // End a never-ending party game and rank the players by their wins.
+  app.post("/api/reborn/games/rooms/:code/finish", requireAuth, async (req, res) => {
+    const room = await getRoom(req.params.code);
+    if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found", zh: "找不到房间", id: "Room tidak ditemukan" }) });
+    if (getUserId(req) !== room.hostId) return res.status(403).json({ message: tr(req, { en: "Only the host can end the game.", zh: "只有房主可以结束游戏。", id: "Hanya host yang bisa mengakhiri permainan." }) });
+    if (room.status !== "playing" || !CONTINUOUS.has(room.game)) return res.status(400).json({ message: tr(req, { en: "This game can't be ended now.", zh: "现在不能结束这个游戏。", id: "Permainan ini belum bisa diakhiri." }) });
+    if (!Object.values(room.tally || {}).some((x) => x.w + x.l > 0)) return res.status(400).json({ message: tr(req, { en: "Play at least one round first.", zh: "请至少先玩一轮。", id: "Mainkan setidaknya satu ronde dulu." }) });
+    finishContinuous(room);
     res.json({ ok: true });
   });
 
@@ -2425,6 +2613,10 @@ export function registerGameRoutes(app: Express) {
       if (req.body?.act === "roll") seven789Roll(room, uid);
       else if (req.body?.act === "choose") seven789Choose(room, uid, String(req.body?.targetId));
       return res.json({ ok: true });
+    }
+    if (room.game === "uno") {
+      const err = req.body?.act === "play" ? unoPlay(room, getUserId(req)!, String(req.body?.cardId || "")) : "Unknown action";
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "inbetween" || room.game === "updown") {
       const uid = getUserId(req)!;
