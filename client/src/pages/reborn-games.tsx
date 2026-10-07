@@ -17,7 +17,7 @@ const GAMES: Record<string, { emoji: string }> = {
   bridge: { emoji: "🌉" }, memory: { emoji: "🧠" }, rlgl: { emoji: "🚦" }, frog: { emoji: "🐸" },
   poker3: { emoji: "🂡" }, dice: { emoji: "🎲" }, wheel: { emoji: "🎡" }, riding: { emoji: "👵" },
   timer: { emoji: "⏱️" }, "789": { emoji: "🎯" }, stack: { emoji: "🧱" }, number: { emoji: "🔢" },
-  inbetween: { emoji: "🎴" }, updown: { emoji: "↕️" },
+  inbetween: { emoji: "🎴" }, updown: { emoji: "↕️" }, uno: { emoji: "💥" },
 };
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
 const gameName = (t: TFn, g: string) => (GAMES[g] ? t(`gm.game.${g}`) : g);
@@ -47,14 +47,14 @@ const GAME_GRAD: Record<string, string> = {
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
   timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)", memory: "linear-gradient(135deg,#a78bfa,#6d28d9)", bridge: "linear-gradient(135deg,#7dd3fc,#1e3a8a)", draw: "linear-gradient(135deg,#fda4af,#7c3aed)",
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
-  inbetween: "linear-gradient(135deg,#fbbf24,#b45309)", updown: "linear-gradient(135deg,#60a5fa,#be123c)",
+  inbetween: "linear-gradient(135deg,#fbbf24,#b45309)", updown: "linear-gradient(135deg,#60a5fa,#be123c)", uno: "linear-gradient(135deg,#f87171,#facc15)",
 };
 // Games grouped into categories for the lobby (name = id; label from gm.cat.<key>).
 // c1/c2 = each category's neon colours in the arcade-style lobby.
 const GAME_CATEGORIES: { name: string; key: string; emoji: string; games: string[]; c1: string; c2: string }[] = [
   { name: "Guessing game", key: "guess", emoji: "🧠", games: ["number", "rps", "draw"], c1: "#b36bff", c2: "#5b2bd6" },
   { name: "Dice game", key: "dice", emoji: "🎲", games: ["dice", "789"], c1: "#29d8ff", c2: "#1463d6" },
-  { name: "Card game", key: "card", emoji: "🃏", games: ["cards", "poker3", "memory", "inbetween", "updown"], c1: "#ff4fa3", c2: "#b3127a" },
+  { name: "Card game", key: "card", emoji: "🃏", games: ["cards", "poker3", "memory", "inbetween", "updown", "uno"], c1: "#ff4fa3", c2: "#b3127a" },
   { name: "Who's the fastest", key: "fast", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"], c1: "#ffb020", c2: "#e8551c" },
   { name: "Lucky game", key: "lucky", emoji: "🍀", games: ["wheel", "riding", "frog", "bridge"], c1: "#3ef08a", c2: "#0e9f57" },
 ];
@@ -62,7 +62,7 @@ const GAME_CATEGORIES: { name: string; key: string; emoji: string; games: string
 const gameColors = (g: string): [string, string] => { const m = (GAME_GRAD[g] || "").match(/#[0-9a-fA-F]{6}/g) || []; return [m[0] || "#f0d787", m[1] || "#c9a84c"]; };
 
 // How-to-play lines per game: gm.rules.<game>.<n> for n = 1..count.
-const RULES: Record<string, number> = { rps: 5, tap: 4, draw: 5, bridge: 5, memory: 5, rlgl: 5, frog: 5, poker3: 6, cards: 6, dice: 6, wheel: 4, riding: 5, timer: 5, stack: 4, "789": 6, number: 5, inbetween: 6, updown: 5 };
+const RULES: Record<string, number> = { rps: 5, tap: 4, draw: 5, bridge: 5, memory: 5, rlgl: 5, frog: 5, poker3: 6, cards: 6, dice: 6, wheel: 4, riding: 5, timer: 5, stack: 4, "789": 6, number: 5, inbetween: 6, updown: 5, uno: 6 };
 
 function HowToPlay({ game, onClose }: { game: string; onClose: () => void }) {
   const { t } = useTranslation();
@@ -105,7 +105,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number" | "inbetween" | "updown";
+type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number" | "inbetween" | "updown" | "uno";
 // Game leaderboard: a podium for the top 3, then a ranked list. Your row glows.
 function lbScore(t: TFn, game: string, n: number) {
   return t(game === "tap" ? "gm.lobby.scoreCoins" : game === "stack" ? "gm.lobby.scoreHigh" : n === 1 ? "gm.lobby.scoreWin" : "gm.lobby.scoreWins", { n });
@@ -484,6 +484,8 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "789" && <SevenGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "stack" && <StackGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && (room.game === "inbetween" || room.game === "updown") && <CdGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && room.game === "uno" && <UnoGame room={room} code={code} me={me} />}
+      {room.continuous && (room.status === "playing" || room.status === "done") && <ContinuousBoard room={room} code={code} me={me} isHost={isHost} />}
 
       {/* Every game (incl. party games with no end, like Frog and 789) can be left any time. */}
       {(room.status === "playing" || room.status === "reveal") && (
@@ -492,7 +494,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
 
       {room.status === "done" && (
         <div className="space-y-2">
-          <RankFlash win={room.winnerId === me} lose={room.lastLoserId === me} />
+          <RankFlash win={room.results ? room.results.win.includes(me) : room.winnerId === me} lose={room.results ? room.results.lose.includes(me) : room.lastLoserId === me} />
           {room.seriesChampionId && (
             <div className="rwg-card p-4 text-center" style={{ animation: "rwgPop .5s ease-out" }}>
               <p className="text-4xl mb-1">👑</p>
@@ -866,7 +868,7 @@ function CdGame({ room, code, me }: any) {
   const { t } = useTranslation();
   const g = room.cd || {};
   const ib = room.game === "inbetween";
-  const myTurn = g.turnId === me;
+  const myTurn = room.status === "playing" && g.turnId === me;
   const cur = room.players.find((p: any) => p.id === g.turnId);
   const secs = useLocalCountdown(room.secondsLeft, `${g.phase}-${g.turnId}-${g.deckLeft}`);
   const lastKey = g.last ? `${g.last.by}-${g.last.card?.label}${g.last.card?.s}-${g.deckLeft}` : "";
@@ -942,6 +944,107 @@ function CdGame({ room, code, me }: any) {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Uno: keep the shared total at the limit or under. Your 3 cards show at the
+// bottom (cards that would go over are greyed out); 7 / J / Q / K always play.
+function UnoGame({ room, code, me }: any) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const u = room.uno || {};
+  const live = room.status === "playing";
+  const myTurn = live && u.turnId === me && u.phase === "play";
+  const cur = room.players.find((p: any) => p.id === u.turnId);
+  const secs = useLocalCountdown(room.secondsLeft, `${u.turnId}-${u.total}-${u.roundNo}-${u.phase}`);
+  const blastKey = u.blast ? `${u.roundNo}-${u.blast.by}` : "";
+  const seen = useRef("");
+  useEffect(() => { if (blastKey && blastKey !== seen.current) { seen.current = blastKey; u.blast.by === me ? sfx.lose() : sfx.win(); } }, [blastKey]);
+  const play = async (c: any) => {
+    if (!myTurn) return;
+    if (!c.ok) return toast({ title: t("gm.uno.over", { n: u.limit }), variant: "destructive" });
+    sfx.flip();
+    const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, { act: "play", cardId: c.id });
+    if (!ok && d?.message) toast({ title: d.message, variant: "destructive" });
+  };
+  const pct = u.limit ? Math.min(100, Math.round((u.total / u.limit) * 100)) : 0;
+  const tag = (c: any) => (c.r === 7 ? "🔄" : c.r === 11 ? "⏭" : c.r === 12 ? "−5" : c.r === 13 ? "−10" : `+${c.r}`);
+  return (
+    <div className="rwg-card p-5 text-center">
+      <p className="text-sm text-white/80 mb-1 min-h-[2.5em]">{roomMsg(t, room)}</p>
+      <p className="text-[11px] text-white/40 mb-3">{t("gm.uno.round", { n: u.roundNo || 1 })} · {u.dir === -1 ? t("gm.s789.reversed") + " · " : ""}⏱ {secs}s</p>
+
+      <div className={`mx-auto mb-2 flex h-28 w-28 flex-col items-center justify-center rounded-full border-4 ${u.phase === "blast" ? "border-red-500 bg-red-500/20" : pct >= 85 ? "border-orange-400 bg-orange-400/10" : "border-amber-300 bg-amber-300/10"}`} style={u.phase === "blast" ? { animation: "rwgPop .4s ease-out" } : undefined}>
+        <span className="text-4xl font-black text-white leading-none">{u.phase === "blast" ? "💥" : u.total}</span>
+        <span className="text-[11px] text-white/60">/ {u.limit}</span>
+      </div>
+      <div className="mx-auto mb-3 h-2 max-w-xs overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 85 ? "#fb923c" : "#f0d787" }} /></div>
+
+      {u.last && u.phase === "play" && (
+        <div className="mb-3 flex items-center justify-center gap-2 text-xs text-white/60">
+          <span>{u.last.name}</span><CdCardFace c={u.last.card} size="sm" /><span className="font-bold text-amber-200">{tag(u.last.card)}</span>
+        </div>
+      )}
+      {u.phase === "blast" && u.blast && <p className="mb-3 text-lg font-black text-red-300">{t("gm.uno.blastBig", { name: u.blast.by === me ? t("gm.you") : u.blast.name })}</p>}
+
+      {live && <><p className="mb-2 text-xs text-white/50">{myTurn ? t("gm.uno.yourTurn") : cur ? t("gm.turnOf", { name: cur.name }) + "…" : ""}</p>
+      <div className="flex justify-center gap-3">
+        {(u.myHand || []).map((c: any) => (
+          <button key={c.id} onClick={() => play(c)} disabled={!myTurn} className={`relative transition ${myTurn && c.ok ? "hover:-translate-y-2 active:scale-95" : ""} ${myTurn && !c.ok ? "opacity-35" : ""}`}>
+            <CdCardFace c={c} glow={myTurn && c.ok ? (c.power ? "#a78bfa" : "#f0d787") : undefined} />
+            <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-2 text-[11px] font-black ${c.power ? "bg-violet-500 text-white" : "bg-amber-300 text-black"}`}>{tag(c)}</span>
+          </button>
+        ))}
+      </div>
+      <p className="mt-4 text-[11px] text-white/40">{t("gm.uno.legend")}</p></>}
+
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {room.players.map((p: any) => (
+          <span key={p.id} className={`px-3 py-1.5 rounded-full text-sm ${p.id === u.turnId ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>
+            {p.id === u.turnId && "🃏 "}{p.id === me ? t("gm.you") : p.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Never-ending party games (789, Frog, In Between, Up or Down, Uno): live wins /
+// losses, the host's "End game & rank" button, and the final 1st / 2nd / 3rd.
+function ContinuousBoard({ room, code, me, isHost }: any) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const tally = room.tally || {};
+  const rows = room.standings || [...room.players].map((p: any) => ({ id: p.id, name: p.name, w: tally[p.id]?.w || 0, l: tally[p.id]?.l || 0 }))
+    .sort((a: any, b: any) => (b.w - a.w) || (a.l - b.l));
+  const winners = room.players.length >= 4 ? 3 : 1;
+  const medal = (i: number) => ["🥇", "🥈", "🥉"][i] || `${i + 1}`;
+  const end = async () => {
+    if (!window.confirm(t("gm.cont.endConfirm"))) return;
+    const { ok, d } = await post(`/api/reborn/games/rooms/${code}/finish`);
+    if (!ok) toast({ title: d.message, variant: "destructive" });
+  };
+  return (
+    <div className="rwg-card p-4">
+      <p className="mb-1 text-sm font-bold text-white">{room.standings ? t("gm.cont.final") : t("gm.cont.title")}</p>
+      <p className="mb-3 text-[11px] text-white/45">{t(winners === 3 ? "gm.cont.rule4" : "gm.cont.rule3")}</p>
+      <div className="space-y-1.5">
+        {rows.map((r: any, i: number) => {
+          const win = room.standings ? r.win : i < winners;
+          return (
+            <div key={r.id} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${win ? "bg-amber-400/10 border border-amber-400/30" : "bg-white/5"}`}>
+              <span className="w-6 text-center">{win ? medal(i) : i + 1}</span>
+              <span className="min-w-0 flex-1 truncate font-bold text-white">{r.id === me ? t("gm.you") : r.name}</span>
+              <span className="text-emerald-300">✔ {r.w}</span>
+              <span className="text-red-300">✖ {r.l}</span>
+              {room.standings && <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${win ? "bg-amber-300 text-black" : "bg-white/10 text-white/60"}`}>{win ? t("gm.cont.win") : t("gm.cont.lose")}</span>}
+            </div>
+          );
+        })}
+      </div>
+      {room.status === "playing" && isHost && <button onClick={end} className="cbtn cbtn-gold mt-3 w-full py-3">🏁 {t("gm.cont.end")}</button>}
+      {room.status === "playing" && !isHost && <p className="mt-3 text-center text-[11px] text-white/40">{t("gm.cont.hostEnds")}</p>}
     </div>
   );
 }

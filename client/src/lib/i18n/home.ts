@@ -115,7 +115,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.pet.lightOn': { en: "light on", zh: "灯已开", id: "lampu menyala" },
   'hm.pet.lightOff': { en: "light off", zh: "灯已关", id: "lampu mati" },
   'hm.pet.shopTitle': { en: "Decorate & dress up", zh: "装饰与换装", id: "Dekorasi & dandani" },
-  'hm.pet.shopEarn': { en: "Earn pet coins in Games: +{play} per game, +{win} per win, +{crack} for cracking Guess the Number · today {today}/{cap}", zh: "在游戏中赚取宠物币：每局 +{play}，每胜 +{win}，猜中数字 +{crack} · 今日 {today}/{cap}", id: "Dapatkan koin peliharaan di Game: +{play} per game, +{win} per kemenangan, +{crack} saat menebak angka dengan benar · hari ini {today}/{cap}" },
+  'hm.pet.shopEarn': { en: "Earn pet coins in Games: +{win} for every win, +{crack} for cracking Guess the Number · today {today}/{cap}", zh: "在游戏中赚取宠物币：每赢一局 +{win}，猜中数字 +{crack} · 今日 {today}/{cap}", id: "Dapatkan koin peliharaan di Game: +{win} setiap menang, +{crack} saat menebak angka dengan benar · hari ini {today}/{cap}" },
   'hm.pet.tabRoom': { en: "Room", zh: "房间", id: "Kamar" },
   'hm.pet.tabCostumes': { en: "Costumes", zh: "服装", id: "Kostum" },
   'hm.pet.inRoom': { en: "In room ✓", zh: "已摆放 ✓", id: "Di kamar ✓" },

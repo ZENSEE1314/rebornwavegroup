@@ -169,8 +169,8 @@ const STARTER_ITEMS = ["plant_fern", "art_landscape"];
 const STARTER_PLACED: Record<string, string> = { plant: "plant_fern", art: "art_landscape" };
 
 // Game rewards (see awardPetCoins callers in games.ts).
-export const COINS_PER_PLAY = 5;
-export const COINS_PER_WIN = 20;
+export const COINS_PER_PLAY = 0; // losers earn no pet coins
+export const COINS_PER_WIN = 5;   // every winner of a game
 export const COINS_NUMBER_CRACK = 50;
 export const DAILY_COIN_CAP = 300;
 
