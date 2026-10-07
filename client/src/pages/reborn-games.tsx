@@ -62,7 +62,7 @@ const GAME_CATEGORIES: { name: string; key: string; emoji: string; games: string
 const gameColors = (g: string): [string, string] => { const m = (GAME_GRAD[g] || "").match(/#[0-9a-fA-F]{6}/g) || []; return [m[0] || "#f0d787", m[1] || "#c9a84c"]; };
 
 // How-to-play lines per game: gm.rules.<game>.<n> for n = 1..count.
-const RULES: Record<string, number> = { rps: 5, tap: 4, draw: 5, bridge: 5, memory: 5, rlgl: 5, frog: 5, poker3: 6, cards: 6, dice: 6, wheel: 4, riding: 5, timer: 5, stack: 4, "789": 6, number: 5, inbetween: 6, updown: 5, uno: 6, sixcup: 6 };
+const RULES: Record<string, number> = { rps: 6, tap: 4, draw: 5, bridge: 5, memory: 5, rlgl: 5, frog: 5, poker3: 6, cards: 6, dice: 6, wheel: 4, riding: 5, timer: 5, stack: 4, "789": 6, number: 5, inbetween: 6, updown: 5, uno: 6, sixcup: 6 };
 
 function HowToPlay({ game, onClose }: { game: string; onClose: () => void }) {
   const { t } = useTranslation();
@@ -468,6 +468,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       </div>
 
       {room.status === "lobby" && <><SeriesBoard room={room} /><LobbyRoom room={room} code={code} isHost={isHost} onLeave={leave} /></>}
+      {!room.tiebreak && <>
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "rps" && <RpsGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "tap" && <TapGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "cards" && <CardGame room={room} code={code} me={me} />}
@@ -486,7 +487,9 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "done") && (room.game === "inbetween" || room.game === "updown") && <CdGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "uno" && <UnoGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "done") && room.game === "sixcup" && <SixCupGame room={room} code={code} me={me} />}
-      {room.continuous && (room.status === "playing" || room.status === "done") && <ContinuousBoard room={room} code={code} me={me} isHost={isHost} />}
+      </>}
+      {room.tiebreak && <TiebreakPanel room={room} code={code} me={me} />}
+      {room.continuous && room.status !== "lobby" && <ContinuousBoard room={room} code={code} me={me} isHost={isHost} />}
 
       {/* Every game (incl. party games with no end, like Frog and 789) can be left any time. */}
       {(room.status === "playing" || room.status === "reveal") && (
@@ -1011,6 +1014,46 @@ function UnoGame({ room, code, me }: any) {
   );
 }
 
+// Tie on the win / lose line at the end of a party game: the tied players play a
+// quick rock-paper-scissors rematch; everyone else watches.
+function TiebreakPanel({ room, code, me }: any) {
+  const { t } = useTranslation();
+  const tb = room.tiebreak;
+  const secs = useLocalCountdown(room.secondsLeft, `${tb.round}-${tb.picked.length}-${JSON.stringify(tb.last)}`);
+  const mine = tb.group.includes(me);
+  const name = (id: string) => (id === me ? t("gm.you") : tb.names[id] || room.players.find((p: any) => p.id === id)?.name || "");
+  const pick = (choice: string) => { sfx.click(); post(`/api/reborn/games/rooms/${code}/action`, { act: "tb", choice }); };
+  return (
+    <div className="rwg-card p-5 text-center" style={{ animation: "rwgPop .4s ease-out" }}>
+      <p className="text-3xl mb-1">🤝</p>
+      <p className="text-lg font-black text-amber-300">{t("gm.tb.title")}</p>
+      <p className="text-xs text-white/55 mb-3">{t("gm.tb.hint", { n: tb.slots })} · ⏱ {secs}s</p>
+      <div className="flex flex-wrap justify-center gap-3 mb-3">
+        {tb.group.map((id: string) => (
+          <div key={id} className="flex flex-col items-center">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl bg-white/5 border border-white/10">
+              {tb.last?.picks?.[id] ? HAND[tb.last.picks[id]] : tb.picked.includes(id) ? "🔒" : "…"}
+            </div>
+            <span className="text-[10px] text-white/60 mt-1 max-w-[64px] truncate">{name(id)}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-sm text-white/70 mb-3">{roomMsg(t, room)}</p>
+      {mine && !tb.myPick ? (
+        <div className="flex gap-3">
+          {(["rock", "paper", "scissors"] as const).map((c) => (
+            <button key={c} onClick={() => pick(c)} className="cbtn cbtn-gold flex-1 py-4">
+              <span className="text-3xl block">{HAND[c]}</span>
+              <span className="text-[11px] capitalize">{t(`gm.rps.${c}`)}</span>
+            </button>
+          ))}
+        </div>
+      ) : mine ? <p className="text-emerald-300 font-bold">{t("gm.rps.locked", { hand: HAND[tb.myPick] })}</p>
+        : <p className="text-white/45 text-sm">{t("gm.tb.watch")}</p>}
+    </div>
+  );
+}
+
 // Never-ending party games (789, Frog, In Between, Up or Down, Uno): live wins /
 // losses, the host's "End game & rank" button, and the final 1st / 2nd / 3rd.
 function ContinuousBoard({ room, code, me, isHost }: any) {
@@ -1044,8 +1087,8 @@ function ContinuousBoard({ room, code, me, isHost }: any) {
           );
         })}
       </div>
-      {room.status === "playing" && isHost && <button onClick={end} className="cbtn cbtn-gold mt-3 w-full py-3">🏁 {t("gm.cont.end")}</button>}
-      {room.status === "playing" && !isHost && <p className="mt-3 text-center text-[11px] text-white/40">{t("gm.cont.hostEnds")}</p>}
+      {room.status !== "done" && !room.tiebreak && isHost && <button onClick={end} className="cbtn cbtn-gold mt-3 w-full py-3">🏁 {t("gm.cont.end")}</button>}
+      {room.status !== "done" && !room.tiebreak && !isHost && <p className="mt-3 text-center text-[11px] text-white/40">{t("gm.cont.hostEnds")}</p>}
     </div>
   );
 }

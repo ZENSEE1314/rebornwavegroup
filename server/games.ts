@@ -59,6 +59,11 @@ interface Room {
   standings?: { id: string; name: string; w: number; l: number; place: number; win: boolean }[];
   // who won / lost the last finished game (rank flash on each player's screen)
   results?: { win: string[]; lose: string[] };
+  // players who left a one-round game before it ended (they lose when it ends)
+  quitters?: Record<string, string>;
+  // rock-paper-scissors rematch for a tie on the win / lose line (party games)
+  tb?: { order: string[]; tied: string[]; group: string[]; slots: number; won: string[]; lost: string[]; picks: Record<string, Choice>; round: number; last: any };
+  tbNames?: Record<string, string>;
   // draw (Draw & Guess) only
   dg?: { word: string; category: string; drawer: string; strokes: { id: number; c: string; w: number; p: number[] }[]; feed: { id: string; name: string; text: string }[]; reveal: number[]; lastGuess: Record<string, number>; startedAt: number; winner?: string | null };
   // bridge (Glass Bridge) only
@@ -165,7 +170,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "inbetween" || room.game === "updown" ? { cd: cdView(room) } : {}),
     ...(room.game === "uno" ? { uno: unoView(room, forUserId) } : {}),
     ...(room.game === "sixcup" ? { sixcup: scView(room) } : {}),
-    continuous: CONTINUOUS.has(room.game), tally: room.tally || {}, standings: room.standings || null, results: room.results || null,
+    continuous: CONTINUOUS.has(room.game), tiebreak: tbView(room, forUserId), tally: room.tally || {}, standings: room.standings || null, results: room.results || null,
   };
 }
 
@@ -211,6 +216,7 @@ function resumeRoom(room: Room) {
   if (room.status === "reveal") room.status = "done";
   if (room.status === "done") { scheduleCleanup(room); return; }
   if (room.status !== "playing") return;
+  if (room.tb) return tbRound(room); // a tie rematch was on: replay that round
   try {
     switch (room.game) {
       case "memory": {
@@ -275,6 +281,9 @@ async function nameFor(userId: string): Promise<string> {
 }
 
 async function saveScores(room: Room, rows: { userId: string; name: string; score: number; result: "win" | "lose" }[]) {
+  // Players who left a one-round game before the end count as losers.
+  for (const [id, name] of Object.entries(room.quitters || {})) if (!rows.some((r) => r.userId === id)) rows = [...rows, { userId: id, name, score: 0, result: "lose" }];
+  room.quitters = {};
   if (!rows.length) return;
   await db.insert(pvpScores).values(rows.map((r) => ({ companyId: room.companyId ?? null, game: room.game, userId: r.userId, userName: r.name, score: r.score, result: r.result, roomCode: room.code }))).catch(() => {});
   // Every winner: +1 rank star and pet coins; every loser: −1 rank star (no coins).
@@ -315,6 +324,14 @@ function clearTimers(room: Room) {
 // play on; 4 win / 1 lose → that 1 loses straight away.
 const BEATS: Record<Choice, Choice> = { rock: "scissors", paper: "rock", scissors: "paper" };
 
+const RPS_NEXT_MS = 4500;
+function rpsNewGame(room: Room) {
+  if (room.game !== "rps" || (room.status !== "reveal" && room.status !== "playing")) return;
+  if (room.players.length < 2) { room.status = "playing"; return finishContinuous(room); }
+  for (const p of room.players) { p.alive = true; p.choice = null; }
+  room.round = 1;
+  startRpsRound(room);
+}
 function startRpsRound(room: Room) {
   clearTimers(room);
   room.status = "playing";
@@ -348,11 +365,11 @@ function resolveRps(room: Room) {
   // Nobody picked at all → end the game rather than looping on idle players.
   // (With one player left — e.g. the others left the room — they simply lose.)
   if (!choosers.length && alive.length >= 2) {
-    room.status = "done";
+    room.status = "reveal";
     room.winnerId = undefined; room.lastLoserId = undefined;
-    setMsg(room, "rpsNobody", undefined, "Nobody picked — game over.");
+    setMsg(room, "rpsNobodyNext", undefined, "Nobody picked — a new game starts…");
     broadcast(room);
-    scheduleCleanup(room);
+    room.timer = setTimeout(() => rpsNewGame(room), RPS_NEXT_MS);
     return;
   }
   for (const p of safe) p.alive = false;
@@ -364,12 +381,12 @@ function resolveRps(room: Room) {
     const loser = remaining[0];
     room.winnerId = undefined;
     room.lastLoserId = loser?.id;
-    if (loser) setMsg(room, "rpsLoser", { name: loser.name }, `${loser.name} loses — drink! 🍺`); else setMsg(room, "rpsAllSafe", undefined, "Everyone is safe!");
-    room.status = "done";
+    // Party game: the loser gets a loss, everyone else a win; then the next game starts.
+    for (const p of room.players) tallyAdd(room, p.id, p.id === loser?.id ? 0 : 1, p.id === loser?.id ? 1 : 0);
+    if (loser) setMsg(room, "rpsLoserNext", { name: loser.name }, `${loser.name} loses — drink! 🍺 Next game starts…`); else setMsg(room, "rpsAllSafe", undefined, "Everyone is safe!");
+    room.status = "reveal";
     broadcast(room);
-    const rows = room.players.map((p) => ({ userId: p.id, name: p.name, score: p.id === loser?.id ? 0 : 1, result: (p.id === loser?.id ? "lose" : "win") as "win" | "lose" }));
-    saveScores(room, rows);
-    scheduleCleanup(room);
+    room.timer = setTimeout(() => rpsNewGame(room), RPS_NEXT_MS);
     return;
   }
   if (safe.length) setMsg(room, "rpsSafe", { names: safe.map((p) => p.name).join(", "), n: remaining.length }, `${safe.map((p) => p.name).join(", ")} safe! ${remaining.length} left — go again!`); else setMsg(room, "rpsStandoff", undefined, "Stand-off — go again!");
@@ -449,9 +466,9 @@ function finishTimer(room: Room) {
   else if (winners.length === 1) setMsg(room, "timerWin", { name: winners[0].name, t: fmtMs(winners[0].stopMs!) }, `${winners[0].name} nailed it at ${fmtMs(winners[0].stopMs!)} 🏆`);
   else setMsg(room, "timerTie", { names: winners.map((p) => p.name).join(" & "), t: fmtMs(winners[0].stopMs!), n: winners.length }, `${winners.map((p) => p.name).join(" & ")} tied at ${fmtMs(winners[0].stopMs!)} — ${winners.length} winners! 🏆`);
   broadcast(room);
-  const rows = stoppers.map((p) => ({
-    userId: p.id, name: p.name, score: Math.max(0, timerTarget(room) - Math.round(dist(p))),
-    result: (room.timerWinners!.includes(p.id) ? "win" : "lose") as "win" | "lose",
+  const rows = room.players.map((p) => ({
+    userId: p.id, name: p.name, score: p.stopMs == null ? 0 : Math.max(0, timerTarget(room) - Math.round(dist(p))),
+    result: (room.timerWinners!.includes(p.id) ? "win" : "lose") as "win" | "lose", // no stop = lose
   }));
   saveScores(room, rows);
   scheduleCleanup(room);
@@ -927,7 +944,7 @@ function scView(room: Room) {
 // win or a loss; when the host ends the game, players are ranked by wins (then
 // fewest losses). 4+ players: the top 3 win (1st, 2nd, 3rd) and the rest lose;
 // 3 or fewer: only the top player wins.
-const CONTINUOUS = new Set<GameKind>(["789", "frog", "inbetween", "updown", "uno", "sixcup"]);
+const CONTINUOUS = new Set<GameKind>(["rps", "789", "frog", "inbetween", "updown", "uno", "sixcup"]);
 function tallyAdd(room: Room, uid: string, w: number, l: number) {
   room.tally = room.tally || {};
   room.tallyNames = room.tallyNames || {};
@@ -935,23 +952,119 @@ function tallyAdd(room: Room, uid: string, w: number, l: number) {
   const t = room.tally[uid] || (room.tally[uid] = { w: 0, l: 0 });
   t.w += w; t.l += l;
 }
+// Ranking at the end of a party game. A tie on the win / lose line (e.g. two players
+// level for 1st when only 1st wins) is settled by a rock-paper-scissors rematch among
+// the tied players; players who already left lose to those still here.
 function finishContinuous(room: Room) {
   clearTimers(room);
   const t = room.tally || {};
-  // Everyone who played counts — also players who left before the end.
   const people = new Map<string, string>(Object.entries(room.tallyNames || {}));
   for (const p of room.players) people.set(p.id, p.name);
-  const order = Array.from(people, ([id, name]) => ({ id, name })).sort((a, b) => ((t[b.id]?.w || 0) - (t[a.id]?.w || 0)) || ((t[a.id]?.l || 0) - (t[b.id]?.l || 0)));
+  room.tbNames = Object.fromEntries(people);
+  const order = Array.from(people.keys()).sort((a, b) => ((t[b]?.w || 0) - (t[a]?.w || 0)) || ((t[a]?.l || 0) - (t[b]?.l || 0)));
+  const spots = order.length >= 4 ? 3 : 1;
+  if (order.length > spots) {
+    const key = (id: string) => `${t[id]?.w || 0}/${t[id]?.l || 0}`;
+    const cut = key(order[spots - 1]);
+    if (key(order[spots]) === cut) {
+      const tied = order.filter((id) => key(id) === cut);
+      const above = order.slice(0, spots).filter((id) => key(id) !== cut).length;
+      return startTiebreak(room, order, tied, spots - above);
+    }
+  }
+  finalizeRanking(room, order);
+}
+function finalizeRanking(room: Room, order: string[]) {
+  clearTimers(room);
+  room.tb = undefined;
+  const t = room.tally || {};
+  const names = room.tbNames || {};
   const winners = order.length >= 4 ? 3 : 1;
-  room.standings = order.map((p, i) => ({ id: p.id, name: p.name, w: t[p.id]?.w || 0, l: t[p.id]?.l || 0, place: i + 1, win: i < winners }));
+  room.standings = order.map((id, i) => ({ id, name: names[id] || room.players.find((p) => p.id === id)?.name || "Player", w: t[id]?.w || 0, l: t[id]?.l || 0, place: i + 1, win: i < winners }));
   room.status = "done";
-  room.winnerId = order[0]?.id;
+  room.winnerId = order[0];
   room.lastLoserId = undefined;
-  if (order[0]) setMsg(room, "contDone", { name: order[0].name, n: t[order[0].id]?.w || 0 }, `🏆 ${order[0].name} is the winner! (${t[order[0].id]?.w || 0} ✔)`);
+  const top = room.standings[0];
+  if (top) setMsg(room, "contDone", { name: top.name, n: top.w }, `🏆 ${top.name} is the winner! (${top.w} ✔)`);
   broadcast(room);
   saveScores(room, room.standings.map((s) => ({ userId: s.id, name: s.name, score: s.w, result: (s.win ? "win" : "lose") as "win" | "lose" })));
   scheduleCleanup(room);
 }
+const TB_SECONDS = 20, TB_REVEAL_MS = 3000;
+function startTiebreak(room: Room, order: string[], tied: string[], slots: number) {
+  const here = new Set(room.players.map((p) => p.id));
+  const present = tied.filter((id) => here.has(id)), absent = tied.filter((id) => !here.has(id));
+  room.tb = { order, tied, group: present, slots, won: [], lost: absent, picks: {}, round: 1, last: null };
+  // Too few of the tied players are still here to need a rematch.
+  if (present.length <= slots) { room.tb.won = present; room.tb.slots -= present.length; room.tb.group = []; return tbFinish(room); }
+  tbRound(room);
+}
+function tbRound(room: Room) {
+  const tb = room.tb!;
+  clearTimers(room);
+  tb.picks = {};
+  room.status = "playing";
+  const names = tb.group.map((id) => room.tbNames?.[id] || "").join(", ");
+  setMsg(room, "tbRound", { names, n: tb.slots }, `🤝 Tie! ${names} — rock, paper, scissors decides who wins`);
+  room.deadline = Date.now() + TB_SECONDS * 1000 + 300;
+  broadcast(room);
+  room.timer = setTimeout(() => tbResolve(room), TB_SECONDS * 1000 + 300);
+}
+function tbPick(room: Room, uid: string, choice: string): string | null {
+  const tb = room.tb;
+  if (!tb) return "Not now";
+  if (!tb.group.includes(uid)) return "Not now";
+  if (!["rock", "paper", "scissors"].includes(choice)) return "Unknown action";
+  if (tb.picks[uid]) return null;
+  tb.picks[uid] = choice as Choice;
+  if (tb.group.every((id) => tb.picks[id])) tbResolve(room); else broadcast(room);
+  return null;
+}
+function tbResolve(room: Room) {
+  const tb = room.tb; if (!tb) return;
+  clearTimers(room);
+  const signs: Choice[] = ["rock", "paper", "scissors"];
+  for (const id of tb.group) if (!tb.picks[id]) tb.picks[id] = signs[Math.floor(Math.random() * 3)]; // too slow: a random sign
+  const kinds = Array.from(new Set(tb.group.map((id) => tb.picks[id])));
+  tb.last = { picks: { ...tb.picks } };
+  if (kinds.length === 2) {
+    const winning = BEATS[kinds[0]] === kinds[1] ? kinds[0] : kinds[1];
+    const ahead = tb.group.filter((id) => tb.picks[id] === winning), behind = tb.group.filter((id) => tb.picks[id] !== winning);
+    if (ahead.length <= tb.slots) { tb.won.push(...ahead); tb.slots -= ahead.length; tb.group = behind; }
+    else { tb.lost = [...behind, ...tb.lost]; tb.group = ahead; }
+    const an = ahead.map((id) => room.tbNames?.[id] || "").join(", ");
+    setMsg(room, "tbAhead", { names: an }, `${an} win the rematch!`);
+  } else setMsg(room, "tbDraw", undefined, "Draw — go again!");
+  broadcast(room);
+  room.timer = setTimeout(() => {
+    if (!room.tb) return;
+    if (tb.slots <= 0) { tb.lost = [...tb.group, ...tb.lost]; tb.group = []; return tbFinish(room); }
+    if (tb.group.length <= tb.slots) { tb.won.push(...tb.group); tb.slots -= tb.group.length; tb.group = []; return tbFinish(room); }
+    tb.round += 1;
+    tbRound(room);
+  }, TB_REVEAL_MS);
+}
+function tbFinish(room: Room) {
+  const tb = room.tb!;
+  if (tb.slots > 0 && tb.lost.length) { const extra = tb.lost.splice(0, tb.slots); tb.won.push(...extra); } // only players who left remain
+  const set = new Set(tb.tied);
+  const first = tb.order.findIndex((id) => set.has(id));
+  const rest = tb.order.filter((id) => !set.has(id));
+  finalizeRanking(room, [...rest.slice(0, first), ...tb.won, ...tb.group, ...tb.lost, ...rest.slice(first)]);
+}
+// A tied player left during the rematch.
+function tbPlayerLeft(room: Room, uid: string) {
+  const tb = room.tb; if (!tb) return;
+  if (tb.group.includes(uid)) { tb.group = tb.group.filter((id) => id !== uid); tb.lost.push(uid); delete tb.picks[uid]; }
+  if (tb.group.length <= tb.slots) { tb.won.push(...tb.group); tb.slots -= tb.group.length; tb.group = []; clearTimers(room); return tbFinish(room); }
+  if (tb.group.every((id) => tb.picks[id])) return tbResolve(room);
+  broadcast(room);
+}
+function tbView(room: Room, forUserId?: string) {
+  const tb = room.tb; if (!tb) return null;
+  return { group: tb.group, slots: tb.slots, round: tb.round, picked: tb.group.filter((id) => !!tb.picks[id]), myPick: forUserId ? tb.picks[forUserId] || null : null, last: tb.last, names: room.tbNames || {} };
+}
+
 
 // ── Tower Stack (shared tower, take turns) ───────────────────────────────
 // One tower for the whole room. Players take turns dropping the sliding block;
@@ -1055,6 +1168,10 @@ function removePlayer(room: Room, uid?: string) {
   if (wasIdx < 0) return;
   const curTurnId = room.players[room.turnIdx ?? 0]?.id;
   const leavingWasTurn = curTurnId === uid;
+  // Leaving a one-round game mid-way = a loss when it ends (party games rank leavers from their tally).
+  if ((room.status === "playing" || room.status === "reveal") && !CONTINUOUS.has(room.game) && room.game !== "wheel") {
+    room.quitters = { ...(room.quitters || {}), [uid]: room.players[wasIdx].name };
+  }
   room.players = room.players.filter((p) => p.id !== uid);
   if (!room.players.length) { clearTimers(room); for (const s of room.subs) { try { s.res.end(); } catch {} } dropRoom(room.code); return; }
   if (room.hostId === uid) room.hostId = room.players[0].id;
@@ -1064,7 +1181,8 @@ function removePlayer(room: Room, uid?: string) {
     if (idx < 0) idx = wasIdx % room.players.length;
     room.turnIdx = idx;
   }
-  if (room.status === "playing") onPlayerLeftMidGame(room, leavingWasTurn, uid);
+  if (room.tb) tbPlayerLeft(room, uid);
+  else if (room.status === "playing") onPlayerLeftMidGame(room, leavingWasTurn, uid);
   else broadcast(room);
 }
 
@@ -1082,6 +1200,7 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean, leftId?: strin
   };
   switch (room.game) {
     case "rps": {
+      if (room.players.length < 2) return soloWin();
       const alive = room.players.filter((p) => p.alive);
       if (alive.length <= 1) return resolveRps(room);
       if (alive.every((p) => p.choice)) return resolveRps(room);
@@ -1196,7 +1315,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined; room.cd = undefined; room.uno = undefined; room.sc = undefined; room.tally = {}; room.tallyNames = {}; room.standings = undefined; room.results = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined; room.cd = undefined; room.uno = undefined; room.sc = undefined; room.tally = {}; room.tallyNames = {}; room.quitters = {}; room.tb = undefined; room.standings = undefined; room.results = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1290,7 +1409,7 @@ function cardsWin(room: Room, winnerId: string, via: "deck" | "discard") {
     } else {
       if (loser) setMsg(room, "cardsDiscardWinFrom", { name: winner.name, loser: loser.name }, `${winner.name} matched ${loser.name}'s discard and wins! 🏆`);
       else setMsg(room, "cardsDiscardWin", { name: winner.name }, `${winner.name} matched the discard and wins! 🏆`);
-      if (loser && loser.id !== winnerId) rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" });
+      for (const p of room.players) if (p.id !== winnerId) rows.push({ userId: p.id, name: p.name, score: p.id === loser?.id ? 0 : 1, result: (p.id === loser?.id ? "lose" : "win") as "win" | "lose" });
     }
     broadcast(room);
     bumpSeries(room, winnerId);
@@ -1428,8 +1547,8 @@ function diceTimeout(room: Room) {
     else setMsg(room, "diceTimeoutDone", { name: p.name }, `${p.name} ran out of time and loses! 🍻`);
     broadcast(room);
     bumpSeries(room, winnerId);
-    const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [{ userId: loserId, name: p.name, score: 0, result: "lose" }];
-    if (winner && winner.id !== loserId) rows.push({ userId: winner.id, name: winner.name, score: 1, result: "win" });
+    const rows = room.players.map((x) => ({ userId: x.id, name: x.name, score: x.id === loserId ? 0 : 1, result: (x.id === loserId ? "lose" : "win") as "win" | "lose" }));
+    if (!rows.some((r) => r.userId === loserId)) rows.push({ userId: loserId, name: p.name, score: 0, result: "lose" });
     saveScores(room, rows);
     scheduleCleanup(room);
   }, 5000);
@@ -1498,9 +1617,8 @@ function resolveDiceCatch(room: Room, challengerId: string) {
     else setMsg(room, "diceDone", { name: loser?.name || "" }, `${loser?.name} loses! 🍻`);
     broadcast(room);
     bumpSeries(room, winnerId);
-    const rows: { userId: string; name: string; score: number; result: "win" | "lose" }[] = [];
-    if (winner) rows.push({ userId: winner.id, name: winner.name, score: 1, result: "win" });
-    if (loser && loser.id !== winnerId) rows.push({ userId: loser.id, name: loser.name, score: 0, result: "lose" });
+    // The loser loses; everyone else wins.
+    const rows = room.players.map((x) => ({ userId: x.id, name: x.name, score: x.id === loser?.id ? 0 : 1, result: (x.id === loser?.id ? "lose" : "win") as "win" | "lose" }));
     saveScores(room, rows);
     scheduleCleanup(room);
   }, 5000);
@@ -1636,7 +1754,7 @@ function ridingFlip(room: Room, uid: string, tileId: number, auto = false): bool
     room.timer = setTimeout(async () => {
       room.status = "done"; setMsg(room, "ridingLoses", { name: p.name }, `${p.name} loses!`);
       broadcast(room);
-      await saveScores(room, [{ userId: uid, name: p.name, score: 0, result: "lose" }]);
+      await saveScores(room, room.players.map((x) => ({ userId: x.id, name: x.name, score: x.id === uid ? 0 : 1, result: (x.id === uid ? "lose" : "win") as "win" | "lose" })));
       scheduleCleanup(room);
     }, 4500);
     return true;
@@ -2691,7 +2809,7 @@ export function registerGameRoutes(app: Express) {
     const room = await getRoom(req.params.code);
     if (!room) return res.status(404).json({ message: tr(req, { en: "Room not found", zh: "找不到房间", id: "Room tidak ditemukan" }) });
     if (getUserId(req) !== room.hostId) return res.status(403).json({ message: tr(req, { en: "Only the host can end the game.", zh: "只有房主可以结束游戏。", id: "Hanya host yang bisa mengakhiri permainan." }) });
-    if (room.status !== "playing" || !CONTINUOUS.has(room.game)) return res.status(400).json({ message: tr(req, { en: "This game can't be ended now.", zh: "现在不能结束这个游戏。", id: "Permainan ini belum bisa diakhiri." }) });
+    if ((room.status !== "playing" && room.status !== "reveal") || room.tb || !CONTINUOUS.has(room.game)) return res.status(400).json({ message: tr(req, { en: "This game can't be ended now.", zh: "现在不能结束这个游戏。", id: "Permainan ini belum bisa diakhiri." }) });
     if (!Object.values(room.tally || {}).some((x) => x.w + x.l > 0)) return res.status(400).json({ message: tr(req, { en: "Play at least one round first.", zh: "请至少先玩一轮。", id: "Mainkan setidaknya satu ronde dulu." }) });
     finishContinuous(room);
     res.json({ ok: true });
@@ -2714,6 +2832,10 @@ export function registerGameRoutes(app: Express) {
     const p = room.players.find((x) => x.id === getUserId(req));
     if (!p) return res.status(403).json({ message: tr(req, { en: "You're not in this room.", zh: "你不在这个房间。", id: "Kamu tidak ada di room ini." }) });
     if (room.status !== "playing") return res.json({ ok: false });
+    if (room.tb) {
+      const err = req.body?.act === "tb" ? tbPick(room, getUserId(req)!, String(req.body?.choice || "")) : "Wait…";
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
+    }
     if (room.game === "wheel") {
       if (req.body?.act === "spin") wheelSpin(room, getUserId(req)!);
       return res.json({ ok: true });
