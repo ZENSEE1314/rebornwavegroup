@@ -273,6 +273,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.game.wheel': { en: "Spin the Wheel", zh: "转转盘", id: "Putar Roda" },
   'admin.game.riding': { en: "Red Riding Hood", zh: "小红帽", id: "Si Tudung Merah" },
   'admin.game.timer': { en: "Stop the Clock", zh: "停表挑战", id: "Hentikan Waktu" },
+  'admin.game.inbetween': { en: "In Between", zh: "射龙门", id: "Di Antara" },
+  'admin.game.updown': { en: "Up or Down", zh: "大还是小", id: "Naik atau Turun" },
   'admin.game.789': { en: "789 Dice", zh: "789 骰子", id: "Dadu 789" },
   'admin.game.stack': { en: "Tower Stack", zh: "叠高塔", id: "Susun Menara" },
   'admin.game.number': { en: "Guess the Number", zh: "猜数字", id: "Tebak Angka" },

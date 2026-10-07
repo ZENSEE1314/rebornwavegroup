@@ -12,7 +12,7 @@ import { awardPetCoins, COINS_PER_PLAY, COINS_PER_WIN, COINS_NUMBER_CRACK } from
 import { tr, type Tri } from "./i18n";
 
 type Choice = "rock" | "paper" | "scissors";
-type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw";
+type GameKind = "rps" | "tap" | "cards" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "inbetween" | "updown";
 interface Card { id: string; v: string; s: string; }
 interface Bid { face: number; qty: number; by: string; strike?: boolean }
 interface Player { id: string; name: string; choice?: Choice | null; alive: boolean; taps: number; connected: boolean; hand?: Card[]; dice?: number[]; stopMs?: number | null; stackHeight?: number; }
@@ -48,6 +48,8 @@ interface Room {
   dir?: number; cupUnits?: number; lastRoll?: any; chooseFor?: string | null;
   // stack (tower stacking) only
   stackWinners?: string[];
+  // inbetween / updown (card drinking games) only
+  cd?: CdState;
   // draw (Draw & Guess) only
   dg?: { word: string; category: string; drawer: string; strokes: { id: number; c: string; w: number; p: number[] }[]; feed: { id: string; name: string; text: string }[]; reveal: number[]; lastGuess: Record<string, number>; startedAt: number; winner?: string | null };
   // bridge (Glass Bridge) only
@@ -112,6 +114,8 @@ const inThisSpace = (room: Room) => (room.space ?? DEFAULT_COMPANY_SLUG) === hom
 const MAX_PLAYERS = 20;
 const CARDS_MAX = 5;
 const MEMORY_MAX = 5;
+// Most players a room of this game takes.
+const roomCap = (g: GameKind) => (g === "cards" ? CARDS_MAX : g === "poker3" ? 8 : g === "memory" ? MEMORY_MAX : g === "inbetween" || g === "updown" ? CD_MAX : MAX_PLAYERS);
 const RPS_SECONDS = 20;
 const TAP_SECONDS = 30;
 
@@ -148,6 +152,7 @@ function view(room: Room, forUserId?: string) {
     ...(room.game === "memory" ? { memory: memView(room) } : {}),
     ...(room.game === "bridge" ? { bridge: gbView(room) } : {}),
     ...(room.game === "draw" ? { draw: dgView(room, forUserId) } : {}),
+    ...(room.game === "inbetween" || room.game === "updown" ? { cd: cdView(room) } : {}),
   };
 }
 
@@ -201,6 +206,7 @@ function resumeRoom(room: Room) {
         return armMem(room);
       }
       case "789": return arm789(room);
+      case "inbetween": case "updown": return armCd(room);
       case "stack": return armStack(room);
       case "cards": return armCardTimer(room);
       case "dice": return armDiceTimer(room);
@@ -534,6 +540,147 @@ function sevenView(room: Room) {
   };
 }
 
+// ── In Between + Up or Down (card drinking games, up to 10 players) ───────────
+// One 52-card deck, A = 1 … K = 13. In Between: two cards lie open; the turn
+// player calls INSIDE (the next card lands strictly between them) or OUTSIDE.
+// Up or Down: one card lies open; call UP (higher) or DOWN (lower). A wrong call
+// = drink 1 cup and call again; the same number as an open card = drink DOUBLE
+// and call again. A right call passes the turn on. In Between: the drawer then
+// puts the drawn card on the left or right for the next call; Up or Down: the
+// drawn card becomes the open card. When the deck runs out a new deck (new game)
+// starts by itself; the game runs until only one player is left.
+const CD_MAX = 10;
+const CD_CALL_SECONDS = 35, CD_PLACE_SECONDS = 20;
+interface CdCard { id: string; r: number; s: string }
+type CdCall = "in" | "out" | "up" | "down";
+interface CdState {
+  deck: CdCard[]; left?: CdCard | null; right?: CdCard | null; cur?: CdCard | null; drawn?: CdCard | null;
+  phase: "call" | "place"; deckNo: number; drinks: Record<string, number>;
+  last?: { by: string; name: string; call: CdCall; card: CdCard; result: "right" | "wrong" | "same"; cups: number } | null;
+}
+const cdLabel = (r: number) => (r === 1 ? "A" : r === 11 ? "J" : r === 12 ? "Q" : r === 13 ? "K" : String(r));
+const cdName = (c: CdCard) => `${cdLabel(c.r)}${c.s}`;
+const CD_CALL_KEY: Record<CdCall, string> = { in: "gm.cd.in", out: "gm.cd.out", up: "gm.cd.up", down: "gm.cd.down" };
+function cdDeck(): CdCard[] {
+  const d: CdCard[] = [];
+  for (let r = 1; r <= 13; r++) for (const s of CARD_SUITS) d.push({ id: `${r}${s}-${Math.random().toString(36).slice(2, 7)}`, r, s });
+  for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+  return d;
+}
+const cdTurn = (room: Room) => room.players[room.turnIdx ?? 0];
+const cdNext = (room: Room) => { room.turnIdx = ((room.turnIdx ?? 0) + 1) % room.players.length; };
+// A fresh deck = a new game: new open card(s), the turn stays where it is.
+function cdNewDeck(room: Room) {
+  const cd = room.cd!;
+  cd.deck = cdDeck(); cd.deckNo += 1; cd.drawn = null; cd.phase = "call";
+  if (room.game === "inbetween") { cd.left = cd.deck.pop()!; cd.right = cd.deck.pop()!; cd.cur = null; }
+  else { cd.cur = cd.deck.pop()!; cd.left = cd.right = null; }
+}
+function armCd(room: Room) {
+  clearTimers(room);
+  const secs = room.cd?.phase === "place" ? CD_PLACE_SECONDS : CD_CALL_SECONDS;
+  room.deadline = Date.now() + secs * 1000 + 300;
+  room.timer = setTimeout(() => cdTimeout(room), secs * 1000 + 300);
+}
+function startCd(room: Room) {
+  clearTimers(room);
+  room.status = "playing";
+  room.cd = { deck: [], deckNo: 0, drinks: {}, phase: "call", last: null };
+  cdNewDeck(room);
+  room.turnIdx = Math.floor(Math.random() * room.players.length);
+  const name = cdTurn(room).name;
+  if (room.game === "inbetween") setMsg(room, "ibStart", { name }, `${name} starts — inside or outside? 🃏`);
+  else setMsg(room, "udStart", { name }, `${name} starts — up or down? 🃏`);
+  armCd(room);
+  broadcast(room);
+}
+function cdTimeout(room: Room) {
+  if (room.status !== "playing" || !room.cd) return;
+  const p = cdTurn(room); if (!p) return;
+  if (room.cd.phase === "place") cdPlace(room, p.id, "left");
+  else cdCall(room, p.id, room.game === "inbetween" ? (Math.random() < 0.5 ? "in" : "out") : (Math.random() < 0.5 ? "up" : "down"));
+}
+function cdCall(room: Room, uid: string, call: CdCall): string | null {
+  const cd = room.cd;
+  if (room.status !== "playing" || !cd) return "Not playing";
+  if (cdTurn(room)?.id !== uid) return "Not your turn";
+  if (cd.phase !== "call") return "Not now";
+  const ok = room.game === "inbetween" ? call === "in" || call === "out" : call === "up" || call === "down";
+  if (!ok) return "Unknown action";
+  if (!cd.deck.length) cdNewDeck(room); // safety: never draw from an empty deck
+  const c = cd.deck.pop()!;
+  const p = cdTurn(room);
+  let result: "right" | "wrong" | "same";
+  if (room.game === "inbetween") {
+    const a = cd.left!.r, b = cd.right!.r, lo = Math.min(a, b), hi = Math.max(a, b);
+    if (c.r === a || c.r === b) result = "same";
+    else result = (call === "in") === (c.r > lo && c.r < hi) ? "right" : "wrong";
+  } else {
+    if (c.r === cd.cur!.r) result = "same";
+    else result = (call === "up") === (c.r > cd.cur!.r) ? "right" : "wrong";
+  }
+  const cups = result === "same" ? 2 : result === "wrong" ? 1 : 0;
+  if (cups) cd.drinks[uid] = (cd.drinks[uid] || 0) + cups;
+  cd.last = { by: uid, name: p.name, call, card: c, result, cups };
+  const v = { name: p.name, call: CD_CALL_KEY[call], card: cdName(c) };
+  if (room.game === "inbetween") {
+    // The drawer puts the card on the left or right for the next call.
+    cd.drawn = c; cd.phase = "place";
+    if (result === "right") setMsg(room, "ibRight", v, `✅ ${p.name} called ${call} — ${v.card}! Now put the card left or right.`);
+    else if (result === "wrong") setMsg(room, "ibWrong", v, `❌ ${p.name} called ${call} — ${v.card}. Drink 1 cup 🍺! Put the card left or right, then call again.`);
+    else setMsg(room, "ibSame", v, `💥 ${v.card} — same number! ${p.name} drinks DOUBLE 🍺🍺. Put the card left or right, then call again.`);
+  } else {
+    cd.cur = c;
+    if (result === "right") { cdNext(room); const next = cdTurn(room).name; setMsg(room, "udRight", { ...v, next }, `✅ ${p.name} called ${call} — ${v.card}! ${next}, up or down?`); }
+    else if (result === "wrong") setMsg(room, "udWrong", v, `❌ ${p.name} called ${call} — ${v.card}. Drink 1 cup 🍺 and call again!`);
+    else setMsg(room, "udSame", v, `💥 Same number ${v.card}! ${p.name} drinks DOUBLE 🍺🍺 and calls again!`);
+    if (!cd.deck.length) { cdNewDeck(room); const name = cdTurn(room).name; setMsg(room, "udNewDeck", { name }, `🔄 The deck is finished — new game! ${name}, up or down?`); }
+  }
+  armCd(room);
+  broadcast(room);
+  return null;
+}
+function cdPlace(room: Room, uid: string, side: string): string | null {
+  const cd = room.cd;
+  if (room.status !== "playing" || !cd || room.game !== "inbetween") return "Not playing";
+  if (cdTurn(room)?.id !== uid) return "Not your turn";
+  if (cd.phase !== "place" || !cd.drawn) return "Not now";
+  if (side !== "left" && side !== "right") return "Pick left or right";
+  if (side === "left") cd.left = cd.drawn; else cd.right = cd.drawn;
+  cd.drawn = null; cd.phase = "call";
+  const won = cd.last?.result === "right";
+  if (won) cdNext(room);
+  const name = cdTurn(room).name;
+  if (!cd.deck.length) { cdNewDeck(room); setMsg(room, "ibNewDeck", { name }, `🔄 The deck is finished — new game! ${name}, inside or outside?`); }
+  else if (won) setMsg(room, "ibTurn", { name }, `${name}'s turn — inside or outside?`);
+  else setMsg(room, "ibAgain", { name }, `${name}, call again — inside or outside?`);
+  armCd(room);
+  broadcast(room);
+  return null;
+}
+// A player left mid-game: hand the turn on with a clean state.
+function cdPlayerLeft(room: Room, leavingWasTurn: boolean) {
+  const cd = room.cd; if (!cd) return;
+  if (!leavingWasTurn) return;
+  if (cd.phase === "place" && cd.drawn) { cd.left = cd.drawn; cd.drawn = null; } // their card goes on the left
+  cd.phase = "call";
+  if (!cd.deck.length) cdNewDeck(room);
+  const name = cdTurn(room).name;
+  if (room.game === "inbetween") setMsg(room, "ibTurn", { name }, `${name}'s turn — inside or outside?`);
+  else setMsg(room, "udTurn", { name }, `${name}'s turn — up or down?`);
+  armCd(room);
+}
+function cdView(room: Room) {
+  const cd = room.cd; if (!cd) return null;
+  const card = (c?: CdCard | null) => (c ? { r: c.r, s: c.s, label: cdLabel(c.r) } : null);
+  return {
+    turnId: cdTurn(room)?.id, phase: cd.phase, deckLeft: cd.deck.length, deckNo: cd.deckNo,
+    left: card(cd.left), right: card(cd.right), cur: card(cd.cur), drawn: card(cd.drawn),
+    last: cd.last ? { ...cd.last, card: card(cd.last.card) } : null,
+    drinks: cd.drinks,
+  };
+}
+
 // ── Tower Stack (shared tower, take turns) ───────────────────────────────
 // One tower for the whole room. Players take turns dropping the sliding block;
 // overhang is sliced off, and whoever misses the tower (or runs out of time)
@@ -735,6 +882,10 @@ function onPlayerLeftMidGame(room: Room, leavingWasTurn: boolean) {
       setMsg(room, "turn", { name: room.players[room.turnIdx ?? 0].name }, `${room.players[room.turnIdx ?? 0].name}'s turn`);
       return broadcast(room);
     }
+    case "inbetween": case "updown":
+      if (room.players.length < 2) return soloWin();
+      cdPlayerLeft(room, leavingWasTurn);
+      return broadcast(room);
     case "stack":
       if (room.players.length <= 1) return soloWin();
       if (leavingWasTurn) return armStack(room);
@@ -763,7 +914,7 @@ function resetRoom(room: Room) {
   room.wheelResult = null; room.wheelSpun = []; room.tiles = undefined; room.flippedThisTurn = 0; room.wolfCounts = {}; room.ridingReveal = false;
   room.timerStart = undefined; room.timerWinners = [];
   room.dir = 1; room.cupUnits = 1; room.lastRoll = null; room.chooseFor = null;
-  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined;
+  room.stackWinners = []; room.stackTower = undefined; room.stackMove = undefined; room.pk = undefined; room.frog = undefined; room.rl = undefined; room.mem = undefined; room.gb = undefined; room.dg = undefined; room.cd = undefined;
   // A finished series resets the tally for a fresh one; mid-series keeps it.
   if (room.seriesChampionId) { room.seriesScore = {}; room.seriesChampionId = undefined; }
   for (const p of room.players) { p.choice = null; p.alive = true; p.taps = 0; p.hand = undefined; p.dice = undefined; p.stopMs = null; p.stackHeight = 0; }
@@ -1941,12 +2092,12 @@ function frogView(room: Room, forUserId?: string) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "frog", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "inbetween", "updown", "frog", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
   number: "Guessing game", rps: "Guessing game", draw: "Guessing game",
   dice: "Dice game", "789": "Dice game",
-  cards: "Card game", poker3: "Card game", memory: "Card game",
+  cards: "Card game", poker3: "Card game", memory: "Card game", inbetween: "Card game", updown: "Card game",
   tap: "Who's the fastest", rlgl: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
   wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game", bridge: "Lucky game",
 };
@@ -2159,7 +2310,7 @@ export function registerGameRoutes(app: Express) {
       .map((r) => ({
         code: r.code, game: r.game,
         hostName: r.players.find((p) => p.id === r.hostId)?.name || tr(req, { en: "Host", zh: "房主", id: "Host" }),
-        players: r.players.length, max: r.game === "cards" ? CARDS_MAX : r.game === "poker3" ? 8 : r.game === "memory" ? MEMORY_MAX : MAX_PLAYERS,
+        players: r.players.length, max: roomCap(r.game),
         hasPassword: !!r.password, createdAt: r.createdAt,
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -2169,7 +2320,7 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw"].includes(req.body?.game) ? req.body.game : "rps";
+    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw", "inbetween", "updown"].includes(req.body?.game) ? req.body.game : "rps";
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: tr(req, { en: "That game isn't available today.", zh: "该游戏今天未开放。", id: "Permainan itu tidak tersedia hari ini." }) });
@@ -2210,7 +2361,7 @@ export function registerGameRoutes(app: Express) {
     if (existing) return res.json({ code: room.code });
     if (room.status !== "lobby") return res.status(400).json({ message: tr(req, { en: "This game has already started.", zh: "游戏已经开始了。", id: "Permainan ini sudah dimulai." }) });
     if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: tr(req, { en: "Wrong room password.", zh: "房间密码错误。", id: "Kata sandi room salah." }) });
-    const cap = room.game === "cards" ? CARDS_MAX : room.game === "poker3" ? 8 : room.game === "memory" ? MEMORY_MAX : MAX_PLAYERS;
+    const cap = roomCap(room.game);
     if (room.players.length >= cap) return res.status(400).json({ message: tr(req, { en: "Room is full ({n} players).", zh: "房间已满（{n} 人）。", id: "Room penuh ({n} pemain)." }, { n: cap }) });
     room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
     broadcast(room);
@@ -2238,6 +2389,7 @@ export function registerGameRoutes(app: Express) {
     else if (room.game === "riding") startRiding(room);
     else if (room.game === "timer") startTimer(room);
     else if (room.game === "789") start789(room);
+    else if (room.game === "inbetween" || room.game === "updown") startCd(room);
     else if (room.game === "stack") startStack(room);
     else startTap(room);
     res.json({ ok: true });
@@ -2273,6 +2425,11 @@ export function registerGameRoutes(app: Express) {
       if (req.body?.act === "roll") seven789Roll(room, uid);
       else if (req.body?.act === "choose") seven789Choose(room, uid, String(req.body?.targetId));
       return res.json({ ok: true });
+    }
+    if (room.game === "inbetween" || room.game === "updown") {
+      const uid = getUserId(req)!;
+      const err = req.body?.act === "call" ? cdCall(room, uid, String(req.body?.call) as CdCall) : req.body?.act === "place" ? cdPlace(room, uid, String(req.body?.side)) : "Unknown action";
+      return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "stack") {
       if (req.body?.act === "drop") stackDrop(room, getUserId(req)!, Number(req.body?.pos ?? req.body?.left));
