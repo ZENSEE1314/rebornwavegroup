@@ -326,7 +326,7 @@ text.
 - Every winner of a game: +1 rank star and 5 pet coins (`COINS_PER_WIN`); every loser: −1 rank
   star and no coins (`COINS_PER_PLAY` = 0). `room.results` ({win, lose}) drives each player's
   RANK UP / RANK DOWN flash.
-- Never-ending party games (`CONTINUOUS`: 789, Frog, In Between, Up or Down, Uno, 6 Cups) keep a win /
+- Never-ending party games (`CONTINUOUS`: Rock Paper Scissors, 789, Frog, In Between, Up or Down, Uno, 6 Cups) keep a win /
   loss tally per player (`tallyAdd`, shown live in `ContinuousBoard`). The host ends the game
   ("End game & rank", `/rooms/:code/finish`, needs at least one played round): players are ranked by
   wins, then fewest losses — 4+ players: top 3 win (1st/2nd/3rd), the rest lose; 3 or fewer:
@@ -335,7 +335,16 @@ text.
   way, including players who left (`tallyNames`). Tally: 789 = drinking 8/9 or downing the cup is a loss, other rolls a
   win; Frog = drinkers lose, the others win each reveal; In Between / Up or Down = right call win,
   wrong / same loss; Uno = the blaster loses, everyone else wins that game; 6 Cups = filling a
-  cup is a win, drinking one a loss.
+  cup is a win, drinking one a loss; Rock Paper Scissors = each game's loser loses, the others win,
+  then a new game starts by itself after 4.5 s (`rpsNewGame`).
+- Tie on the cut-off (same wins + losses either side of the last winning place) → a rock paper
+  scissors rematch among the tied players (`startTiebreak` / `tbRound` / `tbResolve`, 20 s per
+  round, no pick = random sign; `room.tiebreak` → `TiebreakPanel`); tied players who already left
+  lose it. During a rematch only `act: "tb"` is accepted.
+- One-round games: Red Riding Hood, Liar's Dice and Card Match (a discard ends it) = everyone except
+  the loser wins; Stop the Timer = only the stopper(s) win, everyone else loses; Lucky Wheel = no
+  winner or loser (just a drinking game). A player who leaves a one-round game mid-way
+  (`room.quitters`) is counted as a loser when it ends.
 
 ## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)
 
