@@ -320,6 +320,9 @@ text.
 
 ## Game rewards (server/games.ts `saveScores`)
 
+- No "play to N wins" series any more (single / best of 3 / 5 wins removed): every room is one game
+  that keeps going (party games) or ends by its own rules (deck / round runs out); `winTarget` is 1.
+
 - Every winner of a game: +1 rank star and 5 pet coins (`COINS_PER_WIN`); every loser: −1 rank
   star and no coins (`COINS_PER_PLAY` = 0). `room.results` ({win, lose}) drives each player's
   RANK UP / RANK DOWN flash.
@@ -327,7 +330,8 @@ text.
   loss tally per player (`tallyAdd`, shown live in `ContinuousBoard`). The host ends the game
   ("End game & rank", `/rooms/:code/finish`, needs at least one played round): players are ranked by
   wins, then fewest losses — 4+ players: top 3 win (1st/2nd/3rd), the rest lose; 3 or fewer:
-  only the top player wins. When a party game is down to its last player it is ranked the same
+  only the top player wins. Red Light, Green Light: everyone who finishes wins; if nobody finishes,
+  whoever got nearest (most steps) wins and the rest lose. When a party game is down to its last player it is ranked the same
   way, including players who left (`tallyNames`). Tally: 789 = drinking 8/9 or downing the cup is a loss, other rolls a
   win; Frog = drinkers lose, the others win each reveal; In Between / Up or Down = right call win,
   wrong / same loss; Uno = the blaster loses, everyone else wins that game; 6 Cups = filling a
@@ -344,8 +348,8 @@ text.
 ## Uno (server/games.ts `uno*`, app `UnoGame`)
 
 - Card games category, 2–6 players. 3 cards each; playing one draws one. Number cards add
-  (A = 1 … 10); power cards always play: 7 reverse, J skip the next player, Q −5, K −10 (total
-  never below 0). Limit: 3 players 29, 4 → 39, +10 per extra player, 2 players 19 (`unoLimit`).
+  (A = 1 … 10); power cards always play: 7 reverse (adds nothing), J skip the next player, Q −5,
+  K −10 (the total may go below 0). Limit: 2 or 3 players 29, 4 → 39, +10 per extra player (`unoLimit`).
 - A player with no card that keeps the total at the limit or under (and no power card) BLASTS:
   drinks 1 cup and loses; after 4.5 s a new game starts with the blaster. 30 s turn timer
   (auto-plays the smallest card that fits). Messages `gm.srv.uno*`, texts `gm.uno.*`.

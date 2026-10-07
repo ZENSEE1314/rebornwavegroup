@@ -146,7 +146,7 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
   const [cat, setCat] = useState<string | null>(null);
   const [game, setGame] = useState<GK | null>(null);
   const [password, setPassword] = useState("");
-  const [winTarget, setWinTarget] = useState(1);
+  const winTarget = 1; // every game follows its own flow (no best-of-3 / 5-wins series)
   const [ridingClicks, setRidingClicks] = useState(2);
   const [facesCount, setFacesCount] = useState(16);
   const [wheelText, setWheelText] = useState("");
@@ -356,16 +356,6 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
                   <button onClick={() => setTimerMode("random")} className={`cbtn flex-1 py-2.5 text-xs ${timerMode === "random" ? "cbtn-gold" : "cbtn-dark"}`}>{t("gm.lobby.targetRandom")}</button>
                 </div>
               </div>
-            )}
-            {game !== "wheel" && game !== "riding" && game !== "timer" && game !== "number" && game !== "poker3" && game !== "frog" && game !== "rlgl" && game !== "memory" && game !== "bridge" && game !== "draw" && game !== "sixcup" && game !== "uno" && game !== "inbetween" && game !== "updown" && (
-            <div className="mt-3">
-              <p className="text-xs text-white/50 mb-1.5 font-bold uppercase tracking-wider">{t("gm.lobby.playTo")}</p>
-              <div className="flex gap-2">
-                {[[1, t("gm.lobby.single")], [3, t("gm.lobby.bo3")], [5, t("gm.lobby.win5")]].map(([v, l]) => (
-                  <button key={v} onClick={() => setWinTarget(v as number)} className={`cbtn flex-1 py-2.5 text-xs ${winTarget === v ? "cbtn-gold" : "cbtn-dark"}`}>{l}</button>
-                ))}
-              </div>
-            </div>
             )}
             {game === "number" && <p className="mt-3 text-[11px] text-white/50">{t("gm.lobby.numberNote")}</p>}
             <div className="mt-4 flex gap-2">
@@ -979,7 +969,7 @@ function UnoGame({ room, code, me }: any) {
     const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, { act: "play", cardId: c.id });
     if (!ok && d?.message) toast({ title: d.message, variant: "destructive" });
   };
-  const pct = u.limit ? Math.min(100, Math.round((u.total / u.limit) * 100)) : 0;
+  const pct = u.limit ? Math.max(0, Math.min(100, Math.round((u.total / u.limit) * 100))) : 0;
   const tag = (c: any) => (c.r === 7 ? "🔄" : c.r === 11 ? "⏭" : c.r === 12 ? "−5" : c.r === 13 ? "−10" : `+${c.r}`);
   return (
     <div className="rwg-card p-5 text-center">
