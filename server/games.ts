@@ -706,9 +706,9 @@ function cdView(room: Room) {
 
 // ── Uno (count to the limit without blasting, 2–6 players) ────────────────────
 // Everyone holds 3 cards; play one and you draw one. Number cards add their value
-// to the shared total (A = 1 … 10); power cards can always be played: 7 = reverse,
+// to the shared total (A = 1 … 10); power cards can always be played: 7 = reverse (adds nothing),
 // J = skip the next player, Q = −5, K = −10. The total may not go over the limit:
-// 3 players 29, 4 players 39, +10 for each player after that (2 players 19). A
+// 2 or 3 players 29, 4 players 39, +10 for each player after that. A
 // player who can't play without going over BLASTS — drinks 1 cup and loses that
 // game; a new game starts (the blaster begins) and the party carries on.
 const UNO_MAX = 6;
@@ -719,7 +719,7 @@ interface UnoState {
   last?: { by: string; name: string; card: CdCard; effect: "add" | "reverse" | "skip" | "minus"; total: number; skipped?: string } | null;
   blast?: { by: string; name: string } | null;
 }
-const unoLimit = (n: number) => (n <= 2 ? 19 : 29 + (n - 3) * 10);
+const unoLimit = (n: number) => (n <= 3 ? 29 : 29 + (n - 3) * 10); // 2–3 players 29, then +10 each
 const unoIsPower = (c: CdCard) => c.r === 7 || c.r === 11 || c.r === 12 || c.r === 13;
 const unoValue = (c: CdCard) => (c.r === 12 ? -5 : c.r === 13 ? -10 : unoIsPower(c) ? 0 : c.r);
 const unoCanPlay = (u: UnoState, c: CdCard) => unoIsPower(c) || u.total + c.r <= u.limit;
@@ -794,7 +794,7 @@ function unoPlay(room: Room, uid: string, cardId: string): string | Tri | null {
   const c = hand[ci];
   if (!unoCanPlay(u, c)) return { en: `That goes over ${u.limit}`, zh: `这样会超过 ${u.limit}`, id: `Itu melebihi ${u.limit}` };
   hand.splice(ci, 1); hand.push(unoDraw(u));
-  u.total = Math.max(0, u.total + unoValue(c));
+  u.total += unoValue(c); // Q / K may take it below 0
   let effect: "add" | "reverse" | "skip" | "minus" = c.r === 7 ? "reverse" : c.r === 11 ? "skip" : c.r >= 12 ? "minus" : "add";
   let next: number, skipped: string | undefined;
   if (effect === "reverse") { u.dir = -u.dir; room.dir = u.dir; next = unoStep(room, idx); }
@@ -2276,16 +2276,21 @@ function finishRlgl(room: Room) {
   if (!r || room.status !== "playing") return;
   clearTimers(room);
   room.status = "done";
-  const winners = room.players.filter((p) => r.st[p.id]?.done);
-  const losers = room.players.filter((p) => !r.st[p.id]?.done);
-  room.winnerId = winners.sort((a, b) => (r.st[a.id].ms || 0) - (r.st[b.id].ms || 0))[0]?.id;
+  let winners = room.players.filter((p) => r.st[p.id]?.done);
+  // Nobody reached the finish: whoever got nearest (most steps) still wins.
+  const best = Math.max(0, ...room.players.map((p) => r.st[p.id]?.steps || 0));
+  const nearest = !winners.length && best > 0;
+  if (nearest) winners = room.players.filter((p) => (r.st[p.id]?.steps || 0) === best);
+  const losers = room.players.filter((p) => !winners.includes(p));
+  room.winnerId = winners.sort((a, b) => (r.st[a.id]?.ms || 0) - (r.st[b.id]?.ms || 0))[0]?.id;
   room.lastLoserId = losers[0]?.id;
   const ln = losers.map((p) => p.name).join(", ");
   if (!losers.length) setMsg(room, "rlDoneAll", undefined, "Everybody made it — nobody drinks! 🎉");
+  else if (nearest) { const wn = winners.map((p) => p.name).join(", "); setMsg(room, "rlDoneNearest", { names: wn, losers: ln }, `Nobody made it — ${wn} got the nearest and win! ${ln} drink 🍺`); }
   else if (winners.length) setMsg(room, "rlDoneSome", { n: winners.length, losers: ln }, `${winners.length} made it 🏁 · ${ln} drink 🍺`);
   else setMsg(room, "rlDoneNone", { losers: ln }, `Nobody made it! ${ln} drink 🍺`);
   broadcast(room);
-  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: r.st[p.id]?.steps || 0, result: (r.st[p.id]?.done ? "win" : "lose") as "win" | "lose" })));
+  saveScores(room, room.players.map((p) => ({ userId: p.id, name: p.name, score: r.st[p.id]?.steps || 0, result: (winners.includes(p) ? "win" : "lose") as "win" | "lose" })));
   scheduleCleanup(room);
 }
 function rlView(room: Room) {
@@ -2618,7 +2623,7 @@ export function registerGameRoutes(app: Express) {
       code: code4(), game, hostId: uid, password: String(req.body?.password || "").trim(), companyId, space: homeCompanySlug(),
       status: "lobby", players: [{ id: uid, name, alive: true, taps: 0, connected: true }],
       round: 1, deadline: 0, message: "Waiting for players…", msg: { k: "lobbyWait" }, eliminatedThisRound: [],
-      winTarget: Math.max(1, Math.min(10, Math.floor(Number(req.body?.winTarget) || 1))), seriesScore: {},
+      winTarget: 1, seriesScore: {}, // no series: each game keeps going or ends by its own rules
       ridingClicks: Math.max(1, Math.min(4, Math.floor(Number(req.body?.ridingClicks) || 1))),
       facesCount: Math.max(9, Math.min(36, Math.floor(Number(req.body?.facesCount) || 16))),
       wheelPrizes: Array.isArray(req.body?.wheelPrizes)
