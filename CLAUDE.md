@@ -171,7 +171,7 @@ text.
   Confirming / rejecting a booking tells the admin whether the WhatsApp went out
   (`whatsapp: sending | noPhone | offline` in the reply, shown in the toast).
 
-## Facebook Messenger + Instagram DMs (same bot as WhatsApp)
+## Facebook Messenger, Instagram DMs + Telegram (same bot as WhatsApp)
 
 - server/socialChat.ts. A Messenger / Instagram chat is a CRM contact whose `phone` is the
   chat key `fb:<page-scoped id>` / `ig:<instagram-scoped id>` — use `chatKey()` (never
@@ -192,6 +192,21 @@ text.
   facebook | instagram, no phone / email / password): the chat sends a one-tap login link
   (`/api/chat-login/:token`, single use, 30 min; *login* / *masuk* / *登录* in the chat sends
   a new one). Links are only made for those accounts.
+- **Connect with Meta** (Admin › CRM, server/metaConnect.ts): one Facebook login finds the Page
+  (+ its Instagram) and the WhatsApp Business number, saves their tokens / IDs and subscribes
+  them to our webhook; several found → the admin picks (`metaPending`). Needs the platform's
+  Meta app on the server: `META_APP_ID`, `META_APP_SECRET` (optional `META_LOGIN_CONFIG_ID`,
+  `META_OAUTH_REDIRECT`, default `<APP_BASE_URL>/api/meta/oauth/callback`). One Meta app
+  serves every company, so Meta posts all of them to the platform webhook
+  `/api/whatsapp/webhook`; each entry goes to the company whose `metaPageId` / `metaIgId` /
+  `waPhoneId` it names (`metaSpaceFor` in socialChat.ts — call `forgetMetaRoutes()` after
+  saving any of them). The hand-entered settings stay under "Enter Meta details by hand".
+- **Telegram** (a bot): chat key `tg:<chat id>`. The admin makes a bot with @BotFather and
+  pastes its token in Admin › CRM (`connectTelegram`: getMe + setWebhook to
+  `/api/telegram/webhook/<company slug | _ for the platform>` with a secret checked on every
+  call); the card shows the bot's QR (t.me/<bot>) for customers to scan. Buttons are inline
+  keyboards, posters are uploaded, no 24 h limit. Sign-up is the same as Messenger
+  (`auth_provider` telegram on *skip*).
 
 ## Events
 

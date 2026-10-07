@@ -1,6 +1,6 @@
-// Facebook Messenger + Instagram DMs (Meta Messenger Platform) for the same chat bot as
-// WhatsApp (server/whatsappBot.ts). A Messenger / Instagram chat is a CRM contact whose
-// `phone` is "fb:<page-scoped id>" / "ig:<instagram-scoped id>" — the "chat key". Every
+// Facebook Messenger + Instagram DMs (Meta Messenger Platform) and Telegram (a bot) for the
+// same chat bot as WhatsApp (server/whatsappBot.ts). Such a chat is a CRM contact whose
+// `phone` is "fb:<page-scoped id>" / "ig:<instagram-scoped id>" / "tg:<chat id>" — the "chat key". Every
 // send in the bot goes through sendWhatsApp / sendWhatsAppChoices / sendWhatsAppImage, which
 // hand a chat key to sendSocial here, so the whole conversation (sign-up, booking, songs,
 // FAQ, staff hand-off) works unchanged on all three.
@@ -14,21 +14,22 @@ import { eq, inArray, lt, and, like } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { appSettings, crmContacts } from "@shared/schema";
-import { homeCompanySlug, currentTenant } from "./tenantContext";
+import { homeCompanySlug, currentTenant, runInTenant, type TenantSpace } from "./tenantContext";
+import { listTenantSpaces } from "./tenantSpace";
 
 const GRAPH = "https://graph.facebook.com/v20.0";
 const META_KEYS = ["metaPageId", "metaPageToken"] as const;
 const CONFIG_TTL_MS = 60_000;
 const DAY_MS = 24 * 3600_000;
 // Meta's limits per message: Messenger 2000 characters, Instagram 1000; quick-reply titles 20.
-const MAX_TEXT: Record<SocialNet, number> = { fb: 2000, ig: 1000 };
+const MAX_TEXT: Record<SocialNet, number> = { fb: 2000, ig: 1000, tg: 4096 };
 const MAX_QUICK_TITLE = 20;
 const MAX_QUICK_REPLIES = 13;
 const LOGIN_LINK_TTL_MS = 30 * 60_000;
 const LOGIN_PREFIX = "chatLogin:";
 
-export type SocialNet = "fb" | "ig";
-const SOCIAL_KEY_RE = /^(fb|ig):(\d{5,})$/;
+export type SocialNet = "fb" | "ig" | "tg";
+const SOCIAL_KEY_RE = /^(fb|ig|tg):(\d{3,})$/;
 
 // "fb:123…" → { net: "fb", id: "123…" }; a phone number → null.
 export function socialOf(key: string | null | undefined): { net: SocialNet; id: string } | null {
@@ -44,7 +45,11 @@ export function chatKey(raw: string | null | undefined): string {
   return s ? `${s.net}:${s.id}` : String(raw || "").replace(/\D/g, "");
 }
 export function networkName(net: SocialNet): string {
-  return net === "ig" ? "Instagram" : "Facebook";
+  return net === "ig" ? "Instagram" : net === "tg" ? "Telegram" : "Facebook";
+}
+// users.auth_provider of an account made from that chat (it logs in with a chat link).
+export function networkProvider(net: SocialNet): string {
+  return net === "ig" ? "instagram" : net === "tg" ? "telegram" : "facebook";
 }
 // How staff see a chat: "+628…", "Facebook", "Instagram".
 export function chatLabel(key: string): string {
@@ -82,18 +87,28 @@ export async function saveMetaSettings(input: { pageId?: string; token?: string 
     await db.insert(appSettings).values({ key, value }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   }
   await loadMetaConfig(true);
+  forgetMetaRoutes();
 }
 // Asks Meta which Page (and linked Instagram account) the token belongs to.
 export async function testMeta(): Promise<{ ok: boolean; page?: string; instagram?: string; error?: string }> {
   const c = await loadMetaConfig(true);
   if (!c.token) return { ok: false, error: "missing" };
   try {
-    const r = await fetch(`${GRAPH}/${c.pageId || "me"}?fields=name,instagram_business_account{username}`, {
+    const r = await fetch(`${GRAPH}/${c.pageId || "me"}?fields=id,name,instagram_business_account{id,username}`, {
       headers: { Authorization: `Bearer ${c.token}` }, signal: AbortSignal.timeout(15_000),
     });
     const body: any = await r.json().catch(() => ({}));
     if (!r.ok) return { ok: false, error: body?.error?.message || `HTTP ${r.status}` };
-    return { ok: true, page: body.name, instagram: body.instagram_business_account?.username };
+    // Remember what the token belongs to (shown in Admin › CRM, and used to route webhooks).
+    const ig = body.instagram_business_account || {};
+    const remember: Record<string, string> = { metaPageName: body.name || "", metaIgId: ig.id ? String(ig.id) : "", metaIgUsername: ig.username || "" };
+    if (!c.pageId && body.id) remember.metaPageId = String(body.id);
+    for (const [key, value] of Object.entries(remember)) {
+      await db.insert(appSettings).values({ key, value }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+    }
+    await loadMetaConfig(true);
+    forgetMetaRoutes();
+    return { ok: true, page: body.name, instagram: ig.username };
   } catch (e) {
     return { ok: false, error: (e as Error)?.message || "network" };
   }
@@ -161,6 +176,7 @@ export interface SocialSendOptions {
 export async function sendSocial(key: string, rawText: string, opts: SocialSendOptions = {}): Promise<boolean> {
   const who = socialOf(key);
   if (!who) return false;
+  if (who.net === "tg") return sendTelegram(key, who.id, rawText, opts);
   const c = await loadMetaConfig();
   if (!c.token) { console.log(`[meta] (not configured) would send to ${key}: ${rawText.slice(0, 80)}`); return false; }
   const base = { recipient: { id: who.id }, ...(await messagingType(key, who.net, !!opts.human)) };
@@ -181,7 +197,7 @@ export async function sendSocial(key: string, rawText: string, opts: SocialSendO
 // The person's name from Meta (best effort — needs the Page's messaging permission).
 export async function socialProfileName(key: string): Promise<string | undefined> {
   const who = socialOf(key);
-  if (!who) return undefined;
+  if (!who || who.net === "tg") return undefined; // Telegram sends the name with each message
   const c = await loadMetaConfig();
   if (!c.token) return undefined;
   try {
@@ -214,7 +230,7 @@ export function socialMessagesIn(body: any): Array<{ key: string; text: string; 
 // ── One-tap login link for accounts made from a Facebook / Instagram chat ──────
 // Such an account has no phone number or email to log in with, so the chat sends a link that
 // logs the member in once (30 minutes). Only accounts the chat itself created get links.
-export const SOCIAL_AUTH_PROVIDERS = ["facebook", "instagram"];
+export const SOCIAL_AUTH_PROVIDERS = ["facebook", "instagram", "telegram"];
 
 export async function makeLoginLink(userId: string, appUrl: (path?: string) => string): Promise<string> {
   const token = randomBytes(24).toString("base64url");
@@ -247,4 +263,167 @@ export function registerChatLogin(app: Express) {
     if (!user || !SOCIAL_AUTH_PROVIDERS.includes(String(user.authProvider))) return res.redirect(appUrl("/login"));
     req.login(user as any, (err) => res.redirect(err ? appUrl("/login") : appUrl("/")));
   });
+}
+
+// ── Which company a Meta webhook call belongs to ─────────────────────────────
+// With "Connect with Meta" (server/metaConnect.ts) one Meta app serves every company, so
+// Meta posts all of them to the platform's webhook address. Each company's saved Page ID,
+// Instagram account ID and WhatsApp phone-number ID say whose message it is.
+const ROUTE_KEYS = ["metaPageId", "metaIgId", "waPhoneId"];
+const ROUTE_TTL_MS = 60_000;
+let routes: { at: number; map: Map<string, TenantSpace | null> } | null = null;
+
+export function forgetMetaRoutes() { routes = null; }
+
+async function readRouteIds(): Promise<string[]> {
+  const rows = await db.select().from(appSettings).where(inArray(appSettings.key, ROUTE_KEYS));
+  return rows.map((row) => String(row.value || "").trim()).filter(Boolean);
+}
+
+// The company whose Page / Instagram / WhatsApp number has this id: a company's data space,
+// null for the platform's own company, undefined when nobody has it (handled as the platform).
+export async function metaSpaceFor(id: string | null | undefined): Promise<TenantSpace | null | undefined> {
+  if (!id) return undefined;
+  if (!routes || Date.now() - routes.at > ROUTE_TTL_MS) {
+    const map = new Map<string, TenantSpace | null>();
+    for (const value of await readRouteIds()) map.set(value, null);
+    for (const space of await listTenantSpaces()) {
+      try { for (const value of await runInTenant(space, readRouteIds)) map.set(value, space); }
+      catch (e) { console.warn(`[meta] routes for ${space.slug}`, e); }
+    }
+    routes = { at: Date.now(), map };
+  }
+  return routes.map.get(String(id));
+}
+
+// The id that says whose a webhook entry is: the Page / Instagram account, or the WhatsApp number.
+export function metaEntryId(object: string, entry: any): string | undefined {
+  if (object === "page" || object === "instagram") return entry?.id ? String(entry.id) : undefined;
+  const value = (entry?.changes || [])[0]?.value;
+  return value?.metadata?.phone_number_id ? String(value.metadata.phone_number_id) : undefined;
+}
+
+// ── Telegram (a bot made with @BotFather) ────────────────────────────────────
+// The company's admin pastes the bot's token once in Admin › CRM: we read the bot's name and
+// point its webhook at /api/telegram/webhook/<company> with a secret, so it links itself.
+// Customers scan the bot's QR (t.me/<bot>) to start chatting. No 24-hour limit on Telegram.
+const TG_API = "https://api.telegram.org";
+const TG_KEYS = ["telegramToken", "telegramUsername", "telegramSecret"] as const;
+const PLATFORM_SPACE = "_";
+interface TgConfig { token: string; username: string; secret: string; at: number }
+const tgConfigs = new Map<string, TgConfig>();
+
+export async function loadTelegramConfig(force = false): Promise<TgConfig> {
+  const space = homeCompanySlug();
+  const cached = tgConfigs.get(space);
+  if (!force && cached && Date.now() - cached.at < CONFIG_TTL_MS) return cached;
+  const rows = await db.select().from(appSettings).where(inArray(appSettings.key, [...TG_KEYS]));
+  const saved = (key: (typeof TG_KEYS)[number]) => rows.find((row) => row.key === key)?.value?.trim() || "";
+  const config: TgConfig = { token: saved("telegramToken"), username: saved("telegramUsername"), secret: saved("telegramSecret"), at: Date.now() };
+  tgConfigs.set(space, config);
+  return config;
+}
+
+async function tgCall(token: string, method: string, payload: Record<string, unknown> | FormData): Promise<any> {
+  const isForm = payload instanceof FormData;
+  const r = await fetch(`${TG_API}/bot${token}/${method}`, {
+    method: "POST",
+    ...(isForm ? { body: payload } : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const body: any = await r.json().catch(() => ({}));
+  if (!r.ok || !body?.ok) throw new Error(body?.description || `HTTP ${r.status}`);
+  return body.result;
+}
+
+async function sendTelegram(key: string, chatId: string, rawText: string, opts: SocialSendOptions): Promise<boolean> {
+  const c = await loadTelegramConfig();
+  if (!c.token) { console.log(`[telegram] (not connected) would send to ${key}: ${rawText.slice(0, 80)}`); return false; }
+  try {
+    if (opts.image) {
+      const m = /^data:([^;]+);base64,(.+)$/.exec(opts.image);
+      if (m) { // a poster saved in the app: upload the picture itself
+        const form = new FormData();
+        form.append("chat_id", chatId);
+        form.append("photo", new Blob([Buffer.from(m[2], "base64")], { type: m[1] }), "poster.jpg");
+        await tgCall(c.token, "sendPhoto", form);
+      } else if (/^https?:\/\//.test(opts.image)) await tgCall(c.token, "sendPhoto", { chat_id: chatId, photo: opts.image });
+    }
+    const parts = chunks(plain(rawText), MAX_TEXT.tg);
+    const buttons = (opts.quickReplies || []).slice(0, MAX_QUICK_REPLIES).map((q) => [{ text: q.title, callback_data: q.id.slice(0, 64) }]);
+    for (let i = 0; i < parts.length; i++) {
+      const last = i === parts.length - 1;
+      await tgCall(c.token, "sendMessage", { chat_id: chatId, text: parts[i], ...(last && buttons.length ? { reply_markup: { inline_keyboard: buttons } } : {}) });
+    }
+    return true;
+  } catch (e) {
+    recordSendError(key, `Telegram: ${(e as Error)?.message || e}`);
+    return false;
+  }
+}
+
+// One Telegram update → the message for the bot (text, or the button they tapped).
+export function telegramMessageIn(update: any): { key: string; text: string; name?: string; msgId?: string; callbackId?: string } | null {
+  const cb = update?.callback_query;
+  const msg = cb?.message ? { chat: cb.message.chat, from: cb.from } : update?.message;
+  if (!msg?.chat || msg.chat.type !== "private") return null; // the bot answers private chats only
+  const text = String(cb?.data || update?.message?.text || "").trim();
+  if (!text) return null;
+  const from = msg.from || {};
+  // "/start" (opening the bot from its QR) is just a hello.
+  return {
+    key: `tg:${msg.chat.id}`,
+    text: /^\/start\b/.test(text) ? "hi" : text,
+    name: [from.first_name, from.last_name].filter(Boolean).join(" ") || from.username || undefined,
+    msgId: cb ? `cb${cb.id}` : update?.message?.message_id ? `tg${msg.chat.id}:${update.message.message_id}` : undefined,
+    callbackId: cb?.id,
+  };
+}
+export async function answerTelegramButton(callbackId: string) {
+  const c = await loadTelegramConfig();
+  if (c.token) await tgCall(c.token, "answerCallbackQuery", { callback_query_id: callbackId }).catch(() => {});
+}
+// Is this webhook call really from Telegram for this company's bot?
+export async function telegramSecretOk(given: string | undefined): Promise<boolean> {
+  const c = await loadTelegramConfig();
+  return Boolean(c.secret && given && given === c.secret);
+}
+
+// Admin › CRM: paste the bot token → linked. Empty token = unlink the bot.
+export async function connectTelegram(token: string, origin: string): Promise<{ ok: boolean; username?: string; error?: string }> {
+  const save = async (values: Record<string, string>) => {
+    for (const [key, value] of Object.entries(values)) {
+      await db.insert(appSettings).values({ key, value, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+    }
+    await loadTelegramConfig(true);
+  };
+  const clean = String(token || "").trim();
+  if (!clean) {
+    const old = await loadTelegramConfig(true);
+    if (old.token) await tgCall(old.token, "deleteWebhook", {}).catch(() => {});
+    await save({ telegramToken: "", telegramUsername: "", telegramSecret: "" });
+    return { ok: true };
+  }
+  try {
+    const me = await tgCall(clean, "getMe", {});
+    const secret = randomBytes(24).toString("hex");
+    const space = currentTenant()?.slug || PLATFORM_SPACE;
+    await tgCall(clean, "setWebhook", { url: `${origin}/api/telegram/webhook/${space}`, secret_token: secret, allowed_updates: ["message", "callback_query"], drop_pending_updates: true });
+    await save({ telegramToken: clean, telegramUsername: me.username || "", telegramSecret: secret });
+    return { ok: true, username: me.username };
+  } catch (e) {
+    return { ok: false, error: (e as Error)?.message || "error" };
+  }
+}
+export async function telegramStatus() {
+  const c = await loadTelegramConfig(true);
+  const link = c.username ? `https://t.me/${c.username}` : "";
+  let qr = "";
+  if (link) { try { const QRCode = (await import("qrcode")).default; qr = await QRCode.toDataURL(link, { margin: 1, width: 320 }); } catch {} }
+  return { connected: Boolean(c.token), username: c.username, link, qr };
+}
+// The company a Telegram webhook path names: "_" = the platform's own, else a company's slug.
+export async function telegramSpace(name: string): Promise<TenantSpace | null | undefined> {
+  if (name === PLATFORM_SPACE) return null;
+  return (await listTenantSpaces()).find((space) => space.slug === name);
 }

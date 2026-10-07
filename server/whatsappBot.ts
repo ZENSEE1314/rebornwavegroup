@@ -27,7 +27,7 @@ import { bridgeBranches, bridgeCompanies } from "@shared/schema";
 import { randomInt, randomUUID } from "node:crypto";
 import { localeOf, asLang, faqIn, pick } from "./i18n";
 import { parseDateInput, yesNo, weekdayInWeek, weekdayOfIso } from "./dateParse";
-import { chatKey, chatLabel, isSocialKey, socialOf, networkName, sendSocial, metaReady, socialMessagesIn, socialProfileName, makeLoginLink, registerChatLogin, SOCIAL_AUTH_PROVIDERS } from "./socialChat";
+import { chatKey, chatLabel, isSocialKey, socialOf, networkName, sendSocial, metaReady, socialMessagesIn, socialProfileName, makeLoginLink, registerChatLogin, SOCIAL_AUTH_PROVIDERS, metaSpaceFor, metaEntryId, forgetMetaRoutes, networkProvider, telegramMessageIn, answerTelegramButton, telegramSecretOk, telegramSpace } from "./socialChat";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -131,11 +131,12 @@ export async function saveWhatsAppCloudSettings(input: { phoneId?: string; token
     waAdminNumber: String(input.adminNumber ?? "").replace(/\D/g, ""),
   };
   // An empty token field means "keep the one already saved".
-  if (String(input.token ?? "").trim()) values.waToken = String(input.token).trim();
+  if (String(input.token ?? "").trim()) { values.waToken = String(input.token).trim(); values.waTokenExpires = ""; }
   for (const [key, value] of Object.entries(values)) {
     await db.insert(appSettings).values({ key, value }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
   }
   await loadWaConfig(true);
+  forgetMetaRoutes();
 }
 
 // Asks Meta which number these credentials belong to — proves they work before going live.
@@ -160,6 +161,9 @@ export async function whatsappAvailable(): Promise<boolean> {
   if (whatsappConfigured()) return true;
   try { const web = await import("./whatsappWeb"); return web.isWebConnected(); } catch { return false; }
 }
+
+// Re-read this company's WhatsApp settings now (after "Connect with Meta" saved new ones).
+export async function reloadWhatsAppConfig() { await loadWaConfig(true); }
 
 // Can we message this chat right now? WhatsApp linked / configured, or the Facebook Page connected.
 export async function chatAvailable(to: string): Promise<boolean> {
@@ -342,7 +346,7 @@ async function getOrCreateContact(phone: string, name?: string): Promise<Contact
   // A new Messenger / Instagram chat: ask Meta for the person's name.
   const shownName = name || (social ? await socialProfileName(num) : undefined);
   const [row] = await db.insert(crmContacts).values({
-    phone: num, name: shownName || null, stage: "new", source: social ? (social.net === "ig" ? "instagram" : "facebook") : "whatsapp", lastInboundAt: new Date(),
+    phone: num, name: shownName || null, stage: "new", source: social ? networkProvider(social.net) : "whatsapp", lastInboundAt: new Date(),
   }).returning();
   await notifyAdmin(`🟢 New ${social ? networkName(social.net) : "WhatsApp"} lead: ${shownName || num} (${chatLabel(num)})`);
   return row;
@@ -1578,7 +1582,7 @@ async function finishSocialSignup(c: Contact, lang: Lang, from: string, phone: s
       firstName: name.split(" ")[0],
       lastName: name.split(" ").slice(1).join(" "),
       phoneNumber: phone,
-      authProvider: phone ? "email" : social.net === "ig" ? "instagram" : "facebook",
+      authProvider: phone ? "email" : networkProvider(social.net),
     });
     const house = await settingVal("houseReferralUserId");
     await db.update(users).set({ mustChangePassword: !!phone, preferredLanguage: lang, ...(house ? { referredById: house } : {}) }).where(eq(users.id, user.id));
@@ -2161,13 +2165,11 @@ export function registerWhatsAppBot(app: Express) {
   app.get("/api/whatsapp/webhook", verifyWebhook);
   app.get("/api/whatsapp/webhook/:slug", verifyWebhook);
 
-  const receiveWebhook = async (req: Request, res: Response) => {
-    res.sendStatus(200); // ack immediately; Meta retries on non-200
-    try {
-      await inCompany(req.params.slug, async () => {
+  // One webhook call's messages, inside the company it belongs to.
+  const processWebhook = async (body: any) => {
         // Facebook Messenger ("page") and Instagram DMs ("instagram") come to the same address.
-        for (const m of socialMessagesIn(req.body)) await handleInboundText(m.key, m.text, undefined, m.msgId);
-        const entries = req.body?.object === "page" || req.body?.object === "instagram" ? [] : req.body?.entry || [];
+        for (const m of socialMessagesIn(body)) await handleInboundText(m.key, m.text, undefined, m.msgId);
+        const entries = body?.object === "page" || body?.object === "instagram" ? [] : body?.entry || [];
         for (const entry of entries) {
           for (const change of entry.changes || []) {
             const value = change.value || {};
@@ -2188,13 +2190,43 @@ export function registerWhatsAppBot(app: Express) {
             }
           }
         }
-      });
+  };
+  const receiveWebhook = async (req: Request, res: Response) => {
+    res.sendStatus(200); // ack immediately; Meta retries on non-200
+    try {
+      if (req.params.slug) { await inCompany(req.params.slug, () => processWebhook(req.body)); return; }
+      // The platform address: with "Connect with Meta" one Meta app serves every company, so
+      // each entry goes to the company whose Page / Instagram / WhatsApp number it is.
+      for (const entry of req.body?.entry || []) {
+        const one = { ...req.body, entry: [entry] };
+        const space = await metaSpaceFor(metaEntryId(String(req.body?.object || ""), entry));
+        if (space) await runInTenant(space, () => processWebhook(one));
+        else await processWebhook(one);
+      }
     } catch (e) { waError("webhook error", e); }
   };
   app.post("/api/whatsapp/webhook", receiveWebhook);
   app.post("/api/whatsapp/webhook/:slug", receiveWebhook);
-  // One-tap login links for accounts made in a Facebook / Instagram chat.
+  // One-tap login links for accounts made in a Facebook / Instagram / Telegram chat.
   registerChatLogin(app);
+
+  // Telegram: the company's bot posts here (/api/telegram/webhook/<company slug, "_" = platform>),
+  // with the secret we gave it when the admin linked the bot.
+  app.post("/api/telegram/webhook/:space", async (req: Request, res: Response) => {
+    res.sendStatus(200);
+    try {
+      const space = await telegramSpace(String(req.params.space));
+      if (space === undefined) return;
+      const run = async () => {
+        if (!(await telegramSecretOk(req.get("x-telegram-bot-api-secret-token")))) return;
+        const m = telegramMessageIn(req.body);
+        if (!m) return;
+        if (m.callbackId) void answerTelegramButton(m.callbackId);
+        await handleInboundText(m.key, m.text, m.name, m.msgId);
+      };
+      if (space) await runInTenant(space, run); else await run();
+    } catch (e) { waError("telegram webhook", e); }
+  });
 
   // Kick off the reminder scheduler (hourly). Safe no-op until WhatsApp is configured.
   startReminderScheduler();

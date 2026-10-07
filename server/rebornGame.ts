@@ -16,7 +16,8 @@ import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
-import { getMetaSettings, saveMetaSettings, testMeta } from "./socialChat";
+import { getMetaSettings, saveMetaSettings, testMeta, connectTelegram, telegramStatus } from "./socialChat";
+import { metaConnectStatus, metaConnectUrl, metaOAuthAvailable, metaPick, registerMetaConnect } from "./metaConnect";
 import { crmRecordVisit, whatsappConfigured, whatsappAvailable, chatAvailable, waDigits, runReminders, runPackageReminders, getWhatsAppCloudSettings, saveWhatsAppCloudSettings, testWhatsAppCloud } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
@@ -4244,13 +4245,35 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/whatsapp/cloud/test", requireAdmin(async (_req, res) => {
     res.json(await testWhatsAppCloud());
   }));
+  registerMetaConnect(app); // the Facebook login comes back to /api/meta/oauth/callback
+  // Telegram bot: paste the token from @BotFather once and it links itself; customers scan its QR.
+  app.get("/api/reborn/admin/telegram", requireAdmin(async (_req, res) => { res.json(await telegramStatus()); }));
+  app.post("/api/reborn/admin/telegram", requireAdmin(async (req, res) => {
+    const out = await connectTelegram(String(req.body?.token || ""), `https://${req.hostname}`);
+    if (!out.ok) return res.status(400).json({ message: tr(req, { en: "Telegram didn't accept this token: {e}", zh: "Telegram 不接受此令牌：{e}", id: "Telegram tidak menerima token ini: {e}" }, { e: out.error || "" }) });
+    await logAdmin(req, { targetType: "whatsapp", action: out.username ? "telegram_link" : "telegram_unlink", entityType: "whatsapp", description: out.username ? `Linked Telegram bot @${out.username}` : "Unlinked the Telegram bot" });
+    res.json({ ...(await telegramStatus()), message: out.username
+      ? tr(req, { en: "Telegram bot @{u} linked", zh: "已关联 Telegram 机器人 @{u}", id: "Bot Telegram @{u} terhubung" }, { u: out.username })
+      : tr(req, { en: "Telegram bot unlinked", zh: "已取消关联 Telegram 机器人", id: "Bot Telegram dilepas" }) });
+  }));
   // This company's Facebook Page (+ its linked Instagram account): Messenger and Instagram DMs
   // get the same bot. Same webhook address and verify token as WhatsApp (server/socialChat.ts).
   const metaView = async (req: Request) => {
     const wa = await getWhatsAppCloudSettings(`https://${req.hostname}`);
     return { ...(await getMetaSettings()), webhookUrl: wa.webhookUrl, verifyToken: wa.verifyToken };
   };
-  app.get("/api/reborn/admin/meta", requireAdmin(async (req, res) => { res.json(await metaView(req)); }));
+  app.get("/api/reborn/admin/meta", requireAdmin(async (req, res) => { res.json({ ...(await metaView(req)), connect: await metaConnectStatus() }); }));
+  // "Connect with Meta": log in to Facebook once, the Page / Instagram / WhatsApp number are found and saved (server/metaConnect.ts).
+  app.post("/api/reborn/admin/meta/connect", requireAdmin(async (req, res) => {
+    if (!metaOAuthAvailable()) return res.status(400).json({ message: tr(req, { en: "One-tap connect isn't set up on this server yet — enter the details by hand below.", zh: "此服务器尚未设置一键连接——请在下方手动填写。", id: "Hubungkan sekali ketuk belum disiapkan di server ini — isi datanya secara manual di bawah." }) });
+    res.json({ url: await metaConnectUrl(getUserId(req)!, `https://${req.hostname}`) });
+  }));
+  app.post("/api/reborn/admin/meta/pick", requireAdmin(async (req, res) => {
+    const saved = await metaPick(req.body?.pageId ? String(req.body.pageId) : undefined, req.body?.phoneId ? String(req.body.phoneId) : undefined);
+    if (!saved) return res.status(400).json({ message: tr(req, { en: "Please connect with Facebook again", zh: "请重新连接 Facebook", id: "Silakan hubungkan Facebook lagi" }) });
+    await logAdmin(req, { targetType: "whatsapp", action: "meta_connect", entityType: "whatsapp", description: `Connected Meta: ${[saved.page, saved.instagram && "@" + saved.instagram, saved.whatsapp].filter(Boolean).join(" · ")}` });
+    res.json({ ...saved, message: tr(req, { en: "Connected", zh: "已连接", id: "Terhubung" }) });
+  }));
   app.post("/api/reborn/admin/meta", requireAdmin(async (req, res) => {
     await saveMetaSettings({ pageId: req.body?.pageId, token: req.body?.token });
     await logAdmin(req, { targetType: "whatsapp", action: "meta_settings", entityType: "whatsapp", description: "Updated Facebook Messenger / Instagram settings" });

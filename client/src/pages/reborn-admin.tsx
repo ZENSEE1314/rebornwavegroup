@@ -2683,10 +2683,117 @@ function MetaChatCard() {
   );
 }
 
-// "Facebook" / "Instagram" for a Messenger / Instagram chat, else the phone number.
-function chatWhere(phone: string): { label: string; social: boolean } {
-  const m = /^(fb|ig):/.exec(String(phone || ""));
-  return m ? { label: m[1] === "ig" ? "Instagram" : "Facebook", social: true } : { label: `+${String(phone || "").replace(/\D/g, "")}`, social: false };
+// "Facebook" / "Instagram" / "Telegram" for those chats, else the phone number.
+function chatWhere(phone: string): { label: string; social: boolean; net?: "fb" | "ig" | "tg" } {
+  const m = /^(fb|ig|tg):/.exec(String(phone || ""));
+  if (!m) return { label: `+${String(phone || "").replace(/\D/g, "")}`, social: false };
+  const net = m[1] as "fb" | "ig" | "tg";
+  return { label: net === "ig" ? "Instagram" : net === "tg" ? "Telegram" : "Facebook", social: true, net };
+}
+
+// "Connect with Meta": one Facebook login finds and saves the Page (Messenger), its Instagram
+// and the WhatsApp Business number, and links them to the bot (server/metaConnect.ts).
+function ConnectMetaCard() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const META = "/api/reborn/admin/meta";
+  const { data } = useQuery<any>({ queryKey: [META], queryFn: () => apiRequest("GET", META).then((r) => r.json()) });
+  const info = data?.connect;
+  const [pageId, setPageId] = useState("");
+  const [phoneId, setPhoneId] = useState("");
+  // Back from the Facebook window: ?meta=ok | pick | error (&why=…).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const result = q.get("meta");
+    if (!result) return;
+    if (result === "ok") toast({ title: t("admin.mc.done") });
+    else if (result === "pick") toast({ title: t("admin.mc.pickToast") });
+    else { const why = q.get("why") || ""; toast({ title: t("admin.mc.failed"), description: ["expired", "cancelled", "noAssets"].includes(why) ? t(`admin.mc.why.${why}`) : why || undefined, variant: "destructive" }); }
+    q.delete("meta"); q.delete("why");
+    window.history.replaceState(null, "", `${window.location.pathname}?${q}`);
+  }, []);
+  useEffect(() => { if (info?.pending) { setPageId(info.pending.pages[0]?.id || ""); setPhoneId(info.pending.numbers[0]?.id || ""); } }, [!!info?.pending]);
+  const connect = useMutation({
+    mutationFn: () => apiRequest("POST", `${META}/connect`, {}).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { window.location.href = d.url; },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: String(x.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  const pick = useMutation({
+    mutationFn: () => apiRequest("POST", `${META}/pick`, { pageId, phoneId }).then((r) => r.json()),
+    onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: [META] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/whatsapp/cloud"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/whatsapp/status"] }); },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
+  });
+  if (!info) return null;
+  const select = "mt-1 w-full rounded-lg bg-black/30 border border-white/15 px-3 py-2 text-sm text-white";
+  const row = (ok: boolean, label: string, value: string) => (
+    <p className="text-xs"><span className={ok ? "text-emerald-300" : "text-white/35"}>{ok ? "✓" : "○"}</span> {label}: <b className={ok ? "text-white" : "text-white/40"}>{ok ? value : t("admin.mc.notYet")}</b></p>
+  );
+  return (
+    <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4">
+      <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-sky-300" /> {t("admin.mc.title")}</p>
+      <p className="text-[11px] text-white/55 mt-1">{t("admin.mc.hint")}</p>
+      <div className="mt-2 space-y-0.5">
+        {row(!!info.pageName, "Messenger", info.pageName)}
+        {row(!!info.igUsername, "Instagram", `@${info.igUsername}`)}
+        {row(!!info.waNumber, "WhatsApp", info.waNumber)}
+      </div>
+      {info.waTokenExpires && <p className="text-[11px] text-amber-300 mt-1">{t("admin.mc.expires", { d: new Date(info.waTokenExpires).toLocaleDateString(localeTag()) })}</p>}
+      {info.pending && (
+        <div className="mt-3 rounded-xl bg-black/25 p-3">
+          <p className="text-xs font-bold">{t("admin.mc.pickTitle")}</p>
+          {info.pending.pages.length > 0 && <label className="mt-2 block text-[11px] text-white/60">{t("admin.mc.page")}<select className={select} value={pageId} onChange={(e) => setPageId(e.target.value)}>{info.pending.pages.map((p: any) => <option key={p.id} value={p.id}>{p.name}{p.instagram ? ` · @${p.instagram}` : ""}</option>)}<option value="">{t("admin.mc.none")}</option></select></label>}
+          {info.pending.numbers.length > 0 && <label className="mt-2 block text-[11px] text-white/60">{t("admin.mc.number")}<select className={select} value={phoneId} onChange={(e) => setPhoneId(e.target.value)}>{info.pending.numbers.map((n: any) => <option key={n.id} value={n.id}>{n.display}{n.name ? ` · ${n.name}` : ""}</option>)}<option value="">{t("admin.mc.none")}</option></select></label>}
+          <button onClick={() => pick.mutate()} disabled={pick.isPending} className="mt-3 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-black disabled:opacity-60">{t("admin.mc.use")}</button>
+        </div>
+      )}
+      {info.oauth
+        ? <button onClick={() => connect.mutate()} disabled={connect.isPending} className="mt-3 px-4 py-2 rounded-lg text-sm font-bold bg-[#1877F2] text-white inline-flex items-center gap-2 disabled:opacity-60">f &nbsp;{info.pageName || info.waNumber ? t("admin.mc.reconnect") : t("admin.mc.button")}</button>
+        : <p className="text-[11px] text-amber-300/90 mt-3">{t("admin.mc.notSetUp")}</p>}
+    </div>
+  );
+}
+
+// Telegram: the admin makes a bot with @BotFather and pastes its token once — it links itself.
+// Customers scan the bot's QR to start chatting.
+function TelegramCard() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const TG = "/api/reborn/admin/telegram";
+  const { data } = useQuery<any>({ queryKey: [TG], queryFn: () => apiRequest("GET", TG).then((r) => r.json()) });
+  const [token, setToken] = useState("");
+  const save = useMutation({
+    mutationFn: (value: string) => apiRequest("POST", TG, { token: value }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { setToken(""); toast({ title: d.message }); qc.setQueryData([TG], d); },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: String(x.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  const field = "mt-1 w-full rounded-lg bg-black/30 border border-white/15 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
+  return (
+    <div className={`rounded-2xl border p-4 ${data?.connected ? "bg-sky-500/10 border-sky-400/30" : "bg-white/5 border-white/10"}`}>
+      <p className="text-sm font-bold flex items-center gap-2"><Send className="w-4 h-4 text-sky-300" /> {t("admin.tg.title")}</p>
+      {data?.connected ? (
+        <div className="mt-2 text-center">
+          <p className="text-sm text-sky-200 font-semibold">{t("admin.tg.linked", { u: data.username })}</p>
+          <p className="text-[11px] text-white/55 mt-1">{t("admin.tg.scanHint")}</p>
+          {data.qr && <img src={data.qr} alt="Telegram QR" className="mx-auto mt-2 rounded-xl bg-white p-2" style={{ width: 200, height: 200 }} />}
+          <a href={data.link} target="_blank" rel="noreferrer" className="mt-2 block text-xs font-bold text-sky-300 break-all">{data.link}</a>
+          <button onClick={() => { if (confirm(t("admin.tg.unlinkConfirm"))) save.mutate(""); }} disabled={save.isPending} className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 border border-red-400/40 text-red-200">{t("admin.tg.unlink")}</button>
+        </div>
+      ) : (
+        <div className="mt-2">
+          <ol className="text-[11px] text-white/60 list-decimal pl-4 space-y-0.5">
+            <li>{t("admin.tg.step1")} <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="font-bold text-sky-300">@BotFather</a></li>
+            <li>{t("admin.tg.step2")}</li>
+            <li>{t("admin.tg.step3")}</li>
+          </ol>
+          <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="mt-2 inline-flex px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-500/20 text-sky-200">{t("admin.tg.open")}</a>
+          <label className="mt-3 block text-[11px] text-white/60">{t("admin.tg.token")}<input className={field} type="password" autoComplete="off" placeholder="123456789:AA…" value={token} onChange={(e) => setToken(e.target.value)} /></label>
+          <button onClick={() => save.mutate(token)} disabled={save.isPending || !token.trim()} className="mt-3 px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-400 text-black disabled:opacity-50">{save.isPending ? t("admin.tg.linking") : t("admin.tg.link")}</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Crm() {
@@ -2719,13 +2826,21 @@ function Crm() {
   const openContact = contacts.find((c) => c.id === openId) || null;
   const stageColor: Record<string, string> = { new: "text-white/50", await_lang: "text-amber-300", await_name: "text-amber-300", await_email: "text-amber-300", await_phone: "text-amber-300", await_code: "text-amber-300", active: "text-emerald-300", member: "text-emerald-300" };
   const { data: meta } = useQuery<any>({ queryKey: ["/api/reborn/admin/meta"], queryFn: () => apiRequest("GET", "/api/reborn/admin/meta").then((r) => r.json()) });
+  const { data: tg } = useQuery<any>({ queryKey: ["/api/reborn/admin/telegram"], queryFn: () => apiRequest("GET", "/api/reborn/admin/telegram").then((r) => r.json()) });
   const live = webStatus === "connected" || wa?.configured;
   // The QR-linked number belongs to the platform's own company; other companies use Meta only.
   const { data: cloud } = useQuery<any>({ queryKey: ["/api/reborn/admin/whatsapp/cloud"], queryFn: () => apiRequest("GET", "/api/reborn/admin/whatsapp/cloud").then((r) => r.json()) });
   return (
     <div className="space-y-3">
-      <WhatsAppBusinessCard />
-      <MetaChatCard />
+      <ConnectMetaCard />
+      <TelegramCard />
+      <details className="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <summary className="text-xs font-semibold text-white/60 cursor-pointer">{t("admin.mc.manual")}</summary>
+        <div className="mt-3 space-y-3">
+          <WhatsAppBusinessCard />
+          <MetaChatCard />
+        </div>
+      </details>
       {/* QR login — link an existing WhatsApp number */}
       <div hidden={cloud?.qrLinkAvailable === false} className={`rounded-2xl border p-4 ${webStatus === "connected" ? "bg-emerald-500/10 border-emerald-400/30" : "bg-white/5 border-white/10"}`}>
         <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-300" /> {t("admin.crm.connectTitle")}</p>
@@ -2773,7 +2888,7 @@ function Crm() {
       ))}
       {contacts.length === 0 && <Empty text={t("admin.crm.empty")} />}
 
-      {openContact && <CrmChat contact={openContact} connected={chatWhere(openContact.phone).social ? !!meta?.tokenSet : webStatus === "connected" || !!wa?.configured} onClose={() => setOpenId(null)} />}
+      {openContact && <CrmChat contact={openContact} connected={chatWhere(openContact.phone).net === "tg" ? !!tg?.connected : chatWhere(openContact.phone).social ? !!meta?.tokenSet : webStatus === "connected" || !!wa?.configured} onClose={() => setOpenId(null)} />}
     </div>
   );
 }
