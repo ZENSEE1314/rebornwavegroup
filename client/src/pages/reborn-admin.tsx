@@ -494,6 +494,8 @@ const GAME_META: Record<string, { emoji: string }> = {
   "789": { emoji: "🎯" },
   stack: { emoji: "🧱" },
   number: { emoji: "🔢" },
+  inbetween: { emoji: "🎴" },
+  updown: { emoji: "↕️" },
 };
 const WDAYS = ["1", "2", "3", "4", "5", "6", "0"];
 function GamesAdmin() {

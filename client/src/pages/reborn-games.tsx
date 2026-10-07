@@ -17,6 +17,7 @@ const GAMES: Record<string, { emoji: string }> = {
   bridge: { emoji: "🌉" }, memory: { emoji: "🧠" }, rlgl: { emoji: "🚦" }, frog: { emoji: "🐸" },
   poker3: { emoji: "🂡" }, dice: { emoji: "🎲" }, wheel: { emoji: "🎡" }, riding: { emoji: "👵" },
   timer: { emoji: "⏱️" }, "789": { emoji: "🎯" }, stack: { emoji: "🧱" }, number: { emoji: "🔢" },
+  inbetween: { emoji: "🎴" }, updown: { emoji: "↕️" },
 };
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
 const gameName = (t: TFn, g: string) => (GAMES[g] ? t(`gm.game.${g}`) : g);
@@ -46,13 +47,14 @@ const GAME_GRAD: Record<string, string> = {
   wheel: "linear-gradient(135deg,#ff8ab5,#e0398b)", riding: "linear-gradient(135deg,#ff9a6b,#d1402a)",
   timer: "linear-gradient(135deg,#7affc0,#12b36a)", "789": "linear-gradient(135deg,#ffd27a,#e0398b)", poker3: "linear-gradient(135deg,#34d399,#0f766e)", frog: "linear-gradient(135deg,#86efac,#15803d)", rlgl: "linear-gradient(135deg,#34d399,#e11d48)", memory: "linear-gradient(135deg,#a78bfa,#6d28d9)", bridge: "linear-gradient(135deg,#7dd3fc,#1e3a8a)", draw: "linear-gradient(135deg,#fda4af,#7c3aed)",
   stack: "linear-gradient(135deg,#8ee0ff,#3a7bd5)", number: "linear-gradient(135deg,#9ab4ff,#4361e6)",
+  inbetween: "linear-gradient(135deg,#fbbf24,#b45309)", updown: "linear-gradient(135deg,#60a5fa,#be123c)",
 };
 // Games grouped into categories for the lobby (name = id; label from gm.cat.<key>).
 // c1/c2 = each category's neon colours in the arcade-style lobby.
 const GAME_CATEGORIES: { name: string; key: string; emoji: string; games: string[]; c1: string; c2: string }[] = [
   { name: "Guessing game", key: "guess", emoji: "🧠", games: ["number", "rps", "draw"], c1: "#b36bff", c2: "#5b2bd6" },
   { name: "Dice game", key: "dice", emoji: "🎲", games: ["dice", "789"], c1: "#29d8ff", c2: "#1463d6" },
-  { name: "Card game", key: "card", emoji: "🃏", games: ["cards", "poker3", "memory"], c1: "#ff4fa3", c2: "#b3127a" },
+  { name: "Card game", key: "card", emoji: "🃏", games: ["cards", "poker3", "memory", "inbetween", "updown"], c1: "#ff4fa3", c2: "#b3127a" },
   { name: "Who's the fastest", key: "fast", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"], c1: "#ffb020", c2: "#e8551c" },
   { name: "Lucky game", key: "lucky", emoji: "🍀", games: ["wheel", "riding", "frog", "bridge"], c1: "#3ef08a", c2: "#0e9f57" },
 ];
@@ -60,7 +62,7 @@ const GAME_CATEGORIES: { name: string; key: string; emoji: string; games: string
 const gameColors = (g: string): [string, string] => { const m = (GAME_GRAD[g] || "").match(/#[0-9a-fA-F]{6}/g) || []; return [m[0] || "#f0d787", m[1] || "#c9a84c"]; };
 
 // How-to-play lines per game: gm.rules.<game>.<n> for n = 1..count.
-const RULES: Record<string, number> = { rps: 5, tap: 4, draw: 5, bridge: 5, memory: 5, rlgl: 5, frog: 5, poker3: 6, cards: 6, dice: 6, wheel: 4, riding: 5, timer: 5, stack: 4, "789": 6, number: 5 };
+const RULES: Record<string, number> = { rps: 5, tap: 4, draw: 5, bridge: 5, memory: 5, rlgl: 5, frog: 5, poker3: 6, cards: 6, dice: 6, wheel: 4, riding: 5, timer: 5, stack: 4, "789": 6, number: 5, inbetween: 6, updown: 5 };
 
 function HowToPlay({ game, onClose }: { game: string; onClose: () => void }) {
   const { t } = useTranslation();
@@ -103,7 +105,7 @@ export default function RebornGames() {
   );
 }
 
-type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number";
+type GK = "rps" | "tap" | "cards" | "poker3" | "frog" | "rlgl" | "memory" | "bridge" | "draw" | "dice" | "wheel" | "riding" | "timer" | "789" | "stack" | "number" | "inbetween" | "updown";
 // Game leaderboard: a podium for the top 3, then a ranked list. Your row glows.
 function lbScore(t: TFn, game: string, n: number) {
   return t(game === "tap" ? "gm.lobby.scoreCoins" : game === "stack" ? "gm.lobby.scoreHigh" : n === 1 ? "gm.lobby.scoreWin" : "gm.lobby.scoreWins", { n });
@@ -481,6 +483,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "timer" && <TimerGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "789" && <SevenGame room={room} code={code} me={me} />}
       {(room.status === "playing" || room.status === "reveal" || room.status === "done") && room.game === "stack" && <StackGame room={room} code={code} me={me} />}
+      {(room.status === "playing" || room.status === "done") && (room.game === "inbetween" || room.game === "updown") && <CdGame room={room} code={code} me={me} />}
 
       {/* Every game (incl. party games with no end, like Frog and 789) can be left any time. */}
       {(room.status === "playing" || room.status === "reveal") && (
@@ -839,6 +842,103 @@ function SevenGame({ room, code, me }: any) {
         {room.players.map((p: any) => (
           <span key={p.id} className={`px-3 py-1.5 rounded-full text-sm ${p.id === s.turnId ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>
             {p.id === s.turnId && "🎲 "}{p.id === me ? t("gm.you") : p.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// In Between / Up or Down: open card(s) in the middle, the turn player calls, a
+// wrong call or a same number = drink (and call again), a right call passes the turn.
+function CdCardFace({ c, back, size = "lg", glow }: { c?: any; back?: boolean; size?: "lg" | "sm"; glow?: string }) {
+  const cls = size === "lg" ? "w-20 h-28 text-3xl" : "w-14 h-20 text-xl";
+  if (back || !c) return <div className={`${cls} rounded-xl border-2 border-white/80 shadow-lg`} style={{ background: "repeating-linear-gradient(45deg,#7c3aed 0 7px,#5b21b6 7px 14px)" }} />;
+  const red = c.s === "♥" || c.s === "♦";
+  return (
+    <div className={`${cls} rounded-xl bg-white shadow-lg flex flex-col items-center justify-center font-black ${red ? "text-red-600" : "text-slate-900"}`}
+      style={{ animation: "rwgPop .35s ease-out", boxShadow: glow ? `0 0 0 3px ${glow}, 0 0 18px ${glow}` : undefined }}>
+      <span className="leading-none">{c.label}</span><span className="leading-none">{c.s}</span>
+    </div>
+  );
+}
+function CdGame({ room, code, me }: any) {
+  const { t } = useTranslation();
+  const g = room.cd || {};
+  const ib = room.game === "inbetween";
+  const myTurn = g.turnId === me;
+  const cur = room.players.find((p: any) => p.id === g.turnId);
+  const secs = useLocalCountdown(room.secondsLeft, `${g.phase}-${g.turnId}-${g.deckLeft}`);
+  const lastKey = g.last ? `${g.last.by}-${g.last.card?.label}${g.last.card?.s}-${g.deckLeft}` : "";
+  const prevLast = useRef("");
+  useEffect(() => {
+    if (!lastKey || lastKey === prevLast.current) return;
+    prevLast.current = lastKey;
+    if (g.last.result === "right") sfx.win(); else sfx.lose();
+  }, [lastKey]);
+  const { toast } = useToast();
+  const act = async (body: any) => { sfx.flip(); const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, body); if (!ok && d?.message) toast({ title: d.message, variant: "destructive" }); };
+  const lo = ib && g.left && g.right ? Math.min(g.left.r, g.right.r) : 0, hi = ib && g.left && g.right ? Math.max(g.left.r, g.right.r) : 0;
+  const lbl = (r: number) => (r === 1 ? "A" : r === 11 ? "J" : r === 12 ? "Q" : r === 13 ? "K" : String(r));
+  const tone = g.last?.result === "right" ? "#34d399" : g.last?.result === "same" ? "#f43f5e" : "#f59e0b";
+  return (
+    <div className="rwg-card p-5 text-center">
+      <p className="text-sm text-white/80 mb-1 min-h-[2.5em]">{roomMsg(t, room)}</p>
+      <p className="text-[11px] text-white/40 mb-3">{t("gm.cd.deck", { n: g.deckLeft ?? 0, g: g.deckNo || 1 })} · ⏱ {secs}s</p>
+
+      {ib ? (
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <div><CdCardFace c={g.left} /><p className="text-[10px] text-white/40 mt-1">{t("gm.cd.left")}</p></div>
+          <div className="flex flex-col items-center">
+            {g.phase === "place" && g.drawn ? <CdCardFace c={g.drawn} size="sm" glow={tone} /> : <CdCardFace back size="sm" />}
+            <p className="text-[10px] text-white/40 mt-1">{g.phase === "place" ? t("gm.cd.drawn") : t("gm.cd.next")}</p>
+          </div>
+          <div><CdCardFace c={g.right} /><p className="text-[10px] text-white/40 mt-1">{t("gm.cd.right")}</p></div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center gap-4 mb-3">
+          <div><CdCardFace c={g.cur} glow={g.last ? tone : undefined} /><p className="text-[10px] text-white/40 mt-1">{t("gm.cd.open")}</p></div>
+          <div><CdCardFace back size="sm" /><p className="text-[10px] text-white/40 mt-1">{t("gm.cd.next")}</p></div>
+        </div>
+      )}
+
+      {ib && g.left && g.right && g.phase === "call" && (
+        <p className="text-xs text-white/55 mb-3">{hi - lo > 1 ? t("gm.cd.insideRange", { a: lbl(lo + 1), b: lbl(hi - 1) }) : t("gm.cd.noInside")} · {t("gm.cd.sameDouble", { a: lbl(lo), b: lbl(hi) })}</p>
+      )}
+      {!ib && g.cur && g.phase === "call" && <p className="text-xs text-white/55 mb-3">{t("gm.cd.sameDouble1", { a: g.cur.label })}</p>}
+
+      {g.last && (
+        <p className="mb-3 inline-block rounded-full px-3 py-1 text-xs font-bold" style={{ background: `${tone}22`, color: tone, border: `1px solid ${tone}66` }}>
+          {g.last.result === "right" ? "✅ " + t("gm.cd.safe", { name: g.last.name }) : "🍺 " + t(g.last.cups > 1 ? "gm.cd.drinksN" : "gm.cd.drinks1", { name: g.last.name, n: g.last.cups })}
+        </p>
+      )}
+
+      {myTurn && g.phase === "call" ? (
+        <div className="grid grid-cols-2 gap-3">
+          {ib ? <>
+            <button onClick={() => act({ act: "call", call: "in" })} className="cbtn cbtn-gold py-5 text-lg">🎯 {t("gm.cd.in")}</button>
+            <button onClick={() => act({ act: "call", call: "out" })} className="cbtn cbtn-dark py-5 text-lg">↔️ {t("gm.cd.out")}</button>
+          </> : <>
+            <button onClick={() => act({ act: "call", call: "up" })} className="cbtn cbtn-gold py-5 text-lg">⬆️ {t("gm.cd.up")}</button>
+            <button onClick={() => act({ act: "call", call: "down" })} className="cbtn cbtn-dark py-5 text-lg">⬇️ {t("gm.cd.down")}</button>
+          </>}
+        </div>
+      ) : myTurn && g.phase === "place" ? (
+        <div>
+          <p className="text-sm font-bold text-amber-300 mb-2">{t("gm.cd.placeAsk")}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => act({ act: "place", side: "left" })} className="cbtn cbtn-gold py-4">⬅️ {t("gm.cd.putLeft")}</button>
+            <button onClick={() => act({ act: "place", side: "right" })} className="cbtn cbtn-gold py-4">{t("gm.cd.putRight")} ➡️</button>
+          </div>
+        </div>
+      ) : room.status === "playing" ? (
+        <p className="text-white/50 text-sm py-3">{cur ? t("gm.turnOf", { name: cur.name }) + "…" : t("gm.waiting")}</p>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {room.players.map((p: any) => (
+          <span key={p.id} className={`px-3 py-1.5 rounded-full text-sm ${p.id === g.turnId ? "bg-amber-400/20 text-amber-200 border border-amber-400/40" : "bg-white/5 text-white/60"}`}>
+            {p.id === g.turnId && "🃏 "}{p.id === me ? t("gm.you") : p.name} · 🍺 {g.drinks?.[p.id] || 0}
           </span>
         ))}
       </div>

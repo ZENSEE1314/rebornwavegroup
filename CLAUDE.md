@@ -318,6 +318,19 @@ text.
   wheel, rlgl, draw, rps) go back to the lobby ("restarted", host starts again).
   Use `getRoom(code)` in routes, never `rooms.get` directly; `dropRoom` deletes.
 
+## Card drinking games: In Between + Up or Down (server/games.ts `cd*`, app `CdGame`)
+
+- Card games category, 2–10 players (`roomCap`), one 52-card deck (A = 1 … K = 13).
+- **In Between** (`inbetween`): two open cards; the turn player calls inside (strictly between)
+  or outside. **Up or Down** (`updown`): one open card; call up (higher) or down (lower).
+- Wrong call = drink 1 cup, same number as an open card = drink double; either way the same
+  player calls again until they win, then the turn passes on. In Between: after every draw the
+  drawer puts the card on the left or right (`place`), setting the next call; Up or Down: the
+  drawn card becomes the open card. Drinks are tallied per player (`cd.drinks`).
+- Deck finished → a new deck (new game) starts by itself. Players can leave any time; the game
+  ends when 1 player is left. Turn timers: 35 s to call, 20 s to place (then auto-played).
+  Room messages: `gm.srv.ib*` / `gm.srv.ud*`; texts `gm.cd.*`, rules `gm.rules.inbetween|updown.*`.
+
 ## KOS gift levels + ranking tabs
 
 - Two levels per member, 50 each (server/giftLevels.ts): **Gifter** (🎁, all
