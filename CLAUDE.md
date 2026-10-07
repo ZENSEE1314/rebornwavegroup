@@ -171,6 +171,28 @@ text.
   Confirming / rejecting a booking tells the admin whether the WhatsApp went out
   (`whatsapp: sending | noPhone | offline` in the reply, shown in the toast).
 
+## Facebook Messenger + Instagram DMs (same bot as WhatsApp)
+
+- server/socialChat.ts. A Messenger / Instagram chat is a CRM contact whose `phone` is the
+  chat key `fb:<page-scoped id>` / `ig:<instagram-scoped id>` — use `chatKey()` (never
+  `.replace(/\D/g, "")`) on a contact's phone, and `isSocialKey()` before treating it as a
+  number. `sendWhatsApp` / `sendWhatsAppChoices` / `sendWhatsAppImage` hand chat keys to
+  `sendSocial` (quick replies for buttons, `*bold*` stripped, long texts split, http image
+  URLs only), so every bot flow and `sendToMember` work on all three; `sendToMember` falls
+  back to the member's WhatsApp if Messenger refuses (Meta's 24 h window — outside it a
+  Messenger update goes as `CONFIRMED_EVENT_UPDATE`, a staff reply as `HUMAN_AGENT`).
+- Per company: Facebook Page ID + Page access token in Admin › CRM (`metaPageId` /
+  `metaPageToken` app_settings). Meta posts `object: "page" | "instagram"` to the same
+  webhook address and verify token as WhatsApp (`socialMessagesIn`).
+- Sign-up in a Messenger / Instagram chat: language → name → WhatsApp number (stage
+  `await_phone`), checked with a 4-digit code sent to that WhatsApp (`await_code`, 3 tries,
+  3 codes a day) so nobody links someone else's account by typing their number; an existing
+  account with that number is linked, else one is made with it (phone login, default
+  password). *skip* → an account from the Facebook / Instagram chat itself (`auth_provider`
+  facebook | instagram, no phone / email / password): the chat sends a one-tap login link
+  (`/api/chat-login/:token`, single use, 30 min; *login* / *masuk* / *登录* in the chat sends
+  a new one). Links are only made for those accounts.
+
 ## Events
 
 - Admin events have a date (`startDate`, optional `endDate`). The home page shows

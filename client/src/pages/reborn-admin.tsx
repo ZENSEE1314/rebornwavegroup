@@ -2640,6 +2640,55 @@ function WhatsAppBusinessCard() {
   );
 }
 
+// Facebook Page (+ its linked Instagram account): Messenger and Instagram DMs get the same
+// bot as WhatsApp, on the same webhook address. The Page token is write-only.
+function MetaChatCard() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const META = "/api/reborn/admin/meta";
+  const { data } = useQuery<any>({ queryKey: [META], queryFn: () => apiRequest("GET", META).then((r) => r.json()) });
+  const [pageId, setPageId] = useState("");
+  const [token, setToken] = useState("");
+  useEffect(() => { if (data) setPageId(data.pageId || ""); }, [data?.pageId]);
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", META, { pageId, token }).then((r) => r.json()),
+    onSuccess: (d: any) => {
+      setToken("");
+      qc.invalidateQueries({ queryKey: [META] });
+      if (d?.test?.ok) toast({ title: t("admin.meta.ok", { page: d.test.page || "", ig: d.test.instagram ? ` · Instagram @${d.test.instagram}` : "" }) });
+      else toast({ title: d?.test?.error === "missing" ? t("admin.meta.missing") : t("admin.wa.fail"), description: d?.test?.error === "missing" ? undefined : d?.test?.error, variant: "destructive" });
+    },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
+  });
+  const copy = (value: string) => { navigator.clipboard?.writeText(value).then(() => toast({ title: t("admin.wa.copied") })).catch(() => {}); };
+  const field = "mt-1 w-full rounded-lg bg-black/30 border border-white/15 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
+  return (
+    <div className="rounded-2xl border bg-white/5 border-white/10 p-4">
+      <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-sky-300" /> {t("admin.meta.title")}{data?.tokenSet && <span className="text-[10px] font-bold text-black bg-sky-300 rounded px-1.5 py-0.5">{t("admin.meta.on")}</span>}</p>
+      <p className="text-[11px] text-white/50 mt-1">{t("admin.meta.hint")}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="text-[11px] text-white/60">{t("admin.meta.pageId")}<input className={field} inputMode="numeric" value={pageId} onChange={(e) => setPageId(e.target.value)} /></label>
+        <label className="text-[11px] text-white/60">{t("admin.meta.token")}{data?.tokenSet ? ` (${t("admin.wa.tokenSaved")})` : ""}<input className={field} type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></label>
+      </div>
+      {data && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="text-[11px] text-white/60">{t("admin.meta.webhook")}<input className={field + " cursor-pointer"} readOnly value={data.webhookUrl} onClick={() => copy(data.webhookUrl)} /></label>
+          <label className="text-[11px] text-white/60">{t("admin.wa.verify")}<input className={field + " cursor-pointer"} readOnly value={data.verifyToken} onClick={() => copy(data.verifyToken)} /></label>
+        </div>
+      )}
+      <p className="text-[11px] text-white/40 mt-2">{t("admin.meta.subscribe")}</p>
+      <button onClick={() => save.mutate()} disabled={save.isPending} className="mt-3 px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-400 text-black inline-flex items-center gap-1.5 disabled:opacity-60">{t("admin.wa.save")}</button>
+    </div>
+  );
+}
+
+// "Facebook" / "Instagram" for a Messenger / Instagram chat, else the phone number.
+function chatWhere(phone: string): { label: string; social: boolean } {
+  const m = /^(fb|ig):/.exec(String(phone || ""));
+  return m ? { label: m[1] === "ig" ? "Instagram" : "Facebook", social: true } : { label: `+${String(phone || "").replace(/\D/g, "")}`, social: false };
+}
+
 function Crm() {
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -2668,13 +2717,15 @@ function Crm() {
   const contacts: any[] = data?.contacts || [];
   const [openId, setOpenId] = useState<number | null>(null);
   const openContact = contacts.find((c) => c.id === openId) || null;
-  const stageColor: Record<string, string> = { new: "text-white/50", await_lang: "text-amber-300", await_name: "text-amber-300", await_email: "text-amber-300", active: "text-emerald-300", member: "text-emerald-300" };
+  const stageColor: Record<string, string> = { new: "text-white/50", await_lang: "text-amber-300", await_name: "text-amber-300", await_email: "text-amber-300", await_phone: "text-amber-300", await_code: "text-amber-300", active: "text-emerald-300", member: "text-emerald-300" };
+  const { data: meta } = useQuery<any>({ queryKey: ["/api/reborn/admin/meta"], queryFn: () => apiRequest("GET", "/api/reborn/admin/meta").then((r) => r.json()) });
   const live = webStatus === "connected" || wa?.configured;
   // The QR-linked number belongs to the platform's own company; other companies use Meta only.
   const { data: cloud } = useQuery<any>({ queryKey: ["/api/reborn/admin/whatsapp/cloud"], queryFn: () => apiRequest("GET", "/api/reborn/admin/whatsapp/cloud").then((r) => r.json()) });
   return (
     <div className="space-y-3">
       <WhatsAppBusinessCard />
+      <MetaChatCard />
       {/* QR login — link an existing WhatsApp number */}
       <div hidden={cloud?.qrLinkAvailable === false} className={`rounded-2xl border p-4 ${webStatus === "connected" ? "bg-emerald-500/10 border-emerald-400/30" : "bg-white/5 border-white/10"}`}>
         <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-300" /> {t("admin.crm.connectTitle")}</p>
@@ -2707,7 +2758,7 @@ function Crm() {
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.crm.contacts")}</p><p className="text-base font-extrabold">{data?.count || 0}</p></div>
         <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.ov.members")}</p><p className="text-base font-extrabold text-emerald-300">{data?.stages?.member || 0}</p></div>
-        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.crm.inProgress")}</p><p className="text-base font-extrabold text-amber-300">{(data?.stages?.await_name || 0) + (data?.stages?.await_email || 0)}</p></div>
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.crm.inProgress")}</p><p className="text-base font-extrabold text-amber-300">{(data?.stages?.await_name || 0) + (data?.stages?.await_email || 0) + (data?.stages?.await_phone || 0) + (data?.stages?.await_code || 0)}</p></div>
       </div>
       <p className="text-xs text-white/40 px-1 pt-1">{t("admin.crm.tapHint")}</p>
       {contacts.map((c) => (
@@ -2715,14 +2766,14 @@ function Crm() {
           <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-black font-bold" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>{(c.name || c.phone || "?").slice(0, 1).toUpperCase()}</span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold truncate">{c.name || t("admin.crm.unknown")} <span className={`text-[11px] ${stageColor[c.stage] || "text-white/40"}`}>· {tv(t, "admin.stage." + c.stage, c.stage)}</span>{c.botPaused && <span className="ml-1.5 text-[10px] font-bold text-black bg-amber-300 rounded px-1.5 py-0.5 align-middle">🙋 {t("admin.crm.botPaused")}</span>}</span>
-            <span className="block text-[11px] text-white/40 truncate">{c.phone}{c.email ? ` · ${c.email}` : ""}{c.lastVisitAt ? ` · ${t("admin.crm.visit", { d: new Date(c.lastVisitAt).toLocaleDateString(localeTag()) })}` : ""}</span>
+            <span className="block text-[11px] text-white/40 truncate">{chatWhere(c.phone).social ? <b className="text-sky-300">{chatWhere(c.phone).label}</b> : c.phone}{c.email ? ` · ${c.email}` : ""}{c.lastVisitAt ? ` · ${t("admin.crm.visit", { d: new Date(c.lastVisitAt).toLocaleDateString(localeTag()) })}` : ""}</span>
           </span>
           <MessageCircle className="w-4 h-4 text-emerald-300 flex-shrink-0" />
         </button>
       ))}
       {contacts.length === 0 && <Empty text={t("admin.crm.empty")} />}
 
-      {openContact && <CrmChat contact={openContact} connected={webStatus === "connected" || !!wa?.configured} onClose={() => setOpenId(null)} />}
+      {openContact && <CrmChat contact={openContact} connected={chatWhere(openContact.phone).social ? !!meta?.tokenSet : webStatus === "connected" || !!wa?.configured} onClose={() => setOpenId(null)} />}
     </div>
   );
 }
@@ -2770,7 +2821,7 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
           <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-black font-bold" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>{(contact.name || contact.phone || "?").slice(0, 1).toUpperCase()}</span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold truncate">{contact.name || t("admin.crm.unknown")}</p>
-            <p className="text-[11px] text-white/40 truncate">+{String(contact.phone).replace(/\D/g, "")} · {tv(t, "admin.stage." + contact.stage, contact.stage)} · {contact.lang?.toUpperCase()}</p>
+            <p className="text-[11px] text-white/40 truncate">{chatWhere(contact.phone).label} · {tv(t, "admin.stage." + contact.stage, contact.stage)} · {contact.lang?.toUpperCase()}</p>
           </div>
           <button onClick={() => setEditing((v) => !v)} className={btnSm} title={t("admin.c.edit")}><Pencil className="w-4 h-4 text-white/70" /></button>
           <button onClick={() => { if (confirm(t("admin.crm.delConfirm", { name: contact.name || contact.phone }))) del.mutate(); }} className={btnSm} title={t("admin.c.delete")}><Trash2 className="w-4 h-4 text-red-300" /></button>

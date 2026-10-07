@@ -16,7 +16,8 @@ import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
-import { crmRecordVisit, whatsappConfigured, whatsappAvailable, waDigits, runReminders, runPackageReminders, getWhatsAppCloudSettings, saveWhatsAppCloudSettings, testWhatsAppCloud } from "./whatsappBot";
+import { getMetaSettings, saveMetaSettings, testMeta } from "./socialChat";
+import { crmRecordVisit, whatsappConfigured, whatsappAvailable, chatAvailable, waDigits, runReminders, runPackageReminders, getWhatsAppCloudSettings, saveWhatsAppCloudSettings, testWhatsAppCloud } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
@@ -4055,7 +4056,7 @@ export function registerRebornRoutes(app: Express) {
     let whatsapp: "sending" | "noPhone" | "offline" | undefined;
     if ((status === "confirmed" || status === "cancelled") && row.userId) {
       const phone = await memberWaPhone(row.userId);
-      whatsapp = !phone ? "noPhone" : (await whatsappAvailable()) ? "sending" : "offline";
+      whatsapp = !phone ? "noPhone" : (await chatAvailable(phone)) ? "sending" : "offline";
       if (whatsapp !== "sending") void import("./errorWatch").then((m) => m.recordError({ area: "booking", source: "whatsapp", method: "SEND", path: `/api/reborn/admin/bookings/${id}/status`, status: 0, message: `Booking #${id} ${status}: WhatsApp not sent (${whatsapp === "noPhone" ? "member has no phone number" : "WhatsApp is not connected"})` })).catch(() => {});
       const lang = await langForPhone(phone, row.userId);
       const when = fmtBookingWhen(row.appointmentDate, lang);
@@ -4208,7 +4209,7 @@ export function registerRebornRoutes(app: Express) {
     if (typeof b.email === "string") patch.email = b.email.trim().toLowerCase() || null;
     if (typeof b.notes === "string") patch.notes = b.notes;
     if (b.lang === "en" || b.lang === "zh" || b.lang === "id") patch.lang = b.lang;
-    if (["new", "await_lang", "await_name", "await_email", "active", "member"].includes(b.stage)) patch.stage = b.stage;
+    if (["new", "await_lang", "await_name", "await_email", "await_phone", "await_code", "active", "member"].includes(b.stage)) patch.stage = b.stage;
     if (typeof b.botPaused === "boolean") { patch.botPaused = b.botPaused; if (!b.botPaused) patch.waState = { flow: null }; }
     const [row] = await db.update(crmContacts).set(patch).where(eq(crmContacts.id, id)).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "Contact not found", zh: "找不到该联系人", id: "Kontak tidak ditemukan" }) });
@@ -4242,6 +4243,18 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.post("/api/reborn/admin/whatsapp/cloud/test", requireAdmin(async (_req, res) => {
     res.json(await testWhatsAppCloud());
+  }));
+  // This company's Facebook Page (+ its linked Instagram account): Messenger and Instagram DMs
+  // get the same bot. Same webhook address and verify token as WhatsApp (server/socialChat.ts).
+  const metaView = async (req: Request) => {
+    const wa = await getWhatsAppCloudSettings(`https://${req.hostname}`);
+    return { ...(await getMetaSettings()), webhookUrl: wa.webhookUrl, verifyToken: wa.verifyToken };
+  };
+  app.get("/api/reborn/admin/meta", requireAdmin(async (req, res) => { res.json(await metaView(req)); }));
+  app.post("/api/reborn/admin/meta", requireAdmin(async (req, res) => {
+    await saveMetaSettings({ pageId: req.body?.pageId, token: req.body?.token });
+    await logAdmin(req, { targetType: "whatsapp", action: "meta_settings", entityType: "whatsapp", description: "Updated Facebook Messenger / Instagram settings" });
+    res.json({ ...(await metaView(req)), test: await testMeta() });
   }));
   // QR login (WhatsApp Web / Linked Devices).
   app.post("/api/reborn/admin/whatsapp/web/connect", requireAdmin(async (_req, res) => {

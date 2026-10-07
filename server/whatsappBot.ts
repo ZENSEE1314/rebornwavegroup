@@ -24,9 +24,10 @@ import { defaultCompanyId } from "./tenant";
 import { currentTenant, homeCompanySlug, runInTenant } from "./tenantContext";
 import { inEveryDataSpace, listTenantSpaces } from "./tenantSpace";
 import { bridgeBranches, bridgeCompanies } from "@shared/schema";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { localeOf, asLang, faqIn, pick } from "./i18n";
 import { parseDateInput, yesNo, weekdayInWeek, weekdayOfIso } from "./dateParse";
+import { chatKey, chatLabel, isSocialKey, socialOf, networkName, sendSocial, metaReady, socialMessagesIn, socialProfileName, makeLoginLink, registerChatLogin, SOCIAL_AUTH_PROVIDERS } from "./socialChat";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -160,6 +161,11 @@ export async function whatsappAvailable(): Promise<boolean> {
   try { const web = await import("./whatsappWeb"); return web.isWebConnected(); } catch { return false; }
 }
 
+// Can we message this chat right now? WhatsApp linked / configured, or the Facebook Page connected.
+export async function chatAvailable(to: string): Promise<boolean> {
+  return isSocialKey(to) ? metaReady() : whatsappAvailable();
+}
+
 // Logs a WhatsApp bot error and records it for Admin › Errors.
 function waError(tag: string, e: unknown) {
   console.error(`[wa] ${tag}`, e);
@@ -167,7 +173,9 @@ function waError(tag: string, e: unknown) {
 }
 
 // --- Sending -------------------------------------------------------------
-export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
+// `to` is a phone number, or a Messenger / Instagram chat key ("fb:…" / "ig:…", server/socialChat.ts).
+export async function sendWhatsApp(to: string, text: string, opts: { human?: boolean } = {}): Promise<boolean> {
+  if (isSocialKey(to)) { await loadWaConfig(); return sendSocial(to, inCompanyVoice(text), { human: opts.human }); }
   const ok = await sendWhatsAppOnce(to, text);
   // Watcher (Admin › Errors): a reply that didn't go out while WhatsApp is linked.
   if (!ok && await whatsappAvailable()) void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "SEND", path: String(to).replace(/\D/g, ""), status: 0, message: `Reply not sent: ${text.slice(0, 120)}` })).catch(() => {});
@@ -178,10 +186,16 @@ export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
 // reconnecting, and saved to that member's chat in Admin › CRM so staff can see
 // it was sent (or that it failed).
 export async function sendToMember(to: string, text: string, userId?: string | null): Promise<boolean> {
-  const num = waDigits(to);
+  let num = waDigits(to);
   if (!num) return false;
   let ok = await sendWhatsApp(num, text);
-  if (!ok && await whatsappAvailable()) { await new Promise((r) => setTimeout(r, 8000)); ok = await sendWhatsApp(num, text); }
+  if (!ok && !isSocialKey(num) && await whatsappAvailable()) { await new Promise((r) => setTimeout(r, 8000)); ok = await sendWhatsApp(num, text); }
+  // A Messenger / Instagram chat that refused it (e.g. past Meta's 24 hours): try their WhatsApp.
+  if (!ok && isSocialKey(num) && userId) {
+    const [u] = await db.select({ phone: users.phoneNumber }).from(users).where(eq(users.id, userId));
+    const phone = waDigits(u?.phone);
+    if (phone && await whatsappAvailable()) { await logChatNote(num, userId, `⚠️ ${text}`); num = phone; ok = await sendWhatsApp(num, text); }
+  }
   try {
     let [c] = await db.select().from(crmContacts).where(eq(crmContacts.phone, num));
     if (!c && userId) [c] = await db.select().from(crmContacts).where(eq(crmContacts.userId, userId));
@@ -224,6 +238,7 @@ type WhatsAppChoice = { id: string; title: string };
 // official interactive payload; QR-linked WhatsApp Web uses the matching
 // Baileys native-flow message and falls back to numbered text when unavailable.
 export async function sendWhatsAppChoices(to: string, rawText: string, choices: WhatsAppChoice[]): Promise<boolean> {
+  if (isSocialKey(to)) { await loadWaConfig(); return sendSocial(to, inCompanyVoice(rawText), { quickReplies: choices }); }
   const c = await loadWaConfig();
   const text = inCompanyVoice(rawText);
   const num = String(to).replace(/\D/g, "");
@@ -274,6 +289,7 @@ export async function notifyAdmins(text: string) { await notifyAdmin(text); }
 export async function sendWhatsAppImage(to: string, imageUrl: string, rawCaption: string): Promise<boolean> {
   await loadWaConfig();
   const caption = inCompanyVoice(rawCaption);
+  if (isSocialKey(to)) return sendSocial(to, caption, { image: imageUrl });
   const num = String(to).replace(/\D/g, "");
   try {
     const web = await import("./whatsappWeb");
@@ -319,13 +335,16 @@ export async function locationReply(lang: Lang = "en"): Promise<string> {
 type Contact = typeof crmContacts.$inferSelect;
 
 async function getOrCreateContact(phone: string, name?: string): Promise<Contact> {
-  const num = phone.replace(/\D/g, "");
+  const num = chatKey(phone);
   const [existing] = await db.select().from(crmContacts).where(eq(crmContacts.phone, num));
   if (existing) return existing;
+  const social = socialOf(num);
+  // A new Messenger / Instagram chat: ask Meta for the person's name.
+  const shownName = name || (social ? await socialProfileName(num) : undefined);
   const [row] = await db.insert(crmContacts).values({
-    phone: num, name: name || null, stage: "new", source: "whatsapp", lastInboundAt: new Date(),
+    phone: num, name: shownName || null, stage: "new", source: social ? (social.net === "ig" ? "instagram" : "facebook") : "whatsapp", lastInboundAt: new Date(),
   }).returning();
-  await notifyAdmin(`🟢 New WhatsApp lead: ${name || num} (${num})`);
+  await notifyAdmin(`🟢 New ${social ? networkName(social.net) : "WhatsApp"} lead: ${shownName || num} (${chatLabel(num)})`);
   return row;
 }
 async function patchContact(id: number, patch: Partial<Contact>) {
@@ -345,8 +364,17 @@ async function recordFailedDelivery(st: any) {
   } catch (e) { console.warn("[wa] log failed delivery", e); }
 }
 
+// A line in a member's CRM chat when we only know the chat key (sendToMember's fallback).
+async function logChatNote(key: string, userId: string | null | undefined, body: string) {
+  try {
+    let [c] = await db.select().from(crmContacts).where(eq(crmContacts.phone, chatKey(key)));
+    if (!c && userId) [c] = await db.select().from(crmContacts).where(eq(crmContacts.userId, userId));
+    if (c) await logMsg(c.id, c.phone, "out", body, true);
+  } catch (e) { console.warn("[wa] chat note", e); }
+}
+
 async function logMsg(contactId: number, phone: string, direction: "in" | "out", body: string, viaBot: boolean) {
-  try { await db.insert(crmMessages).values({ contactId, phone: phone.replace(/\D/g, ""), direction, body: body.slice(0, 4000), viaBot }); }
+  try { await db.insert(crmMessages).values({ contactId, phone: chatKey(phone), direction, body: body.slice(0, 4000), viaBot }); }
   catch (e) { waError("logMsg", e); }
 }
 
@@ -355,10 +383,10 @@ async function logMsg(contactId: number, phone: string, direction: "in" | "out",
 export async function sendAdminMessage(contactId: number, text: string): Promise<{ ok: boolean; message: string }> {
   const [c] = await db.select().from(crmContacts).where(eq(crmContacts.id, contactId));
   if (!c) return { ok: false, message: "Contact not found" };
-  const ok = await sendWhatsApp(c.phone, text);
+  const ok = await sendWhatsApp(c.phone, text, { human: true });
   await logMsg(c.id, c.phone, "out", text, false);
   if (c.stage !== "member") await patchContact(c.id, { stage: "active" }); // stop auto-replies
-  return ok ? { ok: true, message: "Sent" } : { ok: false, message: "WhatsApp not connected — message saved but not delivered" };
+  return ok ? { ok: true, message: "Sent" } : { ok: false, message: isSocialKey(c.phone) ? `${networkName(socialOf(c.phone)!.net)}: not delivered — see Admin › Errors` : "WhatsApp not connected — message saved but not delivered" };
 }
 
 // Called from POS when a member pays — powers "come back" and feedback reminders.
@@ -641,6 +669,71 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       en: "All set! ✅ Your member account is ready.\n\n🔗 {url}\n📱 Log in with your phone number: {phone}\n🔑 Password: {pw}\n\nPlease log in and change your password. You can add an email later in your profile. 💜",
       zh: "搞定啦！✅ 你的会员账户已开通。\n\n🔗 {url}\n📱 用手机号登录：{phone}\n🔑 密码：{pw}\n\n请登录并修改密码。之后可在个人资料里添加邮箱。💜",
       id: "Selesai! ✅ Akun member Anda sudah siap.\n\n🔗 {url}\n📱 Login dengan nomor HP: {phone}\n🔑 Kata sandi: {pw}\n\nSilakan login dan ganti kata sandi. Email bisa ditambahkan nanti di profil. 💜",
+    },
+    askWaPhone: {
+      en: "Nice to meet you, {name}! 🎉 What's your WhatsApp number? We'll send a code there to check it's yours, and your booking updates later.\n\nNo WhatsApp, or rather not share it? Reply *skip* — we'll sign you up with your {net} account.",
+      zh: "很高兴认识你，{name}！🎉 请问你的 WhatsApp 号码是多少？我们会发一个验证码到那里确认是你本人，之后也会把预订通知发到那里。\n\n没有 WhatsApp 或不想提供？回复 *跳过* —— 我们用你的 {net} 账户为你注册。",
+      id: "Senang berkenalan, {name}! 🎉 Berapa nomor WhatsApp Anda? Kami kirim kode ke sana untuk memastikan itu nomor Anda, dan nanti kabar booking juga ke sana.\n\nTidak punya WhatsApp atau tidak mau berbagi? Balas *lewati* — kami daftarkan Anda dengan akun {net} Anda.",
+    },
+    badWaPhone: {
+      en: "That doesn't look like a phone number. Please send your WhatsApp number (e.g. 0812 3456 7890), or reply *skip* to sign up with your {net} account.",
+      zh: "这看起来不像电话号码。请发送你的 WhatsApp 号码（例如 0812 3456 7890），或回复 *跳过* 用你的 {net} 账户注册。",
+      id: "Sepertinya itu bukan nomor telepon. Kirim nomor WhatsApp Anda (contoh 0812 3456 7890), atau balas *lewati* untuk daftar dengan akun {net} Anda.",
+    },
+    waCodeMsg: {
+      en: "🔐 Your {club} code is {code}. Type it in our {net} chat to link your account. Didn't ask for this? Just ignore this message.",
+      zh: "🔐 你的 {club} 验证码是 {code}。请在我们的 {net} 聊天中输入，以绑定你的账户。如果不是你本人操作，请忽略此消息。",
+      id: "🔐 Kode {club} Anda: {code}. Ketik di chat {net} kami untuk menghubungkan akun Anda. Tidak merasa meminta? Abaikan saja pesan ini.",
+    },
+    waCodeSent: {
+      en: "We've sent a 4-digit code to WhatsApp {phone}. Please type it here. 🔐\n\n(Reply *skip* to sign up with your {net} account instead.)",
+      zh: "我们已向 WhatsApp {phone} 发送了 4 位验证码，请在这里输入。🔐\n\n（回复 *跳过* 改用你的 {net} 账户注册。）",
+      id: "Kami sudah mengirim kode 4 angka ke WhatsApp {phone}. Silakan ketik di sini. 🔐\n\n(Balas *lewati* untuk daftar dengan akun {net} Anda saja.)",
+    },
+    waCodeAgain: {
+      en: "Please type the 4-digit code we sent to WhatsApp {phone}, send a different number, or reply *skip* to use your {net} account.",
+      zh: "请输入我们发到 WhatsApp {phone} 的 4 位验证码，或发送其他号码，或回复 *跳过* 使用你的 {net} 账户。",
+      id: "Ketik kode 4 angka yang kami kirim ke WhatsApp {phone}, kirim nomor lain, atau balas *lewati* untuk pakai akun {net} Anda.",
+    },
+    waCodeFailed: {
+      en: "We couldn't send a code to WhatsApp {phone}. Please check the number and send it again, or reply *skip* to sign up with your {net} account.",
+      zh: "无法向 WhatsApp {phone} 发送验证码。请检查号码后重新发送，或回复 *跳过* 用你的 {net} 账户注册。",
+      id: "Kami tidak bisa mengirim kode ke WhatsApp {phone}. Periksa nomornya lalu kirim lagi, atau balas *lewati* untuk daftar dengan akun {net} Anda.",
+    },
+    waCodeWrong: {
+      en: "That code isn't right. Please try again (tries left: {left}).",
+      zh: "验证码不正确，请再试一次（还剩 {left} 次）。",
+      id: "Kodenya salah. Silakan coba lagi (sisa {left} kali).",
+    },
+    waCodeTooMany: {
+      en: "Too many wrong codes. Send your WhatsApp number again for a new code, or reply *skip* to sign up with your {net} account.",
+      zh: "错误次数太多。请重新发送你的 WhatsApp 号码获取新验证码，或回复 *跳过* 用你的 {net} 账户注册。",
+      id: "Terlalu banyak kode salah. Kirim lagi nomor WhatsApp Anda untuk kode baru, atau balas *lewati* untuk daftar dengan akun {net} Anda.",
+    },
+    waCodeLimit: {
+      en: "We've sent enough codes for today. Reply *skip* to sign up with your {net} account — you can add your WhatsApp number later in your profile.",
+      zh: "今天发送的验证码已达上限。回复 *跳过* 用你的 {net} 账户注册 —— 之后可在个人资料中添加 WhatsApp 号码。",
+      id: "Kode untuk hari ini sudah cukup banyak terkirim. Balas *lewati* untuk daftar dengan akun {net} Anda — nomor WhatsApp bisa ditambahkan nanti di profil.",
+    },
+    socialLinked: {
+      en: "Welcome back, {name}! ✅ This chat is now linked to your member account ({phone}). Log in at {url} with your phone number. 💜",
+      zh: "欢迎回来，{name}！✅ 此聊天已绑定到你的会员账户（{phone}）。请到 {url} 用手机号登录。💜",
+      id: "Selamat datang kembali, {name}! ✅ Chat ini sekarang terhubung ke akun member Anda ({phone}). Login di {url} dengan nomor HP Anda. 💜",
+    },
+    socialReady: {
+      en: "All set, {name}! ✅ You're signed up with your {net} account.\n\n📲 Tap to open the app — it logs you in:\n{link}\n\n(The link works once, for 30 minutes. Type *login* here any time for a new one.) 💜",
+      zh: "搞定啦，{name}！✅ 你已用 {net} 账户注册。\n\n📲 点击打开应用（自动登录）：\n{link}\n\n（链接仅可使用一次，30 分钟内有效。随时在这里输入 *登录* 获取新链接。）💜",
+      id: "Selesai, {name}! ✅ Anda terdaftar dengan akun {net} Anda.\n\n📲 Ketuk untuk membuka aplikasi — langsung login:\n{link}\n\n(Link hanya bisa dipakai sekali, selama 30 menit. Ketik *masuk* di sini kapan saja untuk link baru.) 💜",
+    },
+    loginLink: {
+      en: "📲 Tap to open the app — it logs you in:\n{link}\n\n(Works once, for 30 minutes.)",
+      zh: "📲 点击打开应用（自动登录）：\n{link}\n\n（仅可使用一次，30 分钟内有效。）",
+      id: "📲 Ketuk untuk membuka aplikasi — langsung login:\n{link}\n\n(Hanya sekali pakai, selama 30 menit.)",
+    },
+    loginHow: {
+      en: "Log in to the app at {url} with your phone number or email. Forgot your password? Tap \"Forgot password\" on the login page. 💜",
+      zh: "请到 {url} 用手机号或邮箱登录应用。忘记密码？在登录页点「忘记密码」。💜",
+      id: "Login ke aplikasi di {url} dengan nomor HP atau email Anda. Lupa kata sandi? Ketuk \"Lupa kata sandi\" di halaman login. 💜",
     },
     welcomeBackPhone: {
       en: "Welcome back! This number already has an account. Log in at {url} with your phone number {phone}. 💜",
@@ -1032,7 +1125,7 @@ export async function handleInboundText(from: string, text: string, profileName?
     seenMsgIds.set(msgId, Date.now());
     if (seenMsgIds.size > 5000) for (const k of Array.from(seenMsgIds.keys()).slice(0, 1000)) seenMsgIds.delete(k);
   }
-  const key = from.replace(/\D/g, "");
+  const key = chatKey(from);
   const prev = phoneQueues.get(key) || Promise.resolve();
   // Handle this number's messages in order — but never wait forever on a stuck
   // earlier one (that left chats silent mid-booking): move on after 45s.
@@ -1046,7 +1139,7 @@ async function handleInboundOnce(from: string, text: string, profileName?: strin
     return await handleInbound(from, text, profileName);
   } catch (e: any) {
     // Watcher (Admin › Errors): the bot crashed on this message.
-    void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "IN", path: from.replace(/\D/g, ""), status: 500, message: `Bot error on "${text.slice(0, 80)}": ${e?.message || e}`, detail: String(e?.stack || "") })).catch(() => {});
+    void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: isSocialKey(from) ? "messenger" : "whatsapp", method: "IN", path: chatKey(from), status: 500, message: `Bot error on "${text.slice(0, 80)}": ${e?.message || e}`, detail: String(e?.stack || "") })).catch(() => {});
     throw e;
   } finally {
     // WhatsApp updates happen outside the app's HTTP mutations. Wake every open
@@ -1090,8 +1183,8 @@ async function handOffToStaff(c: Contact, from: string, lang: Lang, body: string
 async function alertStaffMessage(c: Contact, from: string, body: string, first = false) {
   try {
     const { notifyStaffI18n, pushAdminsI18n } = await import("./rebornGame");
-    const who = c.name || `+${from}`;
-    const title = (lang: Lang) => first ? pick(lang, { en: "🙋 {who} needs a reply", zh: "🙋 {who} 需要人工回复", id: "🙋 {who} perlu dibalas" }, { who }) : pick(lang, { en: "💬 {who} (WhatsApp)", zh: "💬 {who}（WhatsApp）", id: "💬 {who} (WhatsApp)" }, { who });
+    const who = c.name || chatLabel(from);
+    const title = (lang: Lang) => first ? pick(lang, { en: "🙋 {who} needs a reply", zh: "🙋 {who} 需要人工回复", id: "🙋 {who} perlu dibalas" }, { who }) : pick(lang, { en: "💬 {who} ({via})", zh: "💬 {who}（{via}）", id: "💬 {who} ({via})" }, { who, via: socialOf(from) ? networkName(socialOf(from)!.net) : "WhatsApp" });
     await notifyStaffI18n("whatsapp_handoff", (lang) => ({ title: title(lang), body: body.slice(0, 140) }), { path: "/reborn-admin", crmContactId: c.id });
     await pushAdminsI18n((lang) => ({ title: title(lang), body: body.slice(0, 140), url: "/reborn-admin", tag: `wa-${c.id}` }));
   } catch (e) { waError("staff alert", e); }
@@ -1251,6 +1344,9 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   }
   const say = async (msg: string) => { await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); };
   const wa: any = (c.waState as any) || {};
+  // A Facebook Messenger / Instagram chat (not WhatsApp): sign-up asks for a WhatsApp number.
+  const social = socialOf(c.phone);
+  const net = social ? networkName(social.net) : "";
 
   if (switchTo) {
     await patchContact(c.id, { lang: switchTo });
@@ -1261,6 +1357,8 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     if (c.stage === "new" || c.stage === "await_lang") { await say(L(switchTo, "askName")); return patchContact(c.id, { stage: "await_name" }); }
     if (c.stage === "await_name") { await say(L(switchTo, "askName")); return; }
     if (c.stage === "await_email") { await say(L(switchTo, "askEmail", { name: c.name || "" })); return; }
+    if (c.stage === "await_phone") { await say(L(switchTo, "askWaPhone", { name: c.name || "", net })); return; }
+    if (c.stage === "await_code") { await say(L(switchTo, "waCodeAgain", { phone: localPhone(wa.phone || ""), net })); return; }
     await sendMemberMenu(from, c, switchTo);
     return patchContact(c.id, { waState: { flow: null } });
   }
@@ -1310,9 +1408,11 @@ async function handleInbound(from: string, text: string, profileName?: string) {
       return patchContact(c.id, { lang: picked });
     }
     if (!looksLikeName(body)) { await say(L(lang, "askName")); return; }
+    if (social) { await say(L(lang, "askWaPhone", { name: body, net })); return patchContact(c.id, { name: body, stage: "await_phone" }); }
     await say(L(lang, "askEmail", { name: body }));
     return patchContact(c.id, { name: body, stage: "await_email" });
   }
+  if (social && (c.stage === "await_phone" || c.stage === "await_code")) return socialSignupStep(c, lang, from, body, wa, net, say);
   if (c.stage === "await_email") {
     const m = body.match(EMAIL_RE);
     if (!m && NO_EMAIL_RE.test(body)) {
@@ -1376,6 +1476,13 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     await patchContact(c.id, { waState: { flow: null } }); // expired or they picked something else
   }
 
+  // --- LOG IN TO THE APP --- ("login", "masuk", "登录")
+  if (LOGIN_RE.test(body) && c.userId) {
+    const u = await storage.getUser(c.userId);
+    if (social && u && SOCIAL_AUTH_PROVIDERS.includes(String(u.authProvider))) { await say(L(lang, "loginLink", { link: await makeLoginLink(u.id, memberAppUrl) })); return; }
+    await say(L(lang, "loginHow", { url: memberAppUrl() })); return;
+  }
+
   // --- WHAT WE HAVE --- ("what do you have?", "facilities", "有什么", "ada apa saja")
   if (ABOUT_RE.test(body)) return sendWhatWeHave(c, lang, say);
 
@@ -1415,8 +1522,77 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await sendMemberMenu(from, c, lang); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }
 }
 
+// --- Sign-up from a Facebook Messenger / Instagram chat ---------------------
+// After their name: their WhatsApp number, checked with a code sent to that WhatsApp (so
+// nobody can link someone else's account by typing their number). "skip" signs them up
+// with the Facebook / Instagram account itself: no phone, no email — they get a one-tap
+// login link in the chat instead.
+const LOGIN_RE = /^\s*(log ?in|sign ?in|login link|app login|masuk|login aplikasi|登录|登入|登陆)\s*[!.。]?\s*$/i;
+const WA_CODE_TRIES = 3;
+const WA_CODES_PER_DAY = 3;
+const WA_CODE_TTL_MS = 15 * 60_000;
+const PHONE_INPUT_RE = /^\+?[\d\s\-().]{8,20}$/;
+
+async function socialSignupStep(c: Contact, lang: Lang, from: string, body: string, wa: any, net: string, say: (m: string) => Promise<void>) {
+  if (NO_EMAIL_RE.test(body)) return finishSocialSignup(c, lang, from, null, say);
+  const today = todayStr();
+  const sends = wa.codeDay === today ? Number(wa.codeSends || 0) : 0;
+  if (c.stage === "await_code") {
+    const code = (body.match(/^\s*(\d{4})\s*$/) || [])[1];
+    if (code) {
+      if (code === wa.code && Date.now() < Number(wa.exp || 0)) return finishSocialSignup(c, lang, from, String(wa.phone), say);
+      const tries = Number(wa.tries || 0) + 1;
+      if (tries >= WA_CODE_TRIES) { await say(L(lang, "waCodeTooMany", { net })); return patchContact(c.id, { stage: "await_phone", waState: { flow: null, codeDay: today, codeSends: sends } }); }
+      await say(L(lang, "waCodeWrong", { left: String(WA_CODE_TRIES - tries) }));
+      return patchContact(c.id, { waState: { ...wa, tries } });
+    }
+    if (!PHONE_INPUT_RE.test(body.trim())) { await say(L(lang, "waCodeAgain", { phone: localPhone(wa.phone || ""), net })); return; }
+  }
+  if (!PHONE_INPUT_RE.test(body.trim())) { await say(L(lang, "badWaPhone", { net })); return; }
+  const phone = waDigits(body);
+  if (phone.length < 9 || phone.length > 15) { await say(L(lang, "badWaPhone", { net })); return; }
+  if (sends >= WA_CODES_PER_DAY) { await say(L(lang, "waCodeLimit", { net })); return; }
+  const code = String(randomInt(1000, 10000));
+  const club = (await loadWaConfig()).club || "Reborn Wave";
+  const sent = await sendWhatsApp(phone, L(lang, "waCodeMsg", { code, club, net }));
+  const counted = { codeDay: today, codeSends: sends + 1 };
+  if (!sent) { await say(L(lang, "waCodeFailed", { phone: localPhone(phone), net })); return patchContact(c.id, { stage: "await_phone", waState: { flow: null, ...counted } }); }
+  await say(L(lang, "waCodeSent", { phone: localPhone(phone), net }));
+  return patchContact(c.id, { stage: "await_code", waState: { flow: null, ...counted, phone, code, exp: Date.now() + WA_CODE_TTL_MS, tries: 0 } });
+}
+
+// `phone` = their checked WhatsApp number, or null when they chose to sign up with the
+// Facebook / Instagram account only.
+async function finishSocialSignup(c: Contact, lang: Lang, from: string, phone: string | null, say: (m: string) => Promise<void>) {
+  const social = socialOf(c.phone)!;
+  const name = c.name || L(lang, "friend");
+  let userId: string;
+  const existing = phone ? await linkExistingUserByPhone(phone) : null;
+  if (existing) {
+    userId = existing.id;
+    await say(L(lang, "socialLinked", { name: name.split(" ")[0], phone: localPhone(phone!), url: memberAppUrl() }));
+  } else {
+    const user = await storage.createUser({
+      email: null,
+      password: phone ? DEFAULT_PASSWORD : null, // a Facebook / Instagram-only account logs in with a chat link
+      firstName: name.split(" ")[0],
+      lastName: name.split(" ").slice(1).join(" "),
+      phoneNumber: phone,
+      authProvider: phone ? "email" : social.net === "ig" ? "instagram" : "facebook",
+    });
+    const house = await settingVal("houseReferralUserId");
+    await db.update(users).set({ mustChangePassword: !!phone, preferredLanguage: lang, ...(house ? { referredById: house } : {}) }).where(eq(users.id, user.id));
+    userId = user.id;
+    if (phone) await say(L(lang, "readyPhone", { url: memberAppUrl(), phone: localPhone(phone), pw: DEFAULT_PASSWORD }));
+    else await say(L(lang, "socialReady", { name: name.split(" ")[0], net: networkName(social.net), link: await makeLoginLink(user.id, memberAppUrl) }));
+  }
+  await patchContact(c.id, { userId, stage: "member", waState: { flow: null } });
+  await sendMemberMenu(from, { ...c, userId, stage: "member" } as Contact, lang);
+}
+
 // Find an existing app account by phone number (digit-normalised, endsWith either way).
 async function linkExistingUserByPhone(phone: string) {
+  if (isSocialKey(phone)) return null; // a Messenger / Instagram id is not a phone number
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 6) return null;
   const tail = digits.slice(-8);
@@ -1989,7 +2165,9 @@ export function registerWhatsAppBot(app: Express) {
     res.sendStatus(200); // ack immediately; Meta retries on non-200
     try {
       await inCompany(req.params.slug, async () => {
-        const entries = req.body?.entry || [];
+        // Facebook Messenger ("page") and Instagram DMs ("instagram") come to the same address.
+        for (const m of socialMessagesIn(req.body)) await handleInboundText(m.key, m.text, undefined, m.msgId);
+        const entries = req.body?.object === "page" || req.body?.object === "instagram" ? [] : req.body?.entry || [];
         for (const entry of entries) {
           for (const change of entry.changes || []) {
             const value = change.value || {};
@@ -2015,6 +2193,8 @@ export function registerWhatsAppBot(app: Express) {
   };
   app.post("/api/whatsapp/webhook", receiveWebhook);
   app.post("/api/whatsapp/webhook/:slug", receiveWebhook);
+  // One-tap login links for accounts made in a Facebook / Instagram chat.
+  registerChatLogin(app);
 
   // Kick off the reminder scheduler (hourly). Safe no-op until WhatsApp is configured.
   startReminderScheduler();
@@ -2182,6 +2362,7 @@ async function accountLang(userId?: string | null): Promise<Lang | null> {
 // Phone typed in the app → WhatsApp digits. Indonesian numbers are often typed
 // without the country code ("0812…" / "812…"), which WhatsApp can't deliver to.
 export function waDigits(raw: string | null | undefined): string {
+  if (isSocialKey(raw)) return chatKey(raw); // Messenger / Instagram chat key
   let d = String(raw || "").replace(/\D/g, "");
   if (d.startsWith("00")) d = d.slice(2);
   if (d.startsWith("0")) d = "62" + d.slice(1);
@@ -2207,7 +2388,7 @@ export async function memberWaPhone(userId: string | null | undefined): Promise<
 }
 
 export async function langForPhone(phone: string, userId?: string | null): Promise<Lang> {
-  const num = (phone || "").replace(/\D/g, "");
+  const num = chatKey(phone);
   const [c] = num ? await db.select().from(crmContacts).where(eq(crmContacts.phone, num)) : [];
   return (await accountLang(userId || c?.userId)) || ((c?.lang as Lang) || "en");
 }
