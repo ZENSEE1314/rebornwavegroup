@@ -167,9 +167,11 @@ text.
   other words, `faqSimilar` (filler words dropped, light stemming, Chinese by character pairs) — with it,
   on WhatsApp / Messenger / Instagram / Telegram. Items without an answer never match, and a question
   already waiting isn't saved twice.
-- A song is only searched after an explicit song request (menu 2 / "song" / 点歌 / "sing"):
-  after "scan your table QR first" the next message (30 min) is taken as the song name
-  (`songWait`). Any other message — even one that happens to equal a library song title
+- A song is only searched after the member chooses menu option **2 Request a song** (the number 2, the
+  `menu_song` button, or the label typed as is — "request a song" / 点歌 / "minta lagu"; `parseMenuIntent`).
+  A sentence that merely mentions a song ("what songs do you have?", "I want to sing") is not a request.
+  After the member chose it (and "scan your table QR first"), the next message (30 min) is taken as the
+  song name (`songWait`). Any other message — even one that happens to equal a library song title
   ("What you sell") — is not guessed to be a song: no FAQ match → the "we'll get back to you
   shortly" hand-off above.
 

@@ -1215,7 +1215,9 @@ function parseMenuIntent(s: string): "book" | "song" | "bottle" | "events" | "me
   const t = s.trim().toLowerCase();
   if (/^menu_events$|^4$|\bevents?\b|\bpromos?\b|\bpromotions?\b|what'?s on|活动|活動|优惠|\bacara\b|\bpromo\b|\bevent\b/.test(t)) return "events";
   if (/^menu_book$|^1$|\bbook(ing)?\b|\btables?\b|\breserv|\bappointment|预订|订位|\bmeja\b|\bpesan meja\b/.test(t)) return "book";
-  if (/^menu_song$|^2$|\bsongs?\b|^sing\b|\brequest a song\b|点歌|唱歌|\blagu\b/.test(t)) return "song";
+  // Choosing menu option 2 only — its number, its button, or its label typed as is. A sentence that merely
+  // mentions a song ("what songs do you have?") is NOT a song request: it goes to the FAQ / hand-off.
+  if (/^(menu_song|2|2️⃣)$|^[🎤🎵\s]*(request (a )?song|点歌|minta lagu|request lagu)[\s!.。]*$/.test(t)) return "song";
   if (/^menu_bottle$|^3$|\bbottles?\b|\bmy drinks?\b|\bkept\b|\bkeep\b|寄存|存酒|\bbotol\b|\bsimpan\b/.test(t)) return "bottle";
   if (/^(menu|hi|hello|hey|start|help|0|你好|嗨|halo|hai)$/.test(t)) return "menu";
   return null;
@@ -1507,7 +1509,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
       await sendMemberMenu(from, c, lang, true);
       return;
     }
-    // Never guess a song: a song is only searched after an explicit song request (menu 2 / "song" / 点歌 / "sing").
+    // Never guess a song: songs are only searched after the member chose menu option 2 (Request a song).
     // Unknown → log a pending FAQ and hand the chat to staff (bot goes quiet).
     await createPendingFaq(body);
     return handOffToStaff(c, from, lang, body);
