@@ -999,6 +999,16 @@ async function tableTakenByOther(r: typeof appointments.$inferSelect): Promise<b
   const rows = await db.select().from(appointments).where(and(eq(appointments.notes, r.notes), sql`${appointments.appointmentDate} BETWEEN ${new Date(start - 12 * 3600_000)} AND ${new Date(end)}`));
   return rows.some((o) => o.id !== r.id && ["pending", "scheduled", "confirmed", "seated", "blocked"].includes(o.status) && new Date(o.appointmentDate).getTime() < end && bookingEnd(o) > start);
 }
+// WhatsApp the member a welcome once their booking is marked Arrived (staff or table scan).
+async function notifyArrived(row: typeof appointments.$inferSelect) {
+  if (!row.userId) return;
+  const phone = await memberWaPhone(row.userId);
+  if (!phone) return;
+  const lang = await langForPhone(phone, row.userId);
+  const club = (await getSettings()).clubName || "Reborn Wave";
+  const ok = await sendToMember(phone, waText(lang, "arrivedWelcome", { club, what: localizeBookingText(lang, row.title) }), row.userId);
+  if (!ok) console.warn(`[wa] booking #${row.id} arrived: WhatsApp not delivered to ${phone}`);
+}
 // The member scanned the QR of the table they booked: they're at the club, so the
 // booking becomes Arrived (seated) by itself — also a late no-show if the table is still free.
 async function markArrivedFromScan(userId: string, table: string) {
@@ -1010,6 +1020,7 @@ async function markArrivedFromScan(userId: string, table: string) {
   if (!hit || (hit.status === "cancelled" && await tableTakenByOther(hit))) return null;
   const [row] = await db.update(appointments).set({ status: "seated", ...(hit.status === "cancelled" ? { adminNote: null } : {}), updatedAt: new Date() }).where(eq(appointments.id, hit.id)).returning();
   emitLiveUpdate("/api/reborn/admin/bookings", { action: "ARRIVED", resource: String(hit.id) });
+  if (row) void notifyArrived(row).catch((e) => console.warn("arrived WhatsApp", e));
   return row;
 }
 // "By table" song queue: a member must be checked in at a table (table QR or
@@ -4083,6 +4094,8 @@ export function registerRebornRoutes(app: Express) {
     if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
     // A confirmed table booking checks the member in to KOS at that table (from 2h before).
     if ((status === "confirmed" || status === "seated") && row.userId) await autoCheckinFromBooking(row.userId).catch((e) => console.warn("auto check-in", e));
+    // Guest marked Arrived → a welcome on WhatsApp (once: not when it was already arrived).
+    if (status === "seated" && cur?.status !== "seated") void notifyArrived(row).catch((e) => console.warn("arrived WhatsApp", e));
     // Tell the member on WhatsApp when a booking is confirmed or rejected. `whatsapp` tells the
     // admin's screen whether it went out: sending | noPhone | offline (WhatsApp not linked).
     let whatsapp: "sending" | "noPhone" | "offline" | undefined;

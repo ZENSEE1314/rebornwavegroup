@@ -616,6 +616,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "✅ 已收到您在 {club} 的预订：{area} · {day} {time}{table} · {n} 位。我们的团队会尽快确认。💜",
       id: "✅ Booking diterima di {club}: {area} · {day} {time}{table} · {n} orang. Tim kami akan segera konfirmasi. 💜",
     },
+    arrivedWelcome: {
+      en: "👋 Welcome to {club}! You've arrived for your booking: {what}. Your table is ready — enjoy your night! 💜",
+      zh: "👋 欢迎光临 {club}！您已到店：{what}。您的桌位已准备好——祝您玩得开心！💜",
+      id: "👋 Selamat datang di {club}! Anda sudah tiba untuk booking: {what}. Meja Anda sudah siap — selamat menikmati malam Anda! 💜",
+    },
     staffConfirmed: {
       en: "✅ Your booking is confirmed: {what} on {when}. See you! 💜",
       zh: "✅ 您的预订已确认：{what}，{when}。期待您的光临！💜",
