@@ -2432,7 +2432,7 @@ function AdminBookings() {
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const fmt = (iso: string) => new Date(iso).toLocaleString(localeTag(), { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
-  const list = rows.filter((b) => (filter === "upcoming" ? b.upcoming && b.status !== "cancelled" : true));
+  const list = rows.filter((b) => (filter === "upcoming" ? b.upcoming && (b.status !== "cancelled" || b.lateArrivalOk) : true));
   const sColor: Record<string, string> = { confirmed: "text-emerald-300", seated: "text-sky-300", pending: "text-amber-300", scheduled: "text-blue-300", completed: "text-white/40", cancelled: "text-red-300", blocked: "text-orange-300" };
   return (
     <div className="space-y-3">
@@ -2458,6 +2458,11 @@ function AdminBookings() {
           </div>
           {b.status === "blocked" ? (
             <button onClick={() => { if (confirm(t("admin.bk.unblockConfirm"))) setStatus.mutate({ id: b.id, status: "cancelled" }); }} className="mt-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white/70">{t("admin.bk.unblock")}</button>
+          ) : b.lateArrivalOk ? (
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <button onClick={() => setStatus.mutate({ id: b.id, status: "seated" })} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-200 border border-sky-400/40">{t("admin.bk.arrivedLate")}</button>
+              <span className="text-[11px] text-white/40">{t("admin.bk.arrivedLateHint")}</span>
+            </div>
           ) : b.status !== "cancelled" && b.status !== "completed" && (
             <div className="flex gap-2 mt-2">
               {b.status !== "confirmed" && b.status !== "seated" && <button onClick={() => setStatus.mutate({ id: b.id, status: "confirmed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">{t("admin.c.confirm")}</button>}
