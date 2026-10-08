@@ -365,8 +365,8 @@ text.
 - Card games category, 2–6 players. 3 cards each; playing one draws one. Number cards add
   (A = 1 … 10); power cards always play: 7 reverse (adds nothing), J skip the next player (with 2 players J just passes the turn — no one plays twice in a row), Q −5,
   K −10 (the total may go below 0). Limit: 2 or 3 players 29, 4 → 39, +10 per extra player (`unoLimit`).
-- Reaching the limit exactly is fine. Any card can be played (a card that goes over needs a second
-  tap — in-page, never `window.confirm`, which phone browsers block); a player whose card takes the total OVER the limit BLASTS (`unoBust`): drinks 1 cup
+- Reaching the limit exactly is fine. Any card can be played with one tap — nothing is blocked or
+  confirmed (never `window.confirm`: phone browsers block it); a player whose card takes the total OVER the limit BLASTS (`unoBust`): drinks 1 cup
   and loses; after 4.5 s a new game starts with the player after the blaster. 30 s turn timer (auto-plays the
   smallest card that fits, else a power card, else the smallest card — which blasts). Messages `gm.srv.uno*`, texts `gm.uno.*`.
 
