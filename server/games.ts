@@ -727,7 +727,7 @@ function cdView(room: Room) {
 // J = skip the next player, Q = −5, K = −10. Limit: 2 or 3 players 29, 4 players 39,
 // +10 for each player after that. Reaching the limit exactly is fine; any card can be
 // played, but a player whose card takes the total OVER the limit BLASTS — drinks 1 cup
-// and loses that game; a new game starts (the blaster begins) and the party carries on.
+// and loses that game; a new game starts (the next player begins) and the party carries on.
 const UNO_MAX = 6;
 const UNO_TURN_SECONDS = 30, UNO_BLAST_MS = 4500;
 interface UnoState {
@@ -786,8 +786,9 @@ function unoBlast(room: Room, p: Player, card: CdCard) {
   room.deadline = Date.now() + UNO_BLAST_MS;
   room.timer = setTimeout(() => {
     if (room.status !== "playing" || room.game !== "uno") return;
+    // The blaster just played, so the next player starts the new game (nobody plays twice in a row).
     const idx = room.players.findIndex((x) => x.id === p.id);
-    unoNewRound(room, idx < 0 ? 0 : idx);
+    unoNewRound(room, idx < 0 ? 0 : unoStep(room, idx));
     broadcast(room);
   }, UNO_BLAST_MS);
 }
@@ -818,7 +819,9 @@ function unoPlay(room: Room, uid: string, cardId: string): string | Tri | null {
     broadcast(room);
     return null;
   }
-  let effect: "add" | "reverse" | "skip" | "minus" = c.r === 7 ? "reverse" : c.r === 11 ? "skip" : c.r >= 12 ? "minus" : "add";
+  // J skips the next player — but never gives the same player two turns in a row
+  // (with 2 players it just passes the turn on).
+  let effect: "add" | "reverse" | "skip" | "minus" = c.r === 7 ? "reverse" : c.r === 11 ? (room.players.length > 2 ? "skip" : "add") : c.r >= 12 ? "minus" : "add";
   let next: number, skipped: string | undefined;
   if (effect === "reverse") { u.dir = -u.dir; room.dir = u.dir; next = unoStep(room, idx); }
   else if (effect === "skip") { const s = unoStep(room, idx); skipped = room.players[s]?.name; next = unoStep(room, idx, 2); }
