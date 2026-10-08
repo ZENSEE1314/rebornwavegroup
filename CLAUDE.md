@@ -365,9 +365,10 @@ text.
 - Card games category, 2–6 players. 3 cards each; playing one draws one. Number cards add
   (A = 1 … 10); power cards always play: 7 reverse (adds nothing), J skip the next player, Q −5,
   K −10 (the total may go below 0). Limit: 2 or 3 players 29, 4 → 39, +10 per extra player (`unoLimit`).
-- A player with no card that keeps the total at the limit or under (and no power card) BLASTS:
-  drinks 1 cup and loses; after 4.5 s a new game starts with the blaster. 30 s turn timer
-  (auto-plays the smallest card that fits). Messages `gm.srv.uno*`, texts `gm.uno.*`.
+- Reaching the limit exactly is fine. Any card can be played (the app asks before a card that
+  goes over); a player whose card takes the total OVER the limit BLASTS (`unoBust`): drinks 1 cup
+  and loses; after 4.5 s a new game starts with the blaster. 30 s turn timer (auto-plays the
+  smallest card that fits, else a power card, else the smallest card — which blasts). Messages `gm.srv.uno*`, texts `gm.uno.*`.
 
 ## Card drinking games: In Between + Up or Down (server/games.ts `cd*`, app `CdGame`)
 

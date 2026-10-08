@@ -724,10 +724,10 @@ function cdView(room: Room) {
 // ── Uno (count to the limit without blasting, 2–6 players) ────────────────────
 // Everyone holds 3 cards; play one and you draw one. Number cards add their value
 // to the shared total (A = 1 … 10); power cards can always be played: 7 = reverse (adds nothing),
-// J = skip the next player, Q = −5, K = −10. The total may not go over the limit:
-// 2 or 3 players 29, 4 players 39, +10 for each player after that. A
-// player who can't play without going over BLASTS — drinks 1 cup and loses that
-// game; a new game starts (the blaster begins) and the party carries on.
+// J = skip the next player, Q = −5, K = −10. Limit: 2 or 3 players 29, 4 players 39,
+// +10 for each player after that. Reaching the limit exactly is fine; any card can be
+// played, but a player whose card takes the total OVER the limit BLASTS — drinks 1 cup
+// and loses that game; a new game starts (the blaster begins) and the party carries on.
 const UNO_MAX = 6;
 const UNO_TURN_SECONDS = 30, UNO_BLAST_MS = 4500;
 interface UnoState {
@@ -739,6 +739,7 @@ interface UnoState {
 const unoLimit = (n: number) => (n <= 3 ? 29 : 29 + (n - 3) * 10); // 2–3 players 29, then +10 each
 const unoIsPower = (c: CdCard) => c.r === 7 || c.r === 11 || c.r === 12 || c.r === 13;
 const unoValue = (c: CdCard) => (c.r === 12 ? -5 : c.r === 13 ? -10 : unoIsPower(c) ? 0 : c.r);
+// Does this card keep the total at the limit or under? (Any card may be played; one that doesn't blasts.)
 const unoCanPlay = (u: UnoState, c: CdCard) => unoIsPower(c) || u.total + c.r <= u.limit;
 const unoStep = (room: Room, from: number, steps = 1) => { const n = room.players.length; return (((from + (room.uno?.dir || 1) * steps) % n) + n) % n; };
 function unoDraw(u: UnoState): CdCard {
@@ -766,23 +767,22 @@ function startUno(room: Room) {
   unoNewRound(room, Math.floor(Math.random() * room.players.length));
   broadcast(room);
 }
-// The turn player can't play anything → blast; otherwise start their clock.
+// Start the turn player's clock (they must play a card, even one that goes over).
 function unoBeginTurn(room: Room) {
   const u = room.uno!, p = room.players[room.turnIdx ?? 0];
   if (!p) return;
-  const hand = u.hands[p.id] || (u.hands[p.id] = [unoDraw(u), unoDraw(u), unoDraw(u)]);
-  if (!hand.some((c) => unoCanPlay(u, c))) return unoBlast(room, p);
+  if (!u.hands[p.id]) u.hands[p.id] = [unoDraw(u), unoDraw(u), unoDraw(u)];
   clearTimers(room);
   room.deadline = Date.now() + UNO_TURN_SECONDS * 1000 + 300;
   room.timer = setTimeout(() => unoTimeout(room), UNO_TURN_SECONDS * 1000 + 300);
 }
-function unoBlast(room: Room, p: Player) {
+function unoBlast(room: Room, p: Player, card: CdCard) {
   const u = room.uno!;
   clearTimers(room);
   u.phase = "blast"; u.blast = { by: p.id, name: p.name };
   tallyAdd(room, p.id, 0, 1);
   for (const o of room.players) if (o.id !== p.id) tallyAdd(room, o.id, 1, 0);
-  setMsg(room, "unoBlast", { name: p.name, limit: u.limit, total: u.total }, `💥 ${p.name} can't stay at ${u.limit} or under — BLAST! Drink 1 cup 🍺`);
+  setMsg(room, "unoBust", { name: p.name, card: cdName(card), limit: u.limit, total: u.total }, `💥 ${p.name} played ${cdName(card)} · total ${u.total} — over ${u.limit}! BLAST, drink 1 cup 🍺`);
   room.deadline = Date.now() + UNO_BLAST_MS;
   room.timer = setTimeout(() => {
     if (room.status !== "playing" || room.game !== "uno") return;
@@ -795,9 +795,9 @@ function unoTimeout(room: Room) {
   if (room.status !== "playing" || room.game !== "uno" || room.uno?.phase !== "play") return;
   const u = room.uno, p = room.players[room.turnIdx ?? 0]; if (!p) return;
   const hand = u.hands[p.id] || [];
-  // Auto-play the smallest number that fits, else a power card.
-  const pick = hand.filter((c) => !unoIsPower(c) && unoCanPlay(u, c)).sort((a, b) => a.r - b.r)[0] || hand.find((c) => unoIsPower(c));
-  if (pick) unoPlay(room, p.id, pick.id); else unoBlast(room, p);
+  // Auto-play the smallest number that fits, else a power card, else the smallest card (it blasts).
+  const pick = hand.filter((c) => !unoIsPower(c) && unoCanPlay(u, c)).sort((a, b) => a.r - b.r)[0] || hand.find((c) => unoIsPower(c)) || [...hand].sort((a, b) => a.r - b.r)[0];
+  if (pick) unoPlay(room, p.id, pick.id);
 }
 function unoPlay(room: Room, uid: string, cardId: string): string | Tri | null {
   const u = room.uno;
@@ -809,9 +809,15 @@ function unoPlay(room: Room, uid: string, cardId: string): string | Tri | null {
   const ci = hand.findIndex((c) => c.id === cardId);
   if (ci < 0) return "Pick a card";
   const c = hand[ci];
-  if (!unoCanPlay(u, c)) return { en: `That goes over ${u.limit}`, zh: `这样会超过 ${u.limit}`, id: `Itu melebihi ${u.limit}` };
+  const bust = !unoCanPlay(u, c);
   hand.splice(ci, 1); hand.push(unoDraw(u));
   u.total += unoValue(c); // Q / K may take it below 0
+  if (bust) { // over the limit → this player blasts
+    u.last = { by: uid, name: p.name, card: c, effect: "add", total: u.total };
+    unoBlast(room, p, c);
+    broadcast(room);
+    return null;
+  }
   let effect: "add" | "reverse" | "skip" | "minus" = c.r === 7 ? "reverse" : c.r === 11 ? "skip" : c.r >= 12 ? "minus" : "add";
   let next: number, skipped: string | undefined;
   if (effect === "reverse") { u.dir = -u.dir; room.dir = u.dir; next = unoStep(room, idx); }
