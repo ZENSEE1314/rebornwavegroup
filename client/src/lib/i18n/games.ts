@@ -85,7 +85,6 @@ export const gamesT: Record<string, { en: string; zh: string; id: string }> = {
   "gm.rules.uno.6": { en: "Wins and losses add up; the host ends the game to rank everyone.", zh: "输赢会累计；房主结束游戏后给大家排名。", id: "Menang dan kalah dijumlahkan; host mengakhiri permainan untuk memberi peringkat." },
   "gm.uno.round": { en: "Game {n}", zh: "第 {n} 局", id: "Permainan {n}" },
   "gm.uno.yourTurn": { en: "Your turn — play a card", zh: "轮到你了——出一张牌", id: "Giliranmu — keluarkan kartu" },
-  "gm.uno.overConfirm": { en: "💥 This card makes the total {total} — over {n}. You'll BLAST and lose. Tap it again to play it anyway.", zh: "💥 这张牌会让总数变成 {total}——超过 {n}。你会爆掉并输掉。再点一次仍然出牌。", id: "💥 Kartu ini membuat total {total} — lewat {n}. Kamu akan MELEDAK dan kalah. Ketuk lagi untuk tetap mengeluarkannya." },
   "gm.uno.over": { en: "That goes over {n}", zh: "这样会超过 {n}", id: "Itu melebihi {n}" },
   "gm.uno.blastBig": { en: "💥 {name} BLASTED — drink 1 cup!", zh: "💥 {name} 爆了——喝1杯！", id: "💥 {name} MELEDAK — minum 1 gelas!" },
   "gm.uno.legend": { en: "7 🔄 reverse · J ⏭ skip · Q −5 · K −10", zh: "7 🔄 反转 · J ⏭ 跳过 · Q −5 · K −10", id: "7 🔄 balik · J ⏭ lewati · Q −5 · K −10" },
