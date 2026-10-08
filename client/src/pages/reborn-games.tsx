@@ -967,7 +967,8 @@ function UnoGame({ room, code, me }: any) {
   useEffect(() => { if (blastKey && blastKey !== seen.current) { seen.current = blastKey; u.blast.by === me ? sfx.lose() : sfx.win(); } }, [blastKey]);
   const play = async (c: any) => {
     if (!myTurn) return;
-    if (!c.ok) return toast({ title: t("gm.uno.over", { n: u.limit }), variant: "destructive" });
+    // Any card can be played; one that goes over the limit blasts you — ask first.
+    if (!c.ok && !window.confirm(t("gm.uno.overConfirm", { n: u.limit, total: u.total + c.r }))) return;
     sfx.flip();
     const { ok, d } = await post(`/api/reborn/games/rooms/${code}/action`, { act: "play", cardId: c.id });
     if (!ok && d?.message) toast({ title: d.message, variant: "destructive" });
@@ -995,7 +996,7 @@ function UnoGame({ room, code, me }: any) {
       {live && <><p className="mb-2 text-xs text-white/50">{myTurn ? t("gm.uno.yourTurn") : cur ? t("gm.turnOf", { name: cur.name }) + "…" : ""}</p>
       <div className="flex justify-center gap-3">
         {(u.myHand || []).map((c: any) => (
-          <button key={c.id} onClick={() => play(c)} disabled={!myTurn} className={`relative transition ${myTurn && c.ok ? "hover:-translate-y-2 active:scale-95" : ""} ${myTurn && !c.ok ? "opacity-35" : ""}`}>
+          <button key={c.id} onClick={() => play(c)} disabled={!myTurn} className={`relative transition ${myTurn && c.ok ? "hover:-translate-y-2 active:scale-95" : ""} ${myTurn && !c.ok ? "opacity-60 hover:-translate-y-1" : ""}`}>
             <CdCardFace c={c} glow={myTurn && c.ok ? (c.power ? "#a78bfa" : "#f0d787") : undefined} />
             <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-2 text-[11px] font-black ${c.power ? "bg-violet-500 text-white" : "bg-amber-300 text-black"}`}>{tag(c)}</span>
           </button>
