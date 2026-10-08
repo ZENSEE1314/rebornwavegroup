@@ -160,9 +160,11 @@ text.
   for every new message, and an admin replies from Admin › CRM. The admin turns
   the bot back on per number in the CRM chat, or the member types *AI*
   (the hand-off reply tells them so) to get the auto-reply back.
-- Song names are never handed off: after "scan your table QR first" the next
-  message (30 min) is taken as the song name (`songWait`), and any message that
-  is a library song title / pinyin starts a song request (`isLibrarySong`).
+- A song is only searched after an explicit song request (menu 2 / "song" / 点歌 / "sing"):
+  after "scan your table QR first" the next message (30 min) is taken as the song name
+  (`songWait`). Any other message — even one that happens to equal a library song title
+  ("What you sell") — is not guessed to be a song: no FAQ match → the "we'll get back to you
+  shortly" hand-off above.
 
 - Messages the club sends a member outside a chat flow (booking confirmed /
   cancelled / staff-booked, booking receipt, song "you're on now") go through

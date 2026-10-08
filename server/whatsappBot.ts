@@ -1163,17 +1163,6 @@ const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bo
 const AI_BACK_RE = /^\s*(ai|a\.i\.?|ai assistant|asisten ai|ai助手|ai 助手|人工智能)\s*[!.。]?\s*$/i;
 async function say0(c: Contact, from: string, msg: string) { await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); }
 
-// Is this message exactly a song in our library? (title, or its pinyin — "ni hao bu hao" = 你好不好)
-async function isLibrarySong(text: string): Promise<boolean> {
-  const t = text.trim().toLowerCase().replace(/\s+/g, " ");
-  if (t.length < 2 || t.length > 60) return false;
-  const py = textPinyin(t).toLowerCase().replace(/\s+/g, " ").trim();
-  const norm = (col: any) => sql`lower(regexp_replace(${col}, '\s+', ' ', 'g'))`;
-  const [hit] = await db.select({ id: songs.id }).from(songs)
-    .where(sql`${norm(songs.title)} = ${t} OR ${norm(songs.titlePinyin)} = ${t} OR ${norm(songs.titlePinyin)} = ${py}`).limit(1);
-  return !!hit;
-}
-
 // Messages that aren't about the club (delivery, courier, sales…) go straight to staff.
 const OFF_TOPIC_RE = /\b(deliver(y|ies|ing)?|courier|kurir|paket|parcel|package|shipment|ekspedisi|ojol|gojek|grab ?(food|express)|shopee ?food|cod\b|invoice|tagihan|supplier|vendor|sales|promosi|kerja ?sama|collaborat|partnership|job|lowongan|loker|interview|wawancara)\b|快递|外卖|送货|包裹|供应商|合作|应聘|招聘|发票/i;
 function guessLang(body: string, fallback: Lang): Lang {
@@ -1518,11 +1507,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
       await sendMemberMenu(from, c, lang, true);
       return;
     }
-    // A song from our library (title, Chinese or pinyin) → treat it as a song request.
-    if (c.userId && !(await featureOff("songs")) && await isLibrarySong(body)) {
-      if (await songTableBlocked(c.userId)) { await say(L(lang, "songNeedTable")); return patchContact(c.id, { waState: { flow: "songWait", at: Date.now() } }); }
-      return songStep(c, lang, from, body, { flow: "song", step: "name" }, say);
-    }
+    // Never guess a song: a song is only searched after an explicit song request (menu 2 / "song" / 点歌 / "sing").
     // Unknown → log a pending FAQ and hand the chat to staff (bot goes quiet).
     await createPendingFaq(body);
     return handOffToStaff(c, from, lang, body);
