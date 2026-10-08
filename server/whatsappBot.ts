@@ -1597,31 +1597,64 @@ async function linkExistingUserByPhone(phone: string) {
   }) || null;
 }
 
-// Match the message against active FAQ items with an answer.
+// --- "Same question" matching for the FAQ -----------------------------------
+// A member's question matches an FAQ when it says the same thing in other words
+// ("what do you sell?" = "what u selling") — compared on the meaningful words only
+// (English / Bahasa filler words dropped, light stemming, Chinese by character pairs).
+const FAQ_STOP = new Set(("a an the is are was were be do does did you your yours u ur i me my we our us it its this that there here what whats how hows can could would will may please pls any have has got to of for in on at and or with about tell show give want need know " +
+  "apa yang di ke dan ada itu ini saya aku kamu anda kalian bisa boleh dengan untuk mau tolong gimana bagaimana apakah berapa dong ya nih kak min").split(" "));
+const faqStem = (w: string) => { const x = w.length > 5 ? w.replace(/(ing|ed)$/, "") : w; return x.length > 3 && x.endsWith("s") && !x.endsWith("ss") ? x.slice(0, -1) : x; };
+function faqNorm(s: string): string { return String(s || "").toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, " ").trim(); }
+function faqTokens(s: string): Set<string> {
+  const t = faqNorm(s), out = new Set<string>();
+  for (const w of t.split(" ")) if (w && !/[\u3400-\u9fff]/.test(w) && !FAQ_STOP.has(w)) out.add(faqStem(w));
+  for (const run of (t.replace(/[的吗呢吧啊了请问]/g, "").match(/[\u3400-\u9fff]+/g) || [])) {
+    if (run.length === 1) out.add(run); else for (let i = 0; i < run.length - 1; i++) out.add(run.slice(i, i + 2));
+  }
+  return out;
+}
+export function faqSimilar(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (faqNorm(a) === faqNorm(b)) return true;
+  const x = faqTokens(a), y = faqTokens(b);
+  if (!x.size || !y.size) return false;
+  let inter = 0; x.forEach((w) => { if (y.has(w)) inter++; });
+  return inter / (x.size + y.size - inter) >= 0.6;
+}
+
+// Match the message against active FAQ items with an answer. Items without an answer
+// (questions still waiting for the admin) never match — those go to "we'll get back to you".
 async function faqAnswer(body: string, lang: Lang = "en"): Promise<string | null> {
   const lc = body.toLowerCase();
   const faqs = await db.select().from(faqItems).where(eq(faqItems.active, true));
   let best: any = null, bestScore = 0;
   for (const f of faqs) {
     if (!f.answer || !f.answer.trim()) continue;
-    const kws = (f.keywords || "").toLowerCase().split(",").map((k) => k.trim()).filter(Boolean);
+    const kws = (f.keywords || "").toLowerCase().split(",").map((k) => k.trim()).filter((k) => k && !FAQ_STOP.has(k));
     let score = 0;
-    for (const k of kws) if (k && lc.includes(k)) score += 2;
-    // match the question in any language (the member may ask in 中文 or Bahasa)
-    for (const q of [f.question, faqIn(f as any, "zh").question, faqIn(f as any, "id").question]) if (q && lc.includes(q.toLowerCase().slice(0, 12))) { score += 1; break; }
+    for (const k of kws) if (lc.includes(k)) score += 2;
+    // the same question in any language (the member may ask in 中文 or Bahasa)
+    for (const q of [f.question, faqIn(f as any, "zh").question, faqIn(f as any, "id").question]) {
+      if (q && faqSimilar(body, q)) { score += 3; break; }
+      if (q && lc.includes(q.toLowerCase().slice(0, 12))) { score += 1; break; }
+    }
     if (score > bestScore) { bestScore = score; best = f; }
   }
   return bestScore > 0 ? faqIn(best, lang).answer : null;
 }
 
-// Log an unanswered question as an inactive FAQ item (admin fills the answer later).
+// Log a question nobody answered yet as an inactive FAQ item: it shows at the top of Admin › FAQ,
+// and once the admin types the answer and saves, the bot answers the same question with it.
 async function createPendingFaq(question: string) {
   try {
-    const q = question.slice(0, 200);
-    const existing = await db.select().from(faqItems).where(ilike(faqItems.question, q));
-    if (existing.length) return;
-    const kws = Array.from(new Set(q.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff\s]/gi, " ").split(/\s+/).filter((w) => w.length > 3))).slice(0, 8).join(",");
-    await db.insert(faqItems).values({ question: q, answer: "", keywords: kws, active: false, sortOrder: 200 });
+    const q = question.trim().slice(0, 200);
+    if (!q) return;
+    const all = await db.select({ question: faqItems.question, i18n: faqItems.i18n }).from(faqItems).limit(1000);
+    for (const f of all) {
+      const qs = [f.question, (f.i18n as any)?.zh?.question, (f.i18n as any)?.id?.question];
+      if (qs.some((x) => x && faqSimilar(q, String(x)))) return; // already waiting (or answered)
+    }
+    await db.insert(faqItems).values({ question: q, answer: "", keywords: "", active: false, sortOrder: 200 });
   } catch (e) { waError("pending faq", e); }
 }
 

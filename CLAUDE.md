@@ -160,6 +160,13 @@ text.
   for every new message, and an admin replies from Admin › CRM. The admin turns
   the bot back on per number in the CRM chat, or the member types *AI*
   (the hand-off reply tells them so) to get the auto-reply back.
+- Questions the bot learns (Admin › FAQ): a message with no FAQ match is saved by `createPendingFaq` as an
+  inactive, answer-less FAQ item and shown at the top of Admin › FAQ ("waiting for an answer"); the member
+  gets the "we'll get back to you shortly" hand-off. When the admin types the answer and saves, the item
+  switches on by itself (PUT `/api/reborn/admin/faq/:id`), and the bot answers the same question — also in
+  other words, `faqSimilar` (filler words dropped, light stemming, Chinese by character pairs) — with it,
+  on WhatsApp / Messenger / Instagram / Telegram. Items without an answer never match, and a question
+  already waiting isn't saved twice.
 - A song is only searched after an explicit song request (menu 2 / "song" / 点歌 / "sing"):
   after "scan your table QR first" the next message (30 min) is taken as the song name
   (`songWait`). Any other message — even one that happens to equal a library song title

@@ -491,6 +491,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.faq.answer': { en: "Answer", zh: "答案", id: "Jawaban" },
   'admin.faq.add': { en: "Add FAQ", zh: "添加常见问题", id: "Tambah FAQ" },
   'admin.faq.hint': { en: "Keywords (comma-separated) are matched against member questions for instant auto-replies.", zh: "关键词（逗号分隔）会与会员的问题匹配，用于即时自动回复。", id: "Kata kunci (pisahkan koma) dicocokkan dengan pertanyaan anggota untuk balasan otomatis instan." },
+  'admin.faq.waiting': { en: "{n} question(s) from members are waiting for your answer — type it and press Save; the bot will then reply with it when anyone asks the same thing.", zh: "有 {n} 个会员问题正在等你回答——填写答案并点“保存”，之后任何人问同样的问题，机器人都会用它回复。", id: "{n} pertanyaan dari member menunggu jawabanmu — tulis jawabannya lalu tekan Simpan; setelah itu bot akan membalas dengan jawaban itu saat ada yang menanyakan hal yang sama." },
+  'admin.faq.needsAnswer': { en: "⏳ Members asked this and got \"we'll get back to you\". Type the answer below and Save.", zh: "⏳ 会员问了这个问题，并收到了“我们会尽快回复您”。请在下面填写答案并保存。", id: "⏳ Member menanyakan ini dan menerima \"kami akan segera menghubungi Anda\". Tulis jawabannya di bawah lalu Simpan." },
   'admin.faq.question': { en: "Question", zh: "问题", id: "Pertanyaan" },
   'admin.faq.keywords': { en: "keywords, comma, separated", zh: "关键词，用逗号，分隔", id: "kata kunci, dipisah, koma" },
   'admin.up.placeholder': { en: "Type a name, username or code…", zh: "输入姓名、用户名或会员码…", id: "Ketik nama, nama pengguna, atau kode…" },
