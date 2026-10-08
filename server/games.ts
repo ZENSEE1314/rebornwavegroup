@@ -227,7 +227,7 @@ function resumeRoom(room: Room) {
       case "789": return arm789(room);
       case "inbetween": case "updown": return armCd(room);
       case "sixcup": return armSc(room);
-      case "uno": if (room.uno?.phase === "blast") { const i = room.players.findIndex((x) => x.id === room.uno!.blast?.by); unoNewRound(room, i < 0 ? 0 : i); } else unoBeginTurn(room); return;
+      case "uno": if (room.uno?.phase === "blast") { const i = room.players.findIndex((x) => x.id === room.uno!.blast?.by); unoNewRound(room, i < 0 ? 0 : unoStep(room, i)); } else unoBeginTurn(room); return;
       case "stack": return armStack(room);
       case "cards": return armCardTimer(room);
       case "dice": return armDiceTimer(room);
