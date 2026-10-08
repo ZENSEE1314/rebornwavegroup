@@ -58,7 +58,7 @@ export const bookingT: Record<string, { en: string; zh: string; id: string }> = 
   'bk.st.pending': { en: 'pending', zh: '待确认', id: 'menunggu' },
   'bk.st.scheduled': { en: 'scheduled', zh: '已安排', id: 'terjadwal' },
   'bk.st.completed': { en: 'completed', zh: '已完成', id: 'selesai' },
-  'bk.st.seated': { en: 'seated', zh: '已入座', id: 'sudah duduk' },
+  'bk.st.seated': { en: '✓ arrived', zh: '✓ 已到店', id: '✓ sudah tiba' },
   'bk.st.cancelled': { en: 'cancelled', zh: '已取消', id: 'dibatalkan' },
   'bk.st.blocked': { en: 'blocked', zh: '已封锁', id: 'diblokir' },
   'bk.st.noShow': { en: 'no-show', zh: '未到店', id: 'tidak datang' },

@@ -989,6 +989,29 @@ async function autoCheckinFromBooking(userId: string) {
   if (cur && (cur.tableLabel || cur.checkedOutAt)) return cur.checkedOutAt ? null : cur;
   return venueCheckIn(userId, table);
 }
+// A no-show auto-cancel whose guests turn up late can still be marked Arrived while
+// its time hasn't ended — unless the table was booked by someone else meanwhile.
+const isNoShowCancel = (r: { status: string; adminNote?: string | null }) => r.status === "cancelled" && /^No-show/.test(r.adminNote || "");
+const bookingEnd = (r: { appointmentDate: Date | string; duration: number | null }) => new Date(r.appointmentDate).getTime() + (r.duration || 120) * 60_000;
+async function tableTakenByOther(r: typeof appointments.$inferSelect): Promise<boolean> {
+  if (!r.notes) return false;
+  const start = new Date(r.appointmentDate).getTime(), end = bookingEnd(r);
+  const rows = await db.select().from(appointments).where(and(eq(appointments.notes, r.notes), sql`${appointments.appointmentDate} BETWEEN ${new Date(start - 12 * 3600_000)} AND ${new Date(end)}`));
+  return rows.some((o) => o.id !== r.id && ["pending", "scheduled", "confirmed", "seated", "blocked"].includes(o.status) && new Date(o.appointmentDate).getTime() < end && bookingEnd(o) > start);
+}
+// The member scanned the QR of the table they booked: they're at the club, so the
+// booking becomes Arrived (seated) by itself — also a late no-show if the table is still free.
+async function markArrivedFromScan(userId: string, table: string) {
+  const now = Date.now();
+  const rows = await db.select().from(appointments)
+    .where(and(eq(appointments.userId, userId), inArray(appointments.status, ["pending", "scheduled", "confirmed", "cancelled"]), sql`${appointments.appointmentDate} BETWEEN ${new Date(now - 12 * 3600_000)} AND ${new Date(now + 2 * 3600_000)}`))
+    .orderBy(desc(appointments.appointmentDate)).limit(10);
+  const hit = rows.find((r) => (r.status !== "cancelled" || isNoShowCancel(r)) && bookingTable(r.title) === table && bookingEnd(r) > now);
+  if (!hit || (hit.status === "cancelled" && await tableTakenByOther(hit))) return null;
+  const [row] = await db.update(appointments).set({ status: "seated", ...(hit.status === "cancelled" ? { adminNote: null } : {}), updatedAt: new Date() }).where(eq(appointments.id, hit.id)).returning();
+  emitLiveUpdate("/api/reborn/admin/bookings", { action: "ARRIVED", resource: String(hit.id) });
+  return row;
+}
 // "By table" song queue: a member must be checked in at a table (table QR or
 // confirmed table booking) before they can request a song — app and WhatsApp.
 export async function songNeedsTableScan(userId: string): Promise<boolean> {
@@ -1638,6 +1661,7 @@ export function registerRebornRoutes(app: Express) {
     if (table) {
       if (String(req.body?.k || "") !== await tableSig(table)) return res.status(400).json({ message: tr(req, { en: "This table QR isn't valid. Ask staff for help.", zh: "此桌位二维码无效，请联系员工。", id: "QR meja ini tidak valid. Minta bantuan staf." }) });
       const row = await venueCheckIn(userId, table);
+      await markArrivedFromScan(userId, table).catch((e) => console.warn("arrived from scan", e));
       return res.json({ message: tr(req, { en: "Checked in at table {t}. You now appear in Kings of Singers.", zh: "已在 {t} 号桌签到！你已出现在歌王之王中。", id: "Berhasil check-in di meja {t}. Kamu sekarang tampil di Raja Penyanyi." }, { t: table }), checkin: row, table });
     }
     const session = await ensureVenueSession();
@@ -4039,7 +4063,7 @@ export function registerRebornRoutes(app: Express) {
       const u: any = umap.get(r.userId);
       const start = new Date(r.appointmentDate).getTime();
       // "upcoming" keeps a booking listed until it ends, so staff can still mark the guest Arrived.
-      return { ...r, memberName: u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email : "—", memberPhone: u?.phoneNumber || "", upcoming: r.status === "seated" || start + (r.duration || 120) * 60_000 > now, started: start <= now }; // seated guests stay listed until their bill is paid
+      return { ...r, memberName: u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email : "—", memberPhone: u?.phoneNumber || "", upcoming: r.status === "seated" || start + (r.duration || 120) * 60_000 > now, started: start <= now, lateArrivalOk: isNoShowCancel(r) && bookingEnd(r) > now }; // seated guests stay listed until their bill is paid
     });
     res.json(out);
   }));
@@ -4048,7 +4072,14 @@ export function registerRebornRoutes(app: Express) {
     const status = ["confirmed", "cancelled", "completed", "pending", "seated"].includes(req.body?.status) ? req.body.status : null;
     if (!status) return res.status(400).json({ message: tr(req, { en: "Bad status", zh: "状态无效", id: "Status tidak valid" }) });
     const note = String(req.body?.note || "").trim() || undefined;
-    const [row] = await db.update(appointments).set({ status, ...(note ? { adminNote: note } : {}), updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
+    // ✓ Arrived on a booking that was auto-cancelled as a no-show: the guests came late.
+    const [cur] = await db.select().from(appointments).where(eq(appointments.id, id));
+    const late = !!cur && status === "seated" && cur.status === "cancelled";
+    if (late) {
+      if (!isNoShowCancel(cur) || bookingEnd(cur) <= Date.now()) return res.status(400).json({ message: tr(req, { en: "This booking was cancelled — make a new booking for the guest.", zh: "此预订已取消——请为客人重新预订。", id: "Booking ini sudah dibatalkan — buat booking baru untuk tamu." }) });
+      if (await tableTakenByOther(cur)) return res.status(409).json({ message: tr(req, { en: "This table has been booked by someone else since — seat the guest at another table.", zh: "此桌已被其他人预订——请安排客人到别的桌。", id: "Meja ini sudah dipesan orang lain — dudukkan tamu di meja lain." }) });
+    }
+    const [row] = await db.update(appointments).set({ status, ...(note ? { adminNote: note } : late ? { adminNote: null } : {}), updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
     // A confirmed table booking checks the member in to KOS at that table (from 2h before).
     if ((status === "confirmed" || status === "seated") && row.userId) await autoCheckinFromBooking(row.userId).catch((e) => console.warn("auto check-in", e));
