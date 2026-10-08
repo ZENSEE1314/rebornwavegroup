@@ -1417,10 +1417,15 @@ function Faq() {
   const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/faq", { question: t("admin.faq.newQ"), answer: t("admin.faq.answer"), keywords: "" }).then((r) => r.json()), onSuccess: inv });
   const save = useMutation({ mutationFn: (f: any) => apiRequest("PUT", `/api/reborn/admin/faq/${f.id}`, f).then((r) => r.json()), onSuccess: inv });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/faq/${id}`), onSuccess: inv });
+  // Questions members asked that nobody answered yet come first.
+  const unanswered = (f: any) => !String(f.answer || "").trim();
+  const sorted = [...items].sort((a, b) => Number(unanswered(b)) - Number(unanswered(a)));
+  const waiting = items.filter(unanswered).length;
   return (
     <div>
       <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> {t("admin.faq.add")}</button>
-      <div className="space-y-3">{items.map((f) => <FaqRow key={f.id} f={f} onSave={save.mutate} onDelete={del.mutate} />)}</div>
+      {waiting > 0 && <p className="mb-3 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200">{t("admin.faq.waiting", { n: waiting })}</p>}
+      <div className="space-y-3">{sorted.map((f) => <FaqRow key={f.id} f={f} onSave={save.mutate} onDelete={del.mutate} />)}</div>
       <p className="text-xs text-white/40 mt-3">{t("admin.faq.hint")}</p>
     </div>
   );
@@ -1439,8 +1444,10 @@ function FaqRow({ f, onSave, onDelete }: any) {
     onError: (err: any) => toast({ title: t("admin.c.failed"), description: String(err.message || "").replace(/^\d+:\s*/, ""), variant: "destructive" }),
   });
   const hasOther = ["zh", "id"].some((l) => e.i18n?.[l]?.question || e.i18n?.[l]?.answer);
+  const waiting = !String(f.answer || "").trim();
   return (
     <Card>
+      {waiting && <p className="mb-2 rounded-md bg-red-500/15 px-2 py-1 text-xs font-bold text-red-200">{t("admin.faq.needsAnswer")}</p>}
       <input value={e.question} onChange={(x) => setE({ ...e, question: x.target.value })} placeholder={t("admin.faq.question")} className={inp + " w-full mb-2"} />
       <textarea value={e.answer} onChange={(x) => setE({ ...e, answer: x.target.value })} placeholder={t("admin.faq.answer")} rows={2} className={inp + " w-full mb-2"} />
       <button type="button" disabled={translateAll.isPending || !(e.question || e.answer)}

@@ -2141,6 +2141,10 @@ export function registerRebornRoutes(app: Express) {
     const id = Number(req.params.id); const b = req.body || {};
     const patch: any = { updatedAt: new Date() };
     for (const k of ["question", "answer", "keywords"]) if (b[k] !== undefined) patch[k] = b[k];
+    // A question members asked that had no answer yet: typing the answer and saving turns it on,
+    // so the bot starts replying with it when anyone asks the same question.
+    const [before] = await db.select().from(faqItems).where(eq(faqItems.id, id));
+    if (before && !String(before.answer || "").trim() && String(b.answer || "").trim() && b.active === undefined) patch.active = true;
     if (b.i18n !== undefined) patch.i18n = b.i18n && typeof b.i18n === "object" ? b.i18n : null;
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
