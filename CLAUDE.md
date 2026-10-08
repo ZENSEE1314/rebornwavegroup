@@ -127,7 +127,8 @@ text.
   start is released — never a booking whose guests haven't arrived yet.
 - Arrival: staff tap ✓ Arrived, or it happens by itself when the member scans the QR of the
   table they booked (`markArrivedFromScan`, server/rebornGame.ts). The member's booking then
-  shows "✓ arrived". A booking auto-cancelled as a no-show whose guests turn up later gets
+  shows "✓ arrived" and gets a welcome WhatsApp (`notifyArrived` → `sendToMember`, text
+  `arrivedWelcome`; saved in the CRM chat). A booking auto-cancelled as a no-show whose guests turn up later gets
   "✓ Arrived (late)" in Admin › Bookings while its time hasn't ended (`lateArrivalOk`) — refused
   if the table was booked by someone else meanwhile (`tableTakenByOther`).
 - `bookingAskHours` — when off, the app and WhatsApp don't ask for hours and
