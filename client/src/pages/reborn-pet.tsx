@@ -549,22 +549,24 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
   const items = (home.catalog || []).filter((i: any) => i.kind === tab && !i.hidden && (tab === "furniture" || i.slot === slot));
   const worn = home.costumes?.[String(petId)] || {};
   const gender = pets.find((p: any) => p.id === petId)?.gender;
-  // Every buy and every wear / take-off is confirmed first (an in-app box — phones block window.confirm).
-  // After buying, it offers to wear the costume (or place the furniture) straight away.
-  const [ask, setAsk] = useState<{ it: any; kind: "buy" | "wear" | "unwear" | "place" } | null>(null);
+  // Every buy, wear / take-off and place / take-out is confirmed first (an in-app box — phones block
+  // window.confirm). After buying, it offers to wear the costume (or place the furniture) straight away.
+  const [ask, setAsk] = useState<{ it: any; kind: "buy" | "wear" | "unwear" | "place" | "unplace"; after?: boolean } | null>(null);
   const confirmAsk = () => {
     if (!ask) return;
     const { it, kind } = ask;
     setAsk(null);
-    if (kind === "buy") onBuy(it.id, () => setAsk({ it, kind: it.kind === "furniture" ? "place" : "wear" }));
+    if (kind === "buy") onBuy(it.id, () => setAsk({ it, kind: it.kind === "furniture" ? "place" : "wear", after: true }));
     else if (kind === "place") onPlace(it.slot, it.id);
+    else if (kind === "unplace") onPlace(it.slot, null);
     else onWear(petId, it.id); // wearing the worn item again takes it off
   };
   const askText = ask && {
     buy: { title: t("hm.shop.buyTitle", { name: ask.it.name }), desc: t("hm.shop.buyDesc", { price: ask.it.price, coins: home.coins }), ok: t("hm.shop.buyBtn", { price: ask.it.price }), no: t("hm.shop.cancel") },
-    wear: { title: t("hm.shop.wearTitle", { name: ask.it.name }), desc: t("hm.shop.wearDesc"), ok: t("hm.shop.wearBtn"), no: t("hm.shop.later") },
+    wear: { title: t("hm.shop.wearTitle", { name: ask.it.name }), desc: t("hm.shop.wearDesc"), ok: t("hm.shop.wearBtn"), no: t(ask.after ? "hm.shop.later" : "hm.shop.cancel") },
     unwear: { title: t("hm.shop.unwearTitle", { name: ask.it.name }), desc: t("hm.shop.unwearDesc"), ok: t("hm.shop.unwearBtn"), no: t("hm.shop.cancel") },
-    place: { title: t("hm.shop.placeTitle", { name: ask.it.name }), desc: t("hm.shop.placeDesc"), ok: t("hm.shop.placeBtn"), no: t("hm.shop.later") },
+    place: { title: t("hm.shop.placeTitle", { name: ask.it.name }), desc: t(home.placed?.[ask.it.slot] ? "hm.shop.placeSwapDesc" : "hm.shop.placeDesc"), ok: t("hm.shop.placeBtn"), no: t(ask.after ? "hm.shop.later" : "hm.shop.cancel") },
+    unplace: { title: t("hm.shop.unplaceTitle", { name: ask.it.name }), desc: t("hm.shop.unplaceDesc"), ok: t("hm.shop.unplaceBtn"), no: t("hm.shop.cancel") },
   }[ask.kind];
   return (
     <div className="arc-panel mt-4" style={{ ["--c1" as any]: "#f7d774" }}>
@@ -576,7 +578,7 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
             <p className="mt-1 text-sm text-white/65">{askText.desc}</p>
             <div className="mt-4 grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
               <button onClick={() => setAsk(null)} className="rounded-xl border border-white/15 bg-white/5 py-2.5 text-sm font-bold text-white/80">{askText.no}</button>
-              <button onClick={confirmAsk} disabled={busy} className="pet-act" style={{ flexDirection: "row", padding: "10px 8px", ["--c" as any]: ask.kind === "unwear" ? "#64748b" : "#f59e0b" }}><span className="l">{askText.ok}</span></button>
+              <button onClick={confirmAsk} disabled={busy} className="pet-act" style={{ flexDirection: "row", padding: "10px 8px", ["--c" as any]: ask.kind === "unwear" || ask.kind === "unplace" ? "#64748b" : "#f59e0b" }}><span className="l">{askText.ok}</span></button>
             </div>
           </div>
         </div>, document.body)}
@@ -606,7 +608,7 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
           const owned = (home.owned || []).includes(it.id);
           const active = tab === "furniture" ? home.placed?.[it.slot] === it.id : worn[it.slot] === it.id;
           const label = !owned ? `🐾 ${it.price}` : tab === "furniture" ? (active ? t("hm.pet.inRoom") : t("hm.pet.place")) : (active ? t("hm.pet.wearing") : t("hm.pet.wear"));
-          const onClick = () => !owned ? setAsk({ it, kind: "buy" }) : tab === "furniture" ? onPlace(it.slot, active ? null : it.id) : setAsk({ it, kind: active ? "unwear" : "wear" });
+          const onClick = () => !owned ? setAsk({ it, kind: "buy" }) : tab === "furniture" ? setAsk({ it, kind: active ? "unplace" : "place" }) : setAsk({ it, kind: active ? "unwear" : "wear" });
           return (
             <button key={it.id} onClick={onClick} disabled={busy || (!owned && home.coins < it.price)}
               className={`pet-item ${active ? "on" : ""} ${it.image ? "p-1.5" : "p-2.5"} ${it.image ? "disabled:opacity-60" : "disabled:opacity-40"}`}>
@@ -630,7 +632,7 @@ function ItemPicture({ it, home, gender }: any) {
     ? <div className="relative w-full aspect-square overflow-hidden rounded-xl" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><img src={it.figure} alt={it.name} loading="lazy" className={`absolute inset-0 h-full w-full object-contain p-1 ${it.slot === "footwear" ? "object-center" : "object-bottom"}`} /></div>
     : it.image
     ? <img src={it.image} alt={it.name} loading="lazy" className="w-full aspect-square rounded-xl object-cover" />
-    : <div className="flex w-full items-center justify-center"><ItemArt id={it.id} emoji={it.emoji} className="text-3xl leading-none" style={{ width: 52, height: 52 }} /></div>;
+    : <div className="flex h-full w-full items-center justify-center"><ItemArt id={it.id} emoji={it.emoji} className="text-3xl leading-none" style={{ width: 52, height: 52 }} /></div>;
 }
 
 // Wardrobe sections: only full costumes (hats, glasses, neck items and footwear were removed).
