@@ -390,6 +390,10 @@ text.
   with CSS filters. No WebGL → `onFail` falls back to the still picture. The page's phone rule shrinks every
   `canvas` (index.css) — the puppet's canvas overrides it (`.rwpet-rig`).
 - Animations only use transform / opacity and are switched off with `prefers-reduced-motion`.
+- Outfit pictures (client/public/pet-items/cloth-N.webp, 300×360, same canvas for every outfit): re-cut with
+  an AI background remover (BiRefNet) — no checkerboard / white fringe / specks, holes the old cut-out ate in
+  white clothes filled, straight sheet-cut edges faded softly. Keep the canvas size and the pet's position
+  when replacing one: the eye anchors (`CLOTH_EYES`) and the hats / glasses / shoes are placed by them.
 
 ## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)
 
