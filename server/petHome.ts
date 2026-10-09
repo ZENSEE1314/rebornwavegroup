@@ -34,7 +34,7 @@ const WEAR_SLOTS: [string, string, [string, number][]][] = [
 export const BASE_LAYER = "/pet-items/cloth-1.webp"; // shirtless, barefoot
 // Eye centre + eye distance on each clothing canvas (300x360), measured from the art.
 // Head/face items are drawn as overlays (ov-<n>.webp) scaled/placed by these.
-const CLOTH_EYES: Record<number, number[]> = {"1": [167.9, 133.6, 96.5], "2": [145.0, 134.8, 94.5], "3": [147.3, 135.3, 94.3], "4": [146.1, 132.9, 92.8], "5": [140.8, 135.4, 91.8], "6": [148.9, 133.8, 95.0], "7": [143.9, 136.4, 93.1], "8": [146.8, 136.5, 92.5], "9": [137.5, 135.9, 92.6], "10": [132.9, 134.6, 94.1], "11": [156.3, 135.7, 95.7], "12": [140.4, 137.3, 93.6], "13": [135.9, 144.8, 88.3], "14": [137.2, 138.2, 93.6], "15": [139.7, 139.0, 88.7], "16": [134.9, 144.2, 92.9], "17": [135.6, 142.3, 90.6], "18": [140.6, 139.0, 87.7], "19": [146.6, 137.0, 92.7], "20": [135.0, 133.7, 94.9], "21": [149.9, 145.3, 82.8], "22": [135.3, 139.4, 85.7], "23": [147.8, 151.7, 82.8], "24": [145.0, 148.4, 80.9], "25": [148.2, 155.2, 82.5], "26": [137.8, 142.0, 91.7], "27": [127.4, 125.1, 92.8], "28": [143.4, 137.3, 94.9], "29": [137.5, 136.4, 94.6], "30": [137.8, 133.9, 93.6]};
+const CLOTH_EYES: Record<number, number[]> = { 1: [167.9, 133.6, 96.5] };
 export const BASE_EYES = CLOTH_EYES[1];
 // Overlay anchor per head/face item: [eyeX, eyeY, eyeDist, width, height] in overlay px.
 const OVERLAY_ANCHOR: Record<number, number[]> = {"1": [89.6, 130.1, 79.0, 214, 109], "2": [91.5, 137.3, 77.7, 222, 117], "3": [77.3, 141.4, 74.4, 208, 122], "4": [70.8, 145.5, 69.0, 198, 128], "5": [92, 160, 75, 225, 141], "6": [82.0, 145.1, 73.9, 220, 126], "7": [78.9, 130.1, 73.6, 222, 111], "8": [70.1, 136.3, 73.5, 222, 117], "9": [78.9, 138.4, 75.0, 242, 119], "10": [80, 128, 65, 222, 111], "11": [94.7, 118.2, 77.3, 220, 98], "12": [84.7, 121.5, 72.4, 218, 103], "13": [79.8, 123.0, 72.8, 212, 104], "14": [79.6, 121.9, 76.2, 214, 102], "15": [77, 113, 69, 216, 95], "16": [98, 142, 87, 225, 120], "17": [74.6, 100.9, 75.9, 222, 81], "18": [74, 106, 70, 216, 88], "19": [89.6, 110.7, 72.7, 224, 92], "20": [74.7, 126.1, 78.0, 210, 106], "21": [88, 41, 73, 175, 81], "22": [81, 44, 80, 177, 88], "23": [90, 42, 75, 180, 83], "24": [92.8, 48.0, 87.2, 197, 96], "25": [90, 53, 95, 204, 105], "26": [89, 44, 79, 183, 87], "27": [71, 46, 83, 170, 91], "28": [86, 48, 86, 189, 95], "29": [85.2, 46.8, 84.4, 186, 93], "30": [70, 32, 58, 139, 63]};
@@ -43,12 +43,20 @@ Object.assign(OVERLAY_ANCHOR, { "31": [66.5, -40, 71, 128, 60], "32": [59.5, -40
 // Items that can't be drawn on the walking pet (their pictures are half-body close-ups):
 // wings/packs, auras, hand items, tail rings, shell items and the Bow Tie. Off sale; owners get refunded.
 export const REMOVED_WEARABLES = new Set([34, ...Array.from({ length: 20 }, (_, i) => 71 + i), 95, 96, 97, 98, 99, 100]);
-const CLOTHING_LIST: [string, number][] = [["T-Shirt", 80], ["Hoodie", 120], ["Jacket", 150], ["Leather Jacket", 180], ["Bomber Jacket", 170], ["Denim Jacket", 150],
+// The first clothing sheet (cloth-2…30) is off sale: its pictures were cut off at the
+// sheet edges. Owners get their pet coins back (refundRemovedWearables). [name, price]
+const OLD_CLOTHING: [string, number][] = [["T-Shirt", 80], ["Hoodie", 120], ["Jacket", 150], ["Leather Jacket", 180], ["Bomber Jacket", 170], ["Denim Jacket", 150],
   ["Sports Jersey", 130], ["Football Jersey", 130], ["Baseball Jersey", 130], ["Suit & Tie", 220], ["Tuxedo", 250], ["Chef Outfit", 180], ["Doctor Coat", 180],
   ["Police Uniform", 220], ["Firefighter", 220], ["Construction", 160], ["Explorer", 200], ["Adventurer", 220], ["Ninja Outfit", 250], ["Samurai Armor", 400],
   ["Knight Armor", 400], ["Wizard Robe", 300], ["King Robe", 380], ["Angel Outfit", 320], ["Devil Outfit", 320], ["Astronaut Suit", 450], ["Chinese Outfit", 280],
   ["K-Pop Outfit", 260], ["Hawaiian Shirt", 120]];
-const CLOTHING: PetItem[] = CLOTHING_LIST.map(([name, price], i) => ({ id: `c${i + 2}`, name, emoji: "👕", price, kind: "costume", slot: "clothing", figure: `/pet-items/cloth-${i + 2}.webp`, layer: `/pet-items/cloth-${i + 2}.webp`, eyes: CLOTH_EYES[i + 2] }));
+const OLD_CLOTHING_PRICE = new Map<string, number>(OLD_CLOTHING.map(([, price], i) => [`c${i + 2}`, price]));
+// The RWG outfits (client/public/pet-items/outfit-N.webp, 300x360, feet on the floor at y 357):
+// complete looks with shoes / hat. [name, price, eyes = eye centre x, y + eye distance]
+const OUTFIT_LIST: [string, number, number[]][] = [
+  ["Streetwear Hoodie", 180, [128.0, 104.9, 82]], ["Traditional Chinese Outfit", 280, [126.4, 106.8, 82]], ["Basketball Look", 220, [132.1, 114.5, 82]],
+  ["Winter Cozy Outfit", 240, [145.3, 128.5, 82]], ["Fantasy Adventurer", 350, [125.5, 134.2, 82]]];
+const CLOTHING: PetItem[] = OUTFIT_LIST.map(([name, price, eyes], i) => ({ id: `o${i + 1}`, name, emoji: "👕", price, kind: "costume", slot: "clothing", figure: `/pet-items/outfit-${i + 1}.webp`, layer: `/pet-items/outfit-${i + 1}.webp`, eyes }));
 const FOOTWEAR_LIST: [string, number][] = [["Classic Sneakers", 80], ["Sport Sneakers", 90], ["Gold Sneakers", 250], ["Silver Sneakers", 200], ["Black Sneakers", 90],
   ["Red Sneakers", 90], ["Green Sneakers", 90], ["Rainbow Sneakers", 150], ["LED Sneakers", 220], ["Basketball Shoes", 130],
   ["Football Cleats", 120], ["Roller Skates", 180], ["Bunny Slippers", 90], ["Bear Slippers", 90], ["Panda Slippers", 90],
@@ -101,6 +109,8 @@ export const PET_CATALOG: PetItem[] = [
 ];
 // Catalogue item names in Chinese / Bahasa (English is the name itself).
 const ITEM_NAMES: Record<string, [string, string]> = {
+  "Streetwear Hoodie": ["街头连帽衫", "Hoodie Streetwear"], "Traditional Chinese Outfit": ["传统中式服装", "Baju Tradisional Tionghoa"],
+  "Basketball Look": ["篮球装", "Gaya Basket"], "Winter Cozy Outfit": ["冬季保暖装", "Baju Hangat Musim Dingin"], "Fantasy Adventurer": ["奇幻冒险装", "Petualang Fantasi"],
   "Crown": ["皇冠", "Mahkota"], "Diamond Crown": ["钻石皇冠", "Mahkota Berlian"], "King Crown": ["国王皇冠", "Mahkota Raja"],
   "Prince Crown": ["王子皇冠", "Mahkota Pangeran"], "Party Hat": ["派对帽", "Topi Pesta"], "Birthday Crown": ["生日皇冠", "Mahkota Ulang Tahun"],
   "Santa Hat": ["圣诞帽", "Topi Sinterklas"], "Witch Hat": ["女巫帽", "Topi Nenek Sihir"], "Wizard Hat": ["巫师帽", "Topi Penyihir"],
@@ -195,12 +205,17 @@ function ensureTable() {
 
 type Home = { userId: string; coins: number; owned: string[]; placed: Record<string, string>; costumes: Record<string, Record<string, string>>; lightOn: boolean; earnedDay: string | null; earnedToday: number };
 
-// One-off clean-up: refund pet coins for removed wearables and take them off every pet.
-let refunded: Promise<void> | null = null;
+// One-off clean-up (once per company's data space): refund pet coins for removed wearables
+// and old clothing, and take them off every pet.
+const refundedBySpace = new Map<string, Promise<void>>();
 function refundRemovedWearables() {
-  refunded ??= (async () => {
+  const space = homeCompanySlug();
+  const done = refundedBySpace.get(space);
+  if (done) return done;
+  const refunded = (async () => {
     await ensureTable();
-    const removed = new Map(PET_CATALOG.filter((i) => i.kind === "costume" && /^w\d+$/.test(i.id) && REMOVED_WEARABLES.has(Number(i.id.slice(1)))).map((i) => [i.id, i.price]));
+    const removed = new Map<string, number>(Array.from(OLD_CLOTHING_PRICE.entries()));
+    for (const i of PET_CATALOG) if (i.kind === "costume" && /^w\d+$/.test(i.id) && REMOVED_WEARABLES.has(Number(i.id.slice(1)))) removed.set(i.id, i.price);
     const r: any = await db.execute(sql`SELECT user_id, owned, costumes FROM pet_homes`);
     for (const row of (r.rows || r)) {
       const owned: string[] = row.owned || [];
@@ -209,11 +224,16 @@ function refundRemovedWearables() {
       const refund = gone.reduce((sum, id) => sum + (removed.get(id) || 0), 0);
       const costumes: Record<string, Record<string, string>> = row.costumes || {};
       for (const pet of Object.values(costumes)) for (const [slot, id] of Object.entries(pet)) if (removed.has(id)) delete pet[slot];
-      await db.execute(sql`UPDATE pet_homes SET coins = coins + ${refund}, owned = ${JSON.stringify(owned.filter((id) => !removed.has(id)))}::jsonb,
-        costumes = ${JSON.stringify(costumes)}::jsonb, updated_at = now() WHERE user_id = ${row.user_id}`);
+      // Only while the member still owns them, so two servers starting together never refund twice.
+      const goneJson = JSON.stringify(gone);
+      const u: any = await db.execute(sql`UPDATE pet_homes SET coins = coins + ${refund},
+        owned = (SELECT coalesce(jsonb_agg(x), '[]'::jsonb) FROM jsonb_array_elements(owned) x WHERE NOT (${goneJson}::jsonb ? (x #>> '{}'))),
+        costumes = ${JSON.stringify(costumes)}::jsonb, updated_at = now() WHERE user_id = ${row.user_id} AND owned @> ${goneJson}::jsonb RETURNING user_id`);
+      if (!(u.rows || u).length) continue;
       console.log(`[petHome] refunded ${refund} coins to ${row.user_id} for removed items: ${gone.join(", ")}`);
     }
-  })().catch((e) => { refunded = null; console.error("[petHome] refund removed", e); });
+  })().catch((e) => { refundedBySpace.delete(space); console.error("[petHome] refund removed", e); });
+  refundedBySpace.set(space, refunded);
   return refunded;
 }
 
@@ -221,6 +241,7 @@ function venueDay() { return new Intl.DateTimeFormat("en-CA", { timeZone: getBoo
 
 async function getHome(userId: string): Promise<Home> {
   await ensureTable();
+  await refundRemovedWearables();
   await db.execute(sql`INSERT INTO pet_homes (user_id, owned, placed) VALUES (${userId}, ${JSON.stringify(STARTER_ITEMS)}::jsonb, ${JSON.stringify(STARTER_PLACED)}::jsonb) ON CONFLICT (user_id) DO NOTHING`);
   const r: any = await db.execute(sql`SELECT * FROM pet_homes WHERE user_id = ${userId}`);
   const row = (r.rows || r)[0];

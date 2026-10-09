@@ -390,10 +390,15 @@ text.
   with CSS filters. No WebGL → `onFail` falls back to the still picture. The page's phone rule shrinks every
   `canvas` (index.css) — the puppet's canvas overrides it (`.rwpet-rig`).
 - Animations only use transform / opacity and are switched off with `prefers-reduced-motion`.
-- Outfit pictures (client/public/pet-items/cloth-N.webp, 300×360, same canvas for every outfit): re-cut with
-  an AI background remover (BiRefNet) — no checkerboard / white fringe / specks, holes the old cut-out ate in
-  white clothes filled, straight sheet-cut edges faded softly. Keep the canvas size and the pet's position
-  when replacing one: the eye anchors (`CLOTH_EYES`) and the hats / glasses / shoes are placed by them.
+- Outfits (Costumes › Clothing): five RWG looks — Streetwear Hoodie, Traditional Chinese Outfit, Basketball
+  Look, Winter Cozy Outfit, Fantasy Adventurer (`OUTFIT_LIST` in server/petHome.ts, ids `o1`–`o5`, pictures
+  client/public/pet-items/outfit-N.webp). Each is a complete look with its own shoes / hat, cut from the RWG
+  outfit sheet with BiRefNet, on the shared 300×360 canvas: eyes 82 px apart, feet on the floor at y 357,
+  centred; the eye anchors (`eyes`) are stored per outfit, so hats / glasses / neck items and the puppet still
+  line up. A new outfit must keep that canvas and store its own measured eyes. The old clothing sheet
+  (`c2`–`c30`, cut off at the sheet edges) is off sale: `refundRemovedWearables` gives owners their pet coins
+  back once per company's data space (only while they still own it, so two servers never refund twice) and
+  takes it off their pets. `cloth-1.webp` stays as the shirtless base layer.
 
 ## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)
 
