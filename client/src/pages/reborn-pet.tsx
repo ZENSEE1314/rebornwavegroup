@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -188,7 +189,7 @@ export default function RebornPet() {
 
       {home && pets.some((p) => !p.isEgg) && (
         <PetShop home={home} pets={pets.filter((p) => !p.isEgg)} busy={homeCall.isPending}
-          onBuy={(itemId: string) => homeCall.mutate({ path: "buy", body: { itemId } })}
+          onBuy={(itemId: string, onOk?: () => void) => homeCall.mutate({ path: "buy", body: { itemId } }, { onSuccess: () => onOk?.() })}
           onPlace={(slot: string, itemId: string | null) => homeCall.mutate({ path: "place", body: { slot, itemId } })}
           onWear={(petId: number, itemId: string) => homeCall.mutate({ path: "wear", body: { petId, itemId } })} />
       )}
@@ -548,8 +549,37 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
   const items = (home.catalog || []).filter((i: any) => i.kind === tab && !i.hidden && (tab === "furniture" || i.slot === slot));
   const worn = home.costumes?.[String(petId)] || {};
   const gender = pets.find((p: any) => p.id === petId)?.gender;
+  // Every buy and every wear / take-off is confirmed first (an in-app box — phones block window.confirm).
+  // After buying, it offers to wear the costume (or place the furniture) straight away.
+  const [ask, setAsk] = useState<{ it: any; kind: "buy" | "wear" | "unwear" | "place" } | null>(null);
+  const confirmAsk = () => {
+    if (!ask) return;
+    const { it, kind } = ask;
+    setAsk(null);
+    if (kind === "buy") onBuy(it.id, () => setAsk({ it, kind: it.kind === "furniture" ? "place" : "wear" }));
+    else if (kind === "place") onPlace(it.slot, it.id);
+    else onWear(petId, it.id); // wearing the worn item again takes it off
+  };
+  const askText = ask && {
+    buy: { title: t("hm.shop.buyTitle", { name: ask.it.name }), desc: t("hm.shop.buyDesc", { price: ask.it.price, coins: home.coins }), ok: t("hm.shop.buyBtn", { price: ask.it.price }), no: t("hm.shop.cancel") },
+    wear: { title: t("hm.shop.wearTitle", { name: ask.it.name }), desc: t("hm.shop.wearDesc"), ok: t("hm.shop.wearBtn"), no: t("hm.shop.later") },
+    unwear: { title: t("hm.shop.unwearTitle", { name: ask.it.name }), desc: t("hm.shop.unwearDesc"), ok: t("hm.shop.unwearBtn"), no: t("hm.shop.cancel") },
+    place: { title: t("hm.shop.placeTitle", { name: ask.it.name }), desc: t("hm.shop.placeDesc"), ok: t("hm.shop.placeBtn"), no: t("hm.shop.later") },
+  }[ask.kind];
   return (
     <div className="arc-panel mt-4" style={{ ["--c1" as any]: "#f7d774" }}>
+      {ask && askText && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm" onClick={() => setAsk(null)}>
+          <div role="dialog" aria-modal="true" className="arc-panel w-full max-w-xs text-center" style={{ ["--c1" as any]: "#f7d774" }} onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 h-32 w-32"><ItemPicture it={ask.it} home={home} gender={gender} /></div>
+            <h3 className="text-lg font-black text-white">{askText.title}</h3>
+            <p className="mt-1 text-sm text-white/65">{askText.desc}</p>
+            <div className="mt-4 grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <button onClick={() => setAsk(null)} className="rounded-xl border border-white/15 bg-white/5 py-2.5 text-sm font-bold text-white/80">{askText.no}</button>
+              <button onClick={confirmAsk} disabled={busy} className="pet-act" style={{ flexDirection: "row", padding: "10px 8px", ["--c" as any]: ask.kind === "unwear" ? "#64748b" : "#f59e0b" }}><span className="l">{askText.ok}</span></button>
+            </div>
+          </div>
+        </div>, document.body)}
       <div className="flex items-center justify-between gap-2 mb-1">
         <h3 className="arc-title flex items-center gap-2" style={{ fontSize: 16 }}>🏠 {t("hm.pet.shopTitle")}</h3>
         <span className="rwg-token-chip shrink-0 rounded-full border px-3 py-1 text-sm font-black text-amber-300">🐾 {home.coins}</span>
@@ -576,18 +606,11 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
           const owned = (home.owned || []).includes(it.id);
           const active = tab === "furniture" ? home.placed?.[it.slot] === it.id : worn[it.slot] === it.id;
           const label = !owned ? `🐾 ${it.price}` : tab === "furniture" ? (active ? t("hm.pet.inRoom") : t("hm.pet.place")) : (active ? t("hm.pet.wearing") : t("hm.pet.wear"));
-          const onClick = () => !owned ? onBuy(it.id) : tab === "furniture" ? onPlace(it.slot, active ? null : it.id) : onWear(petId, it.id);
+          const onClick = () => !owned ? setAsk({ it, kind: "buy" }) : tab === "furniture" ? onPlace(it.slot, active ? null : it.id) : setAsk({ it, kind: active ? "unwear" : "wear" });
           return (
             <button key={it.id} onClick={onClick} disabled={busy || (!owned && home.coins < it.price)}
               className={`pet-item ${active ? "on" : ""} ${it.image ? "p-1.5" : "p-2.5"} ${it.image ? "disabled:opacity-60" : "disabled:opacity-40"}`}>
-              {it.overlay && it.anchor
-                // Hats, glasses and neck items: show the full-body pet wearing just this item.
-                ? <div className="relative w-full aspect-square overflow-hidden rounded-xl p-1" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><div className="relative h-full w-full"><DressedPet home={home} worn={{ [it.slot]: it.id }} alt={it.name} gender={gender} /></div></div>
-                : it.figure
-                ? <div className="relative w-full aspect-square overflow-hidden rounded-xl" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><img src={it.figure} alt={it.name} loading="lazy" className={`absolute inset-0 h-full w-full object-contain p-1 ${it.slot === "footwear" ? "object-center" : "object-bottom"}`} /></div>
-                : it.image
-                ? <img src={it.image} alt={it.name} loading="lazy" className="w-full aspect-square rounded-xl object-cover" />
-                : <ItemArt id={it.id} emoji={it.emoji} className="text-3xl leading-none" style={{ width: 52, height: 52 }} />}
+              <ItemPicture it={it} home={home} gender={gender} />
               <span className="text-[11px] font-semibold text-center leading-tight truncate w-full">{it.name}</span>
               <span className={`pet-price ${owned ? (active ? "text-amber-300" : "text-emerald-300") : "text-amber-200"}`}>{label}</span>
             </button>
@@ -596,6 +619,18 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
       </div>
     </div>
   );
+}
+
+// An item's picture in the shop and in its buy / wear box.
+function ItemPicture({ it, home, gender }: any) {
+  return it.overlay && it.anchor
+    // Hats, glasses and neck items: show the full-body pet wearing just this item.
+    ? <div className="relative w-full aspect-square overflow-hidden rounded-xl p-1" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><div className="relative h-full w-full"><DressedPet home={home} worn={{ [it.slot]: it.id }} alt={it.name} gender={gender} /></div></div>
+    : it.figure
+    ? <div className="relative w-full aspect-square overflow-hidden rounded-xl" style={{ background: "radial-gradient(circle at 50% 40%, rgba(255,236,200,.22), rgba(255,255,255,.03) 70%)" }}><img src={it.figure} alt={it.name} loading="lazy" className={`absolute inset-0 h-full w-full object-contain p-1 ${it.slot === "footwear" ? "object-center" : "object-bottom"}`} /></div>
+    : it.image
+    ? <img src={it.image} alt={it.name} loading="lazy" className="w-full aspect-square rounded-xl object-cover" />
+    : <div className="flex w-full items-center justify-center"><ItemArt id={it.id} emoji={it.emoji} className="text-3xl leading-none" style={{ width: 52, height: 52 }} /></div>;
 }
 
 // Wardrobe sections: only full costumes (hats, glasses, neck items and footwear were removed).
