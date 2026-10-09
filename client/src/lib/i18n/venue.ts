@@ -92,6 +92,8 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.kos.cashoutAll': { en: 'Cash out all → RP {n}', zh: '全部兑现 → RP {n}', id: 'Cairkan semua → RP {n}' },
   'vn.kos.needMore': { en: 'You need more KGOLD to reach the minimum.', zh: '你的 KGOLD 不足最低兑现额。', id: 'KGOLD Anda belum mencapai batas minimal.' },
   'vn.kos.someone': { en: 'Someone', zh: '有人', id: 'Seseorang' },
+  'vn.kos.youSentTo': { en: 'You sent {name} a {gift}!', zh: '你送给 {name} 一个{gift}！', id: 'Anda mengirim {gift} untuk {name}!' },
+  'vn.kos.cheers': { en: 'CHEERS!', zh: '干杯！', id: 'BERSULANG!' },
   'vn.kos.sentYou': { en: '{name} sent you a {gift}!', zh: '{name} 送给你一个{gift}！', id: '{name} mengirimi Anda {gift}!' },
   'vn.kos.awesome': { en: 'Awesome!', zh: '太棒了！', id: 'Keren!' },
 
