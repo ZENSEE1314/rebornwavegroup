@@ -160,6 +160,11 @@ text.
   for every new message, and an admin replies from Admin › CRM. The admin turns
   the bot back on per number in the CRM chat, or the member types *AI*
   (the hand-off reply tells them so) to get the auto-reply back.
+- Language in the chat: a named language switches **at once, no asking** — "change chinese" / "switch to
+  english" / "换中文" / "ganti bahasa indonesia" (`parseLangSwitch`; saved on the contact and the app account).
+  A request with no language named — "change language" / "language" / "ganti bahasa" / "换语言" (`wantsLangMenu`)
+  — gets one trilingual question with English / 中文 / Bahasa Indonesia buttons (`LANG_ASK_TRILINGUAL`, flow
+  `langPick`); the button, 1 / 2 / 3 or the name then switches. Any other message clears the question.
 - Questions the bot learns (Admin › FAQ): a message with no FAQ match is saved by `createPendingFaq` as an
   inactive, answer-less FAQ item and shown at the top of Admin › FAQ ("waiting for an answer"); the member
   gets the "we'll get back to you shortly" hand-off. When the admin types the answer and saves, the item
