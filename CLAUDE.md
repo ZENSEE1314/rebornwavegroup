@@ -381,6 +381,14 @@ text.
   name still works): greets on opening, asks for what it needs (hungry / bored / dirty / sleepy), thanks after
   care, chats every ~17 s, and drops tips (floor tap, light switch, "feed me N times a day to earn a token").
   New lines need en / zh / id. The room also shows a mood chip (Happy / Calm / Needs love).
+- The walking pet is a cartoon puppet, not a flat picture (client/src/components/PetRig.tsx): the dressed pet
+  (`figureSpec` — the same layers as the still `DoluruuFigure`) is flattened into one texture and drawn on a
+  bendable WebGL mesh. Head, legs, arms, tail and body move on their own from the eye landmarks (`eyes` of each
+  outfit / `PLAIN_PET`): steps with lifted feet, arm swings, head tilts, squash & stretch, a wagging tail,
+  breathing, and blinking eyes (closed while asleep). Poses are springs (`target()` per `RigPose`); turning
+  around is an instant flip (never squeezed paper-thin). Sleep dimming / sick grey are done in the shader, not
+  with CSS filters. No WebGL → `onFail` falls back to the still picture. The page's phone rule shrinks every
+  `canvas` (index.css) — the puppet's canvas overrides it (`.rwpet-rig`).
 - Animations only use transform / opacity and are switched off with `prefers-reduced-motion`.
 
 ## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)

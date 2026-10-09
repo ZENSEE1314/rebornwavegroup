@@ -9,6 +9,7 @@ import petFemale from "@assets/doluruu-female-transparent.png";
 import eggImg from "@assets/doluruu-blindbox-box.jpeg";
 import { usePetBrand } from "@/hooks/usePetBrand";
 import { ItemArt, COSTUME_FIT, PET_ART } from "@/components/pet-art";
+import { PetRig, type RigFigure, type RigPose } from "@/components/PetRig";
 import { useTranslation, translate, getCurrentLanguage, brandText } from "@/lib/i18n";
 import { sfx } from "@/lib/sfx";
 
@@ -69,6 +70,9 @@ const WALK_CSS = `
 .rwpet-fx-poke-2 .rwpet-step{animation:rwpetSpin .8s ease-in-out 1;}
 .rwpet-fx-poke-3 .rwpet-step{animation:rwpetShake .5s ease-in-out 1;}
 .rwpet-fx{position:absolute;pointer-events:none;line-height:1;z-index:12;}
+/* the cartoon puppet (PetRig) moves the body itself: no flat-picture bobbing on top */
+.rwpet-rigged .rwpet-step{animation:none !important;}
+.rwpet-rigged .rwpet-face{transition:none;} /* turning around is instant, like a cartoon — never squeezed through paper-thin */
 @media (prefers-reduced-motion:reduce){.rwpet-walker .rwpet-step,.rwpet-shadow{animation:none !important}.rwpet-fx{display:none}}
 `;
 
@@ -357,6 +361,9 @@ function PetRoom({ pet, img, sick, home, onLight, careFx }: any) {
   const asleep = pet.isSleeping || sick;
   const mood = petMood(pet);
   const wander = useWander(!asleep && !pet.isEgg, mood);
+  // The cartoon puppet; falls back to the still picture if the phone can't draw it (no WebGL).
+  const [rigOk, setRigOk] = useState(true);
+  const ownPicture = usePetBrand().imageUrl;
   // Doluruu walks in its clothing (shirtless by default) with its footwear on top
   // (barefoot by default); both are layers on the same canvas.
   const layers = outfitLayers(home, worn);
@@ -418,6 +425,9 @@ function PetRoom({ pet, img, sick, home, onLight, careFx }: any) {
   };
   const parts = useMemo(() => (fx ? fxParts(fx.kind, fx.v) : []), [fx?.n]);
   const fxCls = fx ? (fx.kind === "poke" ? `rwpet-fx-poke-${fx.v}` : `rwpet-fx-${fx.kind}`) : "";
+  const rigPose: RigPose = (fx ? (fx.kind === "poke" ? `poke-${fx.v}` : fx.kind === "sleep" ? "yawn" : fx.kind) : asleep ? "sleep" : wander.mode) as RigPose;
+  const rigFigure = useMemo<RigFigure>(() => ownPicture ? { cw: 0, ch: 0, layers: [{ src: ownPicture, x: 0, y: 0, w: 0, h: 0 }], eyes: null }
+    : layers ? figureSpec(home, worn, pet.gender) : figureSpec(undefined, {}, pet.gender), [ownPicture, JSON.stringify(layers), JSON.stringify(worn), pet.gender, home?.baseEyes]);
   const bubbleLeft = Math.max(30, Math.min(70, (asleep ? 36 : wander.xRef.current) + 17));
 
   return (
@@ -467,11 +477,13 @@ function PetRoom({ pet, img, sick, home, onLight, careFx }: any) {
           <p className="text-xs text-white flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" /> {t("hm.pet.hatchesIn", { n: pet.hatchDaysLeft })}</p>
         </div>
       ) : (
-        <button ref={wander.ref} onClick={poke} className={`rwpet-walker ${fxCls || (asleep ? "rwpet-sleep" : `rwpet-m-${wander.mode}`)} rwpet-mood-${mood}`} style={{ left: `${asleep ? 36 : wander.startX}%` }} aria-label={t("hm.pet.playAria")}>
+        <button ref={wander.ref} onClick={poke} className={`rwpet-walker ${fxCls || (asleep ? "rwpet-sleep" : `rwpet-m-${wander.mode}`)} rwpet-mood-${mood} ${rigOk ? "rwpet-rigged" : ""}`} style={{ left: `${asleep ? 36 : wander.startX}%` }} aria-label={t("hm.pet.playAria")}>
           <div className="rwpet-shadow" />
           <div className="rwpet-face" style={{ transform: `scaleX(${wander.facing})` }}>
             <div className="rwpet-step">
-              {layers
+              {rigOk
+                ? <PetRig figure={rigFigure} pose={rigPose} mood={mood} onFail={() => setRigOk(false)} tone={sick ? "sick" : pet.isSleeping ? "sleep" : ""} />
+                : layers
                 ? <DressedPet home={home} worn={worn} alt={pet.name} gender={pet.gender} className={sick ? "grayscale opacity-70" : ""} />
                 : <img src={img} alt={pet.name} className={`w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />}
               {(["neck", "face", "head"] as const).map((part) => {
@@ -596,31 +608,40 @@ function DressedPet({ home, worn, alt, gender, className = "" }: any) {
   if (ownPicture) return <img src={ownPicture} alt={alt} draggable={false} className={`absolute inset-0 h-full w-full object-contain object-bottom ${className}`} />;
   return <DoluruuFigure home={home} worn={worn} alt={alt} gender={gender} className={className} />;
 }
-function DoluruuFigure({ home, worn, alt, gender, className }: any) {
+// Where every picture of the dressed pet goes, in figure pixels — used by the still
+// picture (DoluruuFigure) and by the moving cartoon puppet (PetRig) alike.
+function figureSpec(home: any, worn: Record<string, string>, gender?: string): RigFigure {
   const plain = !worn.clothing && !worn.footwear && PLAIN_PET[gender === "female" ? "female" : "male"];
   const layers = plain ? [] : outfitLayers(home, worn) || [];
   const cloth = worn.clothing && itemById(home, worn.clothing);
   const shoes = !plain && layers.length > 1;
   const cw = plain ? plain.box[2] : CANVAS_W, ch = plain ? plain.box[3] : CANVAS_H + (shoes ? SHOE_PAD : 0);
   const eyes: number[] | undefined = plain ? plain.eyes : cloth?.eyes || home?.baseEyes;
+  const out: RigFigure["layers"] = [];
+  if (plain) out.push({ src: plain.src, x: -plain.box[0], y: -plain.box[1], w: plain.w, h: 0 });
+  layers.forEach((src, i) => {
+    const isShoe = shoes && i === layers.length - 1;
+    const s = isShoe ? SHOE_SCALE : 1;
+    out.push({ src, x: (CANVAS_W * (1 - s)) / 2, y: isShoe ? CANVAS_H * (1 - s) + SHOE_DROP : 0, w: CANVAS_W * s, h: CANVAS_H * s, ...(shoes && !isShoe ? { clip: BODY_CUT } : {}) });
+  });
   // Neck first (under the chin), then glasses, then hats.
-  const extras = ["neck", "face", "head"].map((k) => worn[k] && itemById(home, worn[k])).filter((i: any) => i?.overlay && i.anchor);
+  if (eyes) for (const it of ["neck", "face", "head"].map((k) => worn[k] && itemById(home, worn[k])).filter((i: any) => i?.overlay && i.anchor) as any[]) {
+    const [ax, ay, d, ow] = it.anchor; const s = eyes[2] / d;
+    out.push({ src: it.overlay, x: eyes[0] - ax * s, y: eyes[1] - ay * s, w: ow * s, h: 0, fade: it.slot !== "neck", over: true });
+  }
+  return { cw, ch, layers: out, eyes };
+}
+function DoluruuFigure({ home, worn, alt, gender, className }: any) {
+  const { cw, ch, layers } = figureSpec(home, worn, gender);
   return (
     <div className="absolute bottom-0 left-1/2 h-full -translate-x-1/2" style={{ aspectRatio: `${cw} / ${ch}` }}>
-      {plain && <img src={plain.src} alt={alt} draggable={false} className={`rwpet-layer absolute ${className}`}
-        style={{ left: `${(-plain.box[0] / cw) * 100}%`, top: `${(-plain.box[1] / ch) * 100}%`, width: `${(plain.w / cw) * 100}%` }} />}
-      {layers.map((src, i) => {
-        const isShoe = shoes && i === layers.length - 1;
-        const s = isShoe ? SHOE_SCALE : 1, top = isShoe ? CANVAS_H * (1 - s) + SHOE_DROP : 0;
-        return <img key={src} src={src} alt={i === 0 ? alt : ""} className={`absolute ${className}`} draggable={false}
-          style={{ left: `${((CANVAS_W * (1 - s)) / 2 / cw) * 100}%`, top: `${(top / ch) * 100}%`, width: `${s * 100}%`, height: `${((CANVAS_H * s) / ch) * 100}%`,
-            ...(shoes && !isShoe ? { clipPath: `inset(0 0 ${(((CANVAS_H - BODY_CUT) / CANVAS_H) * 100).toFixed(2)}% 0)` } : {}) }} />;
-      })}
-      {eyes && extras.map((it: any) => {
-        const [ax, ay, d, ow] = it.anchor; const s = eyes[2] / d;
-        return <img key={it.id} src={it.overlay} alt="" draggable={false} className={`rwpet-layer absolute ${className}`}
-          style={{ left: `${((eyes[0] - ax * s) / cw) * 100}%`, top: `${((eyes[1] - ay * s) / ch) * 100}%`, width: `${((ow * s) / cw) * 100}%`, ...(it.slot === "neck" ? {} : { WebkitMaskImage: OVERLAY_FADE, maskImage: OVERLAY_FADE }) }} />;
-      })}
+      {layers.map((l, i) => (
+        <img key={l.src} src={l.src} alt={i === 0 ? alt : ""} draggable={false} className={`${l.h ? "" : "rwpet-layer "}absolute ${className}`}
+          style={{ left: `${(l.x / cw) * 100}%`, top: `${(l.y / ch) * 100}%`, width: `${(l.w / cw) * 100}%`,
+            ...(l.h ? { height: `${(l.h / ch) * 100}%` } : {}),
+            ...(l.clip ? { clipPath: `inset(0 0 ${(((l.h - l.clip) / l.h) * 100).toFixed(2)}% 0)` } : {}),
+            ...(l.fade ? { WebkitMaskImage: OVERLAY_FADE, maskImage: OVERLAY_FADE } : {}) }} />
+      ))}
     </div>
   );
 }
