@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -38,6 +38,38 @@ const WALK_CSS = `
 .rwpet-sleep img{filter:brightness(.85) saturate(.8);}
 .rwpet-layer{max-width:none !important;height:auto !important;}
 .rwpet-heart{position:absolute;left:50%;top:0;font-size:20px;animation:rwpetHeart 1s ease-out forwards;pointer-events:none;}
+/* more moves: dance / spin / stretch / wave while wandering, and a reaction to every care action */
+@keyframes rwpetDance{0%,100%{transform:translateX(0) rotate(0) scale(1,1)}20%{transform:translateX(-7%) rotate(-8deg) scale(1.03,.97)}40%{transform:translateX(0) rotate(0) translateY(-8%)}60%{transform:translateX(7%) rotate(8deg) scale(1.03,.97)}80%{transform:translateX(0) rotate(0) translateY(-8%)}}
+@keyframes rwpetSpin{0%{transform:translateY(0) scaleX(1)}25%{transform:translateY(-14%) scaleX(0)}50%{transform:translateY(-18%) scaleX(-1)}75%{transform:translateY(-8%) scaleX(0)}100%{transform:translateY(0) scaleX(1)}}
+@keyframes rwpetStretch{0%,100%{transform:scale(1,1)}35%{transform:scale(.92,1.14)}65%{transform:scale(1.1,.9)}}
+@keyframes rwpetWave{0%,100%{transform:rotate(0)}20%{transform:rotate(-6deg) translateY(-3%)}40%{transform:rotate(6deg)}60%{transform:rotate(-6deg) translateY(-3%)}80%{transform:rotate(6deg)}}
+@keyframes rwpetChomp{0%,100%{transform:scale(1,1)}25%{transform:scale(1.06,.93)}50%{transform:scale(.97,1.04)}75%{transform:scale(1.06,.93)}}
+@keyframes rwpetShake{0%,100%{transform:translateX(0) rotate(0)}15%{transform:translateX(-4%) rotate(-5deg)}30%{transform:translateX(4%) rotate(5deg)}45%{transform:translateX(-4%) rotate(-5deg)}60%{transform:translateX(4%) rotate(5deg)}75%{transform:translateX(-2%) rotate(-2deg)}}
+@keyframes rwpetDroop{0%,100%{transform:scale(1,.97) rotate(-2deg) translateY(1%)}50%{transform:scale(1,.95) rotate(2deg) translateY(2%)}}
+@keyframes rwpetFoodIn{0%{transform:translate(0,-46px) scale(.6) rotate(-25deg);opacity:0}25%{opacity:1}75%{transform:translate(0,38px) scale(1) rotate(8deg);opacity:1}100%{transform:translate(0,46px) scale(.3);opacity:0}}
+@keyframes rwpetFloatUp{0%{transform:translate(0,0) scale(.5);opacity:0}15%{opacity:1}100%{transform:translate(var(--dx,0px),-84px) scale(1.1);opacity:0}}
+@keyframes rwpetScrub{0%,100%{transform:translateX(-14px) rotate(-20deg)}50%{transform:translateX(14px) rotate(20deg)}}
+@keyframes rwpetBall{0%{transform:translate(70px,0)}25%{transform:translate(35px,-34px)}50%{transform:translate(0,0)}75%{transform:translate(-35px,-24px)}100%{transform:translate(-70px,0);opacity:0}}
+@keyframes rwpetSparkle{0%,100%{transform:scale(0) rotate(0);opacity:0}50%{transform:scale(1) rotate(90deg);opacity:1}}
+@keyframes rwpetRain{0%{transform:translateY(-4px);opacity:0}30%{opacity:.9}100%{transform:translateY(22px);opacity:0}}
+@keyframes rwpetBubbleIn{0%{opacity:0;transform:translateX(-50%) translateY(6px) scale(.9)}100%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+.rwpet-m-dance .rwpet-step{animation:rwpetDance 1.15s ease-in-out 2;}
+.rwpet-m-spin .rwpet-step{animation:rwpetSpin 1s ease-in-out 1;}
+.rwpet-m-stretch .rwpet-step{animation:rwpetStretch 1.4s ease-in-out 1;}
+.rwpet-m-wave .rwpet-step{animation:rwpetWave 1.5s ease-in-out 1;}
+.rwpet-m-idle.rwpet-mood-sad .rwpet-step{animation:rwpetDroop 3s ease-in-out infinite;}
+.rwpet-m-idle.rwpet-mood-happy .rwpet-step{animation:rwpetIdle 1.5s ease-in-out infinite;}
+.rwpet-fx-feed .rwpet-step{animation:rwpetChomp .42s ease-in-out 1s 5;}
+.rwpet-fx-clean .rwpet-step{animation:rwpetShake .6s ease-in-out 4;}
+.rwpet-fx-play .rwpet-step{animation:rwpetHop .6s ease-out 4;}
+.rwpet-fx-sleep .rwpet-step{animation:rwpetStretch 1.8s ease-in-out 1;}
+.rwpet-fx-wake .rwpet-step{animation:rwpetStretch 1.4s ease-in-out 1;}
+.rwpet-fx-poke-0 .rwpet-step{animation:rwpetPop .55s ease 1;}
+.rwpet-fx-poke-1 .rwpet-step{animation:rwpetHop .7s ease-out 1;}
+.rwpet-fx-poke-2 .rwpet-step{animation:rwpetSpin .8s ease-in-out 1;}
+.rwpet-fx-poke-3 .rwpet-step{animation:rwpetShake .5s ease-in-out 1;}
+.rwpet-fx{position:absolute;pointer-events:none;line-height:1;z-index:12;}
+@media (prefers-reduced-motion:reduce){.rwpet-walker .rwpet-step,.rwpet-shadow{animation:none !important}.rwpet-fx{display:none}}
 `;
 
 const STAT_META: Record<string, { label: string; color: string; emoji: string }> = {
@@ -140,7 +172,7 @@ export default function RebornPet() {
       <div className="space-y-4">
         {pets.map((pet) => (
           <PetCard key={pet.id} pet={pet}
-            onAction={(action: string) => { actionSound(action); act.mutate({ petId: pet.id, action }); }} busy={act.isPending}
+            onAction={(action: string, onOk?: () => void) => { actionSound(action); act.mutate({ petId: pet.id, action }, { onSuccess: () => onOk?.() }); }} busy={act.isPending}
             onPill={() => usePill.mutate(pet.id)} pilling={usePill.isPending} pillsAvailable={pills?.available || 0}
             home={home} onLight={setLight} />
         ))}
@@ -161,8 +193,9 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
   const petBrand = usePetBrand();
   const img = pet.isEgg ? petBrand.eggImageUrl || eggImg : petBrand.imageUrl || (pet.gender === "female" ? petFemale : petMale);
   const sick = pet.lifeStatus === "sick";
-  const [pop, setPop] = useState(false);
-  const poke = () => { sfx.poke(); setPop(true); setTimeout(() => setPop(false), 550); }; // reaction only — no energy cost
+  // Every care action makes the pet react in the room (eat / splash / play / yawn / stretch) once it worked.
+  const [careFx, setCareFx] = useState<{ kind: string; n: number } | null>(null);
+  const doAction = (a: string) => onAction(a, () => setCareFx({ kind: a, n: Date.now() }));
 
   return (
     <div className="arc-panel" style={{ padding: 0, ["--c1" as any]: pet.isEgg ? "#fb7185" : sick ? "#ef4444" : "#f472b6" }}>
@@ -177,7 +210,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
         {!pet.isEgg && <span className="arc-badge" style={{ marginTop: 0 }}><Clock className="w-3 h-3" /> {t("hm.pet.daysLeftShort", { n: pet.daysLeft })}</span>}
       </div>
 
-      <PetRoom pet={pet} img={img} sick={sick} home={home} onLight={onLight} pop={pop} onPoke={poke} />
+      <PetRoom pet={pet} img={img} sick={sick} home={home} onLight={onLight} careFx={careFx} />
       {!pet.isEgg && <OutfitCard pet={pet} home={home} />}
 
       {/* body */}
@@ -215,7 +248,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
                 { a: "clean", label: t("hm.pet.clean"), emoji: "🧼", c: "#38bdf8" },
                 { a: pet.isSleeping ? "wake" : "sleep", label: pet.isSleeping ? t("hm.pet.wake") : t("hm.pet.sleep"), emoji: pet.isSleeping ? "☀️" : "😴", c: "#a855f7" },
               ].map((b) => (
-                <button key={b.a} onClick={() => onAction(b.a)} disabled={busy || (b.a === "feed" && !pet.canFeed)}
+                <button key={b.a} onClick={() => doAction(b.a)} disabled={busy || (b.a === "feed" && !pet.canFeed)}
                   className="pet-act" style={{ ["--c" as any]: b.c }}>
                   <span className="e">{b.emoji}</span><span className="l">{b.label}</span>
                 </button>
@@ -277,7 +310,41 @@ const WALL: Record<Phase, string> = {
 };
 const itemById = (home: any, id?: string) => (home?.catalog || []).find((i: any) => i.id === id);
 
-function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
+type Mood = "happy" | "ok" | "sad";
+const petMood = (pet: any): Mood => {
+  const st = ["hunger", "happiness", "cleanliness", "energy"].map((k) => pet[k] ?? 0);
+  const avg = st.reduce((a: number, b: number) => a + b, 0) / 4;
+  return Math.min(...st) < 20 || avg < 35 ? "sad" : avg >= 65 ? "happy" : "ok";
+};
+// How long each reaction holds the pet in place, and the line it says after a care action.
+const FX_MS: Record<string, number> = { feed: 2600, clean: 2800, play: 2400, sleep: 1900, wake: 1700, poke: 1000 };
+const CARE_SAY: Record<string, string> = { feed: "hm.pet.say.fed", clean: "hm.pet.say.cleaned", play: "hm.pet.say.played", sleep: "hm.pet.say.sleep", wake: "hm.pet.say.wake" };
+const NEED_SAY = ["hm.pet.say.hungry", "hm.pet.say.bored", "hm.pet.say.dirty", "hm.pet.say.sleepy"];
+// Little emoji that fly around the pet during a reaction (positions are % of the pet's box).
+type Part = { e: string; l: number; t: number; s: number; dx: number; a: string };
+function fxParts(kind: string, v = 0): Part[] {
+  const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+  const up = (e: string, l: number, t: number, d: number, dx = 0, s = 20, dur = 1.4): Part => ({ e, l, t, s, dx, a: `rwpetFloatUp ${dur}s ease-out ${d}s both` });
+  const sparkle = (l: number, t: number, d: number): Part => ({ e: "✨", l, t, s: 22, dx: 0, a: `rwpetSparkle .8s ease-in-out ${d}s 1 both` });
+  if (kind === "feed") {
+    const food = ["🍖", "🍗", "🍎", "🥕"][Math.floor(Math.random() * 4)];
+    return [{ e: food, l: 52, t: 4, s: 30, dx: 0, a: "rwpetFoodIn .95s ease-in both" }, ...[0, 1, 2, 3, 4].map((i) => up(["💛", "✨", "😋", "💛", "✨"][i], rnd(30, 70), 30, 1 + i * 0.18, rnd(-18, 18)))];
+  }
+  if (kind === "clean") {
+    return [{ e: "🧼", l: 46, t: 40, s: 30, dx: 0, a: "rwpetScrub .5s ease-in-out 5 both" },
+      ...Array.from({ length: 8 }, (_, i) => up("🫧", rnd(15, 85), rnd(45, 85), i * 0.2, rnd(-10, 10), rnd(16, 26), 1.8)),
+      ...[0, 1, 2].map((i) => sparkle(rnd(25, 75), rnd(15, 60), 2 + i * 0.15))];
+  }
+  if (kind === "play") {
+    return [{ e: "🎾", l: 60, t: 78, s: 26, dx: 0, a: "rwpetBall 1.7s ease-in-out both" },
+      ...[0, 1, 2].map((i) => up("🎵", rnd(25, 75), 20, 0.3 + i * 0.4, rnd(-14, 14), 20, 1.6)), up("🎉", 50, 10, 1.4, 0, 22, 1.2)];
+  }
+  if (kind === "sleep") return [up("🌙", 70, 12, 0, 0, 24, 1.8), ...[0, 1, 2].map((i) => up("💤", 55 + i * 8, 18, 0.3 + i * 0.45, 6, 16 + i * 5, 1.8))];
+  if (kind === "wake") return [up("☀️", 50, 6, 0, 0, 26, 1.6), ...[0, 1, 2, 3].map((i) => sparkle(rnd(20, 80), rnd(10, 60), 0.3 + i * 0.2))];
+  return Array.from({ length: 1 + (v % 3) }, (_, i) => up(["💖", "💕", "💗"][i % 3], rnd(35, 65), 12, i * 0.12, rnd(-16, 16), 20, 1.1)); // poke
+}
+
+function PetRoom({ pet, img, sick, home, onLight, careFx }: any) {
   const { t } = useTranslation();
   const phase = phaseOf(useVenueHour(home?.timezone));
   const dark = phase === "night" || phase === "dusk";
@@ -288,17 +355,73 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
   const worn: Record<string, string> = home?.costumes?.[String(pet.id)] || {};
   const slot = (s: string) => itemById(home, placed[s]);
   const asleep = pet.isSleeping || sick;
-  const wander = useWander(!asleep && !pet.isEgg);
+  const mood = petMood(pet);
+  const wander = useWander(!asleep && !pet.isEgg, mood);
   // Doluruu walks in its clothing (shirtless by default) with its footwear on top
   // (barefoot by default); both are layers on the same canvas.
   const layers = outfitLayers(home, worn);
   const stats = ["hunger", "happiness", "cleanliness", "energy"].map((k) => pet[k] ?? 0);
   const lowest = Math.min(...stats);
   const need = lowest >= 30 ? null : ["🍖", "🎾", "🧼", "😴"][stats.indexOf(lowest)];
-  const mood = stats.reduce((a: number, b: number) => a + b, 0) / 4 >= 60 ? "😊" : lowest < 20 ? "😢" : null;
+  const moodEmoji = mood === "happy" ? "😊" : mood === "sad" ? "😢" : null;
+
+  // ── a reaction (fx) + a speech bubble (line): care actions, taps, greetings and idle chatter ──
+  const [fx, setFx] = useState<{ kind: string; n: number; v: number } | null>(null);
+  const [line, setLine] = useState<{ text: string; k: number } | null>(null);
+  const timers = useRef<Record<string, any>>({});
+  const pokes = useRef({ n: 0, at: 0 });
+  const say = (key: string, vars?: any) => { clearTimeout(timers.current.say); setLine({ text: t(key, vars), k: Date.now() }); timers.current.say = setTimeout(() => setLine(null), 3800); };
+  const sayRef = useRef(say); sayRef.current = say;
+  const startFx = (kind: string, v = 0) => {
+    clearTimeout(timers.current.fx);
+    setFx({ kind, n: Date.now(), v });
+    wander.api.current?.hold(FX_MS[kind] || 1500);
+    timers.current.fx = setTimeout(() => setFx(null), FX_MS[kind] || 1500);
+  };
+  useEffect(() => () => { Object.values(timers.current).forEach((x) => clearTimeout(x)); }, []);
+  // The care button worked → eat / splash / play / yawn / stretch, and say thanks.
+  useEffect(() => { if (!careFx) return; startFx(careFx.kind); say(CARE_SAY[careFx.kind]); }, [careFx?.n]);
+  // Greets you when the room opens, then chats now and then (needs first, then mood, then tips).
+  const live = useRef<any>({});
+  live.current = { stats, asleep, mood, phase, pet };
+  useEffect(() => {
+    if (pet.isEgg) return;
+    const chat = (greet: boolean) => {
+      const s = live.current; if (s.asleep) return;
+      const low = Math.min(...s.stats);
+      if (low < 30) return sayRef.current(NEED_SAY[s.stats.indexOf(low)]);
+      if (greet) return sayRef.current(s.phase === "dawn" ? "hm.pet.say.morning" : s.phase === "night" ? "hm.pet.say.night" : Math.random() < 0.5 ? "hm.pet.say.hello1" : "hm.pet.say.hello2");
+      const pool = s.mood === "sad" ? ["hm.pet.say.lonely", "hm.pet.say.tipFloor"] : s.mood === "happy" ? ["hm.pet.say.happy1", "hm.pet.say.happy2", "hm.pet.say.tipFloor", "hm.pet.say.tipLight"] : ["hm.pet.say.tipFloor", "hm.pet.say.tipLight", "hm.pet.say.hello2"];
+      if (!s.pet.tokenEarnedToday && s.pet.feedsNeeded) pool.push("hm.pet.say.tipToken");
+      sayRef.current(pool[Math.floor(Math.random() * pool.length)], { n: s.pet.feedsNeeded });
+    };
+    const first = setTimeout(() => chat(true), 1400), iv = setInterval(() => chat(false), 17000);
+    return () => { clearTimeout(first); clearInterval(iv); };
+  }, [pet.isEgg, pet.id]);
+  // Tap the pet: a random reaction + a line (free — no energy cost); many taps in a row make it extra happy.
+  const poke = (e: any) => {
+    e.stopPropagation(); sfx.poke();
+    const now = Date.now(), p = pokes.current;
+    p.n = now - p.at < 6000 ? p.n + 1 : 1; p.at = now;
+    startFx("poke", p.n % 4);
+    if (sick) return say("hm.pet.say.sickPoke");
+    if (asleep) return say("hm.pet.say.sleepPoke");
+    say(p.n >= 6 ? "hm.pet.say.pokeMany" : `hm.pet.say.poke${(p.n % 5) + 1}`);
+  };
+  // Tap the floor / room: the pet runs over to you.
+  const callPet = (e: any) => {
+    if (asleep || pet.isEgg) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    clearTimeout(timers.current.fx); setFx(null);
+    wander.api.current?.goTo(Math.max(2, Math.min(62, ((e.clientX - r.left) / r.width) * 100 - 17)));
+    say("hm.pet.say.coming");
+  };
+  const parts = useMemo(() => (fx ? fxParts(fx.kind, fx.v) : []), [fx?.n]);
+  const fxCls = fx ? (fx.kind === "poke" ? `rwpet-fx-poke-${fx.v}` : `rwpet-fx-${fx.kind}`) : "";
+  const bubbleLeft = Math.max(30, Math.min(70, (asleep ? 36 : wander.xRef.current) + 17));
 
   return (
-    <div className="relative mx-3 mt-3 rounded-2xl overflow-hidden aspect-[4/3] select-none" style={{ background: WALL[phase] }}>
+    <div onClick={callPet} className="relative mx-3 mt-3 rounded-2xl overflow-hidden aspect-[4/3] select-none" style={{ background: WALL[phase] }}>
       {/* wallpaper stripes */}
       <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,.55) 0 14px, transparent 14px 28px)" }} />
       {/* window with the real sky for the venue's time */}
@@ -318,7 +441,7 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
       {/* ceiling lamp + wall switch */}
       <div className="absolute left-[58%] top-0 w-[2px] h-[10%] bg-[#6b4f3a]" />
       <div className="absolute left-[58%] top-[9%] -translate-x-1/2 w-9 h-5 rounded-t-full" style={{ background: lightOn ? "#ffd86b" : "#c9b8a0", boxShadow: lightOn ? "0 10px 40px 18px rgba(255,214,107,.45)" : "none" }} />
-      <button onClick={() => onLight?.(!lightOn)} aria-label={lightOn ? t("hm.pet.lightOffAria") : t("hm.pet.lightOnAria")}
+      <button onClick={(e) => { e.stopPropagation(); onLight?.(!lightOn); }} aria-label={lightOn ? t("hm.pet.lightOffAria") : t("hm.pet.lightOnAria")}
         className="absolute right-[3%] top-[30%] z-10 flex flex-col items-center justify-center gap-0.5 rounded-lg border border-black/10 bg-white shadow-md"
         style={{ width: 34, height: 48 }}>
         <span style={{ fontSize: 14, lineHeight: 1, filter: lightOn ? "none" : "grayscale(1) opacity(.5)" }}>💡</span>
@@ -344,10 +467,10 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
           <p className="text-xs text-white flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" /> {t("hm.pet.hatchesIn", { n: pet.hatchDaysLeft })}</p>
         </div>
       ) : (
-        <button ref={wander.ref} onClick={onPoke} className={`rwpet-walker ${asleep ? "rwpet-sleep" : `rwpet-m-${wander.mode}`}`} style={{ left: `${asleep ? 36 : wander.startX}%` }} aria-label={t("hm.pet.playAria")}>
+        <button ref={wander.ref} onClick={poke} className={`rwpet-walker ${fxCls || (asleep ? "rwpet-sleep" : `rwpet-m-${wander.mode}`)} rwpet-mood-${mood}`} style={{ left: `${asleep ? 36 : wander.startX}%` }} aria-label={t("hm.pet.playAria")}>
           <div className="rwpet-shadow" />
           <div className="rwpet-face" style={{ transform: `scaleX(${wander.facing})` }}>
-            <div className={`rwpet-step ${pop ? "rwpet-pop" : ""}`}>
+            <div className="rwpet-step">
               {layers
                 ? <DressedPet home={home} worn={worn} alt={pet.name} gender={pet.gender} className={sick ? "grayscale opacity-70" : ""} />
                 : <img src={img} alt={pet.name} className={`w-full h-full object-contain object-bottom ${sick ? "grayscale opacity-70" : ""}`} draggable={false} />}
@@ -360,15 +483,25 @@ function PetRoom({ pet, img, sick, home, onLight, pop, onPoke }: any) {
               })}
             </div>
           </div>
-          {pop && <span className="rwpet-heart">💖</span>}
-          {!asleep && (need || mood) && <span className="absolute -top-[18%] right-[-6%] bg-white rounded-full px-1.5 py-0.5 text-sm shadow" style={{ animation: "rwpetBubble 1.8s ease-in-out infinite" }}>{need || mood}</span>}
+          {parts.map((p, i) => <span key={`${fx?.n}-${i}`} className="rwpet-fx" style={{ left: `${p.l}%`, top: `${p.t}%`, fontSize: p.s, animation: p.a, ["--dx" as any]: `${p.dx}px` }}>{p.e}</span>)}
+          {!asleep && !sick && mood === "sad" && <span className="rwpet-fx" style={{ left: "62%", top: "10%", fontSize: 16, animation: "rwpetRain 2.2s ease-in infinite" }}>💧</span>}
+          {!asleep && !sick && mood === "happy" && [["24%", "14%", 0], ["76%", "22%", 1.2]].map(([l, tp, d], i) => <span key={i} className="rwpet-fx" style={{ left: l as string, top: tp as string, fontSize: 14, animation: `rwpetSparkle 2.6s ease-in-out ${d}s infinite` }}>✨</span>)}
+          {!asleep && (need || moodEmoji) && <span className="absolute -top-[18%] right-[-6%] bg-white rounded-full px-1.5 py-0.5 text-sm shadow" style={{ animation: "rwpetBubble 1.8s ease-in-out infinite" }}>{need || moodEmoji}</span>}
         </button>
       )}
       {pet.isSleeping && !pet.isEgg && <span className="absolute left-1/2 top-[30%] text-xl z-10" style={{ animation: "rwpetBreathe 1.6s ease-in-out infinite" }}>💤</span>}
+      {line && !pet.isEgg && (
+        <div key={line.k} ref={wander.bubbleRef} className="absolute z-20 pointer-events-none rounded-2xl bg-white px-3 py-1.5 text-center text-[12px] font-bold leading-snug text-slate-700 shadow-lg"
+          style={{ left: `${bubbleLeft}%`, bottom: "60%", width: "max-content", maxWidth: "58%", animation: "rwpetBubbleIn .25s ease-out both" }}>
+          {line.text}
+          <span className="absolute left-1/2 -bottom-1.5 h-3 w-3 -translate-x-1/2 rotate-45 bg-white" />
+        </div>
+      )}
 
       {/* lighting overlay */}
       <div className="absolute inset-0 pointer-events-none transition-colors duration-700" style={{ background: `rgba(10,14,45,${dim})` }} />
       {lightOn && dark && <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 58% 12%, rgba(255,214,107,.28), transparent 60%)" }} />}
+      {!pet.isEgg && !sick && <span className="absolute right-2 bottom-2 z-10 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">{mood === "happy" ? "😊 " + t("hm.pet.moodHappy") : mood === "sad" ? "🥺 " + t("hm.pet.moodSad") : "🙂 " + t("hm.pet.moodOk")}</span>}
       <span className="absolute left-2 bottom-2 z-10 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">
         {phase === "night" ? t("hm.pet.night") : phase === "dusk" ? t("hm.pet.evening") : phase === "dawn" ? t("hm.pet.morning") : t("hm.pet.day")} · {lightOn ? t("hm.pet.lightOn") : t("hm.pet.lightOff")}
       </span>
@@ -528,36 +661,59 @@ function OutfitCard({ pet, home }: any) {
 
 // Doluruu wanders around the room: walk to a random spot (waddling, shadow
 // bobbing), then idle, look around or hop before choosing the next spot.
-function useWander(active: boolean) {
+type WanderMode = "walk" | "idle" | "look" | "hop" | "dance" | "spin" | "stretch" | "wave";
+// How long each pose lasts; idle / look get a random 1.8–4.4 s.
+const POSE_MS: Record<string, number> = { hop: 1400, dance: 2300, spin: 1100, stretch: 1500, wave: 1600 };
+// What the pet does after each walk — a happy pet dances and spins, a sad one just sits and looks around.
+const POSES: Record<Mood, [WanderMode, number][]> = {
+  happy: [["idle", 0.25], ["look", 0.1], ["hop", 0.2], ["dance", 0.25], ["spin", 0.1], ["wave", 0.1]],
+  ok: [["idle", 0.45], ["look", 0.2], ["hop", 0.12], ["stretch", 0.08], ["wave", 0.1], ["dance", 0.05]],
+  sad: [["idle", 0.7], ["look", 0.3]],
+};
+function useWander(active: boolean, mood: Mood) {
   const ref = useRef<HTMLButtonElement>(null);
-  const [mode, setMode] = useState<"walk" | "idle" | "look" | "hop">("idle");
+  const bubbleRef = useRef<HTMLDivElement>(null); // the speech bubble follows the pet
+  const xRef = useRef(30);
+  const moodRef = useRef(mood); moodRef.current = mood;
+  const api = useRef<{ goTo: (pct: number) => void; hold: (ms: number) => void } | null>(null);
+  const [mode, setMode] = useState<WanderMode>("idle");
   const [facing, setFacing] = useState(1);
   const startX = 30;
   useEffect(() => {
-    if (!active) return;
-    let x = startX, target = x, raf = 0, last = performance.now(), until = last + 1500, m: string = "idle";
-    const set = (nm: any) => { m = nm; setMode(nm); };
+    if (!active) { api.current = null; return; }
+    let x = startX, target = x, raf = 0, last = performance.now(), until = last + 1500, holdUntil = 0, m: string = "idle";
+    xRef.current = x;
+    const set = (nm: WanderMode) => { m = nm; setMode(nm); };
     const pick = (now: number) => {
       if (m === "walk") { // arrived: pause and do something cute
-        const n = Math.random(), next = n < 0.55 ? "idle" : n < 0.8 ? "look" : "hop";
-        set(next); until = now + (next === "hop" ? 1400 : 1800 + Math.random() * 2600);
+        let n = Math.random(), next: WanderMode = "idle";
+        for (const [k, w] of POSES[moodRef.current]) { if (n < w) { next = k; break; } n -= w; }
+        set(next); until = now + (POSE_MS[next] ?? 1800 + Math.random() * 2600);
         return;
       }
       target = 2 + Math.random() * 60;
       if (Math.abs(target - x) < 8) target = x > 35 ? x - 20 : x + 20;
       setFacing(target > x ? 1 : -1); set("walk");
     };
+    api.current = {
+      goTo: (pct) => { holdUntil = 0; target = pct; if (Math.abs(target - x) < 2) return; setFacing(target > x ? 1 : -1); set("walk"); },
+      hold: (ms) => { holdUntil = performance.now() + ms; if (m === "walk") set("idle"); until = holdUntil + 600; },
+    };
     const tick = (now: number) => {
       const dt = Math.min(64, now - last) / 1000; last = now;
+      if (now < holdUntil) { raf = requestAnimationFrame(tick); return; } // busy reacting (eating, bathing…)
       if (m === "walk") {
-        const step = 9 * dt, d = target - x;
+        const speed = moodRef.current === "sad" ? 6 : moodRef.current === "happy" ? 11 : 9;
+        const step = speed * dt, d = target - x;
         if (Math.abs(d) <= step) { x = target; pick(now); } else x += Math.sign(d) * step;
+        xRef.current = x;
         if (ref.current) ref.current.style.left = `${x}%`;
+        if (bubbleRef.current) bubbleRef.current.style.left = `${Math.max(30, Math.min(70, x + 17))}%`;
       } else if (now > until) pick(now);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); api.current = null; };
   }, [active]);
-  return { ref, mode, facing, startX };
+  return { ref, bubbleRef, xRef, api, mode, facing, startX };
 }

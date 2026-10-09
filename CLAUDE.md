@@ -368,6 +368,21 @@ text.
   winner or loser (just a drinking game). A player who leaves a one-round game mid-way
   (`room.quitters`) is counted as a loser when it ends.
 
+## Pet care room (client/src/pages/reborn-pet.tsx `PetRoom`)
+
+- The pet is alive in its room: it wanders and, by mood (`petMood`: happy / ok / sad from the four stats),
+  dances, spins, waves, stretches and hops (happy), or just sits and looks around, slower and drooping with a
+  tear (sad). Poses are in `POSES` / `useWander`; every new move needs a `.rwpet-m-<pose>` rule in `WALK_CSS`.
+- Every care action that worked (`PetCard.doAction` → `careFx`) plays a reaction in the room (`FX_MS`, `fxParts`):
+  feed = food drops in + chomping, clean = soap + bubbles + shake + sparkles, play = ball + hops, sleep = yawn +
+  💤, wake = stretch. Tapping the pet gives a random reaction + a line (free); tapping the floor makes it run
+  over (`callPet`); the 6th tap in a row makes it extra happy.
+- It talks in a speech bubble that follows it (`say`, texts `hm.pet.say.*`, first person so a company's own pet
+  name still works): greets on opening, asks for what it needs (hungry / bored / dirty / sleepy), thanks after
+  care, chats every ~17 s, and drops tips (floor tap, light switch, "feed me N times a day to earn a token").
+  New lines need en / zh / id. The room also shows a mood chip (Happy / Calm / Needs love).
+- Animations only use transform / opacity and are switched off with `prefers-reduced-motion`.
+
 ## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)
 
 - Dice game category, 2–20 players. Host picks 1 die (6 cups, 1–6) or 2 dice (11 cups, 2–12 —
