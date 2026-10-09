@@ -464,6 +464,19 @@ function parseLangSwitch(text: string): Lang | null {
   return (cmd && langName(bare(cmd[1]))) || langName(bare(t));
 }
 
+// "change language" / "language" / "ganti bahasa" / "换语言" — no language named → ask which one.
+// (A language named — "change chinese", "换中文", "switch to english" — is switched at once, no asking.)
+const LANG_ASK_TRILINGUAL = "🌐 Which language do you want? · 您想用哪种语言？ · Mau pakai bahasa apa?\n\n1️⃣ English\n2️⃣ 中文\n3️⃣ Bahasa Indonesia\n\nTap a button or reply 1, 2 or 3 · 点按钮或回复 1、2、3 · Ketuk tombol atau balas 1, 2, 3";
+function wantsLangMenu(text: string): boolean {
+  const t = text.trim().toLowerCase().replace(/[.!?。！？~]+$/, "").replace(/\s+/g, " ");
+  const polite = "(?:(?:please|pls|can you|could you|tolong|sila)\\s+)?(?:(?:i\\s+)?(?:want|wanna|need|would like)\\s+(?:to\\s+)?)?";
+  const tail = "\\s*(?:(?:the|my|your)\\s+)?";
+  return new RegExp(`^${polite}(?:change|switch|set|choose|select|pick)${tail}(?:languages?|lang)(?:\\s+(?:please|pls))?$`).test(t) // "change language" (but "change bahasa" = Bahasa Indonesia)
+    || new RegExp(`^${polite}(?:ganti|tukar|ubah|pilih)${tail}(?:bahasa|languages?|lang)(?:\\s+(?:dong|ya|please|pls))?$`).test(t) // "ganti bahasa" = change language
+    || /^(?:languages?|lang|choose language|which language|language (?:please|pls|settings?|menu)|bahasa apa|pilih bahasa)$/.test(t)
+    || /^(?:换|換|切换|切換|更换|更換|更改|改|选择|選擇)(?:个|一下|下)?(?:语言|語言)$|^(?:语言|語言)(?:设置|设定)?$/.test(t);
+}
+
 function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
   const T: Record<string, Record<Lang, string>> = {
     mapPin: {
@@ -1320,7 +1333,13 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   }
 
   // "change english / chinese / bahasa" — switch the reply language at any point.
-  const switchTo = parseLangSwitch(body);
+  const asksLangMenu = wantsLangMenu(body);
+  let switchTo = asksLangMenu ? null : parseLangSwitch(body);
+  // They were just asked which language: a button / 1 / 2 / 3 / the name picks it. Anything else = carry on normally.
+  if (!switchTo && ((c.waState as any) || {}).flow === "langPick") {
+    switchTo = parseLang(body);
+    if (!switchTo) { await patchContact(c.id, { waState: { flow: null } }); c = { ...c, waState: { flow: null } } as Contact; }
+  }
 
   // If this phone already has an app account, skip onboarding — greet by name.
   if (!c.userId && (c.stage === "new" || c.stage === "await_lang" || c.stage === "await_name" || c.stage === "await_email")) {
@@ -1347,6 +1366,16 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   // A Facebook Messenger / Instagram chat (not WhatsApp): sign-up asks for a WhatsApp number.
   const social = socialOf(c.phone);
   const net = social ? networkName(social.net) : "";
+
+  if (asksLangMenu && c.stage !== "new" && c.stage !== "await_lang") {
+    await sendWhatsAppChoices(from, LANG_ASK_TRILINGUAL, [
+      { id: "lang_en", title: "English" },
+      { id: "lang_zh", title: "中文" },
+      { id: "lang_id", title: "Bahasa Indonesia" },
+    ]);
+    await logMsg(c.id, c.phone, "out", LANG_ASK_TRILINGUAL, true);
+    return patchContact(c.id, { waState: { flow: "langPick" } });
+  }
 
   if (switchTo) {
     await patchContact(c.id, { lang: switchTo });
