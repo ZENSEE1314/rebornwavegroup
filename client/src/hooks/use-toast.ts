@@ -141,6 +141,9 @@ type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
   const id = genId()
+  // Server errors arrive as "400: message" (apiRequest); people only need the message.
+  if (typeof props.title === "string") props.title = props.title.replace(/^\d{3}:\s*/, "")
+  if (typeof props.description === "string") props.description = props.description.replace(/^\d{3}:\s*/, "")
 
   const update = (props: ToasterToast) =>
     dispatch({
