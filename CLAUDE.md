@@ -408,7 +408,8 @@ text.
   same way, and the Costumes tab shows no slot chips (`WEAR_SLOTS` = clothing only).
 - Shop taps are confirmed in an in-app box (`PetShop` `ask`, portal to body; never `window.confirm`): buying
   ("Buy X? It costs 🐾 N, you have 🐾 M"), then "Wear it now?" for a costume or "Put it in the room?" for
-  furniture; tapping an owned costume asks "Wear X?" / "Take off X?". Texts `hm.shop.*`.
+  furniture; tapping an owned costume asks "Wear X?" / "Take off X?", owned furniture "Put X in the room?"
+  (says it replaces what's there) / "Take X out of the room?". Texts `hm.shop.*`.
 
 ## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)
 
