@@ -273,6 +273,8 @@ text.
   server error or 5+ errors of one area in 10 minutes (max one per kind per
   15 min). Normal "do this first" replies (e.g. `needTable`) are logged but
   never alerted. Add new areas to `areaForPath` + `admin.err.area.*`.
+- Toasts never show the HTTP code: `toast()` (hooks/use-toast.ts) strips the "400: " that `apiRequest` puts in
+  front of a server message, in the title and the description, on every page.
 - Song request 400 in table mode: the All songs list now shows the "scan your
   table QR" card too, and app error toasts show the server's message without
   the "400:" prefix.
@@ -377,6 +379,9 @@ text.
   feed = food drops in + chomping, clean = soap + bubbles + shake + sparkles, play = ball + hops, sleep = yawn +
   💤, wake = stretch. Tapping the pet gives a random reaction + a line (free); tapping the floor makes it run
   over (`callPet`); the 6th tap in a row makes it extra happy.
+- No energy (awake, energy 0): Feed / Play / Clean aren't sent to the server; the pet yawns and asks for a nap
+  (`hm.pet.say.tooTired`), a friendly "😴 No energy" toast says to tap Sleep, the other buttons dim and Sleep
+  pulses (`rwpet-nap`).
 - It talks in a speech bubble that follows it (`say`, texts `hm.pet.say.*`, first person so a company's own pet
   name still works): greets on opening, asks for what it needs (hungry / bored / dirty / sleepy), thanks after
   care, chats every ~17 s, and drops tips (floor tap, light switch, "feed me N times a day to earn a token").

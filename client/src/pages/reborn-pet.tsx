@@ -14,6 +14,10 @@ import { useTranslation, translate, getCurrentLanguage, brandText } from "@/lib/
 import { sfx } from "@/lib/sfx";
 
 const WALK_CSS = `
+/* No energy: the Sleep button glows and pulses so it's the obvious next tap */
+.rwpet-nap{animation:rwpetNap 1.3s ease-in-out infinite;box-shadow:0 0 0 3px rgba(168,85,247,.55),0 0 22px rgba(168,85,247,.75)}
+@keyframes rwpetNap{50%{transform:scale(1.06)}}
+@media (prefers-reduced-motion: reduce){.rwpet-nap{animation:none}}
 @keyframes rwpetWaddle{0%,100%{transform:translateY(0) rotate(-3deg)}25%{transform:translateY(-4%) rotate(0)}50%{transform:translateY(0) rotate(3deg)}75%{transform:translateY(-4%) rotate(0)}}
 @keyframes rwpetShadowStep{0%,50%,100%{transform:translateX(-50%) scale(1);opacity:.32}25%,75%{transform:translateX(-50%) scale(.86);opacity:.24}}
 @keyframes rwpetIdle{0%,100%{transform:scale(1,1)}50%{transform:scale(1.025,.975)}}
@@ -199,7 +203,17 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
   const sick = pet.lifeStatus === "sick";
   // Every care action makes the pet react in the room (eat / splash / play / yawn / stretch) once it worked.
   const [careFx, setCareFx] = useState<{ kind: string; n: number } | null>(null);
-  const doAction = (a: string) => onAction(a, () => setCareFx({ kind: a, n: Date.now() }));
+  const { toast } = useToast();
+  // No energy left: feed / play / clean would only be refused, so the pet yawns and asks for a nap instead.
+  const tired = !pet.isEgg && !pet.isSleeping && Number(pet.energy) <= 0;
+  const doAction = (a: string) => {
+    if (tired && a !== "sleep") {
+      setCareFx({ kind: "tired", n: Date.now() });
+      toast({ title: t("hm.pet.noEnergy"), description: t("hm.pet.noEnergyDesc") });
+      return;
+    }
+    onAction(a, () => setCareFx({ kind: a, n: Date.now() }));
+  };
 
   return (
     <div className="arc-panel" style={{ padding: 0, ["--c1" as any]: pet.isEgg ? "#fb7185" : sick ? "#ef4444" : "#f472b6" }}>
@@ -253,7 +267,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable, home, o
                 { a: pet.isSleeping ? "wake" : "sleep", label: pet.isSleeping ? t("hm.pet.wake") : t("hm.pet.sleep"), emoji: pet.isSleeping ? "☀️" : "😴", c: "#a855f7" },
               ].map((b) => (
                 <button key={b.a} onClick={() => doAction(b.a)} disabled={busy || (b.a === "feed" && !pet.canFeed)}
-                  className="pet-act" style={{ ["--c" as any]: b.c }}>
+                  className={`pet-act${tired ? (b.a === "sleep" ? " rwpet-nap" : " opacity-50") : ""}`} style={{ ["--c" as any]: b.c }}>
                   <span className="e">{b.emoji}</span><span className="l">{b.label}</span>
                 </button>
               ))}
@@ -387,7 +401,11 @@ function PetRoom({ pet, img, sick, home, onLight, careFx }: any) {
   };
   useEffect(() => () => { Object.values(timers.current).forEach((x) => clearTimeout(x)); }, []);
   // The care button worked → eat / splash / play / yawn / stretch, and say thanks.
-  useEffect(() => { if (!careFx) return; startFx(careFx.kind); say(CARE_SAY[careFx.kind]); }, [careFx?.n]);
+  useEffect(() => {
+    if (!careFx) return;
+    if (careFx.kind === "tired") { startFx("sleep"); say("hm.pet.say.tooTired"); return; } // yawns, asks for a nap
+    startFx(careFx.kind); say(CARE_SAY[careFx.kind]);
+  }, [careFx?.n]);
   // Greets you when the room opens, then chats now and then (needs first, then mood, then tips).
   const live = useRef<any>({});
   live.current = { stats, asleep, mood, phase, pet };
