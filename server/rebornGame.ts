@@ -420,8 +420,8 @@ async function contributeSpinPool(saleTotal: number) {
   } catch (e) { console.error("spin pool contribute", e); }
 }
 const DEFAULT_GIFT_TYPES = [
-  { name: "Rose", emoji: "🌹", animation: "float", kgoldCost: 100, sortOrder: 0 },
-  { name: "Heart", emoji: "❤️", animation: "pop", kgoldCost: 500, sortOrder: 1 },
+  { name: "Rose", emoji: "🌹", animation: "rose", kgoldCost: 100, sortOrder: 0 },
+  { name: "Heart", emoji: "❤️", animation: "heart", kgoldCost: 500, sortOrder: 1 },
   { name: "Fireworks", emoji: "🎆", animation: "fireworks", kgoldCost: 5000, sortOrder: 2 },
   { name: "Diamond", emoji: "💎", animation: "diamonds", kgoldCost: 20000, sortOrder: 3 },
   { name: "Crown", emoji: "👑", animation: "crown", kgoldCost: 100000, sortOrder: 4 },

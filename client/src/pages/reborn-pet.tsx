@@ -545,7 +545,7 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
       {tab === "costume" && pets.length > 1 && (
         <div className="flex gap-2 mb-3">{pets.map((p: any) => <button key={p.id} onClick={() => setPetId(p.id)} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${petId === p.id ? "bg-white/15 text-white" : "bg-white/5 text-white/50"}`}>{p.name}</button>)}</div>
       )}
-      {tab === "costume" && (
+      {tab === "costume" && WEAR_SLOTS.length > 1 && (
         <div className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {WEAR_SLOTS.map(([k, label, icon]) => (
             <button key={k} onClick={() => setSlot(k)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${slot === k ? "bg-white text-black" : "bg-white/5 text-white/60"}`}>{icon} {t(label)}</button>
@@ -580,10 +580,9 @@ function PetShop({ home, pets, busy, onBuy, onPlace, onWear }: any) {
   );
 }
 
-// Wardrobe sections, in the order of the "Customize your Doluruu" sheet.
+// Wardrobe sections: only full costumes (hats, glasses, neck items and footwear were removed).
 const WEAR_SLOTS: [string, string, string][] = [
-  // Only items that show on the walking pet (wings, auras, hand, tail and shell items were removed).
-  ["clothing", "hm.slot.clothing", "👕"], ["footwear", "hm.slot.footwear", "👟"], ["head", "hm.slot.head", "👑"], ["face", "hm.slot.face", "🕶️"], ["neck", "hm.slot.neck", "📿"],
+  ["clothing", "hm.slot.clothing", "👕"],
 ];
 // Which worn item's picture best shows the whole look (full-body shots first).
 const PORTRAIT_ORDER = ["clothing", "footwear", "aura", "back", "head", "face", "neck", "hands", "shell", "tail"];

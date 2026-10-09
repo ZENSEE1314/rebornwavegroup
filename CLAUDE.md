@@ -399,6 +399,8 @@ text.
   (`c2`–`c30`, cut off at the sheet edges) is off sale: `refundRemovedWearables` gives owners their pet coins
   back once per company's data space (only while they still own it, so two servers never refund twice) and
   takes it off their pets. `cloth-1.webp` stays as the shirtless base layer.
+- Only full costumes are sold: hats, glasses, neck items (`w*`) and footwear (`s*`) are hidden and refunded the
+  same way, and the Costumes tab shows no slot chips (`WEAR_SLOTS` = clothing only).
 
 ## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)
 
@@ -455,6 +457,13 @@ text.
   Added once to venues that already have gifts (`giftsV2Added_<company>`, claimed
   atomically so parallel requests never add duplicates; `dedupeGiftTypes` cleans
   old copies at startup). Gift lists are sorted cheapest first.
+- Every gift has a full-screen scene (`sceneOf` never returns null): besides the big ones above, Rose 🌹
+  (blooms, petals fall), Heart ❤️ (beats, love waves), drinks 🍻 (two glasses clink, "Cheers!" `vn.kos.cheers`),
+  cake 🎂 (drops on the table, balloons + confetti), teddy / cuddly 🧸 (bounces in), money 💰 (bag + coin
+  fountain + bill rain) and the gift box 🎁 for anything else (opens, the gift's own picture rises). Picked by the
+  gift's animation, else its emoji / name; admin Settings lists them as animations. The sender sees the same
+  scene after sending ("You sent X a Y", `vn.kos.youSentTo`, KGOLD shown as −cost). Reduced motion → the
+  simple pop.
 - Each ranked member's top 3 gifters show as a podium (`GifterPodium`: 2nd · 1st
   · 3rd, gold / silver / bronze crown + medal ring around their own level ring).
 

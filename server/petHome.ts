@@ -40,9 +40,6 @@ export const BASE_EYES = CLOTH_EYES[1];
 const OVERLAY_ANCHOR: Record<number, number[]> = {"1": [89.6, 130.1, 79.0, 214, 109], "2": [91.5, 137.3, 77.7, 222, 117], "3": [77.3, 141.4, 74.4, 208, 122], "4": [70.8, 145.5, 69.0, 198, 128], "5": [92, 160, 75, 225, 141], "6": [82.0, 145.1, 73.9, 220, 126], "7": [78.9, 130.1, 73.6, 222, 111], "8": [70.1, 136.3, 73.5, 222, 117], "9": [78.9, 138.4, 75.0, 242, 119], "10": [80, 128, 65, 222, 111], "11": [94.7, 118.2, 77.3, 220, 98], "12": [84.7, 121.5, 72.4, 218, 103], "13": [79.8, 123.0, 72.8, 212, 104], "14": [79.6, 121.9, 76.2, 214, 102], "15": [77, 113, 69, 216, 95], "16": [98, 142, 87, 225, 120], "17": [74.6, 100.9, 75.9, 222, 81], "18": [74, 106, 70, 216, 88], "19": [89.6, 110.7, 72.7, 224, 92], "20": [74.7, 126.1, 78.0, 210, 106], "21": [88, 41, 73, 175, 81], "22": [81, 44, 80, 177, 88], "23": [90, 42, 75, 180, 83], "24": [92.8, 48.0, 87.2, 197, 96], "25": [90, 53, 95, 204, 105], "26": [89, 44, 79, 183, 87], "27": [71, 46, 83, 170, 91], "28": [86, 48, 86, 189, 95], "29": [85.2, 46.8, 84.4, 186, 93], "30": [70, 32, 58, 139, 63]};
 // Neck items: chain / scarf / lei cut from each item's picture (ov-<n>.webp), same anchor format.
 Object.assign(OVERLAY_ANCHOR, { "31": [66.5, -40, 71, 128, 60], "32": [59.5, -40, 71, 121, 60], "33": [59.5, -40, 71, 116, 60], "35": [66.5, -40, 71, 134, 60], "36": [66.5, -40, 71, 134, 60], "37": [66.5, -40, 71, 134, 60], "38": [66.5, -40, 71, 126, 60], "39": [65.5, -40, 71, 122, 60], "40": [68.5, -41, 73, 127, 59] });
-// Items that can't be drawn on the walking pet (their pictures are half-body close-ups):
-// wings/packs, auras, hand items, tail rings, shell items and the Bow Tie. Off sale; owners get refunded.
-export const REMOVED_WEARABLES = new Set([34, ...Array.from({ length: 20 }, (_, i) => 71 + i), 95, 96, 97, 98, 99, 100]);
 // The first clothing sheet (cloth-2…30) is off sale: its pictures were cut off at the
 // sheet edges. Owners get their pet coins back (refundRemovedWearables). [name, price]
 const OLD_CLOTHING: [string, number][] = [["T-Shirt", 80], ["Hoodie", 120], ["Jacket", 150], ["Leather Jacket", 180], ["Bomber Jacket", 170], ["Denim Jacket", 150],
@@ -63,7 +60,8 @@ const FOOTWEAR_LIST: [string, number][] = [["Classic Sneakers", 80], ["Sport Sne
   ["Chicken Slippers", 90], ["Dinosaur Slippers", 110], ["Shark Slippers", 110], ["Unicorn Slippers", 130], ["Cat Slippers", 90],
   ["Dog Slippers", 90], ["Dragon Slippers", 150], ["Tiger Slippers", 110], ["Pig Slippers", 90], ["Cow Slippers", 90],
   ["Fuzzy Boots", 140], ["Winter Boots", 160], ["Snow Boots", 170], ["Neon Sneakers", 260], ["Golden Wing Sneakers", 400]];
-const FOOTWEAR: PetItem[] = FOOTWEAR_LIST.map(([name, price], i) => ({ id: `s${i + 1}`, name, emoji: "👟", price, kind: "costume", slot: "footwear", figure: `/pet-items/shoefig-${i + 1}.webp`, layer: `/pet-items/shoe-${i + 1}.webp` }));
+// Off sale (only full costumes are sold); owners get their pet coins back.
+const FOOTWEAR: PetItem[] = FOOTWEAR_LIST.map(([name, price], i) => ({ id: `s${i + 1}`, name, emoji: "👟", price, kind: "costume", slot: "footwear", figure: `/pet-items/shoefig-${i + 1}.webp`, layer: `/pet-items/shoe-${i + 1}.webp`, hidden: true }));
 
 // Full-body transparent figures of Doluruu wearing the item (fig-<n>.webp) exist
 // for all but these; tail rings are close-ups, so they can't be the walking pet.
@@ -74,7 +72,8 @@ const WEARABLES: PetItem[] = WEAR_SLOTS.flatMap(([slot, emoji, items]) => items.
   n += 1;
   const figure = NO_FIGURE.has(n) ? undefined : `/pet-items/fig-${n}.webp`;
   // Body and feet from the first sheet are replaced by the clothing/footwear sets.
-  const hidden = slot === "body" || slot === "feet" || REMOVED_WEARABLES.has(n);
+  // Only full costumes are sold now: every hat / glasses / neck item is off sale (owners refunded).
+  const hidden = true;
   const ov = OVERLAY_ANCHOR[n] ? { overlay: `/pet-items/ov-${n}.webp`, anchor: OVERLAY_ANCHOR[n] } : {};
   return { id: `w${n}`, name, emoji, price, kind: "costume" as const, slot, image: `/pet-items/${n}.webp`, figure, sprite: !!figure && !NOT_SPRITE.has(n), ...ov, ...(hidden ? { hidden: true } : {}) };
 }));
@@ -205,8 +204,8 @@ function ensureTable() {
 
 type Home = { userId: string; coins: number; owned: string[]; placed: Record<string, string>; costumes: Record<string, Record<string, string>>; lightOn: boolean; earnedDay: string | null; earnedToday: number };
 
-// One-off clean-up (once per company's data space): refund pet coins for removed wearables
-// and old clothing, and take them off every pet.
+// One-off clean-up (once per company's data space): refund pet coins for removed wearables,
+// footwear and old clothing, and take them off every pet.
 const refundedBySpace = new Map<string, Promise<void>>();
 function refundRemovedWearables() {
   const space = homeCompanySlug();
@@ -215,7 +214,8 @@ function refundRemovedWearables() {
   const refunded = (async () => {
     await ensureTable();
     const removed = new Map<string, number>(Array.from(OLD_CLOTHING_PRICE.entries()));
-    for (const i of PET_CATALOG) if (i.kind === "costume" && /^w\d+$/.test(i.id) && REMOVED_WEARABLES.has(Number(i.id.slice(1)))) removed.set(i.id, i.price);
+    // Every hat / glasses / neck item and every footwear: only full costumes are sold now.
+    for (const i of PET_CATALOG) if (i.kind === "costume" && /^[ws]\d+$/.test(i.id)) removed.set(i.id, i.price);
     const r: any = await db.execute(sql`SELECT user_id, owned, costumes FROM pet_homes`);
     for (const row of (r.rows || r)) {
       const owned: string[] = row.owned || [];

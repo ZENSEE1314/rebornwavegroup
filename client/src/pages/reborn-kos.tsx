@@ -101,9 +101,16 @@ export default function RebornKos() {
   }, [notifs.length]);
 
   const refreshWallet = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/wallet"] }); qc.invalidateQueries({ queryKey: ["/api/auth/user"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/kos/levels/me"] }); };
+  // The sender watches the same full-screen scene the receiver gets.
+  const [sentShow, setSentShow] = useState<any[] | null>(null);
   const gift = useMutation({
     mutationFn: (giftTypeId: number) => apiRequest("POST", "/api/reborn/kos/gift", { toUserId: target.id, giftTypeId }).then((r) => r.json()),
-    onSuccess: (d, giftTypeId) => { sfx.gift(giftSoundOf(gifts.find((g: any) => g.id === giftTypeId))); toast({ title: t("vn.kos.giftSent"), description: d.message }); setTarget(null); refreshWallet(); },
+    onSuccess: (d, giftTypeId) => {
+      const g = gifts.find((x: any) => x.id === giftTypeId);
+      if (g) setSentShow([{ giftName: g.name, emoji: g.emoji, imageUrl: g.imageUrl, animation: g.animation, cost: Number(g.kgoldCost || 0), toName: nameOf(target) }]);
+      else toast({ title: t("vn.kos.giftSent"), description: d.message });
+      setTarget(null); refreshWallet();
+    },
     onError: (e: any) => toast({ title: t("vn.kos.cantGift"), description: e.message, variant: "destructive" }),
   });
   const addFriend = useMutation({
@@ -223,6 +230,7 @@ export default function RebornKos() {
       {venueOpen && <Overlay onClose={() => setVenueOpen(false)}><VenueQr /></Overlay>}
       {modal === "buy" && <BuyModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} onTopup={() => navigate("/?topup=1")} />}
       {modal === "cashout" && <CashoutModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} />}
+      {sentShow && !showNotif && <GiftInbox notifs={sentShow} sent onClose={() => setSentShow(null)} />}
       {showNotif && <GiftInbox notifs={notifs} onClose={() => { setShowNotif(false); apiRequest("POST", "/api/reborn/kos/notifications/seen").then(() => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/notifications"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/badges"] }); }); }} />}
     </RebornLayout>
   );
@@ -353,11 +361,12 @@ function useCountUp(target: number, ms = 1200, key?: any) {
 
 
 // ── Special gift scenes ─────────────────────────────────────────────────────
-// Picked by the gift's animation ("car" | "fireworks" | "crown" | "diamonds"),
-// or automatically from its emoji / name so existing gifts get them too.
-type Scene = "car" | "fireworks" | "crown" | "diamonds" | "kiss" | "thumbsup" | "lion" | "whale" | "rocket";
-const SCENES: Scene[] = ["car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket"];
-function sceneOf(g: any): Scene | null {
+// Every gift has a full-screen scene: picked by the gift's animation, else from its emoji /
+// name, else the gift-box scene with the gift's own picture ("gift").
+type Scene = "car" | "fireworks" | "crown" | "diamonds" | "kiss" | "thumbsup" | "lion" | "whale" | "rocket"
+  | "rose" | "heart" | "drink" | "cake" | "teddy" | "money" | "gift";
+const SCENES: Scene[] = ["car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket", "rose", "heart", "drink", "cake", "teddy", "money", "gift"];
+function sceneOf(g: any): Scene {
   const a = String(g?.animation || "") as Scene;
   if (SCENES.includes(a)) return a;
   const e = `${g?.emoji || ""} ${g?.giftName || ""}`;
@@ -370,29 +379,30 @@ function sceneOf(g: any): Scene | null {
   if (/🎆|🎇|🧨|firework/i.test(e)) return "fireworks";
   if (/👑|crown/i.test(e)) return "crown";
   if (/💎|diamond/i.test(e)) return "diamonds";
-  return null;
-}
-// Each gift plays its own sound: the scene kinds first, then by emoji / name.
-function giftSoundOf(g: any): string {
-  const scene = sceneOf(g); if (scene) return scene;
-  const e = `${g?.emoji || ""} ${g?.giftName || g?.name || ""}`;
-  if (/🌹|🌷|🌸|💐|🌺|rose|flower|bunga|花/i.test(e)) return "rose";
-  if (/❤|💖|💕|💗|💘|heart|love|hati|心/i.test(e)) return "heart";
-  if (/🍾|🥂|🍷|🍸|🍺|🍹|beer|wine|champagne|drink|酒/i.test(e)) return "drink";
+  if (/🌹|🌷|🌸|💐|🌺|🌻|rose|flower|bunga|花/i.test(e)) return "rose";
+  if (/❤|💖|💕|💗|💘|💝|🩷|heart|love|hati|心/i.test(e)) return "heart";
+  if (/🍾|🥂|🍷|🍸|🍺|🍻|🍹|🥃|beer|wine|champagne|drink|\bbir\b|酒/i.test(e)) return "drink";
   if (/🎂|🍰|🧁|cake|kue|蛋糕/i.test(e)) return "cake";
-  if (/🧸|🐶|🐱|🦖|🐉|teddy|bear|doluruu/i.test(e)) return "teddy";
-  if (/🚀|✈|🛩|rocket|plane|jet/i.test(e)) return "rocket";
-  if (/💰|💵|💸|🪙|money|cash|coin|uang|钱/i.test(e)) return "money";
-  return "sparkle";
+  if (/🧸|🐶|🐱|🐼|🐰|🦖|🐉|teddy|bear|boneka|doluruu|熊/i.test(e)) return "teddy";
+  if (/💰|💵|💸|💴|🪙|money|cash|coin|uang|钱/i.test(e)) return "money";
+  return "gift";
+}
+// Each gift plays its own sound: the sound of its scene (the gift-box scene → magic sparkle).
+function giftSoundOf(g: any): string {
+  const scene = sceneOf(g);
+  if (scene !== "gift") return scene;
+  return /✈|🛩|plane|jet/i.test(`${g?.emoji || ""} ${g?.giftName || g?.name || ""}`) ? "rocket" : "sparkle";
 }
 const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 // Where the gift text sits so it doesn't cover the scene.
 const SCENE_TEXT: Record<Scene, CSSProperties> = {
   car: { top: "9%" }, fireworks: { bottom: "7%" }, crown: { bottom: "7%" }, diamonds: { top: "47%" },
   kiss: { bottom: "8%" }, thumbsup: { top: "5%" }, lion: { bottom: "7%" }, whale: { top: "8%" }, rocket: { bottom: "5%" },
+  rose: { bottom: "6%" }, heart: { bottom: "7%" }, drink: { top: "6%" }, cake: { top: "5%" }, teddy: { top: "6%" }, money: { bottom: "6%" }, gift: { bottom: "6%" },
 };
 // Text appears after the scene's big moment.
-const SCENE_TEXT_DELAY: Partial<Record<Scene, string>> = { lion: "2.2s", whale: "3.1s", rocket: "5s", thumbsup: "2.2s", kiss: "1.8s" };
+const SCENE_TEXT_DELAY: Partial<Record<Scene, string>> = { lion: "2.2s", whale: "3.1s", rocket: "5s", thumbsup: "2.2s", kiss: "1.8s",
+  rose: "2.2s", heart: "1.6s", drink: "1.8s", cake: "2s", teddy: "1.6s", money: "1.8s", gift: "2.1s" };
 
 // 💋 Kiss: lips fly in and "mwah!", then hearts float up.
 function KissScene() {
@@ -542,7 +552,123 @@ function DiamondsScene({ art }: { art: ReactNode }) {
   );
 }
 
+// 🌹 Rose: a stem grows, the rose blooms on top, petals drift down.
+function RoseScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-rose">
+      <div className="gs-rose-sky" />
+      <div className="gs-rose-glow" />
+      <i className="gs-stem" />
+      <i className="gs-leaf gs-leaf-l" /><i className="gs-leaf gs-leaf-r" />
+      <div className="gs-bloom">{art}</div>
+      {Array.from({ length: 24 }).map((_, k) => <i key={k} className="gs-petal" style={{ left: `${(k * 37 + 3) % 96}%`, animationDelay: `${1.2 + (k % 12) * 0.22}s`, animationDuration: `${3.2 + (k % 4) * 0.6}s`, ["--sway" as any]: `${(k % 2 ? 1 : -1) * (20 + (k % 5) * 12)}px` }} />)}
+    </div>
+  );
+}
+
+// ❤️ Heart: a big heart beats, love waves ring out and little hearts burst all around.
+function HeartScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-hrt">
+      <div className="gs-hrt-sky" />
+      {[0, 1, 2].map((k) => <i key={k} className="gs-hrt-wave" style={{ animationDelay: `${0.9 + k * 0.45}s` }} />)}
+      {Array.from({ length: 16 }).map((_, k) => {
+        const a = (k / 16) * Math.PI * 2, d = 120 + (k % 3) * 50;
+        return <span key={k} className="gs-hrt-bit" style={{ ["--dx" as any]: `${Math.cos(a) * d}px`, ["--dy" as any]: `${Math.sin(a) * d}px`, animationDelay: `${0.8 + (k % 4) * 0.06}s` }}>{["💖", "💕", "💗", "❤️"][k % 4]}</span>;
+      })}
+      <div className="gs-hrt-big">{art}</div>
+      {Array.from({ length: 14 }).map((_, k) => <span key={k} className="gs-heart" style={{ left: `${(k * 41 + 5) % 95}%`, fontSize: 14 + (k % 4) * 7, animationDelay: `${1.4 + (k % 7) * 0.25}s`, ["--sway" as any]: `${(k % 2 ? 1 : -1) * (10 + (k % 5) * 6)}px` }}>{["💗", "💕", "💖"][k % 3]}</span>)}
+    </div>
+  );
+}
+
+// 🥂 Drinks: two of the gift's drinks slide in and clink — "Cheers!" — with bubbles rising.
+function DrinkScene({ art }: { art: ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <div className="gs-drk">
+      <div className="gs-drk-sky" />
+      {Array.from({ length: 12 }).map((_, k) => <i key={k} className="gs-bokeh" style={{ left: `${(k * 29 + 6) % 94}%`, top: `${(k * 17 + 8) % 70}%`, width: 30 + (k % 4) * 18, height: 30 + (k % 4) * 18, animationDelay: `${(k % 6) * 0.4}s` }} />)}
+      <div className="gs-glass gs-glass-l">{art}</div>
+      <div className="gs-glass gs-glass-r">{art}</div>
+      <div className="gs-clink">✨</div>
+      <div className="gs-cheers">{t("vn.kos.cheers")}</div>
+      {Array.from({ length: 22 }).map((_, k) => <i key={k} className="gs-fizz" style={{ left: `${38 + (k * 7) % 24}%`, width: 5 + (k % 4) * 3, height: 5 + (k % 4) * 3, animationDelay: `${0.95 + (k % 11) * 0.12}s` }} />)}
+    </div>
+  );
+}
+
+// 🎂 Cake: the cake lands on the table and glows, balloons float up and confetti falls.
+function CakeScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-cak">
+      <div className="gs-cak-sky" />
+      {Array.from({ length: 9 }).map((_, k) => <span key={k} className="gs-balloon" style={{ left: `${(k * 23 + 4) % 92}%`, animationDelay: `${0.4 + (k % 5) * 0.35}s`, animationDuration: `${4 + (k % 3)}s` }}>🎈</span>)}
+      <div className="gs-table" />
+      <div className="gs-cakebox">
+        <i className="gs-cakeglow" />
+        <div className="gs-cakeart">{art}</div>
+      </div>
+      {Array.from({ length: 30 }).map((_, k) => <i key={k} className="gs-conf" style={{ left: `${(k * 37) % 100}%`, background: CONFETTI[k % CONFETTI.length], animationDelay: `${1.6 + (k % 10) * 0.15}s`, ["--r" as any]: `${(k * 53) % 360}deg` }} />)}
+    </div>
+  );
+}
+
+// 🧸 Teddy (and other cuddly gifts): it bounces in, squishes and wiggles, hearts pop around it.
+function TeddyScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-ted">
+      <div className="gs-ted-sky" />
+      {Array.from({ length: 10 }).map((_, k) => <span key={k} className="gs-cloud" style={{ top: `${8 + (k * 13) % 50}%`, animationDelay: `${-(k * 1.7)}s`, animationDuration: `${12 + (k % 4) * 3}s`, fontSize: 30 + (k % 3) * 16 }}>☁️</span>)}
+      <i className="gs-ted-shadow" />
+      <div className="gs-ted-art">{art}</div>
+      {Array.from({ length: 8 }).map((_, k) => <span key={k} className="gs-ted-love" style={{ left: `${50 + Math.cos(k * 0.785) * 30}%`, top: `${46 + Math.sin(k * 0.785) * 18}%`, animationDelay: `${1.2 + (k % 4) * 0.3}s` }}>{k % 2 ? "💕" : "✨"}</span>)}
+    </div>
+  );
+}
+
+// 💰 Money: the bag lands with a thud, coins fountain out and bills rain down spinning.
+function MoneyScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-mny">
+      <div className="gs-mny-sky" />
+      {Array.from({ length: 28 }).map((_, k) => <span key={k} className="gs-bill" style={{ left: `${(k * 31 + 2) % 96}%`, animationDelay: `${0.8 + (k % 14) * 0.16}s`, animationDuration: `${2.4 + (k % 4) * 0.5}s`, ["--rot" as any]: `${(k % 2 ? 1 : -1) * (180 + (k % 5) * 60)}deg` }}>💵</span>)}
+      {Array.from({ length: 14 }).map((_, k) => {
+        const a = -Math.PI / 2 + ((k / 13) - 0.5) * 2.2, d = 140 + (k % 3) * 60;
+        return <span key={k} className="gs-coin" style={{ ["--dx" as any]: `${Math.cos(a) * d}px`, ["--dy" as any]: `${Math.sin(a) * d}px`, animationDelay: `${1 + (k % 5) * 0.08}s` }}>🪙</span>;
+      })}
+      <div className="gs-bag">{art}</div>
+    </div>
+  );
+}
+
+// 🎁 Any other gift: a spotlight finds a gift box, it shakes and bursts open, the gift rises in a glow.
+function GiftBoxScene({ art }: { art: ReactNode }) {
+  return (
+    <div className="gs-box">
+      <div className="gs-box-sky" />
+      <div className="gs-spot" />
+      <div className="gs-box-rays" />
+      <div className="gs-present">🎁</div>
+      <i className="gs-box-flash" />
+      <div className="gs-box-art">{art}</div>
+      {Array.from({ length: 18 }).map((_, k) => {
+        const a = (k / 18) * Math.PI * 2, d = 110 + (k % 3) * 55;
+        return <span key={k} className="gs-box-star" style={{ ["--dx" as any]: `${Math.cos(a) * d}px`, ["--dy" as any]: `${Math.sin(a) * d}px`, animationDelay: `${1.25 + (k % 4) * 0.05}s` }}>{k % 2 ? "⭐" : "✨"}</span>;
+      })}
+      {Array.from({ length: 12 }).map((_, k) => <span key={k} className="gs-box-rain" style={{ left: `${(k * 17 + 5) % 94}%`, animationDelay: `${1.8 + (k % 6) * 0.3}s` }}>{art}</span>)}
+    </div>
+  );
+}
+
 function GiftScene({ kind, art }: { kind: Scene; art: ReactNode }) {
+  if (kind === "rose") return <RoseScene art={art} />;
+  if (kind === "heart") return <HeartScene art={art} />;
+  if (kind === "drink") return <DrinkScene art={art} />;
+  if (kind === "cake") return <CakeScene art={art} />;
+  if (kind === "teddy") return <TeddyScene art={art} />;
+  if (kind === "money") return <MoneyScene art={art} />;
+  if (kind === "gift") return <GiftBoxScene art={art} />;
   if (kind === "kiss") return <KissScene />;
   if (kind === "thumbsup") return <ThumbsUpScene />;
   if (kind === "lion") return <LionScene />;
@@ -555,15 +681,17 @@ function GiftScene({ kind, art }: { kind: Scene; art: ReactNode }) {
 }
 
 const CONFETTI = ["#f7d774", "#ec4899", "#a855f7", "#22d3ee", "#34d399", "#fb7185", "#fff"];
-function GiftInbox({ notifs, onClose }: any) {
+function GiftInbox({ notifs, onClose, sent = false }: any) {
   const { t } = useTranslation();
   const [i, setI] = useState(0);
   const g = notifs[i];
   useEffect(() => { if (notifs.length === 0) onClose(); }, [notifs.length]);
   useEffect(() => { try { navigator.vibrate?.([60, 40, 120]); } catch {} if (notifs[i]) sfx.gift(giftSoundOf(notifs[i])); }, [i]);
-  const kg = Number(g?.recipientKgold || 0);
+  const kg = Number((sent ? g?.cost : g?.recipientKgold) || 0);
   const shown = useCountUp(kg, 1400, i);
   if (!g) return null;
+  const title = sent ? t("vn.kos.youSentTo", { name: g.toName || t("vn.kos.someone"), gift: g.giftName })
+    : t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName });
   const animClass = g.animation === "float" ? "kg-float" : g.animation === "zoom" ? "kg-zoom" : "kg-pop";
   const next = () => (i < notifs.length - 1 ? setI(i + 1) : onClose());
   // Bigger gifts get a bigger show.
@@ -578,8 +706,8 @@ function GiftInbox({ notifs, onClose }: any) {
         <div className="absolute inset-0 bg-black/90" />
         <div key={`scene-${i}`} className="absolute inset-0"><GiftScene kind={scene} art={sceneArt} /></div>
         <div key={`txt-${i}`} className="gs-text absolute inset-x-0 text-center px-6" style={{ ...SCENE_TEXT[scene], ...(SCENE_TEXT_DELAY[scene] ? { animationDelay: SCENE_TEXT_DELAY[scene] } : {}) }} onClick={(e) => e.stopPropagation()}>
-          <p className="kg-title text-white text-xl font-black">{t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName })}</p>
-          <p className="kg-amount mt-2">🪙 +{fmt(shown)} KGOLD</p>
+          <p className="kg-title text-white text-xl font-black">{title}</p>
+          <p className="kg-amount mt-2">🪙 {sent ? "−" : "+"}{fmt(shown)} KGOLD</p>
           <button onClick={next} className="arc-play arc-start mt-5 mx-auto px-8 justify-center" style={{ padding: "12px 32px", fontSize: 14 }}>{i < notifs.length - 1 ? t("vn.common.next") : t("vn.kos.awesome")}</button>
           {notifs.length > 1 && <p className="text-white/40 text-xs mt-2">{i + 1} / {notifs.length}</p>}
         </div>
@@ -610,8 +738,8 @@ function GiftInbox({ notifs, onClose }: any) {
           ))}
           <div key={`g-${i}`} className={`kg-gift ${animClass}`}>{art}</div>
         </div>
-        <p key={`t-${i}`} className="kg-title text-white text-xl font-black mt-5 px-2">{t("vn.kos.sentYou", { name: g.fromUsername || g.fromName || t("vn.kos.someone"), gift: g.giftName })}</p>
-        <p className="kg-amount mt-2">🪙 +{fmt(shown)} KGOLD</p>
+        <p key={`t-${i}`} className="kg-title text-white text-xl font-black mt-5 px-2">{title}</p>
+        <p className="kg-amount mt-2">🪙 {sent ? "−" : "+"}{fmt(shown)} KGOLD</p>
         <button onClick={next} className="arc-play arc-start mt-6 mx-auto px-8 justify-center" style={{ padding: "12px 32px", fontSize: 14 }}>{i < notifs.length - 1 ? t("vn.common.next") : t("vn.kos.awesome")}</button>
         {notifs.length > 1 && <p className="text-white/40 text-xs mt-2">{i + 1} / {notifs.length}</p>}
       </div>
