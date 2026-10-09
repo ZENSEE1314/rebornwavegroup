@@ -406,6 +406,9 @@ text.
   takes it off their pets. `cloth-1.webp` stays as the shirtless base layer.
 - Only full costumes are sold: hats, glasses, neck items (`w*`) and footwear (`s*`) are hidden and refunded the
   same way, and the Costumes tab shows no slot chips (`WEAR_SLOTS` = clothing only).
+- Shop taps are confirmed in an in-app box (`PetShop` `ask`, portal to body; never `window.confirm`): buying
+  ("Buy X? It costs 🐾 N, you have 🐾 M"), then "Wear it now?" for a costume or "Put it in the room?" for
+  furniture; tapping an owned costume asks "Wear X?" / "Take off X?". Texts `hm.shop.*`.
 
 ## 6 Cups (server/games.ts `sc*`, app `SixCupGame`)
 
