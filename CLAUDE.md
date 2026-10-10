@@ -116,6 +116,12 @@ text.
 
 ## Booking rules set by the admin
 
+- How a service is booked is set per booking area (Admin > Settings > booking areas): with
+  tables listed the customer picks a table/room; with none it is an appointment by date and
+  time; `place: "customer"` is a service at the customer's address — no table, and the
+  address is required (app, staff booking and the chat bot) and saved in
+  `appointments.service_address`. Use `atCustomerPlace()` / `serviceAddressFrom()` (server/booking.ts).
+
 - `bookingTableDayLock` — a table booked at any time is closed for the rest of
   that day (app + WhatsApp) — until the guests pay and leave (below).
 - Booking statuses: ✓ Arrived in Admin › Bookings = `seated` (still holds the
