@@ -283,8 +283,10 @@ button[class*="dashboard-button"] svg {
 }
 
 /* Force mobile grid to work properly */
+/* The BridgeX pages (.bx-pages) lay their own grids out per screen size; this rule and the
+   "mobile-friendly grid" rule further down would squeeze or stack them wrongly on a phone. */
 @media (max-width: 767px) {
-  div[class*="grid-cols-2"] {
+  div[class*="grid-cols-2"]:not(.bx-pages *) {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 0.5rem !important;
@@ -499,7 +501,7 @@ button, .interactive {
     }
     
     /* Mobile-friendly grid adjustments */
-    .grid-cols-1, .grid-cols-2, .grid-cols-3, .grid-cols-4 {
+    :is(.grid-cols-1, .grid-cols-2, .grid-cols-3, .grid-cols-4):not(.bx-pages *) {
       grid-template-columns: 1fr !important;
       gap: 1rem !important;
     }

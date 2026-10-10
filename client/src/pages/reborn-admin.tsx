@@ -6,6 +6,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
 import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
+import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
@@ -27,7 +28,7 @@ const MANAGER_TABS = [...STAFF_TABS.slice(0, -1), "Sales", "POS"] as const;
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
 const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
+const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
 type AdminRole = "admin" | "manager" | "staff" | "user";
 const tabsFor = (role: AdminRole) => (role === "admin" ? ADMIN_TABS : role === "manager" ? MANAGER_TABS : STAFF_TABS) as readonly string[];
 // The admin-panel view this account gets (manager = staff account with company role manager).
@@ -66,6 +67,7 @@ export default function RebornAdmin() {
       {tab === "Prizes" && <Prizes />}
       {tab === "Redemptions" && <Redemptions />}
       {tab === "FAQ" && <Faq />}
+      {tab === "QR" && <QrCodes />}
       {tab === "Songs" && <Songs />}
       {tab === "Requests" && <SongRequests />}
       {tab === "Gifts" && <GiftTypes />}
@@ -169,6 +171,7 @@ function Broadcast() {
 }
 
 const TAB_ICON: Record<string, JSX.Element> = {
+  QR: <QrCode className="w-4 h-4" />,
   Overview: <LayoutGrid className="w-4 h-4" />, Requests: <Music2 className="w-4 h-4" />, Redemptions: <Gift className="w-4 h-4" />,
   "Top-ups": <Coins className="w-4 h-4" />, Pet: <PawPrint className="w-4 h-4" />, Sales: <Coins className="w-4 h-4" />, POS: <Receipt className="w-4 h-4" />,
   Songs: <Music2 className="w-4 h-4" />, Events: <Megaphone className="w-4 h-4" />, Broadcast: <Send className="w-4 h-4" />,
@@ -181,6 +184,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
 
 // Each admin section's colour for its tile.
 const TAB_COLOR: Record<string, string> = {
+  QR: "#f3b52f",
   Requests: "#a855f7", Redemptions: "#ec4899", "Top-ups": "#f59e0b", Pet: "#06b6d4", Sales: "#22c55e", POS: "#f59e0b", Songs: "#8b5cf6",
   Events: "#f97316", Broadcast: "#3b82f6", Users: "#22c55e", Products: "#14b8a6", Accounting: "#10b981", Prizes: "#eab308",
   Gifts: "#f472b6", FAQ: "#60a5fa", Settings: "#94a3b8", Logs: "#64748b", Errors: "#ef4444", Inventory: "#0ea5e9", CRM: "#6366f1",
@@ -1414,6 +1418,46 @@ function Pills() {
         <button onClick={() => grant.mutate()} disabled={!userId.trim()} className={btn}>{t("admin.pill.grant")}</button>
       </div>
     </Card>
+  );
+}
+
+// The QR codes staff reach for most, in one place: the code on each table (guests scan it to
+// check in at that table) and the staff check-in code (staff scan it to clock in).
+function QrCodes() {
+  const { t } = useTranslation();
+  const [isTableSheetOpen, setTableSheetOpen] = useState(false);
+  const { data: tables = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/venue/tables"], queryFn: () => apiRequest("GET", "/api/reborn/admin/venue/tables").then((r) => r.json()) });
+  const { data: attendCode } = useQuery<any>({ queryKey: ["/api/reborn/admin/attendance/code"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance/code").then((r) => r.json()) });
+  const staffQrUrl = `/api/reborn/admin/attendance/qr?v=${encodeURIComponent(attendCode?.code || "")}`;
+  return (
+    <div className="space-y-3">
+      <Card>
+        <p className="font-bold mb-1 flex items-center gap-2 text-sm"><QrCode className="w-4 h-4 text-amber-300" /> {t("admin.qr.tables")}</p>
+        <p className="text-[11px] text-white/40 mb-3">{t("admin.qr.tablesHint")}</p>
+        {tables.length === 0 ? <p className="text-sm text-white/50">{t("vn.kos.noTables")}</p> : (
+          <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))" }}>
+            {tables.map((table) => (
+              <div key={table.label} className="rounded-xl bg-white p-2 text-center text-black">
+                <div className="w-full aspect-square [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: table.svg }} />
+                <p className="mt-1 text-sm font-black">{t("vn.kos.tableN", { t: table.label })}</p>
+                <p className="truncate text-[10px] text-black/60">{table.area}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => setTableSheetOpen(true)} disabled={tables.length === 0} className={btn + " mt-3 w-full justify-center disabled:opacity-50"}><Printer className="w-4 h-4" /> {t("admin.qr.printTables")}</button>
+      </Card>
+      <Card>
+        <p className="font-bold mb-1 flex items-center gap-2 text-sm"><QrCode className="w-4 h-4 text-amber-300" /> {t("admin.hr.qrTitle")}</p>
+        <p className="text-[11px] text-white/40 mb-3">{t("admin.hr.qrHint")}</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="bg-white rounded-2xl p-3 w-56 max-w-full"><img src={staffQrUrl} alt={t("admin.hr.qrTitle")} className="w-full aspect-square" /></div>
+          <button onClick={() => window.open(staffQrUrl, "_blank")} className={btn + " w-full justify-center"}><Printer className="w-4 h-4" /> {t("admin.hr.openPrint")}</button>
+          <p className="text-[11px] text-white/40">{t("admin.qr.newStaffCode")}</p>
+        </div>
+      </Card>
+      {isTableSheetOpen && <TableQrSheet onClose={() => setTableSheetOpen(false)} />}
+    </div>
   );
 }
 
