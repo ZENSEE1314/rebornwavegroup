@@ -71,6 +71,9 @@ text.
   Both save `disabledFeatures` in that company's settings (`saveDisabledFeatures`). A new
   member feature needs a key in both lists so it can be switched off. The BridgeX module
   tick-list page was removed; modules are still set from the industry when a company is made.
+- Table QR codes (Admin > QR codes) cover the tables in the booking areas plus extra tables
+  the admin adds by number (`extraTables` setting, e.g. `21-30` or `A1, A2`); each can be
+  printed on its own. A table QR is valid for any label signed with `tableSig`.
 - Call service (`service` feature): a member seated at a table (venue check-in with a table)
   calls staff; open calls live in the company's `serviceCalls` setting and show on the POS
   tables screen until Done.
