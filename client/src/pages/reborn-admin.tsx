@@ -24,7 +24,8 @@ import { countryOf } from "@shared/countries";
 // Tabs staff (sub-admin) can use; the rest are full-admin only
 const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "POS"] as const;
 // Managers: the staff tabs + Daily sales (today's total, close the day, every salesperson's target).
-const MANAGER_TABS = [...STAFF_TABS.slice(0, -1), "Sales", "POS"] as const;
+// The QR codes tab comes second, as for the main admin.
+const MANAGER_TABS = ["Overview", "QR", ...STAFF_TABS.slice(1, -1), "Sales", "POS"] as const;
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
 const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");

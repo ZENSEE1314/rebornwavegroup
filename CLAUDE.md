@@ -80,6 +80,8 @@ text.
 - Table QR codes (Admin > QR codes) cover the tables in the booking areas plus extra tables
   the admin adds by number (`extraTables` setting, e.g. `21-30` or `A1, A2`); each can be
   printed on its own. A table QR is valid for any label signed with `tableSig`.
+  The QR codes tab (tables + staff check-in QR) is for the main admin and managers; replacing the
+  staff code stays main-admin only.
 - Call service (`service` feature): a member seated at a table (venue check-in with a table)
   calls staff; open calls live in the company's `serviceCalls` setting and show on the POS
   tables screen until Done.

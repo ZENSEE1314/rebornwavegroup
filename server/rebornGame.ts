@@ -1861,7 +1861,7 @@ export function registerRebornRoutes(app: Express) {
   });
   // Admin: the fixed QR for every table (print once, stick on the table).
   // Add more table QR codes by number: "21-30", or "A1, A2, A3".
-  app.post("/api/reborn/admin/venue/tables", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/venue/tables", requireManager(async (req, res) => {
     const wanted = tableLabelsFrom(req.body?.labels);
     if (!wanted.length) return res.status(400).json({ message: tr(req, { en: "Enter table numbers, for example 21-30 or A1, A2.", zh: "请输入桌号，例如 21-30 或 A1, A2。", id: "Isi nomor meja, contoh 21-30 atau A1, A2." }) });
     const existing = new Set((await venueTables()).map((t) => t.label));
@@ -1873,7 +1873,7 @@ export function registerRebornRoutes(app: Express) {
     res.json({ added, skipped: wanted.length - added.length });
   }));
   // Remove a table added here (tables from the booking areas are managed in Settings).
-  app.delete("/api/reborn/admin/venue/tables/:label", requireAdmin(async (req, res) => {
+  app.delete("/api/reborn/admin/venue/tables/:label", requireManager(async (req, res) => {
     const label = String(req.params.label);
     const extras = await extraTables();
     if (!extras.includes(label)) return res.status(404).json({ message: tr(req, { en: "Only tables added here can be removed.", zh: "只能删除在此添加的桌位。", id: "Hanya meja yang ditambahkan di sini yang bisa dihapus." }) });
@@ -1881,7 +1881,7 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetType: "venue", action: "remove_table", entityType: "venue", description: `Removed table QR ${label}` });
     res.json({ ok: true });
   }));
-  app.get("/api/reborn/admin/venue/tables", requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/venue/tables", requireManager(async (req, res) => {
     const host = `${req.protocol}://${req.get("host")}`;
     const session = await ensureVenueSession();
     const seated = await db.select({ table: venueCheckins.tableLabel, n: sql<number>`count(*)::int` }).from(venueCheckins)
@@ -3904,7 +3904,7 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // ── Attendance QR — main admin posts this at the workplace; staff scan to clock in ──
-  app.get("/api/reborn/admin/attendance/code", requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/attendance/code", requireManager(async (req, res) => {
     const code = await currentAttendCode();
     res.json({ code, url: `${req.protocol}://${req.get("host")}/attend?c=${code}` });
   }));
@@ -3912,7 +3912,7 @@ export function registerRebornRoutes(app: Express) {
     const code = await rotateAttendCode();
     res.json({ code });
   }));
-  app.get("/api/reborn/admin/attendance/qr", requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/attendance/qr", requireManager(async (req, res) => {
     const code = await currentAttendCode();
     const svg = await QRCode.toString(`${req.protocol}://${req.get("host")}/attend?c=${code}`, { type: "svg", width: 720, margin: 2, color: { dark: "#120b20", light: "#ffffff" } });
     res.type("image/svg+xml").send(svg);
