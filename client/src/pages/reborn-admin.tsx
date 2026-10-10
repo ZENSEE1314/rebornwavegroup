@@ -1425,27 +1425,49 @@ function Pills() {
 // check in at that table) and the staff check-in code (staff scan it to clock in).
 function QrCodes() {
   const { t } = useTranslation();
-  const [isTableSheetOpen, setTableSheetOpen] = useState(false);
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const TABLES = "/api/reborn/admin/venue/tables";
+  // null = sheet closed; {} = every table; { only } = just those numbers (the one-by-one Print button)
+  const [sheet, setSheet] = useState<{ only?: string[]; autoPrint?: boolean } | null>(null);
+  const [newLabels, setNewLabels] = useState("");
   const { data: tables = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/venue/tables"], queryFn: () => apiRequest("GET", "/api/reborn/admin/venue/tables").then((r) => r.json()) });
   const { data: attendCode } = useQuery<any>({ queryKey: ["/api/reborn/admin/attendance/code"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance/code").then((r) => r.json()) });
   const staffQrUrl = `/api/reborn/admin/attendance/qr?v=${encodeURIComponent(attendCode?.code || "")}`;
+  const addTables = useMutation({
+    mutationFn: () => apiRequest("POST", TABLES, { labels: newLabels }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { setNewLabels(""); qc.invalidateQueries({ queryKey: [TABLES] }); toast({ title: t("admin.qr.added", { n: d.added.length }), description: d.skipped ? t("admin.qr.skipped", { n: d.skipped }) : undefined }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
+  });
+  const removeTable = useMutation({
+    mutationFn: (label: string) => apiRequest("DELETE", `${TABLES}/${encodeURIComponent(label)}`, {}).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [TABLES] }),
+  });
   return (
     <div className="space-y-3">
       <Card>
         <p className="font-bold mb-1 flex items-center gap-2 text-sm"><QrCode className="w-4 h-4 text-amber-300" /> {t("admin.qr.tables")}</p>
         <p className="text-[11px] text-white/40 mb-3">{t("admin.qr.tablesHint")}</p>
+        <div className="mb-3 flex gap-2">
+          <input value={newLabels} onChange={(e) => setNewLabels(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newLabels.trim()) addTables.mutate(); }} placeholder={t("admin.qr.addPlaceholder")} className={inp + " min-w-0 flex-1"} />
+          <button onClick={() => addTables.mutate()} disabled={!newLabels.trim() || addTables.isPending} className={btn + " shrink-0 disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.qr.add")}</button>
+        </div>
         {tables.length === 0 ? <p className="text-sm text-white/50">{t("vn.kos.noTables")}</p> : (
           <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))" }}>
             {tables.map((table) => (
               <div key={table.label} className="rounded-xl bg-white p-2 text-center text-black">
                 <div className="w-full aspect-square [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: table.svg }} />
                 <p className="mt-1 text-sm font-black">{t("vn.kos.tableN", { t: table.label })}</p>
-                <p className="truncate text-[10px] text-black/60">{table.area}</p>
+                <p className="truncate text-[10px] text-black/60">{table.area || "\u00a0"}</p>
+                <div className="mt-1 flex gap-1">
+                  <button onClick={() => setSheet({ only: [table.label], autoPrint: true })} className="flex min-h-[36px] flex-1 items-center justify-center gap-1 rounded-lg bg-black px-2 text-[11px] font-bold text-white"><Printer className="h-3.5 w-3.5" /> {t("admin.qr.print")}</button>
+                  {table.extra && <button onClick={() => { if (confirm(t("admin.qr.removeConfirm", { t: table.label }))) removeTable.mutate(table.label); }} aria-label={t("admin.c.delete")} className="flex min-h-[36px] w-9 items-center justify-center rounded-lg bg-red-100 text-red-700"><Trash2 className="h-3.5 w-3.5" /></button>}
+                </div>
               </div>
             ))}
           </div>
         )}
-        <button onClick={() => setTableSheetOpen(true)} disabled={tables.length === 0} className={btn + " mt-3 w-full justify-center disabled:opacity-50"}><Printer className="w-4 h-4" /> {t("admin.qr.printTables")}</button>
+        <button onClick={() => setSheet({})} disabled={tables.length === 0} className={btn + " mt-3 w-full justify-center disabled:opacity-50"}><Printer className="w-4 h-4" /> {t("admin.qr.printTables")}</button>
       </Card>
       <Card>
         <p className="font-bold mb-1 flex items-center gap-2 text-sm"><QrCode className="w-4 h-4 text-amber-300" /> {t("admin.hr.qrTitle")}</p>
@@ -1456,7 +1478,7 @@ function QrCodes() {
           <p className="text-[11px] text-white/40">{t("admin.qr.newStaffCode")}</p>
         </div>
       </Card>
-      {isTableSheetOpen && <TableQrSheet onClose={() => setTableSheetOpen(false)} />}
+      {sheet && <TableQrSheet onClose={() => setSheet(null)} only={sheet.only} autoPrint={sheet.autoPrint} />}
     </div>
   );
 }

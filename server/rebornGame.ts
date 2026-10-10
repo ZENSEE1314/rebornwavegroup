@@ -988,11 +988,38 @@ async function tableSig(label: string): Promise<string> {
   const { createHmac } = await import("crypto");
   return createHmac("sha256", await tableQrSecret()).update(label).digest("base64url").slice(0, 10);
 }
-// All tables set up in the booking areas (label + area name).
-async function venueTables(): Promise<{ label: string; area: string }[]> {
+// Extra tables the admin added just for QR codes (Admin > QR codes), beyond the booking areas.
+const EXTRA_TABLES_KEY = "extraTables";
+const MAX_EXTRA_TABLES = 300;
+const MAX_TABLE_LABEL_LENGTH = 20;
+async function extraTables(): Promise<string[]> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, EXTRA_TABLES_KEY));
+  try { const list = JSON.parse(row?.value || "[]"); return Array.isArray(list) ? list.map(String) : []; } catch { return []; }
+}
+async function saveExtraTables(labels: string[]) {
+  const value = JSON.stringify(labels);
+  await db.insert(appSettings).values({ key: EXTRA_TABLES_KEY, value, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+}
+// "1-20", "A1, A2, A3" or one per line → table labels. A number range makes one table per number.
+function tableLabelsFrom(input: unknown): string[] {
+  const labels: string[] = [];
+  for (const part of String(input ?? "").split(/[,\n;]/)) {
+    const text = part.trim();
+    if (!text) continue;
+    const range = /^(\d{1,4})\s*[-–]\s*(\d{1,4})$/.exec(text);
+    if (range && Number(range[2]) >= Number(range[1]) && Number(range[2]) - Number(range[1]) < MAX_EXTRA_TABLES) {
+      for (let n = Number(range[1]); n <= Number(range[2]); n++) labels.push(String(n));
+    } else if (text.length <= MAX_TABLE_LABEL_LENGTH) labels.push(text);
+  }
+  return labels;
+}
+// All tables: those set up in the booking areas (label + area name), then the extra ones.
+async function venueTables(): Promise<{ label: string; area: string; extra?: boolean }[]> {
   const s = await getSettings();
-  const out: { label: string; area: string }[] = []; const seen = new Set<string>();
+  const out: { label: string; area: string; extra?: boolean }[] = []; const seen = new Set<string>();
   for (const a of enabledAreas(s.bookingAreas)) for (const t of a.tables) if (!seen.has(t)) { seen.add(t); out.push({ label: t, area: a.name }); }
+  for (const label of await extraTables()) if (!seen.has(label)) { seen.add(label); out.push({ label, area: "", extra: true }); }
   return out;
 }
 // The table a booking is for ("KTV Lounge (Level 1) · Table V1" → "V1").
@@ -1738,6 +1765,27 @@ export function registerRebornRoutes(app: Express) {
     res.json({ message: tr(req, { en: "Checked in. You now appear in Kings of Singers.", zh: "签到成功！你已出现在歌王之王中。", id: "Berhasil check-in. Kamu sekarang tampil di Raja Penyanyi." }), checkin: row, table: row?.tableLabel || null });
   });
   // Admin: the fixed QR for every table (print once, stick on the table).
+  // Add more table QR codes by number: "21-30", or "A1, A2, A3".
+  app.post("/api/reborn/admin/venue/tables", requireAdmin(async (req, res) => {
+    const wanted = tableLabelsFrom(req.body?.labels);
+    if (!wanted.length) return res.status(400).json({ message: tr(req, { en: "Enter table numbers, for example 21-30 or A1, A2.", zh: "请输入桌号，例如 21-30 或 A1, A2。", id: "Isi nomor meja, contoh 21-30 atau A1, A2." }) });
+    const existing = new Set((await venueTables()).map((t) => t.label));
+    const extras = await extraTables();
+    const added = wanted.filter((label, i) => !existing.has(label) && wanted.indexOf(label) === i);
+    if (extras.length + added.length > MAX_EXTRA_TABLES) return res.status(400).json({ message: tr(req, { en: "That is too many tables.", zh: "桌位数量过多。", id: "Terlalu banyak meja." }) });
+    await saveExtraTables([...extras, ...added]);
+    await logAdmin(req, { targetType: "venue", action: "add_tables", entityType: "venue", description: `Added table QR codes: ${added.join(", ") || "none new"}` });
+    res.json({ added, skipped: wanted.length - added.length });
+  }));
+  // Remove a table added here (tables from the booking areas are managed in Settings).
+  app.delete("/api/reborn/admin/venue/tables/:label", requireAdmin(async (req, res) => {
+    const label = String(req.params.label);
+    const extras = await extraTables();
+    if (!extras.includes(label)) return res.status(404).json({ message: tr(req, { en: "Only tables added here can be removed.", zh: "只能删除在此添加的桌位。", id: "Hanya meja yang ditambahkan di sini yang bisa dihapus." }) });
+    await saveExtraTables(extras.filter((x) => x !== label));
+    await logAdmin(req, { targetType: "venue", action: "remove_table", entityType: "venue", description: `Removed table QR ${label}` });
+    res.json({ ok: true });
+  }));
   app.get("/api/reborn/admin/venue/tables", requireAdmin(async (req, res) => {
     const host = `${req.protocol}://${req.get("host")}`;
     const session = await ensureVenueSession();
