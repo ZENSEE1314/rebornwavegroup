@@ -256,6 +256,7 @@ function TablesTab() {
         <button onClick={() => openTicket.mutate()} disabled={!table.trim() || openTicket.isPending} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("pos.openTicket")}</button>
       </div>
       <div>
+        <ServiceCalls />
         <p className="text-xs text-white/40 px-1 mb-2 flex items-center gap-2">{t("pos.openTickets")} {appCount > 0 && <span className="inline-flex items-center gap-1 text-amber-300"><Bell className="w-3 h-3" /> {t("pos.appOrders", { n: appCount })}</span>}</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {orders.map((o) => (
@@ -300,6 +301,43 @@ function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [] }: {
       <input className={input} value={value.note} onChange={(e)=>onChange({...value,note:e.target.value})} placeholder={t("pos.noteOptional")}/>
     </div>}
   </div>;
+}
+
+// Tables whose guests pressed "Call service". A new call beeps; Done clears it for everyone.
+const SERVICE_CALLS = "/api/reborn/venue/service-calls";
+const SERVICE_CALLS_POLL_MS = 8000;
+function ServiceCalls() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const heard = useRef<Set<string> | null>(null);
+  const { data: calls = [] } = useQuery<{ id: string; table: string; name: string; at: number }[]>({
+    queryKey: [SERVICE_CALLS], queryFn: () => apiRequest("GET", SERVICE_CALLS).then((r) => r.json()), refetchInterval: SERVICE_CALLS_POLL_MS,
+  });
+  useEffect(() => {
+    if (heard.current === null) { heard.current = new Set(calls.map((call) => call.id)); return; }
+    for (const call of calls) if (!heard.current.has(call.id)) { heard.current.add(call.id); beep(); }
+  }, [calls]);
+  // Gone from the screen at once (so it is not tapped twice); the list is fetched again either way.
+  const done = useMutation({
+    mutationFn: (id: string) => post(`${SERVICE_CALLS}/${id}/done`),
+    onMutate: (id) => { qc.setQueryData<typeof calls>([SERVICE_CALLS], (list) => list?.filter((call) => call.id !== id)); },
+    onSettled: () => qc.invalidateQueries({ queryKey: [SERVICE_CALLS] }),
+  });
+  if (!calls.length) return null;
+  return (
+    <div className="mb-3 space-y-2" aria-live="polite">
+      {calls.map((call) => (
+        <div key={call.id} className="flex items-center gap-3 rounded-2xl border border-orange-400/60 bg-orange-500/15 px-3 py-2.5">
+          <Bell className="h-5 w-5 shrink-0 text-orange-300" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-orange-100">{t("pos.call.table", { t: call.table })}</p>
+            <p className="truncate text-[11px] text-white/60">{call.name} · {new Date(call.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+          </div>
+          <button onClick={() => done.mutate(call.id)} className="shrink-0 rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-black">{t("pos.call.done")}</button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {

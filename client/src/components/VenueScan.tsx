@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation, translate } from "@/lib/i18n";
-import { CheckCircle2, QrCode } from "lucide-react";
+import { BellRing, CheckCircle2, QrCode } from "lucide-react";
 
 // Check in to KOS from a scanned QR: today's venue code, a /kos?venue=CODE link
 // or a table QR link (/kos?table=T&k=SIG — also seats you at that table).
@@ -62,6 +62,36 @@ export function VenueScanner({ onDetect, onClose }: { onDetect: (code: string) =
 
 
 // Home-page card: scan the table QR (or see which table you're checked in at).
+// "Call service": shown only to a member who has scanned in at a table. Staff are told which table.
+export function CallServiceCard() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [calling, setCalling] = useState(false);
+  const { data: venue } = useQuery<any>({ queryKey: ["/api/reborn/venue/status"], queryFn: () => apiRequest("GET", "/api/reborn/venue/status").then((r) => r.json()), refetchInterval: 30000 });
+  if (!venue?.checkedIn || !venue?.table) return null;
+  const call = async () => {
+    setCalling(true);
+    try {
+      const response = await apiRequest("POST", "/api/reborn/venue/call-service", {});
+      toast({ title: (await response.json()).message });
+    } catch (error: any) {
+      toast({ title: String(error?.message || "").replace(/^\d+:\s*/, "") || t("hm.service.failed"), variant: "destructive" });
+    } finally {
+      setCalling(false);
+    }
+  };
+  return (
+    <button onClick={call} disabled={calling} className="arc-room-row w-full mb-4 text-left disabled:opacity-60" style={{ ["--c1" as any]: "#f97316" }}>
+      <span className="arc-icon shrink-0" style={{ width: 46, height: 46, fontSize: 22, ["--c1" as any]: "#fdba74", ["--c2" as any]: "#ea580c" }}><span><BellRing className="w-6 h-6 text-white" /></span></span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-black italic uppercase tracking-wide">{t("hm.service.title")}</span>
+        <span className="block text-xs text-white/55">{t("hm.service.desc", { t: venue.table })}</span>
+      </span>
+      <span className="arc-play shrink-0" style={{ padding: "8px 12px", fontSize: 12 }}>{calling ? t("hm.service.calling") : t("hm.service.btn")}</span>
+    </button>
+  );
+}
+
 export function ScanTableCard() {
   const { t } = useTranslation();
   const [scanning, setScanning] = useState(false);

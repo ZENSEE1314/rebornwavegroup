@@ -20,6 +20,7 @@ export const APP_FEATURES: { key: string; icon: string; label: string; desc: str
   { key: "chat", icon: "💬", label: "nav.chat", desc: "admin.feat.chatDesc", paths: ["/chat"] },
   { key: "support", icon: "🎧", label: "hm.tile.support", desc: "hm.tile.supportDesc", paths: ["/support"] },
   { key: "history", icon: "🧾", label: "hm.tile.history", desc: "hm.tile.historyDesc", paths: ["/history"] },
+  { key: "service", icon: "🔔", label: "hm.service.title", desc: "hm.service.featureDesc", paths: [] },
 ];
 
 export function featureForPath(path: string): string | undefined {

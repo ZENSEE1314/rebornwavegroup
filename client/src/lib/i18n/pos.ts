@@ -72,6 +72,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.tableNumber': { en: 'Table number', zh: '桌号', id: 'Nomor meja' },
   'pos.memberLookup': { en: 'Code / card / username / email (optional)', zh: '会员码 / 卡号 / 用户名 / 邮箱（可选）', id: 'Kode / kartu / nama pengguna / email (opsional)' },
   'pos.openTicket': { en: 'Open ticket', zh: '开单', id: 'Buka tiket' },
+  'pos.call.table': { en: '🔔 Table {t} is calling for service', zh: '🔔 {t} 桌呼叫服务', id: '🔔 Meja {t} memanggil layanan' },
+  'pos.call.done': { en: 'Done', zh: '已处理', id: 'Selesai' },
   'pos.openTickets': { en: 'Open tickets — tap to add items or take payment', zh: '未结账单 — 点击添加商品或收款', id: 'Tiket terbuka — ketuk untuk menambah item atau menerima pembayaran' },
   'pos.appOrders': { en: '{n} app order(s)', zh: '{n} 个应用订单', id: '{n} pesanan aplikasi' },
   'pos.noOpenTickets': { en: 'No open tickets. Open one, or member app orders will appear here.', zh: '暂无未结账单。请开新单，会员通过应用下的订单也会显示在这里。', id: 'Tidak ada tiket terbuka. Buka satu, atau pesanan member dari aplikasi akan muncul di sini.' },

@@ -1,4 +1,5 @@
 // Reborn Wave gamified economy: pet lifecycle, spin-the-wheel, support/FAQ, admin config.
+import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
 import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -746,7 +747,7 @@ async function seedSongsIfEmpty() {
 
 // ── App features the admin can switch off for members ─────────────────────
 // Stored as a JSON array of feature keys in app_settings.disabledFeatures.
-export const APP_FEATURE_KEYS = ["pet", "order", "bottles", "spin", "games", "bookings", "loyalty", "kos", "songs", "referral", "support", "chat", "history"] as const;
+export const APP_FEATURE_KEYS = ["pet", "order", "bottles", "spin", "games", "bookings", "loyalty", "kos", "songs", "referral", "support", "chat", "history", "service"] as const;
 // Per data space: each company switches its own features on and off.
 const _disabledCaches = new Map<string, { at: number; list: string[] }>();
 export async function disabledFeatures(): Promise<string[]> {
@@ -758,8 +759,42 @@ export async function disabledFeatures(): Promise<string[]> {
   _disabledCaches.set(homeCompanySlug(), { at: Date.now(), list });
   return list;
 }
+// Saves which features are off for this company. Used by the company's own Admin › App
+// features and by BridgeX, which sets them per company.
+export async function saveDisabledFeatures(keys: unknown): Promise<string[]> {
+  const raw = Array.isArray(keys) ? keys : [];
+  const list = Array.from(new Set(raw.map(String).filter((k: string) => (APP_FEATURE_KEYS as readonly string[]).includes(k))));
+  const value = JSON.stringify(list);
+  await db.insert(appSettings).values({ key: "disabledFeatures", value, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  _disabledCaches.delete(homeCompanySlug());
+  return list;
+}
+
+// ── Call service: a member seated at a table asks staff to come ───────────
+// Open calls are kept in this company's settings, so every server and every staff
+// screen sees the same list. A call leaves the list when staff tap Done, or after a while.
+const SERVICE_CALLS_KEY = "serviceCalls";
+const SERVICE_CALL_COOLDOWN_MS = 60_000;
+const SERVICE_CALL_SHOWN_MS = 30 * 60_000;
+interface ServiceCall { id: string; table: string; userId: string; name: string; at: number }
+async function openServiceCalls(): Promise<ServiceCall[]> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, SERVICE_CALLS_KEY));
+  try {
+    const list = JSON.parse(row?.value || "[]");
+    return Array.isArray(list) ? list.filter((call: ServiceCall) => Date.now() - Number(call.at) < SERVICE_CALL_SHOWN_MS) : [];
+  } catch { return []; }
+}
+async function saveServiceCalls(calls: ServiceCall[]) {
+  const value = JSON.stringify(calls);
+  await db.insert(appSettings).values({ key: SERVICE_CALLS_KEY, value, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  emitLiveUpdate("/api/reborn/venue/service-calls", { action: "SERVICE_CALLS" });
+}
+
 // Member actions that belong to each feature (POST/PUT/DELETE only; reads stay open).
 const FEATURE_API: Array<[string, RegExp]> = [
+  ["service", /^\/api\/reborn\/venue\/call-service/],
   ["pet", /^\/api\/reborn\/(action|feed|use-pill|pet-home\/)/],
   ["order", /^\/api\/reborn\/shop\/order/],
   ["spin", /^\/api\/reborn\/(spin$|prizes\/)/],
@@ -1064,12 +1099,7 @@ export function registerRebornRoutes(app: Express) {
     res.set("Cache-Control", "no-cache").json({ disabled: await disabledFeatures() });
   });
   app.post("/api/reborn/admin/features", requireAdmin(async (req, res) => {
-    const raw = Array.isArray(req.body?.disabled) ? req.body.disabled : [];
-    const list = Array.from(new Set(raw.map(String).filter((k: string) => (APP_FEATURE_KEYS as readonly string[]).includes(k))));
-    const v = JSON.stringify(list);
-    await db.insert(appSettings).values({ key: "disabledFeatures", value: v, updatedAt: new Date() })
-      .onConflictDoUpdate({ target: appSettings.key, set: { value: v, updatedAt: new Date() } });
-    _disabledCaches.delete(homeCompanySlug());
+    const list = await saveDisabledFeatures(req.body?.disabled);
     await logAdmin(req, { targetType: "settings", action: "features", entityType: "settings", description: `App features off: ${list.join(", ") || "none"}` });
     res.json({ disabled: list, message: tr(req, { en: "Saved", zh: "已保存", id: "Tersimpan" }) });
   }));
@@ -1665,6 +1695,33 @@ export function registerRebornRoutes(app: Express) {
     const row = await activeCheckin(userId);
     res.json({ checkedIn: !!row, day: session.day, checkedInAt: row?.checkedInAt || null, table: row?.tableLabel || null });
   });
+  // "Call service": only for a member who scanned in at a table; staff are told which table.
+  app.post("/api/reborn/venue/call-service", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const table = (await activeCheckin(userId))?.tableLabel;
+    if (!table) return res.status(400).json({ message: tr(req, { en: "Scan your table's QR code first, then call service.", zh: "请先扫描桌上的二维码，再呼叫服务。", id: "Pindai dulu kode QR meja Anda, lalu panggil layanan." }) });
+    const calls = await openServiceCalls();
+    const alreadyCalling = calls.some((call) => call.userId === userId && Date.now() - call.at < SERVICE_CALL_COOLDOWN_MS);
+    if (alreadyCalling) return res.status(429).json({ message: tr(req, { en: "Staff have been told. Please give them a moment.", zh: "已通知服务员，请稍等片刻。", id: "Staf sudah diberi tahu. Mohon tunggu sebentar." }) });
+    const [member] = await db.select().from(users).where(eq(users.id, userId));
+    const name = [member?.firstName, member?.lastName].filter(Boolean).join(" ") || member?.username || "Member";
+    await saveServiceCalls([...calls.filter((call) => call.userId !== userId), { id: randomUUID(), table, userId, name, at: Date.now() }]);
+    const notice = (lang: Lang) => ({
+      title: pick(lang, { en: "🔔 Table {t} is calling", zh: "🔔 {t} 桌呼叫服务", id: "🔔 Meja {t} memanggil" }, { t: table }),
+      body: pick(lang, { en: "{name} asks for service.", zh: "{name} 需要服务。", id: "{name} meminta layanan." }, { name }),
+    });
+    void notifyStaffI18n("service_call", notice, { path: "/pos", table }).catch((error) => console.error("[service call] notice", error));
+    pushAdminsI18n((lang) => ({ ...notice(lang), url: "/pos", tag: `service-${table}` })).catch(() => {});
+    void notifyAdmins(`🔔 Table ${table}: ${name} is calling for service.`).catch(() => {});
+    res.json({ message: tr(req, { en: "Staff have been called to table {t}.", zh: "已呼叫服务员前往 {t} 桌。", id: "Staf sudah dipanggil ke meja {t}." }, { t: table }) });
+  });
+  app.get("/api/reborn/venue/service-calls", requireStaff(async (_req, res) => {
+    res.json(await openServiceCalls());
+  }));
+  app.post("/api/reborn/venue/service-calls/:id/done", requireStaff(async (req, res) => {
+    await saveServiceCalls((await openServiceCalls()).filter((call) => call.id !== req.params.id));
+    res.json({ ok: true });
+  }));
   app.post("/api/reborn/venue/checkin", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     // Table QR (fixed, printed on each table): checks in and seats you at that table.

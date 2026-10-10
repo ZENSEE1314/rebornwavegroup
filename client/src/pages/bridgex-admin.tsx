@@ -3,6 +3,7 @@ import { Building2, ChevronLeft, LogOut, Plus, ShieldCheck, Smartphone, Star, Us
 import { Link } from "wouter";
 
 import { useTranslation } from "@/lib/i18n";
+import { APP_FEATURES } from "@/lib/features";
 import { DEFAULT_APP_SKIN, type AppColours } from "@shared/appSkins";
 import { AppSkinPicker } from "@/components/AppSkinPicker";
 import { canUseBridgeXConsole } from "@/hooks/useTenantBrand";
@@ -31,6 +32,44 @@ const FLAGSHIP_SLUG = "reborn-wave-group";
 
 export const field = "w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400";
 export const button = "rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-cyan-300 disabled:opacity-50";
+
+// Which app functions this company's members get. A switch saves the moment it is flipped,
+// and the company's app follows within a few seconds.
+function CompanyAppFeatures({ company, onMsg }: { company: Company; onMsg: (message: string) => void }) {
+  const { t } = useTranslation();
+  const url = `/api/v1/platform/companies/${company.id}/app-features`;
+  const [off, setOff] = useState<string[] | null>(null);
+  useEffect(() => {
+    setOff(null);
+    request(url).then((d) => setOff(d.disabled || [])).catch((e) => onMsg(e.message));
+  }, [company.id, company.dataMode]);
+  const flip = async (key: string) => {
+    if (!off) return;
+    const before = off;
+    const next = off.includes(key) ? off.filter((k) => k !== key) : [...off, key];
+    setOff(next);
+    try { setOff((await request(url, { method: "PUT", body: JSON.stringify({ disabled: next }) })).disabled); }
+    catch (e: any) { setOff(before); onMsg(e.message); }
+  };
+  return (
+    <Panel title={t("admin.bx.features.title", { name: company.appName || company.name })} subtitle={t("admin.bx.features.hint")}>
+      {!off ? <p className="text-sm text-slate-500">{t("admin.bx.features.loading")}</p> : (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {APP_FEATURES.map((feature) => {
+            const on = !off.includes(feature.key);
+            return (
+              <button key={feature.key} type="button" role="switch" aria-checked={on} onClick={() => flip(feature.key)} className={`flex items-center gap-3 rounded-xl border p-3 text-left ${on ? "border-cyan-400/50 bg-cyan-400/5" : "border-white/10 bg-white/[.03] opacity-70"}`}>
+                <span className="text-xl" aria-hidden="true">{feature.icon}</span>
+                <span className="min-w-0 flex-1"><b className="block truncate text-sm">{t(feature.label)}</b><span className="block truncate text-[11px] text-slate-400">{t(feature.desc)}</span></span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${on ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-slate-400"}`}>{on ? t("admin.bx.features.on") : t("admin.bx.features.off")}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </Panel>
+  );
+}
 
 // The admins of one company's own app. They live in that company's data, so BridgeX is
 // where a first admin is created or a lost password is replaced.
@@ -98,9 +137,6 @@ export default function BridgeXAdmin() {
   const [registry,setRegistry] = useState<{key:string;name:string;category:string;status:string;desc:string}[]>([]);
   const [industries,setIndustries] = useState<{key:string;name:string;modules:string[]}[]>([]);
   const [modules,setModules] = useState<string[]>([]);
-  // Ticks wait for "Save modules"; until then the live refresh must not put the saved list back over them.
-  const unsavedModules = useRef(false);
-  const editModules = (next:string[]) => { unsavedModules.current = true; setModules(next); };
   const [effectiveModules,setEffectiveModules] = useState<string[]>([]); // company modules, narrowed to the selected outlet's business types
   const [branches,setBranches] = useState<Row[]>([]);
   const [positions,setPositions] = useState<Row[]>([]);
@@ -167,7 +203,7 @@ export default function BridgeXAdmin() {
       request("/api/v1/company/feedback",{},id), request("/api/v1/company/settings",{},id), request("/api/v1/company/access-status",{},id),
     ]);
     const en = mods.filter((m:Row) => m.enabled).map((m:Row) => m.moduleKey);
-    if (hydrateForms || !unsavedModules.current) { setModules(en); unsavedModules.current = false; }
+    setModules(en);
     setBranches(bs); setPositions(ps); setStaff(ss); setLeaders(ls); setMeetings(ms);
     setAttendance(att); setLeave(lv); setShifts(sh);
     setFeedback(fb); if(hydrateForms) setSettings(cfg.config || settings); setAccess(gate);
@@ -225,7 +261,7 @@ export default function BridgeXAdmin() {
           their modules, set branches & business types, white-label + billing.
           All day-to-day operations (POS, bookings, staff, inventory, accounting, …)
           live in the company's own app (Reborn), not here. */}
-      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["overview","All companies"]]:[]),...(platformAdmin?[["admins",t("admin.bx.admins.tab")]]:[]),...(superAdmin?[["team","Team"]]:[]),...(platformAdmin?[["applications","Applications"]]:[]),["modules","Services (enable/disable)"],["branches","Branches & business types"],["brand","White label & billing"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
+      <nav className="-mx-3 mb-5 flex max-w-[100vw] gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:max-w-full sm:px-0">{[["company","Companies"],...(platformAdmin?[["overview","All companies"]]:[]),...(platformAdmin?[["admins",t("admin.bx.admins.tab")]]:[]),...(superAdmin?[["team","Team"]]:[]),...(platformAdmin?[["applications","Applications"]]:[]),...(platformAdmin?[["features",t("admin.bx.features.tab")]]:[]),["branches","Branches & business types"],["brand","White label & billing"]].map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${tab===id?"bg-cyan-400 font-bold text-slate-950":"bg-white/5 text-slate-300"}`}>{label}</button>)}</nav>
 
       {tab === "company" && <Panel title={platformAdmin?"Company accounts":"Your business"} subtitle={platformAdmin?"Create a business, its owner login, first branch, domain and billing.":"Businesses you own or manage."}>
         {platformAdmin && <>
@@ -251,14 +287,7 @@ export default function BridgeXAdmin() {
         <div className="mt-5 rounded-2xl p-5" style={{background:brand.primaryColor}}><div className="flex items-center gap-3">{brand.logoUrl?<img src={brand.logoUrl} className="h-12 w-12 rounded-xl object-cover"/>:<Smartphone/>}<div><b className="text-slate-950">{brand.appName || selected?.name || "Your app"}</b><p className="text-xs text-slate-900/70">{brand.websiteDomain || "your-company.com"}</p></div></div></div>
       </Panel>}
 
-      {tab === "modules" && <Panel title="Modules & add-ons" subtitle="Core is the basic system every business gets (always on). Tick the add-ons this business needs; each ticked module becomes a button in their app. Apply an industry preset to set them fast.">
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-400"><span>Quick apply an industry preset:</span>{industries.map(i=><button key={i.key} className="rounded-full bg-white/5 px-3 py-1 text-slate-200 hover:bg-cyan-400/15" onClick={()=>editModules(i.modules)}>{i.name}</button>)}</div>
-        {Object.entries(moduleGroups).map(([cat,items])=><div key={cat} className="mb-5">
-          <h3 className="mb-2 text-sm font-black uppercase tracking-wider text-cyan-300">{cat}</h3>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{items.map(m=>{const core=(m as any).core;const on=core||modules.includes(m.key);const badge=m.status==="live"?"bg-emerald-400/15 text-emerald-300":m.status==="beta"?"bg-amber-400/15 text-amber-300":"bg-white/10 text-slate-400";return <label key={m.key} className={`flex items-start gap-3 rounded-xl border p-3 ${core?"cursor-default border-cyan-400/30 bg-cyan-400/[.04]":`cursor-pointer ${on?"border-cyan-400/50 bg-cyan-400/5":"border-white/10 bg-white/[.03]"}`}`}><input type="checkbox" className="mt-1" checked={on} disabled={core} onChange={core?undefined:()=>editModules(on?modules.filter(x=>x!==m.key):[...modules,m.key])}/><span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><b className="text-sm">{m.name}</b><span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ${badge}`}>{m.status}</span>{core?<span className="rounded-full bg-cyan-400/20 px-2 py-0.5 text-[10px] font-bold uppercase text-cyan-200">core</span>:<span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase text-slate-400">add-on</span>}</span>{m.desc&&<span className="mt-0.5 block text-[11px] text-slate-400">{m.desc}</span>}</span></label>;})}</div>
-        </div>)}
-        <button className={button+" mt-2"} disabled={busy} onClick={()=>act(()=>request("/api/v1/company/modules",{method:"PUT",body:JSON.stringify({modules})},companyId),"Services updated")}>Save modules</button>
-      </Panel>}
+      {tab === "features" && platformAdmin && selected && <CompanyAppFeatures company={selected} onMsg={setMessage} />}
 
       {tab === "overview" && platformAdmin && <OverviewPanel />}
 

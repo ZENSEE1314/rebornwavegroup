@@ -826,6 +826,19 @@ export function registerBridgeXRoutes(app: Express) {
     res.json({ ok: true });
   }));
 
+  // Which app functions a company's members get. Saved in that company's own data, where
+  // its app reads them (the same switches as the company's own Admin › App features).
+  app.get("/api/v1/platform/companies/:id/app-features", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const { APP_FEATURE_KEYS, disabledFeatures } = await import("./rebornGame");
+    res.json({ features: APP_FEATURE_KEYS, disabled: await inCompanySpace(Number(req.params.id), () => disabledFeatures()) });
+  }));
+  app.put("/api/v1/platform/companies/:id/app-features", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const { saveDisabledFeatures } = await import("./rebornGame");
+    res.json({ disabled: await inCompanySpace(Number(req.params.id), () => saveDisabledFeatures(req.body?.disabled)) });
+  }));
+
   app.get("/api/v1/platform/companies", route(async (req, res) => {
     if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
     res.json(await db.select().from(bridgeCompanies).orderBy(desc(bridgeCompanies.id)));
