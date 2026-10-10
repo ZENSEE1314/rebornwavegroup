@@ -20,6 +20,7 @@ const deptHas = (d: string | null | undefined, ind: string): boolean => deptList
 interface Staff { id: string; name: string; role: string; }
 interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "sales" | "stock" | "bottles" | "packages";
+const OPEN_TICKETS = ["/api/reborn/pos/orders"];
 // Translate a server-provided enum value, falling back to the raw value when no key exists.
 const tOr = (t: (k: string) => string, key: string, fallback: string) => { const v = t(key); return v === key ? fallback : v; };
 const rp = (n: any) => money(n);
@@ -347,10 +348,26 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSuccess: (d) => { toast({ title: d.message }); invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); onBack(); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
+  // Accept / reject / served shows on the ticket the moment it is tapped (the button it was
+  // tapped on is gone, so it cannot be tapped twice); the server's answer follows, and a
+  // failed save puts the ticket back as it was.
   const itemStatus = useMutation({
     mutationFn: (v: { id: number; status: string; reason?: string }) => post(`/api/reborn/pos/items/${v.id}/status`, { status: v.status, reason: v.reason }),
-    onSuccess: (d: any) => { toast({ title: d.message }); invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
-    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: OPEN_TICKETS, exact: true });
+      const ticketsBefore = qc.getQueryData<Order[]>(OPEN_TICKETS);
+      qc.setQueryData<Order[]>(OPEN_TICKETS, (tickets) => tickets?.map((ticket) => ticket.id !== order.id ? ticket : {
+        ...ticket,
+        items: (ticket.items || []).map((item: any) => item.id === v.id ? { ...item, status: v.status, rejectReason: v.reason ?? item.rejectReason } : item),
+      }));
+      return { ticketsBefore };
+    },
+    onSuccess: (d: any) => { toast({ title: d.message }); },
+    onError: (e: any, _v, context) => {
+      if (context?.ticketsBefore) qc.setQueryData(OPEN_TICKETS, context.ticketsBefore);
+      toast({ title: t("pos.failed"), description: e.message, variant: "destructive" });
+    },
+    onSettled: () => { invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
   });
   const itemEdit = useMutation({
     mutationFn: (v: { id: number; op: string; body?: any }) => post(`/api/reborn/pos/items/${v.id}/${v.op}`, v.body || {}),

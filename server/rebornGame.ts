@@ -3147,10 +3147,11 @@ export function registerRebornRoutes(app: Express) {
     if (ticket?.memberId) {
       // The default reason ("Unavailable") is stored as-is; show it in the member's language.
       const reasonFor = (lang: Lang) => String(req.body?.reason || "").trim() ? patch.rejectReason : pick(lang, { en: "Unavailable", zh: "暂无供应", id: "Tidak tersedia" });
-      await notifyUserI18n(ticket.memberId, "order_status", (lang) => ({
+      // Telling the member must not hold up the staff screen: the tap is answered first.
+      void notifyUserI18n(ticket.memberId, "order_status", (lang) => ({
         title: status === "served" ? pick(lang, { en: "Your order is served", zh: "你的餐点已上桌", id: "Pesananmu sudah disajikan" }) : status === "accepted" ? pick(lang, { en: "Order confirmed", zh: "订单已确认", id: "Pesanan dikonfirmasi" }) : pick(lang, { en: "Order item unavailable", zh: "订单中有品项暂无供应", id: "Item pesanan tidak tersedia" }),
         body: status === "rejected" ? `${it.name}: ${reasonFor(lang)}` : `${it.name} · ${status === "served" ? pick(lang, { en: "served", zh: "已上桌", id: "disajikan" }) : pick(lang, { en: "accepted", zh: "已接单", id: "diterima" })}`,
-      }), { path: "/shop", ticketId: ticket.id, itemId: id, status });
+      }), { path: "/shop", ticketId: ticket.id, itemId: id, status }).catch((error) => console.error("[pos] order status notice", error));
       pushUserI18n(ticket.memberId, (lang) => {
         const label = it.name || pick(lang, { en: "Your item", zh: "你的餐点", id: "Item kamu" });
         return {
