@@ -65,6 +65,15 @@ text.
 - Tab title, tab icon and share preview follow the brand of the page: server/pageBrand.ts
   rewrites the page head for a company or BridgeX (index.html itself is Reborn's), and the
   router in App.tsx keeps title + icon on the company while moving between pages.
+- App functions per company: the member-app features (`APP_FEATURE_KEYS`, client list in
+  lib/features.tsx) are switched per company — by BridgeX (App functions tab,
+  `/api/v1/platform/companies/:id/app-features`) or the company's own Admin > App features.
+  Both save `disabledFeatures` in that company's settings (`saveDisabledFeatures`). A new
+  member feature needs a key in both lists so it can be switched off. The BridgeX module
+  tick-list page was removed; modules are still set from the industry when a company is made.
+- Call service (`service` feature): a member seated at a table (venue check-in with a table)
+  calls staff; open calls live in the company's `serviceCalls` setting and show on the POS
+  tables screen until Done.
 - App designs: a company picks one of the designs in `shared/appSkins.ts` (BridgeX > White
   label, or the company's main admin in the app: Admin › Settings › App design,
   `/api/reborn/admin/app-skin`; both save `bridge_companies.theme.skin`, picker in
