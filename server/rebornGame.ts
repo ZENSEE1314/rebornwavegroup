@@ -1,4 +1,5 @@
 // Reborn Wave gamified economy: pet lifecycle, spin-the-wheel, support/FAQ, admin config.
+import { inEveryDataSpace } from "./tenantSpace";
 import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
@@ -777,13 +778,60 @@ export async function saveDisabledFeatures(keys: unknown): Promise<string[]> {
 const SERVICE_CALLS_KEY = "serviceCalls";
 const SERVICE_CALL_COOLDOWN_MS = 60_000;
 const SERVICE_CALL_SHOWN_MS = 30 * 60_000;
-interface ServiceCall { id: string; table: string; userId: string; name: string; at: number }
+interface ServiceCallPerson { id: string; name: string }
+interface ServiceCall {
+  id: string; table: string; userId: string; name: string; at: number;
+  assignedTo?: ServiceCallPerson; // a manager picked who goes to this table
+  acceptedBy?: ServiceCallPerson; // someone tapped Accept: the alerts stop
+  acceptedAt?: number;
+  alertedAt: number; alerts: number; // staff are told again until someone accepts
+}
+const SERVICE_CALL_REMIND_MS = 45_000;
+const SERVICE_CALL_MAX_ALERTS = 20;
+const SERVICE_CALL_CHECK_MS = 30_000;
 async function openServiceCalls(): Promise<ServiceCall[]> {
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, SERVICE_CALLS_KEY));
   try {
     const list = JSON.parse(row?.value || "[]");
     return Array.isArray(list) ? list.filter((call: ServiceCall) => Date.now() - Number(call.at) < SERVICE_CALL_SHOWN_MS) : [];
   } catch { return []; }
+}
+// One change at a time per company, so two staff tapping together cannot overwrite each other.
+const serviceCallLocks = new Map<string, Promise<unknown>>();
+async function changeServiceCalls<T>(change: (calls: ServiceCall[]) => { calls: ServiceCall[]; result: T }): Promise<T> {
+  const space = homeCompanySlug();
+  const run = (serviceCallLocks.get(space) ?? Promise.resolve()).catch(() => {}).then(async () => {
+    const { calls, result } = change(await openServiceCalls());
+    await saveServiceCalls(calls);
+    return result;
+  });
+  serviceCallLocks.set(space, run);
+  return run;
+}
+async function personName(userId: string): Promise<string> {
+  const [u] = await db.select().from(users).where(eq(users.id, userId));
+  return [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.username || u?.email || "Staff";
+}
+// Tells staff a table is calling, with the long urgent buzz. A call assigned to someone goes
+// only to them; otherwise to every staff member and admin.
+async function alertServiceCall(call: ServiceCall) {
+  const text = (lang: Lang) => ({
+    title: pick(lang, { en: "🔔 Table {t} is calling", zh: "🔔 {t} 桌呼叫服务", id: "🔔 Meja {t} memanggil" }, { t: call.table }),
+    body: call.assignedTo
+      ? pick(lang, { en: "{name} asks for service — you are asked to attend.", zh: "{name} 需要服务——请您前往处理。", id: "{name} meminta layanan — Anda ditugaskan melayani." }, { name: call.name })
+      : pick(lang, { en: "{name} asks for service. Tap Accept to attend.", zh: "{name} 需要服务。点击“接单”前往处理。", id: "{name} meminta layanan. Ketuk Terima untuk melayani." }, { name: call.name }),
+  });
+  const make = (lang: Lang) => ({ ...text(lang), url: "/pos", tag: `service-${call.table}`, urgent: true });
+  if (call.assignedTo) await pushUserI18n(call.assignedTo.id, make);
+  else await pushAdminsI18n(make);
+}
+// Called every few seconds: a call nobody has accepted yet is announced again.
+export async function remindServiceCalls() {
+  const due = (await openServiceCalls()).filter((call) => !call.acceptedBy && call.alerts < SERVICE_CALL_MAX_ALERTS && Date.now() - call.alertedAt >= SERVICE_CALL_REMIND_MS);
+  for (const call of due) {
+    await changeServiceCalls((calls) => ({ calls: calls.map((c) => c.id === call.id && !c.acceptedBy ? { ...c, alertedAt: Date.now(), alerts: c.alerts + 1 } : c), result: null }));
+    await alertServiceCall(call).catch((error) => console.error("[service call] reminder", error));
+  }
 }
 async function saveServiceCalls(calls: ServiceCall[]) {
   const value = JSON.stringify(calls);
@@ -1101,6 +1149,9 @@ async function activeCheckin(userId: string) {
 }
 
 export function registerRebornRoutes(app: Express) {
+  // A table's call keeps alerting staff until someone accepts it.
+  setInterval(() => { void inEveryDataSpace(remindServiceCalls); }, SERVICE_CALL_CHECK_MS);
+
   console.log("*** REBORN GAME ROUTES REGISTERED");
   void dedupeGiftTypes();
 
@@ -1732,21 +1783,65 @@ export function registerRebornRoutes(app: Express) {
     if (alreadyCalling) return res.status(429).json({ message: tr(req, { en: "Staff have been told. Please give them a moment.", zh: "已通知服务员，请稍等片刻。", id: "Staf sudah diberi tahu. Mohon tunggu sebentar." }) });
     const [member] = await db.select().from(users).where(eq(users.id, userId));
     const name = [member?.firstName, member?.lastName].filter(Boolean).join(" ") || member?.username || "Member";
-    await saveServiceCalls([...calls.filter((call) => call.userId !== userId), { id: randomUUID(), table, userId, name, at: Date.now() }]);
+    const call: ServiceCall = { id: randomUUID(), table, userId, name, at: Date.now(), alertedAt: Date.now(), alerts: 1 };
+    await saveServiceCalls([...calls.filter((c) => c.userId !== userId), call]);
     const notice = (lang: Lang) => ({
       title: pick(lang, { en: "🔔 Table {t} is calling", zh: "🔔 {t} 桌呼叫服务", id: "🔔 Meja {t} memanggil" }, { t: table }),
       body: pick(lang, { en: "{name} asks for service.", zh: "{name} 需要服务。", id: "{name} meminta layanan." }, { name }),
     });
     void notifyStaffI18n("service_call", notice, { path: "/pos", table }).catch((error) => console.error("[service call] notice", error));
-    pushAdminsI18n((lang) => ({ ...notice(lang), url: "/pos", tag: `service-${table}` })).catch(() => {});
+    alertServiceCall(call).catch((error) => console.error("[service call] push", error));
     void notifyAdmins(`🔔 Table ${table}: ${name} is calling for service.`).catch(() => {});
     res.json({ message: tr(req, { en: "Staff have been called to table {t}.", zh: "已呼叫服务员前往 {t} 桌。", id: "Staf sudah dipanggil ke meja {t}." }, { t: table }) });
   });
-  app.get("/api/reborn/venue/service-calls", requireStaff(async (_req, res) => {
-    res.json(await openServiceCalls());
+  app.get("/api/reborn/venue/service-calls", requireStaff(async (req, res) => {
+    const me = getUserId(req)!;
+    const role = await adminRole(me);
+    res.json({ calls: await openServiceCalls(), me: { id: me, canManage: role === "admin" || role === "manager" } });
+  }));
+  // The people a manager can send to a table.
+  app.get("/api/reborn/venue/service-calls/staff", requireManager(async (_req, res) => {
+    const rows = await db.select().from(users).where(inArray(users.role, ["staff", "admin"]));
+    res.json(rows.map((u) => ({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email || "Staff" })));
+  }));
+  // Accept: this person will attend the table. The alerts stop for everyone.
+  app.post("/api/reborn/venue/service-calls/:id/accept", requireStaff(async (req, res) => {
+    const me = getUserId(req)!;
+    const role = await adminRole(me);
+    const canManage = role === "admin" || role === "manager";
+    const name = await personName(me);
+    const outcome = await changeServiceCalls<{ result: "ok" | "gone" | "taken" | "assigned"; by?: string }>((calls) => {
+      const call = calls.find((c) => c.id === req.params.id);
+      if (!call) return { calls, result: { result: "gone" } };
+      if (call.acceptedBy) return { calls, result: call.acceptedBy.id === me ? { result: "ok" } : { result: "taken", by: call.acceptedBy.name } };
+      if (call.assignedTo && call.assignedTo.id !== me && !canManage) return { calls, result: { result: "assigned", by: call.assignedTo.name } };
+      return { calls: calls.map((c) => c.id === call.id ? { ...c, acceptedBy: { id: me, name }, acceptedAt: Date.now() } : c), result: { result: "ok" } };
+    });
+    if (outcome.result === "gone") return res.status(404).json({ message: tr(req, { en: "This call is already finished.", zh: "此呼叫已处理完毕。", id: "Panggilan ini sudah selesai." }) });
+    if (outcome.result === "taken") return res.status(409).json({ message: tr(req, { en: "{n} is already attending this table.", zh: "{n} 已在处理此桌。", id: "{n} sudah melayani meja ini." }, { n: outcome.by || "" }) });
+    if (outcome.result === "assigned") return res.status(403).json({ message: tr(req, { en: "This table was given to {n}.", zh: "此桌已指派给 {n}。", id: "Meja ini ditugaskan ke {n}." }, { n: outcome.by || "" }) });
+    res.json({ ok: true });
+  }));
+  // A manager or the main admin picks who goes to the table (empty userId = back to everyone).
+  app.post("/api/reborn/venue/service-calls/:id/assign", requireManager(async (req, res) => {
+    const userId = String(req.body?.userId || "");
+    const person: ServiceCallPerson | undefined = userId ? { id: userId, name: await personName(userId) } : undefined;
+    if (userId && !(await isStaff(userId))) return res.status(400).json({ message: tr(req, { en: "Pick a staff member.", zh: "请选择一位员工。", id: "Pilih seorang staf." }) });
+    const outcome = await changeServiceCalls<{ result: "ok" | "gone" | "attended"; call?: ServiceCall }>((calls) => {
+      const call = calls.find((c) => c.id === req.params.id);
+      if (!call) return { calls, result: { result: "gone" } };
+      if (call.acceptedBy) return { calls, result: { result: "attended" } };
+      const changed = { ...call, assignedTo: person, alertedAt: Date.now(), alerts: 1 };
+      return { calls: calls.map((c) => c.id === call.id ? changed : c), result: { result: "ok", call: changed } };
+    });
+    if (outcome.result === "gone") return res.status(404).json({ message: tr(req, { en: "This call is already finished.", zh: "此呼叫已处理完毕。", id: "Panggilan ini sudah selesai." }) });
+    if (outcome.result === "attended") return res.status(409).json({ message: tr(req, { en: "Someone is already attending this table.", zh: "已有人在处理此桌。", id: "Sudah ada yang melayani meja ini." }) });
+    await logAdmin(req, { targetType: "service_call", action: "assign", entityType: "venue", description: `Table ${outcome.call!.table} service call ${person ? `given to ${person.name}` : "opened to all staff"}` });
+    alertServiceCall(outcome.call!).catch((error) => console.error("[service call] assign push", error));
+    res.json({ ok: true });
   }));
   app.post("/api/reborn/venue/service-calls/:id/done", requireStaff(async (req, res) => {
-    await saveServiceCalls((await openServiceCalls()).filter((call) => call.id !== req.params.id));
+    await changeServiceCalls((calls) => ({ calls: calls.filter((call) => call.id !== req.params.id), result: null }));
     res.json({ ok: true });
   }));
   app.post("/api/reborn/venue/checkin", requireAuth, async (req, res) => {

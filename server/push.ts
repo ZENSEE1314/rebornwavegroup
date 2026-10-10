@@ -38,11 +38,12 @@ export async function removePushSubscription(endpoint: string) {
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
 }
 
-export interface PushPayload { title: string; body: string; url?: string; tag?: string; }
+// `urgent`: a long repeating vibration, and the notice stays until it is tapped (a table calling staff).
+export interface PushPayload { title: string; body: string; url?: string; tag?: string; urgent?: boolean; }
 
 async function deliver(rows: { endpoint: string; p256dh: string; auth: string }[], payload: PushPayload) {
   if (!configured || !rows.length) return 0;
-  const data = JSON.stringify({ title: payload.title, body: payload.body, url: payload.url || "/", tag: payload.tag });
+  const data = JSON.stringify({ title: payload.title, body: payload.body, url: payload.url || "/", tag: payload.tag, urgent: payload.urgent });
   let sent = 0;
   await Promise.all(rows.map(async (r) => {
     try {

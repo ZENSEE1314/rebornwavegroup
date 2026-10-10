@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { installUiClicks } from "@/lib/sfx";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { ServiceCallAlert } from "@/components/ServiceCallAlert";
 import { LevelUpWatcher } from "@/components/LevelRing";
 import { LoginRewardWatcher } from "@/components/DailyCheckin";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
@@ -145,6 +146,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   return (
     <div className="rwg-app min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
       <PullToRefresh />
+      <ServiceCallAlert />
       <LevelUpWatcher userId={(user as any)?.id} />
       <LoginRewardWatcher userId={(user as any)?.id} />
       {/* Top bar */}

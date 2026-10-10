@@ -16,7 +16,8 @@ self.addEventListener("push", (event) => {
     tag: data.tag || undefined,
     renotify: !!data.tag,
     data: { url: data.url || "/reborn" },
-    vibrate: [80, 40, 80],
+    vibrate: data.urgent ? [600, 200, 600, 200, 600, 200, 600] : [80, 40, 80],
+    requireInteraction: !!data.urgent,
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
