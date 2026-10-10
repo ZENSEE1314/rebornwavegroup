@@ -300,6 +300,7 @@ export const appointments = pgTable("appointments", {
   cost: decimal("cost", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status").default("pending").notNull(), // 'pending' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'blocked'
   adminNote: text("admin_note"), // admin comment (e.g. reason for rejection)
+  serviceAddress: text("service_address"), // where staff go, for a service done at the customer's place
   remindersSent: varchar("reminders_sent").default(""), // WhatsApp reminders already sent: e.g. "3h,1h,10m"
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

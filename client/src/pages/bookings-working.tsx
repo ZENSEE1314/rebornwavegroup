@@ -116,6 +116,10 @@ function MyBookings() {
   );
 }
 
+// Matches the server: shorter than this is not an address; longer is cut.
+const MIN_ADDRESS_LENGTH = 8;
+const MAX_ADDRESS_LENGTH = 300;
+
 function TableBookingCard() {
   const { t, language } = useTranslation();
   const { toast } = useToast();
@@ -132,9 +136,13 @@ function TableBookingCard() {
   const [occasion, setOccasion] = useState("");
   const [cake, setCake] = useState<"" | "us" | "self">(""); // birthday: we prepare the cake + decorations, or they bring their own
   const [note, setNote] = useState("");
+  const [address, setAddress] = useState("");
   const areas: any[] = data?.areas || [];
   const area = areas.find((a) => a.id === areaId) || null;
   const needTable = !!area && area.tables?.length > 0;
+  // A service done at the customer's place asks where to go instead of a table.
+  const needAddress = area?.place === "customer";
+  const hasAddress = address.trim().length >= MIN_ADDRESS_LENGTH;
   const askHours = data?.askHours !== false; // admin can switch the hours question off
   const askSpecial = data?.askSpecial !== false; // …and the special-request question
   const occasions: string[] = data?.occasions || ["birthday", "company", "anniversary", "celebration"];
@@ -160,7 +168,7 @@ function TableBookingCard() {
   const NO_MAX = 99;
   const partyCap = (table ? capFor(table) : avail?.maxPax || 0) || NO_MAX;
   const book = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours: askHours ? hours : 2, ...(askSpecial ? { occasion, note, cake: occasion === "birthday" ? cake : undefined } : {}) }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, address: needAddress ? address : undefined, partySize: party, hours: askHours ? hours : 2, ...(askSpecial ? { occasion, note, cake: occasion === "birthday" ? cake : undefined } : {}) }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => {
       if (!ok) { toast({ title: t("bk.failed"), description: d.message, variant: "destructive" }); return; }
       toast({ title: t("bk.requested"), description: d.message }); setSlot(""); setTable(""); setOccasion(""); setNote(""); setCake("");
@@ -237,6 +245,13 @@ function TableBookingCard() {
           </div>
         )}
 
+        {needAddress && (
+          <label className="block text-xs text-white/50 mb-3">{t("bk.address")}
+            <textarea value={address} onChange={(e) => setAddress(e.target.value.slice(0, MAX_ADDRESS_LENGTH))} rows={2} placeholder={t("bk.addressPh")} autoComplete="street-address"
+              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-fuchsia-400" />
+          </label>
+        )}
+
         {needTable && (<>
           <p className="text-xs text-white/50 mb-1">{area.name.includes("KTV") ? t("bk.room") : t("bk.table")} <span className="text-white/30">{t("bk.seePlan")}</span></p>
           {!slot && <p className="text-[11px] text-amber-300/80 mb-2">{t("bk.pickTimeFirst")}</p>}
@@ -290,8 +305,8 @@ function TableBookingCard() {
             className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-fuchsia-400" />
         </div>}
 
-        <Button onClick={() => book.mutate()} disabled={!slot || (needTable && !table) || book.isPending} className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl disabled:opacity-50">
-          {book.isPending ? t("bk.booking") : !slot ? t("bk.pickTime") : needTable && !table ? t("bk.pickTable") : t("bk.request")}
+        <Button onClick={() => book.mutate()} disabled={!slot || (needTable && !table) || (needAddress && !hasAddress) || book.isPending} className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl disabled:opacity-50">
+          {book.isPending ? t("bk.booking") : !slot ? t("bk.pickTime") : needTable && !table ? t("bk.pickTable") : needAddress && !hasAddress ? t("bk.enterAddress") : t("bk.request")}
         </Button>
       </>)}
     </div>

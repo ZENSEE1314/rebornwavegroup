@@ -17,7 +17,7 @@ import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems, memberPackages, memberPackageUses } from "@shared/schema";
 import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, areasWithSpace, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, type BookingArea } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, tableCap, availableSlotsForDate, freeTablesForDateSlot, isDateFullyBooked, areasWithSpace, getBookingTimezone, tableDayLockOn, areaNameIn, areaLevelIn, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, type BookingArea, atCustomerPlace, serviceAddressFrom } from "./booking";
 import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 import { sendPushToUser, sendPushToAdmins } from "./push";
 import { defaultCompanyId } from "./tenant";
@@ -955,6 +955,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "几位客人？（请回复数字）",
       id: "Berapa orang? (balas angka)",
     },
+    bookAskAddress: {
+      en: "Where should we come? 📍 Please send the full address (street, number, area, and any landmark).",
+      zh: "我们该去哪里？📍 请发送完整地址（街道、门牌号、区域，以及附近地标）。",
+      id: "Ke mana kami harus datang? 📍 Kirim alamat lengkap (jalan, nomor, daerah, dan patokan terdekat).",
+    },
     bookAskSpecial: {
       en: "Any special request? 🎉\n1️⃣ Birthday 🎂\n2️⃣ Company event 🏢\n3️⃣ Anniversary 💕\n4️⃣ Celebration / party 🎉\n5️⃣ No, that's all\n\nOr just type your request (e.g. \"birthday, please prepare a cake\").",
       zh: "有什么特别需求吗？🎉\n1️⃣ 生日 🎂\n2️⃣ 公司活动 🏢\n3️⃣ 纪念日 💕\n4️⃣ 庆祝 / 派对 🎉\n5️⃣ 没有了\n\n也可以直接输入您的需求（例如：“生日，请准备蛋糕”）。",
@@ -1324,7 +1329,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // Always answer a location question immediately, even for a first-time number —
   // except while they're typing a special request mid-booking ("靠窗的位置" = a seat).
-  const midRequest = ["special", "specialNote", "cake"].includes(((c.waState as any) || {}).step);
+  const midRequest = ["special", "specialNote", "cake", "address"].includes(((c.waState as any) || {}).step);
   if (asksForLocation(body) && !midRequest) {
     const reply = await locationReply(await langForPhone(c.phone, c.userId));
     await sendWhatsApp(from, reply);
@@ -1744,6 +1749,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
       if (area.image) { await sendWhatsAppImage(from, area.image, caption); await logMsg(c.id, c.phone, "out", caption, true); } else await say(caption);
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
     }
+    if (atCustomerPlace(area)) return completeStepBooking(c, lang, from, area, { date, slot, party }, 2, say);
     const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: openH });
     await pushWhatsAppBooking(row, c, area, date, label, party);
     await say(L(lang, "bookDone", { day: fmtDMY(date, lang), time: timeText(lang, slot, label), n: String(party), url: memberAppUrl() }));
@@ -1940,6 +1946,11 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     await say(L(lang, "bookAskHours"));
     return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: wa.table, party: n } });
   }
+  if (wa.step === "address") {
+    const address = serviceAddressFrom(body);
+    if (!address) { await say(L(lang, "bookAskAddress")); return; }
+    return completeStepBooking(c, lang, from, area, { ...wa, address }, wa.hours || 2, sayRaw);
+  }
   if (wa.step === "hours") {
     const hrs = Math.max(2, Math.min(8, Number((body.match(/\d+/) || [])[0] || 2)));
     return askSpecialOrFinish(c, lang, from, area, wa, hrs, sayRaw);
@@ -1987,11 +1998,16 @@ async function askHoursOn(): Promise<boolean> { return (await settingVal("bookin
 
 // Final step of the guided WhatsApp booking: save it and confirm with the address.
 async function completeStepBooking(c: Contact, lang: Lang, from: string, area: BookingArea, wa: any, hrs: number, say: (m: string) => Promise<void>) {
+  // A service at the customer's place: the last thing needed is where to go.
+  if (atCustomerPlace(area) && !wa.address) {
+    await say(withNav(lang, L(lang, "bookAskAddress")));
+    return patchContact(c.id, { waState: { ...wa, flow: "book", step: "address", areaId: area.id, hours: hrs } });
+  }
   if (wa.table && await isTableTaken(area, wa.table, bookingWhen(areaOpenHourForDate(area, wa.date), wa.date, wa.slot))) {
     await say(L(lang, "justBooked", { t: wa.table }));
     return patchContact(c.id, { waState: { flow: null } });
   }
-  const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, note: wa.special, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date), companyId: (await defaultCompanyId()) ?? undefined });
+  const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, note: wa.special, table: wa.table, address: wa.address, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date), companyId: (await defaultCompanyId()) ?? undefined });
   const slots = areaSlotsForDate(area, wa.date), labels = areaSlotLabelsForDate(area, wa.date);
   const label = labels[slots.indexOf(wa.slot)] || wa.slot;
   await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
@@ -2004,7 +2020,7 @@ async function completeStepBooking(c: Contact, lang: Lang, from: string, area: B
       .replace("🍰 Cake & decorations: WE PREPARE", L(lang, "cakeNoteUs")).replace("🍰 Cake & decorations: guest brings own", L(lang, "cakeNoteSelf"));
     await say(L(lang, "specialNoted", { r: shown }));
   }
-  await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax${wa.special ? ` · ${wa.special}` : ""} — confirm in the app.`);
+  await notifyAdmin(`New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax${wa.address ? ` · 📍 ${wa.address}` : ""}${wa.special ? ` · ${wa.special}` : ""} — confirm in the app.`);
   await sendMemberMenu(from, c, lang);
   return patchContact(c.id, { waState: { flow: null } });
 }

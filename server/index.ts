@@ -12,6 +12,7 @@ import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
 import { installErrorWatch, recordError, startErrorCleanup } from "./errorWatch";
+import { pool } from "./db";
 import { inEveryDataSpace, keepTenantContextAcrossMiddleware, listTenantSpaces, moveSharedCompaniesToOwnSpace, syncAllTenantSpaces, tenantSpaceMiddleware } from "./tenantSpace";
 import { runInTenant } from "./tenantContext";
 
@@ -115,6 +116,8 @@ app.use((req, res, next) => {
   await ensureMoneyColumns();
   // Bring every company's own data space up to this version (new tables/columns), then apply
   // the same column fixes the platform tables just received.
+  // Before the companies' data spaces are brought up to date, so they receive the column too.
+  await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_address text`);
   await moveSharedCompaniesToOwnSpace();
   await syncAllTenantSpaces();
   for (const tenant of await listTenantSpaces()) await runInTenant(tenant, () => ensureMoneyColumns()).catch((error) => console.error(`[tenant] money columns ${tenant.schema}`, error));

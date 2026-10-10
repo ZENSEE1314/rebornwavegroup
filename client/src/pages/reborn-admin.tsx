@@ -1009,7 +1009,15 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
           <label className="text-[11px] text-white/50 block mb-2">{t("admin.area.lastBooking")}<input type="time" value={a.lastBooking || ""} onChange={(e) => upd(i, { lastBooking: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
           <p className="text-[10px] text-white/35 mb-2">{t("admin.area.defaultHint")}</p>
           <WeeklySchedule area={a} onChange={(schedule: any) => upd(i, { schedule })} />
-          <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder={t("admin.area.tables")} className={inp + " w-full mb-2 mt-2"} />
+          <label className="text-[11px] text-white/50 block mb-2 mt-2">{t("admin.area.how")}
+            <select value={a.place === "customer" ? "customer" : "venue"} onChange={(e) => upd(i, e.target.value === "customer" ? { place: "customer", tables: [] } : { place: undefined })} className={inp + " w-full"}>
+              <option value="venue">{t("admin.area.how.venue")}</option>
+              <option value="customer">{t("admin.area.how.customer")}</option>
+            </select>
+          </label>
+          {a.place === "customer"
+            ? <p className="text-[10px] text-white/35 mb-2">{t("admin.area.how.customerHint")}</p>
+            : <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder={t("admin.area.tables")} className={inp + " w-full mb-2"} />}
           <label className="text-[11px] text-white/50 block mb-2">{t("admin.area.maxPax")} {(a.tables || []).length ? t("admin.area.maxPaxTables") : t("admin.area.maxPaxWhole")}<input type="number" min={1} value={a.maxPax > 0 ? a.maxPax : ""} onChange={(e) => upd(i, { maxPax: Math.max(0, Number(e.target.value) || 0) })} placeholder={t("admin.area.noMaxPh")} className={inp + " w-full"} /></label>
           {(a.tables || []).length > 0 && (
             <div className="mb-2">
@@ -2459,6 +2467,7 @@ function AdminBookings() {
               <p className="text-sm font-bold truncate">{b.status === "blocked" ? "🚫 " : ""}{b.title}</p>
               {b.status !== "blocked" && <p className="text-[11px] text-white/50">{b.memberName}{b.memberPhone ? ` · ${b.memberPhone}` : ""}</p>}
               <p className="text-[11px] text-white/40 mt-0.5">📅 {fmt(b.appointmentDate)} · {t("admin.bk.hoursN", { n: Math.round((b.duration || 120) / 60) })} · {b.description}</p>
+              {b.serviceAddress && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.serviceAddress)}`} target="_blank" rel="noopener noreferrer" className="inline-block text-[11px] text-sky-300 underline mt-0.5">{t("admin.bk.openMap")}</a>}
               {b.adminNote && <p className="text-[11px] text-amber-300/80 mt-0.5">📝 {b.adminNote}</p>}
             </div>
             <span className={`text-xs font-bold flex-shrink-0 ${sColor[b.status] || "text-white/50"}`}>{tv(t, "admin.st." + b.status, b.status)}</span>
@@ -2526,11 +2535,13 @@ function ManualBooking({ onDone }: { onDone: () => void }) {
   const [memberCode, setMemberCode] = useState(""); const [areaId, setAreaId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [slot, setSlot] = useState(""); const [table, setTable] = useState(""); const [party, setParty] = useState(2); const [hours, setHours] = useState(2);
+  const [address, setAddress] = useState("");
   const area = areas.find((a) => a.id === areaId);
+  const needAddress = area?.place === "customer";
   const { data: avail } = useQuery<any>({ queryKey: ["/api/reborn/booking/availability", areaId, date, "manual"], queryFn: () => apiRequest("GET", `/api/reborn/booking/availability?areaId=${encodeURIComponent(areaId)}&date=${date}`).then((r) => r.json()), enabled: open && !!areaId && !!date });
   const slots: any[] = avail?.slots || [];
   const book = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/manual", { memberCode, areaId, date, slot, table: table || undefined, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/manual", { memberCode, areaId, date, slot, table: table || undefined, address: needAddress ? address : undefined, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); onDone(); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
@@ -2557,11 +2568,12 @@ function ManualBooking({ onDone }: { onDone: () => void }) {
             {area.tables.map((t: string) => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
+        {needAddress && <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder={t("admin.bk.customerAddress")} className={inp + " w-full mb-2"} />}
         <div className="flex gap-2 mb-2">
           <label className="text-[11px] text-white/50 flex-1">{t("admin.bk.party")}<input type="number" min={1} value={party} onChange={(e) => setParty(Number(e.target.value))} className={inp + " w-full"} /></label>
           <label className="text-[11px] text-white/50 flex-1">{t("admin.bk.hours")}<input type="number" min={2} max={8} value={hours} onChange={(e) => setHours(Number(e.target.value))} className={inp + " w-full"} /></label>
         </div>
-        <button onClick={() => book.mutate()} disabled={!memberCode.trim() || !slot || (area.tables?.length > 0 && !table) || book.isPending} className={btn + " w-full justify-center disabled:opacity-50"}>{t("admin.bk.confirmBooking")}</button>
+        <button onClick={() => book.mutate()} disabled={!memberCode.trim() || !slot || (area.tables?.length > 0 && !table) || (needAddress && !address.trim()) || book.isPending} className={btn + " w-full justify-center disabled:opacity-50"}>{t("admin.bk.confirmBooking")}</button>
       </>)}
     </Card>
   );

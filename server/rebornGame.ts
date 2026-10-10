@@ -28,7 +28,7 @@ import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
 import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToUsers, type PushPayload } from "./push";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, releaseTableAfterPayment } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, releaseTableAfterPayment, atCustomerPlace, serviceAddressFrom } from "./booking";
 import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, rememberPetName, DEFAULT_PET_NAME, type Lang } from "./i18n";
 import { translateTexts } from "./autoTranslate";
 import {
@@ -3981,6 +3981,7 @@ export function registerRebornRoutes(app: Express) {
     res.setHeader("Cache-Control", "public, max-age=86400");
     res.send(Buffer.from(m[2], "base64"));
   });
+  const ADDRESS_NEEDED = { en: "Enter the full address where you want the service.", zh: "请输入需要上门服务的完整地址。", id: "Isi alamat lengkap tempat layanan dilakukan." };
   // Member creates a booking from the app.
   app.post("/api/reborn/booking", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
@@ -3996,6 +3997,8 @@ export function registerRebornRoutes(app: Express) {
     if (!slot) return res.status(400).json({ message: tr(req, { en: "Pick a valid time slot", zh: "请选择有效的时段", id: "Pilih jam yang valid" }) });
     const table = b.table && area.tables.includes(String(b.table)) ? String(b.table) : undefined;
     if (area.tables.length && !table) return res.status(400).json({ message: tr(req, { en: "Pick a table", zh: "请选择桌位", id: "Pilih meja" }) });
+    const address = atCustomerPlace(area) ? serviceAddressFrom(b.address) : "";
+    if (atCustomerPlace(area) && !address) return res.status(400).json({ message: tr(req, ADDRESS_NEEDED) });
     const whenDt = bookingWhen(areaOpenHourForDate(area, date), date, slot);
     if (await isAreaBlocked(area, whenDt)) return res.status(409).json({ message: tr(req, { en: "That time is not available. Please pick another.", zh: "该时段不可预订，请选择其他时间。", id: "Jam itu tidak tersedia. Silakan pilih yang lain." }) });
     // Prevent double-booking the same table/room at the same time.
@@ -4005,7 +4008,7 @@ export function registerRebornRoutes(app: Express) {
     const cap = tableCap(area, table);
     if (party > cap) return res.status(400).json({ message: tr(req, { en: "{t} seats up to {n} pax. Please reduce the party size or pick a bigger spot.", zh: "{t} 最多容纳 {n} 人，请减少人数或选择更大的位置。", id: "{t} maksimal {n} orang. Kurangi jumlah orang atau pilih tempat yang lebih besar." }, { t: table || tr(req, { en: "This area", zh: "该区域", id: "Area ini" }), n: cap }) });
     const hours = s.bookingAskHours ? Math.max(2, Math.min(8, Number(b.hours) || 2)) : 2;
-    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: s.bookingAskSpecial ? specialRequestText(b.occasion, b.note, b.occasion === "birthday" || mentionsBirthday(String(b.note || "")) ? b.cake : undefined) : undefined, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
+    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: s.bookingAskSpecial ? specialRequestText(b.occasion, b.note, b.occasion === "birthday" || mentionsBirthday(String(b.note || "")) ? b.cake : undefined) : undefined, table, address: address || undefined, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const [u] = await db.select().from(users).where(eq(users.id, userId));
     await notifyAdmins(`New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
@@ -4164,13 +4167,15 @@ export function registerRebornRoutes(app: Express) {
     if (!slot) return res.status(400).json({ message: tr(req, { en: "Pick a valid time slot", zh: "请选择有效的时段", id: "Pilih jam yang valid" }) });
     const table = b.table && area.tables.includes(String(b.table)) ? String(b.table) : undefined;
     if (area.tables.length && !table) return res.status(400).json({ message: tr(req, { en: "Pick a table", zh: "请选择桌位", id: "Pilih meja" }) });
+    const address = atCustomerPlace(area) ? serviceAddressFrom(b.address) : "";
+    if (atCustomerPlace(area) && !address) return res.status(400).json({ message: tr(req, ADDRESS_NEEDED) });
     const when = bookingWhen(areaOpenHourForDate(area, date), date, slot);
     if (await isAreaBlocked(area, when)) return res.status(409).json({ message: tr(req, { en: "That time is blocked", zh: "该时段已被封锁", id: "Jam itu sudah diblokir" }) });
     if (table && await isTableTaken(area, table, when)) return res.status(409).json({ message: tr(req, { en: "{t} is already booked for that time", zh: "{t} 该时段已被预订", id: "{t} sudah dipesan untuk jam itu" }, { t: table }) });
     const manualParty = Math.max(1, Number(b.partySize) || 2);
     if (manualParty > tableCap(area, table)) return res.status(400).json({ message: tr(req, { en: "{t} seats up to {n} pax.", zh: "{t} 最多容纳 {n} 人。", id: "{t} maksimal {n} orang." }, { t: table || tr(req, { en: "This area", zh: "该区域", id: "Area ini" }), n: tableCap(area, table) }) });
     const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
-    const row = await createBooking({ userId: u.id, dateStr: date, slot, partySize: manualParty, hours, table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
+    const row = await createBooking({ userId: u.id, dateStr: date, slot, partySize: manualParty, hours, table, address: address || undefined, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, date), companyId: await rebornCompanyId(req) });
     await db.update(appointments).set({ status: "confirmed" }).where(eq(appointments.id, row.id)); // admin booking = confirmed
     const label = areaSlotLabelsForDate(area, date)[slots.indexOf(slot)] || slot;
     const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;

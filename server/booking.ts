@@ -123,7 +123,11 @@ export function parseTables(raw?: string): string[] {
 // open/close are "HH:MM" (close may be after midnight, e.g. "03:00"). When omitted the
 // area uses the default nightlife hours (5pm → 2am weekday / 3am weekend).
 export interface DaySchedule { enabled?: boolean; open?: string; close?: string; }
-export interface BookingArea { id: string; name: string; level: string; names?: { zh?: string; id?: string }; image?: string; tables: string[]; tableCaps?: Record<string, number>; maxPax?: number; enabled?: boolean; open?: string; close?: string; lastBooking?: string; schedule?: Record<string, DaySchedule>; }
+// How a service is booked:
+//   tables listed      → the customer picks a table / room (KTV, restaurant)
+//   no tables          → an appointment at the business, by date and time only (salon, shop, clinic)
+//   place: "customer"  → staff go to the customer: date and time plus the customer's address
+export interface BookingArea { place?: "customer"; id: string; name: string; level: string; names?: { zh?: string; id?: string }; image?: string; tables: string[]; tableCaps?: Record<string, number>; maxPax?: number; enabled?: boolean; open?: string; close?: string; lastBooking?: string; schedule?: Record<string, DaySchedule>; }
 
 // Max pax allowed for a table (per-table cap → area default → generous fallback).
 // Max guests for a table: its own max, else the area's max. The admin can also
@@ -152,7 +156,8 @@ export function parseAreas(raw?: string): BookingArea[] {
       const a = JSON.parse(raw);
       if (Array.isArray(a) && a.length) return a.map((x: any, i: number) => ({
         id: String(x.id || `area-${i}`), name: String(x.name || `Area ${i + 1}`), level: String(x.level || ""),
-        image: x.image || "", tables: Array.isArray(x.tables) ? x.tables.map(String) : [],
+        place: x.place === "customer" ? "customer" as const : undefined,
+        image: x.image || "", tables: x.place !== "customer" && Array.isArray(x.tables) ? x.tables.map(String) : [],
         names: (x.names && typeof x.names === "object") ? { zh: x.names.zh ? String(x.names.zh) : undefined, id: x.names.id ? String(x.names.id) : undefined } : undefined,
         tableCaps: (x.tableCaps && typeof x.tableCaps === "object") ? x.tableCaps : undefined,
         maxPax: Number(x.maxPax) > 0 ? Number(x.maxPax) : undefined,
@@ -414,8 +419,18 @@ export function specialRequestText(occasion?: string, note?: string, cake?: stri
 // Does free text mention a birthday? (en / zh / id)
 export function mentionsBirthday(text: string): boolean { return /birthday|bday|b-day|生日|ulang tahun|ultah/i.test(text); }
 
+// A service at the customer's place needs somewhere to go: a few words are not an address.
+const MIN_SERVICE_ADDRESS_LENGTH = 8;
+const MAX_SERVICE_ADDRESS_LENGTH = 300;
+export function atCustomerPlace(a: BookingArea): boolean { return a.place === "customer"; }
+// The address as saved, or "" when what was typed is too short to be one.
+export function serviceAddressFrom(typed: unknown): string {
+  const address = String(typed ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_SERVICE_ADDRESS_LENGTH);
+  return address.length >= MIN_SERVICE_ADDRESS_LENGTH ? address : "";
+}
+
 export async function createBooking(opts: {
-  userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number; table?: string; area?: string; openHour?: number; companyId?: number; branchId?: number;
+  userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number; table?: string; area?: string; openHour?: number; companyId?: number; branchId?: number; address?: string;
 }) {
   const when = (() => {
     const [y, mo, d] = opts.dateStr.split("-").map(Number);
@@ -425,7 +440,7 @@ export async function createBooking(opts: {
     return venueWallToDate(y, mo || 1, day, h, mi);
   })();
   const party = opts.partySize || 2;
-  const bits = [opts.area, opts.table ? `Table ${opts.table}` : "", `Party of ${party}`, opts.note].filter(Boolean);
+  const bits = [opts.area, opts.table ? `Table ${opts.table}` : "", `Party of ${party}`, opts.address ? `📍 ${opts.address}` : "", opts.note].filter(Boolean);
   const [row] = await db.insert(appointments).values({
     userId: opts.userId,
     companyId: opts.companyId ?? (await defaultCompanyId()), // always tagged, so admin's (company-scoped) list shows it
@@ -435,6 +450,7 @@ export async function createBooking(opts: {
     description: bits.join(" · "),
     notes: [opts.area, opts.table].filter(Boolean).join(" / ") || null,
     appointmentDate: when,
+    serviceAddress: opts.address || null,
     duration: (opts.hours || 2) * 60,
     cost: "0",
     status: "pending",
