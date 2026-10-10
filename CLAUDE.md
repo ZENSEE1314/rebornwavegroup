@@ -71,6 +71,12 @@ text.
   Both save `disabledFeatures` in that company's settings (`saveDisabledFeatures`). A new
   member feature needs a key in both lists so it can be switched off. The BridgeX module
   tick-list page was removed; modules are still set from the industry when a company is made.
+- A service call is open → accepted → done (`serviceCalls` setting; one change at a time via
+  `changeServiceCalls`). Until someone accepts, every staff screen vibrates and beeps
+  (components/ServiceCallAlert.tsx, in RebornLayout) and an urgent push is re-sent every 45 s
+  (`remindServiceCalls`, up to 20 times). A manager or the main admin can assign a person: only
+  that person is alerted and only they (or a manager) can accept. Texts for it live in
+  i18n/home.ts (always loaded), not the staff bundle.
 - Table QR codes (Admin > QR codes) cover the tables in the booking areas plus extra tables
   the admin adds by number (`extraTables` setting, e.g. `21-30` or `A1, A2`); each can be
   printed on its own. A table QR is valid for any label signed with `tableSig`.

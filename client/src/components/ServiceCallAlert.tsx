@@ -87,14 +87,14 @@ export function ServiceCallAlert() {
             <div className="flex items-center gap-3">
               <BellRing className={`h-6 w-6 shrink-0 ${call.acceptedBy ? "text-emerald-300" : "animate-pulse text-orange-300"}`} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-white">{t("pos.call.table", { t: call.table })}</p>
+                <p className="text-sm font-bold leading-tight text-white">{t("hm.svc.table", { t: call.table })}</p>
                 <p className="truncate text-[11px] text-white/70">
                   {call.name} · {new Date(call.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   {call.acceptedBy ? ` · ${t("hm.svc.attending", { n: call.acceptedBy.name })}` : call.assignedTo ? ` · ${t("hm.svc.assignedTo", { n: call.assignedTo.name })}` : ""}
                 </p>
               </div>
               {canAccept && <button onClick={() => act.mutate({ id: call.id, action: "accept" })} className="shrink-0 rounded-xl bg-orange-400 px-4 py-2.5 text-sm font-black text-black">{t("hm.svc.accept")}</button>}
-              {canFinish && <button onClick={() => act.mutate({ id: call.id, action: "done" })} className="shrink-0 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-black">{t("pos.call.done")}</button>}
+              {canFinish && <button onClick={() => act.mutate({ id: call.id, action: "done" })} className="shrink-0 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-black">{t("hm.svc.done")}</button>}
             </div>
             {me?.canManage && !call.acceptedBy && (
               <select value={call.assignedTo?.id ?? ""} onChange={(e) => act.mutate({ id: call.id, action: "assign", userId: e.target.value })} aria-label={t("hm.svc.assign")} className="mt-2 w-full rounded-xl border border-white/20 bg-black/50 px-3 py-2.5 text-sm text-white">

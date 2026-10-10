@@ -10,6 +10,8 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.service.calling': { en: 'Calling…', zh: '呼叫中…', id: 'Memanggil…' },
   'hm.service.failed': { en: 'Could not call staff. Please try again.', zh: '呼叫失败，请重试。', id: 'Gagal memanggil staf. Coba lagi.' },
   'hm.service.featureDesc': { en: 'Members at a table can call staff', zh: '已入座的会员可呼叫服务员', id: 'Member di meja bisa memanggil staf' },
+  'hm.svc.table': { en: '🔔 Table {t} is calling for service', zh: '🔔 {t} 桌呼叫服务', id: '🔔 Meja {t} memanggil layanan' },
+  'hm.svc.done': { en: 'Done', zh: '已处理', id: 'Selesai' },
   'hm.svc.accept': { en: 'Accept', zh: '接单', id: 'Terima' },
   'hm.svc.attending': { en: '{n} is attending', zh: '{n} 正在处理', id: '{n} sedang melayani' },
   'hm.svc.assignedTo': { en: 'sent: {n}', zh: '已指派：{n}', id: 'ditugaskan: {n}' },
