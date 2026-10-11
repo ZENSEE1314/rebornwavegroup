@@ -277,7 +277,7 @@ function Router() {
     const onBridge = onBridgeXItself || /^\/bridgex/i.test(brandLoc);
     if (onBridge) {
       document.title = "BridgeXPOS — Business Operating System";
-      if (link) link.href = "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='#22d3ee'/><text x='32' y='45' font-family='Arial,Helvetica,sans-serif' font-size='32' font-weight='bold' text-anchor='middle' fill='#06121d'>BX</text></svg>");
+      if (link) link.href = "/bridgexpos-home/assets/favicon.svg";
     } else if (inCompany) {
       // Another company's app: its own name and icon, never Reborn's. Nothing changes until its details have loaded.
       if (tenantBrand.appName) {

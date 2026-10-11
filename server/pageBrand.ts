@@ -10,6 +10,8 @@ interface PageBrand {
   title: string;
   description: string;
   iconUrl: string;
+  // Picture shown when the link is shared (WhatsApp, Telegram…): a path on this site.
+  shareImagePath?: string;
 }
 
 const COMPANY_PAGE = /^\/t\/([a-z0-9-]+)/i;
@@ -17,7 +19,8 @@ export const BRIDGEX_HOST = /bridgexpos/i;
 const BRIDGEX_BRAND: PageBrand = {
   title: "BridgeXPOS | White-label POS for every business",
   description: "Create a multi-branch POS, staff system, website and branded Android or iOS app for your company.",
-  iconUrl: letterIcon("BX", "#22d3ee", "#06121d"),
+  iconUrl: "/bridgexpos-home/assets/favicon.svg",
+  shareImagePath: "/bridgexpos-home/assets/share-card.jpg",
 };
 const DEFAULT_ICON_COLOUR = "#1f2937";
 const HEX_COLOUR = /^#[0-9a-f]{3,8}$/i;
@@ -56,21 +59,25 @@ async function brandForRequest(req: Request, flagshipHosts: Set<string>): Promis
   return BRIDGEX_HOST.test(req.hostname) ? BRIDGEX_BRAND : null;
 }
 
-function withBrand(html: string, brand: PageBrand): string {
+function withBrand(html: string, brand: PageBrand, origin: string): string {
   const title = escapeHtml(brand.title), description = escapeHtml(brand.description);
+  // Chat apps only show a share picture given as a full address.
+  const shareImage = brand.shareImagePath
+    ? `<meta property="og:image" content="${escapeHtml(origin + brand.shareImagePath)}" /><meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" /><meta name="twitter:card" content="summary_large_image" />`
+    : "";
   return html
     .replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`)
     .replace(/<meta\s+(?:name|property)="(?:description|keywords|og:[^"]+|twitter:[^"]+|apple-mobile-web-app-title)"[\s\S]*?\/>\s*/g, "")
     .replace(/<link rel="(?:canonical|manifest|apple-touch-icon)"[^>]*>\s*/g, "")
     .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\s*/g, "")
     .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="${escapeHtml(brand.iconUrl)}" />`)
-    .replace("</head>", `<meta name="description" content="${description}" /><meta property="og:title" content="${title}" /><meta property="og:site_name" content="${title}" /><meta property="og:description" content="${description}" /></head>`);
+    .replace("</head>", `<meta name="description" content="${description}" /><meta property="og:title" content="${title}" /><meta property="og:site_name" content="${title}" /><meta property="og:description" content="${description}" />${shareImage}</head>`);
 }
 
 export async function brandPageShell(html: string, req: Request, flagshipHosts: Set<string>): Promise<string> {
   try {
     const brand = await brandForRequest(req, flagshipHosts);
-    return brand ? withBrand(html, brand) : html;
+    return brand ? withBrand(html, brand, `https://${req.hostname}`) : html;
   } catch (error) {
     console.error("[page] could not brand the page shell", error);
     return html;

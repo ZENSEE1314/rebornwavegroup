@@ -609,4 +609,12 @@ text.
   One wheel / key gesture moves one page (`wirePageStepping`). A new section becomes a page by itself.
 - Files load from `/bridgexpos-home/…` (never `/assets`, which is the app's hashed build folder).
 - The WhatsApp number of every button is `WHATSAPP_NUMBER` at the top of site.js.
-- English only so far — it still needs 中文 and Bahasa Indonesia.
+- Three languages: index.html is written in English and `i18n.js` holds the 中文 and Bahasa
+  Indonesia of every text, keyed by the English wording (texts, `alt`, `aria-label`, the WhatsApp
+  messages, title + description). A text changed or added in index.html needs its entry there, or it
+  stays English. The picker saves to `localStorage.language` — the key the app reads — so the login
+  page opens in the same language.
+- Icon + share picture: `assets/favicon.svg` and `assets/share-card.svg` are the sources; the PNG / JPG
+  files beside them are rendered from those with sharp (1200×630 for the share card). The app's own
+  BridgeX pages (login, apply, console) use the same icon and share picture (server/pageBrand.ts
+  `BRIDGEX_BRAND`). WhatsApp keeps an old link preview for a while after a change.

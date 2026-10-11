@@ -1,8 +1,15 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
+import { TRANSLATIONS } from './i18n.js';
+
 // Digits only, country code first (e.g. 6281234567890). Every WhatsApp button on the page uses this.
 const WHATSAPP_NUMBER = '62XXXXXXXXXX';
+
+const LANGUAGES = ['en', 'zh', 'id'];
+// The same key the BridgeXPOS app reads, so the login page opens in the language chosen here.
+const LANGUAGE_STORAGE_KEY = 'language';
+const HTML_LANG = { en: 'en', zh: 'zh-Hans', id: 'id' };
 
 const STACKED_BREAKPOINT = 1100;
 const MAX_PIXEL_RATIO = 1.75;
@@ -45,8 +52,7 @@ const PARTICLE_COUNT = 700;
 const prefersReducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const pages = [...document.querySelectorAll('.page')];
 
-wireWhatsAppLinks();
-splitHeadings();
+setUpLanguages();
 decoratePages();
 observeReveals();
 wireCardTilt();
@@ -62,22 +68,98 @@ try {
   addEventListener('scroll', () => pager.setActive(nearestPageIndex()), { passive: true });
 }
 
-function wireWhatsAppLinks() {
-  for (const link of document.querySelectorAll('[data-whatsapp]')) {
-    link.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(link.dataset.whatsapp)}`;
-    link.target = '_blank';
-    link.rel = 'noopener';
-  }
+// The page is written in English; every text is swapped for its 中文 / Bahasa Indonesia version from i18n.js.
+function setUpLanguages() {
+  const picker = document.querySelector('.lang');
+  const headings = [...document.querySelectorAll('[data-split]')].map((element) => ({ element, english: element.textContent.trim() }));
+  const texts = collectTextNodes();
+  const attributes = [...document.querySelectorAll('[alt], [aria-label]')].flatMap((element) =>
+    ['alt', 'aria-label'].filter((name) => element.hasAttribute(name)).map((name) => ({ element, name, english: element.getAttribute(name) })));
+  const description = document.querySelector('meta[name="description"]');
+  const head = { title: document.title, description: description.content };
+
+  const apply = (language) => {
+    const say = (english) => translate(english, language);
+    for (const { node, english, before, after } of texts) node.nodeValue = before + say(english) + after;
+    for (const { element, english } of headings) splitHeading(element, say(english), language);
+    for (const { element, name, english } of attributes) element.setAttribute(name, say(english));
+    for (const link of document.querySelectorAll('[data-whatsapp]')) {
+      link.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(say(link.dataset.whatsapp))}`;
+      link.target = '_blank';
+      link.rel = 'noopener';
+    }
+    document.title = say(head.title);
+    description.content = say(head.description);
+    document.documentElement.lang = HTML_LANG[language];
+    picker.value = language;
+  };
+
+  picker.addEventListener('change', () => {
+    try { localStorage.setItem(LANGUAGE_STORAGE_KEY, picker.value); } catch { /* private mode: the choice lasts for this visit only */ }
+    apply(picker.value);
+  });
+  apply(preferredLanguage());
 }
 
-function splitHeadings() {
-  for (const heading of document.querySelectorAll('[data-split]')) {
-    const words = heading.textContent.trim().split(/\s+/);
-    heading.setAttribute('aria-label', words.join(' '));
-    heading.innerHTML = words
-      .map((word, i) => `<span class="word" aria-hidden="true"><span style="--i:${i}">${word}</span></span>`)
-      .join(' ');
+function preferredLanguage() {
+  try {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (LANGUAGES.includes(stored)) return stored;
+  } catch { /* storage blocked: fall back to the browser's language */ }
+  const browser = navigator.language.toLowerCase();
+  if (browser.startsWith('zh')) return 'zh';
+  if (browser.startsWith('id')) return 'id';
+  return 'en';
+}
+
+function translate(english, language) {
+  const versions = TRANSLATIONS[english];
+  if (language === 'en' || !versions) return english;
+  return versions[language === 'zh' ? 0 : 1];
+}
+
+function collectTextNodes() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => (node.nodeValue.trim() && !node.parentElement.closest('[data-split], script, style, select')
+      ? NodeFilter.FILTER_ACCEPT
+      : NodeFilter.FILTER_REJECT),
+  });
+  const found = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const english = node.nodeValue.trim();
+    const start = node.nodeValue.indexOf(english);
+    found.push({ node, english, before: node.nodeValue.slice(0, start), after: node.nodeValue.slice(start + english.length) });
   }
+  return found;
+}
+
+function splitHeading(heading, text, language) {
+  const isChinese = language === 'zh';
+  const words = isChinese ? chineseWords(text) : text.split(/\s+/);
+  heading.setAttribute('aria-label', text);
+  heading.replaceChildren();
+  words.forEach((word, index) => {
+    const wrap = document.createElement('span');
+    wrap.className = 'word';
+    wrap.setAttribute('aria-hidden', 'true');
+    const inner = document.createElement('span');
+    inner.style.setProperty('--i', index);
+    inner.textContent = word;
+    wrap.append(inner);
+    heading.append(wrap, isChinese ? '' : ' ');
+  });
+}
+
+// Chinese has no spaces, so the reveal goes word by word with punctuation kept on the word before it.
+function chineseWords(text) {
+  if (!Intl.Segmenter) return [...text];
+  const words = [];
+  for (const { segment, isWordLike } of new Intl.Segmenter('zh', { granularity: 'word' }).segment(text)) {
+    if (isWordLike || !words.length) words.push(segment);
+    else words[words.length - 1] += segment;
+  }
+  return words;
 }
 
 function decoratePages() {

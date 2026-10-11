@@ -10,7 +10,7 @@
   --color-whatsapp: #25d366;
   --color-on-accent: #021018;
   --gradient-brand: linear-gradient(100deg, var(--color-blue), var(--color-cyan));
-  --font-display: 'Sora', system-ui, sans-serif;
+  --font-display: 'Sora', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --radius-card: 18px;
   --radius-pill: 999px;
@@ -112,7 +112,9 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-cyan); o
     linear-gradient(-45deg, transparent 44%, var(--color-blue) 44% 56%, transparent 56%);
 }
 
-.nav__actions { display: flex; gap: 10px; }
+.nav__actions { display: flex; align-items: center; gap: 10px; }
+.lang { min-height: 44px; padding: 0 12px; border-radius: var(--radius-pill); border: 1px solid var(--color-border-strong); background: rgba(10, 18, 40, 0.7); color: var(--color-text); font-family: var(--font-display); font-size: 0.85rem; cursor: pointer; }
+.lang option { background: var(--color-bg); color: var(--color-text); }
 .nav__links { display: flex; gap: 28px; font-size: 0.9rem; color: var(--color-text-muted); }
 .nav__links a { transition: color 0.2s; }
 .nav__links a:hover { color: var(--color-text); }
@@ -425,7 +427,7 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-cyan); o
 }
 
 @media (max-width: 760px) {
-  .nav__links, .pager, .nav__actions .btn--ghost { display: none; }
+  .nav__links, .pager, .nav__actions .btn { display: none; }
   .page { padding-bottom: 88px; }
   .cards, .steps { grid-template-columns: 1fr; }
   .stack > div { grid-template-columns: 1fr; gap: 4px; }
