@@ -12,6 +12,8 @@ import { currentTenant } from "./tenantContext";
 
 const viteLogger = createLogger();
 const FLAGSHIP_HOSTS = new Set(["rebornwave.group", "www.rebornwave.group"]);
+// The address written into client/public/bridgexpos-home/index.html.
+const BRIDGEX_HOME_ADDRESS = "https://bridgexpos.up.railway.app";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -161,10 +163,19 @@ export function serveStatic(app: Express) {
   // BridgeXPOS's public homepage is the standalone 3D page (client/public/bridgexpos-home).
   // Signed-in platform staff go on to the console; a browser that is inside a company keeps that company's app.
   const bridgeXHomeIndex = path.resolve(distPath, "bridgexpos-home", "index.html");
-  app.get(["/", "/bridgexpos"], (req, res, next) => {
-    if (!BRIDGEX_HOST.test(req.hostname) || currentTenant() || getUserId(req) || !fs.existsSync(bridgeXHomeIndex)) return next();
-    res.set("Cache-Control", "no-cache").sendFile(bridgeXHomeIndex);
-  });
+  const bridgeXHome = fs.existsSync(bridgeXHomeIndex) ? fs.readFileSync(bridgeXHomeIndex, "utf-8") : null;
+  // The page names its own address and share picture in full (chat apps need that), written for the
+  // Railway address; they are rewritten to the address the visitor actually opened.
+  const sendBridgeXHome = (req: express.Request, res: express.Response) => {
+    const origin = `https://${req.hostname}`;
+    const page = bridgeXHome!.replaceAll(`${BRIDGEX_HOME_ADDRESS}/"`, `${origin}${req.path}"`).replaceAll(BRIDGEX_HOME_ADDRESS, origin);
+    res.set("Cache-Control", "no-cache").type("html").send(page);
+  };
+  const seesBridgeXHome = (req: express.Request) => !!bridgeXHome && !currentTenant() && !getUserId(req);
+  app.get("/", (req, res, next) => (BRIDGEX_HOST.test(req.hostname) && seesBridgeXHome(req) ? sendBridgeXHome(req, res) : next()));
+  // /bridgexpos shows it on every host, so the link can be shared from rebornwave.group as well:
+  // WhatsApp shows no preview for the *.up.railway.app address.
+  app.get("/bridgexpos", (req, res, next) => (seesBridgeXHome(req) ? sendBridgeXHome(req, res) : next()));
 
   console.log(`[static] Serving static files from: ${distPath}`);
   // Hashed build files never change → cache them for a year; index.html is sent

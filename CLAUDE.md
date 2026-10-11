@@ -600,7 +600,9 @@ text.
 
 ## BridgeXPOS homepage (client/public/bridgexpos-home)
 
-- On the BridgeX host, `/` and `/bridgexpos` serve this standalone page (server/vite.ts) to a
+- `/bridgexpos` on every host (so it can be shared as `rebornwave.group/bridgexpos` — WhatsApp shows
+  no link preview for the `*.up.railway.app` address) and `/` on the BridgeX host serve this standalone
+  page (server/vite.ts; its own address + share picture are rewritten to the host that was opened) to a
   visitor who is not signed in and not inside a company; everyone else gets the app as before
   (the React `bridgex-landing.tsx` is still what the app itself shows on in-app navigation).
 - Plain HTML + site.css + site.js (Three.js from a CDN): the glass logo is built in code
