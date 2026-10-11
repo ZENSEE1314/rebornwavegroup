@@ -606,7 +606,9 @@ text.
 - Plain HTML + site.css + site.js (Three.js from a CDN): the glass logo is built in code
   (`createLogo`), and each `<section class="page">` sets where the logo stands through its
   `data-side / data-y / data-scale / data-turn / data-spread / data-hue / data-tint / data-dim`.
-  One wheel / key gesture moves one page (`wirePageStepping`). A new section becomes a page by itself.
+  One wheel / key gesture moves one page (`wirePageStepping`): every wheel event of a trackpad flick,
+  inertia included, counts as one gesture, and a page taller than the screen is read to its end first —
+  the next gesture turns the page. A new section becomes a page by itself.
 - Files load from `/bridgexpos-home/…` (never `/assets`, which is the app's hashed build folder).
 - The WhatsApp number of every button is `WHATSAPP_NUMBER` at the top of site.js.
 - Three languages: index.html is written in English and `i18n.js` holds the 中文 and Bahasa

@@ -31,8 +31,10 @@ const PARALLAX_RANGE = 1.5;
 const CARD_TILT_DEGREES = 9;
 const COUNT_UP_MS = 1400;
 const PAGE_STEP_MS = 1100;
-const PAGE_STEP_COOLDOWN_MS = 250;
 const PAGE_EDGE_TOLERANCE = 4;
+const WHEEL_GESTURE_GAP_MS = 220;
+const WHEEL_LINE_PIXELS = 16;
+const SETTLE_DELAY_MS = 260;
 
 const RING_RADIUS = 1.5;
 const ORBIT_RADIUS = 1.28;
@@ -248,45 +250,73 @@ function buildPager() {
 
 // One scroll gesture = one page: the wheel, arrow keys and in-page links all glide to the next page's top.
 function wirePageStepping() {
-  let isStepping = false;
+  let isGliding = false;
+  // A trackpad keeps sending wheel events (inertia) long after the fingers lift; all of them belong to one gesture.
+  const gesture = { lastEventAt: 0, direction: 0, startedAtEdge: false, hasStepped: false };
 
-  const goToPage = (index) => {
-    const target = pages[THREE.MathUtils.clamp(index, 0, pages.length - 1)].offsetTop;
-    if (isStepping || Math.abs(target - scrollY) < 1) return;
+  const glideTo = (target) => {
+    if (isGliding || Math.abs(target - scrollY) < 1) return;
     if (prefersReducedMotion) return scrollTo(0, target);
-    isStepping = true;
+    isGliding = true;
     const from = scrollY;
     const start = performance.now();
     const frame = (now) => {
       const progress = Math.min(1, (now - start) / PAGE_STEP_MS);
       scrollTo(0, from + (target - from) * THREE.MathUtils.smootherstep(progress, 0, 1));
       if (progress < 1) return requestAnimationFrame(frame);
-      setTimeout(() => { isStepping = false; }, PAGE_STEP_COOLDOWN_MS);
+      isGliding = false;
     };
     requestAnimationFrame(frame);
   };
 
-  // A page taller than the screen scrolls normally until its edge is reached, then the next gesture steps on.
-  const stepFrom = (direction) => {
+  const goToPage = (index) => glideTo(pages[THREE.MathUtils.clamp(index, 0, pages.length - 1)].offsetTop);
+
+  const currentPage = () => {
     const index = pages.findIndex((page) => scrollY < page.offsetTop + page.offsetHeight - PAGE_EDGE_TOLERANCE);
-    const page = pages[index === -1 ? pages.length - 1 : index];
-    const hiddenBelow = page.offsetTop + page.offsetHeight - (scrollY + innerHeight);
-    const hiddenAbove = scrollY - page.offsetTop;
-    if (direction > 0 && hiddenBelow > PAGE_EDGE_TOLERANCE) return false;
-    if (direction < 0 && hiddenAbove > PAGE_EDGE_TOLERANCE) return false;
-    goToPage(pages.indexOf(page) + direction);
-    return true;
+    return pages[index === -1 ? pages.length - 1 : index];
+  };
+
+  // Where the screen may rest on a page: its top, or anywhere down to its end if it is taller than the screen.
+  const restRange = (page) => {
+    const top = page.offsetTop;
+    return { top, bottom: Math.max(top, top + page.offsetHeight - innerHeight) };
+  };
+
+  const isAtEdge = (page, direction) => {
+    const { top, bottom } = restRange(page);
+    return direction > 0 ? scrollY >= bottom - PAGE_EDGE_TOLERANCE : scrollY <= top + PAGE_EDGE_TOLERANCE;
   };
 
   addEventListener('wheel', (event) => {
     if (event.ctrlKey || !event.deltaY) return;
-    if (isStepping || stepFrom(Math.sign(event.deltaY))) event.preventDefault();
+    event.preventDefault();
+    const now = performance.now();
+    const direction = Math.sign(event.deltaY);
+    const isNewGesture = now - gesture.lastEventAt > WHEEL_GESTURE_GAP_MS || direction !== gesture.direction;
+    gesture.lastEventAt = now;
+    if (isGliding) return;
+
+    const page = currentPage();
+    if (isNewGesture) Object.assign(gesture, { direction, startedAtEdge: isAtEdge(page, direction), hasStepped: false });
+    if (gesture.hasStepped) return;
+    if (gesture.startedAtEdge) {
+      gesture.hasStepped = true;
+      goToPage(pages.indexOf(page) + direction);
+      return;
+    }
+    // Inside a page taller than the screen: read on within it, never past its edge. The next gesture turns the page.
+    const { top, bottom } = restRange(page);
+    const pixels = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * WHEEL_LINE_PIXELS : event.deltaY;
+    scrollTo(0, THREE.MathUtils.clamp(scrollY + pixels, top, bottom));
   }, { passive: false });
 
   addEventListener('keydown', (event) => {
     const direction = { ArrowDown: 1, PageDown: 1, ' ': 1, ArrowUp: -1, PageUp: -1 }[event.key];
-    if (!direction || event.target.closest('input, textarea, summary, a, button')) return;
-    if (isStepping || stepFrom(direction)) event.preventDefault();
+    if (!direction || event.target.closest('input, textarea, select, summary, a, button')) return;
+    const page = currentPage();
+    if (!isGliding && !isAtEdge(page, direction)) return;
+    event.preventDefault();
+    if (!isGliding) goToPage(pages.indexOf(page) + direction);
   });
 
   for (const link of document.querySelectorAll('a[href^="#"]:not([data-whatsapp])')) {
@@ -297,6 +327,22 @@ function wirePageStepping() {
       goToPage(Math.max(0, pages.indexOf(page)));
     });
   }
+
+  // A scroll that stops between two pages (scrollbar drag, window resize) settles on the nearer one.
+  // Touch screens are left to the browser's own snapping (site.css).
+  if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  let settleTimer;
+  addEventListener('scroll', () => {
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => {
+      if (isGliding) return;
+      const page = currentPage();
+      const { bottom } = restRange(page);
+      const next = pages[pages.indexOf(page) + 1];
+      if (scrollY <= bottom + PAGE_EDGE_TOLERANCE || !next) return;
+      glideTo(scrollY - bottom < next.offsetTop - scrollY ? bottom : next.offsetTop);
+    }, SETTLE_DELAY_MS);
+  }, { passive: true });
 }
 
 function nearestPageIndex() {
