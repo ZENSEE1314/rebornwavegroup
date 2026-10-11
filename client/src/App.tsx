@@ -282,13 +282,13 @@ function Router() {
       // Another company's app: its own name and icon, never Reborn's. Nothing changes until its details have loaded.
       if (tenantBrand.appName) {
         document.title = tenantBrand.appName;
-        if (link) link.href = tenantBrand.logoUrl || letterIcon(tenantBrand.appName, tenantBrand.primary);
+        if (link) link.href = tenantBrand.iconUrl || letterIcon(tenantBrand.appName, tenantBrand.primary);
       }
     } else if (link && (link as any)._orig) {
       document.title = (link as any)._origTitle || document.title;
       link.href = (link as any)._orig;
     }
-  }, [brandLoc, onBridgeXItself, inCompany, tenantBrand.appName, tenantBrand.logoUrl, tenantBrand.primary]);
+  }, [brandLoc, onBridgeXItself, inCompany, tenantBrand.appName, tenantBrand.iconUrl, tenantBrand.primary]);
 
   // Keep every active screen current. Server-sent events update immediately;
   // the timer covers mobile networks that temporarily suspend the stream.
@@ -479,10 +479,10 @@ function App() {
         const accent = tenant.theme?.accentColor;
         if (primary) document.documentElement.style.setProperty("--bridgex-primary", primary);
         if (accent) document.documentElement.style.setProperty("--bridgex-accent", accent);
-        if (tenant.logo_url) {
+        if (tenant.app_icon_url || tenant.logo_url) {
           let icon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
           if (!icon) { icon = document.createElement("link"); icon.rel = "icon"; document.head.appendChild(icon); }
-          icon.href = tenant.logo_url;
+          icon.href = tenant.app_icon_url || tenant.logo_url;
         }
       }).catch(() => undefined);
   }, []);

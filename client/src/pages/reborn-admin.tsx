@@ -710,6 +710,32 @@ function DailyCheckinSettings() {
 // App design for this company's member app (same choice as BridgeX › White label): the
 // design (shape), a colour or the admin's own four colours, and the lettering. Shown live
 // while choosing; leaving without saving puts the saved look back.
+function CompanyBrandSettings() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/brand"], queryFn: () => apiRequest("GET", "/api/reborn/admin/brand").then((r) => r.json()) });
+  const [edit, setEdit] = useState<{ logoUrl?: string; appIconUrl?: string }>({});
+  const logo = edit.logoUrl ?? data?.logoUrl ?? "";
+  const icon = edit.appIconUrl ?? data?.appIconUrl ?? "";
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/brand", { logoUrl: logo, appIconUrl: icon }).then((r) => r.json()),
+    onSuccess: (r) => { toast({ title: r.message }); setEdit({}); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/brand"] }); qc.invalidateQueries({ queryKey: ["tenant-brand"] }); },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+  if (!data) return null;
+  return (
+    <Card>
+      <h3 className="font-bold mb-3">{t("admin.brand.title")}</h3>
+      <p className="text-xs text-white/60 mb-1">{t("admin.brand.logo")}</p>
+      <div className="mb-4"><ImageUpload value={logo} onChange={(v) => setEdit({ ...edit, logoUrl: v })} maxDim={512} label={t("admin.brand.upload")} /></div>
+      <p className="text-xs text-white/60 mb-1">{t("admin.brand.icon")}</p>
+      <div className="mb-4"><ImageUpload value={icon} onChange={(v) => setEdit({ ...edit, appIconUrl: v })} maxDim={192} label={t("admin.brand.upload")} /></div>
+      <button onClick={() => save.mutate()} disabled={save.isPending || (edit.logoUrl === undefined && edit.appIconUrl === undefined)} className="px-4 py-2 rounded-xl bg-amber-400 text-black text-sm font-bold disabled:opacity-40">{t("admin.brand.save")}</button>
+    </Card>
+  );
+}
+
 function AppDesignSettings() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -769,6 +795,7 @@ function Settings() {
   const updateTier = (index: number, patch: any) => setLoyalty({ tiers: (loyalty.tiers || []).map((tier: any, i: number) => i === index ? { ...tier, ...patch } : tier) });
   return (
     <div className="space-y-4">
+      <CompanyBrandSettings />
       <AppDesignSettings />
       <DailyCheckinSettings />
       <Card>

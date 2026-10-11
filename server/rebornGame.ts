@@ -15,6 +15,7 @@ import { formatMoneyIn } from "@shared/countries";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
+import { isBrandImage } from "./pageBrand";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
@@ -3829,6 +3830,18 @@ export function registerRebornRoutes(app: Express) {
     await db.update(bridgeCompanies).set({theme,updatedAt:new Date()}).where(eq(bridgeCompanies.id,c.id));
     await logAdmin(req,{targetType:"settings",targetId:"appSkin",action:"change_app_design",entityType:"settings",oldValues:{skin:before,palette:old.palette||"",colours:old.colours||null,font:old.font||""},newValues:{skin,palette,colours,font},description:`App design ${before} → ${skin}${palette?` · colour ${palette}`:""}${font?` · font ${font}`:""}`});
     res.json({message:tr(req,{en:"App design saved — members see it the next time they open the app",zh:"应用设计已保存——会员下次打开应用时可见",id:"Desain aplikasi disimpan — member melihatnya saat membuka aplikasi lagi"}),skin,palette,colours,font});
+  }));
+  // The company's own logo and tab/app icon: uploaded pictures, changed here by its admin.
+  app.get("/api/reborn/admin/brand", requireAdmin(async(_req,res)=>{const [c]=await db.select({logoUrl:bridgeCompanies.logoUrl,appIconUrl:bridgeCompanies.appIconUrl}).from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1);res.json({logoUrl:c?.logoUrl||"",appIconUrl:c?.appIconUrl||""});}));
+  app.post("/api/reborn/admin/brand", requireAdmin(async(req,res)=>{
+    const bad=tr(req,{en:"Upload a picture (not a link)",zh:"请上传图片（不是链接）",id:"Unggah gambar (bukan tautan)"});
+    const patch:any={};
+    for(const key of ["logoUrl","appIconUrl"]){const v=req.body?.[key];if(v===undefined)continue;if(v!==""&&!isBrandImage(v))return res.status(400).json({message:bad});patch[key]=v||null;}
+    const [c]=await db.select({id:bridgeCompanies.id}).from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1);
+    if(!c)return res.status(404).json({message:tr(req,{en:"Company not found",zh:"找不到该公司",id:"Perusahaan tidak ditemukan"})});
+    await db.update(bridgeCompanies).set({...patch,updatedAt:new Date()}).where(eq(bridgeCompanies.id,c.id));
+    await logAdmin(req,{targetType:"settings",targetId:"brand",action:"change_company_brand",entityType:"settings",description:"Company logo / app icon changed"});
+    res.json({message:tr(req,{en:"Logo and icon saved",zh:"标志和图标已保存",id:"Logo dan ikon disimpan"})});
   }));
   // Statutory contributions (CPF / BPJS / EPF…): the company's country rates, editable by the admin.
   const payrollRules=async()=>{const [row]=await db.select().from(appSettings).where(eq(appSettings.key,"payrollRules"));let saved:any=null;try{saved=row?.value?JSON.parse(row.value):null}catch{}return saved?cleanPayrollRules(saved,companyCountry()):defaultPayrollRules(companyCountry());};

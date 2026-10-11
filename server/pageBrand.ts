@@ -32,16 +32,23 @@ function letterIcon(letters: string, fill: string, ink = "#ffffff"): string {
   );
 }
 
+// A company's logo / app icon is an uploaded picture (a small data URL), never a link.
+const MAX_BRAND_IMAGE_CHARS = 400_000;
+const BRAND_IMAGE = /^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/=]+$/;
+export function isBrandImage(value: unknown): value is string {
+  return typeof value === "string" && value.length <= MAX_BRAND_IMAGE_CHARS && BRAND_IMAGE.test(value);
+}
+
 const escapeHtml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 async function companyBrand(slug: string): Promise<PageBrand | null> {
-  const found = await pool.query(`SELECT name, app_name, logo_url, theme FROM public.bridge_companies WHERE slug=$1 LIMIT 1`, [slug.toLowerCase()]);
+  const found = await pool.query(`SELECT name, app_name, logo_url, app_icon_url, theme FROM public.bridge_companies WHERE slug=$1 LIMIT 1`, [slug.toLowerCase()]);
   const company = found.rows[0];
   if (!company) return null;
   const name: string = company.app_name || company.name;
   const colour = HEX_COLOUR.test(company.theme?.primaryColor || "") ? company.theme.primaryColor : DEFAULT_ICON_COLOUR;
   const letter = name.trim().charAt(0).toUpperCase().replace(/[^A-Z0-9]/, "•");
-  return { title: name, description: name, iconUrl: company.logo_url || letterIcon(letter, colour) };
+  return { title: name, description: name, iconUrl: company.app_icon_url || company.logo_url || letterIcon(letter, colour) };
 }
 
 // Whose page this is: a company's (its /t/<slug> page, its own domain, or the company this

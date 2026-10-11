@@ -7,6 +7,7 @@ export interface TenantBrand {
   name: string;
   app_name?: string;
   logo_url?: string;
+  app_icon_url?: string;
   theme?: { primaryColor?: string; accentColor?: string; skin?: string; palette?: string; colours?: AppColours; font?: string };
   country?: string;
   local_currency?: string;
@@ -79,6 +80,8 @@ export function useTenantBrand() {
     isWhiteLabel: !!data?.slug && data.slug !== FLAGSHIP_TENANT_SLUG,
     appName: data?.app_name || data?.name || "",
     logoUrl: data?.logo_url || "",
+    // The tab / app icon: its own picture, else the logo.
+    iconUrl: data?.app_icon_url || data?.logo_url || "",
     primary: data?.theme?.primaryColor || "",
     accent: data?.theme?.accentColor || "",
     skin: data?.theme?.skin || "",

@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT, homeCompanySlug, runInTenant } from "./tenantContext";
+import { isBrandImage } from "./pageBrand";
 import { DATA_MODES, DEFAULT_DATA_MODE, forgetTenantRegistry, setCompanyDataMode, type DataMode } from "./tenantSpace";
 import { countryOf, moneyStyle } from "@shared/countries";
 import { loadHomeMoney } from "./companyMoney";
@@ -1189,6 +1190,11 @@ export function registerBridgeXRoutes(app: Express) {
     const allowed: any = {};
     for (const key of ["appName", "logoUrl", "appIconUrl", "websiteDomain", "androidPackage", "iosBundleId", "theme", "billingModel", "billingCycle", "subscriptionPlan", "price", "currency"]) {
       if (req.body?.[key] !== undefined) allowed[key] = key === "price" ? String(req.body[key]) : req.body[key];
+    }
+    // Pictures are uploads; an old pasted link is kept as it is rather than overwritten.
+    for (const key of ["logoUrl", "appIconUrl"]) {
+      if (allowed[key] === undefined || allowed[key] === "" || allowed[key] === null) continue;
+      if (!isBrandImage(allowed[key])) delete allowed[key];
     }
     if (allowed.websiteDomain) allowed.websiteDomain = String(allowed.websiteDomain).toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
     if (allowed.billingModel === "one_time") allowed.billingCycle = "one_time";
