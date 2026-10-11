@@ -634,6 +634,20 @@ text.
 - Tests: `client/src/lib/lights/lights.test.ts` (run by `npm test`). In this app's CSS, `grid-cols-1..4` become one
   column on phones and every `button` gets 16px side padding (use flex / `p-0` for icon buttons).
 
+## Security (Admin › Security)
+
+- Tab for staff, managers and the main admin (`components/SecurityPanel.tsx`, sub-tabs Officer check | Cameras; routes
+  `server/security.ts`, rules `server/securityLogic.ts`, settings `securitySetup` + `officerLog` in `appSettings`, per company).
+- **Officer at the door**: staff start a check when someone says they are police / an official (name, badge, unit); the
+  managers get a WhatsApp (`alertPhones`, else the company admins) and staff follow a checklist (official ID, written
+  assignment letter, call the station's OWN number from `stationNumbers`, hand nothing over without paper); the end (verified /
+  not verified / left or refused) is logged (last 200) and alerted too. Deliberately NOT built: spotting police by face or
+  car plate, or telling customers police are around — a check is paper + a call, not a camera.
+- **Cameras**: stream addresses (picture = MJPEG / snapshot refreshed every N s, or a page in a frame), http(s) only. Cameras
+  with RTSP need the free go2rtc on a venue PC to give a browser-playable address; a browser blocks plain http on the https page
+  unless it is localhost (`isBlockedByBrowser`). Viewing is for staff; editing, station numbers and alert numbers are main-admin.
+  No face or plate recognition, no motion alerts yet (would need a gateway program on the venue PC).
+
 ## TV screens (Admin › Lights & TV › TV)
 
 - The admin tab is "Lights & TV" (`components/LightsTvPanel.tsx`, sub-tabs Lights | TV). Each TV (up to 12) is a name, a view and

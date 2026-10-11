@@ -12,6 +12,7 @@ import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ResetNumbers } from "@/components/ResetNumbers";
 
+const SecurityPanel = lazy(() => import("@/components/SecurityPanel"));
 const LightsTvPanel = lazy(() => import("@/components/LightsTvPanel")); // Bluetooth + TV code is only fetched when the tab opens
 import { useAuth } from "@/hooks/useAuth";
 import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
@@ -25,14 +26,14 @@ import { computeContributions, type PayrollRules, type CpfRules } from "@shared/
 import { countryOf } from "@shared/countries";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "POS"] as const;
+const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "Security", "POS"] as const;
 // Managers: the staff tabs + Daily sales (today's total, close the day, every salesperson's target).
 // The QR codes tab comes second, as for the main admin.
 const MANAGER_TABS = ["Overview", "QR", ...STAFF_TABS.slice(1, -1), "Sales", "POS"] as const;
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
 const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");
-const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Lights", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
+const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Lights", "Security", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
 type AdminRole = "admin" | "manager" | "staff" | "user";
 const tabsFor = (role: AdminRole) => (role === "admin" ? ADMIN_TABS : role === "manager" ? MANAGER_TABS : STAFF_TABS) as readonly string[];
 // The admin-panel view this account gets (manager = staff account with company role manager).
@@ -76,6 +77,7 @@ export default function RebornAdmin() {
       {tab === "Requests" && <SongRequests />}
       {tab === "Gifts" && <GiftTypes />}
       {tab === "Features" && <AppFeatures />}
+      {tab === "Security" && <Suspense fallback={null}><SecurityPanel /></Suspense>}
       {tab === "Lights" && <Suspense fallback={null}><LightsTvPanel /></Suspense>}
       {tab === "Settings" && <Settings />}
       {tab === "Users" && <Members />}
