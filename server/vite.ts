@@ -7,7 +7,8 @@ import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 import { storage } from "./storage";
 import { getUserId } from "./multiAuth";
-import { brandPageShell } from "./pageBrand";
+import { BRIDGEX_HOST, brandPageShell } from "./pageBrand";
+import { currentTenant } from "./tenantContext";
 
 const viteLogger = createLogger();
 const FLAGSHIP_HOSTS = new Set(["rebornwave.group", "www.rebornwave.group"]);
@@ -155,6 +156,14 @@ export function serveStatic(app: Express) {
     const [path, query] = req.originalUrl.split("?");
     if (!path.endsWith("/")) return res.redirect(301, `${path}/${query ? `?${query}` : ""}`);
     res.set("Cache-Control", "no-cache").sendFile(experienceIndex);
+  });
+
+  // BridgeXPOS's public homepage is the standalone 3D page (client/public/bridgexpos-home).
+  // Signed-in platform staff go on to the console; a browser that is inside a company keeps that company's app.
+  const bridgeXHomeIndex = path.resolve(distPath, "bridgexpos-home", "index.html");
+  app.get(["/", "/bridgexpos"], (req, res, next) => {
+    if (!BRIDGEX_HOST.test(req.hostname) || currentTenant() || getUserId(req) || !fs.existsSync(bridgeXHomeIndex)) return next();
+    res.set("Cache-Control", "no-cache").sendFile(bridgeXHomeIndex);
   });
 
   console.log(`[static] Serving static files from: ${distPath}`);

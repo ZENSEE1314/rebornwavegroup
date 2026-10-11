@@ -13,7 +13,7 @@ interface PageBrand {
 }
 
 const COMPANY_PAGE = /^\/t\/([a-z0-9-]+)/i;
-const BRIDGEX_HOST = /bridgexpos/i;
+export const BRIDGEX_HOST = /bridgexpos/i;
 const BRIDGEX_BRAND: PageBrand = {
   title: "BridgeXPOS | White-label POS for every business",
   description: "Create a multi-branch POS, staff system, website and branded Android or iOS app for your company.",

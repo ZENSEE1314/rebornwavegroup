@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BridgeXPOS — Your business. Your POS. Your brand.</title>
+<meta name="description" content="BridgeXPOS is a white-label business operating system: POS, member app, staff, inventory and WhatsApp automation under your own brand and domain.">
+<meta property="og:title" content="BridgeXPOS">
+<meta property="og:description" content="Launch a complete merchant system with your own website, domain, logo and mobile app.">
+<meta property="og:image" content="/bridgexpos-home/assets/bridgex-logo.jpg">
+<meta name="theme-color" content="#02040c">
+<link rel="icon" href="/bridgexpos-home/assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/bridgexpos-home/site.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas id="stage" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+
+<header class="nav">
+  <a class="nav__brand" href="#top" aria-label="BridgeXPOS home">
+    <span class="nav__mark" aria-hidden="true"></span>
+    <span>Bridge<b>X</b>POS</span>
+  </a>
+  <nav class="nav__links" aria-label="Primary">
+    <a href="#login">Login</a>
+    <a href="#expertise">Features</a>
+    <a href="#work">Showcase</a>
+    <a href="#process">Process</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+  <div class="nav__actions">
+    <a class="btn btn--small btn--ghost" href="/bridgexpos/login">Admin login</a>
+    <a class="btn btn--small btn--whatsapp" href="#contact" data-whatsapp="Hi BridgeX, I'd like to know more about BridgeXPOS.">WhatsApp us</a>
+  </div>
+</header>
+
+<aside class="pager" aria-hidden="true">
+  <div class="pager__dots"></div>
+  <div class="pager__count"><span class="pager__current">01</span> / <span class="pager__total">01</span></div>
+</aside>
+
+<main id="top">
+
+  <section class="page page--intro" data-title="BridgeXPOS" data-side="0" data-scale="1.25" data-y="0.25" data-tint="0.3">
+    <p class="intro__mark" data-reveal>BridgeXPOS · Business Operating System</p>
+    <a class="scroll-cue" href="#title" data-reveal><span>Scroll</span><i aria-hidden="true"></i></a>
+  </section>
+
+  <section class="page page--hero" id="title" data-title="Intro" data-side="1" data-scale="1.05" data-turn="1" data-tint="0.7">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>One platform · every business</p>
+      <h1 class="display" data-split>Your business. Your POS. Your brand.</h1>
+      <p class="lead" data-reveal>Launch a complete merchant system with your own website, domain, logo, mobile app, branches and selected services. BridgeXPOS manages the platform underneath.</p>
+      <div class="actions" data-reveal>
+        <a class="btn btn--brand" href="/bridgexpos/apply">Build my company</a>
+        <a class="btn btn--ghost" href="/bridgexpos/login">Admin login</a>
+        <a class="btn btn--whatsapp" href="#contact" data-whatsapp="Hi BridgeX, I'd like a free demo of BridgeXPOS.">Chat on WhatsApp</a>
+      </div>
+      <p class="fineprint" data-reveal>Free 30-minute demo · No commitment</p>
+    </div>
+    <div class="marquee" aria-hidden="true" data-reveal>
+      <div class="marquee__track">
+        <span>Restaurants</span><span>KTV &amp; lounges</span><span>Beauty &amp; salons</span><span>Retail</span><span>Gyms</span><span>Hotels</span><span>Pet cafés</span><span>Food courts</span>
+        <span>Restaurants</span><span>KTV &amp; lounges</span><span>Beauty &amp; salons</span><span>Retail</span><span>Gyms</span><span>Hotels</span><span>Pet cafés</span><span>Food courts</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="page page--shot" id="login" data-title="Login" data-side="-1.5" data-y="1.3" data-scale="0.5" data-turn="2" data-spread="0.9" data-hue="0.02">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Sign in</p>
+      <h2 class="title" data-split>One login. Your whole business.</h2>
+      <p class="status status--live" data-reveal>Live · white-label</p>
+      <p class="lead" data-reveal>One core, 40+ installable modules. Restaurants, KTV, beauty, retail, gyms and more run on the same platform — each under its own brand, domain and isolated data.</p>
+      <ul class="chips" data-reveal><li>POS &amp; payments</li><li>Inventory &amp; purchasing</li><li>Kitchen display &amp; QR ordering</li><li>Payroll &amp; accounting</li><li>Multi-outlet</li></ul>
+      <div class="actions" data-reveal>
+        <a class="btn btn--brand" href="/bridgexpos/login">Admin login</a>
+        <a class="btn btn--ghost" href="/bridgexpos/apply">Create your company</a>
+      </div>
+    </div>
+    <figure class="shot shot--login" data-reveal>
+      <div class="shot__frame">
+        <div class="shot__bar"><i></i><i></i><i></i><span>bridgexpos · admin login</span></div>
+        <a href="/bridgexpos/login" aria-label="Open the BridgeXPOS admin login"><img src="/bridgexpos-home/assets/project-bridgex-pos-login.jpg" alt="BridgeXPOS admin login screen with email and password fields" width="640" height="560" loading="lazy"></a>
+      </div>
+    </figure>
+  </section>
+
+  <section class="page" data-title="Proof" data-side="1" data-turn="3" data-spread="0.35" data-hue="0.04">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Built to ship</p>
+      <h2 class="title" data-split>We measure success in weeks shipped, not slide decks.</h2>
+      <p class="lead" data-reveal>BridgeXPOS is running software — live venues, live members, live sales — not a promise on a sales call.</p>
+      <dl class="stats" data-reveal>
+        <div><dt data-count="10">10</dt><dd>White-label app designs</dd></div>
+        <div><dt data-count="40" data-suffix="+">40+</dt><dd>Business modules ready to switch on</dd></div>
+        <div><dt data-count="3">3</dt><dd>Languages built in</dd></div>
+        <div><dt>24/7</dt><dd>WhatsApp &amp; AI replies</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="page page--wide" id="expertise" data-title="Expertise" data-side="0" data-scale="1.7" data-turn="4" data-dim="0.8" data-hue="0.08">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>What is inside</p>
+      <h2 class="title" data-split>Everything your business runs on.</h2>
+      <ul class="cards">
+        <li class="card" data-reveal><span class="card__no">01</span><h3>POS &amp; payments</h3><p>Counter, table and mobile sales across every outlet — split bills, discounts, refunds and printed receipts.</p></li>
+        <li class="card" data-reveal><span class="card__no">02</span><h3>Industry modules</h3><p>Restaurant, KTV, beauty, booking, kitchen display and QR ordering. Switch on only what your business needs.</p></li>
+        <li class="card" data-reveal><span class="card__no">03</span><h3>Staff operations</h3><p>Roles, pay, attendance, shifts, leave, reviews and leaderboards in one place.</p></li>
+        <li class="card" data-reveal><span class="card__no">04</span><h3>Inventory &amp; purchasing</h3><p>Stock levels, low-stock alerts, suppliers, purchase orders and recipes that deduct on every sale.</p></li>
+        <li class="card" data-reveal><span class="card__no">05</span><h3>CRM &amp; loyalty</h3><p>Customer segments, wallets, points, prize wheels and virtual pets that bring guests back.</p></li>
+        <li class="card" data-reveal><span class="card__no">06</span><h3>WhatsApp automation</h3><p>Your own Business number answers, books, reminds and follows up — day or night.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="page page--shot" id="work" data-title="Reborn Wave" data-side="1.5" data-y="1.3" data-scale="0.5" data-turn="5" data-spread="0.6" data-hue="0.12">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Running on BridgeX · 01 / 03</p>
+      <h2 class="title" data-split>Reborn Wave House</h2>
+      <p class="status status--live" data-reveal>Live in production</p>
+      <p class="lead" data-reveal>A five-floor immersive club platform: a cinematic 3D venue experience paired with a member super-app for events, bookings, ordering, live gifting and loyalty.</p>
+      <ul class="chips" data-reveal><li>3D venue experience</li><li>Member super-app</li><li>POS &amp; bookings</li><li>WhatsApp CRM</li></ul>
+      <div class="actions" data-reveal><a class="btn btn--ghost" href="https://rebornwave.group" target="_blank" rel="noopener">Visit rebornwave.group ↗</a></div>
+    </div>
+    <figure class="shot shot--scroll" data-reveal>
+      <div class="shot__frame">
+        <div class="shot__bar"><i></i><i></i><i></i><span>rebornwave.group</span></div>
+        <div class="shot__screen"><img src="/bridgexpos-home/assets/project-reborn-wave-scroll.jpg" alt="Reborn Wave House website scrolling from the 3D club entrance up through its floors" width="780" height="3412" loading="lazy"></div>
+      </div>
+    </figure>
+  </section>
+
+  <section class="page page--shot" data-title="Name card" data-side="-1.5" data-y="1.3" data-scale="0.5" data-turn="6" data-spread="0.5" data-hue="-0.05">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Running on BridgeX · 02 / 03</p>
+      <h2 class="title" data-split>BridgeX — networking &amp; digital name cards</h2>
+      <p class="status status--live" data-reveal>Live in production</p>
+      <p class="lead" data-reveal>A business-networking app that replaces paper cards with a living, connected identity. Members share a smart card, check in to events by QR and grow through referrals.</p>
+      <ul class="chips" data-reveal><li>Digital name cards</li><li>AI business matching</li><li>Event QR check-in</li><li>Referral engine</li></ul>
+      <div class="actions" data-reveal><a class="btn btn--ghost" href="https://businesscard-app-production.up.railway.app/dashboard" target="_blank" rel="noopener">Open the app ↗</a></div>
+    </div>
+    <figure class="shot shot--card" data-reveal role="img" aria-label="A BridgeX digital name card with contact details and a QR code">
+      <div class="shot__frame namecard" aria-hidden="true">
+        <div class="namecard__top"><span class="nav__mark"></span><span>BridgeX</span><span class="namecard__tier">BridgeMaker</span></div>
+        <p class="namecard__name">Your Name</p>
+        <p class="namecard__role">Founder · Your Company</p>
+        <div class="namecard__bottom">
+          <ul><li>you@yourcompany.com</li><li>bridgex.app/your-name</li><li>Save contact · WhatsApp</li></ul>
+          <div class="namecard__qr"></div>
+        </div>
+      </div>
+    </figure>
+  </section>
+
+  <section class="page page--shot" data-title="chillX" data-side="1.5" data-y="1.3" data-scale="0.5" data-turn="7" data-spread="0.75" data-hue="0.16">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Running on BridgeX · 03 / 03</p>
+      <h2 class="title" data-split>chillX</h2>
+      <p class="status status--design" data-reveal>In design</p>
+      <p class="lead" data-reveal>A private entertainment venue in Batam across four levels — reception, a full floor of lounge rooms, ten-person suites with a VIP cigar room, and a rooftop restaurant and bar.</p>
+      <ul class="chips" data-reveal><li>4 levels</li><li>22 private rooms</li><li>VIP cigar room</li><li>Rooftop restaurant</li></ul>
+      <div class="actions" data-reveal>
+        <a class="btn btn--ghost" href="https://bridgex-site-production.up.railway.app/chillx-floorplan.html">Floor plan →</a>
+        <a class="btn btn--ghost" href="https://bridgex-site-production.up.railway.app/ChillX.html">Deck →</a>
+      </div>
+    </div>
+    <figure class="shot" data-reveal>
+      <div class="shot__frame">
+        <div class="shot__bar"><i></i><i></i><i></i><span>chillX · rooftop</span></div>
+        <img src="/bridgexpos-home/assets/chillx-rooftop.jpg" alt="chillX rooftop restaurant and bar floor plan" width="800" height="503" loading="lazy">
+      </div>
+    </figure>
+  </section>
+
+  <section class="page" data-title="Stack" data-side="-1" data-turn="8" data-spread="0.3" data-hue="0.06">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Inside the stack</p>
+      <h2 class="title" data-split>Proven tools. No surprise bills.</h2>
+      <p class="lead" data-reveal>We build on platforms you can own and inspect. The code lands in your repository and the accounts are in your name.</p>
+      <dl class="stack" data-reveal>
+        <div><dt>AI &amp; agents</dt><dd>Claude · Gemini · MCP tools</dd></div>
+        <div><dt>Product</dt><dd>Next.js · React · Expo · Three.js</dd></div>
+        <div><dt>Data</dt><dd>PostgreSQL · Prisma · Drizzle</dd></div>
+        <div><dt>Channels</dt><dd>WhatsApp Cloud API · Push · Email</dd></div>
+        <div><dt>Payments &amp; hosting</dt><dd>Stripe · Railway · GitHub</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="page page--wide" id="process" data-title="Process" data-side="0" data-scale="1.9" data-turn="9" data-dim="0.8" data-hue="0.1">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>How we work</p>
+      <h2 class="title" data-split>From first message to live product in four steps.</h2>
+      <ol class="steps">
+        <li class="card" data-reveal><span class="card__no">Step 01</span><h3>Brief</h3><p>Tell us the product or the workflow that hurts. We scope it into a clear plan and a fixed quote.</p></li>
+        <li class="card" data-reveal><span class="card__no">Step 02</span><h3>Build</h3><p>Specialist agents and engineers design, code and test — you watch progress from the first commit.</p></li>
+        <li class="card" data-reveal><span class="card__no">Step 03</span><h3>Ship</h3><p>Deployed on your domain, under your brand, monitored and iterated until it works in the real world.</p></li>
+        <li class="card" data-reveal><span class="card__no">Step 04</span><h3>Grow</h3><p>Marketing, CRM and automation keep it running and improving long after launch day.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="page page--wide" id="pricing" data-title="Pricing" data-side="0" data-scale="2.1" data-turn="10" data-dim="0.85" data-hue="0">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Pricing</p>
+      <h2 class="title" data-split>Pick the fit. Scale when ready.</h2>
+
+      <h3 class="group-title" data-reveal>White-label platform <span>your brand, your domain, your data</span></h3>
+      <ul class="plans">
+        <li class="plan" data-reveal>
+          <h4>Starter</h4><p class="plan__for">Single venue · core app + POS</p>
+          <p class="plan__price">Let's talk</p>
+          <ul><li>Member app + POS</li><li>Your branding &amp; domain</li><li>3 languages</li></ul>
+        </li>
+        <li class="plan plan--featured" data-reveal>
+          <span class="plan__tag">Most popular</span>
+          <h4>Pro</h4><p class="plan__for">Full gamification + intelligence</p>
+          <p class="plan__price">Let's talk</p>
+          <ul><li>Everything in Starter</li><li>Pet, prize wheel, live gifting, bottle keep</li><li>Accounting, commission, events</li><li>Self-learning support</li></ul>
+        </li>
+        <li class="plan" data-reveal>
+          <h4>Enterprise</h4><p class="plan__for">Multi-venue groups &amp; custom work</p>
+          <p class="plan__price">Let's talk</p>
+          <ul><li>Everything in Pro</li><li>Multiple venues &amp; roles</li><li>Custom features &amp; languages</li></ul>
+        </li>
+      </ul>
+      <div class="actions" data-reveal>
+        <a class="btn btn--whatsapp" href="#contact" data-whatsapp="Hi BridgeX, I'd like a quote for BridgeXPOS.">Get a quote</a>
+      </div>
+      <p class="fineprint" data-reveal>Packaging and pricing are tailored to each business.</p>
+    </div>
+  </section>
+
+  <section class="page" id="faq" data-title="FAQ" data-side="1" data-turn="11" data-spread="0.2" data-hue="0.05">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Questions</p>
+      <h2 class="title" data-split>Answers before you ask.</h2>
+      <div class="faq" data-reveal>
+        <details><summary>What can you automate?</summary><p>Repetitive work across sales, operations and support: lead follow-up, bookings and reminders, order taking, stock and purchasing, payroll hours, reporting and customer replies on WhatsApp.</p></details>
+        <details><summary>Do I need technical knowledge?</summary><p>No. You describe how the work happens today; we build, deploy and train your team. You get an admin console, not a codebase to maintain.</p></details>
+        <details><summary>Can it carry my own brand?</summary><p>Yes. Your name, logo, colours, domain and WhatsApp number. Customers only ever see you, and your data is isolated from every other business.</p></details>
+        <details><summary>How long does it take?</summary><p>A white-label launch is typically days to a few weeks. Custom products are scoped in the first call, with a timeline you agree to before we start.</p></details>
+        <details><summary>Does it work with the tools I already use?</summary><p>Usually. We connect through official APIs — WhatsApp Business, payment gateways, email and more — and tell you up front if something cannot be integrated.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="page page--cta" id="contact" data-title="Contact" data-side="0" data-scale="1.5" data-turn="12" data-dim="0.45" data-hue="0">
+    <div class="page__content">
+      <p class="eyebrow" data-reveal>Let's build</p>
+      <h2 class="display" data-split>Tell us the workflow that hurts.</h2>
+      <p class="lead" data-reveal>One message is enough. We reply on WhatsApp, map what can be handed to software and AI, and send you a plan you can keep — whether we work together or not.</p>
+      <div class="actions" data-reveal>
+        <a class="btn btn--whatsapp btn--large" href="#contact" data-whatsapp="Hi BridgeX, here is the workflow I'd like to automate:">Start on WhatsApp</a>
+      </div>
+      <p class="fineprint" data-reveal>Free scoping · Same-day reply · No commitment</p>
+    </div>
+    <footer class="footer">
+      <span>© <span id="year">2026</span> BridgeXPOS</span>
+      <span>Business Operating System · by BridgeX AI Services</span>
+    </footer>
+  </section>
+
+</main>
+
+<a class="fab" href="#contact" data-whatsapp="Hi BridgeX, I have a question." aria-label="Chat with BridgeX on WhatsApp">
+  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.4.4 0 0 0 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 2.900 2.900 0 0 0-.9 2.200c0 1.300.900 2.500 1.100 2.700s1.900 2.900 4.600 4.100c1.700.7 2.400.8 3.200.7.500-.100 1.500-.600 1.700-1.200s.200-1.100.200-1.200-.200-.200-.500-.300Z"/></svg>
+</a>
+
+<script type="module" src="/bridgexpos-home/site.js"></script>
+</body>
+</html>

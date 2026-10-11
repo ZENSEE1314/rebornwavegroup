@@ -597,3 +597,16 @@ text.
 - Animations (by day number, `dayKind`): coins for a normal day, a gift box bursting open on days 7/14/21/28, a
   crown with rays + confetti on day 30 (index.css `dc-*`, sounds from lib/sfx.ts).
   A Prize reward goes to Spin › My prizes (`awardPrizeToUser`) for staff to redeem.
+
+## BridgeXPOS homepage (client/public/bridgexpos-home)
+
+- On the BridgeX host, `/` and `/bridgexpos` serve this standalone page (server/vite.ts) to a
+  visitor who is not signed in and not inside a company; everyone else gets the app as before
+  (the React `bridgex-landing.tsx` is still what the app itself shows on in-app navigation).
+- Plain HTML + site.css + site.js (Three.js from a CDN): the glass logo is built in code
+  (`createLogo`), and each `<section class="page">` sets where the logo stands through its
+  `data-side / data-y / data-scale / data-turn / data-spread / data-hue / data-tint / data-dim`.
+  One wheel / key gesture moves one page (`wirePageStepping`). A new section becomes a page by itself.
+- Files load from `/bridgexpos-home/…` (never `/assets`, which is the app's hashed build folder).
+- The WhatsApp number of every button is `WHATSAPP_NUMBER` at the top of site.js.
+- English only so far — it still needs 中文 and Bahasa Indonesia.
