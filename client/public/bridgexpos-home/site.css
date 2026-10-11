@@ -24,10 +24,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-/* Touch devices snap natively; with a mouse or trackpad site.js steps one page per scroll gesture. */
-html { scroll-snap-type: y mandatory; }
-@media (hover: hover) and (pointer: fine) {
-  html { scroll-snap-type: none; }
+/* site.js moves one page per wheel gesture or swipe, so native touch scrolling is switched off. */
+@media (hover: none), (pointer: coarse) {
+  html, body { touch-action: none; overscroll-behavior: none; }
 }
 
 body {
@@ -157,8 +156,6 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-cyan); o
   padding: calc(var(--nav-height) + 24px) var(--space-gutter) 64px;
   display: grid;
   align-items: center;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
 }
 
 .page__content { width: min(560px, 100%); display: grid; gap: 20px; }
@@ -436,7 +433,6 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-cyan); o
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-snap-type: none; }
   [data-reveal], .word > span { transition: none; opacity: 1; transform: none; clip-path: none; }
   .page__grid::before, .marquee__track, .shot__frame, .scroll-cue i, .shot__screen img, .namecard::after, .card, .plan, .stack > div, .stats > div, .faq details { animation: none; }
 }
@@ -529,4 +525,18 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-cyan); o
   box-shadow: var(--shadow-float);
   background-image: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(140, 210, 255, 0.22), transparent 55%);
   z-index: 2;
+}
+
+/* ---------- Page turn on narrow screens ---------- */
+
+/* Each page folds away like the face of a turning block while the next one unfolds: site.js sets
+   --turn (-1 above … 0 on screen … 1 below) and --away (its distance, 0 … 1) on every page. */
+@media (max-width: 1100px) and (prefers-reduced-motion: no-preference) {
+  .page { perspective: 1100px; }
+  .page > :not(.page__grid, .page__index) {
+    rotate: x calc(var(--turn, 0) * -58deg);
+    scale: calc(1 - var(--away, 0) * 0.3);
+    will-change: rotate, scale;
+  }
+  .page__content { opacity: calc(1 - var(--away, 0) * 1.5); }
 }

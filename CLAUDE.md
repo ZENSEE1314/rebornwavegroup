@@ -610,7 +610,10 @@ text.
   `data-side / data-y / data-scale / data-turn / data-spread / data-hue / data-tint / data-dim`.
   One wheel / key gesture moves one page (`wirePageStepping`): every wheel event of a trackpad flick,
   inertia included, counts as one gesture, and a page taller than the screen is read to its end first —
-  the next gesture turns the page. A new section becomes a page by itself.
+  the next gesture turns the page. A new section becomes a page by itself. Touch works the same way
+  (native touch scrolling is off, `touch-action: none`): the page follows the finger inside a tall page,
+  a swipe from its edge turns it. On narrow screens the pages fold and unfold as they turn (`--turn` /
+  `--away` set per page in `updateParallax`, rules at the end of site.css).
 - Files load from `/bridgexpos-home/…` (never `/assets`, which is the app's hashed build folder).
 - The WhatsApp number of every button is `WHATSAPP_NUMBER` at the top of site.js.
 - Three languages: index.html is written in English and `i18n.js` holds the 中文 and Bahasa

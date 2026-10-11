@@ -35,6 +35,10 @@ const PAGE_EDGE_TOLERANCE = 4;
 const WHEEL_GESTURE_GAP_MS = 220;
 const WHEEL_LINE_PIXELS = 16;
 const SETTLE_DELAY_MS = 260;
+const SWIPE_MIN_PIXELS = 36;
+const FLING_MS = 420;
+const FLING_REACH_MS = 240;
+const TRANSITION_FLARE = 0.9;
 
 const RING_RADIUS = 1.5;
 const ORBIT_RADIUS = 1.28;
@@ -254,14 +258,14 @@ function wirePageStepping() {
   // A trackpad keeps sending wheel events (inertia) long after the fingers lift; all of them belong to one gesture.
   const gesture = { lastEventAt: 0, direction: 0, startedAtEdge: false, hasStepped: false };
 
-  const glideTo = (target) => {
+  const glideTo = (target, duration = PAGE_STEP_MS) => {
     if (isGliding || Math.abs(target - scrollY) < 1) return;
     if (prefersReducedMotion) return scrollTo(0, target);
     isGliding = true;
     const from = scrollY;
     const start = performance.now();
     const frame = (now) => {
-      const progress = Math.min(1, (now - start) / PAGE_STEP_MS);
+      const progress = Math.min(1, (now - start) / duration);
       scrollTo(0, from + (target - from) * THREE.MathUtils.smootherstep(progress, 0, 1));
       if (progress < 1) return requestAnimationFrame(frame);
       isGliding = false;
@@ -328,9 +332,43 @@ function wirePageStepping() {
     });
   }
 
+  // Touch: the page follows the finger inside a page taller than the screen and never past its edge;
+  // a swipe that starts at the edge turns the page. (Native touch scrolling is off — site.css.)
+  const touch = { y: 0, scroll: 0, page: null, canGoDown: false, canGoUp: false, lastY: 0, lastAt: 0, speed: 0 };
+  addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1 || isGliding) return;
+    const page = currentPage();
+    const y = event.touches[0].clientY;
+    Object.assign(touch, { y, scroll: scrollY, page, canGoDown: isAtEdge(page, 1), canGoUp: isAtEdge(page, -1), lastY: y, lastAt: performance.now(), speed: 0 });
+  }, { passive: true });
+  addEventListener('touchmove', (event) => {
+    if (!touch.page || event.touches.length !== 1) return;
+    event.preventDefault();
+    if (isGliding) return;
+    const y = event.touches[0].clientY;
+    const now = performance.now();
+    touch.speed = (touch.lastY - y) / Math.max(1, now - touch.lastAt);
+    touch.lastY = y;
+    touch.lastAt = now;
+    const { top, bottom } = restRange(touch.page);
+    scrollTo(0, THREE.MathUtils.clamp(touch.scroll + touch.y - y, top, bottom));
+  }, { passive: false });
+  addEventListener('touchend', () => {
+    const page = touch.page;
+    touch.page = null;
+    if (!page || isGliding) return;
+    const moved = touch.y - touch.lastY;
+    const direction = Math.sign(moved);
+    if (Math.abs(moved) >= SWIPE_MIN_PIXELS && (direction > 0 ? touch.canGoDown : touch.canGoUp)) {
+      goToPage(pages.indexOf(page) + direction);
+      return;
+    }
+    // Let go while reading a tall page: carry on a little in the same direction, still inside the page.
+    const { top, bottom } = restRange(page);
+    glideTo(THREE.MathUtils.clamp(scrollY + touch.speed * FLING_REACH_MS, top, bottom), FLING_MS);
+  });
+
   // A scroll that stops between two pages (scrollbar drag, window resize) settles on the nearer one.
-  // Touch screens are left to the browser's own snapping (site.css).
-  if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   let settleTimer;
   addEventListener('scroll', () => {
     clearTimeout(settleTimer);
@@ -431,7 +469,9 @@ function startScene() {
     particles.position.y = (scrollY / Math.max(1, document.body.scrollHeight)) * 6;
     backdrop.position.set(-pointer.smoothX * 0.8, pointer.smoothY * 0.5 + Math.sin(time * 0.2) * 0.6, backdrop.position.z);
     backdrop.rotation.z = time * 0.03;
-    canvas.style.opacity = String(1 - live.dim);
+    // While a page is turning the logo comes forward out of the dimmed background, then settles back.
+    const flare = Math.min(1, Math.abs(scrollVelocity) * TRANSITION_FLARE);
+    canvas.style.opacity = String(1 - live.dim * (1 - flare));
     updateParallax(centers);
 
     pager.setActive(nearestPageIndex());
@@ -470,7 +510,16 @@ function updateParallax(centers) {
   const middle = scrollY + innerHeight / 2;
   pages.forEach((page, index) => {
     const offset = (centers[index] - middle) / innerHeight;
-    if (Math.abs(offset) < PARALLAX_RANGE) page.style.setProperty('--offset', offset.toFixed(3));
+    if (Math.abs(offset) >= PARALLAX_RANGE) return;
+    page.style.setProperty('--offset', offset.toFixed(3));
+    // How far the screen is from this page's own reading range, in screens: 0 anywhere inside the page,
+    // +1 when it is a full screen below, -1 above. Drives the page-turn effect on narrow screens (site.css).
+    const top = page.offsetTop;
+    const bottom = Math.max(top, top + page.offsetHeight - innerHeight);
+    const away = scrollY < top ? (top - scrollY) / innerHeight : scrollY > bottom ? (bottom - scrollY) / innerHeight : 0;
+    const turn = THREE.MathUtils.clamp(away, -1, 1);
+    page.style.setProperty('--turn', turn.toFixed(3));
+    page.style.setProperty('--away', Math.abs(turn).toFixed(3));
   });
 }
 
