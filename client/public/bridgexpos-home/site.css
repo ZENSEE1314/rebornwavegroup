@@ -394,18 +394,31 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-cyan); o
 
 /* ---------- Reveal ---------- */
 
+/* Every text twists into place when its page arrives, and twists away again before the page turns
+   (site.js puts .is-leaving on the page for a moment before it scrolls on). */
 [data-reveal], .word > span {
   opacity: 0;
-  transform: translateY(28px);
+  transform: perspective(700px) translateY(36px) rotateY(-78deg) rotateZ(-7deg) scale(0.85);
+  transform-origin: left center;
   transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out), clip-path 1.1s var(--ease-out);
   transition-delay: calc(var(--i, 0) * 70ms);
 }
-.word { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: 0.12em; margin-bottom: -0.12em; }
-.word > span { display: inline-block; transform: translateY(105%) rotate(6deg); transform-origin: left bottom; }
+.word { display: inline-block; vertical-align: top; }
+.word > span { display: inline-block; transform: perspective(500px) translateY(60%) rotateX(-85deg) rotateZ(10deg); transform-origin: left bottom; }
 .card[data-reveal], .plan[data-reveal] { transform: perspective(900px) translateY(70px) rotateX(-22deg) scale(0.94); transform-origin: top; }
 .shot[data-reveal] { clip-path: inset(0 0 100% 0); transform: none; }
 .is-visible [data-reveal], .is-visible .word > span { opacity: 1; transform: none; }
 .is-visible .shot[data-reveal] { clip-path: inset(-25%); }
+
+.page.is-leaving [data-reveal], .page.is-leaving .word > span {
+  opacity: 0;
+  transform: perspective(700px) translateY(-34px) rotateY(82deg) rotateZ(9deg) scale(0.7);
+  transform-origin: right center;
+  transition-duration: 0.45s;
+  transition-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4);
+  transition-delay: calc(var(--i, 0) * 28ms);
+}
+.page.is-leaving .word > span { transform: perspective(500px) translateY(-70%) rotateX(88deg) rotateZ(-12deg); transform-origin: left top; }
 
 /* ---------- Responsive ---------- */
 
@@ -525,18 +538,4 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--color-cyan); o
   box-shadow: var(--shadow-float);
   background-image: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(140, 210, 255, 0.22), transparent 55%);
   z-index: 2;
-}
-
-/* ---------- Page turn on narrow screens ---------- */
-
-/* Each page folds away like the face of a turning block while the next one unfolds: site.js sets
-   --turn (-1 above … 0 on screen … 1 below) and --away (its distance, 0 … 1) on every page. */
-@media (max-width: 1100px) and (prefers-reduced-motion: no-preference) {
-  .page { perspective: 1100px; }
-  .page > :not(.page__grid, .page__index) {
-    rotate: x calc(var(--turn, 0) * -58deg);
-    scale: calc(1 - var(--away, 0) * 0.3);
-    will-change: rotate, scale;
-  }
-  .page__content { opacity: calc(1 - var(--away, 0) * 1.5); }
 }

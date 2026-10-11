@@ -172,10 +172,7 @@ export function serveStatic(app: Express) {
     res.set("Cache-Control", "no-cache").type("html").send(page);
   };
   const seesBridgeXHome = (req: express.Request) => !!bridgeXHome && !currentTenant() && !getUserId(req);
-  app.get("/", (req, res, next) => (BRIDGEX_HOST.test(req.hostname) && seesBridgeXHome(req) ? sendBridgeXHome(req, res) : next()));
-  // /bridgexpos shows it on every host, so the link can be shared from rebornwave.group as well:
-  // WhatsApp shows no preview for the *.up.railway.app address.
-  app.get("/bridgexpos", (req, res, next) => (seesBridgeXHome(req) ? sendBridgeXHome(req, res) : next()));
+  app.get(["/", "/bridgexpos"], (req, res, next) => (BRIDGEX_HOST.test(req.hostname) && seesBridgeXHome(req) ? sendBridgeXHome(req, res) : next()));
 
   console.log(`[static] Serving static files from: ${distPath}`);
   // Hashed build files never change → cache them for a year; index.html is sent

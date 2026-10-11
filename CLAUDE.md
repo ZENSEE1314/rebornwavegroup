@@ -600,9 +600,8 @@ text.
 
 ## BridgeXPOS homepage (client/public/bridgexpos-home)
 
-- `/bridgexpos` on every host (so it can be shared as `rebornwave.group/bridgexpos` — WhatsApp shows
-  no link preview for the `*.up.railway.app` address) and `/` on the BridgeX host serve this standalone
-  page (server/vite.ts; its own address + share picture are rewritten to the host that was opened) to a
+- On the BridgeX host, `/` and `/bridgexpos` serve this standalone page (server/vite.ts; its own
+  address + share picture are rewritten to the host that was opened) to a
   visitor who is not signed in and not inside a company; everyone else gets the app as before
   (the React `bridgex-landing.tsx` is still what the app itself shows on in-app navigation).
 - Plain HTML + site.css + site.js (Three.js from a CDN): the glass logo is built in code
@@ -612,8 +611,8 @@ text.
   inertia included, counts as one gesture, and a page taller than the screen is read to its end first —
   the next gesture turns the page. A new section becomes a page by itself. Touch works the same way
   (native touch scrolling is off, `touch-action: none`): the page follows the finger inside a tall page,
-  a swipe from its edge turns it. On narrow screens the pages fold and unfold as they turn (`--turn` /
-  `--away` set per page in `updateParallax`, rules at the end of site.css).
+  a swipe from its edge turns it. A page turn has two parts (`goToPage`): the page's texts twist away
+  (`.is-leaving`, ~0.5 s), then the screen glides on and the next page's texts twist in (`.is-visible`).
 - Files load from `/bridgexpos-home/…` (never `/assets`, which is the app's hashed build folder).
 - The WhatsApp number of every button is `WHATSAPP_NUMBER` at the top of site.js.
 - Three languages: index.html is written in English and `i18n.js` holds the 中文 and Bahasa

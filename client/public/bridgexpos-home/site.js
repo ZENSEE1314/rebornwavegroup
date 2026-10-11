@@ -39,6 +39,7 @@ const SWIPE_MIN_PIXELS = 36;
 const FLING_MS = 420;
 const FLING_REACH_MS = 240;
 const TRANSITION_FLARE = 0.9;
+const TWIST_AWAY_MS = 520;
 
 const RING_RADIUS = 1.5;
 const ORBIT_RADIUS = 1.28;
@@ -258,7 +259,7 @@ function wirePageStepping() {
   // A trackpad keeps sending wheel events (inertia) long after the fingers lift; all of them belong to one gesture.
   const gesture = { lastEventAt: 0, direction: 0, startedAtEdge: false, hasStepped: false };
 
-  const glideTo = (target, duration = PAGE_STEP_MS) => {
+  const glideTo = (target, duration = PAGE_STEP_MS, onArrive = () => {}) => {
     if (isGliding || Math.abs(target - scrollY) < 1) return;
     if (prefersReducedMotion) return scrollTo(0, target);
     isGliding = true;
@@ -269,11 +270,25 @@ function wirePageStepping() {
       scrollTo(0, from + (target - from) * THREE.MathUtils.smootherstep(progress, 0, 1));
       if (progress < 1) return requestAnimationFrame(frame);
       isGliding = false;
+      onArrive();
     };
     requestAnimationFrame(frame);
   };
 
-  const goToPage = (index) => glideTo(pages[THREE.MathUtils.clamp(index, 0, pages.length - 1)].offsetTop);
+  // Turning a page: its texts twist away first (.is-leaving, site.css), then the screen glides on
+  // and the next page's texts twist in as it arrives.
+  const goToPage = (index) => {
+    const target = pages[THREE.MathUtils.clamp(index, 0, pages.length - 1)].offsetTop;
+    if (isGliding || Math.abs(target - scrollY) < 1) return;
+    if (prefersReducedMotion) return scrollTo(0, target);
+    const leaving = currentPage();
+    leaving.classList.add('is-leaving');
+    isGliding = true;
+    setTimeout(() => {
+      isGliding = false;
+      glideTo(target, PAGE_STEP_MS, () => leaving.classList.remove('is-leaving'));
+    }, TWIST_AWAY_MS);
+  };
 
   const currentPage = () => {
     const index = pages.findIndex((page) => scrollY < page.offsetTop + page.offsetHeight - PAGE_EDGE_TOLERANCE);
@@ -512,14 +527,6 @@ function updateParallax(centers) {
     const offset = (centers[index] - middle) / innerHeight;
     if (Math.abs(offset) >= PARALLAX_RANGE) return;
     page.style.setProperty('--offset', offset.toFixed(3));
-    // How far the screen is from this page's own reading range, in screens: 0 anywhere inside the page,
-    // +1 when it is a full screen below, -1 above. Drives the page-turn effect on narrow screens (site.css).
-    const top = page.offsetTop;
-    const bottom = Math.max(top, top + page.offsetHeight - innerHeight);
-    const away = scrollY < top ? (top - scrollY) / innerHeight : scrollY > bottom ? (bottom - scrollY) / innerHeight : 0;
-    const turn = THREE.MathUtils.clamp(away, -1, 1);
-    page.style.setProperty('--turn', turn.toFixed(3));
-    page.style.setProperty('--away', Math.abs(turn).toFixed(3));
   });
 }
 
