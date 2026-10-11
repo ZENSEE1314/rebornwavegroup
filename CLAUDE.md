@@ -605,6 +605,26 @@ text.
   crown with rays + confetti on day 30 (index.css `dc-*`, sounds from lib/sfx.ts).
   A Prize reward goes to Spin › My prizes (`awardPrizeToUser`) for staff to redeem.
 
+## LED lights (Admin › Lights)
+
+- `components/LightsPanel.tsx` + `lib/lights/`: the main admin controls Bluetooth LED lights — power, colour wheel,
+  brightness, six quick + six saved colours (browser storage), five app-driven movements (rainbow, breathe, flash,
+  chase, twinkle; `effects.ts`) and the lights' own built-in effects. Targets: all, a group, or ticked lights.
+- Connection: Web Bluetooth only (Chrome on Android / desktop). It does NOT work in the installed Android app
+  (a `react-native-webview`) or on iPhone. Each light is picked once per visit in the browser's chooser; its command
+  set is detected from the services it offers (`protocols.ts`: ELK-BLEDOM / Lotus Lantern and Triones /
+  HappyLighting; bytes from community documentation, not tested here on real lights). A light of another family is
+  reported by name so a profile can be added.
+- A phone holds about 6 Bluetooth connections (`MAX_LIVE_LIGHTS`, the "max 8" of other LED apps): `LightHub` keeps
+  at most that many open, closes the least recently used and walks through the rest in turns, so a colour reaches 60+
+  lights in about a minute, not at the same instant; an app-driven movement only runs on 6 lights at a time, built-in
+  effects reach all. Flash speed is capped at 3 per second (photosensitivity).
+- The hub talks to lights through `LightLink` (`hub.ts`); a gateway box near the lights (ESP32 / Raspberry Pi holding
+  the connections, the app sending over Wi-Fi) is the planned way to move every light at once — it only needs a new
+  `LightLink`, not a new screen. "Add demo lights" gives virtual lights for trying the screen without hardware.
+- Tests: `client/src/lib/lights/lights.test.ts` (run by `npm test`). In this app's CSS, `grid-cols-1..4` become one
+  column on phones and every `button` gets 16px side padding (use flex / `p-0` for icon buttons).
+
 ## BridgeXPOS homepage (client/public/bridgexpos-home)
 
 - On the BridgeX host, `/` and `/bridgexpos` serve this standalone page (server/vite.ts; its own

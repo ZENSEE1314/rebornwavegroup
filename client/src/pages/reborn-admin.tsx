@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { tData, useTranslation, translations, localeTag, translate, getCurrentLanguage } from "@/lib/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -11,6 +11,8 @@ import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ResetNumbers } from "@/components/ResetNumbers";
+
+const LightsPanel = lazy(() => import("@/components/LightsPanel")); // Bluetooth code is only fetched when the tab opens
 import { useAuth } from "@/hooks/useAuth";
 import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
 import { APP_FEATURES } from "@/lib/features";
@@ -30,7 +32,7 @@ const MANAGER_TABS = ["Overview", "QR", ...STAFF_TABS.slice(1, -1), "Sales", "PO
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
 const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");
-const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
+const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Lights", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
 type AdminRole = "admin" | "manager" | "staff" | "user";
 const tabsFor = (role: AdminRole) => (role === "admin" ? ADMIN_TABS : role === "manager" ? MANAGER_TABS : STAFF_TABS) as readonly string[];
 // The admin-panel view this account gets (manager = staff account with company role manager).
@@ -74,6 +76,7 @@ export default function RebornAdmin() {
       {tab === "Requests" && <SongRequests />}
       {tab === "Gifts" && <GiftTypes />}
       {tab === "Features" && <AppFeatures />}
+      {tab === "Lights" && <Suspense fallback={null}><LightsPanel /></Suspense>}
       {tab === "Settings" && <Settings />}
       {tab === "Users" && <Members />}
       {tab === "Top-ups" && <TopUps />}
