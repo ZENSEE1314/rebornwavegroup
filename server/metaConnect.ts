@@ -16,7 +16,7 @@
 import type { Express, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { appSettings } from "@shared/schema";
 import { currentTenant, runInTenant } from "./tenantContext";
 import { listTenantSpaces } from "./tenantSpace";
@@ -25,8 +25,9 @@ import { reloadWhatsAppConfig } from "./whatsappBot";
 
 const GRAPH = "https://graph.facebook.com/v20.0";
 const DIALOG = "https://www.facebook.com/v20.0/dialog/oauth";
-const APP_ID = process.env.META_APP_ID || "";
-const APP_SECRET = process.env.META_APP_SECRET || "";
+// Set in BridgeX / Reborn admin (stored in the database); the server variables are the fallback.
+let APP_ID = process.env.META_APP_ID || "";
+let APP_SECRET = process.env.META_APP_SECRET || "";
 const LOGIN_CONFIG_ID = process.env.META_LOGIN_CONFIG_ID || "";
 const APP_BASE_URL = (process.env.APP_BASE_URL || "https://rebornwave.group").replace(/\/$/, "");
 const REDIRECT_URI = process.env.META_OAUTH_REDIRECT || `${APP_BASE_URL}/api/meta/oauth/callback`;
@@ -39,6 +40,30 @@ const STATE_PREFIX = "metaOauth:";
 const STATE_TTL_MS = 15 * 60_000;
 const PENDING_KEY = "metaPending";
 const PLATFORM_SLUG = "_"; // the platform's own company in the login "state"
+
+const PLATFORM_KEYS = { id: "metaAppId", secret: "metaAppSecret" };
+
+export async function loadMetaApp(): Promise<void> {
+  await pool.query(`CREATE TABLE IF NOT EXISTS public.platform_settings (key text PRIMARY KEY, value text NOT NULL)`);
+  const rows = (await pool.query(`SELECT key, value FROM public.platform_settings WHERE key = ANY($1)`, [Object.values(PLATFORM_KEYS)])).rows;
+  for (const row of rows) {
+    if (row.key === PLATFORM_KEYS.id && row.value) APP_ID = row.value;
+    if (row.key === PLATFORM_KEYS.secret && row.value) APP_SECRET = row.value;
+  }
+}
+
+// The secret is never sent back; only whether it is set.
+export function metaAppStatus() {
+  return { appId: APP_ID, hasSecret: Boolean(APP_SECRET), ready: metaOAuthAvailable() };
+}
+
+export async function saveMetaApp(appId: string, appSecret: string): Promise<void> {
+  const upsert = `INSERT INTO public.platform_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+  await pool.query(`CREATE TABLE IF NOT EXISTS public.platform_settings (key text PRIMARY KEY, value text NOT NULL)`);
+  if (appId) await pool.query(upsert, [PLATFORM_KEYS.id, appId]);
+  if (appSecret) await pool.query(upsert, [PLATFORM_KEYS.secret, appSecret]);
+  await loadMetaApp();
+}
 
 export function metaOAuthAvailable(): boolean {
   return Boolean(APP_ID && APP_SECRET);
@@ -161,6 +186,7 @@ export async function metaPick(pageId?: string, phoneId?: string) {
 
 // ── The login comes back here (one address for every company) ────────────────
 export function registerMetaConnect(app: Express) {
+  loadMetaApp().catch((error) => console.error("meta app load failed", error));
   app.get("/api/meta/oauth/callback", async (req: Request, res: Response) => {
     const [slug, nonce] = String(req.query.state || "").split(".");
     const space = slug && slug !== PLATFORM_SLUG ? (await listTenantSpaces()).find((s) => s.slug === slug) : null;

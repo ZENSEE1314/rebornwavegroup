@@ -2813,6 +2813,35 @@ function chatWhere(phone: string): { label: string; social: boolean; net?: "fb" 
   return { label: net === "ig" ? "Instagram" : net === "tg" ? "Telegram" : "Facebook", social: true, net };
 }
 
+// The platform's one Meta app (App ID + App Secret), kept here instead of on the server. Only the
+// platform owner's admin gets an answer from the server; for any other company the card stays hidden.
+function MetaAppCard() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const URL_ = "/api/reborn/admin/meta-app";
+  const { data } = useQuery<any>({ queryKey: [URL_], retry: false, queryFn: () => apiRequest("GET", URL_).then((r) => r.json()) });
+  const [appId, setAppId] = useState("");
+  const [appSecret, setAppSecret] = useState("");
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", URL_, { appId, appSecret }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("admin.ma.saved") }); setAppSecret(""); qc.invalidateQueries({ queryKey: [URL_] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/meta"] }); },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: String(x.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  if (!data) return null;
+  const input = "mt-1 w-full rounded-lg bg-black/30 border border-white/15 px-3 py-2 text-sm text-white";
+  return (
+    <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4">
+      <p className="text-sm font-bold">{t("admin.ma.title")}</p>
+      <p className="text-[11px] text-white/55 mt-1">{t("admin.ma.hint")}</p>
+      <label className="block mt-3 text-xs text-white/60">App ID<input className={input} inputMode="numeric" value={appId} placeholder={data.appId || ""} onChange={(e) => setAppId(e.target.value)} /></label>
+      <label className="block mt-2 text-xs text-white/60">App Secret<input className={input} type="password" autoComplete="off" value={appSecret} placeholder={data.hasSecret ? t("admin.ma.secretSet") : ""} onChange={(e) => setAppSecret(e.target.value)} /></label>
+      <button onClick={() => save.mutate()} disabled={save.isPending || (!appId && !appSecret)} className="mt-3 px-4 py-2 rounded-xl bg-sky-400 text-black text-sm font-bold disabled:opacity-40">{t("admin.ma.save")}</button>
+      <p className="text-[11px] mt-2 text-white/55">{data.ready ? t("admin.ma.ready") : t("admin.ma.notReady")}</p>
+    </div>
+  );
+}
+
 // "Connect with Meta": one Facebook login finds and saves the Page (Messenger), its Instagram
 // and the WhatsApp Business number, and links them to the bot (server/metaConnect.ts).
 function ConnectMetaCard() {
@@ -2954,6 +2983,7 @@ function Crm() {
   const { data: cloud } = useQuery<any>({ queryKey: ["/api/reborn/admin/whatsapp/cloud"], queryFn: () => apiRequest("GET", "/api/reborn/admin/whatsapp/cloud").then((r) => r.json()) });
   return (
     <div className="space-y-3">
+      <MetaAppCard />
       <ConnectMetaCard />
       <TelegramCard />
       <details className="rounded-2xl border border-white/10 bg-white/5 p-3">

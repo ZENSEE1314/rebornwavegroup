@@ -5,7 +5,7 @@ import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
 import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
-import { currentTenant, homeCompanySlug } from "./tenantContext";
+import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL } from "./giftLevels";
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
@@ -20,7 +20,7 @@ import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { getMetaSettings, saveMetaSettings, testMeta, connectTelegram, telegramStatus } from "./socialChat";
-import { metaConnectStatus, metaConnectUrl, metaOAuthAvailable, metaPick, registerMetaConnect } from "./metaConnect";
+import { metaAppStatus, saveMetaApp, metaConnectStatus, metaConnectUrl, metaOAuthAvailable, metaPick, registerMetaConnect } from "./metaConnect";
 import { crmRecordVisit, whatsappConfigured, whatsappAvailable, chatAvailable, waDigits, runReminders, runPackageReminders, getWhatsAppCloudSettings, saveWhatsAppCloudSettings, testWhatsAppCloud } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
@@ -3830,6 +3830,18 @@ export function registerRebornRoutes(app: Express) {
     await db.update(bridgeCompanies).set({theme,updatedAt:new Date()}).where(eq(bridgeCompanies.id,c.id));
     await logAdmin(req,{targetType:"settings",targetId:"appSkin",action:"change_app_design",entityType:"settings",oldValues:{skin:before,palette:old.palette||"",colours:old.colours||null,font:old.font||""},newValues:{skin,palette,colours,font},description:`App design ${before} → ${skin}${palette?` · colour ${palette}`:""}${font?` · font ${font}`:""}`});
     res.json({message:tr(req,{en:"App design saved — members see it the next time they open the app",zh:"应用设计已保存——会员下次打开应用时可见",id:"Desain aplikasi disimpan — member melihatnya saat membuka aplikasi lagi"}),skin,palette,colours,font});
+  }));
+  // The platform's Meta app (one for every company): only Reborn's own admin sets it here.
+  const ownerOnly=(req:Request,res:Response)=>{if(homeCompanySlug()===DEFAULT_COMPANY_SLUG)return true;res.status(403).json({message:tr(req,{en:"Only the platform owner can change this",zh:"只有平台所有者可以更改",id:"Hanya pemilik platform yang dapat mengubah ini"})});return false;};
+  app.get("/api/reborn/admin/meta-app", requireAdmin(async(req,res)=>{if(!ownerOnly(req,res))return;res.json(metaAppStatus());}));
+  app.post("/api/reborn/admin/meta-app", requireAdmin(async(req,res)=>{
+    if(!ownerOnly(req,res))return;
+    const appId=String(req.body?.appId||"").trim(),appSecret=String(req.body?.appSecret||"").trim();
+    if(appId&&!/^\d{8,20}$/.test(appId))return res.status(400).json({message:tr(req,{en:"The App ID is the number from Meta › Settings › Basic",zh:"App ID 是 Meta › 设置 › 基本 中的数字",id:"App ID adalah angka dari Meta › Settings › Basic"})});
+    if(appSecret&&!/^[0-9a-f]{32}$/i.test(appSecret))return res.status(400).json({message:tr(req,{en:"The App Secret is the 32-character code from Meta › Settings › Basic",zh:"App Secret 是 Meta › 设置 › 基本 中的32位代码",id:"App Secret adalah kode 32 karakter dari Meta › Settings › Basic"})});
+    await saveMetaApp(appId,appSecret);
+    await logAdmin(req,{targetType:"settings",targetId:"metaApp",action:"change_meta_app",entityType:"settings",description:"Meta app credentials changed"});
+    res.json(metaAppStatus());
   }));
   // The company's own logo and tab/app icon: uploaded pictures, changed here by its admin.
   app.get("/api/reborn/admin/brand", requireAdmin(async(_req,res)=>{const [c]=await db.select({logoUrl:bridgeCompanies.logoUrl,appIconUrl:bridgeCompanies.appIconUrl}).from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1);res.json({logoUrl:c?.logoUrl||"",appIconUrl:c?.appIconUrl||""});}));

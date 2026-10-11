@@ -288,6 +288,7 @@ export default function BridgeXAdmin() {
         <div className="mt-5 rounded-2xl p-5" style={{background:brand.primaryColor}}><div className="flex items-center gap-3">{brand.logoUrl?<img src={brand.logoUrl} className="h-12 w-12 rounded-xl object-cover"/>:<Smartphone/>}<div><b className="text-slate-950">{brand.appName || selected?.name || "Your app"}</b><p className="text-xs text-slate-900/70">{brand.websiteDomain || "your-company.com"}</p></div></div></div>
       </Panel>}
 
+      {tab === "brand" && platformAdmin && <MetaAppPanel onMsg={setMessage} />}
       {tab === "features" && platformAdmin && selected && <CompanyAppFeatures company={selected} onMsg={setMessage} />}
 
       {tab === "overview" && platformAdmin && <OverviewPanel />}
@@ -918,4 +919,30 @@ function OperationsPanel({settings,setSettings,onSave}:{settings:any;setSettings
     <Panel title="Booking areas and floor plans" subtitle="Create rooms or areas, upload a floor-plan URL, list tables, and set operating times. WhatsApp booking uses the same company configuration."><div className="space-y-3">{(booking.areas||[]).map((a:any,i:number)=><div key={i} className="grid gap-2 rounded-xl border border-white/10 p-3 sm:grid-cols-2"><input className={field} placeholder="Area / room name" value={a.name||""} onChange={e=>updateArea(i,{name:e.target.value})}/><input className={field} placeholder="Level" value={a.level||""} onChange={e=>updateArea(i,{level:e.target.value})}/><input className={field+" sm:col-span-2"} placeholder="Floor plan image URL" value={a.imageUrl||""} onChange={e=>updateArea(i,{imageUrl:e.target.value})}/><input className={field+" sm:col-span-2"} placeholder="Tables / rooms, comma separated" value={(a.tables||[]).join(", ")} onChange={e=>updateArea(i,{tables:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)})}/><input className={field} type="time" value={a.openTime||"17:00"} onChange={e=>updateArea(i,{openTime:e.target.value})}/><input className={field} type="time" value={a.closeTime||"02:00"} onChange={e=>updateArea(i,{closeTime:e.target.value})}/><button className="text-left text-xs text-red-300" onClick={()=>setSettings({...settings,booking:{...booking,areas:booking.areas.filter((_:any,n:number)=>n!==i)}})}>Remove area</button></div>)}</div><button className="mt-3 text-sm font-bold text-cyan-300" onClick={()=>setSettings({...settings,booking:{...booking,areas:[...(booking.areas||[]),{name:"New area",level:"Ground",imageUrl:"",tables:[],openTime:"17:00",closeTime:"02:00"}]}})}>+ Add area or room</button></Panel>
     <Panel title="Website and app provisioning" subtitle="The selected merchant receives a tenant login URL while custom domain and store builds are prepared."><p className="rounded-xl bg-white/5 p-4 text-sm">Temporary tenant login: <a className="text-cyan-300 underline" href="/bridgexpos/login">BridgeXPOS merchant login</a></p><p className="mt-3 text-xs text-slate-400">Website, backend and app design use the same enabled modules and can follow the Reborn app layout as the starting template.</p><button className={button+" mt-5"} onClick={onSave}>Save all operation settings</button></Panel>
   </div>
+}
+
+
+function MetaAppPanel({ onMsg }: { onMsg: (message: string) => void }) {
+  const [status, setStatus] = useState<{ appId: string; hasSecret: boolean; ready: boolean } | null>(null);
+  const [appId, setAppId] = useState("");
+  const [appSecret, setAppSecret] = useState("");
+  const load = () => fetch("/api/v1/platform/meta-app", { credentials: "include" }).then((r) => r.ok ? r.json() : null).then(setStatus).catch(() => undefined);
+  useEffect(() => { load(); }, []);
+  const save = async () => {
+    const r = await fetch("/api/v1/platform/meta-app", { method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ appId, appSecret }) });
+    const body = await r.json().catch(() => ({}));
+    onMsg(r.ok ? "Meta app saved" : body.message || "Could not save");
+    if (r.ok) { setAppSecret(""); setStatus(body); }
+  };
+  if (!status) return null;
+  return (
+    <Panel title="Meta app (Facebook / Instagram / WhatsApp)" subtitle="One Meta app serves every company. Paste its App ID and App Secret from Meta › your app › Settings › Basic.">
+      <div className="grid gap-3 md:grid-cols-2">
+        <input className={field} inputMode="numeric" placeholder={status.appId ? `App ID (${status.appId})` : "App ID"} value={appId} onChange={(e) => setAppId(e.target.value)} />
+        <input className={field} type="password" autoComplete="off" placeholder={status.hasSecret ? "App Secret saved — type a new one to replace" : "App Secret"} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} />
+      </div>
+      <button className={button + " mt-3"} disabled={!appId && !appSecret} onClick={save}>Save Meta app</button>
+      <p className="mt-2 text-xs text-slate-400">{status.ready ? "✓ Ready — companies can use Connect with Meta" : "Not ready: both App ID and App Secret are needed"}</p>
+    </Panel>
+  );
 }

@@ -6,6 +6,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT, homeCompanySlug, runInTenant } from "./tenantContext";
 import { isBrandImage } from "./pageBrand";
+import { metaAppStatus, saveMetaApp } from "./metaConnect";
 import { DATA_MODES, DEFAULT_DATA_MODE, forgetTenantRegistry, setCompanyDataMode, type DataMode } from "./tenantSpace";
 import { countryOf, moneyStyle } from "@shared/countries";
 import { loadHomeMoney } from "./companyMoney";
@@ -1183,6 +1184,20 @@ export function registerBridgeXRoutes(app: Express) {
     const managers = await db.select().from(bridgeCompanyMembers).where(and(eq(bridgeCompanyMembers.companyId, companyId), inArray(bridgeCompanyMembers.role, ["owner", "admin", "manager"])));
     await sendBridgeXNotifications(companyId, managers.map(x => x.userId), { type: "feedback", title: `New ${category} feedback`, body: rating ? `${rating} stars · ${message.slice(0, 100)}` : message.slice(0, 120) });
     res.status(201).json((result.rows || result as any)[0]);
+  }));
+
+  app.get("/api/v1/platform/meta-app", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    res.json(metaAppStatus());
+  }));
+  app.put("/api/v1/platform/meta-app", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const appId = String(req.body?.appId || "").trim();
+    const appSecret = String(req.body?.appSecret || "").trim();
+    if (appId && !/^\d{8,20}$/.test(appId)) return res.status(400).json({ message: "The App ID is the number from Meta › Settings › Basic" });
+    if (appSecret && !/^[0-9a-f]{32}$/i.test(appSecret)) return res.status(400).json({ message: "The App Secret is the 32-letter code from Meta › Settings › Basic" });
+    await saveMetaApp(appId, appSecret);
+    res.json(metaAppStatus());
   }));
 
   app.put("/api/v1/company/white-label", route(async (req, res) => {
