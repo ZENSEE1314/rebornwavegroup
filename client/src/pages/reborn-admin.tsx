@@ -10,6 +10,7 @@ import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
+import { ResetNumbers } from "@/components/ResetNumbers";
 import { useAuth } from "@/hooks/useAuth";
 import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
 import { APP_FEATURES } from "@/lib/features";
@@ -254,11 +255,6 @@ function Members() {
   const { data: positions = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-positions"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-positions").then((r) => r.json()), enabled: isFullAdmin });
   const save = useMutation({ mutationFn: (u: any) => apiRequest("POST", `/api/reborn/admin/users/${u.id}`, u).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.m.updated") }); refetch(); }, onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }) });
   const del = useMutation({ mutationFn: (id: string) => apiRequest("DELETE", `/api/reborn/admin/users/${id}`, {}).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message || t("admin.c.deleted") }); refetch(); }, onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }) });
-  const reset = useMutation({
-    mutationFn: (password: string) => apiRequest("POST", "/api/reborn/admin/reset-numbers", { password }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); refetch(); },
-    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
-  });
   return (
     <div>
       {summary && (
@@ -275,13 +271,7 @@ function Members() {
       </div>
       {!isFullAdmin && <p className="text-xs text-white/40 mb-3">{t("admin.m.onlyAdmins")}</p>}
       <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} positions={positions} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => { if (confirm(t("admin.m.confirmDelete", { name: u.firstName || u.username || u.email }))) del.mutate(id); }} />)}</div>
-      {isFullAdmin && (
-        <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-500/5 p-4">
-          <h3 className="font-bold text-sm text-red-200 mb-1">{t("admin.m.resetTitle")}</h3>
-          <p className="text-[11px] text-white/50 mb-2">{t("admin.m.resetHint")}</p>
-          <button onClick={() => { const p = prompt(t("admin.m.resetPrompt")); if (p) reset.mutate(p); }} disabled={reset.isPending} className={btnDel}>{t("admin.m.resetBtn")}</button>
-        </div>
-      )}
+      {isFullAdmin && <ResetNumbers />}
     </div>
   );
 }
@@ -909,6 +899,7 @@ function Settings() {
         <h3 className="font-bold mb-1 flex items-center gap-2"><Coins className="w-4 h-4 text-red-300" /> {t("admin.sec.title")}</h3>
         <p className="text-[11px] text-white/50 mb-3">{t("admin.sec.hint")}</p>
         <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.sec.pw")}</span><PasswordInput value={cur.mainAdminPassword || ""} onChange={(v) => setStr("mainAdminPassword", v)} placeholder={t("admin.sec.pwPh")} className={inp + " w-full"} /></label>
+        <ResetNumbers />
       </Card>
       <button onClick={() => save.mutate()} className={btn}>{t("admin.set.save")}</button>
     </div>

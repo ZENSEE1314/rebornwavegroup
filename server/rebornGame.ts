@@ -2665,15 +2665,37 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetUserId: id, targetType: "user", action: "delete", entityType: "user", description: `Deleted user ${u.username || u.email || id}` });
     res.json({ message: tr(req, { en: "User deleted", zh: "用户已删除", id: "Pengguna dihapus" }) });
   }));
-  // Main-admin reset: zero all member balances/points + the prize pool. Keeps users & items.
+  // Main-admin reset: zero every number — member balances/points, the prize pool and the stock count of every
+  // inventory item. Keeps users and items (only the numbers change); each stock change is logged as a movement.
   app.post("/api/reborn/admin/reset-numbers", requireAdmin(async (req, res) => {
     const s = await getSettings();
     if (!s.mainAdminPassword) return res.status(400).json({ message: tr(req, { en: "Set a main-admin password in Settings first.", zh: "请先在设置中设定主管理员密码。", id: "Atur kata sandi admin utama di Pengaturan terlebih dahulu." }) });
     if (String(req.body?.password || "") !== s.mainAdminPassword) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
-    await db.update(users).set({ tokens: 0, loyaltyPoints: 0, lifetimePoints: 0, credits: "0.00", kgold: 0, referralEarnings: "0.00", updatedAt: new Date() });
+    const cid = await rebornCompanyId(req);
+    const actor = getUserId(req)!;
+    const note = "Main-admin reset: stock set to 0";
+    // One transaction: the stock count and its movement row are written from the same rows, so a sale in the middle can't skew the log.
+    const stockZeroed = await db.transaction(async (tx) => {
+      await tx.update(users).set({ tokens: 0, loyaltyPoints: 0, lifetimePoints: 0, credits: "0.00", kgold: 0, referralEarnings: "0.00", updatedAt: new Date() });
+      const shop = await tx.execute(sql`
+        WITH old AS (SELECT id, stock FROM pos_products WHERE company_id = ${cid} AND stock <> 0 FOR UPDATE),
+        zeroed AS (UPDATE pos_products p SET stock = 0 FROM old WHERE p.id = old.id RETURNING p.id, old.stock AS was)
+        INSERT INTO stock_movements (company_id, product_id, delta, reason, note, user_id)
+        SELECT ${cid}::int, id, -was, 'adjustment', ${note}::text, ${actor}::varchar FROM zeroed RETURNING product_id`);
+      const modules = await tx.execute(sql`
+        WITH old AS (SELECT item_id, branch_id, quantity FROM bridge_stock_levels WHERE company_id = ${cid} AND quantity <> 0 FOR UPDATE),
+        zeroed AS (UPDATE bridge_stock_levels l SET quantity = 0, updated_at = now() FROM old WHERE l.item_id = old.item_id AND l.branch_id = old.branch_id RETURNING l.item_id, l.branch_id, old.quantity AS was)
+        INSERT INTO bridge_stock_movements (company_id, item_id, branch_id, type, quantity, note, user_id)
+        SELECT ${cid}::int, item_id, branch_id, 'adjustment', -was, ${note}::text, ${actor}::varchar FROM zeroed RETURNING item_id`);
+      return shop.rows.length + modules.rows.length;
+    });
     await setSpinPool(0);
-    await logAdmin(req, { targetType: "system", action: "reset_numbers", entityType: "system", description: "Reset all member balances/points + prize pool" });
-    res.json({ message: tr(req, { en: "All member balances, points, tokens and the prize pool have been reset to 0.", zh: "所有会员余额、积分、代币和奖池已清零。", id: "Semua saldo, poin, dan token member serta kumpulan hadiah telah direset ke 0." }) });
+    await logAdmin(req, { targetType: "system", action: "reset_numbers", entityType: "system", description: `Reset all member balances/points + prize pool + stock of ${stockZeroed} item${stockZeroed === 1 ? "" : "s"}` });
+    res.json({ stockZeroed, message: tr(req, {
+      en: "All member balances, points, tokens, the prize pool and every stock count have been reset to 0. Users and items are kept.",
+      zh: "所有会员余额、积分、代币、奖池以及全部库存数量已清零。用户和物品均已保留。",
+      id: "Semua saldo, poin, token member, kumpulan hadiah, dan jumlah stok telah direset ke 0. Pengguna dan item tetap ada.",
+    }) });
   }));
   app.post("/api/reborn/admin/users/:id", requireAdmin(async (req, res) => {
     const id = req.params.id; const b = req.body || {};

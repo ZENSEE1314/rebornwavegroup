@@ -323,6 +323,13 @@ text.
 - **Main admin** (`users.role = admin`): every tab.
 - Daily sales and the day close count by venue day (08:00 → 08:00 WIB,
   `VENUE_DAY_OF`).
+- **Reset all numbers** (main admin only; button in Admin › Users and in Admin › Settings › Main-admin
+  security — `components/ResetNumbers.tsx`, an in-app box, never `prompt()`): `POST /api/reborn/admin/reset-numbers`
+  with the main-admin password sets to 0 every member's tokens / points / credits / KGOLD / referral earnings, the
+  spin prize pool and the stock count of every inventory item (`pos_products.stock` + the BridgeX module's
+  `bridge_stock_levels`). Users and items are kept; each stock change is written to `stock_movements` /
+  `bridge_stock_movements` (reason `adjustment`) in the same transaction. Not reset: sales history, accounting,
+  bottles, packages, game ranks.
 
 ## Sign-up without email (phone-number login)
 
