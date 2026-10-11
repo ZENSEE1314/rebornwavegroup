@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRoute } from "wouter";
 import { useTranslation } from "@/lib/i18n";
+import { rememberedTenantSlug } from "@/hooks/useTenantBrand";
 import { GiftScene, sceneOf } from "@/pages/reborn-kos";
 
 interface Song { title: string; artist: string; table: string; name: string }
@@ -139,6 +140,7 @@ export default function TvDisplay() {
 
   useEffect(() => {
     if (!token) return;
+    rememberedTenantSlug(); // saves ?tenant=<slug> as the cookie so every call below reaches this company's data
     void refresh();
     const source = new EventSource(`/api/tv/${token}/stream`);
     source.addEventListener("refresh", () => void refresh());

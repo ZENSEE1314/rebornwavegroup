@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Copy, Monitor, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
+import { rememberedTenantSlug } from "@/hooks/useTenantBrand";
 
 type TvView = "overlay" | "queue" | "gifts" | "off";
 interface Screen { id: string; token: string; name: string; view: TvView; tables: string[]; online?: number }
@@ -13,7 +14,11 @@ const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
 const field = "min-w-0 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60";
 const button = "inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-lg text-xs font-semibold bg-white/5 text-white/80 border border-white/10 disabled:opacity-40";
 
-const tvAddress = (token: string) => `${window.location.origin}/tv/${token}`;
+// On the shared platform host a company is told apart by ?tenant=<slug>, which the TV page remembers before it loads data.
+const tvAddress = (token: string) => {
+  const slug = rememberedTenantSlug();
+  return `${window.location.origin}/tv/${token}${slug ? `?tenant=${encodeURIComponent(slug)}` : ""}`;
+};
 const tablesText = (tables: string[]) => tables.join(", ");
 
 export default function TvPanel() {

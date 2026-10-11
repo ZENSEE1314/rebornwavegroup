@@ -24,6 +24,8 @@ text.
 
 ## Companies and their data (BridgeX tenants)
 
+- Every new function is built for all companies, not only Reborn: store its data through `db` / `appSettings` (per company), no module gate unless it truly needs one, and make any public page or address work for a company on the shared host (`?tenant=<slug>`).
+
 - Every company other than Reborn keeps its member-app data apart. `bridge_companies.data_mode`:
   `schema` = its own data space on this server (Postgres schema `tenant_<id>`, the default
   for new companies), `dedicated` = its own server + database (`server_url`), `shared` =
@@ -645,6 +647,7 @@ text.
   re-reads `/api/tv/:token/state`; a 30 s safety refresh covers a dropped stream. A KOS gift (`POST /api/reborn/kos/gift`) calls
   `publishTvGift` after the gift is saved (never blocks the sender); the page queues gifts and plays each ~9 s with the app's own
   `GiftScene`, then returns to the bar. Recent gifts are kept in memory only (20 per company).
+- A TV address carries `?tenant=<slug>` on the shared platform host (`rememberedTenantSlug` sets the cookie before the page loads data), so every company's TVs work.
 - Showing it over the karaoke picture: the karaoke program's video is not ours, so the overlay address is added as a see-through
   browser layer in front of it (OBS Browser Source, or an HDMI-capture mini PC). Remote power / input / volume of a TV is not
   built; it would need a gateway box like the lights one.
