@@ -192,6 +192,7 @@ function observeReveals() {
     for (const entry of entries) {
       entry.target.classList.toggle('is-visible', entry.isIntersecting);
       if (entry.isIntersecting) entry.target.querySelectorAll('[data-count]').forEach(countUp);
+      else entry.target.querySelectorAll('video').forEach((video) => video.pause());
     }
   }, { threshold: 0.18 });
   pages.forEach((page) => observer.observe(page));
@@ -331,7 +332,7 @@ function wirePageStepping() {
 
   addEventListener('keydown', (event) => {
     const direction = { ArrowDown: 1, PageDown: 1, ' ': 1, ArrowUp: -1, PageUp: -1 }[event.key];
-    if (!direction || event.target.closest('input, textarea, select, summary, a, button')) return;
+    if (!direction || event.target.closest('input, textarea, select, summary, a, button, video')) return;
     const page = currentPage();
     if (!isGliding && !isAtEdge(page, direction)) return;
     event.preventDefault();
@@ -351,7 +352,8 @@ function wirePageStepping() {
   // a swipe that starts at the edge turns the page. (Native touch scrolling is off — site.css.)
   const touch = { y: 0, scroll: 0, page: null, canGoDown: false, canGoUp: false, lastY: 0, lastAt: 0, speed: 0 };
   addEventListener('touchstart', (event) => {
-    if (event.touches.length !== 1 || isGliding) return;
+    // A touch on the video belongs to its own controls (play, seek bar).
+    if (event.touches.length !== 1 || isGliding || event.target.closest('video')) return;
     const page = currentPage();
     const y = event.touches[0].clientY;
     Object.assign(touch, { y, scroll: scrollY, page, canGoDown: isAtEdge(page, 1), canGoUp: isAtEdge(page, -1), lastY: y, lastAt: performance.now(), speed: 0 });

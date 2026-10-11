@@ -2,6 +2,10 @@
 // A text that is missing here stays in English, so add both versions whenever index.html changes.
 export const TRANSLATIONS = {
   // Navigation
+  'Demo': ['演示', 'Demo'],
+  'Watch the demo': ['观看演示', 'Tonton demo'],
+  'See every function in two minutes.': ['两分钟看完每一项功能。', 'Lihat setiap fungsi dalam dua menit.'],
+  'BridgeXPOS demo video: a walk through every function of the system': ['BridgeXPOS 演示视频：逐一介绍系统的每项功能', 'Video demo BridgeXPOS: penjelasan setiap fungsi sistem'],
   'Login': ['登录', 'Masuk'],
   'Features': ['功能', 'Fitur'],
   'Showcase': ['案例', 'Karya'],

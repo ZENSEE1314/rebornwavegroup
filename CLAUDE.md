@@ -615,6 +615,9 @@ text.
   (`.is-leaving`, ~0.5 s), then the screen glides on and the next page's texts twist in (`.is-visible`).
 - Files load from `/bridgexpos-home/…` (never `/assets`, which is the app's hashed build folder).
 - The WhatsApp number of every button is `WHATSAPP_NUMBER` at the top of site.js.
+- Demo video (the page after the title): `assets/demo.mp4` (720p, CRF 26, AAC 96k, faststart) with
+  `assets/demo-poster.jpg`; it loads only when played and pauses when its page is left. It is built in
+  `~/videos/bridgexpos-demo` (HyperFrames: `scenes.json` + `node build.mjs`, voice-over in English).
 - Three languages: index.html is written in English and `i18n.js` holds the 中文 and Bahasa
   Indonesia of every text, keyed by the English wording (texts, `alt`, `aria-label`, the WhatsApp
   messages, title + description). A text changed or added in index.html needs its entry there, or it
