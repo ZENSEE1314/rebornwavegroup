@@ -9,7 +9,7 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 export function createDemoLight(number: number): { info: LightInfo; link: LightLink } {
   let isLive = false;
   return {
-    info: { id: `demo-${number}`, name: `Demo light ${number}`, profileId: "elk" },
+    info: { id: `demo-${number}`, name: `Demo light ${number}`, profileId: "elk1" },
     link: {
       isLive: () => isLive,
       connect: async () => { await sleep(DEMO_CONNECT_MS); isLive = true; },

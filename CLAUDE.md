@@ -612,13 +612,20 @@ text.
   chase, twinkle; `effects.ts`) and the lights' own built-in effects. Targets: all, a group, or ticked lights.
 - Connection: Web Bluetooth only (Chrome on Android / desktop). It does NOT work in the installed Android app
   (a `react-native-webview`) or on iPhone. Each light is picked once per visit in the browser's chooser; its command
-  set is detected from the services it offers (`protocols.ts`: ELK-BLEDOM / Lotus Lantern and Triones /
-  HappyLighting; bytes from community documentation, not tested here on real lights). A light of another family is
-  reported by name so a profile can be added.
-- A phone holds about 6 Bluetooth connections (`MAX_LIVE_LIGHTS`, the "max 8" of other LED apps): `LightHub` keeps
-  at most that many open, closes the least recently used and walks through the rest in turns, so a colour reaches 60+
-  lights in about a minute, not at the same instant; an app-driven movement only runs on 6 lights at a time, built-in
-  effects reach all. Flash speed is capped at 3 per second (photosensitivity).
+  style is chosen from the services it offers and the name it advertises (`protocols.ts` `chooseProfile`). Styles:
+  `elk1/elk2/elk3` (ELK-BLEDOM family — what the duoCo and LED LAMP apps drive; service FFF0/FFF3; style 1 is
+  byte-for-byte what the duoCo app was seen sending), `ledble` + `ledDash` (FFE0/FFE1), `triones` (FFD5/FFD9). The
+  layouts differ by firmware, so every light row has a command-style select and a Test button (flashes red, green,
+  blue). Sources are in the file header (a sniffed-traffic write-up and the community `elkbledom` integration); none
+  of it has been run against real lights by us. A light of another family is reported by name.
+- Music (Music tab): the ELK-family controllers have their own microphone; `playMusic` switches it on (8 modes +
+  sensitivity), so the lights keep following the music with no phone connection and it reaches every light.
+  Any colour / effect / power command sends "stop listening" first (`leaveMusic`).
+- A Bluetooth adapter holds only a few connections at once (about 6 on a phone, the "max 8" of other LED apps; a
+  computer's adapter may manage more — the "Connections at once" select, `maxLive`, lets the admin raise it):
+  `LightHub` keeps at most that many open, closes the least recently used and walks through the rest in turns, so a
+  colour reaches 60+ lights in about a minute, not at the same instant; an app-driven movement only runs on that many
+  lights at a time, built-in effects and music reach all. Flash speed is capped at 3 per second (photosensitivity).
 - The hub talks to lights through `LightLink` (`hub.ts`); a gateway box near the lights (ESP32 / Raspberry Pi holding
   the connections, the app sending over Wi-Fi) is the planned way to move every light at once — it only needs a new
   `LightLink`, not a new screen. "Add demo lights" gives virtual lights for trying the screen without hardware.

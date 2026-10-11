@@ -1,7 +1,7 @@
 // Web Bluetooth connection to real lights (Chrome on Android and desktop; not iPhone, not Android's in-app web view).
 // Every light is chosen by the admin once per visit in the browser's own device chooser; the hub then reconnects them as needed.
 import type { LightInfo, LightLink } from "./hub";
-import { DETECTION_SERVICES, describeOtherServices, detectProfile, type LightProfile } from "./protocols";
+import { DETECTION_SERVICES, chooseProfile, describeOtherServices, type LightProfile } from "./protocols";
 
 const CONNECT_TIMEOUT_MS = 8000;
 const FRAME_GAP_MS = 40;
@@ -103,7 +103,7 @@ export async function pairBluetoothLight(): Promise<{ info: LightInfo; link: Lig
   if (!gatt) throw new UnsupportedLightError(device.name || "", []);
   const server = await withTimeout(gatt.connect(), device.name || "Light");
   const offered = (await server.getPrimaryServices()).map((service) => service.uuid);
-  const profile = detectProfile(offered);
+  const profile = chooseProfile(device.name || "", offered);
   if (!profile) {
     gatt.disconnect();
     throw new UnsupportedLightError(device.name || "", describeOtherServices(offered));

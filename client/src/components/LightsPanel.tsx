@@ -2,16 +2,17 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Bluetooth, Plus, Power, Trash2 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { APP_EFFECTS, hsvToRgb, rgbToHsv } from "@/lib/lights/effects";
-import { LightHub, MAX_LIVE_LIGHTS, type LightShown, type Target } from "@/lib/lights/hub";
+import { LightHub, type LightShown, type Target } from "@/lib/lights/hub";
 import { createDemoLight } from "@/lib/lights/demo";
 import { UnsupportedLightError, isBluetoothSupported, pairBluetoothLight } from "@/lib/lights/bluetooth";
-import type { Rgb } from "@/lib/lights/protocols";
+import type { ProfileId, Rgb } from "@/lib/lights/protocols";
 
 const WHEEL_SIZE = 240;
 const WHEEL_EDGE_SOFTNESS = 0.015;
 const CUSTOM_SLOTS = 6;
 const CUSTOM_STORAGE_KEY = "lights.customColours";
 const DEMO_COUNTS = [8, 24, 60];
+const CONNECTION_COUNTS = [4, 6, 8, 10, 12];
 const PRESETS: Rgb[] = [
   { r: 255, g: 0, b: 0 }, { r: 0, g: 255, b: 0 }, { r: 0, g: 0, b: 255 },
   { r: 255, g: 255, b: 255 }, { r: 255, g: 255, b: 0 }, { r: 255, g: 0, b: 255 },
@@ -101,7 +102,7 @@ export default function LightsPanel() {
   const { t } = useTranslation();
   const [hub] = useState(() => new LightHub());
   const view = useSyncExternalStore(hub.subscribe, hub.getSnapshot);
-  const [tab, setTab] = useState<"colour" | "effects">("colour");
+  const [tab, setTab] = useState<"colour" | "effects" | "music">("colour");
   const [notice, setNotice] = useState<{ isError: boolean; text: string } | null>(null);
   const [isPairing, setIsPairing] = useState(false);
   const [demoCount, setDemoCount] = useState(DEMO_COUNTS[0]);
@@ -152,7 +153,7 @@ export default function LightsPanel() {
     <div className="space-y-4">
       <div className={card}>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Bluetooth className="w-4 h-4 text-cyan-300" /> {t("admin.lt.title")}</h3>
-        <p className="text-[11px] text-white/50 mb-3">{t("admin.lt.intro", { n: MAX_LIVE_LIGHTS })}</p>
+        <p className="text-[11px] text-white/50 mb-3">{t("admin.lt.intro", { n: view.maxLive })}</p>
         {!canBluetooth && <p className="text-xs text-amber-200 mb-3">{t("admin.lt.notSupported")}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={addLight} disabled={!canBluetooth || isPairing} className="inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-lg font-bold text-black text-sm bg-amber-400 disabled:opacity-40"><Plus className="w-4 h-4" /> {t("admin.lt.addLight")}</button>
@@ -161,6 +162,12 @@ export default function LightsPanel() {
           </select>
           <button type="button" onClick={addDemoLights} className={chip(false)}>{t("admin.lt.addDemo", { n: demoCount })}</button>
         </div>
+        <label className="mt-3 flex items-center gap-2 text-[11px] text-white/60">{t("admin.lt.maxLive")}
+          <select value={view.maxLive} onChange={(event) => hub.setMaxLive(Number(event.target.value))} className={field + " min-h-[44px]"}>
+            {CONNECTION_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}
+          </select>
+        </label>
+        <p className="text-[11px] text-white/40">{t("admin.lt.maxLiveNote")}</p>
         {notice && <p role="status" className={`mt-3 text-xs ${notice.isError ? "text-red-300" : "text-white/70"}`}>{notice.text}</p>}
       </div>
 
@@ -191,6 +198,7 @@ export default function LightsPanel() {
               <div className="flex gap-2">
                 <button type="button" onClick={() => setTab("colour")} className={chip(tab === "colour")}>{t("admin.lt.colour")}</button>
                 <button type="button" onClick={() => setTab("effects")} className={chip(tab === "effects")}>{t("admin.lt.effects")}</button>
+                <button type="button" onClick={() => setTab("music")} className={chip(tab === "music")}>{t("admin.lt.music")}</button>
               </div>
               <button type="button" onClick={() => hub.setPower(!control.isOn)} aria-label={t("admin.lt.power")} aria-pressed={control.isOn}
                 className={`w-11 h-11 p-0 rounded-full border-2 flex items-center justify-center ${control.isOn ? "border-cyan-300 text-cyan-300" : "border-white/30 text-white/40"}`}><Power className="w-5 h-5" /></button>
@@ -230,7 +238,7 @@ export default function LightsPanel() {
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : tab === "effects" ? (
               <div className="space-y-4">
                 <label className="block text-xs text-white/60">{t("admin.lt.speed", { n: control.speed })}
                   <input type="range" min={1} max={100} value={control.speed} onChange={(event) => hub.setSpeed(Number(event.target.value))} className="w-full mt-1 accent-amber-400" />
@@ -251,21 +259,54 @@ export default function LightsPanel() {
                   </div>
                 </div>
               </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-[11px] text-white/50">{t("admin.lt.musicNote")}</p>
+                {view.musicCount === 0 ? (
+                  <p className="text-xs text-amber-200">{t("admin.lt.musicNone")}</p>
+                ) : (
+                  <>
+                    {view.musicCount < view.targetCount && <p className="text-[11px] text-amber-200">{t("admin.lt.musicSome", { n: view.musicCount, total: view.targetCount })}</p>}
+                    <label className="block text-xs text-white/60">{t("admin.lt.sensitivity", { n: control.sensitivity })}
+                      <input type="range" min={0} max={100} value={control.sensitivity} onChange={(event) => hub.setSensitivity(Number(event.target.value))} className="w-full mt-1 accent-amber-400" />
+                    </label>
+                    <div className="grid grid-cols-8 gap-1.5">
+                      {Array.from({ length: view.musicLimit }, (_, i) => i + 1).map((index) => (
+                        <button key={index} type="button" aria-label={t("admin.lt.playMusic", { n: index })} onClick={() => hub.playMusic(index)} className={chip(control.music === index) + " px-0"}>{index}</button>
+                      ))}
+                    </div>
+                    {control.music !== null && <button type="button" onClick={() => hub.stopMusic()} className={chip(false)}>{t("admin.lt.musicStop")}</button>}
+                  </>
+                )}
+              </div>
             )}
           </div>
 
-          <div className={card + " space-y-2"}>
+          <div className={card + " space-y-3"}>
+            <p className="text-[11px] text-white/50">{t("admin.lt.testHint")}</p>
             <datalist id="light-groups">{view.groups.map((group) => <option key={group} value={group} />)}</datalist>
             {view.lights.map((light) => (
-              <div key={light.id} className="flex items-center gap-2">
-                <input type="checkbox" checked={light.isSelected} onChange={() => hub.toggleSelected(light.id)} aria-label={t("admin.lt.tick", { name: light.name })} className="w-5 h-5 accent-amber-400 shrink-0" />
-                <Dot shown={light.shown} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm truncate">{light.name}</p>
-                  <p className={`text-[11px] truncate ${light.failure ? "text-red-300" : "text-white/40"}`}>{light.failure || (light.isLive ? t("admin.lt.live") : t("admin.lt.idle"))}</p>
+              <div key={light.id} className="space-y-2 pb-3 border-b border-white/5 last:border-0 last:pb-0">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" checked={light.isSelected} onChange={() => hub.toggleSelected(light.id)} aria-label={t("admin.lt.tick", { name: light.name })} className="w-5 h-5 accent-amber-400 shrink-0" />
+                  <Dot shown={light.shown} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm truncate">{light.name}</p>
+                    <p className={`text-[11px] truncate ${light.failure ? "text-red-300" : "text-white/40"}`}>{light.failure || (light.isLive ? t("admin.lt.live") : t("admin.lt.idle"))}</p>
+                  </div>
+                  <button type="button" onClick={() => hub.removeLight(light.id)} aria-label={t("admin.lt.remove")} className="w-9 h-9 p-0 flex items-center justify-center shrink-0 text-white/50 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
                 </div>
-                <input list="light-groups" value={light.group} onChange={(event) => hub.setGroup(light.id, event.target.value)} placeholder={t("admin.lt.groupPh")} aria-label={t("admin.lt.group")} className={field + " w-28"} />
-                <button type="button" onClick={() => hub.removeLight(light.id)} aria-label={t("admin.lt.remove")} className="w-9 h-9 p-0 flex items-center justify-center shrink-0 text-white/50 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex flex-wrap items-center gap-2 pl-7">
+                  <input list="light-groups" value={light.group} onChange={(event) => hub.setGroup(light.id, event.target.value)} placeholder={t("admin.lt.groupPh")} aria-label={t("admin.lt.group")} className={field + " w-28"} />
+                  {light.styles.length > 1 ? (
+                    <select aria-label={t("admin.lt.style")} value={light.profileId} onChange={(event) => hub.setStyle(light.id, event.target.value as ProfileId)} className={field + " max-w-[11rem]"}>
+                      {light.styles.map((style) => <option key={style.id} value={style.id}>{style.label}</option>)}
+                    </select>
+                  ) : (
+                    <span className="text-[11px] text-white/40">{light.styles[0]?.label}</span>
+                  )}
+                  <button type="button" onClick={() => hub.testLight(light.id)} disabled={!!view.testingId} className={chip(false)}>{view.testingId === light.id ? t("admin.lt.testing") : t("admin.lt.test")}</button>
+                </div>
               </div>
             ))}
           </div>
