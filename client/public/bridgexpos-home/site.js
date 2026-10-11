@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { TRANSLATIONS } from './i18n.js';
 
 // Digits only, country code first (e.g. 6281234567890). Every WhatsApp button on the page uses this.
-const WHATSAPP_NUMBER = '62XXXXXXXXXX';
+const WHATSAPP_NUMBER = '6281336361314';
 
 const LANGUAGES = ['en', 'zh', 'id'];
 // The same key the BridgeXPOS app reads, so the login page opens in the language chosen here.
