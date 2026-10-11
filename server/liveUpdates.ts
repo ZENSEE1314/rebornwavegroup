@@ -10,6 +10,12 @@ type LivePayload = {
 };
 
 const clients = new Set<Response>();
+const listeners = new Set<(resource: string) => void>();
+
+/** Lets server code (the TV screens) react to the same changes the signed-in apps are told about. */
+export function onLiveUpdate(listener: (resource: string) => void) {
+  listeners.add(listener);
+}
 
 export function emitLiveUpdate(resource = "all", payload: LivePayload = {}) {
   const message = `event: change\ndata: ${JSON.stringify({ resource, at: Date.now(), ...payload })}\n\n`;
@@ -21,6 +27,9 @@ export function emitLiveUpdate(resource = "all", payload: LivePayload = {}) {
       clients.delete(client);
     }
   }
+  listeners.forEach((listener) => {
+    try { listener(resource); } catch (error) { console.error("live update listener", error); }
+  });
 }
 
 // Install this before API routes so every successful mutation wakes connected apps.

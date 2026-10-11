@@ -12,7 +12,7 @@ import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ResetNumbers } from "@/components/ResetNumbers";
 
-const LightsPanel = lazy(() => import("@/components/LightsPanel")); // Bluetooth code is only fetched when the tab opens
+const LightsTvPanel = lazy(() => import("@/components/LightsTvPanel")); // Bluetooth + TV code is only fetched when the tab opens
 import { useAuth } from "@/hooks/useAuth";
 import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
 import { APP_FEATURES } from "@/lib/features";
@@ -76,7 +76,7 @@ export default function RebornAdmin() {
       {tab === "Requests" && <SongRequests />}
       {tab === "Gifts" && <GiftTypes />}
       {tab === "Features" && <AppFeatures />}
-      {tab === "Lights" && <Suspense fallback={null}><LightsPanel /></Suspense>}
+      {tab === "Lights" && <Suspense fallback={null}><LightsTvPanel /></Suspense>}
       {tab === "Settings" && <Settings />}
       {tab === "Users" && <Members />}
       {tab === "Top-ups" && <TopUps />}

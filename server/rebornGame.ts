@@ -26,7 +26,8 @@ import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappW
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange } from "./bridgeX";
-import { emitLiveUpdate } from "./liveUpdates";
+import { emitLiveUpdate, onLiveUpdate } from "./liveUpdates";
+import { publishTvGift, registerTvRoutes } from "./tvDisplay";
 import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
@@ -1739,6 +1740,15 @@ export function registerRebornRoutes(app: Express) {
         body: pick(lang, { en: "Your gifts received took you to Star Lv.{n}. New ring unlocked when you hit a new tier!", zh: "你收到的礼物让你升到明星 Lv.{n}。达到新段位会解锁新头像框！", id: "Hadiah yang kamu terima membawamu ke Bintang Lv.{n}. Bingkai baru terbuka di tingkat baru!" }, { n: starUp }),
       }), { path: "/profile" }).catch(() => {});
       const fresh = await storage.getUser(fromUserId);
+      // The TVs play the gift too (on the screens that follow the sender's or receiver's table). Never allowed to hold up or break the gift itself.
+      void (async () => {
+        const [fromSeat, toSeat, receiver] = await Promise.all([activeCheckin(fromUserId).catch(() => null), activeCheckin(toUserId).catch(() => null), storage.getUser(toUserId)]);
+        await publishTvGift(cid, {
+          id: String(giftRow.id), giftName: gt.name, emoji: gt.emoji || "", imageUrl: gt.imageUrl || "", animation: gt.animation || "",
+          fromName: giver.firstName || giver.username || "", fromTable: fromSeat?.tableLabel || "",
+          toName: receiver?.firstName || receiver?.username || "", toTable: toSeat?.tableLabel || "", kgold: cost,
+        });
+      })().catch((error) => console.error("tv gift", error));
       res.json({ message: tr(req, { en: "Sent a {gift}!", zh: "已送出 {gift}！", id: "{gift} terkirim!" }, { gift: gt.name }), kgold: fresh?.kgold ?? 0, levelUp: senderUp ? { kind: "sender", level: senderUp } : null });
     } catch (e) { console.error("kos gift", e); res.status(500).json({ message: tr(req, { en: "Gift failed", zh: "送礼失败", id: "Gagal mengirim hadiah" }) }); }
   });
@@ -4598,4 +4608,18 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetType: "whatsapp", action: "run_reminders", entityType: "whatsapp", description: `Reminders: ${out.bottles} bottle, ${out.comeback} comeback, ${out.feedback} feedback, ${out.packages} package` });
     res.json({ ...out, configured: whatsappConfigured() });
   }));
+
+  // TV screens (Admin › Lights & TV › TV): what each TV shows, fed to the pages that open /tv/<token>.
+  const TV_SETUP_KEY = "tvSetup";
+  registerTvRoutes(app, {
+    requireAdmin,
+    companyId: (req) => rebornCompanyId(req),
+    songBoard: (cid) => songQueueBoard(cid),
+    readSetting: async () => (await db.select().from(appSettings).where(eq(appSettings.key, TV_SETUP_KEY)))[0]?.value ?? null,
+    writeSetting: async (value) => {
+      await db.insert(appSettings).values({ key: TV_SETUP_KEY, value, updatedAt: new Date() })
+        .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+    },
+    onAppChange: onLiveUpdate,
+  });
 }

@@ -632,6 +632,23 @@ text.
 - Tests: `client/src/lib/lights/lights.test.ts` (run by `npm test`). In this app's CSS, `grid-cols-1..4` become one
   column on phones and every `button` gets 16px side padding (use flex / `p-0` for icon buttons).
 
+## TV screens (Admin › Lights & TV › TV)
+
+- The admin tab is "Lights & TV" (`components/LightsTvPanel.tsx`, sub-tabs Lights | TV). Each TV (up to 12) is a name, a view and
+  the tables it follows (`appSettings` key `tvSetup`, rules in `server/tvLogic.ts`, routes in `server/tvDisplay.ts`). A TV's
+  address is `/tv/<secret token>` (`pages/tv-display.tsx`, no login — the token is the key; page data is first names, song
+  titles and table labels only). Views: `overlay` (transparent: moving "now singing / next" bar across the top + gift scenes),
+  `queue` board, `gifts` wall, `off`. Same view + same tables = same picture; different view or tables = a different picture.
+- Tables: empty list = every table. A song shows on a TV by its table; a gift shows on a TV that follows the sender's or the
+  receiver's table. "Table 5" / "5" / "meja 5" / "5桌" are the same table (`tableKey`).
+- Live: the page opens an SSE stream (`/api/tv/:token/stream`: `ready`, `refresh` when songs / queue change, `gift`) and
+  re-reads `/api/tv/:token/state`; a 30 s safety refresh covers a dropped stream. A KOS gift (`POST /api/reborn/kos/gift`) calls
+  `publishTvGift` after the gift is saved (never blocks the sender); the page queues gifts and plays each ~9 s with the app's own
+  `GiftScene`, then returns to the bar. Recent gifts are kept in memory only (20 per company).
+- Showing it over the karaoke picture: the karaoke program's video is not ours, so the overlay address is added as a see-through
+  browser layer in front of it (OBS Browser Source, or an HDMI-capture mini PC). Remote power / input / volume of a TV is not
+  built; it would need a gateway box like the lights one.
+
 ## BridgeXPOS homepage (client/public/bridgexpos-home)
 
 - On the BridgeX host, `/` and `/bridgexpos` serve this standalone page (server/vite.ts; its own

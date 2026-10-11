@@ -337,7 +337,7 @@ function useCountUp(target: number, ms = 1200, key?: any) {
 type Scene = "car" | "fireworks" | "crown" | "diamonds" | "kiss" | "thumbsup" | "lion" | "whale" | "rocket"
   | "rose" | "heart" | "drink" | "cake" | "teddy" | "money" | "gift";
 const SCENES: Scene[] = ["car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket", "rose", "heart", "drink", "cake", "teddy", "money", "gift"];
-function sceneOf(g: any): Scene {
+export function sceneOf(g: any): Scene {
   const a = String(g?.animation || "") as Scene;
   if (SCENES.includes(a)) return a;
   const e = `${g?.emoji || ""} ${g?.giftName || ""}`;
@@ -632,7 +632,7 @@ function GiftBoxScene({ art }: { art: ReactNode }) {
   );
 }
 
-function GiftScene({ kind, art }: { kind: Scene; art: ReactNode }) {
+export function GiftScene({ kind, art }: { kind: Scene; art: ReactNode }) {
   if (kind === "rose") return <RoseScene art={art} />;
   if (kind === "heart") return <HeartScene art={art} />;
   if (kind === "drink") return <DrinkScene art={art} />;
