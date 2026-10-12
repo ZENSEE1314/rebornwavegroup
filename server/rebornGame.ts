@@ -4496,13 +4496,14 @@ export function registerRebornRoutes(app: Express) {
           if (row.price !== null) patch.price = String(row.price);
           if (row.cost !== null) patch.cost = String(row.cost);
           if (row.supplier) patch.supplierName = row.supplier;
+          if (row.phone) patch.supplierPhone = row.phone;
           if (row.stock !== null) patch.stock = row.stock;
           await tx.update(posProducts).set(patch).where(eq(posProducts.id, known.id));
           const delta = row.stock === null ? 0 : row.stock - known.stock;
           if (delta !== 0) await tx.insert(stockMovements).values({ companyId: cid, productId: known.id, delta, reason: delta > 0 ? "stock_in" : "adjustment", supplier: row.supplier || null, note: "Excel import", userId: actor });
           updated++;
         } else {
-          const [made] = await tx.insert(posProducts).values({ companyId: cid, name: row.name, category: row.category, price: String(row.price ?? 0), cost: String(row.cost ?? 0), stock: row.stock ?? 0, supplierName: row.supplier || null }).returning();
+          const [made] = await tx.insert(posProducts).values({ companyId: cid, name: row.name, category: row.category, price: String(row.price ?? 0), cost: String(row.cost ?? 0), stock: row.stock ?? 0, supplierName: row.supplier || null, supplierPhone: row.phone || null }).returning();
           byName.set(row.name.toLowerCase(), made);
           if ((row.stock ?? 0) > 0) await tx.insert(stockMovements).values({ companyId: cid, productId: made.id, delta: row.stock!, reason: "stock_in", supplier: row.supplier || null, note: "Excel import", userId: actor });
           created++;

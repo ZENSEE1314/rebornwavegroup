@@ -732,3 +732,5 @@ text.
   (`read-excel-file`, fetched only on use) or .csv, columns found by their titles (Name, Category, Price, Cost, Stock, Supplier — in
   English / 中文 / Indonesian); `POST /api/reborn/admin/inventory/import` (server/inventoryImport.ts cleans the rows) matches items
   by name: new = created, existing = updated, and a stock figure becomes the new count (the difference is a stock movement).
+  The reading is in shared/inventorySheet.ts (header row found anywhere in the first 15 rows, columns matched by title words with typos
+  tolerated, volume added to the name, category guessed from the name, optional "cost is the total for the quantity").

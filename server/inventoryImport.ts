@@ -1,10 +1,11 @@
 // Inventory from a spreadsheet: the browser reads the Excel / CSV file into rows; the server cleans them here
 // and then creates new items / updates existing ones (matched by name).
-export interface ImportRow { name: string; category: string; price: number | null; cost: number | null; stock: number | null; supplier: string }
+export interface ImportRow { name: string; category: string; price: number | null; cost: number | null; stock: number | null; supplier: string; phone: string }
 
 export const MAX_IMPORT_ROWS = 1000;
 const MAX_NAME = 120;
 const MAX_TEXT = 80;
+const MAX_PHONE = 20;
 const DEFAULT_CATEGORY = "General";
 
 const text = (value: unknown, max: number) => (value === null || value === undefined ? "" : String(value).replace(/[\u0000-\u001f]/g, " ").trim().slice(0, max));
@@ -32,7 +33,7 @@ export function cleanImportRows(raw: unknown): { rows: ImportRow[]; skipped: num
     const cost = toNumber(item?.cost);
     const stock = toNumber(item?.stock);
     rows.push({
-      name, category: text(item?.category, MAX_TEXT) || DEFAULT_CATEGORY, supplier: text(item?.supplier, MAX_TEXT),
+      name, category: text(item?.category, MAX_TEXT) || DEFAULT_CATEGORY, supplier: text(item?.supplier, MAX_TEXT), phone: text(item?.phone, MAX_PHONE).replace(/[^\d+]/g, ""),
       price: price !== null && price >= 0 ? price : null,
       cost: cost !== null && cost >= 0 ? cost : null,
       stock: stock !== null ? Math.max(0, Math.floor(stock)) : null,

@@ -1,35 +1,13 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FileSpreadsheet } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
+import { findHeader, readSheetRows, type Cell } from "@shared/inventorySheet";
 
-type Cell = string | number | boolean | Date | null | undefined;
-interface ImportRow { name: string; category: string; price: string; cost: string; stock: string; supplier: string }
 interface Props { onDone: () => void; onMessage: (text: string, isError?: boolean) => void }
 
 const PREVIEW_ROWS = 5;
-const FIELD_WORDS: Record<keyof ImportRow, string[]> = {
-  name: ["name", "item", "product", "nama", "barang", "produk", "名称", "商品", "品名"],
-  category: ["category", "type", "group", "kategori", "jenis", "分类", "类别"],
-  price: ["price", "selling", "sell", "harga", "retail", "售价", "价格"],
-  cost: ["cost", "buy", "purchase", "modal", "hpp", "成本", "进价"],
-  stock: ["stock", "qty", "quantity", "balance", "stok", "jumlah", "库存", "数量"],
-  supplier: ["supplier", "vendor", "pemasok", "供应商"],
-};
-const TEMPLATE = "Name,Category,Price,Cost,Stock,Supplier\nHeineken 330ml,Beer,45000,28000,120,PT Sumber\nFrench Fries,Food,30000,12000,50,\n";
-
-const cellText = (cell: Cell) => (cell === null || cell === undefined ? "" : cell instanceof Date ? cell.toISOString().slice(0, 10) : String(cell));
-
-// The first row is the header: each column is matched to a field by the words in its title.
-function toRows(sheet: Cell[][]): ImportRow[] {
-  if (sheet.length < 2) return [];
-  const header = sheet[0].map((cell) => cellText(cell).toLowerCase());
-  const column = (field: keyof ImportRow) => header.findIndex((title) => FIELD_WORDS[field].some((word) => title.includes(word)));
-  const at = { name: column("name"), category: column("category"), price: column("price"), cost: column("cost"), stock: column("stock"), supplier: column("supplier") };
-  if (at.name < 0) return [];
-  const pick = (row: Cell[], index: number) => (index < 0 ? "" : cellText(row[index]));
-  return sheet.slice(1).map((row) => ({ name: pick(row, at.name), category: pick(row, at.category), price: pick(row, at.price), cost: pick(row, at.cost), stock: pick(row, at.stock), supplier: pick(row, at.supplier) })).filter((row) => row.name.trim());
-}
+const TEMPLATE = "No.,Item,Volume,QTY,Cost,Selling,Supplier,HP no.,Category\n1,Jameson,700ml,6,340000,520000,Nanda,81265661257,Spirits\n2,Heineken,330ml,120,28000,45000,PT Sumber,,Beer\n";
 
 // A small CSV reader that understands "quoted, values" and doubled quotes.
 function parseCsv(text: string): Cell[][] {
@@ -60,8 +38,11 @@ async function readFile(file: File): Promise<Cell[][]> {
 export default function InventoryImport({ onDone, onMessage }: Props) {
   const { t } = useTranslation();
   const input = useRef<HTMLInputElement>(null);
-  const [rows, setRows] = useState<ImportRow[]>([]);
+  const [sheet, setSheet] = useState<Cell[][]>([]);
+  const [isCostTotal, setIsCostTotal] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const rows = useMemo(() => readSheetRows(sheet, { isCostTotal }), [sheet, isCostTotal]);
+  const withoutPrice = rows.filter((row) => !row.price.trim()).length;
 
   const choose = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -69,9 +50,9 @@ export default function InventoryImport({ onDone, onMessage }: Props) {
     if (!file) return;
     setIsBusy(true);
     try {
-      const found = toRows(await readFile(file));
-      setRows(found);
-      if (!found.length) onMessage(t("admin.imp.noRows"), true);
+      const read = await readFile(file);
+      setSheet(read);
+      if (!findHeader(read)) onMessage(t("admin.imp.noRows"), true);
     } catch { onMessage(t("admin.imp.unreadable"), true); } finally { setIsBusy(false); }
   };
 
@@ -80,7 +61,7 @@ export default function InventoryImport({ onDone, onMessage }: Props) {
     try {
       const result = await (await apiRequest("POST", "/api/reborn/admin/inventory/import", { rows })).json();
       onMessage(result.message);
-      setRows([]);
+      setSheet([]);
       onDone();
     } catch (error) { onMessage(String((error as Error).message || "").replace(/^\d{3}:\s*/, ""), true); } finally { setIsBusy(false); }
   };
@@ -104,8 +85,10 @@ export default function InventoryImport({ onDone, onMessage }: Props) {
       {rows.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs text-white/70">{t("admin.imp.found", { n: String(rows.length) })}</p>
+          {withoutPrice > 0 && <p className="text-xs text-amber-300">{t("admin.imp.noPrice", { n: String(withoutPrice) })}</p>}
+          <label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={isCostTotal} onChange={(event) => setIsCostTotal(event.target.checked)} /> {t("admin.imp.costTotal")}</label>
           <ul className="text-[11px] text-white/60 space-y-0.5">
-            {rows.slice(0, PREVIEW_ROWS).map((row, i) => <li key={i} className="truncate">{row.name} · {row.category || "General"} · {row.price || "–"} / {row.cost || "–"} · {row.stock || "–"}</li>)}
+            {rows.slice(0, PREVIEW_ROWS).map((row, i) => <li key={i} className="truncate">{row.name} · {row.category} · {row.price || "–"} / {row.cost || "–"} · {row.stock || "–"}{row.supplier ? ` · ${row.supplier}` : ""}</li>)}
           </ul>
           <button type="button" onClick={send} disabled={isBusy} className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-lg font-bold text-black text-sm bg-amber-400 disabled:opacity-40">{t("admin.imp.import", { n: String(rows.length) })}</button>
         </div>
