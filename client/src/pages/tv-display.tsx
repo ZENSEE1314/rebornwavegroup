@@ -94,7 +94,7 @@ function GiftWall({ gifts }: { gifts: Gift[] }) {
 }
 
 // Over the karaoke picture ("overlay") a gift must not hide the song: no dark veil, the effect plays small in
-// the corner, and one line slides across from right to left. On a gift wall it keeps the full-screen scene.
+// the effect plays big with no background, and one line slides across from right to left. On a gift wall it keeps the full-screen scene.
 function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
   const { t } = useTranslation();
   const art = gift.imageUrl ? <img src={gift.imageUrl} alt="" className="gs-img" /> : <span className="gs-emoji">{gift.emoji || "🎁"}</span>;
@@ -115,7 +115,7 @@ function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <style>{`@keyframes tvGiftSlide { from { transform: translateX(100vw); } to { transform: translateX(-100%); } }`}</style>
-      <div className="absolute inset-0" style={{ transform: "scale(0.4)", transformOrigin: "100% 100%", opacity: 0.92 }}>
+      <div className="absolute inset-0">
         <GiftScene kind={sceneOf(gift)} art={art} />
       </div>
       <div className="absolute inset-x-0 top-[16%] overflow-hidden" style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,.45) 12%, rgba(0,0,0,.45) 88%, transparent)", padding: "0.6vw 0" }}>
