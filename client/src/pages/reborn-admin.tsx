@@ -2122,19 +2122,19 @@ function Products() {
 // Shared spreadsheet cell input styling.
 const cell = "w-full bg-transparent border border-transparent rounded px-1.5 py-1 text-sm outline-none hover:border-white/15 focus:border-amber-400/60 focus:bg-black/20";
 // Price and cost: always a visible box, wide enough for big rupiah amounts.
-const numCell = "w-32 min-w-[8rem] text-right tabular-nums font-semibold rounded-lg bg-black/30 border border-white/15 px-2.5 py-2 text-sm outline-none hover:border-white/30 focus:border-amber-400/70";
+const numCell = "w-28 min-w-[7rem] text-right tabular-nums font-semibold rounded-lg bg-black/30 border border-white/15 px-2.5 py-2 text-sm outline-none hover:border-white/30 focus:border-amber-400/70";
 
 function ProductsTable({ products, industryOptions }: { products: any[]; industryOptions: string[] }) {
   const { t } = useTranslation();
   return (
     <Card>
       <div className="overflow-x-auto -mx-3 sm:mx-0">
-        <table className="w-full min-w-[1240px] text-sm border-collapse">
+        <table className="w-full min-w-[1120px] text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
-              <th className="py-2 px-2 font-semibold min-w-[220px]">{t("admin.prod.item")}</th>
+              <th className="py-2 px-2 font-semibold min-w-[200px]">{t("admin.prod.item")}</th>
               <th className="py-2 px-2 font-semibold min-w-[110px]">{t("admin.prod.category")}</th>
-              <th className="py-2 px-2 font-semibold min-w-[250px]">{t("admin.prod.industries")}</th>
+              <th className="py-2 px-2 font-semibold min-w-[230px]">{t("admin.prod.industries")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.sellRp")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
