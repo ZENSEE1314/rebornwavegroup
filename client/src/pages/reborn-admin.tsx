@@ -3055,9 +3055,17 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
     queryFn: () => apiRequest("GET", `/api/reborn/admin/crm/${contact.id}/messages`).then((r) => r.json()),
     refetchInterval: 4000,
   });
+  // Open on the newest message, and follow new ones — unless the admin scrolled up to read older messages.
+  const listRef = useRef<HTMLDivElement>(null);
+  const stickToEnd = useRef(true);
+  const lastMsgId = msgs.length ? msgs[msgs.length - 1].id : null;
+  useEffect(() => {
+    const box = listRef.current;
+    if (box && stickToEnd.current) box.scrollTop = box.scrollHeight;
+  }, [lastMsgId, editing]);
   const send = useMutation({
     mutationFn: () => apiRequest("POST", `/api/reborn/admin/crm/${contact.id}/send`, { text }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ d }: any) => { setText(""); qc.invalidateQueries({ queryKey: msgsKey }); if (d?.message && d.message !== "Sent") toast({ title: d.message }); },
+    onSuccess: ({ d }: any) => { setText(""); stickToEnd.current = true; qc.invalidateQueries({ queryKey: msgsKey }); if (d?.message && d.message !== "Sent") toast({ title: d.message }); },
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const saveEdit = useMutation({
@@ -3111,7 +3119,7 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
         )}
 
         {/* messages */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2" style={{ minHeight: 200 }}>
+        <div ref={listRef} onScroll={(e) => { const b = e.currentTarget; stickToEnd.current = b.scrollHeight - b.scrollTop - b.clientHeight < 80; }} className="flex-1 overflow-y-auto p-3 space-y-2" style={{ minHeight: 200 }}>
           {msgs.length === 0 && <p className="text-center text-xs text-white/40 py-8">{t("admin.crm.noMsgs")}</p>}
           {msgs.map((m) => (
             <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
