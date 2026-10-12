@@ -2792,3 +2792,10 @@ button, .interactive {
 @keyframes dcShine { to { background-position:200% center; } }
 .dc-chip { animation: dcPop .45s cubic-bezier(.2,1.4,.4,1) both; }
 @media (prefers-reduced-motion: reduce) { .dc-coin, .dc-confetti, .dc-rays { display:none; } .dc-box, .dc-chest, .dc-bounce, .dc-next { animation:none; } }
+
+/* Gift effect over the karaoke picture (TV overlay): keep the rocket / fireworks / rose, drop the backdrop and scenery
+   strips so the song screen shows through. */
+.gs-bare [class$="-sky"], .gs-bare .gs-sky, .gs-bare .gs-savanna, .gs-bare .gs-ocean, .gs-bare .gs-sun, .gs-bare .gs-lightrays,
+.gs-bare .gs-road, .gs-bare .gs-lane, .gs-bare .gs-ground, .gs-bare .gs-grass, .gs-bare .gs-table, .gs-bare .gs-pad,
+.gs-bare .gs-throne-glow, .gs-bare .gs-cakeglow, .gs-bare .gs-spot { display: none !important; }
+.gs-bare .gs-crown { background: none; }

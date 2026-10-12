@@ -115,7 +115,7 @@ function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <style>{`@keyframes tvGiftSlide { from { transform: translateX(100vw); } to { transform: translateX(-100%); } }`}</style>
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 gs-bare">
         <GiftScene kind={sceneOf(gift)} art={art} />
       </div>
       <div className="absolute inset-x-0 top-[16%] overflow-hidden" style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,.45) 12%, rgba(0,0,0,.45) 88%, transparent)", padding: "0.6vw 0" }}>
