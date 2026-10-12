@@ -559,6 +559,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.tv.nowSinging': { en: "Now singing", zh: "正在演唱", id: "Sedang bernyanyi" },
   'hm.tv.table': { en: "Table {t}", zh: "{t} 桌", id: "Meja {t}" },
   'hm.tv.empty': { en: "No songs waiting. Scan the QR code on your table and request a song!", zh: "目前没有排队的歌曲。扫描桌上的二维码点一首歌吧！", id: "Belum ada lagu antre. Pindai kode QR di meja Anda dan request lagu!" },
+  'hm.tv.giftTicker': { en: "{from} sent a {gift} to {to} · worth {kgold} KGOLD", zh: "{from} 送了 {gift} 给 {to} · 价值 {kgold} KGOLD", id: "{from} mengirim {gift} ke {to} · senilai {kgold} KGOLD" },
   'hm.tv.giftBanner': { en: "{from} sent {gift} to {to}", zh: "{from} 送了 {gift} 给 {to}", id: "{from} mengirim {gift} ke {to}" },
   'hm.tv.someone': { en: "Someone", zh: "有人", id: "Seseorang" },
   'hm.tv.giftsTitle': { en: "Gifts tonight", zh: "今晚的礼物", id: "Hadiah malam ini" },

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRoute } from "wouter";
 import { useTranslation } from "@/lib/i18n";
 import { rememberedTenantSlug } from "@/hooks/useTenantBrand";
-import { GiftScene, sceneOf } from "@/pages/reborn-kos";
+import { GiftScene, giftSoundOf, sceneOf } from "@/pages/reborn-kos";
+import { sfx } from "@/lib/sfx";
 
 interface Song { title: string; artist: string; table: string; name: string }
 interface Gift { id: string; giftName: string; emoji: string; imageUrl: string; animation: string; fromName: string; fromTable: string; toName: string; toTable: string; kgold: number }
@@ -92,15 +93,35 @@ function GiftWall({ gifts }: { gifts: Gift[] }) {
   );
 }
 
+// Over the karaoke picture ("overlay") a gift must not hide the song: no dark veil, the effect plays small in
+// the corner, and one line slides across from right to left. On a gift wall it keeps the full-screen scene.
 function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
   const { t } = useTranslation();
   const art = gift.imageUrl ? <img src={gift.imageUrl} alt="" className="gs-img" /> : <span className="gs-emoji">{gift.emoji || "🎁"}</span>;
+  useEffect(() => { try { sfx.gift(giftSoundOf(gift)); } catch { /* the browser may block sound until the page is touched */ } }, [gift]);
+  const from = gift.fromName || t("hm.tv.someone");
+  const to = gift.toName || t("hm.tv.someone");
+  if (!dim) {
+    return (
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-black" />
+        <div className="absolute inset-0"><GiftScene kind={sceneOf(gift)} art={art} /></div>
+        <div className="absolute inset-x-0 bottom-[6%] px-[4vw] text-center text-white" style={{ fontSize: "3.2vw", fontWeight: 900, textShadow: "0 3px 10px rgba(0,0,0,.9)" }}>
+          {t("hm.tv.giftBanner", { from, gift: gift.giftName, to })}
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      <div className={`absolute inset-0 ${dim ? "bg-black/90" : "bg-black"}`} />
-      <div className="absolute inset-0"><GiftScene kind={sceneOf(gift)} art={art} /></div>
-      <div className="absolute inset-x-0 bottom-[6%] px-[4vw] text-center text-white" style={{ fontSize: "3.2vw", fontWeight: 900, textShadow: "0 3px 10px rgba(0,0,0,.9)" }}>
-        {t("hm.tv.giftBanner", { from: gift.fromName || t("hm.tv.someone"), gift: gift.giftName, to: gift.toName || t("hm.tv.someone") })}
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <style>{`@keyframes tvGiftSlide { from { transform: translateX(100vw); } to { transform: translateX(-100%); } }`}</style>
+      <div className="absolute inset-0" style={{ transform: "scale(0.4)", transformOrigin: "100% 100%", opacity: 0.92 }}>
+        <GiftScene kind={sceneOf(gift)} art={art} />
+      </div>
+      <div className="absolute inset-x-0 top-[16%] overflow-hidden" style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,.45) 12%, rgba(0,0,0,.45) 88%, transparent)", padding: "0.6vw 0" }}>
+        <p className="whitespace-nowrap text-white inline-block" style={{ fontSize: "2.6vw", fontWeight: 900, textShadow: "0 2px 8px rgba(0,0,0,.9)", animation: `tvGiftSlide ${GIFT_SHOWN_MS}ms linear forwards` }}>
+          {gift.emoji || "🎁"} {t("hm.tv.giftTicker", { from, gift: gift.giftName, to, kgold: gift.kgold.toLocaleString() })}
+        </p>
       </div>
     </div>
   );

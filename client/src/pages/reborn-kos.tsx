@@ -359,7 +359,7 @@ export function sceneOf(g: any): Scene {
   return "gift";
 }
 // Each gift plays its own sound: the sound of its scene (the gift-box scene → magic sparkle).
-function giftSoundOf(g: any): string {
+export function giftSoundOf(g: any): string {
   const scene = sceneOf(g);
   if (scene !== "gift") return scene;
   return /✈|🛩|plane|jet/i.test(`${g?.emoji || ""} ${g?.giftName || g?.name || ""}`) ? "rocket" : "sparkle";
