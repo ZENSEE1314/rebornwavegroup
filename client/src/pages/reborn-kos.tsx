@@ -661,23 +661,30 @@ function GiftBoxScene({ art }: { art: ReactNode }) {
 // Realistic effects: a short rendered clip on black (public/gift-fx/<scene>.mp4 + a transparent .webm of the same).
 // An effect without a clip keeps its drawn version below. On a TV overlay the transparent clip lets the karaoke screen
 // show through; in the app the black is blended away ("screen") over the dark scene.
-const FX_CLIPS: Partial<Record<Scene, string>> = { whale: "/gift-fx/whale", lion: "/gift-fx/lion", car: "/gift-fx/car" };
+interface FxClip { src: string; fit: "cover" | "contain" }
+const WIDE: Pick<FxClip, "fit"> = { fit: "cover" };
+const DOLURUU_CLIP: FxClip = { src: "/gift-fx/doluruu", fit: "contain" }; // portrait: shown whole, not cropped
+const FX_CLIPS: Partial<Record<Scene, FxClip>> = {
+  whale: { src: "/gift-fx/whale", ...WIDE }, lion: { src: "/gift-fx/lion", ...WIDE }, car: { src: "/gift-fx/car", ...WIDE },
+  teddy: DOLURUU_CLIP, thumbsup: DOLURUU_CLIP,
+};
 
-function FxScene({ clip, overlay }: { clip: string; overlay: boolean }) {
+function FxScene({ clip, overlay }: { clip: FxClip; overlay: boolean }) {
   const [isDone, setIsDone] = useState(false);
   if (isDone) return null;
   return (
     <div className={overlay ? "gs-fx" : "gs-fx gs-fx-dark"}>
-      <video className={overlay ? "gs-fx-video" : "gs-fx-video gs-fx-screen"} autoPlay muted playsInline preload="auto" onEnded={() => setIsDone(true)} onError={() => setIsDone(true)}>
-        {overlay && <source src={`${clip}.webm`} type="video/webm" />}
-        <source src={`${clip}.mp4`} type="video/mp4" />
+      <video className={overlay ? "gs-fx-video" : "gs-fx-video gs-fx-screen"} style={{ objectFit: clip.fit }} autoPlay muted playsInline preload="auto" onEnded={() => setIsDone(true)} onError={() => setIsDone(true)}>
+        {overlay && <source src={`${clip.src}.webm`} type="video/webm" />}
+        <source src={`${clip.src}.mp4`} type="video/mp4" />
       </video>
     </div>
   );
 }
 
 export function GiftScene({ kind, art, overlay = false }: { kind: Scene; art: ReactNode; overlay?: boolean }) {
-  if (FX_CLIPS[kind]) return <FxScene clip={FX_CLIPS[kind]!} overlay={overlay} />;
+  const clip = FX_CLIPS[kind];
+  if (clip) return <FxScene clip={clip} overlay={overlay} />;
   if (kind === "rose") return <RoseScene art={art} />;
   if (kind === "heart") return <HeartScene art={art} />;
   if (kind === "drink") return <DrinkScene art={art} />;
