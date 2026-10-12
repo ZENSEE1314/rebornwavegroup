@@ -695,3 +695,11 @@ text.
   files beside them are rendered from those with sharp (1200×630 for the share card). The app's own
   BridgeX pages (login, apply, console) use the same icon and share picture (server/pageBrand.ts
   `BRIDGEX_BRAND`). WhatsApp keeps an old link preview for a while after a change.
+
+## Phone layout rules for new buttons and popups
+
+- index.css has phone-wide rules (button min-height 44px + padding, svg height auto). Icon-only buttons
+  (a button whose only child is an svg) and svgs with a `w-`/`h-` class are exempt, so write icon buttons as
+  `<button className="w-9 h-9 ..."><Icon className="w-4 h-4" /></button>`. A popup portaled to `<body>` sits
+  outside `.rwg-app`: give its root `text-white` (text colour is not inherited from the app) and check it on a
+  phone-size screen before shipping.

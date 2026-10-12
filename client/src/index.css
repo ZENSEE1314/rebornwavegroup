@@ -507,7 +507,8 @@ button, .interactive {
     }
     
     /* Ensure images and videos don't overflow */
-    img, video, canvas, svg {
+    /* An icon sized with a w-/h- class keeps that size (popups sit outside .rwg-app and had icons squashed). */
+    img, video, canvas, svg:not([class*="w-"]):not([class*="h-"]) {
       max-width: 100% !important;
       height: auto !important;
     }
@@ -529,7 +530,8 @@ button, .interactive {
     }
     
     /* Mobile button improvements */
-    button, .btn {
+    /* Icon-only buttons keep their own size; text buttons get the roomy phone size. */
+    button:not(:has(> svg:only-child)), .btn {
       min-height: 44px;
       padding: 0.75rem 1rem;
       font-size: 1rem;

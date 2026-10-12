@@ -3088,7 +3088,7 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
   // Portal to <body>: inside the page a transformed / animated parent turns "fixed" into "relative to the page",
   // which left the chat below the screen on a phone.
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 text-white" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div className="relative w-full max-w-lg bg-[#160f2a] border border-white/10 rounded-t-3xl sm:rounded-3xl flex flex-col" style={{ maxHeight: "88dvh" }} onClick={(e) => e.stopPropagation()}>
         {/* header */}
