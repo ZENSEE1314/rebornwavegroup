@@ -722,3 +722,13 @@ text.
 - Make a clip: generate it on a pure black background (Higgsfield `seedance_2_0_mini`, 720p, ~4 credits for 4 s), then
   ffmpeg: mp4 = `scale=960:540 -c:v libx264 -crf 28 -pix_fmt yuv420p -movflags +faststart -an`; webm = luma-to-alpha
   (`geq` with a = max(r,g,b), colours un-premultiplied) `-c:v libvpx-vp9 -pix_fmt yuva420p -crf 38 -auto-alt-ref 0`.
+
+## Reset and inventory import
+
+- "Reset all numbers" (main admin) also clears everything still waiting: song requests (`clearSongQueue`), prizes to redeem
+  (`spin_results` unused/redeeming → cancelled) and open POS bills (→ cancelled). A new venue day (8am) and "Close POS day"
+  also clear the song queue (`ensureVenueSession`).
+- Admin › Inventory › "Fill inventory from Excel" (components/InventoryImport.tsx): the browser reads an .xlsx
+  (`read-excel-file`, fetched only on use) or .csv, columns found by their titles (Name, Category, Price, Cost, Stock, Supplier — in
+  English / 中文 / Indonesian); `POST /api/reborn/admin/inventory/import` (server/inventoryImport.ts cleans the rows) matches items
+  by name: new = created, existing = updated, and a stock figure becomes the new count (the difference is a stock movement).

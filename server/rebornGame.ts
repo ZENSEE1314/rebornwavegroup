@@ -29,6 +29,7 @@ import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotif
 import { emitLiveUpdate, onLiveUpdate } from "./liveUpdates";
 import { publishTvGift, registerTvRoutes } from "./tvDisplay";
 import { tvPhoto } from "./tvLogic";
+import { cleanImportRows } from "./inventoryImport";
 import { registerSecurityRoutes } from "./security";
 import { registerVenueScanRoutes } from "./venueScan";
 import { searchSongCatalog, textPinyin } from "./songSearch";
@@ -297,6 +298,13 @@ export async function upcomingEvents(on?: string) {
   return list.sort((a, b) => (a.startDate ? 0 : 1) - (b.startDate ? 0 : 1) || String(a.startDate || "").localeCompare(String(b.startDate || ""))).slice(0, 30);
 }
 
+// Songs on now count as sung, every waiting song is cancelled (a new night / a reset starts with an empty queue).
+async function clearSongQueue(note: string) {
+  await db.update(songRequests).set({ status: "confirmed" }).where(eq(songRequests.status, "playing"));
+  await db.update(songRequests).set({ status: "cancelled", adminNote: note }).where(eq(songRequests.status, "pending"));
+  emitLiveUpdate("/api/reborn/song-queue", { action: "QUEUE_CLEARED" });
+}
+
 // The venue day runs 08:00 → 08:00 (WIB); at 8am everyone is checked out.
 const VENUE_DAY_START_HOUR = 8;
 async function ensureVenueSession(rotate = false) {
@@ -306,7 +314,10 @@ async function ensureVenueSession(rotate = false) {
   let code = values.venueSessionCode;
   if (rotate || values.venueSessionDay !== day || !code) {
     // New venue day (8am): everyone from earlier days is checked out of KOS.
-    if (values.venueSessionDay !== day) await db.update(venueCheckins).set({ checkedOutAt: new Date() }).where(and(sql`${venueCheckins.venueDay} <> ${day}`, sql`${venueCheckins.checkedOutAt} IS NULL`));
+    if (values.venueSessionDay !== day) {
+      await db.update(venueCheckins).set({ checkedOutAt: new Date() }).where(and(sql`${venueCheckins.venueDay} <> ${day}`, sql`${venueCheckins.checkedOutAt} IS NULL`));
+      await clearSongQueue("New night"); // KOS starts fresh: no song of last night is left waiting
+    }
     code = randomVenueCode();
     for (const [key, value] of [["venueSessionDay", day], ["venueSessionCode", code]]) {
       await db.insert(appSettings).values({ key, value, updatedAt: new Date() })
@@ -2710,11 +2721,16 @@ export function registerRebornRoutes(app: Express) {
       return shop.rows.length + modules.rows.length;
     });
     await setSpinPool(0);
-    await logAdmin(req, { targetType: "system", action: "reset_numbers", entityType: "system", description: `Reset all member balances/points + prize pool + stock of ${stockZeroed} item${stockZeroed === 1 ? "" : "s"}` });
+    // Everything still waiting is cleared too: song requests, prizes to redeem and open POS bills.
+    await clearSongQueue("Reset");
+    await db.update(spinResults).set({ status: "cancelled" }).where(and(eq(spinResults.companyId, cid), sql`${spinResults.status} in ('unused','redeeming')`));
+    await db.update(posTickets).set({ status: "cancelled" }).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open")));
+    emitLiveUpdate("kos", { type: "reset" });
+    await logAdmin(req, { targetType: "system", action: "reset_numbers", entityType: "system", description: `Reset all member balances/points + prize pool + pending songs/prizes/POS bills + stock of ${stockZeroed} item${stockZeroed === 1 ? "" : "s"}` });
     res.json({ stockZeroed, message: tr(req, {
-      en: "All member balances, points, tokens, the prize pool and every stock count have been reset to 0. Users and items are kept.",
-      zh: "所有会员余额、积分、代币、奖池以及全部库存数量已清零。用户和物品均已保留。",
-      id: "Semua saldo, poin, token member, kumpulan hadiah, dan jumlah stok telah direset ke 0. Pengguna dan item tetap ada.",
+      en: "All member balances, points, tokens, the prize pool and every stock count have been reset to 0, and waiting song requests, prizes to redeem and open POS bills were cleared. Users and items are kept.",
+      zh: "所有会员余额、积分、代币、奖池以及全部库存数量已清零，等待中的点歌、待兑奖品和未结账的POS账单也已清除。用户和物品均已保留。",
+      id: "Semua saldo, poin, token member, kumpulan hadiah, dan jumlah stok telah direset ke 0, serta permintaan lagu yang menunggu, hadiah yang belum ditukar, dan tagihan POS yang terbuka telah dihapus. Pengguna dan item tetap ada.",
     }) });
   }));
   app.post("/api/reborn/admin/users/:id", requireAdmin(async (req, res) => {
@@ -4462,6 +4478,40 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.
+  // Inventory from a spreadsheet: items are matched by name — a new name is created, an existing one is updated, and a
+  // stock figure becomes the new count (the difference is written as a stock movement).
+  app.post("/api/reborn/admin/inventory/import", requireAdmin(async (req, res) => {
+    const { rows, skipped } = cleanImportRows(req.body?.rows);
+    if (!rows.length) return res.status(400).json({ message: tr(req, { en: "No items found in the file", zh: "文件中没有找到商品", id: "Tidak ada item di file" }) });
+    const cid = await rebornCompanyId(req);
+    const actor = getUserId(req)!;
+    const existing = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind)));
+    const byName = new Map(existing.map((product) => [product.name.trim().toLowerCase(), product]));
+    let created = 0, updated = 0;
+    await db.transaction(async (tx) => {
+      for (const row of rows) {
+        const known = byName.get(row.name.toLowerCase());
+        if (known) {
+          const patch: Record<string, unknown> = { category: row.category };
+          if (row.price !== null) patch.price = String(row.price);
+          if (row.cost !== null) patch.cost = String(row.cost);
+          if (row.supplier) patch.supplierName = row.supplier;
+          if (row.stock !== null) patch.stock = row.stock;
+          await tx.update(posProducts).set(patch).where(eq(posProducts.id, known.id));
+          const delta = row.stock === null ? 0 : row.stock - known.stock;
+          if (delta !== 0) await tx.insert(stockMovements).values({ companyId: cid, productId: known.id, delta, reason: delta > 0 ? "stock_in" : "adjustment", supplier: row.supplier || null, note: "Excel import", userId: actor });
+          updated++;
+        } else {
+          const [made] = await tx.insert(posProducts).values({ companyId: cid, name: row.name, category: row.category, price: String(row.price ?? 0), cost: String(row.cost ?? 0), stock: row.stock ?? 0, supplierName: row.supplier || null }).returning();
+          byName.set(row.name.toLowerCase(), made);
+          if ((row.stock ?? 0) > 0) await tx.insert(stockMovements).values({ companyId: cid, productId: made.id, delta: row.stock!, reason: "stock_in", supplier: row.supplier || null, note: "Excel import", userId: actor });
+          created++;
+        }
+      }
+    });
+    await logAdmin(req, { targetType: "inventory", action: "import_inventory", entityType: "stock", description: `Excel import: ${created} new, ${updated} updated, ${skipped} skipped` });
+    res.json({ created, updated, skipped, message: tr(req, { en: "Imported: {created} new, {updated} updated", zh: "已导入：新增 {created}，更新 {updated}", id: "Diimpor: {created} baru, {updated} diperbarui" }, { created: String(created), updated: String(updated) }) });
+  }));
   app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);
