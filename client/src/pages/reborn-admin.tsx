@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck } from "lucide-react";
+import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
@@ -187,6 +187,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Features: <ToggleRight className="w-4 h-4" />, Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />, Errors: <AlertTriangle className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
   Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />, Games: <Gamepad2 className="w-4 h-4" />,
+  Lights: <Lightbulb className="w-4 h-4" />, Security: <ShieldCheck className="w-4 h-4" />,
 };
 
 // Each admin section's colour for its tile.
@@ -195,7 +196,7 @@ const TAB_COLOR: Record<string, string> = {
   Requests: "#a855f7", Redemptions: "#ec4899", "Top-ups": "#f59e0b", Pet: "#06b6d4", Sales: "#22c55e", POS: "#f59e0b", Songs: "#8b5cf6",
   Events: "#f97316", Broadcast: "#3b82f6", Users: "#22c55e", Products: "#14b8a6", Accounting: "#10b981", Prizes: "#eab308",
   Gifts: "#f472b6", FAQ: "#60a5fa", Settings: "#94a3b8", Logs: "#64748b", Errors: "#ef4444", Inventory: "#0ea5e9", CRM: "#6366f1",
-  Bookings: "#f59e0b", Bottles: "#e11d48", Staff: "#84cc16", Payroll: "#059669", Leaderboard: "#facc15", Feedback: "#fb7185", Games: "#d946ef",
+  Bookings: "#f59e0b", Bottles: "#e11d48", Staff: "#84cc16", Payroll: "#059669", Leaderboard: "#facc15", Feedback: "#fb7185", Games: "#d946ef", Lights: "#fde047", Security: "#38bdf8",
 };
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
