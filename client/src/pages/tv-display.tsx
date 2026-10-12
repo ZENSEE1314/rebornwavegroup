@@ -93,8 +93,8 @@ function GiftWall({ gifts }: { gifts: Gift[] }) {
   );
 }
 
-// Over the karaoke picture ("overlay") a gift must not hide the song: no dark veil, the effect plays small in
-// the effect plays big with no background, and one line slides across from right to left. On a gift wall it keeps the full-screen scene.
+// Over the karaoke picture ("overlay") a gift must not hide the song: no dark veil, the
+// effect plays big with no background, and one line slides across from right to left. On a gift wall it keeps the full-screen scene.
 function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
   const { t } = useTranslation();
   const art = gift.imageUrl ? <img src={gift.imageUrl} alt="" className="gs-img" /> : <span className="gs-emoji">{gift.emoji || "🎁"}</span>;
