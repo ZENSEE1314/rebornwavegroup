@@ -5,7 +5,7 @@ import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
 import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
-import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG } from "./tenantContext";
+import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL } from "./giftLevels";
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
@@ -25,11 +25,12 @@ import { crmRecordVisit, whatsappConfigured, whatsappAvailable, chatAvailable, w
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
-import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange } from "./bridgeX";
+import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange, BRIDGEX_INDUSTRIES } from "./bridgeX";
 import { emitLiveUpdate, onLiveUpdate } from "./liveUpdates";
 import { publishTvGift, registerTvRoutes } from "./tvDisplay";
 import { tvPhoto } from "./tvLogic";
 import { cleanImportRows, matchKey } from "./inventoryImport";
+import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
 import { registerSecurityRoutes } from "./security";
 import { registerVenueScanRoutes } from "./venueScan";
 import { searchSongCatalog, textPinyin } from "./songSearch";
@@ -778,6 +779,24 @@ export async function disabledFeatures(): Promise<string[]> {
 }
 // Saves which features are off for this company. Used by the company's own Admin › App
 // features and by BridgeX, which sets them per company.
+// The industries a company offers (set by its BridgeX admin). Until one is saved: Reborn has its own sections, another
+// company has the one industry it was set up with.
+const INDUSTRIES_KEY = "industries";
+export async function companyIndustries(): Promise<string[]> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, INDUSTRIES_KEY));
+  if (row?.value) { try { return cleanIndustries(JSON.parse(row.value)); } catch { /* unreadable: fall back to the default below */ } }
+  if (IS_REBORN_DEPLOYMENT && homeCompanySlug() === DEFAULT_COMPANY_SLUG) return REBORN_INDUSTRIES;
+  const [company] = await db.select({ industry: bridgeCompanies.industry }).from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1);
+  const preset = BRIDGEX_INDUSTRIES.find((item) => item.key === company?.industry);
+  return preset ? [preset.name] : [];
+}
+export async function saveCompanyIndustries(raw: unknown): Promise<string[]> {
+  const list = cleanIndustries(raw);
+  const value = JSON.stringify(list);
+  await db.insert(appSettings).values({ key: INDUSTRIES_KEY, value, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  return list;
+}
+
 export async function saveDisabledFeatures(keys: unknown): Promise<string[]> {
   const raw = Array.isArray(keys) ? keys : [];
   const list = Array.from(new Set(raw.map(String).filter((k: string) => (APP_FEATURE_KEYS as readonly string[]).includes(k))));
@@ -4161,11 +4180,7 @@ export function registerRebornRoutes(app: Express) {
     const rows=(result.rows||result) as any[]; res.json(rows.map((x,i)=>({...x,rank:i+1,redFlag:(Number(x.rating)>0&&Number(x.rating)<2.5)||Number(x.bad_reviews)>=3})));
   }));
   // Distinct industries (product departments) for filters.
-  app.get("/api/reborn/industries", requireStaff(async (req, res) => {
-    const cid = await rebornCompanyId(req);
-    const rows = await db.execute(sql`SELECT DISTINCT TRIM(dep) dep FROM pos_products, unnest(string_to_array(department, ',')) AS dep WHERE company_id=${cid} AND COALESCE(department,'') <> '' AND TRIM(dep) <> '' ORDER BY dep`);
-    res.json((rows.rows || rows as any[]).map((r: any) => r.dep));
-  }));
+  app.get("/api/reborn/industries", requireStaff(async (_req, res) => { res.json(await companyIndustries()); }));
   app.get("/api/reborn/staff/feedback", requireStaff(async (_req, res) => {
     const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0]; if (!reborn) return res.json([]);
     const result=await db.execute(sql`SELECT f.*, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) user_name, COALESCE(NULLIF(trim(concat(s.first_name,' ',s.last_name)),''),s.email) staff_name FROM bridge_feedback f LEFT JOIN users u ON u.id=f.user_id LEFT JOIN users s ON s.id=f.staff_user_id WHERE f.company_id=${reborn.id} ORDER BY f.id DESC LIMIT 300`); res.json(result.rows||result);
@@ -4498,6 +4513,8 @@ export function registerRebornRoutes(app: Express) {
   // stock figure becomes the new count (the difference is written as a stock movement).
   app.post("/api/reborn/admin/inventory/import", requireAdmin(async (req, res) => {
     const { rows, skipped } = cleanImportRows(req.body?.rows);
+    const offered = await companyIndustries();
+    const department = cleanIndustries(req.body?.industries).filter((name) => offered.includes(name)).join(",") || null;
     if (!rows.length) return res.status(400).json({ message: tr(req, { en: "No items found in the file", zh: "文件中没有找到商品", id: "Tidak ada item di file" }) });
     const cid = await rebornCompanyId(req);
     const actor = getUserId(req)!;
@@ -4509,6 +4526,7 @@ export function registerRebornRoutes(app: Express) {
         const known = byName.get(matchKey(row.name));
         if (known) {
           const patch: Record<string, unknown> = { category: row.category };
+          if (department) patch.department = department;
           if (row.price !== null) patch.price = String(row.price);
           if (row.cost !== null) patch.cost = String(row.cost);
           if (row.supplier) patch.supplierName = row.supplier;
@@ -4519,7 +4537,7 @@ export function registerRebornRoutes(app: Express) {
           if (delta !== 0) await tx.insert(stockMovements).values({ companyId: cid, productId: known.id, delta, reason: delta > 0 ? "stock_in" : "adjustment", supplier: row.supplier || null, note: "Excel import", userId: actor });
           updated++;
         } else {
-          const [made] = await tx.insert(posProducts).values({ companyId: cid, name: row.name, category: row.category, price: String(row.price ?? 0), cost: String(row.cost ?? 0), stock: row.stock ?? 0, supplierName: row.supplier || null, supplierPhone: row.phone || null }).returning();
+          const [made] = await tx.insert(posProducts).values({ companyId: cid, name: row.name, category: row.category, price: String(row.price ?? 0), cost: String(row.cost ?? 0), stock: row.stock ?? 0, supplierName: row.supplier || null, supplierPhone: row.phone || null, department }).returning();
           byName.set(matchKey(row.name), made);
           if ((row.stock ?? 0) > 0) await tx.insert(stockMovements).values({ companyId: cid, productId: made.id, delta: row.stock!, reason: "stock_in", supplier: row.supplier || null, note: "Excel import", userId: actor });
           created++;

@@ -841,6 +841,18 @@ export function registerBridgeXRoutes(app: Express) {
     res.json({ disabled: await inCompanySpace(Number(req.params.id), () => saveDisabledFeatures(req.body?.disabled)) });
   }));
 
+  // The industries a company offers: saved in its own data, where its admin and POS read them.
+  app.get("/api/v1/platform/companies/:id/industries", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const { companyIndustries } = await import("./rebornGame");
+    res.json({ industries: await inCompanySpace(Number(req.params.id), () => companyIndustries()) });
+  }));
+  app.put("/api/v1/platform/companies/:id/industries", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const { saveCompanyIndustries } = await import("./rebornGame");
+    res.json({ industries: await inCompanySpace(Number(req.params.id), () => saveCompanyIndustries(req.body?.industries)) });
+  }));
+
   app.get("/api/v1/platform/companies", route(async (req, res) => {
     if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
     res.json(await db.select().from(bridgeCompanies).orderBy(desc(bridgeCompanies.id)));

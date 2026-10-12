@@ -4,7 +4,7 @@ import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { findHeader, readSheetRows, type Cell } from "@shared/inventorySheet";
 
-interface Props { onDone: () => void; onMessage: (text: string, isError?: boolean) => void }
+interface Props { industries: string[]; onDone: () => void; onMessage: (text: string, isError?: boolean) => void }
 
 const PREVIEW_ROWS = 5;
 const TEMPLATE = "No.,Item,Volume,QTY,Cost,Selling,Supplier,HP no.,Category\n1,Jameson,700ml,6,340000,520000,Nanda,81265661257,Spirits\n2,Heineken,330ml,120,28000,45000,PT Sumber,,Beer\n";
@@ -35,12 +35,15 @@ async function readFile(file: File): Promise<Cell[][]> {
   return (await readSheet(file)) as Cell[][];
 }
 
-export default function InventoryImport({ onDone, onMessage }: Props) {
+export default function InventoryImport({ industries, onDone, onMessage }: Props) {
   const { t } = useTranslation();
   const input = useRef<HTMLInputElement>(null);
   const [sheet, setSheet] = useState<Cell[][]>([]);
   const [isCostTotal, setIsCostTotal] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const [chosen, setChosen] = useState<string[]>([]);
+  // With a single industry there is nothing to choose: every imported item belongs to it.
+  const assigned = industries.length === 1 ? industries : chosen;
   const rows = useMemo(() => readSheetRows(sheet, { isCostTotal }), [sheet, isCostTotal]);
   const withoutPrice = rows.filter((row) => !row.price.trim()).length;
 
@@ -59,7 +62,7 @@ export default function InventoryImport({ onDone, onMessage }: Props) {
   const send = async () => {
     setIsBusy(true);
     try {
-      const result = await (await apiRequest("POST", "/api/reborn/admin/inventory/import", { rows })).json();
+      const result = await (await apiRequest("POST", "/api/reborn/admin/inventory/import", { rows, industries: assigned })).json();
       onMessage(result.message);
       setSheet([]);
       onDone();
@@ -85,6 +88,14 @@ export default function InventoryImport({ onDone, onMessage }: Props) {
       {rows.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs text-white/70">{t("admin.imp.found", { n: String(rows.length) })}</p>
+          {industries.length > 1 && (
+            <div className="space-y-1">
+              <p className="text-xs text-white/60">{t("admin.imp.industry")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {industries.map((name) => <button type="button" key={name} onClick={() => setChosen(chosen.includes(name) ? chosen.filter((x) => x !== name) : [...chosen, name])} className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${chosen.includes(name) ? "bg-amber-400 text-black border-amber-400" : "bg-white/5 text-white/70 border-white/10"}`}>{name}</button>)}
+              </div>
+            </div>
+          )}
           {withoutPrice > 0 && <p className="text-xs text-amber-300">{t("admin.imp.noPrice", { n: String(withoutPrice) })}</p>}
           <label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={isCostTotal} onChange={(event) => setIsCostTotal(event.target.checked)} /> {t("admin.imp.costTotal")}</label>
           <ul className="text-[11px] text-white/60 space-y-0.5">

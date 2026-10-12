@@ -36,6 +36,29 @@ export const button = "rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text
 
 // Which app functions this company's members get. A switch saves the moment it is flipped,
 // and the company's app follows within a few seconds.
+function CompanyIndustries({ company, onMsg }: { company: Company; onMsg: (message: string) => void }) {
+  const { t } = useTranslation();
+  const url = `/api/v1/platform/companies/${company.id}/industries`;
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    setText(null);
+    request(url).then((d) => setText((d.industries || []).join("\n"))).catch((e) => onMsg(e.message));
+  }, [company.id, company.dataMode]);
+  const save = async () => {
+    try {
+      const saved = await request(url, { method: "PUT", body: JSON.stringify({ industries: (text || "").split("\n") }) });
+      setText((saved.industries || []).join("\n"));
+      onMsg(t("admin.bx.ind.saved"));
+    } catch (e: any) { onMsg(e.message); }
+  };
+  return (
+    <Panel title={t("admin.bx.ind.title", { name: company.appName || company.name })} subtitle={t("admin.bx.ind.hint")}>
+      <textarea className={field + " min-h-[9rem]"} value={text ?? ""} disabled={text === null} onChange={(event) => setText(event.target.value)} />
+      <button className={button + " mt-3"} disabled={text === null} onClick={save}>{t("admin.bx.ind.save")}</button>
+    </Panel>
+  );
+}
+
 function CompanyAppFeatures({ company, onMsg }: { company: Company; onMsg: (message: string) => void }) {
   const { t } = useTranslation();
   const url = `/api/v1/platform/companies/${company.id}/app-features`;
@@ -289,7 +312,7 @@ export default function BridgeXAdmin() {
       </Panel>}
 
       {tab === "brand" && platformAdmin && <MetaAppPanel onMsg={setMessage} />}
-      {tab === "features" && platformAdmin && selected && <CompanyAppFeatures company={selected} onMsg={setMessage} />}
+      {tab === "features" && platformAdmin && selected && <><CompanyAppFeatures company={selected} onMsg={setMessage} /><CompanyIndustries company={selected} onMsg={setMessage} /></>}
 
       {tab === "overview" && platformAdmin && <OverviewPanel />}
 

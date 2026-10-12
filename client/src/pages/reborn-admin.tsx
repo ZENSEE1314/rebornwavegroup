@@ -1975,6 +1975,11 @@ const INDUSTRY_LABELS: Record<string, string> = { restaurant: "Restaurant", bar:
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar,Restaurant").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
+// The industries this company offers — set by its BridgeX admin, nothing else is listed.
+function useCompanyIndustries(): string[] {
+  const { data } = useQuery<string[]>({ queryKey: ["/api/reborn/industries"], queryFn: () => apiRequest("GET", "/api/reborn/industries").then((r) => r.json()), staleTime: 5 * 60_000 });
+  return data ?? [];
+}
 // Industry values are stored in English (e.g. "Food Court"); show them in the current language.
 const indLabel = (v: string): string => { const k = Object.keys(INDUSTRY_LABELS).find((x) => INDUSTRY_LABELS[x] === v); return k ? translate("admin.ind." + k) : v; };
 const deptLabel = (d?: string | null): string => deptList(d).map(indLabel).join(" · ");
@@ -2058,9 +2063,8 @@ function Products() {
   const [industry, setIndustry] = useState("");
   const [mode, setMode] = useState<"new" | "restock">("new");
   const [rs, setRs] = useState<any>({ productId: "", supplier: "", qty: 1, unitCost: 0 });
-  const industries = Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort();
-  // Industry options = enabled industry modules + any industries already in use.
-  const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...industries])).sort();
+  const industries = useCompanyIndustries();
+  const industryOptions = industries;
   const shown = industry ? products.filter((p) => deptHas(p.department, industry)) : products;
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
@@ -2104,6 +2108,7 @@ function Products() {
         <button onClick={() => restock.mutate()} disabled={!rs.productId || !Number(rs.qty) || restock.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.prod.addBatch")}</button>
         </>}
       </Card>
+      <InventoryImport industries={industries} onMessage={(text, isError) => toast({ title: text, variant: isError ? "destructive" : undefined })} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
       {/* Desktop: editable spreadsheet view */}
       {shown.length > 0 && <div className="hidden lg:block"><ProductsTable products={shown} industryOptions={industryOptions} /></div>}
@@ -2184,7 +2189,7 @@ function ProductRow({ p }: any) {
   const modules = useModules();
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState<any>({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
-  const industryOptions = Array.from(new Set([...Object.keys(INDUSTRY_LABELS).filter((k) => moduleEnabled(modules, k)).map((k) => INDUSTRY_LABELS[k]), ...deptList(p.department)])).sort();
+  const industryOptions = useCompanyIndustries();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: t("admin.c.saved") }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -2360,7 +2365,7 @@ function AccountingOrders({ days }: { days: number }) {
   const refund=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/refund`,{reason}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setReason("");refresh()},onError:(e:any)=>toast({title:t("admin.ao.refundFailed"),description:e.message,variant:"destructive"})});
   const save=useMutation({mutationFn:(o:any)=>apiRequest("POST",`/api/reborn/admin/accounting/orders/${o.id}/edit`,{...o,reason,items:o.items.map((x:any)=>({id:x.id,qty:Number(x.qty),price:Number(x.price)})),discount:Number(o.discount),tax:Number(o.tax),cashReceived:o.paymentMethod==="cash"?Number(o.cashReceived):undefined}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});setSelected(d.order);setEditing(false);setReason("");refresh()},onError:(e:any)=>toast({title:t("admin.ao.editFailed"),description:e.message,variant:"destructive"})});
   const [industry,setIndustry]=useState("");
-  const industries=Array.from(new Set(orders.flatMap((o:any)=>(o.items||[]).flatMap((it:any)=>deptList(it.department))))).sort();
+  const industries=useCompanyIndustries();
   const shown=industry?orders.filter((o:any)=>(o.items||[]).some((it:any)=>deptHas(it.department,industry))):orders;
   const taxRate=(o:any)=>{const taxable=Number(o.subtotal)-Number(o.discount);return taxable>0&&Number(o.tax)>0?Number((Number(o.tax)/taxable*100).toFixed(2)):0};
   const serviceRate=(o:any)=>{const taxable=Number(o.subtotal)-Number(o.discount);return taxable>0&&Number(o.serviceFee)>0?Number((Number(o.serviceFee)/taxable*100).toFixed(2)):0};
@@ -2428,7 +2433,7 @@ function Inventory() {
   });
   const allItems: any[] = data?.items || [];
   const [industry, setIndustry] = useState("");
-  const industries = Array.from(new Set(allItems.flatMap((i) => deptList(i.department)))).sort();
+  const industries = useCompanyIndustries();
   const items = industry ? allItems.filter((i) => deptHas(i.department, industry)) : allItems;
   const cats = Array.from(new Set(items.map((i) => i.category)));
   const totals = industry
@@ -2456,7 +2461,6 @@ function Inventory() {
         {(data?.totals?.low || 0) > 0 && <span className="inline-flex items-center gap-1 text-xs text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-2.5 py-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {t("admin.inv.lowItems", { n: data.totals.low })}</span>}
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
-      <InventoryImport onMessage={(text, isError) => toast({ title: text, variant: isError ? "destructive" : undefined })} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); }} />
       {/* Desktop: spreadsheet view */}
       {items.length > 0 && <div className="hidden lg:block"><InventoryTable items={items} money={money} step={step} /></div>}
       {/* Mobile / tablet: grouped cards */}

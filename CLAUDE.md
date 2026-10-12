@@ -734,3 +734,13 @@ text.
   by name: new = created, existing = updated, and a stock figure becomes the new count (the difference is a stock movement).
   The reading is in shared/inventorySheet.ts (header row found anywhere in the first 15 rows, columns matched by title words with typos
   tolerated, volume added to the name, category guessed from the name, optional "cost is the total for the quantity").
+
+## Industries per company
+
+- A company's industries are only what its BridgeX admin sets (BridgeX › App functions › "Industries of …", one per line;
+  `appSettings.industries` in the company's data via `/api/v1/platform/companies/:id/industries`, helpers `companyIndustries()` /
+  `saveCompanyIndustries()` in server/rebornGame.ts, list cleaning in shared/industries.ts). Until saved: Reborn = Lounge, Beauty,
+  KTV Room, KTV VIP, Restaurant, Game House; another company = the one industry it was set up with. `GET /api/reborn/industries` answers with
+  that list and every industry filter / picker (Products, Inventory, orders, staff leaderboard) uses it — nothing derived from item data.
+- The Excel import lives in Admin › Products (components/InventoryImport.tsx): the admin can tick the industries for the imported items
+  (with a single industry they all go to it).
