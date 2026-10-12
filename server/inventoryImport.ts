@@ -12,7 +12,7 @@ const text = (value: unknown, max: number) => (value === null || value === undef
 
 /** The name used to recognise the same item: lower case, no punctuation, no volume ("Jameson 700ml" = "JAMESON"). */
 export function matchKey(name: string): string {
-  return name.toLowerCase().replace(/\d+([.,]\d+)?\s*(ml|cl|ltr|l)/g, " ").replace(/[^a-z0-9一-鿿]+/g, " ").trim();
+  return name.toLowerCase().replace(/(^|[^a-z0-9])\d+([.,]\d+)?\s*(ml|cl|ltr|l)(?![a-z0-9])/g, " ").replace(/[^a-z0-9一-鿿]+/g, " ").trim();
 }
 
 /** "1,500,000" / "1.500.000" / "Rp 25.000,50" / 12.5 → a number; anything unreadable → null. */
