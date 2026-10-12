@@ -33,6 +33,7 @@ import { cleanImportRows, matchKey } from "./inventoryImport";
 import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
 import { registerSecurityRoutes } from "./security";
 import { registerVenueScanRoutes } from "./venueScan";
+import { registerSupplierReorder, runSupplierReorderCheck } from "./supplierReorder";
 import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
@@ -861,6 +862,7 @@ async function alertServiceCall(call: ServiceCall) {
   else await pushAdminsI18n(make);
 }
 // Called every few seconds: a call nobody has accepted yet is announced again.
+const SUPPLIER_REORDER_CHECK_MS = 30 * 60_000;
 export async function remindServiceCalls() {
   const due = (await openServiceCalls()).filter((call) => !call.acceptedBy && call.alerts < SERVICE_CALL_MAX_ALERTS && Date.now() - call.alertedAt >= SERVICE_CALL_REMIND_MS);
   for (const call of due) {
@@ -1186,6 +1188,8 @@ async function activeCheckin(userId: string) {
 export function registerRebornRoutes(app: Express) {
   // A table's call keeps alerting staff until someone accepts it.
   setInterval(() => { void inEveryDataSpace(remindServiceCalls); }, SERVICE_CALL_CHECK_MS);
+  // Low stock → a drafted message to the supplier, waiting for the admin's approval (when switched on).
+  setInterval(() => { void inEveryDataSpace(async () => { await runSupplierReorderCheck(); }).catch((error) => console.error("[supplier reorder]", error)); }, SUPPLIER_REORDER_CHECK_MS);
 
   console.log("*** REBORN GAME ROUTES REGISTERED");
   void dedupeGiftTypes();
@@ -4739,6 +4743,20 @@ export function registerRebornRoutes(app: Express) {
       if (!phones.length) return void (await notifyAdmins(pick("en", text, vars)));
       for (const phone of phones) await sendWhatsApp(phone, pick(await langForPhone(phone), text, vars));
     },
+  });
+  registerSupplierReorder(app, {
+    requireAdmin,
+    readSetting: async (key) => (await db.select().from(appSettings).where(eq(appSettings.key, key)))[0]?.value ?? null,
+    writeSetting: writeSettingValue,
+    listProducts: async () => {
+      const cid = await rebornCompanyId();
+      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), eq(posProducts.active, true)));
+      return rows.map((p) => ({ id: p.id, name: p.name, stock: p.stock, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "", imageUrl: p.imageUrl }));
+    },
+    clubName: async () => (await getSettings()).clubName || "Reborn Wave",
+    sendWhatsApp: (phone, text) => sendWhatsApp(waDigits(phone), text),
+    notifyAdmins,
+    logAdmin: (req, entry) => logAdmin(req, { targetType: "inventory", action: entry.action, entityType: "stock", description: entry.description }),
   });
   registerVenueScanRoutes(app, {
     requireStaff,

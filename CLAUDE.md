@@ -744,3 +744,13 @@ text.
   that list and every industry filter / picker (Products, Inventory, orders, staff leaderboard) uses it — nothing derived from item data.
 - The Excel import lives in Admin › Products (components/InventoryImport.tsx): the admin can tick the industries for the imported items
   (with a single industry they all go to it).
+
+## Ask suppliers when stock is low (Admin › Inventory)
+
+- Off by default (`appSettings.supplierReorder`: on/off, message language, and the ticked items each with a "low at" level and an
+  order quantity). Every 30 min, per company (`runSupplierReorderCheck`), a ticked item at/below its level whose supplier has a phone
+  number gets a drafted WhatsApp message — one per supplier number, listing all their low items. The draft waits as a request
+  (`supplierReorderRequests`); the admin gets a WhatsApp notice, reads/edits it in the panel and presses Send (`waDigits` → `sendWhatsApp`).
+  Nothing is ever sent without that tap. Same item isn't asked again while a request waits, 3 days after sending, 1 day after dismissing.
+- The text is written by Claude (haiku) when `ANTHROPIC_API_KEY` is set on the server, else a ready-made template in en / zh / id
+  (server/supplierReorderLogic.ts `templateMessage`). Supplier phone is a column in Admin › Products.

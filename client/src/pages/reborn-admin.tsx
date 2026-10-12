@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import InventoryImport from "@/components/InventoryImport";
+import SupplierReorderPanel from "@/components/SupplierReorderPanel";
 import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
@@ -2129,7 +2130,7 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
   return (
     <Card>
       <div className="overflow-x-auto -mx-3 sm:mx-0">
-        <table className="w-full min-w-[1120px] text-sm border-collapse">
+        <table className="w-full min-w-[1260px] text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
               <th className="py-2 px-2 font-semibold min-w-[200px]">{t("admin.prod.item")}</th>
@@ -2139,6 +2140,7 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
               <th className="py-2 px-2 font-semibold">{t("admin.prod.supplier")}</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.prod.supplierPhone")}</th>
               <th className="py-2 px-2 font-semibold">{t("admin.pkg.col")}</th>
               <th className="py-2 px-2 font-semibold text-center">{t("admin.prod.pos")}</th>
               <th className="py-2 px-2 font-semibold text-center">{t("admin.prod.activeCol")}</th>
@@ -2180,7 +2182,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, supplierName: p.supplierName || "" };
+  const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
   const [f, setF] = useState(base);
   const dirty = JSON.stringify(f) !== JSON.stringify(base);
   const save = useMutation({
@@ -2197,6 +2199,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={numCell} /></td>
       <td className={`px-2 py-1 text-right font-semibold tabular-nums ${p.stock <= (p.lowStock ?? 0) ? "text-red-300" : "text-white/70"}`}>{p.stock}</td>
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
+      <td className="px-2 py-1"><input value={f.supplierPhone} inputMode="tel" onChange={(e) => setF({ ...f, supplierPhone: e.target.value })} placeholder={t("admin.ro.noPhone")} className={cell + " min-w-[120px] " + (f.supplierName && !f.supplierPhone ? "border-red-400/40" : "")} /></td>
       <td className="px-2 py-1"><PackageButton p={p} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
@@ -2480,6 +2483,7 @@ function Inventory() {
   return (
     <div className="space-y-3">
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
+      <SupplierReorderPanel />
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
         <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.stockValue")}</p><p className="text-base font-extrabold text-amber-300">{money(totals.cost || 0)}</p></div>
