@@ -11,6 +11,8 @@ export interface TvDeps {
   songBoard(companyId: number): Promise<{ nowPlaying?: Record<string, unknown> | null; queue?: Array<Record<string, unknown>> }>;
   readSetting(): Promise<string | null>;
   writeSetting(value: string): Promise<void>;
+  /** This company's own gift of that effect (its name, picture and price), if it has one. */
+  giftOfScene(scene: string): Promise<{ name: string; emoji: string; imageUrl: string; kgoldCost: number } | null>;
   /** Told whenever anything changes in the app (a song queued, a song finished …). */
   onAppChange(listener: (resource: string) => void): void;
 }
@@ -103,7 +105,12 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
     const screen = await screenFor(String(req.body?.token || ""));
     if (!screen) return res.status(404).json({ message: "Unknown TV" });
     const scene = TEST_SCENES[testCounter++ % TEST_SCENES.length];
-    const gift: GiftEvent = { id: `test-${Date.now()}`, giftName: scene, emoji: TEST_EMOJI[scene], imageUrl: "", animation: scene, fromName: "Alex", fromTable: "5", toName: "Sam", toTable: "9", kgold: 100000 };
+    // The sample uses the company's real gift of that effect, so the name and KGOLD are the price its members pay.
+    const own = await injected.giftOfScene(scene);
+    const gift: GiftEvent = {
+      id: `test-${Date.now()}`, giftName: own?.name || scene, emoji: own?.emoji || TEST_EMOJI[scene], imageUrl: own?.imageUrl || "", animation: scene,
+      fromName: "Alex", fromTable: "5", toName: "Sam", toTable: "9", kgold: own?.kgoldCost ?? 0,
+    };
     res.json({ shown: showsGifts(screen), delivered: showsGifts(screen) ? sendToTv(screen.token, "gift", gift) : 0 });
   }));
 

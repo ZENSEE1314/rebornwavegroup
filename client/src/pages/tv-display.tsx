@@ -120,7 +120,7 @@ function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
       </div>
       <div className="absolute inset-x-0 top-[16%] overflow-hidden" style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,.45) 12%, rgba(0,0,0,.45) 88%, transparent)", padding: "0.6vw 0" }}>
         <p className="whitespace-nowrap text-white inline-block" style={{ fontSize: "2.6vw", fontWeight: 900, textShadow: "0 2px 8px rgba(0,0,0,.9)", animation: `tvGiftSlide ${GIFT_SHOWN_MS}ms linear forwards` }}>
-          {gift.emoji || "🎁"} {t("hm.tv.giftTicker", { from, gift: gift.giftName, to, kgold: gift.kgold.toLocaleString() })}
+          {gift.emoji || "🎁"} {gift.kgold > 0 ? t("hm.tv.giftTicker", { from, gift: gift.giftName, to, kgold: gift.kgold.toLocaleString() }) : t("hm.tv.giftBanner", { from, gift: gift.giftName, to })}
         </p>
       </div>
     </div>
