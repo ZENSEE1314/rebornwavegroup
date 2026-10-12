@@ -4630,7 +4630,7 @@ export function registerRebornRoutes(app: Express) {
       await db.insert(appSettings).values({ key: TV_SETUP_KEY, value, updatedAt: new Date() })
         .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
     },
-    giftTypes: async () => (await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.active, true)).orderBy(kosGiftTypes.kgoldCost))
+    giftTypes: async (companyId) => (await db.select().from(kosGiftTypes).where(and(eq(kosGiftTypes.companyId, companyId), eq(kosGiftTypes.active, true))).orderBy(kosGiftTypes.kgoldCost, kosGiftTypes.sortOrder, kosGiftTypes.id))
       .map((row) => ({ name: row.name, emoji: row.emoji || "", imageUrl: row.imageUrl || "", animation: row.animation || "", kgoldCost: row.kgoldCost || 0 })),
     onAppChange: onLiveUpdate,
   });

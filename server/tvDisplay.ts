@@ -12,7 +12,7 @@ export interface TvDeps {
   readSetting(): Promise<string | null>;
   writeSetting(value: string): Promise<void>;
   /** Every gift this company sells (its name, picture, effect and price), cheapest first, for the TV test. */
-  giftTypes(): Promise<Array<{ name: string; emoji: string; imageUrl: string; animation: string; kgoldCost: number }>>;
+  giftTypes(companyId: number): Promise<Array<{ name: string; emoji: string; imageUrl: string; animation: string; kgoldCost: number }>>;
   /** Told whenever anything changes in the app (a song queued, a song finished …). */
   onAppChange(listener: (resource: string) => void): void;
 }
@@ -105,7 +105,7 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
     const screen = await screenFor(String(req.body?.token || ""));
     if (!screen) return res.status(404).json({ message: "Unknown TV" });
     // Each press plays the next of the company's real gifts, so every gift (and its price) can be checked on the TV.
-    const own = await injected.giftTypes();
+    const own = await injected.giftTypes(await injected.companyId(req));
     const pick = own.length ? own[testCounter++ % own.length] : null;
     const scene = pick?.animation || TEST_SCENES[testCounter++ % TEST_SCENES.length];
     const gift: GiftEvent = {
