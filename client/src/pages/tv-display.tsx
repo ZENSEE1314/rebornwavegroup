@@ -6,7 +6,7 @@ import { GiftScene, giftSoundOf, sceneOf } from "@/pages/reborn-kos";
 import { sfx } from "@/lib/sfx";
 
 interface Song { title: string; artist: string; table: string; name: string }
-interface Gift { id: string; giftName: string; emoji: string; imageUrl: string; animation: string; fromName: string; fromTable: string; toName: string; toTable: string; kgold: number }
+interface Gift { id: string; giftName: string; emoji: string; imageUrl: string; animation: string; fromName: string; fromTable: string; toName: string; toTable: string; kgold: number; fromPhoto?: string; toPhoto?: string; topGifters?: Array<{ name: string; photo: string; sent: number }> }
 interface TvState { name: string; view: "overlay" | "queue" | "gifts" | "off"; tables: string[]; now: Song | null; next: Song[]; gifts: Gift[] }
 
 const GIFT_SHOWN_MS = 9000;
@@ -95,6 +95,17 @@ function GiftWall({ gifts }: { gifts: Gift[] }) {
 
 // Over the karaoke picture ("overlay") a gift must not hide the song: no dark veil, the
 // effect plays big with no background, and one line slides across from right to left. On a gift wall it keeps the full-screen scene.
+const RANK_RING = ["#f7d774", "#d1d5db", "#d97706"];
+
+// A member's face: their picture, or their first letter when they have none.
+function Face({ name, photo, size, ring }: { name: string; photo?: string; size: string; ring?: string }) {
+  return (
+    <span className="inline-flex items-center justify-center overflow-hidden rounded-full shrink-0 align-middle bg-white/20 text-white font-black" style={{ width: size, height: size, border: `0.25vw solid ${ring || "rgba(255,255,255,.8)"}`, fontSize: `calc(${size} * 0.5)`, boxShadow: "0 2px 8px rgba(0,0,0,.6)" }}>
+      {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : (name || "?").slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
+
 function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
   const { t } = useTranslation();
   const art = gift.imageUrl ? <img src={gift.imageUrl} alt="" className="gs-img" /> : <span className="gs-emoji">{gift.emoji || "🎁"}</span>;
@@ -119,10 +130,25 @@ function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
         <GiftScene kind={sceneOf(gift)} art={art} />
       </div>
       <div className="absolute inset-x-0 top-[16%] overflow-hidden" style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,.45) 12%, rgba(0,0,0,.45) 88%, transparent)", padding: "0.6vw 0" }}>
-        <p className="whitespace-nowrap text-white inline-block" style={{ fontSize: "2.6vw", fontWeight: 900, textShadow: "0 2px 8px rgba(0,0,0,.9)", animation: `tvGiftSlide ${GIFT_SHOWN_MS}ms linear forwards` }}>
-          {gift.emoji || "🎁"} {gift.kgold > 0 ? t("hm.tv.giftTicker", { from, gift: gift.giftName, to, kgold: gift.kgold.toLocaleString() }) : t("hm.tv.giftBanner", { from, gift: gift.giftName, to })}
+        <p className="whitespace-nowrap text-white inline-flex items-center gap-[1vw]" style={{ fontSize: "2.6vw", fontWeight: 900, textShadow: "0 2px 8px rgba(0,0,0,.9)", animation: `tvGiftSlide ${GIFT_SHOWN_MS}ms linear forwards` }}>
+          <Face name={from} photo={gift.fromPhoto} size="4.2vw" />
+          <span>{gift.emoji || "🎁"} {gift.kgold > 0 ? t("hm.tv.giftTicker", { from, gift: gift.giftName, to, kgold: gift.kgold.toLocaleString() }) : t("hm.tv.giftBanner", { from, gift: gift.giftName, to })}</span>
+          <Face name={to} photo={gift.toPhoto} size="4.2vw" />
         </p>
       </div>
+      {gift.topGifters && gift.topGifters.length > 0 && (
+        <div className="absolute left-[2vw] top-[26%] rounded-[1.4vw] px-[1.4vw] py-[1vw] text-white" style={{ background: "rgba(0,0,0,.45)", maxWidth: "34vw" }}>
+          <p style={{ fontSize: "1.7vw", fontWeight: 900, textShadow: "0 2px 6px rgba(0,0,0,.9)" }}>🏆 {t("hm.tv.topGifters", { name: to })}</p>
+          <ul className="mt-[0.6vw] space-y-[0.6vw]">
+            {gift.topGifters.map((top, i) => (
+              <li key={`${top.name}${i}`} className="flex items-center gap-[1vw]" style={{ fontSize: "1.8vw", fontWeight: 800, textShadow: "0 2px 6px rgba(0,0,0,.9)" }}>
+                <Face name={top.name} photo={top.photo} size="4vw" ring={RANK_RING[i]} />
+                <span className="truncate">{i + 1}. {top.name || t("hm.tv.someone")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

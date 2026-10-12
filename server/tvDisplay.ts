@@ -110,6 +110,7 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
     const gift: GiftEvent = {
       id: `test-${Date.now()}`, giftName: own?.name || scene, emoji: own?.emoji || TEST_EMOJI[scene], imageUrl: own?.imageUrl || "", animation: scene,
       fromName: "Alex", fromTable: "5", toName: "Sam", toTable: "9", kgold: own?.kgoldCost ?? 0,
+      topGifters: [{ name: "Alex", photo: "", sent: 900000 }, { name: "Mia", photo: "", sent: 450000 }, { name: "Ben", photo: "", sent: 120000 }],
     };
     res.json({ shown: showsGifts(screen), delivered: showsGifts(screen) ? sendToTv(screen.token, "gift", gift) : 0 });
   }));

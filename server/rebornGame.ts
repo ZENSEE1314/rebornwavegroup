@@ -28,6 +28,7 @@ import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange } from "./bridgeX";
 import { emitLiveUpdate, onLiveUpdate } from "./liveUpdates";
 import { publishTvGift, registerTvRoutes } from "./tvDisplay";
+import { tvPhoto } from "./tvLogic";
 import { registerSecurityRoutes } from "./security";
 import { registerVenueScanRoutes } from "./venueScan";
 import { searchSongCatalog, textPinyin } from "./songSearch";
@@ -1745,10 +1746,17 @@ export function registerRebornRoutes(app: Express) {
       // The TVs play the gift too (on the screens that follow the sender's or receiver's table). Never allowed to hold up or break the gift itself.
       void (async () => {
         const [fromSeat, toSeat, receiver] = await Promise.all([activeCheckin(fromUserId).catch(() => null), activeCheckin(toUserId).catch(() => null), storage.getUser(toUserId)]);
+        const session = await ensureVenueSession();
+        const topRows: any = await db.execute(sql`SELECT u.first_name AS "firstName", u.username, u.profile_image_url AS photo, SUM(g.kgold_cost)::bigint AS sent
+          FROM kos_gifts g JOIN users u ON u.id=g.from_user_id
+          WHERE g.company_id=${cid} AND g.to_user_id=${toUserId} AND g.created_at>=${venueDayStart(session.day)}
+          GROUP BY u.id, u.first_name, u.username, u.profile_image_url ORDER BY sent DESC LIMIT 3`);
+        const topGifters = ((topRows.rows || topRows) as any[]).map((row) => ({ name: row.firstName || row.username || "", photo: tvPhoto(row.photo), sent: Number(row.sent) || 0 }));
         await publishTvGift(cid, {
           id: String(giftRow.id), giftName: gt.name, emoji: gt.emoji || "", imageUrl: gt.imageUrl || "", animation: gt.animation || "",
           fromName: giver.firstName || giver.username || "", fromTable: fromSeat?.tableLabel || "",
           toName: receiver?.firstName || receiver?.username || "", toTable: toSeat?.tableLabel || "", kgold: cost,
+          fromPhoto: tvPhoto(giver.profileImageUrl), toPhoto: tvPhoto(receiver?.profileImageUrl), topGifters,
         });
       })().catch((error) => console.error("tv gift", error));
       res.json({ message: tr(req, { en: "Sent a {gift}!", zh: "已送出 {gift}！", id: "{gift} terkirim!" }, { gift: gt.name }), kgold: fresh?.kgold ?? 0, levelUp: senderUp ? { kind: "sender", level: senderUp } : null });

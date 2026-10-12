@@ -27,6 +27,17 @@ export interface GiftEvent {
   toName: string;
   toTable: string;
   kgold: number;
+  fromPhoto?: string;
+  toPhoto?: string;
+  /** The receiver's three biggest gifters tonight, for the "top 3" card on the TV. */
+  topGifters?: Array<{ name: string; photo: string; sent: number }>;
+}
+
+const MAX_PHOTO_CHARS = 60_000;
+
+/** A member's picture for a TV: a web address, or a small uploaded one; a huge one is left out (the TV shows the initial). */
+export function tvPhoto(url: unknown): string {
+  return typeof url === "string" && url.length <= MAX_PHOTO_CHARS ? url : "";
 }
 
 export interface SongLine { title: string; artist: string; table: string; name: string }
