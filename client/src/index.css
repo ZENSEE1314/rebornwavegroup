@@ -2644,10 +2644,19 @@ button, .interactive {
 @keyframes gsRays { to { transform:translateX(-60px); } }
 .gs-bubble { position:absolute; bottom:-30px; border-radius:50%; border:2px solid rgba(255,255,255,.7); background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.7), rgba(255,255,255,.08)); animation-name: gsBubble; animation-iteration-count:infinite; animation-timing-function:ease-in; }
 @keyframes gsBubble { to { transform:translateY(-110vh) translateX(20px); } }
-.gs-whalebody { position:absolute; left:50%; top:50%; font-size:90px; line-height:1; transform:translate(-50%,-50%); animation: gsWhale 3.2s cubic-bezier(.4,0,.2,1) both, gsSwim 1.6s ease-in-out 3.2s infinite; filter: drop-shadow(0 0 26px rgba(125,211,252,.7)); }
-@keyframes gsWhale { 0% { transform:translate(-50%,40%) scale(.08); opacity:0; filter: blur(3px); } 25% { opacity:1; } 100% { transform:translate(-50%,-50%) scale(3.2); opacity:1; filter:none; } }
+.gs-whalebody { position:absolute; left:50%; top:50%; font-size:90px; line-height:1; transform:translate(-50%,-50%); animation: gsWhale 4.2s cubic-bezier(.35,.1,.25,1) both, gsSwim 1.6s ease-in-out 4.2s infinite; filter: drop-shadow(0 0 26px rgba(125,211,252,.7)); }
+/* The whale swims up out of the deep behind the screen: tiny and blurred at first, curving from side to side, growing as it comes forward, then settling in front. */
+@keyframes gsWhale {
+  0% { transform:translate(-50%,-10%) scale(.05) rotate(-8deg); opacity:0; filter: blur(5px) brightness(.5); }
+  15% { opacity:1; }
+  35% { transform:translate(-95%,-38%) scale(.55) rotate(9deg); filter: blur(2px) brightness(.8); }
+  62% { transform:translate(-8%,-58%) scale(1.6) rotate(-9deg); filter: blur(.5px) brightness(1); }
+  100% { transform:translate(-50%,-50%) scale(3.2) rotate(0deg); opacity:1; filter:none; }
+}
+.gs-wakering { position:absolute; left:50%; top:52%; width:30vmin; height:30vmin; margin:-15vmin 0 0 -15vmin; border-radius:50%; border:3px solid rgba(186,230,253,.75); opacity:0; animation: gsWake 2.2s ease-out both; }
+@keyframes gsWake { 0% { transform:scale(.2); opacity:.9; } 100% { transform:scale(3.4); opacity:0; } }
 @keyframes gsSwim { 50% { transform:translate(-50%,-53%) scale(3.3) rotate(-3deg); } }
-.gs-splash { position:absolute; left:50%; top:30%; font-size:110px; transform:translateX(-50%); opacity:0; animation: gsSplash 1s ease-out 2.9s both; }
+.gs-splash { position:absolute; left:50%; top:30%; font-size:110px; transform:translateX(-50%); opacity:0; animation: gsSplash 1s ease-out 3.8s both; }
 @keyframes gsSplash { 0% { transform:translateX(-50%) scale(.2); opacity:0; } 40% { opacity:1; transform:translateX(-50%) scale(1.4); } 100% { transform:translateX(-50%) scale(1.8) translateY(-40px); opacity:0; } }
 
 /* 🚀 Rocket */

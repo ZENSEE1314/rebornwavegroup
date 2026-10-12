@@ -421,6 +421,7 @@ function WhaleScene() {
       <div className="gs-ocean" />
       <div className="gs-lightrays" />
       {Array.from({ length: 26 }).map((_, k) => <i key={k} className="gs-bubble" style={{ left: `${(k * 31 + 3) % 96}%`, width: 6 + (k % 5) * 5, height: 6 + (k % 5) * 5, animationDelay: `${(k % 13) * 0.25}s`, animationDuration: `${2.2 + (k % 4) * 0.5}s` }} />)}
+      {[0, 1, 2].map((k) => <i key={k} className="gs-wakering" style={{ animationDelay: `${3.6 + k * 0.45}s` }} />)}
       <div className="gs-whalebody">🐋</div>
       <div className="gs-splash">💦</div>
     </div>
