@@ -4630,10 +4630,8 @@ export function registerRebornRoutes(app: Express) {
       await db.insert(appSettings).values({ key: TV_SETUP_KEY, value, updatedAt: new Date() })
         .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
     },
-    giftOfScene: async (scene) => {
-      const [row] = await db.select().from(kosGiftTypes).where(and(eq(kosGiftTypes.animation, scene), eq(kosGiftTypes.active, true))).orderBy(kosGiftTypes.sortOrder).limit(1);
-      return row ? { name: row.name, emoji: row.emoji || "", imageUrl: row.imageUrl || "", kgoldCost: row.kgoldCost || 0 } : null;
-    },
+    giftTypes: async () => (await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.active, true)).orderBy(kosGiftTypes.kgoldCost))
+      .map((row) => ({ name: row.name, emoji: row.emoji || "", imageUrl: row.imageUrl || "", animation: row.animation || "", kgoldCost: row.kgoldCost || 0 })),
     onAppChange: onLiveUpdate,
   });
 

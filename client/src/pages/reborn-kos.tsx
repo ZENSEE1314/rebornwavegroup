@@ -416,14 +416,39 @@ function LionScene() {
 }
 // 🐋 A huge whale swims up from the deep toward you, bubbles everywhere, then a splash.
 function WhaleScene() {
+  const spots = [[285, 112, 6], [335, 100, 8], [392, 94, 7], [448, 100, 9], [498, 112, 7], [305, 142, 5], [365, 138, 6], [425, 144, 5], [480, 152, 6], [250, 128, 4]];
   return (
     <div className="gs-whale">
       <div className="gs-ocean" />
       <div className="gs-lightrays" />
-      {Array.from({ length: 26 }).map((_, k) => <i key={k} className="gs-bubble" style={{ left: `${(k * 31 + 3) % 96}%`, width: 6 + (k % 5) * 5, height: 6 + (k % 5) * 5, animationDelay: `${(k % 13) * 0.25}s`, animationDuration: `${2.2 + (k % 4) * 0.5}s` }} />)}
-      {[0, 1, 2].map((k) => <i key={k} className="gs-wakering" style={{ animationDelay: `${3.6 + k * 0.45}s` }} />)}
-      <div className="gs-whalebody">🐋</div>
-      <div className="gs-splash">💦</div>
+      {Array.from({ length: 34 }).map((_, k) => <i key={k} className="gs-spore" style={{ left: `${(k * 37 + 5) % 98}%`, width: 4 + (k % 4) * 3, height: 4 + (k % 4) * 3, animationDelay: `${(k % 11) * 0.5}s`, animationDuration: `${5 + (k % 5)}s` }} />)}
+      <div className="gs-wfly">
+        <svg className="gs-wsvg" viewBox="0 0 660 290" aria-hidden="true">
+          <defs>
+            <linearGradient id="gsWhBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#06304d" /><stop offset=".5" stopColor="#1b7fa6" /><stop offset="1" stopColor="#c9edf5" /></linearGradient>
+            <linearGradient id="gsWhFin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#0d4a6d" /><stop offset="1" stopColor="#3aa6c4" /></linearGradient>
+            <filter id="gsWhGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.5" /></filter>
+          </defs>
+          <g className="gs-wsway">
+            <g className="gs-wtail">
+              <path d="M232 100 C190 112 152 128 120 140 C152 152 190 168 232 180 Z" fill="url(#gsWhBody)" />
+              <g className="gs-wfluke">
+                <path d="M122 140 C98 118 70 92 30 74 C52 104 62 124 80 140 C62 156 52 176 30 206 C70 188 98 162 122 140 Z" fill="url(#gsWhFin)" />
+                <path d="M118 140 C96 124 74 104 48 92" stroke="#7ffbff" strokeWidth="2.5" fill="none" opacity=".7" filter="url(#gsWhGlow)" />
+              </g>
+            </g>
+            <path d="M300 96 C318 70 340 72 352 98 Z" fill="url(#gsWhFin)" />
+            <path d="M215 112 C262 68 362 54 452 72 C534 88 596 118 620 148 C608 172 566 204 484 218 C392 232 292 218 215 166 Z" fill="url(#gsWhBody)" />
+            <g stroke="#e8fbff" strokeWidth="1.6" fill="none" opacity=".35">
+              <path d="M440 188 C500 196 560 188 596 168" /><path d="M420 198 C490 210 556 202 590 180" /><path d="M400 206 C470 220 540 214 580 192" />
+            </g>
+            <path d="M262 108 C340 80 440 84 560 128" stroke="#7ffbff" strokeWidth="3" fill="none" opacity=".75" filter="url(#gsWhGlow)" />
+            {spots.map(([x, y, r], i) => <circle key={i} className="gs-wspot" cx={x} cy={y} r={r} fill="#8ffcff" style={{ animationDelay: `${(i % 5) * 0.35}s` }} />)}
+            <g className="gs-wfin"><path d="M414 196 C392 230 358 254 316 268 C366 270 410 246 442 208 Z" fill="url(#gsWhFin)" /><path d="M404 204 C386 228 360 246 336 258" stroke="#7ffbff" strokeWidth="2" fill="none" opacity=".6" filter="url(#gsWhGlow)" /></g>
+            <circle cx="552" cy="138" r="7" fill="#031a2b" /><circle cx="555" cy="135" r="2.4" fill="#fff" />
+          </g>
+        </svg>
+      </div>
     </div>
   );
 }

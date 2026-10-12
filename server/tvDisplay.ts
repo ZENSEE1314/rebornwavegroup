@@ -11,8 +11,8 @@ export interface TvDeps {
   songBoard(companyId: number): Promise<{ nowPlaying?: Record<string, unknown> | null; queue?: Array<Record<string, unknown>> }>;
   readSetting(): Promise<string | null>;
   writeSetting(value: string): Promise<void>;
-  /** This company's own gift of that effect (its name, picture and price), if it has one. */
-  giftOfScene(scene: string): Promise<{ name: string; emoji: string; imageUrl: string; kgoldCost: number } | null>;
+  /** Every gift this company sells (its name, picture, effect and price), cheapest first, for the TV test. */
+  giftTypes(): Promise<Array<{ name: string; emoji: string; imageUrl: string; animation: string; kgoldCost: number }>>;
   /** Told whenever anything changes in the app (a song queued, a song finished …). */
   onAppChange(listener: (resource: string) => void): void;
 }
@@ -104,12 +104,13 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
   app.post("/api/reborn/admin/tv/test-gift", injected.requireAdmin(async (req, res) => {
     const screen = await screenFor(String(req.body?.token || ""));
     if (!screen) return res.status(404).json({ message: "Unknown TV" });
-    const scene = TEST_SCENES[testCounter++ % TEST_SCENES.length];
-    // The sample uses the company's real gift of that effect, so the name and KGOLD are the price its members pay.
-    const own = await injected.giftOfScene(scene);
+    // Each press plays the next of the company's real gifts, so every gift (and its price) can be checked on the TV.
+    const own = await injected.giftTypes();
+    const pick = own.length ? own[testCounter++ % own.length] : null;
+    const scene = pick?.animation || TEST_SCENES[testCounter++ % TEST_SCENES.length];
     const gift: GiftEvent = {
-      id: `test-${Date.now()}`, giftName: own?.name || scene, emoji: own?.emoji || TEST_EMOJI[scene], imageUrl: own?.imageUrl || "", animation: scene,
-      fromName: "Alex", fromTable: "5", toName: "Sam", toTable: "9", kgold: own?.kgoldCost ?? 0,
+      id: `test-${Date.now()}`, giftName: pick?.name || scene, emoji: pick?.emoji || TEST_EMOJI[scene] || "🎁", imageUrl: pick?.imageUrl || "", animation: scene,
+      fromName: "Alex", fromTable: "5", toName: "Sam", toTable: "9", kgold: pick?.kgoldCost ?? 0,
       topGifters: [{ name: "Alex", photo: "", sent: 900000 }, { name: "Mia", photo: "", sent: 450000 }, { name: "Ben", photo: "", sent: 120000 }],
     };
     res.json({ shown: showsGifts(screen), delivered: showsGifts(screen) ? sendToTv(screen.token, "gift", gift) : 0 });
