@@ -172,7 +172,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
       </header>
 
       {/* Content */}
-      <main key={active || title || "page"} style={gx ? { ["--gx" as any]: gx } : undefined} className={`rwg-enter ${gx ? "gx" : ""} ${wide ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 pt-4 ${hideNav ? "pb-6" : "pb-28"}`}>{children}</main>
+      <main key={active || title || "page"} style={gx ? { ["--gx" as any]: gx } : undefined} className={`rwg-enter ${gx ? "gx" : ""} ${wide ? "max-w-[1400px]" : "max-w-2xl"} mx-auto px-4 pt-4 ${hideNav ? "pb-6" : "pb-28"}`}>{children}</main>
 
       {/* Bottom nav — hidden while inside a live game so you can't tap out by accident */}
       {!hideNav && (

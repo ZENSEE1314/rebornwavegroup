@@ -59,7 +59,7 @@ export default function RebornAdmin() {
   const { t } = useTranslation();
   const go = (tb: string) => { if (tb === "POS") { window.location.href = "/pos"; return; } setTab(tb); };
   return (
-    <RebornLayout active="/reborn-admin" title={t("admin.title")}>
+    <RebornLayout active="/reborn-admin" title={t("admin.title")} wide>
       {isFullAdmin && !isWhiteLabel && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">{t("admin.companySetup")}</b><span className="text-xs text-cyan-100/60">{t("admin.companySetupHint")}</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">{t("admin.c.open")}</span></a>}
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
         {TABS.map((tb) => (
