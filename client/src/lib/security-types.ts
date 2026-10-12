@@ -1,5 +1,5 @@
 export type CameraKind = "image" | "page";
-export interface Camera { id: string; name: string; kind: CameraKind; url: string; refreshSeconds: number }
+export interface Camera { id: string; name: string; kind: CameraKind; url: string; refreshSeconds: number; brand: string; brandName: string }
 export interface StationNumber { label: string; phone: string }
 export interface SecuritySetup { cameras: Camera[]; stationNumbers: StationNumber[]; alertPhones: string[]; canEdit: boolean }
 export type OfficerOutcome = "open" | "verified" | "not_verified" | "refused";

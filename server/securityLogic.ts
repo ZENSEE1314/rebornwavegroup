@@ -1,10 +1,12 @@
 // Pure rules for the Security tab (no database, no web server): cleaning the saved setup (cameras, the official
 // station numbers, who gets the alert) and the "Officer at the door" reports staff write. Kept apart so it can be tested.
 
+import { cleanCameraBrand } from "../shared/cameraBrands";
+
 export const CAMERA_KINDS = ["image", "page"] as const;
 export type CameraKind = (typeof CAMERA_KINDS)[number];
 
-export interface Camera { id: string; name: string; kind: CameraKind; url: string; refreshSeconds: number }
+export interface Camera { id: string; name: string; kind: CameraKind; url: string; refreshSeconds: number; brand: string; brandName: string }
 export interface StationNumber { label: string; phone: string }
 export interface SecuritySetup { cameras: Camera[]; stationNumbers: StationNumber[]; alertPhones: string[] }
 
@@ -59,6 +61,7 @@ export function cleanSecuritySetup(raw: unknown, makeId: () => string): Security
       kind: CAMERA_KINDS.includes(camera.kind as CameraKind) ? (camera.kind as CameraKind) : "image",
       url,
       refreshSeconds: Number.isFinite(refresh) ? Math.min(MAX_REFRESH_SECONDS, Math.max(0, refresh)) : 0,
+      ...cleanCameraBrand(camera.brand, camera.brandName),
     });
   }
 

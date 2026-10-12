@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Video } from "lucide-react";
+import { CAMERA_BRANDS, MAX_BRAND_NAME, OTHER_BRAND, cameraBrand } from "@shared/cameraBrands";
 import { useTranslation } from "@/lib/i18n";
 import { errorText, panelButton, panelCard, panelField, primaryButton, type Camera, type CameraKind, type SecuritySetup } from "@/lib/security-types";
 
@@ -20,6 +21,8 @@ function isBlockedByBrowser(url: string): boolean {
 
 const withTick = (url: string, tick: number) => `${url}${url.includes("?") ? "&" : "?"}_t=${tick}`;
 
+const brandLabel = (camera: Camera) => (camera.brand === OTHER_BRAND ? camera.brandName : cameraBrand(camera.brand)?.name ?? "");
+
 function CameraView({ camera }: { camera: Camera }) {
   const { t } = useTranslation();
   const [tick, setTick] = useState(() => Date.now());
@@ -35,7 +38,7 @@ function CameraView({ camera }: { camera: Camera }) {
   return (
     <div className="grow basis-72 rounded-xl overflow-hidden bg-black border border-white/10">
       <div className="flex items-center justify-between px-3 py-2 text-xs text-white/80">
-        <span className="font-semibold">{camera.name}</span>
+        <span className="font-semibold">{camera.name}{brandLabel(camera) && <span className="ml-2 font-normal text-white/50">{brandLabel(camera)}</span>}</span>
         <a href={camera.url} target="_blank" rel="noopener noreferrer" className="text-cyan-200">{t("admin.cam.open")}</a>
       </div>
       {isBlocked
@@ -67,7 +70,7 @@ export default function CamerasPanel({ setup, onSave }: Props) {
   };
 
   const add = () => {
-    setCameras((current) => [...current, { id: `${NEW_CAMERA_PREFIX}${Date.now()}`, name: `${t("admin.cam.title")} ${current.length + 1}`, kind: "image", url: "", refreshSeconds: 0 }]);
+    setCameras((current) => [...current, { id: `${NEW_CAMERA_PREFIX}${Date.now()}`, name: `${t("admin.cam.title")} ${current.length + 1}`, kind: "image", url: "", refreshSeconds: 0, brand: "", brandName: "" }]);
     setIsDirty(true);
   };
 
@@ -103,6 +106,17 @@ export default function CamerasPanel({ setup, onSave }: Props) {
                     <option value="page">{t("admin.cam.kind.page")}</option>
                   </select>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  <select aria-label={t("admin.cam.brand")} value={camera.brand} onChange={(event) => change(camera.id, { brand: event.target.value, brandName: "" })} className={panelField + " grow basis-48"}>
+                    <option value="">{t("admin.cam.brand.pick")}</option>
+                    {CAMERA_BRANDS.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
+                    <option value={OTHER_BRAND}>{t("admin.cam.brand.other")}</option>
+                  </select>
+                  {camera.brand === OTHER_BRAND && <input aria-label={t("admin.cam.brand.name")} placeholder={t("admin.cam.brand.name")} value={camera.brandName} maxLength={MAX_BRAND_NAME} onChange={(event) => change(camera.id, { brandName: event.target.value })} className={panelField + " grow basis-40"} />}
+                </div>
+                {cameraBrand(camera.brand) && (
+                  <p className="text-[11px] text-white/50 break-all">{t("admin.cam.brand.example")} <code className="text-cyan-200">{camera.kind === "page" ? cameraBrand(camera.brand)?.page ?? cameraBrand(camera.brand)?.image : cameraBrand(camera.brand)?.image}</code></p>
+                )}
                 <input aria-label={t("admin.cam.url")} placeholder={t("admin.cam.url")} value={camera.url} onChange={(event) => change(camera.id, { url: event.target.value })} className={panelField + " w-full"} />
                 {camera.kind === "image" && (
                   <label className="flex flex-wrap items-center gap-2 text-[11px] text-white/50">{t("admin.cam.refresh")}

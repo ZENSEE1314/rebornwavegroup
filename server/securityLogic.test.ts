@@ -6,6 +6,15 @@ let counter = 0;
 const makeId = () => `id-${++counter}`;
 
 describe("cleaning the security setup", () => {
+  it("should keep a known camera brand, a typed brand under other, and drop anything else", () => {
+    const { cameras } = cleanSecuritySetup({ cameras: [
+      { url: "http://x.test/1", brand: "hikvision", brandName: "ignored" },
+      { url: "http://x.test/2", brand: "other", brandName: "  Acme Cam  " },
+      { url: "http://x.test/3", brand: "<script>" },
+    ] }, makeId);
+    assert.deepEqual(cameras.map((camera) => [camera.brand, camera.brandName]), [["hikvision", ""], ["other", "Acme Cam"], ["", ""]]);
+  });
+
   it("should keep a camera with a web address and give it an id", () => {
     const { cameras } = cleanSecuritySetup({ cameras: [{ name: "Door", url: "http://192.168.1.20:1984/api/stream.mjpeg?src=door" }] }, makeId);
     assert.equal(cameras.length, 1);
