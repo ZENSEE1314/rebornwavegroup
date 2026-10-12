@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { tData, useTranslation, translations, localeTag, translate, getCurrentLanguage } from "@/lib/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -2153,6 +2153,27 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
   );
 }
 
+// Deleting an item takes two taps (no browser pop-up): the first asks, the second deletes. An item that was sold before
+// can't be deleted (the server says so) and should be hidden instead.
+function DeleteProductButton({ p }: { p: any }) {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [isAsking, setIsAsking] = useState(false);
+  const remove = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/pos/products/${p.id}`).then((r) => r.json()),
+    onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
+    onError: (e: any) => { setIsAsking(false); toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }); },
+  });
+  if (!isAsking) return <button type="button" onClick={() => setIsAsking(true)} aria-label={t("admin.c.delete")} title={t("admin.c.delete")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-red-300 inline-flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <button type="button" onClick={() => remove.mutate()} disabled={remove.isPending} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white disabled:opacity-50">{t("admin.prod.deleteSure", { name: p.name })}</button>
+      <button type="button" onClick={() => setIsAsking(false)} aria-label={t("admin.c.close")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 inline-flex items-center justify-center"><X className="w-4 h-4" /></button>
+    </span>
+  );
+}
+
 function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: string[] }) {
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -2177,7 +2198,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className="px-2 py-1"><PackageButton p={p} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
-      <td className="px-2 py-1 text-right"><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></td>
+      <td className="px-2 py-1 text-right whitespace-nowrap"><span className="inline-flex items-center gap-1"><DeleteProductButton p={p} /><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></span></td>
     </tr>
   );
 }
@@ -2205,6 +2226,7 @@ function ProductRow({ p }: any) {
             <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · {moneySymbol()} {Number(p.price).toLocaleString()} · {t("admin.prod.stockN", { n: p.stock })}</p>
             {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">{t("admin.prod.supplierLbl")} {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
+          <DeleteProductButton p={p} />
           <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> {t("admin.c.edit")}</button>
         </div>
       ) : (
@@ -2433,6 +2455,10 @@ function Inventory() {
   });
   const allItems: any[] = data?.items || [];
   const [industry, setIndustry] = useState("");
+  const [openId, setOpenId] = useState<number | null>(null);
+  const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
+  const toggleEditor = (id: number) => setOpenId((current) => (current === id ? null : id));
+  const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow p={product} /> : null; };
   const industries = useCompanyIndustries();
   const items = industry ? allItems.filter((i) => deptHas(i.department, industry)) : allItems;
   const cats = Array.from(new Set(items.map((i) => i.category)));
@@ -2462,7 +2488,7 @@ function Inventory() {
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
       {/* Desktop: spreadsheet view */}
-      {items.length > 0 && <div className="hidden lg:block"><InventoryTable items={items} money={money} step={step} /></div>}
+      {items.length > 0 && <div className="hidden lg:block"><InventoryTable items={items} money={money} step={step} openId={openId} onToggle={toggleEditor} renderEditor={renderEditor} /></div>}
       {/* Mobile / tablet: grouped cards */}
       <div className="lg:hidden space-y-3">
       {cats.map((cat) => (
@@ -2475,11 +2501,13 @@ function Inventory() {
                 <p className="text-sm font-semibold truncate flex items-center gap-1.5">{it.name}{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</p>
                 <p className="text-[11px] text-white/40">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
               </div>
+              <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => step(it, -1)} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center" style={{ fontSize: 16 }}>−</button>
               <span className={`w-10 text-center font-extrabold ${it.low ? "text-red-300" : "text-white"}`}>{it.stock}</span>
               <button onClick={() => step(it, 1)} className="w-8 h-8 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center" style={{ fontSize: 16 }}>+</button>
             </div>
           ))}
+          {openId !== null && items.some((x) => x.id === openId && x.category === cat) && renderEditor(openId)}
         </Card>
       ))}
       </div>
@@ -2488,7 +2516,7 @@ function Inventory() {
   );
 }
 
-function InventoryTable({ items, money, step }: { items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void }) {
+function InventoryTable({ items, money, step, openId, onToggle, renderEditor }: { items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void; openId: number | null; onToggle: (id: number) => void; renderEditor: (id: number) => React.ReactNode }) {
   const { t } = useTranslation();
   const rows = [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
   return (
@@ -2505,11 +2533,13 @@ function InventoryTable({ items, money, step }: { items: any[]; money: (v: numbe
               <th className="py-2 px-2 font-semibold text-right">{t("admin.inv.stockValue")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.inv.retailValue")}</th>
               <th className="py-2 px-2 font-semibold text-center min-w-[130px]">{t("admin.prod.stock")}</th>
+              <th className="py-2 px-2" />
             </tr>
           </thead>
           <tbody>
             {rows.map((it) => (
-              <tr key={it.id} className={`border-b border-white/5 hover:bg-white/[0.03] ${it.low ? "bg-red-500/5" : ""}`}>
+              <Fragment key={it.id}>
+              <tr className={`border-b border-white/5 hover:bg-white/[0.03] ${it.low ? "bg-red-500/5" : ""}`}>
                 <td className="px-2 py-1.5"><div className="flex items-center gap-2">{it.imageUrl ? <img src={it.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<span className="font-medium">{it.name}</span>{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</div></td>
                 <td className="px-2 py-1.5 text-white/60">{it.category}</td>
                 <td className="px-2 py-1.5 text-white/60">{deptLabel(it.department) || "—"}</td>
@@ -2518,7 +2548,10 @@ function InventoryTable({ items, money, step }: { items: any[]; money: (v: numbe
                 <td className="px-2 py-1.5 text-right tabular-nums text-amber-300">{money(it.stockValue)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-emerald-300">{money(it.retailValue)}</td>
                 <td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><span className={`w-10 text-center font-extrabold tabular-nums ${it.low ? "text-red-300" : "text-white"}`}>{it.stock}</span><button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>
+              <td className="px-2 py-1.5"><button type="button" onClick={() => onToggle(it.id)} aria-label={t("admin.c.edit")} title={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button></td>
               </tr>
+              {openId === it.id && <tr><td colSpan={9} className="p-2">{renderEditor(it.id)}</td></tr>}
+              </Fragment>
             ))}
           </tbody>
         </table>

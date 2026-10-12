@@ -20,6 +20,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.c.idLabel': { en: "id {id}", zh: "ID {id}", id: "ID {id}" },
   'admin.c.email': { en: "Email", zh: "电邮", id: "Email" },
   'admin.c.save': { en: "Save", zh: "保存", id: "Simpan" },
+  'admin.prod.deleteSure': { en: "Delete {name}?", zh: "删除 {name}？", id: "Hapus {name}?" },
   'admin.c.delete': { en: "Delete", zh: "删除", id: "Hapus" },
   'admin.c.userShort': { en: "user {id}", zh: "用户 {id}", id: "pengguna {id}" },
   'admin.c.approve': { en: "Approve", zh: "批准", id: "Setujui" },
