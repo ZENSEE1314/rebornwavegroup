@@ -1984,14 +1984,14 @@ function useCompanyIndustries(): string[] {
 const indLabel = (v: string): string => { const k = Object.keys(INDUSTRY_LABELS).find((x) => INDUSTRY_LABELS[x] === v); return k ? translate("admin.ind." + k) : v; };
 const deptLabel = (d?: string | null): string => deptList(d).map(indLabel).join(" · ");
 
-function IndustryPicker({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+function IndustryPicker({ value, options, onChange, isCompact = false }: { value: string; options: string[]; onChange: (v: string) => void; isCompact?: boolean }) {
   const { t } = useTranslation();
   const sel = new Set(deptList(value));
   const toggle = (o: string) => { const s = new Set(sel); s.has(o) ? s.delete(o) : s.add(o); onChange(Array.from(s).join(",")); };
   return (
-    <div className="mt-1 flex flex-wrap gap-1.5">
+    <div className={isCompact ? "grid grid-cols-3 gap-1" : "mt-1 flex flex-wrap gap-1.5"}>
       {options.length === 0 && <span className="text-xs text-white/30">{t("admin.prod.noIndustries")}</span>}
-      {options.map((o) => <button type="button" key={o} onClick={() => toggle(o)} className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${sel.has(o) ? "bg-amber-400 text-black border-amber-400" : "bg-white/5 text-white/60 border-white/10"}`}>{indLabel(o)}</button>)}
+      {options.map((o) => <button type="button" key={o} onClick={() => toggle(o)} className={`${isCompact ? "px-1 py-1 text-[10px] leading-tight truncate" : "px-2.5 py-1 text-xs"} rounded-lg font-medium border ${sel.has(o) ? "bg-amber-400 text-black border-amber-400" : "bg-white/5 text-white/60 border-white/10"}`}>{indLabel(o)}</button>)}
     </div>
   );
 }
@@ -2042,7 +2042,7 @@ function PackageButton({ p }: { p: any }) {
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return <>
-    <button onClick={() => { setV(pkgOf(p)); setOpen(true); }} className="rounded-lg bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10 whitespace-nowrap">{pkgTag(p, t) || "—"}</button>
+    <button onClick={() => { setV(pkgOf(p)); setOpen(true); }} className={`rounded-lg px-2.5 py-1.5 text-xs whitespace-nowrap hover:bg-white/10 ${pkgTag(p, t) ? "bg-emerald-400/15 text-emerald-200 border border-emerald-400/30" : "bg-white/5 text-white/50 border border-dashed border-white/20"}`}>{pkgTag(p, t) || t("admin.pkg.setBtn")}</button>
     {open && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" onClick={() => setOpen(false)}>
       <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#160f2a] p-4 text-left" onClick={(e) => e.stopPropagation()}>
         <p className="mb-2 font-bold">{p.name}</p>
@@ -2121,18 +2121,20 @@ function Products() {
 
 // Shared spreadsheet cell input styling.
 const cell = "w-full bg-transparent border border-transparent rounded px-1.5 py-1 text-sm outline-none hover:border-white/15 focus:border-amber-400/60 focus:bg-black/20";
+// Price and cost: always a visible box, wide enough for big rupiah amounts.
+const numCell = "w-32 min-w-[8rem] text-right tabular-nums font-semibold rounded-lg bg-black/30 border border-white/15 px-2.5 py-2 text-sm outline-none hover:border-white/30 focus:border-amber-400/70";
 
 function ProductsTable({ products, industryOptions }: { products: any[]; industryOptions: string[] }) {
   const { t } = useTranslation();
   return (
     <Card>
       <div className="overflow-x-auto -mx-3 sm:mx-0">
-        <table className="w-full text-sm border-collapse">
+        <table className="w-full min-w-[1240px] text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
-              <th className="py-2 px-2 font-semibold">{t("admin.prod.item")}</th>
-              <th className="py-2 px-2 font-semibold">{t("admin.prod.category")}</th>
-              <th className="py-2 px-2 font-semibold min-w-[180px]">{t("admin.prod.industries")}</th>
+              <th className="py-2 px-2 font-semibold min-w-[220px]">{t("admin.prod.item")}</th>
+              <th className="py-2 px-2 font-semibold min-w-[110px]">{t("admin.prod.category")}</th>
+              <th className="py-2 px-2 font-semibold min-w-[250px]">{t("admin.prod.industries")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.sellRp")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
@@ -2187,12 +2189,12 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
-    <tr className={`border-b border-white/5 hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
+    <tr className={`border-b border-white/5 align-middle hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
       <td className="px-2 py-1"><div className="flex items-center gap-2">{p.imageUrl ? <img src={p.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
       <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
-      <td className="px-2 py-1"><IndustryPicker value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
-      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={cell + " text-right w-24"} /></td>
-      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={cell + " text-right w-24"} /></td>
+      <td className="px-2 py-1"><IndustryPicker isCompact value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
+      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={numCell} /></td>
+      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={numCell} /></td>
       <td className={`px-2 py-1 text-right font-semibold tabular-nums ${p.stock <= (p.lowStock ?? 0) ? "text-red-300" : "text-white/70"}`}>{p.stock}</td>
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
       <td className="px-2 py-1"><PackageButton p={p} /></td>
