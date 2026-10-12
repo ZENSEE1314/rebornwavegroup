@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck } from "lucide-react";
+import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
@@ -187,6 +187,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Features: <ToggleRight className="w-4 h-4" />, Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />, Errors: <AlertTriangle className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
   Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />, Games: <Gamepad2 className="w-4 h-4" />,
+  Lights: <Lightbulb className="w-4 h-4" />, Security: <ShieldCheck className="w-4 h-4" />,
 };
 
 // Each admin section's colour for its tile.
@@ -195,7 +196,7 @@ const TAB_COLOR: Record<string, string> = {
   Requests: "#a855f7", Redemptions: "#ec4899", "Top-ups": "#f59e0b", Pet: "#06b6d4", Sales: "#22c55e", POS: "#f59e0b", Songs: "#8b5cf6",
   Events: "#f97316", Broadcast: "#3b82f6", Users: "#22c55e", Products: "#14b8a6", Accounting: "#10b981", Prizes: "#eab308",
   Gifts: "#f472b6", FAQ: "#60a5fa", Settings: "#94a3b8", Logs: "#64748b", Errors: "#ef4444", Inventory: "#0ea5e9", CRM: "#6366f1",
-  Bookings: "#f59e0b", Bottles: "#e11d48", Staff: "#84cc16", Payroll: "#059669", Leaderboard: "#facc15", Feedback: "#fb7185", Games: "#d946ef",
+  Bookings: "#f59e0b", Bottles: "#e11d48", Staff: "#84cc16", Payroll: "#059669", Leaderboard: "#facc15", Feedback: "#fb7185", Games: "#d946ef", Lights: "#fde047", Security: "#38bdf8",
 };
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
@@ -3054,9 +3055,17 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
     queryFn: () => apiRequest("GET", `/api/reborn/admin/crm/${contact.id}/messages`).then((r) => r.json()),
     refetchInterval: 4000,
   });
+  // Open on the newest message, and follow new ones — unless the admin scrolled up to read older messages.
+  const listRef = useRef<HTMLDivElement>(null);
+  const stickToEnd = useRef(true);
+  const lastMsgId = msgs.length ? msgs[msgs.length - 1].id : null;
+  useEffect(() => {
+    const box = listRef.current;
+    if (box && stickToEnd.current) box.scrollTop = box.scrollHeight;
+  }, [lastMsgId, editing]);
   const send = useMutation({
     mutationFn: () => apiRequest("POST", `/api/reborn/admin/crm/${contact.id}/send`, { text }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ d }: any) => { setText(""); qc.invalidateQueries({ queryKey: msgsKey }); if (d?.message && d.message !== "Sent") toast({ title: d.message }); },
+    onSuccess: ({ d }: any) => { setText(""); stickToEnd.current = true; qc.invalidateQueries({ queryKey: msgsKey }); if (d?.message && d.message !== "Sent") toast({ title: d.message }); },
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
   const saveEdit = useMutation({
@@ -3075,10 +3084,12 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
     onSuccess: () => { toast({ title: t("admin.crm.deleted") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); onClose(); },
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
+  // Portal to <body>: inside the page a transformed / animated parent turns "fixed" into "relative to the page",
+  // which left the chat below the screen on a phone.
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative w-full max-w-lg bg-[#160f2a] border border-white/10 rounded-t-3xl sm:rounded-3xl flex flex-col" style={{ maxHeight: "88vh" }} onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full max-w-lg bg-[#160f2a] border border-white/10 rounded-t-3xl sm:rounded-3xl flex flex-col" style={{ maxHeight: "88dvh" }} onClick={(e) => e.stopPropagation()}>
         {/* header */}
         <div className="flex items-center gap-2 p-3 border-b border-white/10">
           <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-black font-bold" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>{(contact.name || contact.phone || "?").slice(0, 1).toUpperCase()}</span>
@@ -3110,7 +3121,7 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
         )}
 
         {/* messages */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2" style={{ minHeight: 200 }}>
+        <div ref={listRef} onScroll={(e) => { const b = e.currentTarget; stickToEnd.current = b.scrollHeight - b.scrollTop - b.clientHeight < 80; }} className="flex-1 overflow-y-auto p-3 space-y-2" style={{ minHeight: 200 }}>
           {msgs.length === 0 && <p className="text-center text-xs text-white/40 py-8">{t("admin.crm.noMsgs")}</p>}
           {msgs.map((m) => (
             <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
@@ -3131,7 +3142,8 @@ function CrmChat({ contact, connected, onClose }: { contact: any; connected: boo
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

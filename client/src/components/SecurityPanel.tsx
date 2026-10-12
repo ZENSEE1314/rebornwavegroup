@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from "react";
+import { ShieldCheck, Video } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { errorText, type SecuritySetup } from "@/lib/security-types";
@@ -8,7 +9,7 @@ const CamerasPanel = lazy(() => import("@/components/CamerasPanel"));
 
 type SubTab = "officer" | "cameras";
 
-const tabClass = (isActive: boolean) => `flex-1 min-h-[44px] px-3 rounded-lg text-sm font-bold ${isActive ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`;
+const tabClass = (isActive: boolean) => `inline-flex items-center justify-center gap-1.5 flex-1 min-h-[44px] px-3 rounded-lg text-sm font-bold ${isActive ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`;
 
 export default function SecurityPanel() {
   const { t } = useTranslation();
@@ -34,8 +35,8 @@ export default function SecurityPanel() {
   return (
     <div className="space-y-4">
       <div role="tablist" className="flex gap-2">
-        <button type="button" role="tab" aria-selected={subTab === "officer"} onClick={() => setSubTab("officer")} className={tabClass(subTab === "officer")}>{t("admin.sc.subOfficer")}</button>
-        <button type="button" role="tab" aria-selected={subTab === "cameras"} onClick={() => setSubTab("cameras")} className={tabClass(subTab === "cameras")}>{t("admin.sc.subCameras")}</button>
+        <button type="button" role="tab" aria-selected={subTab === "officer"} onClick={() => setSubTab("officer")} className={tabClass(subTab === "officer")}><ShieldCheck className="w-4 h-4" />{t("admin.sc.subOfficer")}</button>
+        <button type="button" role="tab" aria-selected={subTab === "cameras"} onClick={() => setSubTab("cameras")} className={tabClass(subTab === "cameras")}><Video className="w-4 h-4" />{t("admin.sc.subCameras")}</button>
       </div>
       <Suspense fallback={null}>
         {subTab === "officer" ? <OfficerCheckPanel setup={setup} onSave={save} /> : <CamerasPanel setup={setup} onSave={save} />}
