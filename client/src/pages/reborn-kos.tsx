@@ -661,7 +661,7 @@ function GiftBoxScene({ art }: { art: ReactNode }) {
 // Realistic effects: a short rendered clip on black (public/gift-fx/<scene>.mp4 + a transparent .webm of the same).
 // An effect without a clip keeps its drawn version below. On a TV overlay the transparent clip lets the karaoke screen
 // show through; in the app the black is blended away ("screen") over the dark scene.
-const FX_CLIPS: Partial<Record<Scene, string>> = { whale: "/gift-fx/whale" };
+const FX_CLIPS: Partial<Record<Scene, string>> = { whale: "/gift-fx/whale", lion: "/gift-fx/lion", car: "/gift-fx/car" };
 
 function FxScene({ clip, overlay }: { clip: string; overlay: boolean }) {
   const [isDone, setIsDone] = useState(false);
