@@ -713,3 +713,12 @@ text.
   plus `x-tenant-slug` for a company on the shared host). Server: server/venueScan.ts; panel: components/NearbyDevices.tsx.
 - It never logs in to a device. A found camera is added with its web page as the address (the rtsp address is listed
   for a stream converter such as go2rtc); a found TV is added as a TV screen name. Remote TV power / volume is not built.
+
+## Realistic gift effects (clips)
+
+- A gift effect can be a rendered clip instead of the drawn scene: `FX_CLIPS` in pages/reborn-kos.tsx maps a scene to
+  `public/gift-fx/<scene>` (`.mp4` on black for the app, blended with `mix-blend-mode: screen`; `.webm` with real
+  transparency for the TV overlay, so the karaoke screen shows through). A scene without a clip keeps its drawn version.
+- Make a clip: generate it on a pure black background (Higgsfield `seedance_2_0_mini`, 720p, ~4 credits for 4 s), then
+  ffmpeg: mp4 = `scale=960:540 -c:v libx264 -crf 28 -pix_fmt yuv420p -movflags +faststart -an`; webm = luma-to-alpha
+  (`geq` with a = max(r,g,b), colours un-premultiplied) `-c:v libvpx-vp9 -pix_fmt yuva420p -crf 38 -auto-alt-ref 0`.

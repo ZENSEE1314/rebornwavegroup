@@ -658,7 +658,26 @@ function GiftBoxScene({ art }: { art: ReactNode }) {
   );
 }
 
-export function GiftScene({ kind, art }: { kind: Scene; art: ReactNode }) {
+// Realistic effects: a short rendered clip on black (public/gift-fx/<scene>.mp4 + a transparent .webm of the same).
+// An effect without a clip keeps its drawn version below. On a TV overlay the transparent clip lets the karaoke screen
+// show through; in the app the black is blended away ("screen") over the dark scene.
+const FX_CLIPS: Partial<Record<Scene, string>> = { whale: "/gift-fx/whale" };
+
+function FxScene({ clip, overlay }: { clip: string; overlay: boolean }) {
+  const [isDone, setIsDone] = useState(false);
+  if (isDone) return null;
+  return (
+    <div className={overlay ? "gs-fx" : "gs-fx gs-fx-dark"}>
+      <video className={overlay ? "gs-fx-video" : "gs-fx-video gs-fx-screen"} autoPlay muted playsInline preload="auto" onEnded={() => setIsDone(true)} onError={() => setIsDone(true)}>
+        {overlay && <source src={`${clip}.webm`} type="video/webm" />}
+        <source src={`${clip}.mp4`} type="video/mp4" />
+      </video>
+    </div>
+  );
+}
+
+export function GiftScene({ kind, art, overlay = false }: { kind: Scene; art: ReactNode; overlay?: boolean }) {
+  if (FX_CLIPS[kind]) return <FxScene clip={FX_CLIPS[kind]!} overlay={overlay} />;
   if (kind === "rose") return <RoseScene art={art} />;
   if (kind === "heart") return <HeartScene art={art} />;
   if (kind === "drink") return <DrinkScene art={art} />;
