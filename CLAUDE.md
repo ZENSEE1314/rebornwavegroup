@@ -703,3 +703,13 @@ text.
   `<button className="w-9 h-9 ..."><Icon className="w-4 h-4" /></button>`. A popup portaled to `<body>` sits
   outside `.rwg-app`: give its root `text-white` (text colour is not inherited from the app) and check it on a
   phone-size screen before shipping.
+
+## Find nearby cameras / TVs (Security + TV tabs)
+
+- The cloud server cannot see a venue's network, so `client/public/venue-scan.mjs` (plain Node 18, no packages) runs on
+  one PC at the venue: ONVIF WS-Discovery + UPnP/SSDP (TVs) + a port 554 check of the local /24 (cameras without ONVIF).
+  It polls `/api/venue-bridge/poll` every 15 s and scans when the admin presses "Find nearby" (or at start), then posts
+  `/api/venue-bridge/report`. Auth: the per-company token in `appSettings.venueBridgeToken` (header `x-bridge-token`,
+  plus `x-tenant-slug` for a company on the shared host). Server: server/venueScan.ts; panel: components/NearbyDevices.tsx.
+- It never logs in to a device. A found camera is added with its web page as the address (the rtsp address is listed
+  for a stream converter such as go2rtc); a found TV is added as a TV screen name. Remote TV power / volume is not built.

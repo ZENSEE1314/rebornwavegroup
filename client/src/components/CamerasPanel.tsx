@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Video } from "lucide-react";
 import { CAMERA_BRANDS, MAX_BRAND_NAME, OTHER_BRAND, cameraBrand } from "@shared/cameraBrands";
 import { useTranslation } from "@/lib/i18n";
+import NearbyDevices, { type NearbyDevice } from "@/components/NearbyDevices";
 import { errorText, panelButton, panelCard, panelField, primaryButton, type Camera, type CameraKind, type SecuritySetup } from "@/lib/security-types";
 
 const NOTICE_MS = 4000;
@@ -74,6 +75,12 @@ export default function CamerasPanel({ setup, onSave }: Props) {
     setIsDirty(true);
   };
 
+  // A found camera is added with its own web page as the address; the video address (rtsp) is listed beside it for a stream converter.
+  const addFound = (device: NearbyDevice) => {
+    setCameras((current) => [...current, { id: `${NEW_CAMERA_PREFIX}${Date.now()}`, name: device.name, kind: "page", url: `http://${device.ip}/`, refreshSeconds: 0, brand: "", brandName: "" }]);
+    setIsDirty(true);
+  };
+
   const save = async () => {
     try {
       // The server gives a new camera its id; one without a web address is dropped there.
@@ -93,6 +100,8 @@ export default function CamerasPanel({ setup, onSave }: Props) {
         {saved.length === 0 && <p className="mt-3 text-xs text-white/50">{t("admin.cam.none")}</p>}
         <div className="mt-3 flex flex-wrap gap-3">{saved.map((camera) => <CameraView key={`${camera.id}${camera.url}${camera.kind}${camera.refreshSeconds}`} camera={camera} />)}</div>
       </div>
+
+      <NearbyDevices kind="camera" onAdd={addFound} />
 
       {setup.canEdit && (
         <div className={panelCard}>

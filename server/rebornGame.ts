@@ -29,6 +29,7 @@ import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotif
 import { emitLiveUpdate, onLiveUpdate } from "./liveUpdates";
 import { publishTvGift, registerTvRoutes } from "./tvDisplay";
 import { registerSecurityRoutes } from "./security";
+import { registerVenueScanRoutes } from "./venueScan";
 import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
 import QRCode from "qrcode";
@@ -4643,5 +4644,13 @@ export function registerRebornRoutes(app: Express) {
       if (!phones.length) return void (await notifyAdmins(pick("en", text, vars)));
       for (const phone of phones) await sendWhatsApp(phone, pick(await langForPhone(phone), text, vars));
     },
+  });
+  registerVenueScanRoutes(app, {
+    requireStaff,
+    requireAdmin,
+    isAdmin: (req) => isAdmin(getUserId(req)),
+    readSetting: async (key) => (await db.select().from(appSettings).where(eq(appSettings.key, key)))[0]?.value ?? null,
+    writeSetting: writeSettingValue,
+    companySlug: homeCompanySlug,
   });
 }

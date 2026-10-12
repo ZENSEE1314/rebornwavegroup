@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import NearbyDevices, { type NearbyDevice } from "@/components/NearbyDevices";
 import { Copy, Monitor, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
@@ -53,9 +54,9 @@ export default function TvPanel() {
     setIsDirty(true);
   };
 
-  const addScreen = () => {
+  const addScreen = (found?: NearbyDevice) => {
     const id = `new-${Date.now()}`;
-    setScreens((current) => [...current, { id, token: "", name: `TV ${current.length + 1}`, view: "overlay", tables: [] }]);
+    setScreens((current) => [...current, { id, token: "", name: found?.name || `TV ${current.length + 1}`, view: "overlay", tables: [] }]);
     setTableDrafts((current) => ({ ...current, [id]: "" }));
     setIsDirty(true);
   };
@@ -110,12 +111,13 @@ export default function TvPanel() {
 
   return (
     <div className="space-y-4">
+      <NearbyDevices kind="tv" onAdd={addScreen} />
       <div className={card}>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Monitor className="w-4 h-4 text-cyan-300" /> {t("admin.tv.title")}</h3>
         <p className="text-[11px] text-white/50 mb-2">{t("admin.tv.intro")}</p>
         <p className="text-[11px] text-white/50 mb-3">{t("admin.tv.help")}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={addScreen} disabled={screens.length >= max} className="inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-lg font-bold text-black text-sm bg-amber-400 disabled:opacity-40"><Plus className="w-4 h-4" /> {t("admin.tv.add")}</button>
+          <button type="button" onClick={() => addScreen()} disabled={screens.length >= max} className="inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-lg font-bold text-black text-sm bg-amber-400 disabled:opacity-40"><Plus className="w-4 h-4" /> {t("admin.tv.add")}</button>
           <span className="text-[11px] text-white/40">{t("admin.tv.limit", { n: max })}</span>
         </div>
       </div>
