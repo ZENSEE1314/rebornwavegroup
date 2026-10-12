@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { cleanImportRows, toNumber } from "./inventoryImport";
+import { cleanImportRows, matchKey, toNumber } from "./inventoryImport";
 
 describe("reading numbers from a spreadsheet", () => {
   it("should read a plain number", () => assert.equal(toNumber(12.5), 12.5));
@@ -36,4 +36,10 @@ describe("cleaning import rows", () => {
   it("should return nothing when the input is not a list", () => {
     assert.deepEqual(cleanImportRows("x"), { rows: [], skipped: 0 });
   });
+});
+
+describe("recognising the same item", () => {
+  it("should ignore the volume", () => assert.equal(matchKey("Jameson 700ml"), matchKey("JAMESON")));
+  it("should ignore case and punctuation", () => assert.equal(matchKey("Coca-Cola  can"), matchKey("coca cola CAN")));
+  it("should keep different items apart", () => assert.notEqual(matchKey("Red Label"), matchKey("Black Label")));
 });

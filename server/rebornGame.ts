@@ -29,7 +29,7 @@ import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotif
 import { emitLiveUpdate, onLiveUpdate } from "./liveUpdates";
 import { publishTvGift, registerTvRoutes } from "./tvDisplay";
 import { tvPhoto } from "./tvLogic";
-import { cleanImportRows } from "./inventoryImport";
+import { cleanImportRows, matchKey } from "./inventoryImport";
 import { registerSecurityRoutes } from "./security";
 import { registerVenueScanRoutes } from "./venueScan";
 import { searchSongCatalog, textPinyin } from "./songSearch";
@@ -3112,6 +3112,22 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetType: "pos_product", targetId: row.id, action: "create", entityType: "product", description: `Added product "${row.name}" @ RP ${row.price}` });
     res.json(row);
   }));
+  // Removes an item that was never sold (e.g. added twice by mistake) together with its stock history. A sold item
+  // can only be hidden (active = false), so past bills keep their lines.
+  app.delete("/api/reborn/admin/pos/products/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const cid = await rebornCompanyId(req);
+    const [product] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
+    if (!product) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该商品", id: "Item tidak ditemukan" }) });
+    const [sold] = await db.select({ count: sql<number>`count(*)` }).from(posTicketItems).where(eq(posTicketItems.productId, id));
+    if (Number(sold?.count) > 0) return res.status(409).json({ message: tr(req, { en: "This item was sold before, so it can't be deleted. Hide it instead.", zh: "该商品已有销售记录，无法删除，请改为隐藏。", id: "Item ini pernah terjual sehingga tidak bisa dihapus. Sembunyikan saja." }) });
+    await db.transaction(async (tx) => {
+      await tx.delete(stockMovements).where(eq(stockMovements.productId, id));
+      await tx.delete(posProducts).where(eq(posProducts.id, id));
+    });
+    await logAdmin(req, { targetType: "pos_product", targetId: id, action: "delete_product", entityType: "stock", description: `Deleted item "${product.name}"` });
+    res.json({ message: tr(req, { en: "Item deleted", zh: "商品已删除", id: "Item dihapus" }) });
+  }));
   app.patch("/api/reborn/admin/pos/products/:id", requireAdmin(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {};
     const cid = await rebornCompanyId(req);
@@ -4486,11 +4502,11 @@ export function registerRebornRoutes(app: Express) {
     const cid = await rebornCompanyId(req);
     const actor = getUserId(req)!;
     const existing = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind)));
-    const byName = new Map(existing.map((product) => [product.name.trim().toLowerCase(), product]));
+    const byName = new Map(existing.map((product) => [matchKey(product.name), product]));
     let created = 0, updated = 0;
     await db.transaction(async (tx) => {
       for (const row of rows) {
-        const known = byName.get(row.name.toLowerCase());
+        const known = byName.get(matchKey(row.name));
         if (known) {
           const patch: Record<string, unknown> = { category: row.category };
           if (row.price !== null) patch.price = String(row.price);
@@ -4504,7 +4520,7 @@ export function registerRebornRoutes(app: Express) {
           updated++;
         } else {
           const [made] = await tx.insert(posProducts).values({ companyId: cid, name: row.name, category: row.category, price: String(row.price ?? 0), cost: String(row.cost ?? 0), stock: row.stock ?? 0, supplierName: row.supplier || null, supplierPhone: row.phone || null }).returning();
-          byName.set(row.name.toLowerCase(), made);
+          byName.set(matchKey(row.name), made);
           if ((row.stock ?? 0) > 0) await tx.insert(stockMovements).values({ companyId: cid, productId: made.id, delta: row.stock!, reason: "stock_in", supplier: row.supplier || null, note: "Excel import", userId: actor });
           created++;
         }
