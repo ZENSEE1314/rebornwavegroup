@@ -10,6 +10,7 @@ import { ImageUpload } from "@/components/ImageUpload";
 import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
 import StockSuppliers from "@/components/StockSuppliers";
+import ProductPicture from "@/components/ProductPicture";
 import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
 import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
@@ -2233,7 +2234,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   });
   return (
     <tr id={`product-${p.id}`} className={`border-b border-white/5 align-middle hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
-      <td className="px-2 py-1"><div className="flex items-center gap-2">{p.imageUrl ? <img src={p.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
+      <td className="px-2 py-1"><div className="flex items-center gap-2"><ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
       <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
       <td className="px-2 py-1"><IndustryPicker isCompact value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
       <td className="px-2 py-1"><PackFields isCompact value={f} onChange={(next) => setF({ ...f, ...next })} /></td>
@@ -2267,7 +2268,7 @@ function ProductRow({ p }: any) {
     <Card>
       {!edit ? (
         <div className="flex items-start gap-3">
-          {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" /> : <span className="w-14 h-14 rounded-xl bg-white/5 flex-shrink-0" />}
+          <ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-14 h-14" roundedClass="rounded-xl" />
           <div className="flex-1 min-w-0">
             <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">{t("admin.prod.hiddenTag")}</span>} {p.posVisible === false && <span className="text-xs text-amber-400">{t("admin.prod.notInPosTag")}</span>} {pkgTag(p, t) && <span className="text-xs text-sky-300">{pkgTag(p, t)}</span>}</p>
             <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · {moneySymbol()} {Number(p.price).toLocaleString()} · {t("admin.prod.stockN", { n: p.stock })}</p>
@@ -2574,7 +2575,7 @@ function Inventory() {
           <p className="font-bold mb-2 text-sm flex items-center gap-2"><Boxes className="w-4 h-4 text-amber-300" /> {cat}</p>
           {items.filter((i) => i.category === cat).map((it) => (
             <div key={it.id} className="flex items-center gap-2 py-2 border-b border-white/5 last:border-0">
-              {it.imageUrl ? <img src={it.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" /> : <span className="w-9 h-9 rounded-lg bg-white/5 flex-shrink-0" />}
+              <ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold truncate flex items-center gap-1.5">{it.name}{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</p>
                 <p className="text-[11px] text-white/40">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
@@ -2647,7 +2648,7 @@ function InventoryTable({ items, money, step, setCount, openId, onToggle, render
             {rows.map((it) => (
               <Fragment key={it.id}>
               <tr className={`border-b border-white/5 hover:bg-white/[0.03] ${it.low ? "bg-red-500/5" : ""}`}>
-                <td className="px-2 py-1.5"><div className="flex items-center gap-2">{it.imageUrl ? <img src={it.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<span className="font-medium">{it.name}</span>{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</div></td>
+                <td className="px-2 py-1.5"><div className="flex items-center gap-2"><ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><span className="font-medium">{it.name}</span>{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</div></td>
                 <td className="px-2 py-1.5 text-white/60">{it.category}</td>
                 <td className="px-2 py-1.5 text-white/60">{deptLabel(it.department) || "—"}</td>
                 <td className="px-2 py-1.5 text-white/50 text-xs">{it.suppliers?.length ? it.suppliers.join(", ") : "—"}</td>
