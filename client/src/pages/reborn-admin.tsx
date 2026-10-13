@@ -2470,9 +2470,11 @@ function Inventory() {
   const totals = industry
     ? items.reduce((a, it) => ({ units: a.units + it.stock, cost: a.cost + it.stockValue, retail: a.retail + it.retailValue, low: a.low + (it.low ? 1 : 0) }), { units: 0, cost: 0, retail: 0, low: 0 })
     : (data?.totals || { units: 0, cost: 0, retail: 0, low: 0 });
-  const step = (it: any, delta: number) => {
-    if (delta > 0) { const c = prompt(t("admin.inv.addHowMany", { name: it.name }), "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; const supplier = prompt(t("admin.inv.supplierPrompt"), it.suppliers?.[0] || "") || undefined; const uc = prompt(t("admin.inv.unitCostPrompt"), ""); adjust.mutate({ productId: it.id, qty: q, unitCost: uc ? Number(uc) : undefined, supplier }); }
-    else { const c = prompt(t("admin.inv.deductHowMany", { name: it.name }), "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; adjust.mutate({ productId: it.id, qty: -Math.abs(q) }); }
+  const step = (it: any, delta: number) => adjust.mutate({ productId: it.id, qty: delta });
+  const setCount = (it: any, value: string) => {
+    const target = Math.max(0, Math.floor(Number(value)));
+    if (!Number.isFinite(target) || target === it.stock) return;
+    adjust.mutate({ productId: it.id, qty: target - it.stock });
   };
   const exportCsv = () => {
     const rows = [[t("admin.prod.category"), t("admin.prod.item"), t("admin.prod.stock"), t("admin.inv.unitCost"), t("admin.inv.stockValue"), t("admin.inv.retailValue")], ...items.map((i) => [i.category, i.name, String(i.stock), String(i.cost), String(i.stockValue), String(i.retailValue)])];
@@ -2494,7 +2496,7 @@ function Inventory() {
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
       {/* Desktop: spreadsheet view */}
-      {items.length > 0 && <div className="hidden lg:block"><InventoryTable items={items} money={money} step={step} openId={openId} onToggle={toggleEditor} renderEditor={renderEditor} /></div>}
+      {items.length > 0 && <div className="hidden lg:block"><InventoryTable items={items} money={money} step={step} setCount={setCount} openId={openId} onToggle={toggleEditor} renderEditor={renderEditor} /></div>}
       {/* Mobile / tablet: grouped cards */}
       <div className="lg:hidden space-y-3">
       {cats.map((cat) => (
@@ -2509,7 +2511,7 @@ function Inventory() {
               </div>
               <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => step(it, -1)} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center" style={{ fontSize: 16 }}>−</button>
-              <span className={`w-10 text-center font-extrabold ${it.low ? "text-red-300" : "text-white"}`}>{it.stock}</span>
+              <StockCount it={it} onSet={setCount} className="w-14" />
               <button onClick={() => step(it, 1)} className="w-8 h-8 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center" style={{ fontSize: 16 }}>+</button>
             </div>
           ))}
@@ -2522,7 +2524,18 @@ function Inventory() {
   );
 }
 
-function InventoryTable({ items, money, step, openId, onToggle, renderEditor }: { items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void; openId: number | null; onToggle: (id: number) => void; renderEditor: (id: number) => React.ReactNode }) {
+// The stock count: shows the number and can be typed over; leaving the box or pressing Enter saves the new count.
+function StockCount({ it, onSet, className }: { it: any; onSet: (it: any, value: string) => void; className: string }) {
+  return (
+    <input key={it.stock} type="number" inputMode="numeric" min={0} defaultValue={it.stock} aria-label={it.name}
+      onFocus={(event) => event.currentTarget.select()}
+      onBlur={(event) => onSet(it, event.currentTarget.value)}
+      onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+      className={`${className} text-center font-extrabold tabular-nums rounded-lg bg-black/30 border border-white/15 py-1 ${it.low ? "text-red-300" : "text-white"}`} />
+  );
+}
+
+function InventoryTable({ items, money, step, setCount, openId, onToggle, renderEditor }: { items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void; setCount: (it: any, value: string) => void; openId: number | null; onToggle: (id: number) => void; renderEditor: (id: number) => React.ReactNode }) {
   const { t } = useTranslation();
   const rows = [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
   return (
@@ -2553,7 +2566,7 @@ function InventoryTable({ items, money, step, openId, onToggle, renderEditor }: 
                 <td className="px-2 py-1.5 text-right tabular-nums text-white/70">{money(it.cost)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-amber-300">{money(it.stockValue)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-emerald-300">{money(it.retailValue)}</td>
-                <td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><span className={`w-10 text-center font-extrabold tabular-nums ${it.low ? "text-red-300" : "text-white"}`}>{it.stock}</span><button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>
+                <td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><StockCount it={it} onSet={setCount} className="w-16" /><button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>
               <td className="px-2 py-1.5"><button type="button" onClick={() => onToggle(it.id)} aria-label={t("admin.c.edit")} title={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button></td>
               </tr>
               {openId === it.id && <tr><td colSpan={9} className="p-2">{renderEditor(it.id)}</td></tr>}
