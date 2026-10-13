@@ -19,6 +19,8 @@ import {
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
+import { createBleBridge, isBleMessage } from "./ble";
+import { BLE_SHIM } from "./bleShim";
 
 const configuredAppUrl = process.env.EXPO_PUBLIC_APP_URL || "https://rebornwave.group/login";
 const APP_URL = /\/login(?:[?#]|$)/i.test(configuredAppUrl)
@@ -82,6 +84,7 @@ async function reportPushDiagnostic(status: string, detail?: string) {
 function RebornApp() {
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
+  const bleBridge = useRef(createBleBridge(() => webViewRef.current)).current; // Bluetooth for the LED-lights screen
   const [canGoBack, setCanGoBack] = useState(false);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -270,11 +273,12 @@ function RebornApp() {
   const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
     try {
       const message = JSON.parse(event.nativeEvent.data || "{}");
+      if (isBleMessage(message)) { await bleBridge.handle(message); return; }
       if (message.type === "PRINT_HTML" && typeof message.html === "string") await Print.printAsync({ html: message.html });
     } catch {
       Alert.alert("Printing unavailable", "Please check that a printer is available on this device and try again.");
     }
-  }, []);
+  }, [bleBridge]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -288,7 +292,7 @@ function RebornApp() {
         javaScriptEnabled
         domStorageEnabled
         applicationNameForUserAgent="RebornWaveGroupApp/1.0"
-        injectedJavaScriptBeforeContentLoaded="window.__REBORN_NATIVE_APP__=true;localStorage.setItem('reborn.nativeApp','true');true;"
+        injectedJavaScriptBeforeContentLoaded={`window.__REBORN_NATIVE_APP__=true;localStorage.setItem('reborn.nativeApp','true');${BLE_SHIM}`}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
         cacheEnabled

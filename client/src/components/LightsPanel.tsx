@@ -154,7 +154,7 @@ export default function LightsPanel() {
       <div className={card}>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Bluetooth className="w-4 h-4 text-cyan-300" /> {t("admin.lt.title")}</h3>
         <p className="text-[11px] text-white/50 mb-3">{t("admin.lt.intro", { n: view.maxLive })}</p>
-        {!canBluetooth && <p className="text-xs text-amber-200 mb-3">{t("admin.lt.notSupported")}</p>}
+        {!canBluetooth && <p className="text-xs text-amber-200 mb-3">{t((window as unknown as { __REBORN_NATIVE_APP__?: boolean }).__REBORN_NATIVE_APP__ ? "admin.lt.updateApp" : "admin.lt.notSupported")}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={addLight} disabled={!canBluetooth || isPairing} className="inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-lg font-bold text-black text-sm bg-amber-400 disabled:opacity-40"><Plus className="w-4 h-4" /> {t("admin.lt.addLight")}</button>
           <select aria-label={t("admin.lt.demoCount")} value={demoCount} onChange={(event) => setDemoCount(Number(event.target.value))} className={field + " min-h-[44px]"}>

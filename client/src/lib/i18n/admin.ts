@@ -289,6 +289,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.pic.upload': { en: "Change picture", zh: "更换图片", id: "Ganti gambar" },
   'admin.pic.saved': { en: "Picture saved", zh: "图片已保存", id: "Gambar disimpan" },
   'admin.search.ph': { en: "Search by name, category or supplier…", zh: "按名称、分类或供应商搜索…", id: "Cari berdasarkan nama, kategori, atau pemasok…" },
+  'admin.lt.updateApp': { en: "This version of the app can't use Bluetooth. Install the latest Reborn app, then open this screen again.", zh: "此版本的应用无法使用蓝牙。请安装最新的 Reborn 应用，然后重新打开此页面。", id: "Versi aplikasi ini tidak bisa memakai Bluetooth. Pasang aplikasi Reborn terbaru, lalu buka layar ini lagi." },
   'admin.cam.add': { en: "Add a camera", zh: "添加摄像头", id: "Tambah kamera" },
   'admin.cam.none': { en: "No cameras yet.", zh: "还没有摄像头。", id: "Belum ada kamera." },
   'admin.cam.name': { en: "Name", zh: "名称", id: "Nama" },

@@ -25,6 +25,14 @@
           "color": "#f0d787",
           "defaultChannel": "bridgex"
         }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": [],
+          "bluetoothAlwaysPermission": "Reborn Wave Group uses Bluetooth to control the venue's LED lights."
+        }
       ]
     ],
     "ios": {
@@ -35,7 +43,8 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Reborn Wave Group uses the camera to scan QR codes and upload account or payment images.",
         "NSPhotoLibraryUsageDescription": "Reborn Wave Group uses your photo library when you choose an account or payment image.",
-        "NSMicrophoneUsageDescription": "Reborn Wave Group uses the microphone for karaoke and media features you start."
+        "NSMicrophoneUsageDescription": "Reborn Wave Group uses the microphone for karaoke and media features you start.",
+        "NSBluetoothAlwaysUsageDescription": "Reborn Wave Group uses Bluetooth to control the venue's LED lights."
       },
       "associatedDomains": [
         "applinks:rebornwave.group",
@@ -52,7 +61,10 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "predictiveBackGestureEnabled": false,
       "intentFilters": [

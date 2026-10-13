@@ -1,4 +1,5 @@
-// Web Bluetooth connection to real lights (Chrome on Android and desktop; not iPhone, not Android's in-app web view).
+// Web Bluetooth connection to real lights (Chrome on Android and desktop). In the Reborn phone app the same calls are answered by the app's
+// native Bluetooth (mobile/bleShim.ts + mobile/ble.ts); a plain iPhone browser has none.
 // Every light is chosen by the admin once per visit in the browser's own device chooser; the hub then reconnects them as needed.
 import type { LightInfo, LightLink } from "./hub";
 import { DETECTION_SERVICES, chooseProfile, describeOtherServices, type LightProfile } from "./protocols";

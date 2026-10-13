@@ -780,3 +780,12 @@ text.
   every change (old → new) with an optional reason → `POST /api/reborn/admin/inventory/counts`. Each change must start from the number the
   admin saw (a sale in between → 409, nothing saved), is written to `stock_movements` (reason `adjustment`) and logged to `admin_logs` as
   `stock_count` with `oldValues` / `newValues` and "Stock of "X": 24 → 30 (+6)" + the admin. The Excel import and cost edits log the same way.
+
+## LED lights inside the phone app
+
+- Web Bluetooth does not exist in the app's web view, so the app (mobile/) carries a native bridge: `mobile/bleShim.ts` is injected before
+  every page and defines `navigator.bluetooth` (a tap-a-light chooser, connect, services, write, disconnect) on top of
+  `ReactNativeWebView.postMessage`; `mobile/ble.ts` answers those calls with `react-native-ble-plx` (permissions, scan 6 s, connect,
+  write). The website's lights code (client/src/lib/lights) is unchanged. It needs a NEW native build of the app
+  (`npx eas-cli build --platform android --profile preview`, then install it) — an old build shows "install the latest app" on the Lights tab.
+  Test the shim: `npx tsx --test mobile/bleShim.test.ts`. Not yet run on a real phone with real lights.
