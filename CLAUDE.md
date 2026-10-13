@@ -772,3 +772,10 @@ text.
   cost, then, if the POS should show one item, "Same item as…" merges it into the first (stock, delivery prices, bills move over).
   The Excel import has "new deliveries — add to stock" for the same item arriving from another supplier. Two items with the same name
   are matched ambiguously by the Excel import (the later one wins) — merge them first.
+
+## Stock number changes (Admin › Inventory): save, confirm, log
+
+- + / − / a typed stock count only change a draft (amber number, old one struck through); a bar offers "Save" → a confirm box lists
+  every change (old → new) with an optional reason → `POST /api/reborn/admin/inventory/counts`. Each change must start from the number the
+  admin saw (a sale in between → 409, nothing saved), is written to `stock_movements` (reason `adjustment`) and logged to `admin_logs` as
+  `stock_count` with `oldValues` / `newValues` and "Stock of "X": 24 → 30 (+6)" + the admin. The Excel import and cost edits log the same way.

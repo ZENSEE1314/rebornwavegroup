@@ -3186,6 +3186,8 @@ export function registerRebornRoutes(app: Express) {
     if (b.packageKind !== undefined) Object.assign(patch, packageFields(b));
     else if (b.creditOk !== undefined && !prev.packageKind) patch.creditOk = !!b.creditOk;
     const [row] = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning();
+    if (b.cost !== undefined && String(prev.cost) !== String(row.cost))
+      await logAdmin(req, { targetType: "pos_product", targetId: id, action: "edit_cost", entityType: "product", oldValues: { cost: prev.cost }, newValues: { cost: row.cost }, description: `Cost of "${row.name}" ${prev.cost} → ${row.cost}` });
     if (b.price !== undefined && String(prev.price) !== String(row.price))
       await logAdmin(req, { targetType: "pos_product", targetId: id, action: "edit_price", entityType: "product", oldValues: { price: prev.price }, newValues: { price: row.price }, description: `Price of "${row.name}" RP ${prev.price} → RP ${row.price}` });
     res.json(row);
@@ -4547,6 +4549,7 @@ export function registerRebornRoutes(app: Express) {
     const existing = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind)));
     const byName = new Map(existing.map((product) => [matchKey(product.name), product]));
     let created = 0, updated = 0;
+    const importLog: Array<{ id: number; name: string; from: number; to: number }> = [];
     await db.transaction(async (tx) => {
       for (const row of rows) {
         const known = byName.get(matchKey(row.name));
@@ -4558,6 +4561,7 @@ export function registerRebornRoutes(app: Express) {
           if (row.supplier) patch.supplierName = row.supplier;
           if (row.phone) patch.supplierPhone = row.phone;
           const delta = row.stock === null ? 0 : isDelivery ? row.stock : row.stock - known.stock;
+          if (delta !== 0) importLog.push({ id: known.id, name: known.name, from: known.stock, to: known.stock + delta });
           if (row.stock !== null) patch.stock = known.stock + delta;
           await tx.update(posProducts).set(patch).where(eq(posProducts.id, known.id));
           if (delta !== 0) await tx.insert(stockMovements).values({ companyId: cid, productId: known.id, delta, reason: delta > 0 ? "stock_in" : "adjustment", supplier: row.supplier || null, unitCost: delta > 0 && row.cost !== null ? String(row.cost) : null, note: isDelivery ? "Excel import (delivery)" : "Excel import", userId: actor });
@@ -4570,8 +4574,39 @@ export function registerRebornRoutes(app: Express) {
         }
       }
     });
+    for (const item of importLog.slice(0, 200)) await logAdmin(req, { targetType: "pos_product", targetId: String(item.id), action: "stock_count", entityType: "stock", oldValues: { stock: item.from }, newValues: { stock: item.to }, description: `Stock of "${item.name}": ${item.from} → ${item.to} (Excel import)` });
     await logAdmin(req, { targetType: "inventory", action: "import_inventory", entityType: "stock", description: `Excel import: ${created} new, ${updated} updated, ${skipped} skipped` });
     res.json({ created, updated, skipped, message: tr(req, { en: "Imported: {created} new, {updated} updated", zh: "已导入：新增 {created}，更新 {updated}", id: "Diimpor: {created} baru, {updated} diperbarui" }, { created: String(created), updated: String(updated) }) });
+  }));
+  // Stock counts changed in Admin › Inventory: only saved after the admin confirms. Each change must start from the number the
+  // admin saw (a sale in between makes the save stop), is written to the stock history, and is logged — who, from what to what.
+  app.post("/api/reborn/admin/inventory/counts", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const actor = getUserId(req)!;
+    const note = String(req.body?.note || "").trim().slice(0, 200);
+    const asked: Array<{ productId: number; from: number; to: number }> = (Array.isArray(req.body?.changes) ? req.body.changes : []).slice(0, 200)
+      .map((c: any) => ({ productId: Number(c?.productId), from: Math.floor(Number(c?.from)), to: Math.floor(Number(c?.to)) }))
+      .filter((c: { productId: number; from: number; to: number }) => c.productId > 0 && Number.isFinite(c.from) && Number.isFinite(c.to) && c.to >= 0 && c.to !== c.from);
+    if (!asked.length) return res.status(400).json({ message: tr(req, { en: "No changes to save", zh: "没有需要保存的更改", id: "Tidak ada perubahan untuk disimpan" }) });
+    const applied: Array<{ id: number; name: string; from: number; to: number }> = [];
+    const conflicts: Array<{ id: number; name: string; actual: number }> = [];
+    await db.transaction(async (tx) => {
+      for (const change of asked) {
+        const locked = await tx.execute(sql`SELECT id, name, stock FROM pos_products WHERE id = ${change.productId} AND company_id = ${cid} AND package_kind IS NULL FOR UPDATE`);
+        const row = (locked.rows || locked as any[])[0] as { id: number; name: string; stock: number } | undefined;
+        if (!row) continue;
+        if (Number(row.stock) !== change.from) { conflicts.push({ id: row.id, name: row.name, actual: Number(row.stock) }); continue; }
+        await tx.update(posProducts).set({ stock: change.to }).where(eq(posProducts.id, row.id));
+        await tx.insert(stockMovements).values({ companyId: cid, productId: row.id, delta: change.to - change.from, reason: "adjustment", note: `Count changed ${change.from} → ${change.to}${note ? `: ${note}` : ""}`, userId: actor });
+        applied.push({ id: row.id, name: row.name, from: change.from, to: change.to });
+      }
+      if (conflicts.length) { applied.length = 0; throw new Error("conflict"); }
+    }).catch((error) => { if (error?.message !== "conflict") throw error; });
+    if (conflicts.length) return res.status(409).json({ conflicts, message: tr(req, { en: "Stock changed meanwhile (a sale or another admin). Reload and try again.", zh: "库存在此期间已变化（有销售或其他管理员操作），请刷新后重试。", id: "Stok berubah di sela waktu (ada penjualan atau admin lain). Muat ulang dan coba lagi." }) });
+    for (const item of applied) {
+      await logAdmin(req, { targetType: "pos_product", targetId: String(item.id), action: "stock_count", entityType: "stock", oldValues: { stock: item.from }, newValues: { stock: item.to }, description: `Stock of "${item.name}": ${item.from} → ${item.to} (${item.to - item.from > 0 ? "+" : ""}${item.to - item.from})${note ? ` — ${note}` : ""}` });
+    }
+    res.json({ changed: applied.length });
   }));
   app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);

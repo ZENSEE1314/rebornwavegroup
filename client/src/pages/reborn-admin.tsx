@@ -2498,12 +2498,17 @@ function Inventory() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/inventory"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory").then((r) => r.json()) });
-  const adjust = useMutation({
-    mutationFn: (v: { productId: number; qty: number; unitCost?: number; supplier?: string }) => apiRequest("POST", "/api/reborn/pos/stock-in", v).then((r) => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); },
-    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
+  const [draft, setDraft] = useState<Record<number, number>>({});
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [note, setNote] = useState("");
+  const saved: any[] = data?.items || [];
+  const allItems: any[] = saved.map((i) => (draft[i.id] === undefined ? i : { ...i, draftStock: draft[i.id] }));
+  const changes = saved.filter((i) => draft[i.id] !== undefined).map((i) => ({ productId: i.id, name: i.name, from: i.stock, to: draft[i.id] }));
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/inventory/counts", { changes: changes.map((c) => ({ productId: c.productId, from: c.from, to: c.to })), note }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("admin.cnt.saved") }); setDraft({}); setNote(""); setIsConfirming(false); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/logs"] }); },
+    onError: (x: any) => { setIsConfirming(false); toast({ title: t("admin.c.failed"), description: String(x.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
   });
-  const allItems: any[] = data?.items || [];
   const [industry, setIndustry] = useState("");
   const [openId, setOpenId] = useState<number | null>(null);
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
@@ -2515,12 +2520,10 @@ function Inventory() {
   const totals = industry
     ? items.reduce((a, it) => ({ units: a.units + it.stock, cost: a.cost + it.stockValue, retail: a.retail + it.retailValue, low: a.low + (it.low ? 1 : 0) }), { units: 0, cost: 0, retail: 0, low: 0 })
     : (data?.totals || { units: 0, cost: 0, retail: 0, low: 0 });
-  const step = (it: any, delta: number) => adjust.mutate({ productId: it.id, qty: delta });
-  const setCount = (it: any, value: string) => {
-    const target = Math.max(0, Math.floor(Number(value)));
-    if (!Number.isFinite(target) || target === it.stock) return;
-    adjust.mutate({ productId: it.id, qty: target - it.stock });
-  };
+  // +, − and a typed number only change the draft; nothing is saved until the admin presses Save and confirms.
+  const setDraftCount = (it: any, target: number) => setDraft((current) => { const next = { ...current }; if (target === it.stock) delete next[it.id]; else next[it.id] = target; return next; });
+  const step = (it: any, delta: number) => setDraftCount(it, Math.max(0, (it.draftStock ?? it.stock) + delta));
+  const setCount = (it: any, value: string) => { const target = Math.floor(Number(value)); if (Number.isFinite(target) && target >= 0) setDraftCount(it, target); };
   const exportCsv = () => {
     const rows = [[t("admin.prod.category"), t("admin.prod.item"), t("admin.prod.stock"), t("admin.inv.unitCost"), t("admin.inv.stockValue"), t("admin.inv.retailValue")], ...items.map((i) => [i.category, i.name, String(i.stock), String(i.cost), String(i.stockValue), String(i.retailValue)])];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
@@ -2530,6 +2533,28 @@ function Inventory() {
   return (
     <div className="space-y-3">
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
+      {changes.length > 0 && (
+        <div className="sticky top-16 z-30 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/50 bg-[#2a2008]/95 p-3 backdrop-blur">
+          <span className="flex-1 text-sm font-bold text-amber-200">{t("admin.cnt.unsaved", { n: String(changes.length) })}</span>
+          <button type="button" onClick={() => setDraft({})} className="min-h-[44px] px-4 rounded-lg text-xs font-semibold bg-white/10 border border-white/15">{t("admin.cnt.discard")}</button>
+          <button type="button" onClick={() => setIsConfirming(true)} className="min-h-[44px] px-5 rounded-lg text-sm font-bold bg-amber-400 text-black">{t("admin.c.save")}</button>
+        </div>
+      )}
+      {isConfirming && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 text-white" onClick={() => !save.isPending && setIsConfirming(false)}>
+          <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#160f2a] p-4" onClick={(e) => e.stopPropagation()}>
+            <p className="font-bold mb-2">{t("admin.cnt.confirmTitle")}</p>
+            <ul className="max-h-60 overflow-y-auto space-y-1 text-sm mb-3">
+              {changes.map((c) => <li key={c.productId} className="flex justify-between gap-2"><span className="truncate">{c.name}</span><span className="shrink-0 tabular-nums">{c.from} → <b className={c.to > c.from ? "text-emerald-300" : "text-red-300"}>{c.to}</b> ({c.to - c.from > 0 ? "+" : ""}{c.to - c.from})</span></li>)}
+            </ul>
+            <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder={t("admin.cnt.reason")} className={inp + " w-full mb-3"} />
+            <p className="text-[11px] text-white/50 mb-3">{t("admin.cnt.logHint")}</p>
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setIsConfirming(false)} disabled={save.isPending} className="min-h-[44px] px-4 rounded-lg text-sm font-semibold bg-white/10 border border-white/15">{t("admin.cnt.back")}</button>
+              <button type="button" onClick={() => save.mutate()} disabled={save.isPending} className="min-h-[44px] px-5 rounded-lg text-sm font-bold bg-emerald-500 text-black disabled:opacity-50">{t("admin.cnt.confirm")}</button>
+            </div>
+          </div>
+        </div>, document.body)}
       <SupplierReorderPanel />
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
@@ -2572,7 +2597,7 @@ function Inventory() {
 // Items sold by the pack: "= 2 packs + 2" under the count and a button that adds / takes a whole pack at once.
 function PackStep({ it, step }: { it: any; step: (it: any, delta: number) => void }) {
   const { t } = useTranslation();
-  const split = packBreakdown(it.stock, it.unitsPerPack);
+  const split = packBreakdown(it.draftStock ?? it.stock, it.unitsPerPack);
   return (
     <span className="inline-flex items-center gap-1 text-[10px] text-white/50">
       <button type="button" onClick={() => step(it, -it.unitsPerPack)} aria-label={t("admin.pack.minus", { n: String(it.unitsPerPack) })} className="px-1.5 py-1 rounded-md bg-white/5 border border-white/10">-{it.unitsPerPack}</button>
@@ -2584,12 +2609,17 @@ function PackStep({ it, step }: { it: any; step: (it: any, delta: number) => voi
 
 // The stock count: shows the number and can be typed over; leaving the box or pressing Enter saves the new count.
 function StockCount({ it, onSet, className }: { it: any; onSet: (it: any, value: string) => void; className: string }) {
+  const shown = it.draftStock ?? it.stock;
+  const isChanged = it.draftStock !== undefined;
   return (
-    <input key={it.stock} type="number" inputMode="numeric" min={0} defaultValue={it.stock} aria-label={it.name}
-      onFocus={(event) => event.currentTarget.select()}
-      onBlur={(event) => onSet(it, event.currentTarget.value)}
-      onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
-      className={`${className} text-center font-extrabold tabular-nums rounded-lg bg-black/30 border border-white/15 py-1 ${it.low ? "text-red-300" : "text-white"}`} />
+    <span className="inline-flex flex-col items-center">
+      <input key={`${it.stock}-${it.draftStock}`} type="number" inputMode="numeric" min={0} defaultValue={shown} aria-label={it.name}
+        onFocus={(event) => event.currentTarget.select()}
+        onBlur={(event) => onSet(it, event.currentTarget.value)}
+        onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+        className={`${className} text-center font-extrabold tabular-nums rounded-lg border py-1 ${isChanged ? "bg-amber-400/15 border-amber-400 text-amber-200" : `bg-black/30 border-white/15 ${it.low ? "text-red-300" : "text-white"}`}`} />
+      {isChanged && <span className="text-[10px] text-white/50 line-through">{it.stock}</span>}
+    </span>
   );
 }
 
