@@ -754,3 +754,10 @@ text.
   Nothing is ever sent without that tap. Same item isn't asked again while a request waits, 3 days after sending, 1 day after dismissing.
 - The text is written by Claude (haiku) when `ANTHROPIC_API_KEY` is set on the server, else a ready-made template in en / zh / id
   (server/supplierReorderLogic.ts `templateMessage`). Supplier phone is a column in Admin › Products.
+
+## Sold by the pack (Admin › Products)
+
+- A product can have `units_per_pack` (e.g. 24 cans) and `pack_price`; the price of one unit (`price`, what the POS uses) is always
+  `pack_price ÷ units_per_pack` (shared/packPricing.ts, set on the server in `packPricingFields` for create and edit, shown read-only in
+  the forms). Stock stays counted in units. Inventory shows "= N pack + M" with a ±pack button; the POS tile gets a "Pack ×24" button
+  that adds a whole pack of units (the bill totals pack price, up to a rounding cent). Not the same as the member "packages" (visits / credit).

@@ -9,6 +9,7 @@ import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift,
 import { ImageUpload } from "@/components/ImageUpload";
 import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
+import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
 import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
@@ -2060,7 +2061,7 @@ function Products() {
   const qc = useQueryClient();
   const modules = useModules();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
-  const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) });
+  const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, unitsPerPack: 0, packPrice: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) });
   const [industry, setIndustry] = useState("");
   const [mode, setMode] = useState<"new" | "restock">("new");
   const [rs, setRs] = useState<any>({ productId: "", supplier: "", qty: 1, unitCost: 0 });
@@ -2069,7 +2070,7 @@ function Products() {
   const shown = industry ? products.filter((p) => deptHas(p.department, industry)) : products;
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
-    onSuccess: () => { toast({ title: t("admin.prod.added") }); setN({ name: "", category: "General", department: n.department, price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: t("admin.prod.added") }); setN({ name: "", category: "General", department: n.department, price: 0, unitsPerPack: 0, packPrice: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const restock = useMutation({
@@ -2090,8 +2091,9 @@ function Products() {
           <label className="text-xs text-white/50">{t("admin.prod.category")}<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder={t("admin.prod.categoryPh")} className={inp + " w-full"} /></label>
           <div className="text-xs text-white/50 sm:col-span-2">{t("admin.prod.industries")} <span className="text-white/30">{t("admin.prod.industriesHint")}</span><IndustryPicker value={n.department} options={industryOptions} onChange={(v) => setN({ ...n, department: v })} /></div>
           <label className="text-xs text-white/50">{t("admin.prod.stockQty")}<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={n.price || ""} disabled={unitPriceFromPack(n.packPrice, n.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={n.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <PackFields value={n} onChange={(next) => setN({ ...n, ...next })} />
         </div>
         <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHint")}</span></label>
@@ -2130,12 +2132,13 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
   return (
     <Card>
       <div className="overflow-x-auto -mx-3 sm:mx-0">
-        <table className="w-full min-w-[1260px] text-sm border-collapse">
+        <table className="w-full min-w-[1420px] text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
               <th className="py-2 px-2 font-semibold min-w-[200px]">{t("admin.prod.item")}</th>
               <th className="py-2 px-2 font-semibold min-w-[110px]">{t("admin.prod.category")}</th>
               <th className="py-2 px-2 font-semibold min-w-[230px]">{t("admin.prod.industries")}</th>
+              <th className="py-2 px-2 font-semibold">{t("admin.pack.col")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.sellRp")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
               <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
@@ -2178,11 +2181,30 @@ function DeleteProductButton({ p }: { p: any }) {
   );
 }
 
+// "24 in a pack" + the price of a pack → the price of one unit is filled in by itself.
+function PackFields({ value, onChange, isCompact = false }: { value: { unitsPerPack: number; packPrice: number }; onChange: (next: { unitsPerPack: number; packPrice: number; price?: number }) => void; isCompact?: boolean }) {
+  const { t } = useTranslation();
+  const set = (patch: Partial<{ unitsPerPack: number; packPrice: number }>) => {
+    const next = { unitsPerPack: value.unitsPerPack, packPrice: value.packPrice, ...patch };
+    const unit = unitPriceFromPack(next.packPrice, next.unitsPerPack);
+    onChange(unit === null ? next : { ...next, price: unit });
+  };
+  const unit = unitPriceFromPack(value.packPrice, value.unitsPerPack);
+  const field = "rounded-lg bg-black/30 border border-white/15 px-2 py-1.5 text-sm text-right tabular-nums";
+  return (
+    <div className={isCompact ? "flex items-center gap-1" : "rounded-xl border border-white/10 p-2 sm:col-span-2 grid grid-cols-2 gap-2"}>
+      <label className="text-xs text-white/50">{!isCompact && t("admin.pack.units")}<input type="number" inputMode="numeric" min={0} value={value.unitsPerPack || ""} placeholder={isCompact ? t("admin.pack.unitsShort") : "24"} onFocus={(e) => e.currentTarget.select()} onChange={(e) => set({ unitsPerPack: Number(e.target.value) })} className={`${field} ${isCompact ? "w-16" : "w-full"}`} /></label>
+      <label className="text-xs text-white/50">{!isCompact && t("admin.pack.price")}<input type="number" inputMode="numeric" min={0} value={value.packPrice || ""} placeholder={isCompact ? t("admin.pack.priceShort") : ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => set({ packPrice: Number(e.target.value) })} className={`${field} ${isCompact ? "w-24" : "w-full"}`} /></label>
+      {!isCompact && unit !== null && <p className="col-span-2 text-xs text-emerald-300">{t("admin.pack.unitAuto", { units: String(value.unitsPerPack), price: String(unit) })}</p>}
+    </div>
+  );
+}
+
 function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: string[] }) {
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
+  const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
   const [f, setF] = useState(base);
   const dirty = JSON.stringify(f) !== JSON.stringify(base);
   const save = useMutation({
@@ -2195,7 +2217,8 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className="px-2 py-1"><div className="flex items-center gap-2">{p.imageUrl ? <img src={p.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
       <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
       <td className="px-2 py-1"><IndustryPicker isCompact value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
-      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={numCell} /></td>
+      <td className="px-2 py-1"><PackFields isCompact value={f} onChange={(next) => setF({ ...f, ...next })} /></td>
+      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.price || ""} disabled={unitPriceFromPack(f.packPrice, f.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={numCell} /></td>
       <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={numCell} /></td>
       <td className={`px-2 py-1 text-right font-semibold tabular-nums ${p.stock <= (p.lowStock ?? 0) ? "text-red-300" : "text-white/70"}`}>{p.stock}</td>
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
@@ -2214,7 +2237,7 @@ function ProductRow({ p }: any) {
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState<any>({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
+  const [f, setF] = useState<any>({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
   const industryOptions = useCompanyIndustries();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
@@ -2241,8 +2264,9 @@ function ProductRow({ p }: any) {
           <div className="grid grid-cols-2 gap-2 mb-2">
             <label className="text-xs text-white/50">{t("admin.prod.category")}<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
             <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> {t("admin.prod.activeCol")}</label>
-            <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={f.price || ""} disabled={unitPriceFromPack(f.packPrice, f.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <PackFields value={f} onChange={(next) => setF({ ...f, ...next })} />
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHintLong")}</span></label>
           <PackageFields value={f} onChange={setF} />
@@ -2511,7 +2535,7 @@ function Inventory() {
               </div>
               <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
               <button onClick={() => step(it, -1)} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center" style={{ fontSize: 16 }}>−</button>
-              <StockCount it={it} onSet={setCount} className="w-14" />
+              <StockCount it={it} onSet={setCount} className="w-14" />{it.unitsPerPack > 1 && <PackStep it={it} step={step} />}
               <button onClick={() => step(it, 1)} className="w-8 h-8 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center" style={{ fontSize: 16 }}>+</button>
             </div>
           ))}
@@ -2521,6 +2545,19 @@ function Inventory() {
       </div>
       {items.length === 0 && <Empty text={t("admin.inv.empty")} />}
     </div>
+  );
+}
+
+// Items sold by the pack: "= 2 packs + 2" under the count and a button that adds / takes a whole pack at once.
+function PackStep({ it, step }: { it: any; step: (it: any, delta: number) => void }) {
+  const { t } = useTranslation();
+  const split = packBreakdown(it.stock, it.unitsPerPack);
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-white/50">
+      <button type="button" onClick={() => step(it, -it.unitsPerPack)} aria-label={t("admin.pack.minus", { n: String(it.unitsPerPack) })} className="px-1.5 py-1 rounded-md bg-white/5 border border-white/10">-{it.unitsPerPack}</button>
+      <button type="button" onClick={() => step(it, it.unitsPerPack)} aria-label={t("admin.pack.plus", { n: String(it.unitsPerPack) })} className="px-1.5 py-1 rounded-md bg-amber-400/90 text-black font-bold">+{it.unitsPerPack}</button>
+      {split && <span className="whitespace-nowrap">{t("admin.pack.split", { packs: String(split.packs), loose: String(split.loose) })}</span>}
+    </span>
   );
 }
 
@@ -2566,7 +2603,7 @@ function InventoryTable({ items, money, step, setCount, openId, onToggle, render
                 <td className="px-2 py-1.5 text-right tabular-nums text-white/70">{money(it.cost)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-amber-300">{money(it.stockValue)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-emerald-300">{money(it.retailValue)}</td>
-                <td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><StockCount it={it} onSet={setCount} className="w-16" /><button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>
+                <td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><StockCount it={it} onSet={setCount} className="w-16" />{it.unitsPerPack > 1 && <PackStep it={it} step={step} />}<button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>
               <td className="px-2 py-1.5"><button type="button" onClick={() => onToggle(it.id)} aria-label={t("admin.c.edit")} title={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button></td>
               </tr>
               {openId === it.id && <tr><td colSpan={9} className="p-2">{renderEditor(it.id)}</td></tr>}

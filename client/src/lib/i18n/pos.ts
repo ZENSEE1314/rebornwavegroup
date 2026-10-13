@@ -58,6 +58,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.salesLabel': { en: 'sales: {name}', zh: '销售：{name}', id: 'penjual: {name}' },
 
   // Product picker
+  'pos.packBtn': { en: "Pack ×{n}", zh: "整包 ×{n}", id: "Paket ×{n}" },
+  'pos.packBtnTitle': { en: "Add one pack of {n} for {price}", zh: "加一整包（{n} 个），{price}", id: "Tambah satu paket isi {n}, {price}" },
   'pos.stockCount': { en: 'stock {n}', zh: '库存 {n}', id: 'stok {n}' },
   'pos.lowStock': { en: ' · low!', zh: ' · 库存不足！', id: ' · menipis!' },
   'pos.noProductsPicker': { en: 'No products yet — add them in Admin › Products.', zh: '暂无商品 — 请在 管理 › 商品 中添加。', id: 'Belum ada produk — tambahkan di Admin › Produk.' },

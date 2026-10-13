@@ -148,7 +148,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const cartItems = useMemo(() => Object.entries(cart).filter(([, q]) => q > 0).map(([id, qty]) => ({ ...byId.get(Number(id))!, qty })), [cart, byId]);
   useEffect(() => { onCartChange?.(cartItems); }, [cartItems, onCartChange]);
   const total = lines.reduce((s, [id, q]) => s + Number(byId.get(Number(id))?.price || 0) * q, 0);
-  const add = (id: number) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
+  const add = (id: number, count = 1) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + count }));
   const sub = (id: number) => setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) - 1) }));
   const commit = () => { onCommit(lines.map(([id, q]) => { const p = byId.get(Number(id))!; return { productId: p.id, name: p.name, price: Number(p.price), qty: q }; })); setCart({}); };
   const [industry, setIndustry] = useState("");
@@ -168,7 +168,8 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
               the phone-wide grid-cols-* override would make it one huge column). */}
           <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 112px), 1fr))" }}>
             {items.map((p) => (
-              <button key={p.id} onClick={() => add(p.id)} disabled={!p.packageKind && p.stock <= 0} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 text-left active:scale-95 transition-all disabled:opacity-40 relative overflow-hidden">
+              <div key={p.id} className="relative min-w-0">
+              <button onClick={() => add(p.id)} disabled={!p.packageKind && p.stock <= 0} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 text-left active:scale-95 transition-all disabled:opacity-40 relative overflow-hidden">
                 {p.imageUrl
                   ? <img src={p.imageUrl} alt="" className="w-full aspect-square object-cover" />
                   : <div className="w-full aspect-square flex items-center justify-center text-2xl bg-white/5">{p.packageKind === "uses" ? "📦" : p.packageKind === "credit" ? "💳" : "🍸"}</div>}
@@ -179,6 +180,8 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
                 </div>
                 {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}
               </button>
+              {p.unitsPerPack > 1 && p.stock >= p.unitsPerPack && <button type="button" onClick={() => add(p.id, p.unitsPerPack)} title={t("pos.packBtnTitle", { n: p.unitsPerPack, price: rp(Number(p.packPrice) || Number(p.price) * p.unitsPerPack) })} className="absolute bottom-1.5 right-1.5 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-bold text-black shadow">{t("pos.packBtn", { n: p.unitsPerPack })}</button>}
+              </div>
             ))}
           </div>
         </div>
