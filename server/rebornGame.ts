@@ -801,10 +801,23 @@ export async function companyIndustries(): Promise<string[]> {
   const preset = BRIDGEX_INDUSTRIES.find((item) => item.key === company?.industry);
   return preset ? [preset.name] : [];
 }
+/** Items keep only industries the company offers (an old "Bar" or "KTV" that is no longer in the list is dropped). Returns how many items changed. */
+export async function tidyProductIndustries(): Promise<number> {
+  const offered = await companyIndustries();
+  const rows = await db.select({ id: posProducts.id, department: posProducts.department }).from(posProducts).where(isNotNull(posProducts.department));
+  let changed = 0;
+  for (const row of rows) {
+    const kept = (row.department || "").split(",").map((name) => name.trim()).filter((name) => offered.includes(name));
+    const next = kept.join(",") || null;
+    if (next !== (row.department || null)) { await db.update(posProducts).set({ department: next }).where(eq(posProducts.id, row.id)); changed++; }
+  }
+  return changed;
+}
 export async function saveCompanyIndustries(raw: unknown): Promise<string[]> {
   const list = cleanIndustries(raw);
   const value = JSON.stringify(list);
   await db.insert(appSettings).values({ key: INDUSTRIES_KEY, value, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  await tidyProductIndustries();
   return list;
 }
 
@@ -4208,6 +4221,12 @@ export function registerRebornRoutes(app: Express) {
   }));
   // Distinct industries (product departments) for filters.
   app.get("/api/reborn/industries", requireStaff(async (_req, res) => { res.json(await companyIndustries()); }));
+  // Drops old industry names from the items (what the BridgeX admin removed from the list), keeping the ones still offered.
+  app.post("/api/reborn/admin/industries/tidy", requireAdmin(async (req, res) => {
+    const changed = await tidyProductIndustries();
+    await logAdmin(req, { targetType: "inventory", action: "tidy_industries", entityType: "product", description: `Industries tidied on ${changed} item(s)` });
+    res.json({ changed });
+  }));
   app.get("/api/reborn/staff/feedback", requireStaff(async (_req, res) => {
     const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0]; if (!reborn) return res.json([]);
     const result=await db.execute(sql`SELECT f.*, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) user_name, COALESCE(NULLIF(trim(concat(s.first_name,' ',s.last_name)),''),s.email) staff_name FROM bridge_feedback f LEFT JOIN users u ON u.id=f.user_id LEFT JOIN users s ON s.id=f.staff_user_id WHERE f.company_id=${reborn.id} ORDER BY f.id DESC LIMIT 300`); res.json(result.rows||result);
