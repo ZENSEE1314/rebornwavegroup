@@ -1200,7 +1200,7 @@ function packPricingFields(b: { unitsPerPack?: unknown; packPrice?: unknown }): 
   const unitsPerPack = cleanUnitsPerPack(b.unitsPerPack);
   const packCost = cleanPackPrice(b.packPrice);
   const computed = unitPriceFromPack(packCost, unitsPerPack);
-  if (computed === null) return { unitsPerPack: packCost === null ? null : unitsPerPack, packPrice: packCost === null ? null : String(packCost) };
+  if (computed === null) return { unitsPerPack, packPrice: packCost === null ? null : String(packCost) }; // units alone are kept too
   return { unitsPerPack, packPrice: String(packCost), cost: String(computed) };
 }
 

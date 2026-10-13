@@ -2,10 +2,10 @@
 // price of a whole pack; the price of one unit is worked out from them.
 export const MAX_UNITS_PER_PACK = 10_000;
 
-/** How many units a pack holds: a whole number from 2 up; anything else means the item has no pack (null). */
+/** How many units a pack holds: a whole number from 1 up (1 = a single bottle); anything else means nothing is set (null). */
 export function cleanUnitsPerPack(value: unknown): number | null {
   const units = Math.floor(Number(value));
-  return Number.isFinite(units) && units >= 2 ? Math.min(units, MAX_UNITS_PER_PACK) : null;
+  return Number.isFinite(units) && units >= 1 ? Math.min(units, MAX_UNITS_PER_PACK) : null;
 }
 
 /** A pack price: a positive amount, or null. */
