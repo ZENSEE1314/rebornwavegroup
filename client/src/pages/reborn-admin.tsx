@@ -2133,23 +2133,23 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
   const { t } = useTranslation();
   return (
     <Card>
-      <div className="overflow-x-auto -mx-3 sm:mx-0">
+      <div className="overflow-auto -mx-3 sm:mx-0 max-h-[calc(100vh-9rem)]">
         <table className="w-full min-w-[1420px] text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
-              <th className="py-2 px-2 font-semibold min-w-[200px]">{t("admin.prod.item")}</th>
-              <th className="py-2 px-2 font-semibold min-w-[110px]">{t("admin.prod.category")}</th>
-              <th className="py-2 px-2 font-semibold min-w-[230px]">{t("admin.prod.industries")}</th>
-              <th className="py-2 px-2 font-semibold">{t("admin.pack.col")}</th>
-              <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.sellRp")}</th>
-              <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
-              <th className="py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
-              <th className="py-2 px-2 font-semibold">{t("admin.prod.supplier")}</th>
-              <th className="py-2 px-2 font-semibold">{t("admin.prod.supplierPhone")}</th>
-              <th className="py-2 px-2 font-semibold">{t("admin.pkg.col")}</th>
-              <th className="py-2 px-2 font-semibold text-center">{t("admin.prod.pos")}</th>
-              <th className="py-2 px-2 font-semibold text-center">{t("admin.prod.activeCol")}</th>
-              <th className="py-2 px-2 font-semibold text-right"></th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[200px]">{t("admin.prod.item")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[110px]">{t("admin.prod.category")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[230px]">{t("admin.prod.industries")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.pack.col")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.prod.sellRp")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.prod.supplier")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.prod.supplierPhone")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.pkg.col")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center">{t("admin.prod.pos")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center">{t("admin.prod.activeCol")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right"></th>
             </tr>
           </thead>
           <tbody>
@@ -2572,7 +2572,7 @@ function Inventory() {
       <div className="lg:hidden space-y-3">
       {cats.map((cat) => (
         <Card key={cat}>
-          <p className="font-bold mb-2 text-sm flex items-center gap-2"><Boxes className="w-4 h-4 text-amber-300" /> {cat}</p>
+          <p className="sticky top-14 z-20 -mx-1 mb-2 bg-[#16102b] px-1 py-1.5 font-bold text-sm flex items-center gap-2"><Boxes className="w-4 h-4 text-amber-300" /> {cat}</p>
           {items.filter((i) => i.category === cat).map((it) => (
             <div key={it.id} className="flex items-center gap-2 py-2 border-b border-white/5 last:border-0">
               <ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" />
@@ -2629,19 +2629,19 @@ function InventoryTable({ items, money, step, setCount, openId, onToggle, render
   const rows = [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
   return (
     <Card>
-      <div className="overflow-x-auto -mx-3 sm:mx-0">
+      <div className="overflow-auto -mx-3 sm:mx-0 max-h-[calc(100vh-9rem)]">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
-              <th className="py-2 px-2 font-semibold">{t("admin.prod.item")}</th>
-              <th className="py-2 px-2 font-semibold">{t("admin.prod.category")}</th>
-              <th className="py-2 px-2 font-semibold">{t("admin.inv.industry")}</th>
-              <th className="py-2 px-2 font-semibold">{t("admin.inv.suppliers")}</th>
-              <th className="py-2 px-2 font-semibold text-right">{t("admin.inv.unitCost")}</th>
-              <th className="py-2 px-2 font-semibold text-right">{t("admin.inv.stockValue")}</th>
-              <th className="py-2 px-2 font-semibold text-right">{t("admin.inv.retailValue")}</th>
-              <th className="py-2 px-2 font-semibold text-center min-w-[130px]">{t("admin.prod.stock")}</th>
-              <th className="py-2 px-2" />
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.prod.item")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.prod.category")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.inv.industry")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.inv.suppliers")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.inv.unitCost")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.inv.stockValue")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.inv.retailValue")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center min-w-[130px]">{t("admin.prod.stock")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2" />
             </tr>
           </thead>
           <tbody>
