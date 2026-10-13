@@ -1195,13 +1195,13 @@ async function activeCheckin(userId: string) {
   return (await autoCheckinFromBooking(userId).catch(() => null)) ? await find() : row;
 }
 
-// A pack (24 cans) with its price: the price of one unit is worked out from them, so the POS sells units at the right price.
-function packPricingFields(b: { unitsPerPack?: unknown; packPrice?: unknown }, unitPrice: number): { unitsPerPack: number | null; packPrice: string | null; price?: string } {
+// A pack (24 cans) and what a whole pack costs: the cost of one unit is worked out from them. The selling price is never touched.
+function packPricingFields(b: { unitsPerPack?: unknown; packPrice?: unknown }): { unitsPerPack: number | null; packPrice: string | null; cost?: string } {
   const unitsPerPack = cleanUnitsPerPack(b.unitsPerPack);
-  const packPrice = cleanPackPrice(b.packPrice);
-  const computed = unitPriceFromPack(packPrice, unitsPerPack);
-  if (computed === null) return { unitsPerPack: packPrice === null ? null : unitsPerPack, packPrice: packPrice === null ? null : String(packPrice) };
-  return { unitsPerPack, packPrice: String(packPrice), price: String(computed) };
+  const packCost = cleanPackPrice(b.packPrice);
+  const computed = unitPriceFromPack(packCost, unitsPerPack);
+  if (computed === null) return { unitsPerPack: packCost === null ? null : unitsPerPack, packPrice: packCost === null ? null : String(packCost) };
+  return { unitsPerPack, packPrice: String(packCost), cost: String(computed) };
 }
 
 export function registerRebornRoutes(app: Express) {
@@ -3146,7 +3146,7 @@ export function registerRebornRoutes(app: Express) {
       companyId: cid,
       name: String(b.name).trim(), category: b.category || "General", department: b.department || null, price: String(Number(b.price) || 0),
       cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
-      ...packPricingFields(b, Number(b.price) || 0),
+      ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
       active: b.active !== false, posVisible: b.posVisible !== false, sortOrder: Number(b.sortOrder) || 0,
       ...packageFields(b),
@@ -3179,7 +3179,7 @@ export function registerRebornRoutes(app: Express) {
     const patch: any = {};
     for (const k of ["name", "category", "department", "imageUrl", "supplierName", "supplierAddress", "supplierPhone"]) if (b[k] !== undefined) patch[k] = b[k] || null;
     for (const k of ["price", "cost"]) if (b[k] !== undefined) patch[k] = String(Number(b[k]) || 0);
-    if (b.unitsPerPack !== undefined || b.packPrice !== undefined) Object.assign(patch, packPricingFields({ unitsPerPack: b.unitsPerPack ?? prev.unitsPerPack, packPrice: b.packPrice ?? prev.packPrice }, Number(patch.price ?? prev.price) || 0));
+    if (b.unitsPerPack !== undefined || b.packPrice !== undefined) Object.assign(patch, packPricingFields({ unitsPerPack: b.unitsPerPack ?? prev.unitsPerPack, packPrice: b.packPrice ?? prev.packPrice }));
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;

@@ -757,10 +757,11 @@ text.
 
 ## Sold by the pack (Admin › Products)
 
-- A product can have `units_per_pack` (e.g. 24 cans) and `pack_price`; the price of one unit (`price`, what the POS uses) is always
-  `pack_price ÷ units_per_pack` (shared/packPricing.ts, set on the server in `packPricingFields` for create and edit, shown read-only in
-  the forms). Stock stays counted in units. Inventory shows "= N pack + M" with a ±pack button; the POS tile gets a "Pack ×24" button
-  that adds a whole pack of units (the bill totals pack price, up to a rounding cent). Not the same as the member "packages" (visits / credit).
+- A product can have `units_per_pack` (e.g. 24 cans) and `pack_price` = what a whole pack COSTS (bought). The cost of one unit (`cost`) is
+  always `pack_price ÷ units_per_pack` (shared/packPricing.ts, set on the server in `packPricingFields` for create and edit, shown read-only in
+  the forms); the selling price (`price`) is never touched. Stock stays counted in units. Inventory shows "= N pack + M" with a ±pack
+  button; the POS tile gets a "Pack ×24" button that adds a whole pack of units at the unit selling price. Not the same as the member
+  "packages" (visits / credit).
 
 ## Same item from several suppliers (oldest stock first)
 

@@ -180,7 +180,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
                 </div>
                 {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}
               </button>
-              {p.unitsPerPack > 1 && p.stock >= p.unitsPerPack && <button type="button" onClick={() => add(p.id, p.unitsPerPack)} title={t("pos.packBtnTitle", { n: p.unitsPerPack, price: rp(Number(p.packPrice) || Number(p.price) * p.unitsPerPack) })} className="absolute bottom-1.5 right-1.5 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-bold text-black shadow">{t("pos.packBtn", { n: p.unitsPerPack })}</button>}
+              {p.unitsPerPack > 1 && p.stock >= p.unitsPerPack && <button type="button" onClick={() => add(p.id, p.unitsPerPack)} title={t("pos.packBtnTitle", { n: p.unitsPerPack, price: rp(Number(p.price) * p.unitsPerPack) })} className="absolute bottom-1.5 right-1.5 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-bold text-black shadow">{t("pos.packBtn", { n: p.unitsPerPack })}</button>}
               </div>
             ))}
           </div>

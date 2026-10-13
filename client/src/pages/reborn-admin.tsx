@@ -2093,8 +2093,8 @@ function Products() {
           <label className="text-xs text-white/50">{t("admin.prod.category")}<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder={t("admin.prod.categoryPh")} className={inp + " w-full"} /></label>
           <div className="text-xs text-white/50 sm:col-span-2">{t("admin.prod.industries")} <span className="text-white/30">{t("admin.prod.industriesHint")}</span><IndustryPicker value={n.department} options={industryOptions} onChange={(v) => setN({ ...n, department: v })} /></div>
           <label className="text-xs text-white/50">{t("admin.prod.stockQty")}<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={n.price || ""} disabled={unitPriceFromPack(n.packPrice, n.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
-          <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={n.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={n.cost || ""} disabled={unitPriceFromPack(n.packPrice, n.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <PackFields value={n} onChange={(next) => setN({ ...n, ...next })} />
         </div>
         <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
@@ -2202,12 +2202,12 @@ function DeleteProductButton({ p }: { p: any }) {
 }
 
 // "24 in a pack" + the price of a pack → the price of one unit is filled in by itself.
-function PackFields({ value, onChange, isCompact = false }: { value: { unitsPerPack: number; packPrice: number }; onChange: (next: { unitsPerPack: number; packPrice: number; price?: number }) => void; isCompact?: boolean }) {
+function PackFields({ value, onChange, isCompact = false }: { value: { unitsPerPack: number; packPrice: number }; onChange: (next: { unitsPerPack: number; packPrice: number; cost?: number }) => void; isCompact?: boolean }) {
   const { t } = useTranslation();
   const set = (patch: Partial<{ unitsPerPack: number; packPrice: number }>) => {
     const next = { unitsPerPack: value.unitsPerPack, packPrice: value.packPrice, ...patch };
     const unit = unitPriceFromPack(next.packPrice, next.unitsPerPack);
-    onChange(unit === null ? next : { ...next, price: unit });
+    onChange(unit === null ? next : { ...next, cost: unit });
   };
   const unit = unitPriceFromPack(value.packPrice, value.unitsPerPack);
   const field = "rounded-lg bg-black/30 border border-white/15 px-2 py-1.5 text-sm text-right tabular-nums";
@@ -2238,8 +2238,8 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
       <td className="px-2 py-1"><IndustryPicker isCompact value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
       <td className="px-2 py-1"><PackFields isCompact value={f} onChange={(next) => setF({ ...f, ...next })} /></td>
-      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.price || ""} disabled={unitPriceFromPack(f.packPrice, f.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={numCell} /></td>
-      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={numCell} /></td>
+      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={numCell} /></td>
+      <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} disabled={unitPriceFromPack(f.packPrice, f.unitsPerPack) !== null} className={numCell + " disabled:opacity-60"} /></td>
       <td className={`px-2 py-1 text-right font-semibold tabular-nums ${p.stock <= (p.lowStock ?? 0) ? "text-red-300" : "text-white/70"}`}>{p.stock}</td>
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
       <td className="px-2 py-1"><input value={f.supplierPhone} inputMode="tel" onChange={(e) => setF({ ...f, supplierPhone: e.target.value })} placeholder={t("admin.ro.noPhone")} className={cell + " min-w-[120px] " + (f.supplierName && !f.supplierPhone ? "border-red-400/40" : "")} /></td>
@@ -2285,8 +2285,8 @@ function ProductRow({ p }: any) {
           <div className="grid grid-cols-2 gap-2 mb-2">
             <label className="text-xs text-white/50">{t("admin.prod.category")}<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
             <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> {t("admin.prod.activeCol")}</label>
-            <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={f.price || ""} disabled={unitPriceFromPack(f.packPrice, f.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.cost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.cost || ""} disabled={unitPriceFromPack(f.packPrice, f.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
             <PackFields value={f} onChange={(next) => setF({ ...f, ...next })} />
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHintLong")}</span></label>
