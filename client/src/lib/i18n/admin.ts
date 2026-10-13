@@ -288,6 +288,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.pic.none': { en: "No picture yet — upload one below", zh: "还没有图片——请在下方上传", id: "Belum ada gambar — unggah di bawah" },
   'admin.pic.upload': { en: "Change picture", zh: "更换图片", id: "Ganti gambar" },
   'admin.pic.saved': { en: "Picture saved", zh: "图片已保存", id: "Gambar disimpan" },
+  'admin.search.ph': { en: "Search by name, category or supplier…", zh: "按名称、分类或供应商搜索…", id: "Cari berdasarkan nama, kategori, atau pemasok…" },
   'admin.cam.add': { en: "Add a camera", zh: "添加摄像头", id: "Tambah kamera" },
   'admin.cam.none': { en: "No cameras yet.", zh: "还没有摄像头。", id: "Belum ada kamera." },
   'admin.cam.name': { en: "Name", zh: "名称", id: "Nama" },

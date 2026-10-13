@@ -11,6 +11,8 @@ import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
 import StockSuppliers from "@/components/StockSuppliers";
 import ProductPicture from "@/components/ProductPicture";
+import SortableTh from "@/components/SortableTh";
+import { matchesSearch, sortRows, type SortState } from "@/lib/table-sort";
 import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
 import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
@@ -2069,7 +2071,9 @@ function Products() {
   const [rs, setRs] = useState<any>({ productId: "", supplier: "", qty: 1, unitCost: 0 });
   const industries = useCompanyIndustries();
   const industryOptions = industries;
-  const shown = industry ? products.filter((p) => deptHas(p.department, industry)) : products;
+  const [query, setQuery] = useState("");
+  const byIndustry = industry ? products.filter((p) => deptHas(p.department, industry)) : products;
+  const shown = byIndustry.filter((p) => matchesSearch(`${p.name} ${p.category} ${p.supplierName || ""} ${p.supplierPhone || ""}`, query));
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
     onSuccess: () => { toast({ title: t("admin.prod.added") }); setN({ name: "", category: "General", department: n.department, price: 0, unitsPerPack: 0, packPrice: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -2113,6 +2117,7 @@ function Products() {
         <button onClick={() => restock.mutate()} disabled={!rs.productId || !Number(rs.qty) || restock.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.prod.addBatch")}</button>
         </>}
       </Card>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
       <InventoryImport industries={industries} onMessage={(text, isError) => toast({ title: text, variant: isError ? "destructive" : undefined })} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
       {/* Desktop: editable spreadsheet view */}
@@ -2129,31 +2134,38 @@ const cell = "w-full bg-transparent border border-transparent rounded px-1.5 py-
 // Price and cost: always a visible box, wide enough for big rupiah amounts.
 const numCell = "w-28 min-w-[7rem] text-right tabular-nums font-semibold rounded-lg bg-black/30 border border-white/15 px-2.5 py-2 text-sm outline-none hover:border-white/30 focus:border-amber-400/70";
 
+const productSortValue = (p: any, key: string): string | number | boolean => ({
+  name: p.name || "", category: p.category || "", department: deptLabel(p.department), pack: Number(p.unitsPerPack) || 0, price: Number(p.price) || 0, cost: Number(p.cost) || 0,
+  stock: Number(p.stock) || 0, supplier: p.supplierName || "", phone: p.supplierPhone || "", pos: p.posVisible !== false, active: p.active !== false,
+} as Record<string, string | number | boolean>)[key];
+
 function ProductsTable({ products, industryOptions }: { products: any[]; industryOptions: string[] }) {
   const { t } = useTranslation();
+  const [sort, setSort] = useState<SortState>(null);
+  const sorted = sortRows(products, sort, productSortValue);
   return (
     <Card>
       <div className="overflow-auto -mx-3 sm:mx-0 max-h-[calc(100vh-9rem)]">
         <table className="w-full min-w-[1420px] text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[200px]">{t("admin.prod.item")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[110px]">{t("admin.prod.category")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[230px]">{t("admin.prod.industries")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.pack.col")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.prod.sellRp")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.prod.costRp")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.prod.stock")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.prod.supplier")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.prod.supplierPhone")}</th>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[200px]" sortKey="name" sort={sort} onSort={setSort}>{t("admin.prod.item")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[110px]" sortKey="category" sort={sort} onSort={setSort}>{t("admin.prod.category")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold min-w-[230px]" sortKey="department" sort={sort} onSort={setSort}>{t("admin.prod.industries")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="pack" sort={sort} onSort={setSort}>{t("admin.pack.col")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="price" sort={sort} onSort={setSort}>{t("admin.prod.sellRp")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="cost" sort={sort} onSort={setSort}>{t("admin.prod.costRp")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="stock" sort={sort} onSort={setSort}>{t("admin.prod.stock")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="supplier" sort={sort} onSort={setSort}>{t("admin.prod.supplier")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="phone" sort={sort} onSort={setSort}>{t("admin.prod.supplierPhone")}</SortableTh>
               <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.pkg.col")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center">{t("admin.prod.pos")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center">{t("admin.prod.activeCol")}</th>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" sortKey="pos" sort={sort} onSort={setSort}>{t("admin.prod.pos")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" sortKey="active" sort={sort} onSort={setSort}>{t("admin.prod.activeCol")}</SortableTh>
               <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right"></th>
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => <ProductTableRow key={p.id} p={p} industryOptions={industryOptions} />)}
+            {sorted.map((p) => <ProductTableRow key={p.id} p={p} industryOptions={industryOptions} />)}
           </tbody>
         </table>
       </div>
@@ -2516,7 +2528,9 @@ function Inventory() {
   const toggleEditor = (id: number) => setOpenId((current) => (current === id ? null : id));
   const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow p={product} /> : null; };
   const industries = useCompanyIndustries();
-  const items = industry ? allItems.filter((i) => deptHas(i.department, industry)) : allItems;
+  const [query, setQuery] = useState("");
+  const byIndustry = industry ? allItems.filter((i) => deptHas(i.department, industry)) : allItems;
+  const items = byIndustry.filter((i) => matchesSearch(`${i.name} ${i.category} ${(i.suppliers || []).join(" ")}`, query));
   const cats = Array.from(new Set(items.map((i) => i.category)));
   const totals = industry
     ? items.reduce((a, it) => ({ units: a.units + it.stock, cost: a.cost + it.stockValue, retail: a.retail + it.retailValue, low: a.low + (it.low ? 1 : 0) }), { units: 0, cost: 0, retail: 0, low: 0 })
@@ -2556,6 +2570,7 @@ function Inventory() {
             </div>
           </div>
         </div>, document.body)}
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
       <SupplierReorderPanel />
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
@@ -2624,23 +2639,29 @@ function StockCount({ it, onSet, className }: { it: any; onSet: (it: any, value:
   );
 }
 
+const inventorySortValue = (it: any, key: string): string | number => ({
+  name: it.name || "", category: it.category || "", department: deptLabel(it.department), suppliers: (it.suppliers || []).join(", "), cost: Number(it.cost) || 0,
+  stockValue: Number(it.stockValue) || 0, retailValue: Number(it.retailValue) || 0, stock: Number(it.stock) || 0,
+} as Record<string, string | number>)[key];
+
 function InventoryTable({ items, money, step, setCount, openId, onToggle, renderEditor }: { items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void; setCount: (it: any, value: string) => void; openId: number | null; onToggle: (id: number) => void; renderEditor: (id: number) => React.ReactNode }) {
   const { t } = useTranslation();
-  const rows = [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
+  const [sort, setSort] = useState<SortState>(null);
+  const rows = sort ? sortRows(items, sort, inventorySortValue) : [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
   return (
     <Card>
       <div className="overflow-auto -mx-3 sm:mx-0 max-h-[calc(100vh-9rem)]">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.prod.item")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.prod.category")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.inv.industry")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.inv.suppliers")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.inv.unitCost")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.inv.stockValue")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right">{t("admin.inv.retailValue")}</th>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center min-w-[130px]">{t("admin.prod.stock")}</th>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="name" sort={sort} onSort={setSort}>{t("admin.prod.item")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="category" sort={sort} onSort={setSort}>{t("admin.prod.category")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="department" sort={sort} onSort={setSort}>{t("admin.inv.industry")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="suppliers" sort={sort} onSort={setSort}>{t("admin.inv.suppliers")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="cost" sort={sort} onSort={setSort}>{t("admin.inv.unitCost")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="stockValue" sort={sort} onSort={setSort}>{t("admin.inv.stockValue")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="retailValue" sort={sort} onSort={setSort}>{t("admin.inv.retailValue")}</SortableTh>
+              <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center min-w-[130px]" sortKey="stock" sort={sort} onSort={setSort}>{t("admin.prod.stock")}</SortableTh>
               <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2" />
             </tr>
           </thead>
