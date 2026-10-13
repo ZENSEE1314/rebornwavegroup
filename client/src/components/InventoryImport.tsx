@@ -42,6 +42,7 @@ export default function InventoryImport({ industries, onDone, onMessage }: Props
   const [isCostTotal, setIsCostTotal] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
+  const [isDelivery, setIsDelivery] = useState(false);
   // With a single industry there is nothing to choose: every imported item belongs to it.
   const assigned = industries.length === 1 ? industries : chosen;
   const rows = useMemo(() => readSheetRows(sheet, { isCostTotal }), [sheet, isCostTotal]);
@@ -62,7 +63,7 @@ export default function InventoryImport({ industries, onDone, onMessage }: Props
   const send = async () => {
     setIsBusy(true);
     try {
-      const result = await (await apiRequest("POST", "/api/reborn/admin/inventory/import", { rows, industries: assigned })).json();
+      const result = await (await apiRequest("POST", "/api/reborn/admin/inventory/import", { rows, industries: assigned, mode: isDelivery ? "delivery" : "count" })).json();
       onMessage(result.message);
       setSheet([]);
       onDone();
@@ -97,6 +98,7 @@ export default function InventoryImport({ industries, onDone, onMessage }: Props
             </div>
           )}
           {withoutPrice > 0 && <p className="text-xs text-amber-300">{t("admin.imp.noPrice", { n: String(withoutPrice) })}</p>}
+          <label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={isDelivery} onChange={(event) => setIsDelivery(event.target.checked)} /> {t("admin.imp.delivery")}</label>
           <label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={isCostTotal} onChange={(event) => setIsCostTotal(event.target.checked)} /> {t("admin.imp.costTotal")}</label>
           <ul className="text-[11px] text-white/60 space-y-0.5">
             {rows.slice(0, PREVIEW_ROWS).map((row, i) => <li key={i} className="truncate">{row.name} · {row.category} · {row.price || "–"} / {row.cost || "–"} · {row.stock || "–"}{row.supplier ? ` · ${row.supplier}` : ""}</li>)}

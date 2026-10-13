@@ -761,3 +761,14 @@ text.
   `pack_price ÷ units_per_pack` (shared/packPricing.ts, set on the server in `packPricingFields` for create and edit, shown read-only in
   the forms). Stock stays counted in units. Inventory shows "= N pack + M" with a ±pack button; the POS tile gets a "Pack ×24" button
   that adds a whole pack of units (the bill totals pack price, up to a rounding cent). Not the same as the member "packages" (visits / credit).
+
+## Same item from several suppliers (oldest stock first)
+
+- Every delivery is a row in `stock_movements` (supplier + unit cost); server/fifo.ts works out the layers still on the shelf from that
+  history (sales / losses use the oldest first, returns go back at the cost they came out at, stock from before the history is an
+  "opening" layer at the item's own cost/supplier). Used for: Inventory unit cost + stock value, the cost of sales in the daily POS close
+  report (`fifoSaleCosts`), and "Stock by supplier and price" under each product (`/api/reborn/admin/pos/products/:id/layers`).
+- A second supplier = "Duplicate for another supplier" (copy icon in Products; no stock, no supplier) → change supplier name / number /
+  cost, then, if the POS should show one item, "Same item as…" merges it into the first (stock, delivery prices, bills move over).
+  The Excel import has "new deliveries — add to stock" for the same item arriving from another supplier. Two items with the same name
+  are matched ambiguously by the Excel import (the later one wins) — merge them first.

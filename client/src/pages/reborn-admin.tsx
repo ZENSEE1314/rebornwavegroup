@@ -5,10 +5,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { ToggleRight, Smartphone, Plus, Trash2, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
+import { ToggleRight, Smartphone, Plus, Trash2, Copy, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
+import StockSuppliers from "@/components/StockSuppliers";
 import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
 import { TableQrSheet } from "@/components/TableQrs";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
@@ -2160,6 +2161,24 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
   );
 }
 
+// Another supplier for the same item: makes a copy (no supplier, no stock) so only the supplier's name, number and price are typed.
+function DuplicateProductButton({ p }: { p: any }) {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const copy = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/reborn/admin/pos/products/${p.id}/duplicate`, {}).then((r) => r.json()),
+    onSuccess: (row: any) => {
+      toast({ title: t("admin.dup.done") });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] });
+      window.setTimeout(() => document.getElementById(`product-${row.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 900);
+    },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  return <button type="button" onClick={() => copy.mutate()} disabled={copy.isPending} aria-label={t("admin.dup.btn")} title={t("admin.dup.btn")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-cyan-200 inline-flex items-center justify-center disabled:opacity-40"><Copy className="w-4 h-4" /></button>;
+}
+
 // Deleting an item takes two taps (no browser pop-up): the first asks, the second deletes. An item that was sold before
 // can't be deleted (the server says so) and should be hidden instead.
 function DeleteProductButton({ p }: { p: any }) {
@@ -2213,7 +2232,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
-    <tr className={`border-b border-white/5 align-middle hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
+    <tr id={`product-${p.id}`} className={`border-b border-white/5 align-middle hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
       <td className="px-2 py-1"><div className="flex items-center gap-2">{p.imageUrl ? <img src={p.imageUrl} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" /> : <span className="w-7 h-7 rounded bg-white/5 flex-shrink-0" />}<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
       <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
       <td className="px-2 py-1"><IndustryPicker isCompact value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
@@ -2226,7 +2245,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className="px-2 py-1"><PackageButton p={p} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
-      <td className="px-2 py-1 text-right whitespace-nowrap"><span className="inline-flex items-center gap-1"><DeleteProductButton p={p} /><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></span></td>
+      <td className="px-2 py-1 text-right whitespace-nowrap"><span className="inline-flex items-center gap-1"><DuplicateProductButton p={p} /><DeleteProductButton p={p} /><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></span></td>
     </tr>
   );
 }
@@ -2254,6 +2273,7 @@ function ProductRow({ p }: any) {
             <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · {moneySymbol()} {Number(p.price).toLocaleString()} · {t("admin.prod.stockN", { n: p.stock })}</p>
             {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">{t("admin.prod.supplierLbl")} {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
+          <DuplicateProductButton p={p} />
           <DeleteProductButton p={p} />
           <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> {t("admin.c.edit")}</button>
         </div>
@@ -2279,6 +2299,7 @@ function ProductRow({ p }: any) {
           <p className="text-[11px] text-white/40 mt-1">{t("admin.prod.adjustHint")}</p>
         </div>
       )}
+      {!edit && <StockSuppliers p={p} />}
     </Card>
   );
 }

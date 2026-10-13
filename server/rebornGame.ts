@@ -32,6 +32,7 @@ import { tvPhoto } from "./tvLogic";
 import { cleanImportRows, matchKey } from "./inventoryImport";
 import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
 import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack } from "@shared/packPricing";
+import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerVenueScanRoutes } from "./venueScan";
 import { registerSupplierReorder, runSupplierReorderCheck } from "./supplierReorder";
@@ -372,6 +373,14 @@ async function buildDailyClosingReport(day: string) {
     row.sales += Number(item.lineTotal) || 0;
     row.cost += (Number(item.unitCost) || 0) * (Number(item.qty) || 0);
     grouped.set(key, row);
+  }
+  // The cost of what was sold comes from the deliveries the units were taken from (oldest first), not one price per item.
+  const soldIds = Array.from(new Set(sold.map((item) => item.productId).filter((id): id is number => !!id)));
+  const dayFrom = venueDayStart(day);
+  const fifoCosts = await fifoSaleCosts(soldIds, dayFrom, new Date(dayFrom.getTime() + 24 * 3_600_000));
+  for (const [key, row] of grouped) {
+    const productId = Number(key.split(":")[0]);
+    if (productId && fifoCosts.has(productId)) row.cost = fifoCosts.get(productId)!;
   }
   const totals = tickets.reduce((sum, ticket) => {
     sum.subtotal += Number(ticket.subtotal) || 0;
@@ -4530,6 +4539,7 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/inventory/import", requireAdmin(async (req, res) => {
     const { rows, skipped } = cleanImportRows(req.body?.rows);
     const offered = await companyIndustries();
+    const isDelivery = req.body?.mode === "delivery"; // new deliveries are added to the stock; otherwise a stock figure is the new count
     const department = cleanIndustries(req.body?.industries).filter((name) => offered.includes(name)).join(",") || null;
     if (!rows.length) return res.status(400).json({ message: tr(req, { en: "No items found in the file", zh: "文件中没有找到商品", id: "Tidak ada item di file" }) });
     const cid = await rebornCompanyId(req);
@@ -4547,15 +4557,15 @@ export function registerRebornRoutes(app: Express) {
           if (row.cost !== null) patch.cost = String(row.cost);
           if (row.supplier) patch.supplierName = row.supplier;
           if (row.phone) patch.supplierPhone = row.phone;
-          if (row.stock !== null) patch.stock = row.stock;
+          const delta = row.stock === null ? 0 : isDelivery ? row.stock : row.stock - known.stock;
+          if (row.stock !== null) patch.stock = known.stock + delta;
           await tx.update(posProducts).set(patch).where(eq(posProducts.id, known.id));
-          const delta = row.stock === null ? 0 : row.stock - known.stock;
-          if (delta !== 0) await tx.insert(stockMovements).values({ companyId: cid, productId: known.id, delta, reason: delta > 0 ? "stock_in" : "adjustment", supplier: row.supplier || null, note: "Excel import", userId: actor });
+          if (delta !== 0) await tx.insert(stockMovements).values({ companyId: cid, productId: known.id, delta, reason: delta > 0 ? "stock_in" : "adjustment", supplier: row.supplier || null, unitCost: delta > 0 && row.cost !== null ? String(row.cost) : null, note: isDelivery ? "Excel import (delivery)" : "Excel import", userId: actor });
           updated++;
         } else {
           const [made] = await tx.insert(posProducts).values({ companyId: cid, name: row.name, category: row.category, price: String(row.price ?? 0), cost: String(row.cost ?? 0), stock: row.stock ?? 0, supplierName: row.supplier || null, supplierPhone: row.phone || null, department }).returning();
           byName.set(matchKey(row.name), made);
-          if ((row.stock ?? 0) > 0) await tx.insert(stockMovements).values({ companyId: cid, productId: made.id, delta: row.stock!, reason: "stock_in", supplier: row.supplier || null, note: "Excel import", userId: actor });
+          if ((row.stock ?? 0) > 0) await tx.insert(stockMovements).values({ companyId: cid, productId: made.id, delta: row.stock!, reason: "stock_in", supplier: row.supplier || null, unitCost: row.cost !== null ? String(row.cost) : null, note: "Excel import", userId: actor });
           created++;
         }
       }
@@ -4572,15 +4582,17 @@ export function registerRebornRoutes(app: Express) {
       .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));
     const supByProduct = new Map<number, Set<string>>();
     for (const r of supRows) { if (!r.supplier) continue; (supByProduct.get(r.productId) || supByProduct.set(r.productId, new Set()).get(r.productId)!).add(r.supplier); }
+    const fifo = await loadFifo(rows);
     const items = rows.map((p) => {
       const stock = p.stock ?? 0;
-      const cost = Number(p.cost) || 0;
+      const run = fifo.get(p.id);
+      const cost = run?.layers[0]?.unitCost ?? (Number(p.cost) || 0); // what the next unit sold cost: the oldest delivery left
       const price = Number(p.price) || 0;
       return {
         id: p.id, name: p.name, category: p.category, department: p.department || null, active: p.active, posVisible: p.posVisible,
         stock, cost, price, imageUrl: p.imageUrl, unitsPerPack: p.unitsPerPack ?? null, packPrice: p.packPrice === null || p.packPrice === undefined ? null : Number(p.packPrice),
         suppliers: Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set())),
-        stockValue: Math.round(stock * cost),
+        stockValue: Math.round(run && run.layers.length ? run.stockValue : stock * cost),
         retailValue: Math.round(stock * price),
         low: stock <= lowAt,
       };
@@ -4755,6 +4767,11 @@ export function registerRebornRoutes(app: Express) {
       if (!phones.length) return void (await notifyAdmins(pick("en", text, vars)));
       for (const phone of phones) await sendWhatsApp(phone, pick(await langForPhone(phone), text, vars));
     },
+  });
+  registerStockLayers(app, {
+    requireAdmin,
+    companyId: (req) => rebornCompanyId(req),
+    logAdmin: (req, entry) => logAdmin(req, { targetType: "inventory", action: entry.action, entityType: "stock", description: entry.description }),
   });
   registerSupplierReorder(app, {
     requireAdmin,
