@@ -94,6 +94,15 @@ export function registerVenueScanRoutes(app: Express, deps: VenueScanDeps) {
     res.json({ token });
   }));
 
+  // The phone app found these devices itself (Wi-Fi scan in the app): the signed-in staff member reports them.
+  app.post("/api/reborn/security/nearby/found", deps.requireStaff(async (req, res) => {
+    const now = new Date().toISOString();
+    const merged = mergeDevices(await readStoredDevices(), cleanDevices(req.body?.devices, now));
+    await deps.writeSetting(DEVICES_KEY, JSON.stringify(merged));
+    await deps.writeSetting(LAST_REPORT_KEY, now);
+    res.json({ ok: true, count: merged.length });
+  }));
+
   // ---- the venue program ----
 
   app.get("/api/venue-bridge/poll", async (req, res) => {

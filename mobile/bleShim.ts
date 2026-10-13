@@ -3,10 +3,11 @@
 // (mobile/ble.ts) through `ReactNativeWebView.postMessage`. The page's own code does not change.
 //
 // Page → app:  { ble: true, id, op, args }          op: scan | connect | disconnect | services | write
+// Also: window.__rebornLanScan() asks the app to scan the Wi-Fi network for cameras and TVs (mobile/lanScan.ts).
 // App → page:  window.__rebornBleReply(id, ok, payload)  and  window.__rebornBleEvent(deviceId, "gattserverdisconnected")
 export const BLE_SHIM = `
 (function () {
-  if (navigator.bluetooth || !window.ReactNativeWebView) return;
+  if (!window.ReactNativeWebView) return;
   var pending = {};
   var devices = {};
   var seq = 0;
@@ -30,6 +31,10 @@ export const BLE_SHIM = `
     device.gatt.connected = false;
     (device.listeners[type] || []).slice().forEach(function (listener) { try { listener({ target: device }); } catch (e) {} });
   };
+
+  // The phone scans its Wi-Fi for CCTV cameras and TVs; resolves with [{ ip, kind, name, model, rtsp, via }].
+  window.__rebornLanScan = function () { return call("lanScan", {}); };
+  if (navigator.bluetooth) return;
 
   function toBase64(value) {
     var bytes = value instanceof ArrayBuffer ? new Uint8Array(value) : new Uint8Array(value.buffer, value.byteOffset, value.byteLength);

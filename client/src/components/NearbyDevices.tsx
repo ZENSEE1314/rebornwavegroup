@@ -13,6 +13,9 @@ const COPIED_SHOWN_MS = 2000;
 const SCRIPT_PATH = "/venue-scan.mjs";
 const FLAGSHIP_SLUG = "reborn-wave-group";
 
+// In the phone app the app itself can scan its Wi-Fi (mobile/modules/lan-scan); nothing to install on a PC.
+const phoneScan = (): (() => Promise<NearbyDevice[]>) | null => (typeof window !== "undefined" ? (window as unknown as { __rebornLanScan?: () => Promise<NearbyDevice[]> }).__rebornLanScan ?? null : null);
+
 const isOnline = (lastSeenAt: string) => Boolean(lastSeenAt) && Date.now() - new Date(lastSeenAt).getTime() < BRIDGE_ONLINE_MS;
 
 // "Find nearby": cameras and TVs found on the venue's network by the small scanner program running there.
@@ -21,6 +24,7 @@ export default function NearbyDevices({ kind, onAdd }: { kind: NearbyDevice["kin
   const [state, setState] = useState<NearbyState | null>(null);
   const [message, setMessage] = useState("");
   const [isCopied, setIsCopied] = useState(false);
+  const [isPhoneScanning, setIsPhoneScanning] = useState(false);
 
   const load = useCallback(async () => {
     try { setState(await (await apiRequest("GET", "/api/reborn/security/nearby")).json()); } catch (error) { setMessage(errorText(error)); }
@@ -37,6 +41,19 @@ export default function NearbyDevices({ kind, onAdd }: { kind: NearbyDevice["kin
   const found = state.devices.filter((device) => device.kind === kind);
   const company = state.company && state.company !== FLAGSHIP_SLUG ? ` --company ${state.company}` : "";
   const command = `node venue-scan.mjs --server ${window.location.origin} --token ${state.token}${company}`;
+
+  const scanWithPhone = async () => {
+    const run = phoneScan();
+    if (!run) return;
+    setIsPhoneScanning(true);
+    setMessage(t("admin.nb.phoneScanning"));
+    try {
+      const devices = await run();
+      await apiRequest("POST", "/api/reborn/security/nearby/found", { devices });
+      setMessage(t("admin.nb.phoneDone", { n: String(devices.length) }));
+      load();
+    } catch (error) { setMessage(errorText(error)); } finally { setIsPhoneScanning(false); }
+  };
 
   const scan = async () => {
     try { await apiRequest("POST", "/api/reborn/security/nearby/scan", {}); setMessage(t("admin.nb.scanStarted")); load(); } catch (error) { setMessage(errorText(error)); }
@@ -72,6 +89,7 @@ export default function NearbyDevices({ kind, onAdd }: { kind: NearbyDevice["kin
 
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <button type="button" onClick={scan} disabled={!online || state.scanning} className={primaryButton}><Radar className="w-4 h-4" /> {state.scanning ? t("admin.nb.scanning") : t("admin.nb.find")}</button>
+        {phoneScan() && <button type="button" onClick={scanWithPhone} disabled={isPhoneScanning} className={primaryButton}><Radar className="w-4 h-4" /> {isPhoneScanning ? t("admin.nb.phoneScanning") : t("admin.nb.phoneScan")}</button>}
         {message && <span className="text-xs text-white/60">{message}</span>}
       </div>
 

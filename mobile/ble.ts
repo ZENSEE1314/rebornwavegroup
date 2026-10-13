@@ -3,11 +3,12 @@
 import { PermissionsAndroid, Platform } from "react-native";
 import { BleManager, State, type Device } from "react-native-ble-plx";
 import type WebView from "react-native-webview";
+import { scanLan } from "./lanScan";
 
 const SCAN_MS = 6000;
 const CONNECT_TIMEOUT_MS = 8000;
 
-type Call = { ble: true; id: number; op: "scan" | "connect" | "disconnect" | "services" | "write"; args: Record<string, unknown> };
+type Call = { ble: true; id: number; op: "scan" | "connect" | "disconnect" | "services" | "write" | "lanScan"; args: Record<string, unknown> };
 interface ScanResult { id: string; name: string }
 
 export const isBleMessage = (message: unknown): message is Call => !!message && typeof message === "object" && (message as { ble?: unknown }).ble === true;
@@ -68,6 +69,7 @@ export function createBleBridge(getWebView: () => WebView | null) {
     const id = String(call.args.id ?? "");
     switch (call.op) {
       case "scan": return scan();
+      case "lanScan": return scanLan();
       case "connect": await connect(id); return true;
       case "services": return (await need(id).services()).map((service) => service.uuid.toLowerCase());
       case "write": {

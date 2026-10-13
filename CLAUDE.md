@@ -789,3 +789,12 @@ text.
   write). The website's lights code (client/src/lib/lights) is unchanged. It needs a NEW native build of the app
   (`npx eas-cli build --platform android --profile preview`, then install it) — an old build shows "install the latest app" on the Lights tab.
   Test the shim: `npx tsx --test mobile/bleShim.test.ts`. Not yet run on a real phone with real lights.
+
+## Wi-Fi scan inside the phone app (CCTV + TV)
+
+- Android only: `mobile/modules/lan-scan` is a small local Expo native module (Kotlin, `LanScanModule.kt`) doing what the PC scanner does — ONVIF
+  WS-Discovery, UPnP/SSDP (TVs) and a port-554 check of the phone's /24 — with a multicast lock held; `mobile/lanScan.ts` calls it and
+  `bleShim.ts` exposes it to the page as `window.__rebornLanScan()`. Admin › Security / TV › "Find nearby" shows "Scan with this phone" when that
+  exists and posts the result to `POST /api/reborn/security/nearby/found` (staff). The app also allows plain-http calls (`expo-build-properties`
+  `usesCleartextTraffic`) and `mixedContentMode="always"` so http camera pictures show inside the app. Needs a NEW app build; iPhone has no scan.
+  The Kotlin has not been compiled or run on a phone yet — if the EAS build fails, read the Gradle error and fix `LanScanModule.kt`.

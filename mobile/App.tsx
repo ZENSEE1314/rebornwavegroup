@@ -294,6 +294,7 @@ function RebornApp() {
         applicationNameForUserAgent="RebornWaveGroupApp/1.0"
         injectedJavaScriptBeforeContentLoaded={`window.__REBORN_NATIVE_APP__=true;localStorage.setItem('reborn.nativeApp','true');${BLE_SHIM}`}
         sharedCookiesEnabled
+        mixedContentMode="always"
         thirdPartyCookiesEnabled
         cacheEnabled
         allowsBackForwardNavigationGestures
