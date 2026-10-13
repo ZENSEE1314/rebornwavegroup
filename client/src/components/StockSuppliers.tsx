@@ -26,7 +26,7 @@ export default function StockSuppliers({ p }: { p: Product }) {
   const others = products.filter((item) => item.id !== p.id).sort((a, b) => Number(b.name.toLowerCase().startsWith(p.name.toLowerCase().slice(0, 4))) - Number(a.name.toLowerCase().startsWith(p.name.toLowerCase().slice(0, 4))) || a.name.localeCompare(b.name));
   return (
     <div className="mt-2 border-t border-white/10 pt-2">
-      <button type="button" onClick={() => setIsOpen(!isOpen)} className="text-xs font-semibold text-cyan-200">{t("admin.lay.title")} {isOpen ? "▲" : "▼"}</button>
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="min-h-0 p-0 text-left text-cyan-200" style={{ fontSize: 12, fontWeight: 600 }}>{t("admin.lay.title")} {isOpen ? "▲" : "▼"}</button>
       {isOpen && (
         <div className="mt-2 space-y-2 text-xs">
           <p className="text-white/40">{t("admin.lay.hint")}</p>
