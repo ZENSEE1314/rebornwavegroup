@@ -2279,16 +2279,20 @@ function ProductRow({ p }: any) {
   return (
     <Card>
       {!edit ? (
+        <div>
         <div className="flex items-start gap-3">
           <ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-14 h-14" roundedClass="rounded-xl" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">{t("admin.prod.hiddenTag")}</span>} {p.posVisible === false && <span className="text-xs text-amber-400">{t("admin.prod.notInPosTag")}</span>} {pkgTag(p, t) && <span className="text-xs text-sky-300">{pkgTag(p, t)}</span>}</p>
+            <p className="font-semibold break-words leading-snug">{p.name} {!p.active && <span className="text-xs text-red-400">{t("admin.prod.hiddenTag")}</span>} {p.posVisible === false && <span className="text-xs text-amber-400">{t("admin.prod.notInPosTag")}</span>} {pkgTag(p, t) && <span className="text-xs text-sky-300">{pkgTag(p, t)}</span>}</p>
             <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · {moneySymbol()} {Number(p.price).toLocaleString()} · {t("admin.prod.stockN", { n: p.stock })}</p>
             {p.supplierName && <p className="mt-1 text-[11px] text-white/40 break-words">{t("admin.prod.supplierLbl")} {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
           </div>
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center justify-end gap-2">
           <DuplicateProductButton p={p} />
           <DeleteProductButton p={p} />
-          <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> {t("admin.c.edit")}</button>
+          <button onClick={() => setEdit(true)} className="flex-shrink-0 inline-flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-bold bg-amber-400/90 text-black hover:bg-amber-300"><Pencil className="w-3.5 h-3.5" /> {t("admin.c.edit")}</button>
+        </div>
         </div>
       ) : (
         <div>
@@ -2589,16 +2593,23 @@ function Inventory() {
         <Card key={cat}>
           <p className="sticky top-14 z-20 -mx-1 mb-2 bg-[#16102b] px-1 py-1.5 font-bold text-sm flex items-center gap-2"><Boxes className="w-4 h-4 text-amber-300" /> {cat}</p>
           {items.filter((i) => i.category === cat).map((it) => (
-            <div key={it.id} className="flex items-center gap-2 py-2 border-b border-white/5 last:border-0">
-              <ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate flex items-center gap-1.5">{it.name}{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</p>
-                <p className="text-[11px] text-white/40">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
+            <div key={it.id} className="py-3 border-b border-white/5 last:border-0 space-y-2.5">
+              <div className="flex items-center gap-3">
+                <ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-12 h-12" roundedClass="rounded-xl" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold break-words leading-snug">{it.name}{it.low && <span className="ml-1.5 align-middle text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="ml-1.5 align-middle text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</p>
+                  <p className="text-[11px] text-white/45 break-words">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
+                </div>
+                <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-10 h-10 shrink-0 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
               </div>
-              <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
-              <button onClick={() => step(it, -1)} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center" style={{ fontSize: 16 }}>−</button>
-              <StockCount it={it} onSet={setCount} className="w-14" />{it.unitsPerPack > 1 && <PackStep it={it} step={step} />}
-              <button onClick={() => step(it, 1)} className="w-8 h-8 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center" style={{ fontSize: 16 }}>+</button>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/20 px-2.5 py-2">
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => step(it, -1)} aria-label="-1" className="w-11 h-11 min-h-0 p-0 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center text-xl">−</button>
+                  <StockCount it={it} onSet={setCount} className="w-16 h-11" />
+                  <button type="button" onClick={() => step(it, 1)} aria-label="+1" className="w-11 h-11 min-h-0 p-0 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center text-xl">+</button>
+                </div>
+                {it.unitsPerPack > 1 && <PackStep it={it} step={step} />}
+              </div>
             </div>
           ))}
           {openId !== null && items.some((x) => x.id === openId && x.category === cat) && renderEditor(openId)}
@@ -2615,9 +2626,9 @@ function PackStep({ it, step }: { it: any; step: (it: any, delta: number) => voi
   const { t } = useTranslation();
   const split = packBreakdown(it.draftStock ?? it.stock, it.unitsPerPack);
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] text-white/50">
-      <button type="button" onClick={() => step(it, -it.unitsPerPack)} aria-label={t("admin.pack.minus", { n: String(it.unitsPerPack) })} className="px-1.5 py-1 rounded-md bg-white/5 border border-white/10">-{it.unitsPerPack}</button>
-      <button type="button" onClick={() => step(it, it.unitsPerPack)} aria-label={t("admin.pack.plus", { n: String(it.unitsPerPack) })} className="px-1.5 py-1 rounded-md bg-amber-400/90 text-black font-bold">+{it.unitsPerPack}</button>
+    <span className="inline-flex flex-wrap items-center gap-1.5 text-[11px] text-white/60">
+      <button type="button" onClick={() => step(it, -it.unitsPerPack)} aria-label={t("admin.pack.minus", { n: String(it.unitsPerPack) })} className="h-9 min-h-0 px-2.5 py-0 rounded-md bg-white/5 border border-white/10">-{it.unitsPerPack}</button>
+      <button type="button" onClick={() => step(it, it.unitsPerPack)} aria-label={t("admin.pack.plus", { n: String(it.unitsPerPack) })} className="h-9 min-h-0 px-2.5 py-0 rounded-md bg-amber-400/90 text-black font-bold">+{it.unitsPerPack}</button>
       {split && <span className="whitespace-nowrap">{t("admin.pack.split", { packs: String(split.packs), loose: String(split.loose) })}</span>}
     </span>
   );

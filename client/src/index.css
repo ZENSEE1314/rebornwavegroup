@@ -531,7 +531,7 @@ button, .interactive {
     
     /* Mobile button improvements */
     /* Icon-only buttons keep their own size; text buttons get the roomy phone size. */
-    button:not(:has(> svg:only-child)), .btn {
+    button:not(:has(> svg:only-child)):not(:has(> img:only-child)), .btn {
       min-height: 44px;
       padding: 0.75rem 1rem;
       font-size: 1rem;
