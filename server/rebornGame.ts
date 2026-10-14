@@ -2742,20 +2742,37 @@ export function registerRebornRoutes(app: Express) {
     res.json({ users: rows.map((u:any) => ({ ...u, ...(positionRows.find(p => p.user_id === u.id) || {}) })), summary: { totalUsers: Number(agg?.count) || 0, totalTokens: Number(agg?.tokens) || 0, totalPoints: Number(agg?.points) || 0 } });
   }));
   // Delete a user (admin only; not yourself).
+  // Remove a person from this business. They leave this business's list and lose their staff role; if they belong to no other business the
+  // account is erased. A person with records (bookings, bills, log entries…) can't be erased without breaking those records, so their
+  // sign-in details are cleared instead — the records stay, the person can no longer log in and is gone from every list.
   app.delete("/api/reborn/admin/users/:id", requireAdmin(async (req, res) => {
     const id = req.params.id;
     if (id === getUserId(req)) return res.status(400).json({ message: tr(req, { en: "You can't delete your own account", zh: "不能删除自己的账户", id: "Kamu tidak bisa menghapus akunmu sendiri" }) });
     const [u] = await db.select().from(users).where(eq(users.id, id));
     if (!u) return res.status(404).json({ message: tr(req, { en: "User not found", zh: "找不到该用户", id: "Pengguna tidak ditemukan" }) });
-    try {
-      await db.delete(users).where(eq(users.id, id));
-    } catch (error) {
-      // A person with bookings, bills or other records can't be wiped without breaking those records.
-      if ((error as { code?: string })?.code === "23503") return res.status(409).json({ message: tr(req, { en: "This person has records (bookings, bills, messages…) so they can't be deleted. Change their role to Member instead.", zh: "此人有相关记录（预订、账单、消息等），无法删除。请把角色改为会员。", id: "Orang ini punya catatan (booking, tagihan, pesan…) sehingga tidak bisa dihapus. Ubah perannya menjadi Member saja." }) });
-      throw error;
+    const cid = await rebornCompanyId(req);
+    const who = u.username || u.email || id;
+    await db.delete(bridgeCompanyMembers).where(and(eq(bridgeCompanyMembers.companyId, cid), eq(bridgeCompanyMembers.userId, id)));
+    await db.delete(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId, cid), eq(bridgeStaffProfiles.userId, id)));
+    const [stillMember] = await db.select({ count: sql<number>`count(*)` }).from(bridgeCompanyMembers).where(eq(bridgeCompanyMembers.userId, id));
+    let outcome: "left" | "erased" | "cleared" = "left";
+    if (Number(stillMember?.count) > 0) {
+      await db.update(users).set({ role: "user", updatedAt: new Date() }).where(eq(users.id, id));
+    } else {
+      try {
+        await db.delete(users).where(eq(users.id, id));
+        outcome = "erased";
+      } catch (error) {
+        if ((error as { code?: string })?.code !== "23503") throw error;
+        await db.update(users).set({
+          email: null, username: null, password: null, googleId: null, appleId: null, phoneNumber: null, membershipCardNumber: null, passwordResetToken: null,
+          firstName: "Removed", lastName: "user", role: "user", updatedAt: new Date(),
+        }).where(eq(users.id, id));
+        outcome = "cleared";
+      }
     }
-    await logAdmin(req, { targetUserId: id, targetType: "user", action: "delete", entityType: "user", description: `Deleted user ${u.username || u.email || id}` });
-    res.json({ message: tr(req, { en: "User deleted", zh: "用户已删除", id: "Pengguna dihapus" }) });
+    await logAdmin(req, { targetUserId: outcome === "erased" ? undefined : id, targetType: "user", targetId: id, action: "delete", entityType: "user", oldValues: { name: [u.firstName, u.lastName].filter(Boolean).join(" "), email: u.email, role: u.role }, description: `Removed user ${who} (${outcome})` });
+    res.json({ outcome, message: tr(req, { en: "User removed", zh: "用户已移除", id: "Pengguna dihapus" }) });
   }));
   // Main-admin reset: zero every number — member balances/points, the prize pool and the stock count of every
   // inventory item. Keeps users and items (only the numbers change); each stock change is logged as a movement.
