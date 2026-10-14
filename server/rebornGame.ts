@@ -2729,7 +2729,8 @@ export function registerRebornRoutes(app: Express) {
     const sort = String(req.query.sort || "recent"); // recent | tokens
     const cid = await rebornCompanyId(req);
     // Only members of THIS business (bridge_company_members). Reborn has every user enrolled.
-    const memberOf = sql`${users.id} IN (SELECT user_id FROM bridge_company_members WHERE company_id=${cid})`;
+    // Someone who signed up since the last restart has no row there yet (rows are filled in at startup) — they belong to this space until they join another business.
+    const memberOf = sql`(${users.id} IN (SELECT user_id FROM bridge_company_members WHERE company_id=${cid}) OR ${users.id} NOT IN (SELECT user_id FROM bridge_company_members))`;
     let rows = q.length >= 1
       ? await db.select(userCols).from(users).where(and(memberOf, or(ilike(users.username, `${q}%`), ilike(users.firstName, `${q}%`), ilike(users.lastName, `${q}%`), ilike(users.email, `${q}%`), ilike(users.membershipCardNumber, `${q}%`), ilike(users.referralCode, `${q}%`)))).orderBy(users.firstName).limit(60)
       : await db.select(userCols).from(users).where(memberOf).orderBy(sort === "tokens" ? desc(users.tokens) : desc(users.createdAt)).limit(200);
