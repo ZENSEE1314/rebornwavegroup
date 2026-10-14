@@ -3208,7 +3208,7 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetType: "pos_product", targetId: id, action: "delete_product", entityType: "stock", description: `Deleted item "${product.name}"` });
     res.json({ message: tr(req, { en: "Item deleted", zh: "商品已删除", id: "Item dihapus" }) });
   }));
-  app.patch("/api/reborn/admin/pos/products/:id", requireAdmin(async (req, res) => {
+  app.patch("/api/reborn/admin/pos/products/:id", requireManager(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {};
     const cid = await rebornCompanyId(req);
     const [prev] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
@@ -4605,7 +4605,7 @@ export function registerRebornRoutes(app: Express) {
   // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.
   // Inventory from a spreadsheet: items are matched by name — a new name is created, an existing one is updated, and a
   // stock figure becomes the new count (the difference is written as a stock movement).
-  app.post("/api/reborn/admin/inventory/import", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/inventory/import", requireManager(async (req, res) => {
     const { rows, skipped } = cleanImportRows(req.body?.rows);
     const offered = await companyIndustries();
     const isDelivery = req.body?.mode === "delivery"; // new deliveries are added to the stock; otherwise a stock figure is the new count
@@ -4647,7 +4647,7 @@ export function registerRebornRoutes(app: Express) {
   }));
   // Stock counts changed in Admin › Inventory: only saved after the admin confirms. Each change must start from the number the
   // admin saw (a sale in between makes the save stop), is written to the stock history, and is logged — who, from what to what.
-  app.post("/api/reborn/admin/inventory/counts", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/inventory/counts", requireManager(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const actor = getUserId(req)!;
     const note = String(req.body?.note || "").trim().slice(0, 200);
@@ -4872,6 +4872,7 @@ export function registerRebornRoutes(app: Express) {
   });
   registerStockLayers(app, {
     requireAdmin,
+    requireManager,
     companyId: (req) => rebornCompanyId(req),
     logAdmin: (req, entry) => logAdmin(req, { targetType: "inventory", action: entry.action, entityType: "stock", description: entry.description }),
   });

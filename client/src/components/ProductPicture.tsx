@@ -6,7 +6,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUpload } from "@/components/ImageUpload";
-import { useAuth } from "@/hooks/useAuth";
+import { useProductRights } from "@/hooks/useAdminRole";
 
 const PICTURE_MAX_DIM = 600;
 const PICTURE_QUALITY = 0.8;
@@ -18,8 +18,7 @@ export default function ProductPicture({ id, name, imageUrl, sizeClass, roundedC
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { user } = useAuth();
-  const canEdit = (user as { role?: string } | null | undefined)?.role === "admin";
+  const { canEdit } = useProductRights();
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? imageUrl ?? "";

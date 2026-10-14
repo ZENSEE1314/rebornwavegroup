@@ -41,12 +41,13 @@ export async function fifoSaleCosts(productIds: number[], from: Date, to: Date):
 
 export interface StockLayerDeps {
   requireAdmin(handler: (req: Request, res: Response) => Promise<unknown>): (req: Request, res: Response) => unknown;
+  requireManager(handler: (req: Request, res: Response) => Promise<unknown>): (req: Request, res: Response) => unknown;
   companyId(req: Request): Promise<number>;
   logAdmin(req: Request, entry: { action: string; description: string }): Promise<void>;
 }
 
 export function registerStockLayers(app: Express, deps: StockLayerDeps) {
-  app.get("/api/reborn/admin/pos/products/:id/layers", deps.requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/pos/products/:id/layers", deps.requireManager(async (req, res) => {
     const cid = await deps.companyId(req);
     const [product] = await db.select().from(posProducts).where(and(eq(posProducts.id, Number(req.params.id)), eq(posProducts.companyId, cid)));
     if (!product) return res.status(404).json({ message: "Item not found" });
@@ -59,7 +60,7 @@ export function registerStockLayers(app: Express, deps: StockLayerDeps) {
 
   // Another supplier for the same item: a copy with everything but the supplier, ready for the admin to change the supplier's
   // name, number and price (no stock yet — it comes with the first delivery).
-  app.post("/api/reborn/admin/pos/products/:id/duplicate", deps.requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/pos/products/:id/duplicate", deps.requireManager(async (req, res) => {
     const cid = await deps.companyId(req);
     const [source] = await db.select().from(posProducts).where(and(eq(posProducts.id, Number(req.params.id)), eq(posProducts.companyId, cid)));
     if (!source) return res.status(404).json({ message: "Item not found" });

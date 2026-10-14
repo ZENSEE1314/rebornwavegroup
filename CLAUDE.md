@@ -807,5 +807,7 @@ text.
   `useMyTabs` in reborn-admin.tsx). It can only hide tabs the person's kind of account already has; Overview always stays; nobody can limit their
   own access. This hides buttons — the server routes still decide by role (`requireStaff` / `requireManager` / `requireAdmin`), so a hidden tab is
   not a security wall.
-- A manager can see Users (list only), see Inventory (numbers only, no changing / import / supplier messages) and add products
-  (`POST /api/reborn/admin/pos/products` is `requireManager`); editing, copying, deleting and pictures stay with the main admin.
+- A manager can see Users (list only), and can add and edit products, change the stock counts (save + confirm + log), import from Excel, copy an item for
+  another supplier and change pictures (`PATCH /api/reborn/admin/pos/products/:id`, `/inventory/counts`, `/inventory/import`, `/layers`, `/duplicate` are
+  `requireManager`; `useProductRights()` in hooks/useAdminRole.ts). Deleting a product or a person, merging items, the supplier-message panel and
+  everything else in Settings stay with the main admin.

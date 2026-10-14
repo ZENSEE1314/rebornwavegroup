@@ -11,6 +11,7 @@ import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
 import StockSuppliers from "@/components/StockSuppliers";
 import ProductPicture from "@/components/ProductPicture";
+import { useAdminRole, useProductRights } from "@/hooks/useAdminRole";
 import SortableTh from "@/components/SortableTh";
 import { matchesSearch, sortRows, type SortState } from "@/lib/table-sort";
 import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
@@ -45,11 +46,6 @@ function useMyTabs(role: AdminRole): string[] {
   return visibleTabs(role, data?.tabs);
 }
 
-function useAdminRole(): AdminRole {
-  const { user } = useAuth();
-  const { data } = useQuery<{ role: AdminRole }>({ queryKey: ["/api/reborn/my-role"], queryFn: () => apiRequest("GET", "/api/reborn/my-role").then((r) => r.json()), enabled: !!user });
-  return data?.role || ((user as any)?.role === "admin" ? "admin" : "staff");
-}
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -2120,8 +2116,7 @@ function Products() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const modules = useModules();
-  const { user } = useAuth();
-  const isAdmin = (user as any)?.role === "admin";
+  const { canEdit } = useProductRights();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
   const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, unitsPerPack: 0, packPrice: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) });
   const [industry, setIndustry] = useState("");
@@ -2176,13 +2171,12 @@ function Products() {
         </>}
       </Card>
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
-      {isAdmin && <InventoryImport industries={industries} onMessage={(text, isError) => toast({ title: text, variant: isError ? "destructive" : undefined })} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />}
+      {canEdit && <InventoryImport industries={industries} onMessage={(text, isError) => toast({ title: text, variant: isError ? "destructive" : undefined })} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />}
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
       {/* Desktop: editable spreadsheet view */}
-      {!isAdmin && <ProductsReadOnly products={shown} />}
-      {isAdmin && shown.length > 0 && <div className="hidden lg:block"><ProductsTable products={shown} industryOptions={industryOptions} /></div>}
+      {shown.length > 0 && <div className="hidden lg:block"><ProductsTable products={shown} industryOptions={industryOptions} /></div>}
       {/* Mobile / tablet: card view */}
-      {isAdmin && <div className="lg:hidden space-y-3">{shown.map((p) => <ProductRow key={p.id} p={p} />)}</div>}
+      <div className="lg:hidden space-y-3">{shown.map((p) => <ProductRow key={p.id} p={p} />)}</div>
       {shown.length === 0 && <Empty text={t("admin.prod.emptyInd")} />}
     </div>
   );
@@ -2197,27 +2191,6 @@ const productSortValue = (p: any, key: string): string | number | boolean => ({
   name: p.name || "", category: p.category || "", department: deptLabel(p.department), pack: Number(p.unitsPerPack) || 0, price: Number(p.price) || 0, cost: Number(p.cost) || 0,
   stock: Number(p.stock) || 0, supplier: p.supplierName || "", phone: p.supplierPhone || "", pos: p.posVisible !== false, active: p.active !== false,
 } as Record<string, string | number | boolean>)[key];
-
-// What a manager sees of the items: a plain list (adding stays in the form above; editing and deleting are for the main admin).
-function ProductsReadOnly({ products }: { products: any[] }) {
-  const { t } = useTranslation();
-  return (
-    <div className="space-y-2">
-      {products.map((p) => (
-        <Card key={p.id}>
-          <div className="flex items-center gap-3">
-            <ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-12 h-12" roundedClass="rounded-xl" />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold break-words leading-snug">{p.name}</p>
-              <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · {moneySymbol()} {Number(p.price).toLocaleString()} · {t("admin.prod.stockN", { n: p.stock })}</p>
-              {p.supplierName && <p className="text-[11px] text-white/40 break-words">{t("admin.prod.supplierLbl")} {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
-            </div>
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
-}
 
 function ProductsTable({ products, industryOptions }: { products: any[]; industryOptions: string[] }) {
   const { t } = useTranslation();
@@ -2275,6 +2248,7 @@ function DuplicateProductButton({ p }: { p: any }) {
 // Deleting an item takes two taps (no browser pop-up): the first asks, the second deletes. An item that was sold before
 // can't be deleted (the server says so) and should be hidden instead.
 function DeleteProductButton({ p }: { p: any }) {
+  const { canDelete } = useProductRights();
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -2284,6 +2258,7 @@ function DeleteProductButton({ p }: { p: any }) {
     onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
     onError: (e: any) => { setIsAsking(false); toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }); },
   });
+  if (!canDelete) return null;
   if (!isAsking) return <button type="button" onClick={() => setIsAsking(true)} aria-label={t("admin.c.delete")} title={t("admin.c.delete")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-red-300 inline-flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>;
   return (
     <span className="inline-flex items-center gap-1">
@@ -2592,8 +2567,8 @@ function PayrollRow({initial,rules,month,onSave,onPay}:any){const { t } = useTra
 
 function Inventory() {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const canChange = (user as any)?.role === "admin";
+  const role = useAdminRole();
+  const { canEdit: canChange } = useProductRights();
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/inventory"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory").then((r) => r.json()) });
@@ -2657,7 +2632,7 @@ function Inventory() {
           </div>
         </div>, document.body)}
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
-      {canChange && <SupplierReorderPanel />}
+      {role === "admin" && <SupplierReorderPanel />}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
         <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.stockValue")}</p><p className="text-base font-extrabold text-amber-300">{money(totals.cost || 0)}</p></div>

@@ -4,6 +4,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { moneySymbol } from "@/lib/money";
+import { useProductRights } from "@/hooks/useAdminRole";
 
 interface Layer { supplier: string; unitCost: number; qty: number; isOpening: boolean }
 interface Layers { stock: number; stockValue: number; layers: Layer[] }
@@ -14,6 +15,7 @@ export default function StockSuppliers({ p }: { p: Product }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { canDelete } = useProductRights();
   const [isOpen, setIsOpen] = useState(false);
   const [intoId, setIntoId] = useState("");
   const { data } = useQuery<Layers>({ queryKey: ["/api/reborn/admin/pos/products", p.id, "layers"], enabled: isOpen, queryFn: () => apiRequest("GET", `/api/reborn/admin/pos/products/${p.id}/layers`).then((r) => r.json()) });
@@ -35,7 +37,7 @@ export default function StockSuppliers({ p }: { p: Product }) {
               <li key={i} className="rounded-lg bg-black/20 border border-white/10 px-2 py-1.5">{t("admin.lay.line", { supplier: layer.isOpening ? `${layer.supplier || "—"} (${t("admin.lay.opening")})` : layer.supplier || "—", cost: `${moneySymbol()} ${Math.round(layer.unitCost).toLocaleString()}`, qty: String(layer.qty) })}</li>
             ))}
           </ul>
-          <div className="space-y-1">
+          {canDelete && <div className="space-y-1">
             <p className="text-white/50">{t("admin.lay.merge")}</p>
             <div className="flex flex-wrap gap-2">
               <select value={intoId} onChange={(event) => setIntoId(event.target.value)} className="min-w-0 flex-1 rounded-lg bg-black/30 border border-white/15 px-2 py-2 text-sm">
@@ -45,7 +47,7 @@ export default function StockSuppliers({ p }: { p: Product }) {
               <button type="button" onClick={() => merge.mutate()} disabled={!intoId || merge.isPending} className="min-h-[40px] px-3 rounded-lg text-xs font-bold bg-white/10 border border-white/15 disabled:opacity-40">{t("admin.lay.mergeDo")}</button>
             </div>
             <p className="text-white/35">{t("admin.lay.mergeHint")}</p>
-          </div>
+          </div>}
         </div>
       )}
     </div>
