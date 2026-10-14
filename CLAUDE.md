@@ -811,3 +811,10 @@ text.
   another supplier and change pictures (`PATCH /api/reborn/admin/pos/products/:id`, `/inventory/counts`, `/inventory/import`, `/layers`, `/duplicate` are
   `requireManager`; `useProductRights()` in hooks/useAdminRole.ts). Deleting a product or a person, merging items, the supplier-message panel and
   everything else in Settings stay with the main admin.
+
+## Rating staff (Support › Rate staff)
+
+- A member picks a person of the team (owner / admin / manager / staff, not themselves), gives 1–5 stars and an optional comment:
+  `GET /api/reborn/support/staff` (list with average, review count, the member's own rating), `POST /api/reborn/support/rate-staff`. One rating per
+  member per person (rating again replaces it). It is saved in `bridge_staff_reviews` (what the staff leaderboard averages: ⭐ + review count, red flag
+  on low ratings) and in `bridge_feedback` (Admin › Feedback).
