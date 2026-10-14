@@ -6,6 +6,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUpload } from "@/components/ImageUpload";
+import { useAuth } from "@/hooks/useAuth";
 
 const PICTURE_MAX_DIM = 600;
 const PICTURE_QUALITY = 0.8;
@@ -17,6 +18,8 @@ export default function ProductPicture({ id, name, imageUrl, sizeClass, roundedC
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const canEdit = (user as { role?: string } | null | undefined)?.role === "admin";
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? imageUrl ?? "";
@@ -41,10 +44,10 @@ export default function ProductPicture({ id, name, imageUrl, sizeClass, roundedC
             <div className="flex items-center justify-center rounded-xl bg-black/40 min-h-[220px] max-h-[60vh] overflow-hidden">
               {shown ? <img src={shown} alt={name} className="max-h-[60vh] w-auto max-w-full object-contain" /> : <p className="text-sm text-white/40 p-8">{t("admin.pic.none")}</p>}
             </div>
-            <ImageUpload value={shown} onChange={(value) => setDraft(value)} maxDim={PICTURE_MAX_DIM} quality={PICTURE_QUALITY} label={t("admin.pic.upload")} />
+            {canEdit && <ImageUpload value={shown} onChange={(value) => setDraft(value)} maxDim={PICTURE_MAX_DIM} quality={PICTURE_QUALITY} label={t("admin.pic.upload")} />}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={close} className="min-h-[44px] px-4 rounded-lg text-sm font-semibold bg-white/10 border border-white/15">{t("admin.c.close")}</button>
-              <button type="button" onClick={() => save.mutate()} disabled={!isChanged || save.isPending} className="min-h-[44px] px-5 rounded-lg text-sm font-bold bg-amber-400 text-black disabled:opacity-40">{t("admin.c.save")}</button>
+              {canEdit && <button type="button" onClick={() => save.mutate()} disabled={!isChanged || save.isPending} className="min-h-[44px] px-5 rounded-lg text-sm font-bold bg-amber-400 text-black disabled:opacity-40">{t("admin.c.save")}</button>}
             </div>
           </div>
         </div>, document.body)}

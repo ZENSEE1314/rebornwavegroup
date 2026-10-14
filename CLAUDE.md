@@ -798,3 +798,14 @@ text.
   exists and posts the result to `POST /api/reborn/security/nearby/found` (staff). The app also allows plain-http calls (`expo-build-properties`
   `usesCleartextTraffic`) and `mixedContentMode="always"` so http camera pictures show inside the app. Needs a NEW app build; iPhone has no scan.
   The Kotlin has not been compiled or run on a phone yet — if the EAS build fails, read the Gradle error and fix `LanScanModule.kt`.
+
+## Who sees which admin buttons (tabs)
+
+- The tab lists per kind of account live in shared/adminTabs.ts (`STAFF_TABS`, `MANAGER_TABS` — which now also has Users, Products and Inventory —
+  and `ADMIN_TABS`). The main admin can narrow what one person sees: Admin › Users › a staff / manager / admin row › "Which buttons can they see?"
+  (`appSettings.tabAccess` = userId → tabs, `PUT /api/reborn/admin/tab-access/:userId`, read by the person through `/api/reborn/my-tabs`;
+  `useMyTabs` in reborn-admin.tsx). It can only hide tabs the person's kind of account already has; Overview always stays; nobody can limit their
+  own access. This hides buttons — the server routes still decide by role (`requireStaff` / `requireManager` / `requireAdmin`), so a hidden tab is
+  not a security wall.
+- A manager can see Users (list only), see Inventory (numbers only, no changing / import / supplier messages) and add products
+  (`POST /api/reborn/admin/pos/products` is `requireManager`); editing, copying, deleting and pictures stay with the main admin.

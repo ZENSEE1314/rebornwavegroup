@@ -32,6 +32,7 @@ import { tvPhoto } from "./tvLogic";
 import { cleanImportRows, matchKey } from "./inventoryImport";
 import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
 import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack } from "@shared/packPricing";
+import { cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerVenueScanRoutes } from "./venueScan";
@@ -3174,7 +3175,7 @@ export function registerRebornRoutes(app: Express) {
     const allowNegative = (await getSettings()).allowNegativeStock;
     res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
   });
-  app.post("/api/reborn/admin/pos/products", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/pos/products", requireManager(async (req, res) => {
     const b = req.body || {};
     if (!String(b.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Name required", zh: "请输入名称", id: "Nama wajib diisi" }) });
     const cid = await rebornCompanyId(req);
@@ -4243,6 +4244,30 @@ export function registerRebornRoutes(app: Express) {
     const rows=(result.rows||result) as any[]; res.json(rows.map((x,i)=>({...x,rank:i+1,redFlag:(Number(x.rating)>0&&Number(x.rating)<2.5)||Number(x.bad_reviews)>=3})));
   }));
   // Distinct industries (product departments) for filters.
+  // Which buttons (tabs) each person of the admin page can see: set by the main admin, per person. No entry = all of their kind's tabs.
+  const TAB_ACCESS_KEY = "tabAccess";
+  const readTabAccess = async (): Promise<Record<string, string[]>> => {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, TAB_ACCESS_KEY));
+    try { const parsed = JSON.parse(row?.value || "{}"); return parsed && typeof parsed === "object" ? parsed : {}; } catch { return {}; }
+  };
+  app.get("/api/reborn/my-tabs", requireStaff(async (req, res) => { res.json({ tabs: (await readTabAccess())[getUserId(req)!] ?? null }); }));
+  app.get("/api/reborn/admin/tab-access", requireAdmin(async (_req, res) => { res.json(await readTabAccess()); }));
+  app.put("/api/reborn/admin/tab-access/:userId", requireAdmin(async (req, res) => {
+    const id = req.params.userId;
+    if (id === getUserId(req)) return res.status(400).json({ message: tr(req, { en: "You can't limit your own access", zh: "不能限制自己的权限", id: "Kamu tidak bisa membatasi aksesmu sendiri" }) });
+    const cid = await rebornCompanyId(req);
+    const [target] = await db.select({ role: users.role, memberRole: bridgeCompanyMembers.role }).from(users)
+      .innerJoin(bridgeCompanyMembers, and(eq(bridgeCompanyMembers.userId, users.id), eq(bridgeCompanyMembers.companyId, cid))).where(eq(users.id, id));
+    if (!target) return res.status(404).json({ message: tr(req, { en: "User not found", zh: "找不到该用户", id: "Pengguna tidak ditemukan" }) });
+    const role: AdminRole = target.role === "staff" && target.memberRole === "manager" ? "manager" : (target.role as AdminRole);
+    if (role === "user") return res.status(400).json({ message: tr(req, { en: "Only staff, managers and admins have an admin page", zh: "只有员工、经理和管理员有管理页面", id: "Hanya staf, manajer, dan admin yang punya halaman admin" }) });
+    const access = await readTabAccess();
+    const tabs = cleanTabAccess(req.body?.tabs, role);
+    if (tabs) access[id] = tabs; else delete access[id];
+    await db.insert(appSettings).values({ key: TAB_ACCESS_KEY, value: JSON.stringify(access), updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(access), updatedAt: new Date() } });
+    await logAdmin(req, { targetUserId: id, targetType: "user", action: "tab_access", entityType: "profile", newValues: { tabs }, description: tabs ? `Admin page limited to: ${tabs.join(", ")}` : "Admin page: all buttons of their role" });
+    res.json({ tabs });
+  }));
   app.get("/api/reborn/industries", requireStaff(async (_req, res) => { res.json(await companyIndustries()); }));
   // Drops old industry names from the items (what the BridgeX admin removed from the list), keeping the ones still offered.
   app.post("/api/reborn/admin/industries/tidy", requireAdmin(async (req, res) => {
@@ -4650,7 +4675,7 @@ export function registerRebornRoutes(app: Express) {
     }
     res.json({ changed: applied.length });
   }));
-  app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/inventory", requireManager(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind))).orderBy(posProducts.category, posProducts.name); // packages hold no stock

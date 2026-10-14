@@ -32,19 +32,19 @@ import { CUSTOM_PALETTE, type AppColours } from "@shared/appSkins";
 import { applyAppSkin } from "@/lib/appSkin";
 import { computeContributions, type PayrollRules, type CpfRules } from "@shared/payrollRules";
 import { countryOf } from "@shared/countries";
+import { ADMIN_TABS, STAFF_TABS, MANAGER_TABS, tabsForRole, visibleTabs, type AdminRole } from "@shared/adminTabs";
 
-// Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "Security", "POS"] as const;
-// Managers: the staff tabs + Daily sales (today's total, close the day, every salesperson's target).
-// The QR codes tab comes second, as for the main admin.
-const MANAGER_TABS = ["Overview", "QR", ...STAFF_TABS.slice(1, -1), "Sales", "POS"] as const;
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
 const tabKey = (tab: string) => "admin.tab." + tab.replace(/[^A-Za-z]/g, "");
-const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Features", "Lights", "Security", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
-type AdminRole = "admin" | "manager" | "staff" | "user";
-const tabsFor = (role: AdminRole) => (role === "admin" ? ADMIN_TABS : role === "manager" ? MANAGER_TABS : STAFF_TABS) as readonly string[];
 // The admin-panel view this account gets (manager = staff account with company role manager).
+// The tabs this account sees: its kind's tabs, narrowed by what the main admin ticked for this person.
+function useMyTabs(role: AdminRole): string[] {
+  const { user } = useAuth();
+  const { data } = useQuery<{ tabs: string[] | null }>({ queryKey: ["/api/reborn/my-tabs"], queryFn: () => apiRequest("GET", "/api/reborn/my-tabs").then((r) => r.json()), enabled: !!user, staleTime: 60_000 });
+  return visibleTabs(role, data?.tabs);
+}
+
 function useAdminRole(): AdminRole {
   const { user } = useAuth();
   const { data } = useQuery<{ role: AdminRole }>({ queryKey: ["/api/reborn/my-role"], queryFn: () => apiRequest("GET", "/api/reborn/my-role").then((r) => r.json()), enabled: !!user });
@@ -58,7 +58,7 @@ export default function RebornAdmin() {
   const isFullAdmin = (user as any)?.role === "admin";
   const role = useAdminRole();
   const modules = useModules();
-  const ALL_TABS = tabsFor(role);
+  const ALL_TABS = useMyTabs(role);
   const TABS = ALL_TABS.filter((t) => moduleEnabled(modules, ADMIN_TAB_MODULE[t]));
   // ?tab=Errors (from an error alert) opens that tab.
   const [tab, setTab] = useState<string>(() => { try { return new URLSearchParams(window.location.search).get("tab") || "Overview"; } catch { return "Overview"; } });
@@ -212,6 +212,7 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
   const { t } = useTranslation();
   const isFullAdmin = (user as any)?.role === "admin";
   const role = useAdminRole();
+  const myTabs = useMyTabs(role);
   const { data: o } = useQuery<any>({ queryKey: ["/api/reborn/admin/overview"], queryFn: () => apiRequest("GET", "/api/reborn/admin/overview").then((r) => r.json()), refetchInterval: 15000 });
   const cards = [
     { tab: "Requests", label: t("admin.ov.songRequests"), count: o?.songRequests, hot: true },
@@ -242,7 +243,7 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
       <StaffGuideButton />
       <h2 className="arc-head">{t("admin.ov.openSection")}</h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {tabsFor(role).filter((tb) => tb !== "Overview").map((tb, i) => (
+        {myTabs.filter((tb) => tb !== "Overview").map((tb, i) => (
           <button key={tb} onClick={() => onGo(tb)} className="feat-tile" style={{ ["--c" as any]: TAB_COLOR[tb] || "#c9a84c", ["--d" as any]: `${(i % 6) * 0.8}s` }}>
             <span className="feat-badge">{TAB_ICON[tb]}</span>
             <span className="feat-title">{t(tabKey(tb))}</span>
@@ -267,6 +268,7 @@ function Members() {
   const { user } = useAuth();
   const isFullAdmin = (user as any)?.role === "admin";
   const { data: positions = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-positions"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-positions").then((r) => r.json()), enabled: isFullAdmin });
+  const { data: tabAccess = {}, refetch: refetchAccess } = useQuery<Record<string, string[]>>({ queryKey: ["/api/reborn/admin/tab-access"], queryFn: () => apiRequest("GET", "/api/reborn/admin/tab-access").then((r) => r.json()), enabled: isFullAdmin });
   const save = useMutation({ mutationFn: (u: any) => apiRequest("POST", `/api/reborn/admin/users/${u.id}`, u).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.m.updated") }); refetch(); }, onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }) });
   const del = useMutation({ mutationFn: (id: string) => apiRequest("DELETE", `/api/reborn/admin/users/${id}`, {}).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message || t("admin.c.deleted") }); refetch(); }, onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }) });
   return (
@@ -284,7 +286,7 @@ function Members() {
         <button onClick={() => setSort(sort === "tokens" ? "recent" : "tokens")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${sort === "tokens" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.m.sort", { s: sort === "tokens" ? t("admin.m.sortTokens") : t("admin.m.sortRecent") })}</button>
       </div>
       {!isFullAdmin && <p className="text-xs text-white/40 mb-3">{t("admin.m.onlyAdmins")}</p>}
-      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} positions={positions} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => del.mutate(id)} />)}</div>
+      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} positions={positions} editable={isFullAdmin} tabs={tabAccess[u.id] ?? null} onTabsSaved={refetchAccess} onSave={save.mutate} onDelete={(id: string) => del.mutate(id)} />)}</div>
       {isFullAdmin && <ResetNumbers />}
     </div>
   );
@@ -302,7 +304,45 @@ function DeleteUserButton({ name, onConfirm }: { name: string; onConfirm: () => 
   );
 }
 
-function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
+// The main admin ticks which buttons of the admin page one person can see. Only buttons that kind of account has can be ticked; Overview stays.
+function TabAccessBox({ u, tabs, onSaved }: { u: any; tabs: string[] | null; onSaved: () => void }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const role: AdminRole = u.role === "staff" && u.member_role === "manager" ? "manager" : (u.role as AdminRole);
+  const all = tabsForRole(role);
+  const [isOpen, setIsOpen] = useState(false);
+  const [ticked, setTicked] = useState<string[]>(() => visibleTabs(role, tabs));
+  const save = useMutation({
+    mutationFn: (next: string[] | null) => apiRequest("PUT", `/api/reborn/admin/tab-access/${u.id}`, { tabs: next }).then((r) => r.json()),
+    onSuccess: (d: { tabs: string[] | null }) => { toast({ title: t("admin.ta.saved") }); setTicked(visibleTabs(role, d.tabs)); onSaved(); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  const flip = (tab: string) => setTicked((current) => (current.includes(tab) ? current.filter((x) => x !== tab) : [...current, tab]));
+  return (
+    <div className="mt-3 border-t border-white/10 pt-2">
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="min-h-0 p-0 text-left text-cyan-200" style={{ fontSize: 12, fontWeight: 600 }}>{t("admin.ta.title")}{tabs ? ` · ${t("admin.ta.limited", { n: String(tabs.length) })}` : ""} {isOpen ? "▲" : "▼"}</button>
+      {isOpen && (
+        <div className="mt-2 space-y-2">
+          <p className="text-[11px] text-white/45">{t("admin.ta.hint")}</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {all.map((tab) => (
+              <label key={tab} className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 text-xs ${ticked.includes(tab) ? "border-emerald-400/40 bg-emerald-400/10" : "border-white/10 bg-white/5 text-white/50"}`}>
+                <input type="checkbox" checked={ticked.includes(tab) || tab === "Overview"} disabled={tab === "Overview"} onChange={() => flip(tab)} />{t(tabKey(tab))}
+              </label>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => save.mutate(null)} disabled={save.isPending || !tabs} className="min-h-[40px] px-3 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-white/70 disabled:opacity-40">{t("admin.ta.reset")}</button>
+            <button type="button" onClick={() => save.mutate(ticked)} disabled={save.isPending} className="min-h-[40px] px-4 rounded-lg text-xs font-bold bg-amber-400 text-black disabled:opacity-40">{t("admin.c.save")}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSave, onDelete }: any) {
+  const { user: me } = useAuth();
   const [e, setE] = useState(() => (u.role === "staff" && u.member_role === "manager" ? { ...u, role: "manager" } : u)); // manager shows as its own role
   const { t } = useTranslation();
   return (
@@ -341,6 +381,7 @@ function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
             {onDelete && <DeleteUserButton name={u.firstName || u.username || u.email || ""} onConfirm={() => onDelete(u.id)} />}
             <button onClick={() => onSave(e)} className={btn}>{t("admin.c.save")}</button>
           </div>
+          {["admin", "staff"].includes(u.role) && u.id !== (me as any)?.id && <TabAccessBox key={`${u.id}-${u.role}-${u.member_role}`} u={u} tabs={tabs} onSaved={onTabsSaved} />}
         </>
       ) : (
         <p className="text-xs text-white/60">{t("admin.m.summaryLine", { credits: u.credits, points: u.loyaltyPoints, tokens: u.tokens, kgold: u.kgold })} · <b>{u.role === "staff" && u.member_role === "manager" ? t("admin.role.manager") : tv(t, "admin.role." + u.role, u.role)}</b></p>
@@ -2079,6 +2120,8 @@ function Products() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const modules = useModules();
+  const { user } = useAuth();
+  const isAdmin = (user as any)?.role === "admin";
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
   const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, unitsPerPack: 0, packPrice: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) });
   const [industry, setIndustry] = useState("");
@@ -2133,12 +2176,13 @@ function Products() {
         </>}
       </Card>
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
-      <InventoryImport industries={industries} onMessage={(text, isError) => toast({ title: text, variant: isError ? "destructive" : undefined })} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />
+      {isAdmin && <InventoryImport industries={industries} onMessage={(text, isError) => toast({ title: text, variant: isError ? "destructive" : undefined })} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />}
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
       {/* Desktop: editable spreadsheet view */}
-      {shown.length > 0 && <div className="hidden lg:block"><ProductsTable products={shown} industryOptions={industryOptions} /></div>}
+      {!isAdmin && <ProductsReadOnly products={shown} />}
+      {isAdmin && shown.length > 0 && <div className="hidden lg:block"><ProductsTable products={shown} industryOptions={industryOptions} /></div>}
       {/* Mobile / tablet: card view */}
-      <div className="lg:hidden space-y-3">{shown.map((p) => <ProductRow key={p.id} p={p} />)}</div>
+      {isAdmin && <div className="lg:hidden space-y-3">{shown.map((p) => <ProductRow key={p.id} p={p} />)}</div>}
       {shown.length === 0 && <Empty text={t("admin.prod.emptyInd")} />}
     </div>
   );
@@ -2153,6 +2197,27 @@ const productSortValue = (p: any, key: string): string | number | boolean => ({
   name: p.name || "", category: p.category || "", department: deptLabel(p.department), pack: Number(p.unitsPerPack) || 0, price: Number(p.price) || 0, cost: Number(p.cost) || 0,
   stock: Number(p.stock) || 0, supplier: p.supplierName || "", phone: p.supplierPhone || "", pos: p.posVisible !== false, active: p.active !== false,
 } as Record<string, string | number | boolean>)[key];
+
+// What a manager sees of the items: a plain list (adding stays in the form above; editing and deleting are for the main admin).
+function ProductsReadOnly({ products }: { products: any[] }) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-2">
+      {products.map((p) => (
+        <Card key={p.id}>
+          <div className="flex items-center gap-3">
+            <ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-12 h-12" roundedClass="rounded-xl" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold break-words leading-snug">{p.name}</p>
+              <p className="text-xs text-white/50 break-words">{p.category}{p.department ? ` · ${deptLabel(p.department)}` : ""} · {moneySymbol()} {Number(p.price).toLocaleString()} · {t("admin.prod.stockN", { n: p.stock })}</p>
+              {p.supplierName && <p className="text-[11px] text-white/40 break-words">{t("admin.prod.supplierLbl")} {p.supplierName}{p.supplierPhone ? ` · ${p.supplierPhone}` : ""}</p>}
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 function ProductsTable({ products, industryOptions }: { products: any[]; industryOptions: string[] }) {
   const { t } = useTranslation();
@@ -2527,6 +2592,8 @@ function PayrollRow({initial,rules,month,onSave,onPay}:any){const { t } = useTra
 
 function Inventory() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const canChange = (user as any)?.role === "admin";
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/inventory"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory").then((r) => r.json()) });
@@ -2567,7 +2634,7 @@ function Inventory() {
   return (
     <div className="space-y-3">
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
-      {changes.length > 0 && (
+      {canChange && changes.length > 0 && (
         <div className="sticky top-16 z-30 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/50 bg-[#2a2008]/95 p-3 backdrop-blur">
           <span className="flex-1 text-sm font-bold text-amber-200">{t("admin.cnt.unsaved", { n: String(changes.length) })}</span>
           <button type="button" onClick={() => setDraft({})} className="min-h-[44px] px-4 rounded-lg text-xs font-semibold bg-white/10 border border-white/15">{t("admin.cnt.discard")}</button>
@@ -2590,7 +2657,7 @@ function Inventory() {
           </div>
         </div>, document.body)}
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
-      <SupplierReorderPanel />
+      {canChange && <SupplierReorderPanel />}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
         <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.stockValue")}</p><p className="text-base font-extrabold text-amber-300">{money(totals.cost || 0)}</p></div>
@@ -2601,7 +2668,7 @@ function Inventory() {
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
       {/* Desktop: spreadsheet view */}
-      {items.length > 0 && <div className="hidden lg:block"><InventoryTable items={items} money={money} step={step} setCount={setCount} openId={openId} onToggle={toggleEditor} renderEditor={renderEditor} /></div>}
+      {items.length > 0 && <div className="hidden lg:block"><InventoryTable canChange={canChange} items={items} money={money} step={step} setCount={setCount} openId={openId} onToggle={toggleEditor} renderEditor={renderEditor} /></div>}
       {/* Mobile / tablet: grouped cards */}
       <div className="lg:hidden space-y-3">
       {cats.map((cat) => (
@@ -2615,16 +2682,16 @@ function Inventory() {
                   <p className="text-sm font-semibold break-words leading-snug">{it.name}{it.low && <span className="ml-1.5 align-middle text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="ml-1.5 align-middle text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</p>
                   <p className="text-[11px] text-white/45 break-words">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
                 </div>
-                <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-10 h-10 shrink-0 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>
+                {canChange && <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-10 h-10 shrink-0 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>}
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/20 px-2.5 py-2">
+              {canChange ? (<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/20 px-2.5 py-2">
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => step(it, -1)} aria-label="-1" className="w-11 h-11 min-h-0 p-0 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center text-xl">−</button>
                   <StockCount it={it} onSet={setCount} className="w-16 h-11" />
                   <button type="button" onClick={() => step(it, 1)} aria-label="+1" className="w-11 h-11 min-h-0 p-0 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center text-xl">+</button>
                 </div>
                 {it.unitsPerPack > 1 && <PackStep it={it} step={step} />}
-              </div>
+              </div>) : <p className="rounded-xl bg-black/20 px-3 py-2 text-sm">{t("admin.prod.stock")}: <b className="tabular-nums">{it.stock}</b></p>}
             </div>
           ))}
           {openId !== null && items.some((x) => x.id === openId && x.category === cat) && renderEditor(openId)}
@@ -2670,7 +2737,7 @@ const inventorySortValue = (it: any, key: string): string | number => ({
   stockValue: Number(it.stockValue) || 0, retailValue: Number(it.retailValue) || 0, stock: Number(it.stock) || 0,
 } as Record<string, string | number>)[key];
 
-function InventoryTable({ items, money, step, setCount, openId, onToggle, renderEditor }: { items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void; setCount: (it: any, value: string) => void; openId: number | null; onToggle: (id: number) => void; renderEditor: (id: number) => React.ReactNode }) {
+function InventoryTable({ canChange, items, money, step, setCount, openId, onToggle, renderEditor }: { canChange: boolean; items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void; setCount: (it: any, value: string) => void; openId: number | null; onToggle: (id: number) => void; renderEditor: (id: number) => React.ReactNode }) {
   const { t } = useTranslation();
   const [sort, setSort] = useState<SortState>(null);
   const rows = sort ? sortRows(items, sort, inventorySortValue) : [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
@@ -2688,7 +2755,7 @@ function InventoryTable({ items, money, step, setCount, openId, onToggle, render
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="stockValue" sort={sort} onSort={setSort}>{t("admin.inv.stockValue")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="retailValue" sort={sort} onSort={setSort}>{t("admin.inv.retailValue")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center min-w-[130px]" sortKey="stock" sort={sort} onSort={setSort}>{t("admin.prod.stock")}</SortableTh>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2" />
+              {canChange && <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2" />}
             </tr>
           </thead>
           <tbody>
@@ -2702,8 +2769,8 @@ function InventoryTable({ items, money, step, setCount, openId, onToggle, render
                 <td className="px-2 py-1.5 text-right tabular-nums text-white/70">{money(it.cost)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-amber-300">{money(it.stockValue)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-emerald-300">{money(it.retailValue)}</td>
-                <td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><StockCount it={it} onSet={setCount} className="w-16" />{it.unitsPerPack > 1 && <PackStep it={it} step={step} />}<button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>
-              <td className="px-2 py-1.5"><button type="button" onClick={() => onToggle(it.id)} aria-label={t("admin.c.edit")} title={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button></td>
+                {canChange ? (<td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><StockCount it={it} onSet={setCount} className="w-16" />{it.unitsPerPack > 1 && <PackStep it={it} step={step} />}<button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>) : <td className="px-2 py-1.5 text-center font-extrabold tabular-nums">{it.stock}</td>}
+              {canChange && <td className="px-2 py-1.5"><button type="button" onClick={() => onToggle(it.id)} aria-label={t("admin.c.edit")} title={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button></td>}
               </tr>
               {openId === it.id && <tr><td colSpan={9} className="p-2">{renderEditor(it.id)}</td></tr>}
               </Fragment>
