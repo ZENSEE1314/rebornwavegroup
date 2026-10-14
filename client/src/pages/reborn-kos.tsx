@@ -50,7 +50,7 @@ const ANIM_CSS = `
 @media (prefers-reduced-motion: reduce){.kg-rays,.kg-burst,.kg-confetti,.kg-ring,.kg-flash{display:none}.kg-art,.kg-art-emoji{animation:none}}
 `;
 const fmt = (n: number) => (n || 0).toLocaleString(localeTag());
-function nameOf(u: any) { return u?.username || u?.firstName || translate("vn.common.member"); }
+function nameOf(u: any) { return (u?.username?.includes("@") ? "" : u?.username) || u?.firstName || translate("vn.common.member"); }
 function initials(u: any) { return (nameOf(u)[0] || "?").toUpperCase(); }
 function Avatar({ u }: any) {
   return u?.photo ? <img src={u.photo} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />

@@ -30,7 +30,7 @@ export const tierOf = (level: number) => LEVEL_TIERS.find((t) => level >= t.min)
 export function LevelAvatar({ u, level = 1, size = 40, label, noCrown }: { u: any; level?: number; size?: number; label?: string; noCrown?: boolean }) {
   const tier = tierOf(level);
   const pad = level >= 5 ? Math.max(2, Math.round(size * 0.08)) : 2;
-  const initial = label || (Array.from(String(u?.username || u?.firstName || "?"))[0] || "?").toUpperCase();
+  const initial = label || (Array.from(String((u?.username?.includes("@") ? "" : u?.username) || u?.firstName || "?"))[0] || "?").toUpperCase();
   return (
     <span className="relative inline-flex flex-shrink-0 rounded-full" style={{ width: size, height: size, boxShadow: tier.glow }}>
       <span className="absolute inset-0 rounded-full" style={{ background: tier.ring, animation: tier.spin ? "lvSpin 3s linear infinite" : undefined }} />

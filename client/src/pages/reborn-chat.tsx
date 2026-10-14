@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Send, ArrowLeft, Check, X, UserPlus, MessageCircle, Users, Clock, ImagePlus, Trash2, MoreVertical } from "lucide-react";
 
-function nameOf(u: any) { return u?.username || u?.firstName || translate("vn.common.member"); }
+function nameOf(u: any) { return (u?.username?.includes("@") ? "" : u?.username) || u?.firstName || translate("vn.common.member"); }
 function initials(u: any) { return (nameOf(u)[0] || "?").toUpperCase(); }
 function Avatar({ u }: any) {
   return u?.photo

@@ -345,7 +345,7 @@ async function ensureUser(email: string, name: string, password?: string) {
   const temporaryPassword = password || `BX-${randomUUID().slice(0, 8)}`;
   const [user] = await db.insert(users).values({
     id: randomUUID(), email: normalized, password: await bcrypt.hash(temporaryPassword, 12),
-    authProvider: "email", firstName: name || normalized.split("@")[0], role: "user",
+    authProvider: "email", username: normalized, firstName: name || normalized.split("@")[0], role: "user",
     referralCode: `BX${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`,
     mustChangePassword: true,
   }).returning();

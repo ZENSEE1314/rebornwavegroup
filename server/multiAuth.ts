@@ -296,7 +296,7 @@ export function setupAuthRoutes(app: Express) {
           const temporaryPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
           user = await storage.createEmailUser({
             email: requestedEmail,
-            username: requestedEmail.split('@')[0],
+            username: requestedEmail.trim().toLowerCase(),
             password: temporaryPassword,
             firstName: 'Reborn',
             lastName: 'Owner',

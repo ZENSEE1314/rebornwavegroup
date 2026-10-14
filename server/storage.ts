@@ -119,6 +119,7 @@ import { db } from "./db";
 import { eq, desc, sql, and, or, isNull, gte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
+import { emailAsUsername } from "@shared/username";
 import bcrypt from "bcryptjs";
 
 // Interface for storage operations
@@ -368,6 +369,14 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // The email as username, unless somebody already holds that name (then no username, never a failed sign-up).
+  private async startingUsername(email: unknown): Promise<string | null> {
+    const wanted = emailAsUsername(email);
+    if (!wanted) return null;
+    const [taken] = await db.select({ id: users.id }).from(users).where(sql`lower(${users.username}) = ${wanted}`).limit(1);
+    return taken ? null : wanted;
+  }
+
   // User operations (mandatory for Replit Auth)
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -382,6 +391,7 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values({
         ...userData,
+        username: userData.username || await this.startingUsername(userData.email),
         referralCode,
       })
       .onConflictDoUpdate({
@@ -448,7 +458,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         id: userId,
         email: typeof userData.email === "string" ? userData.email.trim().toLowerCase() : userData.email,
-        username: userData.username,
+        username: userData.username || await this.startingUsername(userData.email),
         firstName: userData.firstName,
         lastName: userData.lastName,
         phoneNumber: userData.phoneNumber,
@@ -484,6 +494,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         id: userId,
         email: userData.email,
+        username: await this.startingUsername(userData.email),
         firstName: userData.firstName,
         lastName: userData.lastName,
         password: null,
@@ -509,6 +520,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         id: userId,
         email: userData.email,
+        username: await this.startingUsername(userData.email),
         firstName: userData.firstName,
         lastName: userData.lastName,
         password: null,

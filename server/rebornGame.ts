@@ -1658,12 +1658,12 @@ export function registerRebornRoutes(app: Express) {
       const monthStart = new Date(`${session.day.slice(0, 7)}-01T${String(VENUE_DAY_START_HOUR - 7).padStart(2, "0")}:00:00Z`);
       const since = period === "month" ? monthStart : venueDayStart(session.day);
       const result = period === "month"
-        ? await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,SUM(g.recipient_kgold)::bigint AS stars,
+        ? await db.execute(sql`SELECT u.id,u.first_name AS "firstName",(CASE WHEN u.username LIKE '%@%' THEN NULL ELSE u.username END) AS username,u.profile_image_url AS photo,SUM(g.recipient_kgold)::bigint AS stars,
               EXISTS(SELECT 1 FROM venue_checkins v WHERE v.user_id=u.id AND v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL) AS "checkedIn"
             FROM kos_gifts g JOIN users u ON u.id=g.to_user_id
             WHERE g.company_id=${cid} AND g.created_at>=${since}
             GROUP BY u.id,u.first_name,u.username,u.profile_image_url ORDER BY stars DESC LIMIT 100`)
-        : await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::bigint AS stars, true AS "checkedIn"
+        : await db.execute(sql`SELECT u.id,u.first_name AS "firstName",(CASE WHEN u.username LIKE '%@%' THEN NULL ELSE u.username END) AS username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::bigint AS stars, true AS "checkedIn"
             FROM venue_checkins v JOIN users u ON u.id=v.user_id
             LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at AND g.company_id=${cid}
             WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL
@@ -1673,7 +1673,7 @@ export function registerRebornRoutes(app: Express) {
       const ids = rows.map((r) => r.id);
       const tops = new Map<string, any[]>();
       if (ids.length) {
-        const t: any = await db.execute(sql`SELECT g.to_user_id AS "to", g.from_user_id AS id, u.first_name AS "firstName", u.username, u.profile_image_url AS photo, SUM(g.kgold_cost)::bigint AS sent
+        const t: any = await db.execute(sql`SELECT g.to_user_id AS "to", g.from_user_id AS id, u.first_name AS "firstName", (CASE WHEN u.username LIKE '%@%' THEN NULL ELSE u.username END) AS username, u.profile_image_url AS photo, SUM(g.kgold_cost)::bigint AS sent
           FROM kos_gifts g JOIN users u ON u.id=g.from_user_id
           WHERE g.company_id=${cid} AND g.created_at>=${since} AND g.to_user_id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
           GROUP BY g.to_user_id, g.from_user_id, u.first_name, u.username, u.profile_image_url ORDER BY sent DESC`);
@@ -1703,9 +1703,9 @@ export function registerRebornRoutes(app: Express) {
       const me = getUserId(req)!;
       if (q.length < 2) return res.json([]);
       const session = await ensureVenueSession();
-      const result = await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo FROM venue_checkins v JOIN users u ON u.id=v.user_id
+      const result = await db.execute(sql`SELECT u.id,u.first_name AS "firstName",(CASE WHEN u.username LIKE '%@%' THEN NULL ELSE u.username END) AS username,u.profile_image_url AS photo FROM venue_checkins v JOIN users u ON u.id=v.user_id
         WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL AND u.id<>${me}
-        AND (u.username ILIKE ${`%${q}%`} OR u.first_name ILIKE ${`%${q}%`}) LIMIT 20`);
+        AND ((u.username NOT LIKE '%@%' AND u.username ILIKE ${`%${q}%`}) OR u.first_name ILIKE ${`%${q}%`}) LIMIT 20`);
       res.json(result.rows || result);
     } catch { res.json([]); }
   });
@@ -1814,7 +1814,7 @@ export function registerRebornRoutes(app: Express) {
       void (async () => {
         const [fromSeat, toSeat, receiver] = await Promise.all([activeCheckin(fromUserId).catch(() => null), activeCheckin(toUserId).catch(() => null), storage.getUser(toUserId)]);
         const session = await ensureVenueSession();
-        const topRows: any = await db.execute(sql`SELECT u.first_name AS "firstName", u.username, u.profile_image_url AS photo, SUM(g.kgold_cost)::bigint AS sent
+        const topRows: any = await db.execute(sql`SELECT u.first_name AS "firstName", (CASE WHEN u.username LIKE '%@%' THEN NULL ELSE u.username END) AS username, u.profile_image_url AS photo, SUM(g.kgold_cost)::bigint AS sent
           FROM kos_gifts g JOIN users u ON u.id=g.from_user_id
           WHERE g.company_id=${cid} AND g.to_user_id=${toUserId} AND g.created_at>=${venueDayStart(session.day)}
           GROUP BY u.id, u.first_name, u.username, u.profile_image_url ORDER BY sent DESC LIMIT 3`);
@@ -1836,7 +1836,7 @@ export function registerRebornRoutes(app: Express) {
       const userId = getUserId(req)!;
       const rows = await db.select({
         id: kosGifts.id, giftName: kosGifts.giftName, recipientKgold: kosGifts.recipientKgold, createdAt: kosGifts.createdAt,
-        fromName: users.firstName, fromUsername: users.username,
+        fromName: users.firstName, fromUsername: sql<string | null>`CASE WHEN ${users.username} LIKE '%@%' THEN NULL ELSE ${users.username} END`,
         emoji: kosGiftTypes.emoji, imageUrl: kosGiftTypes.imageUrl, animation: kosGiftTypes.animation,
       }).from(kosGifts)
         .leftJoin(users, eq(users.id, kosGifts.fromUserId))
@@ -2068,7 +2068,7 @@ export function registerRebornRoutes(app: Express) {
       const all = await db.select().from(friendships).where(or(eq(friendships.requesterId, me), eq(friendships.addresseeId, me)));
       const otherIds = Array.from(new Set(all.map((f) => (f.requesterId === me ? f.addresseeId : f.requesterId))));
       const userRows = otherIds.length ? await db.select({ id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl }).from(users).where(sql`${users.id} in (${sql.join(otherIds.map((i) => sql`${i}`), sql`, `)})`) : [];
-      const umap = Object.fromEntries(userRows.map((u) => [u.id, u]));
+      const umap = Object.fromEntries(userRows.map((u) => [u.id, { ...u, username: u.username?.includes("@") ? null : u.username }]));
       const messages = otherIds.length ? (await db.select(CHAT_COLS).from(chatMessages).where(or(and(eq(chatMessages.senderId, me), inArray(chatMessages.receiverId, otherIds)), and(eq(chatMessages.receiverId, me), inArray(chatMessages.senderId, otherIds)))).orderBy(desc(chatMessages.createdAt))).filter((m) => !hiddenFrom(m, me)).map(chatView) : [];
       const latest = new Map<string, any>();
       const unread = new Map<string, number>();
