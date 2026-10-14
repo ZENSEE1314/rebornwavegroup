@@ -3,8 +3,12 @@
 // KGOLD needed for each level is set by the admin: Lv.2 at `base`, then each
 // level needs `growth` × the previous level's total (default 1,000,000 × 2:
 // Lv.2 = 1M, Lv.3 = 2M, Lv.4 = 4M …), or an exact list of 49 totals.
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
+import { appSettings } from "@shared/schema";
+
+// "Reset all numbers" sets this: gifts sent before it no longer count towards the levels (the gift history itself stays).
+export const GIFT_LEVELS_SINCE_KEY = "giftLevelsSince";
 
 export const MAX_LEVEL = 50;
 export type LevelCfg = { base: number; growth: number; list?: number[] };
@@ -47,7 +51,10 @@ export async function giftTotals(cid: number | null, userIds: string[]) {
   const out = new Map<string, { sent: number; received: number }>();
   for (const id of ids) out.set(id, { sent: 0, received: 0 });
   if (!ids.length) return out;
-  const scope = cid == null ? sql`` : sql`AND company_id = ${cid}`;
+  const [sinceRow] = await db.select().from(appSettings).where(eq(appSettings.key, GIFT_LEVELS_SINCE_KEY));
+  const since = sinceRow?.value ? new Date(sinceRow.value) : null;
+  const sinceScope = since && !Number.isNaN(since.getTime()) ? sql`AND created_at >= ${since}` : sql``;
+  const scope = cid == null ? sinceScope : sql`AND company_id = ${cid} ${sinceScope}`;
   const idList = sql.join(ids.map((id) => sql`${id}`), sql`, `);
   const sent: any = await db.execute(sql`SELECT from_user_id AS id, COALESCE(SUM(kgold_cost),0)::bigint AS n FROM kos_gifts WHERE from_user_id IN (${idList}) ${scope} GROUP BY from_user_id`);
   const got: any = await db.execute(sql`SELECT to_user_id AS id, COALESCE(SUM(recipient_kgold),0)::bigint AS n FROM kos_gifts WHERE to_user_id IN (${idList}) ${scope} GROUP BY to_user_id`);

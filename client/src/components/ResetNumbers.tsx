@@ -50,6 +50,8 @@ export function ResetNumbers() {
               <li>{t("admin.m.resetZ1")}</li>
               <li>{t("admin.m.resetZ2")}</li>
               <li>{t("admin.m.resetZ3")}</li>
+              <li>{t("admin.m.resetZ4")}</li>
+              <li>{t("admin.m.resetZ5")}</li>
             </ul>
             <p className="text-[11px] text-amber-200/90 mb-3">{t("admin.m.resetKeep")}</p>
             <label className="block text-xs text-white/60 mb-1" htmlFor="reset-numbers-password">{t("admin.m.resetPrompt")}</label>

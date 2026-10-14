@@ -444,6 +444,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.m.resetZ1': { en: "Every member's tokens, points, credits, KGOLD and referral earnings", zh: "每位会员的代币、积分、余额、KGOLD 和推荐收益", id: "Token, poin, kredit, KGOLD, dan hasil referral setiap anggota" },
   'admin.m.resetZ2': { en: "The prize pool", zh: "奖池", id: "Kumpulan hadiah" },
   'admin.m.resetZ3': { en: "The stock count of every inventory item", zh: "每个库存物品的库存数量", id: "Jumlah stok setiap item inventori" },
+  'admin.m.resetZ4': { en: "Every level: gift levels (Gifter and Star), game ranks and member levels start again from 1", zh: "所有等级：礼物等级（送礼者和明星）、游戏段位和会员等级重新从 1 开始", id: "Semua level: level hadiah (Pemberi dan Bintang), peringkat game, dan level member mulai lagi dari 1" },
+  'admin.m.resetZ5': { en: "Kept bottles: every stored bottle is cleared", zh: "寄存酒瓶：所有寄存的酒瓶将被清除", id: "Botol titipan: semua botol yang disimpan dihapus" },
   'admin.m.resetKeep': { en: "Kept: all users and all items — only the numbers change. This cannot be undone.", zh: "保留：所有用户和所有物品——只有数字改变。此操作无法撤销。", id: "Tetap ada: semua pengguna dan semua item — hanya angkanya yang berubah. Tindakan ini tidak dapat dibatalkan." },
   'admin.m.resetWorking': { en: "Resetting…", zh: "正在清零…", id: "Mereset…" },
   'admin.m.firstName': { en: "First name", zh: "名字", id: "Nama depan" },

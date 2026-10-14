@@ -7,7 +7,7 @@ import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
-import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL } from "./giftLevels";
+import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL, GIFT_LEVELS_SINCE_KEY } from "./giftLevels";
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
 import { packageFields, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
@@ -49,7 +49,7 @@ import {
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts, crmMessages, appointments,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
   staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory,
   venueCheckins, memberWalletTransactions,
 } from "@shared/schema";
@@ -2838,12 +2838,18 @@ export function registerRebornRoutes(app: Express) {
     await clearSongQueue("Reset");
     await db.update(spinResults).set({ status: "cancelled" }).where(and(eq(spinResults.companyId, cid), sql`${spinResults.status} in ('unused','redeeming')`));
     await db.update(posTickets).set({ status: "cancelled" }).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open")));
+    // Levels start again: gift levels (Gifter + Star) count only gifts after now, game rank stars and the member level go back to the start, kept bottles are cleared.
+    const now = new Date();
+    await db.insert(appSettings).values({ key: GIFT_LEVELS_SINCE_KEY, value: now.toISOString(), updatedAt: now }).onConflictDoUpdate({ target: appSettings.key, set: { value: now.toISOString(), updatedAt: now } });
+    await db.update(users).set({ level: 1 });
+    await db.update(gameRanks).set({ stars: 0, peakStars: 0, updatedAt: now });
+    const bottles = await db.update(bottleKeeps).set({ quantity: 0, status: "expired", note: sql`concat_ws(' | ', ${bottleKeeps.note}, 'Main-admin reset')` }).where(eq(bottleKeeps.status, "kept")).returning({ id: bottleKeeps.id });
     emitLiveUpdate("kos", { type: "reset" });
-    await logAdmin(req, { targetType: "system", action: "reset_numbers", entityType: "system", description: `Reset all member balances/points + prize pool + pending songs/prizes/POS bills + stock of ${stockZeroed} item${stockZeroed === 1 ? "" : "s"}` });
-    res.json({ stockZeroed, message: tr(req, {
-      en: "All member balances, points, tokens, the prize pool and every stock count have been reset to 0, and waiting song requests, prizes to redeem and open POS bills were cleared. Users and items are kept.",
-      zh: "所有会员余额、积分、代币、奖池以及全部库存数量已清零，等待中的点歌、待兑奖品和未结账的POS账单也已清除。用户和物品均已保留。",
-      id: "Semua saldo, poin, token member, kumpulan hadiah, dan jumlah stok telah direset ke 0, serta permintaan lagu yang menunggu, hadiah yang belum ditukar, dan tagihan POS yang terbuka telah dihapus. Pengguna dan item tetap ada.",
+    await logAdmin(req, { targetType: "system", action: "reset_numbers", entityType: "system", description: `Reset all member balances/points + gift levels + game ranks + ${bottles.length} kept bottle(s) + prize pool + pending songs/prizes/POS bills + stock of ${stockZeroed} item${stockZeroed === 1 ? "" : "s"}` });
+    res.json({ stockZeroed, bottlesCleared: bottles.length, message: tr(req, {
+      en: "All member balances, points, tokens, gift levels, game ranks, kept bottles, the prize pool and every stock count have been reset, and waiting song requests, prizes to redeem and open POS bills were cleared. Users and items are kept.",
+      zh: "所有会员余额、积分、代币、礼物等级、游戏段位、寄存酒瓶、奖池以及全部库存数量已重置，等待中的点歌、待兑奖品和未结账的POS账单也已清除。用户和物品均已保留。",
+      id: "Semua saldo, poin, token member, level hadiah, peringkat game, botol titipan, kumpulan hadiah, dan jumlah stok telah direset, serta permintaan lagu yang menunggu, hadiah yang belum ditukar, dan tagihan POS yang terbuka telah dihapus. Pengguna dan item tetap ada.",
     }) });
   }));
   app.post("/api/reborn/admin/users/:id", requireAdmin(async (req, res) => {
