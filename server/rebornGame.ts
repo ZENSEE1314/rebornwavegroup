@@ -1588,7 +1588,7 @@ export function registerRebornRoutes(app: Express) {
         (SELECT r2.rating FROM bridge_staff_reviews r2 WHERE r2.company_id=m.company_id AND r2.staff_user_id=m.user_id AND r2.customer_user_id=${me} ORDER BY r2.id DESC LIMIT 1) AS my_rating
       FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id
       LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true
-      WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND m.user_id<>${me}
+      WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') AND m.user_id<>${me}
       GROUP BY m.company_id, m.user_id, u.first_name, u.last_name, u.username, u.profile_image_url, p.name ORDER BY name`);
     res.json(((result.rows || result) as any[]).map((x) => ({ ...x, rating: Number(x.rating), reviews: Number(x.reviews), myRating: x.my_rating == null ? null : Number(x.my_rating) })));
   });
@@ -1601,7 +1601,8 @@ export function registerRebornRoutes(app: Express) {
     if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ message: tr(req, { en: "Choose 1 to 5 stars", zh: "请选择 1 到 5 颗星", id: "Pilih 1 sampai 5 bintang" }) });
     if (staffId === me) return res.status(400).json({ message: tr(req, { en: "You can't rate yourself", zh: "不能给自己评分", id: "Kamu tidak bisa menilai dirimu sendiri" }) });
     const [member] = await db.select({ userId: bridgeCompanyMembers.userId }).from(bridgeCompanyMembers)
-      .where(and(eq(bridgeCompanyMembers.companyId, cid), eq(bridgeCompanyMembers.userId, staffId), inArray(bridgeCompanyMembers.role, ["owner", "admin", "manager", "staff"]))).limit(1);
+      .innerJoin(users, eq(users.id, bridgeCompanyMembers.userId))
+      .where(and(eq(bridgeCompanyMembers.companyId, cid), eq(bridgeCompanyMembers.userId, staffId), inArray(bridgeCompanyMembers.role, ["owner", "admin", "manager", "staff"]), inArray(users.role, ["admin", "staff"]))).limit(1);
     if (!member) return res.status(404).json({ message: tr(req, { en: "Staff member not found", zh: "找不到该员工", id: "Staf tidak ditemukan" }) });
     await db.execute(sql`DELETE FROM bridge_staff_reviews WHERE company_id=${cid} AND staff_user_id=${staffId} AND customer_user_id=${me}`);
     await db.insert(bridgeStaffReviews).values({ companyId: cid, staffUserId: staffId, customerUserId: me, rating, note: comment || null, sentiment: rating >= 4 ? "positive" : rating <= 2 ? "negative" : "neutral" });
@@ -4273,7 +4274,7 @@ export function registerRebornRoutes(app: Express) {
       ? sql`COALESCE((SELECT SUM(pi.line_total) FROM pos_ticket_items pi JOIN pos_tickets t ON t.id=pi.order_id LEFT JOIN pos_products p2 ON p2.id=pi.product_id WHERE t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid' AND t.paid_at >= now()-interval '7 days' AND ${industry} = ANY(string_to_array(COALESCE(p2.department,''), ','))),0)`
       : sql`COALESCE(sum(t.total::numeric) FILTER (WHERE t.paid_at >= now()-interval '7 days'),0)`;
     const salesJoin = industry ? sql`` : sql`LEFT JOIN pos_tickets t ON t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid'`;
-    const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name, p.name position, ${salesExpr} weekly_sales, COALESCE(avg(r.rating),0)::numeric(3,2) rating, count(DISTINCT r.id) review_count, count(DISTINCT r.id) FILTER (WHERE r.rating <= 2) bad_reviews FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id ${salesJoin} LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') GROUP BY m.user_id,u.first_name,u.last_name,u.email,p.name ORDER BY weekly_sales DESC, rating DESC`);
+    const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name, p.name position, ${salesExpr} weekly_sales, COALESCE(avg(r.rating),0)::numeric(3,2) rating, count(DISTINCT r.id) review_count, count(DISTINCT r.id) FILTER (WHERE r.rating <= 2) bad_reviews FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id ${salesJoin} LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') GROUP BY m.user_id,u.first_name,u.last_name,u.email,p.name ORDER BY weekly_sales DESC, rating DESC`);
     const rows=(result.rows||result) as any[]; res.json(rows.map((x,i)=>({...x,rank:i+1,redFlag:(Number(x.rating)>0&&Number(x.rating)<2.5)||Number(x.bad_reviews)>=3})));
   }));
   // Distinct industries (product departments) for filters.
