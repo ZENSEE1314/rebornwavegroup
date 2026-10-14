@@ -2747,7 +2747,13 @@ export function registerRebornRoutes(app: Express) {
     if (id === getUserId(req)) return res.status(400).json({ message: tr(req, { en: "You can't delete your own account", zh: "不能删除自己的账户", id: "Kamu tidak bisa menghapus akunmu sendiri" }) });
     const [u] = await db.select().from(users).where(eq(users.id, id));
     if (!u) return res.status(404).json({ message: tr(req, { en: "User not found", zh: "找不到该用户", id: "Pengguna tidak ditemukan" }) });
-    await db.delete(users).where(eq(users.id, id));
+    try {
+      await db.delete(users).where(eq(users.id, id));
+    } catch (error) {
+      // A person with bookings, bills or other records can't be wiped without breaking those records.
+      if ((error as { code?: string })?.code === "23503") return res.status(409).json({ message: tr(req, { en: "This person has records (bookings, bills, messages…) so they can't be deleted. Change their role to Member instead.", zh: "此人有相关记录（预订、账单、消息等），无法删除。请把角色改为会员。", id: "Orang ini punya catatan (booking, tagihan, pesan…) sehingga tidak bisa dihapus. Ubah perannya menjadi Member saja." }) });
+      throw error;
+    }
     await logAdmin(req, { targetUserId: id, targetType: "user", action: "delete", entityType: "user", description: `Deleted user ${u.username || u.email || id}` });
     res.json({ message: tr(req, { en: "User deleted", zh: "用户已删除", id: "Pengguna dihapus" }) });
   }));

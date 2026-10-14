@@ -284,11 +284,24 @@ function Members() {
         <button onClick={() => setSort(sort === "tokens" ? "recent" : "tokens")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${sort === "tokens" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.m.sort", { s: sort === "tokens" ? t("admin.m.sortTokens") : t("admin.m.sortRecent") })}</button>
       </div>
       {!isFullAdmin && <p className="text-xs text-white/40 mb-3">{t("admin.m.onlyAdmins")}</p>}
-      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} positions={positions} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => { if (confirm(t("admin.m.confirmDelete", { name: u.firstName || u.username || u.email }))) del.mutate(id); }} />)}</div>
+      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} positions={positions} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => del.mutate(id)} />)}</div>
       {isFullAdmin && <ResetNumbers />}
     </div>
   );
 }
+// Deleting a person takes two taps in the page itself: the first asks, the second deletes.
+function DeleteUserButton({ name, onConfirm }: { name: string; onConfirm: () => void }) {
+  const { t } = useTranslation();
+  const [isAsking, setIsAsking] = useState(false);
+  if (!isAsking) return <button type="button" onClick={() => setIsAsking(true)} aria-label={t("admin.c.delete")} title={t("admin.c.delete")} className="w-10 h-10 min-h-0 p-0 rounded-lg bg-white/5 border border-white/10 text-red-300 inline-flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <button type="button" onClick={onConfirm} className="min-h-[40px] px-3 rounded-lg text-xs font-bold bg-red-500 text-white">{t("admin.prod.deleteSure", { name })}</button>
+      <button type="button" onClick={() => setIsAsking(false)} aria-label={t("admin.c.close")} className="w-10 h-10 min-h-0 p-0 rounded-lg bg-white/5 border border-white/10 text-white/70 inline-flex items-center justify-center"><X className="w-4 h-4" /></button>
+    </span>
+  );
+}
+
 function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
   const [e, setE] = useState(() => (u.role === "staff" && u.member_role === "manager" ? { ...u, role: "manager" } : u)); // manager shows as its own role
   const { t } = useTranslation();
@@ -312,7 +325,7 @@ function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
             <label className="text-xs text-white/50">{t("admin.m.tokens")}<input type="number" value={e.tokens} onChange={(x) => setE({ ...e, tokens: Number(x.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">KGOLD<input type="number" value={e.kgold} onChange={(x) => setE({ ...e, kgold: Number(x.target.value) })} className={inp + " w-full"} /></label>
           </div>
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <label className="text-xs text-white/50">{t("admin.m.role")}
               <select value={e.role === "staff" && e.member_role === "manager" ? "manager" : e.role || "user"} onChange={(x) => setE({ ...e, role: x.target.value, member_role: x.target.value })} className={inp + " ml-1"}>
                 <option value="user">{t("admin.role.user")}</option><option value="staff">{t("admin.role.staffSub")}</option><option value="manager">{t("admin.role.managerSub")}</option><option value="admin">{t("admin.role.admin")}</option>
@@ -323,8 +336,10 @@ function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
                 <option value="">{t("admin.m.selectPosition")}</option>{positions.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>}
-            <button onClick={() => onSave(e)} className={btn + " ml-auto"}>{t("admin.c.save")}</button>
-            {onDelete && <button onClick={() => onDelete(u.id)} className={btnDel}><Trash2 className="w-4 h-4" /></button>}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+            {onDelete && <DeleteUserButton name={u.firstName || u.username || u.email || ""} onConfirm={() => onDelete(u.id)} />}
+            <button onClick={() => onSave(e)} className={btn}>{t("admin.c.save")}</button>
           </div>
         </>
       ) : (
