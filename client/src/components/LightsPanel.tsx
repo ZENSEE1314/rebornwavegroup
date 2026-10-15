@@ -3,15 +3,13 @@ import { Bluetooth, Plus, Power, Trash2 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { APP_EFFECTS, hsvToRgb, rgbToHsv } from "@/lib/lights/effects";
 import { LightHub, type LightShown, type Target } from "@/lib/lights/hub";
-import { createDemoLight } from "@/lib/lights/demo";
-import { UnsupportedLightError, isBluetoothSupported, pairBluetoothLight } from "@/lib/lights/bluetooth";
+import { UnsupportedLightError, isBluetoothSupported, pairBluetoothLights } from "@/lib/lights/bluetooth";
 import type { ProfileId, Rgb } from "@/lib/lights/protocols";
 
 const WHEEL_SIZE = 240;
 const WHEEL_EDGE_SOFTNESS = 0.015;
 const CUSTOM_SLOTS = 6;
 const CUSTOM_STORAGE_KEY = "lights.customColours";
-const DEMO_COUNTS = [8, 24, 60];
 const CONNECTION_COUNTS = [4, 6, 8, 10, 12];
 const PRESETS: Rgb[] = [
   { r: 255, g: 0, b: 0 }, { r: 0, g: 255, b: 0 }, { r: 0, g: 0, b: 255 },
@@ -105,7 +103,6 @@ export default function LightsPanel() {
   const [tab, setTab] = useState<"colour" | "effects" | "music">("colour");
   const [notice, setNotice] = useState<{ isError: boolean; text: string } | null>(null);
   const [isPairing, setIsPairing] = useState(false);
-  const [demoCount, setDemoCount] = useState(DEMO_COUNTS[0]);
   const [customColours, setCustomColours] = useState<(string | null)[]>(loadCustomColours);
   const canBluetooth = isBluetoothSupported();
   const { control } = view;
@@ -116,27 +113,19 @@ export default function LightsPanel() {
     setNotice({ isError: false, text: t("admin.lt.pairing") });
     setIsPairing(true);
     try {
-      const paired = await pairBluetoothLight();
-      if (!paired) { setNotice(null); return; }
-      hub.addLight(paired.info, paired.link);
-      setNotice({ isError: false, text: t("admin.lt.paired", { name: paired.info.name }) });
+      const { lights, failed } = await pairBluetoothLights();
+      if (!lights.length && !failed.length) { setNotice(null); return; }
+      for (const paired of lights) hub.addLight(paired.info, paired.link);
+      const bad = failed.map(({ name, error }) => error instanceof UnsupportedLightError
+        ? `${t("admin.lt.unsupported", { name: error.deviceName || name })}${error.knownServices.length ? ` (${error.knownServices.join(", ")})` : ""}`
+        : t("admin.lt.pairFailed", { error: `${name}: ${error instanceof Error ? error.message : String(error)}` }));
+      const ok = lights.length === 1 ? t("admin.lt.paired", { name: lights[0].info.name }) : lights.length ? t("admin.lt.pairedMany", { n: lights.length }) : "";
+      setNotice({ isError: !lights.length, text: [ok, ...bad].filter(Boolean).join(" ") });
     } catch (error) {
-      const text = error instanceof UnsupportedLightError
-        ? `${t("admin.lt.unsupported", { name: error.deviceName || "?" })}${error.knownServices.length ? ` (${error.knownServices.join(", ")})` : ""}`
-        : t("admin.lt.pairFailed", { error: error instanceof Error ? error.message : String(error) });
-      setNotice({ isError: true, text });
+      setNotice({ isError: true, text: t("admin.lt.pairFailed", { error: error instanceof Error ? error.message : String(error) }) });
     } finally {
       setIsPairing(false);
     }
-  };
-
-  const addDemoLights = () => {
-    const existing = view.lights.filter((light) => light.id.startsWith("demo-")).length;
-    for (let i = 1; i <= demoCount; i++) {
-      const demo = createDemoLight(existing + i);
-      hub.addLight(demo.info, demo.link);
-    }
-    setNotice(null);
   };
 
   const saveCustom = (slot: number, value: string | null) => {
@@ -157,10 +146,6 @@ export default function LightsPanel() {
         {!canBluetooth && <p className="text-xs text-amber-200 mb-3">{t((window as unknown as { __REBORN_NATIVE_APP__?: boolean }).__REBORN_NATIVE_APP__ ? "admin.lt.updateApp" : "admin.lt.notSupported")}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={addLight} disabled={!canBluetooth || isPairing} className="inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-lg font-bold text-black text-sm bg-amber-400 disabled:opacity-40"><Plus className="w-4 h-4" /> {t("admin.lt.addLight")}</button>
-          <select aria-label={t("admin.lt.demoCount")} value={demoCount} onChange={(event) => setDemoCount(Number(event.target.value))} className={field + " min-h-[44px]"}>
-            {DEMO_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}
-          </select>
-          <button type="button" onClick={addDemoLights} className={chip(false)}>{t("admin.lt.addDemo", { n: demoCount })}</button>
         </div>
         <label className="mt-3 flex items-center gap-2 text-[11px] text-white/60">{t("admin.lt.maxLive")}
           <select value={view.maxLive} onChange={(event) => hub.setMaxLive(Number(event.target.value))} className={field + " min-h-[44px]"}>

@@ -20,7 +20,7 @@ interface BtServer {
   getPrimaryService(uuid: string): Promise<BtService>;
 }
 interface BtDevice { id: string; name?: string; gatt?: BtServer; addEventListener(type: string, listener: () => void): void }
-interface BtApi { requestDevice(options: unknown): Promise<BtDevice> }
+interface BtApi { requestDevice(options: unknown): Promise<BtDevice>; requestDevices?(options: unknown): Promise<BtDevice[]> }
 
 /** A light answered, but its commands are not one we know yet. */
 export class UnsupportedLightError extends Error {
@@ -86,20 +86,9 @@ class BluetoothLink implements LightLink {
   }
 }
 
-/**
- * Opens the browser's device chooser, connects the light that was picked and works out which command set it speaks.
- * Resolves null when the chooser is closed without picking anything.
- */
-export async function pairBluetoothLight(): Promise<{ info: LightInfo; link: LightLink } | null> {
-  const bluetooth = api();
-  if (!bluetooth) throw new Error("Bluetooth is not available in this browser");
-  let device: BtDevice;
-  try {
-    device = await bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: DETECTION_SERVICES });
-  } catch (error) {
-    if ((error as { name?: string }).name === "NotFoundError") return null;
-    throw error;
-  }
+type PairedLight = { info: LightInfo; link: LightLink };
+
+async function pairDevice(device: BtDevice, keepOpen: boolean): Promise<PairedLight> {
   const gatt = device.gatt;
   if (!gatt) throw new UnsupportedLightError(device.name || "", []);
   const server = await withTimeout(gatt.connect(), device.name || "Light");
@@ -110,6 +99,31 @@ export async function pairBluetoothLight(): Promise<{ info: LightInfo; link: Lig
     throw new UnsupportedLightError(device.name || "", describeOtherServices(offered));
   }
   const link = new BluetoothLink(device, profile);
-  await link.attach(server);
+  if (keepOpen) await link.attach(server);
+  else gatt.disconnect(); // a phone holds only a few connections: the hub opens this light again when it is used
   return { info: { id: device.id, name: device.name || profile.label, profileId: profile.id }, link };
+}
+
+/**
+ * Opens the device chooser (several lights can be ticked in the phone app), works out which command set each light speaks and
+ * returns the ones that worked. `failed` lists the lights whose commands are not known (or that did not answer).
+ * Resolves with no lights when the chooser is closed without picking anything.
+ */
+export async function pairBluetoothLights(): Promise<{ lights: PairedLight[]; failed: { name: string; error: unknown }[] }> {
+  const bluetooth = api();
+  if (!bluetooth) throw new Error("Bluetooth is not available in this browser");
+  const options = { acceptAllDevices: true, optionalServices: DETECTION_SERVICES };
+  let devices: BtDevice[];
+  try {
+    devices = bluetooth.requestDevices ? await bluetooth.requestDevices(options) : [await bluetooth.requestDevice(options)];
+  } catch (error) {
+    if ((error as { name?: string }).name === "NotFoundError") return { lights: [], failed: [] };
+    throw error;
+  }
+  const lights: PairedLight[] = [];
+  const failed: { name: string; error: unknown }[] = [];
+  for (const device of devices) {
+    try { lights.push(await pairDevice(device, devices.length === 1)); } catch (error) { failed.push({ name: device.name || "?", error }); }
+  }
+  return { lights, failed };
 }
