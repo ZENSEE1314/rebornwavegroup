@@ -33,6 +33,12 @@ export interface StaffContractDeps {
   log(req: Request, entry: { targetUserId: string; action: string; description: string }): Promise<unknown>;
 }
 
+const AI_MODEL = "claude-haiku-4-5-20251001";
+const AI_TIMEOUT_MS = 30_000;
+const AI_MAX_TOKENS = 700;
+const MAX_JOB_SCOPE_CHARS = 2000;
+const MAX_DUTIES_CHARS = 2500;
+const LANGUAGE_NAMES: Record<ContractLang, string> = { en: "English", zh: "Simplified Chinese", id: "Bahasa Indonesia" };
 const MAX_ID_CHARS = 3_000_000;       // a ~2 MB photo as base64
 const MAX_SIGNATURE_CHARS = 400_000;
 const IMAGE_URL = /^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
@@ -45,12 +51,30 @@ const LABELS: Record<ContractLang, { signedBy: string; date: string; approvedBy:
 
 const parseText = (json: string | null | undefined): ContractText | null => { try { return json ? JSON.parse(json) as ContractText : null; } catch { return null; } };
 
+/** The duties as a tidy list: the AI writes it from the admin's job scope when a key is set, else the admin's own lines are used as they are. */
+async function dutiesFrom(lang: ContractLang, jobTitle: string, jobScope: string): Promise<string> {
+  const own = jobScope.split(/\r?\n/).map((line) => line.trim().replace(/^[-•*]\s*/, "")).filter(Boolean).map((line) => `- ${line}`).join("\n");
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!own || !apiKey) return own;
+  const prompt = `Rewrite the job scope below as a short, clear list of duties for an employment contract, in ${LANGUAGE_NAMES[lang]}. Position: ${jobTitle}. One duty per line starting with "- ". Use only what is written; do not add duties, amounts, dates or legal references. Output the list only.\n\nJob scope:\n${jobScope}`;
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: AI_MODEL, max_tokens: AI_MAX_TOKENS, messages: [{ role: "user", content: prompt }] }),
+    });
+    const data: any = await response.json();
+    const text = String(data?.content?.[0]?.text || "").trim();
+    return text ? text.slice(0, MAX_DUTIES_CHARS) : own;
+  } catch { return own; }
+}
+
 type Row = typeof staffContracts.$inferSelect;
 
 function summary(row: Row | undefined) {
   if (!row) return { status: "none" as const, hasId: false };
   return {
-    status: row.status, hasId: !!row.idImage, idUploadedAt: row.idUploadedAt, idNumber: row.idNumber || "", lang: row.lang, jobTitle: row.jobTitle || "",
+    status: row.status, hasId: !!row.idImage, idUploadedAt: row.idUploadedAt, idNumber: row.idNumber || "", lang: row.lang, jobTitle: row.jobTitle || "", jobScope: row.jobScope || "",
     startDate: row.startDate || "", extraTerms: row.extraTerms || "", text: parseText(row.terms), signedAt: row.signedAt, signedName: row.signedName || "",
     approvedAt: row.approvedAt, returnNote: row.returnNote || "", emailedAt: row.emailedAt,
   };
@@ -60,13 +84,13 @@ export function registerStaffContractRoutes(app: Express, deps: StaffContractDep
   const find = async (cid: number, userId: string): Promise<Row | undefined> =>
     (await db.select().from(staffContracts).where(and(eq(staffContracts.companyId, cid), eq(staffContracts.userId, userId))).limit(1))[0];
 
-  async function fieldsFor(userId: string, input: { jobTitle: string; startDate: string; extraTerms: string; idNumber: string }): Promise<ContractFields | null> {
+  async function fieldsFor(userId: string, input: { jobTitle: string; startDate: string; extraTerms: string; idNumber: string; jobScope: string }): Promise<ContractFields | null> {
     const p = await deps.profile(userId);
     if (!p) return null;
     return {
       company: await deps.companyName(), staffName: p.name, jobTitle: input.jobTitle, employmentType: p.employmentType, startDate: input.startDate,
       payType: p.payType, baseSalary: deps.money(p.baseSalary), hourlyRate: deps.money(p.hourlyRate), commissionRate: p.commissionRate,
-      deposit: p.deposit > 0 ? deps.money(p.deposit) : "", depositNote: p.depositNote, extraTerms: input.extraTerms, idNumber: input.idNumber,
+      deposit: p.deposit > 0 ? deps.money(p.deposit) : "", depositNote: p.depositNote, extraTerms: input.extraTerms, idNumber: input.idNumber, jobScope: input.jobScope,
     };
   }
 
@@ -106,6 +130,21 @@ export function registerStaffContractRoutes(app: Express, deps: StaffContractDep
     const me = await deps.profile(userId);
     void deps.notifyAdmins("staff_id_uploaded", { en: `🪪 ${me?.name || "A staff member"} uploaded their ID.`, zh: `🪪 ${me?.name || "一位员工"} 已上传证件。`, id: `🪪 ${me?.name || "Seorang staf"} mengunggah ID.` }, { userId }).catch(() => {});
     res.json({ message: tr(req, { en: "ID uploaded", zh: "证件已上传", id: "ID diunggah" }) });
+  }));
+
+  // The admin helps a staff member who cannot upload: same picture rules as their own upload.
+  app.post("/api/reborn/admin/contracts/:userId/id", deps.requireAdmin(async (req, res) => {
+    const image = String(req.body?.image || "");
+    const idNumber = String(req.body?.idNumber || "").trim().slice(0, 60);
+    if (!IMAGE_URL.test(image) || image.length > MAX_ID_CHARS) return res.status(400).json({ message: tr(req, { en: "Please upload a clear photo of the ID (a smaller picture if it is too big).", zh: "请上传清晰的证件照片（太大请缩小）。", id: "Unggah foto ID yang jelas (gambar yang lebih kecil jika terlalu besar)." }) });
+    const cid = await deps.companyId(req); const userId = String(req.params.userId);
+    if (!(await deps.profile(userId))) return res.status(404).json({ message: tr(req, { en: "Staff member not found", zh: "找不到该员工", id: "Staf tidak ditemukan" }) });
+    const existing = await find(cid, userId);
+    const now = new Date();
+    if (existing) await db.update(staffContracts).set({ idImage: image, idNumber: idNumber || existing.idNumber, idUploadedAt: now, updatedAt: now }).where(eq(staffContracts.id, existing.id));
+    else await db.insert(staffContracts).values({ companyId: cid, userId, status: "none", idImage: image, idNumber, idUploadedAt: now });
+    await deps.log(req, { targetUserId: userId, action: "admin_uploaded_staff_id", description: "ID uploaded by an admin for the staff member" });
+    res.json({ message: tr(req, { en: "ID saved", zh: "证件已保存", id: "ID tersimpan" }) });
   }));
 
   app.post("/api/reborn/my-employment/sign", deps.requireStaff(async (req, res) => {
@@ -155,14 +194,15 @@ export function registerStaffContractRoutes(app: Express, deps: StaffContractDep
     const startDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.startDate || "")) ? String(req.body.startDate) : "";
     const extraTerms = String(req.body?.extraTerms || "").slice(0, 4000);
     const lang = asContractLang(req.body?.lang);
+    const jobScope = String(req.body?.jobScope || "").slice(0, MAX_JOB_SCOPE_CHARS);
     if (!jobTitle) return res.status(400).json({ message: tr(req, { en: "Set the role (job title) first.", zh: "请先填写职位。", id: "Isi jabatan terlebih dahulu." }) });
     const existing = await find(cid, userId);
     if (existing?.status === "approved") return res.status(409).json({ message: tr(req, { en: "This contract is already approved.", zh: "该合同已批准。", id: "Kontrak ini sudah disetujui." }) });
-    const fields = await fieldsFor(userId, { jobTitle, startDate, extraTerms, idNumber: existing?.idNumber || "" });
+    const fields = await fieldsFor(userId, { jobTitle, startDate, extraTerms, idNumber: existing?.idNumber || "", jobScope: await dutiesFrom(lang, jobTitle, jobScope) });
     if (!fields) return res.status(404).json({ message: tr(req, { en: "Staff member not found", zh: "找不到该员工", id: "Staf tidak ditemukan" }) });
     const text = JSON.stringify(buildContractText(lang, fields));
     const now = new Date();
-    const patch = { status: "awaiting_staff", lang, jobTitle, startDate, extraTerms, terms: text, signature: null, signedName: null, signedAt: null, returnNote: null, updatedAt: now };
+    const patch = { status: "awaiting_staff", lang, jobTitle, startDate, extraTerms, jobScope: jobScope || null, terms: text, signature: null, signedName: null, signedAt: null, returnNote: null, updatedAt: now };
     if (existing) await db.update(staffContracts).set(patch).where(eq(staffContracts.id, existing.id));
     else await db.insert(staffContracts).values({ companyId: cid, userId, ...patch });
     void deps.notifyUser(userId, "staff_contract", { en: "📄 Your employment contract is ready. Open Profile › My employment to read and sign it.", zh: "📄 您的雇佣合同已准备好。请打开 我的 › 我的雇佣 阅读并签名。", id: "📄 Kontrak kerja Anda sudah siap. Buka Profil › Pekerjaan saya untuk membaca dan menandatangani." }).catch(() => {});

@@ -4,6 +4,28 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation, localeTag } from "@/lib/i18n";
 
+const MAX_PHOTO_SIDE = 1400;
+const PHOTO_QUALITY = 0.8;
+
+// A phone photo is many MB: shrink it in the browser to a picture the server accepts.
+function shrinkPhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const picture = new Image();
+    picture.onload = () => {
+      const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(picture.width, picture.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(picture.width * scale);
+      canvas.height = Math.round(picture.height * scale);
+      canvas.getContext("2d")!.drawImage(picture, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", PHOTO_QUALITY));
+    };
+    picture.onerror = () => { URL.revokeObjectURL(url); reject(new Error("image")); };
+    picture.src = url;
+  });
+}
+
 const inp = "rounded-lg bg-white/10 px-2.5 py-2 text-sm text-white";
 const STATUS_STYLE: Record<string, string> = { none: "bg-white/5 text-white/50", awaiting_staff: "bg-amber-400/15 text-amber-200", awaiting_approval: "bg-sky-500/20 text-sky-200", approved: "bg-emerald-500/20 text-emerald-300" };
 
@@ -15,7 +37,7 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [idImage, setIdImage] = useState<string | null>(null);
-  const [form, setForm] = useState<{ jobTitle: string; startDate: string; lang: string; extraTerms: string } | null>(null);
+  const [form, setForm] = useState<{ jobTitle: string; startDate: string; lang: string; extraTerms: string; jobScope: string } | null>(null);
   const [note, setNote] = useState("");
   const listKey = ["/api/reborn/admin/contracts"];
   const key = ["/api/reborn/admin/contracts", userId];
@@ -25,7 +47,7 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
   const refresh = () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: listKey }); };
   const fail = (e: any) => toast({ title: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const post = (path: string, body: any = {}) => apiRequest("POST", `/api/reborn/admin/contracts/${userId}/${path}`, body).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; });
-  const f = form || { jobTitle: data?.jobTitle || role || "", startDate: data?.startDate || "", lang: data?.lang || (language as string) || "en", extraTerms: data?.extraTerms || "" };
+  const f = form || { jobTitle: data?.jobTitle || role || "", startDate: data?.startDate || "", lang: data?.lang || (language as string) || "en", extraTerms: data?.extraTerms || "", jobScope: data?.jobScope || "" };
   const set = (patch: Partial<typeof f>) => setForm({ ...f, ...patch });
 
   const send = useMutation({ mutationFn: () => post("send", f), onSuccess: (d: any) => { toast({ title: d.message }); setForm(null); refresh(); }, onError: fail });
@@ -42,6 +64,13 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
   const viewId = useMutation({
     mutationFn: () => apiRequest("GET", `/api/reborn/admin/contracts/${userId}/id`).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: (d: any) => setIdImage(d.image), onError: fail,
+  });
+  const uploadId = useMutation({
+    mutationFn: async (file: File) => {
+      const image = await shrinkPhoto(file);
+      return post("id", { image, idNumber: data?.idNumber || "" });
+    },
+    onSuccess: (d: any) => { toast({ title: d.message }); setIdImage(null); refresh(); }, onError: fail,
   });
   const download = async () => {
     try {
@@ -65,6 +94,7 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
         <div className="space-y-3 border-t border-white/10 p-3">
           <div>
             <p className="text-xs text-white/60">{data.hasId ? t("admin.ctr.idDone", { d: date(data.idUploadedAt) }) : t("admin.ctr.noId")}{data.idNumber ? ` · ${data.idNumber}` : ""}</p>
+            <label className="mt-1 ml-2 inline-block cursor-pointer rounded-lg bg-white/10 px-3 py-2 text-xs font-bold">{uploadId.isPending ? t("admin.ctr.uploading") : t("admin.ctr.uploadFor")}<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadId.mutate(file); e.target.value = ""; }} /></label>
             {data.hasId && <button type="button" onClick={() => (idImage ? setIdImage(null) : viewId.mutate())} className="mt-1 rounded-lg bg-white/10 px-3 py-2 text-xs font-bold">{idImage ? t("admin.ctr.hideId") : t("admin.ctr.viewId")}</button>}
             {idImage && <img src={idImage} alt="" className="mt-2 max-h-72 rounded-lg" />}
           </div>
@@ -74,6 +104,7 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
               <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.role")}<input value={f.jobTitle} maxLength={120} onChange={(e) => set({ jobTitle: e.target.value })} placeholder={t("admin.ctr.rolePh")} className={inp + " w-full"} /></label>
               <label className="text-[11px] text-white/50">{t("admin.ctr.start")}<input type="date" value={f.startDate} onChange={(e) => set({ startDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
               <label className="text-[11px] text-white/50">{t("admin.ctr.lang")}<select value={f.lang} onChange={(e) => set({ lang: e.target.value })} className={inp + " w-full"}><option value="en">English</option><option value="zh">中文</option><option value="id">Bahasa Indonesia</option></select></label>
+              <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.scope")}<textarea value={f.jobScope} rows={4} maxLength={2000} onChange={(e) => set({ jobScope: e.target.value })} placeholder={t("admin.ctr.scopePh")} className={inp + " w-full"} /></label>
               <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.extra")}<textarea value={f.extraTerms} rows={3} maxLength={4000} onChange={(e) => set({ extraTerms: e.target.value })} placeholder={t("admin.ctr.extraPh")} className={inp + " w-full"} /></label>
               <p className="col-span-2 text-[11px] text-white/40">{t("admin.ctr.fromPayroll")}</p>
               <button type="button" onClick={() => send.mutate()} disabled={!f.jobTitle.trim() || send.isPending} className="col-span-2 rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black disabled:opacity-40">{status === "none" ? t("admin.ctr.send") : t("admin.ctr.resend")}</button>

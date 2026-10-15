@@ -2380,6 +2380,7 @@ export const staffContracts = pgTable("staff_contracts", {
   jobTitle: varchar("job_title"),
   startDate: varchar("start_date"),
   extraTerms: text("extra_terms"),
+  jobScope: text("job_scope"),           // what the admin typed as the duties; the contract carries the tidied list
   terms: text("terms"),                 // the letter as it was when it was sent (JSON of ContractText), so later pay changes don't rewrite it
   idImage: text("id_image"),
   idNumber: varchar("id_number"),

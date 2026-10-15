@@ -843,3 +843,7 @@ text.
   `CONTRACT_CJK_FONT`; without one the PDF is written in English) and e-mails it to the staff member's email and to the approving admin's email
   (`sendEmailDetailed` with an attachment; needs `RESEND_API_KEY` or `SENDGRID_API_KEY`). A staff member without an email (phone login) only gets the
   in-app download. The wording is a general template — a company should have it checked for its country.
+
+- Contract add-ons: the admin types the **job scope** (duties, one per line) in Payroll › Contract; with `ANTHROPIC_API_KEY` the AI (haiku) tidies it into a "Job scope" clause in the contract's language
+  (`dutiesFrom`, never adds duties or figures; no key = the admin's own lines). The admin can also **upload the ID for a staff member** who can't
+  (`POST /api/reborn/admin/contracts/:userId/id`, photo shrunk in the browser).

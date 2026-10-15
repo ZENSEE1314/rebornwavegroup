@@ -22,6 +22,8 @@ export interface ContractFields {
   deposit: string;        // "" or formatted amount
   depositNote: string;
   extraTerms: string;     // free text added by the admin
+  /** The duties, one per line (written by the AI from the admin's job scope, or the admin's own lines). */
+  jobScope?: string;
   idNumber: string;
 }
 
@@ -40,6 +42,7 @@ const T = {
     deductions: "Deductions", deductionsBody: "From the second month on, a penalty (for example for lateness or damage) may be deducted from the salary. Each deduction is recorded with its reason on the payroll.",
     conduct: "Duties and conduct", conductBody: "The Employee follows the Company's rules, working hours and instructions, keeps the Company's and its customers' information private, and treats customers and colleagues with respect.",
     id: "Identity", idBody: "The Employee confirms that the identity document uploaded in the app is genuine and belongs to the Employee.{idno}",
+    scope: "Job scope",
     extra: "Additional terms",
     end: "Ending the employment", endBody: "Either side may end the employment by giving notice as required by the law of the country where the Employee works.",
     closing: "By signing below, the Employee confirms that they have read and understood this contract and agree to it. It starts when the Company approves it.",
@@ -57,6 +60,7 @@ const T = {
     deductions: "扣款", deductionsBody: "从第二个月起，罚款（如迟到或损坏物品）可从薪资中扣除。每笔扣款都会在薪资记录中注明原因。",
     conduct: "职责与行为", conductBody: "员工遵守公司的规定、工作时间和指示，对公司及客户的信息保密，并礼貌对待客户和同事。",
     id: "身份", idBody: "员工确认在应用中上传的身份证件真实有效，且属于员工本人。{idno}",
+    scope: "工作范围",
     extra: "补充条款",
     end: "终止雇佣", endBody: "任何一方均可按员工工作所在国家法律规定的通知期限终止雇佣关系。",
     closing: "员工在下方签名，即表示已阅读并理解本合同并表示同意。本合同自公司批准之日起生效。",
@@ -74,6 +78,7 @@ const T = {
     deductions: "Potongan", deductionsBody: "Mulai bulan kedua, denda (misalnya karena terlambat atau kerusakan) dapat dipotong dari gaji. Setiap potongan dicatat beserta alasannya pada penggajian.",
     conduct: "Tugas dan sikap kerja", conductBody: "Karyawan mematuhi aturan, jam kerja, dan arahan Perusahaan, menjaga kerahasiaan informasi Perusahaan dan pelanggan, serta bersikap hormat kepada pelanggan dan rekan kerja.",
     id: "Identitas", idBody: "Karyawan menyatakan bahwa dokumen identitas yang diunggah di aplikasi adalah asli dan milik Karyawan.{idno}",
+    scope: "Lingkup pekerjaan",
     extra: "Ketentuan tambahan",
     end: "Berakhirnya hubungan kerja", endBody: "Salah satu pihak dapat mengakhiri hubungan kerja dengan pemberitahuan sesuai hukum negara tempat Karyawan bekerja.",
     closing: "Dengan menandatangani di bawah, Karyawan menyatakan telah membaca, memahami, dan menyetujui perjanjian ini. Perjanjian berlaku setelah disetujui Perusahaan.",
@@ -88,6 +93,7 @@ export function buildContractText(lang: ContractLang, f: ContractFields): Contra
   const type = (t.types as Record<string, string>)[f.employmentType] || t.types.full_time;
   const clauses: { heading: string; body: string }[] = [];
   clauses.push({ heading: t.role, body: fill(t.roleBody, { job: f.jobTitle || "—", type, start: f.startDate || "—" }) });
+  if (f.jobScope?.trim()) clauses.push({ heading: t.scope, body: f.jobScope.trim() });
   if (f.payType === "hourly") clauses.push({ heading: t.payHourly, body: fill(t.payHourlyBody, { amount: f.hourlyRate }) });
   else clauses.push({ heading: t.paySalary, body: fill(t.paySalaryBody, { amount: f.baseSalary }) });
   if (f.commissionRate > 0) clauses.push({ heading: t.commission, body: fill(t.commissionBody, { pct: f.commissionRate }) });

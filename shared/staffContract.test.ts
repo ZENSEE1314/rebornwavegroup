@@ -23,4 +23,9 @@ describe("staff contract text", () => {
     assert.equal(asContractLang("fr"), "en");
     assert.equal(asContractLang("zh"), "zh");
   });
+  it("should add a job scope clause only when duties are given", () => {
+    assert.equal(buildContractText("en", base).clauses.some((x) => x.heading === "Job scope"), false);
+    const withScope = buildContractText("id", { ...base, jobScope: "- Melayani tamu\n- Menjaga kebersihan" });
+    assert.ok(withScope.clauses.some((x) => x.heading === "Lingkup pekerjaan" && x.body.includes("Melayani tamu")));
+  });
 });
