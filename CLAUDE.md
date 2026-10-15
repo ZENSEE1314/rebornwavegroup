@@ -847,3 +847,10 @@ text.
 - Contract add-ons: the admin types the **job scope** (duties, one per line) in Payroll › Contract; with `ANTHROPIC_API_KEY` the AI (haiku) tidies it into a "Job scope" clause in the contract's language
   (`dutiesFrom`, never adds duties or figures; no key = the admin's own lines). The admin can also **upload the ID for a staff member** who can't
   (`POST /api/reborn/admin/contracts/:userId/id`, photo shrunk in the browser).
+
+## Clearing the accounting and starting from the imported stock
+
+- `scripts/reset-accounting.mts` (run on the server, `DATABASE_URL=… npx tsx scripts/reset-accounting.mts`, dry run unless `--apply`; `--schema tenant_<id>`
+  for another company, `--since YYYY-MM-DD`, `--decimals 2` for SGD): writes every old `ledger_entries` row to `accounting-backup-<time>.json`, deletes them,
+  and adds one `purchase` expense per Excel-import delivery in `stock_movements` (quantity × unit cost, `server/accountingReset.ts`). Products, stock,
+  POS bills / sales history, members and payroll settings are not touched. The Excel import itself books no money. Tested on a scratch Postgres only.
