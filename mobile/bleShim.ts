@@ -101,6 +101,66 @@ export const BLE_SHIM = `
       document.body.appendChild(overlay);
     });
   }
+  // Same chooser, but several lights can be ticked at once ("Select all" too); resolves with the list of ticked lights.
+  function chooseMany(list) {
+    return new Promise(function (resolve, reject) {
+      var overlay = document.createElement("div");
+      overlay.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:16px;font-family:sans-serif";
+      var box = document.createElement("div");
+      box.style.cssText = "width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;background:#160f2a;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:16px";
+      var title = document.createElement("p");
+      title.textContent = list.length ? "Choose your lights" : "No lights found. Switch the light on, close its own app, and try again.";
+      title.style.cssText = "margin:0 0 10px;font-weight:700;flex:none";
+      box.appendChild(title);
+      var picked = {};
+      var rows = document.createElement("div");
+      rows.style.cssText = "overflow:auto;flex:1;min-height:0";
+      var add = document.createElement("button");
+      function count() { return Object.keys(picked).length; }
+      function refresh() {
+        add.textContent = count() ? "Add " + count() + (count() === 1 ? " light" : " lights") : "Tick the lights to add";
+        add.disabled = !count();
+        add.style.opacity = count() ? "1" : ".4";
+        list.forEach(function (info) {
+          var row = info.__row;
+          row.textContent = (picked[info.id] ? "\u2611  " : "\u2610  ") + info.name;
+          row.style.background = picked[info.id] ? "rgba(34,211,238,.25)" : "rgba(255,255,255,.08)";
+        });
+      }
+      function close(action) { document.body.removeChild(overlay); action(); }
+      if (list.length) {
+        var bar = document.createElement("div");
+        bar.style.cssText = "display:flex;gap:8px;margin:0 0 10px;flex:none";
+        [["Select all", function () { list.forEach(function (info) { picked[info.id] = info; }); }], ["Clear", function () { picked = {}; }]].forEach(function (item) {
+          var chip = document.createElement("button");
+          chip.textContent = item[0];
+          chip.style.cssText = "flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff;font-size:14px;font-weight:700";
+          chip.onclick = function () { item[1](); refresh(); };
+          bar.appendChild(chip);
+        });
+        box.appendChild(bar);
+      }
+      list.forEach(function (info) {
+        var row = document.createElement("button");
+        row.style.cssText = "display:block;width:100%;text-align:left;margin:0 0 8px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.2);color:#fff;font-size:15px";
+        row.onclick = function () { if (picked[info.id]) delete picked[info.id]; else picked[info.id] = info; refresh(); };
+        info.__row = row;
+        rows.appendChild(row);
+      });
+      box.appendChild(rows);
+      add.style.cssText = "display:block;width:100%;margin-top:8px;padding:12px;border-radius:10px;border:0;background:#fbbf24;color:#000;font-weight:700;font-size:15px;flex:none";
+      add.onclick = function () { var chosen = list.filter(function (info) { return picked[info.id]; }); close(function () { resolve(chosen); }); };
+      if (list.length) box.appendChild(add);
+      var cancel = document.createElement("button");
+      cancel.textContent = "Cancel";
+      cancel.style.cssText = "display:block;width:100%;margin-top:8px;padding:12px;border-radius:10px;border:0;background:#fff;color:#000;font-weight:700;font-size:15px;flex:none";
+      cancel.onclick = function () { close(function () { reject(notFound()); }); };
+      box.appendChild(cancel);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      refresh();
+    });
+  }
   function scanning() {
     var overlay = document.createElement("div");
     overlay.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;color:#fff;font:16px sans-serif";
@@ -113,6 +173,11 @@ export const BLE_SHIM = `
     requestDevice: function (options) {
       var stop = scanning();
       return call("scan", {}).then(function (list) { stop(); return choose(list); }, function (error) { stop(); throw error; }).then(makeDevice);
+    },
+    // Not part of Web Bluetooth: the same scan, with several lights ticked at once. The page uses it when it exists.
+    requestDevices: function (options) {
+      var stop = scanning();
+      return call("scan", {}).then(function (list) { stop(); return chooseMany(list); }, function (error) { stop(); throw error; }).then(function (list) { return list.map(makeDevice); });
     }
   };
   try { Object.defineProperty(navigator, "bluetooth", { value: bluetooth, configurable: true }); } catch (e) { navigator.bluetooth = bluetooth; }

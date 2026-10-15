@@ -630,7 +630,7 @@ text.
   lights at a time, built-in effects and music reach all. Flash speed is capped at 3 per second (photosensitivity).
 - The hub talks to lights through `LightLink` (`hub.ts`); a gateway box near the lights (ESP32 / Raspberry Pi holding
   the connections, the app sending over Wi-Fi) is the planned way to move every light at once — it only needs a new
-  `LightLink`, not a new screen. "Add demo lights" gives virtual lights for trying the screen without hardware.
+  `LightLink`, not a new screen. There are no demo lights.
 - Tests: `client/src/lib/lights/lights.test.ts` (run by `npm test`). In this app's CSS, `grid-cols-1..4` become one
   column on phones and every `button` gets 16px side padding (use flex / `p-0` for icon buttons).
 
@@ -784,7 +784,7 @@ text.
 ## LED lights inside the phone app
 
 - Web Bluetooth does not exist in the app's web view, so the app (mobile/) carries a native bridge: `mobile/bleShim.ts` is injected before
-  every page and defines `navigator.bluetooth` (a tap-a-light chooser, connect, services, write, disconnect) on top of
+  every page and defines `navigator.bluetooth` (a chooser where several lights are ticked at once (`requestDevices`, also "Select all"; `requestDevice` takes one), connect, services, write, disconnect) on top of
   `ReactNativeWebView.postMessage`; `mobile/ble.ts` answers those calls with `react-native-ble-plx` (permissions, scan 6 s, connect,
   write). The website's lights code (client/src/lib/lights) is unchanged. It needs a NEW native build of the app
   (`npx eas-cli build --platform android --profile preview`, then install it) — an old build shows "install the latest app" on the Lights tab.
