@@ -45,6 +45,9 @@ import { pushEnabled, getVapidPublicKey, savePushSubscription, removePushSubscri
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, tableCap, isDateFullyBooked, availableSlotsForDate, areasWithSpace, setBookingTimezone, setBookingRules, tableDayLockOn, getBookingTimezone, BLOCK_ALL, BOOKING_OCCASIONS, specialRequestText, mentionsBirthday, hasPaxLimit, releaseTableAfterPayment, atCustomerPlace, serviceAddressFrom } from "./booking";
 import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, rememberPetName, DEFAULT_PET_NAME, type Lang } from "./i18n";
 import { translateTexts } from "./autoTranslate";
+import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
+import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
+import { cleanSaveLines, matchProduct, receiptNote } from "./receiptLogic";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -3922,6 +3925,125 @@ export function registerRebornRoutes(app: Express) {
     const [row] = await db.insert(ledgerEntries).values({ kind, category: b.category || "other", amount: String(amount), note: b.note || null, photoUrl: b.photoUrl || null, userId: getUserId(req)! }).returning();
     await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "manual_entry", entityType: "accounting", description: `${kind} RP ${amount} (${row.category})` });
     res.json(row);
+  }));
+
+  // ── Start the accounting again from the inventory (main admin) ─────────────────────────────────────────────
+  // Every old accounting line is copied to accounting_backups (downloadable), then removed, and every stock delivery
+  // still in the stock history becomes one "purchase" expense (quantity × its cost, else the item's cost).
+  const backupsReady = new Map<string, Promise<unknown>>();
+  const ensureBackups = () => {
+    const space = homeCompanySlug();
+    if (!backupsReady.has(space)) backupsReady.set(space, db.execute(sql`CREATE TABLE IF NOT EXISTS accounting_backups (
+      id serial PRIMARY KEY, user_id varchar, row_count integer NOT NULL DEFAULT 0, rows jsonb NOT NULL DEFAULT '[]', created_at timestamp DEFAULT now())`).catch((e) => { backupsReady.delete(space); throw e; }));
+    return backupsReady.get(space)!;
+  };
+  const deliveriesForReset = async (cid: number) => {
+    const r: any = await db.execute(sql`SELECT m.id, p.name AS "productName", m.delta, COALESCE(NULLIF(m.unit_cost, 0), NULLIF(p.cost, 0)) AS "unitCost",
+        m.supplier, m.note, m.created_at AS "createdAt"
+      FROM stock_movements m JOIN pos_products p ON p.id = m.product_id
+      WHERE m.reason = 'stock_in' AND m.delta > 0 AND p.company_id = ${cid} ORDER BY m.id`);
+    const decimals = companyMoney().decimals;
+    const rows: any[] = r.rows || r;
+    const entries = rows.map((d) => purchaseEntryFromDelivery({ ...d, source: deliverySource(d.note) }, decimals)).filter((e): e is NonNullable<typeof e> => e !== null);
+    return { found: rows.length, entries };
+  };
+  app.get("/api/reborn/admin/accounting/reset-preview", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const [old] = (await db.execute(sql`SELECT count(*)::int AS n, COALESCE(sum(CASE WHEN kind = 'income' THEN amount ELSE 0 END), 0) AS income,
+      COALESCE(sum(CASE WHEN kind = 'expense' THEN amount ELSE 0 END), 0) AS expense FROM ledger_entries`) as any).rows;
+    const { found, entries } = await deliveriesForReset(cid);
+    await ensureBackups();
+    const [last] = (await db.execute(sql`SELECT id, row_count AS "rowCount", created_at AS "createdAt" FROM accounting_backups ORDER BY id DESC LIMIT 1`) as any).rows;
+    res.json({ oldRows: Number(old?.n) || 0, oldIncome: Number(old?.income) || 0, oldExpense: Number(old?.expense) || 0,
+      deliveries: found, purchases: entries.length, purchaseTotal: entries.reduce((t, e) => t + Number(e.amount), 0), skipped: found - entries.length, lastBackup: last || null });
+  }));
+  app.post("/api/reborn/admin/accounting/reset", requireAdmin(async (req, res) => {
+    if (req.body?.confirm !== true) return res.status(400).json({ message: tr(req, { en: "Please confirm first", zh: "请先确认", id: "Mohon konfirmasi dulu" }) });
+    const cid = await rebornCompanyId(req);
+    const userId = getUserId(req)!;
+    await ensureBackups();
+    const { entries } = await deliveriesForReset(cid);
+    const result = await db.transaction(async (tx) => {
+      const old: any[] = ((await tx.execute(sql`SELECT * FROM ledger_entries ORDER BY id`)) as any).rows;
+      const [backup] = ((await tx.execute(sql`INSERT INTO accounting_backups (user_id, row_count, rows) VALUES (${userId}, ${old.length}, ${JSON.stringify(old)}::jsonb) RETURNING id`)) as any).rows;
+      await tx.execute(sql`DELETE FROM ledger_entries`);
+      for (const e of entries) await tx.insert(ledgerEntries).values({ kind: e.kind, category: e.category, amount: e.amount, note: e.note, refType: e.refType, refId: e.refId, userId, ...(e.createdAt ? { createdAt: e.createdAt } : {}) });
+      return { removed: old.length, added: entries.length, backupId: backup.id };
+    });
+    await logAdmin(req, { targetType: "ledger", action: "reset_accounting", entityType: "accounting", description: `Accounting started again from the inventory: ${result.removed} old lines removed (backup #${result.backupId}), ${result.added} stock purchases added` });
+    res.json({ ...result, message: tr(req, { en: "Done: {removed} old lines removed, {added} stock purchases added.", zh: "完成：已删除 {removed} 条旧记录，新增 {added} 笔进货支出。", id: "Selesai: {removed} catatan lama dihapus, {added} pembelian stok ditambahkan." }, { removed: String(result.removed), added: String(result.added) }) });
+  }));
+  app.get("/api/reborn/admin/accounting/backups/:id", requireAdmin(async (req, res) => {
+    await ensureBackups();
+    const [row] = ((await db.execute(sql`SELECT id, rows, created_at FROM accounting_backups WHERE id = ${Number(req.params.id) || 0}`)) as any).rows;
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Backup not found", zh: "找不到备份", id: "Cadangan tidak ditemukan" }) });
+    res.setHeader("Content-Disposition", `attachment; filename="accounting-backup-${row.id}.json"`);
+    res.json(row.rows);
+  }));
+
+  // ── Supplier receipts: the AI reads the photo, the admin checks the lines, saving books stock + one purchase ──
+  app.post("/api/reborn/admin/inventory/receipt/read", requireManager(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const products = await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts)
+      .where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
+    try {
+      const read = await readReceiptPhoto(String(req.body?.image || ""), products.map((p) => p.name));
+      res.json({ ...read, items: read.items.map((it) => ({ ...it, productId: matchProduct(it, products) })) });
+    } catch (error) {
+      const reason = error instanceof ReceiptReadError ? error.reason : "failed";
+      const text = {
+        noKey: { en: "Reading receipts needs the AI key (ANTHROPIC_API_KEY) on the server. You can still type the lines in.", zh: "读取收据需要服务器上的 AI 密钥（ANTHROPIC_API_KEY）。你仍可手动输入。", id: "Membaca struk butuh kunci AI (ANTHROPIC_API_KEY) di server. Anda tetap bisa mengetik barisnya." },
+        badImage: { en: "Upload a photo of the receipt (JPG or PNG).", zh: "请上传收据照片（JPG 或 PNG）。", id: "Unggah foto struk (JPG atau PNG)." },
+        unreadable: { en: "Couldn't read a receipt in this photo. Try a clearer, straight photo.", zh: "无法从这张照片读取收据，请拍一张更清晰、端正的照片。", id: "Struk di foto ini tidak terbaca. Coba foto yang lebih jelas dan lurus." },
+        failed: { en: "Reading the receipt failed. Please try again.", zh: "读取收据失败，请重试。", id: "Gagal membaca struk. Silakan coba lagi." },
+      }[reason];
+      res.status(reason === "noKey" ? 503 : reason === "failed" ? 502 : 400).json({ message: tr(req, text), reason });
+    }
+  }));
+  app.get("/api/reborn/admin/inventory/receipt/ready", requireManager(async (_req, res) => res.json({ ai: receiptAiReady() })));
+  app.post("/api/reborn/admin/inventory/receipt/save", requireManager(async (req, res) => {
+    const b = req.body || {};
+    const lines = cleanSaveLines(b.items);
+    if (!lines.length) return res.status(400).json({ message: tr(req, { en: "Add at least one line with a quantity", zh: "请至少添加一行并填写数量", id: "Tambahkan minimal satu baris dengan jumlah" }) });
+    const cid = await rebornCompanyId(req);
+    const userId = getUserId(req)!;
+    const supplier = String(b.supplier || "").trim().slice(0, 120) || null;
+    const supplierPhone = String(b.supplierPhone || "").trim().slice(0, 40) || null;
+    const invoiceNo = String(b.invoiceNo || "").trim().slice(0, 60);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : "";
+    const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") ? b.photoUrl : null;
+    const decimals = companyMoney().decimals;
+    const tag = `Receipt${invoiceNo ? ` ${invoiceNo}` : ""}${supplier ? ` from ${supplier}` : ""}`;
+    try {
+      const out = await db.transaction(async (tx) => {
+        const saved: Array<{ name: string; qty: number }> = [];
+        let total = 0, created = 0;
+        for (const line of lines) {
+          let product: any;
+          if (line.productId) {
+            [product] = await tx.select().from(posProducts).where(and(eq(posProducts.id, line.productId), eq(posProducts.companyId, cid)));
+            if (!product) throw new Error("missing");
+          } else {
+            // A new item: kept in the inventory, hidden from the POS until the admin gives it a selling price.
+            [product] = await tx.insert(posProducts).values({ companyId: cid, name: line.name, category: "General", price: "0", cost: String(line.unitCost), stock: 0,
+              supplierName: supplier, supplierPhone, active: true, posVisible: false }).returning();
+            created++;
+          }
+          await tx.update(posProducts).set({ stock: sql`${posProducts.stock} + ${line.qty}`, ...(line.unitCost > 0 ? { cost: String(line.unitCost) } : {}), ...(supplier ? { supplierName: supplier } : {}), ...(supplierPhone ? { supplierPhone } : {}) }).where(eq(posProducts.id, product.id));
+          await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: line.qty, reason: "stock_in", supplier, unitCost: line.unitCost > 0 ? String(line.unitCost) : null, note: `${tag}${date ? ` (${date})` : ""}`.slice(0, 200), userId });
+          total += line.qty * line.unitCost;
+          saved.push({ name: product.name, qty: line.qty });
+        }
+        const amount = Number(total.toFixed(decimals));
+        if (amount > 0) await tx.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(amount), note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved), photoUrl, refType: "receipt", refId: invoiceNo || null, userId });
+        return { lines: saved.length, created, amount };
+      });
+      await logAdmin(req, { targetType: "pos_product", action: "receipt_stock_in", entityType: "stock", description: `${tag}: ${out.lines} lines (${out.created} new items), purchase ${out.amount}` });
+      res.json({ ...out, message: tr(req, { en: "Saved: {n} lines added to stock and booked as a purchase.", zh: "已保存：{n} 行已入库并记为进货支出。", id: "Tersimpan: {n} baris masuk stok dan dicatat sebagai pembelian." }, { n: String(out.lines) }) });
+    } catch (error: any) {
+      if (error?.message === "missing") return res.status(404).json({ message: tr(req, { en: "An item on the receipt was not found. Reload and try again.", zh: "收据中的某个商品不存在，请刷新后重试。", id: "Ada item di struk yang tidak ditemukan. Muat ulang dan coba lagi." }) });
+      throw error;
+    }
   }));
 
   app.get("/api/reborn/admin/accounting/orders", requireAdmin(async (req, res) => {

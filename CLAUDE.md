@@ -854,3 +854,15 @@ text.
   for another company, `--since YYYY-MM-DD`, `--decimals 2` for SGD): writes every old `ledger_entries` row to `accounting-backup-<time>.json`, deletes them,
   and adds one `purchase` expense per Excel-import delivery in `stock_movements` (quantity × unit cost, `server/accountingReset.ts`). Products, stock,
   POS bills / sales history, members and payroll settings are not touched. The Excel import itself books no money. Tested on a scratch Postgres only.
+- The same in the app: Admin › Accounting › **Start the accounting again from the inventory** (main admin, `AccountingFresh`,
+  `GET /api/reborn/admin/accounting/reset-preview`, `POST …/reset` with `{confirm: true}`). In one transaction it copies every
+  `ledger_entries` row into `accounting_backups` (made on first use per data space; download `GET …/backups/:id`), deletes them, and
+  books one `purchase` per stock delivery of this company (`stock_movements` reason `stock_in`, delta > 0: quantity × its unit cost,
+  else the item's cost; none → skipped; note says Excel import / the receipt it came from, `deliverySource`).
+- **Scan a supplier receipt** (Admin › Inventory for anyone who edits items, and Admin › Accounting; `ReceiptScan`): the photo goes to
+  `POST /api/reborn/admin/inventory/receipt/read` → Claude (`server/receiptAi.ts`, Anthropic SDK, structured output, needs
+  `ANTHROPIC_API_KEY`; without it the admin types the lines) reads supplier, phone, invoice no., date, total and every goods line, and
+  picks the matching inventory item (`matchProduct` in server/receiptLogic.ts: the AI's pick if it names a real item, else the closest
+  name). The admin checks / changes lines (existing item or "new item"), confirms, and `…/receipt/save` in one transaction adds the
+  stock (`stock_movements` note "Receipt INV from Supplier (date)"), updates the item's cost + supplier, creates new items hidden from
+  the POS (`pos_visible` false, price 0) and books ONE `purchase` expense (refType `receipt`) with the receipt photo.

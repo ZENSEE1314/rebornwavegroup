@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { purchaseEntryFromDelivery } from "./accountingReset";
+import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 
 describe("purchaseEntryFromDelivery", () => {
   it("should book quantity × unit cost as a purchase expense tied to the stock movement", () => {
@@ -20,5 +20,18 @@ describe("purchaseEntryFromDelivery", () => {
   it("should round to the company's decimals (cents for SGD)", () => {
     assert.equal(purchaseEntryFromDelivery({ id: 4, productName: "x", delta: 3, unitCost: "1.333", createdAt: null }, 2)!.amount, "4");
     assert.equal(purchaseEntryFromDelivery({ id: 5, productName: "x", delta: 3, unitCost: "1.337", createdAt: null }, 2)!.amount, "4.01");
+  });
+});
+
+describe("purchaseEntryFromDelivery sources", () => {
+  it("should name a scanned receipt or no source at all", () => {
+    assert.match(purchaseEntryFromDelivery({ id: 8, productName: "Cola", delta: 6, unitCost: 5000, createdAt: null, source: "Receipt INV-1" })!.note, /\(Receipt INV-1\)$/);
+    assert.doesNotMatch(purchaseEntryFromDelivery({ id: 9, productName: "Cola", delta: 6, unitCost: 5000, createdAt: null, source: "" })!.note, /\(/);
+  });
+  it("should tell where a delivery came from by its note", () => {
+    assert.equal(deliverySource("Excel import 2026-10-01"), "Excel import");
+    assert.equal(deliverySource("Receipt INV-1 from PT Bir"), "Receipt INV-1 from PT Bir");
+    assert.equal(deliverySource("restock"), "");
+    assert.equal(deliverySource(null), "");
   });
 });
