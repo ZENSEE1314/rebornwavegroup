@@ -9,6 +9,8 @@ import { ToggleRight, Smartphone, Plus, Trash2, Copy, Check, X, Ticket, Receipt,
 import { ImageUpload } from "@/components/ImageUpload";
 import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
+import ReceiptScan from "@/components/ReceiptScan";
+import AccountingFresh from "@/components/AccountingFresh";
 import StockSuppliers from "@/components/StockSuppliers";
 import ProductPicture from "@/components/ProductPicture";
 import { useAdminRole, useProductRights } from "@/hooks/useAdminRole";
@@ -2455,6 +2457,7 @@ function Accounting() {
         {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.acc.days", { n: d })}</button>)}
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
+      <AccountingFresh />
       {byIndustry.length > 0 && <Card>
         <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.acc.byIndustry", { n: days })}</p>
         <div className="space-y-1.5">{byIndustry.map((r) => (
@@ -2501,6 +2504,7 @@ function Accounting() {
           <p className="text-[11px] text-white/40 mt-2">{t("admin.acc.commissionHint")}</p>
         </Card>
       )}
+      <ReceiptScan />
       <DailyClosings days={days} />
       <AccountingOrders days={days} />
       <Card>
@@ -2675,6 +2679,7 @@ function Inventory() {
           </div>
         </div>, document.body)}
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
+      {canChange && <ReceiptScan />}
       {role === "admin" && <SupplierReorderPanel />}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
