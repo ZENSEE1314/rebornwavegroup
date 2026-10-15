@@ -809,7 +809,7 @@ text.
   not a security wall.
 - A manager can see Users (list only), and can add and edit products, change the stock counts (save + confirm + log), import from Excel, copy an item for
   another supplier and change pictures (`PATCH /api/reborn/admin/pos/products/:id`, `/inventory/counts`, `/inventory/import`, `/layers`, `/duplicate` are
-  `requireManager`; `useProductRights()` in hooks/useAdminRole.ts). Deleting a product (an item that was sold before is archived — `pos_products.archived`, gone from every list and the POS, past bills keep it) or a person, merging items, the supplier-message panel and
+  `requireManager`; `useProductRights()` in hooks/useAdminRole.ts). Deleting a product is also allowed for a manager (an item that was sold before is archived — `pos_products.archived`, gone from every list and the POS, past bills keep it); deleting a person, merging items, the supplier-message panel and
   everything else in Settings stay with the main admin.
 
 ## Rating staff (Support › Rate staff)

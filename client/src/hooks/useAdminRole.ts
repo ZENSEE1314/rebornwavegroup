@@ -13,5 +13,5 @@ export function useAdminRole(): AdminRole {
 /** The main admin and managers may change products and stock; only the main admin deletes or merges them. */
 export function useProductRights() {
   const role = useAdminRole();
-  return { canEdit: role === "admin" || role === "manager", canDelete: role === "admin" };
+  return { canEdit: role === "admin" || role === "manager", canDelete: role === "admin" || role === "manager" };
 }

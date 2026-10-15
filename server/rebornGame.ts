@@ -3234,7 +3234,7 @@ export function registerRebornRoutes(app: Express) {
   }));
   // Removes an item that was never sold (e.g. added twice by mistake) together with its stock history. A sold item
   // can only be hidden (active = false), so past bills keep their lines.
-  app.delete("/api/reborn/admin/pos/products/:id", requireAdmin(async (req, res) => {
+  app.delete("/api/reborn/admin/pos/products/:id", requireManager(async (req, res) => {
     const id = Number(req.params.id);
     const cid = await rebornCompanyId(req);
     const [product] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
