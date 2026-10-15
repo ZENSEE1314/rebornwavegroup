@@ -866,3 +866,5 @@ text.
   name). The admin checks / changes lines (existing item or "new item"), confirms, and `…/receipt/save` in one transaction adds the
   stock (`stock_movements` note "Receipt INV from Supplier (date)"), updates the item's cost + supplier, creates new items hidden from
   the POS (`pos_visible` false, price 0) and books ONE `purchase` expense (refType `receipt`) with the receipt photo.
+- The contract's role is picked from the company's jobs (`bridge_positions`, "Other job" lets the admin type one). The duties of each job are saved once
+  (`appSettings.jobScopes`, positionId → text, `PUT /api/reborn/admin/job-scopes/:positionId`) and fill the job-scope box for everyone given that job.

@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation, localeTag } from "@/lib/i18n";
 
+const OTHER_JOB = "__other__";
 const MAX_PHOTO_SIDE = 1400;
 const PHOTO_QUALITY = 0.8;
 
@@ -47,8 +48,25 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
   const refresh = () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: listKey }); };
   const fail = (e: any) => toast({ title: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const post = (path: string, body: any = {}) => apiRequest("POST", `/api/reborn/admin/contracts/${userId}/${path}`, body).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; });
+  const { data: positions = [] } = useQuery<Array<{ id: number; name: string }>>({ queryKey: ["/api/reborn/admin/staff-positions"], enabled: open, queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-positions").then((r) => r.json()) });
+  const scopesKey = ["/api/reborn/admin/job-scopes"];
+  const { data: scopes = {} } = useQuery<Record<string, string>>({ queryKey: scopesKey, enabled: open, queryFn: () => apiRequest("GET", "/api/reborn/admin/job-scopes").then((r) => r.json()) });
   const f = form || { jobTitle: data?.jobTitle || role || "", startDate: data?.startDate || "", lang: data?.lang || (language as string) || "en", extraTerms: data?.extraTerms || "", jobScope: data?.jobScope || "" };
   const set = (patch: Partial<typeof f>) => setForm({ ...f, ...patch });
+  const chosen = positions.find((p) => p.name === f.jobTitle);
+  const isOther = !!f.jobTitle && !chosen;
+  const [wantsOther, setWantsOther] = useState(false);
+  // Picking a job fills in the duties saved for it (kept when the admin has already typed some).
+  const pickJob = (name: string) => {
+    if (name === OTHER_JOB) { setWantsOther(true); set({ jobTitle: "" }); return; }
+    setWantsOther(false);
+    const position = positions.find((p) => p.name === name);
+    set({ jobTitle: name, jobScope: f.jobScope.trim() ? f.jobScope : (position && scopes[String(position.id)]) || "" });
+  };
+  const saveScope = useMutation({
+    mutationFn: () => apiRequest("PUT", `/api/reborn/admin/job-scopes/${chosen!.id}`, { text: f.jobScope }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: scopesKey }); }, onError: fail,
+  });
 
   const send = useMutation({ mutationFn: () => post("send", f), onSuccess: (d: any) => { toast({ title: d.message }); setForm(null); refresh(); }, onError: fail });
   const approve = useMutation({
@@ -101,10 +119,12 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
 
           {status !== "approved" && status !== "awaiting_approval" && (
             <div className="grid grid-cols-2 gap-2">
-              <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.role")}<input value={f.jobTitle} maxLength={120} onChange={(e) => set({ jobTitle: e.target.value })} placeholder={t("admin.ctr.rolePh")} className={inp + " w-full"} /></label>
+              <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.role")}<select value={wantsOther || isOther ? OTHER_JOB : f.jobTitle} onChange={(e) => pickJob(e.target.value)} className={inp + " w-full"}><option value="">{t("admin.ctr.pickJob")}</option>{positions.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}<option value={OTHER_JOB}>{t("admin.ctr.otherJob")}</option></select>
+                {(wantsOther || isOther) && <input value={f.jobTitle} maxLength={120} onChange={(e) => set({ jobTitle: e.target.value })} placeholder={t("admin.ctr.rolePh")} className={inp + " mt-1 w-full"} />}</label>
               <label className="text-[11px] text-white/50">{t("admin.ctr.start")}<input type="date" value={f.startDate} onChange={(e) => set({ startDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
               <label className="text-[11px] text-white/50">{t("admin.ctr.lang")}<select value={f.lang} onChange={(e) => set({ lang: e.target.value })} className={inp + " w-full"}><option value="en">English</option><option value="zh">中文</option><option value="id">Bahasa Indonesia</option></select></label>
-              <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.scope")}<textarea value={f.jobScope} rows={4} maxLength={2000} onChange={(e) => set({ jobScope: e.target.value })} placeholder={t("admin.ctr.scopePh")} className={inp + " w-full"} /></label>
+              <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.scope")}<textarea value={f.jobScope} rows={4} maxLength={2000} onChange={(e) => set({ jobScope: e.target.value })} placeholder={t("admin.ctr.scopePh")} className={inp + " w-full"} />
+                {chosen && <button type="button" onClick={() => saveScope.mutate()} disabled={saveScope.isPending} className="mt-1 rounded-lg bg-white/10 px-3 py-2 text-xs font-bold disabled:opacity-40">{scopes[String(chosen.id)] ? t("admin.ctr.saveScopeUpdate", { job: chosen.name }) : t("admin.ctr.saveScope", { job: chosen.name })}</button>}</label>
               <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.extra")}<textarea value={f.extraTerms} rows={3} maxLength={4000} onChange={(e) => set({ extraTerms: e.target.value })} placeholder={t("admin.ctr.extraPh")} className={inp + " w-full"} /></label>
               <p className="col-span-2 text-[11px] text-white/40">{t("admin.ctr.fromPayroll")}</p>
               <button type="button" onClick={() => send.mutate()} disabled={!f.jobTitle.trim() || send.isPending} className="col-span-2 rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black disabled:opacity-40">{status === "none" ? t("admin.ctr.send") : t("admin.ctr.resend")}</button>

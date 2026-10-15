@@ -4416,6 +4416,26 @@ export function registerRebornRoutes(app: Express) {
     const result = await db.execute(sql`SELECT m.user_id AS id, m.role, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,u.email,u.id) name FROM bridge_company_members m JOIN users u ON u.id=m.user_id WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
     res.json((result.rows || result as any[]).map((x: any) => ({ id: x.id, name: x.name, role: x.role })));
   }));
+  // Duties of each job (position), written once by the admin and filled into every contract of that job.
+  const JOB_SCOPES_KEY = "jobScopes";
+  const MAX_JOB_SCOPE_TEXT = 2000;
+  const readJobScopes = async (): Promise<Record<string, string>> => {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, JOB_SCOPES_KEY));
+    try { const parsed = JSON.parse(row?.value || "{}"); return parsed && typeof parsed === "object" ? parsed : {}; } catch { return {}; }
+  };
+  app.get("/api/reborn/admin/job-scopes", requireAdmin(async (_req, res) => { res.json(await readJobScopes()); }));
+  app.put("/api/reborn/admin/job-scopes/:positionId", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const positionId = Number(req.params.positionId);
+    const [position] = await db.select().from(bridgePositions).where(and(eq(bridgePositions.companyId, cid), eq(bridgePositions.id, positionId))).limit(1);
+    if (!position) return res.status(404).json({ message: tr(req, { en: "Job not found", zh: "找不到该职位", id: "Jabatan tidak ditemukan" }) });
+    const scopes = await readJobScopes();
+    const text = String(req.body?.text || "").trim().slice(0, MAX_JOB_SCOPE_TEXT);
+    if (text) scopes[String(positionId)] = text; else delete scopes[String(positionId)];
+    await db.insert(appSettings).values({ key: JOB_SCOPES_KEY, value: JSON.stringify(scopes), updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(scopes), updatedAt: new Date() } });
+    await logAdmin(req, { targetType: "position", targetId: String(positionId), action: "job_scope", entityType: "profile", description: `Duties of the job "${position.name}" ${text ? "saved" : "cleared"}` });
+    res.json({ ok: true, message: tr(req, { en: "Duties saved for this job", zh: "已保存该职位的职责", id: "Tugas untuk jabatan ini tersimpan" }) });
+  }));
   app.get("/api/reborn/admin/staff-positions", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
     res.json(await db.select().from(bridgePositions).where(eq(bridgePositions.companyId, cid)).orderBy(bridgePositions.name));
