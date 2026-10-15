@@ -17,6 +17,7 @@ interface EmailParams {
   subject: string;
   text?: string;
   html?: string;
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }
 
 function normalizeSendGridFrom(from: string) {
@@ -40,7 +41,8 @@ export async function sendEmailDetailed(params: EmailParams): Promise<{ ok: bool
         subject: params.subject,
         text: params.text,
         html: params.html,
-      });
+        attachments: params.attachments?.map((a) => ({ filename: a.filename, content: a.content })),
+      } as any);
       if (error) {
         const message = typeof error === 'string' ? error : (error as any)?.message || JSON.stringify(error);
         console.error('Resend error:', error);
@@ -62,7 +64,8 @@ export async function sendEmailDetailed(params: EmailParams): Promise<{ ok: bool
         subject: params.subject,
         text: params.text,
         html: params.html,
-      });
+        attachments: params.attachments?.map((a) => ({ filename: a.filename, content: a.content.toString('base64'), type: a.contentType || 'application/octet-stream', disposition: 'attachment' })),
+      } as any);
       return { ok: true, provider: 'sendgrid', from };
     } catch (error: any) {
       const message = JSON.stringify(error?.response?.body || error?.message || error);

@@ -9,7 +9,7 @@ import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYM
 import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL, GIFT_LEVELS_SINCE_KEY } from "./giftLevels";
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
-import { packageFields, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
+import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn } from "@shared/countries";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
@@ -35,6 +35,7 @@ import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack } from "@shared/pa
 import { cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
+import { registerStaffContractRoutes } from "./staffContracts";
 import { registerVenueScanRoutes } from "./venueScan";
 import { registerSupplierReorder, runSupplierReorderCheck } from "./supplierReorder";
 import { searchSongCatalog, textPinyin } from "./songSearch";
@@ -51,7 +52,7 @@ import {
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
   posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
   staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory,
-  venueCheckins, memberWalletTransactions,
+  venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -3015,7 +3016,7 @@ export function registerRebornRoutes(app: Express) {
       cnt(bottleKeeps, eq(bottleKeeps.status, "kept")),
       cnt(users),
       cnt(posProducts),
-      n(db.select({ c: sql`count(*)` }).from(posProducts).where(sql`${posProducts.stock} <= 5`)),
+      n(db.select({ c: sql`count(*)` }).from(posProducts).where(sql`${posProducts.stock} <= 5 AND ${posProducts.archived} = false`)),
     ]);
     res.json({ songRequests: songReq, redemptions, topups, openTickets, appOrders, bottles, users: users_, products, lowStock });
   }));
@@ -3206,14 +3207,18 @@ export function registerRebornRoutes(app: Express) {
   // Products — staff can read (to sell); admin manages catalogue/prices/stock.
   app.get("/api/reborn/pos/products", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    res.json(await db.select().from(posProducts).where(eq(posProducts.companyId, cid)).orderBy(posProducts.sortOrder, posProducts.name));
+    const allowNegative = (await getSettings()).allowNegativeStock;
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name);
+    // soldOut = nothing left to sell: the POS (tables + staff orders) leaves such an item out of its picker.
+    res.json(rows.map((p) => ({ ...p, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.archived, false), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
     const allowNegative = (await getSettings()).allowNegativeStock;
-    res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
+    // An item with no stock is not shown to members at all (not even greyed out).
+    res.json(rows.filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: false })));
   });
   app.post("/api/reborn/admin/pos/products", requireManager(async (req, res) => {
     const b = req.body || {};
@@ -3234,13 +3239,18 @@ export function registerRebornRoutes(app: Express) {
   }));
   // Removes an item that was never sold (e.g. added twice by mistake) together with its stock history. A sold item
   // can only be hidden (active = false), so past bills keep their lines.
-  app.delete("/api/reborn/admin/pos/products/:id", requireAdmin(async (req, res) => {
+  app.delete("/api/reborn/admin/pos/products/:id", requireManager(async (req, res) => {
     const id = Number(req.params.id);
     const cid = await rebornCompanyId(req);
     const [product] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
     if (!product) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该商品", id: "Item tidak ditemukan" }) });
     const [sold] = await db.select({ count: sql<number>`count(*)` }).from(posTicketItems).where(eq(posTicketItems.productId, id));
-    if (Number(sold?.count) > 0) return res.status(409).json({ message: tr(req, { en: "This item was sold before, so it can't be deleted. Hide it instead.", zh: "该商品已有销售记录，无法删除，请改为隐藏。", id: "Item ini pernah terjual sehingga tidak bisa dihapus. Sembunyikan saja." }) });
+    if (Number(sold?.count) > 0) {
+      // Sold before: its bills and accounting still point at it, so it is archived — gone from every list and the POS, history kept.
+      await db.update(posProducts).set({ archived: true, active: false, posVisible: false }).where(eq(posProducts.id, id));
+      await logAdmin(req, { targetType: "pos_product", targetId: id, action: "delete_product", entityType: "stock", description: `Deleted item "${product.name}" (sold before: archived, sales history kept)` });
+      return res.json({ message: tr(req, { en: "Item deleted (past sales keep it in their history)", zh: "商品已删除（过往销售记录仍保留）", id: "Item dihapus (riwayat penjualan tetap tersimpan)" }), archived: true });
+    }
     await db.transaction(async (tx) => {
       await tx.delete(stockMovements).where(eq(stockMovements.productId, id));
       await tx.delete(posProducts).where(eq(posProducts.id, id));
@@ -3288,7 +3298,7 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/pos/stock", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind))).orderBy(posProducts.stock)); // packages hold no stock
+    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind))).orderBy(posProducts.stock)); // packages hold no stock
   }));
 
   // Member lookup by member code (referral code), email, or phone — for POS key-in.
@@ -3817,9 +3827,24 @@ export function registerRebornRoutes(app: Express) {
     const ticketId = Number(req.body?.ticketId) || null;
     const [ticket] = ticketId ? await db.select().from(posTickets).where(eq(posTickets.id, ticketId)) : [];
     if (ticketId && (!ticket || ticket.status !== "open")) return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
+    // A package of items ("6 beers"): staff choose which one; it goes on the bill at RP 0 and comes off that item's stock like any order.
+    const [pkg] = await db.select().from(memberPackages).where(eq(memberPackages.id, id));
+    const itemIds = parseItemIds(pkg?.itemIds);
+    let chosen: typeof posProducts.$inferSelect | undefined;
+    if (itemIds.length) {
+      if (!ticket) return res.status(400).json({ message: tr(req, { en: "Open the member's bill first — the item is added to it.", zh: "请先开启会员的账单——商品会加到账单上。", id: "Buka tagihan member dulu — item akan ditambahkan ke tagihan." }) });
+      const productId = Number(req.body?.productId) || (itemIds.length === 1 ? itemIds[0] : 0);
+      if (!itemIds.includes(productId)) return res.status(400).json({ message: tr(req, { en: "Choose which item to use.", zh: "请选择要使用的商品。", id: "Pilih item yang dipakai." }) });
+      [chosen] = await db.select().from(posProducts).where(eq(posProducts.id, productId));
+      if (!chosen || chosen.archived || !chosen.active) return res.status(400).json({ message: tr(req, { en: "That item is no longer available.", zh: "该商品已不再供应。", id: "Item itu sudah tidak tersedia." }) });
+      if (!(await getSettings()).allowNegativeStock && (chosen.stock ?? 0) < n) return res.status(400).json({ message: tr(req, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: chosen.name }) });
+    }
     const after = await takePackageUses(id, n, getUserId(req)!, ticketId);
     if (!after) return res.status(400).json({ message: tr(req, { en: "Not enough visits left on this package (or it has expired)", zh: "该套餐剩余次数不足（或已过期）", id: "Sisa kunjungan paket ini tidak cukup (atau sudah kedaluwarsa)" }) });
-    if (ticket) {
+    if (ticket && chosen) {
+      await appendItems(ticket.id, ticket.orderNo || String(ticket.id), [{ productId: chosen.id, name: `${chosen.name} · ${after.name} (${after.usesLeft}/${after.usesTotal})`, price: 0, qty: n }], getUserId(req)!);
+      emitLiveUpdate("/api/reborn/pos/orders", { action: "PACKAGE_USE", resource: String(ticket.id) });
+    } else if (ticket) {
       await db.insert(posTicketItems).values({ orderId: ticket.id, productId: null, name: `${after.name} · ${tr(req, { en: "package", zh: "套餐", id: "paket" })} (${after.usesLeft}/${after.usesTotal})`, price: "0", qty: n, lineTotal: "0", status: "accepted", source: "pos" });
       emitLiveUpdate("/api/reborn/pos/orders", { action: "PACKAGE_USE", resource: String(ticket.id) });
     }
@@ -4066,13 +4091,13 @@ export function registerRebornRoutes(app: Express) {
     const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
-    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
     const staff=((result.rows||result) as any[]).map((x)=>{const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
     res.json({month,from,to,staff,referrals:refs.rows||refs,rules,money,country:companyCountry()});
   }));
-  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),birthDate:/^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate||""))?String(b.birthDate):null,residency:asResidency(b.residency),statutoryOn:b.statutoryOn!==false,updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
+  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),birthDate:/^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate||""))?String(b.birthDate):null,residency:asResidency(b.residency),statutoryOn:b.statutoryOn!==false,deposit:String(Math.max(0,Number(b.deposit)||0)),depositNote:String(b.depositNote||"").trim().slice(0,300)||null,updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
   // Record a month's pay: the gross salary as an expense, plus the employer's statutory
   // contributions (CPF / BPJS…) as their own expense. The employee's share is part of the
   // gross: it is withheld from the staff member and paid to the fund with the employer's.
@@ -4085,10 +4110,12 @@ export function registerRebornRoutes(app: Express) {
     const [profile]=company?await db.select().from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId,company.id),eq(bridgeStaffProfiles.userId,userId))).limit(1):[];
     const c=computeContributions(await payrollRules(),amount,{birthDate:profile?.birthDate,residency:profile?.residency,statutoryOn:profile?.statutoryOn},month,companyMoney().decimals);
     const parts=c.lines.map((l)=>`${(l.label||l.code).toUpperCase()} ee ${l.ee} / er ${l.er}`).join(", ");
-    const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(amount),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}, net pay ${c.net}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
+    // A deduction (late, penalty…) is taken from the pay: the staff member receives less and the salary expense is that much smaller.
+    const deduction=Math.min(roundMoney(Math.max(0,Number(b.deduction)||0)),Math.max(0,c.net));const deductionNote=String(b.deductionNote||"").trim().slice(0,300);const netPay=roundMoney(c.net-deduction);
+    const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(roundMoney(amount-deduction)),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}${deduction>0?`, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}`:""}, net pay ${netPay}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
     if(c.employer>0)await db.insert(ledgerEntries).values({kind:"expense",category:"statutory_contribution",amount:String(c.employer),note:`Employer contributions ${b.name||userId} · ${month}${parts?` (${parts})`:""}`,refType:"payroll_employer",refId:`${userId}:${month}`,userId});
-    await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, net ${c.net}, employer ${c.employer}`});
-    res.json({message:tr(req, { en: "Payroll recorded: net pay {net}, staff contributions {ee}, company contributions {er}", zh: "工资已记录：实发 {net}，员工缴费 {ee}，公司缴费 {er}", id: "Gaji dicatat: gaji bersih {net}, iuran staf {ee}, iuran perusahaan {er}" },{net:formatMoneyIn(companyMoney(),c.net),ee:formatMoneyIn(companyMoney(),c.employee),er:formatMoneyIn(companyMoney(),c.employer)}),row,contributions:c});
+    await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}, net ${netPay}, employer ${c.employer}`});
+    res.json({message:tr(req, { en: "Payroll recorded: net pay {net}, staff contributions {ee}, company contributions {er}", zh: "工资已记录：实发 {net}，员工缴费 {ee}，公司缴费 {er}", id: "Gaji dicatat: gaji bersih {net}, iuran staf {ee}, iuran perusahaan {er}" },{net:formatMoneyIn(companyMoney(),netPay),ee:formatMoneyIn(companyMoney(),c.employee),er:formatMoneyIn(companyMoney(),c.employer)}),row,contributions:c});
   }));
 
   // White-label feature flags — read the club's enabled modules from the
@@ -4653,7 +4680,7 @@ export function registerRebornRoutes(app: Express) {
     if (!rows.length) return res.status(400).json({ message: tr(req, { en: "No items found in the file", zh: "文件中没有找到商品", id: "Tidak ada item di file" }) });
     const cid = await rebornCompanyId(req);
     const actor = getUserId(req)!;
-    const existing = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind)));
+    const existing = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
     const byName = new Map(existing.map((product) => [matchKey(product.name), product]));
     let created = 0, updated = 0;
     const importLog: Array<{ id: number; name: string; from: number; to: number }> = [];
@@ -4718,7 +4745,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/inventory", requireManager(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind))).orderBy(posProducts.category, posProducts.name); // packages hold no stock
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind))).orderBy(posProducts.category, posProducts.name); // packages hold no stock
     // Distinct suppliers each product has been restocked from (one item, many suppliers).
     const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier })
       .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));
@@ -4910,6 +4937,30 @@ export function registerRebornRoutes(app: Express) {
       for (const phone of phones) await sendWhatsApp(phone, pick(await langForPhone(phone), text, vars));
     },
   });
+  registerStaffContractRoutes(app, {
+    requireStaff,
+    requireAdmin,
+    userId: (req) => getUserId(req) as string,
+    companyId: (req) => rebornCompanyId(req),
+    companyName: async () => (await getSettings()).clubName || "Reborn Wave",
+    money: (n) => formatMoneyIn(companyMoney(), n),
+    profile: async (userId) => {
+      const u = await storage.getUser(userId);
+      if (!u) return null;
+      const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
+      const [p] = company ? await db.select().from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId, company.id), eq(bridgeStaffProfiles.userId, userId))).limit(1) : [];
+      return {
+        name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || "Staff", email: u.email || null,
+        employmentType: p?.employmentType || "full_time", payType: p?.payType || "salary", baseSalary: Number(p?.baseSalary) || 0, hourlyRate: Number(p?.hourlyRate) || 0,
+        commissionRate: Number(p?.commissionRate) || 0, deposit: Number(p?.deposit) || 0, depositNote: p?.depositNote || "",
+      };
+    },
+    notifyUser: (userId, type, text, data) => notifyUserI18n(userId, type, (lang) => ({ title: pick(lang, { en: "Employment", zh: "雇佣", id: "Pekerjaan" }), body: pick(lang, text) }), data),
+    notifyAdmins: (type, text, data) => notifyStaffI18n(type, (lang) => ({ title: pick(lang, { en: "Employment", zh: "雇佣", id: "Pekerjaan" }), body: pick(lang, text) }), data, { adminsOnly: true }),
+    adminEmail: async (req) => (await storage.getUser(getUserId(req) as string))?.email || null,
+    adminName: async (req) => { const u = await storage.getUser(getUserId(req) as string); return [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Admin"; },
+    log: (req, entry) => logAdmin(req, { targetUserId: entry.targetUserId, targetType: "staff_contract", targetId: entry.targetUserId, action: entry.action, entityType: "staff", description: entry.description }),
+  });
   registerStockLayers(app, {
     requireAdmin,
     requireManager,
@@ -4922,7 +4973,7 @@ export function registerRebornRoutes(app: Express) {
     writeSetting: writeSettingValue,
     listProducts: async () => {
       const cid = await rebornCompanyId();
-      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), eq(posProducts.active, true)));
+      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), eq(posProducts.active, true), eq(posProducts.archived, false)));
       return rows.map((p) => ({ id: p.id, name: p.name, stock: p.stock, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "", imageUrl: p.imageUrl }));
     },
     clubName: async () => (await getSettings()).clubName || "Reborn Wave",

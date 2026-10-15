@@ -586,6 +586,10 @@ text.
   when it expires within 7 days (every 2 days, daily in the last 3) or hasn't been used
   for 14 days (every 14 days); `member_packages.last_reminder_at`. Admin › CRM "run
   reminders" sends them right away (any hour).
+- A visits package can be a package of items ("6 beers — choose which"): in the package form the admin ticks the items it can be redeemed for
+  (`pos_products.package_item_ids`, copied to `member_packages.item_ids` when sold). "Use 1" then asks which item (POS pay panel and Packages tab,
+  `UsePackageButton`); it needs the member's open bill, adds that item at RP 0 (`appendItems`, so it comes off that item's stock and writes a
+  stock movement) and takes one use. A sold-out item can't be chosen. No item ticked = a plain visit as before.
 - The POS asks `/api/reborn/pos/quote` for the bill (perk + credit) so the till shows
   exactly what the server will charge.
 
@@ -809,7 +813,7 @@ text.
   not a security wall.
 - A manager can see Users (list only), and can add and edit products, change the stock counts (save + confirm + log), import from Excel, copy an item for
   another supplier and change pictures (`PATCH /api/reborn/admin/pos/products/:id`, `/inventory/counts`, `/inventory/import`, `/layers`, `/duplicate` are
-  `requireManager`; `useProductRights()` in hooks/useAdminRole.ts). Deleting a product or a person, merging items, the supplier-message panel and
+  `requireManager`; `useProductRights()` in hooks/useAdminRole.ts). Deleting a product is also allowed for a manager (an item that was sold before is archived — `pos_products.archived`, gone from every list and the POS, past bills keep it); deleting a person, merging items, the supplier-message panel and
   everything else in Settings stay with the main admin.
 
 ## Rating staff (Support › Rate staff)
@@ -818,3 +822,24 @@ text.
   `GET /api/reborn/support/staff` (list with average, review count, the member's own rating), `POST /api/reborn/support/rate-staff`. One rating per
   member per person (rating again replaces it). It is saved in `bridge_staff_reviews` (what the staff leaderboard averages: ⭐ + review count, red flag
   on low ratings) and in `bridge_feedback` (Admin › Feedback).
+
+## Items with no stock, staff deposit, employment contracts
+
+- An item with no stock (`stock <= 0`, not a package, and the `allowNegativeStock` setting off) is left out of the POS picker for tables and
+  staff orders (`soldOut` on `/api/reborn/pos/products`; `ProductPicker` skips it) and out of the member order page
+  (`/api/reborn/shop/products` no longer lists it). Admin lists and the POS Stock tab still show it. Turning on "allow negative stock" shows it again.
+- Payroll › each staff row has a **Deposit held** amount and a **note** (`bridge_staff_profiles.deposit` / `deposit_note`); it is kept on
+  the profile and printed as a clause in the contract: it covers the first month (a penalty then comes out of it), and from the second month a
+  penalty is deducted from the salary. Each payroll row has a **Deduction this month** amount + reason: the staff member's net pay is reduced
+  by it, the `salary` expense booked is gross − deduction (statutory contributions stay on the gross), and the reason is in the ledger note and admin log.
+  The deposit itself is only a record (nothing is taken from it automatically).
+- Employment contract (server/staffContracts.ts, shared/staffContract.ts, server/contractPdf.ts; table `staff_contracts`): staff (users with
+  role staff/admin) upload their ID photo in the app (Profile › My employment, `/employment`; shrunk in the browser, stored as a data URL in
+  the company's own database — never in the public uploads folder — and only returned to the person and to an admin). In Admin › Payroll › a staff row
+  › "Employment contract & ID" the main admin sees the ID, sets the role (job title), start date, language (en / 中文 / id) and extra terms and
+  sends the letter (`send`; wording built from the payroll profile: salary or hourly pay, commission, deposit). The staff member reads it, types
+  their name and draws a signature (`sign`, needs the ID uploaded) → "Signed — approve it" → the admin approves (`approve`) or sends it back
+  with a note (`return`). Approving writes the PDF (pdfkit; Chinese needs a CJK font — the Dockerfile installs fonts-wqy-zenhei, or set
+  `CONTRACT_CJK_FONT`; without one the PDF is written in English) and e-mails it to the staff member's email and to the approving admin's email
+  (`sendEmailDetailed` with an attachment; needs `RESEND_API_KEY` or `SENDGRID_API_KEY`). A staff member without an email (phone login) only gets the
+  in-app download. The wording is a general template — a company should have it checked for its country.

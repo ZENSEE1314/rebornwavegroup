@@ -13,7 +13,7 @@ import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt,
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { money, roundMoney } from "@/lib/money";
 
-interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
+interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
@@ -155,7 +155,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const industries = useMemo(() => Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort() as string[], [products]);
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
-    for (const p of products) { if (industry && !deptHas(p.department, industry)) continue; (g[p.category || ""] ||= []).push(p); }
+    for (const p of products) { if (p.soldOut || (industry && !deptHas(p.department, industry))) continue; (g[p.category || ""] ||= []).push(p); }
     return Object.entries(g);
   }, [products, industry]);
   return (
@@ -914,6 +914,33 @@ function BillSummary({ due, settings }: { due: ReturnType<typeof quoteTotals>; s
   );
 }
 const fmtDay = (d: any, lang: string) => new Date(d).toLocaleDateString(localeTag(lang as any), { day: "numeric", month: "short", year: "numeric" });
+// Taking one use of a package. A package of items ("6 beers") shows a choice of the beers; the chosen item goes on the open bill at RP 0
+// and comes off its stock. Without an open bill (ticketId) such a package can't be used.
+function UsePackageButton({ p, ticketId, onDone, tone }: { p: any; ticketId?: number; onDone: () => void; tone: string }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const { data: products = [] } = useProducts();
+  const choices = (p.itemIds || []).map((id: number) => products.find((x) => x.id === id)).filter(Boolean) as Product[];
+  const [pick, setPick] = useState<number | "">("");
+  const chosen = pick || (choices.length === 1 ? choices[0].id : "");
+  const use = useMutation({
+    mutationFn: () => post(`/api/reborn/pos/packages/${p.id}/use`, { uses: 1, ticketId, productId: chosen || undefined }),
+    onSuccess: (d) => { toast({ title: d.message }); onDone(); },
+    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+  });
+  const isItems = (p.itemIds || []).length > 0;
+  return (
+    <span className="flex items-center gap-1.5 flex-shrink-0">
+      {isItems && choices.length > 1 && (
+        <select value={pick} onChange={(e) => setPick(e.target.value ? Number(e.target.value) : "")} aria-label={t("pos.pkg.chooseItem")} className="max-w-[9rem] rounded-lg bg-black/40 border border-white/15 px-2 py-1.5 text-[11px] text-white">
+          <option value="">{t("pos.pkg.chooseItem")}</option>
+          {choices.map((c) => <option key={c.id} value={c.id} disabled={!!c.soldOut}>{c.name}{c.soldOut ? " ✕" : ` · ${c.stock}`}</option>)}
+        </select>
+      )}
+      <button onClick={() => (isItems && !ticketId ? toast({ title: t("pos.pkg.needBill"), variant: "destructive" }) : use.mutate())} disabled={use.isPending || (isItems && !chosen)} className={tone}>{isItems ? t("pos.pkg.useItem") : t("pos.pkg.use1")}</button>
+    </span>
+  );
+}
 // The member's perk, package credit and visit packages on the pay panel.
 function MemberWallet({ code, quote, useCredit, onUseCredit, ticketId }: { code?: string | null; quote: any; useCredit: boolean; onUseCredit: (v: boolean) => void; ticketId?: number }) {
   const { t, language } = useTranslation();
@@ -923,11 +950,6 @@ function MemberWallet({ code, quote, useCredit, onUseCredit, ticketId }: { code?
     queryKey: ["/api/reborn/pos/member-packages", code],
     queryFn: () => apiRequest("GET", `/api/reborn/pos/member-packages?code=${encodeURIComponent(code || "")}`).then((r) => (r.ok ? r.json() : null)),
     enabled: !!code,
-  });
-  const use = useMutation({
-    mutationFn: (id: number) => post(`/api/reborn/pos/packages/${id}/use`, { uses: 1, ticketId }),
-    onSuccess: (d) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/member-packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] }); },
-    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   useEffect(() => { if (!w?.creditBalance && useCredit) onUseCredit(false); }, [w?.creditBalance]);
   if (!code) return quote?.hasPackages ? <p className="mb-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200">{t("pos.pkg.needMember")}</p> : null;
@@ -948,7 +970,7 @@ function MemberWallet({ code, quote, useCredit, onUseCredit, ticketId }: { code?
       {visits.map((p: any) => (
         <div key={p.id} className="flex items-center gap-2 rounded-lg bg-black/20 px-2 py-1.5">
           <span className="flex-1 min-w-0 truncate">{p.name} · {t("pos.pkg.left", { n: p.usesLeft, total: p.usesTotal })}</span>
-          <button onClick={() => use.mutate(p.id)} disabled={use.isPending} className="rounded-lg bg-sky-400/90 px-2.5 py-1 text-[11px] font-bold text-black disabled:opacity-50">{t("pos.pkg.use1")}</button>
+          <UsePackageButton p={p} ticketId={ticketId} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/member-packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); }} tone="rounded-lg bg-sky-400/90 px-2.5 py-1 text-[11px] font-bold text-black disabled:opacity-50" />
         </div>
       ))}
     </div>
@@ -965,11 +987,6 @@ function PackagesTab() {
     queryFn: () => apiRequest("GET", `/api/reborn/pos/packages${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()),
     refetchInterval: 30000,
   });
-  const use = useMutation({
-    mutationFn: (id: number) => post(`/api/reborn/pos/packages/${id}/use`, { uses: 1 }),
-    onSuccess: (d) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/member-packages"] }); },
-    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
-  });
   return (
     <div>
       <p className="text-xs text-white/50 mb-2">{t("pos.pkg.tabHint")}</p>
@@ -985,7 +1002,7 @@ function PackagesTab() {
                 <p className="text-xs text-sky-200 mt-0.5">{p.kind === "uses" ? t("pos.pkg.left", { n: p.usesLeft, total: p.usesTotal }) : t("pos.pkg.creditLeft", { n: rp(p.creditLeft), total: rp(p.creditTotal) })}</p>
                 <p className="text-[11px] text-white/40">{p.expiresAt ? t("pos.pkg.expires", { d: fmtDay(p.expiresAt, language) }) : t("pos.pkg.noExpiry")}{p.kind === "credit" && p.perkPercent > 0 ? ` · ${t("pos.pkg.perkAfter", { p: p.perkPercent })}` : ""}</p>
               </div>
-              {p.kind === "uses" && <button onClick={() => use.mutate(p.id)} disabled={use.isPending} className="px-3 py-2 rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-200 text-sm font-semibold flex-shrink-0">{t("pos.pkg.use1")}</button>}
+              {p.kind === "uses" && <UsePackageButton p={p} onDone={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/member-packages"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); }} tone="px-3 py-2 rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-200 text-sm font-semibold disabled:opacity-50" />}
             </div>
           </div>
         ))}

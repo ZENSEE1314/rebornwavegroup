@@ -180,6 +180,8 @@ export const bridgeStaffProfiles = pgTable("bridge_staff_profiles", {
   birthDate: varchar("birth_date"),
   residency: varchar("residency").notNull().default("citizen"),
   statutoryOn: boolean("statutory_on").notNull().default(true),
+  deposit: decimal("deposit", { precision: 14, scale: 2 }).default("0").notNull(), // money the staff member left with the company
+  depositNote: text("deposit_note"),
   status: varchar("status").notNull().default("active"),
   rankingScore: decimal("ranking_score", { precision: 10, scale: 2 }).default("0").notNull(),
   starGrade: decimal("star_grade", { precision: 3, scale: 2 }).default("0").notNull(),
@@ -895,6 +897,8 @@ export const posProducts = pgTable("pos_products", {
   creditOk: boolean("credit_ok").default(true).notNull(),      // can be paid with package credit
   unitsPerPack: integer("units_per_pack"),                    // sold by the pack too: how many units in one pack (24 cans)
   packPrice: decimal("pack_price", { precision: 14, scale: 2 }), // the price of one whole pack; the unit price = this ÷ units per pack
+  packageItemIds: text("package_item_ids"),                  // a visits package of items (6 beers): JSON array of the products it can be redeemed for
+  archived: boolean("archived").default(false).notNull(),      // "deleted" but sold before: gone from every list, kept for the sales history
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -908,6 +912,7 @@ export const memberPackages = pgTable("member_packages", {
   productId: integer("product_id"),
   ticketId: integer("ticket_id"),                 // the bill it was bought on
   kind: varchar("kind").notNull(),                // 'uses' | 'credit'
+  itemIds: text("item_ids"),                      // JSON array of product ids a visits package can be redeemed for (null = a plain visit)
   name: varchar("name").notNull(),
   usesTotal: integer("uses_total").default(0).notNull(),
   usesLeft: integer("uses_left").default(0).notNull(),
@@ -2362,4 +2367,30 @@ export const appErrors = pgTable("app_errors", {
   userId: varchar("user_id"),
   detail: text("detail"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Employment contract of a staff member (Admin › Payroll › Contract, app › Profile › My employment). The ID photo and the signature are
+// kept here as data URLs (never in the public uploads folder) and are only read by the person themself and the admin.
+export const staffContracts = pgTable("staff_contracts", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  userId: varchar("user_id").notNull(),
+  status: varchar("status").notNull().default("awaiting_staff"), // awaiting_staff → awaiting_approval → approved
+  lang: varchar("lang").notNull().default("en"),
+  jobTitle: varchar("job_title"),
+  startDate: varchar("start_date"),
+  extraTerms: text("extra_terms"),
+  terms: text("terms"),                 // the letter as it was when it was sent (JSON of ContractText), so later pay changes don't rewrite it
+  idImage: text("id_image"),
+  idNumber: varchar("id_number"),
+  idUploadedAt: timestamp("id_uploaded_at"),
+  signature: text("signature"),
+  signedName: varchar("signed_name"),
+  signedAt: timestamp("signed_at"),
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  returnNote: text("return_note"),
+  emailedAt: timestamp("emailed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -547,6 +547,10 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_kind varchar; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_uses integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_credit numeric(14,2);
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_valid_days integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS perk_percent numeric(5,2); ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS perk_days integer;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS credit_ok boolean NOT NULL DEFAULT true;
+    ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS deposit numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS deposit_note text;
+    CREATE TABLE IF NOT EXISTS staff_contracts (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'awaiting_staff', lang varchar NOT NULL DEFAULT 'en', job_title varchar, start_date varchar, extra_terms text, terms text, id_image text, id_number varchar, id_uploaded_at timestamp, signature text, signed_name varchar, signed_at timestamp, approved_by varchar, approved_at timestamp, return_note text, emailed_at timestamp, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+    CREATE UNIQUE INDEX IF NOT EXISTS staff_contracts_user ON staff_contracts (company_id, user_id);
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS archived boolean NOT NULL DEFAULT false; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_item_ids text; ALTER TABLE member_packages ADD COLUMN IF NOT EXISTS item_ids text;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS units_per_pack integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS pack_price numeric(14,2);
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS package_credit_used numeric(14,2) NOT NULL DEFAULT 0;
     CREATE TABLE IF NOT EXISTS member_packages (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, member_name varchar, member_code varchar, product_id integer, ticket_id integer, kind varchar NOT NULL, name varchar NOT NULL, uses_total integer NOT NULL DEFAULT 0, uses_left integer NOT NULL DEFAULT 0, credit_total numeric(14,2) NOT NULL DEFAULT 0, credit_left numeric(14,2) NOT NULL DEFAULT 0, price_paid numeric(14,2) NOT NULL DEFAULT 0, perk_percent numeric(5,2) NOT NULL DEFAULT 0, perk_days integer, perk_from timestamp, perk_until timestamp, status varchar NOT NULL DEFAULT 'active', expires_at timestamp, used_up_at timestamp, created_at timestamp DEFAULT now());
@@ -693,7 +697,7 @@ export function registerBridgeXRoutes(app: Express) {
     if (!tbl) return res.status(404).json({ message: "Invalid QR code" });
     if (!(await moduleEnabled(tbl.company_id, "qr_ordering"))) return res.status(403).json({ message: "QR ordering is not enabled here" });
     const [company] = await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, tbl.company_id)).limit(1);
-    const menu = await db.select().from(posProducts).where(and(eq(posProducts.companyId, tbl.company_id), eq(posProducts.active, true)));
+    const menu = await db.select().from(posProducts).where(and(eq(posProducts.companyId, tbl.company_id), eq(posProducts.active, true), eq(posProducts.archived, false)));
     res.json({ table: { id: tbl.id, name: tbl.name }, company: { appName: company?.appName || company?.name, logoUrl: company?.logoUrl, theme: company?.theme }, menu: menu.filter((m) => m.posVisible !== false).map((m) => ({ id: m.id, name: m.name, price: m.price, category: m.category, imageUrl: m.imageUrl })) });
   }));
   app.post("/api/v1/order/:token", route(async (req, res) => {
@@ -1386,7 +1390,7 @@ export function registerBridgeXRoutes(app: Express) {
   // Tenant-native POS routes. These never return or mutate another company's rows.
   app.get("/api/v1/company/pos/products", route(async (req, res) => {
     const access = await companyAccess(req, res); if (!access) return;
-    res.json(await db.select().from(posProducts).where(eq(posProducts.companyId, access.companyId)).orderBy(posProducts.sortOrder, posProducts.name));
+    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, access.companyId), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name));
   }));
   app.post("/api/v1/company/pos/products", route(async (req, res) => {
     const access = await companyAccess(req, res, true); if (!access) return;

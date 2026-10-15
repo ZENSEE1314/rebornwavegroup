@@ -29,6 +29,7 @@ import { APP_FEATURES } from "@/lib/features";
 import { printClosingReport, printReceipt } from "@/lib/receipt";
 import { money, moneySymbol, moneyStep, roundMoney, appMoney } from "@/lib/money";
 import { AppSkinPicker } from "@/components/AppSkinPicker";
+import { StaffContractPanel } from "@/components/StaffContractPanel";
 import { CUSTOM_PALETTE, type AppColours } from "@shared/appSkins";
 import { applyAppSkin } from "@/lib/appSkin";
 import { computeContributions, type PayrollRules, type CpfRules } from "@shared/payrollRules";
@@ -2064,7 +2065,37 @@ function IndustryPicker({ value, options, onChange, isCompact = false }: { value
 
 // Package settings of a POS product (server/memberPackages.ts): a normal product (that
 // can or can't be paid with package credit), a visits package or a prepaid credit package.
-const pkgOf = (p: any) => ({ packageKind: p?.packageKind || "", packageUses: p?.packageUses || "", packageCredit: p?.packageCredit ? Number(p.packageCredit) : "", packageValidDays: p?.packageValidDays || "", perkPercent: p?.perkPercent ? Number(p.perkPercent) : "", perkDays: p?.perkDays || "", creditOk: p?.creditOk !== false });
+const parseIds = (v: any): number[] => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.map(Number) : []; } catch { return []; } };
+const pkgOf = (p: any) => ({ packageItemIds: parseIds(p?.packageItemIds), packageKind: p?.packageKind || "", packageUses: p?.packageUses || "", packageCredit: p?.packageCredit ? Number(p.packageCredit) : "", packageValidDays: p?.packageValidDays || "", perkPercent: p?.perkPercent ? Number(p.perkPercent) : "", perkDays: p?.perkDays || "", creditOk: p?.creditOk !== false });
+// "6 beers — the member chooses which": tick the items a visits package can be redeemed for. Each redeem is added to the bill at RP 0 and
+// comes off that item's stock. Nothing ticked = a plain visit (spa ×10).
+function PackageItemPicker({ value, onChange }: { value: number[]; onChange: (ids: number[]) => void }) {
+  const { t } = useTranslation();
+  const [q, setQ] = useState("");
+  const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
+  const items = products.filter((p) => !p.packageKind);
+  const needle = q.trim().toLowerCase();
+  const shown = items.filter((p) => value.includes(p.id) || !needle || String(p.name).toLowerCase().includes(needle)).slice(0, 40);
+  const toggle = (id: number) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  return (
+    <div className="mt-2 rounded-lg bg-white/5 p-2">
+      <p className="text-xs font-semibold text-white/70">{t("admin.pkg.itemsTitle")}</p>
+      <p className="text-[11px] text-white/40 mb-1.5">{t("admin.pkg.itemsHint")}</p>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("admin.pkg.itemsSearch")} className={inp + " w-full mb-1.5"} />
+      <div className="max-h-44 overflow-auto space-y-1">
+        {shown.map((p) => (
+          <label key={p.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${value.includes(p.id) ? "bg-amber-400/15" : "bg-black/20"}`}>
+            <input type="checkbox" checked={value.includes(p.id)} onChange={() => toggle(p.id)} />
+            <span className="flex-1 min-w-0 truncate">{p.name}</span>
+            <span className="text-white/40">{t("admin.pkg.itemStock", { n: p.stock })}</span>
+          </label>
+        ))}
+        {!shown.length && <p className="text-xs text-white/40">{t("admin.pkg.itemsNone")}</p>}
+      </div>
+      {value.length > 0 && <p className="mt-1.5 text-[11px] text-amber-200">{t("admin.pkg.itemsPicked", { n: value.length })}</p>}
+    </div>
+  );
+}
 function PackageFields({ value, onChange }: { value: any; onChange: (v: any) => void }) {
   const { t } = useTranslation();
   const set = (k: string, v: any) => onChange({ ...value, [k]: v });
@@ -2081,6 +2112,7 @@ function PackageFields({ value, onChange }: { value: any; onChange: (v: any) => 
       </div>
       {!value.packageKind && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={value.creditOk !== false} onChange={(e) => set("creditOk", e.target.checked)} /> {t("admin.pkg.creditOk")} <span className="text-white/40 text-xs">{t("admin.pkg.creditOkHint")}</span></label>}
       {value.packageKind === "uses" && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{num("packageUses", t("admin.pkg.usesN"), "10")}{num("packageValidDays", t("admin.pkg.validDays"), t("admin.pkg.never"))}</div>}
+      {value.packageKind === "uses" && <PackageItemPicker value={value.packageItemIds || []} onChange={(ids) => set("packageItemIds", ids)} />}
       {value.packageKind === "credit" && <>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{num("packageCredit", t("admin.pkg.creditAmt"), "10000000")}{num("packageValidDays", t("admin.pkg.validDays"), t("admin.pkg.never"))}{num("perkPercent", t("admin.pkg.perkPct"), "5")}{num("perkDays", t("admin.pkg.perkDays"), t("admin.pkg.lifetime"))}</div>
         <p className="mt-1.5 text-[11px] text-white/40">{t("admin.pkg.creditHint")}</p>
@@ -2254,7 +2286,7 @@ function DuplicateProductButton({ p }: { p: any }) {
 }
 
 // Deleting an item takes two taps (no browser pop-up): the first asks, the second deletes. An item that was sold before
-// can't be deleted (the server says so) and should be hidden instead.
+// is archived instead of erased (gone from every list, past bills keep it).
 function DeleteProductButton({ p }: { p: any }) {
   const { canDelete } = useProductRights();
   const { toast } = useToast();
@@ -2529,8 +2561,8 @@ function Payroll() {
   const { t } = useTranslation();
   const {toast}=useToast();const qc=useQueryClient();const [month,setMonth]=useState(new Date().toISOString().slice(0,7));
   const {data}=useQuery<any>({queryKey:["/api/reborn/admin/payroll",month],queryFn:()=>apiRequest("GET",`/api/reborn/admin/payroll?month=${month}`).then(r=>r.json())});
-  const save=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/profile",{userId:s.user_id,payType:s.pay_type,employmentType:s.employment_type,baseSalary:Number(s.base_salary),hourlyRate:Number(s.hourly_rate),commissionRate:Number(s.commission_rate),salesTarget:Number(s.sales_target),birthDate:s.birth_date||null,residency:s.residency||"citizen",statutoryOn:s.statutory_on!==false}).then(r=>r.json()),onSuccess:()=>{toast({title:t("admin.pr.saved")});qc.invalidateQueries({queryKey:["/api/reborn/admin/payroll"]})}});
-  const pay=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/pay",{userId:s.user_id,name:s.name,month,amount:s.total}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting"]})},onError:(e:any)=>toast({title:t("admin.pr.cannot"),description:e.message,variant:"destructive"})});
+  const save=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/profile",{userId:s.user_id,payType:s.pay_type,employmentType:s.employment_type,baseSalary:Number(s.base_salary),hourlyRate:Number(s.hourly_rate),commissionRate:Number(s.commission_rate),salesTarget:Number(s.sales_target),birthDate:s.birth_date||null,residency:s.residency||"citizen",statutoryOn:s.statutory_on!==false,deposit:Number(s.deposit)||0,depositNote:s.deposit_note||""}).then(r=>r.json()),onSuccess:()=>{toast({title:t("admin.pr.saved")});qc.invalidateQueries({queryKey:["/api/reborn/admin/payroll"]})}});
+  const pay=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/pay",{userId:s.user_id,name:s.name,month,amount:s.total,deduction:Number(s.deduction)||0,deductionNote:s.deduction_note||""}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting"]})},onError:(e:any)=>toast({title:t("admin.pr.cannot"),description:e.message,variant:"destructive"})});
   const rules:PayrollRules|undefined=data?.rules;
   return <div className="space-y-3"><Card><div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold">{t("admin.pr.title")}</h3><p className="text-xs text-white/50">{t("admin.pr.hint")}</p></div><input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={inp} style={{colorScheme:"dark"}}/></div></Card>{rules&&<StatutoryRules key={JSON.stringify(rules)} initial={rules} country={data?.country}/>}{(data?.staff||[]).map((initial:any)=><PayrollRow key={initial.user_id+month} initial={initial} rules={rules} month={month} onSave={(s:any)=>save.mutate(s)} onPay={(s:any)=>pay.mutate(s)}/>)}<Card><p className="mb-2 font-bold text-sm">{t("admin.pr.refTitle")}</p>{(data?.referrals||[]).map((r:any)=><div key={r.introducer_id} className="flex justify-between border-b border-white/5 py-2 text-sm"><span>{r.name}<span className="block text-[11px] text-white/40">{t("admin.pr.refLine", { n: r.referrals, v: money(r.referred_sales) })}</span></span><b className="text-amber-300">{money(r.commission)}</b></div>)}{!(data?.referrals||[]).length&&<p className="text-xs text-white/40">{t("admin.pr.noRef")}</p>}<p className="mt-2 text-[11px] text-white/40">{t("admin.pr.recordedHint")}</p></Card></div>;
 }
@@ -2561,17 +2593,20 @@ function StatutoryRules({initial,country}:{initial:PayrollRules;country?:string}
     <div className="grid grid-cols-2 gap-2"><button onClick={()=>{if(confirm(t("admin.pr.st.resetConfirm")))saveRules.mutate({reset:true})}} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">{t("admin.pr.st.reset")}</button><button onClick={()=>saveRules.mutate({rules:r})} className="rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black">{t("admin.set.save")}</button></div>
   </div>}</Card>;
 }
-function PayrollRow({initial,rules,month,onSave,onPay}:any){const { t } = useTranslation();const[s,setS]=useState(initial);const basic=roundMoney(s.pay_type==="hourly"?Number(s.hourly_rate)*Number(s.hours):Number(s.base_salary));const commission=roundMoney(Number(s.sales)*Number(s.commission_rate)/100);const overtimePay=roundMoney(Number(s.ot_hours||0)*Number(s.otRate||0));const total=roundMoney(basic+commission+overtimePay);const v={...s,basic,salesCommission:commission,overtimePay,total};
+function PayrollRow({initial,rules,month,onSave,onPay}:any){const { t } = useTranslation();const[s,setS]=useState(initial);const basic=roundMoney(s.pay_type==="hourly"?Number(s.hourly_rate)*Number(s.hours):Number(s.base_salary));const commission=roundMoney(Number(s.sales)*Number(s.commission_rate)/100);const overtimePay=roundMoney(Number(s.ot_hours||0)*Number(s.otRate||0));const total=roundMoney(basic+commission+overtimePay);const v={...s,basic,salesCommission:commission,overtimePay,total};const deduction=Math.max(0,Number(s.deduction)||0);
   const c=rules?computeContributions(rules,total,{birthDate:s.birth_date,residency:s.residency,statutoryOn:s.statutory_on!==false},month,appMoney().decimals):null;
   return <Card><div className="mb-3 flex items-start justify-between gap-2"><div><b>{s.name}</b><p className="text-xs text-white/40">{t("admin.pr.hours", { h: Number(s.hours).toFixed(1) })}{Number(s.ot_hours)>0?` · ${t("admin.pr.ot", { h: Number(s.ot_hours).toFixed(1) })}`:""} · {t("admin.pr.salesN", { n: s.tickets })} · {money(s.sales)}</p></div><span className={`rounded-lg px-2 py-1 text-[11px] font-bold ${Number(s.sales_target)>0&&Number(s.sales)>=Number(s.sales_target)?"bg-emerald-500/20 text-emerald-300":"bg-white/5 text-white/50"}`}>{Number(s.sales_target)>0?t("admin.pr.target", { n: Math.round(Number(s.sales)/Number(s.sales_target)*100) }):t("admin.pr.noTarget")}</span></div>
   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><label className="text-[11px] text-white/50">{t("admin.pr.payType")}<select value={s.pay_type||"salary"} onChange={e=>setS({...s,pay_type:e.target.value})} className={inp+" w-full"}><option value="salary">{t("admin.pr.monthly")}</option><option value="hourly">{t("admin.pr.hourly")}</option></select></label><label className="text-[11px] text-white/50">{t("admin.pr.basicSalary")}<input type="number" step={moneyStep()} value={s.base_salary||0} onChange={e=>setS({...s,base_salary:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">{t("admin.pr.hourlyRate")}<input type="number" step={moneyStep()} value={s.hourly_rate||0} onChange={e=>setS({...s,hourly_rate:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">{t("admin.pr.salesTarget")}<input type="number" value={s.sales_target||0} onChange={e=>setS({...s,sales_target:e.target.value})} className={inp+" w-full"}/></label><label className="text-[11px] text-white/50">{t("admin.pr.commissionPct")}<input type="number" min={0} value={s.commission_rate||0} onChange={e=>setS({...s,commission_rate:e.target.value})} className={inp+" w-full"}/></label>
     <label className="text-[11px] text-white/50">{t("admin.pr.birthDate")}<input type="date" value={s.birth_date||""} onChange={e=>setS({...s,birth_date:e.target.value})} className={inp+" w-full"} style={{colorScheme:"dark"}}/></label>
     {rules?.scheme==="cpf"&&<label className="text-[11px] text-white/50">{t("admin.pr.residency")}<select value={s.residency||"citizen"} onChange={e=>setS({...s,residency:e.target.value})} className={inp+" w-full"}>{["citizen","pr1","pr2","foreigner"].map(k=><option key={k} value={k}>{t(`admin.pr.res.${k}`)}</option>)}</select></label>}
-    <label className="flex items-end gap-2 pb-2 text-[11px] text-white/70"><input type="checkbox" checked={s.statutory_on!==false} onChange={e=>setS({...s,statutory_on:e.target.checked})}/>{t("admin.pr.statutoryOn")}</label></div>
+    <label className="flex items-end gap-2 pb-2 text-[11px] text-white/70"><input type="checkbox" checked={s.statutory_on!==false} onChange={e=>setS({...s,statutory_on:e.target.checked})}/>{t("admin.pr.statutoryOn")}</label>
+    <label className="text-[11px] text-white/50">{t("admin.pr.deposit")}<input type="number" min={0} step={moneyStep()} value={s.deposit||0} onChange={e=>setS({...s,deposit:e.target.value})} className={inp+" w-full"}/></label>
+    <label className="col-span-2 text-[11px] text-white/50">{t("admin.pr.depositNote")}<input value={s.deposit_note||""} maxLength={300} placeholder={t("admin.pr.depositNotePh")} onChange={e=>setS({...s,deposit_note:e.target.value})} className={inp+" w-full"}/></label></div>
   <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs"><span className="rounded-xl bg-white/5 p-2">{t("admin.pr.basic")}<br/><b>{money(basic)}</b></span><span className="rounded-xl bg-white/5 p-2">{t("admin.pr.commission")}<br/><b>{money(commission)}</b></span><span className="rounded-xl bg-white/5 p-2">{t("admin.pr.overtime")}<br/><b>{money(overtimePay)}</b></span><span className="rounded-xl bg-amber-400/10 p-2 text-amber-200">{t("admin.pr.gross")}<br/><b>{money(total)}</b></span></div>
   {c&&c.lines.length>0&&<div className="mt-2 rounded-xl bg-white/5 p-2 text-xs"><div className="grid grid-cols-3 gap-1 text-[11px] text-white/45"><span>{c.age!=null?t("admin.pr.ageNow",{n:c.age}):t("admin.pr.noAge")}</span><span className="text-right">{t("admin.pr.st.eeShort")}</span><span className="text-right">{t("admin.pr.st.erShort")}</span></div>{c.lines.map(l=><div key={l.code} className="grid grid-cols-3 gap-1"><span>{lineName(t,l)}</span><span className="text-right text-red-300">{l.ee?`− ${money(l.ee)}`:"—"}</span><span className="text-right text-sky-300">{l.er?`+ ${money(l.er)}`:"—"}</span></div>)}</div>}
-  {c&&<div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs"><span className="rounded-xl bg-red-500/10 p-2 text-red-200">{t("admin.pr.staffPays")}<br/><b>− {money(c.employee)}</b></span><span className="rounded-xl bg-emerald-500/15 p-2 text-emerald-200">{t("admin.pr.netPay")}<br/><b>{money(c.net)}</b></span><span className="rounded-xl bg-sky-500/10 p-2 text-sky-200">{t("admin.pr.companyCost")}<br/><b>{money(c.cost)}</b></span></div>}
-  <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={()=>onSave(v)} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">{t("admin.set.save")}</button><button onClick={()=>{if(confirm(t("admin.pr.confirm2", { v: money(total), net: money(c?.net??total), er: money(c?.employer??0), name: s.name })))onPay(v)}} disabled={total<=0} className="rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.pr.recordPaid")}</button></div></Card>}
+  <div className="mt-2 grid grid-cols-3 gap-2"><label className="text-[11px] text-white/50">{t("admin.pr.deduction")}<input type="number" min={0} step={moneyStep()} value={s.deduction||""} placeholder="0" onChange={e=>setS({...s,deduction:e.target.value})} className={inp+" w-full"}/></label><label className="col-span-2 text-[11px] text-white/50">{t("admin.pr.deductionNote")}<input value={s.deduction_note||""} maxLength={300} placeholder={t("admin.pr.deductionNotePh")} onChange={e=>setS({...s,deduction_note:e.target.value})} className={inp+" w-full"}/></label></div>
+  {c&&<div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs"><span className="rounded-xl bg-red-500/10 p-2 text-red-200">{t("admin.pr.staffPays")}<br/><b>− {money(c.employee+deduction)}</b></span><span className="rounded-xl bg-emerald-500/15 p-2 text-emerald-200">{t("admin.pr.netPay")}<br/><b>{money(Math.max(0,c.net-deduction))}</b></span><span className="rounded-xl bg-sky-500/10 p-2 text-sky-200">{t("admin.pr.companyCost")}<br/><b>{money(c.cost)}</b></span></div>}
+  <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={()=>onSave(v)} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">{t("admin.set.save")}</button><button onClick={()=>{if(confirm(t("admin.pr.confirm2", { v: money(total), net: money(Math.max(0,(c?.net??total)-deduction)), er: money(c?.employer??0), name: s.name })))onPay(v)}} disabled={total<=0} className="rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-black disabled:opacity-40">{t("admin.pr.recordPaid")}</button></div><StaffContractPanel userId={s.user_id} name={s.name} role={s.position_name}/></Card>}
 
 function Inventory() {
   const { toast } = useToast();
