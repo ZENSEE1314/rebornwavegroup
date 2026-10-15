@@ -31,7 +31,7 @@ import { publishTvGift, registerTvRoutes } from "./tvDisplay";
 import { tvPhoto } from "./tvLogic";
 import { cleanImportRows, matchKey } from "./inventoryImport";
 import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
-import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack } from "@shared/packPricing";
+import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } from "@shared/packPricing";
 import { cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
@@ -4883,7 +4883,7 @@ export function registerRebornRoutes(app: Express) {
         id: p.id, name: p.name, category: p.category, department: p.department || null, active: p.active, posVisible: p.posVisible,
         stock, cost, price, imageUrl: p.imageUrl, unitsPerPack: p.unitsPerPack ?? null, packPrice: p.packPrice === null || p.packPrice === undefined ? null : Number(p.packPrice),
         suppliers: Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set())),
-        stockValue: Math.round(run && run.layers.length ? run.stockValue : stock * cost),
+        stockValue: Math.round(run && run.layers.length ? run.layers.reduce((sum, layer) => sum + layer.qtyLeft * exactUnitCost(layer.unitCost, p.packPrice, p.unitsPerPack), 0) : stock * exactUnitCost(cost, p.packPrice, p.unitsPerPack)),
         retailValue: Math.round(stock * price),
         low: stock <= lowAt,
       };

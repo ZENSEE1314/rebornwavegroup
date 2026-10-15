@@ -21,6 +21,14 @@ export function unitPriceFromPack(packPrice: unknown, unitsPerPack: unknown): nu
   return pack !== null && units !== null ? Math.round((pack / units) * 100) / 100 : null;
 }
 
+/** The unit cost with its cents un-rounded: a stored cost of 24166.67 that came from 580,000 ÷ 24 is really 24166.666…, so 240 units are worth 5,800,000, not 5,800,001. Any other cost is returned as it is. */
+export function exactUnitCost(unitCost: number, packPrice: unknown, unitsPerPack: unknown): number {
+  const pack = cleanPackPrice(packPrice);
+  const units = cleanUnitsPerPack(unitsPerPack);
+  if (pack === null || units === null) return unitCost;
+  return Math.abs(unitCost - unitPriceFromPack(pack, units)!) < 0.005 ? pack / units : unitCost;
+}
+
 /** Whole packs and loose units for a stock count: 50 units of a 24-pack = 2 packs + 2. */
 export function packBreakdown(stock: number, unitsPerPack: number | null | undefined): { packs: number; loose: number } | null {
   const units = cleanUnitsPerPack(unitsPerPack);

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { cleanPackPrice, cleanUnitsPerPack, packBreakdown, unitPriceFromPack } from "./packPricing";
+import { cleanPackPrice, cleanUnitsPerPack, packBreakdown, unitPriceFromPack, exactUnitCost } from "./packPricing";
 
 describe("units per pack", () => {
   it("should accept a whole number from two", () => assert.equal(cleanUnitsPerPack(24), 24));
@@ -28,4 +28,10 @@ describe("the price of one unit", () => {
 describe("packs and loose units in stock", () => {
   it("should split 50 of a 24-pack into 2 packs and 2 loose", () => assert.deepEqual(packBreakdown(50, 24), { packs: 2, loose: 2 }));
   it("should give nothing for an item without a pack", () => assert.equal(packBreakdown(50, null), null));
+});
+
+describe("the exact unit cost", () => {
+  it("should value 240 units of a 580,000 pack of 24 at exactly 5,800,000", () => assert.equal(Math.round(240 * exactUnitCost(24166.67, 580000, 24)), 5800000));
+  it("should keep a cost that did not come from the pack", () => assert.equal(exactUnitCost(30000, 580000, 24), 30000));
+  it("should keep the cost when the item has no pack", () => assert.equal(exactUnitCost(24166.67, null, null), 24166.67));
 });
