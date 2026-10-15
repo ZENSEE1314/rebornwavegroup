@@ -895,6 +895,7 @@ export const posProducts = pgTable("pos_products", {
   creditOk: boolean("credit_ok").default(true).notNull(),      // can be paid with package credit
   unitsPerPack: integer("units_per_pack"),                    // sold by the pack too: how many units in one pack (24 cans)
   packPrice: decimal("pack_price", { precision: 14, scale: 2 }), // the price of one whole pack; the unit price = this ÷ units per pack
+  archived: boolean("archived").default(false).notNull(),      // "deleted" but sold before: gone from every list, kept for the sales history
   createdAt: timestamp("created_at").defaultNow(),
 });
 

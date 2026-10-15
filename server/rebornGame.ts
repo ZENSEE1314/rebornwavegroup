@@ -3015,7 +3015,7 @@ export function registerRebornRoutes(app: Express) {
       cnt(bottleKeeps, eq(bottleKeeps.status, "kept")),
       cnt(users),
       cnt(posProducts),
-      n(db.select({ c: sql`count(*)` }).from(posProducts).where(sql`${posProducts.stock} <= 5`)),
+      n(db.select({ c: sql`count(*)` }).from(posProducts).where(sql`${posProducts.stock} <= 5 AND ${posProducts.archived} = false`)),
     ]);
     res.json({ songRequests: songReq, redemptions, topups, openTickets, appOrders, bottles, users: users_, products, lowStock });
   }));
@@ -3206,12 +3206,12 @@ export function registerRebornRoutes(app: Express) {
   // Products — staff can read (to sell); admin manages catalogue/prices/stock.
   app.get("/api/reborn/pos/products", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    res.json(await db.select().from(posProducts).where(eq(posProducts.companyId, cid)).orderBy(posProducts.sortOrder, posProducts.name));
+    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name));
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.archived, false), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
     const allowNegative = (await getSettings()).allowNegativeStock;
     res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
   });
@@ -3240,7 +3240,12 @@ export function registerRebornRoutes(app: Express) {
     const [product] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
     if (!product) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该商品", id: "Item tidak ditemukan" }) });
     const [sold] = await db.select({ count: sql<number>`count(*)` }).from(posTicketItems).where(eq(posTicketItems.productId, id));
-    if (Number(sold?.count) > 0) return res.status(409).json({ message: tr(req, { en: "This item was sold before, so it can't be deleted. Hide it instead.", zh: "该商品已有销售记录，无法删除，请改为隐藏。", id: "Item ini pernah terjual sehingga tidak bisa dihapus. Sembunyikan saja." }) });
+    if (Number(sold?.count) > 0) {
+      // Sold before: its bills and accounting still point at it, so it is archived — gone from every list and the POS, history kept.
+      await db.update(posProducts).set({ archived: true, active: false, posVisible: false }).where(eq(posProducts.id, id));
+      await logAdmin(req, { targetType: "pos_product", targetId: id, action: "delete_product", entityType: "stock", description: `Deleted item "${product.name}" (sold before: archived, sales history kept)` });
+      return res.json({ message: tr(req, { en: "Item deleted (past sales keep it in their history)", zh: "商品已删除（过往销售记录仍保留）", id: "Item dihapus (riwayat penjualan tetap tersimpan)" }), archived: true });
+    }
     await db.transaction(async (tx) => {
       await tx.delete(stockMovements).where(eq(stockMovements.productId, id));
       await tx.delete(posProducts).where(eq(posProducts.id, id));
@@ -3288,7 +3293,7 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/pos/stock", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind))).orderBy(posProducts.stock)); // packages hold no stock
+    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind))).orderBy(posProducts.stock)); // packages hold no stock
   }));
 
   // Member lookup by member code (referral code), email, or phone — for POS key-in.
@@ -4653,7 +4658,7 @@ export function registerRebornRoutes(app: Express) {
     if (!rows.length) return res.status(400).json({ message: tr(req, { en: "No items found in the file", zh: "文件中没有找到商品", id: "Tidak ada item di file" }) });
     const cid = await rebornCompanyId(req);
     const actor = getUserId(req)!;
-    const existing = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind)));
+    const existing = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
     const byName = new Map(existing.map((product) => [matchKey(product.name), product]));
     let created = 0, updated = 0;
     const importLog: Array<{ id: number; name: string; from: number; to: number }> = [];
@@ -4718,7 +4723,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/inventory", requireManager(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind))).orderBy(posProducts.category, posProducts.name); // packages hold no stock
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind))).orderBy(posProducts.category, posProducts.name); // packages hold no stock
     // Distinct suppliers each product has been restocked from (one item, many suppliers).
     const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier })
       .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));
@@ -4922,7 +4927,7 @@ export function registerRebornRoutes(app: Express) {
     writeSetting: writeSettingValue,
     listProducts: async () => {
       const cid = await rebornCompanyId();
-      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), eq(posProducts.active, true)));
+      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), eq(posProducts.active, true), eq(posProducts.archived, false)));
       return rows.map((p) => ({ id: p.id, name: p.name, stock: p.stock, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "", imageUrl: p.imageUrl }));
     },
     clubName: async () => (await getSettings()).clubName || "Reborn Wave",

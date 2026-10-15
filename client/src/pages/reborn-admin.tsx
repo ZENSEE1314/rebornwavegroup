@@ -2254,7 +2254,7 @@ function DuplicateProductButton({ p }: { p: any }) {
 }
 
 // Deleting an item takes two taps (no browser pop-up): the first asks, the second deletes. An item that was sold before
-// can't be deleted (the server says so) and should be hidden instead.
+// is archived instead of erased (gone from every list, past bills keep it).
 function DeleteProductButton({ p }: { p: any }) {
   const { canDelete } = useProductRights();
   const { toast } = useToast();
