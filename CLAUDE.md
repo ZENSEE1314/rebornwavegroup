@@ -818,3 +818,21 @@ text.
   `GET /api/reborn/support/staff` (list with average, review count, the member's own rating), `POST /api/reborn/support/rate-staff`. One rating per
   member per person (rating again replaces it). It is saved in `bridge_staff_reviews` (what the staff leaderboard averages: ⭐ + review count, red flag
   on low ratings) and in `bridge_feedback` (Admin › Feedback).
+
+## Items with no stock, staff deposit, employment contracts
+
+- An item with no stock (`stock <= 0`, not a package, and the `allowNegativeStock` setting off) is left out of the POS picker for tables and
+  staff orders (`soldOut` on `/api/reborn/pos/products`; `ProductPicker` skips it) and out of the member order page
+  (`/api/reborn/shop/products` no longer lists it). Admin lists and the POS Stock tab still show it. Turning on "allow negative stock" shows it again.
+- Payroll › each staff row has a **Deposit held** amount and a **note** (`bridge_staff_profiles.deposit` / `deposit_note`); it is kept on
+  the profile, printed as a clause in the contract, and does not change the pay calculation.
+- Employment contract (server/staffContracts.ts, shared/staffContract.ts, server/contractPdf.ts; table `staff_contracts`): staff (users with
+  role staff/admin) upload their ID photo in the app (Profile › My employment, `/employment`; shrunk in the browser, stored as a data URL in
+  the company's own database — never in the public uploads folder — and only returned to the person and to an admin). In Admin › Payroll › a staff row
+  › "Employment contract & ID" the main admin sees the ID, sets the role (job title), start date, language (en / 中文 / id) and extra terms and
+  sends the letter (`send`; wording built from the payroll profile: salary or hourly pay, commission, deposit). The staff member reads it, types
+  their name and draws a signature (`sign`, needs the ID uploaded) → "Signed — approve it" → the admin approves (`approve`) or sends it back
+  with a note (`return`). Approving writes the PDF (pdfkit; Chinese needs a CJK font — the Dockerfile installs fonts-wqy-zenhei, or set
+  `CONTRACT_CJK_FONT`; without one the PDF is written in English) and e-mails it to the staff member's email and to the approving admin's email
+  (`sendEmailDetailed` with an attachment; needs `RESEND_API_KEY` or `SENDGRID_API_KEY`). A staff member without an email (phone login) only gets the
+  in-app download. The wording is a general template — a company should have it checked for its country.

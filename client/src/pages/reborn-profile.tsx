@@ -9,7 +9,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { useTranslation } from "@/lib/i18n";
 import { useDisabledFeatures } from "@/lib/features";
 import { COUNTRIES, DIAL_CODES } from "@/lib/countries";
-import { User, Lock, Globe, Copy, CreditCard, ReceiptText } from "lucide-react";
+import { User, Lock, Globe, Copy, CreditCard, ReceiptText, FileText } from "lucide-react";
 import { GiftLevelsCard } from "@/components/LevelRing";
 
 const LANGS: { code: "en" | "zh" | "id"; label: string; flag: string }[] = [
@@ -119,6 +119,7 @@ export default function RebornProfile() {
         )}
       </div>
 
+      {["admin", "staff"].includes((u as any).role) && <a href="/employment" className="rounded-2xl border border-sky-400/25 bg-sky-400/10 p-4 mb-4 flex items-center gap-3"><FileText className="w-5 h-5 text-sky-300" /><span className="flex-1"><b className="block">{t("emp.link")}</b><span className="text-xs text-white/50">{t("emp.linkDesc")}</span></span></a>}
       {!historyOff && <a href="/history" className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 mb-4 flex items-center gap-3"><ReceiptText className="w-5 h-5 text-amber-300" /><span className="flex-1"><b className="block">{t("ac.prof.historyTitle")}</b><span className="text-xs text-white/50">{t("ac.prof.historyDesc")}</span></span></a>}
 
       {/* Language */}

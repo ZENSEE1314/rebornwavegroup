@@ -13,7 +13,7 @@ import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt,
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { money, roundMoney } from "@/lib/money";
 
-interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
+interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
@@ -155,7 +155,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const industries = useMemo(() => Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort() as string[], [products]);
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
-    for (const p of products) { if (industry && !deptHas(p.department, industry)) continue; (g[p.category || ""] ||= []).push(p); }
+    for (const p of products) { if (p.soldOut || (industry && !deptHas(p.department, industry))) continue; (g[p.category || ""] ||= []).push(p); }
     return Object.entries(g);
   }, [products, industry]);
   return (

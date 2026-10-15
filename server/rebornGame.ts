@@ -35,6 +35,7 @@ import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack } from "@shared/pa
 import { cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
+import { registerStaffContractRoutes } from "./staffContracts";
 import { registerVenueScanRoutes } from "./venueScan";
 import { registerSupplierReorder, runSupplierReorderCheck } from "./supplierReorder";
 import { searchSongCatalog, textPinyin } from "./songSearch";
@@ -3206,14 +3207,18 @@ export function registerRebornRoutes(app: Express) {
   // Products — staff can read (to sell); admin manages catalogue/prices/stock.
   app.get("/api/reborn/pos/products", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name));
+    const allowNegative = (await getSettings()).allowNegativeStock;
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name);
+    // soldOut = nothing left to sell: the POS (tables + staff orders) leaves such an item out of its picker.
+    res.json(rows.map((p) => ({ ...p, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
     const cid = await rebornCompanyId(req);
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.archived, false), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
     const allowNegative = (await getSettings()).allowNegativeStock;
-    res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
+    // An item with no stock is not shown to members at all (not even greyed out).
+    res.json(rows.filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: false })));
   });
   app.post("/api/reborn/admin/pos/products", requireManager(async (req, res) => {
     const b = req.body || {};
@@ -4071,13 +4076,13 @@ export function registerRebornRoutes(app: Express) {
     const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
-    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
     const staff=((result.rows||result) as any[]).map((x)=>{const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
     res.json({month,from,to,staff,referrals:refs.rows||refs,rules,money,country:companyCountry()});
   }));
-  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),birthDate:/^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate||""))?String(b.birthDate):null,residency:asResidency(b.residency),statutoryOn:b.statutoryOn!==false,updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
+  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),birthDate:/^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate||""))?String(b.birthDate):null,residency:asResidency(b.residency),statutoryOn:b.statutoryOn!==false,deposit:String(Math.max(0,Number(b.deposit)||0)),depositNote:String(b.depositNote||"").trim().slice(0,300)||null,updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
   // Record a month's pay: the gross salary as an expense, plus the employer's statutory
   // contributions (CPF / BPJS…) as their own expense. The employee's share is part of the
   // gross: it is withheld from the staff member and paid to the fund with the employer's.
@@ -4914,6 +4919,30 @@ export function registerRebornRoutes(app: Express) {
       if (!phones.length) return void (await notifyAdmins(pick("en", text, vars)));
       for (const phone of phones) await sendWhatsApp(phone, pick(await langForPhone(phone), text, vars));
     },
+  });
+  registerStaffContractRoutes(app, {
+    requireStaff,
+    requireAdmin,
+    userId: (req) => getUserId(req) as string,
+    companyId: (req) => rebornCompanyId(req),
+    companyName: async () => (await getSettings()).clubName || "Reborn Wave",
+    money: (n) => formatMoneyIn(companyMoney(), n),
+    profile: async (userId) => {
+      const u = await storage.getUser(userId);
+      if (!u) return null;
+      const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
+      const [p] = company ? await db.select().from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId, company.id), eq(bridgeStaffProfiles.userId, userId))).limit(1) : [];
+      return {
+        name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || "Staff", email: u.email || null,
+        employmentType: p?.employmentType || "full_time", payType: p?.payType || "salary", baseSalary: Number(p?.baseSalary) || 0, hourlyRate: Number(p?.hourlyRate) || 0,
+        commissionRate: Number(p?.commissionRate) || 0, deposit: Number(p?.deposit) || 0, depositNote: p?.depositNote || "",
+      };
+    },
+    notifyUser: (userId, type, text, data) => notifyUserI18n(userId, type, (lang) => ({ title: pick(lang, { en: "Employment", zh: "雇佣", id: "Pekerjaan" }), body: pick(lang, text) }), data),
+    notifyAdmins: (type, text, data) => notifyStaffI18n(type, (lang) => ({ title: pick(lang, { en: "Employment", zh: "雇佣", id: "Pekerjaan" }), body: pick(lang, text) }), data, { adminsOnly: true }),
+    adminEmail: async (req) => (await storage.getUser(getUserId(req) as string))?.email || null,
+    adminName: async (req) => { const u = await storage.getUser(getUserId(req) as string); return [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || "Admin"; },
+    log: (req, entry) => logAdmin(req, { targetUserId: entry.targetUserId, targetType: "staff_contract", targetId: entry.targetUserId, action: entry.action, entityType: "staff", description: entry.description }),
   });
   registerStockLayers(app, {
     requireAdmin,
