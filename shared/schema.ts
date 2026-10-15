@@ -897,6 +897,7 @@ export const posProducts = pgTable("pos_products", {
   creditOk: boolean("credit_ok").default(true).notNull(),      // can be paid with package credit
   unitsPerPack: integer("units_per_pack"),                    // sold by the pack too: how many units in one pack (24 cans)
   packPrice: decimal("pack_price", { precision: 14, scale: 2 }), // the price of one whole pack; the unit price = this ÷ units per pack
+  packageItemIds: text("package_item_ids"),                  // a visits package of items (6 beers): JSON array of the products it can be redeemed for
   archived: boolean("archived").default(false).notNull(),      // "deleted" but sold before: gone from every list, kept for the sales history
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -911,6 +912,7 @@ export const memberPackages = pgTable("member_packages", {
   productId: integer("product_id"),
   ticketId: integer("ticket_id"),                 // the bill it was bought on
   kind: varchar("kind").notNull(),                // 'uses' | 'credit'
+  itemIds: text("item_ids"),                      // JSON array of product ids a visits package can be redeemed for (null = a plain visit)
   name: varchar("name").notNull(),
   usesTotal: integer("uses_total").default(0).notNull(),
   usesLeft: integer("uses_left").default(0).notNull(),

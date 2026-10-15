@@ -586,6 +586,10 @@ text.
   when it expires within 7 days (every 2 days, daily in the last 3) or hasn't been used
   for 14 days (every 14 days); `member_packages.last_reminder_at`. Admin › CRM "run
   reminders" sends them right away (any hour).
+- A visits package can be a package of items ("6 beers — choose which"): in the package form the admin ticks the items it can be redeemed for
+  (`pos_products.package_item_ids`, copied to `member_packages.item_ids` when sold). "Use 1" then asks which item (POS pay panel and Packages tab,
+  `UsePackageButton`); it needs the member's open bill, adds that item at RP 0 (`appendItems`, so it comes off that item's stock and writes a
+  stock movement) and takes one use. A sold-out item can't be chosen. No item ticked = a plain visit as before.
 - The POS asks `/api/reborn/pos/quote` for the bill (perk + credit) so the till shows
   exactly what the server will charge.
 
@@ -825,7 +829,10 @@ text.
   staff orders (`soldOut` on `/api/reborn/pos/products`; `ProductPicker` skips it) and out of the member order page
   (`/api/reborn/shop/products` no longer lists it). Admin lists and the POS Stock tab still show it. Turning on "allow negative stock" shows it again.
 - Payroll › each staff row has a **Deposit held** amount and a **note** (`bridge_staff_profiles.deposit` / `deposit_note`); it is kept on
-  the profile, printed as a clause in the contract, and does not change the pay calculation.
+  the profile and printed as a clause in the contract: it covers the first month (a penalty then comes out of it), and from the second month a
+  penalty is deducted from the salary. Each payroll row has a **Deduction this month** amount + reason: the staff member's net pay is reduced
+  by it, the `salary` expense booked is gross − deduction (statutory contributions stay on the gross), and the reason is in the ledger note and admin log.
+  The deposit itself is only a record (nothing is taken from it automatically).
 - Employment contract (server/staffContracts.ts, shared/staffContract.ts, server/contractPdf.ts; table `staff_contracts`): staff (users with
   role staff/admin) upload their ID photo in the app (Profile › My employment, `/employment`; shrunk in the browser, stored as a data URL in
   the company's own database — never in the public uploads folder — and only returned to the person and to an admin). In Admin › Payroll › a staff row

@@ -278,4 +278,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.pkg.none': { en: "No active packages", zh: "没有有效的套餐", id: "Tidak ada paket aktif" },
   'pos.pkg.tileUses': { en: "Package · {n} visits", zh: "套餐 · {n} 次", id: "Paket · {n} kunjungan" },
   'pos.pkg.tileCredit': { en: "Package · {n} credit", zh: "套餐 · {n} 余额", id: "Paket · kredit {n}" },
+  'pos.pkg.chooseItem': { en: "Choose item", zh: "选择商品", id: "Pilih item" },
+  'pos.pkg.useItem': { en: "Use 1", zh: "使用 1 个", id: "Pakai 1" },
+  'pos.pkg.needBill': { en: "Open the member's bill first, then use the package there.", zh: "请先开启会员的账单，再在账单里使用套餐。", id: "Buka tagihan member dulu, lalu pakai paket di tagihan itu." },
 };

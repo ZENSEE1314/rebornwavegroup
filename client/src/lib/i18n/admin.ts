@@ -1583,4 +1583,13 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.ctr.emailedBoth': { en: "The PDF was e-mailed to the staff member and to you.", zh: "PDF 已发送给员工和您本人。", id: "PDF dikirim ke staf dan ke Anda." },
   'admin.ctr.emailedSome': { en: "The PDF was e-mailed to one address; the other has no email or it failed — download the PDF.", zh: "PDF 已发送到其中一个邮箱；另一个没有邮箱或发送失败——请下载 PDF。", id: "PDF dikirim ke satu alamat; yang lain tidak punya email atau gagal — unduh PDF." },
   'admin.ctr.emailedNone': { en: "The PDF could not be e-mailed (no email address or no mail service). Download it instead.", zh: "无法发送邮件（没有邮箱或邮件服务未设置）。请下载 PDF。", id: "PDF tidak bisa dikirim lewat email (tidak ada email atau layanan email). Unduh saja." },
+  'admin.pkg.itemsTitle': { en: "Items this package is for (optional)", zh: "此套餐对应的商品（选填）", id: "Item untuk paket ini (opsional)" },
+  'admin.pkg.itemsHint': { en: "For example 6 beers: tick the beers. Staff choose which one at each use; it is added to the bill at 0 and comes off that item's stock. Leave empty for a plain visit.", zh: "例如 6 瓶啤酒：勾选可选的啤酒。每次使用时由员工选择，商品以 0 元加入账单并从该商品库存扣除。留空则为普通次数。", id: "Contoh 6 botol bir: centang birnya. Staf memilih salah satu setiap kali dipakai; item masuk ke tagihan seharga 0 dan mengurangi stok item itu. Kosongkan untuk kunjungan biasa." },
+  'admin.pkg.itemsSearch': { en: "Search items", zh: "搜索商品", id: "Cari item" },
+  'admin.pkg.itemStock': { en: "stock {n}", zh: "库存 {n}", id: "stok {n}" },
+  'admin.pkg.itemsNone': { en: "No item found", zh: "没有找到商品", id: "Item tidak ditemukan" },
+  'admin.pkg.itemsPicked': { en: "{n} item(s) ticked", zh: "已勾选 {n} 个商品", id: "{n} item dicentang" },
+  'admin.pr.deduction': { en: "Deduction this month (late, penalty…)", zh: "本月扣款（迟到、罚款等）", id: "Potongan bulan ini (terlambat, denda…)" },
+  'admin.pr.deductionNote': { en: "Reason for the deduction", zh: "扣款原因", id: "Alasan potongan" },
+  'admin.pr.deductionNotePh': { en: "e.g. late 3 times, broken glass", zh: "例如：迟到 3 次、打破杯子", id: "mis. terlambat 3 kali, gelas pecah" },
 };

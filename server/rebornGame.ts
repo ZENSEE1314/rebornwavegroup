@@ -9,7 +9,7 @@ import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYM
 import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL, GIFT_LEVELS_SINCE_KEY } from "./giftLevels";
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
-import { packageFields, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
+import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn } from "@shared/countries";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
@@ -52,7 +52,7 @@ import {
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
   posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
   staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory,
-  venueCheckins, memberWalletTransactions,
+  venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -3827,9 +3827,24 @@ export function registerRebornRoutes(app: Express) {
     const ticketId = Number(req.body?.ticketId) || null;
     const [ticket] = ticketId ? await db.select().from(posTickets).where(eq(posTickets.id, ticketId)) : [];
     if (ticketId && (!ticket || ticket.status !== "open")) return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
+    // A package of items ("6 beers"): staff choose which one; it goes on the bill at RP 0 and comes off that item's stock like any order.
+    const [pkg] = await db.select().from(memberPackages).where(eq(memberPackages.id, id));
+    const itemIds = parseItemIds(pkg?.itemIds);
+    let chosen: typeof posProducts.$inferSelect | undefined;
+    if (itemIds.length) {
+      if (!ticket) return res.status(400).json({ message: tr(req, { en: "Open the member's bill first — the item is added to it.", zh: "请先开启会员的账单——商品会加到账单上。", id: "Buka tagihan member dulu — item akan ditambahkan ke tagihan." }) });
+      const productId = Number(req.body?.productId) || (itemIds.length === 1 ? itemIds[0] : 0);
+      if (!itemIds.includes(productId)) return res.status(400).json({ message: tr(req, { en: "Choose which item to use.", zh: "请选择要使用的商品。", id: "Pilih item yang dipakai." }) });
+      [chosen] = await db.select().from(posProducts).where(eq(posProducts.id, productId));
+      if (!chosen || chosen.archived || !chosen.active) return res.status(400).json({ message: tr(req, { en: "That item is no longer available.", zh: "该商品已不再供应。", id: "Item itu sudah tidak tersedia." }) });
+      if (!(await getSettings()).allowNegativeStock && (chosen.stock ?? 0) < n) return res.status(400).json({ message: tr(req, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: chosen.name }) });
+    }
     const after = await takePackageUses(id, n, getUserId(req)!, ticketId);
     if (!after) return res.status(400).json({ message: tr(req, { en: "Not enough visits left on this package (or it has expired)", zh: "该套餐剩余次数不足（或已过期）", id: "Sisa kunjungan paket ini tidak cukup (atau sudah kedaluwarsa)" }) });
-    if (ticket) {
+    if (ticket && chosen) {
+      await appendItems(ticket.id, ticket.orderNo || String(ticket.id), [{ productId: chosen.id, name: `${chosen.name} · ${after.name} (${after.usesLeft}/${after.usesTotal})`, price: 0, qty: n }], getUserId(req)!);
+      emitLiveUpdate("/api/reborn/pos/orders", { action: "PACKAGE_USE", resource: String(ticket.id) });
+    } else if (ticket) {
       await db.insert(posTicketItems).values({ orderId: ticket.id, productId: null, name: `${after.name} · ${tr(req, { en: "package", zh: "套餐", id: "paket" })} (${after.usesLeft}/${after.usesTotal})`, price: "0", qty: n, lineTotal: "0", status: "accepted", source: "pos" });
       emitLiveUpdate("/api/reborn/pos/orders", { action: "PACKAGE_USE", resource: String(ticket.id) });
     }
@@ -4095,10 +4110,12 @@ export function registerRebornRoutes(app: Express) {
     const [profile]=company?await db.select().from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId,company.id),eq(bridgeStaffProfiles.userId,userId))).limit(1):[];
     const c=computeContributions(await payrollRules(),amount,{birthDate:profile?.birthDate,residency:profile?.residency,statutoryOn:profile?.statutoryOn},month,companyMoney().decimals);
     const parts=c.lines.map((l)=>`${(l.label||l.code).toUpperCase()} ee ${l.ee} / er ${l.er}`).join(", ");
-    const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(amount),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}, net pay ${c.net}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
+    // A deduction (late, penalty…) is taken from the pay: the staff member receives less and the salary expense is that much smaller.
+    const deduction=Math.min(roundMoney(Math.max(0,Number(b.deduction)||0)),Math.max(0,c.net));const deductionNote=String(b.deductionNote||"").trim().slice(0,300);const netPay=roundMoney(c.net-deduction);
+    const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(roundMoney(amount-deduction)),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}${deduction>0?`, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}`:""}, net pay ${netPay}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
     if(c.employer>0)await db.insert(ledgerEntries).values({kind:"expense",category:"statutory_contribution",amount:String(c.employer),note:`Employer contributions ${b.name||userId} · ${month}${parts?` (${parts})`:""}`,refType:"payroll_employer",refId:`${userId}:${month}`,userId});
-    await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, net ${c.net}, employer ${c.employer}`});
-    res.json({message:tr(req, { en: "Payroll recorded: net pay {net}, staff contributions {ee}, company contributions {er}", zh: "工资已记录：实发 {net}，员工缴费 {ee}，公司缴费 {er}", id: "Gaji dicatat: gaji bersih {net}, iuran staf {ee}, iuran perusahaan {er}" },{net:formatMoneyIn(companyMoney(),c.net),ee:formatMoneyIn(companyMoney(),c.employee),er:formatMoneyIn(companyMoney(),c.employer)}),row,contributions:c});
+    await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}, net ${netPay}, employer ${c.employer}`});
+    res.json({message:tr(req, { en: "Payroll recorded: net pay {net}, staff contributions {ee}, company contributions {er}", zh: "工资已记录：实发 {net}，员工缴费 {ee}，公司缴费 {er}", id: "Gaji dicatat: gaji bersih {net}, iuran staf {ee}, iuran perusahaan {er}" },{net:formatMoneyIn(companyMoney(),netPay),ee:formatMoneyIn(companyMoney(),c.employee),er:formatMoneyIn(companyMoney(),c.employer)}),row,contributions:c});
   }));
 
   // White-label feature flags — read the club's enabled modules from the

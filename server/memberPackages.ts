@@ -16,6 +16,15 @@ const money = (n: unknown) => roundMoney(Number(n) || 0); // whole rupiah, or ce
 // Not expired: no end date or it is still in the future.
 const notExpired = () => or(isNull(memberPackages.expiresAt), gt(memberPackages.expiresAt, new Date()));
 
+// The products a visits package can be redeemed for ("6 beers — choose which"), as a JSON text; null = a plain visit.
+export function itemIdsJson(v: unknown): string | null {
+  const ids = Array.from(new Set((Array.isArray(v) ? v : []).map((x) => Math.floor(Number(x))).filter((x) => x > 0))).slice(0, 60);
+  return ids.length ? JSON.stringify(ids) : null;
+}
+export function parseItemIds(v: string | null | undefined): number[] {
+  try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.map(Number).filter((x) => x > 0) : []; } catch { return []; }
+}
+
 // Admin product form → the package columns (null kind = a normal product).
 export function packageFields(b: any) {
   const kind = b.packageKind === "uses" || b.packageKind === "credit" ? b.packageKind : null;
@@ -23,6 +32,7 @@ export function packageFields(b: any) {
   return {
     packageKind: kind,
     packageUses: kind === "uses" ? Math.max(1, int(b.packageUses) || 1) : null,
+    packageItemIds: kind === "uses" ? itemIdsJson(b.packageItemIds) : null,
     packageCredit: kind === "credit" ? String(Math.max(0, money(b.packageCredit))) : null,
     packageValidDays: kind ? int(b.packageValidDays) : null,
     perkPercent: kind === "credit" && Number(b.perkPercent) > 0 ? String(Math.min(100, Number(b.perkPercent))) : null,
@@ -42,7 +52,7 @@ export async function memberWallet(userId: string) {
   const best = perks[0];
   return {
     packages: live.map((p) => ({
-      id: p.id, kind: p.kind, name: p.name, usesTotal: p.usesTotal, usesLeft: p.usesLeft,
+      id: p.id, kind: p.kind, name: p.name, usesTotal: p.usesTotal, usesLeft: p.usesLeft, itemIds: parseItemIds(p.itemIds),
       creditTotal: Number(p.creditTotal), creditLeft: Number(p.creditLeft), expiresAt: p.expiresAt,
       perkPercent: Number(p.perkPercent), perkDays: p.perkDays, createdAt: p.createdAt,
     })),
@@ -147,7 +157,7 @@ export async function issuePackages(member: { id: string; name: string | null; c
       const uses = p.packageKind === "uses" ? Math.max(1, p.packageUses || 1) : 0;
       const [row] = await db.insert(memberPackages).values({
         companyId, userId: member.id, memberName: member.name, memberCode: member.code, productId: p.id, ticketId,
-        kind: p.packageKind!, name: p.name, usesTotal: uses, usesLeft: uses, creditTotal: String(credit), creditLeft: String(credit),
+        kind: p.packageKind!, name: p.name, itemIds: p.packageKind === "uses" ? p.packageItemIds : null, usesTotal: uses, usesLeft: uses, creditTotal: String(credit), creditLeft: String(credit),
         pricePaid: String(Number(it.price) || 0), perkPercent: String(Number(p.perkPercent) || 0), perkDays: p.perkDays,
         expiresAt: p.packageValidDays ? new Date(now.getTime() + p.packageValidDays * DAY_MS) : null,
       }).returning();
@@ -179,5 +189,5 @@ export async function listActivePackages(q: string) {
   const rows = await db.select().from(memberPackages).where(and(eq(memberPackages.status, "active"), notExpired())).orderBy(asc(memberPackages.memberName), asc(memberPackages.id)).limit(300);
   const needle = q.trim().toLowerCase();
   return (needle ? rows.filter((r) => [r.memberName, r.memberCode, r.name].some((v) => (v || "").toLowerCase().includes(needle))) : rows)
-    .map((p) => ({ ...p, creditTotal: Number(p.creditTotal), creditLeft: Number(p.creditLeft), perkPercent: Number(p.perkPercent) }));
+    .map((p) => ({ ...p, itemIds: parseItemIds(p.itemIds), creditTotal: Number(p.creditTotal), creditLeft: Number(p.creditLeft), perkPercent: Number(p.perkPercent) }));
 }
