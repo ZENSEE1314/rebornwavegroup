@@ -807,6 +807,8 @@ function AppDesignSettings() {
   const font = pickedFont ?? data?.font ?? "";
   const isUnchanged = skin === data?.skin && palette === (data?.palette ?? "") && font === (data?.font ?? "")
     && (palette !== CUSTOM_PALETTE || JSON.stringify(colours) === JSON.stringify(data?.colours ?? null));
+  const choiceKey = JSON.stringify([skin, palette, colours, font]);
+  const [failedKey, setFailedKey] = useState("");
   const reset = () => { setPick(null); setPickedPalette(null); setPickedColours(null); setPickedFont(null); };
   // Live preview of the choice; the saved look comes back when this screen closes.
   useEffect(() => { if (data) applyAppSkin(skin, palette, { colours, font }); }, [data, skin, palette, JSON.stringify(colours), font]);
@@ -818,10 +820,16 @@ function AppDesignSettings() {
       qc.setQueryData(["/api/reborn/admin/app-skin"], { skin: d.skin, palette: d.palette, colours: d.colours, font: d.font });
       applyAppSkin(d.skin, d.palette, { colours: d.colours, font: d.font });
       qc.invalidateQueries({ queryKey: ["tenant-brand"] });
-      reset();
     },
-    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+    onError: (e: any) => { setFailedKey(choiceKey); toast({ title: e.message, variant: "destructive" }); },
   });
+  // A choice is saved by itself a moment after it is made (colour pickers fire many times while dragging),
+  // so the admin never has to press Save. Failed save: the buttons below stay for a manual retry.
+  useEffect(() => {
+    if (!data || isUnchanged || save.isPending || failedKey === choiceKey) return;
+    const timer = setTimeout(() => save.mutate(), 400);
+    return () => clearTimeout(timer);
+  }, [data, isUnchanged, save.isPending, choiceKey, failedKey]);
   if (!data) return null;
   return (
     <Card>
