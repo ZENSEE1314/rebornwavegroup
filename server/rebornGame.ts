@@ -3984,8 +3984,26 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     const u = await findMemberByCode(b.memberCode || "");
     if (!u) return res.status(404).json({ message: tr(req, { en: "Enter a valid member (code/card/username/email) to keep a bottle.", zh: "请输入有效的会员（会员码/卡号/用户名/邮箱）以寄存酒瓶。", id: "Masukkan member yang valid (kode/kartu/nama pengguna/email) untuk menitipkan botol." }) });
-    const row = await storeBottleForMember(u, { ...b, enabled: true, name: String(b.name || "").trim() || "Bottle" }, getUserId(req)!, reqLang(req));
+    // The customer's own bottle: the corkage service (a product marked as a service) is added to their table's bill, once per bottle.
+    const corkageId = Number(b.corkage?.productId) || 0;
+    const corkageTable = String(b.corkage?.tableNumber || "").trim();
+    let corkageLines: any[] = [];
+    if (corkageId) {
+      if (!corkageTable) return res.status(400).json({ message: tr(req, { en: "Enter the table to put the corkage on", zh: "请输入要记入开瓶费的桌号", id: "Masukkan meja untuk biaya corkage" }) });
+      const [service] = await db.select().from(posProducts).where(eq(posProducts.id, corkageId));
+      if (!service?.isService) return res.status(400).json({ message: tr(req, { en: "Choose a service (like corkage) to charge", zh: "请选择要收取的服务项目（如开瓶费）", id: "Pilih layanan (seperti corkage) yang dikenakan" }) });
+      const resolved = await resolveItems([{ productId: corkageId, qty: Math.max(1, Math.floor(Number(b.quantity) || 1)) }], reqLang(req));
+      if (resolved.error) return res.status(400).json({ message: resolved.error });
+      corkageLines = resolved.clean!;
+    }
+    const row = await storeBottleForMember(u, { ...b, enabled: true, name: String(b.name || "").trim() || "Bottle", note: [b.isOwn ? "Own bottle" : "", b.note].filter(Boolean).join(" · ") }, getUserId(req)!, reqLang(req));
     if (!row) return res.status(400).json({ message: tr(req, { en: "Could not store bottle", zh: "无法寄存酒瓶", id: "Tidak dapat menyimpan botol" }) });
+    if (corkageLines.length) {
+      const cid = await rebornCompanyId(req);
+      let [ticket] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, corkageTable))).limit(1);
+      if (!ticket) [ticket] = await db.insert(posTickets).values({ companyId: cid, orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", ...memberTag(u), tableNumber: corkageTable, orderMode: "dine_in", subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
+      await appendItems(ticket.id, ticket.orderNo, corkageLines, getUserId(req)!);
+    }
     await logAdmin(req, { targetUserId: u.id, targetType: "bottle_keep", targetId: row.id, action: "store", entityType: "bottle", description: `Kept ${row.quantity}× ${row.name} for ${row.memberName} (30 days)` });
     res.json({ message: tr(req, { en: "Stored for {name} — 30 days to collect.", zh: "已为 {name} 寄存——30 天内领取。", id: "Disimpan untuk {name} — 30 hari untuk diambil." }, { name: String(row.memberName || "") }), bottle: bottleView(row) });
   }));

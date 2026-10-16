@@ -763,6 +763,8 @@ function BottlesTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [f, setF] = useState({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
+  const [isOwn, setIsOwn] = useState(false); // the customer brought the bottle: any name, and a corkage service can go on the bill
+  const [corkage, setCorkage] = useState({ productId: "", tableNumber: "" });
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [q, setQ] = useState("");
   const { t } = useTranslation();
@@ -778,8 +780,8 @@ function BottlesTab() {
     enabled: f.memberCode.trim().length >= 1 && !selectedMember,
   });
   const store = useMutation({
-    mutationFn: () => post("/api/reborn/pos/bottle-keep", f),
-    onSuccess: (d) => { toast({ title: d.message }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setSelectedMember(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
+    mutationFn: () => post("/api/reborn/pos/bottle-keep", { ...f, isOwn, ...(isOwn && corkage.productId ? { corkage: { productId: Number(corkage.productId), tableNumber: corkage.tableNumber } } : {}) }),
+    onSuccess: (d) => { toast({ title: d.message }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setCorkage({ productId: "", tableNumber: "" }); setSelectedMember(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   const collect = useMutation({
@@ -788,8 +790,9 @@ function BottlesTab() {
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   const inp = "w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm";
+  const services = products.filter((p: any) => p.isService && Number(p.price) > 0);
   const drinks = products.filter((p)=>isDrink(p.category,p.name));
-  const drinkTypes = Array.from(new Set(drinks.map((p)=>bottleType(p.category,p.name))));
+  const drinkTypes = isOwn ? ["beer", "wine", "whisky", "other"] : Array.from(new Set(drinks.map((p)=>bottleType(p.category,p.name))));
   const drinksForType = drinks.filter((p)=>bottleType(p.category,p.name)===f.type);
   useEffect(()=>{ if(drinkTypes.length && !drinkTypes.includes(f.type)) setF((current)=>({...current,type:drinkTypes[0],name:"",photoUrl:""})); },[drinkTypes.join("|"),f.type]);
   return (
@@ -806,15 +809,31 @@ function BottlesTab() {
           </select>
           <input type="number" min={1} value={f.quantity} onChange={(e) => setF({ ...f, quantity: Number(e.target.value) })} placeholder={t("pos.qtyShort")} className={inp} />
         </div>
-        <select value={f.name} onChange={(e) => { const p=products.find((x)=>x.name===e.target.value); setF({ ...f, name:e.target.value, type:bottleType(p?.category,e.target.value) }); }} className={inp + " mb-2"}>
+        <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={isOwn} onChange={(e) => { setIsOwn(e.target.checked); setF({ ...f, name: "", photoUrl: "" }); }} /> {t("pos.ownBottle")}</label>
+        {isOwn
+          ? <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={t("pos.ownBottleName")} className={inp + " mb-2"} />
+          :         <select value={f.name} onChange={(e) => { const p=products.find((x)=>x.name===e.target.value); setF({ ...f, name:e.target.value, type:bottleType(p?.category,e.target.value) }); }} className={inp + " mb-2"}>
           <option value="">{t("pos.selectDrink")}</option>
           {drinksForType.map((p)=><option key={p.id} value={p.name}>{p.name} · {p.category}</option>)}
-        </select>
+        </select>}
+        {isOwn && (
+          <div className="mb-2 rounded-xl border border-white/10 p-2.5">
+            <p className="text-xs text-white/50 mb-1.5">{t("pos.corkage.title")}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <select value={corkage.productId} onChange={(e) => setCorkage({ ...corkage, productId: e.target.value })} className={inp}>
+                <option value="">{t("pos.corkage.none")}</option>
+                {services.map((p: any) => <option key={p.id} value={p.id}>{p.name} · {rp(Number(p.salePrice ?? p.price))}</option>)}
+              </select>
+              <input value={corkage.tableNumber} onChange={(e) => setCorkage({ ...corkage, tableNumber: e.target.value })} placeholder={t("pos.corkage.table")} disabled={!corkage.productId} className={inp + " disabled:opacity-40"} />
+            </div>
+            <p className="text-[11px] text-white/40 mt-1.5">{services.length ? t("pos.corkage.hint") : t("pos.corkage.noService")}</p>
+          </div>
+        )}
         {(f.type === "wine" || f.type === "whisky") && (
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("pos.photoLevel")}</p><ImageUpload value={f.photoUrl} onChange={(v) => setF({ ...f, photoUrl: v })} label={t("pos.uploadPhoto")} /></div>
         )}
         <input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder={t("pos.noteOptional")} className={inp + " mb-2"} />
-        <button onClick={() => store.mutate()} disabled={store.isPending || !f.name.trim() || !f.memberCode.trim() || ((f.type === "wine" || f.type === "whisky") && !f.photoUrl)} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("pos.keepBottleBtn")}</button>
+        <button onClick={() => store.mutate()} disabled={store.isPending || !f.name.trim() || !f.memberCode.trim() || (isOwn && !!corkage.productId && !corkage.tableNumber.trim()) || ((f.type === "wine" || f.type === "whisky") && !f.photoUrl)} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("pos.keepBottleBtn")}</button>
       </div>
       <div>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("pos.searchKept")} className={inp + " mb-3"} />
