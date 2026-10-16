@@ -13,6 +13,7 @@ import ReceiptScan from "@/components/ReceiptScan";
 import AccountingFresh from "@/components/AccountingFresh";
 import StockSuppliers from "@/components/StockSuppliers";
 import ProductPicture from "@/components/ProductPicture";
+import { MultiDateCalendar } from "@/components/MultiDateCalendar";
 import { useAdminRole, useProductRights } from "@/hooks/useAdminRole";
 import SortableTh from "@/components/SortableTh";
 import { matchesSearch, sortRows, type SortState } from "@/lib/table-sort";
@@ -1780,16 +1781,17 @@ function MyTarget() {
 
 function StaffHr({ isAdmin }: { isAdmin: boolean }) {
   const { t } = useTranslation();
+  const isManager = useAdminRole() === "manager";
   const [view, setView] = useState<"me" | "manage">(isAdmin ? "manage" : "me");
   return (
     <div className="space-y-3">
-      {isAdmin && (
+      {(isAdmin || isManager) && (
         <div className="flex gap-2">
           <button onClick={() => setView("manage")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "manage" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.hr.manage")}</button>
           <button onClick={() => setView("me")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "me" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.hr.mine")}</button>
         </div>
       )}
-      {view === "me" ? <><MyTarget /><MyHr /></> : <ManageHr />}
+      {view === "me" ? <><MyTarget /><MyHr /></> : isAdmin ? <ManageHr /> : <ScheduleCards />}
     </div>
   );
 }
@@ -1926,12 +1928,76 @@ function MyHr() {
   );
 }
 
+// Admin › Staff › Schedule (main admin and managers): tick the days on a calendar, pick the people and the hours, and every tick becomes a shift.
+function ScheduleCards() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: staff = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-list"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-list").then((r) => r.json()) });
+  const [workers, setWorkers] = useState<string[]>([]);
+  const [dates, setDates] = useState<string[]>([]);
+  const [hours, setHours] = useState({ startTime: "18:00", endTime: "02:00", role: "" });
+  const [schedFrom, setSchedFrom] = useState(today);
+  const listKey = ["/api/reborn/admin/shifts", schedFrom];
+  const { data: shifts = [] } = useQuery<any[]>({ queryKey: listKey, queryFn: () => apiRequest("GET", `/api/reborn/admin/shifts?from=${schedFrom}&to=2999-12-31`).then((r) => r.json()) });
+  const addShifts = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/shifts", { userIds: workers, dates, ...hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => {
+      if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; }
+      toast({ title: t("admin.hr.shiftsAdded", { n: d.added }), description: d.skipped ? t("admin.hr.shiftsSkipped", { n: d.skipped }) : undefined });
+      setDates([]);
+      qc.invalidateQueries({ queryKey: listKey });
+    },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
+  });
+  const delShift = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/shifts/${id}`, {}).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: listKey }),
+  });
+  const flipWorker = (id: string) => setWorkers((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+  return (
+    <>
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> {t("admin.hr.addShiftTitle")}</p>
+        <p className="text-[11px] text-white/45 mb-1">{t("admin.hr.pickWorkers")}</p>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {staff.map((s) => (
+            <button key={s.id} type="button" onClick={() => flipWorker(s.id)} aria-pressed={workers.includes(s.id)} className={`min-h-0 rounded-full px-3 py-1.5 text-xs font-semibold ${workers.includes(s.id) ? "bg-amber-400 text-black" : "bg-white/5 text-white/70"}`}>{workers.includes(s.id) ? "✓ " : ""}{s.name}</button>
+          ))}
+        </div>
+        <p className="text-[11px] text-white/45 mb-1">{t("admin.hr.tickDays")}</p>
+        <MultiDateCalendar value={dates} onChange={setDates} minDate={today} />
+        <div className="grid grid-cols-2 gap-2 my-3">
+          <label className="text-xs text-white/50">{t("admin.hr.start")}<input type="time" value={hours.startTime} onChange={(e) => setHours({ ...hours, startTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-xs text-white/50">{t("admin.hr.end")}<input type="time" value={hours.endTime} onChange={(e) => setHours({ ...hours, endTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <input value={hours.role} onChange={(e) => setHours({ ...hours, role: e.target.value })} placeholder={t("admin.hr.positionPh")} className={inp + " col-span-2"} />
+        </div>
+        <button onClick={() => addShifts.mutate()} disabled={!workers.length || !dates.length || addShifts.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.hr.addShiftsN", { n: workers.length * dates.length })}</button>
+      </Card>
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-bold text-sm">{t("admin.hr.schedule")}</p>
+          <label className="text-xs text-white/50 flex items-center gap-1">{t("admin.hr.fromLc")} <input type="date" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} className={inp + " w-36"} style={{ colorScheme: "dark" }} /></label>
+        </div>
+        {shifts.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noShiftsRange")}</p>}
+        {shifts.map((s) => (
+          <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 gap-2">
+            <div className="min-w-0"><p className="truncate text-white/80">{s.staffName}{s.role ? ` · ${s.role}` : ""}</p><p className="text-[11px] text-white/40">{s.shiftDate}</p></div>
+            <span className="text-amber-300 text-xs font-semibold flex-shrink-0">{s.startTime}–{s.endTime}</span>
+            <button onClick={() => { if (confirm(t("admin.hr.removeShift"))) delShift.mutate(s.id); }} className={btnSm + " flex-shrink-0"}><Trash2 className="w-4 h-4" /></button>
+          </div>
+        ))}
+      </Card>
+    </>
+  );
+}
+
 function ManageHr() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: attendance = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/attendance"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance").then((r) => r.json()) });
-  const { data: staff = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-list"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-list").then((r) => r.json()) });
   const { data: leave = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/leave", "pending"], queryFn: () => apiRequest("GET", "/api/reborn/admin/leave?status=pending").then((r) => r.json()) });
   const delPhoto = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/attendance/${id}/photo`, {}).then((r) => r.json()),
@@ -1940,19 +2006,6 @@ function ManageHr() {
   const decideLeave = useMutation({
     mutationFn: (v: any) => apiRequest("POST", `/api/reborn/admin/leave/${v.id}/decide`, v).then((r) => r.json()),
     onSuccess: () => { toast({ title: t("admin.c.updated") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/leave", "pending"] }); },
-  });
-  const today = new Date().toISOString().slice(0, 10);
-  const [sh, setSh] = useState<any>({ userId: "", shiftDate: today, startTime: "18:00", endTime: "02:00", role: "" });
-  const [schedFrom, setSchedFrom] = useState(today);
-  const { data: shifts = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/shifts", schedFrom], queryFn: () => apiRequest("GET", `/api/reborn/admin/shifts?from=${schedFrom}&to=2999-12-31`).then((r) => r.json()) });
-  const addShift = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/shifts", sh).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: t("admin.hr.shiftAdded") }); setSh({ ...sh, role: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/shifts", schedFrom] }); },
-    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
-  });
-  const delShift = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/shifts/${id}`, {}).then((r) => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/shifts", schedFrom] }),
   });
   const { data: attendCode } = useQuery<any>({ queryKey: ["/api/reborn/admin/attendance/code"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance/code").then((r) => r.json()) });
   const rotateCode = useMutation({
@@ -2008,34 +2061,7 @@ function ManageHr() {
           </div>
         ))}
       </Card>
-      <Card>
-        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> {t("admin.hr.addShiftTitle")}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-          <select value={sh.userId} onChange={(e) => setSh({ ...sh, userId: e.target.value })} className={inp + " col-span-2"}>
-            <option value="">{t("admin.hr.chooseWorker")}</option>
-            {staff.map((s) => <option key={s.id} value={s.id}>{s.name} ({tv(t, "admin.role." + s.role, s.role)})</option>)}
-          </select>
-          <label className="text-xs text-white/50 col-span-2">{t("admin.hr.date")}<input type="date" value={sh.shiftDate} onChange={(e) => setSh({ ...sh, shiftDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-          <label className="text-xs text-white/50">{t("admin.hr.start")}<input type="time" value={sh.startTime} onChange={(e) => setSh({ ...sh, startTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-          <label className="text-xs text-white/50">{t("admin.hr.end")}<input type="time" value={sh.endTime} onChange={(e) => setSh({ ...sh, endTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-          <input value={sh.role} onChange={(e) => setSh({ ...sh, role: e.target.value })} placeholder={t("admin.hr.positionPh")} className={inp + " col-span-2"} />
-        </div>
-        <button onClick={() => addShift.mutate()} disabled={!sh.userId || addShift.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.hr.addShift")}</button>
-      </Card>
-      <Card>
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-bold text-sm">{t("admin.hr.schedule")}</p>
-          <label className="text-xs text-white/50 flex items-center gap-1">{t("admin.hr.fromLc")} <input type="date" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} className={inp + " w-36"} style={{ colorScheme: "dark" }} /></label>
-        </div>
-        {shifts.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noShiftsRange")}</p>}
-        {shifts.map((s) => (
-          <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 gap-2">
-            <div className="min-w-0"><p className="truncate text-white/80">{s.staffName}{s.role ? ` · ${s.role}` : ""}</p><p className="text-[11px] text-white/40">{s.shiftDate}</p></div>
-            <span className="text-amber-300 text-xs font-semibold flex-shrink-0">{s.startTime}–{s.endTime}</span>
-            <button onClick={() => { if (confirm(t("admin.hr.removeShift"))) delShift.mutate(s.id); }} className={btnSm + " flex-shrink-0"}><Trash2 className="w-4 h-4" /></button>
-          </div>
-        ))}
-      </Card>
+      <ScheduleCards />
     </div>
   );
 }

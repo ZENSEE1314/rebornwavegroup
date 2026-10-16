@@ -1225,6 +1225,8 @@ function packPricingFields(b: { unitsPerPack?: unknown; packPrice?: unknown }): 
 }
 
 const PAYROLL_REMINDER_CHECK_MS = 60 * 60 * 1000;
+const MAX_SHIFTS_AT_ONCE = 300;
+const SHIFT_DATES_IN_NOTICE = 6;
 
 export function registerRebornRoutes(app: Express) {
   // A table's call keeps alerting staff until someone accepts it.
@@ -2784,7 +2786,8 @@ export function registerRebornRoutes(app: Express) {
     const cid = await rebornCompanyId(req);
     // Only members of THIS business (bridge_company_members). Reborn has every user enrolled.
     // Someone who signed up since the last restart has no row there yet (rows are filled in at startup) — they belong to this space until they join another business.
-    const memberOf = sql`(${users.id} IN (SELECT user_id FROM bridge_company_members WHERE company_id=${cid}) OR ${users.id} NOT IN (SELECT user_id FROM bridge_company_members))`;
+    // An account removed with its records kept has its details cleared (see the delete route): it is gone from every list.
+    const memberOf = sql`((${users.id} IN (SELECT user_id FROM bridge_company_members WHERE company_id=${cid}) OR ${users.id} NOT IN (SELECT user_id FROM bridge_company_members)) AND NOT (${users.firstName} = 'Removed' AND ${users.lastName} = 'user' AND ${users.email} IS NULL AND ${users.password} IS NULL))`;
     let rows = q.length >= 1
       ? await db.select(userCols).from(users).where(and(memberOf, or(ilike(users.username, `${q}%`), ilike(users.firstName, `${q}%`), ilike(users.lastName, `${q}%`), ilike(users.email, `${q}%`), ilike(users.membershipCardNumber, `${q}%`), ilike(users.referralCode, `${q}%`)))).orderBy(users.firstName).limit(60)
       : await db.select(userCols).from(users).where(memberOf).orderBy(sort === "tokens" ? desc(users.tokens) : desc(users.createdAt)).limit(200);
@@ -4436,7 +4439,7 @@ export function registerRebornRoutes(app: Express) {
 
   // Admin/manager (full admin)
   const nameOf = (u: any) => u ? (`${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || u.email || u.id) : "Unknown";
-  app.get("/api/reborn/admin/staff-list", requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/staff-list", requireManager(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const result = await db.execute(sql`SELECT m.user_id AS id, m.role, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,u.email,u.id) name FROM bridge_company_members m JOIN users u ON u.id=m.user_id WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
     res.json((result.rows || result as any[]).map((x: any) => ({ id: x.id, name: x.name, role: x.role })));
@@ -4536,7 +4539,7 @@ export function registerRebornRoutes(app: Express) {
     pushUserI18n(row.userId, (lang) => ({ title: approve ? pick(lang, { en: "✅ Attendance approved", zh: "✅ 考勤已批准", id: "✅ Absensi disetujui" }) : pick(lang, { en: "Attendance rejected", zh: "考勤被拒绝", id: "Absensi ditolak" }), body: `${row.workDate}${!approve && row.decisionNote ? ` — ${row.decisionNote}` : ""}`, url: "/reborn-admin", tag: `att-${row.id}` })).catch(() => {});
     res.json(row);
   }));
-  app.get("/api/reborn/admin/shifts", requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/shifts", requireManager(async (req, res) => {
     const from = String(req.query.from || ""), to = String(req.query.to || "");
     const cid = await rebornCompanyId(req);
     let rows;
@@ -4547,14 +4550,31 @@ export function registerRebornRoutes(app: Express) {
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
     res.json(rows.map((r) => ({ ...r, staffName: map.get(r.userId) || r.userId })));
   }));
-  app.post("/api/reborn/admin/shifts", requireAdmin(async (req, res) => {
+  // Put one or more people on the schedule for one or more dates at once (the calendar ticks several days). The same shift is never added twice.
+  app.post("/api/reborn/admin/shifts", requireManager(async (req, res) => {
     const b = req.body || {};
-    if (!b.userId || !b.shiftDate || !b.startTime || !b.endTime) return res.status(400).json({ message: tr(req, { en: "Worker, date and times are required.", zh: "请填写员工、日期和时间。", id: "Pekerja, tanggal, dan jam wajib diisi." }) });
-    const [row] = await db.insert(workerShifts).values({ userId: b.userId, companyId: await rebornCompanyId(req), shiftDate: b.shiftDate, startTime: b.startTime, endTime: b.endTime, role: b.role || null, note: b.note || null, createdBy: getUserId(req)! }).returning();
-    await notifyUserI18n(row.userId, "shift", (lang) => ({ title: pick(lang, { en: "New work shift", zh: "新的排班", id: "Jadwal kerja baru" }), body: `${row.shiftDate} · ${row.startTime}–${row.endTime}` }), { path: "/staff", shiftId: row.id });
-    res.json(row);
+    const userIds = Array.from(new Set((Array.isArray(b.userIds) ? b.userIds : [b.userId]).map((x: unknown) => String(x || "")).filter(Boolean)));
+    const dates = Array.from(new Set((Array.isArray(b.dates) ? b.dates : [b.shiftDate]).map((x: unknown) => String(x || "")).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))).sort();
+    if (!userIds.length || !dates.length || !b.startTime || !b.endTime) return res.status(400).json({ message: tr(req, { en: "Worker, date and times are required.", zh: "请填写员工、日期和时间。", id: "Pekerja, tanggal, dan jam wajib diisi." }) });
+    if (userIds.length * dates.length > MAX_SHIFTS_AT_ONCE) return res.status(400).json({ message: tr(req, { en: "That is too many shifts at once (at most {n}).", zh: "一次添加的班次太多（最多 {n} 个）。", id: "Terlalu banyak shift sekaligus (maksimal {n})." }, { n: MAX_SHIFTS_AT_ONCE }) });
+    const cid = await rebornCompanyId(req);
+    const team = await db.select({ id: bridgeCompanyMembers.userId }).from(bridgeCompanyMembers).where(and(eq(bridgeCompanyMembers.companyId, cid), inArray(bridgeCompanyMembers.userId, userIds)));
+    if (team.length !== userIds.length) return res.status(404).json({ message: tr(req, { en: "Staff member not found", zh: "找不到该员工", id: "Staf tidak ditemukan" }) });
+    const already = await db.select({ userId: workerShifts.userId, shiftDate: workerShifts.shiftDate }).from(workerShifts)
+      .where(and(eq(workerShifts.companyId, cid), inArray(workerShifts.userId, userIds), inArray(workerShifts.shiftDate, dates), eq(workerShifts.startTime, String(b.startTime)), eq(workerShifts.endTime, String(b.endTime))));
+    const taken = new Set(already.map((row) => `${row.userId}|${row.shiftDate}`));
+    const rows = userIds.flatMap((userId) => dates.filter((date) => !taken.has(`${userId}|${date}`)).map((shiftDate) => ({ userId, companyId: cid, shiftDate, startTime: String(b.startTime), endTime: String(b.endTime), role: b.role || null, note: b.note || null, createdBy: getUserId(req)! })));
+    const added = rows.length ? await db.insert(workerShifts).values(rows).returning() : [];
+    for (const userId of userIds) {
+      const mine = added.filter((row) => row.userId === userId).map((row) => row.shiftDate);
+      if (!mine.length) continue;
+      const list = mine.slice(0, SHIFT_DATES_IN_NOTICE).join(", ") + (mine.length > SHIFT_DATES_IN_NOTICE ? ` +${mine.length - SHIFT_DATES_IN_NOTICE}` : "");
+      await notifyUserI18n(userId, "shift", (lang) => ({ title: pick(lang, { en: "New work shift", zh: "新的排班", id: "Jadwal kerja baru" }), body: `${list} · ${b.startTime}–${b.endTime}` }), { path: "/staff" });
+    }
+    await logAdmin(req, { targetType: "shift", action: "add_shifts", entityType: "staff", description: `Scheduled ${added.length} shift(s) for ${userIds.length} person(s) on ${dates.length} date(s), ${b.startTime}–${b.endTime}` });
+    res.json({ added: added.length, skipped: userIds.length * dates.length - added.length });
   }));
-  app.delete("/api/reborn/admin/shifts/:id", requireAdmin(async (req, res) => {
+  app.delete("/api/reborn/admin/shifts/:id", requireManager(async (req, res) => {
     await db.delete(workerShifts).where(eq(workerShifts.id, Number(req.params.id)));
     res.json({ ok: true });
   }));
