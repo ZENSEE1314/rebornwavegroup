@@ -203,7 +203,8 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
       ))}
       {products.length === 0 && <p className="text-center text-white/40 py-6 text-sm">{t("pos.noProductsPicker")}</p>}
       {lines.length > 0 && (
-        <div className="rounded-2xl border border-amber-400/30 bg-[#160f2a] p-3 mb-3">
+        <div className="sticky bottom-20 z-30 mb-3 rounded-2xl border border-amber-400/30 bg-[#160f2a] p-3 shadow-2xl lg:bottom-2">
+          <div className="max-h-40 overflow-y-auto">
           {lines.map(([id, q]) => {
             const p = byId.get(Number(id))!;
             return (
@@ -216,6 +217,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
               </div>
             );
           })}
+          </div>
           <div className="flex justify-between items-center border-t border-white/10 mt-2 pt-2">
             <button onClick={() => setCart({})} className="text-xs text-red-400 flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> {t("pos.clear")}</button>
             <span className="text-lg font-extrabold text-amber-300">{rp(total)}</span>
