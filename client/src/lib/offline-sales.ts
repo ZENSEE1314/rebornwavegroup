@@ -119,6 +119,14 @@ export async function prepareOfflinePos() {
   } catch { /* no service worker here: the POS still works online */ }
 }
 
+/** The Retry of the error screen: the saved copy of the pages is dropped (the worker answers), then the page loads fresh from the server. */
+export async function forgetSavedPages(): Promise<void> {
+  try {
+    const worker = navigator.serviceWorker?.controller;
+    if (worker) { worker.postMessage({ type: "clear-shell" }); await new Promise((resolve) => setTimeout(resolve, 300)); }
+  } catch { /* no worker: nothing saved */ }
+}
+
 /** On logout: the saved answers (catalogue, who was signed in) are removed from this device. Sales still waiting stay until they are sent. */
 export function forgetOfflineData() {
   try { navigator.serviceWorker?.controller?.postMessage({ type: "clear-api" }); localStorage.removeItem(RECEIPT_META_KEY); } catch { /* nothing saved */ }

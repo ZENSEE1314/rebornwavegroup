@@ -73,8 +73,9 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
     let attempts = AUTO_RETRY_MAX;
     try { attempts = Number(sessionStorage.getItem(AUTO_RETRY_KEY) || 0); } catch { /* storage blocked: no auto retry */ }
     if (attempts >= AUTO_RETRY_MAX) return;
-    this.retryTimer = setTimeout(() => {
+    this.retryTimer = setTimeout(async () => {
       try { sessionStorage.setItem(AUTO_RETRY_KEY, String(attempts + 1)); sessionStorage.removeItem(RELOAD_KEY); } catch {}
+      await forgetSavedPages();
       window.location.reload();
     }, AUTO_RETRY_DELAY_MS);
   }
@@ -85,7 +86,7 @@ class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
         <div className="rwg-page-bg min-h-screen w-full flex items-center justify-center">
           <div className="text-center">
             <p className="text-white/60 text-sm mb-4 px-6">{translate("app.loadFailed")}</p>
-            <button type="button" onClick={() => { try { sessionStorage.removeItem(RELOAD_KEY); sessionStorage.removeItem(AUTO_RETRY_KEY); } catch {} window.location.reload(); }} className="px-4 py-2 bg-violet-700 text-white rounded-lg text-sm cursor-pointer">
+            <button type="button" onClick={async () => { try { sessionStorage.removeItem(RELOAD_KEY); sessionStorage.removeItem(AUTO_RETRY_KEY); } catch {} await forgetSavedPages(); window.location.reload(); }} className="px-4 py-2 bg-violet-700 text-white rounded-lg text-sm cursor-pointer">
               {translate("app.retry")}
             </button>
           </div>
@@ -103,6 +104,7 @@ import { usePetBrand } from "@/hooks/usePetBrand";
 import { setBrandWords } from "@/lib/i18n";
 import { setAppMoney, moneySymbol } from "@/lib/money";
 import Login from "@/pages/Login";
+import { forgetSavedPages } from "@/lib/offline-sales";
 
 // ── Lazy-loaded — secondary pages, each gets its own chunk ────────────────────
 // Loaded only when opened, so the first page loads fast.

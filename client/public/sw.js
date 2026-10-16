@@ -10,10 +10,10 @@ self.addEventListener("activate", (e) => e.waitUntil(
 // ── Offline POS ─────────────────────────────────────────────────────────────
 // The app shell, the built files (/assets, named by their content) and the few GET answers the POS needs are kept, so the POS opens and
 // sells with no internet. Selling itself is queued by the page (client/src/lib/offline-sales.ts); nothing that writes is ever answered from here.
-const SHELL = "rw-shell-v1";
+const SHELL = "rw-shell-v2"; // a new name drops the pages and files saved by an older version
 const API = "rw-api-v1";
 const SHELL_KEY = "/__shell";
-const NAVIGATE_TIMEOUT_MS = 4000;
+const NAVIGATE_TIMEOUT_MS = 10000; // a slow (not offline) connection still gets the newest page
 const API_TIMEOUT_MS = 8000;
 const API_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const CACHED_AT = "x-sw-cached-at";
@@ -103,6 +103,8 @@ self.addEventListener("message", (event) => {
     }));
   }
   if (message.type === "clear-api") event.waitUntil(caches.delete(API));
+  // The "Couldn't load this page" Retry: forget the saved pages and files so the next load is the newest version.
+  if (message.type === "clear-shell") event.waitUntil(caches.delete(SHELL));
 });
 
 self.addEventListener("push", (event) => {
