@@ -1603,6 +1603,21 @@ export function registerRebornRoutes(app: Express) {
   // Rate staff (Support > Rate staff): a member picks a person of the team and gives 1-5 stars + a comment. One rating per member per person
   // (rating again replaces it); it counts in the staff leaderboard (`bridge_staff_reviews`) and shows in Admin > Feedback.
   const RATE_COMMENT_MAX = 500;
+  // People the main admin took off the list (e.g. shareholders): members can't see or rate them. Stored as user ids in app settings.
+  const RATING_HIDDEN_KEY = "ratingHidden";
+  const readRatingHidden = async (): Promise<string[]> => {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, RATING_HIDDEN_KEY));
+    try { const parsed = JSON.parse(row?.value || "[]"); return Array.isArray(parsed) ? parsed.map(String) : []; } catch { return []; }
+  };
+  app.get("/api/reborn/admin/rating-hidden", requireAdmin(async (_req, res) => { res.json(await readRatingHidden()); }));
+  app.put("/api/reborn/admin/rating-hidden/:userId", requireAdmin(async (req, res) => {
+    const userId = String(req.params.userId);
+    const hidden = new Set(await readRatingHidden());
+    if (req.body?.hidden) hidden.add(userId); else hidden.delete(userId);
+    await db.insert(appSettings).values({ key: RATING_HIDDEN_KEY, value: JSON.stringify(Array.from(hidden)), updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(Array.from(hidden)), updatedAt: new Date() } });
+    await logAdmin(req, { targetUserId: userId, targetType: "user", action: "rating_visibility", entityType: "profile", description: req.body?.hidden ? "Taken off the Support › Rate staff list" : "Put on the Support › Rate staff list" });
+    res.json({ hidden: Array.from(hidden) });
+  }));
   app.get("/api/reborn/support/staff", requireAuth, async (req, res) => {
     const me = getUserId(req)!;
     const cid = await rebornCompanyId(req);
@@ -1613,7 +1628,8 @@ export function registerRebornRoutes(app: Express) {
       LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true
       WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') AND m.user_id<>${me}
       GROUP BY m.company_id, m.user_id, u.first_name, u.last_name, u.username, u.profile_image_url, p.name ORDER BY name`);
-    res.json(((result.rows || result) as any[]).map((x) => ({ ...x, rating: Number(x.rating), reviews: Number(x.reviews), myRating: x.my_rating == null ? null : Number(x.my_rating) })));
+    const hidden = new Set(await readRatingHidden());
+    res.json(((result.rows || result) as any[]).filter((x) => !hidden.has(x.id)).map((x) => ({ ...x, rating: Number(x.rating), reviews: Number(x.reviews), myRating: x.my_rating == null ? null : Number(x.my_rating) })));
   });
   app.post("/api/reborn/support/rate-staff", requireAuth, async (req, res) => {
     const me = getUserId(req)!;
@@ -1622,6 +1638,7 @@ export function registerRebornRoutes(app: Express) {
     const rating = Math.round(Number(req.body?.rating));
     const comment = String(req.body?.comment || "").trim().slice(0, RATE_COMMENT_MAX);
     if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ message: tr(req, { en: "Choose 1 to 5 stars", zh: "请选择 1 到 5 颗星", id: "Pilih 1 sampai 5 bintang" }) });
+    if ((await readRatingHidden()).includes(staffId)) return res.status(404).json({ message: tr(req, { en: "Staff member not found", zh: "找不到该员工", id: "Staf tidak ditemukan" }) });
     if (staffId === me) return res.status(400).json({ message: tr(req, { en: "You can't rate yourself", zh: "不能给自己评分", id: "Kamu tidak bisa menilai dirimu sendiri" }) });
     const [member] = await db.select({ userId: bridgeCompanyMembers.userId }).from(bridgeCompanyMembers)
       .innerJoin(users, eq(users.id, bridgeCompanyMembers.userId))

@@ -886,3 +886,6 @@ text.
   and press "Add N shifts" — one `worker_shifts` row per person per ticked day (`POST /api/reborn/admin/shifts` with `userIds[]` + `dates[]`, up to 300 at once; a shift
   that already exists is skipped). Each person gets one notification listing their dates. Managers get this view (the staff-list, shifts routes are `requireManager`); attendance
   review, leave approval and the QR stay with the main admin. Accounts removed with their records kept (name "Removed user", no email) are left out of the Users list.
+
+- Support › Rate staff list: the main admin can take people off it (e.g. shareholders): Admin › Users › a staff / admin row › untick "Show this person in Support › Rate staff"
+  (`appSettings.ratingHidden` = user ids, `PUT /api/reborn/admin/rating-hidden/:userId`). A hidden person isn't listed and can't be rated (the rate call is refused too).

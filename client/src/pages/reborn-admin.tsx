@@ -341,6 +341,19 @@ function TabAccessBox({ u, tabs, onSaved }: { u: any; tabs: string[] | null; onS
   );
 }
 
+// Main admin: tick whether this person is shown to members in Support › Rate staff (leave a shareholder out).
+function RatingVisibility({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const key = ["/api/reborn/admin/rating-hidden"];
+  const { data: hidden = [] } = useQuery<string[]>({ queryKey: key, queryFn: () => apiRequest("GET", "/api/reborn/admin/rating-hidden").then((r) => r.json()) });
+  const save = useMutation({
+    mutationFn: (isHidden: boolean) => apiRequest("PUT", `/api/reborn/admin/rating-hidden/${userId}`, { hidden: isHidden }).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  });
+  return <label className="mt-3 flex items-center gap-2 border-t border-white/10 pt-2 text-xs text-white/70"><input type="checkbox" checked={!hidden.includes(userId)} disabled={save.isPending} onChange={(e) => save.mutate(!e.target.checked)} />{t("admin.m.showInRating")}</label>;
+}
+
 function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSave, onDelete }: any) {
   const { user: me } = useAuth();
   const [e, setE] = useState(() => (u.role === "staff" && u.member_role === "manager" ? { ...u, role: "manager" } : u)); // manager shows as its own role
@@ -381,6 +394,7 @@ function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSa
             {onDelete && <DeleteUserButton name={u.firstName || u.username || u.email || ""} onConfirm={() => onDelete(u.id)} />}
             <button onClick={() => onSave(e)} className={btn}>{t("admin.c.save")}</button>
           </div>
+          {["admin", "staff"].includes(u.role) && <RatingVisibility userId={u.id} />}
           {["admin", "staff"].includes(u.role) && u.id !== (me as any)?.id && <TabAccessBox key={`${u.id}-${u.role}-${u.member_role}`} u={u} tabs={tabs} onSaved={onTabsSaved} />}
         </>
       ) : (
