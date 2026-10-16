@@ -780,7 +780,7 @@ function BottlesTab() {
     enabled: f.memberCode.trim().length >= 1 && !selectedMember,
   });
   const store = useMutation({
-    mutationFn: () => post("/api/reborn/pos/bottle-keep", { ...f, isOwn, ...(isOwn && corkage.productId ? { corkage: { productId: Number(corkage.productId), tableNumber: corkage.tableNumber } } : {}) }),
+    mutationFn: () => post("/api/reborn/pos/bottle-keep", { ...f, isOwn, ...(corkage.productId ? { corkage: { productId: Number(corkage.productId), tableNumber: corkage.tableNumber } } : {}) }),
     onSuccess: (d) => { toast({ title: d.message }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setCorkage({ productId: "", tableNumber: "" }); setSelectedMember(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
@@ -816,9 +816,9 @@ function BottlesTab() {
           <option value="">{t("pos.selectDrink")}</option>
           {drinksForType.map((p)=><option key={p.id} value={p.name}>{p.name} · {p.category}</option>)}
         </select>}
-        {isOwn && (
+        {(
           <div className="mb-2 rounded-xl border border-white/10 p-2.5">
-            <p className="text-xs text-white/50 mb-1.5">{t("pos.corkage.title")}</p>
+            <p className="text-xs text-white/50 mb-1.5">🛎️ {t("pos.corkage.title")}</p>
             <div className="grid grid-cols-2 gap-2">
               <select value={corkage.productId} onChange={(e) => setCorkage({ ...corkage, productId: e.target.value })} className={inp}>
                 <option value="">{t("pos.corkage.none")}</option>
@@ -833,7 +833,7 @@ function BottlesTab() {
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("pos.photoLevel")}</p><ImageUpload value={f.photoUrl} onChange={(v) => setF({ ...f, photoUrl: v })} label={t("pos.uploadPhoto")} /></div>
         )}
         <input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder={t("pos.noteOptional")} className={inp + " mb-2"} />
-        <button onClick={() => store.mutate()} disabled={store.isPending || !f.name.trim() || !f.memberCode.trim() || (isOwn && !!corkage.productId && !corkage.tableNumber.trim()) || ((f.type === "wine" || f.type === "whisky") && !f.photoUrl)} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("pos.keepBottleBtn")}</button>
+        <button onClick={() => store.mutate()} disabled={store.isPending || !f.name.trim() || !f.memberCode.trim() || (!!corkage.productId && !corkage.tableNumber.trim()) || ((f.type === "wine" || f.type === "whisky") && !f.photoUrl)} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("pos.keepBottleBtn")}</button>
       </div>
       <div>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("pos.searchKept")} className={inp + " mb-3"} />
