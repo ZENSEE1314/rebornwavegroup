@@ -10,11 +10,11 @@ import { money } from "@/lib/money";
 const inp = "rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-sm text-white outline-none focus:border-amber-300";
 const MIN_BUNDLE_QTY = 2;
 
-interface Piece { id: number; name: string; category: string; department?: string | null; imageUrl?: string | null; price: string; recommended?: boolean; bundleItemId?: number | null; bundleQty?: number | null; packageKind?: string | null; packageUses?: number | null; packageItemIds?: string | null }
+interface Piece { id: number; name: string; category: string; department?: string | null; imageUrl?: string | null; price: string; recommended?: boolean; bundleItemId?: number | null; bundleQty?: number | null; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; packageItemIds?: string | null }
 
 const idsOf = (raw?: string | null): number[] => { try { const ids = JSON.parse(raw || "[]"); return Array.isArray(ids) ? ids.map(Number) : []; } catch { return []; } };
 
-function PieceRow({ piece, onChanged }: { piece: Piece; onChanged: () => void }) {
+export function PieceRow({ piece, onChanged }: { piece: Piece; onChanged: () => void }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [name, setName] = useState(piece.name);
@@ -31,7 +31,7 @@ function PieceRow({ piece, onChanged }: { piece: Piece; onChanged: () => void })
     mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/pos/products/${piece.id}`).then((r) => r.json()),
     onSuccess: () => { toast({ title: t("admin.c.deleted") }); onChanged(); }, onError: fail,
   });
-  const size = piece.bundleItemId ? t("admin.ib.together", { n: piece.bundleQty || 0 }) : t("admin.ib.uses", { n: piece.packageUses || 1 });
+  const size = piece.packageKind === "credit" ? t("admin.ib.creditSize", { v: money(Number(piece.packageCredit) || 0) }) : piece.bundleItemId ? t("admin.ib.together", { n: piece.bundleQty || 0 }) : t("admin.ib.uses", { n: piece.packageUses || 1 });
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
       <button type="button" onClick={() => setIsStarred(!isStarred)} aria-pressed={isStarred} title={t("admin.prod.recommend")} aria-label={t("admin.prod.recommend")} className="min-h-0 p-0 text-lg leading-none">{isStarred ? "⭐" : "☆"}</button>
@@ -96,6 +96,47 @@ export function ItemBundles({ p }: { p: { id: number; name: string; category: st
               <button type="button" onClick={() => addPackage.mutate()} disabled={!canAddPackage || addPackage.isPending} className="rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-black disabled:opacity-40">+ {t("admin.ib.addPackage")}</button>
             </div>
           </section>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Prepaid credit packages ("pay 5,000,000, get 10,000,000 to spend"): not tied to one item, so they are made here at the top of Inventory.
+export function CreditPackages() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const { data: all = [] } = useQuery<Piece[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()), enabled: isOpen });
+  const credits = all.filter((x) => x.packageKind === "credit");
+  const [f, setF] = useState({ name: "", price: "", credit: "", days: "", perkPct: "", perkDays: "" });
+  const changed = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+  const add = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", { name: f.name.trim(), category: "Packages", price: Number(f.price), packageKind: "credit", packageCredit: Number(f.credit), packageValidDays: f.days ? Number(f.days) : "", perkPercent: f.perkPct ? Number(f.perkPct) : "", perkDays: f.perkDays ? Number(f.perkDays) : "", active: true, posVisible: true }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("admin.prod.added") }); setF({ name: "", price: "", credit: "", days: "", perkPct: "", perkDays: "" }); changed(); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  const can = f.name.trim() !== "" && Number(f.price) > 0 && Number(f.credit) > 0;
+  const field = (key: keyof typeof f, label: string, width: string, isText = false) => (
+    <label className="text-[11px] text-white/50">{label}<input type={isText ? "text" : "number"} inputMode={isText ? undefined : "numeric"} value={f[key]} onFocus={isText ? undefined : (e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, [key]: e.target.value })} className={inp + " mt-0.5 block " + width} /></label>
+  );
+  return (
+    <div className="mb-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="min-h-0 p-0 text-left text-cyan-200" style={{ fontSize: 13, fontWeight: 700 }}>💳 {t("admin.ib.creditTitle")} {isOpen ? "▲" : "▼"}</button>
+      {isOpen && (
+        <div className="mt-2 space-y-2">
+          <p className="text-[11px] text-white/45">{t("admin.ib.creditHint")}</p>
+          {credits.map((piece) => <PieceRow key={piece.id} piece={piece} onChanged={changed} />)}
+          <div className="flex flex-wrap items-end gap-2">
+            {field("name", t("admin.prod.name"), "w-48", true)}
+            {field("price", t("admin.ib.bundlePrice"), "w-32")}
+            {field("credit", t("admin.pkg.creditAmt"), "w-36")}
+            {field("days", t("admin.pkg.validDays"), "w-24")}
+            {field("perkPct", t("admin.pkg.perkPct"), "w-20")}
+            {field("perkDays", t("admin.pkg.perkDays"), "w-24")}
+            <button type="button" onClick={() => add.mutate()} disabled={!can || add.isPending} className="rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-black disabled:opacity-40">+ {t("admin.ib.addCredit")}</button>
+          </div>
         </div>
       )}
     </div>

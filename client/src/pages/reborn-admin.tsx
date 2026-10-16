@@ -12,7 +12,7 @@ import SupplierReorderPanel from "@/components/SupplierReorderPanel";
 import ReceiptScan from "@/components/ReceiptScan";
 import AccountingFresh from "@/components/AccountingFresh";
 import StockSuppliers from "@/components/StockSuppliers";
-import { ItemBundles } from "@/components/ItemBundles";
+import { ItemBundles, CreditPackages } from "@/components/ItemBundles";
 import ProductPicture from "@/components/ProductPicture";
 import { MultiDateCalendar } from "@/components/MultiDateCalendar";
 import { useAdminRole, useProductRights } from "@/hooks/useAdminRole";
@@ -2180,108 +2180,12 @@ function IndustryPicker({ value, options, onChange, isCompact = false }: { value
 // can or can't be paid with package credit), a visits package or a prepaid credit package.
 const parseIds = (v: any): number[] => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.map(Number) : []; } catch { return []; } };
 const pkgOf = (p: any) => ({ bundleItemId: p?.bundleItemId || "", bundleQty: p?.bundleQty || "", packageItemIds: parseIds(p?.packageItemIds), packageKind: p?.packageKind || "", packageUses: p?.packageUses || "", packageCredit: p?.packageCredit ? Number(p.packageCredit) : "", packageValidDays: p?.packageValidDays || "", perkPercent: p?.perkPercent ? Number(p.perkPercent) : "", perkDays: p?.perkDays || "", creditOk: p?.creditOk !== false });
-// "6 beers — the member chooses which": tick the items a visits package can be redeemed for. Each redeem is added to the bill at RP 0 and
-// comes off that item's stock. Nothing ticked = a plain visit (spa ×10).
-function PackageItemPicker({ value, onChange }: { value: number[]; onChange: (ids: number[]) => void }) {
-  const { t } = useTranslation();
-  const [q, setQ] = useState("");
-  const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
-  const items = products.filter((p) => !p.packageKind);
-  const needle = q.trim().toLowerCase();
-  const shown = items.filter((p) => value.includes(p.id) || !needle || String(p.name).toLowerCase().includes(needle)).slice(0, 40);
-  const toggle = (id: number) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
-  return (
-    <div className="mt-2 rounded-lg bg-white/5 p-2">
-      <p className="text-xs font-semibold text-white/70">{t("admin.pkg.itemsTitle")}</p>
-      <p className="text-[11px] text-white/40 mb-1.5">{t("admin.pkg.itemsHint")}</p>
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("admin.pkg.itemsSearch")} className={inp + " w-full mb-1.5"} />
-      <div className="max-h-44 overflow-auto space-y-1">
-        {shown.map((p) => (
-          <label key={p.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${value.includes(p.id) ? "bg-amber-400/15" : "bg-black/20"}`}>
-            <input type="checkbox" checked={value.includes(p.id)} onChange={() => toggle(p.id)} />
-            <span className="flex-1 min-w-0 truncate">{p.name}</span>
-            <span className="text-white/40">{t("admin.pkg.itemStock", { n: p.stock })}</span>
-          </label>
-        ))}
-        {!shown.length && <p className="text-xs text-white/40">{t("admin.pkg.itemsNone")}</p>}
-      </div>
-      {value.length > 0 && <p className="mt-1.5 text-[11px] text-amber-200">{t("admin.pkg.itemsPicked", { n: value.length })}</p>}
-    </div>
-  );
-}
-function PackageFields({ value, onChange }: { value: any; onChange: (v: any) => void }) {
-  const { t } = useTranslation();
-  const set = (k: string, v: any) => onChange({ ...value, [k]: v });
-  const num = (k: string, label: string, hint?: string) => (
-    <label className="text-xs text-white/50">{label}<input type="number" inputMode="numeric" min={0} value={value[k] ?? ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => set(k, e.target.value === "" ? "" : Number(e.target.value))} placeholder={hint} className={inp + " w-full"} /></label>
-  );
-  return (
-    <div className="mb-2 rounded-xl border border-white/10 p-2.5">
-      <p className="text-xs font-semibold text-white/70 mb-1.5">📦 {t("admin.pkg.title")}</p>
-      <div className="grid gap-1.5 mb-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-        {([["", t("admin.pkg.normal")], ["uses", t("admin.pkg.uses")], ["credit", t("admin.pkg.credit")]] as const).map(([k, l]) => (
-          <div key={k} role="button" tabIndex={0} onClick={() => set("packageKind", k)} onKeyDown={(e) => { if (e.key === "Enter") set("packageKind", k); }} className={`cursor-pointer rounded-lg px-2 py-1.5 text-center text-xs font-semibold ${value.packageKind === k ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{l}</div>
-        ))}
-      </div>
-      {!value.packageKind && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={value.creditOk !== false} onChange={(e) => set("creditOk", e.target.checked)} /> {t("admin.pkg.creditOk")} <span className="text-white/40 text-xs">{t("admin.pkg.creditOkHint")}</span></label>}
-      {value.packageKind === "uses" && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{num("packageUses", t("admin.pkg.usesN"), "10")}{num("packageValidDays", t("admin.pkg.validDays"), t("admin.pkg.never"))}</div>}
-      {value.packageKind === "uses" && <PackageItemPicker value={value.packageItemIds || []} onChange={(ids) => set("packageItemIds", ids)} />}
-      {value.packageKind === "credit" && <>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{num("packageCredit", t("admin.pkg.creditAmt"), "10000000")}{num("packageValidDays", t("admin.pkg.validDays"), t("admin.pkg.never"))}{num("perkPercent", t("admin.pkg.perkPct"), "5")}{num("perkDays", t("admin.pkg.perkDays"), t("admin.pkg.lifetime"))}</div>
-        <p className="mt-1.5 text-[11px] text-white/40">{t("admin.pkg.creditHint")}</p>
-      </>}
-      {value.packageKind && <p className="mt-1.5 text-[11px] text-white/40">{t("admin.pkg.sellHint")}</p>}
-      {!value.packageKind && <BundleFields value={value} onChange={onChange} />}
-    </div>
-  );
-}
-// A bundle: this product is N units of another item sold in one go (6 beers for one price). One sale takes N off that item's stock.
-function BundleFields({ value, onChange }: { value: any; onChange: (v: any) => void }) {
-  const { t } = useTranslation();
-  const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
-  const items = products.filter((p) => !p.packageKind && !p.bundleItemId && p.id !== value.id).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  return (
-    <div className="mt-2 rounded-lg border border-white/10 p-2">
-      <p className="mb-1 text-xs font-semibold text-white/70">🍺 {t("admin.bundle.title")}</p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <select value={value.bundleItemId || ""} onChange={(e) => onChange({ ...value, bundleItemId: e.target.value ? Number(e.target.value) : "" })} className={inp + " sm:col-span-2"}>
-          <option value="">{t("admin.bundle.none")}</option>
-          {items.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <label className="text-xs text-white/50">{t("admin.bundle.qty")}<input type="number" inputMode="numeric" min={2} value={value.bundleQty || ""} disabled={!value.bundleItemId} onFocus={(e) => e.currentTarget.select()} onChange={(e) => onChange({ ...value, bundleQty: e.target.value === "" ? "" : Number(e.target.value) })} className={inp + " w-full"} /></label>
-      </div>
-      <p className="mt-1 text-[11px] text-white/40">{t("admin.bundle.hint")}</p>
-    </div>
-  );
-}
-// Short label of a product's package setting (lists and the table's Package button).
+// Short label of a product's package setting (shown next to its name in the lists).
 function pkgTag(p: any, t: (k: string, v?: any) => string) {
+  if (p.bundleItemId) return t("admin.ib.together", { n: p.bundleQty || 0 });
   if (p.packageKind === "uses") return t("admin.pkg.tagUses", { n: p.packageUses || 1 });
   if (p.packageKind === "credit") return t("admin.pkg.tagCredit", { n: Number(p.packageCredit || 0).toLocaleString() });
   return p.creditOk === false ? t("admin.pkg.tagNoCredit") : "";
-}
-// Desktop table: package settings open in a small dialog.
-function PackageButton({ p }: { p: any }) {
-  const { toast } = useToast();
-  const { t } = useTranslation();
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [v, setV] = useState(pkgOf(p));
-  const save = useMutation({
-    mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, v).then((r) => r.json()),
-    onSuccess: () => { toast({ title: t("admin.c.saved") }); setOpen(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
-    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
-  });
-  return <>
-    <button onClick={() => { setV(pkgOf(p)); setOpen(true); }} className={`rounded-lg px-2.5 py-1.5 text-xs whitespace-nowrap hover:bg-white/10 ${pkgTag(p, t) ? "bg-emerald-400/15 text-emerald-200 border border-emerald-400/30" : "bg-white/5 text-white/50 border border-dashed border-white/20"}`}>{pkgTag(p, t) || t("admin.pkg.setBtn")}</button>
-    {open && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" onClick={() => setOpen(false)}>
-      <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#160f2a] p-4 text-left" onClick={(e) => e.stopPropagation()}>
-        <p className="mb-2 font-bold">{p.name}</p>
-        <PackageFields value={v} onChange={setV} />
-        <div className="flex justify-end gap-2"><button onClick={() => setOpen(false)} className={btnSm + " text-white/60"}><X className="w-4 h-4" /></button><button onClick={() => save.mutate()} disabled={save.isPending} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button></div>
-      </div>
-    </div>}
-  </>;
 }
 
 function Products() {
@@ -2329,8 +2233,6 @@ function Products() {
         </div>
         <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHint")}</span></label>
-        <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!n.recommended} onChange={(e) => setN({ ...n, recommended: e.target.checked })} /> ⭐ {t("admin.prod.recommend")} <span className="text-white/40 text-xs">{t("admin.prod.recommendHint")}</span></label>
-        <PackageFields value={n} onChange={setN} />
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.c.add")}</button>
         </> : <>
@@ -2385,7 +2287,6 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="stock" sort={sort} onSort={setSort}>{t("admin.prod.stock")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="supplier" sort={sort} onSort={setSort}>{t("admin.prod.supplier")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="phone" sort={sort} onSort={setSort}>{t("admin.prod.supplierPhone")}</SortableTh>
-              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold">{t("admin.pkg.col")}</th>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" sortKey="pos" sort={sort} onSort={setSort}>{t("admin.prod.pos")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" sortKey="active" sort={sort} onSort={setSort}>{t("admin.prod.activeCol")}</SortableTh>
               <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right"></th>
@@ -2475,7 +2376,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   });
   return (
     <tr id={`product-${p.id}`} className={`border-b border-white/5 align-middle hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
-      <td className="px-2 py-1"><div className="flex items-center gap-2"><ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><button type="button" onClick={() => setF({ ...f, recommended: !f.recommended })} aria-pressed={f.recommended} title={t("admin.prod.recommend")} aria-label={t("admin.prod.recommend")} className="min-h-0 p-0 text-lg leading-none">{f.recommended ? "⭐" : "☆"}</button><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
+      <td className="px-2 py-1"><div className="flex items-center gap-2"><ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
       <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
       <td className="px-2 py-1"><IndustryPicker isCompact value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
       <td className="px-2 py-1"><PackFields isCompact value={f} onChange={(next) => setF({ ...f, ...next })} /></td>
@@ -2484,7 +2385,6 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className={`px-2 py-1 text-right font-semibold tabular-nums ${p.stock <= (p.lowStock ?? 0) ? "text-red-300" : "text-white/70"}`}>{p.stock}</td>
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
       <td className="px-2 py-1"><input value={f.supplierPhone} inputMode="tel" onChange={(e) => setF({ ...f, supplierPhone: e.target.value })} placeholder={t("admin.ro.noPhone")} className={cell + " min-w-[120px] " + (f.supplierName && !f.supplierPhone ? "border-red-400/40" : "")} /></td>
-      <td className="px-2 py-1"><PackageButton p={p} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
       <td className="px-2 py-1 text-right whitespace-nowrap"><span className="inline-flex items-center gap-1"><DuplicateProductButton p={p} /><DeleteProductButton p={p} /><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></span></td>
@@ -2492,7 +2392,19 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   );
 }
 
-function ProductRow({ p }: any) {
+// What an inventory item may be sold as: ⭐ recommended, and whether member package credit can pay for it.
+function SellOptions({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const { t } = useTranslation();
+  const box = "mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm";
+  return (
+    <>
+      <label className={box}><input type="checkbox" checked={!!value.recommended} onChange={(e) => onChange({ ...value, recommended: e.target.checked })} /> ⭐ {t("admin.prod.recommend")} <span className="text-white/40 text-xs">{t("admin.prod.recommendHint")}</span></label>
+      <label className={box}><input type="checkbox" checked={value.creditOk !== false} onChange={(e) => onChange({ ...value, creditOk: e.target.checked })} /> {t("admin.pkg.creditOk")} <span className="text-white/40 text-xs">{t("admin.pkg.creditOkHint")}</span></label>
+    </>
+  );
+}
+
+function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -2535,8 +2447,7 @@ function ProductRow({ p }: any) {
             <PackFields value={f} onChange={(next) => setF({ ...f, ...next })} />
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHintLong")}</span></label>
-          <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!f.recommended} onChange={(e) => setF({ ...f, recommended: e.target.checked })} /> ⭐ {t("admin.prod.recommend")} <span className="text-white/40 text-xs">{t("admin.prod.recommendHint")}</span></label>
-          <PackageFields value={f} onChange={setF} />
+          {inventory && !p.packageKind && !p.bundleItemId && <SellOptions value={f} onChange={setF} />}
           <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
           <div className="flex gap-2 justify-end">
@@ -2547,7 +2458,7 @@ function ProductRow({ p }: any) {
         </div>
       )}
       {!edit && <StockSuppliers p={p} />}
-      {!edit && !p.bundleItemId && !p.packageKind && <ItemBundles p={p} />}
+      {inventory && !edit && !p.bundleItemId && !p.packageKind && <ItemBundles p={p} />}
     </Card>
   );
 }
@@ -2775,7 +2686,7 @@ function Inventory() {
   const [openId, setOpenId] = useState<number | null>(null);
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
   const toggleEditor = (id: number) => setOpenId((current) => (current === id ? null : id));
-  const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow p={product} /> : null; };
+  const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow p={product} inventory /> : null; };
   const industries = useCompanyIndustries();
   const [query, setQuery] = useState("");
   const byIndustry = industry ? allItems.filter((i) => deptHas(i.department, industry)) : allItems;
@@ -2822,6 +2733,7 @@ function Inventory() {
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
       {canChange && <ReceiptScan />}
       {role === "admin" && <SupplierReorderPanel />}
+      {canChange && <CreditPackages />}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
         <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.stockValue")}</p><p className="text-base font-extrabold text-amber-300">{money(totals.cost || 0)}</p></div>

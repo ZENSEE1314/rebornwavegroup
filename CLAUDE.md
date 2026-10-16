@@ -935,3 +935,7 @@ text.
   with a beep. The list (`GET /api/reborn/kitchen/orders`) shows accepted, not-yet-served items of open bills, oldest first, amber after 10 min / red after 20; the cook taps **Served** per item or **Serve all**
   (the normal `/pos/items/:id/status` call: the member gets "served"). Orders from the member app are accepted at once (`appOrdersAutoAccept`, default on, Admin › Settings; off = the counter taps Accept first
   and the docket prints then). With no internet no new order can reach the kitchen (the server is in the cloud); the screen itself still opens.
+
+- Sell options now live on the inventory item, not in Products: Admin › Inventory › pencil on an item has ⭐ Recommended, "Can be paid with package credit" and "🍺 Bundles & packages of this item"
+  (components/ItemBundles.tsx); prepaid credit packages are made in the "💳 Prepaid credit packages" box at the top of Inventory (`CreditPackages`). The Products screen (PC table, phone card, add form) no longer
+  has the Package button / box, the star or the bundle fields (`ProductRow` shows them only with `inventory`).
