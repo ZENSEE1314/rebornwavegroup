@@ -182,6 +182,7 @@ export const bridgeStaffProfiles = pgTable("bridge_staff_profiles", {
   statutoryOn: boolean("statutory_on").notNull().default(true),
   deposit: decimal("deposit", { precision: 14, scale: 2 }).default("0").notNull(), // money the staff member left with the company
   depositNote: text("deposit_note"),
+  realName: varchar("real_name"), // set by the admin: the real name of a person whose account uses another name
   status: varchar("status").notNull().default("active"),
   rankingScore: decimal("ranking_score", { precision: 10, scale: 2 }).default("0").notNull(),
   starGrade: decimal("star_grade", { precision: 3, scale: 2 }).default("0").notNull(),

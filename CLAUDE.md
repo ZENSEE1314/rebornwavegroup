@@ -889,3 +889,6 @@ text.
 
 - Support › Rate staff list: the main admin can take people off it (e.g. shareholders): Admin › Users › a staff / admin row › untick "Show this person in Support › Rate staff"
   (`appSettings.ratingHidden` = user ids, `PUT /api/reborn/admin/rating-hidden/:userId`). A hidden person isn't listed and can't be rated (the rate call is refused too).
+
+- Staff real name: Admin › Users › a staff / admin row › "Real name" (`bridge_staff_profiles.real_name`, `PUT /api/reborn/admin/staff-real-name/:userId`). When set it replaces the
+  account name in Support › Rate staff, the staff leaderboard, the schedule picker + schedule, attendance, leave, payroll, contracts and payslips (`realNamesOf`).

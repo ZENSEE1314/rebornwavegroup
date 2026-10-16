@@ -341,6 +341,30 @@ function TabAccessBox({ u, tabs, onSaved }: { u: any; tabs: string[] | null; onS
   );
 }
 
+// Main admin: the staff member's real name, when their account uses another one. It is what contacts, the schedule, payroll, contracts and payslips show.
+function RealName({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const key = ["/api/reborn/admin/staff-real-names"];
+  const { data: names = {} } = useQuery<Record<string, string>>({ queryKey: key, queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-real-names").then((r) => r.json()) });
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? names[userId] ?? "";
+  const save = useMutation({
+    mutationFn: () => apiRequest("PUT", `/api/reborn/admin/staff-real-name/${userId}`, { name: shown }).then((r) => r.json()),
+    onSuccess: (d: any) => { toast({ title: d.message }); setDraft(null); qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/payroll"] }); },
+  });
+  return (
+    <label className="mt-3 block border-t border-white/10 pt-2 text-[11px] text-white/50">{t("admin.m.realName")}
+      <span className="mt-1 flex gap-2">
+        <input value={shown} maxLength={120} onChange={(e) => setDraft(e.target.value)} placeholder={t("admin.m.realNamePh")} className={inp + " min-w-0 flex-1"} />
+        <button type="button" onClick={() => save.mutate()} disabled={save.isPending || draft === null} className="rounded-xl bg-amber-400 px-4 text-sm font-bold text-black disabled:opacity-40">{t("admin.set.save")}</button>
+      </span>
+      <span className="mt-1 block text-white/40">{t("admin.m.realNameHint")}</span>
+    </label>
+  );
+}
+
 // Main admin: tick whether this person is shown to members in Support › Rate staff (leave a shareholder out).
 function RatingVisibility({ userId }: { userId: string }) {
   const { t } = useTranslation();
@@ -394,6 +418,7 @@ function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSa
             {onDelete && <DeleteUserButton name={u.firstName || u.username || u.email || ""} onConfirm={() => onDelete(u.id)} />}
             <button onClick={() => onSave(e)} className={btn}>{t("admin.c.save")}</button>
           </div>
+          {["admin", "staff"].includes(u.role) && <RealName userId={u.id} />}
           {["admin", "staff"].includes(u.role) && <RatingVisibility userId={u.id} />}
           {["admin", "staff"].includes(u.role) && u.id !== (me as any)?.id && <TabAccessBox key={`${u.id}-${u.role}-${u.member_role}`} u={u} tabs={tabs} onSaved={onTabsSaved} />}
         </>

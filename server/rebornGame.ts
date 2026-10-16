@@ -1621,13 +1621,14 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/support/staff", requireAuth, async (req, res) => {
     const me = getUserId(req)!;
     const cid = await rebornCompanyId(req);
-    const result = await db.execute(sql`SELECT m.user_id AS id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,'Staff') AS name, u.profile_image_url AS photo, p.name AS position,
+    const result = await db.execute(sql`SELECT m.user_id AS id, COALESCE(NULLIF(trim(sp.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,'Staff') AS name, u.profile_image_url AS photo, p.name AS position,
         COALESCE(avg(r.rating),0)::numeric(3,2) AS rating, count(r.id) AS reviews,
         (SELECT r2.rating FROM bridge_staff_reviews r2 WHERE r2.company_id=m.company_id AND r2.staff_user_id=m.user_id AND r2.customer_user_id=${me} ORDER BY r2.id DESC LIMIT 1) AS my_rating
       FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id
+      LEFT JOIN bridge_staff_profiles sp ON sp.company_id=m.company_id AND sp.user_id=m.user_id
       LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true
       WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') AND m.user_id<>${me}
-      GROUP BY m.company_id, m.user_id, u.first_name, u.last_name, u.username, u.profile_image_url, p.name ORDER BY name`);
+      GROUP BY m.company_id, m.user_id, u.first_name, u.last_name, u.username, u.profile_image_url, p.name, sp.real_name ORDER BY name`);
     const hidden = new Set(await readRatingHidden());
     res.json(((result.rows || result) as any[]).filter((x) => !hidden.has(x.id)).map((x) => ({ ...x, rating: Number(x.rating), reviews: Number(x.reviews), myRating: x.my_rating == null ? null : Number(x.my_rating) })));
   });
@@ -4250,7 +4251,7 @@ export function registerRebornRoutes(app: Express) {
     const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
-    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
     const staff=((result.rows||result) as any[]).map((x)=>{const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
@@ -4456,9 +4457,29 @@ export function registerRebornRoutes(app: Express) {
 
   // Admin/manager (full admin)
   const nameOf = (u: any) => u ? (`${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || u.email || u.id) : "Unknown";
+  // The real names the admin typed for staff whose account uses another name (shown in contacts, schedule, payroll, contracts, payslips).
+  const realNamesOf = async (cid: number, ids: string[]): Promise<Map<string, string>> => {
+    if (!ids.length) return new Map();
+    const rows = await db.select({ userId: bridgeStaffProfiles.userId, realName: bridgeStaffProfiles.realName }).from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId, cid), inArray(bridgeStaffProfiles.userId, ids)));
+    return new Map(rows.filter((r) => r.realName?.trim()).map((r) => [r.userId, r.realName!.trim()] as [string, string]));
+  };
+  const MAX_REAL_NAME = 120;
+  app.get("/api/reborn/admin/staff-real-names", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const rows = await db.select({ userId: bridgeStaffProfiles.userId, realName: bridgeStaffProfiles.realName }).from(bridgeStaffProfiles).where(eq(bridgeStaffProfiles.companyId, cid));
+    res.json(Object.fromEntries(rows.filter((r) => r.realName?.trim()).map((r) => [r.userId, r.realName])));
+  }));
+  app.put("/api/reborn/admin/staff-real-name/:userId", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const userId = String(req.params.userId);
+    const name = String(req.body?.name || "").trim().slice(0, MAX_REAL_NAME) || null;
+    await db.insert(bridgeStaffProfiles).values({ companyId: cid, userId, realName: name }).onConflictDoUpdate({ target: [bridgeStaffProfiles.companyId, bridgeStaffProfiles.userId], set: { realName: name, updatedAt: new Date() } });
+    await logAdmin(req, { targetUserId: userId, targetType: "user", action: "real_name", entityType: "profile", description: name ? `Real name set to "${name}"` : "Real name cleared" });
+    res.json({ name, message: tr(req, { en: "Real name saved", zh: "真实姓名已保存", id: "Nama asli tersimpan" }) });
+  }));
   app.get("/api/reborn/admin/staff-list", requireManager(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const result = await db.execute(sql`SELECT m.user_id AS id, m.role, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,u.email,u.id) name FROM bridge_company_members m JOIN users u ON u.id=m.user_id WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
+    const result = await db.execute(sql`SELECT m.user_id AS id, m.role, COALESCE(NULLIF(trim(sp.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,u.email,u.id) name FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles sp ON sp.company_id=m.company_id AND sp.user_id=m.user_id WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
     res.json((result.rows || result as any[]).map((x: any) => ({ id: x.id, name: x.name, role: x.role })));
   }));
   // Duties of each job (position), written once by the admin and filled into every contract of that job.
@@ -4494,7 +4515,7 @@ export function registerRebornRoutes(app: Express) {
       ? sql`COALESCE((SELECT SUM(pi.line_total) FROM pos_ticket_items pi JOIN pos_tickets t ON t.id=pi.order_id LEFT JOIN pos_products p2 ON p2.id=pi.product_id WHERE t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid' AND t.paid_at >= now()-interval '7 days' AND ${industry} = ANY(string_to_array(COALESCE(p2.department,''), ','))),0)`
       : sql`COALESCE(sum(t.total::numeric) FILTER (WHERE t.paid_at >= now()-interval '7 days'),0)`;
     const salesJoin = industry ? sql`` : sql`LEFT JOIN pos_tickets t ON t.company_id=m.company_id AND t.sales_staff_id=m.user_id AND t.status='paid'`;
-    const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name, p.name position, ${salesExpr} weekly_sales, COALESCE(avg(r.rating),0)::numeric(3,2) rating, count(DISTINCT r.id) review_count, count(DISTINCT r.id) FILTER (WHERE r.rating <= 2) bad_reviews FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id ${salesJoin} LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') GROUP BY m.user_id,u.first_name,u.last_name,u.email,p.name ORDER BY weekly_sales DESC, rating DESC`);
+    const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(sp.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name, p.name position, ${salesExpr} weekly_sales, COALESCE(avg(r.rating),0)::numeric(3,2) rating, count(DISTINCT r.id) review_count, count(DISTINCT r.id) FILTER (WHERE r.rating <= 2) bad_reviews FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_positions p ON p.id=m.position_id LEFT JOIN bridge_staff_profiles sp ON sp.company_id=m.company_id AND sp.user_id=m.user_id ${salesJoin} LEFT JOIN bridge_staff_reviews r ON r.company_id=m.company_id AND r.staff_user_id=m.user_id AND r.visible=true WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') GROUP BY m.user_id,u.first_name,u.last_name,u.email,p.name,sp.real_name ORDER BY weekly_sales DESC, rating DESC`);
     const rows=(result.rows||result) as any[]; res.json(rows.map((x,i)=>({...x,rank:i+1,redFlag:(Number(x.rating)>0&&Number(x.rating)<2.5)||Number(x.bad_reviews)>=3})));
   }));
   // Distinct industries (product departments) for filters.
@@ -4541,6 +4562,7 @@ export function registerRebornRoutes(app: Express) {
     const ids = Array.from(new Set(rows.map((r) => r.userId)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
+    for (const [id, real] of await realNamesOf(cid, ids)) map.set(id, real);
     res.json(rows.map((r) => ({ ...r, staffName: map.get(r.userId) || r.userId })));
   }));
   // Delete a check-in photo to save storage (keeps the attendance record).
@@ -4565,6 +4587,7 @@ export function registerRebornRoutes(app: Express) {
     const ids = Array.from(new Set(rows.map((r) => r.userId)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
+    for (const [id, real] of await realNamesOf(cid, ids)) map.set(id, real);
     res.json(rows.map((r) => ({ ...r, staffName: map.get(r.userId) || r.userId })));
   }));
   // Put one or more people on the schedule for one or more dates at once (the calendar ticks several days). The same shift is never added twice.
@@ -4603,6 +4626,7 @@ export function registerRebornRoutes(app: Express) {
     const ids = Array.from(new Set(rows.map((r) => r.userId)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
+    for (const [id, real] of await realNamesOf(cid, ids)) map.set(id, real);
     res.json(rows.map((r) => ({ ...r, staffName: map.get(r.userId) || r.userId })));
   }));
   app.post("/api/reborn/admin/leave/:id/decide", requireAdmin(async (req, res) => {
@@ -5155,7 +5179,7 @@ export function registerRebornRoutes(app: Express) {
       const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
       const [p] = company ? await db.select().from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId, company.id), eq(bridgeStaffProfiles.userId, userId))).limit(1) : [];
       return {
-        name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || "Staff", email: u.email || null,
+        name: p?.realName?.trim() || [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || "Staff", email: u.email || null,
         employmentType: p?.employmentType || "full_time", payType: p?.payType || "salary", baseSalary: Number(p?.baseSalary) || 0, hourlyRate: Number(p?.hourlyRate) || 0,
         commissionRate: Number(p?.commissionRate) || 0, deposit: Number(p?.deposit) || 0, depositNote: p?.depositNote || "",
       };
