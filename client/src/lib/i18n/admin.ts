@@ -1609,6 +1609,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.ctr.otherJob': { en: "Other job (type it)…", zh: "其他职位（手动输入）…", id: "Jabatan lain (ketik)…" },
   'admin.ctr.saveScope': { en: "Save these duties for every {job}", zh: "将这些职责保存给所有「{job}」", id: "Simpan tugas ini untuk semua {job}" },
   'admin.ctr.saveScopeUpdate': { en: "Update the saved duties of {job}", zh: "更新「{job}」已保存的职责", id: "Perbarui tugas {job} yang tersimpan" },
+  'admin.pay.payslip': { en: "Payslip (PDF)", zh: "工资单（PDF）", id: "Slip gaji (PDF)" },
+  'admin.pay.payslipNone': { en: "A payslip is made when you press Record paid.", zh: "按“记录已付”后会生成工资单。", id: "Slip gaji dibuat saat Anda menekan Catat dibayar." },
   'admin.ctr.viewId': { en: "View ID", zh: "查看证件", id: "Lihat ID" },
   'admin.ctr.hideId': { en: "Hide ID", zh: "隐藏证件", id: "Sembunyikan ID" },
   'admin.ctr.role': { en: "Role (job title in the contract)", zh: "职位（写入合同）", id: "Jabatan (dalam kontrak)" },

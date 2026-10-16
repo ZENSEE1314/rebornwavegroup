@@ -36,6 +36,8 @@ import { cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerStaffContractRoutes } from "./staffContracts";
+import { registerPayslipRoutes, savePayslip, runPayrollReminder, type PayslipDeps } from "./payslips";
+import type { PayslipData } from "@shared/payslip";
 import { registerVenueScanRoutes } from "./venueScan";
 import { registerSupplierReorder, runSupplierReorderCheck } from "./supplierReorder";
 import { searchSongCatalog, textPinyin } from "./songSearch";
@@ -90,7 +92,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   songsPerTurn: "1",        // songs each member/table sings per turn (1–3)
   timezone: "Asia/Jakarta", // club country timezone — booking slots, "today" and WhatsApp reminders use this
   bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
-  payrollDay: "1",          // day of month payroll is recorded/paid
+  payrollDay: "15",         // day of month payroll is recorded/paid (the admin reminder comes then)
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
   allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
   bookingTableDayLock: "false", // a table booked at any time is closed for the rest of that day
@@ -1222,11 +1224,26 @@ function packPricingFields(b: { unitsPerPack?: unknown; packPrice?: unknown }): 
   return { unitsPerPack, packPrice: String(packCost), cost: String(computed) };
 }
 
+const PAYROLL_REMINDER_CHECK_MS = 60 * 60 * 1000;
+
 export function registerRebornRoutes(app: Express) {
   // A table's call keeps alerting staff until someone accepts it.
   setInterval(() => { void inEveryDataSpace(remindServiceCalls); }, SERVICE_CALL_CHECK_MS);
   // Low stock → a drafted message to the supplier, waiting for the admin's approval (when switched on).
   setInterval(() => { void inEveryDataSpace(async () => { await runSupplierReorderCheck(); }).catch((error) => console.error("[supplier reorder]", error)); }, SUPPLIER_REORDER_CHECK_MS);
+
+  // Payday: once a month the admins are told who is still unpaid for the month that ended.
+  const payslipDeps: PayslipDeps = {
+    requireStaff,
+    requireAdmin,
+    userId: (req) => getUserId(req) as string,
+    companyId: (req) => rebornCompanyId(req),
+    userLang: (userId) => userLang(userId),
+    notifyUser: (userId, text, data) => notifyUserI18n(userId, "payslip", (lang) => ({ title: pick(lang, { en: "Payslip", zh: "工资单", id: "Slip gaji" }), body: text[lang] }), data),
+    notifyAdmins: (text) => notifyStaffI18n("payday", (lang) => ({ title: pick(lang, { en: "Payday", zh: "发薪日", id: "Hari gajian" }), body: text[lang] }), undefined, { adminsOnly: true }),
+    payrollDay: async () => (await getSettings()).payrollDay,
+  };
+  setInterval(() => { void inEveryDataSpace(async () => { await runPayrollReminder(payslipDeps); }).catch((error) => console.error("[payroll reminder]", error)); }, PAYROLL_REMINDER_CHECK_MS);
 
   console.log("*** REBORN GAME ROUTES REGISTERED");
   void dedupeGiftTypes();
@@ -4213,7 +4230,7 @@ export function registerRebornRoutes(app: Express) {
     const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
-    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
     const staff=((result.rows||result) as any[]).map((x)=>{const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
@@ -4237,6 +4254,14 @@ export function registerRebornRoutes(app: Express) {
     const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(roundMoney(amount-deduction)),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}${deduction>0?`, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}`:""}, net pay ${netPay}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
     if(c.employer>0)await db.insert(ledgerEntries).values({kind:"expense",category:"statutory_contribution",amount:String(c.employer),note:`Employer contributions ${b.name||userId} · ${month}${parts?` (${parts})`:""}`,refType:"payroll_employer",refId:`${userId}:${month}`,userId});
     await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}, net ${netPay}, employer ${c.employer}`});
+    // The payslip: what was earned (the parts must add up to the gross, else it is all "basic"), what the staff member paid, and the net pay.
+    try{
+      const part=(v:unknown)=>roundMoney(Math.max(0,Number(v)||0));const basic=part(b.basic),commission=part(b.commission),overtime=part(b.overtime);const adds=Math.abs(basic+commission+overtime-amount)<=1;
+      const staff=await storage.getUser(userId);const money=companyMoney();
+      const payslip:PayslipData={company:(await getSettings()).clubName||"Reborn Wave",staffName:String(b.name||[staff?.firstName,staff?.lastName].filter(Boolean).join(" ")||userId),month,paidAt:new Date().toISOString(),currency:{symbol:money.symbol,decimals:money.decimals},
+        basic:adds?basic:amount,commission:adds?commission:0,overtime:adds?overtime:0,gross:amount,contributions:c.lines.filter((l)=>l.ee>0).map((l)=>({label:(l.label||l.code).toUpperCase(),amount:l.ee})),deduction,deductionNote,net:netPay};
+      await savePayslip(payslipDeps,company!.id,userId,payslip,staff?.email||null);
+    }catch(error){console.error("[payslip]",error);}
     res.json({message:tr(req, { en: "Payroll recorded: net pay {net}, staff contributions {ee}, company contributions {er}", zh: "工资已记录：实发 {net}，员工缴费 {ee}，公司缴费 {er}", id: "Gaji dicatat: gaji bersih {net}, iuran staf {ee}, iuran perusahaan {er}" },{net:formatMoneyIn(companyMoney(),netPay),ee:formatMoneyIn(companyMoney(),c.employee),er:formatMoneyIn(companyMoney(),c.employer)}),row,contributions:c});
   }));
 
@@ -5079,6 +5104,7 @@ export function registerRebornRoutes(app: Express) {
       for (const phone of phones) await sendWhatsApp(phone, pick(await langForPhone(phone), text, vars));
     },
   });
+  registerPayslipRoutes(app, payslipDeps);
   registerStaffContractRoutes(app, {
     requireStaff,
     requireAdmin,

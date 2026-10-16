@@ -868,3 +868,14 @@ text.
   the POS (`pos_visible` false, price 0) and books ONE `purchase` expense (refType `receipt`) with the receipt photo.
 - The contract's role is picked from the company's jobs (`bridge_positions`, "Other job" lets the admin type one). The duties of each job are saved once
   (`appSettings.jobScopes`, positionId → text, `PUT /api/reborn/admin/job-scopes/:positionId`) and fill the job-scope box for everyone given that job.
+
+## Payslips + payday reminder (Admin › Payroll)
+
+- "Record paid" saves a payslip (`payslips`, one per person per month, JSON snapshot: basic / commission / overtime, gross, the staff's contributions, the
+  deduction + reason, net pay; server/payslips.ts, words in shared/payslip.ts). The staff member gets a notification and an e-mailed PDF (when they have an email) and
+  reads / downloads it in the app (Profile › My employment › My payslips, `/api/reborn/my-payslips`); the admin downloads it from the payroll row
+  (`/api/reborn/admin/payslips/:userId/:month/pdf`). The PDF is in the staff member's language (Chinese needs the CJK font like the contract; else English).
+  Recording a month again replaces its payslip. A payslip never shows the employer's share.
+- Payday reminder: the day is Admin › Settings › Payroll day (default 15). Hourly per company (`runPayrollReminder`): from 09:00 WIB on that day (or later in the
+  month if the server missed it) the main admins get one notification "N staff still need to be paid for <last month>" (marker `payrollRemindedFor`); nothing is
+  paid automatically. The month to pay is the one that just ended; Payroll opens on the current month, so pick the previous month with the month box.

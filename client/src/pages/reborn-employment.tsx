@@ -10,6 +10,34 @@ import { FileText, IdCard } from "lucide-react";
 const card = "rounded-2xl border border-white/10 bg-white/5 p-4 mb-4";
 
 // App › Profile › My employment (staff only): upload the ID for the admin, then read and sign the employment contract the admin sends.
+function Payslips() {
+  const { t, language } = useTranslation();
+  const { toast } = useToast();
+  const { data: slips = [] } = useQuery<Array<{ month: string; net: number; currency: { symbol: string; decimals: number } }>>({ queryKey: ["/api/reborn/my-payslips"], queryFn: () => apiRequest("GET", "/api/reborn/my-payslips").then((r) => r.json()) });
+  const download = async (month: string) => {
+    try {
+      const r = await apiRequest("GET", `/api/reborn/my-payslips/${month}/pdf`);
+      if (!r.ok) throw new Error((await r.json()).message);
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement("a"); a.href = url; a.download = `payslip-${month}.pdf`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (e: any) { toast({ title: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }); }
+  };
+  const monthName = (month: string) => new Date(`${month}-01T00:00:00Z`).toLocaleDateString(localeTag(language), { month: "long", year: "numeric", timeZone: "UTC" });
+  return (
+    <div className={card}>
+      <p className="font-bold flex items-center gap-2 mb-2"><FileText className="w-4 h-4 text-emerald-300" /> {t("emp.slips")}</p>
+      {slips.length === 0 && <p className="text-xs text-white/50">{t("emp.slipsNone")}</p>}
+      {slips.map((slip) => (
+        <div key={slip.month} className="flex items-center justify-between gap-2 border-t border-white/10 py-2 first:border-t-0">
+          <div><p className="text-sm font-semibold">{monthName(slip.month)}</p><p className="text-xs text-emerald-200">{t("emp.slipNet", { v: `${slip.currency.symbol} ${slip.net.toLocaleString("en-US", { minimumFractionDigits: slip.currency.decimals, maximumFractionDigits: slip.currency.decimals })}` })}</p></div>
+          <button type="button" onClick={() => download(slip.month)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold">{t("emp.slipDownload")}</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function RebornEmployment() {
   const { t, language } = useTranslation();
   const { toast } = useToast();
@@ -101,6 +129,7 @@ export default function RebornEmployment() {
           </>
         )}
       </div>
+      <Payslips />
     </RebornLayout>
   );
 }

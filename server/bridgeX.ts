@@ -550,6 +550,8 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS deposit numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS deposit_note text;
     CREATE TABLE IF NOT EXISTS staff_contracts (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'awaiting_staff', lang varchar NOT NULL DEFAULT 'en', job_title varchar, start_date varchar, extra_terms text, terms text, id_image text, id_number varchar, id_uploaded_at timestamp, signature text, signed_name varchar, signed_at timestamp, approved_by varchar, approved_at timestamp, return_note text, emailed_at timestamp, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     ALTER TABLE staff_contracts ADD COLUMN IF NOT EXISTS job_scope text;
+    CREATE TABLE IF NOT EXISTS payslips (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, month varchar NOT NULL, data text NOT NULL, created_at timestamp NOT NULL DEFAULT now());
+    CREATE UNIQUE INDEX IF NOT EXISTS payslips_user_month ON payslips (company_id, user_id, month);
     CREATE UNIQUE INDEX IF NOT EXISTS staff_contracts_user ON staff_contracts (company_id, user_id);
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS archived boolean NOT NULL DEFAULT false; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS package_item_ids text; ALTER TABLE member_packages ADD COLUMN IF NOT EXISTS item_ids text;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS units_per_pack integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS pack_price numeric(14,2);

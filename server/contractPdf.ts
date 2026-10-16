@@ -16,7 +16,7 @@ export const cjkFontPath = (): string | null => CJK_FONTS.find((p) => existsSync
 
 // A .ttc holds several fonts: pdfkit needs the PostScript name of the one to use.
 const TTC_NAMES = ["WenQuanYiZenHei", "NotoSansCJKsc-Regular", "NotoSansCJKjp-Regular"];
-function registerCjk(doc: InstanceType<typeof PDFDocument>): boolean {
+export function registerCjk(doc: InstanceType<typeof PDFDocument>): boolean {
   const path = cjkFontPath();
   if (!path) return false;
   for (const name of path.endsWith(".ttc") ? TTC_NAMES : [undefined]) {
