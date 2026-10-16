@@ -977,3 +977,7 @@ eborn-venue-pack.
 - Ready → collected: the kitchen screen's button is **Ready** (item status `ready`, left off the kitchen list, still on the bill); every staff / admin device then vibrates + beeps every 3 s
   (`components/ReadyItemsAlert.tsx` in RebornLayout, polls `GET /api/reborn/pos/ready-items` every 5 s, quiet on the `/kitchen` screen) until someone taps **Collected** (the normal status call → `served`, the member
   is told then, not at "ready"). The POS bill line shows "ready" with a Collected button too.
+
+- Stock in / out from Inventory: Admin › Inventory › pencil on an item › 📦 "Add or take out stock" (components/StockAdjust.tsx, same `POST /api/reborn/pos/stock-in`). **Add stock**: quantity, supplier, unit cost and the
+  date & time it arrived. **Take out**: quantity, a reason (Damaged / broken, Expired, Spilled, Staff / free use, Count correction, Other = note required) and a date; the reason + note go on the movement, the server refuses
+  more than is in stock (unless negative stock is allowed) and books a `loss` expense at cost (`refType stock_out`) for every reason except "Count correction". The count itself is still never typed over.

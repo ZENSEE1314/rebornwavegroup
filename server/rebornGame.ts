@@ -1259,6 +1259,8 @@ const happyFieldsOf = (b: any) => {
     happyOnly: hasWindow && !!b.happyOnly,
   };
 };
+const STOCK_OUT_REASON_MAX = 200;
+const STOCK_OUT_CORRECTION = "Count correction"; // the one reason that is not a loss of money
 const STOCK_IN_MAX_AGE_MS = 366 * 24 * 60 * 60 * 1000;
 const STOCK_IN_FUTURE_SLACK_MS = 5 * 60 * 1000;
 const MAX_SHIFTS_AT_ONCE = 300;
@@ -3398,11 +3400,19 @@ export function registerRebornRoutes(app: Express) {
     if (receivedAt && (Number.isNaN(receivedAt.getTime()) || receivedAt.getTime() > Date.now() + STOCK_IN_FUTURE_SLACK_MS || receivedAt.getTime() < Date.now() - STOCK_IN_MAX_AGE_MS))
       return res.status(400).json({ message: tr(req, { en: "The delivery date and time must be within the last year and not in the future", zh: "收货日期和时间必须在过去一年内，且不能是未来", id: "Tanggal dan jam penerimaan harus dalam setahun terakhir dan tidak di masa depan" }) });
     const createdAt = receivedAt ?? undefined;
+    // Taking stock out needs a reason (damaged, expired, …): it is kept on the movement and, unless it is only a count correction, booked as a loss at cost.
+    const outReason = String(req.body?.reason || "").trim().slice(0, STOCK_OUT_REASON_MAX);
+    const outNote = String(req.body?.note || "").trim().slice(0, STOCK_OUT_REASON_MAX);
+    if (qty < 0 && !outReason) return res.status(400).json({ message: tr(req, { en: "Choose a reason for taking stock out", zh: "请选择减少库存的原因", id: "Pilih alasan pengurangan stok" }) });
+    if (qty < 0 && !(await getSettings()).allowNegativeStock && (p.stock ?? 0) + qty < 0) return res.status(400).json({ message: tr(req, { en: "Only {n} in stock", zh: "库存只有 {n}", id: "Stok hanya {n}" }, { n: p.stock ?? 0 }) });
     await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}`, ...(supplier ? { supplierName: supplier } : {}) }).where(eq(posProducts.id, id));
-    await db.insert(stockMovements).values({ productId: id, delta: qty, reason: qty > 0 ? "stock_in" : "adjustment", supplier, createdAt, unitCost: unitCost > 0 ? String(unitCost) : null, note: req.body?.note || null, userId: getUserId(req)! });
+    await db.insert(stockMovements).values({ productId: id, delta: qty, reason: qty > 0 ? "stock_in" : "adjustment", supplier, createdAt, unitCost: unitCost > 0 ? String(unitCost) : null, note: qty < 0 ? [outReason, outNote].filter(Boolean).join(": ") : (req.body?.note || null), userId: getUserId(req)! });
+    const lossCost = roundMoney((Number(p.cost) || 0) * -qty);
+    if (qty < 0 && outReason !== STOCK_OUT_CORRECTION && lossCost > 0)
+      await db.insert(ledgerEntries).values({ kind: "expense", category: "loss", amount: String(lossCost), note: `Stock out: ${-qty} × ${p.name} (${outReason}${outNote ? `: ${outNote}` : ""})`, refType: "stock_out", refId: String(id), createdAt, userId: getUserId(req)! });
     if (qty > 0 && unitCost > 0)
       await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}`, refType: "stock_movement", refId: String(id), createdAt, userId: getUserId(req)! });
-    await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"${supplier ? ` (${supplier})` : ""}` });
+    await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"${supplier ? ` (${supplier})` : ""}${qty < 0 ? ` — ${outReason}${outNote ? `: ${outNote}` : ""}` : ""}` });
     res.json({ message: tr(req, { en: "Stock updated", zh: "库存已更新", id: "Stok diperbarui" }) });
   }));
   app.get("/api/reborn/pos/stock", requireStaff(async (req, res) => {

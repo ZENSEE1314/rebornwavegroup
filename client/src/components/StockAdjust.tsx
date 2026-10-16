@@ -1,0 +1,77 @@
+// Admin › Inventory › an item: put stock in (supplier, price, the date and time it arrived) or take stock out with a reason.
+// Both are recorded as stock movements (the history and oldest-first costing follow them); the number itself is never typed over.
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "@/lib/i18n";
+import { useToast } from "@/hooks/use-toast";
+
+const inp = "rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-sm text-white outline-none focus:border-amber-300";
+const STOCK_IN = "/api/reborn/pos/stock-in";
+const OTHER_REASON = "Other";
+// The English wording is what is stored (the server keeps "Count correction" out of the loss accounting); the screen shows it translated.
+const REASONS = [
+  { value: "Damaged / broken", key: "admin.sa.r.damaged" },
+  { value: "Expired", key: "admin.sa.r.expired" },
+  { value: "Spilled", key: "admin.sa.r.spilled" },
+  { value: "Staff / free use", key: "admin.sa.r.free" },
+  { value: "Count correction", key: "admin.sa.r.correction" },
+  { value: OTHER_REASON, key: "admin.sa.r.other" },
+];
+
+// Current local date and time for <input type="datetime-local">, to the minute.
+const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+
+export function StockAdjust({ p }: { p: { id: number; name: string; stock?: number; supplierName?: string | null } }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<"in" | "out">("in");
+  const [f, setF] = useState({ qty: "", supplier: p.supplierName || "", unitCost: "", at: nowLocal(), reason: REASONS[0].value, note: "" });
+  const qty = Math.floor(Number(f.qty) || 0);
+  const needsNote = mode === "out" && f.reason === OTHER_REASON;
+  const canSave = qty > 0 && (mode === "in" || !needsNote || f.note.trim() !== "");
+  const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", STOCK_IN, {
+      productId: p.id, qty: mode === "in" ? qty : -qty, receivedAt: f.at ? new Date(f.at).toISOString() : undefined,
+      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: f.unitCost ? Number(f.unitCost) : undefined } : { reason: f.reason, note: f.note }),
+    }).then((r) => r.json()),
+    onSuccess: () => {
+      toast({ title: t("admin.sa.saved") });
+      setF({ ...f, qty: "", unitCost: "", note: "", at: nowLocal() });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+    },
+    onError: fail,
+  });
+  const tab = (value: "in" | "out", label: string) => (
+    <button type="button" onClick={() => setMode(value)} aria-pressed={mode === value} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold ${mode === value ? (value === "in" ? "bg-emerald-500 text-black" : "bg-red-400 text-black") : "bg-white/10 text-white/70"}`}>{label}</button>
+  );
+  return (
+    <div className="mt-3 border-t border-white/10 pt-2">
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="min-h-0 p-0 text-left text-cyan-200" style={{ fontSize: 12, fontWeight: 600 }}>📦 {t("admin.sa.title")} {isOpen ? "▲" : "▼"}</button>
+      {isOpen && (
+        <div className="mt-2 space-y-2">
+          <div className="flex gap-2">{tab("in", `➕ ${t("admin.sa.add")}`)}{tab("out", `➖ ${t("admin.sa.take")}`)}</div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-[11px] text-white/50">{t("admin.prod.qty")}<input type="number" inputMode="numeric" min={1} value={f.qty} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, qty: e.target.value })} className={inp + " mt-0.5 block w-24"} /></label>
+            {mode === "in" && <>
+              <label className="text-[11px] text-white/50">{t("admin.prod.supplier")}<input value={f.supplier} onChange={(e) => setF({ ...f, supplier: e.target.value })} className={inp + " mt-0.5 block w-40"} /></label>
+              <label className="text-[11px] text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.unitCost} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, unitCost: e.target.value })} className={inp + " mt-0.5 block w-28"} /></label>
+            </>}
+            <label className="text-[11px] text-white/50">{mode === "in" ? t("admin.prod.receivedAt") : t("admin.sa.when")}<input type="datetime-local" value={f.at} max={nowLocal()} onChange={(e) => setF({ ...f, at: e.target.value })} className={inp + " mt-0.5 block"} /></label>
+          </div>
+          {mode === "out" && (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="text-[11px] text-white/50">{t("admin.sa.reason")}<select value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} className={inp + " mt-0.5 block"}>{REASONS.map((r) => <option key={r.value} value={r.value}>{t(r.key)}</option>)}</select></label>
+              <label className="min-w-0 flex-1 text-[11px] text-white/50">{needsNote ? t("admin.sa.noteRequired") : t("admin.sa.note")}<input value={f.note} maxLength={200} onChange={(e) => setF({ ...f, note: e.target.value })} className={inp + " mt-0.5 block w-full"} /></label>
+            </div>
+          )}
+          <p className="text-[11px] text-white/40">{mode === "in" ? t("admin.sa.hintIn") : t("admin.sa.hintOut")}</p>
+          <button type="button" onClick={() => save.mutate()} disabled={!canSave || save.isPending} className={`rounded-lg px-4 py-2 text-xs font-bold text-black disabled:opacity-40 ${mode === "in" ? "bg-emerald-500" : "bg-red-400"}`}>{mode === "in" ? t("admin.sa.saveIn", { n: String(qty || 0) }) : t("admin.sa.saveOut", { n: String(qty || 0) })}</button>
+        </div>
+      )}
+    </div>
+  );
+}

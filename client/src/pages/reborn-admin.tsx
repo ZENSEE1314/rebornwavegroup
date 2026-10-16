@@ -13,6 +13,7 @@ import ReceiptScan from "@/components/ReceiptScan";
 import AccountingFresh from "@/components/AccountingFresh";
 import StockSuppliers from "@/components/StockSuppliers";
 import { ItemBundles, CreditPackages, PieceRow } from "@/components/ItemBundles";
+import { StockAdjust } from "@/components/StockAdjust";
 import { VenueSyncCard } from "@/components/VenueSyncCard";
 import ProductPicture from "@/components/ProductPicture";
 import { MultiDateCalendar } from "@/components/MultiDateCalendar";
@@ -2471,6 +2472,7 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
         </div>
       )}
       {!edit && <StockSuppliers p={p} />}
+      {inventory && !edit && !p.bundleItemId && !p.packageKind && <StockAdjust p={p} />}
       {inventory && !edit && !p.bundleItemId && !p.packageKind && <ItemBundles p={p} />}
     </Card>
   );
