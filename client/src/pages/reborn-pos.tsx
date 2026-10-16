@@ -16,7 +16,7 @@ import { ReasonDialog } from "@/components/ReasonDialog";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
-interface Product { recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
+interface Product { salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
@@ -155,12 +155,12 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const [cart, setCart] = useState<Record<number, number>>({});
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const lines = Object.entries(cart).filter(([, q]) => q > 0);
-  const cartItems = useMemo(() => Object.entries(cart).filter(([, q]) => q > 0).map(([id, qty]) => ({ ...byId.get(Number(id))!, qty })), [cart, byId]);
+  const cartItems = useMemo(() => Object.entries(cart).filter(([, q]) => q > 0).map(([id, qty]) => ({ ...byId.get(Number(id))!, price: byId.get(Number(id))!.salePrice ?? byId.get(Number(id))!.price, qty })), [cart, byId]);
   useEffect(() => { onCartChange?.(cartItems); }, [cartItems, onCartChange]);
-  const total = lines.reduce((s, [id, q]) => s + Number(byId.get(Number(id))?.price || 0) * q, 0);
+  const total = lines.reduce((s, [id, q]) => s + Number(byId.get(Number(id))?.salePrice ?? byId.get(Number(id))?.price ?? 0) * q, 0);
   const add = (id: number, count = 1) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + count }));
   const sub = (id: number) => setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) - 1) }));
-  const commit = () => { onCommit(lines.map(([id, q]) => { const p = byId.get(Number(id))!; return { productId: p.id, name: p.name, price: Number(p.price), qty: q }; })); setCart({}); };
+  const commit = () => { onCommit(lines.map(([id, q]) => { const p = byId.get(Number(id))!; return { productId: p.id, name: p.name, price: Number(p.salePrice ?? p.price), qty: q }; })); setCart({}); };
   const [industry, setIndustry] = useState("");
   const industries = useMemo(() => Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort() as string[], [products]);
   const groups = useMemo(() => {
@@ -190,7 +190,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
                   : <div className="w-full aspect-square flex items-center justify-center text-2xl bg-white/5">{p.packageKind === "uses" ? "📦" : p.packageKind === "credit" ? "💳" : "🍸"}</div>}
                 <div className="p-2">
                   <p className="text-[13px] font-semibold leading-tight line-clamp-2 break-words">{p.recommended && cat !== RECOMMENDED_GROUP ? "⭐ " : ""}{p.name}</p>
-                  <p className="text-xs text-amber-300">{rp(Number(p.price))}</p>
+                  <p className="text-xs text-amber-300">{rp(Number(p.salePrice ?? p.price))}{p.happyNow && <span className="ml-1 text-[10px] text-pink-300">🍹 {t("pos.happy.now")}</span>}</p>
                   <p className="text-[10px] text-white/40">{p.packageKind === "uses" ? t("pos.pkg.tileUses", { n: p.packageUses || 1 }) : p.packageKind === "credit" ? t("pos.pkg.tileCredit", { n: rp(Number(p.packageCredit)) }) : t("pos.stockCount", { n: p.stock })}</p>
                 </div>
                 {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}
@@ -212,7 +212,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
                 <button onClick={() => sub(Number(id))} style={{ width: 32, height: 32 }} className="rounded-full bg-white/15 text-white flex items-center justify-center text-xl leading-none font-bold flex-shrink-0">−</button>
                 <span style={{ minWidth: 20 }} className="text-center text-sm font-bold">{q}</span>
                 <button onClick={() => add(Number(id))} style={{ width: 32, height: 32 }} className="rounded-full bg-white/15 text-white flex items-center justify-center text-xl leading-none font-bold flex-shrink-0">+</button>
-                <span className="w-20 text-right text-sm text-amber-300">{rp(Number(p.price) * q)}</span>
+                <span className="w-20 text-right text-sm text-amber-300">{rp(Number(p.salePrice ?? p.price) * q)}</span>
               </div>
             );
           })}

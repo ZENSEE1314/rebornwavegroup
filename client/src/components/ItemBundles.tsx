@@ -12,9 +12,10 @@ const MIN_BUNDLE_QTY = 2;
 
 interface Piece { id: number; name: string; category: string; department?: string | null; imageUrl?: string | null; price: string; recommended?: boolean; bundleItemId?: number | null; bundleQty?: number | null; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; packageItemIds?: string | null }
 
-const idsOf = (raw?: string | null): number[] => { try { const ids = JSON.parse(raw || "[]"); return Array.isArray(ids) ? ids.map(Number) : []; } catch { return []; } };
+export const idsOf = (raw?: string | null): number[] => { try { const ids = JSON.parse(raw || "[]"); return Array.isArray(ids) ? ids.map(Number) : []; } catch { return []; } };
 
-export function PieceRow({ piece, onChanged }: { piece: Piece; onChanged: () => void }) {
+// alsoIds: the same piece made for the other inventory items that are the same item (another supplier): edits and deletes reach them too.
+export function PieceRow({ piece, onChanged, alsoIds = [] }: { piece: Piece; onChanged: () => void; alsoIds?: number[] }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [name, setName] = useState(piece.name);
@@ -24,11 +25,11 @@ export function PieceRow({ piece, onChanged }: { piece: Piece; onChanged: () => 
   const isDirty = name !== piece.name || Number(price) !== Number(piece.price) || isStarred !== !!piece.recommended;
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
-    mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${piece.id}`, { name, price: Number(price), recommended: isStarred }).then((r) => r.json()),
+    mutationFn: async () => { const res = await Promise.all([piece.id, ...alsoIds].map((id) => apiRequest("PATCH", `/api/reborn/admin/pos/products/${id}`, { name, price: Number(price), recommended: isStarred }))); return res[0].json(); },
     onSuccess: () => { toast({ title: t("admin.c.saved") }); onChanged(); }, onError: fail,
   });
   const remove = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/pos/products/${piece.id}`).then((r) => r.json()),
+    mutationFn: async () => { const res = await Promise.all([piece.id, ...alsoIds].map((id) => apiRequest("DELETE", `/api/reborn/admin/pos/products/${id}`))); return res[0].json(); },
     onSuccess: () => { toast({ title: t("admin.c.deleted") }); onChanged(); }, onError: fail,
   });
   const size = piece.packageKind === "credit" ? t("admin.ib.creditSize", { v: money(Number(piece.packageCredit) || 0) }) : piece.bundleItemId ? t("admin.ib.together", { n: piece.bundleQty || 0 }) : t("admin.ib.uses", { n: piece.packageUses || 1 });
@@ -52,19 +53,25 @@ export function ItemBundles({ p }: { p: { id: number; name: string; category: st
   const qc = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const { data: all = [] } = useQuery<Piece[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()), enabled: isOpen });
+  // The same item entered once per supplier (same name): bundles and packages are made for each, so either one's stock can sell them.
+  const sameName = (name: string) => name.trim().toLowerCase();
+  const twins = all.filter((x) => x.id !== p.id && !x.packageKind && !x.bundleItemId && sameName(x.name) === sameName(p.name));
+  const itemIds = [p.id, ...twins.map((x) => x.id)];
   const bundles = all.filter((x) => x.bundleItemId === p.id);
   const packages = all.filter((x) => x.packageKind === "uses" && idsOf(x.packageItemIds).includes(p.id));
+  const copiesOf = (piece: Piece): number[] => all.filter((x) => x.id !== piece.id && x.name === piece.name && x.bundleQty === piece.bundleQty && x.packageUses === piece.packageUses
+    && (piece.bundleItemId ? twins.some((tw) => tw.id === x.bundleItemId) : x.packageKind === "uses" && idsOf(x.packageItemIds).some((id) => twins.some((tw) => tw.id === id)))).map((x) => x.id);
   const [bundle, setBundle] = useState({ qty: "6", price: "" });
   const [pack, setPack] = useState({ uses: "6", days: "", price: "" });
   const changed = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); };
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const base = { category: p.category, department: p.department || "", imageUrl: p.imageUrl || "", active: true, posVisible: true };
   const addBundle = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", { ...base, name: `${p.name} ×${bundle.qty}`, price: Number(bundle.price), bundleItemId: p.id, bundleQty: Number(bundle.qty) }).then((r) => r.json()),
+    mutationFn: async () => { for (const id of itemIds) await apiRequest("POST", "/api/reborn/admin/pos/products", { ...base, name: `${p.name} ×${bundle.qty}`, price: Number(bundle.price), bundleItemId: id, bundleQty: Number(bundle.qty) }); },
     onSuccess: () => { toast({ title: t("admin.prod.added") }); setBundle({ ...bundle, price: "" }); changed(); }, onError: fail,
   });
   const addPackage = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", { ...base, name: `${p.name} ${t("admin.ib.packageWord")} ×${pack.uses}`, price: Number(pack.price), packageKind: "uses", packageUses: Number(pack.uses), packageItemIds: [p.id], packageValidDays: pack.days ? Number(pack.days) : "" }).then((r) => r.json()),
+    mutationFn: async () => { for (const id of itemIds) await apiRequest("POST", "/api/reborn/admin/pos/products", { ...base, name: `${p.name} ${t("admin.ib.packageWord")} ×${pack.uses}`, price: Number(pack.price), packageKind: "uses", packageUses: Number(pack.uses), packageItemIds: [id], packageValidDays: pack.days ? Number(pack.days) : "" }); },
     onSuccess: () => { toast({ title: t("admin.prod.added") }); setPack({ ...pack, price: "" }); changed(); }, onError: fail,
   });
   const canAddBundle = Number(bundle.qty) >= MIN_BUNDLE_QTY && Number(bundle.price) > 0;
@@ -77,7 +84,7 @@ export function ItemBundles({ p }: { p: { id: number; name: string; category: st
           <section className="space-y-2">
             <p className="text-xs font-bold">{t("admin.ib.bundles")}</p>
             <p className="text-[11px] text-white/45">{t("admin.ib.bundleHint")}</p>
-            {bundles.map((piece) => <PieceRow key={piece.id} piece={piece} onChanged={changed} />)}
+            {bundles.map((piece) => <PieceRow key={piece.id} piece={piece} alsoIds={copiesOf(piece)} onChanged={changed} />)}
             <div className="flex flex-wrap items-end gap-2">
               <label className="text-[11px] text-white/50">{t("admin.bundle.qty")}<input type="number" inputMode="numeric" min={MIN_BUNDLE_QTY} value={bundle.qty} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setBundle({ ...bundle, qty: e.target.value })} className={inp + " mt-0.5 block w-24"} /></label>
               <label className="text-[11px] text-white/50">{t("admin.ib.bundlePrice")}<input type="number" inputMode="numeric" value={bundle.price} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setBundle({ ...bundle, price: e.target.value })} className={inp + " mt-0.5 block w-32"} /></label>
@@ -88,7 +95,8 @@ export function ItemBundles({ p }: { p: { id: number; name: string; category: st
           <section className="space-y-2">
             <p className="text-xs font-bold">{t("admin.ib.packages")}</p>
             <p className="text-[11px] text-white/45">{t("admin.ib.packageHint")}</p>
-            {packages.map((piece) => <PieceRow key={piece.id} piece={piece} onChanged={changed} />)}
+            {packages.map((piece) => <PieceRow key={piece.id} piece={piece} alsoIds={copiesOf(piece)} onChanged={changed} />)}
+            {twins.length > 0 && <p className="text-[11px] text-cyan-200/80">{t("admin.ib.twins", { n: String(twins.length) })}</p>}
             <div className="flex flex-wrap items-end gap-2">
               <label className="text-[11px] text-white/50">{t("admin.pkg.usesN")}<input type="number" inputMode="numeric" min={1} value={pack.uses} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setPack({ ...pack, uses: e.target.value })} className={inp + " mt-0.5 block w-24"} /></label>
               <label className="text-[11px] text-white/50">{t("admin.pkg.validDays")}<input type="number" inputMode="numeric" min={0} value={pack.days} placeholder={t("admin.pkg.never")} onChange={(e) => setPack({ ...pack, days: e.target.value })} className={inp + " mt-0.5 block w-28"} /></label>

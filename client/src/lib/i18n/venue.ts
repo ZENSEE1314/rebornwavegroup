@@ -94,6 +94,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.kos.someone': { en: 'Someone', zh: '有人', id: 'Seseorang' },
   'vn.kos.youSentTo': { en: 'You sent {name} a {gift}!', zh: '你送给 {name} 一个{gift}！', id: 'Anda mengirim {gift} untuk {name}!' },
   'vn.kos.cheers': { en: 'CHEERS!', zh: '干杯！', id: 'BERSULANG!' },
+  'vn.happy.now': { en: 'Happy hour', zh: '欢乐时段', id: 'Happy hour' },
   'vn.kos.sentYou': { en: '{name} sent you a {gift}!', zh: '{name} 送给你一个{gift}！', id: '{name} mengirimi Anda {gift}!' },
   'vn.kos.awesome': { en: 'Awesome!', zh: '太棒了！', id: 'Keren!' },
 

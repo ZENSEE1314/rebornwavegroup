@@ -960,3 +960,12 @@ eborn-venue-pack.
   Unzip → `Start Reborn Venue.bat` → a setup page on http://localhost:3000 asks for the cloud address + token (checked against the cloud) → the launcher makes its Postgres, creates the tables with drizzle-kit (all on the first start,
   only additions on later starts), starts the app in VENUE_MODE and opens it. `config.json` and `data/` sit next to the folders, so a newer zip unzipped over it keeps them. Tested from an empty folder: setup page, own database, first
   copy of the cloud data, login with the cloud password, sync status online.
+
+## Happy hour + same item from several suppliers
+
+- Happy hour is set on the inventory item (Admin › Inventory › pencil › 🍹 Happy hour): from / until (`happy_start` / `happy_end`, "HH:MM", past midnight allowed), an optional happy price
+  (`happy_price`, empty = same price) and "only sell during this time" (`happy_only`). Rules in shared/happyHour.ts, on the clock of the company's country (`countryOf(companyCountry()).timezone`).
+  The admin list keeps the normal `price`; `/pos/products` adds `salePrice`, `happyNow`, `offHours` (an off-hours item is `soldOut`, so the POS picker leaves it out) and the POS uses `salePrice`;
+  `/shop/products` returns the happy price as `price` and hides off-hours items. The server charges the price itself (`resolveItems`) and refuses an off-hours item (offline-sold bills excepted).
+- Items entered twice (same name, e.g. one per supplier): a bundle or visits package added in Inventory › an item is made for each of them, and editing / deleting a piece also changes its copies
+  (`ItemBundles`: `twins` / `copiesOf`). Inventory lists every item including those with no stock; bundles / packages whose item is not listed show under "Other bundles & packages".

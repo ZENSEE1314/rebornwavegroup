@@ -101,6 +101,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.stockCount': { en: 'stock {n}', zh: '库存 {n}', id: 'stok {n}' },
   'pos.lowStock': { en: ' · low!', zh: ' · 库存不足！', id: ' · menipis!' },
   'pos.noProductsPicker': { en: 'No products yet — add them in Admin › Products.', zh: '暂无商品 — 请在 管理 › 商品 中添加。', id: 'Belum ada produk — tambahkan di Admin › Produk.' },
+  'pos.happy.now': { en: "Happy hour", zh: "欢乐时段", id: "Happy hour" },
   'pos.clear': { en: 'Clear', zh: '清空', id: 'Kosongkan' },
   'pos.chargeMethod': { en: 'Charge {method}', zh: '收款（{method}）', id: 'Tagih {method}' },
   'pos.chargeAmount': { en: 'Charge {amount} {method}', zh: '收款 {amount}（{method}）', id: 'Tagih {amount} {method}' },

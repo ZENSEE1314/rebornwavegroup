@@ -11,7 +11,8 @@ import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL, GIFT_LEVELS_SINCE_KEY 
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
 import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
-import { formatMoneyIn } from "@shared/countries";
+import { formatMoneyIn, countryOf } from "@shared/countries";
+import { clockInZone, isHappyNow, isOffHours, isValidClock, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
@@ -1232,6 +1233,16 @@ function packPricingFields(b: { unitsPerPack?: unknown; packPrice?: unknown }): 
 
 const PAYROLL_REMINDER_CHECK_MS = 60 * 60 * 1000;
 const OFFLINE_SALE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // a sale saved offline is taken for a week at most
+// Happy-hour columns from a request: a time that is not "HH:MM" clears the window; no window = no happy price and no "only in the window".
+const happyFieldsOf = (b: any) => {
+  const hasWindow = isValidClock(b.happyStart) && isValidClock(b.happyEnd) && b.happyStart !== b.happyEnd;
+  const price = b.happyPrice === "" || b.happyPrice === null || b.happyPrice === undefined ? null : Math.max(0, Number(b.happyPrice));
+  return {
+    happyStart: hasWindow ? b.happyStart : null, happyEnd: hasWindow ? b.happyEnd : null,
+    happyPrice: hasWindow && price !== null && Number.isFinite(price) ? String(price) : null,
+    happyOnly: hasWindow && !!b.happyOnly,
+  };
+};
 const STOCK_IN_MAX_AGE_MS = 366 * 24 * 60 * 60 * 1000;
 const STOCK_IN_FUTURE_SLACK_MS = 5 * 60 * 1000;
 const MAX_SHIFTS_AT_ONCE = 300;
@@ -3260,7 +3271,7 @@ export function registerRebornRoutes(app: Express) {
     const allowNegative = (await getSettings()).allowNegativeStock;
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name);
     // soldOut = nothing left to sell: the POS (tables + staff orders) leaves such an item out of its picker.
-    res.json((await withBundleStock(rows)).map((p) => ({ ...p, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
+    res.json(withHappyHour(await withBundleStock(rows)).map((p) => ({ ...p, soldOut: p.offHours || (!p.packageKind && !allowNegative && (p.stock ?? 0) <= 0) })));
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
@@ -3273,8 +3284,8 @@ export function registerRebornRoutes(app: Express) {
     const wanted = Array.from(new Set(rows.flatMap(itemIdsOf)));
     const named = wanted.length ? await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts).where(inArray(posProducts.id, wanted)) : [];
     const nameOf = new Map(named.map((x) => [x.id, x.name]));
-    res.json((await withBundleStock(rows)).filter((p) => Number(p.price) > 0 && (p.packageKind || allowNegative || (p.stock ?? 0) > 0)).map((p) => ({
-      id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, recommended: p.recommended, soldOut: false,
+    res.json(withHappyHour(await withBundleStock(rows)).filter((p) => Number(p.price) > 0 && !p.offHours && (p.packageKind || allowNegative || (p.stock ?? 0) > 0)).map((p) => ({
+      id: p.id, name: p.name, category: p.category, price: p.salePrice, regularPrice: p.happyNow ? p.price : undefined, happyNow: p.happyNow, stock: p.stock, imageUrl: p.imageUrl, recommended: p.recommended, soldOut: false,
       packageKind: p.packageKind, packageUses: p.packageUses, packageCredit: p.packageCredit, packageValidDays: p.packageValidDays,
       packageItems: itemIdsOf(p).map((id) => nameOf.get(id)).filter(Boolean),
     })));
@@ -3292,6 +3303,7 @@ export function registerRebornRoutes(app: Express) {
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
       active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, sortOrder: Number(b.sortOrder) || 0,
+      ...happyFieldsOf(b),
       ...packageFields(b),
       bundleItemId: bundle.bundleItemId, bundleQty: bundle.bundleQty, ...(bundle.cost && !(Number(b.cost) > 0) ? { cost: bundle.cost } : {}),
     }).returning();
@@ -3333,6 +3345,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
+    if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined) Object.assign(patch, happyFieldsOf({ happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, ...b }));
     if (b.bundleItemId !== undefined || b.bundleQty !== undefined) {
       const bundle = await bundleFieldsFor({ ...b, packageKind: b.packageKind !== undefined ? b.packageKind : prev.packageKind }, cid, id);
       if ("error" in bundle) return res.status(400).json({ message: bundle.error });
@@ -3451,6 +3464,12 @@ export function registerRebornRoutes(app: Express) {
     const stockOf = new Map(bases.map((x) => [x.id, x.stock ?? 0]));
     return rows.map((p) => (p.bundleItemId && p.bundleQty ? { ...p, stock: Math.max(0, Math.floor((stockOf.get(p.bundleItemId) ?? 0) / p.bundleQty)) } : p));
   }
+  // What a customer sees and pays right now: the happy-hour price inside the window, and items sold only in the window hidden outside it.
+  const venueClockNow = () => clockInZone(new Date(), countryOf(companyCountry()).timezone);
+  const withHappyHour = <T extends { price: any; happyPrice?: any; happyStart?: any; happyEnd?: any; happyOnly?: any }>(rows: T[]) => {
+    const clock = venueClockNow();
+    return rows.map((p) => ({ ...p, salePrice: String(salePriceNow(p, clock)), happyNow: isHappyNow(p, clock), offHours: isOffHours(p, clock) }));
+  };
   // Validate requested items against the live catalogue + stock.
   async function resolveItems(items: any[], lang: Lang = "en", alreadySold = false): Promise<{ clean?: any[]; error?: string }> {
     const ids = items.map((it) => Number(it.productId)).filter(Boolean);
@@ -3463,7 +3482,8 @@ export function registerRebornRoutes(app: Express) {
       if (!p || !p.active) return { error: pick(lang, { en: "An item is no longer available", zh: "有商品已不再供应", id: "Ada item yang sudah tidak tersedia" }) };
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
       if (!allowNegative && !alreadySold && !p.packageKind && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
-      clean.push({ productId: p.id, name: p.name, price: Number(p.price), qty });
+      if (!alreadySold && isOffHours(p, venueClockNow())) return { error: pick(lang, { en: "{item} is only sold during its happy hour", zh: "{item} 仅在欢乐时段供应", id: "{item} hanya dijual saat happy hour" }, { item: p.name }) };
+      clean.push({ productId: p.id, name: p.name, price: salePriceNow(p, venueClockNow()), qty });
     }
     return { clean };
   }

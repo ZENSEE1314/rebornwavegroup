@@ -110,7 +110,7 @@ export default function RebornOrder() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{p.recommended && cat !== RECOMMENDED_GROUP ? "⭐ " : ""}{p.name}</p>
                   {p.packageKind && <p className="text-[11px] text-white/50 line-clamp-2">{p.packageKind === "uses" ? t("vn.order.pkgUses", { n: p.packageUses || 1, items: (p.packageItems || []).join(", ") || t("vn.order.pkgAnyItem") }) : t("vn.order.pkgCredit", { v: rp(Number(p.packageCredit || 0)) })}{p.packageValidDays ? ` · ${t("vn.order.pkgDays", { n: p.packageValidDays })}` : ""}</p>}
-                  <p className="text-sm text-amber-300">{rp(Number(p.price))}{p.soldOut && <span className="text-red-400 ml-2">{t("vn.order.soldOut")}</span>}</p>
+                  <p className="text-sm text-amber-300">{rp(Number(p.price))}{(p as any).happyNow && <span className="ml-1 text-[11px] text-pink-300">🍹 {t("vn.happy.now")}</span>}{p.soldOut && <span className="text-red-400 ml-2">{t("vn.order.soldOut")}</span>}</p>
                 </div>
                 {p.soldOut ? null : (cart[p.id] || 0) > 0 ? (
                   <div className="flex items-center gap-2 flex-shrink-0">

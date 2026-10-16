@@ -12,7 +12,7 @@ import SupplierReorderPanel from "@/components/SupplierReorderPanel";
 import ReceiptScan from "@/components/ReceiptScan";
 import AccountingFresh from "@/components/AccountingFresh";
 import StockSuppliers from "@/components/StockSuppliers";
-import { ItemBundles, CreditPackages } from "@/components/ItemBundles";
+import { ItemBundles, CreditPackages, PieceRow } from "@/components/ItemBundles";
 import { VenueSyncCard } from "@/components/VenueSyncCard";
 import ProductPicture from "@/components/ProductPicture";
 import { MultiDateCalendar } from "@/components/MultiDateCalendar";
@@ -2405,6 +2405,14 @@ function SellOptions({ value, onChange }: { value: any; onChange: (v: any) => vo
     <>
       <label className={box}><input type="checkbox" checked={!!value.recommended} onChange={(e) => onChange({ ...value, recommended: e.target.checked })} /> ⭐ {t("admin.prod.recommend")} <span className="text-white/40 text-xs">{t("admin.prod.recommendHint")}</span></label>
       <label className={box}><input type="checkbox" checked={value.creditOk !== false} onChange={(e) => onChange({ ...value, creditOk: e.target.checked })} /> {t("admin.pkg.creditOk")} <span className="text-white/40 text-xs">{t("admin.pkg.creditOkHint")}</span></label>
+      <div className={box + " flex-wrap"}>
+        <span className="font-semibold">🍹 {t("admin.happy.title")}</span>
+        <label className="text-xs text-white/50">{t("admin.happy.from")}<input type="time" value={value.happyStart || ""} onChange={(e) => onChange({ ...value, happyStart: e.target.value })} className={inp + " ml-1"} /></label>
+        <label className="text-xs text-white/50">{t("admin.happy.to")}<input type="time" value={value.happyEnd || ""} onChange={(e) => onChange({ ...value, happyEnd: e.target.value })} className={inp + " ml-1"} /></label>
+        <label className="text-xs text-white/50">{t("admin.happy.price")}<input type="number" inputMode="numeric" value={value.happyPrice ?? ""} onFocus={(e) => e.currentTarget.select()} placeholder={t("admin.happy.samePrice")} onChange={(e) => onChange({ ...value, happyPrice: e.target.value })} className={inp + " ml-1 w-32"} /></label>
+        <label className="flex items-center gap-2 text-xs text-white/70 w-full"><input type="checkbox" checked={!!value.happyOnly} onChange={(e) => onChange({ ...value, happyOnly: e.target.checked })} /> {t("admin.happy.only")}</label>
+        <p className="w-full text-[11px] text-white/40">{t("admin.happy.hint")}</p>
+      </div>
     </>
   );
 }
@@ -2415,7 +2423,7 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState<any>({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
+  const [f, setF] = useState<any>({ name: p.name, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyOnly: !!p.happyOnly, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
   const industryOptions = useCompanyIndustries();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
@@ -2681,6 +2689,8 @@ function Inventory() {
   const [openId, setOpenId] = useState<number | null>(null);
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
   const toggleEditor = (id: number) => setOpenId((current) => (current === id ? null : id));
+  const listedIds = new Set(allItems.map((i) => i.id));
+  const orphans = products.filter((x) => (x.bundleItemId && !listedIds.has(x.bundleItemId)) || (x.packageKind === "uses" && !parseIds(x.packageItemIds).some((id: number) => listedIds.has(id))));
   const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow p={product} inventory /> : null; };
   const industries = useCompanyIndustries();
   const [query, setQuery] = useState("");
@@ -2738,6 +2748,12 @@ function Inventory() {
       ))}
       </div>
       {items.length === 0 && <Empty text={t("admin.inv.empty")} />}
+      {canChange && orphans.length > 0 && (
+        <Card>
+          <p className="mb-2 text-sm font-bold">{t("admin.ib.orphans")}</p>
+          <div className="space-y-2">{orphans.map((piece) => <PieceRow key={piece.id} piece={piece} onChanged={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />)}</div>
+        </Card>
+      )}
     </div>
   );
 }
