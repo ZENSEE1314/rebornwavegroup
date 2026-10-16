@@ -472,6 +472,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                     )}
                     {!OFF_BILL.includes(it.status) && (
                       <div className="flex flex-wrap gap-1.5 pb-1">
+                        {it.status === "ready" && <><span className="ml-1 text-[10px] text-pink-300">{t("pos.item.ready")}</span> <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-emerald-500 text-black">{t("pos.item.collected")}</button></>}
                         {it.status === "accepted" && <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/70">{t("pos.item.markServed")}</button>}
                         <button onClick={() => { const p = prompt(t("pos.item.pricePrompt", { name: it.name }), String(Number(it.price))); if (p !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { price: Number(p) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.item.price")}</button>
                         <button onClick={() => { const q = prompt(t("pos.item.qtyPrompt", { name: it.name }), String(it.qty)); if (q !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { qty: Number(q) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.qtyShort")}</button>

@@ -973,3 +973,7 @@ eborn-venue-pack.
 - Product pictures are stored in the row as data: URLs (~70 KB each; the live table was ~1.8 MB, so every Inventory / POS list was ~2 MB twice). Lists (`/pos/products`, `/shop/products`, `/admin/inventory`)
   now send `/api/reborn/pos/product-image/:id?v=…` instead (`productImageLink`; the route serves the bytes, cached for a year). A page that sends such an address back (edit, new bundle) keeps / copies the
   stored picture (`pictureFromAddress`) — never write the address into `image_url`.
+
+- Ready → collected: the kitchen screen's button is **Ready** (item status `ready`, left off the kitchen list, still on the bill); every staff / admin device then vibrates + beeps every 3 s
+  (`components/ReadyItemsAlert.tsx` in RebornLayout, polls `GET /api/reborn/pos/ready-items` every 5 s, quiet on the `/kitchen` screen) until someone taps **Collected** (the normal status call → `served`, the member
+  is told then, not at "ready"). The POS bill line shows "ready" with a Collected button too.

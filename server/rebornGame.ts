@@ -3718,9 +3718,16 @@ export function registerRebornRoutes(app: Express) {
     res.json({ orders: groupByOrder(((result.rows || result) as any[]).sort((a, b) => a.id - b.id)) });
   }));
 
+  // Food / drinks the kitchen marked ready: every staff phone rings until someone collects it (then it is "served").
+  app.get("/api/reborn/pos/ready-items", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const result = await db.execute(sql`SELECT i.id, i.name, i.qty, i.station, t.order_no, t.table_number, t.order_mode FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
+      WHERE t.company_id = ${cid} AND t.status = 'open' AND i.status = 'ready' ORDER BY i.id`);
+    res.set("Cache-Control", "no-store").json(((result.rows || result) as any[]).map((r) => ({ id: r.id, name: r.name, qty: r.qty, station: r.station, orderNo: r.order_no, tableNumber: r.table_number, orderMode: r.order_mode })));
+  }));
   app.post("/api/reborn/pos/items/:id/status", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
-    const status = ["accepted", "rejected", "served"].includes(req.body?.status) ? req.body.status : null;
+    const status = ["accepted", "rejected", "served", "ready"].includes(req.body?.status) ? req.body.status : null;
     if (!status) return res.status(400).json({ message: tr(req, { en: "Bad status", zh: "状态无效", id: "Status tidak valid" }) });
     const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
     if (!it) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
@@ -3735,7 +3742,8 @@ export function registerRebornRoutes(app: Express) {
     await db.update(posTicketItems).set(patch).where(eq(posTicketItems.id, id));
     await recalcTicket(it.orderId);
     const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, it.orderId));
-    if (ticket?.memberId) {
+    emitLiveUpdate("/api/reborn/pos/orders", { action: "ITEM_STATUS", resource: String(it.orderId) });
+    if (ticket?.memberId && status !== "ready") { // "ready" is for the staff to collect; the member hears when it is served
       // The default reason ("Unavailable") is stored as-is; show it in the member's language.
       const reasonFor = (lang: Lang) => String(req.body?.reason || "").trim() ? patch.rejectReason : pick(lang, { en: "Unavailable", zh: "暂无供应", id: "Tidak tersedia" });
       // Telling the member must not hold up the staff screen: the tap is answered first.

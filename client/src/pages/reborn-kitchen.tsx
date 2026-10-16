@@ -69,9 +69,9 @@ export default function RebornKitchen() {
   }, [isStaff, isAutoPrint, station]);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);
 
-  const serve = async (ids: number[]) => {
+  const markReady = async (ids: number[]) => {
     try {
-      for (const id of ids) await apiRequest("POST", `/api/reborn/pos/items/${id}/status`, { status: "served" });
+      for (const id of ids) await apiRequest("POST", `/api/reborn/pos/items/${id}/status`, { status: "ready" });
       qc.invalidateQueries({ queryKey: listKey });
     } catch (e: any) { toast({ title: t("pos.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }); }
   };
@@ -106,12 +106,12 @@ export default function RebornKitchen() {
                 {order.items.map((item) => (
                   <div key={item.id} className="flex items-center gap-2">
                     <span className="flex-1 text-lg font-semibold leading-tight">{item.qty} × {item.name}</span>
-                    <button type="button" onClick={() => serve([item.id])} className="inline-flex items-center gap-1 rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-black"><Check className="h-4 w-4" />{t("pos.kitchen.served")}</button>
+                    <button type="button" onClick={() => markReady([item.id])} className="inline-flex items-center gap-1 rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-black"><Check className="h-4 w-4" />{t("pos.kitchen.ready")}</button>
                   </div>
                 ))}
               </div>
               <div className="mt-3 flex gap-2">
-                {order.items.length > 1 && <button type="button" onClick={() => serve(order.items.map((item) => item.id))} className="flex-1 rounded-xl bg-emerald-500/90 py-2.5 text-sm font-bold text-black">{t("pos.kitchen.serveAll")}</button>}
+                {order.items.length > 1 && <button type="button" onClick={() => markReady(order.items.map((item) => item.id))} className="flex-1 rounded-xl bg-emerald-500/90 py-2.5 text-sm font-bold text-black">{t("pos.kitchen.readyAll")}</button>}
                 <button type="button" onClick={() => printOrder(order)} className="inline-flex items-center justify-center gap-1 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-bold"><Printer className="h-4 w-4" />{t("pos.kitchen.reprint")}</button>
               </div>
             </div>
