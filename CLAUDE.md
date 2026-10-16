@@ -993,3 +993,12 @@ eborn-venue-pack.
 - Receipt numbers + PDF name: every paid bill has a number within its venue day (1st customer = 1 ..., restarting at 08:00; refunded bills keep theirs): `receiptNumbers()` (window function over `pos_tickets.paid_at`), returned as `receiptSeq` / `receiptDay`
   on the pay responses and on `GET /pos/orders?status=paid|refunded`. The receipt prints "No. 001" and the print window's title (so Chrome's Save as PDF) is `Receipt_<day>_<001>` (`printReceipt` in lib/receipt.ts).
 - Admin › Bottles › "Keep a bottle (after the bill)": for a customer who already paid and left some drink (member search, type, how many left, typed name, photo for wine / whisky, note) — the same `POST /pos/bottle-keep` as the POS Bottles tab.
+
+## Karaoke box on the venue Wi-Fi (venue/karaoke-bridge.mjs)
+
+- The venue's karaoke box has its own "phone song ordering" web page (http://<box ip>:8084/demo/, QR on the TV) built on JSONP servlets: `SearchServlet` (songName, page -> songList with sONGBM = song number, sONGNAME, sINGER, cLOUD),
+  `PlaylistServlet` (number = songs playing + waiting), `CommandServlet` (cmd Add1 + song number = order it, Pro1 = play next, Skip = cut the song on now, Del1, Play = pause/resume, volume Mic_/Music_ up/down).
+- `node venue/karaoke-bridge.mjs` (plain Node 18, on a PC that sees both the box and the internet; env CLOUD_URL, KARAOKE_TOKEN from Admin › Requests › Karaoke system, BOX_URL, optional TENANT_SLUG) joins our fair queue to the box:
+  it orders the app's "on now" song on the box (the app's karaoke code, else a title + artist search), only when the box is idle, calls `POST /api/karaoke/next` when the box is idle again, and sends Skip to the box when
+  the app skipped or cancelled the song. Paused queue = nothing ordered; songs not in the box's list are skipped. Tests: `npx tsx --test venue/karaoke-bridge.test.ts`; search + count were also checked read-only against the real box.
+- Gifts on the karaoke picture: the TV overlay page (Admin › Lights & TV › TV) as a see-through layer; the box's own page has no gift feature.
