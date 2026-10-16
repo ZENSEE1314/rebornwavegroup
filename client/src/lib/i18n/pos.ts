@@ -16,6 +16,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.offline.items': { en: "{n} item(s)", zh: "{n} 件商品", id: "{n} item" },
   'pos.offline.savedToast': { en: "No internet: the sale is saved on this device and will be sent when it is back.", zh: "没有网络：销售已保存在本设备，网络恢复后会发送。", id: "Tanpa internet: penjualan disimpan di perangkat ini dan dikirim saat internet kembali." },
   'pos.recommended': { en: "Recommended", zh: "推荐", id: "Rekomendasi" },
+  'pos.packagesGroup': { en: "Packages", zh: "套餐", id: "Paket" },
   'pos.failed': { en: 'Failed', zh: '操作失败', id: 'Gagal' },
   'pos.staffOnly': { en: 'Staff only.', zh: '仅限员工。', id: 'Khusus staf.' },
   'pos.goHome': { en: 'Go home', zh: '返回首页', id: 'Ke beranda' },

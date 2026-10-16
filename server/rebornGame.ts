@@ -3260,7 +3260,16 @@ export function registerRebornRoutes(app: Express) {
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.archived, false), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
     const allowNegative = (await getSettings()).allowNegativeStock;
     // An item with no stock is not shown to members at all (not even greyed out).
-    res.json(rows.filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, recommended: p.recommended, soldOut: false })));
+    // A package of items ("6 beers") lists the items it can be redeemed for, by name.
+    const itemIdsOf = (p: typeof rows[number]): number[] => { try { const ids = JSON.parse(p.packageItemIds || "[]"); return Array.isArray(ids) ? ids.map(Number).filter(Boolean) : []; } catch { return []; } };
+    const wanted = Array.from(new Set(rows.flatMap(itemIdsOf)));
+    const named = wanted.length ? await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts).where(inArray(posProducts.id, wanted)) : [];
+    const nameOf = new Map(named.map((x) => [x.id, x.name]));
+    res.json(rows.filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({
+      id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, recommended: p.recommended, soldOut: false,
+      packageKind: p.packageKind, packageUses: p.packageUses, packageCredit: p.packageCredit, packageValidDays: p.packageValidDays,
+      packageItems: itemIdsOf(p).map((id) => nameOf.get(id)).filter(Boolean),
+    })));
   });
   app.post("/api/reborn/admin/pos/products", requireManager(async (req, res) => {
     const b = req.body || {};

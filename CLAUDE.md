@@ -911,3 +911,7 @@ text.
   offline fails with `srv.err.offline` ("changes need the internet") — only the POS Quick sale is queued and sent later. Every page registers the worker and hands it the files it loaded.
 - Recommended items: `pos_products.recommended` (Admin › Products: ⭐ beside the name, tick box on the phone card and in the add form). Shown first under "⭐ Recommended" and with a star
   in the POS item picker and the member order page.
+
+- Packages sit near the top: in the POS item picker and the member order page the groups are ⭐ Recommended, then 📦 Packages (every item with a package kind; not repeated in its category), then the
+  categories. The member list says what a package holds ("6 uses: Bintang Beer · valid 30 days", `packageItems` from `package_item_ids`). To sell "6 of one item" create a Visits package with 6 uses and
+  that item ticked; a second package on the same item (12 uses, another price) is just another product.

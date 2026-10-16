@@ -8,7 +8,8 @@ import { Plus, Minus, ShoppingCart, Utensils, Clock } from "lucide-react";
 import { money } from "@/lib/money";
 
 const RECOMMENDED_GROUP = "__recommended__";
-interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; soldOut?: boolean; recommended?: boolean; }
+const PACKAGES_GROUP = "__packages__";
+interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; soldOut?: boolean; recommended?: boolean; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; packageValidDays?: number | null; packageItems?: string[]; }
 
 const rp = (n: any) => money(n);
 
@@ -36,7 +37,9 @@ export default function RebornOrder() {
     const groups: Record<string, Product[]> = {};
     const picks = products.filter((p) => p.recommended);
     if (picks.length) groups[RECOMMENDED_GROUP] = picks;
-    for (const p of products) (groups[p.category] ||= []).push(p);
+    const bundles = products.filter((p) => p.packageKind);
+    if (bundles.length) groups[PACKAGES_GROUP] = bundles;
+    for (const p of products) if (!p.packageKind) (groups[p.category] ||= []).push(p);
     return groups;
   }, [products]);
 
@@ -97,7 +100,7 @@ export default function RebornOrder() {
 
       {Object.entries(categories).map(([cat, items]) => (
         <div key={cat} className="mb-5">
-          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat === RECOMMENDED_GROUP ? `⭐ ${t("vn.order.recommended")}` : cat}</h2>
+          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat === RECOMMENDED_GROUP ? `⭐ ${t("vn.order.recommended")}` : cat === PACKAGES_GROUP ? `📦 ${t("vn.order.packages")}` : cat}</h2>
           <div className="space-y-2">
             {items.map((p) => (
               <div key={p.id} className={`flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 ${p.soldOut ? "opacity-50" : ""}`}>
@@ -106,6 +109,7 @@ export default function RebornOrder() {
                   : <span className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-lg">🍸</span>}
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{p.recommended && cat !== RECOMMENDED_GROUP ? "⭐ " : ""}{p.name}</p>
+                  {p.packageKind && <p className="text-[11px] text-white/50 line-clamp-2">{p.packageKind === "uses" ? t("vn.order.pkgUses", { n: p.packageUses || 1, items: (p.packageItems || []).join(", ") || t("vn.order.pkgAnyItem") }) : t("vn.order.pkgCredit", { v: rp(Number(p.packageCredit || 0)) })}{p.packageValidDays ? ` · ${t("vn.order.pkgDays", { n: p.packageValidDays })}` : ""}</p>}
                   <p className="text-sm text-amber-300">{rp(Number(p.price))}{p.soldOut && <span className="text-red-400 ml-2">{t("vn.order.soldOut")}</span>}</p>
                 </div>
                 {p.soldOut ? null : (cart[p.id] || 0) > 0 ? (

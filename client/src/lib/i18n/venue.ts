@@ -189,6 +189,12 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.chat.close': { en: 'Close', zh: '关闭', id: 'Tutup' },
 
   // Order to table (member app)
+  'vn.order.recommended': { en: "Recommended", zh: "推荐", id: "Rekomendasi" },
+  'vn.order.packages': { en: "Packages", zh: "套餐", id: "Paket" },
+  'vn.order.pkgUses': { en: "{n} uses: {items}", zh: "共 {n} 次：{items}", id: "{n} kali pakai: {items}" },
+  'vn.order.pkgAnyItem': { en: "choose your item when you use it", zh: "使用时再选择商品", id: "pilih item saat dipakai" },
+  'vn.order.pkgCredit': { en: "{v} prepaid credit", zh: "{v} 预付额度", id: "Kredit prabayar {v}" },
+  'vn.order.pkgDays': { en: "valid {n} days", zh: "有效期 {n} 天", id: "berlaku {n} hari" },
   'vn.order.title': { en: 'ORDER', zh: '点餐', id: 'PESAN' },
   'vn.order.couldntOrder': { en: "Couldn't order", zh: '无法下单', id: 'Tidak bisa memesan' },
   'vn.order.sentToast': { en: 'Order sent 🎉', zh: '订单已发送 🎉', id: 'Pesanan terkirim 🎉' },
