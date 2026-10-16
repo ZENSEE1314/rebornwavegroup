@@ -981,3 +981,4 @@ eborn-venue-pack.
 - Stock in / out from Inventory: Admin › Inventory › pencil on an item › 📦 "Add or take out stock" (components/StockAdjust.tsx, same `POST /api/reborn/pos/stock-in`). **Add stock**: quantity, supplier, unit cost and the
   date & time it arrived. **Take out**: quantity, a reason (Damaged / broken, Expired, Spilled, Staff / free use, Count correction, Other = note required) and a date; the reason + note go on the movement, the server refuses
   more than is in stock (unless negative stock is allowed) and books a `loss` expense at cost (`refType stock_out`) for every reason except "Count correction". The count itself is still never typed over.
+- Stock panel entry by unit or by box: "By box" asks for boxes, units per box (pre-filled from the item's pack size) and the price of one whole box; the server still gets units (boxes × units per box) and a per-unit cost (box price ÷ units per box), so costing and history are unchanged.

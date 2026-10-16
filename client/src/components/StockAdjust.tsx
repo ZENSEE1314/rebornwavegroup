@@ -22,21 +22,26 @@ const REASONS = [
 // Current local date and time for <input type="datetime-local">, to the minute.
 const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 
-export function StockAdjust({ p }: { p: { id: number; name: string; stock?: number; supplierName?: string | null } }) {
+export function StockAdjust({ p }: { p: { id: number; name: string; stock?: number; supplierName?: string | null; unitsPerPack?: number | null; packPrice?: string | number | null } }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"in" | "out">("in");
-  const [f, setF] = useState({ qty: "", supplier: p.supplierName || "", unitCost: "", at: nowLocal(), reason: REASONS[0].value, note: "" });
-  const qty = Math.floor(Number(f.qty) || 0);
+  const [f, setF] = useState({ qty: "", supplier: p.supplierName || "", unitCost: "", at: nowLocal(), reason: REASONS[0].value, note: "", perBox: p.unitsPerPack && p.unitsPerPack > 1 ? String(p.unitsPerPack) : "", boxCost: Number(p.packPrice) > 0 ? String(Number(p.packPrice)) : "" });
+  const [isBox, setIsBox] = useState(false);
+  // By box: the quantity is boxes, so the units are boxes × units per box, and the price typed is for a whole box.
+  const perBox = Math.max(0, Math.floor(Number(f.perBox) || 0));
+  const entered = Math.floor(Number(f.qty) || 0);
+  const qty = isBox ? entered * perBox : entered;
+  const unitCostOfBox = perBox > 0 && Number(f.boxCost) > 0 ? Number(f.boxCost) / perBox : undefined;
   const needsNote = mode === "out" && f.reason === OTHER_REASON;
-  const canSave = qty > 0 && (mode === "in" || !needsNote || f.note.trim() !== "");
+  const canSave = qty > 0 && (!isBox || perBox >= 2) && (mode === "in" || !needsNote || f.note.trim() !== "");
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
     mutationFn: () => apiRequest("POST", STOCK_IN, {
       productId: p.id, qty: mode === "in" ? qty : -qty, receivedAt: f.at ? new Date(f.at).toISOString() : undefined,
-      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: f.unitCost ? Number(f.unitCost) : undefined } : { reason: f.reason, note: f.note }),
+      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: isBox ? unitCostOfBox : (f.unitCost ? Number(f.unitCost) : undefined) } : { reason: f.reason, note: f.note }),
     }).then((r) => r.json()),
     onSuccess: () => {
       toast({ title: t("admin.sa.saved") });
@@ -54,12 +59,19 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
       {isOpen && (
         <div className="mt-2 space-y-2">
           <div className="flex gap-2">{tab("in", `➕ ${t("admin.sa.add")}`)}{tab("out", `➖ ${t("admin.sa.take")}`)}</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setIsBox(false)} aria-pressed={!isBox} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold ${!isBox ? "bg-amber-400 text-black" : "bg-white/10 text-white/70"}`}>{t("admin.sa.byUnit")}</button>
+            <button type="button" onClick={() => setIsBox(true)} aria-pressed={isBox} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold ${isBox ? "bg-amber-400 text-black" : "bg-white/10 text-white/70"}`}>{t("admin.sa.byBox")}</button>
+          </div>
           <div className="flex flex-wrap items-end gap-2">
-            <label className="text-[11px] text-white/50">{t("admin.prod.qty")}<input type="number" inputMode="numeric" min={1} value={f.qty} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, qty: e.target.value })} className={inp + " mt-0.5 block w-24"} /></label>
+            <label className="text-[11px] text-white/50">{isBox ? t("admin.sa.boxes") : t("admin.prod.qty")}<input type="number" inputMode="numeric" min={1} value={f.qty} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, qty: e.target.value })} className={inp + " mt-0.5 block w-24"} /></label>
             {mode === "in" && <>
               <label className="text-[11px] text-white/50">{t("admin.prod.supplier")}<input value={f.supplier} onChange={(e) => setF({ ...f, supplier: e.target.value })} className={inp + " mt-0.5 block w-40"} /></label>
-              <label className="text-[11px] text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.unitCost} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, unitCost: e.target.value })} className={inp + " mt-0.5 block w-28"} /></label>
+              {isBox
+                ? <label className="text-[11px] text-white/50">{t("admin.sa.boxCost")}<input type="number" inputMode="numeric" value={f.boxCost} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, boxCost: e.target.value })} className={inp + " mt-0.5 block w-32"} /></label>
+                : <label className="text-[11px] text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.unitCost} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, unitCost: e.target.value })} className={inp + " mt-0.5 block w-28"} /></label>}
             </>}
+            {isBox && <label className="text-[11px] text-white/50">{t("admin.sa.perBox")}<input type="number" inputMode="numeric" min={2} value={f.perBox} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, perBox: e.target.value })} className={inp + " mt-0.5 block w-24"} /></label>}
             <label className="text-[11px] text-white/50">{mode === "in" ? t("admin.prod.receivedAt") : t("admin.sa.when")}<input type="datetime-local" value={f.at} max={nowLocal()} onChange={(e) => setF({ ...f, at: e.target.value })} className={inp + " mt-0.5 block"} /></label>
           </div>
           {mode === "out" && (
@@ -68,6 +80,7 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
               <label className="min-w-0 flex-1 text-[11px] text-white/50">{needsNote ? t("admin.sa.noteRequired") : t("admin.sa.note")}<input value={f.note} maxLength={200} onChange={(e) => setF({ ...f, note: e.target.value })} className={inp + " mt-0.5 block w-full"} /></label>
             </div>
           )}
+          {isBox && <p className="text-[12px] font-semibold text-amber-200">{perBox >= 2 ? t("admin.sa.boxTotal", { b: String(entered), u: String(perBox), n: String(qty) }) : t("admin.sa.needPerBox")}</p>}
           <p className="text-[11px] text-white/40">{mode === "in" ? t("admin.sa.hintIn") : t("admin.sa.hintOut")}</p>
           <button type="button" onClick={() => save.mutate()} disabled={!canSave || save.isPending} className={`rounded-lg px-4 py-2 text-xs font-bold text-black disabled:opacity-40 ${mode === "in" ? "bg-emerald-500" : "bg-red-400"}`}>{mode === "in" ? t("admin.sa.saveIn", { n: String(qty || 0) }) : t("admin.sa.saveOut", { n: String(qty || 0) })}</button>
         </div>
