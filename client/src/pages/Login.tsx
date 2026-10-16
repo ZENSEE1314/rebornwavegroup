@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users, Sparkles, ArrowLeft, CheckCircle, Crown, Star, Zap, Gift } from "lucide-react";
-import { useTranslation, getCurrentLanguage } from "@/lib/i18n";
+import { useTranslation, getCurrentLanguage, translate } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import rwgLogo from "@assets/rwg-logo.png";
 import { useTenantBrand, rememberedTenantSlug, FLAGSHIP_TENANT_SLUG } from "@/hooks/useTenantBrand";
@@ -16,6 +16,10 @@ import { applyAppSkin } from "@/lib/appSkin";
 
 /* ─── Validation schemas (messages are i18n keys, translated where shown) ─── */
 // Log in with an email, or with the phone number for accounts made without email.
+// A request that never reached the server (no internet, the server or venue PC is off) says so in plain words instead of the browser's "Failed to fetch".
+async function reachServer(input: string, init: RequestInit): Promise<Response> {
+  try { return await fetch(input, init); } catch { throw new Error(translate("srv.err.offline")); }
+}
 const isPhoneLogin = (v: string) => !v.includes("@") && v.replace(/\D/g, "").length >= 8 && /^[\d\s()+.-]+$/.test(v);
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().refine((v) => isPhoneLogin(v) || z.string().email().safeParse(v).success, "ac.login.v.emailOrPhone"),
@@ -209,7 +213,7 @@ export default function Login() {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 15_000);
       try {
-        const response = await fetch("/api/auth/login", {
+        const response = await reachServer("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Lang": getCurrentLanguage() },
           credentials: "include",
@@ -252,7 +256,7 @@ export default function Login() {
       const registrationData: any = { ...data, phoneNumber: fullPhoneNumber };
       if (!registrationData.email) delete registrationData.email; // no email → phone-number login
       delete (registrationData as any).countryCode;
-      const response = await fetch("/api/auth/register", {
+      const response = await reachServer("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Lang": getCurrentLanguage() },
         body: JSON.stringify(registrationData),
@@ -273,7 +277,7 @@ export default function Login() {
 
   const forgotPasswordMutation = useMutation({
     mutationFn: async (data: ForgotPasswordFormData) => {
-      const response = await fetch("/api/auth/forgot-password", {
+      const response = await reachServer("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Lang": getCurrentLanguage() },
         body: JSON.stringify(data),
@@ -305,7 +309,7 @@ export default function Login() {
 
   const resetPasswordMutation = useMutation({
     mutationFn: async (data: ResetPasswordFormData) => {
-      const response = await fetch("/api/auth/reset-password", {
+      const response = await reachServer("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Lang": getCurrentLanguage() },
         body: JSON.stringify(data),
