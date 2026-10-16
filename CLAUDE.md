@@ -921,3 +921,5 @@ text.
   refund all go through it, stock movement written on the item with the bundle's name). Several bundles of one item are just several products. A bundle is left out of Inventory and supplier-reorder lists.
 - Bundles and packages are made on the inventory item: Admin › Inventory › pencil on an item › "🍺 Bundles & packages of this item" (components/ItemBundles.tsx) lists the item's bundles and visits packages
   (edit name / price / ⭐, delete) and adds new ones (bundle: units + price; package: uses + valid days + price, the item pre-ticked). One item can have many; each is tied to that one item's stock.
+- The contract form is a draft: while the contract is not yet sent it is saved ~0.8 s after each change (`POST /api/reborn/admin/contracts/:userId/draft`, in the same `staff_contracts` row, status stays "none"),
+  so the job, start date, language, duties and extra terms are still there after a refresh. A new form starts with the person's own job (position) and its saved duties.

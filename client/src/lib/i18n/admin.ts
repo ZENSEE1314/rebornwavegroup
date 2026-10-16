@@ -1639,6 +1639,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.ctr.saveScopeUpdate': { en: "Update the saved duties of {job}", zh: "更新「{job}」已保存的职责", id: "Perbarui tugas {job} yang tersimpan" },
   'admin.pay.payslip': { en: "Payslip (PDF)", zh: "工资单（PDF）", id: "Slip gaji (PDF)" },
   'admin.pay.payslipNone': { en: "A payslip is made when you press Record paid.", zh: "按“记录已付”后会生成工资单。", id: "Slip gaji dibuat saat Anda menekan Catat dibayar." },
+  'admin.ctr.draftSaved': { en: "draft saved", zh: "草稿已保存", id: "draf tersimpan" },
   'admin.ctr.viewId': { en: "View ID", zh: "查看证件", id: "Lihat ID" },
   'admin.ctr.hideId': { en: "Hide ID", zh: "隐藏证件", id: "Sembunyikan ID" },
   'admin.ctr.role': { en: "Role (job title in the contract)", zh: "职位（写入合同）", id: "Jabatan (dalam kontrak)" },

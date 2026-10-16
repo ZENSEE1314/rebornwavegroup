@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation, localeTag } from "@/lib/i18n";
 
+const DRAFT_DELAY_MS = 800;
 const OTHER_JOB = "__other__";
 const MAX_PHOTO_SIDE = 1400;
 const PHOTO_QUALITY = 0.8;
@@ -71,6 +72,15 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
     onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: scopesKey }); }, onError: fail,
   });
 
+  // The form is saved as a draft a moment after the last change (until the contract is sent), so it is still there after a refresh.
+  const [draftSaved, setDraftSaved] = useState(false);
+  useEffect(() => {
+    if (!form || status !== "none") return;
+    setDraftSaved(false);
+    const timer = setTimeout(() => { post("draft", form).then(() => setDraftSaved(true)).catch(() => {}); }, DRAFT_DELAY_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form]);
   const send = useMutation({ mutationFn: () => post("send", f), onSuccess: (d: any) => { toast({ title: d.message }); setForm(null); refresh(); }, onError: fail });
   const approve = useMutation({
     mutationFn: () => post("approve"),
@@ -129,7 +139,7 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
               <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.scope")}<textarea value={f.jobScope} rows={4} maxLength={2000} onChange={(e) => set({ jobScope: e.target.value })} placeholder={t("admin.ctr.scopePh")} className={inp + " w-full"} />
                 {chosen && <button type="button" onClick={() => saveScope.mutate()} disabled={saveScope.isPending} className="mt-1 rounded-lg bg-white/10 px-3 py-2 text-xs font-bold disabled:opacity-40">{scopes[String(chosen.id)] ? t("admin.ctr.saveScopeUpdate", { job: chosen.name }) : t("admin.ctr.saveScope", { job: chosen.name })}</button>}</label>
               <label className="col-span-2 text-[11px] text-white/50">{t("admin.ctr.extra")}<textarea value={f.extraTerms} rows={3} maxLength={4000} onChange={(e) => set({ extraTerms: e.target.value })} placeholder={t("admin.ctr.extraPh")} className={inp + " w-full"} /></label>
-              <p className="col-span-2 text-[11px] text-white/40">{t("admin.ctr.fromPayroll")}</p>
+              <p className="col-span-2 text-[11px] text-white/40">{t("admin.ctr.fromPayroll")}{draftSaved ? ` · ✓ ${t("admin.ctr.draftSaved")}` : ""}</p>
               <button type="button" onClick={() => send.mutate()} disabled={!f.jobTitle.trim() || send.isPending} className="col-span-2 rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black disabled:opacity-40">{status === "none" ? t("admin.ctr.send") : t("admin.ctr.resend")}</button>
             </div>
           )}

@@ -118,6 +118,24 @@ export function registerStaffContractRoutes(app: Express, deps: StaffContractDep
     res.json(summary(await find(cid, deps.userId(req))));
   }));
 
+  // The admin's form is kept as a draft while they type, so a refresh or coming back later finds it again (never touches a contract already sent).
+  app.post("/api/reborn/admin/contracts/:userId/draft", deps.requireAdmin(async (req, res) => {
+    const cid = await deps.companyId(req); const userId = String(req.params.userId);
+    const existing = await find(cid, userId);
+    if (existing && existing.status !== "none") return res.json({ saved: false });
+    const draft = {
+      jobTitle: String(req.body?.jobTitle || "").trim().slice(0, 120) || null,
+      startDate: /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.startDate || "")) ? String(req.body.startDate) : null,
+      lang: asContractLang(req.body?.lang),
+      extraTerms: String(req.body?.extraTerms || "").slice(0, 4000) || null,
+      jobScope: String(req.body?.jobScope || "").slice(0, MAX_JOB_SCOPE_CHARS) || null,
+      updatedAt: new Date(),
+    };
+    if (existing) await db.update(staffContracts).set(draft).where(eq(staffContracts.id, existing.id));
+    else await db.insert(staffContracts).values({ companyId: cid, userId, status: "none", ...draft });
+    res.json({ saved: true });
+  }));
+
   app.post("/api/reborn/my-employment/id", deps.requireStaff(async (req, res) => {
     const image = String(req.body?.image || "");
     const idNumber = String(req.body?.idNumber || "").trim().slice(0, 60);
