@@ -1036,6 +1036,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.sa.saveIn': { en: "Add {n} to stock", zh: "入库 {n}", id: "Tambah {n} ke stok" },
   'admin.sa.saveOut': { en: "Take {n} out", zh: "出库 {n}", id: "Kurangi {n}" },
   'admin.sa.saved': { en: "Stock saved", zh: "库存已保存", id: "Stok tersimpan" },
+  'admin.svc.label': { en: "This is a service (no stock)", zh: "这是服务项目（无库存）", id: "Ini layanan (tanpa stok)" },
+  'admin.svc.hint': { en: "e.g. corkage, room fee: no cost, never runs out, not in Inventory.", zh: "例如开瓶费、包厢费：无成本、不会售罄、不在库存中。", id: "mis. corkage, biaya ruangan: tanpa modal, tidak pernah habis, tidak masuk Inventory." },
   'admin.prod.qty': { en: "Quantity", zh: "数量", id: "Jumlah" },
   'admin.prod.addBatch': { en: "Add batch", zh: "添加批次", id: "Tambah batch" },
   'admin.prod.emptyInd': { en: "No products in this industry yet.", zh: "该行业暂无商品。", id: "Belum ada produk di industri ini." },

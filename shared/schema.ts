@@ -902,7 +902,8 @@ export const posProducts = pgTable("pos_products", {
   happyPrice: decimal("happy_price", { precision: 14, scale: 2 }), // price inside the happy-hour window; null = same price
   happyStart: varchar("happy_start"),                           // "HH:MM" on the venue clock
   happyEnd: varchar("happy_end"),
-  happyOnly: boolean("happy_only").default(false).notNull(),    // only sold (shown to order) inside the window
+  happyOnly: boolean("happy_only").default(false).notNull(),
+  isService: boolean("is_service").default(false).notNull(),     // a service (corkage, room fee): no stock, no cost, never sold out, not in Inventory    // only sold (shown to order) inside the window
   unitsPerPack: integer("units_per_pack"),                    // sold by the pack too: how many units in one pack (24 cans)
   packPrice: decimal("pack_price", { precision: 14, scale: 2 }), // the price of one whole pack; the unit price = this ÷ units per pack
   packageItemIds: text("package_item_ids"),                  // a visits package of items (6 beers): JSON array of the products it can be redeemed for

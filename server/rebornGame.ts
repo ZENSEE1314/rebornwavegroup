@@ -3295,7 +3295,7 @@ export function registerRebornRoutes(app: Express) {
     const allowNegative = (await getSettings()).allowNegativeStock;
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name);
     // soldOut = nothing left to sell: the POS (tables + staff orders) leaves such an item out of its picker.
-    res.json(withHappyHour(await withBundleStock(rows)).map((p) => ({ ...p, imageUrl: productImageLink(p), soldOut: p.offHours || (!p.packageKind && !allowNegative && (p.stock ?? 0) <= 0) })));
+    res.json(withHappyHour(await withBundleStock(rows)).map((p) => ({ ...p, imageUrl: productImageLink(p), soldOut: p.offHours || (!p.packageKind && !p.isService && !allowNegative && (p.stock ?? 0) <= 0) })));
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
@@ -3308,7 +3308,7 @@ export function registerRebornRoutes(app: Express) {
     const wanted = Array.from(new Set(rows.flatMap(itemIdsOf)));
     const named = wanted.length ? await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts).where(inArray(posProducts.id, wanted)) : [];
     const nameOf = new Map(named.map((x) => [x.id, x.name]));
-    res.json(withHappyHour(await withBundleStock(rows)).filter((p) => Number(p.price) > 0 && !p.offHours && (p.packageKind || allowNegative || (p.stock ?? 0) > 0)).map((p) => ({
+    res.json(withHappyHour(await withBundleStock(rows)).filter((p) => Number(p.price) > 0 && !p.offHours && (p.packageKind || p.isService || allowNegative || (p.stock ?? 0) > 0)).map((p) => ({
       id: p.id, name: p.name, category: p.category, price: p.salePrice, regularPrice: p.happyNow ? p.price : undefined, happyNow: p.happyNow, stock: p.stock, imageUrl: productImageLink(p), recommended: p.recommended, soldOut: false,
       packageKind: p.packageKind, packageUses: p.packageUses, packageCredit: p.packageCredit, packageValidDays: p.packageValidDays,
       packageItems: itemIdsOf(p).map((id) => nameOf.get(id)).filter(Boolean),
@@ -3320,14 +3320,16 @@ export function registerRebornRoutes(app: Express) {
     const cid = await rebornCompanyId(req);
     const bundle = await bundleFieldsFor(b, cid);
     if ("error" in bundle) return res.status(400).json({ message: bundle.error });
+    const isService = !!b.isService;
     const [row] = await db.insert(posProducts).values({
       companyId: cid,
       name: String(b.name).trim(), category: b.category || "General", department: b.department || null, price: String(Number(b.price) || 0),
-      cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: await pictureFromAddress(b.imageUrl),
+      cost: isService ? "0" : String(Number(b.cost) || 0), stock: isService ? 0 : Number(b.stock) || 0, imageUrl: await pictureFromAddress(b.imageUrl),
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
       active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, sortOrder: Number(b.sortOrder) || 0,
       ...happyFieldsOf(b),
+      isService: !!b.isService,
       ...packageFields(b),
       bundleItemId: bundle.bundleItemId, bundleQty: bundle.bundleQty, ...(bundle.cost && !(Number(b.cost) > 0) ? { cost: bundle.cost } : {}),
     }).returning();
@@ -3370,6 +3372,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
+    if (b.isService !== undefined) patch.isService = !!b.isService;
     if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined) Object.assign(patch, happyFieldsOf({ happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, ...b }));
     if (b.bundleItemId !== undefined || b.bundleQty !== undefined) {
       const bundle = await bundleFieldsFor({ ...b, packageKind: b.packageKind !== undefined ? b.packageKind : prev.packageKind }, cid, id);
@@ -3417,7 +3420,7 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/pos/stock", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind))).orderBy(posProducts.stock)); // packages hold no stock
+    res.json(await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind), eq(posProducts.isService, false))).orderBy(posProducts.stock)); // packages hold no stock
   }));
 
   // Member lookup by member code (referral code), email, or phone — for POS key-in.
@@ -3480,7 +3483,7 @@ export function registerRebornRoutes(app: Express) {
   // Takes `delta` units of a sold product off (negative) or puts them back (positive); a bundle moves its item's stock (delta × bundle size).
   async function moveStock(productId: number, delta: number, reason: string, note: string, userId: string): Promise<{ before: number; name: string; units: number } | null> {
     const [product] = await db.select().from(posProducts).where(eq(posProducts.id, productId));
-    if (!product || product.packageKind) return null;
+    if (!product || product.packageKind || product.isService) return null; // packages and services hold no stock
     const bundled = !!(product.bundleItemId && product.bundleQty);
     const [target] = bundled ? await db.select().from(posProducts).where(eq(posProducts.id, product.bundleItemId!)) : [product];
     if (!target) return null;
@@ -3514,7 +3517,7 @@ export function registerRebornRoutes(app: Express) {
       const p = byId.get(Number(it.productId));
       if (!p || !p.active) return { error: pick(lang, { en: "An item is no longer available", zh: "有商品已不再供应", id: "Ada item yang sudah tidak tersedia" }) };
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
-      if (!allowNegative && !alreadySold && !p.packageKind && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
+      if (!allowNegative && !alreadySold && !p.packageKind && !p.isService && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
       if (!alreadySold && isOffHours(p, venueClockNow())) return { error: pick(lang, { en: "{item} is only sold during its happy hour", zh: "{item} 仅在欢乐时段供应", id: "{item} hanya dijual saat happy hour" }, { item: p.name }) };
       clean.push({ productId: p.id, name: p.name, price: salePriceNow(p, venueClockNow()), qty });
     }
@@ -5166,7 +5169,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/inventory", requireManager(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind), isNull(posProducts.bundleItemId))).orderBy(posProducts.category, posProducts.name); // packages and bundles hold no stock of their own
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind), eq(posProducts.isService, false), isNull(posProducts.bundleItemId))).orderBy(posProducts.category, posProducts.name); // packages and bundles hold no stock of their own
     // Distinct suppliers each product has been restocked from (one item, many suppliers).
     const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier })
       .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));
@@ -5409,7 +5412,7 @@ export function registerRebornRoutes(app: Express) {
     writeSetting: writeSettingValue,
     listProducts: async () => {
       const cid = await rebornCompanyId();
-      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), isNull(posProducts.bundleItemId), eq(posProducts.active, true), eq(posProducts.archived, false)));
+      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), eq(posProducts.isService, false), isNull(posProducts.bundleItemId), eq(posProducts.active, true), eq(posProducts.archived, false)));
       return rows.map((p) => ({ id: p.id, name: p.name, stock: p.stock, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "", imageUrl: p.imageUrl }));
     },
     clubName: async () => (await getSettings()).clubName || "Reborn Wave",
