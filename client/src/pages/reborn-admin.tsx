@@ -12,6 +12,7 @@ import SupplierReorderPanel from "@/components/SupplierReorderPanel";
 import ReceiptScan from "@/components/ReceiptScan";
 import AccountingFresh from "@/components/AccountingFresh";
 import StockSuppliers from "@/components/StockSuppliers";
+import { ItemBundles } from "@/components/ItemBundles";
 import ProductPicture from "@/components/ProductPicture";
 import { MultiDateCalendar } from "@/components/MultiDateCalendar";
 import { useAdminRole, useProductRights } from "@/hooks/useAdminRole";
@@ -2501,6 +2502,7 @@ function ProductRow({ p }: any) {
         </div>
       )}
       {!edit && <StockSuppliers p={p} />}
+      {!edit && !p.bundleItemId && !p.packageKind && <ItemBundles p={p} />}
     </Card>
   );
 }

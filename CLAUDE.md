@@ -919,3 +919,5 @@ text.
 - Bundles ("6 beers in one go", not a member package): a normal product with `bundle_item_id` + `bundle_qty` (Admin › Products › 📦 box › "Bundle"). It has its own price and shows in the POS / member
   order lists like any item (stock shown = whole bundles the item can still make, `withBundleStock`); selling one takes `bundle_qty` off the item's stock (`moveStock`: sale / reject / edit / remove / cancel /
   refund all go through it, stock movement written on the item with the bundle's name). Several bundles of one item are just several products. A bundle is left out of Inventory and supplier-reorder lists.
+- Bundles and packages are made on the inventory item: Admin › Inventory › pencil on an item › "🍺 Bundles & packages of this item" (components/ItemBundles.tsx) lists the item's bundles and visits packages
+  (edit name / price / ⭐, delete) and adds new ones (bundle: units + price; package: uses + valid days + price, the item pre-ticked). One item can have many; each is tied to that one item's stock.
