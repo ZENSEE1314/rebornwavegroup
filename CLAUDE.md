@@ -915,3 +915,7 @@ text.
 - Packages sit near the top: in the POS item picker and the member order page the groups are ⭐ Recommended, then 📦 Packages (every item with a package kind; not repeated in its category), then the
   categories. The member list says what a package holds ("6 uses: Bintang Beer · valid 30 days", `packageItems` from `package_item_ids`). To sell "6 of one item" create a Visits package with 6 uses and
   that item ticked; a second package on the same item (12 uses, another price) is just another product.
+
+- Bundles ("6 beers in one go", not a member package): a normal product with `bundle_item_id` + `bundle_qty` (Admin › Products › 📦 box › "Bundle"). It has its own price and shows in the POS / member
+  order lists like any item (stock shown = whole bundles the item can still make, `withBundleStock`); selling one takes `bundle_qty` off the item's stock (`moveStock`: sale / reject / edit / remove / cancel /
+  refund all go through it, stock movement written on the item with the bundle's name). Several bundles of one item are just several products. A bundle is left out of Inventory and supplier-reorder lists.

@@ -3252,7 +3252,7 @@ export function registerRebornRoutes(app: Express) {
     const allowNegative = (await getSettings()).allowNegativeStock;
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name);
     // soldOut = nothing left to sell: the POS (tables + staff orders) leaves such an item out of its picker.
-    res.json(rows.map((p) => ({ ...p, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
+    res.json((await withBundleStock(rows)).map((p) => ({ ...p, soldOut: !p.packageKind && !allowNegative && (p.stock ?? 0) <= 0 })));
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
@@ -3265,7 +3265,7 @@ export function registerRebornRoutes(app: Express) {
     const wanted = Array.from(new Set(rows.flatMap(itemIdsOf)));
     const named = wanted.length ? await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts).where(inArray(posProducts.id, wanted)) : [];
     const nameOf = new Map(named.map((x) => [x.id, x.name]));
-    res.json(rows.filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({
+    res.json((await withBundleStock(rows)).filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({
       id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, recommended: p.recommended, soldOut: false,
       packageKind: p.packageKind, packageUses: p.packageUses, packageCredit: p.packageCredit, packageValidDays: p.packageValidDays,
       packageItems: itemIdsOf(p).map((id) => nameOf.get(id)).filter(Boolean),
@@ -3275,6 +3275,8 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     if (!String(b.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Name required", zh: "请输入名称", id: "Nama wajib diisi" }) });
     const cid = await rebornCompanyId(req);
+    const bundle = await bundleFieldsFor(b, cid);
+    if ("error" in bundle) return res.status(400).json({ message: bundle.error });
     const [row] = await db.insert(posProducts).values({
       companyId: cid,
       name: String(b.name).trim(), category: b.category || "General", department: b.department || null, price: String(Number(b.price) || 0),
@@ -3283,6 +3285,7 @@ export function registerRebornRoutes(app: Express) {
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
       active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, sortOrder: Number(b.sortOrder) || 0,
       ...packageFields(b),
+      bundleItemId: bundle.bundleItemId, bundleQty: bundle.bundleQty, ...(bundle.cost && !(Number(b.cost) > 0) ? { cost: bundle.cost } : {}),
     }).returning();
     if ((row.stock ?? 0) > 0) await db.insert(stockMovements).values({ productId: row.id, delta: row.stock, reason: "stock_in", supplier: b.supplierName || null, note: "Initial stock", userId: getUserId(req)! });
     await logAdmin(req, { targetType: "pos_product", targetId: row.id, action: "create", entityType: "product", description: `Added product "${row.name}" @ RP ${row.price}` });
@@ -3322,6 +3325,12 @@ export function registerRebornRoutes(app: Express) {
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
+    if (b.bundleItemId !== undefined || b.bundleQty !== undefined) {
+      const bundle = await bundleFieldsFor({ ...b, packageKind: b.packageKind !== undefined ? b.packageKind : prev.packageKind }, cid, id);
+      if ("error" in bundle) return res.status(400).json({ message: bundle.error });
+      patch.bundleItemId = bundle.bundleItemId; patch.bundleQty = bundle.bundleQty;
+      if (bundle.cost) patch.cost = bundle.cost;
+    }
     if (b.packageKind !== undefined) Object.assign(patch, packageFields(b));
     else if (b.creditOk !== undefined && !prev.packageKind) patch.creditOk = !!b.creditOk;
     const [row] = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning();
@@ -3381,10 +3390,9 @@ export function registerRebornRoutes(app: Express) {
     for (const it of items) {
       await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source });
       if (it.productId) {
-        const [before] = await db.select().from(posProducts).where(eq(posProducts.id, it.productId));
-        await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${it.qty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
-        await db.insert(stockMovements).values({ productId: it.productId, delta: -it.qty, reason: "sale", note: `Ticket ${orderNo}`, userId });
-        const remaining = (before?.stock ?? 0) - it.qty;
+        const moved = await moveStock(it.productId, -it.qty, "sale", `Ticket ${orderNo}`, userId);
+        const before = moved ? { stock: moved.before, name: moved.name } : undefined;
+        const remaining = (before?.stock ?? 0) + (moved?.units ?? -it.qty);
         if ((before?.stock ?? 0) > 5 && remaining <= 5) await notifyStaffI18n("low_stock", (lang) => ({ title: pick(lang, { en: "Low stock warning", zh: "库存不足提醒", id: "Peringatan stok menipis" }), body: pick(lang, { en: "{item}: {n} left", zh: "{item}：剩余 {n}", id: "{item}: sisa {n}" }, { item: it.name, n: Math.max(0, remaining) }) }), { path: "/reborn-pos", productId: it.productId });
       }
     }
@@ -3398,11 +3406,41 @@ export function registerRebornRoutes(app: Express) {
     return total;
   }
 
+  // A bundle is a product of its own (its own price) that is made of N units of another item: one sale takes N off that item's stock.
+  const MAX_BUNDLE_QTY = 1000;
+  async function bundleFieldsFor(b: any, cid: number, selfId?: number): Promise<{ bundleItemId: number | null; bundleQty: number | null; cost?: string } | { error: string }> {
+    const itemId = Number(b.bundleItemId);
+    const qty = Math.floor(Number(b.bundleQty));
+    if (!(itemId > 0) || !(qty >= 2) || b.packageKind) return { bundleItemId: null, bundleQty: null };
+    const [base] = await db.select().from(posProducts).where(and(eq(posProducts.id, itemId), eq(posProducts.companyId, cid)));
+    if (!base || base.id === selfId || base.packageKind || base.bundleItemId) return { error: "A bundle is made of a normal item (not a package, not another bundle)." };
+    return { bundleItemId: base.id, bundleQty: Math.min(qty, MAX_BUNDLE_QTY), cost: String(Math.round(Number(base.cost) * Math.min(qty, MAX_BUNDLE_QTY) * 100) / 100) };
+  }
+  // Takes `delta` units of a sold product off (negative) or puts them back (positive); a bundle moves its item's stock (delta × bundle size).
+  async function moveStock(productId: number, delta: number, reason: string, note: string, userId: string): Promise<{ before: number; name: string; units: number } | null> {
+    const [product] = await db.select().from(posProducts).where(eq(posProducts.id, productId));
+    if (!product || product.packageKind) return null;
+    const bundled = !!(product.bundleItemId && product.bundleQty);
+    const [target] = bundled ? await db.select().from(posProducts).where(eq(posProducts.id, product.bundleItemId!)) : [product];
+    if (!target) return null;
+    const units = delta * (bundled ? product.bundleQty! : 1);
+    await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${units}` }).where(eq(posProducts.id, target.id));
+    await db.insert(stockMovements).values({ productId: target.id, delta: units, reason, note: bundled ? `${note} · bundle "${product.name}"` : note, userId });
+    return { before: target.stock ?? 0, name: target.name, units };
+  }
+  // What the lists show as a bundle's stock: how many whole bundles its item can still make.
+  async function withBundleStock<T extends { bundleItemId: number | null; bundleQty: number | null; stock: number | null }>(rows: T[]): Promise<T[]> {
+    const ids = Array.from(new Set(rows.map((p) => p.bundleItemId).filter((x): x is number => !!x)));
+    if (!ids.length) return rows;
+    const bases = await db.select({ id: posProducts.id, stock: posProducts.stock }).from(posProducts).where(inArray(posProducts.id, ids));
+    const stockOf = new Map(bases.map((x) => [x.id, x.stock ?? 0]));
+    return rows.map((p) => (p.bundleItemId && p.bundleQty ? { ...p, stock: Math.max(0, Math.floor((stockOf.get(p.bundleItemId) ?? 0) / p.bundleQty)) } : p));
+  }
   // Validate requested items against the live catalogue + stock.
   async function resolveItems(items: any[], lang: Lang = "en", alreadySold = false): Promise<{ clean?: any[]; error?: string }> {
     const ids = items.map((it) => Number(it.productId)).filter(Boolean);
     const products = ids.length ? await db.select().from(posProducts).where(or(...ids.map((i: number) => eq(posProducts.id, i)))) : [];
-    const byId = new Map(products.map((p) => [p.id, p]));
+    const byId = new Map((await withBundleStock(products)).map((p) => [p.id, p]));
     const allowNegative = (await getSettings()).allowNegativeStock;
     const clean: any[] = [];
     for (const it of items) {
@@ -3604,8 +3642,7 @@ export function registerRebornRoutes(app: Express) {
     if (status === "rejected") {
       patch.rejectReason = String(req.body?.reason || "").trim() || "Unavailable";
       if (it.status !== "rejected" && it.productId) { // return stock
-        await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
-        await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "order_reject", note: `Rejected item #${id}`, userId: getUserId(req)! });
+        await moveStock(it.productId, it.qty, "order_reject", `Rejected item #${id}`, getUserId(req)!);
       }
     }
     if (status === "served") patch.servedAt = new Date();
@@ -3640,8 +3677,7 @@ export function registerRebornRoutes(app: Express) {
     const qty = req.body?.qty !== undefined ? Math.max(1, Math.floor(Number(req.body.qty))) : it.qty;
     const dQty = qty - it.qty;
     if (dQty !== 0 && it.productId) { // keep stock in sync
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${dQty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
-      await db.insert(stockMovements).values({ productId: it.productId, delta: -dQty, reason: "adjustment", note: `Edit item #${id}`, userId: getUserId(req)! });
+      await moveStock(it.productId, -dQty, "adjustment", `Edit item #${id}`, getUserId(req)!);
     }
     await db.update(posTicketItems).set({ price: String(price), qty, lineTotal: String(price * qty) }).where(eq(posTicketItems.id, id));
     await recalcTicket(it.orderId);
@@ -3656,8 +3692,7 @@ export function registerRebornRoutes(app: Express) {
     const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
     if (!it) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
     if (it.status !== "rejected" && it.productId) {
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
-      await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "adjustment", note: `Removed item #${id}`, userId: getUserId(req)! });
+      await moveStock(it.productId, it.qty, "adjustment", `Removed item #${id}`, getUserId(req)!);
     }
     if (it.source === "app") await db.update(posTicketItems).set({ status: "rejected", rejectReason: reason || "Removed by staff" }).where(eq(posTicketItems.id, id));
     else await db.delete(posTicketItems).where(eq(posTicketItems.id, id));
@@ -3804,8 +3839,7 @@ export function registerRebornRoutes(app: Express) {
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Order not open", zh: "该订单未开启", id: "Pesanan tidak terbuka" }) });
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     for (const it of items) if (it.productId) {
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(and(eq(posProducts.id, it.productId), isNull(posProducts.packageKind)));
-      await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "order_cancel", note: `Cancelled ${o.orderNo}`, userId: getUserId(req)! });
+      await moveStock(it.productId, it.qty, "order_cancel", `Cancelled ${o.orderNo}`, getUserId(req)!);
     }
     await db.update(posTickets).set({ status: "cancelled" }).where(eq(posTickets.id, id));
     await logAdmin(req, { targetType: "pos_order", targetId: id, action: "cancel", entityType: "order", description: `Cancelled ${o.orderNo}, stock restored` });
@@ -4141,8 +4175,7 @@ export function registerRebornRoutes(app: Express) {
     if (!order || order.status !== "paid") return { status: 400 as const, body: { message: tr(req, { en: "Only a paid bill can be refunded", zh: "只有已付款的账单才能退款", id: "Hanya tagihan yang sudah dibayar yang bisa di-refund" }) }, order: null as any };
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     for (const item of items.filter((x) => x.status !== "rejected" && x.productId)) {
-      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${item.qty}` }).where(and(eq(posProducts.id, item.productId!), isNull(posProducts.packageKind)));
-      await db.insert(stockMovements).values({ productId: item.productId!, delta: item.qty, reason: "refund", note: `Refund ${order.orderNo}: ${reason}`, userId: actorId });
+      await moveStock(item.productId!, item.qty, "refund", `Refund ${order.orderNo}: ${reason}`, actorId);
     }
     if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints: sql`greatest(0,${users.loyaltyPoints}-${order.pointsEarned})`, lifetimePoints: sql`greatest(0,${users.lifetimePoints}-${order.pointsEarned})`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
     const [updated] = await db.update(posTickets).set({ status: "refunded", refundReason: reason, refundedBy: actorId, refundedAt: new Date() }).where(eq(posTickets.id, id)).returning();
@@ -4992,7 +5025,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/inventory", requireManager(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);
-    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind))).orderBy(posProducts.category, posProducts.name); // packages hold no stock
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind), isNull(posProducts.bundleItemId))).orderBy(posProducts.category, posProducts.name); // packages and bundles hold no stock of their own
     // Distinct suppliers each product has been restocked from (one item, many suppliers).
     const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier })
       .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));
@@ -5221,7 +5254,7 @@ export function registerRebornRoutes(app: Express) {
     writeSetting: writeSettingValue,
     listProducts: async () => {
       const cid = await rebornCompanyId();
-      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), eq(posProducts.active, true), eq(posProducts.archived, false)));
+      const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), isNull(posProducts.packageKind), isNull(posProducts.bundleItemId), eq(posProducts.active, true), eq(posProducts.archived, false)));
       return rows.map((p) => ({ id: p.id, name: p.name, stock: p.stock, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "", imageUrl: p.imageUrl }));
     },
     clubName: async () => (await getSettings()).clubName || "Reborn Wave",

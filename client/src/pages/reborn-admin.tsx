@@ -2133,7 +2133,7 @@ function IndustryPicker({ value, options, onChange, isCompact = false }: { value
 // Package settings of a POS product (server/memberPackages.ts): a normal product (that
 // can or can't be paid with package credit), a visits package or a prepaid credit package.
 const parseIds = (v: any): number[] => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.map(Number) : []; } catch { return []; } };
-const pkgOf = (p: any) => ({ packageItemIds: parseIds(p?.packageItemIds), packageKind: p?.packageKind || "", packageUses: p?.packageUses || "", packageCredit: p?.packageCredit ? Number(p.packageCredit) : "", packageValidDays: p?.packageValidDays || "", perkPercent: p?.perkPercent ? Number(p.perkPercent) : "", perkDays: p?.perkDays || "", creditOk: p?.creditOk !== false });
+const pkgOf = (p: any) => ({ bundleItemId: p?.bundleItemId || "", bundleQty: p?.bundleQty || "", packageItemIds: parseIds(p?.packageItemIds), packageKind: p?.packageKind || "", packageUses: p?.packageUses || "", packageCredit: p?.packageCredit ? Number(p.packageCredit) : "", packageValidDays: p?.packageValidDays || "", perkPercent: p?.perkPercent ? Number(p.perkPercent) : "", perkDays: p?.perkDays || "", creditOk: p?.creditOk !== false });
 // "6 beers — the member chooses which": tick the items a visits package can be redeemed for. Each redeem is added to the bill at RP 0 and
 // comes off that item's stock. Nothing ticked = a plain visit (spa ×10).
 function PackageItemPicker({ value, onChange }: { value: number[]; onChange: (ids: number[]) => void }) {
@@ -2185,6 +2185,26 @@ function PackageFields({ value, onChange }: { value: any; onChange: (v: any) => 
         <p className="mt-1.5 text-[11px] text-white/40">{t("admin.pkg.creditHint")}</p>
       </>}
       {value.packageKind && <p className="mt-1.5 text-[11px] text-white/40">{t("admin.pkg.sellHint")}</p>}
+      {!value.packageKind && <BundleFields value={value} onChange={onChange} />}
+    </div>
+  );
+}
+// A bundle: this product is N units of another item sold in one go (6 beers for one price). One sale takes N off that item's stock.
+function BundleFields({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const { t } = useTranslation();
+  const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
+  const items = products.filter((p) => !p.packageKind && !p.bundleItemId && p.id !== value.id).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  return (
+    <div className="mt-2 rounded-lg border border-white/10 p-2">
+      <p className="mb-1 text-xs font-semibold text-white/70">🍺 {t("admin.bundle.title")}</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <select value={value.bundleItemId || ""} onChange={(e) => onChange({ ...value, bundleItemId: e.target.value ? Number(e.target.value) : "" })} className={inp + " sm:col-span-2"}>
+          <option value="">{t("admin.bundle.none")}</option>
+          {items.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <label className="text-xs text-white/50">{t("admin.bundle.qty")}<input type="number" inputMode="numeric" min={2} value={value.bundleQty || ""} disabled={!value.bundleItemId} onFocus={(e) => e.currentTarget.select()} onChange={(e) => onChange({ ...value, bundleQty: e.target.value === "" ? "" : Number(e.target.value) })} className={inp + " w-full"} /></label>
+      </div>
+      <p className="mt-1 text-[11px] text-white/40">{t("admin.bundle.hint")}</p>
     </div>
   );
 }

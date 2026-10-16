@@ -551,6 +551,7 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS staff_contracts (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'awaiting_staff', lang varchar NOT NULL DEFAULT 'en', job_title varchar, start_date varchar, extra_terms text, terms text, id_image text, id_number varchar, id_uploaded_at timestamp, signature text, signed_name varchar, signed_at timestamp, approved_by varchar, approved_at timestamp, return_note text, emailed_at timestamp, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS real_name varchar;
     ALTER TABLE staff_contracts ADD COLUMN IF NOT EXISTS job_scope text;
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS bundle_item_id integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS bundle_qty integer;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS recommended boolean NOT NULL DEFAULT false;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS offline_id varchar;
     CREATE UNIQUE INDEX IF NOT EXISTS pos_tickets_offline_id ON pos_tickets (company_id, offline_id) WHERE offline_id IS NOT NULL;

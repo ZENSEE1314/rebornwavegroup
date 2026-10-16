@@ -882,6 +882,8 @@ export const posProducts = pgTable("pos_products", {
   supplierAddress: text("supplier_address"),
   supplierPhone: varchar("supplier_phone"),
   active: boolean("active").default(true).notNull(),
+  bundleItemId: integer("bundle_item_id"), // a bundle ("6 beers" sold in one go): the item it is made of ...
+  bundleQty: integer("bundle_qty"),         // ... and how many of it one bundle holds; selling one takes that many off the item's stock
   recommended: boolean("recommended").default(false).notNull(), // set by the admin: shown first, with a star, in the POS and the member order page
   posVisible: boolean("pos_visible").default(true).notNull(), // false = tracked in inventory but not sellable in POS (e.g. raw meat)
   station: varchar("station"), // KDS routing override: 'kitchen' | 'bar' | 'dessert' (else derived from category)
