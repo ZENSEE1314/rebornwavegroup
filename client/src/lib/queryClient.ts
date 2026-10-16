@@ -105,6 +105,7 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
+      networkMode: "always", // run offline too: the POS reads its saved answers from the service worker
       refetchInterval: false, // Disable auto-refresh by default
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
@@ -112,6 +113,7 @@ export const queryClient = new QueryClient({
       retry: false,
     },
     mutations: {
+      networkMode: "always",
       retry: false,
     },
   },

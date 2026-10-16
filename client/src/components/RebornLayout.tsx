@@ -1,3 +1,4 @@
+import { forgetOfflineData } from "@/lib/offline-sales";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { installUiClicks } from "@/lib/sfx";
@@ -131,6 +132,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
 
   const logout = async () => {
     try { await apiRequest("POST", "/api/auth/logout"); } catch {}
+    forgetOfflineData();
     window.location.href = "/";
   };
   const go = (p: string) => navigate(p);

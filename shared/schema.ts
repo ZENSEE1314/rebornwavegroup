@@ -949,6 +949,7 @@ export const posTickets = pgTable("pos_tickets", {
   companyId: integer("company_id"),
   branchId: integer("branch_id"),
   orderNo: varchar("order_no").notNull(),
+  offlineId: varchar("offline_id"), // a quick sale made offline is sent with its own id so it is never counted twice
   source: varchar("source").default("pos").notNull(), // 'pos' | 'app'
   status: varchar("status").default("open").notNull(), // 'open' | 'paid' | 'cancelled'
   memberId: varchar("member_id"),

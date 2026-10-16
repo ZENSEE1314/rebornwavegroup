@@ -892,3 +892,15 @@ text.
 
 - Staff real name: Admin › Users › a staff / admin row › "Real name" (`bridge_staff_profiles.real_name`, `PUT /api/reborn/admin/staff-real-name/:userId`). When set it replaces the
   account name in Support › Rate staff, the staff leaderboard, the schedule picker + schedule, attendance, leave, payroll, contracts and payslips (`realNamesOf`).
+
+## POS offline mode (Quick sale)
+
+- The POS opens and sells with no internet. `client/public/sw.js` keeps the app shell, the built files (`/assets`) and the few GET answers the POS reads (who is signed in, role,
+  `/pos/products|staff|settings|stock|orders`; saved 24 h; member lookups are never saved) and answers from them when the network is down; writes are never answered from it.
+  The POS page registers the worker and hands it the files it already loaded (`prepareOfflinePos`), so the POS has to be opened once while online on each device.
+  Queries and mutations run with `networkMode: "always"` for this. Logging out removes the saved answers (`forgetOfflineData`).
+- Quick sale tab only: with no answer from the server the sale is saved in the browser (`rw.pos.offlineSales`, rules in shared/offlineSale.ts, `submitSale` / `syncOfflineSales` in
+  lib/offline-sales.ts) with its own `offlineId` and the time the customer paid, a receipt is printed from the screen's numbers, and the queue is sent in order when the internet
+  returns (online event, every 30 s, Send now). `POST /api/reborn/pos/sale` books it at that time (`pos_tickets.offline_id` unique per company: a repeat is answered "already sent",
+  never a second sale; stock isn't refused afterwards; ledger entry dated the sale). A sale the server refuses stays in the list (red box) with Try again / Delete. Offline: cash + card only —
+  tables / open bills, member lookup, RP credits and packages need the internet (the table screens show the last saved copy only).

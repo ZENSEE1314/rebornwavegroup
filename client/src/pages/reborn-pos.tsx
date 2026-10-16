@@ -11,6 +11,8 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
+import { OfflineBanner } from "@/components/OfflineBanner";
+import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
 interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
@@ -59,6 +61,7 @@ export default function RebornPos() {
   // Managers (staff with the company role "manager") close the day here too.
   const { data: myRole } = useQuery<{ role: string }>({ queryKey: ["/api/reborn/my-role"], queryFn: () => apiRequest("GET", "/api/reborn/my-role").then((r) => r.json()), enabled: isStaff });
   const companyRole = myRole?.role;
+  useEffect(() => { void prepareOfflinePos(); }, []);
 
   if (!isLoading && !isStaff) {
     return <RebornLayout active="/pos" title={t("pos.title")}><div className="text-center py-16 text-white/50">{t("pos.staffOnly")} <button className="text-amber-300 underline" onClick={() => navigate("/")}>{t("pos.goHome")}</button></div></RebornLayout>;
@@ -71,6 +74,7 @@ export default function RebornPos() {
         <button onClick={() => setShowDrawer(true)} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70"><Settings className="w-4 h-4" /> {t("pos.cashDrawer")}</button>
       </div>
       <StaffGuideButton />
+      <OfflineBanner />
       {(role === "admin" || companyRole === "manager") && <ClosePosDay />}
       <div className="grid gap-2 mb-4 max-w-3xl" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
         {([["tables", t("pos.tab.tables"), <LayoutGrid className="w-4 h-4" />], ["sell", t("pos.tab.sell"), <Receipt className="w-4 h-4" />], ["sales", t("pos.tab.sales"), <History className="w-4 h-4" />], ["stock", t("pos.tab.stock"), <PackagePlus className="w-4 h-4" />], ["bottles", t("pos.tab.bottles"), <Wine className="w-4 h-4" />], ["packages", t("pos.tab.packages"), <Gift className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
@@ -482,7 +486,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               <button onClick={() => setBillDiscount.mutate(discPct ? { percent: Number(discPct), reason: discReason } : { amount: discount, reason: discReason })} className="w-full py-2 rounded-xl bg-white/10 text-sm font-semibold">{t("pos.applyDiscount")}</button>
             </div>
             <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-              {(["cash", "card", "credits"] as const).map((m) => (
+              {(["cash", "card", "credits"] as const).filter((m) => m !== "credits" || !isOffline).map((m) => (
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
               ))}
             </div>
@@ -528,8 +532,17 @@ function QuickSaleTab() {
     mutationFn: () => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent(code.trim())}`).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: t("pos.memberFound"), description: d.name }); } else toast({ title: t("pos.notFound"), description: d.message, variant: "destructive" }); },
   });
+  const { isOffline } = useOfflineSales();
   const sell = useMutation({
-    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit }),
+    mutationFn: async (items: any[]) => {
+      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit }, { label: t("pos.offline.items", { n: items.length }), total: payable });
+      if (!outcome.queued) return outcome.data;
+      // Saved on this device: a receipt is made from the numbers on the screen (the server prices it again when it is sent).
+      const cashIn = Number(cashReceived) || 0;
+      const order = { id: 0, orderNo: `OFFLINE-${outcome.sale.offlineId.slice(0, 6).toUpperCase()}`, orderMode, subtotal: cartSubtotal, discount, serviceFee: due.serviceFee, tax: due.tax, total: due.total, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: cashIn, changeGiven: pay === "cash" ? Math.max(0, cashIn - due.total) : 0, paidAt: outcome.sale.at,
+        items: items.map((it: any) => ({ name: it.name, qty: it.qty, price: Number(it.price), lineTotal: Number(it.price) * Number(it.qty) })) };
+      return { queued: true, order, receipt: savedReceiptMeta(), message: t("pos.offline.savedToast") };
+    },
     onSuccess: async (d) => {
       if (pay === "cash") await openCashDrawer();
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
@@ -567,7 +580,7 @@ function QuickSaleTab() {
         <MemberWallet code={member?.code} quote={cartItems.length ? quote : null} useCredit={useCredit} onUseCredit={setUseCredit} />
         {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} />}
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
-        <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${isOffline ? 2 : 3}, minmax(0, 1fr))` }}>
           {(["cash", "card", "credits"] as const).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
           ))}

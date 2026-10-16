@@ -1225,6 +1225,7 @@ function packPricingFields(b: { unitsPerPack?: unknown; packPrice?: unknown }): 
 }
 
 const PAYROLL_REMINDER_CHECK_MS = 60 * 60 * 1000;
+const OFFLINE_SALE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // a sale saved offline is taken for a week at most
 const MAX_SHIFTS_AT_ONCE = 300;
 const SHIFT_DATES_IN_NOTICE = 6;
 
@@ -3388,7 +3389,7 @@ export function registerRebornRoutes(app: Express) {
   }
 
   // Validate requested items against the live catalogue + stock.
-  async function resolveItems(items: any[], lang: Lang = "en"): Promise<{ clean?: any[]; error?: string }> {
+  async function resolveItems(items: any[], lang: Lang = "en", alreadySold = false): Promise<{ clean?: any[]; error?: string }> {
     const ids = items.map((it) => Number(it.productId)).filter(Boolean);
     const products = ids.length ? await db.select().from(posProducts).where(or(...ids.map((i: number) => eq(posProducts.id, i)))) : [];
     const byId = new Map(products.map((p) => [p.id, p]));
@@ -3398,7 +3399,7 @@ export function registerRebornRoutes(app: Express) {
       const p = byId.get(Number(it.productId));
       if (!p || !p.active) return { error: pick(lang, { en: "An item is no longer available", zh: "有商品已不再供应", id: "Ada item yang sudah tidak tersedia" }) };
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
-      if (!allowNegative && !p.packageKind && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
+      if (!allowNegative && !alreadySold && !p.packageKind && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
       clean.push({ productId: p.id, name: p.name, price: Number(p.price), qty });
     }
     return { clean };
@@ -3483,7 +3484,15 @@ export function registerRebornRoutes(app: Express) {
 
   // Quick walk-in sale: open, fill, and close in one step.
   app.post("/api/reborn/pos/sale", requireStaff(async (req, res) => {
-    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
+    // A sale made while the POS had no internet is sent later with its own id: the same id never makes a second sale, and it is booked at the time the customer paid.
+    const offlineId = typeof req.body?.offlineId === "string" ? req.body.offlineId.trim().slice(0, 64) : "";
+    const offlineAtRaw = offlineId ? new Date(String(req.body?.offlineAt || "")) : null;
+    const offlineAt = offlineAtRaw && !Number.isNaN(offlineAtRaw.getTime()) && offlineAtRaw.getTime() <= Date.now() + 5 * 60_000 && offlineAtRaw.getTime() > Date.now() - OFFLINE_SALE_MAX_AGE_MS ? offlineAtRaw : null;
+    if (offlineId) {
+      const [already] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, await rebornCompanyId(req)), eq(posTickets.offlineId, offlineId))).limit(1);
+      if (already) return res.json({ duplicate: true, order: already, message: tr(req, { en: "This sale was already sent.", zh: "这笔销售已发送过。", id: "Penjualan ini sudah terkirim." }) });
+    }
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req), !!offlineId);
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
     const paymentReference = String(req.body?.paymentReference || "").trim();
@@ -3508,10 +3517,10 @@ export function registerRebornRoutes(app: Express) {
     const staffId = getUserId(req)!;
     const [row] = await db.insert(posTickets).values({
       companyId: await rebornCompanyId(req),
-      orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid",
+      orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
       ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null,
       subtotal: String(subtotal), discount: String(discount), discountReason: q.perkAmount > 0 ? `Member ${q.perkPercent}%` : null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
-      paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: new Date(),
+      paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
     }).returning();
     const spent = await spendPackageCredit(u?.id || "", q.creditUse, row.id, staffId);
     if (spent.spent < q.creditUse) { await restorePackageCredit(row.id, staffId, "Payment not completed"); await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(409).json({ message: packageCreditChanged(req) }); }
@@ -3522,7 +3531,7 @@ export function registerRebornRoutes(app: Express) {
     await appendItems(row.id, row.orderNo, clean!, staffId);
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
-    if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
+    if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), ...(offlineAt ? { createdAt: offlineAt } : {}), userId: u?.id || null });
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: row.id });
     if (u?.id) await notifyUserI18n(u.id, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: row.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: row.id });
     const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, staffId, reqLang(req)) : null;
