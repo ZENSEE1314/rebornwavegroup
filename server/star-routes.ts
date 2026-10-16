@@ -757,11 +757,13 @@ async function checkExpiredTournaments() {
   }
 }
 
-// Initialize tournament system on server start
-ensureActiveTournament();
+// Initialize tournament system on server start (the venue PC leaves tournaments to the cloud)
+if (process.env.VENUE_MODE !== "1") {
+  ensureActiveTournament();
 
-// Check for expired tournaments every 5 minutes
-setInterval(checkExpiredTournaments, 5 * 60 * 1000);
+  // Check for expired tournaments every 5 minutes
+  setInterval(checkExpiredTournaments, 5 * 60 * 1000);
+}
 
 // Check immediately on startup for any expired tournaments
-checkExpiredTournaments();
+if (process.env.VENUE_MODE !== "1") checkExpiredTournaments();

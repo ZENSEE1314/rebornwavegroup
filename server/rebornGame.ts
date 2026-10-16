@@ -37,6 +37,9 @@ import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerStaffContractRoutes } from "./staffContracts";
 import { stationFor, STATIONS } from "@shared/station";
+import { VENUE_MODE, CLOUD_URL } from "./venueMode";
+import { cloudSyncStatus, enableVenueSync } from "./venueSync/cloudRoutes";
+import { syncNow, venueSyncStatus } from "./venueSync/engine";
 import { registerPayslipRoutes, savePayslip, runPayrollReminder, type PayslipDeps } from "./payslips";
 import type { PayslipData } from "@shared/payslip";
 import { registerVenueScanRoutes } from "./venueScan";
@@ -1236,7 +1239,7 @@ export function registerRebornRoutes(app: Express) {
   // A table's call keeps alerting staff until someone accepts it.
   setInterval(() => { void inEveryDataSpace(remindServiceCalls); }, SERVICE_CALL_CHECK_MS);
   // Low stock → a drafted message to the supplier, waiting for the admin's approval (when switched on).
-  setInterval(() => { void inEveryDataSpace(async () => { await runSupplierReorderCheck(); }).catch((error) => console.error("[supplier reorder]", error)); }, SUPPLIER_REORDER_CHECK_MS);
+  if (!VENUE_MODE) setInterval(() => { void inEveryDataSpace(async () => { await runSupplierReorderCheck(); }).catch((error) => console.error("[supplier reorder]", error)); }, SUPPLIER_REORDER_CHECK_MS);
 
   // Payday: once a month the admins are told who is still unpaid for the month that ended.
   const payslipDeps: PayslipDeps = {
@@ -1249,7 +1252,7 @@ export function registerRebornRoutes(app: Express) {
     notifyAdmins: (text) => notifyStaffI18n("payday", (lang) => ({ title: pick(lang, { en: "Payday", zh: "发薪日", id: "Hari gajian" }), body: text[lang] }), undefined, { adminsOnly: true }),
     payrollDay: async () => (await getSettings()).payrollDay,
   };
-  setInterval(() => { void inEveryDataSpace(async () => { await runPayrollReminder(payslipDeps); }).catch((error) => console.error("[payroll reminder]", error)); }, PAYROLL_REMINDER_CHECK_MS);
+  if (!VENUE_MODE) setInterval(() => { void inEveryDataSpace(async () => { await runPayrollReminder(payslipDeps); }).catch((error) => console.error("[payroll reminder]", error)); }, PAYROLL_REMINDER_CHECK_MS);
 
   console.log("*** REBORN GAME ROUTES REGISTERED");
   void dedupeGiftTypes();
@@ -5269,6 +5272,20 @@ export function registerRebornRoutes(app: Express) {
     },
   });
   registerPayslipRoutes(app, payslipDeps);
+  // Venue server (Admin › Settings › Venue server): on the cloud make / show the token and see the venue PC's last visit; on the venue PC see the state and send now.
+  app.get("/api/reborn/admin/venue-sync", requireAdmin(async (_req, res) => {
+    res.json(VENUE_MODE ? { isVenue: true, cloudUrl: CLOUD_URL, venue: venueSyncStatus() } : { isVenue: false, cloud: await cloudSyncStatus() });
+  }));
+  app.post("/api/reborn/admin/venue-sync/enable", requireAdmin(async (req, res) => {
+    if (VENUE_MODE) return res.status(400).json({ message: "This is the venue PC" });
+    const token = await enableVenueSync(!!req.body?.rotate);
+    await logAdmin(req, { targetType: "settings", action: req.body?.rotate ? "venue_token_rotate" : "venue_token_show", entityType: "settings", description: req.body?.rotate ? "New venue server token made" : "Venue server token shown" });
+    res.json({ token });
+  }));
+  app.post("/api/reborn/admin/venue-sync/now", requireAdmin(async (_req, res) => {
+    if (!VENUE_MODE) return res.status(400).json({ message: "Only the venue PC sends" });
+    res.json(await syncNow());
+  }));
   registerStaffContractRoutes(app, {
     requireStaff,
     requireAdmin,

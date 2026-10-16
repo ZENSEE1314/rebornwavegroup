@@ -2299,7 +2299,7 @@ export function registerWhatsAppBot(app: Express) {
   });
 
   // Kick off the reminder scheduler (hourly). Safe no-op until WhatsApp is configured.
-  startReminderScheduler();
+  if (process.env.VENUE_MODE !== "1") startReminderScheduler(); // the venue PC leaves reminders to the cloud
 }
 
 // --- Reminders -----------------------------------------------------------

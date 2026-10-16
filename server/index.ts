@@ -1,3 +1,8 @@
+import { VENUE_MODE } from "./venueMode";
+import { registerVenueSyncRoutes, venueToken, pruneCloudLog } from "./venueSync/cloudRoutes";
+import { ensureSyncInfra } from "./venueSync/infra";
+import { startVenueSync } from "./venueSync/engine";
+import { registerVenuePage } from "./venueSync/venuePage";
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
@@ -127,13 +132,15 @@ app.use((req, res, next) => {
   registerRebornRoutes(app);
   registerGameRoutes(app);
   registerPetHomeRoutes(app);
+  registerVenueSyncRoutes(app);
+  registerVenuePage(app);
 
   // WhatsApp CRM bot + reminder scheduler (activates when WHATSAPP_* env vars are set)
   const bridgeXPortalOnly = process.env.BRIDGEX_PORTAL_ONLY === "true";
   if (!bridgeXPortalOnly) {
     registerWhatsAppBot(app);
     // Resume a previously QR-linked WhatsApp Web session if one exists.
-    resumeWhatsAppWebIfLinked().catch(() => {});
+    if (!VENUE_MODE) resumeWhatsAppWebIfLinked().catch(() => {}); // the venue PC leaves WhatsApp to the cloud
   }
 
   // Background pet decay system - runs every 3 minutes
@@ -238,7 +245,7 @@ app.use((req, res, next) => {
   };
 
   // Start background decay system
-  if (!bridgeXPortalOnly) {
+  if (!bridgeXPortalOnly && !VENUE_MODE) { // pet decay and daily tokens run in the cloud only (the venue PC gets their results)
     startBackgroundDecay();
     console.log("Background pet decay system started - runs every 3 minutes");
   }
@@ -350,7 +357,7 @@ app.use((req, res, next) => {
   };
 
   // Start daily token distribution system
-  if (!bridgeXPortalOnly) {
+  if (!bridgeXPortalOnly && !VENUE_MODE) {
     startDailyTokenDistribution();
     console.log(
       "Background daily token distribution started - runs every 10 minutes",
@@ -378,6 +385,16 @@ app.use((req, res, next) => {
   // mirror those into every company's data space too.
   await syncAllTenantSpaces();
   setTimeout(() => { void syncAllTenantSpaces(); }, LATE_TABLE_SYNC_MS);
+
+  // Venue sync: the venue PC starts its loop; the cloud (once a venue token exists) keeps its change log, also for tables created a moment after start-up.
+  if (VENUE_MODE) {
+    await startVenueSync();
+    setTimeout(() => { void ensureSyncInfra({ isVenue: true }).catch((error) => console.error("[venue-sync]", error)); }, LATE_TABLE_SYNC_MS);
+  } else if (await venueToken().catch(() => "")) {
+    await ensureSyncInfra({ isVenue: false });
+    setTimeout(() => { void ensureSyncInfra({ isVenue: false }).catch((error) => console.error("[venue-sync]", error)); }, LATE_TABLE_SYNC_MS);
+    setInterval(() => { void pruneCloudLog(); }, 6 * 3600_000);
+  }
 
   // Use PORT env var (required by Render/Railway) or fallback to 5000 for local dev
   const port = parseInt(process.env.PORT || "5000", 10);

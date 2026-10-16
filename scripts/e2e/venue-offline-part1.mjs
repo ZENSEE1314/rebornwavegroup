@@ -1,0 +1,25 @@
+// Run while the cloud server is stopped: the venue PC keeps working and queues its changes.
+import pg from "pg";
+const VENUE = process.env.VENUE || "http://127.0.0.1:4000";
+const venueDb = new pg.Client({ connectionString: process.env.VENUE_DB || "postgres://postgres:pw@127.0.0.1:54330/reborn" }); await venueDb.connect();
+let cookie = "";
+const call = async (method, path, body) => { const res = await fetch(VENUE + path, { method, headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) }, body: body ? JSON.stringify(body) : undefined, redirect: "manual" }); const set = res.headers.getSetCookie?.() || []; if (set.length) cookie = set.map((c) => c.split(";")[0]).join("; "); const t = await res.text(); let j = null; try { j = JSON.parse(t); } catch {} return { status: res.status, json: j }; };
+let failures = 0; const check = (n, ok, e = "") => { console.log((ok ? "PASS " : "FAIL ") + n + (ok ? "" : " → " + e)); if (!ok) failures++; };
+await call("POST", "/api/auth/login", { email: "admin@test.local", password: "Passw0rd!" });
+const product = (await venueDb.query("select id, stock, price from pos_products where price>0 and package_kind is null and bundle_item_id is null order by id limit 1")).rows[0];
+let r = await call("POST", "/api/reborn/pos/sale", { paymentMethod: "cash", cashReceived: 900000, items: [{ productId: product.id, qty: 3 }] });
+check("sale while the cloud is down", r.status === 200, JSON.stringify(r.json)?.slice(0, 120));
+r = await call("POST", "/api/reborn/pos/orders", { tableNumber: "OFF9" });
+const orderId = r.json?.order?.id; check("open a table while the cloud is down", !!orderId, JSON.stringify(r.json));
+r = await call("POST", `/api/reborn/pos/orders/${orderId}/items`, { items: [{ productId: product.id, qty: 1 }] });
+check("add items to the table", r.status === 200, JSON.stringify(r.json));
+r = await call("POST", "/api/reborn/kitchen/claim", { station: "all" });
+check("kitchen docket claimed locally", r.status === 200 && r.json.orders.some((o) => o.orderId === orderId), JSON.stringify(r.json)?.slice(0, 150));
+r = await call("POST", "/api/auth/register", { email: `offline${Date.now()}@test.local`, password: "Passw0rd!", firstName: "Off", lastName: "Line", phoneNumber: "0812" + String(Date.now()).slice(-8), dateOfBirth: "1999-09-09", gender: "female" });
+check("a new member signs up on the venue Wi-Fi", r.status === 200, JSON.stringify(r.json)?.slice(0, 120));
+await call("POST", "/api/auth/login", { email: "admin@test.local", password: "Passw0rd!" });
+r = await call("GET", "/api/reborn/admin/venue-sync");
+check("the venue PC knows it is offline and how much waits", r.json?.venue && r.json.venue.online === false && r.json.venue.waitingToSend > 0, JSON.stringify(r.json));
+console.log("waiting to send:", r.json?.venue?.waitingToSend, "| last error:", r.json?.venue?.lastError);
+console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");
+await venueDb.end();

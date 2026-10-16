@@ -939,3 +939,17 @@ text.
 - Sell options now live on the inventory item, not in Products: Admin › Inventory › pencil on an item has ⭐ Recommended, "Can be paid with package credit" and "🍺 Bundles & packages of this item"
   (components/ItemBundles.tsx); prepaid credit packages are made in the "💳 Prepaid credit packages" box at the top of Inventory (`CreditPackages`). The Products screen (PC table, phone card, add form) no longer
   has the Package button / box, the star or the bundle fields (`ProductRow` shows them only with `inventory`).
+
+## Venue server (the app on the venue PC, works with no internet)
+
+- The same app runs on the POS PC (`venue/` launcher: its own embedded Postgres + `VENUE_MODE=1`, `CLOUD_URL`, `VENUE_SYNC_TOKEN`; see venue/README.md for install + router). The venue PC is the main copy while the venue is open;
+  guests on the venue Wi-Fi open its LAN address (`/venue` = QR page). `VENUE_MODE` (server/venueMode.ts) switches off the cloud-only jobs there: pet decay, daily tokens, tournaments, WhatsApp web + reminders,
+  supplier-reorder and payroll reminders.
+- Sync (server/venueSync/): a trigger on every table in `policy.ts` writes each change to `sync_log` (changed columns only; counter columns such as credits / kgold / stock as differences). The venue engine
+  (`engine.ts`, every 10 s, only when the cloud answers) first copies a snapshot, then pushes its log (`POST /api/venue-sync/push`, applied once: the cloud remembers the last seq) and pulls the cloud's
+  (`GET /api/venue-sync/pull`). `apply.ts` replays: insert if missing, update the changed columns + add the counter differences, delete; one failing change goes to `sync_failures` and the rest carry on; the
+  trigger is off while applying (`sync.applying`) so nothing echoes. Ids made on the venue start at 1,000,000,000 so they never meet cloud ids. Other companies' rows never leave the cloud
+  (`scope` in policy.ts). The cloud keeps its log 30 days; it only starts logging after Admin › Settings › Venue server › Turn on (a token, `app_settings.venueSyncToken`).
+- Tested end to end on two real Postgres instances (scripts/e2e/venue-sync.mjs, venue-offline-part1/2.mjs): first copy, sale → cloud with same ids / stock / ledger, cloud edit → venue, counters from both
+  sides add up, different columns of one row both survive, sign-up + delete, no echo, repeated push ignored, wrong token refused, and an outage with sales / table order / kitchen docket / sign-up that all
+  arrive once when the cloud returns.

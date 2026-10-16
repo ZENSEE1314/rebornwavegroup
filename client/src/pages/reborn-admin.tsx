@@ -13,6 +13,7 @@ import ReceiptScan from "@/components/ReceiptScan";
 import AccountingFresh from "@/components/AccountingFresh";
 import StockSuppliers from "@/components/StockSuppliers";
 import { ItemBundles, CreditPackages } from "@/components/ItemBundles";
+import { VenueSyncCard } from "@/components/VenueSyncCard";
 import ProductPicture from "@/components/ProductPicture";
 import { MultiDateCalendar } from "@/components/MultiDateCalendar";
 import { useAdminRole, useProductRights } from "@/hooks/useAdminRole";
@@ -1020,6 +1021,7 @@ function Settings() {
         <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.sec.pw")}</span><PasswordInput value={cur.mainAdminPassword || ""} onChange={(v) => setStr("mainAdminPassword", v)} placeholder={t("admin.sec.pwPh")} className={inp + " w-full"} /></label>
         <ResetNumbers />
       </Card>
+      <VenueSyncCard />
       <button onClick={() => save.mutate()} className={btn}>{t("admin.set.save")}</button>
     </div>
   );

@@ -7,3 +7,8 @@ vite.config.ts.*
 *.tar.gz
 .env
 .uiux/
+
+# venue PC launcher: its own database, settings and installed packages stay on that PC
+venue/data/
+venue/config.json
+venue/node_modules/
