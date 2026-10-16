@@ -2884,6 +2884,62 @@ function AdminBookings() {
   );
 }
 
+const BOTTLE_TYPES = ["beer", "wine", "whisky", "other"];
+const PHOTO_BOTTLE_TYPES = ["wine", "whisky"]; // the level of what is left is shown on a photo
+
+// Keep a bottle after the bill is already paid (the customer has not left yet and some is left over): member + what is left.
+function AddKeptBottle() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [member, setMember] = useState<any>(null);
+  const [f, setF] = useState({ type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
+  const { data: matches = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/pos/members", search],
+    queryFn: () => apiRequest("GET", `/api/reborn/pos/members?q=${encodeURIComponent(search)}`).then((r) => r.json()),
+    enabled: isOpen && search.trim().length >= 1 && !member,
+  });
+  const needsPhoto = PHOTO_BOTTLE_TYPES.includes(f.type);
+  const canSave = !!member && f.name.trim() !== "" && f.quantity >= 1 && (!needsPhoto || !!f.photoUrl);
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/pos/bottle-keep", { memberCode: member.code || member.email || member.username || member.id, ...f, note: ["After the bill", f.note].filter(Boolean).join(" · ") }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
+    onSuccess: (d: any) => {
+      toast({ title: d.message || t("admin.c.saved") });
+      setF({ type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setMember(null); setSearch("");
+      qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] });
+    },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  return (
+    <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="min-h-0 p-0 text-left text-amber-300" style={{ fontSize: 14, fontWeight: 700 }}>🍾 {t("admin.bot.add")} {isOpen ? "▲" : "▼"}</button>
+      {isOpen && (
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-white/45">{t("admin.bot.addHint")}</p>
+          <div className="relative">
+            <input value={member ? member.name : search} onChange={(e) => { setMember(null); setSearch(e.target.value); }} placeholder={t("admin.bot.memberSearch")} className={inp + " w-full"} />
+            {!member && matches.length > 0 && (
+              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-white/15 bg-[#160f2a] p-1 shadow-2xl">
+                {matches.map((m) => <button key={m.id} type="button" onClick={() => { setMember(m); setSearch(""); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10">{m.name}<span className="ml-2 text-xs text-white/40">{m.code || m.email || ""}</span></button>)}
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value, photoUrl: "" })} className={inp}>{BOTTLE_TYPES.map((type) => <option key={type} value={type}>{tv(t, "admin.bot.type." + type, type)}</option>)}</select>
+            <input type="number" min={1} value={f.quantity} onChange={(e) => setF({ ...f, quantity: Number(e.target.value) })} placeholder={t("admin.bot.qty")} className={inp} />
+          </div>
+          <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={t("admin.bot.name")} className={inp + " w-full"} />
+          {needsPhoto && <div><p className="mb-1 text-xs text-white/50">{t("admin.bot.photo")}</p><ImageUpload value={f.photoUrl} onChange={(photoUrl) => setF({ ...f, photoUrl })} label={t("admin.bot.upload")} /></div>}
+          <input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder={t("admin.bot.note")} className={inp + " w-full"} />
+          <button type="button" onClick={() => save.mutate()} disabled={!canSave || save.isPending} className={btnSave + " disabled:opacity-40"}><Check className="w-4 h-4" /> {t("admin.bot.keepIt")}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminBottles() {
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -2898,6 +2954,7 @@ function AdminBottles() {
   const kept = rows.filter((b) => b.status === "kept");
   return (
     <div className="space-y-3">
+      <AddKeptBottle />
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("admin.bot.search")} className={inp + " w-full"} />
       <p className="text-xs text-white/40 px-1">{t("admin.bot.kept", { n: kept.length })}</p>
       {kept.map((b) => (

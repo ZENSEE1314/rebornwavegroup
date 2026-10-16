@@ -250,6 +250,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.closeReceipt': { en: 'Close receipt', zh: '关闭小票', id: 'Tutup struk' },
   'pos.rc.takeAway': { en: 'TAKE AWAY', zh: '外带', id: 'BAWA PULANG' },
   'pos.rc.dineIn': { en: 'DINE IN', zh: '堂食', id: 'MAKAN DI TEMPAT' },
+  'pos.rc.no': { en: 'No.', zh: '序号', id: 'No.' },
   'pos.rc.order': { en: 'Order', zh: '订单', id: 'Pesanan' },
   'pos.rc.table': { en: 'Table', zh: '桌号', id: 'Meja' },
   'pos.rc.member': { en: 'Member', zh: '会员', id: 'Member' },

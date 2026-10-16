@@ -11,6 +11,7 @@ interface Order {
   cashReceived?: string | number; changeGiven?: string | number; status?: string;
   serviceFee?: string | number; tax?: string | number; total?: string | number; items?: Item[]; createdAt?: string; paidAt?: string;
   packageCreditUsed?: string | number; discountReason?: string | null;
+  receiptSeq?: number; receiptDay?: string; // the paid bill's number within its venue day (1, 2, 3 ...) and that day's date
 }
 interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; serviceFeePercent?: number; taxPercent?: number; }
 
@@ -18,6 +19,10 @@ const rp = (n: any) => money(n);
 const mode = (m?: string) => (m === "take_away" ? tr("pos.rc.takeAway") : tr("pos.rc.dineIn"));
 // Translated payment method, falling back to the raw value for unknown methods.
 const payLabel = (p: string) => { const k = `pos.rc.${p}`; const v = tr(k); return v === k ? p : v; };
+const RECEIPT_NUMBER_DIGITS = 3;
+const receiptNumber = (o: Order) => (o.receiptSeq ? String(o.receiptSeq).padStart(RECEIPT_NUMBER_DIGITS, "0") : "");
+// What "Save as PDF" proposes as the file name: Receipt_2026-10-17_001 (the venue day and the customer's number of that day).
+const receiptFileName = (o: Order) => (o.receiptSeq && o.receiptDay ? `Receipt_${o.receiptDay}_${receiptNumber(o)}` : undefined);
 const esc = (s: any) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 
 const CSS = `
@@ -51,6 +56,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
       <div class="mode">${mode(o.orderMode)}</div>
     </div>
     <hr/>
+    ${o.receiptSeq ? `<div class="row"><span>${tr("pos.rc.no")}</span><span class="b">${esc(receiptNumber(o))}</span></div>` : ""}
     <div class="row"><span>${tr("pos.rc.order")}</span><span class="b">${esc(o.orderNo)}</span></div>
     ${o.tableNumber ? `<div class="row"><span>${tr("pos.rc.table")}</span><span>${esc(o.tableNumber)}</span></div>` : ""}
     ${o.memberName ? `<div class="row"><span>${tr("pos.rc.member")}</span><span>${esc(o.memberName)}</span></div>` : ""}
@@ -87,11 +93,12 @@ function kitchenHtml(o: Order, title?: string) {
   `;
 }
 
-function printDoc(inner: string): boolean {
-  const fullHtml = `<!doctype html><html lang="${localeTag()}"><head><meta charset="utf-8"><title>${tr("pos.rc.docTitle")}</title><style>${CSS}</style></head><body>${inner}</body></html>`;
+function printDoc(inner: string, fileName?: string): boolean {
+  const title = fileName || tr("pos.rc.docTitle");
+  const fullHtml = `<!doctype html><html lang="${localeTag()}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS}</style></head><body>${inner}</body></html>`;
   const nativeBridge = (window as any).ReactNativeWebView;
   if (nativeBridge?.postMessage) {
-    nativeBridge.postMessage(JSON.stringify({ type: "PRINT_HTML", html: fullHtml }));
+    nativeBridge.postMessage(JSON.stringify({ type: "PRINT_HTML", html: fullHtml, title }));
     return true;
   }
   if (/Android|iPhone|iPad|iPod|; wv\)/i.test(navigator.userAgent)) return false;
@@ -104,17 +111,20 @@ function printDoc(inner: string): boolean {
   doc.open();
   doc.write(fullHtml);
   doc.close();
+  // Chrome names the PDF after the page being printed: use the receipt's name while the print window is open.
+  const pageTitle = document.title;
   frame.onload = () => {
+    if (fileName) document.title = fileName;
     frame.contentWindow?.focus();
     frame.contentWindow?.print();
-    window.setTimeout(() => frame.remove(), 3000);
+    window.setTimeout(() => { document.title = pageTitle; frame.remove(); }, 3000);
   };
   return true;
 }
 
 // Prints a merchant copy + customer copy in one job.
 export function printReceipt(order: Order, meta: ReceiptMeta) {
-  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy")) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy")));
+  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy")) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy")), receiptFileName(order));
 }
 export function printKitchen(order: Order, title?: string) {
   return printDoc(kitchenHtml(order, title));

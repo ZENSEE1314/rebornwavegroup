@@ -379,6 +379,17 @@ async function freeTableAfterBill(companyId: number | null, table: string | null
 }
 // Venue day (08:00 → 08:00 WIB) of a stored UTC timestamp: +7h for WIB, −8h for the 8am start.
 const VENUE_DAY_OF = (col: any) => sql`(${col} - interval '1 hour')::date`;
+// The number of a paid bill within its venue day (1st customer = 1, 2nd = 2 ..., restarting every venue day) and that day's date; refunded bills keep their number.
+async function receiptNumbers(companyId: number | null, ids: number[]): Promise<Map<number, { seq: number; day: string }>> {
+  const result = new Map<number, { seq: number; day: string }>();
+  if (!ids.length) return result;
+  const rows = await db.execute(sql`SELECT id, seq, day FROM (
+      SELECT id, row_number() OVER (PARTITION BY ${VENUE_DAY_OF(sql`paid_at`)} ORDER BY paid_at, id)::int AS seq, to_char(${VENUE_DAY_OF(sql`paid_at`)}, 'YYYY-MM-DD') AS day
+      FROM pos_tickets WHERE company_id = ${companyId} AND status IN ('paid', 'refunded') AND paid_at IS NOT NULL) numbered
+    WHERE id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})`);
+  for (const r of ((rows as any).rows || rows) as any[]) result.set(Number(r.id), { seq: Number(r.seq), day: String(r.day) });
+  return result;
+}
 async function buildDailyClosingReport(day: string) {
   const tickets = await db.select().from(posTickets).where(and(
     eq(posTickets.status, "paid"),
@@ -3664,7 +3675,8 @@ export function registerRebornRoutes(app: Express) {
     contributeSpinPoolIfUnreferred(u?.id ?? null, due).catch(() => {});
     await freeTableAfterBill(row.companyId, row.tableNumber); // paid at a table → the table's booking frees it
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
-    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
+    const numbered = (await receiptNumbers(row.companyId, [row.id])).get(row.id);
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items, receiptSeq: numbered?.seq, receiptDay: numbered?.day }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
 
   // Member orders from the app — merges into their table's open ticket (or opens one).
@@ -3901,7 +3913,8 @@ export function registerRebornRoutes(app: Express) {
     const status = String(req.query.status || "open");
     const cid = await rebornCompanyId(req);
     const rows = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, status))).orderBy(desc(posTickets.createdAt)).limit(100);
-    const withItems = await Promise.all(rows.map(async (o) => ({ ...o, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id)) })));
+    const numbers = status === "open" ? new Map<number, { seq: number; day: string }>() : await receiptNumbers(cid, rows.map((o) => o.id));
+    const withItems = await Promise.all(rows.map(async (o) => ({ ...o, receiptSeq: numbers.get(o.id)?.seq, receiptDay: numbers.get(o.id)?.day, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id)) })));
     res.json(withItems);
   }));
   app.post("/api/reborn/pos/orders/:id/pay", requireStaff(async (req, res) => {
@@ -3956,7 +3969,8 @@ export function registerRebornRoutes(app: Express) {
     await freeTableAfterBill(o.companyId, o.tableNumber); // bill closed → the table's booking frees it
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
-    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...fresh, items }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
+    const numbered = (await receiptNumbers(fresh.companyId, [fresh.id])).get(fresh.id);
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...fresh, items, receiptSeq: numbered?.seq, receiptDay: numbered?.day }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
   }));
   app.post("/api/reborn/pos/orders/:id/cancel", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
