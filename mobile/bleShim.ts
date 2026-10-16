@@ -102,14 +102,14 @@ export const BLE_SHIM = `
     });
   }
   // Same chooser, but several lights can be ticked at once ("Select all" too); resolves with the list of ticked lights.
-  function chooseMany(list) {
+  function chooseMany(list, rescan) {
     return new Promise(function (resolve, reject) {
       var overlay = document.createElement("div");
       overlay.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:16px;font-family:sans-serif";
       var box = document.createElement("div");
       box.style.cssText = "width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;background:#160f2a;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:16px";
       var title = document.createElement("p");
-      title.textContent = list.length ? "Choose your lights" : "No lights found. Switch the light on, close its own app, and try again.";
+      title.textContent = list.length ? "Choose your lights (" + list.length + " found)" : "No lights found. Switch the light on, close its own app, and try again.";
       title.style.cssText = "margin:0 0 10px;font-weight:700;flex:none";
       box.appendChild(title);
       var picked = {};
@@ -140,14 +140,26 @@ export const BLE_SHIM = `
         });
         box.appendChild(bar);
       }
-      list.forEach(function (info) {
+      function addRow(info) {
         var row = document.createElement("button");
         row.style.cssText = "display:block;width:100%;text-align:left;margin:0 0 8px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.2);color:#fff;font-size:15px";
         row.onclick = function () { if (picked[info.id]) delete picked[info.id]; else picked[info.id] = info; refresh(); };
         info.__row = row;
         rows.appendChild(row);
-      });
+      }
+      list.forEach(addRow);
       box.appendChild(rows);
+      // Scan again without closing: new lights join the list, the ticks stay.
+      var again = document.createElement("button");
+      again.textContent = "Scan again";
+      again.style.cssText = "display:block;width:100%;margin-top:8px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-weight:700;font-size:15px;flex:none";
+      again.onclick = function () {
+        again.disabled = true; again.textContent = "Scanning…";
+        rescan().then(function (found) {
+          found.forEach(function (info) { if (!list.some(function (known) { return known.id === info.id; })) { list.push(info); addRow(info); } });
+        }, function () {}).then(function () { again.disabled = false; again.textContent = "Scan again"; title.textContent = "Choose your lights (" + list.length + " found)"; refresh(); });
+      };
+      if (rescan) box.appendChild(again);
       add.style.cssText = "display:block;width:100%;margin-top:8px;padding:12px;border-radius:10px;border:0;background:#fbbf24;color:#000;font-weight:700;font-size:15px;flex:none";
       add.onclick = function () { var chosen = list.filter(function (info) { return picked[info.id]; }); close(function () { resolve(chosen); }); };
       if (list.length) box.appendChild(add);
@@ -177,7 +189,7 @@ export const BLE_SHIM = `
     // Not part of Web Bluetooth: the same scan, with several lights ticked at once. The page uses it when it exists.
     requestDevices: function (options) {
       var stop = scanning();
-      return call("scan", {}).then(function (list) { stop(); return chooseMany(list); }, function (error) { stop(); throw error; }).then(function (list) { return list.map(makeDevice); });
+      return call("scan", {}).then(function (list) { stop(); return chooseMany(list, function () { return call("scan", {}); }); }, function (error) { stop(); throw error; }).then(function (list) { return list.map(makeDevice); });
     }
   };
   try { Object.defineProperty(navigator, "bluetooth", { value: bluetooth, configurable: true }); } catch (e) { navigator.bluetooth = bluetooth; }
