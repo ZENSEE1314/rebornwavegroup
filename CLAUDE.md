@@ -953,3 +953,7 @@ text.
 - Tested end to end on two real Postgres instances (scripts/e2e/venue-sync.mjs, venue-offline-part1/2.mjs): first copy, sale → cloud with same ids / stock / ledger, cloud edit → venue, counters from both
   sides add up, different columns of one row both survive, sign-up + delete, no echo, repeated push ignored, wrong token refused, and an outage with sales / table order / kitchen docket / sign-up that all
   arrive once when the cloud returns.
+- The venue PC download: `node venue/pack.mjs` (on Windows) builds `RebornVenue-windows.zip` (~290 MB: Node, the built app, production node_modules + drizzle-kit, the launcher with its embedded Postgres) in %TEMP%eborn-venue-pack.
+  Unzip → `Start Reborn Venue.bat` → a setup page on http://localhost:3000 asks for the cloud address + token (checked against the cloud) → the launcher makes its Postgres, creates the tables with drizzle-kit (all on the first start,
+  only additions on later starts), starts the app in VENUE_MODE and opens it. `config.json` and `data/` sit next to the folders, so a newer zip unzipped over it keeps them. Tested from an empty folder: setup page, own database, first
+  copy of the cloud data, login with the cloud password, sync status online.

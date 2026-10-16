@@ -10,7 +10,13 @@ ways every ~10 seconds; after an outage the changes that waited are sent by them
 WhatsApp / Messenger bots, reminders, daily pet tokens and tournaments run in the cloud only (the venue PC leaves them alone). Sending a
 WhatsApp / push / e-mail from the venue PC needs internet and just waits or fails quietly when there is none.
 
-## 1. Install (once, on the Windows PC)
+## 0. The easy way: the download (nothing to install)
+`node venue/pack.mjs` (on a Windows PC, from the project folder) makes **RebornVenue-windows.zip** (Node, the built app and the local database engine inside).
+At the venue: unzip it anywhere (e.g. `C:\RebornVenue`), double-click **Start Reborn Venue.bat**, paste the token on the page that opens, wait for the first copy,
+then run **Start automatically with Windows (run as administrator).bat** once. `config.json` and the `data` folder next to it are kept when a newer download is unzipped over it.
+The rest of this guide (router, limits) applies the same way.
+
+## 1. Install from the project folder (developer way)
 1. Install **Node.js 20+** (nodejs.org) and **Git**.
 2. `git clone <the project>` then in its folder: `npm install` and `npm run build`.
 3. In the cloud site: **Admin › Settings › Venue server › Turn on** → copy the **token**.
