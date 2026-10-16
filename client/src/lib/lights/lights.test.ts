@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { APP_EFFECTS, hsvToRgb, renderEffect, rgbToHsv, scaleRgb } from "./effects";
 import { DEFAULT_MAX_LIVE, LightHub, type LightLink } from "./hub";
 import { PROFILES, chooseProfile, stylesSharingConnection, type ProfileId } from "./protocols";
+import { restoreSavedLights } from "./bluetooth";
 
 const hex = (bytes: number[]) => bytes.map((b) => b.toString(16).padStart(2, "0")).join(" ");
 const service = (id: ProfileId) => PROFILES[id].service;
@@ -397,5 +398,19 @@ describe("music mode", () => {
     assert.equal(view.musicCount, 0);
     assert.equal(view.musicLimit, 0);
     hub.dispose();
+  });
+});
+
+describe("lights saved on the device", () => {
+  it("should give back only the saved lights the device still knows, without connecting any", async () => {
+    let connects = 0;
+    const known = (id: string) => ({ id, name: "ELK-" + id, addEventListener() {}, gatt: { connected: false, connect: async () => { connects++; return {}; }, disconnect() {} } });
+    const original = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { bluetooth: { requestDevice: async () => known("x"), getDevices: async () => [known("AA"), known("BB")] } } });
+    try {
+      const restored = await restoreSavedLights([{ id: "AA", name: "Bar 1", profileId: "elk1", group: "Bar" }, { id: "ZZ", name: "Gone", profileId: "elk1" }]);
+      assert.deepEqual(restored.map((light) => [light.info.id, light.info.name, light.group]), [["AA", "Bar 1", "Bar"]]);
+      assert.equal(connects, 0);
+    } finally { if (original) Object.defineProperty(globalThis, "navigator", original); else delete (globalThis as any).navigator; }
   });
 });

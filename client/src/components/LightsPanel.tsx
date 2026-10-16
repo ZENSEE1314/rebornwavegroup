@@ -3,7 +3,7 @@ import { Bluetooth, Plus, Power, Trash2 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { APP_EFFECTS, hsvToRgb, rgbToHsv } from "@/lib/lights/effects";
 import { LightHub, type LightShown, type Target } from "@/lib/lights/hub";
-import { UnsupportedLightError, isBluetoothSupported, pairBluetoothLights } from "@/lib/lights/bluetooth";
+import { UnsupportedLightError, forgetBluetoothLight, isBluetoothSupported, pairBluetoothLights, restoreSavedLights, type SavedLight } from "@/lib/lights/bluetooth";
 import type { ProfileId, Rgb } from "@/lib/lights/protocols";
 
 const WHEEL_SIZE = 240;
@@ -11,6 +11,16 @@ const WHEEL_EDGE_SOFTNESS = 0.015;
 const CUSTOM_SLOTS = 6;
 const CUSTOM_STORAGE_KEY = "lights.customColours";
 const CONNECTION_COUNTS = [4, 6, 8, 10, 12];
+const SAVED_LIGHTS_KEY = "lights.saved";
+
+function loadSavedLights(): SavedLight[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SAVED_LIGHTS_KEY) || "[]");
+    return Array.isArray(stored) ? stored.filter((light) => light && typeof light.id === "string" && typeof light.profileId === "string") : [];
+  } catch {
+    return []; // storage blocked or unreadable: the lights are chosen again
+  }
+}
 const PRESETS: Rgb[] = [
   { r: 255, g: 0, b: 0 }, { r: 0, g: 255, b: 0 }, { r: 0, g: 0, b: 255 },
   { r: 255, g: 255, b: 255 }, { r: 255, g: 255, b: 0 }, { r: 255, g: 0, b: 255 },
@@ -108,6 +118,25 @@ export default function LightsPanel() {
   const { control } = view;
 
   useEffect(() => () => hub.dispose(), [hub]);
+
+  // Lights chosen before come back by themselves (the list is kept on this device); the list is only written once they were restored, so opening the page never empties it.
+  const [isRestored, setIsRestored] = useState(false);
+  const [restoredCount, setRestoredCount] = useState(0);
+  useEffect(() => {
+    let isCancelled = false;
+    restoreSavedLights(loadSavedLights()).then((restored) => {
+      if (isCancelled) return;
+      for (const light of restored) { if (hub.addLight(light.info, light.link) && light.group) hub.setGroup(light.info.id, light.group); }
+      setRestoredCount(restored.length);
+      if (restored.length) setNotice({ isError: false, text: t("admin.lt.restored", { n: restored.length }) });
+    }).catch(() => { /* nothing remembered or Bluetooth unavailable */ }).finally(() => { if (!isCancelled) setIsRestored(true); });
+    return () => { isCancelled = true; };
+  }, [hub]);
+  useEffect(() => {
+    if (!isRestored) return;
+    const list: SavedLight[] = view.lights.map((light) => ({ id: light.id, name: light.name, profileId: light.profileId, group: light.group }));
+    try { localStorage.setItem(SAVED_LIGHTS_KEY, JSON.stringify(list)); } catch { /* private mode: lights last for this visit only */ }
+  }, [view.lights, isRestored]);
 
   const addLight = async () => {
     setNotice({ isError: false, text: t("admin.lt.pairing") });
@@ -279,7 +308,7 @@ export default function LightsPanel() {
                     <p className="text-sm truncate">{light.name}</p>
                     <p className={`text-[11px] truncate ${light.failure ? "text-red-300" : "text-white/40"}`}>{light.failure || (light.isLive ? t("admin.lt.live") : t("admin.lt.idle"))}</p>
                   </div>
-                  <button type="button" onClick={() => hub.removeLight(light.id)} aria-label={t("admin.lt.remove")} className="w-9 h-9 p-0 flex items-center justify-center shrink-0 text-white/50 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => { hub.removeLight(light.id); forgetBluetoothLight(light.id); }} aria-label={t("admin.lt.remove")} className="w-9 h-9 p-0 flex items-center justify-center shrink-0 text-white/50 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 pl-7">
                   <input list="light-groups" value={light.group} onChange={(event) => hub.setGroup(light.id, event.target.value)} placeholder={t("admin.lt.groupPh")} aria-label={t("admin.lt.group")} className={field + " w-28"} />

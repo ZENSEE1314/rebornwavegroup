@@ -181,15 +181,28 @@ export const BLE_SHIM = `
     return function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
   }
 
+  // The lights the admin has chosen stay on the phone: getDevices() (a real Web Bluetooth call) gives them back next time, so nothing is chosen twice.
+  var KNOWN_KEY = "reborn.ble.known";
+  function loadKnown() { try { var list = JSON.parse(localStorage.getItem(KNOWN_KEY) || "[]"); return Array.isArray(list) ? list : []; } catch (e) { return []; } }
+  function saveKnown(infos) {
+    try {
+      var known = loadKnown();
+      infos.forEach(function (info) { if (!known.some(function (item) { return item.id === info.id; })) known.push({ id: info.id, name: info.name }); });
+      localStorage.setItem(KNOWN_KEY, JSON.stringify(known));
+    } catch (e) { /* storage blocked: the lights are chosen again next visit */ }
+  }
   var bluetooth = {
+    getDevices: function () { return Promise.resolve(loadKnown().map(makeDevice)); },
+    // Not part of Web Bluetooth: take a light off the phone's saved list.
+    forgetDevice: function (id) { try { localStorage.setItem(KNOWN_KEY, JSON.stringify(loadKnown().filter(function (item) { return item.id !== id; }))); } catch (e) { /* ignore */ } },
     requestDevice: function (options) {
       var stop = scanning();
-      return call("scan", {}).then(function (list) { stop(); return choose(list); }, function (error) { stop(); throw error; }).then(makeDevice);
+      return call("scan", {}).then(function (list) { stop(); return choose(list); }, function (error) { stop(); throw error; }).then(function (info) { saveKnown([info]); return makeDevice(info); });
     },
     // Not part of Web Bluetooth: the same scan, with several lights ticked at once. The page uses it when it exists.
     requestDevices: function (options) {
       var stop = scanning();
-      return call("scan", {}).then(function (list) { stop(); return chooseMany(list, function () { return call("scan", {}); }); }, function (error) { stop(); throw error; }).then(function (list) { return list.map(makeDevice); });
+      return call("scan", {}).then(function (list) { stop(); return chooseMany(list, function () { return call("scan", {}); }); }, function (error) { stop(); throw error; }).then(function (list) { saveKnown(list); return list.map(makeDevice); });
     }
   };
   try { Object.defineProperty(navigator, "bluetooth", { value: bluetooth, configurable: true }); } catch (e) { navigator.bluetooth = bluetooth; }

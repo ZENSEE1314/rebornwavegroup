@@ -983,3 +983,7 @@ eborn-venue-pack.
   more than is in stock (unless negative stock is allowed) and books a `loss` expense at cost (`refType stock_out`) for every reason except "Count correction". The count itself is still never typed over.
 - Stock panel entry by unit or by box: "By box" asks for boxes, units per box (pre-filled from the item's pack size) and the price of one whole box; the server still gets units (boxes × units per box) and a per-unit cost (box price ÷ units per box), so costing and history are unchanged.
 - POS item picker (tables, bills, Quick sale): the selected-items panel with the charge / add button is sticky above the bottom menu (`sticky bottom-20`), so after ticking items far down a long list it is still on screen; its item list scrolls inside (max 10rem).
+
+- Lights stay saved on the phone: the app shim remembers every light the admin chose (`reborn.ble.known` in the phone's storage) and returns them through `navigator.bluetooth.getDevices()`; the Lights page keeps its own list
+  (`lights.saved`: id, name, command style, group) and on opening rebuilds each light from it without scanning or connecting (`restoreSavedLights`; a light connects when it is first used). The list is written only after the restore, and removing a
+  light also forgets it (`forgetDevice`). In a plain browser without `getDevices` the lights are chosen again each visit. The chooser in the app has Select all / Clear / Scan again. Needs a new app build for the shim part.

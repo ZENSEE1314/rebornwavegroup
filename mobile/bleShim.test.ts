@@ -80,4 +80,21 @@ describe("Web Bluetooth inside the app", () => {
     const { page } = startPage((call) => { if (call.op === "scan") throw new Error("Bluetooth is switched off. Turn it on and try again."); return null; });
     await assert.rejects(page.navigator.bluetooth.requestDevice({}), /switched off/);
   });
+
+  it("should remember a chosen light and give it back through getDevices until it is forgotten", async () => {
+    const store = new Map<string, string>();
+    (globalThis as any).localStorage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => { store.set(key, value); } };
+    try {
+      const first = startPage(answer);
+      const pending = first.page.navigator.bluetooth.requestDevice({});
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      first.buttons.find((button) => button.textContent === "ELK-BLEDOM01")!.onclick();
+      await pending;
+      const later = startPage(answer); // a new visit: nothing was scanned yet
+      const devices = await later.page.navigator.bluetooth.getDevices();
+      assert.deepEqual(devices.map((device: { id: string }) => device.id), ["AA:BB"]);
+      later.page.navigator.bluetooth.forgetDevice("AA:BB");
+      assert.deepEqual(await later.page.navigator.bluetooth.getDevices(), []);
+    } finally { delete (globalThis as any).localStorage; }
+  });
 });

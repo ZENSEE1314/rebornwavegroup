@@ -2,7 +2,7 @@
 // native Bluetooth (mobile/bleShim.ts + mobile/ble.ts); a plain iPhone browser has none.
 // Every light is chosen by the admin once per visit in the browser's own device chooser; the hub then reconnects them as needed.
 import type { LightInfo, LightLink } from "./hub";
-import { DETECTION_SERVICES, chooseProfile, describeOtherServices, type LightProfile } from "./protocols";
+import { DETECTION_SERVICES, PROFILES, chooseProfile, describeOtherServices, type LightProfile, type ProfileId } from "./protocols";
 
 const CONNECT_TIMEOUT_MS = 8000;
 const FRAME_GAP_MS = 40;
@@ -20,7 +20,7 @@ interface BtServer {
   getPrimaryService(uuid: string): Promise<BtService>;
 }
 interface BtDevice { id: string; name?: string; gatt?: BtServer; addEventListener(type: string, listener: () => void): void }
-interface BtApi { requestDevice(options: unknown): Promise<BtDevice>; requestDevices?(options: unknown): Promise<BtDevice[]> }
+interface BtApi { requestDevice(options: unknown): Promise<BtDevice>; requestDevices?(options: unknown): Promise<BtDevice[]>; getDevices?(): Promise<BtDevice[]>; forgetDevice?(id: string): void }
 
 /** A light answered, but its commands are not one we know yet. */
 export class UnsupportedLightError extends Error {
@@ -103,6 +103,27 @@ async function pairDevice(device: BtDevice, keepOpen: boolean): Promise<PairedLi
   else gatt.disconnect(); // a phone holds only a few connections: the hub opens this light again when it is used
   return { info: { id: device.id, name: device.name || profile.label, profileId: profile.id }, link };
 }
+
+export interface SavedLight { id: string; name: string; profileId: ProfileId; group?: string }
+
+/**
+ * Lights chosen on an earlier visit, given back without scanning or connecting (the hub opens each one when it is first used). Needs the browser /
+ * phone app to remember its devices (`getDevices`); with no such call the admin chooses the lights again.
+ */
+export async function restoreSavedLights(saved: SavedLight[]): Promise<{ info: LightInfo; link: LightLink; group: string }[]> {
+  const bluetooth = api();
+  if (!bluetooth?.getDevices || !saved.length) return [];
+  const devices = await bluetooth.getDevices();
+  const byId = new Map(devices.map((device) => [device.id, device]));
+  return saved.flatMap((light) => {
+    const device = byId.get(light.id);
+    const profile = PROFILES[light.profileId];
+    return device && profile ? [{ info: { id: light.id, name: light.name, profileId: light.profileId }, link: new BluetoothLink(device, profile) as LightLink, group: light.group || "" }] : [];
+  });
+}
+
+/** Takes a light off the phone's remembered list (so it is not offered again after it was removed here). */
+export function forgetBluetoothLight(id: string) { api()?.forgetDevice?.(id); }
 
 /**
  * Opens the device chooser (several lights can be ticked in the phone app), works out which command set each light speaks and
