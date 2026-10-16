@@ -51,7 +51,10 @@ export function StaffContractPanel({ userId, name, role }: { userId: string; nam
   const { data: positions = [] } = useQuery<Array<{ id: number; name: string }>>({ queryKey: ["/api/reborn/admin/staff-positions"], enabled: open, queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-positions").then((r) => r.json()) });
   const scopesKey = ["/api/reborn/admin/job-scopes"];
   const { data: scopes = {} } = useQuery<Record<string, string>>({ queryKey: scopesKey, enabled: open, queryFn: () => apiRequest("GET", "/api/reborn/admin/job-scopes").then((r) => r.json()) });
-  const f = form || { jobTitle: data?.jobTitle || role || "", startDate: data?.startDate || "", lang: data?.lang || (language as string) || "en", extraTerms: data?.extraTerms || "", jobScope: data?.jobScope || "" };
+  // Untouched form: the contract's own duties, else the duties saved for this job (so they are there again after a refresh).
+  const savedScopeOf = (title: string) => { const position = positions.find((p) => p.name === title); return (position && scopes[String(position.id)]) || ""; };
+  const startTitle: string = data?.jobTitle || role || "";
+  const f = form || { jobTitle: startTitle, startDate: data?.startDate || "", lang: data?.lang || (language as string) || "en", extraTerms: data?.extraTerms || "", jobScope: data?.jobScope || savedScopeOf(startTitle) };
   const set = (patch: Partial<typeof f>) => setForm({ ...f, ...patch });
   const chosen = positions.find((p) => p.name === f.jobTitle);
   const isOther = !!f.jobTitle && !chosen;
