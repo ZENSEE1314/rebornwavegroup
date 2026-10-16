@@ -34,6 +34,7 @@ import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
 import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } from "@shared/packPricing";
 import { cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
+import { stockBySupplier } from "./fifo";
 import { registerSecurityRoutes } from "./security";
 import { registerStaffContractRoutes } from "./staffContracts";
 import { stationFor, STATIONS } from "@shared/station";
@@ -3331,8 +3332,11 @@ export function registerRebornRoutes(app: Express) {
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
-    if (b.bundleItemId !== undefined || b.bundleQty !== undefined) {
-      const bundle = await bundleFieldsFor({ ...b, packageKind: b.packageKind !== undefined ? b.packageKind : prev.packageKind }, cid, id);
+    // Only a real change of the bundle link is checked: saving a plain edit that repeats the item's current link (or none) must never fail.
+    const sentItem = b.bundleItemId === undefined ? prev.bundleItemId : (Number(b.bundleItemId) > 0 ? Number(b.bundleItemId) : null);
+    const sentQty = b.bundleQty === undefined ? prev.bundleQty : (Number(b.bundleQty) > 0 ? Math.floor(Number(b.bundleQty)) : null);
+    if (sentItem !== (prev.bundleItemId ?? null) || sentQty !== (prev.bundleQty ?? null)) {
+      const bundle = await bundleFieldsFor({ ...b, bundleItemId: sentItem, bundleQty: sentQty, packageKind: b.packageKind !== undefined ? b.packageKind : prev.packageKind }, cid, id);
       if ("error" in bundle) return res.status(400).json({ message: bundle.error });
       patch.bundleItemId = bundle.bundleItemId; patch.bundleQty = bundle.bundleQty;
       if (bundle.cost) patch.cost = bundle.cost;
@@ -5095,6 +5099,8 @@ export function registerRebornRoutes(app: Express) {
         id: p.id, name: p.name, category: p.category, department: p.department || null, active: p.active, posVisible: p.posVisible,
         stock, cost, price, imageUrl: p.imageUrl, unitsPerPack: p.unitsPerPack ?? null, packPrice: p.packPrice === null || p.packPrice === undefined ? null : Number(p.packPrice),
         suppliers: Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set())),
+        // Units on the shelf per supplier and price (merged copies included), so the stock total can be read supplier by supplier.
+        bySupplier: stockBySupplier(run?.layers || [], Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set()))),
         stockValue: Math.round(run && run.layers.length ? run.layers.reduce((sum, layer) => sum + layer.qtyLeft * exactUnitCost(layer.unitCost, p.packPrice, p.unitsPerPack), 0) : stock * exactUnitCost(cost, p.packPrice, p.unitsPerPack)),
         retailValue: Math.round(stock * price),
         low: stock <= lowAt,

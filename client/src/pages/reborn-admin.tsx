@@ -2180,8 +2180,9 @@ function IndustryPicker({ value, options, onChange, isCompact = false }: { value
 
 // Package settings of a POS product (server/memberPackages.ts): a normal product (that
 // can or can't be paid with package credit), a visits package or a prepaid credit package.
-const parseIds = (v: any): number[] => { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.map(Number) : []; } catch { return []; } };
-const pkgOf = (p: any) => ({ bundleItemId: p?.bundleItemId || "", bundleQty: p?.bundleQty || "", packageItemIds: parseIds(p?.packageItemIds), packageKind: p?.packageKind || "", packageUses: p?.packageUses || "", packageCredit: p?.packageCredit ? Number(p.packageCredit) : "", packageValidDays: p?.packageValidDays || "", perkPercent: p?.perkPercent ? Number(p.perkPercent) : "", perkDays: p?.perkDays || "", creditOk: p?.creditOk !== false });
+// The Products form only adds / edits normal items. Bundles and packages are made from Inventory (pencil on an item already added),
+// so this form never sends bundle or package fields — only whether package credit can pay for the item.
+const pkgOf = (p: any) => ({ creditOk: p?.creditOk !== false });
 // Short label of a product's package setting (shown next to its name in the lists).
 function pkgTag(p: any, t: (k: string, v?: any) => string) {
   if (p.bundleItemId) return t("admin.ib.together", { n: p.bundleQty || 0 });
@@ -2758,7 +2759,8 @@ function Inventory() {
                 <ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-12 h-12" roundedClass="rounded-xl" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold break-words leading-snug">{it.name}{it.low && <span className="ml-1.5 align-middle text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="ml-1.5 align-middle text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</p>
-                  <p className="text-[11px] text-white/45 break-words">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
+                  <p className="text-[11px] text-white/45 break-words">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length && !hasManySuppliers(it) ? ` · ${it.suppliers.join(", ")}` : ""}</p>
+                  {hasManySuppliers(it) && <SupplierStockList it={it} />}
                 </div>
                 {canChange && <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-10 h-10 shrink-0 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>}
               </div>
@@ -2780,6 +2782,22 @@ function Inventory() {
     </div>
   );
 }
+
+// Units of one item per supplier (and price), merged copies included: the lines add up to the stock count shown for the item.
+function SupplierStockList({ it }: { it: any }) {
+  const rows: Array<{ supplier: string; unitCost: number; qty: number }> = it.bySupplier || [];
+  return (
+    <ul className="mt-1 space-y-0.5">
+      {rows.map((row, index) => (
+        <li key={`${row.supplier}-${row.unitCost}-${index}`} className={`flex items-center justify-between gap-3 text-[11px] ${row.qty > 0 ? "text-white/75" : "text-white/30"}`}>
+          <span className="min-w-0 break-words">{row.supplier || "—"}</span>
+          <span className="shrink-0 tabular-nums">{row.qty > 0 ? `${row.qty} × ${money(row.unitCost)}` : "0"}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+const hasManySuppliers = (it: any) => (it.bySupplier?.length || 0) > 1;
 
 // Items sold by the pack: "= 2 packs + 2" under the count and a button that adds / takes a whole pack at once.
 function PackStep({ it, step }: { it: any; step: (it: any, delta: number) => void }) {
@@ -2843,7 +2861,7 @@ function InventoryTable({ canChange, items, money, step, setCount, openId, onTog
                 <td className="px-2 py-1.5"><div className="flex items-center gap-2"><ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><span className="font-medium">{it.name}</span>{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</div></td>
                 <td className="px-2 py-1.5 text-white/60">{it.category}</td>
                 <td className="px-2 py-1.5 text-white/60">{deptLabel(it.department) || "—"}</td>
-                <td className="px-2 py-1.5 text-white/50 text-xs">{it.suppliers?.length ? it.suppliers.join(", ") : "—"}</td>
+                <td className="px-2 py-1.5 text-white/50 text-xs min-w-[190px]">{hasManySuppliers(it) ? <SupplierStockList it={it} /> : it.suppliers?.length ? it.suppliers.join(", ") : "—"}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-white/70">{money(it.cost)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-amber-300">{money(it.stockValue)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-emerald-300">{money(it.retailValue)}</td>

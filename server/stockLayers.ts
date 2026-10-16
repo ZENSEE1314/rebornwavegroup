@@ -5,6 +5,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { posProducts, posTicketItems, stockMovements } from "@shared/schema";
 import { groupLayers, runFifo, type FifoResult, type StockMove } from "./fifo";
+import { itemIdsJson, parseItemIds } from "./memberPackages";
 
 const toMove = (row: typeof stockMovements.$inferSelect): StockMove => ({
   id: row.id, delta: row.delta, reason: row.reason, supplier: row.supplier, unitCost: row.unitCost === null ? null : Number(row.unitCost), createdAt: row.createdAt ?? new Date(0),
@@ -84,6 +85,8 @@ export function registerStockLayers(app: Express, deps: StockLayerDeps) {
     const [from] = await db.select().from(posProducts).where(and(eq(posProducts.id, fromId), eq(posProducts.companyId, cid)));
     const [into] = await db.select().from(posProducts).where(and(eq(posProducts.id, intoId), eq(posProducts.companyId, cid)));
     if (!from || !into) return res.status(404).json({ message: "Item not found" });
+    // Only normal items hold stock: a bundle or a package can't be merged, and nothing is merged into one.
+    if (from.packageKind || from.bundleItemId || into.packageKind || into.bundleItemId) return res.status(400).json({ message: "Only normal items can be merged (not a bundle or a package)" });
     const [history] = await db.select({ net: sql<number>`coalesce(sum(${stockMovements.delta}), 0)` }).from(stockMovements).where(eq(stockMovements.productId, fromId));
     const opening = (from.stock ?? 0) - Number(history?.net || 0); // the units it had before its history began
     await db.transaction(async (tx) => {
@@ -91,6 +94,13 @@ export function registerStockLayers(app: Express, deps: StockLayerDeps) {
       if (opening > 0) await tx.insert(stockMovements).values({ companyId: cid, productId: intoId, delta: opening, reason: "stock_in", supplier: from.supplierName, unitCost: from.cost, note: `Merged from "${from.name}"`, createdAt: new Date(Date.UTC(2000, 0, 1)) });
       await tx.update(stockMovements).set({ productId: intoId }).where(eq(stockMovements.productId, fromId));
       await tx.update(posTicketItems).set({ productId: intoId }).where(eq(posTicketItems.productId, fromId));
+      // Bundles ("6 together") and visit packages made on the removed item now belong to the item it was merged into.
+      await tx.update(posProducts).set({ bundleItemId: intoId }).where(and(eq(posProducts.companyId, cid), eq(posProducts.bundleItemId, fromId)));
+      const packages = await tx.select({ id: posProducts.id, ids: posProducts.packageItemIds }).from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.packageKind, "uses")));
+      for (const pkg of packages) {
+        const ids = parseItemIds(pkg.ids);
+        if (ids.includes(fromId)) await tx.update(posProducts).set({ packageItemIds: itemIdsJson(ids.map((x) => (x === fromId ? intoId : x))) }).where(eq(posProducts.id, pkg.id));
+      }
       await tx.update(posProducts).set({
         stock: (into.stock ?? 0) + (from.stock ?? 0),
         supplierName: into.supplierName || from.supplierName, supplierPhone: into.supplierPhone || from.supplierPhone, supplierAddress: into.supplierAddress || from.supplierAddress,

@@ -53,6 +53,24 @@ export function runFifo(moves: StockMove[], currentStock: number, fallbackCost: 
   return { layers: remaining, consumptions, stockValue: remaining.reduce((sum, layer) => sum + layer.qtyLeft * layer.unitCost, 0) };
 }
 
+export interface SupplierStock { supplier: string; unitCost: number; qty: number }
+
+/**
+ * What is on the shelf per supplier and price, so an item bought from several suppliers (also after the copies were merged into
+ * one item) shows how many units came from each. A supplier that delivered before but has nothing left is listed with 0.
+ * The quantities of the first group always add up to the item's stock.
+ */
+export function stockBySupplier(layers: Layer[], deliveredBy: string[]): SupplierStock[] {
+  const rows = groupLayers(layers).filter((layer) => layer.qtyLeft > 0).map((layer) => ({ supplier: layer.supplier, unitCost: layer.unitCost, qty: layer.qtyLeft }));
+  const listed = new Set(rows.map((row) => row.supplier));
+  for (const supplier of deliveredBy) {
+    if (!supplier || listed.has(supplier)) continue;
+    listed.add(supplier);
+    rows.push({ supplier, unitCost: 0, qty: 0 });
+  }
+  return rows;
+}
+
 /** The same layers merged by supplier + price, for display: "Alay · 19,583 · 12 left". */
 export function groupLayers(layers: Layer[]): Layer[] {
   const grouped = new Map<string, Layer>();
