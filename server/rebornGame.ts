@@ -4646,28 +4646,47 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/shifts", requireManager(async (req, res) => {
     const b = req.body || {};
     const userIds = Array.from(new Set((Array.isArray(b.userIds) ? b.userIds : [b.userId]).map((x: unknown) => String(x || "")).filter(Boolean)));
-    const dates = Array.from(new Set((Array.isArray(b.dates) ? b.dates : [b.shiftDate]).map((x: unknown) => String(x || "")).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))).sort();
-    if (!userIds.length || !dates.length || !b.startTime || !b.endTime) return res.status(400).json({ message: tr(req, { en: "Worker, date and times are required.", zh: "请填写员工、日期和时间。", id: "Pekerja, tanggal, dan jam wajib diisi." }) });
-    if (userIds.length * dates.length > MAX_SHIFTS_AT_ONCE) return res.status(400).json({ message: tr(req, { en: "That is too many shifts at once (at most {n}).", zh: "一次添加的班次太多（最多 {n} 个）。", id: "Terlalu banyak shift sekaligus (maksimal {n})." }, { n: MAX_SHIFTS_AT_ONCE }) });
+    // Each day has its own hours: `days` = [{ date, startTime, endTime }] (the old form — dates[] + one pair of times — still works).
+    const rawDays: any[] = Array.isArray(b.days) ? b.days : (Array.isArray(b.dates) ? b.dates : [b.shiftDate]).map((date: unknown) => ({ date, startTime: b.startTime, endTime: b.endTime }));
+    const byDate = new Map<string, { date: string; startTime: string; endTime: string }>();
+    for (const day of rawDays) {
+      const date = String(day?.date || ""), startTime = String(day?.startTime || ""), endTime = String(day?.endTime || "");
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(startTime) && /^\d{2}:\d{2}$/.test(endTime)) byDate.set(date, { date, startTime, endTime });
+    }
+    const days = Array.from(byDate.values()).sort((x, y) => x.date.localeCompare(y.date));
+    if (!userIds.length || !days.length) return res.status(400).json({ message: tr(req, { en: "Worker, date and times are required.", zh: "请填写员工、日期和时间。", id: "Pekerja, tanggal, dan jam wajib diisi." }) });
+    if (userIds.length * days.length > MAX_SHIFTS_AT_ONCE) return res.status(400).json({ message: tr(req, { en: "That is too many shifts at once (at most {n}).", zh: "一次添加的班次太多（最多 {n} 个）。", id: "Terlalu banyak shift sekaligus (maksimal {n})." }, { n: MAX_SHIFTS_AT_ONCE }) });
     const cid = await rebornCompanyId(req);
     const team = await db.select({ id: bridgeCompanyMembers.userId }).from(bridgeCompanyMembers).where(and(eq(bridgeCompanyMembers.companyId, cid), inArray(bridgeCompanyMembers.userId, userIds)));
     if (team.length !== userIds.length) return res.status(404).json({ message: tr(req, { en: "Staff member not found", zh: "找不到该员工", id: "Staf tidak ditemukan" }) });
-    const already = await db.select({ userId: workerShifts.userId, shiftDate: workerShifts.shiftDate }).from(workerShifts)
-      .where(and(eq(workerShifts.companyId, cid), inArray(workerShifts.userId, userIds), inArray(workerShifts.shiftDate, dates), eq(workerShifts.startTime, String(b.startTime)), eq(workerShifts.endTime, String(b.endTime))));
-    const taken = new Set(already.map((row) => `${row.userId}|${row.shiftDate}`));
-    const rows = userIds.flatMap((userId) => dates.filter((date) => !taken.has(`${userId}|${date}`)).map((shiftDate) => ({ userId, companyId: cid, shiftDate, startTime: String(b.startTime), endTime: String(b.endTime), role: b.role || null, note: b.note || null, createdBy: getUserId(req)! })));
+    const already = await db.select({ userId: workerShifts.userId, shiftDate: workerShifts.shiftDate, startTime: workerShifts.startTime, endTime: workerShifts.endTime }).from(workerShifts)
+      .where(and(eq(workerShifts.companyId, cid), inArray(workerShifts.userId, userIds), inArray(workerShifts.shiftDate, days.map((d) => d.date))));
+    const taken = new Set(already.map((row) => `${row.userId}|${row.shiftDate}|${row.startTime}|${row.endTime}`));
+    const rows = userIds.flatMap((userId) => days.filter((d) => !taken.has(`${userId}|${d.date}|${d.startTime}|${d.endTime}`)).map((d) => ({ userId, companyId: cid, shiftDate: d.date, startTime: d.startTime, endTime: d.endTime, role: null, note: b.note || null, createdBy: getUserId(req)! })));
     const added = rows.length ? await db.insert(workerShifts).values(rows).returning() : [];
     for (const userId of userIds) {
-      const mine = added.filter((row) => row.userId === userId).map((row) => row.shiftDate);
+      const mine = added.filter((row) => row.userId === userId).sort((x, y) => x.shiftDate.localeCompare(y.shiftDate));
       if (!mine.length) continue;
-      const list = mine.slice(0, SHIFT_DATES_IN_NOTICE).join(", ") + (mine.length > SHIFT_DATES_IN_NOTICE ? ` +${mine.length - SHIFT_DATES_IN_NOTICE}` : "");
-      await notifyUserI18n(userId, "shift", (lang) => ({ title: pick(lang, { en: "New work shift", zh: "新的排班", id: "Jadwal kerja baru" }), body: `${list} · ${b.startTime}–${b.endTime}` }), { path: "/staff" });
+      const list = mine.slice(0, SHIFT_DATES_IN_NOTICE).map((row) => `${row.shiftDate} ${row.startTime}–${row.endTime}`).join(", ") + (mine.length > SHIFT_DATES_IN_NOTICE ? ` +${mine.length - SHIFT_DATES_IN_NOTICE}` : "");
+      await notifyUserI18n(userId, "shift", (lang) => ({ title: pick(lang, { en: "New work shift", zh: "新的排班", id: "Jadwal kerja baru" }), body: list }), { path: "/staff" });
     }
-    await logAdmin(req, { targetType: "shift", action: "add_shifts", entityType: "staff", description: `Scheduled ${added.length} shift(s) for ${userIds.length} person(s) on ${dates.length} date(s), ${b.startTime}–${b.endTime}` });
-    res.json({ added: added.length, skipped: userIds.length * dates.length - added.length });
+    await logAdmin(req, { targetType: "shift", action: "add_shifts", entityType: "staff", description: `Scheduled ${added.length} shift(s) for ${userIds.length} person(s) on ${days.length} date(s)` });
+    res.json({ added: added.length, skipped: userIds.length * days.length - added.length });
+  }));
+  app.patch("/api/reborn/admin/shifts/:id", requireManager(async (req, res) => {
+    const b = req.body || {};
+    const patch: Partial<typeof workerShifts.$inferInsert> = {};
+    if (b.shiftDate !== undefined) { if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.shiftDate))) return res.status(400).json({ message: tr(req, { en: "Choose a date", zh: "请选择日期", id: "Pilih tanggal" }) }); patch.shiftDate = String(b.shiftDate); }
+    for (const key of ["startTime", "endTime"] as const) if (b[key] !== undefined) { if (!/^\d{2}:\d{2}$/.test(String(b[key]))) return res.status(400).json({ message: tr(req, { en: "Choose the times", zh: "请选择时间", id: "Pilih jamnya" }) }); patch[key] = String(b[key]); }
+    if (!Object.keys(patch).length) return res.status(400).json({ message: tr(req, { en: "Nothing to change", zh: "没有可修改的内容", id: "Tidak ada yang diubah" }) });
+    const [row] = await db.update(workerShifts).set(patch).where(and(eq(workerShifts.id, Number(req.params.id)), eq(workerShifts.companyId, await rebornCompanyId(req)))).returning();
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Shift not found", zh: "找不到该班次", id: "Shift tidak ditemukan" }) });
+    await notifyUserI18n(row.userId, "shift", (lang) => ({ title: pick(lang, { en: "Your shift changed", zh: "您的班次已更改", id: "Shift Anda berubah" }), body: `${row.shiftDate} · ${row.startTime}–${row.endTime}` }), { path: "/staff" });
+    await logAdmin(req, { targetUserId: row.userId, targetType: "shift", targetId: String(row.id), action: "edit_shift", entityType: "staff", description: `Shift changed to ${row.shiftDate} ${row.startTime}–${row.endTime}` });
+    res.json(row);
   }));
   app.delete("/api/reborn/admin/shifts/:id", requireManager(async (req, res) => {
-    await db.delete(workerShifts).where(eq(workerShifts.id, Number(req.params.id)));
+    await db.delete(workerShifts).where(and(eq(workerShifts.id, Number(req.params.id)), eq(workerShifts.companyId, await rebornCompanyId(req))));
     res.json({ ok: true });
   }));
   app.get("/api/reborn/admin/leave", requireAdmin(async (req, res) => {

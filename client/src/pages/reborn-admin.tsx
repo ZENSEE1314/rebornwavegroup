@@ -1969,24 +1969,61 @@ function MyHr() {
 }
 
 // Admin › Staff › Schedule (main admin and managers): tick the days on a calendar, pick the people and the hours, and every tick becomes a shift.
-function ScheduleCards() {
+// One shift on the schedule: its date and hours can be changed (the worker is told), or it can be removed.
+function ShiftRow({ shift, onChanged, onDelete }: { shift: any; onChanged: () => void; onDelete: () => void }) {
   const { toast } = useToast();
   const { t } = useTranslation();
+  const [isEditing, setIsEditing] = useState(false);
+  const [f, setF] = useState({ shiftDate: shift.shiftDate, startTime: shift.startTime, endTime: shift.endTime });
+  const save = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/shifts/${shift.id}`, f).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: () => { toast({ title: t("admin.hr.shiftChanged") }); setIsEditing(false); onChanged(); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
+  });
+  if (isEditing) return (
+    <div className="space-y-2 border-b border-white/5 py-2 last:border-0">
+      <p className="text-sm text-white/80">{shift.staffName}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <input type="date" value={f.shiftDate} onChange={(e) => setF({ ...f, shiftDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} />
+        <input type="time" value={f.startTime} onChange={(e) => setF({ ...f, startTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} />
+        <input type="time" value={f.endTime} onChange={(e) => setF({ ...f, endTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} />
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => save.mutate()} disabled={save.isPending} className={btnSave}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
+        <button onClick={() => { setF({ shiftDate: shift.shiftDate, startTime: shift.startTime, endTime: shift.endTime }); setIsEditing(false); }} className={btnSm}><X className="w-4 h-4" /></button>
+      </div>
+    </div>
+  );
+  return (
+    <div className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 gap-2">
+      <div className="min-w-0"><p className="truncate text-white/80">{shift.staffName}</p><p className="text-[11px] text-white/40">{shift.shiftDate}</p></div>
+      <span className="text-amber-300 text-xs font-semibold flex-shrink-0">{shift.startTime}–{shift.endTime}</span>
+      <button onClick={() => setIsEditing(true)} aria-label={t("admin.c.edit")} title={t("admin.c.edit")} className={btnSm + " flex-shrink-0"}><Pencil className="w-4 h-4" /></button>
+      <button onClick={() => { if (confirm(t("admin.hr.removeShift"))) onDelete(); }} className={btnSm + " flex-shrink-0"}><Trash2 className="w-4 h-4" /></button>
+    </div>
+  );
+}
+
+function ScheduleCards() {
+  const { toast } = useToast();
+  const { t, language } = useTranslation();
   const qc = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data: staff = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-list"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-list").then((r) => r.json()) });
   const [workers, setWorkers] = useState<string[]>([]);
   const [dates, setDates] = useState<string[]>([]);
-  const [hours, setHours] = useState({ startTime: "18:00", endTime: "02:00", role: "" });
+  const [hours, setHours] = useState({ startTime: "18:00", endTime: "02:00" }); // the hours a newly ticked day starts with
+  const [dayHours, setDayHours] = useState<Record<string, { startTime: string; endTime: string }>>({});
+  const hoursOf = (date: string) => dayHours[date] || hours;
   const [schedFrom, setSchedFrom] = useState(today);
   const listKey = ["/api/reborn/admin/shifts", schedFrom];
   const { data: shifts = [] } = useQuery<any[]>({ queryKey: listKey, queryFn: () => apiRequest("GET", `/api/reborn/admin/shifts?from=${schedFrom}&to=2999-12-31`).then((r) => r.json()) });
   const addShifts = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/shifts", { userIds: workers, dates, ...hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/shifts", { userIds: workers, days: dates.map((date) => ({ date, ...hoursOf(date) })) }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => {
       if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; }
       toast({ title: t("admin.hr.shiftsAdded", { n: d.added }), description: d.skipped ? t("admin.hr.shiftsSkipped", { n: d.skipped }) : undefined });
-      setDates([]);
+      setDates([]); setDayHours({});
       qc.invalidateQueries({ queryKey: listKey });
     },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
@@ -2008,11 +2045,24 @@ function ScheduleCards() {
         </div>
         <p className="text-[11px] text-white/45 mb-1">{t("admin.hr.tickDays")}</p>
         <MultiDateCalendar value={dates} onChange={setDates} minDate={today} />
-        <div className="grid grid-cols-2 gap-2 my-3">
+        <p className="mt-3 text-[11px] text-white/45">{t("admin.hr.defaultHours")}</p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
           <label className="text-xs text-white/50">{t("admin.hr.start")}<input type="time" value={hours.startTime} onChange={(e) => setHours({ ...hours, startTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
           <label className="text-xs text-white/50">{t("admin.hr.end")}<input type="time" value={hours.endTime} onChange={(e) => setHours({ ...hours, endTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
-          <input value={hours.role} onChange={(e) => setHours({ ...hours, role: e.target.value })} placeholder={t("admin.hr.positionPh")} className={inp + " col-span-2"} />
         </div>
+        {dates.length > 0 && (
+          <div className="mb-3 space-y-1.5">
+            <p className="text-[11px] text-white/45">{t("admin.hr.eachDayHours")}</p>
+            {dates.map((date) => (
+              <div key={date} className="grid items-center gap-2" style={{ gridTemplateColumns: "1fr auto auto" }}>
+                <span className="text-sm text-white/80">{new Date(`${date}T00:00:00Z`).toLocaleDateString(localeTag(language), { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}</span>
+                <input type="time" aria-label={t("admin.hr.start")} value={hoursOf(date).startTime} onChange={(e) => setDayHours({ ...dayHours, [date]: { ...hoursOf(date), startTime: e.target.value } })} className={inp + " w-28"} style={{ colorScheme: "dark" }} />
+                <input type="time" aria-label={t("admin.hr.end")} value={hoursOf(date).endTime} onChange={(e) => setDayHours({ ...dayHours, [date]: { ...hoursOf(date), endTime: e.target.value } })} className={inp + " w-28"} style={{ colorScheme: "dark" }} />
+              </div>
+            ))}
+            {Object.keys(dayHours).length > 0 && <button type="button" onClick={() => setDayHours({})} className="min-h-0 p-0 text-xs text-cyan-200">{t("admin.hr.sameHoursAll")}</button>}
+          </div>
+        )}
         <button onClick={() => addShifts.mutate()} disabled={!workers.length || !dates.length || addShifts.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.hr.addShiftsN", { n: workers.length * dates.length })}</button>
       </Card>
       <Card>
@@ -2021,13 +2071,7 @@ function ScheduleCards() {
           <label className="text-xs text-white/50 flex items-center gap-1">{t("admin.hr.fromLc")} <input type="date" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} className={inp + " w-36"} style={{ colorScheme: "dark" }} /></label>
         </div>
         {shifts.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noShiftsRange")}</p>}
-        {shifts.map((s) => (
-          <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 gap-2">
-            <div className="min-w-0"><p className="truncate text-white/80">{s.staffName}{s.role ? ` · ${s.role}` : ""}</p><p className="text-[11px] text-white/40">{s.shiftDate}</p></div>
-            <span className="text-amber-300 text-xs font-semibold flex-shrink-0">{s.startTime}–{s.endTime}</span>
-            <button onClick={() => { if (confirm(t("admin.hr.removeShift"))) delShift.mutate(s.id); }} className={btnSm + " flex-shrink-0"}><Trash2 className="w-4 h-4" /></button>
-          </div>
-        ))}
+        {shifts.map((s) => <ShiftRow key={s.id} shift={s} onChanged={() => qc.invalidateQueries({ queryKey: listKey })} onDelete={() => delShift.mutate(s.id)} />)}
       </Card>
     </>
   );

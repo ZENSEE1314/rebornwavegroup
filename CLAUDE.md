@@ -924,3 +924,5 @@ text.
 - The contract form is a draft: while the contract is not yet sent it is saved ~0.8 s after each change (`POST /api/reborn/admin/contracts/:userId/draft`, in the same `staff_contracts` row, status stays "none"),
   so the job, start date, language, duties and extra terms are still there after a refresh. A new form starts with the person's own job (position) and its saved duties.
 - An item whose selling price is 0 is not offered: left out of the POS item picker and the member order page (still in the admin lists, where the price is set).
+- Schedule details: no position field. Each ticked day has its own start / end (`days: [{date, startTime, endTime}]`; new days start with the default hours, any day can be changed, "use the hours above
+  for every day" resets them). An added shift can be edited later: pencil on the schedule row → date + hours (`PATCH /api/reborn/admin/shifts/:id`, the worker is notified), or deleted.
