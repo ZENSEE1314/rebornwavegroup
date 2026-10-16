@@ -161,7 +161,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const industries = useMemo(() => Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort() as string[], [products]);
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
-    const shown = products.filter((p) => !p.soldOut && !(industry && !deptHas(p.department, industry)));
+    const shown = products.filter((p) => Number(p.price) > 0 && !p.soldOut && !(industry && !deptHas(p.department, industry))); // an item with no price isn't offered for sale
     const picks = shown.filter((p) => p.recommended);
     if (picks.length) g[RECOMMENDED_GROUP] = picks;
     const bundles = shown.filter((p) => p.packageKind);

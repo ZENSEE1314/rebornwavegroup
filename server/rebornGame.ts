@@ -3265,7 +3265,7 @@ export function registerRebornRoutes(app: Express) {
     const wanted = Array.from(new Set(rows.flatMap(itemIdsOf)));
     const named = wanted.length ? await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts).where(inArray(posProducts.id, wanted)) : [];
     const nameOf = new Map(named.map((x) => [x.id, x.name]));
-    res.json((await withBundleStock(rows)).filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({
+    res.json((await withBundleStock(rows)).filter((p) => Number(p.price) > 0 && (p.packageKind || allowNegative || (p.stock ?? 0) > 0)).map((p) => ({
       id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, recommended: p.recommended, soldOut: false,
       packageKind: p.packageKind, packageUses: p.packageUses, packageCredit: p.packageCredit, packageValidDays: p.packageValidDays,
       packageItems: itemIdsOf(p).map((id) => nameOf.get(id)).filter(Boolean),
