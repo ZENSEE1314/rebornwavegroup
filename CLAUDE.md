@@ -904,3 +904,10 @@ text.
   returns (online event, every 30 s, Send now). `POST /api/reborn/pos/sale` books it at that time (`pos_tickets.offline_id` unique per company: a repeat is answered "already sent",
   never a second sale; stock isn't refused afterwards; ledger entry dated the sale). A sale the server refuses stays in the list (red box) with Try again / Delete. Offline: cash + card only —
   tables / open bills, member lookup, RP credits and packages need the internet (the table screens show the last saved copy only).
+
+- The whole app opens offline for reading: the service worker also keeps the last answer of every app read (GET `/api/*`, JSON up to 1.5 MB, 3 days, newest 300) except the
+  `NEVER_KEEP` list in sw.js (sign-in, streams, member look-ups, chats / CRM, contracts / ID / payslips, files, codes). An answer from that copy carries the header `x-sw-saved`;
+  the client (`reportNetwork` in lib/offline-sales.ts, called by apiRequest / getQueryFn) then shows the "no internet — showing saved information" notice in RebornLayout. A change made
+  offline fails with `srv.err.offline` ("changes need the internet") — only the POS Quick sale is queued and sent later. Every page registers the worker and hands it the files it loaded.
+- Recommended items: `pos_products.recommended` (Admin › Products: ⭐ beside the name, tick box on the phone card and in the add form). Shown first under "⭐ Recommended" and with a star
+  in the POS item picker and the member order page.

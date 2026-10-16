@@ -2263,6 +2263,7 @@ function Products() {
         </div>
         <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHint")}</span></label>
+        <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!n.recommended} onChange={(e) => setN({ ...n, recommended: e.target.checked })} /> ⭐ {t("admin.prod.recommend")} <span className="text-white/40 text-xs">{t("admin.prod.recommendHint")}</span></label>
         <PackageFields value={n} onChange={setN} />
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.c.add")}</button>
@@ -2398,7 +2399,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
+  const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, recommended: !!p.recommended, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
   const [f, setF] = useState(base);
   const dirty = JSON.stringify(f) !== JSON.stringify(base);
   const save = useMutation({
@@ -2408,7 +2409,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   });
   return (
     <tr id={`product-${p.id}`} className={`border-b border-white/5 align-middle hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
-      <td className="px-2 py-1"><div className="flex items-center gap-2"><ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
+      <td className="px-2 py-1"><div className="flex items-center gap-2"><ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><button type="button" onClick={() => setF({ ...f, recommended: !f.recommended })} aria-pressed={f.recommended} title={t("admin.prod.recommend")} aria-label={t("admin.prod.recommend")} className="min-h-0 p-0 text-lg leading-none">{f.recommended ? "⭐" : "☆"}</button><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
       <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
       <td className="px-2 py-1"><IndustryPicker isCompact value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
       <td className="px-2 py-1"><PackFields isCompact value={f} onChange={(next) => setF({ ...f, ...next })} /></td>
@@ -2431,7 +2432,7 @@ function ProductRow({ p }: any) {
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState<any>({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
+  const [f, setF] = useState<any>({ name: p.name, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
   const industryOptions = useCompanyIndustries();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
@@ -2468,6 +2469,7 @@ function ProductRow({ p }: any) {
             <PackFields value={f} onChange={(next) => setF({ ...f, ...next })} />
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHintLong")}</span></label>
+          <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!f.recommended} onChange={(e) => setF({ ...f, recommended: e.target.checked })} /> ⭐ {t("admin.prod.recommend")} <span className="text-white/40 text-xs">{t("admin.prod.recommendHint")}</span></label>
           <PackageFields value={f} onChange={setF} />
           <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>

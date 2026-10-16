@@ -14,16 +14,14 @@ const SHELL = "rw-shell-v1";
 const API = "rw-api-v1";
 const SHELL_KEY = "/__shell";
 const NAVIGATE_TIMEOUT_MS = 4000;
-const API_TIMEOUT_MS = 5000;
-const API_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const API_TIMEOUT_MS = 8000;
+const API_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const CACHED_AT = "x-sw-cached-at";
-// Only what the POS screens read: who is signed in, the company's money / role, the catalogue, staff, settings, stock and the bills.
-const OFFLINE_API = [
-  /^\/api\/auth\/user$/,
-  /^\/api\/v1\/tenant\/resolve$/,
-  /^\/api\/reborn\/my-role$/,
-  /^\/api\/reborn\/pos\/(products|staff|settings|stock|orders|packages|bottle-keeps)$/,
-];
+// Every page of the app can be opened offline: the last answer of each read (GET) is kept for 3 days and shown when the network is down.
+// Never kept: sign-in / password calls, live streams, member look-ups, chats, contracts / ID / payslips, files and codes.
+const API_MAX_ENTRIES = 300;
+const API_MAX_BYTES = 1500000;
+const NEVER_KEEP = /^\/api\/(auth\/(?!user$)|logout|karaoke|tv\/|venue-bridge|meta|whatsapp|telegram|client-error)|\/(stream|token|tokens|secret|password|pdf|qr|download|export|backups?|invite|contracts|my-employment|payslips|staff-hr|crm|chat|messages)(\/|$)|\/pos\/member(s|\/)?|\/id\//i;
 const STATIC_FILE = /^\/(assets\/|icon-|apple-touch-icon)/;
 const NOT_THE_APP = /^\/(api\/|\.well-known\/)/; // downloads, sign-in returns and the like are never answered with the saved page
 
@@ -31,6 +29,12 @@ function fetchWithin(request, ms) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   return fetch(request, { signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+// The page is told when an answer is the saved one (header x-sw-saved), so it can say "no internet" even though the request got an answer.
+async function markSaved(response) {
+  const headers = new Headers(response.headers);
+  headers.set("x-sw-saved", "1");
+  return new Response(await response.blob(), { status: response.status, statusText: response.statusText, headers });
 }
 async function stamped(response) {
   const headers = new Headers(response.headers);
@@ -49,15 +53,24 @@ async function openShell(request) {
     return saved || Response.error();
   }
 }
+// Keep the saved answers from growing forever: the oldest go first.
+async function trim(cache) {
+  const keys = await cache.keys();
+  if (keys.length > API_MAX_ENTRIES) await Promise.all(keys.slice(0, keys.length - API_MAX_ENTRIES).map((key) => cache.delete(key)));
+}
 async function freshOrSaved(request) {
   const cache = await caches.open(API);
   try {
     const response = await fetchWithin(request, API_TIMEOUT_MS);
-    if (response.ok) cache.put(request, await stamped(response)).catch(() => {});
+    const size = Number(response.headers.get("content-length") || 0);
+    if (response.ok && /json/i.test(response.headers.get("content-type") || "") && size < API_MAX_BYTES) {
+      await cache.put(request, await stamped(response)).catch(() => {});
+      trim(cache).catch(() => {});
+    }
     return response;
   } catch (error) {
     const saved = await cache.match(request, { ignoreVary: true });
-    if (saved && Date.now() - Number(saved.headers.get(CACHED_AT) || 0) < API_MAX_AGE_MS) return saved;
+    if (saved && Date.now() - Number(saved.headers.get(CACHED_AT) || 0) < API_MAX_AGE_MS) return markSaved(saved);
     throw error;
   }
 }
@@ -76,7 +89,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (request.mode === "navigate") { if (NOT_THE_APP.test(url.pathname)) return; return event.respondWith(openShell(request)); }
-  if (OFFLINE_API.some((pattern) => pattern.test(url.pathname))) return event.respondWith(freshOrSaved(request));
+  if (url.pathname.startsWith("/api/") && !NEVER_KEEP.test(url.pathname) && !(request.headers.get("accept") || "").includes("text/event-stream")) return event.respondWith(freshOrSaved(request));
   if (STATIC_FILE.test(url.pathname)) return event.respondWith(savedFirst(request));
 });
 
@@ -86,7 +99,7 @@ self.addEventListener("message", (event) => {
   if (message.type === "prime" && Array.isArray(message.urls)) {
     event.waitUntil(caches.open(SHELL).then(async (cache) => {
       await fetch("/").then((response) => { if (response.ok) return cache.put(SHELL_KEY, response); }).catch(() => {});
-      await Promise.all(message.urls.map((u) => cache.add(u).catch(() => {})));
+      await Promise.all(message.urls.map(async (u) => { if (!(await cache.match(u))) await cache.add(u).catch(() => {}); }));
     }));
   }
   if (message.type === "clear-api") event.waitUntil(caches.delete(API));

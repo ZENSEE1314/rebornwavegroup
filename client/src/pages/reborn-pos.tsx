@@ -15,7 +15,7 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
-interface Product { id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
+interface Product { recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
@@ -23,6 +23,7 @@ interface Staff { id: string; name: string; role: string; }
 interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "sales" | "stock" | "bottles" | "packages";
 const OPEN_TICKETS = ["/api/reborn/pos/orders"];
+const RECOMMENDED_GROUP = "__recommended__";
 // Translate a server-provided enum value, falling back to the raw value when no key exists.
 const tOr = (t: (k: string) => string, key: string, fallback: string) => { const v = t(key); return v === key ? fallback : v; };
 const rp = (n: any) => money(n);
@@ -159,7 +160,10 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const industries = useMemo(() => Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort() as string[], [products]);
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
-    for (const p of products) { if (p.soldOut || (industry && !deptHas(p.department, industry))) continue; (g[p.category || ""] ||= []).push(p); }
+    const shown = products.filter((p) => !p.soldOut && !(industry && !deptHas(p.department, industry)));
+    const picks = shown.filter((p) => p.recommended);
+    if (picks.length) g[RECOMMENDED_GROUP] = picks;
+    for (const p of shown) (g[p.category || ""] ||= []).push(p);
     return Object.entries(g);
   }, [products, industry]);
   return (
@@ -167,7 +171,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap mb-3"><span className="text-xs text-white/50">{t("pos.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || t("pos.all")}</button>)}</div>}
       {groups.map(([cat, items]) => (
         <div key={cat} className="mb-4">
-          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat || t("pos.other")}</p>
+          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat === RECOMMENDED_GROUP ? `⭐ ${t("pos.recommended")}` : cat || t("pos.other")}</p>
           {/* 2–3 tiles per row on phones, more on wider screens (inline template:
               the phone-wide grid-cols-* override would make it one huge column). */}
           <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 112px), 1fr))" }}>
@@ -178,7 +182,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
                   ? <img src={p.imageUrl} alt="" className="w-full aspect-square object-cover" />
                   : <div className="w-full aspect-square flex items-center justify-center text-2xl bg-white/5">{p.packageKind === "uses" ? "📦" : p.packageKind === "credit" ? "💳" : "🍸"}</div>}
                 <div className="p-2">
-                  <p className="text-[13px] font-semibold leading-tight line-clamp-2 break-words">{p.name}</p>
+                  <p className="text-[13px] font-semibold leading-tight line-clamp-2 break-words">{p.recommended && cat !== RECOMMENDED_GROUP ? "⭐ " : ""}{p.name}</p>
                   <p className="text-xs text-amber-300">{rp(Number(p.price))}</p>
                   <p className="text-[10px] text-white/40">{p.packageKind === "uses" ? t("pos.pkg.tileUses", { n: p.packageUses || 1 }) : p.packageKind === "credit" ? t("pos.pkg.tileCredit", { n: rp(Number(p.packageCredit)) }) : t("pos.stockCount", { n: p.stock })}</p>
                 </div>

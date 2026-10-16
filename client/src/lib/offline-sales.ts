@@ -104,20 +104,34 @@ export function savedReceiptMeta(): Record<string, unknown> {
   try { return JSON.parse(localStorage.getItem(RECEIPT_META_KEY) || "{}"); } catch { return {}; }
 }
 
-/** Open the POS offline-ready: start the service worker and let it keep the files this page already loaded (do it once while online). */
+const primedUrls = new Set<string>();
+
+/** Open the app offline-ready: start the service worker and let it keep the files this page already loaded (do it once while online). */
 export async function prepareOfflinePos() {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
   try {
     const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
     await navigator.serviceWorker.ready;
     const urls = performance.getEntriesByType("resource").map((entry) => entry.name).filter((name) => { try { const u = new URL(name); return u.origin === location.origin && /^\/(assets\/|icon-)/.test(u.pathname); } catch { return false; } });
-    (registration.active || navigator.serviceWorker.controller)?.postMessage({ type: "prime", urls: Array.from(new Set(urls)) });
+    const fresh = Array.from(new Set(urls)).filter((url) => !primedUrls.has(url));
+    fresh.forEach((url) => primedUrls.add(url));
+    if (fresh.length) (registration.active || navigator.serviceWorker.controller)?.postMessage({ type: "prime", urls: fresh });
   } catch { /* no service worker here: the POS still works online */ }
 }
 
 /** On logout: the saved answers (catalogue, who was signed in) are removed from this device. Sales still waiting stay until they are sent. */
 export function forgetOfflineData() {
   try { navigator.serviceWorker?.controller?.postMessage({ type: "clear-api" }); localStorage.removeItem(RECEIPT_META_KEY); } catch { /* nothing saved */ }
+}
+
+/** Any request reports whether the network answered, so the "offline" notice also shows on a Wi-Fi that has no internet. */
+export function reportNetwork(reachable: boolean) {
+  if (looksOffline === !reachable) return;
+  looksOffline = !reachable;
+  publish();
+}
+export function useIsOffline(): boolean {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot).looksOffline;
 }
 
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };

@@ -1,4 +1,4 @@
-import { forgetOfflineData } from "@/lib/offline-sales";
+import { forgetOfflineData, prepareOfflinePos, useIsOffline } from "@/lib/offline-sales";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { installUiClicks } from "@/lib/sfx";
@@ -124,6 +124,8 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
   const brandLook = JSON.stringify(brand.look);
   useEffect(() => { if (!brand.isLoading) applyAppSkin(brand.skin, brand.palette, brand.look); }, [brand.isLoading, brand.skin, brand.palette, brandLook]);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const isOffline = useIsOffline();
+  useEffect(() => { if (user) void prepareOfflinePos(); }, [user]);
   const tokens = (user as any)?.tokens ?? 0;
   // Switched-off features leave the dock; while the list loads they show faded and can't be tapped.
   const { off: featuresOff, loaded: featuresLoaded } = useFeatureState();
@@ -174,6 +176,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
       </header>
 
       {/* Content */}
+      {isOffline && active !== "/pos" && <div role="status" className="mx-auto max-w-2xl px-4 pt-3"><p className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-100">📴 {t("net.offlineNotice")}</p></div>}
       <main key={active || title || "page"} style={gx ? { ["--gx" as any]: gx } : undefined} className={`rwg-enter ${gx ? "gx" : ""} ${wide ? "max-w-[1400px]" : "max-w-2xl"} mx-auto px-4 pt-4 ${hideNav ? "pb-6" : "pb-28"}`}>{children}</main>
 
       {/* Bottom nav — hidden while inside a live game so you can't tap out by accident */}

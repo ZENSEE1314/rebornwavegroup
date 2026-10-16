@@ -2,6 +2,7 @@ import { translate } from "@/lib/i18n";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 import { rememberedTenantSlug } from "@/hooks/useTenantBrand";
+import { reportNetwork } from "@/lib/offline-sales";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -54,8 +55,11 @@ export async function apiRequest(
     });
   } catch (e: any) {
     if (method !== "GET") reportClientError(method, url, e?.message || "Network error");
-    throw e;
+    reportNetwork(false);
+    // Offline: say so in plain words (the page keeps what it was showing; a change needs the internet).
+    throw new Error(translate("srv.err.offline"));
   }
+  reportNetwork(!res.headers.get("x-sw-saved"));
 
   await throwIfResNotOk(res);
   return res;
@@ -83,15 +87,22 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        ...tenantHeaders(),
-      }
-    });
+    let res: Response;
+    try {
+      res = await fetch(queryKey[0] as string, {
+        credentials: "include",
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          ...tenantHeaders(),
+        }
+      });
+    } catch {
+      reportNetwork(false);
+      throw new Error(translate("srv.err.offline"));
+    }
+    reportNetwork(!res.headers.get("x-sw-saved"));
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

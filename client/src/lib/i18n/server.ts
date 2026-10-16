@@ -2,6 +2,8 @@
 export const serverT: Record<string, { en: string; zh: string; id: string }> = {
   'app.loadFailed': { en: "Couldn't load this page. Check your internet connection and try again.", zh: "页面加载失败，请检查网络连接后重试。", id: "Halaman gagal dimuat. Periksa koneksi internet lalu coba lagi." },
   'app.retry': { en: "Retry", zh: "重试", id: "Coba lagi" },
+  'srv.err.offline': { en: "No internet. Showing what was saved on this device; changes need the internet.", zh: "没有网络。显示的是本设备保存的内容；修改需要联网。", id: "Tidak ada internet. Menampilkan data tersimpan di perangkat ini; perubahan butuh internet." },
+  'net.offlineNotice': { en: "No internet — showing information saved on this device. Changes need the internet.", zh: "没有网络——显示的是本设备保存的信息。修改需要联网。", id: "Tidak ada internet — menampilkan informasi yang tersimpan di perangkat ini. Perubahan butuh internet." },
   'srv.err.busy': { en: "The server is busy right now. Please try again in a moment.", zh: "服务器暂时繁忙，请稍后再试。", id: "Server sedang sibuk. Silakan coba lagi sebentar lagi." },
   // Built-in data stored in English on the server (see tData in i18n.ts)
   "data:Free can of beer": { en: "Free can of beer", zh: "免费啤酒一罐", id: "Gratis sekaleng bir" },

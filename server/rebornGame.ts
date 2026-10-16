@@ -3260,7 +3260,7 @@ export function registerRebornRoutes(app: Express) {
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.active, true), eq(posProducts.archived, false), eq(posProducts.posVisible, true))).orderBy(posProducts.sortOrder, posProducts.name);
     const allowNegative = (await getSettings()).allowNegativeStock;
     // An item with no stock is not shown to members at all (not even greyed out).
-    res.json(rows.filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: false })));
+    res.json(rows.filter((p) => p.packageKind || allowNegative || (p.stock ?? 0) > 0).map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, recommended: p.recommended, soldOut: false })));
   });
   app.post("/api/reborn/admin/pos/products", requireManager(async (req, res) => {
     const b = req.body || {};
@@ -3272,7 +3272,7 @@ export function registerRebornRoutes(app: Express) {
       cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
-      active: b.active !== false, posVisible: b.posVisible !== false, sortOrder: Number(b.sortOrder) || 0,
+      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, sortOrder: Number(b.sortOrder) || 0,
       ...packageFields(b),
     }).returning();
     if ((row.stock ?? 0) > 0) await db.insert(stockMovements).values({ productId: row.id, delta: row.stock, reason: "stock_in", supplier: b.supplierName || null, note: "Initial stock", userId: getUserId(req)! });
@@ -3312,6 +3312,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
+    if (b.recommended !== undefined) patch.recommended = !!b.recommended;
     if (b.packageKind !== undefined) Object.assign(patch, packageFields(b));
     else if (b.creditOk !== undefined && !prev.packageKind) patch.creditOk = !!b.creditOk;
     const [row] = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning();

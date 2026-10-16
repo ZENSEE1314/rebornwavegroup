@@ -963,6 +963,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.prod.supName': { en: "Supplier name (optional)", zh: "供应商名称（可选）", id: "Nama pemasok (opsional)" },
   'admin.prod.supPhone': { en: "Supplier phone (optional)", zh: "供应商电话（可选）", id: "Telepon pemasok (opsional)" },
   'admin.prod.supAddr': { en: "Supplier address (optional)", zh: "供应商地址（可选）", id: "Alamat pemasok (opsional)" },
+  'admin.prod.recommend': { en: "Recommended", zh: "推荐", id: "Rekomendasi" },
+  'admin.prod.recommendHint': { en: "shown first with a star in the POS and the member order page", zh: "在收银和会员点单页中带星号置顶显示", id: "tampil paling atas dengan bintang di kasir dan halaman pesan member" },
   'admin.prod.sellable': { en: "Sellable in POS", zh: "可在收银台销售", id: "Dapat dijual di kasir" },
   'admin.prod.sellableHint': { en: "(uncheck for raw items like meat)", zh: "（生肉等原料请取消勾选）", id: "(hapus centang untuk bahan mentah seperti daging)" },
   'admin.prod.sellableHintLong': { en: "(uncheck for raw items like meat that must be prepared first — still tracked in inventory)", zh: "（生肉等需先加工的原料请取消勾选——仍会计入库存）", id: "(hapus centang untuk bahan mentah seperti daging yang harus diolah dulu — tetap tercatat di inventaris)" },

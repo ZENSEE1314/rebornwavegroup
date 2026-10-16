@@ -882,6 +882,7 @@ export const posProducts = pgTable("pos_products", {
   supplierAddress: text("supplier_address"),
   supplierPhone: varchar("supplier_phone"),
   active: boolean("active").default(true).notNull(),
+  recommended: boolean("recommended").default(false).notNull(), // set by the admin: shown first, with a star, in the POS and the member order page
   posVisible: boolean("pos_visible").default(true).notNull(), // false = tracked in inventory but not sellable in POS (e.g. raw meat)
   station: varchar("station"), // KDS routing override: 'kitchen' | 'bar' | 'dessert' (else derived from category)
   department: varchar("department"), // industry/section this product belongs to (KTV, Beauty, Restaurant, Retail…) — for per-industry data
