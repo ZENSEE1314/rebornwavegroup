@@ -303,6 +303,22 @@ function eventImageLink(e: { id: number; imageUrl: string | null }): string | nu
   let h = 0; for (let i = 0; i < e.imageUrl.length; i += 97) h = (h * 31 + e.imageUrl.charCodeAt(i)) | 0;
   return `/api/reborn/events/${e.id}/image?v=${(h >>> 0).toString(36)}${e.imageUrl.length.toString(36)}`;
 }
+
+// A page that got a picture address instead of the picture sends it back unchanged: keep the stored picture, or copy the one it names.
+async function pictureFromAddress(address: unknown): Promise<string | null> {
+  const text = typeof address === "string" ? address : "";
+  const id = text.startsWith(PRODUCT_IMAGE_ROUTE) ? Number(text.slice(PRODUCT_IMAGE_ROUTE.length).split("?")[0]) : 0;
+  if (!id) return text || null;
+  const [row] = await db.select({ imageUrl: posProducts.imageUrl }).from(posProducts).where(eq(posProducts.id, id)).limit(1);
+  return row?.imageUrl ?? null;
+}
+// Product pictures are stored inside the row as data: URLs (~70 KB each); lists send a short address instead so the page loads fast and the browser keeps each picture.
+const PRODUCT_IMAGE_ROUTE = "/api/reborn/pos/product-image/";
+function productImageLink(p: { id: number; imageUrl: string | null }): string | null {
+  if (!p.imageUrl || !p.imageUrl.startsWith("data:")) return p.imageUrl;
+  let h = 0; for (let i = 0; i < p.imageUrl.length; i += 97) h = (h * 31 + p.imageUrl.charCodeAt(i)) | 0;
+  return `${PRODUCT_IMAGE_ROUTE}${p.id}?v=${(h >>> 0).toString(36)}${p.imageUrl.length.toString(36)}`;
+}
 // Event dates are plain YYYY-MM-DD (or null = an ongoing announcement).
 function isoDay(v: any): string | null { const s = String(v || "").trim(); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null; }
 // Active events that haven't ended, nearest first (undated announcements last).
@@ -3037,6 +3053,12 @@ export function registerRebornRoutes(app: Express) {
     // Posters are big (sharp A4) — send a cached link instead of the bytes in the list.
     res.json((await upcomingEvents(date || undefined)).map((e) => ({ ...e, imageUrl: eventImageLink(e) })));
   });
+  app.get(`${PRODUCT_IMAGE_ROUTE}:id`, async (req, res) => {
+    const [row] = await db.select({ imageUrl: posProducts.imageUrl }).from(posProducts).where(eq(posProducts.id, Number(req.params.id))).limit(1);
+    const m = /^data:([^;]+);base64,(.+)$/.exec(row?.imageUrl || "");
+    if (!m) return row?.imageUrl && /^https?:\/\//.test(row.imageUrl) ? res.redirect(302, row.imageUrl) : res.status(404).end();
+    res.set("Cache-Control", "public, max-age=31536000, immutable").type(m[1]).send(Buffer.from(m[2], "base64"));
+  });
   app.get("/api/reborn/events/:id/image", async (req, res) => {
     const [ev] = await db.select({ imageUrl: events.imageUrl }).from(events).where(eq(events.id, Number(req.params.id))).limit(1);
     const m = /^data:([^;]+);base64,(.+)$/.exec(ev?.imageUrl || "");
@@ -3271,7 +3293,7 @@ export function registerRebornRoutes(app: Express) {
     const allowNegative = (await getSettings()).allowNegativeStock;
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false))).orderBy(posProducts.sortOrder, posProducts.name);
     // soldOut = nothing left to sell: the POS (tables + staff orders) leaves such an item out of its picker.
-    res.json(withHappyHour(await withBundleStock(rows)).map((p) => ({ ...p, soldOut: p.offHours || (!p.packageKind && !allowNegative && (p.stock ?? 0) <= 0) })));
+    res.json(withHappyHour(await withBundleStock(rows)).map((p) => ({ ...p, imageUrl: productImageLink(p), soldOut: p.offHours || (!p.packageKind && !allowNegative && (p.stock ?? 0) <= 0) })));
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
@@ -3285,7 +3307,7 @@ export function registerRebornRoutes(app: Express) {
     const named = wanted.length ? await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts).where(inArray(posProducts.id, wanted)) : [];
     const nameOf = new Map(named.map((x) => [x.id, x.name]));
     res.json(withHappyHour(await withBundleStock(rows)).filter((p) => Number(p.price) > 0 && !p.offHours && (p.packageKind || allowNegative || (p.stock ?? 0) > 0)).map((p) => ({
-      id: p.id, name: p.name, category: p.category, price: p.salePrice, regularPrice: p.happyNow ? p.price : undefined, happyNow: p.happyNow, stock: p.stock, imageUrl: p.imageUrl, recommended: p.recommended, soldOut: false,
+      id: p.id, name: p.name, category: p.category, price: p.salePrice, regularPrice: p.happyNow ? p.price : undefined, happyNow: p.happyNow, stock: p.stock, imageUrl: productImageLink(p), recommended: p.recommended, soldOut: false,
       packageKind: p.packageKind, packageUses: p.packageUses, packageCredit: p.packageCredit, packageValidDays: p.packageValidDays,
       packageItems: itemIdsOf(p).map((id) => nameOf.get(id)).filter(Boolean),
     })));
@@ -3299,7 +3321,7 @@ export function registerRebornRoutes(app: Express) {
     const [row] = await db.insert(posProducts).values({
       companyId: cid,
       name: String(b.name).trim(), category: b.category || "General", department: b.department || null, price: String(Number(b.price) || 0),
-      cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
+      cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: await pictureFromAddress(b.imageUrl),
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
       active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, sortOrder: Number(b.sortOrder) || 0,
@@ -3339,6 +3361,7 @@ export function registerRebornRoutes(app: Express) {
     if (!prev) return res.status(404).json({ message: tr(req, { en: "Not found", zh: "未找到", id: "Tidak ditemukan" }) });
     const patch: any = {};
     for (const k of ["name", "category", "department", "imageUrl", "supplierName", "supplierAddress", "supplierPhone"]) if (b[k] !== undefined) patch[k] = b[k] || null;
+    if (typeof b.imageUrl === "string" && b.imageUrl.startsWith(PRODUCT_IMAGE_ROUTE)) patch.imageUrl = await pictureFromAddress(b.imageUrl);
     for (const k of ["price", "cost"]) if (b[k] !== undefined) patch[k] = String(Number(b[k]) || 0);
     if (b.unitsPerPack !== undefined || b.packPrice !== undefined) Object.assign(patch, packPricingFields({ unitsPerPack: b.unitsPerPack ?? prev.unitsPerPack, packPrice: b.packPrice ?? prev.packPrice }));
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
@@ -5139,7 +5162,7 @@ export function registerRebornRoutes(app: Express) {
       const price = Number(p.price) || 0;
       return {
         id: p.id, name: p.name, category: p.category, department: p.department || null, active: p.active, posVisible: p.posVisible,
-        stock, cost, price, imageUrl: p.imageUrl, unitsPerPack: p.unitsPerPack ?? null, packPrice: p.packPrice === null || p.packPrice === undefined ? null : Number(p.packPrice),
+        stock, cost, price, imageUrl: productImageLink(p), unitsPerPack: p.unitsPerPack ?? null, packPrice: p.packPrice === null || p.packPrice === undefined ? null : Number(p.packPrice),
         suppliers: Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set())),
         stockValue: Math.round(run && run.layers.length ? run.layers.reduce((sum, layer) => sum + layer.qtyLeft * exactUnitCost(layer.unitCost, p.packPrice, p.unitsPerPack), 0) : stock * exactUnitCost(cost, p.packPrice, p.unitsPerPack)),
         retailValue: Math.round(stock * price),

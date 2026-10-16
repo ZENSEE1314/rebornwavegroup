@@ -969,3 +969,7 @@ eborn-venue-pack.
   `/shop/products` returns the happy price as `price` and hides off-hours items. The server charges the price itself (`resolveItems`) and refuses an off-hours item (offline-sold bills excepted).
 - Items entered twice (same name, e.g. one per supplier): a bundle or visits package added in Inventory › an item is made for each of them, and editing / deleting a piece also changes its copies
   (`ItemBundles`: `twins` / `copiesOf`). Inventory lists every item including those with no stock; bundles / packages whose item is not listed show under "Other bundles & packages".
+
+- Product pictures are stored in the row as data: URLs (~70 KB each; the live table was ~1.8 MB, so every Inventory / POS list was ~2 MB twice). Lists (`/pos/products`, `/shop/products`, `/admin/inventory`)
+  now send `/api/reborn/pos/product-image/:id?v=…` instead (`productImageLink`; the route serves the bytes, cached for a year). A page that sends such an address back (edit, new bundle) keeps / copies the
+  stored picture (`pictureFromAddress`) — never write the address into `image_url`.
