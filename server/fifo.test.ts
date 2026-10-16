@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { groupLayers, runFifo, type StockMove } from "./fifo";
+import { groupLayers, runFifo, stockBySupplier, type StockMove } from "./fifo";
 
 const at = (day: number) => new Date(Date.UTC(2026, 9, day));
 const delivery = (id: number, day: number, qty: number, unitCost: number, supplier: string): StockMove => ({ id, delta: qty, reason: "stock_in", supplier, unitCost, createdAt: at(day) });
@@ -59,5 +59,25 @@ describe("grouping layers for display", () => {
       { supplier: "Alay", unitCost: 20000, qtyLeft: 4, receivedAt: at(2), isOpening: false },
     ]);
     assert.deepEqual(grouped.map((l) => l.qtyLeft), [7]);
+  });
+});
+
+describe("stock per supplier", () => {
+  const moves = [delivery(1, 1, 24, 20000, "Alay"), delivery(2, 5, 40, 22000, "Budi")];
+
+  it("should list how many units each supplier still has, adding up to the stock", () => {
+    const rows = stockBySupplier(runFifo(moves, 64, 0, "").layers, ["Alay", "Budi"]);
+    assert.deepEqual(rows.map((r) => [r.supplier, r.qty, r.unitCost]), [["Alay", 24, 20000], ["Budi", 40, 22000]]);
+    assert.equal(rows.reduce((sum, r) => sum + r.qty, 0), 64);
+  });
+
+  it("should list a supplier whose delivery is all sold with 0 left", () => {
+    const rows = stockBySupplier(runFifo([...moves, sale(3, 6, 24)], 40, 0, "").layers, ["Alay", "Budi"]);
+    assert.deepEqual(rows.map((r) => [r.supplier, r.qty]), [["Budi", 40], ["Alay", 0]]);
+  });
+
+  it("should keep stock from before the records under the item's own supplier", () => {
+    const rows = stockBySupplier(runFifo([delivery(1, 3, 10, 5000, "Budi")], 15, 4000, "Old supplier").layers, ["Budi"]);
+    assert.deepEqual(rows.map((r) => [r.supplier, r.qty]), [["Old supplier", 5], ["Budi", 10]]);
   });
 });
