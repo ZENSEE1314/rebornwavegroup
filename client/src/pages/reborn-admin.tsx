@@ -1685,6 +1685,8 @@ function FaqRow({ f, onSave, onDelete }: any) {
   );
 }
 
+// value for <input type="datetime-local">: the current local date and time, to the minute
+const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 const inp = "min-w-0 max-w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60";
 const btn = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-black text-sm bg-amber-400 hover:bg-amber-300";
 const btnSm = "inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10";
@@ -2200,7 +2202,7 @@ function Products() {
   const [n, setN] = useState<any>({ name: "", category: "General", department: "", price: 0, unitsPerPack: 0, packPrice: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "", posVisible: true, ...pkgOf(null) });
   const [industry, setIndustry] = useState("");
   const [mode, setMode] = useState<"new" | "restock">("new");
-  const [rs, setRs] = useState<any>({ productId: "", supplier: "", qty: 1, unitCost: 0 });
+  const [rs, setRs] = useState<any>({ productId: "", supplier: "", qty: 1, unitCost: 0, receivedAt: nowLocal() });
   const industries = useCompanyIndustries();
   const industryOptions = industries;
   const [query, setQuery] = useState("");
@@ -2212,8 +2214,8 @@ function Products() {
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const restock = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/pos/stock-in", { productId: Number(rs.productId), qty: Number(rs.qty), unitCost: rs.unitCost ? Number(rs.unitCost) : undefined, supplier: rs.supplier || undefined }).then((r) => r.json()),
-    onSuccess: () => { toast({ title: t("admin.prod.batchAdded") }); setRs({ productId: "", supplier: "", qty: 1, unitCost: 0 }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
+    mutationFn: () => apiRequest("POST", "/api/reborn/pos/stock-in", { productId: Number(rs.productId), qty: Number(rs.qty), unitCost: rs.unitCost ? Number(rs.unitCost) : undefined, supplier: rs.supplier || undefined, receivedAt: rs.receivedAt ? new Date(rs.receivedAt).toISOString() : undefined }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("admin.prod.batchAdded") }); setRs({ productId: "", supplier: "", qty: 1, unitCost: 0, receivedAt: nowLocal() }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   return (
@@ -2244,6 +2246,7 @@ function Products() {
           <label className="text-xs text-white/50">{t("admin.prod.supplier")}<input value={rs.supplier} onChange={(e) => setRs({ ...rs, supplier: e.target.value })} placeholder={t("admin.prod.supNameShort")} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">{t("admin.prod.qty")}<input type="number" inputMode="numeric" value={rs.qty || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, qty: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={rs.unitCost || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setRs({ ...rs, unitCost: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50 col-span-full">{t("admin.prod.receivedAt")}<input type="datetime-local" value={rs.receivedAt} max={nowLocal()} onChange={(e) => setRs({ ...rs, receivedAt: e.target.value })} className={inp + " w-full"} /></label>
         </div>
         <button onClick={() => restock.mutate()} disabled={!rs.productId || !Number(rs.qty) || restock.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.prod.addBatch")}</button>
         </>}
@@ -2673,17 +2676,7 @@ function Inventory() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/inventory"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory").then((r) => r.json()) });
-  const [draft, setDraft] = useState<Record<number, number>>({});
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [note, setNote] = useState("");
-  const saved: any[] = data?.items || [];
-  const allItems: any[] = saved.map((i) => (draft[i.id] === undefined ? i : { ...i, draftStock: draft[i.id] }));
-  const changes = saved.filter((i) => draft[i.id] !== undefined).map((i) => ({ productId: i.id, name: i.name, from: i.stock, to: draft[i.id] }));
-  const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/inventory/counts", { changes: changes.map((c) => ({ productId: c.productId, from: c.from, to: c.to })), note }).then((r) => r.json()),
-    onSuccess: () => { toast({ title: t("admin.cnt.saved") }); setDraft({}); setNote(""); setIsConfirming(false); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/logs"] }); },
-    onError: (x: any) => { setIsConfirming(false); toast({ title: t("admin.c.failed"), description: String(x.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); },
-  });
+  const allItems: any[] = data?.items || [];
   const [industry, setIndustry] = useState("");
   const [openId, setOpenId] = useState<number | null>(null);
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
@@ -2697,10 +2690,6 @@ function Inventory() {
   const totals = industry
     ? items.reduce((a, it) => ({ units: a.units + it.stock, cost: a.cost + it.stockValue, retail: a.retail + it.retailValue, low: a.low + (it.low ? 1 : 0) }), { units: 0, cost: 0, retail: 0, low: 0 })
     : (data?.totals || { units: 0, cost: 0, retail: 0, low: 0 });
-  // +, − and a typed number only change the draft; nothing is saved until the admin presses Save and confirms.
-  const setDraftCount = (it: any, target: number) => setDraft((current) => { const next = { ...current }; if (target === it.stock) delete next[it.id]; else next[it.id] = target; return next; });
-  const step = (it: any, delta: number) => setDraftCount(it, Math.max(0, (it.draftStock ?? it.stock) + delta));
-  const setCount = (it: any, value: string) => { const target = Math.floor(Number(value)); if (Number.isFinite(target) && target >= 0) setDraftCount(it, target); };
   const exportCsv = () => {
     const rows = [[t("admin.prod.category"), t("admin.prod.item"), t("admin.prod.stock"), t("admin.inv.unitCost"), t("admin.inv.stockValue"), t("admin.inv.retailValue")], ...items.map((i) => [i.category, i.name, String(i.stock), String(i.cost), String(i.stockValue), String(i.retailValue)])];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
@@ -2710,28 +2699,7 @@ function Inventory() {
   return (
     <div className="space-y-3">
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap"><span className="text-xs text-white/50">{t("admin.c.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d ? indLabel(d) : t("admin.c.all")}</button>)}</div>}
-      {canChange && changes.length > 0 && (
-        <div className="sticky top-16 z-30 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/50 bg-[#2a2008]/95 p-3 backdrop-blur">
-          <span className="flex-1 text-sm font-bold text-amber-200">{t("admin.cnt.unsaved", { n: String(changes.length) })}</span>
-          <button type="button" onClick={() => setDraft({})} className="min-h-[44px] px-4 rounded-lg text-xs font-semibold bg-white/10 border border-white/15">{t("admin.cnt.discard")}</button>
-          <button type="button" onClick={() => setIsConfirming(true)} className="min-h-[44px] px-5 rounded-lg text-sm font-bold bg-amber-400 text-black">{t("admin.c.save")}</button>
-        </div>
-      )}
-      {isConfirming && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 text-white" onClick={() => !save.isPending && setIsConfirming(false)}>
-          <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#160f2a] p-4" onClick={(e) => e.stopPropagation()}>
-            <p className="font-bold mb-2">{t("admin.cnt.confirmTitle")}</p>
-            <ul className="max-h-60 overflow-y-auto space-y-1 text-sm mb-3">
-              {changes.map((c) => <li key={c.productId} className="flex justify-between gap-2"><span className="truncate">{c.name}</span><span className="shrink-0 tabular-nums">{c.from} → <b className={c.to > c.from ? "text-emerald-300" : "text-red-300"}>{c.to}</b> ({c.to - c.from > 0 ? "+" : ""}{c.to - c.from})</span></li>)}
-            </ul>
-            <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder={t("admin.cnt.reason")} className={inp + " w-full mb-3"} />
-            <p className="text-[11px] text-white/50 mb-3">{t("admin.cnt.logHint")}</p>
-            <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setIsConfirming(false)} disabled={save.isPending} className="min-h-[44px] px-4 rounded-lg text-sm font-semibold bg-white/10 border border-white/15">{t("admin.cnt.back")}</button>
-              <button type="button" onClick={() => save.mutate()} disabled={save.isPending} className="min-h-[44px] px-5 rounded-lg text-sm font-bold bg-emerald-500 text-black disabled:opacity-50">{t("admin.cnt.confirm")}</button>
-            </div>
-          </div>
-        </div>, document.body)}
+      <p className="text-xs text-white/50">{t("admin.inv.readOnlyHint")}</p>
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
       {canChange && <ReceiptScan />}
       {role === "admin" && <SupplierReorderPanel />}
@@ -2746,7 +2714,7 @@ function Inventory() {
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
       {/* Desktop: spreadsheet view */}
-      {items.length > 0 && <div className="hidden lg:block"><InventoryTable canChange={canChange} items={items} money={money} step={step} setCount={setCount} openId={openId} onToggle={toggleEditor} renderEditor={renderEditor} /></div>}
+      {items.length > 0 && <div className="hidden lg:block"><InventoryTable canChange={canChange} items={items} money={money} openId={openId} onToggle={toggleEditor} renderEditor={renderEditor} /></div>}
       {/* Mobile / tablet: grouped cards */}
       <div className="lg:hidden space-y-3">
       {cats.map((cat) => (
@@ -2762,14 +2730,7 @@ function Inventory() {
                 </div>
                 {canChange && <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-10 h-10 shrink-0 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>}
               </div>
-              {canChange ? (<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/20 px-2.5 py-2">
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => step(it, -1)} aria-label="-1" className="w-11 h-11 min-h-0 p-0 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center text-xl">−</button>
-                  <StockCount it={it} onSet={setCount} className="w-16 h-11" />
-                  <button type="button" onClick={() => step(it, 1)} aria-label="+1" className="w-11 h-11 min-h-0 p-0 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center text-xl">+</button>
-                </div>
-                {it.unitsPerPack > 1 && <PackStep it={it} step={step} />}
-              </div>) : <p className="rounded-xl bg-black/20 px-3 py-2 text-sm">{t("admin.prod.stock")}: <b className="tabular-nums">{it.stock}</b></p>}
+              <p className="rounded-xl bg-black/20 px-3 py-2 text-sm">{t("admin.prod.stock")}: <b className="tabular-nums">{it.stock}</b>{it.unitsPerPack > 1 && (() => { const split = packBreakdown(it.stock, it.unitsPerPack); return split ? <span className="ml-2 text-[11px] text-white/60">{t("admin.pack.split", { packs: String(split.packs), loose: String(split.loose) })}</span> : null; })()}</p>
             </div>
           ))}
           {openId !== null && items.some((x) => x.id === openId && x.category === cat) && renderEditor(openId)}
@@ -2781,41 +2742,12 @@ function Inventory() {
   );
 }
 
-// Items sold by the pack: "= 2 packs + 2" under the count and a button that adds / takes a whole pack at once.
-function PackStep({ it, step }: { it: any; step: (it: any, delta: number) => void }) {
-  const { t } = useTranslation();
-  const split = packBreakdown(it.draftStock ?? it.stock, it.unitsPerPack);
-  return (
-    <span className="inline-flex flex-wrap items-center gap-1.5 text-[11px] text-white/60">
-      <button type="button" onClick={() => step(it, -it.unitsPerPack)} aria-label={t("admin.pack.minus", { n: String(it.unitsPerPack) })} className="h-9 min-h-0 px-2.5 py-0 rounded-md bg-white/5 border border-white/10">-{it.unitsPerPack}</button>
-      <button type="button" onClick={() => step(it, it.unitsPerPack)} aria-label={t("admin.pack.plus", { n: String(it.unitsPerPack) })} className="h-9 min-h-0 px-2.5 py-0 rounded-md bg-amber-400/90 text-black font-bold">+{it.unitsPerPack}</button>
-      {split && <span className="whitespace-nowrap">{t("admin.pack.split", { packs: String(split.packs), loose: String(split.loose) })}</span>}
-    </span>
-  );
-}
-
-// The stock count: shows the number and can be typed over; leaving the box or pressing Enter saves the new count.
-function StockCount({ it, onSet, className }: { it: any; onSet: (it: any, value: string) => void; className: string }) {
-  const shown = it.draftStock ?? it.stock;
-  const isChanged = it.draftStock !== undefined;
-  return (
-    <span className="inline-flex flex-col items-center">
-      <input key={`${it.stock}-${it.draftStock}`} type="number" inputMode="numeric" min={0} defaultValue={shown} aria-label={it.name}
-        onFocus={(event) => event.currentTarget.select()}
-        onBlur={(event) => onSet(it, event.currentTarget.value)}
-        onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
-        className={`${className} text-center font-extrabold tabular-nums rounded-lg border py-1 ${isChanged ? "bg-amber-400/15 border-amber-400 text-amber-200" : `bg-black/30 border-white/15 ${it.low ? "text-red-300" : "text-white"}`}`} />
-      {isChanged && <span className="text-[10px] text-white/50 line-through">{it.stock}</span>}
-    </span>
-  );
-}
-
 const inventorySortValue = (it: any, key: string): string | number => ({
   name: it.name || "", category: it.category || "", department: deptLabel(it.department), suppliers: (it.suppliers || []).join(", "), cost: Number(it.cost) || 0,
   stockValue: Number(it.stockValue) || 0, retailValue: Number(it.retailValue) || 0, stock: Number(it.stock) || 0,
 } as Record<string, string | number>)[key];
 
-function InventoryTable({ canChange, items, money, step, setCount, openId, onToggle, renderEditor }: { canChange: boolean; items: any[]; money: (v: number) => string; step: (it: any, delta: number) => void; setCount: (it: any, value: string) => void; openId: number | null; onToggle: (id: number) => void; renderEditor: (id: number) => React.ReactNode }) {
+function InventoryTable({ canChange, items, money, openId, onToggle, renderEditor }: { canChange: boolean; items: any[]; money: (v: number) => string; openId: number | null; onToggle: (id: number) => void; renderEditor: (id: number) => React.ReactNode }) {
   const { t } = useTranslation();
   const [sort, setSort] = useState<SortState>(null);
   const rows = sort ? sortRows(items, sort, inventorySortValue) : [...items].sort((a, b) => (a.category || "").localeCompare(b.category || "") || (a.name || "").localeCompare(b.name || ""));
@@ -2847,7 +2779,7 @@ function InventoryTable({ canChange, items, money, step, setCount, openId, onTog
                 <td className="px-2 py-1.5 text-right tabular-nums text-white/70">{money(it.cost)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-amber-300">{money(it.stockValue)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-emerald-300">{money(it.retailValue)}</td>
-                {canChange ? (<td className="px-2 py-1.5"><div className="flex items-center justify-center gap-1.5"><button onClick={() => step(it, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center">−</button><StockCount it={it} onSet={setCount} className="w-16" />{it.unitsPerPack > 1 && <PackStep it={it} step={step} />}<button onClick={() => step(it, 1)} className="w-7 h-7 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center">+</button></div></td>) : <td className="px-2 py-1.5 text-center font-extrabold tabular-nums">{it.stock}</td>}
+                <td className="px-2 py-1.5 text-center font-extrabold tabular-nums">{it.stock}</td>
               {canChange && <td className="px-2 py-1.5"><button type="button" onClick={() => onToggle(it.id)} aria-label={t("admin.c.edit")} title={t("admin.c.edit")} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/70 inline-flex items-center justify-center"><Pencil className="w-4 h-4" /></button></td>}
               </tr>
               {openId === it.id && <tr><td colSpan={9} className="p-2">{renderEditor(it.id)}</td></tr>}

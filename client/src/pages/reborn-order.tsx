@@ -79,7 +79,7 @@ export default function RebornOrder() {
               <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-amber-300" /><span>{t("vn.order.orderLabel")} <b>{o.orderNo}</b> · {t("vn.order.tableN", { n: o.tableNumber })} · {rp(Number(o.total))}</span></div>
               {Array.isArray(o.items) && o.items.length > 0 && (
                 <div className="mt-1 pl-6 space-y-0.5">
-                  {o.items.map((it: any) => (
+                  {o.items.filter((it: any) => it.status !== "lost").map((it: any) => (
                     <div key={it.id} className="flex items-center justify-between text-[13px] text-white/70">
                       <span className={it.status === "rejected" ? "line-through opacity-60" : ""}>{it.qty}× {it.name}</span>
                       <span className={

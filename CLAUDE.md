@@ -778,12 +778,14 @@ text.
   The Excel import has "new deliveries — add to stock" for the same item arriving from another supplier. Two items with the same name
   are matched ambiguously by the Excel import (the later one wins) — merge them first.
 
-## Stock number changes (Admin › Inventory): save, confirm, log
+## Stock numbers: added in Products, read-only in Inventory
 
-- + / − / a typed stock count only change a draft (amber number, old one struck through); a bar offers "Save" → a confirm box lists
-  every change (old → new) with an optional reason → `POST /api/reborn/admin/inventory/counts`. Each change must start from the number the
-  admin saw (a sale in between → 409, nothing saved), is written to `stock_movements` (reason `adjustment`) and logged to `admin_logs` as
-  `stock_count` with `oldValues` / `newValues` and "Stock of "X": 24 → 30 (+6)" + the admin. The Excel import and cost edits log the same way.
+- Stock is added in Admin › Products › Restock: item, supplier, quantity, unit cost and the **delivery date & time** (`receivedAt`, default now; `POST /api/reborn/pos/stock-in`
+  refuses a future time or one older than a year). The movement in `stock_movements` and the `purchase` expense carry that time as `created_at`, so the oldest-first (FIFO) layers follow
+  the real delivery order. Admin › Inventory shows the numbers only (no + / − / typed count / Save bar); there it sets bundles, packages and sell options. Corrections still go through
+  stock-in with a negative quantity, the Excel import or the receipt scan; the old `POST /api/reborn/admin/inventory/counts` route stays on the server but has no screen.
+- A spilled / broken item on an open bill: POS bill › **Lost** on the line (`POST /api/reborn/pos/items/:id/lose`, status `lost`): leaves the bill total, keeps the stock gone (cancel / refund do not
+  give it back), and books a `loss` expense at cost (`refType pos_loss`). Removing an item updates the bill at once without a refresh.
 
 ## LED lights inside the phone app
 
@@ -953,7 +955,8 @@ text.
 - Tested end to end on two real Postgres instances (scripts/e2e/venue-sync.mjs, venue-offline-part1/2.mjs): first copy, sale → cloud with same ids / stock / ledger, cloud edit → venue, counters from both
   sides add up, different columns of one row both survive, sign-up + delete, no echo, repeated push ignored, wrong token refused, and an outage with sales / table order / kitchen docket / sign-up that all
   arrive once when the cloud returns.
-- The venue PC download: `node venue/pack.mjs` (on Windows) builds `RebornVenue-windows.zip` (~290 MB: Node, the built app, production node_modules + drizzle-kit, the launcher with its embedded Postgres) in %TEMP%eborn-venue-pack.
+- The venue PC download: `node venue/pack.mjs` (on Windows) builds `RebornVenue-windows.zip` (~290 MB: Node, the built app, production node_modules + drizzle-kit, the launcher with its embedded Postgres) in %TEMP%
+eborn-venue-pack.
   Unzip → `Start Reborn Venue.bat` → a setup page on http://localhost:3000 asks for the cloud address + token (checked against the cloud) → the launcher makes its Postgres, creates the tables with drizzle-kit (all on the first start,
   only additions on later starts), starts the app in VENUE_MODE and opens it. `config.json` and `data/` sit next to the folders, so a newer zip unzipped over it keeps them. Tested from an empty folder: setup page, own database, first
   copy of the cloud data, login with the cloud password, sync status online.

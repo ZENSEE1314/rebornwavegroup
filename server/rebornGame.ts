@@ -1232,6 +1232,8 @@ function packPricingFields(b: { unitsPerPack?: unknown; packPrice?: unknown }): 
 
 const PAYROLL_REMINDER_CHECK_MS = 60 * 60 * 1000;
 const OFFLINE_SALE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // a sale saved offline is taken for a week at most
+const STOCK_IN_MAX_AGE_MS = 366 * 24 * 60 * 60 * 1000;
+const STOCK_IN_FUTURE_SLACK_MS = 5 * 60 * 1000;
 const MAX_SHIFTS_AT_ONCE = 300;
 const SHIFT_DATES_IN_NOTICE = 6;
 
@@ -3356,10 +3358,14 @@ export function registerRebornRoutes(app: Express) {
     const [p] = await db.select().from(posProducts).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid)));
     if (!p) return res.status(404).json({ message: tr(req, { en: "Product not found", zh: "找不到该商品", id: "Produk tidak ditemukan" }) });
     const supplier = String(req.body?.supplier || "").trim() || null;
+    const receivedAt = req.body?.receivedAt ? new Date(req.body.receivedAt) : null;
+    if (receivedAt && (Number.isNaN(receivedAt.getTime()) || receivedAt.getTime() > Date.now() + STOCK_IN_FUTURE_SLACK_MS || receivedAt.getTime() < Date.now() - STOCK_IN_MAX_AGE_MS))
+      return res.status(400).json({ message: tr(req, { en: "The delivery date and time must be within the last year and not in the future", zh: "收货日期和时间必须在过去一年内，且不能是未来", id: "Tanggal dan jam penerimaan harus dalam setahun terakhir dan tidak di masa depan" }) });
+    const createdAt = receivedAt ?? undefined;
     await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}`, ...(supplier ? { supplierName: supplier } : {}) }).where(eq(posProducts.id, id));
-    await db.insert(stockMovements).values({ productId: id, delta: qty, reason: qty > 0 ? "stock_in" : "adjustment", supplier, unitCost: unitCost > 0 ? String(unitCost) : null, note: req.body?.note || null, userId: getUserId(req)! });
+    await db.insert(stockMovements).values({ productId: id, delta: qty, reason: qty > 0 ? "stock_in" : "adjustment", supplier, createdAt, unitCost: unitCost > 0 ? String(unitCost) : null, note: req.body?.note || null, userId: getUserId(req)! });
     if (qty > 0 && unitCost > 0)
-      await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}`, refType: "stock_movement", refId: String(id), userId: getUserId(req)! });
+      await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}`, refType: "stock_movement", refId: String(id), createdAt, userId: getUserId(req)! });
     await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"${supplier ? ` (${supplier})` : ""}` });
     res.json({ message: tr(req, { en: "Stock updated", zh: "库存已更新", id: "Stok diperbarui" }) });
   }));
@@ -3406,9 +3412,11 @@ export function registerRebornRoutes(app: Express) {
     return recalcTicket(orderId);
   }
   // Ticket subtotal/total = sum of non-rejected line totals.
+  // A line taken off the bill: rejected (never served) or lost (spilled / broken after it was made).
+  const GONE_ITEM = ["rejected", "lost"];
   async function recalcTicket(orderId: number) {
     const rows = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, orderId));
-    const total = rows.filter((r) => r.status !== "rejected").reduce((s, r) => s + Number(r.lineTotal), 0);
+    const total = rows.filter((r) => !GONE_ITEM.includes(r.status)).reduce((s, r) => s + Number(r.lineTotal), 0);
     await db.update(posTickets).set({ subtotal: String(total), total: String(total) }).where(eq(posTickets.id, orderId));
     return total;
   }
@@ -3726,7 +3734,7 @@ export function registerRebornRoutes(app: Express) {
     const reason = String(req.body?.reason || "").trim();
     const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
     if (!it) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
-    if (it.status !== "rejected" && it.productId) {
+    if (!GONE_ITEM.includes(it.status) && it.productId) {
       await moveStock(it.productId, it.qty, "adjustment", `Removed item #${id}`, getUserId(req)!);
     }
     if (it.source === "app") await db.update(posTicketItems).set({ status: "rejected", rejectReason: reason || "Removed by staff" }).where(eq(posTicketItems.id, id));
@@ -3734,6 +3742,24 @@ export function registerRebornRoutes(app: Express) {
     await recalcTicket(it.orderId);
     await logAdmin(req, { targetType: "pos_item", targetId: id, action: "remove", entityType: "order", description: `Removed "${it.name}"${reason ? ` (${reason})` : ""}` });
     res.json({ message: reason ? tr(req, { en: "Removed: {r}", zh: "已移除：{r}", id: "Dihapus: {r}" }, { r: reason }) : tr(req, { en: "Item removed", zh: "品项已移除", id: "Item dihapus" }) });
+  }));
+  // An item that was made and then spilled / broken / dropped: the customer does not pay for it, the stock stays gone, and what it cost is booked as a loss.
+  app.post("/api/reborn/pos/items/:id/lose", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
+    if (!it) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
+    if (GONE_ITEM.includes(it.status)) return res.status(400).json({ message: tr(req, { en: "This item is already off the bill", zh: "该品项已不在账单上", id: "Item ini sudah tidak ada di tagihan" }) });
+    const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, it.orderId));
+    if (!ticket || ticket.status !== "open") return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
+    const reason = String(req.body?.reason || "").trim().slice(0, 200) || tr(req, { en: "Spilled / lost", zh: "洒了 / 损耗", id: "Tumpah / hilang" });
+    const [product] = it.productId ? await db.select().from(posProducts).where(eq(posProducts.id, it.productId)) : [];
+    const cost = roundMoney((Number(product?.cost) || 0) * it.qty);
+    await db.update(posTicketItems).set({ status: "lost", rejectReason: reason }).where(eq(posTicketItems.id, id));
+    await recalcTicket(it.orderId);
+    if (cost > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "loss", amount: String(cost), note: `Lost: ${it.name} ×${it.qty} (${reason}) · ${ticket.orderNo}`, refType: "pos_loss", refId: String(id), userId: getUserId(req) });
+    emitLiveUpdate("/api/reborn/pos/orders", { action: "ITEM_LOST", resource: String(it.orderId) });
+    await logAdmin(req, { targetType: "pos_item", targetId: id, action: "lose", entityType: "order", description: `Lost "${it.name}" ×${it.qty} (${reason}), cost ${cost}` });
+    res.json({ message: tr(req, { en: "Marked as lost: {n} (cost RP {c})", zh: "已记为损耗：{n}（成本 RP {c}）", id: "Dicatat hilang: {n} (modal RP {c})" }, { n: it.name, c: cost }) });
   }));
   // Move one item to another table's open ticket (split a bill). Creates the ticket if needed.
   app.post("/api/reborn/pos/items/:id/move", requireStaff(async (req, res) => {
@@ -3823,7 +3849,7 @@ export function registerRebornRoutes(app: Express) {
     if (req.body?.keepBottle?.enabled && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member before keeping a bottle at checkout", zh: "结账寄存酒瓶前请先标记会员", id: "Tandai member sebelum menitipkan botol saat pembayaran" }) });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }) });
     const settings = await getSettings();
-    const lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id))).filter((x) => x.status !== "rejected");
+    const lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id))).filter((x) => !GONE_ITEM.includes(x.status));
     // Use the request discount if provided, else the discount already set on the ticket.
     const reqDisc = req.body?.discount !== undefined ? Number(req.body.discount) : Number(o.discount || 0);
     const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal) })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent });
@@ -3873,7 +3899,7 @@ export function registerRebornRoutes(app: Express) {
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Order not open", zh: "该订单未开启", id: "Pesanan tidak terbuka" }) });
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
-    for (const it of items) if (it.productId) {
+    for (const it of items) if (it.productId && !GONE_ITEM.includes(it.status)) { // rejected items were already returned; lost ones are gone for good
       await moveStock(it.productId, it.qty, "order_cancel", `Cancelled ${o.orderNo}`, getUserId(req)!);
     }
     await db.update(posTickets).set({ status: "cancelled" }).where(eq(posTickets.id, id));
@@ -3931,7 +3957,7 @@ export function registerRebornRoutes(app: Express) {
     if (req.body?.ticketId) {
       const [o] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.body.ticketId)));
       if (!o) return res.status(404).json({ message: tr(req, { en: "Order not found", zh: "找不到该订单", id: "Pesanan tidak ditemukan" }) });
-      lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => x.status !== "rejected").map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal) }));
+      lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal) }));
       userId = o.memberId;
     } else {
       lines = (Array.isArray(req.body?.items) ? req.body.items : []).map((it: any) => ({ productId: Number(it.productId) || null, lineTotal: (Number(it.price) || 0) * Math.max(1, Math.floor(Number(it.qty) || 1)) }));
@@ -4209,7 +4235,7 @@ export function registerRebornRoutes(app: Express) {
     const [order] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!order || order.status !== "paid") return { status: 400 as const, body: { message: tr(req, { en: "Only a paid bill can be refunded", zh: "只有已付款的账单才能退款", id: "Hanya tagihan yang sudah dibayar yang bisa di-refund" }) }, order: null as any };
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
-    for (const item of items.filter((x) => x.status !== "rejected" && x.productId)) {
+    for (const item of items.filter((x) => !GONE_ITEM.includes(x.status) && x.productId)) {
       await moveStock(item.productId!, item.qty, "refund", `Refund ${order.orderNo}: ${reason}`, actorId);
     }
     if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints: sql`greatest(0,${users.loyaltyPoints}-${order.pointsEarned})`, lifetimePoints: sql`greatest(0,${users.lifetimePoints}-${order.pointsEarned})`, updatedAt: new Date() }).where(eq(users.id, order.memberId));

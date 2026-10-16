@@ -12,6 +12,7 @@ import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { ReasonDialog } from "@/components/ReasonDialog";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
@@ -23,6 +24,8 @@ interface Staff { id: string; name: string; role: string; }
 interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "sales" | "stock" | "bottles" | "packages";
 const OPEN_TICKETS = ["/api/reborn/pos/orders"];
+// A line that no longer counts on the bill: rejected before it was served, or lost (spilled / broken) after.
+const OFF_BILL = ["rejected", "lost"];
 const RECOMMENDED_GROUP = "__recommended__";
 const PACKAGES_GROUP = "__packages__";
 // Translate a server-provided enum value, falling back to the raw value when no key exists.
@@ -328,7 +331,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { t } = useTranslation();
   const { data: products = [] } = useProducts();
   const productById = useMemo(() => new Map(products.map((p)=>[p.id,p])), [products]);
-  const orderDrinks = (order.items || []).filter((item:any)=>item.status !== "rejected").map((item:any)=>({ name:item.name, category:productById.get(item.productId)?.category || "" })).filter((item:any)=>isDrink(item.category,item.name));
+  const orderDrinks = (order.items || []).filter((item:any)=>!OFF_BILL.includes(item.status)).map((item:any)=>({ name:item.name, category:productById.get(item.productId)?.category || "" })).filter((item:any)=>isDrink(item.category,item.name));
   const [code, setCode] = useState("");
   const [sales, setSales] = useState("");
   const [discount, setDiscount] = useState(Number((order as any).discount) || 0);
@@ -384,10 +387,31 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     },
     onSettled: () => { invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
   });
+  const [ask, setAsk] = useState<{ kind: "remove" | "lose"; item: any } | null>(null);
+  // Removing or losing a line shows at once (the bill and the total follow); the server's answer then confirms it, or the line comes back.
   const itemEdit = useMutation({
     mutationFn: (v: { id: number; op: string; body?: any }) => post(`/api/reborn/pos/items/${v.id}/${v.op}`, v.body || {}),
+    onMutate: async (v) => {
+      if (v.op !== "remove" && v.op !== "lose") return undefined;
+      await qc.cancelQueries({ queryKey: OPEN_TICKETS });
+      const ticketsBefore = qc.getQueryData<any[]>(OPEN_TICKETS);
+      qc.setQueryData<any[]>(OPEN_TICKETS, (list = []) => list.map((ticket: any) => {
+        if (!(ticket.items || []).some((item: any) => item.id === v.id)) return ticket;
+        const items = (ticket.items || []).flatMap((item: any) => {
+          if (item.id !== v.id) return [item];
+          if (v.op === "lose") return [{ ...item, status: "lost", rejectReason: v.body?.reason || item.rejectReason }];
+          return item.source === "app" ? [{ ...item, status: "rejected", rejectReason: v.body?.reason || "Removed by staff" }] : [];
+        });
+        const total = items.filter((item: any) => !OFF_BILL.includes(item.status)).reduce((sum: number, item: any) => sum + Number(item.lineTotal), 0);
+        return { ...ticket, items, subtotal: String(total), total: String(total) };
+      }));
+      return { ticketsBefore };
+    },
     onSuccess: (d: any) => { toast({ title: d.message }); invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
-    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+    onError: (e: any, _v, context) => {
+      if (context?.ticketsBefore) qc.setQueryData(OPEN_TICKETS, context.ticketsBefore);
+      toast({ title: t("pos.failed"), description: e.message, variant: "destructive" });
+    },
   });
   const renameTable = useMutation({
     mutationFn: (tableNumber: string) => post(`/api/reborn/pos/orders/${order.id}/table`, { tableNumber }),
@@ -436,6 +460,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                         {it.status === "pending" && <span className="ml-1 text-[10px] text-amber-300 bg-amber-400/20 px-1 rounded">{t("pos.newBadge")}</span>}
                         {it.status === "served" && <span className="ml-1 text-[10px] text-emerald-300">{t("pos.item.served")}</span>}
                         {it.status === "rejected" && <span className="ml-1 text-[10px] text-red-300">✕ {it.rejectReason}</span>}
+                        {it.status === "lost" && <span className="ml-1 text-[10px] text-orange-300">⚠ {t("pos.item.lostTag")}: {it.rejectReason}</span>}
                       </span>
                       <span>{rp(Number(it.lineTotal))}</span>
                     </div>
@@ -445,13 +470,14 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                         <button onClick={() => { const reason = prompt(t("pos.item.rejectPrompt"), t("pos.item.rejectDefault")) || t("pos.item.unavailable"); itemStatus.mutate({ id: it.id, status: "rejected", reason }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-red-500/15 text-red-200 border border-red-400/40">{t("pos.item.reject")}</button>
                       </div>
                     )}
-                    {it.status !== "rejected" && (
+                    {!OFF_BILL.includes(it.status) && (
                       <div className="flex flex-wrap gap-1.5 pb-1">
                         {it.status === "accepted" && <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/70">{t("pos.item.markServed")}</button>}
                         <button onClick={() => { const p = prompt(t("pos.item.pricePrompt", { name: it.name }), String(Number(it.price))); if (p !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { price: Number(p) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.item.price")}</button>
                         <button onClick={() => { const q = prompt(t("pos.item.qtyPrompt", { name: it.name }), String(it.qty)); if (q !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { qty: Number(q) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.qtyShort")}</button>
                         <button onClick={() => { const tn = prompt(t("pos.item.movePrompt", { name: it.name }), ""); if (tn && tn.trim()) itemEdit.mutate({ id: it.id, op: "move", body: { tableNumber: tn.trim() } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.item.move")}</button>
-                        <button onClick={() => { const reason = prompt(t("pos.item.removePrompt", { name: it.name }), ""); if (reason !== null) itemEdit.mutate({ id: it.id, op: "remove", body: { reason } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-red-500/15 text-red-200">{t("pos.item.remove")}</button>
+                        <button onClick={() => setAsk({ kind: "remove", item: it })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-red-500/15 text-red-200">{t("pos.item.remove")}</button>
+                        {it.status !== "pending" && <button onClick={() => setAsk({ kind: "lose", item: it })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-orange-500/15 text-orange-200">{t("pos.item.lose")}</button>}
                       </div>
                     )}
                   </div>
@@ -510,6 +536,13 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
         </div>
       </div>
       {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>{setReceiptResult(null);invalidate();onBack();}} />}
+      {ask && <ReasonDialog
+        title={t(ask.kind === "lose" ? "pos.item.loseTitle" : "pos.item.removeTitle", { name: ask.item.name })}
+        hint={ask.kind === "lose" ? t("pos.item.loseHint") : undefined}
+        confirmLabel={t(ask.kind === "lose" ? "pos.item.lose" : "pos.item.remove")}
+        isDanger
+        onCancel={() => setAsk(null)}
+        onConfirm={(reason) => { itemEdit.mutate({ id: ask.item.id, op: ask.kind, body: { reason } }); setAsk(null); }} />}
     </div>
   );
 }
@@ -636,7 +669,7 @@ function SalesTodayTab() {
       {!isLoading && all.length === 0 && <p className="text-sm text-white/40 py-8 text-center">{t("pos.noSalesToday")}</p>}
       {all.map((o: any) => {
         const isRef = o.status === "refunded";
-        const items = (o.items || []).filter((it: any) => it.status !== "rejected");
+        const items = (o.items || []).filter((it: any) => !OFF_BILL.includes(it.status));
         return (
           <div key={o.id} className={`rounded-2xl border p-3 ${isRef ? "border-red-400/30 bg-red-500/5" : "border-white/10 bg-white/5"}`}>
             <div className="flex items-start justify-between gap-2">
@@ -827,7 +860,7 @@ function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone
         <div className="flex justify-between gap-4"><span>{t("pos.rc.date")}</span><span className="text-right">{paidAt}</span></div>
       </div>
       <div className="my-4 border-t border-dashed border-black/50" />
-      <div className="space-y-2 text-sm">{(order.items || []).filter((x:any)=>x.status!=="rejected").map((item:any)=><div key={item.id || `${item.name}-${item.qty}`} className="flex justify-between gap-3"><span>{item.qty}× {item.name}</span><span>{rp(Number(item.lineTotal ?? item.price * item.qty))}</span></div>)}</div>
+      <div className="space-y-2 text-sm">{(order.items || []).filter((x:any)=>!OFF_BILL.includes(x.status)).map((item:any)=><div key={item.id || `${item.name}-${item.qty}`} className="flex justify-between gap-3"><span>{item.qty}× {item.name}</span><span>{rp(Number(item.lineTotal ?? item.price * item.qty))}</span></div>)}</div>
       <div className="my-4 border-t border-dashed border-black/50" />
       <div className="space-y-1 text-sm">
         <div className="flex justify-between"><span>{t("pos.rc.subtotal")}</span><span>{rp(Number(order.subtotal ?? order.total))}</span></div>
