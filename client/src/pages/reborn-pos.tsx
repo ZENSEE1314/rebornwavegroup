@@ -293,14 +293,18 @@ function TablesTab() {
   );
 }
 
-const emptyBottle = () => ({ enabled: false, type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
+const emptyBottle = () => ({ enabled: false, isOwn: false, type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
 const isDrink = (category = "", name = "") => /drink|beverage|beer|lager|ale|wine|whisky|whiskey|spirit|vodka|gin|rum|tequila|cocktail|bottle/i.test(`${category} ${name}`);
 const bottleType = (category = "", name = "") => /whisky|whiskey|spirit|vodka|gin|rum/i.test(`${category} ${name}`) ? "whisky" : /wine/i.test(`${category} ${name}`) ? "wine" : /beer|lager|ale/i.test(`${category} ${name}`) ? "beer" : "other";
-function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [] }: { value: any; onChange: (value: any) => void; hasMember: boolean; drinkOptions?: Array<{ name: string; category?: string }> }) {
+// onAddCorkage: puts a corkage service (a product marked as a service) on the bill being paid, once per bottle kept; the bill total changes before it is charged.
+function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [], onAddCorkage }: { value: any; onChange: (value: any) => void; hasMember: boolean; drinkOptions?: Array<{ name: string; category?: string }>; onAddCorkage?: (service: Product, quantity: number) => void }) {
   const { t } = useTranslation();
+  const { data: allProducts = [] } = useProducts();
+  const services = allProducts.filter((p) => p.isService && Number(p.salePrice ?? p.price) > 0);
+  const [corkageId, setCorkageId] = useState("");
   const input = "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white";
   const unique = Array.from(new Map(drinkOptions.map((x)=>[x.name,x])).values());
-  const availableTypes = Array.from(new Set(unique.map((x)=>bottleType(x.category,x.name))));
+  const availableTypes = value.isOwn ? ["beer", "wine", "whisky", "other"] : Array.from(new Set(unique.map((x)=>bottleType(x.category,x.name))));
   const filtered = unique.filter((x)=>bottleType(x.category,x.name)===value.type);
   useEffect(() => {
     if (!value.enabled || availableTypes.length === 0 || availableTypes.includes(value.type)) return;
@@ -311,11 +315,27 @@ function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [] }: {
     {value.enabled && <div className="mt-3 space-y-2">
       {!hasMember && <p className="rounded-lg bg-red-500/10 p-2 text-xs text-red-200">{t("pos.keep.needMember")}</p>}
       <div className="grid grid-cols-[1fr_80px] gap-2"><select className={input} value={value.type} onChange={(e)=>onChange({...value,type:e.target.value,name:"",photoUrl:""})}>{availableTypes.map((type)=><option key={type} value={type}>{t(`pos.bottleType.${type}`)}</option>)}</select><input className={input} type="number" min={1} value={value.quantity} onChange={(e)=>onChange({...value,quantity:Number(e.target.value)})}/></div>
-      <select className={input} value={value.name} onChange={(e)=>onChange({...value,name:e.target.value})}>
-        <option value="">{t("pos.keep.selectFromOrder", { type: t(`pos.bottleType.${value.type}`) })}</option>
-        {filtered.map((x)=><option key={x.name} value={x.name}>{x.name}</option>)}
-      </select>
-      {drinkOptions.length === 0 && <p className="text-xs text-amber-200">{t("pos.keep.addDrinkFirst")}</p>}
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!value.isOwn} onChange={(e) => onChange({ ...value, isOwn: e.target.checked, name: "", photoUrl: "" })} /> {t("pos.ownBottle")}</label>
+      {value.isOwn
+        ? <input className={input} value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} placeholder={t("pos.ownBottleName")} />
+        :       <select className={input} value={value.name} onChange={(e)=>onChange({...value,name:e.target.value})}>
+          <option value="">{t("pos.keep.selectFromOrder", { type: t(`pos.bottleType.${value.type}`) })}</option>
+          {filtered.map((x)=><option key={x.name} value={x.name}>{x.name}</option>)}
+        </select>}
+      <div className="rounded-xl border border-white/10 p-2.5">
+        <p className="mb-1.5 text-xs text-white/50">🛎️ {t("pos.corkage.title")}</p>
+        {services.length === 0 ? <p className="text-[11px] text-amber-200">{t("pos.corkage.noService")}</p> : (
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <select className={input} value={corkageId} onChange={(e) => setCorkageId(e.target.value)}>
+              <option value="">{t("pos.corkage.none")}</option>
+              {services.map((p) => <option key={p.id} value={p.id}>{p.name} · {rp(Number(p.salePrice ?? p.price))}</option>)}
+            </select>
+            {onAddCorkage && <button type="button" disabled={!corkageId} onClick={() => { const service = services.find((p) => String(p.id) === corkageId); if (service) { onAddCorkage(service, Math.max(1, Math.floor(Number(value.quantity) || 1))); setCorkageId(""); } }} className="rounded-xl bg-amber-400 px-3 text-xs font-bold text-black disabled:opacity-40">{t("pos.corkage.addToBill", { n: String(Math.max(1, Math.floor(Number(value.quantity) || 1))) })}</button>}
+          </div>
+        )}
+        {!onAddCorkage && services.length > 0 && <p className="mt-1.5 text-[11px] text-white/40">{t("pos.corkage.pickAbove")}</p>}
+      </div>
+      {!value.isOwn && drinkOptions.length === 0 && <p className="text-xs text-amber-200">{t("pos.keep.addDrinkFirst")}</p>}
       {(value.type === "wine" || value.type === "whisky") && <div><p className="mb-1 text-xs text-white/50">{t("pos.keep.photoLevel")}</p><ImageUpload value={value.photoUrl} onChange={(photoUrl)=>onChange({...value,photoUrl})} label={t("pos.keep.uploadBottlePhoto")} /></div>}
       <input className={input} value={value.note} onChange={(e)=>onChange({...value,note:e.target.value})} placeholder={t("pos.noteOptional")}/>
     </div>}
@@ -532,7 +552,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             {payable > 0 && pay === "credits" && <CreditsLine code={order.memberCode} total={payable} onBalance={setCreditBal} />}
             {payable > 0 && pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
             {payable > 0 && pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={payable} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(payable)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
-            <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks}/>
+            <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks} onAddCorkage={(service, quantity) => addItems.mutate([{ productId: service.id, name: service.name, price: Number(service.salePrice ?? service.price), qty: quantity }])}/>
             <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (quote?.hasPackages && !order.memberCode) || (payable > 0 && ((pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "credits" && (creditBal === null || creditBal < payable)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{payable > 0 ? t("pos.chargeAmount", { amount: rp(payable), method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(total) })}</button>
             <button onClick={() => { if (confirm(t("pos.cancelConfirm"))) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">{t("pos.cancelTicket")}</button>
           </div>

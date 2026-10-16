@@ -3251,7 +3251,7 @@ export function registerRebornRoutes(app: Express) {
       userId: u.id, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email,
       memberCode: u.referralCode, type: ["beer", "wine", "whisky", "other"].includes(bottle.type) ? bottle.type : "beer",
       name, quantity: Math.max(1, Math.floor(Number(bottle.quantity) || 1)), photoUrl: bottle.photoUrl || null,
-      note: bottle.note || null, storedByStaffId: staffId, status: "kept", storedAt: now, expiresAt: addDays(keepDays, now),
+      note: [bottle.isOwn ? "Own bottle" : "", bottle.note].filter(Boolean).join(" · ") || null, storedByStaffId: staffId, status: "kept", storedAt: now, expiresAt: addDays(keepDays, now),
     }).returning();
     return row;
   }

@@ -106,6 +106,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.lowStock': { en: ' · low!', zh: ' · 库存不足！', id: ' · menipis!' },
   'pos.noProductsPicker': { en: 'No products yet — add them in Admin › Products.', zh: '暂无商品 — 请在 管理 › 商品 中添加。', id: 'Belum ada produk — tambahkan di Admin › Produk.' },
   'pos.happy.now': { en: "Happy hour", zh: "欢乐时段", id: "Happy hour" },
+  'pos.corkage.addToBill': { en: "Add corkage × {n} to the bill", zh: "把开瓶费 × {n} 加到账单", id: "Tambah corkage × {n} ke tagihan" },
+  'pos.corkage.pickAbove': { en: "Add the corkage item above, with the other items of this sale.", zh: "请在上方和其他商品一起添加开瓶费项目。", id: "Tambahkan item corkage di atas bersama item penjualan lainnya." },
   'pos.ownBottle': { en: "Customer's own bottle (corkage)", zh: "客人自带酒（开瓶费）", id: "Botol milik pelanggan (corkage)" },
   'pos.ownBottleName': { en: "Bottle name (type it)", zh: "酒名（手动输入）", id: "Nama botol (ketik)" },
   'pos.corkage.title': { en: "Corkage fee for this bottle", zh: "这瓶酒的开瓶费", id: "Biaya corkage untuk botol ini" },
