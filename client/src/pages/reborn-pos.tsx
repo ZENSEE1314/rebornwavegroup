@@ -494,7 +494,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               <button onClick={() => setBillDiscount.mutate(discPct ? { percent: Number(discPct), reason: discReason } : { amount: discount, reason: discReason })} className="w-full py-2 rounded-xl bg-white/10 text-sm font-semibold">{t("pos.applyDiscount")}</button>
             </div>
             <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-              {(["cash", "card", "credits"] as const).filter((m) => m !== "credits" || !isOffline).map((m) => (
+              {(["cash", "card", "credits"] as const).map((m) => (
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
               ))}
             </div>
@@ -589,7 +589,7 @@ function QuickSaleTab() {
         {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} />}
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${isOffline ? 2 : 3}, minmax(0, 1fr))` }}>
-          {(["cash", "card", "credits"] as const).map((m) => (
+          {(["cash", "card", "credits"] as const).filter((m) => m !== "credits" || !isOffline).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
           ))}
         </div>
