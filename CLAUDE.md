@@ -926,3 +926,12 @@ text.
 - An item whose selling price is 0 is not offered: left out of the POS item picker and the member order page (still in the admin lists, where the price is set).
 - Schedule details: no position field. Each ticked day has its own start / end (`days: [{date, startTime, endTime}]`; new days start with the default hours, any day can be changed, "use the hours above
   for every day" resets them). An added shift can be edited later: pencil on the schedule row → date + hours (`PATCH /api/reborn/admin/shifts/:id`, the worker is notified), or deleted.
+
+## Kitchen / bar screen + auto-printed dockets
+
+- `/kitchen` (pages/reborn-kitchen.tsx; link on the POS page): left open on the kitchen PC / tablet, tabs All · Food · Drinks · Dessert (`shared/station.ts` `stationFor`: the product's own `station`, else from its
+  category name; stored on each `pos_ticket_items.station`). Every 4 s it takes the dockets still to print (`POST /api/reborn/kitchen/claim`: sets `pos_ticket_items.printed_at` for accepted, unprinted items —
+  each item is handed out once, so two screens never print the same one) and prints one docket per order (`printKitchen`; Chrome with `--kiosk-printing` prints with no window; the native app prints through its bridge),
+  with a beep. The list (`GET /api/reborn/kitchen/orders`) shows accepted, not-yet-served items of open bills, oldest first, amber after 10 min / red after 20; the cook taps **Served** per item or **Serve all**
+  (the normal `/pos/items/:id/status` call: the member gets "served"). Orders from the member app are accepted at once (`appOrdersAutoAccept`, default on, Admin › Settings; off = the counter taps Accept first
+  and the docket prints then). With no internet no new order can reach the kitchen (the server is in the cloud); the screen itself still opens.

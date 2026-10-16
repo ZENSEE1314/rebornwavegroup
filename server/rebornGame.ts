@@ -36,6 +36,7 @@ import { cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerStaffContractRoutes } from "./staffContracts";
+import { stationFor, STATIONS } from "@shared/station";
 import { registerPayslipRoutes, savePayslip, runPayrollReminder, type PayslipDeps } from "./payslips";
 import type { PayslipData } from "@shared/payslip";
 import { registerVenueScanRoutes } from "./venueScan";
@@ -94,6 +95,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
   payrollDay: "15",         // day of month payroll is recorded/paid (the admin reminder comes then)
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
+  appOrdersAutoAccept: "true", // an order from the member app goes straight to the kitchen (no Accept tap at the counter)
   allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
   bookingTableDayLock: "false", // a table booked at any time is closed for the rest of that day
   bookingAskHours: "true",      // ask guests how many hours they'll stay (off → default 2 hours)
@@ -151,6 +153,7 @@ async function getSettings() {
     payrollDay: Math.min(28, Math.max(1, Number(map.payrollDay) || 1)),
     overtimeHourlyRate: Math.max(0, Number(map.overtimeHourlyRate) || 0),
     allowNegativeStock: map.allowNegativeStock === "true",
+    appOrdersAutoAccept: map.appOrdersAutoAccept !== "false",
     bookingTableDayLock: map.bookingTableDayLock === "true",
     bookingAskHours: map.bookingAskHours !== "false",
     bookingAskSpecial: map.bookingAskSpecial !== "false",
@@ -2757,7 +2760,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
+    const allowed = ["appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -3388,7 +3391,8 @@ export function registerRebornRoutes(app: Express) {
   // Deduct stock for a set of items, append them to an order, and re-total the ticket.
   async function appendItems(orderId: number, orderNo: string, items: any[], userId: string, status: string = "accepted", source: string = "pos") {
     for (const it of items) {
-      await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source });
+      const [made] = it.productId ? await db.select({ category: posProducts.category, station: posProducts.station }).from(posProducts).where(eq(posProducts.id, it.productId)) : [];
+      await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source, station: stationFor(made?.category, made?.station) });
       if (it.productId) {
         const moved = await moveStock(it.productId, -it.qty, "sale", `Ticket ${orderNo}`, userId);
         const before = moved ? { stock: moved.before, name: moved.name } : undefined;
@@ -3616,7 +3620,8 @@ export function registerRebornRoutes(app: Express) {
         tableNumber, orderMode: req.body?.orderMode === "take_away" ? "take_away" : "dine_in", subtotal: "0", total: "0",
       }).returning();
     }
-    await appendItems(order.id, order.orderNo, clean!, userId, "pending", "app"); // counter must accept
+    const autoAccept = (await getSettings()).appOrdersAutoAccept;
+    await appendItems(order.id, order.orderNo, clean!, userId, autoAccept ? "accepted" : "pending", "app"); // with auto-accept off the counter must accept
     emitLiveUpdate("/api/reborn/pos/orders", { action: "NEW_ORDER", resource: String(order.id) });
     // Phone push first and independently: a stalled WhatsApp send used to hold
     // this request open so the admin app alert never went out.
@@ -3632,6 +3637,33 @@ export function registerRebornRoutes(app: Express) {
     res.json({ message: tr(req, { en: "Order sent — waiting for the counter to accept.", zh: "订单已发送——等待柜台接单。", id: "Pesanan terkirim — menunggu kasir menerima." }), order });
   });
   // Counter accepts / rejects / serves an app order item.
+  // ── Kitchen / bar screen (pages/reborn-kitchen.tsx): what still has to be served, and the dockets still to print ──
+  const stationOf = (value: unknown): string => (STATIONS as string[]).includes(String(value)) ? String(value) : "all";
+  const KITCHEN_ITEMS = (cid: number, station: string, onlyUnprinted: boolean) => sql`FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
+    WHERE t.company_id = ${cid} AND t.status = 'open' AND i.status = 'accepted' AND (${station} = 'all' OR i.station = ${station}) ${onlyUnprinted ? sql`AND i.printed_at IS NULL` : sql``}`;
+  const groupByOrder = (rows: any[]) => {
+    const orders = new Map<number, any>();
+    for (const r of rows) {
+      const order = orders.get(r.order_id) || orders.set(r.order_id, { orderId: r.order_id, orderNo: r.order_no, tableNumber: r.table_number, orderMode: r.order_mode, memberName: r.member_name, createdAt: r.order_created, items: [] }).get(r.order_id);
+      order.items.push({ id: r.id, name: r.name, qty: r.qty, station: r.station });
+    }
+    return Array.from(orders.values());
+  };
+  app.get("/api/reborn/kitchen/orders", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const result = await db.execute(sql`SELECT i.id, i.order_id, i.name, i.qty, i.station, t.order_no, t.table_number, t.order_mode, t.member_name, t.created_at AS order_created ${KITCHEN_ITEMS(cid, stationOf(req.query.station), false)} ORDER BY i.id`);
+    res.json(groupByOrder((result.rows || result) as any[]));
+  }));
+  // Takes the dockets still to print (each item is handed out once, so two screens never print the same one) and marks them printed.
+  app.post("/api/reborn/kitchen/claim", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const station = stationOf(req.body?.station);
+    const result = await db.execute(sql`UPDATE pos_ticket_items i SET printed_at = now() FROM pos_tickets t
+      WHERE t.id = i.order_id AND t.company_id = ${cid} AND t.status = 'open' AND i.status = 'accepted' AND i.printed_at IS NULL AND (${station} = 'all' OR i.station = ${station})
+      RETURNING i.id, i.order_id, i.name, i.qty, i.station, t.order_no, t.table_number, t.order_mode, t.member_name, t.created_at AS order_created`);
+    res.json({ orders: groupByOrder(((result.rows || result) as any[]).sort((a, b) => a.id - b.id)) });
+  }));
+
   app.post("/api/reborn/pos/items/:id/status", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
     const status = ["accepted", "rejected", "served"].includes(req.body?.status) ? req.body.status : null;

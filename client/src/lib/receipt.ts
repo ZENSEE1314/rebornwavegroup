@@ -73,11 +73,11 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
   `;
 }
 
-function kitchenHtml(o: Order) {
+function kitchenHtml(o: Order, title?: string) {
   const when = new Date(o.createdAt || Date.now()).toLocaleTimeString(localeTag());
   const items = (o.items || []).map((it) => `<div class="kitem">${it.qty} × ${esc(it.name)}</div>`).join("");
   return `
-    <h1 class="k">${tr("pos.rc.kitchen")}</h1>
+    <h1 class="k">${esc(title || tr("pos.rc.kitchen"))}</h1>
     <div class="c mode">${mode(o.orderMode)}</div>
     <hr/>
     <div class="row b" style="font-size:15px;"><span>${esc(tr("pos.rc.tableN", { n: o.tableNumber || "-" }))}</span><span>${esc(o.orderNo)}</span></div>
@@ -116,8 +116,8 @@ function printDoc(inner: string): boolean {
 export function printReceipt(order: Order, meta: ReceiptMeta) {
   return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy")) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy")));
 }
-export function printKitchen(order: Order) {
-  return printDoc(kitchenHtml(order));
+export function printKitchen(order: Order, title?: string) {
+  return printDoc(kitchenHtml(order, title));
 }
 
 export function printClosingReport(report: any, meta: ReceiptMeta = {}) {

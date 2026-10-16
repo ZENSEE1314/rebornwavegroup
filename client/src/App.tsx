@@ -145,6 +145,7 @@ const RebornEmployment     = lazy(() => import("@/pages/reborn-employment"));
 const RebornChat           = lazy(() => import("@/pages/reborn-chat"));
 const RebornOrder          = lazy(() => import("@/pages/reborn-order"));
 const RebornPos            = withText("staff", () => import("@/pages/reborn-pos"));
+const RebornKitchen        = withText("staff", () => import("@/pages/reborn-kitchen"));
 const RebornProfile        = lazy(() => import("@/pages/reborn-profile"));
 const RebornBottles        = lazy(() => import("@/pages/reborn-bottles"));
 const RebornHistory        = lazy(() => import("@/pages/reborn-history"));
@@ -427,6 +428,7 @@ function Router() {
             <Route path="/order" component={GatedRebornOrder} />
             <Route path="/bottles" component={GatedRebornBottles} />
             <Route path="/pos" component={RebornPos} />
+            <Route path="/kitchen" component={RebornKitchen} />
             <Route path="/reborn-admin" component={RebornAdmin} />
             <Route path="/staff-feedback" component={StaffFeedback} />
             <Route path="/complete-app" component={CompleteApp} />

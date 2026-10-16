@@ -654,6 +654,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.tz.AustraliaSydney': { en: "Australia — Sydney", zh: "澳大利亚 — 悉尼", id: "Australia — Sydney" },
   'admin.tz.EuropeLondon': { en: "UK — London", zh: "英国 — 伦敦", id: "Inggris — London" },
   'admin.tz.AmericaNewYork': { en: "USA — New York", zh: "美国 — 纽约", id: "AS — New York" },
+  'admin.set.autoAccept': { en: "Orders from the member app go straight to the kitchen (no Accept tap at the counter)", zh: "会员应用的订单直接送到厨房（柜台无需点接单）", id: "Pesanan dari aplikasi member langsung ke dapur (tanpa tekan Terima di kasir)" },
   'admin.set.negStock': { en: "Allow selling when stock is 0 (stock can go negative)", zh: "库存为 0 时仍允许销售（库存可为负数）", id: "Izinkan penjualan saat stok 0 (stok bisa minus)" },
   'admin.set.negStockHint': { en: "Turn on when there's real stock but it wasn't keyed in. Turn off to block sold-out items.", zh: "实际有货但未录入时请开启。关闭则会阻止售出已售罄的商品。", id: "Aktifkan jika stok sebenarnya ada tetapi belum diinput. Nonaktifkan untuk memblokir item yang habis." },
   'admin.set.bottleDays': { en: "Bottle keep — days until it expires", zh: "存酒——到期天数", id: "Simpan botol — hari sampai kedaluwarsa" },

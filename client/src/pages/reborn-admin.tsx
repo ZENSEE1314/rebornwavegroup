@@ -931,6 +931,7 @@ function Settings() {
             {["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura", "Asia/Singapore", "Asia/Kuala_Lumpur", "Asia/Bangkok", "Asia/Manila", "Asia/Ho_Chi_Minh", "Asia/Hong_Kong", "Asia/Shanghai", "Asia/Tokyo", "Asia/Dubai", "Australia/Sydney", "Europe/London", "America/New_York"].map((z) => <option key={z} value={z}>{t("admin.tz." + z.replace(/[^A-Za-z]/g, ""))}</option>)}
           </select>
         </label>
+        <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.appOrdersAutoAccept !== false} onChange={(e) => setStr("appOrdersAutoAccept", e.target.checked)} /> {t("admin.set.autoAccept")}</label>
         <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.allowNegativeStock === true} onChange={(e) => setStr("allowNegativeStock", e.target.checked)} /> {t("admin.set.negStock")}</label>
         <p className="-mt-2 mb-3 text-[11px] text-white/40">{t("admin.set.negStockHint")}</p>
         <Field label={t("admin.set.bottleDays")} value={cur.bottleExpiryDays} onChange={(v: any) => set("bottleExpiryDays", v)} />

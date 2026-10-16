@@ -1,3 +1,4 @@
+import { stationFor } from "@shared/station";
 import type { Express, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
@@ -243,14 +244,6 @@ async function companyAccess(req: Request, res: Response, management = false) {
   return { user, companyId, role: member.role, branchId: member.branchId };
 }
 
-// KDS routing: explicit product override wins, else derive a station from the category name.
-function stationFor(category?: string | null, override?: string | null): string {
-  if (override) return override;
-  const c = (category || "").toLowerCase();
-  if (/drink|beer|wine|beverage|\bbar\b|cocktail|juice|coffee|tea|soda|spirit|whisky|vodka/.test(c)) return "bar";
-  if (/dessert|cake|ice ?cream|sweet|pastry|gelato/.test(c)) return "dessert";
-  return "kitchen";
-}
 function randomToken() { return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 
 async function moduleEnabled(companyId: number, key: string) {
@@ -551,6 +544,7 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS staff_contracts (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'awaiting_staff', lang varchar NOT NULL DEFAULT 'en', job_title varchar, start_date varchar, extra_terms text, terms text, id_image text, id_number varchar, id_uploaded_at timestamp, signature text, signed_name varchar, signed_at timestamp, approved_by varchar, approved_at timestamp, return_note text, emailed_at timestamp, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     ALTER TABLE bridge_staff_profiles ADD COLUMN IF NOT EXISTS real_name varchar;
     ALTER TABLE staff_contracts ADD COLUMN IF NOT EXISTS job_scope text;
+    DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='pos_ticket_items' AND column_name='printed_at') THEN ALTER TABLE pos_ticket_items ADD COLUMN printed_at timestamp; UPDATE pos_ticket_items SET printed_at = now(); END IF; END $$;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS bundle_item_id integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS bundle_qty integer;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS recommended boolean NOT NULL DEFAULT false;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS offline_id varchar;
