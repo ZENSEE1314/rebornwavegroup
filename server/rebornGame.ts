@@ -105,7 +105,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   bookingAskHours: "true",      // ask guests how many hours they'll stay (off → default 2 hours)
   bookingAskSpecial: "true",
   bookingLastTime: "",          // "HH:MM" — no booking start times from this time onward (areas can override)    // ask guests for a special request (birthday, company event, note)
-  appAndroidUrl: "https://expo.dev/artifacts/eas/0YiA8OVhLT7Ri54Uvn0Xe9j8x1aH_w84jTMgSmqiHts.apk", // where /download/android sends people (EAS build 16, expires 2026-10-14; admin Settings override)
+  appAndroidUrl: "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/android-latest/reborn-wave.apk", // where /download/android sends people: a permanent GitHub release (EAS links expire in days; to update: gh release upload android-latest <apk> --clobber). Admin Settings can override
   appIosUrl: "",                // where /download/ios sends people (App Store / TestFlight link)
   // Gift levels (KOS): Lv.2 needs `Base` KGOLD in total, each next level `Growth` × that (2 = double), or an exact list.
   giftLevelSenderBase: "1000000", giftLevelSenderGrowth: "2", giftLevelSenderList: "",
