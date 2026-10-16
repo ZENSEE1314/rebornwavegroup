@@ -2689,8 +2689,9 @@ function Inventory() {
   const [openId, setOpenId] = useState<number | null>(null);
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
   const toggleEditor = (id: number) => setOpenId((current) => (current === id ? null : id));
-  const listedIds = new Set(allItems.map((i) => i.id));
-  const orphans = products.filter((x) => (x.bundleItemId && !listedIds.has(x.bundleItemId)) || (x.packageKind === "uses" && !parseIds(x.packageItemIds).some((id: number) => listedIds.has(id))));
+  const nameOfProduct = new Map(products.map((x) => [x.id, x.name]));
+  const pieces = products.filter((x) => x.bundleItemId || x.packageKind === "uses");
+  const pieceOf = (x: any): string => x.bundleItemId ? (nameOfProduct.get(x.bundleItemId) || "?") : parseIds(x.packageItemIds).map((id) => nameOfProduct.get(id)).filter(Boolean).join(", ");
   const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow p={product} inventory /> : null; };
   const industries = useCompanyIndustries();
   const [query, setQuery] = useState("");
@@ -2748,10 +2749,15 @@ function Inventory() {
       ))}
       </div>
       {items.length === 0 && <Empty text={t("admin.inv.empty")} />}
-      {canChange && orphans.length > 0 && (
+      {canChange && pieces.length > 0 && (
         <Card>
           <p className="mb-2 text-sm font-bold">{t("admin.ib.orphans")}</p>
-          <div className="space-y-2">{orphans.map((piece) => <PieceRow key={piece.id} piece={piece} onChanged={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />)}</div>
+          <div className="space-y-2">{pieces.map((piece) => (
+            <div key={piece.id}>
+              <PieceRow piece={piece} onChanged={() => { qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); }} />
+              <p className="px-1 pt-0.5 text-[11px] text-white/45">{t("admin.prod.stock")}: <b className="tabular-nums">{piece.stock ?? 0}</b> · {pieceOf(piece) || t("admin.ib.noItem")}</p>
+            </div>
+          ))}</div>
         </Card>
       )}
     </div>
