@@ -1786,13 +1786,45 @@ export function registerRebornRoutes(app: Express) {
   // KOS ranking: "tonight" (checked-in members, KGOLD received since check-in) or
   // "month" (everyone, KGOLD received this month). Each row carries the member's
   // top 3 gifters for that period and their Gifter / Star levels.
+  const KOS_RANKING_SINCE_KEY = "kosRankingSince";
+  async function kosRankingSince(): Promise<Date | null> {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, KOS_RANKING_SINCE_KEY));
+    const at = row?.value ? new Date(row.value) : null;
+    return at && !Number.isNaN(at.getTime()) ? at : null;
+  }
+  // Kings of Singers starts again: every member's KGOLD to 0 (the old balances are kept in `kosResetBackup` so the reset can be undone), the Gifter / Star levels and the
+  // Tonight / This month ranking count only gifts from now on. The gift history itself stays.
+  app.post("/api/reborn/admin/kos/reset", requireAdmin(async (req, res) => {
+    const s = await getSettings();
+    if (!s.mainAdminPassword) return res.status(400).json({ message: tr(req, { en: "Set a main-admin password in Settings first.", zh: "请先在设置中设定主管理员密码。", id: "Atur kata sandi admin utama di Pengaturan dulu." }) });
+    if (String(req.body?.password || "") !== s.mainAdminPassword) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
+    const now = new Date();
+    const result = await resetKingsOfSingers(now);
+    emitLiveUpdate("kos", { type: "reset" });
+    await logAdmin(req, { targetType: "system", action: "kos_reset", entityType: "system", description: `Kings of Singers reset: ${result.members} member balance(s) set to 0 (${result.totalKgold} KGOLD), levels and ranking restarted` });
+    res.json({ ...result, message: tr(req, { en: "Kings of Singers was reset: KGOLD balances, levels and the ranking start again from zero.", zh: "Kings of Singers 已重置：KGOLD 余额、等级和排行榜从零重新开始。", id: "Kings of Singers direset: saldo KGOLD, level, dan peringkat mulai lagi dari nol." }) });
+  }));
+  async function resetKingsOfSingers(now: Date) {
+    const holders = await db.select({ id: users.id, kgold: users.kgold }).from(users).where(sql`${users.kgold} <> 0`);
+    const backup = JSON.stringify({ at: now.toISOString(), balances: Object.fromEntries(holders.map((u) => [u.id, u.kgold])) });
+    const put = (key: string, value: string) => db.insert(appSettings).values({ key, value, updatedAt: now }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: now } });
+    await db.transaction(async (tx) => {
+      await tx.insert(appSettings).values({ key: "kosResetBackup", value: backup, updatedAt: now }).onConflictDoUpdate({ target: appSettings.key, set: { value: backup, updatedAt: now } });
+      await tx.update(users).set({ kgold: 0, updatedAt: now }).where(sql`${users.kgold} <> 0`);
+    });
+    await put(KOS_RANKING_SINCE_KEY, now.toISOString());
+    await put(GIFT_LEVELS_SINCE_KEY, now.toISOString());
+    return { members: holders.length, totalKgold: holders.reduce((sum, u) => sum + (Number(u.kgold) || 0), 0) };
+  }
   app.get("/api/reborn/kos/leaderboard", requireAuth, async (req, res) => {
     try {
       const session = await ensureVenueSession();
       const cid = await rebornCompanyId(req);
       const period = req.query.period === "month" ? "month" : "tonight";
       const monthStart = new Date(`${session.day.slice(0, 7)}-01T${String(VENUE_DAY_START_HOUR - 7).padStart(2, "0")}:00:00Z`);
-      const since = period === "month" ? monthStart : venueDayStart(session.day);
+      const periodStart = period === "month" ? monthStart : venueDayStart(session.day);
+      const resetAt = await kosRankingSince();
+      const since = resetAt && resetAt > periodStart ? resetAt : periodStart; // a reset starts the ranking again: earlier gifts no longer count
       const result = period === "month"
         ? await db.execute(sql`SELECT u.id,u.first_name AS "firstName",(CASE WHEN u.username LIKE '%@%' THEN NULL ELSE u.username END) AS username,u.profile_image_url AS photo,SUM(g.recipient_kgold)::bigint AS stars,
               EXISTS(SELECT 1 FROM venue_checkins v WHERE v.user_id=u.id AND v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL) AS "checkedIn"
@@ -1801,7 +1833,7 @@ export function registerRebornRoutes(app: Express) {
             GROUP BY u.id,u.first_name,u.username,u.profile_image_url ORDER BY stars DESC LIMIT 100`)
         : await db.execute(sql`SELECT u.id,u.first_name AS "firstName",(CASE WHEN u.username LIKE '%@%' THEN NULL ELSE u.username END) AS username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::bigint AS stars, true AS "checkedIn"
             FROM venue_checkins v JOIN users u ON u.id=v.user_id
-            LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at AND g.company_id=${cid}
+            LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at AND g.created_at>=${since} AND g.company_id=${cid}
             WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL
             GROUP BY u.id,u.first_name,u.username,u.profile_image_url,v.checked_in_at ORDER BY stars DESC,v.checked_in_at ASC LIMIT 100`);
       const rows = ((result.rows || result) as any[]).map((r) => ({ ...r, stars: Number(r.stars || 0) }));
