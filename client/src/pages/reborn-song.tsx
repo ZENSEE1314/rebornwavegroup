@@ -6,8 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation, localeTag } from "@/lib/i18n";
 import { Search, Music2, Check, Clock, X, Plus, ExternalLink, Mic2 } from "lucide-react";
 
-const TABS = ["Top 500", "Request", "Queue", "My Requests"] as const;
-const TAB_KEYS: Record<(typeof TABS)[number], string> = { "Top 500": "vn.song.tabTop", "Request": "vn.song.tabRequest", "Queue": "vn.song.tabQueue", "My Requests": "vn.song.tabMine" };
+const TABS = ["Songs", "Queue", "My Requests"] as const;
+const TAB_KEYS: Record<(typeof TABS)[number], string> = { "Songs": "vn.song.tabSongs", "Queue": "vn.song.tabQueue", "My Requests": "vn.song.tabMine" };
 
 function useDebounced(value: string, delay = 250) {
   const [debounced, setDebounced] = useState(value);
@@ -23,7 +23,7 @@ function ModePicker({ value, onChange }: { value: string; onChange: (value: stri
 }
 
 export default function RebornSong() {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Top 500");
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Songs");
   const { t: tr } = useTranslation();
   return (
     <RebornLayout active="/songs" title={tr("vn.song.title")}>
@@ -33,8 +33,7 @@ export default function RebornSong() {
         ))}
       </div>
       {tab !== "Queue" && <NowSinging onOpen={() => setTab("Queue")} />}
-      {tab === "Top 500" && <TopList />}
-      {tab === "Request" && <NewRequest />}
+      {tab === "Songs" && <SongSystem />}
       {tab === "Queue" && <QueueBoard />}
       {tab === "My Requests" && <MyRequests />}
     </RebornLayout>
@@ -86,7 +85,15 @@ function NowSinging({ onOpen }: { onOpen: () => void }) {
 }
 function QueueBoard() {
   const { t } = useTranslation();
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const q = useSongQueue();
+  // Skip / repeat the song you are singing: one tap, no confirmation.
+  const act = useMutation({
+    mutationFn: (v: { id: number; what: "skip" | "repeat" }) => apiRequest("POST", `/api/reborn/songs/my-requests/${v.id}/${v.what}`, {}).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue"] }); },
+    onError: (e: any) => toast({ title: t("vn.common.failed"), description: errText(e), variant: "destructive" }),
+  });
   if (!q) return null;
   const list: any[] = q.queue || [];
   return (
@@ -96,7 +103,13 @@ function QueueBoard() {
         {q.nowPlaying ? (<>
           <p className="text-lg font-black mt-1">{q.nowPlaying.title}</p>
           <p className="text-xs text-white/60">{q.nowPlaying.artist || "—"}</p>
-          <p className="mt-2 inline-block px-2.5 py-1 rounded-full bg-black/30 text-xs font-bold text-amber-200">{who(t, q.nowPlaying)}{q.nowPlaying.mine ? ` · ${t("vn.song.you")}` : ""}</p>
+          <p className="mt-2 inline-block px-2.5 py-1 rounded-full bg-black/30 text-xs font-bold text-amber-200">{who(t, q.nowPlaying)}{q.nowPlaying.mine ? ` · ${t("vn.song.you")}` : ""} · {q.nowPlaying.vocal === "original" ? `🎤 ${t("vn.song.vocalOriginal")}` : `🎶 ${t("vn.song.vocalKaraoke")}`}</p>
+          {q.nowPlaying.mine && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button onClick={() => act.mutate({ id: q.nowPlaying.id, what: "repeat" })} disabled={act.isPending} className="rounded-xl bg-white/10 px-3 py-2.5 text-sm font-bold">🔁 {t("vn.song.repeat")}</button>
+              <button onClick={() => act.mutate({ id: q.nowPlaying.id, what: "skip" })} disabled={act.isPending} className="rounded-xl bg-red-500/80 px-3 py-2.5 text-sm font-bold text-white">⏭ {t("vn.song.skip")}</button>
+            </div>
+          )}
         </>) : <p className="text-sm text-white/60 mt-1">{t("vn.song.nobodySinging")}</p>}
       </div>
       <p className="text-xs text-white/50 px-1">{q.mode === "table" ? t("vn.song.fairNoteTable", { n: q.perTurn ?? 1 }) : t("vn.song.fairNoteUser", { n: q.perTurn ?? 1 })}</p>
@@ -106,11 +119,22 @@ function QueueBoard() {
           <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black text-black" style={{ background: "linear-gradient(135deg,#c9a84c,#f0d787)" }}>{r.position}</span>
           <span className="flex-1 min-w-0">
             <span className="block font-semibold truncate">{r.title}{r.artist ? <span className="text-white/45 font-normal"> · {r.artist}</span> : null}</span>
-            <span className="block text-xs text-white/55 truncate">{who(t, r)}{r.mine ? <b className="text-amber-300"> · {t("vn.song.you")}</b> : null}</span>
+            <span className="block text-xs text-white/55 truncate">{who(t, r)}{r.mine ? <b className="text-amber-300"> · {t("vn.song.you")}</b> : null} · {r.vocal === "original" ? `🎤 ${t("vn.song.vocalOriginal")}` : `🎶 ${t("vn.song.vocalKaraoke")}`}</span>
           </span>
           {r.position === 1 && <span className="text-[10px] font-bold text-emerald-300 flex-shrink-0">{t("vn.song.upNext")}</span>}
         </div>
       ))}
+      {(q.boxQueue || []).length > 0 && (
+        <div className="pt-2">
+          <p className="px-1 pb-1 text-xs font-bold text-white/50">{t("vn.song.onSystem")}</p>
+          {(q.boxQueue as any[]).map((x, i) => (
+            <div key={`${x.title}-${i}`} className="mb-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <Music2 className="h-5 w-5 flex-shrink-0 text-cyan-300" />
+              <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{x.title}{x.artist ? <span className="font-normal text-white/45"> · {x.artist}</span> : null}</span><span className="block text-xs text-white/50">{t("vn.song.orderedOnSystem")}</span></span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -119,7 +143,8 @@ function SongRow({ s, onRequest, pending }: any) {
   const { t } = useTranslation();
   return (
     <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
-      {s.artistPhoto ? <img src={s.artistPhoto} alt="" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
+      {s.photo ? <img src={`/api/reborn/karaoke/photo/${s.photo}`} alt="" loading="lazy" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
+        : s.artistPhoto ? <img src={s.artistPhoto} alt="" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
         : <span className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(201,168,76,0.15)" }}><Music2 className="w-5 h-5 text-amber-300" /></span>}
       <div className="flex-1 min-w-0">
         <p className="font-semibold truncate flex items-center gap-1">{s.source === "karaoke" && <span className="text-[10px] font-bold text-emerald-300" title={t("vn.song.inBox")}>🎤</span>}{s.title}{s.titlePinyin && <span className="text-[11px] font-normal text-white/40">{s.titlePinyin}</span>}{s.isHit && <span className="text-[10px] font-bold text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded">{t("vn.song.hit")}</span>}</p>
@@ -130,96 +155,107 @@ function SongRow({ s, onRequest, pending }: any) {
   );
 }
 
-function TopList() {
+// The song system as members see it: search it, or browse its singers (photo + name, most songs first) and pick a song to request.
+// Only songs the karaoke system has are offered, so what is ordered is what plays.
+function SongSystem() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const search = useDebounced(q);
+  const [singer, setSinger] = useState<any>(null);
+  const [singerPage, setSingerPage] = useState(1);
+  const [songPage, setSongPage] = useState(1);
   const [performanceMode, setPerformanceMode] = useState("self");
+  const [vocal, setVocal] = useState<"karaoke" | "original">("karaoke"); // the singer's own voice off (karaoke) or on (original / analog)
   const { data: songSettings } = useQuery<any>({ queryKey: ["/api/reborn/song-settings"], queryFn: () => apiRequest("GET", "/api/reborn/song-settings").then((r) => r.json()) });
-  const { data: songs = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/songs"], queryFn: () => apiRequest("GET", "/api/reborn/songs").then((r) => r.json()) });
-  const { data: searchResult, isFetching } = useQuery<SearchResponse>({
+  const { data: status } = useQuery<{ online: boolean }>({ queryKey: ["/api/reborn/karaoke/status"], queryFn: () => apiRequest("GET", "/api/reborn/karaoke/status").then((r) => r.json()), refetchInterval: 15000 });
+  const { data: found, isFetching: isSearching } = useQuery<SearchResponse>({
     queryKey: ["/api/reborn/songs/search", search],
     queryFn: () => apiRequest("GET", `/api/reborn/songs/search?q=${encodeURIComponent(search)}`).then((r) => r.json()),
-    enabled: search.length > 0,
+    enabled: search.length > 0 && status?.online !== false,
   });
+  // Singers: pages are added under each other ("Show more"); each page is one question to the song system.
+  const [singerRows, setSingerRows] = useState<any[]>([]);
+  const { data: singerAnswer, isFetching: isLoadingSingers } = useQuery<any>({
+    queryKey: ["/api/reborn/karaoke/singers", singerPage],
+    queryFn: () => apiRequest("GET", `/api/reborn/karaoke/singers?page=${singerPage}`).then((r) => r.json()),
+    enabled: status?.online !== false && !search && !singer,
+  });
+  useEffect(() => { if (singerAnswer?.singers) setSingerRows((rows) => (singerPage === 1 ? singerAnswer.singers : [...rows, ...singerAnswer.singers.filter((x: any) => !rows.some((r) => r.name === x.name))])); }, [singerAnswer, singerPage]);
+  const [singerSongs, setSingerSongs] = useState<any[]>([]);
+  const { data: songsAnswer, isFetching: isLoadingSongs } = useQuery<any>({
+    queryKey: ["/api/reborn/karaoke/singer-songs", singer?.name, songPage],
+    queryFn: () => apiRequest("GET", `/api/reborn/karaoke/singer-songs?name=${encodeURIComponent(singer.name)}&page=${songPage}`).then((r) => r.json()),
+    enabled: !!singer && status?.online !== false,
+  });
+  useEffect(() => { if (songsAnswer?.songs) setSingerSongs((rows) => (songPage === 1 ? songsAnswer.songs : [...rows, ...songsAnswer.songs.filter((x: any) => !rows.some((r) => r.code === x.code))])); }, [songsAnswer, songPage]);
+  const openSinger = (x: any) => { setSinger(x); setSongPage(1); setSingerSongs([]); };
   const req = useMutation({
-    mutationFn: (song: any) => apiRequest("POST", "/api/reborn/songs/request", song.id && song.source !== "spotify" ? { songId: song.id, performanceMode } : { ...song, id: undefined, source: undefined, externalId: undefined, performanceMode }).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: t("vn.song.requested"), description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue"] }); },
+    // A song picked from the song system is ordered by its number there, so the right song plays.
+    mutationFn: (song: any) => apiRequest("POST", "/api/reborn/songs/request", { title: song.title, artist: song.artist, karaokeCode: song.karaokeCode || song.code, performanceMode, vocal }).then((r) => r.json()),
+    onSuccess: (d) => { toast({ title: t("vn.song.requested"), description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue"] }); },
     onError: (e: any) => { qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue-info"] }); toast({ title: t("vn.common.failed"), description: errText(e), variant: "destructive" }); },
   });
   const qi = useSongQueueInfo();
-  const filtered = search ? (searchResult?.songs || []) : songs;
-  // Long lists render in pages of 60 so phones stay fast; "Show more" reveals the rest.
-  const [shown, setShown] = useState(60);
-  useEffect(() => setShown(60), [search]);
+  const ask = (x: any) => (qi?.needTable ? toast({ title: t("vn.song.needTableTitle"), description: t("vn.song.needTableBody"), variant: "destructive" }) : req.mutate(x));
+  const rowOf = (x: any) => <SongRow key={x.code || x.karaokeCode} s={{ ...x, source: "karaoke", karaokeCode: x.karaokeCode || x.code }} onRequest={ask} pending={req.isPending} />;
+
+  if (status && !status.online) return (
+    <div className="text-center py-12 text-white/50">
+      <Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
+      <p className="font-semibold text-white/70">{t("vn.song.offlineTitle")}</p>
+      <p className="mt-1 text-sm">{t("vn.song.offlineBody")}</p>
+    </div>
+  );
   return (
     <div>
       <TableScanNotice qi={qi} />
-      {songSettings?.performanceModeEnabled && <ModePicker value={performanceMode} onChange={setPerformanceMode}/>}
+      {songSettings?.performanceModeEnabled && <ModePicker value={performanceMode} onChange={setPerformanceMode} />}
+      <div className="mb-3 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-1.5" role="group" aria-label={t("vn.song.vocalTitle")}>
+        {(["karaoke", "original"] as const).map((v) => (
+          <button key={v} type="button" onClick={() => setVocal(v)} aria-pressed={vocal === v} className={`min-h-0 rounded-xl px-2 py-2 text-xs font-bold ${vocal === v ? "bg-amber-400 text-black" : "text-white/70"}`}>{v === "original" ? `🎤 ${t("vn.song.vocalOriginal")}` : `🎶 ${t("vn.song.vocalKaraoke")}`}</button>
+        ))}
+      </div>
       <div className="relative mb-4">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("vn.song.searchPh")} className="w-full pl-9 pr-4 py-3 rounded-full bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60" />
+        <input value={q} onChange={(e) => { setQ(e.target.value); setSinger(null); }} placeholder={t("vn.song.searchSystemPh")} className="w-full pl-9 pr-4 py-3 rounded-full bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60" />
       </div>
-      {search && <p className="mb-3 text-xs text-white/40">{isFetching ? t("vn.song.searchingAll") : searchResult?.boxConnected ? t("vn.song.resultsBox") : searchResult?.spotifyConnected ? t("vn.song.resultsSpotify") : t("vn.song.resultsFree")}</p>}
-      {filtered.length === 0 && <div className="text-center py-10 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.song.noSongs")}</p></div>}
-      {!search && songs.length > 0 && <p className="mb-2 text-xs text-white/40">{t("vn.song.total", { n: songs.length })}</p>}
-      <div className="space-y-2">{filtered.slice(0, shown).map((s) => <SongRow key={`${s.source || "library"}-${s.id || s.externalId || `${s.title}-${s.artist}`}`} s={s} onRequest={(x: any) => (qi?.needTable ? toast({ title: t("vn.song.needTableTitle"), description: t("vn.song.needTableBody"), variant: "destructive" }) : req.mutate(x))} pending={req.isPending} />)}</div>
-      {filtered.length > shown && <button onClick={() => setShown((n) => n + 60)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80">{t("vn.song.showMore", { n: filtered.length - shown })}</button>}
-    </div>
-  );
-}
-
-function NewRequest() {
-  const { t } = useTranslation();
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const [f, setF] = useState({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "", performanceMode: "self" });
-  const search = useDebounced(f.title);
-  const [showSuggestions, setShowSuggestions] = useState(true);
-  const { data: songSettings } = useQuery<any>({ queryKey: ["/api/reborn/song-settings"], queryFn: () => apiRequest("GET", "/api/reborn/song-settings").then((r) => r.json()) });
-  const { data: searchResult, isFetching } = useQuery<SearchResponse>({
-    queryKey: ["/api/reborn/songs/search", search],
-    queryFn: () => apiRequest("GET", `/api/reborn/songs/search?q=${encodeURIComponent(search)}`).then((r) => r.json()),
-    enabled: search.length > 0 && showSuggestions,
-  });
-  const req = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/songs/request", f).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: t("vn.song.requestSent"), description: d.message }); setF({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "", performanceMode: "self" }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue"] }); },
-    onError: (e: any) => { qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue-info"] }); toast({ title: t("vn.common.failed"), description: errText(e), variant: "destructive" }); },
-  });
-  const inp = "w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60";
-  const qi = useSongQueueInfo();
-  const needTable = !!qi?.needTable;
-  const canSend = !needTable && (f.title.trim() || f.titlePinyin.trim());
-  return (
-    <div className="rounded-3xl p-5 border border-white/10 bg-white/5">
-      <h3 className="font-bold mb-1 flex items-center gap-2"><Mic2 className="w-5 h-5 text-amber-300" /> {t("vn.song.requestASong")}</h3>
-      <p className="text-sm text-white/60 mb-4">{t("vn.song.requestHelp")}</p>
-      <TableScanNotice qi={qi} />
-      {songSettings?.performanceModeEnabled && <ModePicker value={f.performanceMode} onChange={(performanceMode)=>setF({...f,performanceMode})}/>}
-      <div className="relative mb-3">
-        <input value={f.title} onChange={(e) => { setF({ ...f, title: e.target.value }); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} placeholder={t("vn.song.namePh")} className={inp} autoComplete="off" />
-        {showSuggestions && search && <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-white/15 bg-[#101524] p-2 shadow-2xl">
-          {isFetching && <p className="p-3 text-sm text-white/50">{t("vn.song.searching")}</p>}
-          {!isFetching && (searchResult?.songs || []).map((song) => <button key={`${song.source}-${song.id || song.externalId}`} type="button" onClick={() => { setF({ ...f, title: song.title, titlePinyin: song.titlePinyin || "", artist: song.artist || "", artistPinyin: song.artistPinyin || "", spotifyUrl: song.spotifyUrl || "" }); setShowSuggestions(false); }} className="flex w-full items-center gap-3 rounded-xl p-3 text-left hover:bg-white/10">
-            <Music2 className="h-4 w-4 shrink-0 text-amber-300" />
-            <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{song.title}</span><span className="block truncate text-xs text-white/50">{song.artist || t("vn.song.singerNotListed")}{song.titlePinyin ? ` · ${song.titlePinyin}` : ""}</span></span>
-            {song.source === "spotify" && <span className="text-[10px] font-bold text-emerald-400">SPOTIFY</span>}
-            {song.source === "musicbrainz" && <span className="text-[10px] font-bold text-cyan-300">MUSICBRAINZ</span>}
-            {song.source === "apple" && <span className="text-[10px] font-bold text-rose-300">APPLE</span>}
-          </button>)}
-          {!isFetching && searchResult?.songs?.length === 0 && <p className="p-3 text-sm text-white/50">{t("vn.song.noMatch")}</p>}
-        </div>}
-      </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mb-3">
-        <input value={f.titlePinyin} onChange={(e) => setF({ ...f, titlePinyin: e.target.value })} placeholder={t("vn.song.pinyinPh")} className={inp} />
-        <input value={f.artist} onChange={(e) => setF({ ...f, artist: e.target.value })} placeholder={t("vn.song.singerPh")} className={inp} />
-        <input value={f.artistPinyin} onChange={(e) => setF({ ...f, artistPinyin: e.target.value })} placeholder={t("vn.song.singerPinyinPh")} className={inp} />
-      </div>
-      <input value={f.spotifyUrl} onChange={(e) => setF({ ...f, spotifyUrl: e.target.value })} placeholder={t("vn.song.spotifyPh")} className={inp + " mb-3"} />
-      <button onClick={() => req.mutate()} disabled={!canSend || req.isPending} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50 flex items-center justify-center gap-2" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}><Plus className="w-4 h-4" /> {t("vn.song.sendRequest")}</button>
+      {search ? (
+        <>
+          <p className="mb-3 text-xs text-white/40">{isSearching ? t("vn.song.searchingAll") : t("vn.song.resultsBox")}</p>
+          {!isSearching && !(found?.songs || []).length && <div className="text-center py-10 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.song.noSongsSystem")}</p></div>}
+          <div className="space-y-2">{(found?.songs || []).map(rowOf)}</div>
+        </>
+      ) : singer ? (
+        <>
+          <button onClick={() => setSinger(null)} className="mb-3 inline-flex items-center gap-1 text-sm text-white/60">← {t("vn.song.backToSingers")}</button>
+          <div className="mb-3 flex items-center gap-3">
+            {singer.photo ? <img src={`/api/reborn/karaoke/photo/${singer.photo}`} alt="" className="h-16 w-16 rounded-2xl object-cover" /> : <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/15"><Mic2 className="h-7 w-7 text-amber-300" /></span>}
+            <div><p className="text-xl font-extrabold">{singer.name}</p><p className="text-xs text-white/50">{singer.pinyin} · {t("vn.song.songsN", { n: String(singer.songs ?? "") })}</p></div>
+          </div>
+          <div className="space-y-2">{singerSongs.map(rowOf)}</div>
+          {isLoadingSongs && <p className="py-4 text-center text-sm text-white/40">…</p>}
+          {songsAnswer && songPage < songsAnswer.maxPage && <button onClick={() => setSongPage((n) => n + 1)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80">{t("vn.song.showMoreSongs")}</button>}
+        </>
+      ) : (
+        <>
+          <p className="mb-3 text-xs text-white/40">{t("vn.song.singersHint")}</p>
+          {singerAnswer?.loading && <p className="mb-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-100">{t("vn.song.loadingList")}</p>}
+          <div className="grid grid-cols-3 gap-2.5">
+            {singerRows.map((x) => (
+              <button key={x.name} onClick={() => openSinger(x)} className="min-h-0 p-0 text-left">
+                <span className="block overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                  {x.photo ? <img src={`/api/reborn/karaoke/photo/${x.photo}`} alt="" loading="lazy" className="aspect-square w-full object-cover" /> : <span className="flex aspect-square w-full items-center justify-center bg-amber-400/10"><Mic2 className="h-8 w-8 text-amber-300/70" /></span>}
+                  <span className="block px-2 py-1.5"><span className="block truncate text-[13px] font-semibold leading-tight">{x.name}</span><span className="block truncate text-[10px] text-white/40">{t("vn.song.songsN", { n: String(x.songs) })}</span></span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {isLoadingSingers && <p className="py-4 text-center text-sm text-white/40">…</p>}
+          {singerAnswer && singerPage < singerAnswer.maxPage && <button onClick={() => setSingerPage((n) => n + 1)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80">{t("vn.song.showMoreSingers")}</button>}
+        </>
+      )}
     </div>
   );
 }

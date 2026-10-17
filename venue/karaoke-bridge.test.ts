@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 // @ts-expect-error plain .mjs program
-import { createBridge, parseJsonp, pickSong } from "./karaoke-bridge.mjs";
+import { createBridge, exactSong, parseJsonp, pickSong, singerNames } from "./karaoke-bridge.mjs";
 
 // Answers shaped like the real box: JSONP, and the song list is a JSON string inside.
 const songList = JSON.stringify([
@@ -216,5 +216,105 @@ describe("starting the queue", () => {
     const { bridge, nexts } = worldWith({ paused: false, nowPlaying: null, queue: [] }, 0);
     assert.equal(await bridge.tick(), "idle");
     assert.deepEqual(nexts, []);
+  });
+});
+
+describe("exact songs and singers", () => {
+  const songs = [
+    { sONGBM: "1", sONGNAME: "Love(T.I)", sINGER: "Love  张学友", cLOUD: 0 },
+    { sONGBM: "2", sONGNAME: "Love", sINGER: "Love  Other Singer", cLOUD: 0 },
+    { sONGBM: "3", sONGNAME: "Love Me", sINGER: "Love Me  Nu'est", cLOUD: 0 },
+    { sONGBM: "4", sONGNAME: "小幸运", sINGER: "Xiao Xing Yun  Hebe(田馥甄)", cLOUD: 0 },
+  ];
+  const singersList = [
+    { name: "张学友", picture: "11001.jpg", pinyin: "Zhang Xue You", qt_name: "" },
+    { name: "田馥甄", picture: "11002.jpg", pinyin: "Tian Fu Zhen", qt_name: "Hebe" },
+    { name: "Nu'est", picture: "singer_photo.png", pinyin: "Nuest", qt_name: "" },
+    { name: "Other Singer", picture: "11003.jpg", pinyin: "Other Singer", qt_name: "" },
+  ];
+  const bridge = () => createBridge({ cloudUrl: "https://c.test", token: "t", boxUrl: "http://box/demo", catalog: songs, singers: singersList, log: () => {} });
+
+  it("should read the singers after the double space", () => {
+    assert.deepEqual(singerNames("Xiao Xing Yun  Hebe(田馥甄), 张学友"), ["Hebe(田馥甄)", "张学友"]);
+  });
+  it("should pick the song with the same title AND singer, not just the same title", () => {
+    assert.equal(exactSong(songs, "Love", "张学友")?.sONGBM, "1");
+    assert.equal(exactSong(songs, "Love", "Other Singer")?.sONGBM, "2");
+  });
+  it("should find nothing when the singer does not match, rather than a wrong song", () => {
+    assert.equal(exactSong(songs, "Love", "Someone Else"), null);
+  });
+  it("should never match a title that only contains the requested words", () => {
+    assert.equal(exactSong([songs[2]], "Love", ""), null);
+  });
+  it("should match a singer written as Hebe(田馥甄) by the Chinese name", () => {
+    assert.equal(exactSong(songs, "小幸运", "田馥甄")?.sONGBM, "4");
+  });
+  it("should list only singers that have songs, with their photo file", () => {
+    const page = bridge().singersPage("", 1);
+    const byName = new Map(page.singers.map((y: any) => [y.name, y]));
+    assert.deepEqual([byName.get("张学友")?.photo, byName.get("田馥甄")?.photo, byName.get("Nu'est")?.photo], ["11001.jpg", "11002.jpg", ""]);
+    assert.ok(page.singers.every((y: any) => y.songs > 0));
+  });
+  it("should find a singer by the English name", () => {
+    assert.deepEqual(bridge().singersPage("hebe", 1).singers.map((x: any) => x.name), ["田馥甄"]);
+  });
+  it("should list one singer's songs with that singer's photo", () => {
+    const answer = bridge().songsOfSinger("田馥甄", 1);
+    assert.deepEqual(answer.songs.map((x: any) => [x.code, x.title, x.photo]), [["4", "小幸运", "11002.jpg"]]);
+  });
+});
+
+describe("the singer's choices: original voice, repeat, and the box's own list", () => {
+  const catalog = [{ sONGBM: "10", sONGNAME: "Love", sINGER: "Love  Beyond", cLOUD: 0 }];
+  const make = (state: { board: any; count: number; queued?: any[] }) => {
+    const commands: string[] = []; const posted: any[] = [];
+    const fetchImpl = async (url: string, init?: any) => {
+      const u = new URL(url);
+      const reply = (value: unknown) => ({ ok: true, status: 200, text: async () => `cb(${JSON.stringify(value)})`, json: async () => value });
+      if (u.pathname.endsWith("/api/karaoke/queue")) return reply(state.board);
+      if (u.pathname.endsWith("/api/karaoke/box-state")) { posted.push(JSON.parse(init.body)); return reply({}); }
+      if (u.pathname.endsWith("/api/karaoke/next")) return reply({});
+      if (u.pathname.endsWith("PlaylistServlet")) return reply({ number: String(state.count), songList: JSON.stringify(state.queued || []) });
+      if (u.pathname.endsWith("CommandServlet")) { commands.push(u.searchParams.get("cmd")!); return reply({}); }
+      throw new Error("unexpected " + url);
+    };
+    return { commands, posted, bridge: createBridge({ cloudUrl: "https://c.test", token: "t", boxUrl: "http://box/demo", fetchImpl, catalog, log: () => {} }) };
+  };
+  const board = (extra: object = {}) => ({ paused: false, nowPlaying: { id: 1, title: "Love", artist: "Beyond", vocal: "karaoke", repeat: 0, ...extra }, queue: [] });
+
+  it("should leave the voice off for a karaoke song", async () => {
+    const w = make({ board: board(), count: 0 });
+    await w.bridge.tick();
+    assert.deepEqual(w.commands, ["Add1"]);
+  });
+  it("should switch the singer's own voice on before the song is ordered", async () => {
+    const w = make({ board: board({ vocal: "original" }), count: 0 });
+    await w.bridge.tick();
+    assert.deepEqual(w.commands, ["MuOr", "Add1"]);
+  });
+  it("should switch it back off for the next singer who wants no voice", async () => {
+    const state = { board: board({ vocal: "original" }), count: 0 };
+    const w = make(state);
+    await w.bridge.tick();                       // voice on
+    state.count = 1; await w.bridge.tick();      // playing
+    state.count = 0; await w.bridge.tick();      // finished
+    state.board = board({ id: 2, vocal: "karaoke" });
+    await w.bridge.tick();
+    assert.deepEqual(w.commands, ["MuOr", "Add1", "MuOr", "Add1"]);
+  });
+  it("should play the song again when the singer presses Repeat", async () => {
+    const state = { board: board(), count: 0 };
+    const w = make(state);
+    await w.bridge.tick(); state.count = 1; await w.bridge.tick();
+    state.board = board({ repeat: 1 });
+    assert.equal(await w.bridge.tick(), "repeated");
+    assert.deepEqual(w.commands, ["Add1", "Reset"]);
+    assert.equal(await w.bridge.tick(), "playing");   // the same press is not repeated twice
+  });
+  it("should report the songs waiting on the box itself", async () => {
+    const w = make({ board: { paused: false, nowPlaying: null, queue: [] }, count: 2, queued: [{ sONGNAME: "Ordered by hand", sINGER: "Ordered  Someone" }] });
+    await w.bridge.tick();
+    assert.deepEqual(w.posted[0].songs, [{ title: "Ordered by hand", artist: "Someone" }]);
   });
 });

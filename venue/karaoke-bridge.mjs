@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 const DEFAULT_POLL_MS = 3000;
 const BOX_TIMEOUT_MS = 8000;
 const CLOUD_TIMEOUT_MS = 10000;
+const STATE_EVERY_MS = 10000;
 const NOT_STARTED_MS = 25000; // the box took a song but never showed it as busy: give up on it
 const PLAYER_CALLBACK = "cb";
 const JOB_POLL_TIMEOUT_MS = 30000; // the app holds the request up to 20 s
@@ -22,7 +23,12 @@ const SEARCH_PAGES = 3;          // pages (15 songs each) read per search text f
 const FIND_PAGES = 40;           // pages read when looking for the one requested song by its initials
 const BOX_PAGE_SIZE = 15;
 const CATALOG_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "karaoke-catalog.json"); // the box's whole song list, kept next to the program
+const SINGERS_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "karaoke-singers.json"); // the singers (name + photo file), kept next to the program
 const CATALOG_MAX_AGE_MS = 24 * 3600 * 1000;
+const SINGERS_PAGE = 24;
+const SINGER_SONGS_PAGE = 30;
+const NO_PHOTO = "singer_photo.png";
+const PHOTO_FILE = /^[A-Za-z0-9_.-]{1,60}\.(jpg|jpeg|png)$/i;
 const CRAWL_WORKERS = 4;
 const CRAWL_RETRIES = 3;
 const LOCAL_RESULT_LIMIT = 40;
@@ -57,15 +63,51 @@ export function pickSong(results, title, artist) {
   return best;
 }
 
-// A song of the kept list with its title and singer already simplified for searching.
-function indexSong(song) { return { ...song, pt: plain(song.sONGNAME), ps: plain(song.sINGER) }; }
+// The box writes "<the title in pinyin>  <singer>, <singer>" into the singer field: the singers are what follows the double space.
+export function singerNames(sINGER) {
+  const parts = String(sINGER || "").split(/\s{2,}/);
+  return (parts.length > 1 ? parts.slice(1).join(" ") : parts[0]).split(/[,\uff0c\u3001]/).map((x) => x.trim()).filter(Boolean);
+}
+const keepBrackets = (value) => String(value || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
-export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchImpl = fetch, log = console.log, now = () => Date.now(), catalog: givenCatalog = null, catalogFile = CATALOG_FILE }) {
+// The song the box really has for a requested title and singer: the same title (a bracket like (T.I) is ignored) and, when the singer is known, that singer.
+// Never a partial match: a wrong song is worse than none. Songs that are on the box itself come before cloud ones.
+export function exactSong(results, title, artist) {
+  const wantTitle = plain(title);
+  const wantArtist = keepBrackets(artist);
+  const matches = results.filter((x) => plain(x.sONGNAME) === wantTitle && (!wantArtist || singerNames(x.sINGER).some((name) => { const got = keepBrackets(name); return got && (got.includes(wantArtist) || wantArtist.includes(got)); })));
+  return matches.sort((a, b) => Number(a.cLOUD) - Number(b.cLOUD))[0] || null;
+}
+
+// A song of the kept list with its title and singer already simplified for searching.
+// "Hebe(田馥甄)" is the singer 田馥甄 in the singers list: the name inside the brackets is the key when there is one.
+const singerKey = (token) => { const m = /^(.*?)[(（]([^)）]+)[)）]\s*$/.exec(token); return m ? m[2].trim() : token; };
+function indexSong(song) { const names = singerNames(song.sINGER); return { ...song, pt: plain(song.sONGNAME), ps: plain(song.sINGER), names, keys: names.map(singerKey) }; }
+
+export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchImpl = fetch, log = console.log, now = () => Date.now(), catalog: givenCatalog = null, catalogFile = CATALOG_FILE, singers: givenSingers = null, singersFile = SINGERS_FILE }) {
   const box = boxUrl.replace(/\/+$/, "");
   const cloud = cloudUrl.replace(/\/+$/, "");
-  let sent = null; // { id, code, at, seenBusy } the app's song that is on the box now
+  let sent = null; // { id, code, at, seenBusy, repeatDone } the app's song that is on the box now
+  // The box only has a toggle between the singer's own voice (original / analog) and accompaniment, and cannot tell us which is on: we remember what we last set (it starts as accompaniment).
+  let boxVocal = "karaoke";
+  let lastStateAt = 0, lastStateCount = -1;
   // The box's whole song list (about 200,000 songs, read once and kept): the box's own search misses many Chinese songs, ours does not.
   let catalog = givenCatalog ? givenCatalog.map(indexSong) : null;
+  // The singers of the box (name, photo file, songs in the list): the app shows them as a gallery, most songs first.
+  let singers = givenSingers ? givenSingers.map((x) => ({ ...x, pn: plain(x.name), pp: plain(x.pinyin), pq: plain(x.qt_name) })) : null;
+  let photoOf = new Map();
+  let popular = [];
+  const buildSingerIndex = () => {
+    if (!singers || !catalog) return;
+    photoOf = new Map(singers.filter((x) => x.picture && x.picture !== NO_PHOTO).map((x) => [x.name, x.picture]));
+    const counts = new Map();
+    for (const song of catalog) for (const key of song.keys) counts.set(key, (counts.get(key) || 0) + 1);
+    for (const x of singers) x.songs = counts.get(x.name) || 0;
+    popular = singers.filter((x) => x.songs > 0).sort((a, b) => b.songs - a.songs || a.name.localeCompare(b.name));
+  };
+  buildSingerIndex();
+  const photoFor = (song) => { for (const key of song.keys) { const file = photoOf.get(key); if (file) return file; } return ""; };
+  const songView = (song) => ({ code: song.sONGBM, title: song.sONGNAME, artist: song.names.join(", ") || song.sINGER, photo: photoFor(song), cloud: !!song.cLOUD });
 
   const boxCall = async (servlet, params) => {
     const query = new URLSearchParams({ ...params, jsonpCallback: PLAYER_CALLBACK });
@@ -136,16 +178,54 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
       log(`song list ready: ${catalog.length} songs`);
     } catch (error) { log(`song list not read yet: ${error.message}`); }
   }
+  async function loadAll() { await loadCatalog(); await loadSingers(); buildSingerIndex(); }
+  async function loadSingers() {
+    try {
+      if (fs.existsSync(singersFile) && Date.now() - fs.statSync(singersFile).mtimeMs < CATALOG_MAX_AGE_MS) {
+        singers = JSON.parse(fs.readFileSync(singersFile, "utf8")).map((x) => ({ ...x, pn: plain(x.name), pp: plain(x.pinyin), pq: plain(x.qt_name) }));
+        buildSingerIndex();
+        log(`singers loaded: ${singers.length}`);
+        return;
+      }
+      const ask = (page) => boxCall("SingerServlet", { singer: "", singerType: "", sortType: "", page: String(page) });
+      const lastPage = Number((await ask(1)).maxPage) || 1;
+      log(`reading the box's singers: ${lastPage} pages`);
+      const pages = new Array(lastPage);
+      let next = 1;
+      const worker = async () => {
+        while (next <= lastPage) {
+          const page = next++;
+          for (let attempt = 1; attempt <= CRAWL_RETRIES; attempt++) {
+            try { pages[page - 1] = JSON.parse((await ask(page)).singerList || "[]"); break; } catch { if (attempt === CRAWL_RETRIES) pages[page - 1] = []; }
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: CRAWL_WORKERS }, worker));
+      const raw = pages.flat().map((x) => ({ name: x.name, picture: x.picture, pinyin: x.pinyin || "", qt_name: x.qt_name || "" }));
+      fs.writeFileSync(singersFile, JSON.stringify(raw));
+      singers = raw.map((x) => ({ ...x, pn: plain(x.name), pp: plain(x.pinyin), pq: plain(x.qt_name) }));
+      buildSingerIndex();
+      log(`singers ready: ${singers.length}`);
+    } catch (error) { log(`singers not read yet: ${error.message}`); }
+  }
   const findCode = async (song) => {
     if (song.karaokeCode) return song.karaokeCode;
-    if (catalog) { const match = pickSong(searchLocal(song.title), song.title, song.artist); if (match) return match.sONGBM; }
-    const exact = (all) => pickSong(all, song.title, song.artist);
+    if (catalog) { const match = exactSong(searchLocal(song.title), song.title, song.artist); if (match) return match.sONGBM; }
+    const exact = (all) => exactSong(all, song.title, song.artist);
     for (const text of song.boxQueries?.length ? song.boxQueries : [song.title]) {
       const match = exact(await searchBox(text, text === song.title ? 1 : FIND_PAGES, (all) => !!exact(all)));
       if (match) return match.sONGBM;
     }
     return null;
   };
+  // The songs waiting on the box itself, so staff and members can see them next to our queue.
+  async function reportBoxState(count) {
+    lastStateAt = now(); lastStateCount = count;
+    try {
+      const list = count > 0 ? JSON.parse((await boxCall("PlaylistServlet", { onSelectPage: "true", click: "true", type: "1" })).songList || "[]") : [];
+      await cloudCall("POST", "/api/karaoke/box-state", { songs: list.map((x) => ({ title: x.sONGNAME, artist: singerNames(x.sINGER).join(", ") })) });
+    } catch (error) { log(`box list not sent: ${error.message}`); }
+  }
   const finish = (finishedId, skip) => cloudCall("POST", "/api/karaoke/next", { finishedId, ...(skip ? { skip: true } : {}) });
 
   // One round: look at the app's queue and the box, and move whichever side is behind.
@@ -153,6 +233,7 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     const board = await cloudCall("GET", "/api/karaoke/queue");
     const current = board.nowPlaying;
     const count = await boxCount();
+    if (now() - lastStateAt > STATE_EVERY_MS || count !== lastStateCount) await reportBoxState(count);
 
     if (sent) {
       if (!current || current.id !== sent.id) { // skipped or cancelled in the app
@@ -160,6 +241,13 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
         log(`song ${sent.id} left the app's queue: ${count > 0 ? "cut on the box" : "box already idle"}`);
         sent = null;
         return "cut";
+      }
+      if ((current.repeat || 0) > sent.repeatDone) { // the singer pressed Repeat: play it again
+        await boxCall("CommandServlet", { cmd: "Reset", cmdValue: "" });
+        sent.repeatDone = current.repeat;
+        sent.seenBusy = true;
+        log(`song ${sent.id} played again`);
+        return "repeated";
       }
       if (count > 0) { sent.seenBusy = true; return "playing"; }
       if (sent.seenBusy) { // the box played it and is idle again
@@ -194,36 +282,63 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
       log(`"${current.title}" is not in the box's song list: skipped`);
       return "not found";
     }
+    const wantVocal = current.vocal === "original" ? "original" : "karaoke";
+    if (wantVocal !== boxVocal) { // the singer wants the original voice on (or off): the box's own toggle
+      await boxCall("CommandServlet", { cmd: "MuOr", cmdValue: "" });
+      boxVocal = wantVocal;
+      log(`singer's voice ${wantVocal === "original" ? "on" : "off"} for "${current.title}"`);
+    }
     await boxCall("CommandServlet", { cmd: "Add1", cmdValue: code });
-    sent = { id: current.id, code, at: now(), seenBusy: false };
+    sent = { id: current.id, code, at: now(), seenBusy: false, repeatDone: current.repeat || 0 };
     log(`ordered "${current.title}" (${code}) on the box`);
     return "ordered";
   }
 
-  // One round of the search helper: ask the app for searches members typed (the request is held open up to 20 s), run each on the box and send the answer back.
+  // The gallery of singers: search by name / pinyin / English name, otherwise the ones with the most songs first.
+  const singersPage = (q, page) => {
+    if (!singers || !catalog) return { singers: [], maxPage: 1, loading: true };
+    const want = plain(q);
+    const list = want ? popular.filter((x) => x.pn.includes(want) || x.pp.includes(want) || x.pq.includes(want)) : popular;
+    const from = (Math.max(1, Number(page) || 1) - 1) * SINGERS_PAGE;
+    return { singers: list.slice(from, from + SINGERS_PAGE).map((x) => ({ name: x.name, pinyin: x.pinyin, photo: x.picture === NO_PHOTO ? "" : x.picture, songs: x.songs })), maxPage: Math.max(1, Math.ceil(list.length / SINGERS_PAGE)) };
+  };
+  const songsOfSinger = (name, page) => {
+    if (!catalog) return { songs: [], maxPage: 1, loading: true };
+    const list = catalog.filter((x) => x.keys.includes(name)).sort((a, b) => a.sONGNAME.localeCompare(b.sONGNAME));
+    const from = (Math.max(1, Number(page) || 1) - 1) * SINGER_SONGS_PAGE;
+    return { songs: list.slice(from, from + SINGER_SONGS_PAGE).map(songView), maxPage: Math.max(1, Math.ceil(list.length / SINGER_SONGS_PAGE)) };
+  };
+  const fetchPhoto = async (file) => {
+    if (!PHOTO_FILE.test(String(file || ""))) return { data: "", type: "" };
+    const res = await fetchImpl(`${box}/singer/${file}`, { signal: AbortSignal.timeout(BOX_TIMEOUT_MS) });
+    if (!res.ok) return { data: "", type: "" };
+    return { data: Buffer.from(await res.arrayBuffer()).toString("base64"), type: res.headers.get("content-type") || "image/jpeg" };
+  };
+  // A member's search: from the kept list when it is ready, else by asking the box (the text and, for Chinese, its pinyin initials).
+  const searchAnswer = async (job) => {
+    if (catalog) return { songs: searchLocal(job.q).map(songView) };
+    const seen = new Set();
+    const songs = [];
+    for (const text of job.queries?.length ? job.queries : [job.q]) {
+      for (const x of await searchBox(text, SEARCH_PAGES)) {
+        if (seen.has(x.sONGBM) || (hasChinese(job.q) && !plain(x.sONGNAME).includes(plain(job.q)) && !plain(x.sINGER).includes(plain(job.q)))) continue;
+        seen.add(x.sONGBM);
+        songs.push(songView(indexSong(x)));
+      }
+    }
+    return { songs };
+  };
+
+  // One round of the helper: ask the app for what members asked for (the request is held open up to 20 s), answer each from the kept lists or the box.
   async function serveSearches() {
     const res = await fetchImpl(`${cloud}/api/karaoke/jobs`, { signal: AbortSignal.timeout(JOB_POLL_TIMEOUT_MS), headers: { "x-karaoke-token": token, ...(tenantSlug ? { "x-tenant-slug": tenantSlug } : {}) } });
     if (!res.ok) throw new Error(`/api/karaoke/jobs: ${res.status}`);
     const { jobs = [] } = await res.json();
     for (const job of jobs) {
-      if (catalog) {
-        const local = searchLocal(job.q).map((x) => ({ code: x.sONGBM, title: x.sONGNAME, artist: x.sINGER, cloud: !!x.cLOUD }));
-        await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, { songs: local });
-        log(`search "${job.q}": ${local.length} songs (own list)`);
-        continue;
-      }
-      // Chinese text is also searched by its pinyin initials; those matches are broad, so only songs that really contain what the member typed are kept.
-      const seen = new Set();
-      const songs = [];
-      for (const text of job.queries?.length ? job.queries : [job.q]) {
-        for (const x of await searchBox(text, SEARCH_PAGES)) {
-          if (seen.has(x.sONGBM) || (hasChinese(job.q) && !plain(x.sONGNAME).includes(plain(job.q)) && !plain(x.sINGER).includes(plain(job.q)))) continue;
-          seen.add(x.sONGBM);
-          songs.push({ code: x.sONGBM, title: x.sONGNAME, artist: x.sINGER, cloud: !!x.cLOUD });
-        }
-      }
-      await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, { songs });
-      log(`search "${job.q}": ${songs.length} songs`);
+      const kind = job.kind || "search";
+      const answer = kind === "singers" ? singersPage(job.q, job.page) : kind === "singer" ? songsOfSinger(job.name, job.page) : kind === "photo" ? await fetchPhoto(job.file) : await searchAnswer(job);
+      await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, answer);
+      if (kind !== "photo") log(`${kind} "${job.q || job.name || ""}": answered`);
     }
     return jobs.length;
   }
@@ -232,17 +347,21 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
   async function linkLibrary() {
     if (!catalog) return 0;
     const library = await cloudCall("GET", "/api/karaoke/library");
+    const byCode = new Map(catalog.map((x) => [String(x.sONGBM), x]));
     const links = [];
+    let unlinked = 0;
     for (const song of library) {
-      const match = pickSong(searchLocal(song.title), song.title, song.artist);
-      if (match && String(match.sONGBM) !== String(song.code || "")) links.push({ id: song.id, code: match.sONGBM });
+      const match = exactSong(searchLocal(song.title), song.title, song.artist);
+      if (match) { if (String(match.sONGBM) !== String(song.code || "")) links.push({ id: song.id, code: match.sONGBM }); continue; }
+      const old = song.code ? byCode.get(String(song.code)) : null;
+      if (song.code && (!old || plain(old.sONGNAME) !== plain(song.title))) { links.push({ id: song.id, code: null }); unlinked++; } // a link to a different song: off
     }
     if (links.length) await cloudCall("POST", "/api/karaoke/link", { links });
-    log(`library: ${links.length} of ${library.length} songs linked to the box`);
+    log(`library: ${links.length - unlinked} linked, ${unlinked} wrong links taken off (of ${library.length} songs)`);
     return links.length;
   }
 
-  return { tick, serveSearches, loadCatalog, linkLibrary, searchLocal, catalogSize: () => (catalog ? catalog.length : 0) };
+  return { tick, serveSearches, loadCatalog, loadAll, linkLibrary, singersPage, songsOfSinger, searchLocal, catalogSize: () => (catalog ? catalog.length : 0) };
 }
 
 async function main() {
@@ -252,7 +371,7 @@ async function main() {
   console.log(`Karaoke bridge: ${BOX_URL} <-> ${CLOUD_URL}`);
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const LINK_EVERY_MS = 6 * 3600 * 1000;
-  void bridge.loadCatalog().then(async () => { for (;;) { try { await bridge.linkLibrary(); } catch (error) { console.log(`library link waiting: ${error.message}`); } await wait(LINK_EVERY_MS); } });
+  void bridge.loadAll().then(async () => { for (;;) { try { await bridge.linkLibrary(); } catch (error) { console.log(`library link waiting: ${error.message}`); } await wait(LINK_EVERY_MS); } });
   const playLoop = async () => { for (;;) { try { await bridge.tick(); } catch (error) { console.log(`waiting: ${error.message}`); } await wait(Number(POLL_MS) || DEFAULT_POLL_MS); } };
   const searchLoop = async () => { for (;;) { try { await bridge.serveSearches(); } catch (error) { console.log(`search helper waiting: ${error.message}`); await wait(RETRY_AFTER_ERROR_MS); } } };
   await Promise.all([playLoop(), searchLoop()]);

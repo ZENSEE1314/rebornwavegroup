@@ -1077,7 +1077,7 @@ async function songQueueBoard(cid: number | null, viewerId?: string | null) {
   const people = ids.length ? await db.select({ id: users.id, firstName: users.firstName, username: users.username }).from(users).where(inArray(users.id, ids)) : [];
   const nameOf = new Map(people.map((u) => [u.id, (u.firstName || u.username || "").trim()]));
   const codes = await karaokeCodes([...(now?.songId ? [now.songId] : []), ...queue.map((r) => r.songId || 0)]);
-  const view = (r: any) => ({ id: r.id, title: r.title, boxQueries: boxQueries(r.title), artist: r.artist || "", performanceMode: r.performanceMode, table: r.table || r.tableLabel || null, name: nameOf.get(r.userId) || "", mine: !!viewerId && r.userId === viewerId, karaokeCode: r.songId ? codes.get(r.songId) || null : null });
+  const view = (r: any) => ({ id: r.id, title: r.title, vocal: r.vocal || "karaoke", repeat: r.repeatCount || 0, boxQueries: boxQueries(r.title), artist: r.artist || "", performanceMode: r.performanceMode, table: r.table || r.tableLabel || null, name: nameOf.get(r.userId) || "", mine: !!viewerId && r.userId === viewerId, karaokeCode: r.songId ? codes.get(r.songId) || null : null });
   const s = await getSettings();
   return {
     mode: s.songQueueMode, perTurn: s.songsPerTurn, paused,
@@ -1120,25 +1120,42 @@ const boxQueries = (text: string): string[] => {
   const initials = textPinyin(text).split(" ").map((word) => word[0] || "").join("");
   return initials && initials !== text ? [text, initials] : [text];
 };
-interface BoxJob { id: string; q: string; resolve: (songs: any[] | null) => void }
+interface BoxJob { id: string; payload: { kind: string; [k: string]: unknown }; resolve: (body: any | null) => void }
 const boxJobsWaiting = new Map<string, BoxJob[]>();   // company -> jobs no bridge has taken yet
 const boxJobsTaken = new Map<string, BoxJob>();        // job id -> job a bridge is working on
 const boxBridgeWaiters = new Map<string, Array<() => void>>(); // company -> bridge requests waiting for a job
 const boxBridgeSeen = new Map<string, number>();       // company -> last time the bridge asked for work
 const isBoxOnline = (key: string) => Date.now() - (boxBridgeSeen.get(key) || 0) <= BRIDGE_ONLINE_MS;
 const wakeBoxBridge = (key: string) => { for (const wake of boxBridgeWaiters.get(key) || []) wake(); boxBridgeWaiters.set(key, []); };
-async function searchKaraokeBox(key: string, q: string): Promise<Array<{ code: string; title: string; artist: string }> | null> {
+// A question for the box (kind: search | singers | singer | photo); the answer is what the bridge sends back, or null (no bridge, or too slow).
+async function askKaraokeBox(key: string, payload: BoxJob["payload"], waitMs = BOX_SEARCH_WAIT_MS): Promise<any | null> {
   if (!isBoxOnline(key)) return null;
   return new Promise((resolve) => {
-    const job: BoxJob = { id: randomUUID(), q, resolve: (songs) => { clearTimeout(timer); resolve(songs); } };
+    const job: BoxJob = { id: randomUUID(), payload, resolve: (body) => { clearTimeout(timer); resolve(body); } };
     const timer = setTimeout(() => {
       boxJobsTaken.delete(job.id);
       boxJobsWaiting.set(key, (boxJobsWaiting.get(key) || []).filter((j) => j.id !== job.id));
       resolve(null);
-    }, BOX_SEARCH_WAIT_MS);
+    }, waitMs);
     boxJobsWaiting.set(key, [...(boxJobsWaiting.get(key) || []), job]);
     wakeBoxBridge(key);
   });
+}
+type BoxSong = { code: string; title: string; artist: string; photo: string };
+async function searchKaraokeBox(key: string, q: string): Promise<BoxSong[] | null> {
+  const answer = await askKaraokeBox(key, { kind: "search", q, queries: boxQueries(q) });
+  return answer ? answer.songs : null;
+}
+const BOX_PAGE_LIMIT = 60;
+const BOX_PHOTO_MAX_CHARS = 600_000;
+const BOX_PHOTO_FILE = /^[A-Za-z0-9_.-]{1,60}\.(jpg|jpeg|png)$/i;
+const clean = (v: unknown, max = 200) => String(v ?? "").trim().slice(0, max);
+const cleanBoxSongs = (list: unknown): BoxSong[] => (Array.isArray(list) ? list : []).slice(0, BOX_PAGE_LIMIT).map((x: any) => ({ code: clean(x?.code, 40), title: clean(x?.title), artist: clean(x?.artist), photo: BOX_PHOTO_FILE.test(clean(x?.photo, 60)) ? clean(x?.photo, 60) : "" })).filter((x) => x.code && x.title);
+// What the bridge may send back, shaped per question so a wrong or huge answer cannot reach the members.
+function cleanBoxAnswer(kind: string, body: any) {
+  if (kind === "singers") return { singers: (Array.isArray(body?.singers) ? body.singers : []).slice(0, BOX_PAGE_LIMIT).map((x: any) => ({ name: clean(x?.name), pinyin: clean(x?.pinyin), photo: BOX_PHOTO_FILE.test(clean(x?.photo, 60)) ? clean(x?.photo, 60) : "", songs: Number(x?.songs) || 0 })).filter((x: any) => x.name), maxPage: Math.max(1, Number(body?.maxPage) || 1), loading: !!body?.loading };
+  if (kind === "photo") { const data = clean(body?.data, BOX_PHOTO_MAX_CHARS + 1); return data.length > BOX_PHOTO_MAX_CHARS ? { data: "", type: "" } : { data, type: /^image\/(jpeg|png)$/.test(clean(body?.type, 20)) ? clean(body?.type, 20) : "image/jpeg" }; }
+  return { songs: cleanBoxSongs(body?.songs), maxPage: Math.max(1, Number(body?.maxPage) || 1), loading: !!body?.loading }; // search | singer
 }
 const normSong = (v: unknown) => String(v || "").toLowerCase().replace(/[\s·・\-–—_'"“”‘’()（）\[\]【】.,，。!！?？]/g, "");
 // Add / update songs from the karaoke system's list: [{ code, title, artist }].
@@ -2407,7 +2424,7 @@ export function registerRebornRoutes(app: Express) {
       const query = String(req.query.q || "").trim();
       const [catalog, box] = await Promise.all([searchSongCatalog(req.query.q, 10, 100), query ? searchKaraokeBox(String(await rebornCompanyId(req)), query) : Promise.resolve(null)]);
       if (!box) return res.json({ ...catalog, boxConnected: false });
-      const fromBox = box.map((x) => ({ source: "karaoke", title: x.title, titlePinyin: "", artist: x.artist, artistPinyin: "", karaokeCode: x.code }));
+      const fromBox = box.map((x) => ({ source: "karaoke", title: x.title, titlePinyin: "", artist: x.artist, artistPinyin: "", karaokeCode: x.code, photo: x.photo }));
       res.json({ ...catalog, songs: fromBox, boxConnected: true }); // only what the box can play
     } catch (e) {
       console.error("song search", e);
@@ -2466,7 +2483,7 @@ export function registerRebornRoutes(app: Express) {
         }
       }
       const seat = await activeCheckin(userId).catch(() => null);
-      const [reqRow] = await db.insert(songRequests).values({ companyId: await rebornCompanyId(req), userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, tableLabel: seat?.tableLabel || null, status: "pending" }).returning();
+      const [reqRow] = await db.insert(songRequests).values({ companyId: await rebornCompanyId(req), userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, tableLabel: seat?.tableLabel || null, vocal: req.body?.vocal === "original" ? "original" : "karaoke", status: "pending" }).returning();
       // No staff approval: the song joins the fair queue straight away.
       emitLiveUpdate("/api/reborn/song-queue", { action: "QUEUED" });
       emitLiveUpdate("/api/reborn/admin/song-requests", { action: "QUEUED" });
@@ -2482,7 +2499,8 @@ export function registerRebornRoutes(app: Express) {
       const rows = await db.select().from(songRequests).where(and(eq(songRequests.companyId, cid), eq(songRequests.userId, userId))).orderBy(desc(songRequests.createdAt)).limit(100);
       const queue = await fairSongQueue(cid);
       const pos = new Map(queue.map((r) => [r.id, r.position]));
-      res.json(rows.map((r) => (r.status === "pending" && pos.has(r.id) ? { ...r, position: pos.get(r.id), queueSize: queue.length } : r)));
+      // No history: only the songs still waiting or on now.
+      res.json(rows.filter((r) => r.status === "pending" || r.status === "playing").map((r) => (r.status === "pending" && pos.has(r.id) ? { ...r, position: pos.get(r.id), queueSize: queue.length } : r)));
     } catch { res.json([]); }
   });
   app.get("/api/reborn/song-settings", requireAuth, async (_req, res) => {
@@ -2710,7 +2728,7 @@ export function registerRebornRoutes(app: Express) {
       const jobs = boxJobsWaiting.get(key) || [];
       boxJobsWaiting.set(key, []);
       for (const job of jobs) boxJobsTaken.set(job.id, job);
-      return jobs.map((job) => ({ id: job.id, q: job.q, queries: boxQueries(job.q) }));
+      return jobs.map((job) => ({ id: job.id, ...job.payload }));
     };
     if ((boxJobsWaiting.get(key) || []).length) return res.json({ jobs: takeJobs() });
     let isDone = false;
@@ -2724,11 +2742,53 @@ export function registerRebornRoutes(app: Express) {
     const job = boxJobsTaken.get(String(req.params.id));
     if (job) {
       boxJobsTaken.delete(job.id);
-      const list = Array.isArray(req.body?.songs) ? req.body.songs : [];
-      job.resolve(list.slice(0, BOX_RESULT_LIMIT).map((x: any) => ({ code: String(x?.code ?? "").trim(), title: String(x?.title ?? "").trim(), artist: String(x?.artist ?? "").trim() })).filter((x: any) => x.code && x.title));
+      job.resolve(cleanBoxAnswer(job.payload.kind, req.body));
     }
     res.json({ ok: !!job });
   });
+  // Members browse the song system: is it online, its singers (most songs first, photo + name), one singer's songs, and the photos (kept in memory after the first ask).
+  const boxPhotos = new Map<string, { type: string; buf: Buffer }>();
+  const BOX_PHOTO_CACHE = 600;
+  app.get("/api/reborn/karaoke/status", requireAuth, async (req, res) => { res.set("Cache-Control", "no-store").json({ online: isBoxOnline(String(await rebornCompanyId(req))) }); });
+  app.get("/api/reborn/karaoke/singers", requireAuth, async (req, res) => {
+    const key = String(await rebornCompanyId(req));
+    const answer = await askKaraokeBox(key, { kind: "singers", q: clean(req.query.q, 60), page: Math.max(1, Math.floor(Number(req.query.page) || 1)) });
+    res.set("Cache-Control", "no-store").json(answer ? { ...answer, boxConnected: true } : { singers: [], maxPage: 1, boxConnected: isBoxOnline(key), slow: isBoxOnline(key) });
+  });
+  app.get("/api/reborn/karaoke/singer-songs", requireAuth, async (req, res) => {
+    const key = String(await rebornCompanyId(req));
+    const answer = await askKaraokeBox(key, { kind: "singer", name: clean(req.query.name, 80), page: Math.max(1, Math.floor(Number(req.query.page) || 1)) });
+    res.set("Cache-Control", "no-store").json(answer ? { ...answer, boxConnected: true } : { songs: [], maxPage: 1, boxConnected: isBoxOnline(key), slow: isBoxOnline(key) });
+  });
+  app.get("/api/reborn/karaoke/photo/:file", requireAuth, async (req, res) => {
+    const file = String(req.params.file);
+    if (!BOX_PHOTO_FILE.test(file)) return res.status(400).end();
+    const key = String(await rebornCompanyId(req));
+    const cacheKey = `${key}:${file}`;
+    let photo = boxPhotos.get(cacheKey);
+    if (!photo) {
+      const answer = await askKaraokeBox(key, { kind: "photo", file }, 8000);
+      if (!answer?.data) return res.status(404).end();
+      photo = { type: answer.type, buf: Buffer.from(answer.data, "base64") };
+      if (boxPhotos.size >= BOX_PHOTO_CACHE) boxPhotos.delete(boxPhotos.keys().next().value!);
+      boxPhotos.set(cacheKey, photo);
+    }
+    res.set("Cache-Control", "public, max-age=86400").type(photo.type).send(photo.buf);
+  });
+  // The bridge reports what is on the song system itself (songs ordered there by hand are not in our queue): admin and members see it next to the queue.
+  const boxStates = new Map<string, { at: number; songs: Array<{ title: string; artist: string }> }>();
+  const BOX_STATE_FRESH_MS = 30_000;
+  const boxStateOf = (key: string) => { const st = boxStates.get(key); return st && Date.now() - st.at < BOX_STATE_FRESH_MS ? st.songs : []; };
+  app.post("/api/karaoke/box-state", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    const songsOnBox = (Array.isArray(req.body?.songs) ? req.body.songs : []).slice(0, 50).map((x: any) => ({ title: clean(x?.title), artist: clean(x?.artist) })).filter((x: any) => x.title);
+    boxStates.set(String(await rebornCompanyId(req)), { at: Date.now(), songs: songsOnBox });
+    res.json({ ok: true });
+  });
+  app.get("/api/reborn/admin/karaoke/box-playlist", requireStaff(async (req, res) => {
+    const key = String(await rebornCompanyId(req));
+    res.set("Cache-Control", "no-store").json({ online: isBoxOnline(key), songs: boxStateOf(key) });
+  }));
   // The bridge matches the app's library against the box's whole list and links the songs the box has (library song -> its number on the box).
   app.get("/api/karaoke/library", async (req, res) => {
     if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
@@ -2736,8 +2796,8 @@ export function registerRebornRoutes(app: Express) {
   });
   app.post("/api/karaoke/link", async (req, res) => {
     if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
-    const links = (Array.isArray(req.body?.links) ? req.body.links : []).slice(0, 5000).map((x: any) => ({ id: Number(x?.id), code: String(x?.code ?? "").trim() })).filter((x: any) => x.id && x.code);
-    for (const link of links) await db.update(songs).set({ karaokeCode: link.code }).where(eq(songs.id, link.id));
+    const links = (Array.isArray(req.body?.links) ? req.body.links : []).slice(0, 5000).map((x: any) => ({ id: Number(x?.id), code: x?.code === null ? null : String(x?.code ?? "").trim() })).filter((x: any) => x.id && (x.code === null || x.code));
+    for (const link of links) await db.update(songs).set({ karaokeCode: link.code }).where(eq(songs.id, link.id)); // code null = take the link off
     res.json({ linked: links.length });
   });
   app.post("/api/karaoke/songs", async (req, res) => {
@@ -2767,7 +2827,28 @@ export function registerRebornRoutes(app: Express) {
 
   // Everyone sees the queue: who's singing now (table + first name) and every waiting song.
   app.get("/api/reborn/song-queue", requireAuth, async (req, res) => {
-    res.json(await songQueueBoard(await rebornCompanyId(req), getUserId(req)));
+    const cid = await rebornCompanyId(req);
+    res.json({ ...(await songQueueBoard(cid, getUserId(req))), boxQueue: boxStateOf(String(cid)) }); // + what was ordered on the song system by hand
+  });
+  // The singer cuts their own song short, or plays it again, while it is on (no one else's, no confirmation needed).
+  const mySongOn = async (req: Request) => {
+    const cid = await rebornCompanyId(req);
+    const current = await songNowPlaying(cid);
+    return current && current.id === Number(req.params.id) && current.userId === getUserId(req) ? { cid, current } : null;
+  };
+  const notYourSong = (req: Request) => tr(req, { en: "Only the song you are singing now can be skipped or repeated.", zh: "只能跳过或重播你正在唱的歌。", id: "Hanya lagu yang sedang kamu nyanyikan yang bisa dilewati atau diulang." });
+  app.post("/api/reborn/songs/my-requests/:id/skip", requireAuth, async (req, res) => {
+    const mine = await mySongOn(req);
+    if (!mine) return res.status(400).json({ message: notYourSong(req) });
+    await advanceSongQueue(mine.cid, "skip", getUserId(req));
+    res.json({ message: tr(req, { en: "Skipped", zh: "已跳过", id: "Dilewati" }) });
+  });
+  app.post("/api/reborn/songs/my-requests/:id/repeat", requireAuth, async (req, res) => {
+    const mine = await mySongOn(req);
+    if (!mine) return res.status(400).json({ message: notYourSong(req) });
+    await db.update(songRequests).set({ repeatCount: sql`${songRequests.repeatCount} + 1` }).where(eq(songRequests.id, mine.current.id));
+    emitLiveUpdate("/api/reborn/song-queue", { action: "REPEAT" });
+    res.json({ message: tr(req, { en: "Playing it again", zh: "重新播放", id: "Diputar ulang" }) });
   });
   // A member takes back their own song that hasn't started yet.
   app.post("/api/reborn/songs/my-requests/:id/cancel", requireAuth, async (req, res) => {

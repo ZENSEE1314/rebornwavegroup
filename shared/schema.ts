@@ -848,6 +848,8 @@ export const songRequests = pgTable("song_requests", {
   confirmedAt: timestamp("confirmed_at"),
   adminId: varchar("admin_id"),
   bumpedAt: timestamp("bumped_at"), // admin pressed "Play next": goes ahead of the fair queue
+  vocal: varchar("vocal").default("karaoke").notNull(), // 'original' = the singer's own voice on (analog) | 'karaoke' = accompaniment only
+  repeatCount: integer("repeat_count").default(0).notNull(), // times the singer pressed Repeat while the song was on
 });
 
 // Admin-posted events shown on the homepage / at login
