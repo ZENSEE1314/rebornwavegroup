@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
-import { printClosingReport, printReceipt, printKitchen } from "@/lib/receipt";
+import { printClosingReport, printReceipt, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
@@ -55,6 +55,34 @@ function beep() {
   } catch {}
 }
 
+// Which roll is in the receipt printer of this PC: width and how far to move the print right (saved in this browser).
+function ReceiptPaperSetting() {
+  const { t } = useTranslation();
+  const [paper, setPaper] = useState(getReceiptPaper);
+  const [isOpen, setIsOpen] = useState(false);
+  const change = (next: { widthMm: number; shiftMm: number }) => { setPaper(next); saveReceiptPaper(next); };
+  return (
+    <div className="mb-3 inline-block align-top mr-2">
+      <button onClick={() => setIsOpen(!isOpen)} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🧾 {t("pos.rc.paperSetting")}</button>
+      {isOpen && (
+        <div className="mt-2 w-72 rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-white/80">
+          <label className="block mb-2">{t("pos.rc.paperWidth")}
+            <select value={paper.widthMm} onChange={(e) => change({ ...paper, widthMm: Number(e.target.value) })} className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-white">
+              <option value={58}>58 mm</option>
+              <option value={80}>80 mm</option>
+            </select>
+          </label>
+          <label className="block mb-2">{t("pos.rc.paperShift")}
+            <input type="number" min={0} max={40} step={1} value={paper.shiftMm} onChange={(e) => change({ ...paper, shiftMm: Math.max(0, Math.min(40, Number(e.target.value) || 0)) })} className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-white" />
+          </label>
+          <p className="mb-2 text-white/50">{t("pos.rc.paperHint")}</p>
+          <button onClick={() => printPaperTest()} className="w-full rounded-lg bg-white/10 px-3 py-2 font-semibold text-white">{t("pos.rc.paperTest")}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RebornPos() {
   const [, navigate] = useLocation();
   const { user, isLoading } = useAuth();
@@ -80,6 +108,7 @@ export default function RebornPos() {
       </div>
       <StaffGuideButton />
       <OfflineBanner />
+      <ReceiptPaperSetting />
       <a href="/kitchen" className="mb-3 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🍳 {t("pos.kitchen.open")}</a>
       {(role === "admin" || companyRole === "manager") && <ClosePosDay />}
       <div className="grid gap-2 mb-4 max-w-3xl" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>

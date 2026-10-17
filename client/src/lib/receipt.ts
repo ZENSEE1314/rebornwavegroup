@@ -26,9 +26,26 @@ const receiptNumber = (o: Order) => (o.receiptSeq ? String(o.receiptSeq).padStar
 const receiptFileName = (o: Order) => (o.receiptSeq && o.receiptDay ? `Receipt_${o.receiptDay}_${receiptNumber(o)}` : undefined);
 const esc = (s: any) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 
-const CSS = `
+// The roll in this printer: its width and how far the print is moved to the right. A 58 mm roll in an 80 mm printer often sits against one side, so the left of every line would print in the air.
+// A property of the printer on this PC, so it is saved in this browser, not on the server.
+export interface ReceiptPaper { widthMm: number; shiftMm: number }
+const PAPER_KEY = "rw.receipt.paper";
+const DEFAULT_PAPER: ReceiptPaper = { widthMm: 80, shiftMm: 0 };
+export function getReceiptPaper(): ReceiptPaper {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PAPER_KEY) || "null");
+    if (saved && Number(saved.widthMm) >= 40 && Number(saved.widthMm) <= 120) return { widthMm: Number(saved.widthMm), shiftMm: Math.max(0, Math.min(40, Number(saved.shiftMm) || 0)) };
+  } catch { /* storage blocked or bad value: use the default */ }
+  return DEFAULT_PAPER;
+}
+export function saveReceiptPaper(paper: ReceiptPaper) {
+  try { localStorage.setItem(PAPER_KEY, JSON.stringify(paper)); } catch { /* storage blocked: the choice lasts until the page is closed */ }
+}
+const buildCss = () => {
+  const { widthMm, shiftMm } = getReceiptPaper();
+  return `
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Courier New',monospace; }
-  body { width:80mm; padding:6mm 4mm; color:#000; }
+  body { width:${widthMm}mm; margin-left:${shiftMm}mm; padding:6mm 4mm; color:#000; }
   .c { text-align:center; } .b { font-weight:bold; }
   img.logo { max-width:40mm; max-height:22mm; object-fit:contain; margin:0 auto 4px; display:block; }
   .name { font-size:15px; font-weight:bold; }
@@ -42,6 +59,7 @@ const CSS = `
   .kitem { font-size:16px; font-weight:bold; line-height:1.7; border-bottom:1px dotted #999; }
   @media print { @page { margin:0; } }
 `;
+};
 
 function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false) {
   const when = new Date(o.paidAt || o.createdAt || Date.now()).toLocaleString(localeTag());
@@ -98,7 +116,7 @@ function kitchenHtml(o: Order, title?: string) {
 
 function printDoc(inner: string, fileName?: string): boolean {
   const title = fileName || tr("pos.rc.docTitle");
-  const fullHtml = `<!doctype html><html lang="${localeTag()}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS}</style></head><body>${inner}</body></html>`;
+  const fullHtml = `<!doctype html><html lang="${localeTag()}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${buildCss()}</style></head><body>${inner}</body></html>`;
   const nativeBridge = (window as any).ReactNativeWebView;
   if (nativeBridge?.postMessage) {
     nativeBridge.postMessage(JSON.stringify({ type: "PRINT_HTML", html: fullHtml, title }));
@@ -133,6 +151,10 @@ export function printReceipt(order: Order, meta: ReceiptMeta) {
 export function printQrSlip(title: string, subtitle: string, parts: Array<{ svg: string; label: string }>) {
   const body = parts.map((part) => `<div class="c qr">${part.svg}<div class="b" style="font-size:13px;margin:2px 0 10px;">${esc(part.label)}</div></div>`).join("");
   return printDoc(`<div class="c"><div class="name">${esc(title)}</div>${subtitle ? `<div class="muted">${esc(subtitle)}</div>` : ""}</div><hr/>${body}`, `qr-${title}`);
+}
+// A short slip with a ruler, to set the roll width and shift on this PC.
+export function printPaperTest() {
+  return printDoc(`<div class="c"><div class="name">${esc(tr("pos.rc.paperTestTitle"))}</div></div><div class="row"><span>|&lt;&lt; ${esc(tr("pos.rc.paperLeft"))}</span><span>${esc(tr("pos.rc.paperRight"))} &gt;&gt;|</span></div><hr/>`);
 }
 export function printKitchen(order: Order, title?: string) {
   return printDoc(kitchenHtml(order, title));
