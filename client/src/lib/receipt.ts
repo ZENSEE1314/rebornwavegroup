@@ -41,6 +41,15 @@ export function getReceiptPaper(): ReceiptPaper {
   } catch { /* storage blocked or bad value: use the default */ }
   return DEFAULT_PAPER;
 }
+// How many copies a receipt prints on this PC: one (the customer's) or two (a sales copy + the customer's). A bill with a commission always gets the sales copy, which is where the commission is shown.
+const COPIES_KEY = "rw.receipt.copies";
+export type ReceiptCopies = "one" | "two";
+export function getReceiptCopies(): ReceiptCopies {
+  try { return localStorage.getItem(COPIES_KEY) === "two" ? "two" : "one"; } catch { return "one"; }
+}
+export function saveReceiptCopies(copies: ReceiptCopies) {
+  try { localStorage.setItem(COPIES_KEY, copies); } catch { /* storage blocked: the choice lasts until the page is closed */ }
+}
 export function saveReceiptPaper(paper: ReceiptPaper) {
   try { localStorage.setItem(PAPER_KEY, JSON.stringify(paper)); } catch { /* storage blocked: the choice lasts until the page is closed */ }
 }
@@ -157,7 +166,9 @@ function printDoc(inner: string, fileName?: string, fullWidth = false): boolean 
 // `duplicate` = a reprint from the sales history: every copy is marked DUPLICATE with the time it was printed again.
 export function printReceipt(order: Order, meta: ReceiptMeta, opts: { duplicate?: boolean } = {}) {
   const dup = !!opts.duplicate;
-  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy"), false, true, dup) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true, false, dup), dup && receiptFileName(order) ? `${receiptFileName(order)}_duplicate` : receiptFileName(order));
+  const withSalesCopy = getReceiptCopies() === "two" || Number(order.commissionAmount) > 0;
+  const salesCopy = withSalesCopy ? receiptHtml(order, meta, tr("pos.rc.merchantCopy"), false, true, dup) + `<div style="page-break-after:always;height:8mm;"></div>` : "";
+  return printDoc(salesCopy + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true, false, dup), dup && receiptFileName(order) ? `${receiptFileName(order)}_duplicate` : receiptFileName(order));
 }
 // The bill handed to the customer before they pay: what they ordered and the total due. Not a receipt (no payment, no commission, no QR).
 export function printBill(order: Order, meta: ReceiptMeta) {
