@@ -75,7 +75,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
   const service = Number(o.serviceFee) > 0 ? `<div class="row"><span>${m.serviceFeePercent ? tr("pos.rc.serviceFeePct", { n: m.serviceFeePercent }) : tr("pos.rc.serviceFee")}</span><span>${rp(o.serviceFee)}</span></div>` : "";
   const tax = Number(o.tax) > 0 ? `<div class="row"><span>${m.taxPercent ? tr("pos.rc.taxPct", { n: m.taxPercent }) : tr("pos.rc.tax")}</span><span>${rp(o.tax)}</span></div>` : "";
   const commission = showCommission && Number(o.commissionAmount) > 0
-    ? `<div class="row"><span>${tr("pos.rc.commission")}${o.commissionLabel ? ` ${esc(o.commissionLabel)}` : ""}${o.commissionPayee ? ` · ${esc(o.commissionPayee)}` : ""}</span><span>${rp(o.commissionAmount)}</span></div><div class="c muted">${tr("pos.rc.commissionNote")}</div>`
+    ? `<div class="row"><span>${tr("pos.rc.commissionBase")}</span><span>${rp(Number(o.subtotal ?? o.total) - Number(o.discount || 0))}</span></div><div class="row"><span>${tr("pos.rc.commission")}${o.commissionLabel ? ` ${esc(o.commissionLabel)}` : ""}${o.commissionPayee ? ` · ${esc(o.commissionPayee)}` : ""}</span><span>${rp(o.commissionAmount)}</span></div><div class="c muted">${tr("pos.rc.commissionNote")}</div>`
     : "";
   return `
     <div class="c">

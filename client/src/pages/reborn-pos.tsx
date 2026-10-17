@@ -71,6 +71,7 @@ function CommissionBox({ value, onChange, base }: { value: CommissionInput; onCh
     <details className="mb-2 rounded-xl border border-white/10 bg-black/20 p-2 text-xs text-white/70">
       <summary className="cursor-pointer font-semibold">💼 {t("pos.com.title")}{amount > 0 && <span className="ml-2 text-amber-300">{rp(amount)}</span>}</summary>
       <p className="my-2 text-white/45">{t("pos.com.hint")}</p>
+      <p className="mb-2 font-semibold text-white/70">{t("pos.com.base", { amount: rp(base) })}</p>
       {types.length > 0 && (
         <select value="" onChange={(e) => { const type = types.find((x: any) => x.id === e.target.value); if (type) onChange({ ...value, label: type.name, kind: type.kind, value: Number(type.value) }); }} className={field}>
           <option value="">{t("pos.com.pick")}</option>
