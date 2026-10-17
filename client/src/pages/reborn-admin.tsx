@@ -1608,6 +1608,41 @@ function WifiQrCard({ onShow, onReady }: { onShow: (wifi: { svg: string; name: s
   );
 }
 
+// The QR printed at the bottom of every customer receipt: the venue Wi-Fi, the Google review link, a link of your own, or none.
+function ReceiptQrCard() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const SETTINGS = "/api/reborn/admin/settings";
+  const { data, isError } = useQuery<any>({ queryKey: [SETTINGS], queryFn: () => apiRequest("GET", SETTINGS).then((r) => { if (!r.ok) throw new Error("no access"); return r.json(); }), retry: false });
+  const [f, setF] = useState({ receiptQrKind: "none", receiptQrLink: "", receiptQrCaption: "" });
+  useEffect(() => { if (data) setF({ receiptQrKind: data.receiptQrKind || "none", receiptQrLink: data.receiptQrLink || "", receiptQrCaption: data.receiptQrCaption || "" }); }, [data?.receiptQrKind, data?.receiptQrLink, data?.receiptQrCaption]);
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", SETTINGS, f).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("admin.c.saved") }); qc.invalidateQueries({ queryKey: [SETTINGS] }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
+  });
+  if (isError) return null;
+  const needsWifi = f.receiptQrKind === "wifi" && !data?.wifiName;
+  const needsReview = f.receiptQrKind === "review" && !data?.googleReviewUrl;
+  return (
+    <Card>
+      <p className="font-bold mb-1 flex items-center gap-2 text-sm"><Printer className="w-4 h-4 text-amber-300" /> {t("admin.rqr.title")}</p>
+      <p className="text-[11px] text-white/40 mb-3">{t("admin.rqr.hint")}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <select value={f.receiptQrKind} onChange={(e) => setF({ ...f, receiptQrKind: e.target.value })} className={inp + " w-full"}>
+          <option value="none">{t("admin.rqr.none")}</option><option value="wifi">{t("admin.rqr.wifi")}</option><option value="review">{t("admin.rqr.review")}</option><option value="link">{t("admin.rqr.link")}</option>
+        </select>
+        <input value={f.receiptQrCaption} onChange={(e) => setF({ ...f, receiptQrCaption: e.target.value })} maxLength={60} placeholder={t("admin.rqr.caption")} className={inp + " w-full"} />
+        {f.receiptQrKind === "link" && <input value={f.receiptQrLink} onChange={(e) => setF({ ...f, receiptQrLink: e.target.value })} placeholder="https://" className={inp + " w-full sm:col-span-2"} />}
+      </div>
+      {needsWifi && <p className="mt-2 text-[11px] text-amber-200">{t("admin.rqr.needWifi")}</p>}
+      {needsReview && <p className="mt-2 text-[11px] text-amber-200">{t("admin.rqr.needReview")}</p>}
+      <button onClick={() => save.mutate()} disabled={save.isPending} className={btn + " mt-3"}>{t("admin.c.save")}</button>
+    </Card>
+  );
+}
+
 function QrCodes() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -1670,6 +1705,7 @@ function QrCodes() {
           <p className="text-[11px] text-white/40">{t("admin.qr.newStaffCode")}</p>
         </div>
       </Card>
+      <ReceiptQrCard />
       <WifiQrCard onReady={setWifi} onShow={(w) => { setBig({ title: t("admin.wifi.cardTitle", { n: w.name }), subtitle: t("admin.wifi.cardSub"), svg: w.svg, fileName: `wifi-${w.name}` }); }} />
       {sheet && <TableQrSheet onClose={() => setSheet(null)} only={sheet.only} autoPrint={sheet.autoPrint} />}
       {big && <QrBigView title={big.title} subtitle={big.subtitle} svg={big.svg} fileName={big.fileName} combined={big.combined} onClose={() => setBig(null)} />}

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, X } from "lucide-react";
+import { Download, Printer, X } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
 import { drawQrCard, saveCardImage, type QrCardPart, type SaveResult } from "@/lib/qr-download";
+import { printQrSlip } from "@/lib/receipt";
 
 interface QrBigViewProps {
   title: string;
@@ -42,6 +43,8 @@ export function QrBigView({ title, subtitle = "", svg, fileName, combined, onClo
         <div className="mt-3 space-y-2">
           <button type="button" disabled={isSaving} onClick={() => save([{ svg, label: title }], fileName)} className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white disabled:opacity-50"><Download className="h-4 w-4" /> {t("admin.qr.download")}</button>
           {combined && <button type="button" disabled={isSaving} onClick={() => save(combined.parts, combined.fileName)} className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 text-sm font-bold text-black disabled:opacity-50"><Download className="h-4 w-4" /> {combined.label}</button>}
+          <button type="button" onClick={() => { if (!printQrSlip(title, subtitle, [{ svg, label: title }])) setError(t("admin.qr.printFail")); }} className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-black/20 px-4 text-sm font-bold text-black"><Printer className="h-4 w-4" /> {t("admin.qr.printSlip")}</button>
+          {combined && <button type="button" onClick={() => { if (!printQrSlip(title, subtitle, combined.parts)) setError(t("admin.qr.printFail")); }} className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-black/20 px-4 text-sm font-bold text-black"><Printer className="h-4 w-4" /> {t("admin.qr.printSlipBoth")}</button>}
           {done && <p className="text-xs text-emerald-700">{t(done === "printed" ? "admin.qr.savedPrint" : done === "shared" ? "admin.qr.savedShare" : "admin.qr.savedDownload")}</p>}
           {error && <p className="text-xs text-red-700">{error}</p>}
         </div>

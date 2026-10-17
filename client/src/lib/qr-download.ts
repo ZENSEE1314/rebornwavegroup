@@ -10,15 +10,10 @@ const TITLE_FONT = "bold 80px sans-serif";
 const LABEL_FONT = "bold 44px sans-serif";
 const SMALL_FONT = "36px sans-serif";
 
-export type WifiSecurity = "WPA" | "WEP" | "nopass";
+export type { WifiSecurity } from "@shared/wifi";
+export { wifiQrText } from "@shared/wifi";
 
 export interface QrCardPart { svg: string; label: string }
-
-// WIFI:T:WPA;S:name;P:password;;  — the characters \ ; , : " in the name or password are escaped with a backslash.
-export function wifiQrText(name: string, password: string, security: WifiSecurity): string {
-  const escape = (value: string) => value.replace(/([\\;,:"])/g, "\\$1");
-  return `WIFI:T:${security};S:${escape(name)};${security === "nopass" ? "" : `P:${escape(password)};`};`;
-}
 
 export function qrSvg(text: string): Promise<string> {
   return QRCode.toString(text, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
@@ -91,4 +86,15 @@ export async function saveCardImage(canvas: HTMLCanvasElement, fileName: string)
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return "downloaded";
+}
+
+const QUIET_ZONE = 4;
+// The same QR as an SVG string, made at once (a receipt is printed without waiting): one square per dark module, white around.
+export function qrSvgNow(text: string): string {
+  const qr = QRCode.create(text, { errorCorrectionLevel: "M" });
+  const size = qr.modules.size;
+  let path = "";
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (qr.modules.data[y * size + x]) path += `M${x + QUIET_ZONE},${y + QUIET_ZONE}h1v1h-1z`;
+  const full = size + QUIET_ZONE * 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${full} ${full}" shape-rendering="crispEdges"><rect width="${full}" height="${full}" fill="#fff"/><path d="${path}" fill="#000"/></svg>`;
 }

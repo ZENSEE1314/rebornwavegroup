@@ -2,6 +2,7 @@
 // dialog. Set your thermal printer as the default printer (or "Save as PDF").
 import { translate as tr, localeTag } from "@/lib/i18n";
 import { money } from "@/lib/money";
+import { qrSvgNow } from "@/lib/qr-download";
 
 interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; }
 interface Order {
@@ -13,7 +14,7 @@ interface Order {
   packageCreditUsed?: string | number; discountReason?: string | null;
   receiptSeq?: number; receiptDay?: string; // the paid bill's number within its venue day (1, 2, 3 ...) and that day's date
 }
-interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; serviceFeePercent?: number; taxPercent?: number; }
+interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; serviceFeePercent?: number; taxPercent?: number; qr?: { text: string; caption?: string } | null; }
 
 const rp = (n: any) => money(n);
 const mode = (m?: string) => (m === "take_away" ? tr("pos.rc.takeAway") : tr("pos.rc.dineIn"));
@@ -35,13 +36,14 @@ const CSS = `
   .muted { font-size:11px; color:#000; }
   hr { border:none; border-top:1px dashed #000; margin:6px 0; }
   .big { font-size:15px; font-weight:bold; }
+  .qr svg { width:42mm; height:42mm; display:block; margin:4px auto; }
   .mode { border:2px solid #000; display:inline-block; padding:2px 8px; font-weight:bold; margin:4px 0; font-size:13px; }
   h1.k { font-size:20px; text-align:center; margin:4px 0; }
   .kitem { font-size:16px; font-weight:bold; line-height:1.7; border-bottom:1px dotted #999; }
   @media print { @page { margin:0; } }
 `;
 
-function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
+function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false) {
   const when = new Date(o.paidAt || o.createdAt || Date.now()).toLocaleString(localeTag());
   const items = (o.items || []).map((it) => `<div class="row"><span>${it.qty}× ${esc(it.name)}</span><span>${rp(it.lineTotal)}</span></div>`).join("");
   const disc = Number(o.discount) > 0 ? `<div class="row"><span>${tr("pos.rc.discount")}${o.discountReason ? ` (${esc(o.discountReason)})` : ""}</span><span>- ${rp(o.discount)}</span></div>` : "";
@@ -74,6 +76,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string) {
     ${o.paymentMethod === "cash" ? `<div class="row"><span>${tr("pos.rc.cashReceived")}</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>${tr("pos.rc.change")}</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
     ${o.status === "refunded" ? `<div class="c b" style="font-size:18px;margin-top:6px;">${tr("pos.rc.refunded")}</div>` : ""}
     <hr/>
+    ${withQr && m.qr?.text ? `<div class="c qr">${qrSvgNow(m.qr.text)}${m.qr.caption ? `<div class="muted b">${esc(m.qr.caption)}</div>` : ""}</div>` : ""}
     <div class="c muted">${esc(m.footer || tr("pos.rc.thanks"))}</div>
     <div class="c muted b" style="margin-top:4px;">— ${copyLabel} —</div>
   `;
@@ -124,7 +127,12 @@ function printDoc(inner: string, fileName?: string): boolean {
 
 // Prints a merchant copy + customer copy in one job.
 export function printReceipt(order: Order, meta: ReceiptMeta) {
-  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy")) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy")), receiptFileName(order));
+  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy")) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true), receiptFileName(order));
+}
+// A small slip with one or two QR codes (a table, the Wi-Fi) for the receipt printer.
+export function printQrSlip(title: string, subtitle: string, parts: Array<{ svg: string; label: string }>) {
+  const body = parts.map((part) => `<div class="c qr">${part.svg}<div class="b" style="font-size:13px;margin:2px 0 10px;">${esc(part.label)}</div></div>`).join("");
+  return printDoc(`<div class="c"><div class="name">${esc(title)}</div>${subtitle ? `<div class="muted">${esc(subtitle)}</div>` : ""}</div><hr/>${body}`, `qr-${title}`);
 }
 export function printKitchen(order: Order, title?: string) {
   return printDoc(kitchenHtml(order, title));

@@ -12,6 +12,7 @@ import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinSt
 import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
+import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
 import { clockInZone, isHappyNow, isOffHours, isValidClock, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
@@ -97,6 +98,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   songsPerTurn: "1",        // songs each member/table sings per turn (1–3)
   timezone: "Asia/Jakarta", // club country timezone — booking slots, "today" and WhatsApp reminders use this
   bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
+  receiptQrKind: "none", receiptQrLink: "", receiptQrCaption: "", // a QR at the bottom of the customer receipt: none | wifi | review | link
   wifiName: "", wifiPassword: "", wifiSecurity: "WPA", // the venue Wi-Fi, for the Wi-Fi QR in Admin > QR codes (WPA | WEP | nopass)
   payrollDay: "15",         // day of month payroll is recorded/paid (the admin reminder comes then)
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
@@ -155,6 +157,7 @@ async function getSettings() {
     songsPerTurn: Math.min(3, Math.max(1, Math.floor(Number(map.songsPerTurn) || 1))),
     timezone: map.timezone || "Asia/Jakarta",
     bottleExpiryDays: Math.max(1, Number(map.bottleExpiryDays) || 90),
+    receiptQrKind: RECEIPT_QR_KINDS.includes(map.receiptQrKind as any) ? map.receiptQrKind : "none", receiptQrLink: map.receiptQrLink || "", receiptQrCaption: map.receiptQrCaption || "",
     wifiName: map.wifiName || "", wifiPassword: map.wifiPassword || "", wifiSecurity: ["WPA", "WEP", "nopass"].includes(map.wifiSecurity) ? map.wifiSecurity : "WPA",
     payrollDay: Math.min(28, Math.max(1, Number(map.payrollDay) || 1)),
     overtimeHourlyRate: Math.max(0, Number(map.overtimeHourlyRate) || 0),
@@ -2941,7 +2944,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
+    const allowed = ["receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -3403,7 +3406,12 @@ export function registerRebornRoutes(app: Express) {
     return row;
   }
 
-  // ── Packages (server/memberPackages.ts) ──
+  // The QR printed on the customer receipt (text it holds + the line under it), or null when the admin chose none.
+function receiptQrOf(settings: any): { text: string; caption: string } | null {
+  const text = receiptQrText(settings);
+  return text ? { text, caption: settings.receiptQrCaption || "" } : null;
+}
+// ── Packages (server/memberPackages.ts) ──
   const needMemberForPackage = (req: Request) => tr(req, { en: "Select a member to sell a package — it goes into their packages", zh: "出售套餐前请先选择会员——套餐会存入会员账户", id: "Pilih member untuk menjual paket — paket masuk ke akun member" });
   const packageCreditChanged = (req: Request) => tr(req, { en: "The member's package credit just changed — please try again", zh: "会员的套餐余额刚刚有变动——请重试", id: "Kredit paket member baru saja berubah — silakan coba lagi" });
   // The extra lines after "Paid RP …" on a POS payment.
@@ -3812,7 +3820,7 @@ export function registerRebornRoutes(app: Express) {
     await freeTableAfterBill(row.companyId, row.tableNumber); // paid at a table → the table's booking frees it
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
     const numbered = (await receiptNumbers(row.companyId, [row.id])).get(row.id);
-    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items, receiptSeq: numbered?.seq, receiptDay: numbered?.day }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items, receiptSeq: numbered?.seq, receiptDay: numbered?.day }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint, qr: receiptQrOf(settings) } });
   }));
 
   // Member orders from the app — merges into their table's open ticket (or opens one).
@@ -4106,7 +4114,7 @@ export function registerRebornRoutes(app: Express) {
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     const numbered = (await receiptNumbers(fresh.companyId, [fresh.id])).get(fresh.id);
-    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...fresh, items, receiptSeq: numbered?.seq, receiptDay: numbered?.day }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint } });
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...fresh, items, receiptSeq: numbered?.seq, receiptDay: numbered?.day }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint, qr: receiptQrOf(settings) } });
   }));
   app.post("/api/reborn/pos/orders/:id/cancel", requireStaff(async (req, res) => {
     const id = Number(req.params.id);

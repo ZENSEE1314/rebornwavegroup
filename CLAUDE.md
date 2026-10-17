@@ -1021,3 +1021,7 @@ eborn-venue-pack.
 - Only songs the box has: while the bridge is connected (asked for work in the last 45 s) members search only the box's songs (🎤), browse only library songs linked to a box number (`GET /api/reborn/songs`; admin screens use `?all=1` and see everything),
   and a request must carry a box number — a picked box song (`karaokeCode`) or a library song the bridge linked (`songs.karaoke_code`); anything else is refused ("not in our karaoke system"). The bridge links the library every 6 h after reading the box's list
   (`linkLibrary`: `GET /api/karaoke/library`, `POST /api/karaoke/link`). No bridge = the library, Spotify and free suggestions work as before.
+- QR on the receipt printer: (1) every customer receipt can carry a QR under the items (customer copy only, not the merchant copy): Admin › QR codes › "QR code on the customer receipt" (settings `receiptQrKind` none | wifi | review | link,
+  `receiptQrLink`, `receiptQrCaption`; what it holds is `receiptQrText()` in shared/receiptQr.ts, sent to the POS as `receipt.qr = { text, caption }` on the pay response and drawn at once by `qrSvgNow`); the Wi-Fi text format lives in shared/wifi.ts.
+  (2) the big view of a table QR / the Wi-Fi code has "Print on the receipt printer" and, with the Wi-Fi saved, "Print slip: Wi-Fi + table" (`printQrSlip`, 80mm, same print path as receipts: computer = print dialog / kiosk printing, phone app = its print window).
+  A phone browser cannot print: it shows "use the download instead". Tests: scripts/e2e/receipt-qr.mjs.
