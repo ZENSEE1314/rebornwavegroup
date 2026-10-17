@@ -44,8 +44,9 @@ export function getReceiptPaper(): ReceiptPaper {
 export function saveReceiptPaper(paper: ReceiptPaper) {
   try { localStorage.setItem(PAPER_KEY, JSON.stringify(paper)); } catch { /* storage blocked: the choice lasts until the page is closed */ }
 }
-const buildCss = () => {
-  const { widthMm, shiftMm } = getReceiptPaper();
+const buildCss = (fullWidth = false) => {
+  // fullWidth = the paper test ruler: the whole 80 mm head, no shift, so it shows where the paper really is.
+  const { widthMm, shiftMm } = fullWidth ? { widthMm: 80, shiftMm: 0 } : getReceiptPaper();
   return `
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Courier New',monospace; }
   /* A thermal printer turns grey into faint dots, so everything is solid black, bold and slightly thickened. */
@@ -123,9 +124,9 @@ function kitchenHtml(o: Order, title?: string) {
   `;
 }
 
-function printDoc(inner: string, fileName?: string): boolean {
+function printDoc(inner: string, fileName?: string, fullWidth = false): boolean {
   const title = fileName || tr("pos.rc.docTitle");
-  const fullHtml = `<!doctype html><html lang="${localeTag()}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${buildCss()}</style></head><body>${inner}</body></html>`;
+  const fullHtml = `<!doctype html><html lang="${localeTag()}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${buildCss(fullWidth)}</style></head><body>${inner}</body></html>`;
   const nativeBridge = (window as any).ReactNativeWebView;
   if (nativeBridge?.postMessage) {
     nativeBridge.postMessage(JSON.stringify({ type: "PRINT_HTML", html: fullHtml, title }));
@@ -168,8 +169,17 @@ export function printQrSlip(title: string, subtitle: string, parts: Array<{ svg:
   return printDoc(`<div class="c"><div class="name">${esc(title)}</div>${subtitle ? `<div class="muted">${esc(subtitle)}</div>` : ""}</div><hr/>${body}`, `qr-${title}`);
 }
 // A short slip with a ruler, to set the roll width and shift on this PC.
+// The ruler is printed across the whole head (0–80 mm): the first and last number the cashier can read are where the roll starts and ends.
+const RULER_MM = 80;
+const RULER_LABEL_EVERY_MM = 10;
 export function printPaperTest() {
-  return printDoc(`<div class="c"><div class="name">${esc(tr("pos.rc.paperTestTitle"))}</div></div><div class="row"><span>|&lt;&lt; ${esc(tr("pos.rc.paperLeft"))}</span><span>${esc(tr("pos.rc.paperRight"))} &gt;&gt;|</span></div><hr/>`);
+  const marks: string[] = [];
+  for (let mm = 0; mm <= RULER_MM; mm += 2) {
+    const isLabel = mm % RULER_LABEL_EVERY_MM === 0;
+    marks.push(`<div style="position:absolute;left:${mm}mm;top:0;height:${isLabel ? 8 : 4}mm;border-left:${isLabel ? 2 : 1}px solid #000"></div>`);
+    if (isLabel) marks.push(`<div style="position:absolute;left:${Math.max(0, mm - 2)}mm;top:9mm;font-size:12px;font-weight:700">${mm}</div>`);
+  }
+  return printDoc(`<div style="position:relative;width:${RULER_MM}mm;height:16mm;margin-left:-4mm">${marks.join("")}</div><div class="c b" style="font-size:11px;margin-top:2mm;">${esc(tr("pos.rc.paperTestTitle"))}</div><div class="muted" style="margin-top:2mm;">${esc(tr("pos.rc.paperTestHelp"))}</div>`, undefined, true);
 }
 export function printKitchen(order: Order, title?: string) {
   return printDoc(kitchenHtml(order, title));

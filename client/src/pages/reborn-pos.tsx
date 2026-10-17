@@ -137,22 +137,30 @@ function ReceiptPaperSetting() {
   const [paper, setPaper] = useState(getReceiptPaper);
   const [isOpen, setIsOpen] = useState(false);
   const change = (next: { widthMm: number; shiftMm: number }) => { setPaper(next); saveReceiptPaper(next); };
+  const [first, setFirst] = useState("");
+  const [last, setLast] = useState("");
+  const applyRuler = () => {
+    const a = Number(first), b = Number(last);
+    if (Number.isFinite(a) && Number.isFinite(b) && b - a >= 40) change({ widthMm: Math.min(80, b - a), shiftMm: Math.max(0, a) });
+  };
   return (
     <div className="mb-3 inline-block align-top mr-2">
       <button onClick={() => setIsOpen(!isOpen)} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🧾 {t("pos.rc.paperSetting")}</button>
       {isOpen && (
         <div className="mt-2 w-72 rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-white/80">
           <label className="block mb-2">{t("pos.rc.paperWidth")}
-            <select value={paper.widthMm} onChange={(e) => change({ ...paper, widthMm: Number(e.target.value) })} className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-white">
-              <option value={58}>58 mm</option>
-              <option value={80}>80 mm</option>
-            </select>
+            <input type="number" min={40} max={80} value={paper.widthMm} onChange={(e) => change({ ...paper, widthMm: Math.max(40, Math.min(80, Number(e.target.value) || 80)) })} className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-white" />
           </label>
           <label className="block mb-2">{t("pos.rc.paperShift")}
             <input type="number" min={0} max={40} step={1} value={paper.shiftMm} onChange={(e) => change({ ...paper, shiftMm: Math.max(0, Math.min(40, Number(e.target.value) || 0)) })} className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-white" />
           </label>
           <p className="mb-2 text-white/50">{t("pos.rc.paperHint")}</p>
           <button onClick={() => printPaperTest()} className="w-full rounded-lg bg-white/10 px-3 py-2 font-semibold text-white">{t("pos.rc.paperTest")}</button>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <label className="block">{t("pos.rc.paperFirst")}<input type="number" min={0} max={80} value={first} onChange={(e) => setFirst(e.target.value)} className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-white" /></label>
+            <label className="block">{t("pos.rc.paperLast")}<input type="number" min={0} max={80} value={last} onChange={(e) => setLast(e.target.value)} className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-2 py-2 text-white" /></label>
+          </div>
+          <button onClick={applyRuler} className="mt-2 w-full rounded-lg bg-amber-400/20 px-3 py-2 font-semibold text-amber-200">{t("pos.rc.paperFromRuler")}</button>
         </div>
       )}
     </div>
