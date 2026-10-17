@@ -434,6 +434,7 @@ async function buildDailyClosingReport(day: string) {
     sum.serviceFee += Number(ticket.serviceFee) || 0;
     sum.tax += Number(ticket.tax) || 0;
     sum.revenue += Number(ticket.total) || 0;
+    sum.commission += Number(ticket.commissionAmount) || 0; // commission paid out of these sales: our own cost
     const pkg = Number(ticket.packageCreditUsed) || 0; // paid with package credit (its money came in when the package was sold)
     const paid = (Number(ticket.total) || 0) - pkg;
     sum.packageCredit += pkg;
@@ -441,10 +442,10 @@ async function buildDailyClosingReport(day: string) {
     if (ticket.paymentMethod === "card") sum.card += paid;
     if (ticket.paymentMethod === "credits") sum.credits += paid;
     return sum;
-  }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, cash: 0, card: 0, credits: 0, packageCredit: 0 });
+  }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, commission: 0, cash: 0, card: 0, credits: 0, packageCredit: 0 });
   const items = Array.from(grouped.values()).sort((a, b) => b.sales - a.sales);
   const cost = items.reduce((sum, item) => sum + item.cost, 0);
-  return { day, closedAt: new Date().toISOString(), ticketCount: tickets.length, items, totals: { ...totals, cost, profit: totals.revenue - totals.tax - cost } };
+  return { day, closedAt: new Date().toISOString(), ticketCount: tickets.length, items, totals: { ...totals, cost, salesNet: totals.subtotal - totals.discount, profit: totals.revenue - totals.tax - cost - totals.commission } };
 }
 // Pay a POS bill from the member's RP credits: one atomic UPDATE that only
 // succeeds when the balance covers it. Returns the new balance, or null (+ current

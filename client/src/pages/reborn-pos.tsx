@@ -804,6 +804,8 @@ function SalesTodayTab() {
   const all = [...paidToday, ...refundedToday].sort((a: any, b: any) => new Date(b.paidAt || b.createdAt).getTime() - new Date(a.paidAt || a.createdAt).getTime());
   const totalSales = paidToday.reduce((s, o) => s + Number(o.total), 0);
   const totalRefunded = refundedToday.reduce((s, o) => s + Number(o.total), 0);
+  const totalCommission = paidToday.reduce((s, o: any) => s + Number(o.commissionAmount || 0), 0);
+  const salesNoFeeTax = paidToday.reduce((s, o: any) => s + Number(o.subtotal ?? o.total) - Number(o.discount || 0), 0);
   const refund = useMutation({
     mutationFn: (v: { id: number; reason: string }) => apiRequest("POST", `/api/reborn/pos/orders/${v.id}/refund`, { reason: v.reason }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("pos.cannotRefund"), description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -818,6 +820,12 @@ function SalesTodayTab() {
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.refunded")}</p><p className="text-lg font-extrabold text-red-300">{rp(totalRefunded)}</p></div>
       </div>
       <label className="flex items-center gap-2 text-xs text-white/60">{t("pos.sales.day")}<input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm text-white" /></label>
+      {totalCommission > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.rc.commissionBase")}</p><p className="text-lg font-extrabold">{rp(salesNoFeeTax)}</p></div>
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.rc.commission")}</p><p className="text-lg font-extrabold text-amber-300">{rp(totalCommission)}</p></div>
+        </div>
+      )}
       <p className="text-[11px] text-white/40">{t("pos.refundInfo")}</p>
       {isLoading && <p className="text-sm text-white/40">{t("pos.loading")}</p>}
       {!isLoading && all.length === 0 && <p className="text-sm text-white/40 py-8 text-center">{t("pos.noSalesToday")}</p>}
@@ -831,6 +839,7 @@ function SalesTodayTab() {
                 <p className="font-bold text-sm">{o.orderNo}{o.tableNumber ? ` · ${t("pos.table", { n: o.tableNumber })}` : ""}{isRef && <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-200">{t("pos.refunded")}</span>}</p>
                 <p className="text-[11px] text-white/45">{new Date(o.paidAt || o.createdAt).toLocaleTimeString(localeTag(language), { hour: "numeric", minute: "2-digit" })} · {tOr(t, `pos.pay.${o.paymentMethod || "cash"}`, o.paymentMethod || "cash")}{o.salesStaffName ? ` · ${o.salesStaffName}` : ""}{o.memberName ? ` · ${o.memberName}` : ""}</p>
                 <p className="text-[11px] text-white/40 truncate">{items.map((it: any) => `${it.qty}× ${it.name}`).join(", ")}</p>
+                {Number(o.commissionAmount) > 0 && <p className="text-[11px] text-amber-200/80">💼 {t("pos.rc.commission")}{o.commissionLabel ? ` ${o.commissionLabel}` : ""}{o.commissionPayee ? ` · ${o.commissionPayee}` : ""}: {rp(Number(o.commissionAmount))} · {t("pos.rc.commissionBase")} {rp(Number(o.subtotal ?? o.total) - Number(o.discount || 0))}</p>}
               </div>
               <div className="text-right flex-shrink-0">
                 <p className={`font-extrabold ${isRef ? "text-white/40 line-through" : ""}`}>{rp(Number(o.total))}</p>
