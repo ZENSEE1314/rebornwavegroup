@@ -353,7 +353,6 @@ async function getOrCreateContact(phone: string, name?: string): Promise<Contact
   const [row] = await db.insert(crmContacts).values({
     phone: num, name: shownName || null, stage: "new", source: social ? networkProvider(social.net) : "whatsapp", lastInboundAt: new Date(),
   }).returning();
-  await notifyAdmin(`🟢 New ${social ? networkName(social.net) : "WhatsApp"} lead: ${shownName || num} (${chatLabel(num)})`);
   return row;
 }
 async function patchContact(id: number, patch: Partial<Contact>) {

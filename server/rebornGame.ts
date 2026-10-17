@@ -1049,11 +1049,6 @@ async function advanceSongQueue(cid: number | null, how: "done" | "skip", by?: s
         title: pick(lang, { en: "🎤 You're on now!", zh: "🎤 轮到你唱了！", id: "🎤 Giliranmu sekarang!" }),
         body: song,
       }), { path: "/songs", songRequestId: playing.id, status: "playing" }).catch(() => {});
-      memberWaPhone(playing.userId).then(async (phone) => {
-        if (!phone) return;
-        const lang = await langForPhone(phone, playing.userId);
-        await sendToMember(phone, waText(lang, "songOnNow", { song }), playing.userId);
-      }).catch(() => {});
       // The member after them: "you're up next".
       const after = queue[1];
       if (after && after.userId !== playing.userId) notifyUserI18n(after.userId, "song_next", (lang) => ({
@@ -3987,7 +3982,6 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         : { en: "{name} · Table {t} · {n} items", zh: "{name} · {t} 号桌 · {n} 件商品", id: "{name} · Meja {t} · {n} item" }, { name: order.memberName || pick(lang, { en: "Member", zh: "会员", id: "Member" }), t: tableNumber, n: itemCount }),
     }), { path: "/reborn-pos", ticketId: order.id }).catch((e) => console.warn("new_order app push failed", e));
     pushAdminsI18n((lang) => ({ title: pick(lang, { en: "🛎️ New order", zh: "🛎️ 新订单", id: "🛎️ Pesanan baru" }), body: pick(lang, { en: "Table {t} · {name} — needs Accept/Reject", zh: "{t} 号桌 · {name} — 需要接单/拒单", id: "Meja {t} · {name} — perlu Terima/Tolak" }, { t: tableNumber, name: order.memberName || pick(lang, { en: "member", zh: "会员", id: "member" }) }), url: "/reborn-pos", tag: "new-order" })).catch(() => {});
-    notifyAdmins(`🛎️ New order from table ${tableNumber} (${order.memberName || "member"}) — needs Accept/Reject in POS.`).catch(() => {});
     res.json({ message: tr(req, { en: "Order sent — waiting for the counter to accept.", zh: "订单已发送——等待柜台接单。", id: "Pesanan terkirim — menunggu kasir menerima." }), order });
   });
   // Counter accepts / rejects / serves an app order item.

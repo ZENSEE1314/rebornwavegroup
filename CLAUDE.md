@@ -349,8 +349,7 @@ text.
   straight away (`pending`), and the reply says the queue position. Statuses: `pending` (waiting)
   → `playing` (on now, one at a time) → `confirmed` (sung) / `skipped`;
   `rejected`/`cancelled` = cancelled. `advanceSongQueue` finishes the song on now and starts
-  the first song of `fairSongQueue`; the singer gets "you're on now" (push +
-  WhatsApp `songOnNow`) and the next one "you're up next". Only tonight's
+  the first song of `fairSongQueue`; the singer gets "you're on now" (in-app + phone push only, no WhatsApp) and the next one "you're up next". Only tonight's
   requests (venue day from 08:00) are in the queue; closing the day clears it.
 - Everyone sees the queue: app Songs › **Queue** tab + a "Now singing" banner
   (`/api/reborn/song-queue`, first name + table only). Members can cancel their
@@ -1044,3 +1043,5 @@ eborn-venue-pack.
 - Paper test ruler (POS › Receipt paper › Print a test slip): prints a 0–80 mm ruler across the whole head with no shift; the cashier types the first and last number they can read and "Set from the ruler" saves `shiftMm` = first, `widthMm` = last − first (this PC, browser storage).
 - Copies per receipt (POS › Receipt paper, saved in this browser): default is ONE copy (the customer's); "2" adds a sales copy first. A bill with a commission always prints the sales copy (where the commission and its base are shown) — `getReceiptCopies()` in lib/receipt.ts.
 - Commission in the sales views: POS › Sales shows each bill's commission (name · person · amount) with its sale amount before service fee and tax, and a card with the day's two totals; the end-of-day report totals carry `commission` and `salesNet` (subtotal − discount), print them, and the profit figure subtracts the commission (our own cost).
+
+- No WhatsApp for these (in-app + phone push stay): the song "you're on now" message to the singer, the admin WhatsApp when a member sends a new order from the app, and the admin WhatsApp for a new WhatsApp / Messenger / Instagram lead. Other admin WhatsApp alerts (bookings, service calls, hand-offs, low stock) are unchanged.
