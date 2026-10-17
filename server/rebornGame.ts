@@ -1074,7 +1074,7 @@ async function songQueueBoard(cid: number | null, viewerId?: string | null) {
   const people = ids.length ? await db.select({ id: users.id, firstName: users.firstName, username: users.username }).from(users).where(inArray(users.id, ids)) : [];
   const nameOf = new Map(people.map((u) => [u.id, (u.firstName || u.username || "").trim()]));
   const codes = await karaokeCodes([...(now?.songId ? [now.songId] : []), ...queue.map((r) => r.songId || 0)]);
-  const view = (r: any) => ({ id: r.id, title: r.title, artist: r.artist || "", performanceMode: r.performanceMode, table: r.table || r.tableLabel || null, name: nameOf.get(r.userId) || "", mine: !!viewerId && r.userId === viewerId, karaokeCode: r.songId ? codes.get(r.songId) || null : null });
+  const view = (r: any) => ({ id: r.id, title: r.title, boxQueries: boxQueries(r.title), artist: r.artist || "", performanceMode: r.performanceMode, table: r.table || r.tableLabel || null, name: nameOf.get(r.userId) || "", mine: !!viewerId && r.userId === viewerId, karaokeCode: r.songId ? codes.get(r.songId) || null : null });
   const s = await getSettings();
   return {
     mode: s.songQueueMode, perTurn: s.songsPerTurn, paused,
@@ -1112,6 +1112,11 @@ const BOX_SEARCH_WAIT_MS = 6000;
 const BRIDGE_HOLD_MS = 20_000;
 const BRIDGE_ONLINE_MS = 45_000;
 const BOX_RESULT_LIMIT = 40;
+// The box finds Chinese songs by the pinyin initials of the title ("天后" = th, "小幸运" = xxy), not reliably by the characters: the bridge tries the text and the initials.
+const boxQueries = (text: string): string[] => {
+  const initials = textPinyin(text).split(" ").map((word) => word[0] || "").join("");
+  return initials && initials !== text ? [text, initials] : [text];
+};
 interface BoxJob { id: string; q: string; resolve: (songs: any[] | null) => void }
 const boxJobsWaiting = new Map<string, BoxJob[]>();   // company -> jobs no bridge has taken yet
 const boxJobsTaken = new Map<string, BoxJob>();        // job id -> job a bridge is working on
@@ -2695,7 +2700,7 @@ export function registerRebornRoutes(app: Express) {
       const jobs = boxJobsWaiting.get(key) || [];
       boxJobsWaiting.set(key, []);
       for (const job of jobs) boxJobsTaken.set(job.id, job);
-      return jobs.map((job) => ({ id: job.id, q: job.q }));
+      return jobs.map((job) => ({ id: job.id, q: job.q, queries: boxQueries(job.q) }));
     };
     if ((boxJobsWaiting.get(key) || []).length) return res.json({ jobs: takeJobs() });
     let isDone = false;

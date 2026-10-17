@@ -113,3 +113,52 @@ describe("searching the box for members", () => {
     assert.equal(posted[0].songs[0].cloud, true);
   });
 });
+
+describe("Chinese songs (the box finds them by pinyin initials)", () => {
+  const chinese = JSON.stringify([{ cLOUD: 0, sINGER: "Tian Hou  陈势安", sONGBM: "10117177", sONGNAME: "天后(T.I)" }, { cLOUD: 0, sINGER: "Other", sONGBM: "9", sONGNAME: "太好了" }]);
+  const boxFor = (answers: Record<string, string>) => async (url: string, init?: any) => {
+    const u = new URL(url);
+    const reply = (value: unknown) => ({ ok: true, status: 200, text: async () => `cb(${JSON.stringify(value)})`, json: async () => value });
+    if (u.pathname.endsWith("/api/karaoke/queue")) return reply({ paused: false, nowPlaying: { id: 7, title: "天后", artist: "", boxQueries: ["天后", "th"] } });
+    if (u.pathname.endsWith("PlaylistServlet")) return reply({ number: "0" });
+    if (u.pathname.endsWith("SearchServlet")) return reply({ number: "15", page: "1", songList: answers[u.searchParams.get("songName") || ""] || "[]" });
+    if (u.pathname.endsWith("CommandServlet")) { orders.push(u.searchParams.get("cmdValue")); return reply({}); }
+    throw new Error("unexpected " + url);
+  };
+  const orders: Array<string | null> = [];
+
+  it("should order a Chinese song found by its initials when its characters find nothing", async () => {
+    orders.length = 0;
+    const bridge = createBridge({ cloudUrl: "https://c.test", token: "t", boxUrl: "http://box/demo", fetchImpl: boxFor({ th: chinese }), log: () => {} });
+    assert.equal(await bridge.tick(), "ordered");
+    assert.deepEqual(orders, ["10117177"]);
+  });
+});
+
+describe("the box's song list kept by the bridge", () => {
+  const list = [
+    { sONGBM: "1", sONGNAME: "小幸运(T.I)", sINGER: "Xiao Xing Yun  田馥甄", cLOUD: 0 },
+    { sONGBM: "2", sONGNAME: "幸运星", sINGER: "Xing Yun Xing  某人", cLOUD: 0 },
+    { sONGBM: "3", sONGNAME: "Love Me", sINGER: "Love Me  Nu'est", cLOUD: 1 },
+  ];
+  const bridge = () => createBridge({ cloudUrl: "https://c.test", token: "t", boxUrl: "http://box/demo", catalog: list, log: () => {} });
+
+  it("should find a Chinese title the box's own search misses, whole title first", () => {
+    assert.deepEqual(bridge().searchLocal("小幸运").map((x: any) => x.sONGBM), ["1"]);
+  });
+  it("should find a song by the pinyin the box writes beside the singer", () => {
+    assert.deepEqual(bridge().searchLocal("xing yun").map((x: any) => x.sONGBM), ["1", "2"]);
+  });
+  it("should answer a member's search from its own list without asking the box", async () => {
+    const posted: any[] = [];
+    const fetchImpl = async (url: string, init?: any) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith("/api/karaoke/jobs") && (!init || init.method !== "POST")) return { ok: true, status: 200, json: async () => ({ jobs: [{ id: "j9", q: "幸运", queries: ["幸运", "xy"] }] }) };
+      if (u.pathname.endsWith("/api/karaoke/jobs/j9")) { posted.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ ok: true }) }; }
+      throw new Error("the box must not be asked: " + url);
+    };
+    const b = createBridge({ cloudUrl: "https://c.test", token: "t", boxUrl: "http://box/demo", fetchImpl, catalog: list, log: () => {} });
+    await b.serveSearches();
+    assert.deepEqual(posted[0].songs.map((x: any) => x.code), ["2", "1"]);
+  });
+});

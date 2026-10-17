@@ -12,3 +12,4 @@ vite.config.ts.*
 venue/data/
 venue/config.json
 venue/node_modules/
+venue/karaoke-catalog.json
