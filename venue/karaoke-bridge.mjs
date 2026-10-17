@@ -179,7 +179,14 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
       return "starting";
     }
 
-    if (!current || board.paused) return "idle";
+    if (board.paused) return "idle";
+    // Nothing is on in the app yet but members are waiting and the box is idle: start the first of the queue (the app only starts a song when asked).
+    if (!current) {
+      if (!board.queue?.length || count > 0) return "idle";
+      await cloudCall("POST", "/api/karaoke/next", {});
+      log("started the first waiting song");
+      return "started";
+    }
     if (count > 0) return "box busy"; // someone is playing songs on the box by hand: wait until it is idle
     const code = await findCode(current);
     if (!code) {

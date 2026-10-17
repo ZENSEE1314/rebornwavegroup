@@ -16,7 +16,7 @@ import { ReasonDialog } from "@/components/ReasonDialog";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
-interface Product { isService?: boolean; salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
+interface Product { bundleItemId?: number | null; isService?: boolean; salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
@@ -195,7 +195,8 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
                 </div>
                 {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}
               </button>
-              {p.unitsPerPack > 1 && p.stock >= p.unitsPerPack && <button type="button" onClick={() => add(p.id, p.unitsPerPack)} title={t("pos.packBtnTitle", { n: p.unitsPerPack, price: rp(Number(p.price) * p.unitsPerPack) })} className="absolute bottom-1.5 right-1.5 rounded-lg bg-amber-400 px-2 py-1 text-[11px] font-bold text-black shadow">{t("pos.packBtn", { n: p.unitsPerPack })}</button>}
+              {/* A whole pack in one tap, under the tile (not over it). Bundles and packages are not sold by the pack. */}
+              {p.unitsPerPack > 1 && p.stock >= p.unitsPerPack && !p.bundleItemId && !p.packageKind && <button type="button" onClick={() => add(p.id, p.unitsPerPack)} title={t("pos.packBtnTitle", { n: p.unitsPerPack, price: rp(Number(p.price) * p.unitsPerPack) })} style={{ minHeight: 0, height: 32, padding: "0 8px" }} className="mt-1 w-full rounded-xl bg-amber-400 text-[12px] font-bold text-black">{t("pos.packBtn", { n: p.unitsPerPack })}</button>}
               </div>
             ))}
           </div>

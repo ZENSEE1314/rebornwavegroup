@@ -182,3 +182,39 @@ describe("linking the app's library to the box", () => {
     assert.deepEqual(posted[0].links, [{ id: 10, code: "1" }]);
   });
 });
+
+describe("starting the queue", () => {
+  const worldWith = (board: any, boxCount: number) => {
+    const nexts: any[] = [];
+    const fetchImpl = async (url: string, init?: any) => {
+      const u = new URL(url);
+      const reply = (value: unknown) => ({ ok: true, status: 200, text: async () => `cb(${JSON.stringify(value)})`, json: async () => value });
+      if (u.pathname.endsWith("/api/karaoke/queue")) return reply(board);
+      if (u.pathname.endsWith("/api/karaoke/next")) { nexts.push(JSON.parse(init.body)); return reply({}); }
+      if (u.pathname.endsWith("PlaylistServlet")) return reply({ number: String(boxCount) });
+      throw new Error("unexpected " + url);
+    };
+    return { nexts, bridge: createBridge({ cloudUrl: "https://c.test", token: "t", boxUrl: "http://box/demo", fetchImpl, log: () => {} }) };
+  };
+
+  it("should start the first waiting song when nothing is on and the box is idle", async () => {
+    const { bridge, nexts } = worldWith({ paused: false, nowPlaying: null, queue: [{ id: 5, title: "Love" }] }, 0);
+    assert.equal(await bridge.tick(), "started");
+    assert.deepEqual(nexts, [{}]);
+  });
+  it("should not start anything while the queue is paused", async () => {
+    const { bridge, nexts } = worldWith({ paused: true, nowPlaying: null, queue: [{ id: 5, title: "Love" }] }, 0);
+    assert.equal(await bridge.tick(), "idle");
+    assert.deepEqual(nexts, []);
+  });
+  it("should wait while the box is busy with songs ordered by hand", async () => {
+    const { bridge, nexts } = worldWith({ paused: false, nowPlaying: null, queue: [{ id: 5, title: "Love" }] }, 2);
+    assert.equal(await bridge.tick(), "idle");
+    assert.deepEqual(nexts, []);
+  });
+  it("should do nothing when nobody is waiting", async () => {
+    const { bridge, nexts } = worldWith({ paused: false, nowPlaying: null, queue: [] }, 0);
+    assert.equal(await bridge.tick(), "idle");
+    assert.deepEqual(nexts, []);
+  });
+});
