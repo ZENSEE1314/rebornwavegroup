@@ -171,6 +171,8 @@ export async function chatAvailable(to: string): Promise<boolean> {
 }
 
 // Logs a WhatsApp bot error and records it for Admin › Errors.
+// Why the last send failed (Meta's answer or the linked session's error), so Admin › Errors says what to fix.
+let lastSendProblem = "";
 function waError(tag: string, e: unknown) {
   console.error(`[wa] ${tag}`, e);
   void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "BOT", path: tag, status: 0, message: `${tag}: ${(e as any)?.message || e}`, detail: String((e as any)?.stack || "") })).catch(() => {});
@@ -180,9 +182,10 @@ function waError(tag: string, e: unknown) {
 // `to` is a phone number, or a Messenger / Instagram chat key ("fb:…" / "ig:…", server/socialChat.ts).
 export async function sendWhatsApp(to: string, text: string, opts: { human?: boolean } = {}): Promise<boolean> {
   if (isSocialKey(to)) { await loadWaConfig(); return sendSocial(to, inCompanyVoice(text), { human: opts.human }); }
+  lastSendProblem = "";
   const ok = await sendWhatsAppOnce(to, text);
   // Watcher (Admin › Errors): a reply that didn't go out while WhatsApp is linked.
-  if (!ok && await whatsappAvailable()) void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "SEND", path: String(to).replace(/\D/g, ""), status: 0, message: `Reply not sent: ${text.slice(0, 120)}` })).catch(() => {});
+  if (!ok && await whatsappAvailable()) void import("./errorWatch").then((m) => m.recordError({ area: "whatsapp", source: "whatsapp", method: "SEND", path: String(to).replace(/\D/g, ""), status: 0, message: `Reply not sent: ${text.slice(0, 120)}${lastSendProblem ? ` — ${lastSendProblem.slice(0, 300)}` : ""}` })).catch(() => {});
   return ok;
 }
 // Messages the club sends a member outside a chat flow (booking confirmed /
@@ -215,9 +218,10 @@ async function sendWhatsAppOnce(to: string, rawText: string): Promise<boolean> {
   // Prefer a linked WhatsApp Web session (QR login) when available.
   try {
     const web = await import("./whatsappWeb");
-    if (web.isWebConnected()) return await web.sendWhatsAppWeb(num, text);
+    if (web.isWebConnected()) { const sent = await web.sendWhatsAppWeb(num, text); if (!sent) lastSendProblem = `linked WhatsApp: ${web.lastWebSendProblem}`; return sent; }
   } catch { /* whatsappWeb not ready */ }
   if (!whatsappConfigured()) {
+    lastSendProblem = "WhatsApp is not linked or configured";
     console.log(`[wa] (not configured) would send to ${num}: ${text.slice(0, 80)}`);
     return false;
   }
@@ -228,10 +232,11 @@ async function sendWhatsAppOnce(to: string, rawText: string): Promise<boolean> {
       body: JSON.stringify({ messaging_product: "whatsapp", to: num, type: "text", text: { body: text } }),
       signal: AbortSignal.timeout(20_000), // never hang the chat on a slow API call
     });
-    if (!r.ok) { console.error(`[wa] send failed ${r.status}: ${await r.text()}`); return false; }
+    if (!r.ok) { const body = await r.text(); console.error(`[wa] send failed ${r.status}: ${body}`); lastSendProblem = `Meta ${r.status}: ${body}`; return false; }
     return true;
   } catch (e) {
     console.error("[wa] send error", e);
+    lastSendProblem = (e as any)?.message || String(e);
     return false;
   }
 }

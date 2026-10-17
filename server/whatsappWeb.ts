@@ -195,8 +195,9 @@ async function knownJid(digits: string): Promise<string | undefined> {
   return jid;
 }
 
+export let lastWebSendProblem = "";
 export async function sendWhatsAppWeb(to: string, text: string): Promise<boolean> {
-  if (!isWebConnected() || !sock) return false;
+  if (!isWebConnected() || !sock) { lastWebSendProblem = "WhatsApp Web is not connected"; return false; }
   const digits = String(to).replace(/\D/g, "");
   // Reply to the exact chat JID we last heard from (handles LID); else resolve the phone.
   let jid = await knownJid(digits);
@@ -207,7 +208,7 @@ export async function sendWhatsAppWeb(to: string, text: string): Promise<boolean
     }
     await timed(sock.sendMessage(jid, { text }), "text send");
     return true;
-  } catch (e) { console.error("[wa-web] send error", e); return false; }
+  } catch (e) { console.error("[wa-web] send error", e); lastWebSendProblem = (e as any)?.message || String(e); return false; }
 }
 
 export async function sendWhatsAppWebChoices(to: string, text: string, choices: Array<{ id: string; title: string }>): Promise<boolean> {
