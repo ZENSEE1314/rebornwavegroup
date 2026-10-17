@@ -69,10 +69,12 @@ export default function RebornKitchen() {
   }, [isStaff, isAutoPrint, station]);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);
 
+  // What is ready and not yet collected, and who made it ready (every staff member sees it here, not only the cook).
+  const { data: readyItems = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/ready-items"], queryFn: () => apiRequest("GET", "/api/reborn/pos/ready-items").then((r) => r.json()), enabled: isStaff, refetchInterval: REFRESH_MS });
   const markReady = async (ids: number[]) => {
     try {
       for (const id of ids) await apiRequest("POST", `/api/reborn/pos/items/${id}/status`, { status: "ready" });
-      qc.invalidateQueries({ queryKey: listKey });
+      qc.invalidateQueries({ queryKey: listKey }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/ready-items"] });
     } catch (e: any) { toast({ title: t("pos.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }); }
   };
   const chooseStation = (value: StationChoice) => { setStation(value); keep(STATION_KEY, value); };
@@ -91,6 +93,16 @@ export default function RebornKitchen() {
       <label className="mb-1 flex items-center gap-2 text-sm"><input type="checkbox" checked={isAutoPrint} onChange={(e) => toggleAutoPrint(e.target.checked)} />{t("pos.kitchen.autoPrint")}</label>
       <p className="mb-3 text-[11px] text-white/45">{t("pos.kitchen.printHint")}</p>
       {isOffline && <p className="mb-3 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-100">📴 {t("pos.kitchen.offline")}</p>}
+      {readyItems.length > 0 && (
+        <div className="mb-3 rounded-2xl border border-pink-400/40 bg-pink-500/10 p-3">
+          <p className="mb-2 text-sm font-bold text-pink-200">🔔 {t("pos.kitchen.readyList", { n: readyItems.length })}</p>
+          <div className="space-y-1">
+            {readyItems.map((item) => (
+              <p key={item.id} className="text-sm">{item.qty} × {item.name} <span className="text-white/60">· {item.tableNumber ? t("pos.table", { n: item.tableNumber }) : t("pos.walkIn")}{item.readyByName ? ` · ${t("pos.item.by2", { n: item.readyByName })}` : ""}</span></p>
+            ))}
+          </div>
+        </div>
+      )}
       {orders.length === 0 && <p className="py-16 text-center text-white/40">{t("pos.kitchen.empty")}</p>}
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))" }}>
         {orders.map((order) => {

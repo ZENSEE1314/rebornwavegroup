@@ -481,7 +481,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                     <div className="flex justify-between py-0.5">
                       <span className={it.status === "rejected" ? "line-through" : ""}>{it.qty}× {it.name}{it.addedByName && <span className="block text-[10px] font-normal text-white/40">{t("pos.item.by", { n: it.addedByName, time: it.addedAt ? new Date(it.addedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "" })}</span>}
                         {it.status === "pending" && <span className="ml-1 text-[10px] text-amber-300 bg-amber-400/20 px-1 rounded">{t("pos.newBadge")}</span>}
-                        {it.status === "served" && <span className="ml-1 text-[10px] text-emerald-300">{t("pos.item.served")}</span>}
+                        {it.status === "served" && <span className="ml-1 text-[10px] text-emerald-300">{t("pos.item.served")}{it.servedByName ? ` · ${it.servedByName}` : ""}</span>}
                         {it.status === "rejected" && <span className="ml-1 text-[10px] text-red-300">✕ {it.rejectReason}</span>}
                         {it.status === "lost" && <span className="ml-1 text-[10px] text-orange-300">⚠ {t("pos.item.lostTag")}: {it.rejectReason}</span>}
                       </span>
@@ -495,7 +495,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                     )}
                     {!OFF_BILL.includes(it.status) && (
                       <div className="flex flex-wrap gap-1.5 pb-1">
-                        {it.status === "ready" && <><span className="ml-1 text-[10px] text-pink-300">{t("pos.item.ready")}</span> <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-emerald-500 text-black">{t("pos.item.collected")}</button></>}
+                        {it.status === "ready" && <><span className="ml-1 text-[10px] text-pink-300">{t("pos.item.ready")}{it.readyByName ? ` · ${t("pos.item.by2", { n: it.readyByName })}` : ""}</span> <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-emerald-500 text-black">{t("pos.item.collected")}</button></>}
                         {it.status === "accepted" && <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/70">{t("pos.item.markServed")}</button>}
                         <button onClick={() => { const p = prompt(t("pos.item.pricePrompt", { name: it.name }), String(Number(it.price))); if (p !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { price: Number(p) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.item.price")}</button>
                         <button onClick={() => { const q = prompt(t("pos.item.qtyPrompt", { name: it.name }), String(it.qty)); if (q !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { qty: Number(q) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.qtyShort")}</button>

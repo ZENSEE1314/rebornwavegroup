@@ -14,7 +14,7 @@ const BEEP_HZ = 660;
 const BEEP_SECONDS = 0.3;
 const KITCHEN_PATH = "/kitchen";
 
-interface ReadyItem { id: number; name: string; qty: number; orderNo: string; tableNumber: string | null }
+interface ReadyItem { id: number; name: string; qty: number; orderNo: string; tableNumber: string | null; readyByName?: string }
 
 let audio: AudioContext | null = null;
 function beep() {
@@ -70,7 +70,7 @@ export function ReadyItemsAlert() {
         <div key={item.id} className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">{item.qty} × {item.name}</p>
-            <p className="text-[11px] text-white/70">{item.tableNumber ? t("hm.ready.table", { t: item.tableNumber }) : t("hm.ready.walkIn")} · {item.orderNo}</p>
+            <p className="text-[11px] text-white/70">{item.tableNumber ? t("hm.ready.table", { t: item.tableNumber }) : t("hm.ready.walkIn")} · {item.orderNo}{item.readyByName ? ` · ${t("hm.ready.by", { n: item.readyByName })}` : ""}</p>
           </div>
           <button onClick={() => collect.mutate(item.id)} className="shrink-0 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-black text-black">{t("hm.ready.collected")}</button>
         </div>

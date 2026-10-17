@@ -154,6 +154,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.promptChangeTable': { en: 'Change table number (e.g. 2, 2B):', zh: '修改桌号（例如 2、2B）：', id: 'Ubah nomor meja (mis. 2, 2B):' },
   'pos.changeTableTitle': { en: 'Change table number', zh: '修改桌号', id: 'Ubah nomor meja' },
   'pos.item.by': { en: 'ordered by {n} · {time}', zh: '由 {n} 点单 · {time}', id: 'dipesan oleh {n} · {time}' },
+  'pos.item.by2': { en: 'ready by {n}', zh: '{n} 已做好', id: 'siap oleh {n}' },
+  'pos.kitchen.readyList': { en: 'Ready, waiting to be collected ({n})', zh: '已做好，等待取餐（{n}）', id: 'Siap, menunggu diambil ({n})' },
   'pos.item.served': { en: '✓ served', zh: '✓ 已上', id: '✓ disajikan' },
   'pos.item.accept': { en: 'Accept', zh: '接单', id: 'Terima' },
   'pos.item.reject': { en: 'Reject', zh: '拒绝', id: 'Tolak' },

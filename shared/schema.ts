@@ -1012,6 +1012,9 @@ export const posTicketItems = pgTable("pos_ticket_items", {
   addedBy: varchar("added_by"),         // the staff member (or app member) who ordered this line
   addedByName: varchar("added_by_name"), // their name at that time ("Name (app)" for an order from the member app)
   addedAt: timestamp("added_at").defaultNow(),
+  readyByName: varchar("ready_by_name"),   // who tapped Ready (kitchen / bar)
+  readyAt: timestamp("ready_at"),
+  servedByName: varchar("served_by_name"), // who collected / served it
 });
 
 // BridgeX POS payments — one row per tender (supports split & partial payments and refunds)

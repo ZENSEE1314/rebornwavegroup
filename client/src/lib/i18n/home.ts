@@ -14,6 +14,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.ready.title': { en: '🍽️ Ready to collect', zh: '🍽️ 可以取餐', id: '🍽️ Siap diambil' },
   'hm.ready.table': { en: 'Table {t}', zh: '{t} 桌', id: 'Meja {t}' },
   'hm.ready.walkIn': { en: 'Walk-in', zh: '外带 / 散客', id: 'Tanpa meja' },
+  'hm.ready.by': { en: 'ready by {n}', zh: '{n} 已做好', id: 'siap oleh {n}' },
   'hm.ready.collected': { en: 'Collected', zh: '已取走', id: 'Sudah diambil' },
   'hm.svc.done': { en: 'Done', zh: '已处理', id: 'Selesai' },
   'hm.svc.accept': { en: 'Accept', zh: '接单', id: 'Terima' },

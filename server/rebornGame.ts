@@ -3901,9 +3901,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // Food / drinks the kitchen marked ready: every staff phone rings until someone collects it (then it is "served").
   app.get("/api/reborn/pos/ready-items", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const result = await db.execute(sql`SELECT i.id, i.name, i.qty, i.station, t.order_no, t.table_number, t.order_mode FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
+    const result = await db.execute(sql`SELECT i.id, i.name, i.qty, i.station, i.ready_by_name, i.ready_at, i.added_by_name, t.order_no, t.table_number, t.order_mode FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
       WHERE t.company_id = ${cid} AND t.status = 'open' AND i.status = 'ready' ORDER BY i.id`);
-    res.set("Cache-Control", "no-store").json(((result.rows || result) as any[]).map((r) => ({ id: r.id, name: r.name, qty: r.qty, station: r.station, orderNo: r.order_no, tableNumber: r.table_number, orderMode: r.order_mode })));
+    res.set("Cache-Control", "no-store").json(((result.rows || result) as any[]).map((r) => ({ id: r.id, name: r.name, qty: r.qty, station: r.station, orderNo: r.order_no, tableNumber: r.table_number, orderMode: r.order_mode, readyByName: r.ready_by_name || "", readyAt: r.ready_at, orderedByName: r.added_by_name || "" })));
   }));
   app.post("/api/reborn/pos/items/:id/status", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
@@ -3918,7 +3918,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         await moveStock(it.productId, it.qty, "order_reject", `Rejected item #${id}`, getUserId(req)!);
       }
     }
-    if (status === "served") patch.servedAt = new Date();
+    if (status === "served") { patch.servedAt = new Date(); patch.servedByName = await orderedByName(it.orderId, getUserId(req)!, "pos"); }
+    if (status === "ready") { patch.readyAt = new Date(); patch.readyByName = await orderedByName(it.orderId, getUserId(req)!, "pos"); } // anyone on staff can mark it ready; the name is kept
     await db.update(posTicketItems).set(patch).where(eq(posTicketItems.id, id));
     await recalcTicket(it.orderId);
     const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, it.orderId));
