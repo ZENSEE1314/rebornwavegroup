@@ -1002,3 +1002,9 @@ eborn-venue-pack.
   it orders the app's "on now" song on the box (the app's karaoke code, else a title + artist search), only when the box is idle, calls `POST /api/karaoke/next` when the box is idle again, and sends Skip to the box when
   the app skipped or cancelled the song. Paused queue = nothing ordered; songs not in the box's list are skipped. Tests: `npx tsx --test venue/karaoke-bridge.test.ts`; search + count were also checked read-only against the real box.
 - Gifts on the karaoke picture: the TV overlay page (Admin › Lights & TV › TV) as a see-through layer; the box's own page has no gift feature.
+
+- Admin › QR codes: tap any table QR (or the Wi-Fi code) for a big view with "Download as image" (a PNG drawn in the browser, `lib/qr-download.ts` + `components/QrBigView.tsx`). A QR holds one thing, so the table QR (check-in link) and the venue Wi-Fi
+  (`WIFI:T:WPA;S:name;P:password;;`, a phone camera offers to join the network) are two codes: the main admin saves the Wi-Fi name / password / security in the "Venue Wi-Fi QR" card (settings `wifiName`, `wifiPassword`, `wifiSecurity`), and each
+  table's big view then also offers one card with both codes side by side ("1. Scan to join Wi-Fi", "2. Scan to check in at table X"). Managers (no settings access) see the table QRs without the Wi-Fi card.
+- API error clean-up (from Admin › Errors): the app reports one failing call once a minute instead of on every retry (`reportClientError`), the POS bill quote does not refetch within 3 s or on focus, the ready-items alert stops polling after a 403, and
+  table rename / ticket merge are re-run when Postgres reports a deadlock (`retryOnDeadlock`, code 40P01).

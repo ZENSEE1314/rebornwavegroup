@@ -74,8 +74,14 @@ function flushClientErrors() {
     fetch("/api/client-error", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" }).catch(() => {});
   }
 }
+const REPORT_AGAIN_AFTER_MS = 60_000;
+const lastReported = new Map<string, number>();
 function reportClientError(method: string, url: string, message: string) {
   if (!/^\/api\/reborn\/(song|admin\/song|booking|my-bookings|admin\/bookings|pos|admin\/pos|shop|venue\/checkin)/.test(url)) return;
+  const key = `${method} ${url.split("?")[0]} ${message}`;
+  const last = lastReported.get(key) ?? 0;
+  if (Date.now() - last < REPORT_AGAIN_AFTER_MS) return; // the same failing call is reported once a minute, not on every retry
+  lastReported.set(key, Date.now());
   if (pendingClientErrors.length < 20) pendingClientErrors.push({ method, path: url, message, agent: navigator.userAgent });
   if (navigator.onLine) setTimeout(flushClientErrors, 3000);
 }

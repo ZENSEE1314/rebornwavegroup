@@ -43,7 +43,7 @@ export function ReadyItemsAlert() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: items = [] } = useQuery<ReadyItem[]>({
-    queryKey: [READY_ITEMS], queryFn: () => apiRequest("GET", READY_ITEMS).then((r) => r.json()), enabled: isActive, refetchInterval: POLL_MS,
+    queryKey: [READY_ITEMS], queryFn: () => apiRequest("GET", READY_ITEMS).then((r) => r.json()), enabled: isActive, retry: false, refetchInterval: (query) => (query.state.error ? false : POLL_MS),
   });
 
   const isRinging = isActive && items.length > 0;

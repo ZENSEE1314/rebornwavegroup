@@ -985,8 +985,9 @@ function CreditsLine({ code, total, onBalance }: { code?: string | null; total: 
 
 // ── Packages (server/memberPackages.ts) ─────────────────────────────────────
 // The bill as the server will charge it: the member's perk and package credit applied.
+const QUOTE_STALE_MS = 3000; // the same bill is not asked for again within 3 s (a flaky connection used to loop here)
 function useQuote(body: any, enabled: boolean) {
-  return useQuery<any>({ queryKey: ["/api/reborn/pos/quote", JSON.stringify(body)], queryFn: () => post("/api/reborn/pos/quote", body), enabled, placeholderData: (prev: any) => prev }).data;
+  return useQuery<any>({ queryKey: ["/api/reborn/pos/quote", JSON.stringify(body)], queryFn: () => post("/api/reborn/pos/quote", body), enabled, placeholderData: (prev: any) => prev, staleTime: QUOTE_STALE_MS, retry: false, refetchOnWindowFocus: false }).data;
 }
 // Bill numbers for the pay panel: the server quote when there is one, else the local estimate.
 function quoteTotals(q: any, local: { taxable: number; serviceFee: number; tax: number; total: number }) {

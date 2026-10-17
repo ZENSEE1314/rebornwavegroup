@@ -97,6 +97,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   songsPerTurn: "1",        // songs each member/table sings per turn (1–3)
   timezone: "Asia/Jakarta", // club country timezone — booking slots, "today" and WhatsApp reminders use this
   bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
+  wifiName: "", wifiPassword: "", wifiSecurity: "WPA", // the venue Wi-Fi, for the Wi-Fi QR in Admin > QR codes (WPA | WEP | nopass)
   payrollDay: "15",         // day of month payroll is recorded/paid (the admin reminder comes then)
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
   appOrdersAutoAccept: "true", // an order from the member app goes straight to the kitchen (no Accept tap at the counter)
@@ -154,6 +155,7 @@ async function getSettings() {
     songsPerTurn: Math.min(3, Math.max(1, Math.floor(Number(map.songsPerTurn) || 1))),
     timezone: map.timezone || "Asia/Jakarta",
     bottleExpiryDays: Math.max(1, Number(map.bottleExpiryDays) || 90),
+    wifiName: map.wifiName || "", wifiPassword: map.wifiPassword || "", wifiSecurity: ["WPA", "WEP", "nopass"].includes(map.wifiSecurity) ? map.wifiSecurity : "WPA",
     payrollDay: Math.min(28, Math.max(1, Number(map.payrollDay) || 1)),
     overtimeHourlyRate: Math.max(0, Number(map.overtimeHourlyRate) || 0),
     allowNegativeStock: map.allowNegativeStock === "true",
@@ -1270,6 +1272,17 @@ const happyFieldsOf = (b: any) => {
     happyOnly: hasWindow && !!b.happyOnly,
   };
 };
+const DEADLOCK_CODE = "40P01";
+const DEADLOCK_RETRIES = 3;
+// Two staff changing the same bill at once can make Postgres cancel one of them ("deadlock detected"): that one is simply run again.
+async function retryOnDeadlock<T>(job: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await job(); } catch (error: any) {
+      if (error?.code !== DEADLOCK_CODE || attempt >= DEADLOCK_RETRIES) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 60 * (attempt + 1)));
+    }
+  }
+}
 const STOCK_OUT_REASON_MAX = 200;
 const STOCK_OUT_CORRECTION = "Count correction"; // the one reason that is not a loss of money
 const STOCK_IN_MAX_AGE_MS = 366 * 24 * 60 * 60 * 1000;
@@ -2805,7 +2818,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
+    const allowed = ["wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -3862,7 +3875,7 @@ export function registerRebornRoutes(app: Express) {
     if (!table) return res.status(400).json({ message: tr(req, { en: "Enter a table number", zh: "请输入桌号", id: "Masukkan nomor meja" }) });
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
-    await db.update(posTickets).set({ tableNumber: table }).where(eq(posTickets.id, id));
+    await retryOnDeadlock(() => db.update(posTickets).set({ tableNumber: table }).where(eq(posTickets.id, id)));
     await logAdmin(req, { targetType: "pos_order", targetId: id, action: "rename_table", entityType: "order", description: `Table ${o.tableNumber} → ${table}` });
     res.json({ message: tr(req, { en: "Table changed to {t}", zh: "桌号已改为 {t}", id: "Meja diubah menjadi {t}" }, { t: table }) });
   }));
@@ -3874,9 +3887,9 @@ export function registerRebornRoutes(app: Express) {
     const [from] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     const [into] = await db.select().from(posTickets).where(eq(posTickets.id, intoId));
     if (!from || !into || from.status !== "open" || into.status !== "open") return res.status(400).json({ message: tr(req, { en: "Both tickets must be open", zh: "两张账单都必须处于开启状态", id: "Kedua tagihan harus terbuka" }) });
-    await db.update(posTicketItems).set({ orderId: intoId }).where(eq(posTicketItems.orderId, id));
-    await db.update(posTickets).set({ status: "cancelled" }).where(eq(posTickets.id, id));
-    await recalcTicket(intoId);
+    await retryOnDeadlock(() => db.update(posTicketItems).set({ orderId: intoId }).where(eq(posTicketItems.orderId, id)));
+    await retryOnDeadlock(() => db.update(posTickets).set({ status: "cancelled" }).where(eq(posTickets.id, id)));
+    await retryOnDeadlock(() => recalcTicket(intoId));
     await logAdmin(req, { targetType: "pos_order", targetId: id, action: "merge", entityType: "order", description: `Merged ${from.orderNo} into ${into.orderNo} (table ${into.tableNumber})` });
     res.json({ message: tr(req, { en: "Merged into table {t}", zh: "已合并到 {t} 号桌", id: "Digabungkan ke meja {t}" }, { t: String(into.tableNumber || "") }) });
   }));

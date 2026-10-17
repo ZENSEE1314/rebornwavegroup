@@ -22,6 +22,8 @@ import SortableTh from "@/components/SortableTh";
 import { matchesSearch, sortRows, type SortState } from "@/lib/table-sort";
 import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
 import { TableQrSheet } from "@/components/TableQrs";
+import { QrBigView } from "@/components/QrBigView";
+import { qrSvg, wifiQrText, type WifiSecurity } from "@/lib/qr-download";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
@@ -1564,10 +1566,55 @@ function Pills() {
 
 // The QR codes staff reach for most, in one place: the code on each table (guests scan it to
 // check in at that table) and the staff check-in code (staff scan it to clock in).
+// The venue Wi-Fi as a QR: a phone camera offers to join the network. A QR holds one thing only, so this is a separate code from the table QR (the table card can carry both).
+function WifiQrCard({ onShow, onReady }: { onShow: (wifi: { svg: string; name: string }) => void; onReady: (wifi: { svg: string; name: string } | null) => void }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const SETTINGS = "/api/reborn/admin/settings";
+  const { data, isError } = useQuery<any>({ queryKey: [SETTINGS], queryFn: () => apiRequest("GET", SETTINGS).then((r) => { if (!r.ok) throw new Error("no access"); return r.json(); }), retry: false });
+  const [f, setF] = useState({ wifiName: "", wifiPassword: "", wifiSecurity: "WPA" as WifiSecurity });
+  const [svg, setSvg] = useState("");
+  useEffect(() => { if (data) setF({ wifiName: data.wifiName || "", wifiPassword: data.wifiPassword || "", wifiSecurity: data.wifiSecurity || "WPA" }); }, [data?.wifiName, data?.wifiPassword, data?.wifiSecurity]);
+  useEffect(() => {
+    if (!f.wifiName.trim()) { setSvg(""); onReady(null); return; }
+    let isCurrent = true;
+    qrSvg(wifiQrText(f.wifiName.trim(), f.wifiPassword, f.wifiSecurity)).then((made) => { if (isCurrent) { setSvg(made); onReady({ svg: made, name: f.wifiName.trim() }); } }).catch(() => { if (isCurrent) { setSvg(""); onReady(null); } });
+    return () => { isCurrent = false; };
+  }, [f.wifiName, f.wifiPassword, f.wifiSecurity]);
+  const save = useMutation({
+    mutationFn: () => apiRequest("POST", SETTINGS, { ...f, wifiName: f.wifiName.trim() }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("admin.c.saved") }); qc.invalidateQueries({ queryKey: [SETTINGS] }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
+  });
+  if (isError) return null; // managers cannot read the settings: the Wi-Fi code is the main admin's
+  return (
+    <Card>
+      <p className="font-bold mb-1 flex items-center gap-2 text-sm"><QrCode className="w-4 h-4 text-amber-300" /> {t("admin.wifi.title")}</p>
+      <p className="text-[11px] text-white/40 mb-3">{t("admin.wifi.hint")}</p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <input value={f.wifiName} onChange={(e) => setF({ ...f, wifiName: e.target.value })} placeholder={t("admin.wifi.name")} className={inp + " w-full"} />
+        <input value={f.wifiPassword} onChange={(e) => setF({ ...f, wifiPassword: e.target.value })} placeholder={t("admin.wifi.password")} disabled={f.wifiSecurity === "nopass"} className={inp + " w-full disabled:opacity-40"} />
+        <select value={f.wifiSecurity} onChange={(e) => setF({ ...f, wifiSecurity: e.target.value as WifiSecurity })} className={inp + " w-full"}>
+          <option value="WPA">{t("admin.wifi.wpa")}</option><option value="WEP">WEP</option><option value="nopass">{t("admin.wifi.open")}</option>
+        </select>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button onClick={() => save.mutate()} disabled={!f.wifiName.trim() || save.isPending} className={btn + " disabled:opacity-50"}>{t("admin.c.save")}</button>
+        {svg && <button type="button" onClick={() => onShow({ svg, name: f.wifiName.trim() })} className="rounded-xl bg-white p-1.5" aria-label={t("admin.wifi.show")}><span className="block h-24 w-24 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} /></button>}
+        {svg && <p className="min-w-0 flex-1 text-[11px] text-white/50">{t("admin.wifi.tapBig")}</p>}
+      </div>
+    </Card>
+  );
+}
+
 function QrCodes() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  // A QR opened large to read from afar or to save as a picture (a table, the staff code or the Wi-Fi).
+  const [big, setBig] = useState<{ title: string; subtitle?: string; svg: string; fileName: string; combined?: { label: string; parts: { svg: string; label: string }[]; fileName: string } } | null>(null);
+  const [wifi, setWifi] = useState<{ svg: string; name: string } | null>(null);
   const TABLES = "/api/reborn/admin/venue/tables";
   // null = sheet closed; {} = every table; { only } = just those numbers (the one-by-one Print button)
   const [sheet, setSheet] = useState<{ only?: string[]; autoPrint?: boolean } | null>(null);
@@ -1597,7 +1644,10 @@ function QrCodes() {
           <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))" }}>
             {tables.map((table) => (
               <div key={table.label} className="rounded-xl bg-white p-2 text-center text-black">
-                <div className="w-full aspect-square [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: table.svg }} />
+                <button type="button" onClick={() => setBig({
+                  title: t("vn.kos.tableN", { t: table.label }), subtitle: table.area || "", svg: table.svg, fileName: `table-${table.label}`,
+                  ...(wifi ? { combined: { label: t("admin.qr.downloadWithWifi"), fileName: `table-${table.label}-wifi`, parts: [{ svg: wifi.svg, label: t("admin.qr.stepWifi", { n: wifi.name }) }, { svg: table.svg, label: t("admin.qr.stepTable", { t: table.label }) }] } } : {}),
+                })} aria-label={t("admin.qr.showBig")} className="block min-h-0 w-full p-0"><span className="block w-full aspect-square [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: table.svg }} /></button>
                 <p className="mt-1 text-sm font-black">{t("vn.kos.tableN", { t: table.label })}</p>
                 <p className="truncate text-[10px] text-black/60">{table.area || "\u00a0"}</p>
                 <div className="mt-1 flex gap-1">
@@ -1615,11 +1665,14 @@ function QrCodes() {
         <p className="text-[11px] text-white/40 mb-3">{t("admin.hr.qrHint")}</p>
         <div className="flex flex-col items-center gap-3">
           <div className="bg-white rounded-2xl p-3 w-56 max-w-full"><img src={staffQrUrl} alt={t("admin.hr.qrTitle")} className="w-full aspect-square" /></div>
+          <button onClick={async () => { const text = await (await fetch(staffQrUrl, { credentials: "include" })).text(); const svg = text.includes("<svg") ? text.slice(text.indexOf("<svg")) : ""; if (svg) setBig({ title: t("admin.hr.qrTitle"), svg, fileName: "staff-checkin" }); else window.open(staffQrUrl, "_blank"); }} className={btn + " w-full justify-center"}>{t("admin.qr.showBig")}</button>
           <button onClick={() => window.open(staffQrUrl, "_blank")} className={btn + " w-full justify-center"}><Printer className="w-4 h-4" /> {t("admin.hr.openPrint")}</button>
           <p className="text-[11px] text-white/40">{t("admin.qr.newStaffCode")}</p>
         </div>
       </Card>
+      <WifiQrCard onReady={setWifi} onShow={(w) => { setBig({ title: t("admin.wifi.cardTitle", { n: w.name }), subtitle: t("admin.wifi.cardSub"), svg: w.svg, fileName: `wifi-${w.name}` }); }} />
       {sheet && <TableQrSheet onClose={() => setSheet(null)} only={sheet.only} autoPrint={sheet.autoPrint} />}
+      {big && <QrBigView title={big.title} subtitle={big.subtitle} svg={big.svg} fileName={big.fileName} combined={big.combined} onClose={() => setBig(null)} />}
     </div>
   );
 }
