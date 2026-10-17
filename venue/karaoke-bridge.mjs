@@ -221,7 +221,21 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     return jobs.length;
   }
 
-  return { tick, serveSearches, loadCatalog, searchLocal, catalogSize: () => (catalog ? catalog.length : 0) };
+  // Links the app's own song library to the box: every library song the box has gets its number on the box, so members only browse and request playable songs.
+  async function linkLibrary() {
+    if (!catalog) return 0;
+    const library = await cloudCall("GET", "/api/karaoke/library");
+    const links = [];
+    for (const song of library) {
+      const match = pickSong(searchLocal(song.title), song.title, song.artist);
+      if (match && String(match.sONGBM) !== String(song.code || "")) links.push({ id: song.id, code: match.sONGBM });
+    }
+    if (links.length) await cloudCall("POST", "/api/karaoke/link", { links });
+    log(`library: ${links.length} of ${library.length} songs linked to the box`);
+    return links.length;
+  }
+
+  return { tick, serveSearches, loadCatalog, linkLibrary, searchLocal, catalogSize: () => (catalog ? catalog.length : 0) };
 }
 
 async function main() {
@@ -230,7 +244,8 @@ async function main() {
   const bridge = createBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl: BOX_URL, tenantSlug: TENANT_SLUG || "" });
   console.log(`Karaoke bridge: ${BOX_URL} <-> ${CLOUD_URL}`);
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  void bridge.loadCatalog();
+  const LINK_EVERY_MS = 6 * 3600 * 1000;
+  void bridge.loadCatalog().then(async () => { for (;;) { try { await bridge.linkLibrary(); } catch (error) { console.log(`library link waiting: ${error.message}`); } await wait(LINK_EVERY_MS); } });
   const playLoop = async () => { for (;;) { try { await bridge.tick(); } catch (error) { console.log(`waiting: ${error.message}`); } await wait(Number(POLL_MS) || DEFAULT_POLL_MS); } };
   const searchLoop = async () => { for (;;) { try { await bridge.serveSearches(); } catch (error) { console.log(`search helper waiting: ${error.message}`); await wait(RETRY_AFTER_ERROR_MS); } } };
   await Promise.all([playLoop(), searchLoop()]);

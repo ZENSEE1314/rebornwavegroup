@@ -38,10 +38,33 @@ check("search shows the box songs first and says so", r.json.boxConnected === tr
 
 const asked = await call("POST", "/api/reborn/songs/request", { title: `${query} Love(T.I)`, artist: "Singer A", karaokeCode: "10014728", performanceMode: "self" });
 check("a request from the box list is accepted", asked.status === 200, JSON.stringify(asked.json));
-const song = await one("SELECT id, karaoke_code FROM songs WHERE title=$1", [`${query} Love(T.I)`]);
-check("the song is saved with the box's number", song?.karaoke_code === "10014728", JSON.stringify(song));
+const withCode = (await db.query("SELECT id, title FROM songs WHERE karaoke_code=$1", ["10014728"])).rows;
+check("the song is saved once with the box's number (a repeat reuses it)", withCode.length === 1, JSON.stringify(withCode));
 const queue = await call("GET", "/api/karaoke/queue", null, bridge, false);
 const onNow = queue.json.nowPlaying || queue.json.queue?.[0];
 check("the bridge sees it in the queue with that number", onNow?.karaokeCode === "10014728", JSON.stringify(queue.json).slice(0, 200));
 
+
+// ---- only songs the box has: library songs are linked by the bridge, the rest are refused / hidden while the bridge is online
+await call("GET", "/api/karaoke/jobs?x=1", null, bridge, false).catch(() => {}); // not awaited long: the next line marks the bridge online
+const plainSong = (await db.query("INSERT INTO songs (title, artist) VALUES ($1, 'Nobody') RETURNING id", [`${query} Not in box`])).rows[0].id;
+const linkedSong = (await db.query("INSERT INTO songs (title, artist) VALUES ($1, 'Somebody') RETURNING id", [`${query} In box`])).rows[0].id;
+let lib = await call("GET", "/api/karaoke/library", null, bridge, false);
+check("the bridge can read the library", lib.status === 200 && lib.json.some((x) => x.id === plainSong), lib.status);
+let link = await call("POST", "/api/karaoke/link", { links: [{ id: linkedSong, code: "777" }] }, bridge, false);
+check("the bridge links a library song to its box number", link.json.linked === 1 && (await one("SELECT karaoke_code FROM songs WHERE id=$1", [linkedSong])).karaoke_code === "777");
+const pending = call("GET", "/api/karaoke/jobs?keepalive=1", null, bridge, false); // the bridge is asking for work = online
+await new Promise((resolve) => setTimeout(resolve, 300));
+r = await call("POST", "/api/reborn/songs/request", { songId: plainSong, performanceMode: "self" });
+check("a library song the box does not have is refused with a clear message", r.status === 400 && /karaoke system/i.test(r.json?.message || ""), JSON.stringify(r.json));
+r = await call("POST", "/api/reborn/songs/request", { songId: linkedSong, performanceMode: "self" });
+check("a library song linked to the box is accepted", r.status === 200, JSON.stringify(r.json));
+r = await call("POST", "/api/reborn/songs/request", { title: "Typed by hand", artist: "Nobody", performanceMode: "self" });
+check("a hand-typed song is refused while the box is connected", r.status === 400, r.status);
+const browse = await call("GET", "/api/reborn/songs");
+check("members browse only the songs the box has", browse.json.length > 0 && browse.json.every((x) => x.karaokeCode), JSON.stringify(browse.json.slice(0, 2)));
+const everything = await call("GET", "/api/reborn/songs?all=1");
+check("admin screens still see the whole library", everything.json.some((x) => x.id === plainSong), everything.json.length);
+await call("POST", `/api/karaoke/jobs/none`, { songs: [] }, bridge, false);
+void pending;
 console.log(failures ? `${failures} FAILED` : "ALL PASSED"); await db.end(); process.exit(failures ? 1 : 0);

@@ -1236,7 +1236,7 @@ function WeeklySchedule({ area, onChange }: { area: any; onChange: (s: any) => v
 function Songs() {
   const qc = useQueryClient();
   const { t } = useTranslation();
-  const { data: songs = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/songs"], queryFn: () => apiRequest("GET", "/api/reborn/songs").then((r) => r.json()) });
+  const { data: songs = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/songs", "all"], queryFn: () => apiRequest("GET", "/api/reborn/songs?all=1").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] });
   const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/songs", { title: t("admin.song.newTitle"), isHit: true }).then((r) => r.json()), onSuccess: inv });
   const save = useMutation({ mutationFn: (s: any) => apiRequest("PUT", `/api/reborn/admin/songs/${s.id}`, s).then((r) => r.json()), onSuccess: inv });

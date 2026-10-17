@@ -1018,3 +1018,6 @@ eborn-venue-pack.
 - The box's own search is weak for Chinese (it matches pinyin initials and misses many titles), so the bridge reads the box's whole song list once (empty search, 15 songs a page, ~13,600 pages, 4 at a time, a few minutes) into memory and
   `venue/karaoke-catalog.json` (git-ignored, reused for 24 h) and searches that: title or the pinyin the box writes beside the singer, whole title first. Until it is ready the bridge falls back to live searches by text and by initials (the app sends both:
   `boxQueries` on the queue board, `queries` on a search job, from `boxQueries()` in rebornGame.ts). Ordering a requested song uses that list too (`pickSong` on title + singer).
+- Only songs the box has: while the bridge is connected (asked for work in the last 45 s) members search only the box's songs (🎤), browse only library songs linked to a box number (`GET /api/reborn/songs`; admin screens use `?all=1` and see everything),
+  and a request must carry a box number — a picked box song (`karaokeCode`) or a library song the bridge linked (`songs.karaoke_code`); anything else is refused ("not in our karaoke system"). The bridge links the library every 6 h after reading the box's list
+  (`linkLibrary`: `GET /api/karaoke/library`, `POST /api/karaoke/link`). No bridge = the library, Spotify and free suggestions work as before.

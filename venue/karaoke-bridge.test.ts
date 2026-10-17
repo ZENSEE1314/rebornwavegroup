@@ -162,3 +162,23 @@ describe("the box's song list kept by the bridge", () => {
     assert.deepEqual(posted[0].songs.map((x: any) => x.code), ["2", "1"]);
   });
 });
+
+describe("linking the app's library to the box", () => {
+  it("should link library songs the box has and leave the others", async () => {
+    const list = [
+      { sONGBM: "1", sONGNAME: "小幸运(T.I)", sINGER: "Xiao Xing Yun  田馥甄", cLOUD: 0 },
+      { sONGBM: "3", sONGNAME: "Love Me", sINGER: "Love Me  Nu'est", cLOUD: 0 },
+    ];
+    const library = [{ id: 10, title: "小幸运", artist: "田馥甄", code: null }, { id: 11, title: "Not in the box", artist: "", code: null }, { id: 12, title: "Love Me", artist: "Nu'est", code: "3" }];
+    const posted: any[] = [];
+    const fetchImpl = async (url: string, init?: any) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith("/api/karaoke/library")) return { ok: true, status: 200, json: async () => library };
+      if (u.pathname.endsWith("/api/karaoke/link")) { posted.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({}) }; }
+      throw new Error("unexpected " + url);
+    };
+    const bridge = createBridge({ cloudUrl: "https://c.test", token: "t", boxUrl: "http://box/demo", fetchImpl, catalog: list, log: () => {} });
+    assert.equal(await bridge.linkLibrary(), 1);
+    assert.deepEqual(posted[0].links, [{ id: 10, code: "1" }]);
+  });
+});

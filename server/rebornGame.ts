@@ -1122,9 +1122,10 @@ const boxJobsWaiting = new Map<string, BoxJob[]>();   // company -> jobs no brid
 const boxJobsTaken = new Map<string, BoxJob>();        // job id -> job a bridge is working on
 const boxBridgeWaiters = new Map<string, Array<() => void>>(); // company -> bridge requests waiting for a job
 const boxBridgeSeen = new Map<string, number>();       // company -> last time the bridge asked for work
+const isBoxOnline = (key: string) => Date.now() - (boxBridgeSeen.get(key) || 0) <= BRIDGE_ONLINE_MS;
 const wakeBoxBridge = (key: string) => { for (const wake of boxBridgeWaiters.get(key) || []) wake(); boxBridgeWaiters.set(key, []); };
 async function searchKaraokeBox(key: string, q: string): Promise<Array<{ code: string; title: string; artist: string }> | null> {
-  if (Date.now() - (boxBridgeSeen.get(key) || 0) > BRIDGE_ONLINE_MS) return null;
+  if (!isBoxOnline(key)) return null;
   return new Promise((resolve) => {
     const job: BoxJob = { id: randomUUID(), q, resolve: (songs) => { clearTimeout(timer); resolve(songs); } };
     const timer = setTimeout(() => {
@@ -2390,7 +2391,10 @@ export function registerRebornRoutes(app: Express) {
     try {
       await seedSongsIfEmpty();
       const rows = await db.select().from(songs).orderBy(desc(songs.isHit), desc(songs.requestCount), songs.title); // the whole library
-      res.json(rows);
+      // With the karaoke box connected, members only see songs the box has (linked by the bridge); admin screens ask for everything with ?all=1.
+      const linked = rows.filter((x) => x.karaokeCode);
+      const onlyBox = !req.query.all && isBoxOnline(String(await rebornCompanyId(req))) && linked.length > 0;
+      res.json(onlyBox ? linked : rows);
     } catch (e) { console.error("songs", e); res.status(500).json({ message: tr(req, { en: "Failed to load songs", zh: "歌曲加载失败", id: "Gagal memuat lagu" }) }); }
   });
 
@@ -2400,10 +2404,8 @@ export function registerRebornRoutes(app: Express) {
       const query = String(req.query.q || "").trim();
       const [catalog, box] = await Promise.all([searchSongCatalog(req.query.q, 10, 100), query ? searchKaraokeBox(String(await rebornCompanyId(req)), query) : Promise.resolve(null)]);
       if (!box) return res.json({ ...catalog, boxConnected: false });
-      // The box's own songs come first (they are the ones that can play); a library song with the same name + singer is left out.
-      const boxKeys = new Set(box.map((x) => `${normSong(x.title)}|${normSong(x.artist)}`));
       const fromBox = box.map((x) => ({ source: "karaoke", title: x.title, titlePinyin: "", artist: x.artist, artistPinyin: "", karaokeCode: x.code }));
-      res.json({ ...catalog, songs: [...fromBox, ...catalog.songs.filter((x: any) => !boxKeys.has(`${normSong(x.title)}|${normSong(x.artist)}`))], boxConnected: true });
+      res.json({ ...catalog, songs: fromBox, boxConnected: true }); // only what the box can play
     } catch (e) {
       console.error("song search", e);
       res.status(500).json({ message: tr(req, { en: "Song search failed", zh: "歌曲搜索失败", id: "Pencarian lagu gagal" }) });
@@ -2416,6 +2418,11 @@ export function registerRebornRoutes(app: Express) {
       if (await songNeedsTableScan(userId)) return res.status(400).json({ needTable: true, message: tr(req, { en: "Song requests go by table. Scan the QR code on your table first (KOS → camera), then request your song.", zh: "点歌按桌排队。请先扫描桌上的二维码（歌王之王 → 相机），再点歌。", id: "Permintaan lagu berdasarkan meja. Pindai dulu QR di mejamu (KOS → kamera), lalu minta lagumu." }) });
       let { songId, title, titlePinyin, artist, artistPinyin, spotifyUrl, artistPhoto, performanceMode } = req.body || {};
       const boxCode = String(req.body?.karaokeCode || "").trim().slice(0, 40); // the song's number in the karaoke box (picked from the box's own search)
+      // With the box connected a song must be one the box has: picked from its search (karaokeCode) or a library song the bridge linked to a box number.
+      if (isBoxOnline(String(await rebornCompanyId(req)))) {
+        const known = songId ? (await db.select({ code: songs.karaokeCode }).from(songs).where(eq(songs.id, Number(songId))).limit(1))[0]?.code : null;
+        if (!boxCode && !known) return res.status(400).json({ message: tr(req, { en: "This song is not in our karaoke system. Search and pick a song with the 🎤 sign.", zh: "这首歌不在我们的点歌系统里。请搜索并选择带 🎤 的歌曲。", id: "Lagu ini tidak ada di sistem karaoke kami. Cari dan pilih lagu dengan tanda 🎤." }) });
+      }
       const songSettings = await getSettings();
       performanceMode = songSettings.songRequestModeEnabled && performanceMode === "singer" ? "singer" : "self";
       let song: any = null;
@@ -2718,6 +2725,17 @@ export function registerRebornRoutes(app: Express) {
       job.resolve(list.slice(0, BOX_RESULT_LIMIT).map((x: any) => ({ code: String(x?.code ?? "").trim(), title: String(x?.title ?? "").trim(), artist: String(x?.artist ?? "").trim() })).filter((x: any) => x.code && x.title));
     }
     res.json({ ok: !!job });
+  });
+  // The bridge matches the app's library against the box's whole list and links the songs the box has (library song -> its number on the box).
+  app.get("/api/karaoke/library", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    res.json((await db.select({ id: songs.id, title: songs.title, artist: songs.artist, code: songs.karaokeCode }).from(songs)).slice(0, 20000));
+  });
+  app.post("/api/karaoke/link", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    const links = (Array.isArray(req.body?.links) ? req.body.links : []).slice(0, 5000).map((x: any) => ({ id: Number(x?.id), code: String(x?.code ?? "").trim() })).filter((x: any) => x.id && x.code);
+    for (const link of links) await db.update(songs).set({ karaokeCode: link.code }).where(eq(songs.id, link.id));
+    res.json({ linked: links.length });
   });
   app.post("/api/karaoke/songs", async (req, res) => {
     if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
