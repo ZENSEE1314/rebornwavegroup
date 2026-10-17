@@ -1008,3 +1008,4 @@ eborn-venue-pack.
   table's big view then also offers one card with both codes side by side ("1. Scan to join Wi-Fi", "2. Scan to check in at table X"). Managers (no settings access) see the table QRs without the Wi-Fi card.
 - API error clean-up (from Admin › Errors): the app reports one failing call once a minute instead of on every retry (`reportClientError`), the POS bill quote does not refetch within 3 s or on focus, the ready-items alert stops polling after a 403, and
   table rename / ticket merge are re-run when Postgres reports a deadlock (`retryOnDeadlock`, code 40P01).
+- Saving a QR card (`saveCardImage` in lib/qr-download.ts): a web view cannot download files, so inside the phone app the card goes to the app's print window (`PRINT_HTML`, the admin picks Save as PDF); in a phone browser it opens the share sheet with the PNG (Web Share files); on a computer it is a normal blob download. The big view tells the person which one happened.

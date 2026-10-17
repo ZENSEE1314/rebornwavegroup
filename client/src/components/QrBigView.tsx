@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Download, X } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
-import { drawQrCard, saveCanvasAsPng, type QrCardPart } from "@/lib/qr-download";
+import { drawQrCard, saveCardImage, type QrCardPart, type SaveResult } from "@/lib/qr-download";
 
 interface QrBigViewProps {
   title: string;
@@ -20,6 +20,7 @@ export function QrBigView({ title, subtitle = "", svg, fileName, combined, onClo
   const { t } = useTranslation();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [done, setDone] = useState<SaveResult | null>(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -27,8 +28,8 @@ export function QrBigView({ title, subtitle = "", svg, fileName, combined, onClo
   }, [onClose]);
 
   const save = async (parts: QrCardPart[], name: string) => {
-    setIsSaving(true); setError("");
-    try { saveCanvasAsPng(await drawQrCard(title, subtitle, parts), name); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setIsSaving(false); }
+    setIsSaving(true); setError(""); setDone(null);
+    try { setDone(await saveCardImage(await drawQrCard(title, subtitle, parts), name)); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setIsSaving(false); }
   };
 
   return createPortal(
@@ -41,6 +42,7 @@ export function QrBigView({ title, subtitle = "", svg, fileName, combined, onClo
         <div className="mt-3 space-y-2">
           <button type="button" disabled={isSaving} onClick={() => save([{ svg, label: title }], fileName)} className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white disabled:opacity-50"><Download className="h-4 w-4" /> {t("admin.qr.download")}</button>
           {combined && <button type="button" disabled={isSaving} onClick={() => save(combined.parts, combined.fileName)} className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 text-sm font-bold text-black disabled:opacity-50"><Download className="h-4 w-4" /> {combined.label}</button>}
+          {done && <p className="text-xs text-emerald-700">{t(done === "printed" ? "admin.qr.savedPrint" : done === "shared" ? "admin.qr.savedShare" : "admin.qr.savedDownload")}</p>}
           {error && <p className="text-xs text-red-700">{error}</p>}
         </div>
       </div>

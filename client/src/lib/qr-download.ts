@@ -59,9 +59,36 @@ export async function drawQrCard(title: string, subtitle: string, parts: QrCardP
   return canvas;
 }
 
-export function saveCanvasAsPng(canvas: HTMLCanvasElement, fileName: string) {
+export type SaveResult = "downloaded" | "shared" | "printed";
+
+const safeName = (fileName: string) => fileName.replace(/[^\p{L}\p{N}_-]+/gu, "-");
+const isPhoneBrowser = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const toBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Picture could not be made"))), "image/png"));
+
+// Saves the card as a PNG in whatever way this screen allows:
+//  - inside the phone app (a web view cannot download files) it goes to the app's print window, where "Save as PDF" keeps it;
+//  - in a phone browser it opens the share sheet with the picture (Save to gallery / Files);
+//  - on a computer it is a normal download.
+export async function saveCardImage(canvas: HTMLCanvasElement, fileName: string): Promise<SaveResult> {
+  const name = `${safeName(fileName)}.png`;
+  const nativeBridge = (window as any).ReactNativeWebView;
+  if (nativeBridge?.postMessage) {
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${name}</title><style>@page{margin:8mm}body{margin:0}img{width:100%}</style></head><body><img src="${canvas.toDataURL("image/png")}"/></body></html>`;
+    nativeBridge.postMessage(JSON.stringify({ type: "PRINT_HTML", html, title: name }));
+    return "printed";
+  }
+  const blob = await toBlob(canvas);
+  const file = new File([blob], name, { type: "image/png" });
+  if (isPhoneBrowser() && navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return "shared"; } catch (error) { if ((error as { name?: string }).name === "AbortError") return "shared"; }
+  }
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.download = `${fileName.replace(/[^\p{L}\p{N}_-]+/gu, "-")}.png`;
-  link.href = canvas.toDataURL("image/png");
+  link.download = name;
+  link.href = url;
+  document.body.appendChild(link);
   link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return "downloaded";
 }
