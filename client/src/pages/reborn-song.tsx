@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation, localeTag } from "@/lib/i18n";
-import { Search, Music2, Check, Clock, X, Plus, ExternalLink, Mic2 } from "lucide-react";
+import { Search, Music2, Check, Clock, X, Plus, ExternalLink, Mic2, Loader2 } from "lucide-react";
 
 const TABS = ["Songs", "Queue", "My Requests"] as const;
 const TAB_KEYS: Record<(typeof TABS)[number], string> = { "Songs": "vn.song.tabSongs", "Queue": "vn.song.tabQueue", "My Requests": "vn.song.tabMine" };
@@ -223,7 +223,8 @@ function SongSystem() {
       </div>
       {search ? (
         <>
-          <p className="mb-3 text-xs text-white/40">{isSearching ? t("vn.song.searchingAll") : t("vn.song.resultsBox")}</p>
+          <p className="mb-3 flex items-center gap-2 text-xs text-white/40">{isSearching && <Loader2 className="w-4 h-4 animate-spin text-amber-300" />}{isSearching ? t("vn.song.searchingAll") : t("vn.song.resultsBox")}</p>
+          {isSearching && !(found?.songs || []).length && <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-amber-300" /></div>}
           {!isSearching && !(found?.songs || []).length && <div className="text-center py-10 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.song.noSongsSystem")}</p></div>}
           <div className="space-y-2">{(found?.songs || []).map(rowOf)}</div>
         </>
@@ -235,7 +236,7 @@ function SongSystem() {
             <div><p className="text-xl font-extrabold">{singer.name}</p><p className="text-xs text-white/50">{singer.pinyin} · {t("vn.song.songsN", { n: String(singer.songs ?? "") })}</p></div>
           </div>
           <div className="space-y-2">{singerSongs.map(rowOf)}</div>
-          {isLoadingSongs && <p className="py-4 text-center text-sm text-white/40">…</p>}
+          {isLoadingSongs && <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-amber-300" /></div>}
           {songsAnswer && songPage < songsAnswer.maxPage && <button onClick={() => setSongPage((n) => n + 1)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80">{t("vn.song.showMoreSongs")}</button>}
         </>
       ) : (
@@ -252,7 +253,7 @@ function SongSystem() {
               </button>
             ))}
           </div>
-          {isLoadingSingers && <p className="py-4 text-center text-sm text-white/40">…</p>}
+          {isLoadingSingers && <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-amber-300" /></div>}
           {singerAnswer && singerPage < singerAnswer.maxPage && <button onClick={() => setSingerPage((n) => n + 1)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80">{t("vn.song.showMoreSingers")}</button>}
         </>
       )}
