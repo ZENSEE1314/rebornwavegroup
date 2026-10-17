@@ -478,7 +478,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                 {order.items.map((it: any) => (
                   <div key={it.id} className={`${it.status === "rejected" ? "opacity-50" : ""}`}>
                     <div className="flex justify-between py-0.5">
-                      <span className={it.status === "rejected" ? "line-through" : ""}>{it.qty}× {it.name}
+                      <span className={it.status === "rejected" ? "line-through" : ""}>{it.qty}× {it.name}{it.addedByName && <span className="block text-[10px] font-normal text-white/40">{t("pos.item.by", { n: it.addedByName, time: it.addedAt ? new Date(it.addedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "" })}</span>}
                         {it.status === "pending" && <span className="ml-1 text-[10px] text-amber-300 bg-amber-400/20 px-1 rounded">{t("pos.newBadge")}</span>}
                         {it.status === "served" && <span className="ml-1 text-[10px] text-emerald-300">{t("pos.item.served")}</span>}
                         {it.status === "rejected" && <span className="ml-1 text-[10px] text-red-300">✕ {it.rejectReason}</span>}

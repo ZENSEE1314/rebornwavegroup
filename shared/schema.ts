@@ -1009,6 +1009,9 @@ export const posTicketItems = pgTable("pos_ticket_items", {
   station: varchar("station").default("kitchen").notNull(), // KDS routing: 'kitchen' | 'bar' | 'dessert'
   servedAt: timestamp("served_at"),
   printedAt: timestamp("printed_at"), // when the kitchen / bar printer got this item's docket (null = still to print)
+  addedBy: varchar("added_by"),         // the staff member (or app member) who ordered this line
+  addedByName: varchar("added_by_name"), // their name at that time ("Name (app)" for an order from the member app)
+  addedAt: timestamp("added_at").defaultNow(),
 });
 
 // BridgeX POS payments — one row per tender (supports split & partial payments and refunds)

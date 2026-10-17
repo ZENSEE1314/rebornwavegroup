@@ -153,6 +153,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.addToTicket': { en: 'Add to ticket', zh: '加入账单', id: 'Tambah ke tiket' },
   'pos.promptChangeTable': { en: 'Change table number (e.g. 2, 2B):', zh: '修改桌号（例如 2、2B）：', id: 'Ubah nomor meja (mis. 2, 2B):' },
   'pos.changeTableTitle': { en: 'Change table number', zh: '修改桌号', id: 'Ubah nomor meja' },
+  'pos.item.by': { en: 'ordered by {n} · {time}', zh: '由 {n} 点单 · {time}', id: 'dipesan oleh {n} · {time}' },
   'pos.item.served': { en: '✓ served', zh: '✓ 已上', id: '✓ disajikan' },
   'pos.item.accept': { en: 'Accept', zh: '接单', id: 'Terima' },
   'pos.item.reject': { en: 'Reject', zh: '拒绝', id: 'Tolak' },

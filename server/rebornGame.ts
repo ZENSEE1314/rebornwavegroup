@@ -3602,10 +3602,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
 
   // Deduct stock for a set of items, append them to an order, and re-total the ticket.
+  // Who is ordering: the staff member's name (real name when the admin set one), or the member's name for an order from the app.
+  async function orderedByName(orderId: number, userId: string, source: string): Promise<string> {
+    const [ticket] = await db.select({ companyId: posTickets.companyId }).from(posTickets).where(eq(posTickets.id, orderId));
+    const real = ticket?.companyId && source !== "app" ? (await realNamesOf(ticket.companyId, [userId])).get(userId) : undefined;
+    const [u] = real ? [] : await db.select({ first: users.firstName, last: users.lastName, username: users.username, email: users.email }).from(users).where(eq(users.id, userId));
+    const name = real || [u?.first, u?.last].filter(Boolean).join(" ") || u?.username || u?.email || "";
+    return source === "app" && name ? `${name} (app)` : name;
+  }
   async function appendItems(orderId: number, orderNo: string, items: any[], userId: string, status: string = "accepted", source: string = "pos") {
+    const addedByName = await orderedByName(orderId, userId, source);
     for (const it of items) {
       const [made] = it.productId ? await db.select({ category: posProducts.category, station: posProducts.station }).from(posProducts).where(eq(posProducts.id, it.productId)) : [];
-      await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source, station: stationFor(made?.category, made?.station) });
+      await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source, station: stationFor(made?.category, made?.station), addedBy: userId, addedByName });
       if (it.productId) {
         const moved = await moveStock(it.productId, -it.qty, "sale", `Ticket ${orderNo}`, userId);
         const before = moved ? { stock: moved.before, name: moved.name } : undefined;
@@ -3743,6 +3752,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
     const total = await appendItems(id, o.orderNo, clean!, getUserId(req)!);
+    await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "add_items", entityType: "order", description: `Table ${o.tableNumber || "-"} (${o.orderNo}): ordered ${clean!.map((x: any) => `${x.qty}× ${x.name}`).join(", ")}` });
     res.json({ message: tr(req, { en: "Added to ticket", zh: "已加入账单", id: "Ditambahkan ke tagihan" }), total });
   }));
   // Tag / change the member on an open ticket (so points go to the right person).
@@ -3803,6 +3813,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       if (!paid.ok) { if (spent.spent) await restorePackageCredit(row.id, staffId, "Payment not completed"); await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(400).json({ message: notEnoughCredits(req, due, paid.balance) }); }
     }
     await appendItems(row.id, row.orderNo, clean!, staffId);
+    await logAdmin(req, { targetType: "pos_order", targetId: String(row.id), action: "add_items", entityType: "order", description: `${row.tableNumber ? `Table ${row.tableNumber}` : "Sale"} (${row.orderNo}): ordered ${clean!.map((x: any) => `${x.qty}× ${x.name}`).join(", ")}` });
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), ...(offlineAt ? { createdAt: offlineAt } : {}), userId: u?.id || null });
@@ -3944,7 +3955,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     await db.update(posTicketItems).set({ price: String(price), qty, lineTotal: String(price * qty) }).where(eq(posTicketItems.id, id));
     await recalcTicket(it.orderId);
-    await logAdmin(req, { targetType: "pos_item", targetId: id, action: "edit", entityType: "order", description: `Edited "${it.name}" → ${qty} × RP ${price}${req.body?.reason ? ` (${req.body.reason})` : ""}` });
+    await logAdmin(req, { targetType: "pos_item", targetId: id, action: "edit", entityType: "order", description: `Edited "${it.name}" (ordered by ${it.addedByName || "?"}): ${it.qty} × RP ${it.price} → ${qty} × RP ${price}${req.body?.reason ? ` (${req.body.reason})` : ""}` });
     res.json({ message: tr(req, { en: "Item updated", zh: "品项已更新", id: "Item diperbarui" }) });
   }));
   // Remove an item with an optional reason (restores stock). App-ordered items are
@@ -3960,7 +3971,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (it.source === "app") await db.update(posTicketItems).set({ status: "rejected", rejectReason: reason || "Removed by staff" }).where(eq(posTicketItems.id, id));
     else await db.delete(posTicketItems).where(eq(posTicketItems.id, id));
     await recalcTicket(it.orderId);
-    await logAdmin(req, { targetType: "pos_item", targetId: id, action: "remove", entityType: "order", description: `Removed "${it.name}"${reason ? ` (${reason})` : ""}` });
+    await logAdmin(req, { targetType: "pos_item", targetId: id, action: "remove", entityType: "order", description: `Removed ${it.qty}× "${it.name}" (ordered by ${it.addedByName || "?"})${reason ? ` (${reason})` : ""}` });
     res.json({ message: reason ? tr(req, { en: "Removed: {r}", zh: "已移除：{r}", id: "Dihapus: {r}" }, { r: reason }) : tr(req, { en: "Item removed", zh: "品项已移除", id: "Item dihapus" }) });
   }));
   // An item that was made and then spilled / broken / dropped: the customer does not pay for it, the stock stays gone, and what it cost is booked as a loss.
