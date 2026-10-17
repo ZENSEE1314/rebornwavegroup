@@ -53,13 +53,16 @@ export function saveReceiptCopies(copies: ReceiptCopies) {
 export function saveReceiptPaper(paper: ReceiptPaper) {
   try { localStorage.setItem(PAPER_KEY, JSON.stringify(paper)); } catch { /* storage blocked: the choice lasts until the page is closed */ }
 }
+const NARROW_PAPER_MM = 60;
+const NARROW_SIDE_PADDING_MM = 1.5;
 const buildCss = (fullWidth = false) => {
   // fullWidth = the paper test ruler: the whole 80 mm head, no shift, so it shows where the paper really is.
   const { widthMm, shiftMm } = fullWidth ? { widthMm: 80, shiftMm: 0 } : getReceiptPaper();
+  const sidePaddingMm = !fullWidth && widthMm < NARROW_PAPER_MM ? NARROW_SIDE_PADDING_MM : 4; // a narrow print area keeps its width for the text
   return `
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Courier New',monospace; }
   /* A thermal printer turns grey into faint dots, so everything is solid black, bold and slightly thickened. */
-  body { width:${widthMm}mm; margin-left:${shiftMm}mm; padding:6mm 4mm; color:#000; font-weight:700; -webkit-text-stroke:0.35px #000; }
+  body { width:${widthMm}mm; margin-left:${shiftMm}mm; padding:6mm ${sidePaddingMm}mm; color:#000; font-weight:700; -webkit-text-stroke:0.35px #000; }
   .c { text-align:center; } .b { font-weight:bold; }
   img.logo { max-width:40mm; max-height:22mm; object-fit:contain; margin:0 auto 4px; display:block; }
   .name { font-size:15px; font-weight:bold; }
