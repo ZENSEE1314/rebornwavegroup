@@ -2302,7 +2302,8 @@ function Products() {
   const industries = useCompanyIndustries();
   const industryOptions = industries;
   const [query, setQuery] = useState("");
-  const byIndustry = industry ? products.filter((p) => deptHas(p.department, industry)) : products;
+  const listable = products.filter((p) => !p.bundleItemId); // bundles live in the POS (made on the inventory item), not in this list
+  const byIndustry = industry ? listable.filter((p) => deptHas(p.department, industry)) : listable;
   const shown = byIndustry.filter((p) => matchesSearch(`${p.name} ${p.category} ${p.supplierName || ""} ${p.supplierPhone || ""}`, query));
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
@@ -2389,6 +2390,7 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right" sortKey="stock" sort={sort} onSort={setSort}>{t("admin.prod.stock")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="supplier" sort={sort} onSort={setSort}>{t("admin.prod.supplier")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="phone" sort={sort} onSort={setSort}>{t("admin.prod.supplierPhone")}</SortableTh>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" title={t("admin.svc.hint")}>{t("admin.svc.col")}</th>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" sortKey="pos" sort={sort} onSort={setSort}>{t("admin.prod.pos")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" sortKey="active" sort={sort} onSort={setSort}>{t("admin.prod.activeCol")}</SortableTh>
               <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right"></th>
@@ -2468,7 +2470,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const base = { name: p.name || "", category: p.category || "", department: p.department || "", price: Number(p.price) || 0, unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, recommended: !!p.recommended, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
+  const base = { name: p.name || "", isService: !!p.isService, category: p.category || "", department: p.department || "", price: Number(p.price) || 0, unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, recommended: !!p.recommended, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
   const [f, setF] = useState(base);
   const dirty = JSON.stringify(f) !== JSON.stringify(base);
   const save = useMutation({
@@ -2487,6 +2489,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className={`px-2 py-1 text-right font-semibold tabular-nums ${p.stock <= (p.lowStock ?? 0) ? "text-red-300" : "text-white/70"}`}>{p.stock}</td>
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
       <td className="px-2 py-1"><input value={f.supplierPhone} inputMode="tel" onChange={(e) => setF({ ...f, supplierPhone: e.target.value })} placeholder={t("admin.ro.noPhone")} className={cell + " min-w-[120px] " + (f.supplierName && !f.supplierPhone ? "border-red-400/40" : "")} /></td>
+      <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.isService} onChange={(e) => setF({ ...f, isService: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
       <td className="px-2 py-1 text-right whitespace-nowrap"><span className="inline-flex items-center gap-1"><DuplicateProductButton p={p} /><DeleteProductButton p={p} /><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></span></td>

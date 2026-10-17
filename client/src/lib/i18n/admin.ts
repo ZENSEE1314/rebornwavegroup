@@ -1036,6 +1036,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.sa.saveIn': { en: "Add {n} to stock", zh: "入库 {n}", id: "Tambah {n} ke stok" },
   'admin.sa.saveOut': { en: "Take {n} out", zh: "出库 {n}", id: "Kurangi {n}" },
   'admin.sa.saved': { en: "Stock saved", zh: "库存已保存", id: "Stok tersimpan" },
+  'admin.svc.col': { en: "Service", zh: "服务", id: "Layanan" },
   'admin.svc.label': { en: "This is a service (no stock)", zh: "这是服务项目（无库存）", id: "Ini layanan (tanpa stok)" },
   'admin.svc.hint': { en: "e.g. corkage, room fee: no cost, never runs out, not in Inventory.", zh: "例如开瓶费、包厢费：无成本、不会售罄、不在库存中。", id: "mis. corkage, biaya ruangan: tanpa modal, tidak pernah habis, tidak masuk Inventory." },
   'admin.qr.savedPrint': { en: "In the print window choose Save as PDF (or a printer).", zh: "请在打印窗口选择“另存为 PDF”（或打印机）。", id: "Di jendela cetak pilih Simpan sebagai PDF (atau printer)." },

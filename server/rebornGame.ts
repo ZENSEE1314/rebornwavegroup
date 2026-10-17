@@ -3605,6 +3605,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
     if (b.isService !== undefined) patch.isService = !!b.isService;
+    if (patch.isService) patch.cost = "0"; // a service has no cost and holds no stock (its stock count is ignored from now on)
     if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined) Object.assign(patch, happyFieldsOf({ happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, ...b }));
     if (b.bundleItemId !== undefined || b.bundleQty !== undefined) {
       const bundle = await bundleFieldsFor({ ...b, packageKind: b.packageKind !== undefined ? b.packageKind : prev.packageKind }, cid, id);
