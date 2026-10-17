@@ -48,18 +48,19 @@ const buildCss = () => {
   const { widthMm, shiftMm } = getReceiptPaper();
   return `
   * { margin:0; padding:0; box-sizing:border-box; font-family:'Courier New',monospace; }
-  body { width:${widthMm}mm; margin-left:${shiftMm}mm; padding:6mm 4mm; color:#000; }
+  /* A thermal printer turns grey into faint dots, so everything is solid black, bold and slightly thickened. */
+  body { width:${widthMm}mm; margin-left:${shiftMm}mm; padding:6mm 4mm; color:#000; font-weight:700; -webkit-text-stroke:0.35px #000; }
   .c { text-align:center; } .b { font-weight:bold; }
   img.logo { max-width:40mm; max-height:22mm; object-fit:contain; margin:0 auto 4px; display:block; }
   .name { font-size:15px; font-weight:bold; }
   .row { display:flex; justify-content:space-between; font-size:12px; line-height:1.5; }
   .muted { font-size:11px; color:#000; }
-  hr { border:none; border-top:1px dashed #000; margin:6px 0; }
+  hr { border:none; border-top:2px dashed #000; margin:6px 0; }
   .big { font-size:15px; font-weight:bold; }
   .qr svg { width:42mm; height:42mm; display:block; margin:4px auto; }
   .mode { border:2px solid #000; display:inline-block; padding:2px 8px; font-weight:bold; margin:4px 0; font-size:13px; }
   h1.k { font-size:20px; text-align:center; margin:4px 0; }
-  .kitem { font-size:16px; font-weight:bold; line-height:1.7; border-bottom:1px dotted #999; }
+  .kitem { font-size:16px; font-weight:bold; line-height:1.7; border-bottom:2px dotted #000; }
   @media print { @page { margin:0; } }
 `;
 };
