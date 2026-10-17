@@ -779,8 +779,9 @@ function SalesTodayTab() {
   const { data: orders = [], isLoading } = useQuery<Order[]>({ queryKey: ["/api/reborn/pos/orders", "paid"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=paid").then((r) => r.json()) });
   const { data: refunded = [] } = useQuery<Order[]>({ queryKey: ["/api/reborn/pos/orders", "refunded"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=refunded").then((r) => r.json()) });
   const { t, language } = useTranslation();
-  const today = new Date().toDateString();
-  const isToday = (o: any) => new Date(o.paidAt || (o as any).createdAt || Date.now()).toDateString() === today;
+  const [day, setDay] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; });
+  const shownDay = new Date(`${day}T00:00:00`).toDateString();
+  const isToday = (o: any) => new Date(o.paidAt || (o as any).createdAt || Date.now()).toDateString() === shownDay;
   const paidToday = orders.filter(isToday);
   const refundedToday = refunded.filter(isToday);
   const all = [...paidToday, ...refundedToday].sort((a: any, b: any) => new Date(b.paidAt || b.createdAt).getTime() - new Date(a.paidAt || a.createdAt).getTime());
@@ -799,6 +800,7 @@ function SalesTodayTab() {
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.bills")}</p><p className="text-lg font-extrabold">{paidToday.length}</p></div>
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.refunded")}</p><p className="text-lg font-extrabold text-red-300">{rp(totalRefunded)}</p></div>
       </div>
+      <label className="flex items-center gap-2 text-xs text-white/60">{t("pos.sales.day")}<input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm text-white" /></label>
       <p className="text-[11px] text-white/40">{t("pos.refundInfo")}</p>
       {isLoading && <p className="text-sm text-white/40">{t("pos.loading")}</p>}
       {!isLoading && all.length === 0 && <p className="text-sm text-white/40 py-8 text-center">{t("pos.noSalesToday")}</p>}
@@ -815,6 +817,7 @@ function SalesTodayTab() {
               </div>
               <div className="text-right flex-shrink-0">
                 <p className={`font-extrabold ${isRef ? "text-white/40 line-through" : ""}`}>{rp(Number(o.total))}</p>
+                <button onClick={() => printReceipt(o, savedReceiptMeta(), { duplicate: true })} className="mt-1 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/10 border border-white/15">🧾 {t("pos.sales.printDuplicate")}</button>
                 {!isRef && <button onClick={() => doRefund(o)} disabled={refund.isPending} className="mt-1 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-200 border border-red-400/40 disabled:opacity-50"><RotateCcw className="w-3 h-3" /> {t("pos.refund")}</button>}
               </div>
             </div>

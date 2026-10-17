@@ -4,7 +4,9 @@ import { translate as tr, localeTag } from "@/lib/i18n";
 import { money } from "@/lib/money";
 import { qrSvgNow } from "@/lib/qr-download";
 
-interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; }
+interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; status?: string; }
+// Lines that left the bill (rejected, lost) are not on the receipt: they are not in its total either.
+const OFF_RECEIPT = ["rejected", "lost", "cancelled"];
 interface Order {
   orderNo: string; tableNumber?: string; memberName?: string; salesStaffName?: string;
   orderMode?: string; paymentMethod?: string; subtotal?: string | number; discount?: string | number;
@@ -62,9 +64,9 @@ const buildCss = () => {
 `;
 };
 
-function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false, showCommission = false) {
+function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false, showCommission = false, duplicate = false) {
   const when = new Date(o.paidAt || o.createdAt || Date.now()).toLocaleString(localeTag());
-  const items = (o.items || []).map((it) => `<div class="row"><span>${it.qty}× ${esc(it.name)}</span><span>${rp(it.lineTotal)}</span></div>`).join("");
+  const items = (o.items || []).filter((it) => !OFF_RECEIPT.includes(String(it.status))).map((it) => `<div class="row"><span>${it.qty}× ${esc(it.name)}</span><span>${rp(it.lineTotal)}</span></div>`).join("");
   const disc = Number(o.discount) > 0 ? `<div class="row"><span>${tr("pos.rc.discount")}${o.discountReason ? ` (${esc(o.discountReason)})` : ""}</span><span>- ${rp(o.discount)}</span></div>` : "";
   // Part of the bill paid with the member's package credit, and what was left to pay.
   const pkg = Number(o.packageCreditUsed) > 0 ? `<div class="row"><span>${tr("pos.rc.packageCredit")}</span><span>- ${rp(o.packageCreditUsed)}</span></div><div class="row b"><span>${tr("pos.rc.toPay")}</span><span>${rp(Number(o.total) - Number(o.packageCreditUsed))}</span></div>` : "";
@@ -78,6 +80,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
       ${m.logoUrl ? `<img class="logo" src="${m.logoUrl}" />` : ""}
       <div class="name">${esc(m.clubName || "Reborn Wave Group")}</div>
       <div class="mode">${mode(o.orderMode)}</div>
+      ${duplicate ? `<div class="mode" style="letter-spacing:2px;">${esc(tr("pos.rc.duplicate"))}</div><div class="muted">${esc(tr("pos.rc.reprinted", { when: new Date().toLocaleString(localeTag()) }))}</div>` : ""}
     </div>
     <hr/>
     ${o.receiptSeq ? `<div class="row"><span>${tr("pos.rc.no")}</span><span class="b">${esc(receiptNumber(o))}</span></div>` : ""}
@@ -149,8 +152,10 @@ function printDoc(inner: string, fileName?: string): boolean {
 }
 
 // Prints a merchant copy + customer copy in one job.
-export function printReceipt(order: Order, meta: ReceiptMeta) {
-  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy"), false, true) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true), receiptFileName(order));
+// `duplicate` = a reprint from the sales history: every copy is marked DUPLICATE with the time it was printed again.
+export function printReceipt(order: Order, meta: ReceiptMeta, opts: { duplicate?: boolean } = {}) {
+  const dup = !!opts.duplicate;
+  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy"), false, true, dup) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true, false, dup), dup && receiptFileName(order) ? `${receiptFileName(order)}_duplicate` : receiptFileName(order));
 }
 // The bill handed to the customer before they pay: what they ordered and the total due. Not a receipt (no payment, no commission, no QR).
 export function printBill(order: Order, meta: ReceiptMeta) {
