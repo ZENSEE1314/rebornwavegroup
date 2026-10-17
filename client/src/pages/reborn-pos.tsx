@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
-import { printClosingReport, printReceipt, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper } from "@/lib/receipt";
+import { printClosingReport, printReceipt, printBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
@@ -53,6 +53,82 @@ function beep() {
     g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
     o.start(); o.stop(ac.currentTime + 0.5);
   } catch {}
+}
+
+// Commission for a sale (an agent, a driver ...): our own cost, kept out of the bill and off the customer's receipt.
+interface CommissionInput { label: string; payee: string; kind: "percent" | "amount"; value: number }
+const emptyCommission = (): CommissionInput => ({ label: "", payee: "", kind: "percent", value: 0 });
+const commissionToSend = (c: CommissionInput) => (c.value > 0 ? c : undefined);
+const commissionAmountOf = (c: CommissionInput, base: number) => (c.value > 0 ? Math.min(Math.max(0, base), roundMoney(c.kind === "percent" ? (base * c.value) / 100 : c.value)) : 0);
+const commissionPreview = (c: CommissionInput, base: number) => { const amount = commissionAmountOf(c, base); return amount > 0 ? { commissionLabel: c.label, commissionPayee: c.payee, commissionAmount: amount } : {}; };
+
+function CommissionBox({ value, onChange, base }: { value: CommissionInput; onChange: (next: CommissionInput) => void; base: number }) {
+  const { t } = useTranslation();
+  const { data: types = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/commission-types"], queryFn: () => apiRequest("GET", "/api/reborn/pos/commission-types").then((r) => r.json()) });
+  const amount = commissionAmountOf(value, base);
+  const field = "mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white";
+  return (
+    <details className="mb-2 rounded-xl border border-white/10 bg-black/20 p-2 text-xs text-white/70">
+      <summary className="cursor-pointer font-semibold">💼 {t("pos.com.title")}{amount > 0 && <span className="ml-2 text-amber-300">{rp(amount)}</span>}</summary>
+      <p className="my-2 text-white/45">{t("pos.com.hint")}</p>
+      {types.length > 0 && (
+        <select value="" onChange={(e) => { const type = types.find((x: any) => x.id === e.target.value); if (type) onChange({ ...value, label: type.name, kind: type.kind, value: Number(type.value) }); }} className={field}>
+          <option value="">{t("pos.com.pick")}</option>
+          {types.map((x: any) => <option key={x.id} value={x.id}>{x.name} · {x.kind === "percent" ? `${x.value}%` : rp(x.value)}</option>)}
+        </select>
+      )}
+      <label className="mt-2 block">{t("pos.com.name")}<input value={value.label} onChange={(e) => onChange({ ...value, label: e.target.value })} maxLength={40} className={field} /></label>
+      <label className="mt-2 block">{t("pos.com.payee")}<input value={value.payee} onChange={(e) => onChange({ ...value, payee: e.target.value })} maxLength={60} className={field} /></label>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <select value={value.kind} onChange={(e) => onChange({ ...value, kind: e.target.value === "percent" ? "percent" : "amount" })} className={field}>
+          <option value="percent">%</option>
+          <option value="amount">{t("pos.rpAmount")}</option>
+        </select>
+        <input type="number" min={0} value={value.value || ""} onChange={(e) => onChange({ ...value, value: Math.max(0, Number(e.target.value)) })} className={field} />
+      </div>
+      {(value.value > 0 || value.label || value.payee) && <button type="button" onClick={() => onChange(emptyCommission())} className="mt-2 text-white/50 underline">{t("pos.com.clear")}</button>}
+    </details>
+  );
+}
+
+// Admin: the saved commissions the cashier can pick from (name + % or amount).
+function CommissionTypesSetting() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [rows, setRows] = useState<Array<{ id: string; name: string; kind: "percent" | "amount"; value: number }>>([]);
+  const { data: saved } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/commission-types"], queryFn: () => apiRequest("GET", "/api/reborn/pos/commission-types").then((r) => r.json()) });
+  useEffect(() => { if (saved) setRows(saved.map((x: any) => ({ id: x.id, name: x.name, kind: x.kind, value: Number(x.value) }))); }, [saved]);
+  const save = useMutation({
+    mutationFn: () => apiRequest("PUT", "/api/reborn/admin/commission-types", { types: rows }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("pos.com.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/commission-types"] }); },
+    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+  });
+  const update = (index: number, patch: Partial<(typeof rows)[number]>) => setRows(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  const field = "rounded-lg border border-white/10 bg-black/40 px-2 py-2 text-sm text-white";
+  return (
+    <div className="mb-3 inline-block align-top mr-2">
+      <button onClick={() => setIsOpen(!isOpen)} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">💼 {t("pos.com.manage")}</button>
+      {isOpen && (
+        <div className="mt-2 w-80 max-w-full rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-white/80">
+          <p className="mb-2 text-white/50">{t("pos.com.manageHint")}</p>
+          {rows.map((row, i) => (
+            <div key={row.id || i} className="mb-2 grid gap-1" style={{ gridTemplateColumns: "minmax(0,1fr) 4rem 5rem 2rem" }}>
+              <input value={row.name} onChange={(e) => update(i, { name: e.target.value })} maxLength={40} placeholder={t("pos.com.name")} className={field} />
+              <select value={row.kind} onChange={(e) => update(i, { kind: e.target.value === "percent" ? "percent" : "amount" })} className={field}><option value="percent">%</option><option value="amount">RP</option></select>
+              <input type="number" min={0} value={row.value || ""} onChange={(e) => update(i, { value: Math.max(0, Number(e.target.value)) })} className={field} />
+              <button aria-label={t("pos.com.remove")} onClick={() => setRows(rows.filter((_, j) => j !== i))} className="w-8 h-9 rounded-lg bg-white/10">×</button>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button onClick={() => setRows([...rows, { id: "", name: "", kind: "percent", value: 0 }])} className="flex-1 rounded-lg bg-white/10 px-3 py-2 font-semibold">+ {t("pos.com.add")}</button>
+            <button onClick={() => save.mutate()} disabled={save.isPending} className="flex-1 rounded-lg bg-amber-400/20 px-3 py-2 font-semibold text-amber-200">{t("pos.com.save")}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Which roll is in the receipt printer of this PC: width and how far to move the print right (saved in this browser).
@@ -109,6 +185,7 @@ export default function RebornPos() {
       <StaffGuideButton />
       <OfflineBanner />
       <ReceiptPaperSetting />
+      {role === "admin" && <CommissionTypesSetting />}
       <a href="/kitchen" className="mb-3 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🍳 {t("pos.kitchen.open")}</a>
       {(role === "admin" || companyRole === "manager") && <ClosePosDay />}
       <div className="grid gap-2 mb-4 max-w-3xl" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
@@ -391,6 +468,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const [discReason, setDiscReason] = useState((order as any).discountReason || "");
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
+  const [commission, setCommission] = useState(emptyCommission);
   const [useCredit, setUseCredit] = useState(false);
   const { data: posSettings } = usePosSettings();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] });
@@ -405,7 +483,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: t("pos.notFound"), description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, commission: commissionToSend(commission) }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: t("pos.drawerNotOpened"), description: t("pos.checkDrawerSetup") }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
@@ -582,6 +660,8 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             {payable > 0 && pay === "credits" && <CreditsLine code={order.memberCode} total={payable} onBalance={setCreditBal} />}
             {payable > 0 && pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
             {payable > 0 && pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={payable} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(payable)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
+            <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
+            <button onClick={() => printBill({ ...order, subtotal, discount: Math.max(0, subtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: due.total, packageCreditUsed: due.creditUse, items: (order.items || []).filter((item: any) => !OFF_BILL.includes(item.status)) } as any, savedReceiptMeta())} className="w-full py-2.5 rounded-xl mb-2 text-sm font-semibold bg-white/10 border border-white/10">🧾 {t("pos.bill.print")}</button>
             <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks} onAddCorkage={(service, quantity) => addItems.mutate([{ productId: service.id, name: service.name, price: Number(service.salePrice ?? service.price), qty: quantity }])}/>
             <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (quote?.hasPackages && !order.memberCode) || (payable > 0 && ((pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "credits" && (creditBal === null || creditBal < payable)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{payable > 0 ? t("pos.chargeAmount", { amount: rp(payable), method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(total) })}</button>
             <button onClick={() => { if (confirm(t("pos.cancelConfirm"))) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">{t("pos.cancelTicket")}</button>
@@ -618,6 +698,7 @@ function QuickSaleTab() {
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
   const [useCredit, setUseCredit] = useState(false);
   const { data: posSettings } = usePosSettings();
+  const [commission, setCommission] = useState(emptyCommission);
   const cartSubtotal = cartItems.reduce((sum,item)=>sum+Number(item.price)*Number(item.qty),0);
   const quote = useQuote({ items: cartItems.map((x) => ({ productId: x.id, price: Number(x.price), qty: x.qty })), memberCode: member?.code || "", discount, usePackageCredit: useCredit }, cartItems.length > 0);
   const due = quoteTotals(cartItems.length ? quote : null, billTotals(cartSubtotal, discount, posSettings));
@@ -629,18 +710,18 @@ function QuickSaleTab() {
   const { isOffline } = useOfflineSales();
   const sell = useMutation({
     mutationFn: async (items: any[]) => {
-      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit }, { label: t("pos.offline.items", { n: items.length }), total: payable });
+      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit, commission: commissionToSend(commission) }, { label: t("pos.offline.items", { n: items.length }), total: payable });
       if (!outcome.queued) return outcome.data;
       // Saved on this device: a receipt is made from the numbers on the screen (the server prices it again when it is sent).
       const cashIn = Number(cashReceived) || 0;
-      const order = { id: 0, orderNo: `OFFLINE-${outcome.sale.offlineId.slice(0, 6).toUpperCase()}`, orderMode, subtotal: cartSubtotal, discount, serviceFee: due.serviceFee, tax: due.tax, total: due.total, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: cashIn, changeGiven: pay === "cash" ? Math.max(0, cashIn - due.total) : 0, paidAt: outcome.sale.at,
+      const order = { id: 0, orderNo: `OFFLINE-${outcome.sale.offlineId.slice(0, 6).toUpperCase()}`, orderMode, subtotal: cartSubtotal, discount, serviceFee: due.serviceFee, tax: due.tax, total: due.total, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: cashIn, changeGiven: pay === "cash" ? Math.max(0, cashIn - due.total) : 0, paidAt: outcome.sale.at, ...commissionPreview(commission, due.taxable),
         items: items.map((it: any) => ({ name: it.name, qty: it.qty, price: Number(it.price), lineTotal: Number(it.price) * Number(it.qty) })) };
       return { queued: true, order, receipt: savedReceiptMeta(), message: t("pos.offline.savedToast") };
     },
     onSuccess: async (d) => {
       if (pay === "cash") await openCashDrawer();
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
-      toast({ title: t("pos.saleComplete"), description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setUseCredit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); setPaymentReference(""); setCashReceived(""); setKeepBottle(emptyBottle()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+      toast({ title: t("pos.saleComplete"), description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setUseCredit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); setPaymentReference(""); setCashReceived(""); setKeepBottle(emptyBottle()); setCommission(emptyCommission()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
@@ -673,6 +754,7 @@ function QuickSaleTab() {
         <label className="text-xs text-white/50 block">{t("pos.discountRp")}<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
         <MemberWallet code={member?.code} quote={cartItems.length ? quote : null} useCredit={useCredit} onUseCredit={setUseCredit} />
         {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} />}
+        <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${isOffline ? 2 : 3}, minmax(0, 1fr))` }}>
           {(["cash", "card", "credits"] as const).filter((m) => m !== "credits" || !isOffline).map((m) => (

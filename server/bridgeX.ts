@@ -552,6 +552,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS bundle_item_id integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS bundle_qty integer;
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS recommended boolean NOT NULL DEFAULT false;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS offline_id varchar;
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS commission_label varchar; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS commission_payee varchar; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS commission_amount numeric(10,2) NOT NULL DEFAULT 0;
     CREATE UNIQUE INDEX IF NOT EXISTS pos_tickets_offline_id ON pos_tickets (company_id, offline_id) WHERE offline_id IS NOT NULL;
     CREATE TABLE IF NOT EXISTS payslips (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, month varchar NOT NULL, data text NOT NULL, created_at timestamp NOT NULL DEFAULT now());
     CREATE UNIQUE INDEX IF NOT EXISTS payslips_user_month ON payslips (company_id, user_id, month);

@@ -991,6 +991,9 @@ export const posTickets = pgTable("pos_tickets", {
   staffId: varchar("staff_id"),
   salesStaffId: varchar("sales_staff_id"),   // staff credited with the sale (commission)
   salesStaffName: varchar("sales_staff_name"),
+  commissionLabel: varchar("commission_label"),   // a commission paid out of this sale (an agent, a driver ...): our own cost, never on the customer's receipt
+  commissionPayee: varchar("commission_payee"),
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).default("0").notNull(),
   note: text("note"),
   packageCreditUsed: decimal("package_credit_used", { precision: 14, scale: 2 }).default("0").notNull(), // part of the total paid with package credit
   createdAt: timestamp("created_at").defaultNow(),

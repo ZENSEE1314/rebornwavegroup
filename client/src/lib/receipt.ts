@@ -13,6 +13,7 @@ interface Order {
   serviceFee?: string | number; tax?: string | number; total?: string | number; items?: Item[]; createdAt?: string; paidAt?: string;
   packageCreditUsed?: string | number; discountReason?: string | null;
   receiptSeq?: number; receiptDay?: string; // the paid bill's number within its venue day (1, 2, 3 ...) and that day's date
+  commissionLabel?: string | null; commissionPayee?: string | null; commissionAmount?: string | number | null; // commission paid out of this sale: the sales copy shows it, the customer's copy never does
 }
 interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; serviceFeePercent?: number; taxPercent?: number; qr?: { text: string; caption?: string } | null; }
 
@@ -61,7 +62,7 @@ const buildCss = () => {
 `;
 };
 
-function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false) {
+function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false, showCommission = false) {
   const when = new Date(o.paidAt || o.createdAt || Date.now()).toLocaleString(localeTag());
   const items = (o.items || []).map((it) => `<div class="row"><span>${it.qty}× ${esc(it.name)}</span><span>${rp(it.lineTotal)}</span></div>`).join("");
   const disc = Number(o.discount) > 0 ? `<div class="row"><span>${tr("pos.rc.discount")}${o.discountReason ? ` (${esc(o.discountReason)})` : ""}</span><span>- ${rp(o.discount)}</span></div>` : "";
@@ -69,6 +70,9 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
   const pkg = Number(o.packageCreditUsed) > 0 ? `<div class="row"><span>${tr("pos.rc.packageCredit")}</span><span>- ${rp(o.packageCreditUsed)}</span></div><div class="row b"><span>${tr("pos.rc.toPay")}</span><span>${rp(Number(o.total) - Number(o.packageCreditUsed))}</span></div>` : "";
   const service = Number(o.serviceFee) > 0 ? `<div class="row"><span>${m.serviceFeePercent ? tr("pos.rc.serviceFeePct", { n: m.serviceFeePercent }) : tr("pos.rc.serviceFee")}</span><span>${rp(o.serviceFee)}</span></div>` : "";
   const tax = Number(o.tax) > 0 ? `<div class="row"><span>${m.taxPercent ? tr("pos.rc.taxPct", { n: m.taxPercent }) : tr("pos.rc.tax")}</span><span>${rp(o.tax)}</span></div>` : "";
+  const commission = showCommission && Number(o.commissionAmount) > 0
+    ? `<div class="row"><span>${tr("pos.rc.commission")}${o.commissionLabel ? ` ${esc(o.commissionLabel)}` : ""}${o.commissionPayee ? ` · ${esc(o.commissionPayee)}` : ""}</span><span>${rp(o.commissionAmount)}</span></div><div class="c muted">${tr("pos.rc.commissionNote")}</div>`
+    : "";
   return `
     <div class="c">
       ${m.logoUrl ? `<img class="logo" src="${m.logoUrl}" />` : ""}
@@ -93,6 +97,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
     ${o.paymentReference ? `<div class="row"><span>${tr("pos.rc.cardRef")}</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
     ${o.paymentMethod === "cash" ? `<div class="row"><span>${tr("pos.rc.cashReceived")}</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>${tr("pos.rc.change")}</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
     ${o.status === "refunded" ? `<div class="c b" style="font-size:18px;margin-top:6px;">${tr("pos.rc.refunded")}</div>` : ""}
+    ${commission}
     <hr/>
     ${withQr && m.qr?.text ? `<div class="c qr">${qrSvgNow(m.qr.text)}${m.qr.caption ? `<div class="muted b">${esc(m.qr.caption)}</div>` : ""}</div>` : ""}
     <div class="c muted">${esc(m.footer || tr("pos.rc.thanks"))}</div>
@@ -145,7 +150,11 @@ function printDoc(inner: string, fileName?: string): boolean {
 
 // Prints a merchant copy + customer copy in one job.
 export function printReceipt(order: Order, meta: ReceiptMeta) {
-  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy")) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true), receiptFileName(order));
+  return printDoc(receiptHtml(order, meta, tr("pos.rc.merchantCopy"), false, true) + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true), receiptFileName(order));
+}
+// The bill handed to the customer before they pay: what they ordered and the total due. Not a receipt (no payment, no commission, no QR).
+export function printBill(order: Order, meta: ReceiptMeta) {
+  return printDoc(`<div class="c b" style="font-size:14px;margin-bottom:4px;">${tr("pos.rc.billTitle")}</div>` + receiptHtml(order, meta, tr("pos.rc.billNote")), `Bill_${order.orderNo}`);
 }
 // A small slip with one or two QR codes (a table, the Wi-Fi) for the receipt printer.
 export function printQrSlip(title: string, subtitle: string, parts: Array<{ svg: string; label: string }>) {

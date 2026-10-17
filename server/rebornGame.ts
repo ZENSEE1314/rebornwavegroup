@@ -3799,6 +3799,42 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       .from(users).where(or(eq(users.role, "staff"), eq(users.role, "admin"))).orderBy(users.firstName).limit(200);
     res.json(rows.map((u) => ({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email, role: u.role })));
   }));
+  // Commission paid to someone for a sale (an agent, a driver ...): our own cost. It never raises what the customer pays and is left off the customer's copy of the receipt.
+  const COMMISSION_TYPES_KEY = "commissionTypes";
+  const COMMISSION_LABEL_MAX = 40;
+  const COMMISSION_PAYEE_MAX = 60;
+  const MAX_COMMISSION_TYPES = 30;
+  const commissionTypesOf = async () => {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, COMMISSION_TYPES_KEY)).limit(1);
+    try { const list = JSON.parse(row?.value || "[]"); return Array.isArray(list) ? list : []; } catch { return []; }
+  };
+  const commissionOf = (body: any, base: number) => {
+    const c = body?.commission;
+    if (!c || typeof c !== "object") return null;
+    const value = Number(c.value);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    const kind = c.kind === "percent" ? "percent" : "amount";
+    if (kind === "percent" && value > 100) return null;
+    const amount = Math.min(Math.max(0, base), roundMoney(kind === "percent" ? (base * value) / 100 : value));
+    if (amount <= 0) return null;
+    return { label: clean(c.label, COMMISSION_LABEL_MAX), payee: clean(c.payee, COMMISSION_PAYEE_MAX), amount };
+  };
+  const commissionColumns = (c: ReturnType<typeof commissionOf>) => (c ? { commissionLabel: c.label || null, commissionPayee: c.payee || null, commissionAmount: String(c.amount) } : {});
+  const bookCommission = async (ticketId: number, orderNo: string, c: NonNullable<ReturnType<typeof commissionOf>>, userId: string | null) => {
+    await db.insert(ledgerEntries).values({ kind: "expense", category: "commission", amount: String(c.amount), note: `Commission${c.label ? ` ${c.label}` : ""}${c.payee ? ` · ${c.payee}` : ""} · ${orderNo}`, refType: "pos_commission", refId: String(ticketId), userId });
+  };
+  app.get("/api/reborn/pos/commission-types", requireStaff(async (_req, res) => { res.set("Cache-Control", "no-store").json(await commissionTypesOf()); }));
+  app.put("/api/reborn/admin/commission-types", requireAdmin(async (req, res) => {
+    const list = (Array.isArray(req.body?.types) ? req.body.types : []).slice(0, MAX_COMMISSION_TYPES).map((x: any, i: number) => {
+      const value = Number(x?.value);
+      const kind = x?.kind === "percent" ? "percent" : "amount";
+      return { id: clean(x?.id, 20) || `c${Date.now().toString(36)}${i}`, name: clean(x?.name, COMMISSION_LABEL_MAX), kind, value: Number.isFinite(value) && value > 0 ? (kind === "percent" ? Math.min(100, value) : value) : 0 };
+    }).filter((x: any) => x.name && x.value > 0);
+    const value = JSON.stringify(list);
+    await db.insert(appSettings).values({ key: COMMISSION_TYPES_KEY, value, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+    await logAdmin(req, { targetType: "settings", action: "commission_types", entityType: "settings", description: `Saved commission list: ${list.map((x: any) => `${x.name} ${x.kind === "percent" ? `${x.value}%` : x.value}`).join(", ") || "none"}` });
+    res.json(list);
+  }));
   async function salesTag(body: any) {
     if (!body?.salesStaffId) return {};
     const [s] = await db.select().from(users).where(eq(users.id, String(body.salesStaffId))).limit(1);
@@ -3880,10 +3916,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const points = u ? Math.floor(due / await pointsSpendRp()) : 0;
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : "dine_in";
     const staffId = getUserId(req)!;
+    const commission = commissionOf(req.body, subtotal - discount);
     const [row] = await db.insert(posTickets).values({
       companyId: await rebornCompanyId(req),
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
-      ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null,
+      ...memberTag(u), ...(await salesTag(req.body)), ...commissionColumns(commission), tableNumber: req.body?.tableNumber || null,
       subtotal: String(subtotal), discount: String(discount), discountReason: q.perkAmount > 0 ? `Member ${q.perkPercent}%` : null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
       paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
     }).returning();
@@ -3898,6 +3935,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), ...(offlineAt ? { createdAt: offlineAt } : {}), userId: u?.id || null });
+    if (commission) await bookCommission(row.id, row.orderNo, commission, staffId);
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: row.id });
     if (u?.id) await notifyUserI18n(u.id, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: row.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: row.id });
     const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, staffId, reqLang(req)) : null;
@@ -4191,6 +4229,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
+    const commission = commissionOf(req.body, subtotal - discount);
+    if (commission) { await db.update(posTickets).set(commissionColumns(commission)).where(eq(posTickets.id, id)); await bookCommission(id, o.orderNo, commission, staffId); }
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: o.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: id });
     if (o.memberId) await notifyUserI18n(o.memberId, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: o.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: id });
     const [member] = o.memberId ? await db.select().from(users).where(eq(users.id, o.memberId)).limit(1) : [];
@@ -4582,6 +4622,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       await db.update(users).set({ credits: sql`${users.credits} + ${paidAmount}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
       await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund", rpAmount: String(paidAmount), kgoldAmount: 0, description: `Refund ${order.orderNo}: ${reason}`, referenceType: "pos_order", referenceId: String(id) });
     } else if (paidAmount > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(paidAmount), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
+    if (Number(order.commissionAmount) > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "commission_reversal", amount: String(order.commissionAmount), note: `Commission returned (refund ${order.orderNo})`, refType: "pos_commission_reversal", refId: String(id), userId: actorId });
     return { status: 200 as const, body: { message: tr(req, { en: "{no} refunded and stock restored", zh: "{no} 已退款，库存已恢复", id: "{no} di-refund dan stok dikembalikan" }, { no: order.orderNo }), order: { ...updated, items } }, order };
   };
   app.post("/api/reborn/admin/accounting/orders/:id/refund", requireAdmin(async (req, res) => {
