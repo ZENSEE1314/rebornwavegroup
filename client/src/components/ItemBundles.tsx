@@ -67,7 +67,7 @@ export function ItemBundles({ p }: { p: { id: number; name: string; category: st
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const base = { category: p.category, department: p.department || "", imageUrl: p.imageUrl || "", active: true, posVisible: true };
   const addBundle = useMutation({
-    mutationFn: async () => { for (const id of itemIds) await apiRequest("POST", "/api/reborn/admin/pos/products", { ...base, name: `${p.name} ×${bundle.qty}`, price: Number(bundle.price), bundleItemId: id, bundleQty: Number(bundle.qty) }); },
+    mutationFn: async () => { for (const id of itemIds) await apiRequest("POST", "/api/reborn/admin/pos/products", { ...base, name: `${bundle.qty} x ${p.name}`, price: Number(bundle.price), bundleItemId: id, bundleQty: Number(bundle.qty) }); },
     onSuccess: () => { toast({ title: t("admin.prod.added") }); setBundle({ ...bundle, price: "" }); changed(); }, onError: fail,
   });
   const addPackage = useMutation({
