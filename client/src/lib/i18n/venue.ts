@@ -93,6 +93,8 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.kos.needMore': { en: 'You need more KGOLD to reach the minimum.', zh: '你的 KGOLD 不足最低兑现额。', id: 'KGOLD Anda belum mencapai batas minimal.' },
   'vn.kos.someone': { en: 'Someone', zh: '有人', id: 'Seseorang' },
   'vn.kos.youSentTo': { en: 'You sent {name} a {gift}!', zh: '你送给 {name} 一个{gift}！', id: 'Anda mengirim {gift} untuk {name}!' },
+  'vn.song.resultsBox': { en: "Songs from our karaoke system first, then the library.", zh: "先显示我们点歌系统里的歌曲，再显示曲库。", id: "Lagu dari sistem karaoke kami dulu, lalu pustaka." },
+  'vn.song.inBox': { en: "In our karaoke system", zh: "在我们的点歌系统里", id: "Ada di sistem karaoke kami" },
   'vn.kos.cheers': { en: 'CHEERS!', zh: '干杯！', id: 'BERSULANG!' },
   'vn.happy.now': { en: 'Happy hour', zh: '欢乐时段', id: 'Happy hour' },
   'vn.kos.sentYou': { en: '{name} sent you a {gift}!', zh: '{name} 送给你一个{gift}！', id: '{name} mengirimi Anda {gift}!' },

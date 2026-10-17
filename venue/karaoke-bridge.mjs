@@ -14,6 +14,8 @@ const BOX_TIMEOUT_MS = 8000;
 const CLOUD_TIMEOUT_MS = 10000;
 const NOT_STARTED_MS = 25000; // the box took a song but never showed it as busy: give up on it
 const PLAYER_CALLBACK = "cb";
+const JOB_POLL_TIMEOUT_MS = 30000; // the app holds the request up to 20 s
+const RETRY_AFTER_ERROR_MS = 3000;
 
 // The box answers with JSONP: cb({...}); the song list inside is itself a JSON string.
 export function parseJsonp(text) {
@@ -118,7 +120,26 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     return "ordered";
   }
 
-  return { tick };
+  // One round of the search helper: ask the app for searches members typed (the request is held open up to 20 s), run each on the box and send the answer back.
+  async function serveSearches() {
+    const res = await fetchImpl(`${cloud}/api/karaoke/jobs`, { signal: AbortSignal.timeout(JOB_POLL_TIMEOUT_MS), headers: { "x-karaoke-token": token, ...(tenantSlug ? { "x-tenant-slug": tenantSlug } : {}) } });
+    if (!res.ok) throw new Error(`/api/karaoke/jobs: ${res.status}`);
+    const { jobs = [] } = await res.json();
+    for (const job of jobs) {
+      const songs = [];
+      for (const page of ["1", "2"]) {
+        const found = await boxCall("SearchServlet", { songName: job.q, songType: "", singer: "", lang: "", sortType: "", page });
+        const list = JSON.parse(found.songList || "[]");
+        songs.push(...list.map((x) => ({ code: x.sONGBM, title: x.sONGNAME, artist: x.sINGER, cloud: !!x.cLOUD })));
+        if (list.length < Number(found.number || 15)) break;
+      }
+      await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, { songs });
+      log(`search "${job.q}": ${songs.length} songs`);
+    }
+    return jobs.length;
+  }
+
+  return { tick, serveSearches };
 }
 
 async function main() {
@@ -126,10 +147,10 @@ async function main() {
   if (!CLOUD_URL || !KARAOKE_TOKEN || !BOX_URL) { console.error("Set CLOUD_URL, KARAOKE_TOKEN and BOX_URL (see the top of this file)."); process.exit(1); }
   const bridge = createBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl: BOX_URL, tenantSlug: TENANT_SLUG || "" });
   console.log(`Karaoke bridge: ${BOX_URL} <-> ${CLOUD_URL}`);
-  for (;;) {
-    try { await bridge.tick(); } catch (error) { console.log(`waiting: ${error.message}`); }
-    await new Promise((resolve) => setTimeout(resolve, Number(POLL_MS) || DEFAULT_POLL_MS));
-  }
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const playLoop = async () => { for (;;) { try { await bridge.tick(); } catch (error) { console.log(`waiting: ${error.message}`); } await wait(Number(POLL_MS) || DEFAULT_POLL_MS); } };
+  const searchLoop = async () => { for (;;) { try { await bridge.serveSearches(); } catch (error) { console.log(`search helper waiting: ${error.message}`); await wait(RETRY_AFTER_ERROR_MS); } } };
+  await Promise.all([playLoop(), searchLoop()]);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();

@@ -1104,6 +1104,33 @@ async function karaokeAuth(req: Request): Promise<boolean> {
   return true;
 }
 let karaokeLastSeenWrite = 0;
+
+// ── Searching the karaoke box's own song list ───────────────────────────────
+// The box sits on the venue Wi-Fi and the cloud cannot reach it, so the bridge program (venue/karaoke-bridge.mjs) holds a long request open here; a member's search
+// becomes a job it picks up at once, runs on the box and answers. No bridge connected (not polling for 45 s) = no box results, the search still shows the library.
+const BOX_SEARCH_WAIT_MS = 6000;
+const BRIDGE_HOLD_MS = 20_000;
+const BRIDGE_ONLINE_MS = 45_000;
+const BOX_RESULT_LIMIT = 40;
+interface BoxJob { id: string; q: string; resolve: (songs: any[] | null) => void }
+const boxJobsWaiting = new Map<string, BoxJob[]>();   // company -> jobs no bridge has taken yet
+const boxJobsTaken = new Map<string, BoxJob>();        // job id -> job a bridge is working on
+const boxBridgeWaiters = new Map<string, Array<() => void>>(); // company -> bridge requests waiting for a job
+const boxBridgeSeen = new Map<string, number>();       // company -> last time the bridge asked for work
+const wakeBoxBridge = (key: string) => { for (const wake of boxBridgeWaiters.get(key) || []) wake(); boxBridgeWaiters.set(key, []); };
+async function searchKaraokeBox(key: string, q: string): Promise<Array<{ code: string; title: string; artist: string }> | null> {
+  if (Date.now() - (boxBridgeSeen.get(key) || 0) > BRIDGE_ONLINE_MS) return null;
+  return new Promise((resolve) => {
+    const job: BoxJob = { id: randomUUID(), q, resolve: (songs) => { clearTimeout(timer); resolve(songs); } };
+    const timer = setTimeout(() => {
+      boxJobsTaken.delete(job.id);
+      boxJobsWaiting.set(key, (boxJobsWaiting.get(key) || []).filter((j) => j.id !== job.id));
+      resolve(null);
+    }, BOX_SEARCH_WAIT_MS);
+    boxJobsWaiting.set(key, [...(boxJobsWaiting.get(key) || []), job]);
+    wakeBoxBridge(key);
+  });
+}
 const normSong = (v: unknown) => String(v || "").toLowerCase().replace(/[\s·・\-–—_'"“”‘’()（）\[\]【】.,，。!！?？]/g, "");
 // Add / update songs from the karaoke system's list: [{ code, title, artist }].
 async function importKaraokeCatalog(list: Array<{ code?: unknown; title?: unknown; artist?: unknown }>) {
@@ -2365,7 +2392,13 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/songs/search", requireAuth, async (req, res) => {
     try {
       await seedSongsIfEmpty();
-      res.json(await searchSongCatalog(req.query.q, 10, 100));
+      const query = String(req.query.q || "").trim();
+      const [catalog, box] = await Promise.all([searchSongCatalog(req.query.q, 10, 100), query ? searchKaraokeBox(String(await rebornCompanyId(req)), query) : Promise.resolve(null)]);
+      if (!box) return res.json({ ...catalog, boxConnected: false });
+      // The box's own songs come first (they are the ones that can play); a library song with the same name + singer is left out.
+      const boxKeys = new Set(box.map((x) => `${normSong(x.title)}|${normSong(x.artist)}`));
+      const fromBox = box.map((x) => ({ source: "karaoke", title: x.title, titlePinyin: "", artist: x.artist, artistPinyin: "", karaokeCode: x.code }));
+      res.json({ ...catalog, songs: [...fromBox, ...catalog.songs.filter((x: any) => !boxKeys.has(`${normSong(x.title)}|${normSong(x.artist)}`))], boxConnected: true });
     } catch (e) {
       console.error("song search", e);
       res.status(500).json({ message: tr(req, { en: "Song search failed", zh: "歌曲搜索失败", id: "Pencarian lagu gagal" }) });
@@ -2377,6 +2410,7 @@ export function registerRebornRoutes(app: Express) {
       const userId = getUserId(req)!;
       if (await songNeedsTableScan(userId)) return res.status(400).json({ needTable: true, message: tr(req, { en: "Song requests go by table. Scan the QR code on your table first (KOS → camera), then request your song.", zh: "点歌按桌排队。请先扫描桌上的二维码（歌王之王 → 相机），再点歌。", id: "Permintaan lagu berdasarkan meja. Pindai dulu QR di mejamu (KOS → kamera), lalu minta lagumu." }) });
       let { songId, title, titlePinyin, artist, artistPinyin, spotifyUrl, artistPhoto, performanceMode } = req.body || {};
+      const boxCode = String(req.body?.karaokeCode || "").trim().slice(0, 40); // the song's number in the karaoke box (picked from the box's own search)
       const songSettings = await getSettings();
       performanceMode = songSettings.songRequestModeEnabled && performanceMode === "singer" ? "singer" : "self";
       let song: any = null;
@@ -2387,6 +2421,11 @@ export function registerRebornRoutes(app: Express) {
         title = song.title; artist = song.artist;
       } else {
         title = String(title || "").trim();
+        if (boxCode) {
+          [song] = await db.select().from(songs).where(eq(songs.karaokeCode, boxCode)).limit(1);
+          if (song) { await db.update(songs).set({ requestCount: (song.requestCount || 0) + 1 }).where(eq(songs.id, song.id)); songId = song.id; title = song.title; artist = song.artist; }
+        }
+        if (!song) {
         if (!title && titlePinyin) title = String(titlePinyin).trim();
         if (!title) return res.status(400).json({ message: tr(req, { en: "Enter the song name", zh: "请输入歌名", id: "Masukkan judul lagu" }) });
         // Don't duplicate: reuse only the same title + singer. Different covers remain selectable.
@@ -2401,14 +2440,15 @@ export function registerRebornRoutes(app: Express) {
         ).limit(1);
         if (existing[0]) {
           song = existing[0];
-          await db.update(songs).set({ requestCount: (song.requestCount || 0) + 1 }).where(eq(songs.id, song.id));
+          await db.update(songs).set({ requestCount: (song.requestCount || 0) + 1, ...(boxCode && !song.karaokeCode ? { karaokeCode: boxCode } : {}) }).where(eq(songs.id, song.id));
         } else {
           [song] = await db.insert(songs).values({
-            title, titlePinyin: tp, artist: cleanArtist, artistPinyin: ap,
+            title, titlePinyin: tp, artist: cleanArtist, artistPinyin: ap, karaokeCode: boxCode || null,
             spotifyUrl: spotifyUrl || null, artistPhoto: artistPhoto || null, isHit: false, requestCount: 1, createdBy: userId,
           }).returning();
         }
         songId = song.id;
+        }
       }
       const seat = await activeCheckin(userId).catch(() => null);
       const [reqRow] = await db.insert(songRequests).values({ companyId: await rebornCompanyId(req), userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, tableLabel: seat?.tableLabel || null, status: "pending" }).returning();
@@ -2645,6 +2685,34 @@ export function registerRebornRoutes(app: Express) {
     if (req.body?.finishedId && cur && Number(req.body.finishedId) !== cur.id) return res.json({ nowPlaying: (await songQueueBoard(cid)).nowPlaying, stale: true });
     await advanceSongQueue(cid, req.body?.skip === true ? "skip" : "done", null);
     res.json({ nowPlaying: (await songQueueBoard(cid)).nowPlaying });
+  });
+  // The bridge asks for searches to run on the box (held open up to 20 s so a member's search is picked up at once) and sends the answers back.
+  app.get("/api/karaoke/jobs", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    const key = String(await rebornCompanyId(req));
+    boxBridgeSeen.set(key, Date.now());
+    const takeJobs = () => {
+      const jobs = boxJobsWaiting.get(key) || [];
+      boxJobsWaiting.set(key, []);
+      for (const job of jobs) boxJobsTaken.set(job.id, job);
+      return jobs.map((job) => ({ id: job.id, q: job.q }));
+    };
+    if ((boxJobsWaiting.get(key) || []).length) return res.json({ jobs: takeJobs() });
+    let isDone = false;
+    const finish = () => { if (isDone) return; isDone = true; clearTimeout(hold); boxBridgeSeen.set(key, Date.now()); if (!res.writableEnded) res.json({ jobs: takeJobs() }); };
+    const hold = setTimeout(finish, BRIDGE_HOLD_MS);
+    boxBridgeWaiters.set(key, [...(boxBridgeWaiters.get(key) || []), finish]);
+    req.on("close", () => { isDone = true; clearTimeout(hold); boxBridgeWaiters.set(key, (boxBridgeWaiters.get(key) || []).filter((w) => w !== finish)); });
+  });
+  app.post("/api/karaoke/jobs/:id", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    const job = boxJobsTaken.get(String(req.params.id));
+    if (job) {
+      boxJobsTaken.delete(job.id);
+      const list = Array.isArray(req.body?.songs) ? req.body.songs : [];
+      job.resolve(list.slice(0, BOX_RESULT_LIMIT).map((x: any) => ({ code: String(x?.code ?? "").trim(), title: String(x?.title ?? "").trim(), artist: String(x?.artist ?? "").trim() })).filter((x: any) => x.code && x.title));
+    }
+    res.json({ ok: !!job });
   });
   app.post("/api/karaoke/songs", async (req, res) => {
     if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });

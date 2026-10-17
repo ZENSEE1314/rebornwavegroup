@@ -96,3 +96,20 @@ describe("karaoke bridge", () => {
     assert.deepEqual(state.nextCalls, [{ finishedId: 7, skip: true }]);
   });
 });
+
+describe("searching the box for members", () => {
+  it("should run the members' searches on the box and send the answers back", async () => {
+    const posted: any[] = [];
+    const fetchImpl = async (url: string, init?: any) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith("/api/karaoke/jobs") && (!init || init.method !== "POST")) return { ok: true, status: 200, json: async () => ({ jobs: [{ id: "j1", q: "love" }] }), text: async () => "" };
+      if (u.pathname.endsWith("/api/karaoke/jobs/j1")) { posted.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ ok: true }), text: async () => "" }; }
+      if (u.pathname.endsWith("SearchServlet")) return { ok: true, status: 200, text: async () => `cb(${JSON.stringify({ number: "15", page: u.searchParams.get("page"), songList: songList })})`, json: async () => ({}) };
+      throw new Error("unexpected " + url);
+    };
+    const bridge = createBridge({ cloudUrl: "https://cloud.test", token: "t", boxUrl: "http://box/demo", fetchImpl, log: () => {} });
+    assert.equal(await bridge.serveSearches(), 1);
+    assert.deepEqual(posted[0].songs.map((x: any) => x.code), ["999", "10014714", "10014728", "1"]);
+    assert.equal(posted[0].songs[0].cloud, true);
+  });
+});
