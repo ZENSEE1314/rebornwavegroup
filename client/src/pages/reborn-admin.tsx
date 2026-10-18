@@ -461,17 +461,19 @@ function Events() {
   const { t } = useTranslation();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/events"], queryFn: () => apiRequest("GET", "/api/reborn/admin/events").then((r) => r.json()) });
   const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/events"] });
-  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/events", { title: t("admin.ev.newTitle"), body: "" }).then((r) => r.json()), onSuccess: inv });
+  // "Post event" opens an empty form: nothing is published (or sent to members) until it is saved with a title. Old events stay as they are.
+  const [draft, setDraft] = useState<any | null>(null);
+  const add = useMutation({ mutationFn: (ev: any) => apiRequest("POST", "/api/reborn/admin/events", ev).then((r) => r.json()), onSuccess: () => { setDraft(null); inv(); } });
   const save = useMutation({ mutationFn: (ev: any) => apiRequest("PUT", `/api/reborn/admin/events/${ev.id}`, ev).then((r) => r.json()), onSuccess: inv });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/events/${id}`), onSuccess: inv });
   return (
     <div>
-      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> {t("admin.ev.post")}</button>
-      <div className="space-y-3">{rows.map((ev) => <EventRow key={ev.id} ev={ev} onSave={save.mutate} onDelete={del.mutate} />)}</div>
+      <button onClick={() => setDraft({ title: "", body: "", startDate: "", endDate: "", imageUrl: "", active: true, showOnLogin: true })} disabled={!!draft} className={btn + " mb-4 disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.ev.post")}</button>
+      <div className="space-y-3">{draft && <EventRow key="new" ev={draft} isNew onSave={add.mutate} onDelete={() => setDraft(null)} />}{rows.map((ev) => <EventRow key={ev.id} ev={ev} onSave={save.mutate} onDelete={del.mutate} />)}</div>
     </div>
   );
 }
-function EventRow({ ev, onSave, onDelete }: any) {
+function EventRow({ ev, onSave, onDelete, isNew = false }: any) {
   const [e, setE] = useState(ev);
   const { t } = useTranslation();
   return (
@@ -490,8 +492,8 @@ function EventRow({ ev, onSave, onDelete }: any) {
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.showOnLogin} onChange={(x) => setE({ ...e, showOnLogin: x.target.checked })} /> {t("admin.ev.showLogin")}</label>
       </div>
       <div className="flex gap-2 mt-3">
-        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
-        <button onClick={() => onDelete(ev.id)} className={btnDel}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
+        <button onClick={() => onSave(e)} disabled={isNew && !String(e.title || "").trim()} className={btnSave + " flex-1 justify-center disabled:opacity-50"}><Check className="w-4 h-4" /> {isNew ? t("admin.ev.post") : t("admin.c.save")}</button>
+        <button onClick={() => onDelete(ev.id)} className={btnDel}>{isNew ? <>{t("admin.c.cancel")}</> : <><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</>}</button>
       </div>
     </Card>
   );
