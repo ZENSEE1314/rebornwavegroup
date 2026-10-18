@@ -1,0 +1,51 @@
+# Builds the Android overlay app for the karaoke box (tv-overlay/) and publishes it as the release "tv-overlay-latest":
+# https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-latest/reborn-tv-overlay.apk
+name: TV overlay app
+
+on:
+  push:
+    branches: [main]
+    paths: ["tv-overlay/**", ".github/workflows/tv-overlay-apk.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      # The same signing key every build, so a newer build installs over the older one on the box (kept between builds in the cache).
+      - name: Signing key from the cache
+        id: key
+        uses: actions/cache@v4
+        with:
+          path: tv-overlay/app/debug.keystore
+          key: tv-overlay-signing-key-v1
+      - name: Make the signing key the first time
+        if: steps.key.outputs.cache-hit != 'true'
+        run: keytool -genkeypair -keystore tv-overlay/app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Reborn TV Overlay,O=Reborn Wave Group,C=ID"
+
+      - name: Build
+        run: gradle -p tv-overlay assembleRelease --no-daemon
+
+      - name: Publish the app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp tv-overlay/app/build/outputs/apk/release/app-release.apk reborn-tv-overlay.apk
+          gh release delete tv-overlay-latest --yes --cleanup-tag || true
+          gh release create tv-overlay-latest reborn-tv-overlay.apk --title "Reborn TV overlay (karaoke box)" --notes "Install this on the karaoke box. See Admin > Lights & TV > TV for the steps."
