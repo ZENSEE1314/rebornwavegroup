@@ -267,7 +267,7 @@ describe("exact songs and singers", () => {
 
 describe("the singer's choices: original voice, repeat, and the box's own list", () => {
   const catalog = [{ sONGBM: "10", sONGNAME: "Love", sINGER: "Love  Beyond", cLOUD: 0 }];
-  const make = (state: { board: any; count: number; queued?: any[] }) => {
+  const make = (state: { board: any; count: number; queued?: any[]; controls?: string[] }) => {
     const commands: string[] = []; const posted: any[] = [];
     const fetchImpl = async (url: string, init?: any) => {
       const u = new URL(url);
@@ -275,6 +275,7 @@ describe("the singer's choices: original voice, repeat, and the box's own list",
       if (u.pathname.endsWith("/api/karaoke/queue")) return reply(state.board);
       if (u.pathname.endsWith("/api/karaoke/box-state")) { posted.push(JSON.parse(init.body)); return reply({}); }
       if (u.pathname.endsWith("/api/karaoke/next")) return reply({});
+      if (u.pathname.endsWith("/api/karaoke/controls")) { const commands = state.controls || []; state.controls = []; return reply({ commands }); }
       if (u.pathname.endsWith("PlaylistServlet")) return reply({ number: String(state.count), songList: JSON.stringify(state.queued || []) });
       if (u.pathname.endsWith("CommandServlet")) { commands.push(u.searchParams.get("cmd")!); return reply({}); }
       throw new Error("unexpected " + url);
@@ -302,6 +303,23 @@ describe("the singer's choices: original voice, repeat, and the box's own list",
     state.board = board({ id: 2, vocal: "karaoke" });
     await w.bridge.tick();
     assert.deepEqual(w.commands, ["MuOr", "Add1", "MuOr", "Add1"]);
+  });
+  it("should press on the box the buttons the admin pressed in the app", async () => {
+    const w = make({ board: { paused: false, nowPlaying: null, queue: [] }, count: 0, controls: ["Music_up", "Mute"] });
+    await w.bridge.tick();
+    assert.deepEqual(w.commands, ["Music_up", "Mute"]);
+  });
+  it("should press each admin button only once", async () => {
+    const state = { board: { paused: false, nowPlaying: null, queue: [] }, count: 0, controls: ["Play"] };
+    const w = make(state);
+    await w.bridge.tick(); await w.bridge.tick();
+    assert.deepEqual(w.commands, ["Play"]);
+  });
+  it("should keep track of the voice button when the admin presses it directly", async () => {
+    const state = { board: board({ vocal: "original" }), count: 0, controls: ["MuOr"] };
+    const w = make(state);
+    await w.bridge.tick();
+    assert.deepEqual(w.commands, ["MuOr", "Add1"]); // the admin's press already turned the voice on, so the song needs no second press
   });
   it("should switch the voice on while the song is playing when the singer taps it", async () => {
     const state = { board: board(), count: 0 };

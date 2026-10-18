@@ -56,6 +56,7 @@ import { translateTexts } from "./autoTranslate";
 import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
 import { karaokeSetupBat } from "./karaokeSetup";
+import { BoxControlQueue, isBoxControl } from "./boxControls";
 import { cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
@@ -2782,6 +2783,26 @@ export function registerRebornRoutes(app: Express) {
     const songsOnBox = (Array.isArray(req.body?.songs) ? req.body.songs : []).slice(0, 50).map((x: any) => ({ title: clean(x?.title), artist: clean(x?.artist) })).filter((x: any) => x.title);
     boxStates.set(String(await rebornCompanyId(req)), { at: Date.now(), songs: songsOnBox });
     res.json({ ok: true });
+  });
+  // Remote buttons for the box: staff press one, the bridge takes it on its next round and presses the same button on the box.
+  const boxControls = new BoxControlQueue();
+  app.post("/api/reborn/admin/karaoke/control", requireStaff(async (req, res) => {
+    const control = req.body?.action;
+    if (!isBoxControl(control)) return res.status(400).json({ message: tr(req, { en: "Unknown button", zh: "未知按钮", id: "Tombol tidak dikenal" }) });
+    const cid = await rebornCompanyId(req);
+    const key = String(cid);
+    if (!isBoxOnline(key)) return res.status(503).json({ message: tr(req, { en: "The song system is offline: the program at the venue is not running.", zh: "点歌系统离线：场地的程序没有运行。", id: "Sistem lagu offline: program di venue tidak berjalan." }) });
+    // The singer's voice of the song on now is kept in the app (the bridge follows it); only with no app song on is the box button pressed directly.
+    const current = control === "voice" ? await songNowPlaying(cid) : null;
+    if (current) await db.update(songRequests).set({ vocal: current.vocal === "original" ? "karaoke" : "original" }).where(eq(songRequests.id, current.id));
+    else if (!boxControls.push(key, control)) return res.status(429).json({ message: tr(req, { en: "Too many presses are waiting: the venue program is not taking them.", zh: "等待的按键过多：场地程序没有在处理。", id: "Terlalu banyak tekanan menunggu: program venue tidak mengambilnya." }) });
+    await logAdmin(req, { targetType: "system", action: "karaoke_control", entityType: "settings", description: `Song system button: ${control}` });
+    emitLiveUpdate("/api/reborn/song-queue", { action: "CONTROL" });
+    res.json({ ok: true });
+  }));
+  app.get("/api/karaoke/controls", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    res.set("Cache-Control", "no-store").json({ commands: boxControls.take(String(await rebornCompanyId(req))) });
   });
   app.get("/api/reborn/admin/karaoke/box-playlist", requireStaff(async (req, res) => {
     const key = String(await rebornCompanyId(req));

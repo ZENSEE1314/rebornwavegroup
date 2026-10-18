@@ -94,6 +94,23 @@ check("members see songs ordered on the system next to the queue", queueView.box
 const adminView = (await admin("GET", "/api/reborn/admin/karaoke/box-playlist")).json;
 check("admin sees them too", adminView.online === true && adminView.songs?.[0]?.title === "Ordered by hand", JSON.stringify(adminView));
 
+// remote buttons for the box: staff press them, the bridge takes them once
+r = await member("POST", "/api/reborn/admin/karaoke/control", { action: "musicUp" });
+check("a member cannot press the box buttons", r.status === 401 || r.status === 403, r.status);
+r = await admin("POST", "/api/reborn/admin/karaoke/control", { action: "format-c" });
+check("an unknown button is refused", r.status === 400, r.status);
+r = await admin("POST", "/api/reborn/admin/karaoke/control", { action: "musicUp" });
+await admin("POST", "/api/reborn/admin/karaoke/control", { action: "mute" });
+check("staff press the volume and mute buttons", r.status === 200, JSON.stringify(r.json));
+let taken = (await bridge("GET", "/api/karaoke/controls", null, bh)).json;
+check("the bridge takes them in order", JSON.stringify(taken.commands) === JSON.stringify(["Music_up", "Mute"]), JSON.stringify(taken));
+taken = (await bridge("GET", "/api/karaoke/controls", null, bh)).json;
+check("and only once", taken.commands.length === 0, JSON.stringify(taken));
+r = await admin("POST", "/api/reborn/admin/karaoke/control", { action: "voice" });
+const voiceNow = (await db.query("SELECT vocal FROM song_requests WHERE id=$1", [row.id])).rows[0];
+taken = (await bridge("GET", "/api/karaoke/controls", null, bh)).json;
+check("with a song on, the voice button flips that song's voice (the bridge follows it)", r.status === 200 && voiceNow.vocal === "karaoke" && taken.commands.length === 0, `${r.status} ${JSON.stringify(voiceNow)} ${JSON.stringify(taken)}`);
+
 r = await member("POST", `/api/reborn/songs/my-requests/${row.id}/skip`, {});
 check("the singer can skip their own song", r.status === 200, JSON.stringify(r.json));
 const after = (await db.query("SELECT status FROM song_requests WHERE id=$1", [row.id])).rows[0];

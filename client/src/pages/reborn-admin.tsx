@@ -1295,6 +1295,12 @@ function SongRequests() {
   const pause = useMutation({ mutationFn: (p: boolean) => apiRequest("POST", "/api/reborn/admin/song-queue/pause", { paused: p }).then((r) => r.json()), onSuccess: (d: any) => { done(d); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue-info"] }); }, onError: fail });
   const playNext = useMutation({ mutationFn: (id: number) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}/play-next`, {}).then((r) => r.json()), onSuccess: done, onError: fail });
   const { data: onSystem } = useQuery<{ online: boolean; songs: Array<{ title: string; artist: string }> }>({ queryKey: ["/api/reborn/admin/karaoke/box-playlist"], queryFn: () => apiRequest("GET", "/api/reborn/admin/karaoke/box-playlist").then((r) => r.json()), refetchInterval: 8000 });
+  // Remote buttons for the song system (volume, mute, pause, the singer's voice): the venue program presses them on the box.
+  const control = useMutation({
+    mutationFn: (action: string) => apiRequest("POST", "/api/reborn/admin/karaoke/control", { action }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: () => { toast({ title: t("admin.req.ctlSent") }); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue"] }); },
+    onError: fail,
+  });
   const voiceTag = (r: any) => (r.vocal === "original" ? `🎤 ${t("vn.song.vocalOriginal")}` : `🎶 ${t("vn.song.vocalKaraoke")}`);
   const playing = all.find((r) => r.playing);
   const rows = all.filter((r) => !r.playing);
@@ -1318,6 +1324,15 @@ function SongRequests() {
       <Card>
         <p className="text-sm font-bold">🎛️ {t("admin.req.onSystem")} <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${onSystem?.online ? "bg-emerald-400 text-black" : "bg-white/15 text-white/60"}`}>{onSystem?.online ? t("admin.req.systemOnline") : t("admin.req.systemOffline")}</span></p>
         {onSystem?.songs?.length ? onSystem.songs.map((x, i) => <p key={`${x.title}-${i}`} className="mt-1 text-sm">{x.title}{x.artist ? <span className="text-white/50"> · {x.artist}</span> : null} <span className="text-[11px] text-cyan-200">· {t("vn.song.orderedOnSystem")}</span></p>) : <p className="mt-1 text-xs text-white/45">{t("admin.req.onSystemEmpty")}</p>}
+      </Card>
+      <Card>
+        <p className="text-sm font-bold">🎚️ {t("admin.req.controls")}</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {([["voice", "admin.req.ctlVoice"], ["pause", "admin.req.ctlPause"], ["mute", "admin.req.ctlMute"], ["musicUp", "admin.req.ctlMusicUp"], ["musicDown", "admin.req.ctlMusicDown"], ["micUp", "admin.req.ctlMicUp"], ["micDown", "admin.req.ctlMicDown"]] as const).map(([action, label]) => (
+            <button key={action} onClick={() => control.mutate(action)} disabled={control.isPending} className="rounded-xl bg-white/10 px-3 py-3 text-sm font-bold">{t(label)}</button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-white/45">{t("admin.req.ctlNote")}</p>
       </Card>
       <p className="text-xs text-white/50 px-1">{qi?.mode === "table" ? t("admin.req.fairNoteTable", { n: qi?.perTurn ?? 1 }) : t("admin.req.fairNoteUser", { n: qi?.perTurn ?? 1 })}</p>
       {rows.length === 0 && <Empty text={t("admin.req.empty")} />}

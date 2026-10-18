@@ -232,6 +232,15 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
 
   // One round: look at the app's queue and the box, and move whichever side is behind.
   async function tick() {
+    // Buttons the admin pressed in the app (volume, mute, pause, voice): press them on the box.
+    try {
+      const { commands } = await cloudCall("GET", "/api/karaoke/controls");
+      for (const cmd of commands || []) {
+        await boxCall("CommandServlet", { cmd, cmdValue: "" });
+        if (cmd === "MuOr") boxVocal = boxVocal === "original" ? "karaoke" : "original"; // the box's voice button flipped: keep our idea of it right
+        log(`admin pressed ${cmd}`);
+      }
+    } catch (error) { log(`controls not read: ${error.message}`); }
     const board = await cloudCall("GET", "/api/karaoke/queue");
     const current = board.nowPlaying;
     const count = await boxCount();
