@@ -1,12 +1,21 @@
 // Supplier receipts (Admin › Inventory / Accounting › "Scan a supplier receipt"): the AI reads the photo, and these
 // helpers tidy what it read and match each line to an item already in the inventory, so the admin only checks and saves.
 
-export interface ReadLine { name: string; qty: number; unitCost: number; lineTotal?: number; matchedProduct?: string }
-export interface ReadReceipt { supplier: string; supplierPhone: string; invoiceNo: string; date: string; total: number; items: ReadLine[] }
+export interface ReadLine { name: string; qty: number; unitCost: number; lineTotal?: number; matchedProduct?: string; unit?: string; packSize?: number }
+// goods = things bought for the stock room; expense = a bill for rent, electricity, repairs ... (no stock, one accounting line per bill).
+export type ReceiptKind = "goods" | "expense";
+export const EXPENSE_CATEGORIES = ["rental", "utilities", "salary", "other"] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+export const expenseCategoryOf = (v: unknown): ExpenseCategory => (EXPENSE_CATEGORIES as readonly string[]).includes(String(v)) ? (String(v) as ExpenseCategory) : "other";
+export interface ReadReceipt { supplier: string; supplierPhone: string; invoiceNo: string; date: string; total: number; items: ReadLine[]; kind: ReceiptKind; category: ExpenseCategory }
 export interface ProductLite { id: number; name: string }
-export interface ReceiptLine { name: string; qty: number; unitCost: number; productId: number | null }
+// qty and unitCost are as the receipt prices them (e.g. 30 boxes at 480,000); packSize = units in one of those (24), so stock gets qty × packSize units at unitCost ÷ packSize each.
+export interface ReceiptLine { name: string; qty: number; unitCost: number; productId: number | null; packSize: number }
 
 const MAX_LINES = 80;
+const MAX_PACK_SIZE = 1000;
+// A unit word on a receipt that means a pack of several: Dus, Ctn, Karton, Box, Krat, Pack.
+export const PACK_UNIT_RE = /\b(dus|dos|ctn|carton|karton|box|krat|pack|pak)\b/i;
 const MATCH_AT = 0.6;
 
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
@@ -56,11 +65,11 @@ export function cleanReceipt(raw: any): ReadReceipt {
     const qty = Math.max(1, Math.round(num(it?.qty) || 1));
     const lineTotal = num(it?.lineTotal);
     const unitCost = num(it?.unitCost) || (lineTotal ? lineTotal / qty : 0);
-    items.push({ name, qty, unitCost, lineTotal: lineTotal || unitCost * qty, matchedProduct: text(it?.matchedProduct) });
+    items.push({ name, qty, unitCost, lineTotal: lineTotal || unitCost * qty, matchedProduct: text(it?.matchedProduct), unit: text(it?.unit, 20), packSize: Math.floor(num(it?.packSize)) });
     if (items.length >= MAX_LINES) break;
   }
   const date = /^\d{4}-\d{2}-\d{2}$/.test(text(raw?.date)) ? text(raw.date) : "";
-  return { supplier: text(raw?.supplier), supplierPhone: text(raw?.supplierPhone, 40), invoiceNo: text(raw?.invoiceNo, 60), date, total: num(raw?.total), items };
+  return { supplier: text(raw?.supplier), supplierPhone: text(raw?.supplierPhone, 40), invoiceNo: text(raw?.invoiceNo, 60), date, total: num(raw?.total), items, kind: raw?.kind === "expense" ? "expense" : "goods", category: expenseCategoryOf(raw?.category) };
 }
 
 /** Lines the admin sends back to save: name, quantity ≥ 1, a price ≥ 0, and an item or a new name. */
@@ -72,7 +81,8 @@ export function cleanSaveLines(raw: unknown): ReceiptLine[] {
     const unitCost = Math.max(0, Number((it as any)?.unitCost) || 0);
     const productId = Number((it as any)?.productId) > 0 ? Number((it as any).productId) : null;
     if (qty < 1 || (!productId && !name)) continue;
-    out.push({ name, qty, unitCost, productId });
+    const packSize = Math.max(1, Math.min(MAX_PACK_SIZE, Math.floor(Number((it as any)?.packSize) || 1)));
+    out.push({ name, qty, unitCost, productId, packSize });
     if (out.length >= MAX_LINES) break;
   }
   return out;

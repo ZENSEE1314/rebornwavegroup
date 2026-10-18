@@ -55,7 +55,8 @@ import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, rememberPetName, 
 import { translateTexts } from "./autoTranslate";
 import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
-import { cleanSaveLines, matchProduct, receiptNote } from "./receiptLogic";
+import { cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf } from "./receiptLogic";
+const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -4505,11 +4506,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // ── Supplier receipts: the AI reads the photo, the admin checks the lines, saving books stock + one purchase ──
   app.post("/api/reborn/admin/inventory/receipt/read", requireManager(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const products = await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts)
+    const products = await db.select({ id: posProducts.id, name: posProducts.name, unitsPerPack: posProducts.unitsPerPack }).from(posProducts)
       .where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
     try {
       const read = await readReceiptPhoto(String(req.body?.image || ""), products.map((p) => p.name));
-      res.json({ ...read, items: read.items.map((it) => ({ ...it, productId: matchProduct(it, products) })) });
+      res.json({ ...read, items: read.items.map((it) => {
+        const productId = matchProduct(it, products);
+        // A line priced per box (Dus, Ctn): the printed pack size, else the item's own pack size, else one.
+        const itemPack = products.find((p) => p.id === productId)?.unitsPerPack || 0;
+        const packSize = it.packSize || (PACK_UNIT_RE.test(it.unit || "") && itemPack > 1 ? itemPack : 1);
+        return { ...it, productId, packSize };
+      }) });
     } catch (error) {
       const reason = error instanceof ReceiptReadError ? error.reason : "failed";
       const text = {
@@ -4534,7 +4541,22 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : "";
     const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") ? b.photoUrl : null;
     const decimals = companyMoney().decimals;
+    if (b.kind === "expense") { // a bill (rent, electricity ...): no stock, one expense line in the accounting, dated the bill's day
+      const amount = Number(lines.reduce((sum, l) => sum + l.qty * l.unitCost, 0).toFixed(decimals));
+      if (amount <= 0) return res.status(400).json({ message: tr(req, { en: "Enter the amount of the bill", zh: "请输入账单金额", id: "Masukkan jumlah tagihan" }) });
+      const day = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : "";
+      const when = day && new Date(`${day}${RECEIPT_TIME_SUFFIX}`) <= new Date() ? new Date(`${day}${RECEIPT_TIME_SUFFIX}`) : null;
+      const category = expenseCategoryOf(b.category);
+      const what = lines.map((l) => l.name).filter(Boolean).join(", ");
+      const note = [`Bill${invoiceNo ? ` ${invoiceNo}` : ""}`, supplier, day, what].filter(Boolean).join(" · ").slice(0, 300);
+      const [row] = await db.insert(ledgerEntries).values({ kind: "expense", category, amount: String(amount), note, photoUrl, refType: "receipt_expense", refId: invoiceNo || null, userId, ...(when ? { createdAt: when } : {}) }).returning();
+      await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "receipt_expense", entityType: "accounting", description: `${note}: expense ${amount} (${category})` });
+      return res.json({ lines: lines.length, created: 0, amount, message: tr(req, { en: "Saved: the bill was booked as an expense.", zh: "已保存：该账单已记为支出。", id: "Tersimpan: tagihan dicatat sebagai pengeluaran." }) });
+    }
     const tag = `Receipt${invoiceNo ? ` ${invoiceNo}` : ""}${supplier ? ` from ${supplier}` : ""}`;
+    // The goods came in on the receipt's date: the stock movement and the purchase carry it (not today), like Restock's delivery date.
+    const receivedAt = date && new Date(`${date}${RECEIPT_TIME_SUFFIX}`) <= new Date() ? new Date(`${date}${RECEIPT_TIME_SUFFIX}`) : null;
+    const eachCost = (line: { unitCost: number; packSize: number }) => Math.round((line.unitCost / line.packSize) * 100) / 100;
     try {
       const out = await db.transaction(async (tx) => {
         const saved: Array<{ name: string; qty: number }> = [];
@@ -4545,18 +4567,20 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
             [product] = await tx.select().from(posProducts).where(and(eq(posProducts.id, line.productId), eq(posProducts.companyId, cid)));
             if (!product) throw new Error("missing");
           } else {
-            // A new item: kept in the inventory, hidden from the POS until the admin gives it a selling price.
-            [product] = await tx.insert(posProducts).values({ companyId: cid, name: line.name, category: "General", price: "0", cost: String(line.unitCost), stock: 0,
+            // A new item: kept in the inventory with its supplier, phone, pack size and cost, hidden from the POS until the admin gives it a selling price.
+            [product] = await tx.insert(posProducts).values({ companyId: cid, name: line.name, category: "General", price: "0", cost: String(eachCost(line)), stock: 0,
+              ...(line.packSize > 1 ? { unitsPerPack: line.packSize, packPrice: String(line.unitCost) } : {}),
               supplierName: supplier, supplierPhone, active: true, posVisible: false }).returning();
             created++;
           }
-          await tx.update(posProducts).set({ stock: sql`${posProducts.stock} + ${line.qty}`, ...(line.unitCost > 0 ? { cost: String(line.unitCost) } : {}), ...(supplier ? { supplierName: supplier } : {}), ...(supplierPhone ? { supplierPhone } : {}) }).where(eq(posProducts.id, product.id));
-          await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: line.qty, reason: "stock_in", supplier, unitCost: line.unitCost > 0 ? String(line.unitCost) : null, note: `${tag}${date ? ` (${date})` : ""}`.slice(0, 200), userId });
+          const units = line.qty * line.packSize;
+          await tx.update(posProducts).set({ stock: sql`${posProducts.stock} + ${units}`, ...(line.unitCost > 0 ? { cost: String(eachCost(line)) } : {}), ...(supplier ? { supplierName: supplier } : {}), ...(supplierPhone ? { supplierPhone } : {}) }).where(eq(posProducts.id, product.id));
+          await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: units, reason: "stock_in", supplier, unitCost: line.unitCost > 0 ? String(eachCost(line)) : null, note: `${tag}${date ? ` (${date})` : ""}${line.packSize > 1 ? ` · ${line.qty} × ${line.packSize}` : ""}`.slice(0, 200), userId, ...(receivedAt ? { createdAt: receivedAt } : {}) });
           total += line.qty * line.unitCost;
-          saved.push({ name: product.name, qty: line.qty });
+          saved.push({ name: product.name, qty: units });
         }
         const amount = Number(total.toFixed(decimals));
-        if (amount > 0) await tx.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(amount), note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved), photoUrl, refType: "receipt", refId: invoiceNo || null, userId });
+        if (amount > 0) await tx.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(amount), note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved), photoUrl, refType: "receipt", refId: invoiceNo || null, userId, ...(receivedAt ? { createdAt: receivedAt } : {}) });
         return { lines: saved.length, created, amount };
       });
       await logAdmin(req, { targetType: "pos_product", action: "receipt_stock_in", entityType: "stock", description: `${tag}: ${out.lines} lines (${out.created} new items), purchase ${out.amount}` });

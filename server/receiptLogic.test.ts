@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { cleanReceipt, cleanSaveLines, matchProduct, nameScore, normName, receiptNote } from "./receiptLogic";
+import { PACK_UNIT_RE, cleanReceipt, cleanSaveLines, matchProduct, nameScore, normName, receiptNote } from "./receiptLogic";
 
 const products = [
   { id: 1, name: "Bintang 620ml" },
@@ -48,7 +48,7 @@ describe("cleanReceipt", () => {
 describe("cleanSaveLines", () => {
   it("should keep only lines with a quantity and an item or a name", () => {
     const lines = cleanSaveLines([{ productId: 1, qty: 24, unitCost: 35000 }, { name: "New wine", qty: 6, unitCost: -5 }, { name: "", qty: 3 }, { productId: 2, qty: 0 }]);
-    assert.deepEqual(lines, [{ name: "", qty: 24, unitCost: 35000, productId: 1 }, { name: "New wine", qty: 6, unitCost: 0, productId: null }]);
+    assert.deepEqual(lines, [{ name: "", qty: 24, unitCost: 35000, productId: 1, packSize: 1 }, { name: "New wine", qty: 6, unitCost: 0, productId: null, packSize: 1 }]);
   });
 });
 
@@ -56,5 +56,23 @@ describe("receiptNote", () => {
   it("should name the supplier, invoice, date and lines", () => {
     assert.equal(receiptNote({ supplier: "PT Bir", invoiceNo: "INV-9", date: "2026-10-14" }, [{ name: "Bintang", qty: 24 }, { name: "Cola", qty: 6 }]),
       "Receipt INV-9 from PT Bir (2026-10-14): 24 × Bintang, 6 × Cola");
+  });
+});
+
+describe("pack sizes on a receipt", () => {
+  it("should default a saved line to a single unit", () => {
+    assert.equal(cleanSaveLines([{ name: "Cola", qty: 3, unitCost: 5000 }])[0].packSize, 1);
+  });
+  it("should keep the pack size a line is priced in", () => {
+    assert.equal(cleanSaveLines([{ name: "Heineken", qty: 30, unitCost: 480000, packSize: 24 }])[0].packSize, 24);
+  });
+  it("should ignore a pack size that is not a whole number above zero", () => {
+    assert.equal(cleanSaveLines([{ name: "Cola", qty: 1, unitCost: 1, packSize: -5 }])[0].packSize, 1);
+  });
+  it("should know the unit words that mean a pack", () => {
+    assert.ok(["Dus", "Ctn-24", "Karton", "Box"].every((u) => PACK_UNIT_RE.test(u)));
+  });
+  it("should not treat a bottle as a pack", () => {
+    assert.equal(PACK_UNIT_RE.test("Botol"), false);
   });
 });

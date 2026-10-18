@@ -11,6 +11,8 @@ const TIMEOUT_MS = 90_000;
 
 const ReceiptSchema = z.object({
   readable: z.boolean().describe("false when the photo is not a receipt / invoice / delivery note or can't be read"),
+  kind: z.enum(["goods", "expense"]).describe("goods = items bought to stock (drinks, food, supplies); expense = a bill or receipt for rent, electricity, water, internet, repairs, a service or a salary, with no goods to stock"),
+  category: z.enum(["rental", "utilities", "salary", "other"]).describe("for an expense: rental, utilities (electricity / water / internet / gas), salary, or other; use other for goods"),
   supplier: z.string().describe("the seller's business name, as printed"),
   supplierPhone: z.string().describe("the seller's phone number, or empty"),
   invoiceNo: z.string().describe("invoice / receipt / delivery note number, or empty"),
@@ -19,6 +21,8 @@ const ReceiptSchema = z.object({
   items: z.array(z.object({
     name: z.string().describe("the item as printed"),
     qty: z.number().describe("quantity bought, in the unit the line is priced in"),
+    unit: z.string().describe("the unit printed for the line, e.g. Dus, Ctn-24, Botol, Pcs; empty if none"),
+    packSize: z.number().describe("how many single items are in one of that unit when the receipt prints it (Ctn-24 → 24, 1 x 24 → 24); 0 if it is not printed"),
     unitCost: z.number().describe("price for one of that unit, after any line discount"),
     lineTotal: z.number().describe("line amount, 0 if not shown"),
     matchedProduct: z.string().describe("the exact name from the inventory list that is this same item, or empty if none is"),
