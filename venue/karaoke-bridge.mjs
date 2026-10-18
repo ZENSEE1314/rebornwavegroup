@@ -251,6 +251,12 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
         log(`song ${sent.id} played again`);
         return "repeated";
       }
+      const wantVoice = current.vocal === "original" ? "original" : "karaoke";
+      if (wantVoice !== boxVocal) { // the singer switched the original voice on / off while the song plays
+        await boxCall("CommandServlet", { cmd: "MuOr", cmdValue: "" });
+        boxVocal = wantVoice;
+        log(`singer's voice ${wantVoice === "original" ? "on" : "off"} while "${current.title}" plays`);
+      }
       if (count > 0) { sent.seenBusy = true; return "playing"; }
       if (sent.seenBusy) { // the box played it and is idle again
         const done = sent.id;

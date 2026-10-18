@@ -303,6 +303,22 @@ describe("the singer's choices: original voice, repeat, and the box's own list",
     await w.bridge.tick();
     assert.deepEqual(w.commands, ["MuOr", "Add1", "MuOr", "Add1"]);
   });
+  it("should switch the voice on while the song is playing when the singer taps it", async () => {
+    const state = { board: board(), count: 0 };
+    const w = make(state);
+    await w.bridge.tick(); state.count = 1; await w.bridge.tick();
+    state.board = board({ vocal: "original" });
+    await w.bridge.tick();
+    assert.deepEqual(w.commands, ["Add1", "MuOr"]);
+  });
+  it("should press the voice button only once for one change", async () => {
+    const state = { board: board(), count: 0 };
+    const w = make(state);
+    await w.bridge.tick(); state.count = 1; await w.bridge.tick();
+    state.board = board({ vocal: "original" });
+    await w.bridge.tick(); await w.bridge.tick();
+    assert.deepEqual(w.commands, ["Add1", "MuOr"]);
+  });
   it("should play the song again when the singer presses Repeat", async () => {
     const state = { board: board(), count: 0 };
     const w = make(state);

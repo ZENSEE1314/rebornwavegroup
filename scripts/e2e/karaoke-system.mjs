@@ -66,6 +66,15 @@ check("the choice (singer's voice on) is saved", row?.vocal === "original", JSON
 let q = (await bridge("GET", "/api/karaoke/queue", null, bh)).json;
 check("the bridge sees the choice in the queue", q.queue?.[0]?.vocal === "original" || q.nowPlaying?.vocal === "original", JSON.stringify(q).slice(0, 200));
 
+// the singer switches their own voice on / off at any time; nobody else can
+r = await other("POST", `/api/reborn/songs/my-requests/${row.id}/vocal`, { vocal: "karaoke" });
+check("another member cannot change someone else's voice setting", r.status === 404, r.status);
+r = await member("POST", `/api/reborn/songs/my-requests/${row.id}/vocal`, { vocal: "karaoke" });
+const flipped = (await db.query("SELECT vocal FROM song_requests WHERE id=$1", [row.id])).rows[0];
+check("the singer switches their own voice off", r.status === 200 && flipped.vocal === "karaoke", `${r.status} ${JSON.stringify(flipped)}`);
+r = await member("POST", `/api/reborn/songs/my-requests/${row.id}/vocal`, { vocal: "original" });
+check("and on again", r.status === 200 && (await db.query("SELECT vocal FROM song_requests WHERE id=$1", [row.id])).rows[0].vocal === "original");
+
 // start it (the bridge does this), then the singer repeats / another member cannot
 await bridge("POST", "/api/karaoke/next", {}, bh);
 q = (await bridge("GET", "/api/karaoke/queue", null, bh)).json;

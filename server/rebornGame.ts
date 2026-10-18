@@ -2867,6 +2867,16 @@ export function registerRebornRoutes(app: Express) {
     emitLiveUpdate("/api/reborn/song-queue", { action: "REPEAT" });
     res.json({ message: tr(req, { en: "Playing it again", zh: "重新播放", id: "Diputar ulang" }) });
   });
+  // The singer switches their own voice on / off for their song, waiting or on now: the bridge presses the box's button.
+  app.post("/api/reborn/songs/my-requests/:id/vocal", requireAuth, async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const [row] = await db.select().from(songRequests).where(and(eq(songRequests.id, Number(req.params.id)), eq(songRequests.companyId, cid), eq(songRequests.userId, getUserId(req)!), inArray(songRequests.status, ["pending", "playing"])));
+    if (!row) return res.status(404).json({ message: tr(req, { en: "That song is not waiting or playing any more.", zh: "这首歌已不在等待或播放中。", id: "Lagu itu sudah tidak menunggu atau diputar." }) });
+    const vocal = req.body?.vocal === "original" ? "original" : "karaoke";
+    await db.update(songRequests).set({ vocal }).where(eq(songRequests.id, row.id));
+    emitLiveUpdate("/api/reborn/song-queue", { action: "VOCAL" });
+    res.json({ vocal, message: vocal === "original" ? tr(req, { en: "Singer's voice on", zh: "原唱已开启", id: "Suara penyanyi aktif" }) : tr(req, { en: "Singer's voice off", zh: "原唱已关闭", id: "Suara penyanyi mati" }) });
+  });
   // A member takes back their own song that hasn't started yet.
   app.post("/api/reborn/songs/my-requests/:id/cancel", requireAuth, async (req, res) => {
     const [row] = await db.update(songRequests).set({ status: "cancelled", adminNote: "Cancelled by member" })
