@@ -12,6 +12,7 @@ interface Screen { id: string; token: string; name: string; view: TvView; tables
 const VIEWS: TvView[] = ["overlay", "queue", "gifts", "off"];
 const DEFAULT_MAX_SCREENS = 12;
 const NOTICE_MS = 4000;
+const OVERLAY_APP_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-latest/reborn-tv-overlay.apk"; // built by GitHub from tv-overlay/
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
 const field = "min-w-0 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60";
 const button = "inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-lg text-xs font-semibold bg-white/5 text-white/80 border border-white/10 disabled:opacity-40";
@@ -124,6 +125,16 @@ export default function TvPanel() {
   return (
     <div className="space-y-4">
       <NearbyDevices kind="tv" onAdd={addScreen} />
+      <div className={card}>
+        <h3 className="font-bold mb-1">{t("admin.tv.overlayTitle")}</h3>
+        <p className="text-[11px] text-white/60">{t("admin.tv.overlayIntro")}</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-[11px] text-white/60">
+          <li>{t("admin.tv.overlay1")} <a href={OVERLAY_APP_URL} className="break-all text-cyan-200" target="_blank" rel="noopener noreferrer">{OVERLAY_APP_URL}</a></li>
+          <li>{t("admin.tv.overlay2")}</li>
+          <li>{t("admin.tv.overlay3")}</li>
+        </ol>
+        <a href={OVERLAY_APP_URL} className={button + " mt-3 inline-flex"}>⬇ {t("admin.tv.overlayDownload")}</a>
+      </div>
       <div className={card}>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Monitor className="w-4 h-4 text-cyan-300" /> {t("admin.tv.title")}</h3>
         <p className="text-[11px] text-white/50 mb-2">{t("admin.tv.intro")}</p>
