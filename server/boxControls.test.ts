@@ -24,6 +24,16 @@ describe("BoxControlQueue", () => {
     for (let i = 0; i < 20; i++) queue.push("1", "micUp");
     assert.equal(queue.push("1", "micUp"), false);
   });
+  it("should drop a press that nobody collected for a minute", () => {
+    const queue = new BoxControlQueue();
+    queue.push("1", "musicDown", 1000);
+    assert.deepEqual(queue.take("1", 1000 + 61_000), []);
+  });
+  it("should keep a press collected within the minute", () => {
+    const queue = new BoxControlQueue();
+    queue.push("1", "musicDown", 1000);
+    assert.deepEqual(queue.take("1", 1000 + 30_000), ["Music_down"]);
+  });
   it("should only know the listed buttons", () => {
     assert.equal(isBoxControl("voice"), true);
     assert.equal(isBoxControl("Skip"), false);
