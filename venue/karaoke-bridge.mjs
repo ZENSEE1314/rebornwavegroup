@@ -88,7 +88,7 @@ export function exactSong(results, title, artist) {
 const singerKey = (token) => { const m = /^(.*?)[(（]([^)）]+)[)）]\s*$/.exec(token); return m ? m[2].trim() : token; };
 function indexSong(song) { const names = singerNames(song.sINGER); return { ...song, pt: plain(song.sONGNAME), ps: plain(song.sINGER), names, keys: names.map(singerKey) }; }
 
-export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchImpl = fetch, log = console.log, now = () => Date.now(), catalog: givenCatalog = null, catalogFile = CATALOG_FILE, singers: givenSingers = null, singersFile = SINGERS_FILE }) {
+export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchImpl = fetch, log = console.log, now = () => Date.now(), catalog: givenCatalog = null, catalogFile = CATALOG_FILE, singers: givenSingers = null, singersFile = SINGERS_FILE, showCloud = true }) {
   const box = boxUrl.replace(/\/+$/, "");
   const cloud = cloudUrl.replace(/\/+$/, "");
   let sent = null; // { id, code, at, seenBusy, repeatDone } the app's song that is on the box now
@@ -146,6 +146,7 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     if (!want || !catalog) return [];
     const scored = [];
     for (const song of catalog) {
+      if (!showCloud && song.cLOUD) continue;
       const inTitle = song.pt.indexOf(want);
       const inSinger = song.ps.indexOf(want);
       if (inTitle < 0 && inSinger < 0) continue;
@@ -326,7 +327,7 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
   };
   const songsOfSinger = (name, page) => {
     if (!catalog) return { songs: [], maxPage: 1, loading: true };
-    const list = catalog.filter((x) => x.keys.includes(name)).sort((a, b) => a.sONGNAME.localeCompare(b.sONGNAME));
+    const list = catalog.filter((x) => (showCloud || !x.cLOUD) && x.keys.includes(name)).sort((a, b) => a.sONGNAME.localeCompare(b.sONGNAME));
     const from = (Math.max(1, Number(page) || 1) - 1) * SINGER_SONGS_PAGE;
     return { songs: list.slice(from, from + SINGER_SONGS_PAGE).map(songView), maxPage: Math.max(1, Math.ceil(list.length / SINGER_SONGS_PAGE)) };
   };
@@ -439,7 +440,7 @@ async function main() {
   if (!CLOUD_URL || !KARAOKE_TOKEN) { console.error("Set CLOUD_URL and KARAOKE_TOKEN (the setup file from Admin > Requests > Karaoke system does it for you)."); process.exit(1); }
   const boxUrl = await boxAddress(BOX_URL);
   if (!boxUrl) { console.error("Could not find the karaoke box on this network. Check that this PC is on the same Wi-Fi / cable as the box, or set BOX_URL (for example http://192.168.1.20:8084/demo)."); process.exit(1); }
-  const bridge = createBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl, tenantSlug: TENANT_SLUG || "" });
+  const bridge = createBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl, tenantSlug: TENANT_SLUG || "", showCloud: process.env.SHOW_CLOUD_SONGS === "1" });
   console.log(`Karaoke bridge: ${boxUrl} <-> ${CLOUD_URL}`);
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const LINK_EVERY_MS = 6 * 3600 * 1000;
