@@ -3265,7 +3265,6 @@ export function registerRebornRoutes(app: Express) {
     await db.update(topUpRequests).set({ status: approve ? "approved" : "rejected", adminId, adminNotes: req.body?.notes || null, processedAt: new Date(), updatedAt: new Date() }).where(eq(topUpRequests.id, id));
     if (approve) {
       await db.update(users).set({ credits: sql`${users.credits} + ${Number(t.amount)}`, updatedAt: new Date() }).where(eq(users.id, t.userId));
-      await db.insert(ledgerEntries).values({ kind: "income", category: "topup", amount: String(t.amount), note: `Top-up (${t.paymentMethod || "cash"})`, refType: "topup", refId: String(id), userId: t.userId });
     }
     const topupNotes = req.body?.notes ? String(req.body.notes) : "";
     pushUserI18n(t.userId, (lang) => approve
@@ -3932,7 +3931,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "pos_order", targetId: String(row.id), action: "add_items", entityType: "order", description: `${row.tableNumber ? `Table ${row.tableNumber}` : "Sale"} (${row.orderNo}): ordered ${clean!.map((x: any) => `${x.qty}× ${x.name}`).join(", ")}` });
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
-    if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), ...(offlineAt ? { createdAt: offlineAt } : {}), userId: u?.id || null });
+    if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), ...(offlineAt ? { createdAt: offlineAt } : {}), userId: u?.id || null });
     if (commission) await bookCommission(row.id, row.orderNo, commission, staffId);
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: row.id });
     if (u?.id) await notifyUserI18n(u.id, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: row.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: row.id });
@@ -4225,7 +4224,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
-    if (paymentMethod !== "credits" && due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
+    if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
     const commission = commissionOf(req.body, subtotal - discount);
     if (commission) { await db.update(posTickets).set(commissionColumns(commission)).where(eq(posTickets.id, id)); await bookCommission(id, o.orderNo, commission, staffId); }
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: o.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: id });
@@ -4653,10 +4652,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await refundPackagesOfTicket(id);
     const paidAmount = Number(order.total) - Number(order.packageCreditUsed || 0); // what was paid in cash / card / RP credits
     if (order.paymentMethod === "credits" && order.memberId) {
-      // Paid from RP credits → give the credits back (no cash left the till).
+      // Paid from RP credits → the credits go back to the member (the sale was booked as income when paid, so the refund is booked below like any other).
       await db.update(users).set({ credits: sql`${users.credits} + ${paidAmount}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
       await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund", rpAmount: String(paidAmount), kgoldAmount: 0, description: `Refund ${order.orderNo}: ${reason}`, referenceType: "pos_order", referenceId: String(id) });
-    } else if (paidAmount > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(paidAmount), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
+    }
+    if (paidAmount > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(paidAmount), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
     if (Number(order.commissionAmount) > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "commission_reversal", amount: String(order.commissionAmount), note: `Commission returned (refund ${order.orderNo})`, refType: "pos_commission_reversal", refId: String(id), userId: actorId });
     return { status: 200 as const, body: { message: tr(req, { en: "{no} refunded and stock restored", zh: "{no} 已退款，库存已恢复", id: "{no} di-refund dan stok dikembalikan" }, { no: order.orderNo }), order: { ...updated, items } }, order };
   };
