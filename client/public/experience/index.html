@@ -26,7 +26,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Montserrat:wght@400;500;600;800;900&display=swap" rel="stylesheet" />
   <!-- Bump ?v= on every release: CDN caches these for 4h, the HTML is uncached. -->
-  <link rel="stylesheet" href="./style.css?v=20261004-1" />
+  <link rel="stylesheet" href="./style.css?v=20261018-1" />
+  <script>
+    // 3D or the normal website: the visitor's choice is kept ("rw-home-mode" = 3d | lite); with no choice yet, a phone that looks too weak for 3D opens the normal site.
+    (function () {
+      var mode = ""; try { mode = localStorage.getItem("rw-home-mode") || ""; } catch (e) {}
+      var weak = false;
+      try {
+        var c = navigator.connection || {};
+        weak = (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) || c.saveData === true;
+        var gl = document.createElement("canvas"); if (!(window.WebGLRenderingContext && (gl.getContext("webgl2") || gl.getContext("webgl")))) weak = true;
+      } catch (e) { weak = true; }
+      if (mode === "lite" || (mode !== "3d" && weak)) location.replace("/welcome");
+    })();
+  </script>
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
   </script>
@@ -44,6 +57,7 @@
       <a href="/bookings">Book</a>
       <a href="https://wa.me/6281336361314?text=Hi%20Reborn%20Wave%20Group%2C%20I%20have%20some%20enquiries." target="_blank" rel="noopener noreferrer">WhatsApp</a>
       <span class="sound-wrap"><button id="sound-btn" class="sound-btn" type="button" aria-label="Turn sound on">🔇</button><span id="sound-hint" class="sound-hint" aria-hidden="true">Tap for music</span></span>
+      <button id="lite-btn" class="btn btn-sm lite-btn" type="button" data-en="Normal site" data-zh="普通网站" data-id="Situs biasa" title="Light version for phones that cannot show 3D">Normal site</button>
       <a class="btn btn-gold btn-sm" href="/login">Open the app</a>
     </nav>
   </header>
@@ -312,5 +326,14 @@
   </dialog>
 
   <script type="module" src="./app.js?v=20261004-5"></script>
+  <script>
+    (function () {
+      var btn = document.getElementById("lite-btn"); if (!btn) return;
+      var lang = "en"; try { lang = localStorage.getItem("language") || ""; } catch (e) {}
+      if (lang !== "zh" && lang !== "id" && lang !== "en") { var n = (navigator.language || "").toLowerCase(); lang = n.indexOf("zh") === 0 ? "zh" : (n.indexOf("id") === 0 || n.indexOf("ms") === 0) ? "id" : "en"; }
+      btn.textContent = btn.getAttribute("data-" + lang) || btn.textContent;
+      btn.addEventListener("click", function () { try { localStorage.setItem("rw-home-mode", "lite"); } catch (e) {} location.href = "/welcome"; });
+    })();
+  </script>
 </body>
 </html>

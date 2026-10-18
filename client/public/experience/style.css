@@ -245,3 +245,6 @@ body.static .beat a { pointer-events: auto; }
   .sound-btn { width: 34px; height: 34px; font-size: 15px; }
   .sound-hint { display: none; } /* the pulsing button is the hint on phones */
 }
+
+/* Switch to the normal website: a real button, so the phone rule that hides plain nav links does not hide it. */
+.lite-btn { background: transparent; border: 1px solid var(--c-ink-dim, rgba(255,255,255,.5)); color: var(--c-ink, #fff); cursor: pointer; font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; }

@@ -277,6 +277,7 @@ export const accountT: Record<string, { en: string; zh: string; id: string }> = 
   // ─── Landing ───
   'ac.land.floorsNav': { en: 'Floors', zh: '楼层', id: 'Lantai' },
   'ac.land.getApp': { en: 'Get the app', zh: '下载应用', id: 'Unduh aplikasi' },
+  'ac.land.mode3d': { en: '3D mode', zh: '3D 模式', id: 'Mode 3D' },
   'ac.land.login': { en: 'Login', zh: '登录', id: 'Masuk' },
   'ac.land.rail.home': { en: 'Home', zh: '首页', id: 'Beranda' },
   'ac.land.rail.sing': { en: 'Sing', zh: '歌唱', id: 'Nyanyi' },

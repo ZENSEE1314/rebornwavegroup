@@ -259,6 +259,10 @@ export default function Landing() {
   }, []);
 
   const goLogin = () => navigate("/login");
+  const go3d = () => {
+    try { localStorage.setItem("rw-home-mode", "3d"); } catch { /* private mode: the 3D page then decides by the phone */ }
+    window.location.href = "/experience/";
+  };
   const year = new Date().getFullYear();
 
   return (
@@ -275,6 +279,7 @@ export default function Landing() {
         </nav>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <LanguageSelector />
+          <button className="login-btn" type="button" onClick={go3d}>{t("ac.land.mode3d")}</button>
           <button className="login-btn" type="button" onClick={goLogin}>{t("ac.land.login")}</button>
         </div>
       </header>
