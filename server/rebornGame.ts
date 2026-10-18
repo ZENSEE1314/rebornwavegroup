@@ -56,7 +56,7 @@ import { translateTexts } from "./autoTranslate";
 import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
 import { karaokeSetupBat } from "./karaokeSetup";
-import { BoxControlQueue, isBoxControl } from "./boxControls";
+import { BoxControlQueue, isBoxControl, isBoxSongAction, isBoxSongId } from "./boxControls";
 import { cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
@@ -2775,12 +2775,12 @@ export function registerRebornRoutes(app: Express) {
     res.set("Cache-Control", "public, max-age=86400").type(photo.type).send(photo.buf);
   });
   // The bridge reports what is on the song system itself (songs ordered there by hand are not in our queue): admin and members see it next to the queue.
-  const boxStates = new Map<string, { at: number; songs: Array<{ title: string; artist: string }> }>();
+  const boxStates = new Map<string, { at: number; songs: Array<{ id: string; title: string; artist: string }> }>();
   const BOX_STATE_FRESH_MS = 30_000;
   const boxStateOf = (key: string) => { const st = boxStates.get(key); return st && Date.now() - st.at < BOX_STATE_FRESH_MS ? st.songs : []; };
   app.post("/api/karaoke/box-state", async (req, res) => {
     if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
-    const songsOnBox = (Array.isArray(req.body?.songs) ? req.body.songs : []).slice(0, 50).map((x: any) => ({ title: clean(x?.title), artist: clean(x?.artist) })).filter((x: any) => x.title);
+    const songsOnBox = (Array.isArray(req.body?.songs) ? req.body.songs : []).slice(0, 50).map((x: any) => ({ id: isBoxSongId(String(x?.id ?? "")) ? String(x.id) : "", title: clean(x?.title), artist: clean(x?.artist) })).filter((x: any) => x.title);
     boxStates.set(String(await rebornCompanyId(req)), { at: Date.now(), songs: songsOnBox });
     res.json({ ok: true });
   });
@@ -2793,11 +2793,23 @@ export function registerRebornRoutes(app: Express) {
     const key = String(cid);
     if (!isBoxOnline(key)) return res.status(503).json({ message: tr(req, { en: "The song system is offline: the program at the venue is not running.", zh: "点歌系统离线：场地的程序没有运行。", id: "Sistem lagu offline: program di venue tidak berjalan." }) });
     // The singer's voice of the song on now is kept in the app (the bridge follows it); only with no app song on is the box button pressed directly.
-    const current = control === "voice" || control === "repeat" ? await songNowPlaying(cid) : null;
-    if (current && control === "repeat") await db.update(songRequests).set({ repeatCount: sql`${songRequests.repeatCount} + 1` }).where(eq(songRequests.id, current.id)); // the bridge replays it on the box
+    const current = control === "voice" || control === "repeat" || control === "skip" ? await songNowPlaying(cid) : null;
+    if (current && control === "skip") await advanceSongQueue(cid, "skip", getUserId(req)); // an app song is on: skip it in the queue (the bridge then cuts it on the box)
+    else if (current && control === "repeat") await db.update(songRequests).set({ repeatCount: sql`${songRequests.repeatCount} + 1` }).where(eq(songRequests.id, current.id)); // the bridge replays it on the box
     else if (current) await db.update(songRequests).set({ vocal: current.vocal === "original" ? "karaoke" : "original" }).where(eq(songRequests.id, current.id));
     else if (!boxControls.push(key, control)) return res.status(429).json({ message: tr(req, { en: "Too many presses are waiting: the venue program is not taking them.", zh: "等待的按键过多：场地程序没有在处理。", id: "Terlalu banyak tekanan menunggu: program venue tidak mengambilnya." }) });
     await logAdmin(req, { targetType: "system", action: "karaoke_control", entityType: "settings", description: `Song system button: ${control}` });
+    emitLiveUpdate("/api/reborn/song-queue", { action: "CONTROL" });
+    res.json({ ok: true });
+  }));
+  // Remove or move up one song that was ordered on the box itself (admin / staff): the bridge presses Del1 / Pro2 with the box's own number for it.
+  app.post("/api/reborn/admin/karaoke/box-song", requireStaff(async (req, res) => {
+    const { action, id } = req.body || {};
+    if (!isBoxSongAction(action) || !isBoxSongId(id)) return res.status(400).json({ message: tr(req, { en: "Unknown song", zh: "未知歌曲", id: "Lagu tidak dikenal" }) });
+    const key = String(await rebornCompanyId(req));
+    if (!isBoxOnline(key)) return res.status(503).json({ message: tr(req, { en: "The song system is offline: the program at the venue is not running.", zh: "点歌系统离线：场地的程序没有运行。", id: "Sistem lagu offline: program di tempat tidak berjalan." }) });
+    if (!boxControls.pushSong(key, action, id)) return res.status(429).json({ message: tr(req, { en: "Too many presses are waiting: the venue program is not taking them.", zh: "等待的按键过多：场地程序没有处理。", id: "Terlalu banyak tombol menunggu: program tidak mengambilnya." }) });
+    await logAdmin(req, { targetType: "system", action: "karaoke_box_song", entityType: "settings", description: `Song on the system: ${action} ${id}` });
     emitLiveUpdate("/api/reborn/song-queue", { action: "CONTROL" });
     res.json({ ok: true });
   }));

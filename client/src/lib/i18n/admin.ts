@@ -1075,6 +1075,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.qr.savedShare': { en: "Choose Save image / Save to gallery in the share menu.", zh: "请在分享菜单中选择“保存图片”。", id: "Pilih Simpan gambar / Simpan ke galeri di menu bagikan." },
   'admin.qr.savedDownload': { en: "Saved to your Downloads folder.", zh: "已保存到“下载”文件夹。", id: "Tersimpan di folder Unduhan." },
   'admin.req.controls': { en: "Song system controls", zh: "点歌系统控制", id: "Kontrol sistem lagu" },
+  'admin.req.boxNext': { en: "Play next", zh: "下一首播放", id: "Putar berikutnya" },
+  'admin.req.boxRemove': { en: "Remove", zh: "移除", id: "Hapus" },
   'admin.req.ctlRepeat': { en: "🔁 Repeat the song", zh: "🔁 重唱这首歌", id: "🔁 Ulang lagu" },
   'admin.req.ctlVoice': { en: "🎤 Singer's voice on / off", zh: "🎤 原唱 开 / 关", id: "🎤 Suara penyanyi aktif / mati" },
   'admin.req.ctlPause': { en: "⏸ Pause / ▶ Resume song", zh: "⏸ 暂停 / ▶ 继续播放", id: "⏸ Jeda / ▶ Lanjut lagu" },

@@ -228,7 +228,9 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     lastStateAt = now(); lastStateCount = count;
     try {
       const list = count > 0 ? JSON.parse((await boxCall("PlaylistServlet", { onSelectPage: "true", click: "true", type: "1" })).songList || "[]") : [];
-      await cloudCall("POST", "/api/karaoke/box-state", { songs: list.map((x) => ({ title: x.sONGNAME, artist: singerNames(x.sINGER).join(", ") })) });
+      // The song the app itself ordered is in the box's list too: leave it out so it is not shown twice (the box's own number xH lets the app remove or move a song).
+      const own = sent ? list.findIndex((x) => String(x.sONGBM) === String(sent.code)) : -1;
+      await cloudCall("POST", "/api/karaoke/box-state", { songs: list.filter((_, i) => i !== own).map((x) => ({ id: String(x.xH ?? ""), title: x.sONGNAME, artist: singerNames(x.sINGER).join(", ") })) });
     } catch (error) { log(`box list not sent: ${error.message}`); }
   }
   const finish = (finishedId, skip) => cloudCall("POST", "/api/karaoke/next", { finishedId, ...(skip ? { skip: true } : {}) });
@@ -237,10 +239,11 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
   async function pressControls() {
     try {
       const { commands } = await cloudCall("GET", "/api/karaoke/controls");
-      for (const cmd of commands || []) {
-        await boxCall("CommandServlet", { cmd, cmdValue: "" });
+      for (const press of commands || []) {
+        const [cmd, value = ""] = String(press).split(":"); // "Del1:<id>" = a command with the box's number of one song
+        await boxCall("CommandServlet", { cmd, cmdValue: value });
         if (cmd === "MuOr") boxVocal = boxVocal === "original" ? "karaoke" : "original"; // the box's voice button flipped: keep our idea of it right
-        log(`admin pressed ${cmd}`);
+        log(`admin pressed ${cmd}${value ? ` ${value}` : ""}`);
       }
     } catch (error) { log(`controls not read: ${error.message}`); }
   }

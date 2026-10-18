@@ -97,6 +97,9 @@ function QueueBoard() {
   const flip = (song: any) => voice.mutate({ id: song.id, vocal: song.vocal === "original" ? "karaoke" : "original" });
   if (!q) return null;
   const list: any[] = q.queue || [];
+  // With no app song on, the first song on the system itself is the one being sung; the rest wait under "ordered on the song system".
+  const onBoxNow = !q.nowPlaying ? (q.boxQueue || [])[0] : null;
+  const onBoxWaiting: any[] = (q.boxQueue || []).slice(onBoxNow ? 1 : 0);
   return (
     <div className="space-y-2">
       <div className="rounded-3xl p-4 border border-fuchsia-400/30" style={{ background: "linear-gradient(135deg,rgba(217,70,239,.18),rgba(201,168,76,.12))" }}>
@@ -112,6 +115,10 @@ function QueueBoard() {
               <button onClick={() => act.mutate({ id: q.nowPlaying.id, what: "skip" })} disabled={act.isPending} className="rounded-xl bg-red-500/80 px-3 py-2.5 text-sm font-bold text-white">⏭ {t("vn.song.skip")}</button>
             </div>
           )}
+        </>) : onBoxNow ? (<>
+          <p className="text-lg font-black mt-1">{onBoxNow.title}</p>
+          <p className="text-xs text-white/60">{onBoxNow.artist || "—"}</p>
+          <p className="mt-2 inline-block px-2.5 py-1 rounded-full bg-black/30 text-xs font-bold text-cyan-200">{t("vn.song.orderedOnSystem")}</p>
         </>) : <p className="text-sm text-white/60 mt-1">{t("vn.song.nobodySinging")}</p>}
       </div>
       <p className="text-xs text-white/50 px-1">{q.mode === "table" ? t("vn.song.fairNoteTable", { n: q.perTurn ?? 1 }) : t("vn.song.fairNoteUser", { n: q.perTurn ?? 1 })}</p>
@@ -126,10 +133,10 @@ function QueueBoard() {
           {r.position === 1 && <span className="text-[10px] font-bold text-emerald-300 flex-shrink-0">{t("vn.song.upNext")}</span>}
         </div>
       ))}
-      {(q.boxQueue || []).length > 0 && (
+      {onBoxWaiting.length > 0 && (
         <div className="pt-2">
           <p className="px-1 pb-1 text-xs font-bold text-white/50">{t("vn.song.onSystem")}</p>
-          {(q.boxQueue as any[]).map((x, i) => (
+          {onBoxWaiting.map((x, i) => (
             <div key={`${x.title}-${i}`} className="mb-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               <Music2 className="h-5 w-5 flex-shrink-0 text-cyan-300" />
               <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{x.title}{x.artist ? <span className="font-normal text-white/45"> · {x.artist}</span> : null}</span><span className="block text-xs text-white/50">{t("vn.song.orderedOnSystem")}</span></span>

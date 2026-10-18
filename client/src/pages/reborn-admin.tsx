@@ -1294,11 +1294,17 @@ function SongRequests() {
   const paused = !!qi?.paused;
   const pause = useMutation({ mutationFn: (p: boolean) => apiRequest("POST", "/api/reborn/admin/song-queue/pause", { paused: p }).then((r) => r.json()), onSuccess: (d: any) => { done(d); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue-info"] }); }, onError: fail });
   const playNext = useMutation({ mutationFn: (id: number) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}/play-next`, {}).then((r) => r.json()), onSuccess: done, onError: fail });
-  const { data: onSystem } = useQuery<{ online: boolean; songs: Array<{ title: string; artist: string }> }>({ queryKey: ["/api/reborn/admin/karaoke/box-playlist"], queryFn: () => apiRequest("GET", "/api/reborn/admin/karaoke/box-playlist").then((r) => r.json()), refetchInterval: 8000 });
+  const { data: onSystem } = useQuery<{ online: boolean; songs: Array<{ id: string; title: string; artist: string }> }>({ queryKey: ["/api/reborn/admin/karaoke/box-playlist"], queryFn: () => apiRequest("GET", "/api/reborn/admin/karaoke/box-playlist").then((r) => r.json()), refetchInterval: 8000 });
   // Remote buttons for the song system (volume, mute, pause, the singer's voice): the venue program presses them on the box.
   const control = useMutation({
     mutationFn: (action: string) => apiRequest("POST", "/api/reborn/admin/karaoke/control", { action }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: () => { toast({ title: t("admin.req.ctlSent") }); qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue"] }); },
+    onError: fail,
+  });
+  // Songs ordered on the song system itself: move one up or take it off (the venue program presses Pro2 / Del1 on the box).
+  const boxSong = useMutation({
+    mutationFn: (v: { action: "next" | "remove"; id: string }) => apiRequest("POST", "/api/reborn/admin/karaoke/box-song", v).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: () => { toast({ title: t("admin.req.ctlSent") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/karaoke/box-playlist"] }); },
     onError: fail,
   });
   const voiceTag = (r: any) => (r.vocal === "original" ? `🎤 ${t("vn.song.vocalOriginal")}` : `🎶 ${t("vn.song.vocalKaraoke")}`);
@@ -1324,12 +1330,22 @@ function SongRequests() {
       </Card>
       <Card>
         <p className="text-sm font-bold">🎛️ {t("admin.req.onSystem")} <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${onSystem?.online ? "bg-emerald-400 text-black" : "bg-white/15 text-white/60"}`}>{onSystem?.online ? t("admin.req.systemOnline") : t("admin.req.systemOffline")}</span></p>
-        {onSystem?.songs?.length ? onSystem.songs.map((x, i) => <p key={`${x.title}-${i}`} className="mt-1 text-sm">{x.title}{x.artist ? <span className="text-white/50"> · {x.artist}</span> : null} <span className="text-[11px] text-cyan-200">· {t("vn.song.orderedOnSystem")}</span></p>) : <p className="mt-1 text-xs text-white/45">{t("admin.req.onSystemEmpty")}</p>}
+        {onSystem?.songs?.length ? onSystem.songs.map((x, i) => (
+          <div key={`${x.id}-${x.title}-${i}`} className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+            <span className="min-w-0 flex-1">{!playing && i === 0 && <span className="mr-1 rounded-full bg-fuchsia-400 px-2 py-0.5 text-[10px] font-bold text-black">🎤 {t("admin.req.nowPlaying")}</span>}{x.title}{x.artist ? <span className="text-white/50"> · {x.artist}</span> : null} <span className="text-[11px] text-cyan-200">· {t("vn.song.orderedOnSystem")}</span></span>
+            {!playing && i === 0 ? (<>
+              <button onClick={() => control.mutate("skip")} disabled={control.isPending} className="rounded-lg bg-red-500/80 px-2.5 py-1.5 text-xs font-bold text-white">⏭ {t("admin.req.skip")}</button>
+              <button onClick={() => control.mutate("repeat")} disabled={control.isPending} className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-bold">{t("admin.req.ctlRepeat")}</button>
+            </>) : x.id ? (<>
+              <button onClick={() => boxSong.mutate({ action: "next", id: x.id })} disabled={boxSong.isPending} className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-bold">⏫ {t("admin.req.boxNext")}</button>
+              <button onClick={() => boxSong.mutate({ action: "remove", id: x.id })} disabled={boxSong.isPending} className="rounded-lg bg-red-500/80 px-2.5 py-1.5 text-xs font-bold text-white">🗑 {t("admin.req.boxRemove")}</button>
+            </>) : null}
+          </div>)) : <p className="mt-1 text-xs text-white/45">{t("admin.req.onSystemEmpty")}</p>}
       </Card>
       <Card>
         <p className="text-sm font-bold">🎚️ {t("admin.req.controls")}</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          {([["voice", "admin.req.ctlVoice"], ["repeat", "admin.req.ctlRepeat"], ["pause", "admin.req.ctlPause"], ["mute", "admin.req.ctlMute"], ["musicUp", "admin.req.ctlMusicUp"], ["musicDown", "admin.req.ctlMusicDown"], ["micUp", "admin.req.ctlMicUp"], ["micDown", "admin.req.ctlMicDown"]] as const).map(([action, label]) => (
+          {([["voice", "admin.req.ctlVoice"], ["repeat", "admin.req.ctlRepeat"], ["skip", "admin.req.skip"], ["pause", "admin.req.ctlPause"], ["mute", "admin.req.ctlMute"], ["musicUp", "admin.req.ctlMusicUp"], ["musicDown", "admin.req.ctlMusicDown"], ["micUp", "admin.req.ctlMicUp"], ["micDown", "admin.req.ctlMicDown"]] as const).map(([action, label]) => (
             <button key={action} onClick={() => control.mutate(action)} disabled={control.isPending} className="rounded-xl bg-white/10 px-3 py-3 text-sm font-bold">{t(label)}</button>
           ))}
         </div>

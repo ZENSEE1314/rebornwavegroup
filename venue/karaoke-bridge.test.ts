@@ -347,9 +347,9 @@ describe("the singer's choices: original voice, repeat, and the box's own list",
     assert.equal(await w.bridge.tick(), "playing");   // the same press is not repeated twice
   });
   it("should report the songs waiting on the box itself", async () => {
-    const w = make({ board: { paused: false, nowPlaying: null, queue: [] }, count: 2, queued: [{ sONGNAME: "Ordered by hand", sINGER: "Ordered  Someone" }] });
+    const w = make({ board: { paused: false, nowPlaying: null, queue: [] }, count: 2, queued: [{ xH: 7, sONGNAME: "Ordered by hand", sINGER: "Ordered  Someone" }] });
     await w.bridge.tick();
-    assert.deepEqual(w.posted[0].songs, [{ title: "Ordered by hand", artist: "Someone" }]);
+    assert.deepEqual(w.posted[0].songs, [{ id: "7", title: "Ordered by hand", artist: "Someone" }]);
   });
 });
 

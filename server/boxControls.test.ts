@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { BoxControlQueue, isBoxControl } from "./boxControls";
+import { BoxControlQueue, isBoxControl, isBoxSongId } from "./boxControls";
 
 describe("BoxControlQueue", () => {
   it("should hand the pressed buttons to the bridge in order", () => {
@@ -39,5 +39,17 @@ describe("BoxControlQueue", () => {
     assert.equal(isBoxControl("repeat"), true);
     assert.equal(isBoxControl("Skip"), false);
     assert.equal(isBoxControl("toString"), false);
+  });
+});
+
+describe("BoxControlQueue songs of the box", () => {
+  it("should hand a song command with the box's number for that song", () => {
+    const queue = new BoxControlQueue();
+    queue.pushSong("1", "next", "17");
+    assert.deepEqual(queue.take("1"), ["Pro2:17"]);
+  });
+  it("should accept only plain song numbers", () => {
+    assert.equal(isBoxSongId("17"), true);
+    assert.equal(isBoxSongId("1;2"), false);
   });
 });
