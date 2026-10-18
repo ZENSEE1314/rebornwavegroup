@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import NearbyDevices, { type NearbyDevice } from "@/components/NearbyDevices";
-import { Copy, Monitor, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Copy, Monitor, Plus, QrCode, Sparkles, Trash2 } from "lucide-react";
+import { qrSvgNow } from "@/lib/qr-download";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { rememberedTenantSlug } from "@/hooks/useTenantBrand";
@@ -27,6 +28,7 @@ export default function TvPanel() {
   const [screens, setScreens] = useState<Screen[]>([]);
   const [max, setMax] = useState(DEFAULT_MAX_SCREENS);
   const [tableDrafts, setTableDrafts] = useState<Record<string, string>>({});
+  const [qrFor, setQrFor] = useState<string | null>(null); // the TV whose address QR is open
   const [isDirty, setIsDirty] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [notice, setNotice] = useState<{ isError: boolean; text: string } | null>(null);
@@ -150,8 +152,16 @@ export default function TvPanel() {
               : t("admin.tv.saveFirst")}
           </div>
 
+          {screen.token && qrFor === screen.id && (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="w-40 rounded-xl bg-white p-2" dangerouslySetInnerHTML={{ __html: qrSvgNow(tvAddress(screen.token)) }} />
+              <p className="grow basis-48 text-[11px] text-white/60">{t("admin.tv.qrHint")}</p>
+            </div>
+          )}
+
           <div className="mt-3 flex flex-wrap gap-2">
             {screen.token && <button type="button" onClick={() => copyAddress(screen)} className={button}><Copy className="w-4 h-4" /> {t("admin.tv.copy")}</button>}
+            {screen.token && <button type="button" onClick={() => setQrFor((current) => (current === screen.id ? null : screen.id))} className={button}><QrCode className="w-4 h-4" /> {qrFor === screen.id ? t("admin.tv.hideQr") : t("admin.tv.showQr")}</button>}
             {screen.token && <button type="button" onClick={() => testGift(screen)} disabled={isDirty} className={button}><Sparkles className="w-4 h-4" /> {t("admin.tv.testGift")}</button>}
             {screens.length > 1 && <button type="button" onClick={() => makeAllLike(screen)} className={button}>{t("admin.tv.copyToAll")}</button>}
             <button type="button" onClick={() => removeScreen(screen.id)} className={button + " text-red-200"}><Trash2 className="w-4 h-4" /> {t("admin.tv.remove")}</button>
