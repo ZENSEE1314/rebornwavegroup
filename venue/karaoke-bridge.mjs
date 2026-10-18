@@ -6,14 +6,14 @@
 // It only adds a song when the box is idle, so songs ordered by hand on the box are never mixed up with ours.
 //
 //   CLOUD_URL=https://rebornwave.group KARAOKE_TOKEN=xxxx BOX_URL=http://192.168.100.4:8084/demo node venue/karaoke-bridge.mjs
-// Optional: TENANT_SLUG (a company on the shared host), POLL_MS (default 3000). BOX_URL can be left out: the box is found on the network by itself
+// Optional: TENANT_SLUG (a company on the shared host), POLL_MS (default 1500). BOX_URL can be left out: the box is found on the network by itself
 // (and remembered in karaoke-box.json); the setup file from Admin > Requests > Karaoke system sets everything up for a new PC.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_POLL_MS = 3000;
+const DEFAULT_POLL_MS = 1500;
 const BOX_TIMEOUT_MS = 8000;
 const CLOUD_TIMEOUT_MS = 10000;
 const STATE_EVERY_MS = 10000;
