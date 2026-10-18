@@ -15,7 +15,8 @@ import { fileURLToPath } from "node:url";
 
 const DEFAULT_POLL_MS = 1500;
 const BOX_TIMEOUT_MS = 8000;
-const CLOUD_TIMEOUT_MS = 10000;
+const CONTROL_EVERY_MS = 700;   // buttons pressed in the app are read on their own loop so a slow song round never holds them up
+const CLOUD_TIMEOUT_MS = 20000;
 const STATE_EVERY_MS = 10000;
 const NOT_STARTED_MS = 25000; // the box took a song but never showed it as busy: give up on it
 const PLAYER_CALLBACK = "cb";
@@ -231,9 +232,8 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
   }
   const finish = (finishedId, skip) => cloudCall("POST", "/api/karaoke/next", { finishedId, ...(skip ? { skip: true } : {}) });
 
-  // One round: look at the app's queue and the box, and move whichever side is behind.
-  async function tick() {
-    // Buttons the admin pressed in the app (volume, mute, pause, voice): press them on the box.
+  // Buttons the admin or a singer pressed in the app (volume, mute, pause, voice): press them on the box.
+  async function pressControls() {
     try {
       const { commands } = await cloudCall("GET", "/api/karaoke/controls");
       for (const cmd of commands || []) {
@@ -242,9 +242,13 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
         log(`admin pressed ${cmd}`);
       }
     } catch (error) { log(`controls not read: ${error.message}`); }
-    const board = await cloudCall("GET", "/api/karaoke/queue");
+  }
+
+  // One round: look at the app's queue and the box, and move whichever side is behind. `controls: false` when pressControls runs on its own loop.
+  async function tick({ controls = true } = {}) {
+    if (controls) await pressControls();
+    const [board, count] = await Promise.all([cloudCall("GET", "/api/karaoke/queue"), boxCount()]);
     const current = board.nowPlaying;
-    const count = await boxCount();
     if (now() - lastStateAt > STATE_EVERY_MS || count !== lastStateCount) await reportBoxState(count);
 
     if (sent) {
@@ -383,7 +387,7 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     return links.length;
   }
 
-  return { tick, serveSearches, loadCatalog, loadAll, linkLibrary, singersPage, songsOfSinger, searchLocal, catalogSize: () => (catalog ? catalog.length : 0) };
+  return { tick, pressControls, serveSearches, loadCatalog, loadAll, linkLibrary, singersPage, songsOfSinger, searchLocal, catalogSize: () => (catalog ? catalog.length : 0) };
 }
 
 const BOX_PORT = 8084;
@@ -440,9 +444,10 @@ async function main() {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const LINK_EVERY_MS = 6 * 3600 * 1000;
   void bridge.loadAll().then(async () => { for (;;) { try { await bridge.linkLibrary(); } catch (error) { console.log(`library link waiting: ${error.message}`); } await wait(LINK_EVERY_MS); } });
-  const playLoop = async () => { for (;;) { try { await bridge.tick(); } catch (error) { console.log(`waiting: ${error.message}`); } await wait(Number(POLL_MS) || DEFAULT_POLL_MS); } };
+  const playLoop = async () => { for (;;) { try { await bridge.tick({ controls: false }); } catch (error) { console.log(`waiting: ${error.message}`); } await wait(Number(POLL_MS) || DEFAULT_POLL_MS); } };
+  const controlLoop = async () => { for (;;) { await bridge.pressControls(); await wait(CONTROL_EVERY_MS); } };
   const searchLoop = async () => { for (;;) { try { await bridge.serveSearches(); } catch (error) { console.log(`search helper waiting: ${error.message}`); await wait(RETRY_AFTER_ERROR_MS); } } };
-  await Promise.all([playLoop(), searchLoop()]);
+  await Promise.all([playLoop(), controlLoop(), searchLoop()]);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
