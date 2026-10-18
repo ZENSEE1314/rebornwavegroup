@@ -14,3 +14,4 @@ venue/config.json
 venue/node_modules/
 venue/karaoke-catalog.json
 venue/karaoke-singers.json
+venue/karaoke-box.json

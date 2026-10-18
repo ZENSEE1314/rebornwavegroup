@@ -55,6 +55,7 @@ import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, rememberPetName, 
 import { translateTexts } from "./autoTranslate";
 import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
+import { karaokeSetupBat } from "./karaokeSetup";
 import { cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
@@ -2807,6 +2808,25 @@ export function registerRebornRoutes(app: Express) {
     const m = Object.fromEntries(rows.map((r) => [r.key, r.value || ""]));
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(songs).where(isNotNull(songs.karaokeCode));
     res.json({ hasToken: !!m.karaokeToken, lastSeen: m.karaokeLastSeen || null, online: !!m.karaokeLastSeen && Date.now() - new Date(m.karaokeLastSeen).getTime() < 3 * 60_000, linkedSongs: Number(n) || 0 });
+  }));
+  // One-click setup of the bridge on a venue PC: the program itself (no secrets in it) and a setup file holding this company's address + token.
+  app.get("/api/karaoke/bridge.mjs", async (_req, res) => {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      res.type("text/javascript").set("Cache-Control", "no-store").send(await fs.readFile(path.join(process.cwd(), "venue", "karaoke-bridge.mjs"), "utf8"));
+    } catch { res.status(404).send("Not found"); }
+  });
+  app.get("/api/reborn/admin/karaoke/setup-file", requireAdmin(async (req, res) => {
+    const [saved] = await db.select().from(appSettings).where(eq(appSettings.key, "karaokeToken"));
+    let token = saved?.value;
+    if (!token) {
+      token = randomVenueCode() + randomVenueCode() + randomVenueCode() + randomVenueCode();
+      await db.insert(appSettings).values({ key: "karaokeToken", value: token, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: token, updatedAt: new Date() } });
+    }
+    const bat = karaokeSetupBat({ cloudUrl: `${req.protocol}://${req.get("host")}`, token, tenantSlug: currentTenant()?.slug || "" });
+    await logAdmin(req, { targetType: "system", action: "karaoke_setup_file", entityType: "settings", description: "Downloaded the karaoke bridge setup file" });
+    res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": 'attachment; filename="Start-Karaoke-Bridge.bat"', "Cache-Control": "no-store" }).send(bat);
   }));
   app.post("/api/reborn/admin/karaoke/token", requireAdmin(async (req, res) => {
     const token = randomVenueCode() + randomVenueCode() + randomVenueCode() + randomVenueCode();

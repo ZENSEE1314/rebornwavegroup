@@ -3,6 +3,7 @@ import { Plus, Video } from "lucide-react";
 import { CAMERA_BRANDS, MAX_BRAND_NAME, OTHER_BRAND, cameraBrand } from "@shared/cameraBrands";
 import { useTranslation } from "@/lib/i18n";
 import NearbyDevices, { type NearbyDevice } from "@/components/NearbyDevices";
+import CameraQrScan from "@/components/CameraQrScan";
 import { errorText, panelButton, panelCard, panelField, primaryButton, type Camera, type CameraKind, type SecuritySetup } from "@/lib/security-types";
 
 const NOTICE_MS = 4000;
@@ -81,6 +82,12 @@ export default function CamerasPanel({ setup, onSave }: Props) {
     setIsDirty(true);
   };
 
+  // A camera whose QR code held its web address is added with the name and address filled in.
+  const addFromQr = (found: { name: string; url: string; kind: CameraKind }) => {
+    setCameras((current) => [...current, { id: `${NEW_CAMERA_PREFIX}${Date.now()}`, name: found.name, kind: found.kind, url: found.url, refreshSeconds: 0, brand: "", brandName: "" }]);
+    setIsDirty(true);
+  };
+
   const save = async () => {
     try {
       // The server gives a new camera its id; one without a web address is dropped there.
@@ -138,6 +145,7 @@ export default function CamerasPanel({ setup, onSave }: Props) {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button type="button" onClick={add} className={panelButton}><Plus className="w-4 h-4" /> {t("admin.cam.add")}</button>
+            <CameraQrScan onWeb={addFromQr} />
             <button type="button" onClick={save} disabled={!isDirty} className={primaryButton}>{t("admin.cam.save")}</button>
             {notice && <span role={notice.isError ? "alert" : "status"} className={`text-xs ${notice.isError ? "text-red-300" : "text-emerald-300"}`}>{notice.text}</span>}
           </div>

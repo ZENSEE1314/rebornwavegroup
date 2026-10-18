@@ -6,8 +6,10 @@
 // It only adds a song when the box is idle, so songs ordered by hand on the box are never mixed up with ours.
 //
 //   CLOUD_URL=https://rebornwave.group KARAOKE_TOKEN=xxxx BOX_URL=http://192.168.100.4:8084/demo node venue/karaoke-bridge.mjs
-// Optional: TENANT_SLUG (a company on the shared host), POLL_MS (default 3000).
+// Optional: TENANT_SLUG (a company on the shared host), POLL_MS (default 3000). BOX_URL can be left out: the box is found on the network by itself
+// (and remembered in karaoke-box.json); the setup file from Admin > Requests > Karaoke system sets everything up for a new PC.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -364,11 +366,57 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
   return { tick, serveSearches, loadCatalog, loadAll, linkLibrary, singersPage, songsOfSinger, searchLocal, catalogSize: () => (catalog ? catalog.length : 0) };
 }
 
+const BOX_PORT = 8084;
+const BOX_PATH = "demo";
+const FIND_TIMEOUT_MS = 900;
+const FIND_BATCH = 64;
+const BOX_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "karaoke-box.json"); // the box found last time, kept next to the program
+
+/** Does a karaoke box answer at this address? (its song search replies with a song list) */
+export async function isBox(boxUrl, fetchImpl = fetch) {
+  try {
+    const query = new URLSearchParams({ songName: "a", page: "1", jsonpCallback: PLAYER_CALLBACK });
+    const res = await fetchImpl(`${boxUrl}/SearchServlet?${query}`, { signal: AbortSignal.timeout(FIND_TIMEOUT_MS) });
+    return /songList/.test(await res.text());
+  } catch { return false; }
+}
+
+/** Looks for the box on this PC's own networks (every address of each /24, port 8084) and returns its address, or null. */
+export async function findBox({ fetchImpl = fetch, interfaces = os.networkInterfaces(), log = () => {} } = {}) {
+  const hosts = [];
+  for (const list of Object.values(interfaces)) {
+    for (const nic of list || []) {
+      if (nic.family !== "IPv4" || nic.internal) continue;
+      const [a, b, c] = nic.address.split(".");
+      for (let host = 1; host <= 254; host++) { const ip = `${a}.${b}.${c}.${host}`; if (ip !== nic.address && !hosts.includes(ip)) hosts.push(ip); }
+    }
+  }
+  log(`looking for the karaoke box among ${hosts.length} addresses ...`);
+  for (let i = 0; i < hosts.length; i += FIND_BATCH) {
+    const batch = hosts.slice(i, i + FIND_BATCH);
+    const found = await Promise.all(batch.map(async (ip) => { const url = `http://${ip}:${BOX_PORT}/${BOX_PATH}`; return (await isBox(url, fetchImpl)) ? url : null; }));
+    const hit = found.find(Boolean);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// The box address: the one given, else the one found last time, else look for it on the network.
+async function boxAddress(given) {
+  if (given) return given;
+  try { const saved = JSON.parse(fs.readFileSync(BOX_FILE, "utf8")).boxUrl; if (saved && await isBox(saved)) return saved; } catch { /* nothing saved yet */ }
+  const found = await findBox({ log: console.log });
+  if (found) { try { fs.writeFileSync(BOX_FILE, JSON.stringify({ boxUrl: found })); } catch { /* read-only folder: it is found again next time */ } }
+  return found;
+}
+
 async function main() {
   const { CLOUD_URL, KARAOKE_TOKEN, BOX_URL, TENANT_SLUG, POLL_MS } = process.env;
-  if (!CLOUD_URL || !KARAOKE_TOKEN || !BOX_URL) { console.error("Set CLOUD_URL, KARAOKE_TOKEN and BOX_URL (see the top of this file)."); process.exit(1); }
-  const bridge = createBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl: BOX_URL, tenantSlug: TENANT_SLUG || "" });
-  console.log(`Karaoke bridge: ${BOX_URL} <-> ${CLOUD_URL}`);
+  if (!CLOUD_URL || !KARAOKE_TOKEN) { console.error("Set CLOUD_URL and KARAOKE_TOKEN (the setup file from Admin > Requests > Karaoke system does it for you)."); process.exit(1); }
+  const boxUrl = await boxAddress(BOX_URL);
+  if (!boxUrl) { console.error("Could not find the karaoke box on this network. Check that this PC is on the same Wi-Fi / cable as the box, or set BOX_URL (for example http://192.168.1.20:8084/demo)."); process.exit(1); }
+  const bridge = createBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl, tenantSlug: TENANT_SLUG || "" });
+  console.log(`Karaoke bridge: ${boxUrl} <-> ${CLOUD_URL}`);
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const LINK_EVERY_MS = 6 * 3600 * 1000;
   void bridge.loadAll().then(async () => { for (;;) { try { await bridge.linkLibrary(); } catch (error) { console.log(`library link waiting: ${error.message}`); } await wait(LINK_EVERY_MS); } });

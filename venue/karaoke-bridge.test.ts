@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 // @ts-expect-error plain .mjs program
-import { createBridge, exactSong, parseJsonp, pickSong, singerNames } from "./karaoke-bridge.mjs";
+import { createBridge, exactSong, findBox, isBox, parseJsonp, pickSong, singerNames } from "./karaoke-bridge.mjs";
 
 // Answers shaped like the real box: JSONP, and the song list is a JSON string inside.
 const songList = JSON.stringify([
@@ -316,5 +316,33 @@ describe("the singer's choices: original voice, repeat, and the box's own list",
     const w = make({ board: { paused: false, nowPlaying: null, queue: [] }, count: 2, queued: [{ sONGNAME: "Ordered by hand", sINGER: "Ordered  Someone" }] });
     await w.bridge.tick();
     assert.deepEqual(w.posted[0].songs, [{ title: "Ordered by hand", artist: "Someone" }]);
+  });
+});
+
+describe("finding the box on the network", () => {
+  const BOX_IP = "192.168.1.20";
+  // A box answers its song search with a song list; every other address does not answer at all.
+  const network = async (url: string) => {
+    if (url.startsWith(`http://${BOX_IP}:8084/demo/SearchServlet`)) return { text: async () => `cb({"songList":"[]"})` };
+    throw new Error("no answer");
+  };
+  const interfaces = { Ethernet: [{ family: "IPv4", internal: false, address: "192.168.1.50" }], Loopback: [{ family: "IPv4", internal: true, address: "127.0.0.1" }], V6: [{ family: "IPv6", internal: false, address: "fe80::1" }] };
+
+  it("should find a box that answers on the same network", async () => {
+    assert.equal(await findBox({ fetchImpl: network, interfaces }), `http://${BOX_IP}:8084/demo`);
+  });
+  it("should return null when no address answers", async () => {
+    assert.equal(await findBox({ fetchImpl: async () => { throw new Error("no answer"); }, interfaces }), null);
+  });
+  it("should not look at the loopback or IPv6 addresses", async () => {
+    const seen = new Set<string>();
+    await findBox({ fetchImpl: async (url: string) => { seen.add(url.split("/")[2]); throw new Error("no"); }, interfaces });
+    assert.ok(![...seen].some((host) => host.startsWith("127.")));
+  });
+  it("should know a box by its song list", async () => {
+    assert.equal(await isBox(`http://${BOX_IP}:8084/demo`, network), true);
+  });
+  it("should not take an ordinary web page for a box", async () => {
+    assert.equal(await isBox("http://192.168.1.1:8084/demo", async () => ({ text: async () => "<html>router</html>" })), false);
   });
 });
