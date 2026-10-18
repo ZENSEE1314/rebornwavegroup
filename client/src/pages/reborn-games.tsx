@@ -52,11 +52,11 @@ const GAME_GRAD: Record<string, string> = {
 // Games grouped into categories for the lobby (name = id; label from gm.cat.<key>).
 // c1/c2 = each category's neon colours in the arcade-style lobby.
 const GAME_CATEGORIES: { name: string; key: string; emoji: string; games: string[]; c1: string; c2: string }[] = [
-  { name: "Guessing game", key: "guess", emoji: "🧠", games: ["number", "rps", "draw"], c1: "#b36bff", c2: "#5b2bd6" },
+  { name: "Guessing game", key: "guess", emoji: "🧠", games: ["number", "draw"], c1: "#b36bff", c2: "#5b2bd6" },
   { name: "Dice game", key: "dice", emoji: "🎲", games: ["dice", "789", "sixcup"], c1: "#29d8ff", c2: "#1463d6" },
   { name: "Card game", key: "card", emoji: "🃏", games: ["cards", "poker3", "memory", "inbetween", "updown", "uno"], c1: "#ff4fa3", c2: "#b3127a" },
   { name: "Who's the fastest", key: "fast", emoji: "⚡", games: ["tap", "timer", "stack", "rlgl"], c1: "#ffb020", c2: "#e8551c" },
-  { name: "Lucky game", key: "lucky", emoji: "🍀", games: ["wheel", "riding", "frog", "bridge"], c1: "#3ef08a", c2: "#0e9f57" },
+  { name: "Lucky game", key: "lucky", emoji: "🍀", games: ["wheel", "riding", "bridge"], c1: "#3ef08a", c2: "#0e9f57" },
 ];
 // Neon colour pair for a single game tile (taken from its gradient).
 const gameColors = (g: string): [string, string] => { const m = (GAME_GRAD[g] || "").match(/#[0-9a-fA-F]{6}/g) || []; return [m[0] || "#f0d787", m[1] || "#c9a84c"]; };
@@ -755,20 +755,31 @@ function TimerGame({ room, code, me }: any) {
   const { t } = useTranslation();
   const tm = room.timer || {};
   const TIMER_TARGET_MS: number = tm.targetMs || 10_000;
-  const iStopped = !!tm.stopped?.[me];
+  const [localStop, setLocalStop] = useState<number | null>(null); // my own stop time, shown the moment I tap (the server confirms a moment later)
+  const sentRef = useRef(false);
+  useEffect(() => { setLocalStop(null); sentRef.current = false; }, [tm.startedAt]);
+  const iStopped = !!tm.stopped?.[me] || localStop !== null;
   const iWon = room.status === "done" && (tm.winners || []).includes(me);
-  const stop = () => { if (room.status === "playing" && !iStopped) { sfx.coin?.(); post(`/api/reborn/games/rooms/${code}/action`, { act: "stop" }); } };
-  // Keep the local clock aligned to the server's start time despite clock skew.
-  const offsetRef = useRef(0);
-  useEffect(() => { if (tm.serverNow) offsetRef.current = tm.serverNow - Date.now(); }, [tm.serverNow]);
+  // Keep the local clock aligned to the server's: every update carries the server time, late by the trip, so the largest reading is the closest to true (and the clock never jumps back).
+  const offsetRef = useRef(Number.NEGATIVE_INFINITY);
+  useEffect(() => { offsetRef.current = Number.NEGATIVE_INFINITY; }, [tm.startedAt]);
+  useEffect(() => { if (tm.serverNow) offsetRef.current = Math.max(offsetRef.current, tm.serverNow - Date.now()); }, [tm.serverNow]);
+  const clockOffset = Number.isFinite(offsetRef.current) ? offsetRef.current : 0;
+  const stop = () => {
+    if (room.status !== "playing" || iStopped || sentRef.current || !tm.startedAt) return;
+    sentRef.current = true;
+    const ms = Math.max(0, Date.now() + clockOffset - tm.startedAt);
+    setLocalStop(ms); sfx.coin?.();
+    post(`/api/reborn/games/rooms/${code}/action`, { act: "stop", ms: Math.round(ms) }).catch(() => {});
+  };
   const [, force] = useState(0);
   useEffect(() => {
     if (room.status !== "playing" || iStopped || !tm.startedAt) return;
     const id = setInterval(() => force((x) => x + 1), 43);
     return () => clearInterval(id);
   }, [room.status, iStopped, tm.startedAt]);
-  const liveMs = tm.startedAt ? Math.max(0, Date.now() + offsetRef.current - tm.startedAt) : 0;
-  const shown = iStopped ? (tm.yourMs ?? 0) : liveMs;
+  const liveMs = tm.startedAt ? Math.max(0, Date.now() + clockOffset - tm.startedAt) : 0;
+  const shown = iStopped ? (tm.yourMs ?? localStop ?? 0) : liveMs;
   const near = shown >= TIMER_TARGET_MS - 1000 && shown <= TIMER_TARGET_MS + 1000;
   return (
     <div className="rwg-card p-5 text-center">
@@ -793,7 +804,7 @@ function TimerGame({ room, code, me }: any) {
         <div className="my-4 select-none">
           <p className="text-white/50 text-xs mb-2">{tm.mode === "random" ? t("gm.timer.randomTarget") + " " : ""}{t("gm.timer.stopAt", { t: "\u0000" }).split("\u0000")[0]}<b className="text-amber-300 text-base">{fmtClock(TIMER_TARGET_MS)}</b>{t("gm.timer.stopAt", { t: "\u0000" }).split("\u0000")[1]}</p>
           <p className={`text-5xl font-black tabular-nums mb-4 ${iStopped ? "text-white/70" : near ? "text-emerald-300" : "text-amber-300"}`} style={{ letterSpacing: "0.05em" }}>{fmtClock(shown)}</p>
-          <button onClick={stop} disabled={iStopped} className={`w-44 h-44 mx-auto rounded-full flex flex-col items-center justify-center text-3xl font-black transition-transform ${iStopped ? "opacity-60" : "active:scale-90"}`} style={{ background: iStopped ? "rgba(255,255,255,0.08)" : "radial-gradient(circle at 30% 30%, #ff8a8a, #e0398b)", boxShadow: iStopped ? "none" : "0 10px 30px rgba(224,57,139,0.4)", color: iStopped ? "#f5b8d4" : "#1a0410" }}>
+          <button onPointerDown={stop} onClick={stop} disabled={iStopped} className={`w-44 h-44 mx-auto rounded-full flex flex-col items-center justify-center text-3xl font-black transition-transform ${iStopped ? "opacity-60" : "active:scale-90"}`} style={{ background: iStopped ? "rgba(255,255,255,0.08)" : "radial-gradient(circle at 30% 30%, #ff8a8a, #e0398b)", boxShadow: iStopped ? "none" : "0 10px 30px rgba(224,57,139,0.4)", color: iStopped ? "#f5b8d4" : "#1a0410" }}>
             {iStopped ? <><span className="text-4xl mb-1">✓</span><span className="text-lg">{t("gm.timer.locked")}</span></> : t("gm.timer.stop")}
           </button>
           <p className="text-white/60 text-sm mt-4">{t("gm.timer.stopped", { n: tm.stoppedCount || 0, total: tm.total || room.players.length })}</p>
@@ -1482,6 +1493,7 @@ function RlglGame({ room, code, me }: any) {
   // local, optimistic steps; flushed to the server in small batches
   const next = useRef<"L" | "R">("L");
   const pending = useRef(0);
+  const lastTapAt = useRef(0); // when the newest unsent tap was made, so the server judges the tap, not its late arrival
   const [local, setLocal] = useState(0);
   const [wrong, setWrong] = useState(false);
   useEffect(() => { setLocal((l) => Math.max(l, my.steps || 0)); }, [my.steps]);
@@ -1490,7 +1502,7 @@ function RlglGame({ room, code, me }: any) {
     const t = setInterval(() => {
       if (!pending.current) return;
       const n = pending.current; pending.current = 0;
-      post(`/api/reborn/games/rooms/${code}/action`, { act: "step", n }).catch(() => {});
+      post(`/api/reborn/games/rooms/${code}/action`, { act: "step", n, ago: Date.now() - lastTapAt.current }).catch(() => {});
     }, 180);
     return () => clearInterval(t);
   }, [room.status, code]);
@@ -1498,10 +1510,10 @@ function RlglGame({ room, code, me }: any) {
     if (room.status !== "playing" || my.out || my.done || counting) return; // ignore taps during the countdown
     if (side !== next.current) { setWrong(true); setTimeout(() => setWrong(false), 250); return; }
     next.current = side === "L" ? "R" : "L";
-    pending.current += 1; setLocal((l) => Math.min(goal, l + 1));
+    pending.current += 1; lastTapAt.current = Date.now(); setLocal((l) => Math.min(goal, l + 1));
     if (!green) { // moving on red = out; send now so the server sees it
       const n = pending.current; pending.current = 0;
-      post(`/api/reborn/games/rooms/${code}/action`, { act: "step", n }).catch(() => {});
+      post(`/api/reborn/games/rooms/${code}/action`, { act: "step", n, ago: 0 }).catch(() => {});
     }
   };
   // doll chant during green (fits the green time), turn sound on red

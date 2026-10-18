@@ -2,6 +2,7 @@
 // Games: rps (rock-paper-scissors elimination), tap (30s tap/mining race).
 // Leaderboards + which-game-on-which-day config persist in Postgres.
 import type { Express, Request, Response } from "express";
+import { isTapOnRed, tappedAtOf } from "./redLight";
 import { and, desc, eq, sql, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { users, pvpScores, appSettings, gameRanks } from "@shared/schema";
@@ -71,7 +72,7 @@ interface Room {
   // memory (Memory Match) only
   mem?: { tiles: { v: number; by?: string }[]; open: number[]; score: Record<string, number>; busy?: boolean };
   // rlgl (Red Light, Green Light) only
-  rl?: { light: "green" | "red"; lightAt: number; lightUntil?: number; nextGreenMs?: number; endsAt: number; startAt: number; st: Record<string, { steps: number; out?: boolean; done?: boolean; ms?: number; num: number; last?: number }> };
+  rl?: { light: "green" | "red"; lightAt: number; lastRed?: { from: number; to: number }; lightUntil?: number; nextGreenMs?: number; endsAt: number; startAt: number; st: Record<string, { steps: number; out?: boolean; done?: boolean; ms?: number; num: number; last?: number }> };
   // frog (Frog Jump) only
   frog?: { phase: "wait" | "pick" | "reveal"; picks: Record<string, number>; last?: any; drinks: Record<string, number>; turnNo: number };
   // poker3 (3-card blind poker drinking game) only
@@ -443,11 +444,15 @@ function startTimer(room: Room) {
   broadcast(room);
   room.timer = setTimeout(() => finishTimer(room), room.timerTargetMs + TIMER_EXTRA_MS);
 }
-function stopTimer(room: Room, uid: string) {
+// The phone says when the player tapped (ms on the shared clock); a slow connection must not cost them, so it is trusted up to this much earlier than the request arrived.
+const TIMER_LATENCY_MS = 1500;
+function stopTimer(room: Room, uid: string, claimedMs?: number) {
   if (room.status !== "playing" || room.game !== "timer" || !room.timerStart) return;
   const p = room.players.find((x) => x.id === uid);
   if (!p || p.stopMs != null) return;
-  p.stopMs = Math.max(0, Date.now() - room.timerStart);
+  const elapsed = Date.now() - room.timerStart;
+  const tapped = Number.isFinite(claimedMs) ? Math.min(elapsed, Math.max(elapsed - TIMER_LATENCY_MS, claimedMs as number)) : elapsed;
+  p.stopMs = Math.max(0, Math.round(tapped));
   broadcast(room);
   if (room.players.every((x) => x.stopMs != null)) finishTimer(room);
 }
@@ -2347,7 +2352,7 @@ function memView(room: Room) {
 // Tap LEFT, RIGHT, LEFT, RIGHT… to walk while the light is GREEN; 500 steps
 // reach the finish. Tap while it's RED (after a short reaction grace) and
 // you're out. 3 minutes to finish. Everyone who crosses wins; the rest drink.
-const RL_GOAL = 500, RL_TIME_MS = 180_000, RL_GRACE_MS = 450, RL_MAX_RATE = 16; // steps/s cap
+const RL_GOAL = 500, RL_TIME_MS = 180_000, RL_MAX_RATE = 16; // steps/s cap
 function rlSchedule(room: Room) {
   const r = room.rl!;
   if (room.status !== "playing") return;
@@ -2357,6 +2362,7 @@ function rlSchedule(room: Room) {
   if (next === "green") r.nextGreenMs = 2500 + Math.random() * 4000;
   room.ticker = setTimeout(() => {
     if (room.status !== "playing" || !room.rl) return;
+    if (next === "green") room.rl.lastRed = { from: room.rl.lightAt, to: Date.now() }; // so a tap made at the end of red but delivered late is still judged on red
     room.rl.light = next; room.rl.lightAt = Date.now();
     room.rl.lightUntil = next === "green" ? room.rl.lightAt + room.rl.nextGreenMs! : undefined;
     if (next === "green") setMsg(room, "rlGreen", undefined, "🟢 GREEN LIGHT — walk!"); else setMsg(room, "rlRed", undefined, "🔴 RED LIGHT — freeze!");
@@ -2376,7 +2382,7 @@ function startRlgl(room: Room) {
   room.ticker = setTimeout(() => { if (!room.rl) return; room.rl.light = "green"; room.rl.lightAt = Date.now(); room.rl.lightUntil = room.rl.lightAt + 2500 + Math.random() * 4000; setMsg(room, "rlGreen", undefined, "🟢 GREEN LIGHT — walk!"); broadcast(room); rlSchedule(room); }, 3000) as any;
   room.timer = setTimeout(() => finishRlgl(room), 3000 + RL_TIME_MS);
 }
-function rlStep(room: Room, uid: string, n: number) {
+function rlStep(room: Room, uid: string, n: number, ago = 0) {
   const r = room.rl;
   if (room.status !== "playing" || !r) return;
   const s = r.st[uid];
@@ -2384,7 +2390,7 @@ function rlStep(room: Room, uid: string, n: number) {
   const now = Date.now();
   n = Math.max(0, Math.floor(n) || 0);
   if (!n) return;
-  if (now < r.startAt || (r.light === "red" && now - r.lightAt > RL_GRACE_MS)) {
+  if (isTapOnRed(r, tappedAtOf(now, ago))) {
     s.out = true; { const nm = room.players.find((p) => p.id === uid)?.name || ""; setMsg(room, "rlOut", { name: nm }, `💥 ${nm} moved on RED — eliminated!`); }
     broadcast(room); return rlCheckEnd(room);
   }
@@ -2507,14 +2513,16 @@ function frogView(room: Room, forUserId?: string) {
 }
 
 // ── Config: which game is available which weekday ───────────────────────
-const GAME_KEYS = ["rps", "tap", "rlgl", "cards", "poker3", "memory", "inbetween", "updown", "uno", "sixcup", "frog", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
+// Rock Paper Scissors and Frog Jump are no longer offered: no new rooms, and none are listed in the lobby (their engine code is left in place).
+const RETIRED_GAMES = new Set<string>(["rps", "frog"]);
+const GAME_KEYS = ["tap", "rlgl", "cards", "poker3", "memory", "inbetween", "updown", "uno", "sixcup", "bridge", "draw", "dice", "wheel", "riding", "timer", "789", "stack", "number"] as const;
 // Each game belongs to one category; admins can schedule categories per weekday.
 const GAME_CATEGORY: Record<string, string> = {
-  number: "Guessing game", rps: "Guessing game", draw: "Guessing game",
+  number: "Guessing game", draw: "Guessing game",
   dice: "Dice game", "789": "Dice game", sixcup: "Dice game",
   cards: "Card game", poker3: "Card game", memory: "Card game", inbetween: "Card game", updown: "Card game", uno: "Card game",
   tap: "Who's the fastest", rlgl: "Who's the fastest", timer: "Who's the fastest", stack: "Who's the fastest",
-  wheel: "Lucky game", riding: "Lucky game", frog: "Lucky game", bridge: "Lucky game",
+  wheel: "Lucky game", riding: "Lucky game", bridge: "Lucky game",
 };
 const CATEGORY_ORDER = ["Guessing game", "Dice game", "Card game", "Who's the fastest", "Lucky game"];
 async function getCategoryConfig(): Promise<Record<string, { days: number[] }>> {
@@ -2721,7 +2729,7 @@ export function registerGameRoutes(app: Express) {
   app.get("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     await restoreSavedRooms();
     const list = Array.from(rooms.values())
-      .filter((r) => r.status === "lobby" && inThisSpace(r))
+      .filter((r) => r.status === "lobby" && inThisSpace(r) && !RETIRED_GAMES.has(r.game))
       .map((r) => ({
         code: r.code, game: r.game,
         hostName: r.players.find((p) => p.id === r.hostId)?.name || tr(req, { en: "Host", zh: "房主", id: "Host" }),
@@ -2735,7 +2743,8 @@ export function registerGameRoutes(app: Express) {
   // Create a room
   app.post("/api/reborn/games/rooms", requireAuth, async (req, res) => {
     const uid = getUserId(req)!;
-    const game: GameKind = ["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "frog", "rlgl", "memory", "bridge", "draw", "inbetween", "updown", "uno", "sixcup"].includes(req.body?.game) ? req.body.game : "rps";
+    const game = req.body?.game as GameKind;
+    if (!["tap", "cards", "dice", "wheel", "riding", "timer", "789", "stack", "poker3", "rlgl", "memory", "bridge", "draw", "inbetween", "updown", "uno", "sixcup"].includes(game)) return res.status(400).json({ message: tr(req, { en: "That game is not available.", zh: "该游戏未开放。", id: "Permainan itu tidak tersedia." }) });
     const cfg = await getGamesConfig();
     const cat = await getCategoryConfig();
     if (!availableToday(cfg, cat)[game]) return res.status(400).json({ message: tr(req, { en: "That game isn't available today.", zh: "该游戏今天未开放。", id: "Permainan itu tidak tersedia hari ini." }) });
@@ -2850,7 +2859,7 @@ export function registerGameRoutes(app: Express) {
       return res.json({ ok: true });
     }
     if (room.game === "timer") {
-      if (req.body?.act === "stop") stopTimer(room, getUserId(req)!);
+      if (req.body?.act === "stop") stopTimer(room, getUserId(req)!, Number(req.body?.ms));
       return res.json({ ok: true });
     }
     if (room.game === "789") {
@@ -2915,7 +2924,7 @@ export function registerGameRoutes(app: Express) {
       return err ? res.status(400).json({ message: errText(req, err) }) : res.json({ ok: true });
     }
     if (room.game === "rlgl") {
-      if (req.body?.act === "step") rlStep(room, getUserId(req)!, Number(req.body?.n));
+      if (req.body?.act === "step") rlStep(room, getUserId(req)!, Number(req.body?.n), Number(req.body?.ago));
       return res.json({ ok: true });
     }
     if (room.game === "frog") {
