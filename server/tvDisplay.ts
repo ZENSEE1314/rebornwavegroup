@@ -4,10 +4,13 @@
 import type { Express, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import { MAX_TV_SCREENS, cleanSetup, screenCovers, songLinesFor, type GiftEvent, type TvScreen, type TvSetup } from "./tvLogic";
+import { TV_CODE_TTL_MS, TvPairings, isTvCode } from "./tvPairing";
 
 export interface TvDeps {
   requireAdmin(handler: (req: Request, res: Response) => Promise<unknown>): (req: Request, res: Response) => unknown;
   companyId(req: Request): Promise<number>;
+  /** The company's name on the shared host ("" for the platform's own company), put in the TV's address so its page opens in the right company. */
+  tenantSlug(req: Request): string;
   songBoard(companyId: number): Promise<{ nowPlaying?: Record<string, unknown> | null; queue?: Array<Record<string, unknown>> }>;
   readSetting(): Promise<string | null>;
   writeSetting(value: string): Promise<void>;
@@ -28,6 +31,7 @@ const TEST_EMOJI: Record<string, string> = { rose: "🌹", fireworks: "🎆", ro
 
 let deps: TvDeps | null = null;
 let testCounter = 0;
+const pairings = new TvPairings(); // codes shown on TVs that are waiting to be linked
 const pages = new Map<string, Set<Response>>(); // TV token → the pages open on that TV right now
 const recentGifts = new Map<number, GiftEvent[]>(); // company → latest gifts (in memory: starts empty after a restart)
 
@@ -115,6 +119,31 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
     };
     res.json({ shown: showsGifts(screen), delivered: showsGifts(screen) ? sendToTv(screen.token, "gift", gift) : 0 });
   }));
+
+  // The admin types the code a TV shows next to one of the TV screens: the TV then opens that screen's page by itself.
+  app.post("/api/reborn/admin/tv/pair", injected.requireAdmin(async (req, res) => {
+    const code = String(req.body?.code ?? "").replace(/\s/g, "");
+    if (!isTvCode(code)) return res.status(400).json({ message: "Enter the 6-digit code shown on the TV" });
+    const screen = (await loadSetup()).screens.find((item) => item.id === String(req.body?.screenId ?? ""));
+    if (!screen || !screen.token) return res.status(404).json({ message: "Save the TV screen first" });
+    const slug = injected.tenantSlug(req);
+    const linked = pairings.assign(code, { path: `/tv/${screen.token}${slug ? `?tenant=${encodeURIComponent(slug)}` : ""}` });
+    if (!linked) return res.status(404).json({ message: "That code is not on any TV (it may have expired: open the TV page again for a new one)" });
+    res.json({ ok: true });
+  }));
+
+  // ---- a TV waiting to be linked (no login) ----
+
+  app.post("/api/tv/pair", (_req, res) => {
+    const code = pairings.create();
+    if (!code) return res.status(429).json({ message: "Too many TVs are waiting, try again in a few minutes" });
+    res.set("Cache-Control", "no-store").json({ code, expiresInSeconds: TV_CODE_TTL_MS / 1000 });
+  });
+
+  app.get("/api/tv/pair/:code", (req, res) => {
+    const answer = isTvCode(req.params.code) ? pairings.poll(req.params.code) : { status: "expired" as const };
+    res.set("Cache-Control", "no-store").json(answer.status === "linked" ? { status: "linked", path: answer.link.path } : answer);
+  });
 
   // ---- the TV pages (no login: the secret address is the key) ----
 

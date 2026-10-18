@@ -141,6 +141,7 @@ const RebornSupport        = lazy(() => import("@/pages/reborn-support"));
 const RebornAdmin          = withText("staff", () => import("@/pages/reborn-admin"));
 const RebornKos            = lazy(() => import("@/pages/reborn-kos"));
 const TvDisplay            = lazy(() => import("@/pages/tv-display"));
+const TvPair               = lazy(() => import("@/pages/tv-pair"));
 const RebornSong           = lazy(() => import("@/pages/reborn-song"));
 const RebornEvents         = lazy(() => import("@/pages/reborn-events"));
 const RebornEmployment     = lazy(() => import("@/pages/reborn-employment"));
@@ -406,6 +407,7 @@ function Router() {
         <Route path="/ticket/:code" component={TicketView} />
         <Route path="/t/:slug" component={TenantEntry} />
         <Route path="/tv/:token" component={TvDisplay} />
+        <Route path="/tv" component={TvPair} />
 
         {!isAuthenticated ? (
           <>

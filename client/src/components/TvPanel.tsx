@@ -29,6 +29,7 @@ export default function TvPanel() {
   const [max, setMax] = useState(DEFAULT_MAX_SCREENS);
   const [tableDrafts, setTableDrafts] = useState<Record<string, string>>({});
   const [qrFor, setQrFor] = useState<string | null>(null); // the TV whose address QR is open
+  const [codes, setCodes] = useState<Record<string, string>>({}); // the code typed for each TV screen
   const [isDirty, setIsDirty] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [notice, setNotice] = useState<{ isError: boolean; text: string } | null>(null);
@@ -102,6 +103,15 @@ export default function TvPanel() {
     }
   };
 
+  // The code a waiting TV shows (it opened /tv): the TV then opens this screen's page by itself.
+  const linkByCode = async (screen: Screen) => {
+    try {
+      await apiRequest("POST", "/api/reborn/admin/tv/pair", { code: codes[screen.id] ?? "", screenId: screen.id });
+      setCodes((current) => ({ ...current, [screen.id]: "" }));
+      say(t("admin.tv.codeDone"));
+    } catch (error) { say(errorText(error), true); }
+  };
+
   const copyAddress = async (screen: Screen) => {
     try {
       await navigator.clipboard.writeText(tvAddress(screen.token));
@@ -151,6 +161,17 @@ export default function TvPanel() {
                 </>
               : t("admin.tv.saveFirst")}
           </div>
+
+          {screen.token && (
+            <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
+              <p className="text-xs font-semibold text-white/80">{t("admin.tv.codeTitle")}</p>
+              <p className="mt-1 text-[11px] text-white/50">{t("admin.tv.codeHint", { addr: `${window.location.origin}/tv` })}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <input inputMode="numeric" maxLength={7} value={codes[screen.id] ?? ""} placeholder={t("admin.tv.codePh")} onChange={(event) => setCodes((current) => ({ ...current, [screen.id]: event.target.value.replace(/[^0-9]/g, "").slice(0, 6) }))} className={field + " w-40 tracking-widest"} />
+                <button type="button" onClick={() => void linkByCode(screen)} disabled={(codes[screen.id] ?? "").length !== 6} className={button}>{t("admin.tv.codeLink")}</button>
+              </div>
+            </div>
+          )}
 
           {screen.token && qrFor === screen.id && (
             <div className="mt-3 flex flex-wrap items-center gap-3">

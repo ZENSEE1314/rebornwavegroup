@@ -5695,6 +5695,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   registerTvRoutes(app, {
     requireAdmin,
     companyId: (req) => rebornCompanyId(req),
+    tenantSlug: () => currentTenant()?.slug || "",
     songBoard: (cid) => songQueueBoard(cid),
     readSetting: async () => (await db.select().from(appSettings).where(eq(appSettings.key, TV_SETUP_KEY)))[0]?.value ?? null,
     writeSetting: async (value) => {
