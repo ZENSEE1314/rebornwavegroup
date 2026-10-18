@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { PACK_UNIT_RE, cleanReceipt, cleanSaveLines, matchProduct, nameScore, normName, receiptNote } from "./receiptLogic";
+import { PACK_UNIT_RE, applyMemory, expenseKeyOf, cleanReceipt, cleanSaveLines, matchProduct, nameScore, normName, receiptNote } from "./receiptLogic";
 
 const products = [
   { id: 1, name: "Bintang 620ml" },
@@ -74,5 +74,46 @@ describe("pack sizes on a receipt", () => {
   });
   it("should not treat a bottle as a pack", () => {
     assert.equal(PACK_UNIT_RE.test("Botol"), false);
+  });
+});
+
+describe("what the reader learns from saved receipts", () => {
+  const read = (over: object = {}) => ({ supplier: "CV Sinar Bintang Batam", supplierPhone: "", invoiceNo: "", date: "", total: 0, kind: "goods" as const, category: "other" as const,
+    items: [{ name: "Heineken Pint 330ml", qty: 30, unitCost: 480000, unit: "Dus", packSize: 0 }], ...over });
+  const row = (over: object = {}) => ({ supplierKey: "cv sinar bintang batam", lineKey: "heineken pint 330ml", productId: 95, packSize: 24, kind: null, category: null, uses: 1, ...over });
+  const ids = new Set([95, 3]);
+
+  it("should give a line seen before its item and pack size", () => {
+    const out = applyMemory(read(), [row()], ids);
+    assert.equal(out.read.items[0].learnedProductId, 95);
+    assert.equal(out.read.items[0].packSize, 24);
+  });
+  it("should count the lines it filled in", () => {
+    assert.equal(applyMemory(read(), [row()], ids).learned, 1);
+  });
+  it("should leave a line it has not seen alone", () => {
+    const out = applyMemory(read({ items: [{ name: "Unknown", qty: 1, unitCost: 1, packSize: 0 }] }), [row()], ids);
+    assert.equal(out.read.items[0].learnedProductId, undefined);
+  });
+  it("should ignore an item that no longer exists", () => {
+    assert.equal(applyMemory(read(), [row({ productId: 999 })], ids).read.items[0].learnedProductId, undefined);
+  });
+  it("should prefer the same supplier over another supplier's choice", () => {
+    const out = applyMemory(read(), [row({ supplierKey: "someone else", productId: 3, uses: 9 }), row({ productId: 95, uses: 1 })], ids);
+    assert.equal(out.read.items[0].learnedProductId, 95);
+  });
+  it("should use another supplier's choice when this supplier has none", () => {
+    const out = applyMemory(read({ supplier: "New Supplier" }), [row()], ids);
+    assert.equal(out.read.items[0].learnedProductId, 95);
+  });
+  it("should know a supplier whose bills are our expenses", () => {
+    const out = applyMemory(read({ supplier: "PLN", items: [{ name: "Listrik", qty: 1, unitCost: 1, packSize: 0 }] }), [{ supplierKey: "pln", lineKey: "", productId: null, packSize: 1, kind: "expense", category: "utilities", uses: 2 }], ids);
+    assert.equal(out.read.kind, "expense");
+    assert.equal(out.read.category, "utilities");
+  });
+  it("should know an expense line whatever the month on it", () => {
+    const memory = [{ supplierKey: "x", lineKey: "x:" + expenseKeyOf("Electricity October"), productId: null, packSize: 1, kind: "expense", category: "utilities", uses: 1 }];
+    const out = applyMemory(read({ supplier: "", items: [{ name: "Electricity November 2026", qty: 1, unitCost: 1, packSize: 0 }] }), memory, ids);
+    assert.equal(out.read.category, "utilities");
   });
 });

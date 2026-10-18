@@ -37,7 +37,7 @@ export default function ReceiptScan() {
     onSuccess: (d: any) => {
       setHead({ supplier: d.supplier || "", supplierPhone: d.supplierPhone || "", invoiceNo: d.invoiceNo || "", date: d.date || "", total: Number(d.total) || 0, kind: d.kind === "expense" ? "expense" : "goods", category: d.category || "other" });
       setLines((d.items || []).map((it: any) => newLine({ productId: it.productId ?? null, name: it.name, qty: it.qty, unitCost: roundMoney(it.unitCost), packSize: Math.max(1, Number(it.packSize) || 1) })));
-      toast({ title: t("admin.rcpt.readOk", { n: String((d.items || []).length) }) });
+      toast({ title: t("admin.rcpt.readOk", { n: String((d.items || []).length) }), description: d.learned > 0 ? t("admin.rcpt.learned", { n: String(d.learned) }) : undefined });
     },
     onError: (e: any) => toast({ title: t("admin.rcpt.readFail"), description: e.message, variant: "destructive" }),
   });

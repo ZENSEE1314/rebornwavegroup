@@ -954,6 +954,21 @@ export const memberPackageUses = pgTable("member_package_uses", {
 });
 
 // Reborn POS tickets (separate from the legacy posOrders table above)
+// What the receipt reader has learned from receipts the admin saved: per supplier, which item a printed line is and its pack size;
+// a row with an empty lineKey is the supplier itself (goods or an expense category).
+export const receiptMemory = pgTable("receipt_memory", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  supplierKey: varchar("supplier_key").notNull(),
+  lineKey: varchar("line_key").default("").notNull(),
+  productId: integer("product_id"),
+  packSize: integer("pack_size").default(1).notNull(),
+  kind: varchar("kind"),
+  category: varchar("category"),
+  uses: integer("uses").default(1).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [uniqueIndex("receipt_memory_key").on(table.companyId, table.supplierKey, table.lineKey)]);
+
 export const posTickets = pgTable("pos_tickets", {
   id: serial("id").primaryKey(),
   companyId: integer("company_id"),

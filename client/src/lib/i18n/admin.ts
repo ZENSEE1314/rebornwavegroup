@@ -304,6 +304,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.rcpt.kindGoods': { en: "Goods for stock", zh: "入库商品", id: "Barang untuk stok" },
   'admin.rcpt.kindExpense': { en: "An expense (rent, electricity, repairs …)", zh: "费用（租金、电费、维修等）", id: "Pengeluaran (sewa, listrik, perbaikan …)" },
   'admin.rcpt.expenseWhat': { en: "What the bill is for", zh: "账单用途", id: "Tagihan untuk apa" },
+  'admin.rcpt.learned': { en: "{n} filled in from receipts you saved before.", zh: "{n} 项根据你之前保存的收据自动填写。", id: "{n} terisi dari struk yang pernah kamu simpan." },
   'admin.rcpt.pack': { en: "Units per pack (1 = single)", zh: "每包数量（1 = 单件）", id: "Isi per kemasan (1 = satuan)" },
   'admin.rcpt.packNote': { en: "= {units} units in stock, {each} each", zh: "= 入库 {units} 件，每件 {each}", id: "= {units} unit masuk stok, @ {each}" },
   'admin.rcpt.unitCost': { en: "Unit cost", zh: "单价", id: "Harga satuan" },

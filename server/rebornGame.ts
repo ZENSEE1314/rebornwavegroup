@@ -55,14 +55,14 @@ import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, rememberPetName, 
 import { translateTexts } from "./autoTranslate";
 import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
-import { cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf } from "./receiptLogic";
+import { cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
   staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory,
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
@@ -4509,8 +4509,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const products = await db.select({ id: posProducts.id, name: posProducts.name, unitsPerPack: posProducts.unitsPerPack }).from(posProducts)
       .where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
     try {
-      const read = await readReceiptPhoto(String(req.body?.image || ""), products.map((p) => p.name));
-      res.json({ ...read, items: read.items.map((it) => {
+      const printed = await readReceiptPhoto(String(req.body?.image || ""), products.map((p) => p.name));
+      // What earlier saved receipts taught: this supplier's lines (item + pack size) and whether its bills are goods or one of our expenses.
+      const memory = await db.select().from(receiptMemory).where(eq(receiptMemory.companyId, cid));
+      const { read, learned } = applyMemory(printed, memory, new Set(products.map((p) => p.id)));
+      res.json({ ...read, learned, items: read.items.map((it) => {
+        if (it.learnedProductId) return { ...it, productId: it.learnedProductId, packSize: Math.max(1, it.packSize || 1) };
         const productId = matchProduct(it, products);
         // A line priced per box (Dus, Ctn): the printed pack size, else the item's own pack size, else one.
         const itemPack = products.find((p) => p.id === productId)?.unitsPerPack || 0;
@@ -4541,6 +4545,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : "";
     const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") ? b.photoUrl : null;
     const decimals = companyMoney().decimals;
+    // The reader learns from every saved receipt: the item + pack size of each printed line, and the supplier's kind / category.
+    const remember = async (executor: any, lineKey: string, patch: { productId?: number | null; packSize?: number; kind?: string | null; category?: string | null }) => {
+      const supplierKey = supplierKeyOf(supplier || "");
+      if (!supplierKey) return;
+      const values = { companyId: cid, supplierKey, lineKey, productId: patch.productId ?? null, packSize: patch.packSize ?? 1, kind: patch.kind ?? null, category: patch.category ?? null };
+      await executor.insert(receiptMemory).values(values).onConflictDoUpdate({ target: [receiptMemory.companyId, receiptMemory.supplierKey, receiptMemory.lineKey], set: { ...patch, uses: sql`${receiptMemory.uses} + 1`, updatedAt: new Date() } });
+    };
     if (b.kind === "expense") { // a bill (rent, electricity ...): no stock, one expense line in the accounting, dated the bill's day
       const amount = Number(lines.reduce((sum, l) => sum + l.qty * l.unitCost, 0).toFixed(decimals));
       if (amount <= 0) return res.status(400).json({ message: tr(req, { en: "Enter the amount of the bill", zh: "请输入账单金额", id: "Masukkan jumlah tagihan" }) });
@@ -4549,6 +4560,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const category = expenseCategoryOf(b.category);
       const what = lines.map((l) => l.name).filter(Boolean).join(", ");
       const note = [`Bill${invoiceNo ? ` ${invoiceNo}` : ""}`, supplier, day, what].filter(Boolean).join(" · ").slice(0, 300);
+      await remember(db, "", { kind: "expense", category }).catch(() => {});
+      for (const l of lines) if (l.name) await remember(db, "x:" + expenseKeyOf(l.name), { kind: "expense", category }).catch(() => {});
       const [row] = await db.insert(ledgerEntries).values({ kind: "expense", category, amount: String(amount), note, photoUrl, refType: "receipt_expense", refId: invoiceNo || null, userId, ...(when ? { createdAt: when } : {}) }).returning();
       await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "receipt_expense", entityType: "accounting", description: `${note}: expense ${amount} (${category})` });
       return res.json({ lines: lines.length, created: 0, amount, message: tr(req, { en: "Saved: the bill was booked as an expense.", zh: "已保存：该账单已记为支出。", id: "Tersimpan: tagihan dicatat sebagai pengeluaran." }) });
@@ -4578,9 +4591,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
           await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: units, reason: "stock_in", supplier, unitCost: line.unitCost > 0 ? String(eachCost(line)) : null, note: `${tag}${date ? ` (${date})` : ""}${line.packSize > 1 ? ` · ${line.qty} × ${line.packSize}` : ""}`.slice(0, 200), userId, ...(receivedAt ? { createdAt: receivedAt } : {}) });
           total += line.qty * line.unitCost;
           saved.push({ name: product.name, qty: units });
+          if (line.name) await remember(tx, lineKeyOf(line.name), { productId: product.id, packSize: line.packSize });
         }
         const amount = Number(total.toFixed(decimals));
         if (amount > 0) await tx.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(amount), note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved), photoUrl, refType: "receipt", refId: invoiceNo || null, userId, ...(receivedAt ? { createdAt: receivedAt } : {}) });
+        await remember(tx, "", { kind: "goods" });
         return { lines: saved.length, created, amount };
       });
       await logAdmin(req, { targetType: "pos_product", action: "receipt_stock_in", entityType: "stock", description: `${tag}: ${out.lines} lines (${out.created} new items), purchase ${out.amount}` });

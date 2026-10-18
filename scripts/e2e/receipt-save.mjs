@@ -61,4 +61,16 @@ check("an unknown category becomes other", r.status === 200 && e2?.category === 
 r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "expense", category: "other", items: [{ name: "Free", qty: 1, unitCost: 0 }] });
 check("a bill with no amount is refused", r.status === 400, r.status);
 
+
+// the reader learns: the item + pack size of a printed line, the supplier's kind, and our expense lines whatever the month
+const memLine = (await db.query("SELECT product_id, pack_size, uses FROM receipt_memory WHERE supplier_key=$1 AND line_key=$2", ["cv test supplier", name.toLowerCase().replace(/[^0-9a-z]+/g, " ").trim()])).rows[0];
+check("a saved line is remembered with its item and the latest pack size (the last save here had none, so 1)", memLine && memLine.product_id === p.id && memLine.pack_size === 1, JSON.stringify(memLine));
+check("a line saved again counts one more use", memLine && memLine.uses >= 2, JSON.stringify(memLine));
+const memSup = (await db.query("SELECT kind FROM receipt_memory WHERE supplier_key='cv test supplier' AND line_key=''")).rows[0];
+check("the supplier is remembered as goods", memSup?.kind === "goods", JSON.stringify(memSup));
+const memExp = (await db.query("SELECT kind, category FROM receipt_memory WHERE supplier_key='pln' AND line_key='x:electricity'")).rows[0];
+check("an expense line is remembered without its month", memExp?.kind === "expense" && memExp.category === "utilities", JSON.stringify(memExp));
+const memExpSup = (await db.query("SELECT kind, category FROM receipt_memory WHERE supplier_key='pln' AND line_key=''")).rows[0];
+check("the expense supplier is remembered with its category", memExpSup?.kind === "expense" && memExpSup.category === "utilities", JSON.stringify(memExpSup));
+
 console.log(failures ? `${failures} FAILED` : "ALL PASSED"); await db.end(); process.exit(failures ? 1 : 0);

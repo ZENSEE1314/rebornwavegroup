@@ -1,7 +1,7 @@
 // Supplier receipts (Admin › Inventory / Accounting › "Scan a supplier receipt"): the AI reads the photo, and these
 // helpers tidy what it read and match each line to an item already in the inventory, so the admin only checks and saves.
 
-export interface ReadLine { name: string; qty: number; unitCost: number; lineTotal?: number; matchedProduct?: string; unit?: string; packSize?: number }
+export interface ReadLine { name: string; qty: number; unitCost: number; lineTotal?: number; matchedProduct?: string; unit?: string; packSize?: number; learnedProductId?: number | null }
 // goods = things bought for the stock room; expense = a bill for rent, electricity, repairs ... (no stock, one accounting line per bill).
 export type ReceiptKind = "goods" | "expense";
 export const EXPENSE_CATEGORIES = ["rental", "utilities", "salary", "other"] as const;
@@ -54,6 +54,45 @@ export function matchProduct(line: Pick<ReadLine, "name" | "matchedProduct">, pr
   let best: ProductLite | null = null, bestScore = 0;
   for (const p of products) { const s = nameScore(line.name, p.name); if (s > bestScore) { best = p; bestScore = s; } }
   return best && bestScore >= MATCH_AT ? best.id : null;
+}
+
+// ---- What the reader has learned from saved receipts -------------------------------------------------
+// A row per supplier + printed line (which item it is, its pack size) and one per supplier (goods or an expense category).
+export interface MemoryRow { supplierKey: string; lineKey: string; productId: number | null; packSize: number; kind: string | null; category: string | null; uses: number }
+export const supplierKeyOf = (supplier: string) => normName(supplier);
+export const lineKeyOf = (name: string) => normName(name);
+// A bill repeats every month with another month or number in it ("Electricity October", "Listrik 10/2026"): those words are left out of its key.
+const MONTH_WORDS = /\b(jan(uary|uari)?|feb(ruary|ruari)?|mar(ch|et)?|apr(il)?|may|mei|jun(e|i)?|jul(y|i)?|aug(ust)?|agu(stus)?|sep(t|tember)?|oct(ober)?|okt(ober)?|nov(ember)?|nop(ember)?|dec(ember)?|des(ember)?)\b/g;
+export const expenseKeyOf = (name: string) => normName(name).replace(MONTH_WORDS, " ").replace(/\d+/g, " ").replace(/\s+/g, " ").trim();
+
+/**
+ * Fill a freshly read receipt from memory: a line seen before (this supplier first, else the most used elsewhere) gets the item and pack size the
+ * admin chose last time; a supplier seen before gets its kind (goods / expense) and category. Rows pointing at an item that is gone are ignored.
+ */
+export function applyMemory(read: ReadReceipt, rows: MemoryRow[], validProductIds: Set<number>): { read: ReadReceipt; learned: number } {
+  const supplierKey = supplierKeyOf(read.supplier);
+  const best = (key: string): MemoryRow | null => {
+    const hits = rows.filter((r) => r.lineKey === key && r.productId && validProductIds.has(r.productId));
+    const same = hits.filter((r) => r.supplierKey === supplierKey);
+    const pool = same.length ? same : hits;
+    return pool.sort((a, b) => b.uses - a.uses)[0] || null;
+  };
+  let learned = 0;
+  const items = read.items.map((it) => {
+    const hit = it.name ? best(lineKeyOf(it.name)) : null;
+    if (!hit) return it;
+    learned++;
+    return { ...it, learnedProductId: hit.productId, packSize: hit.packSize > 0 ? hit.packSize : it.packSize };
+  });
+  // Our own expenses: a bill line seen before ("Electricity" whatever the month) says which category it is; else the supplier's own kind.
+  const expenseHits = read.items.map((it) => (it.name ? rows.filter((r) => r.kind === "expense" && !r.productId && r.lineKey === "x:" + expenseKeyOf(it.name)) : [])).flat();
+  const expenseHit = expenseHits.sort((a, b) => b.uses - a.uses)[0];
+  if (expenseHit) learned += 1;
+  const supplierRow = supplierKey ? rows.find((r) => r.supplierKey === supplierKey && r.lineKey === "") : undefined;
+  const isExpense = !!expenseHit || supplierRow?.kind === "expense";
+  const kind: ReceiptKind = isExpense ? "expense" : supplierRow?.kind === "goods" ? "goods" : read.kind;
+  const category = expenseHit ? expenseCategoryOf(expenseHit.category) : supplierRow?.kind === "expense" ? expenseCategoryOf(supplierRow.category) : read.category;
+  return { read: { ...read, items, kind, category }, learned };
 }
 
 /** What the AI read, made safe to show: no empty lines, whole quantities, a unit price on every line. */
