@@ -24,6 +24,7 @@ const RETRY_AFTER_ERROR_MS = 3000;
 const SEARCH_PAGES = 3;          // pages (15 songs each) read per search text for a member's search
 const FIND_PAGES = 40;           // pages read when looking for the one requested song by its initials
 const BOX_PAGE_SIZE = 15;
+const PHOTO_PARALLEL = 8;        // singer photos fetched side by side
 const CATALOG_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "karaoke-catalog.json"); // the box's whole song list, kept next to the program
 const SINGERS_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "karaoke-singers.json"); // the singers (name + photo file), kept next to the program
 const CATALOG_MAX_AGE_MS = 24 * 3600 * 1000;
@@ -351,12 +352,16 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     const res = await fetchImpl(`${cloud}/api/karaoke/jobs`, { signal: AbortSignal.timeout(JOB_POLL_TIMEOUT_MS), headers: { "x-karaoke-token": token, ...(tenantSlug ? { "x-tenant-slug": tenantSlug } : {}) } });
     if (!res.ok) throw new Error(`/api/karaoke/jobs: ${res.status}`);
     const { jobs = [] } = await res.json();
-    for (const job of jobs) {
+    // Pages and searches first, then the photos side by side: a page of singers asks for dozens of photos, and one after the other they kept the next page waiting until it timed out.
+    const answerJob = async (job) => {
       const kind = job.kind || "search";
       const answer = kind === "singers" ? singersPage(job.q, job.page) : kind === "singer" ? songsOfSinger(job.name, job.page) : kind === "photo" ? await fetchPhoto(job.file) : await searchAnswer(job);
       await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, answer);
       if (kind !== "photo") log(`${kind} "${job.q || job.name || ""}": answered`);
-    }
+    };
+    for (const job of jobs.filter((x) => x.kind !== "photo")) await answerJob(job);
+    const photos = jobs.filter((x) => x.kind === "photo");
+    for (let i = 0; i < photos.length; i += PHOTO_PARALLEL) await Promise.all(photos.slice(i, i + PHOTO_PARALLEL).map((job) => answerJob(job).catch((e) => log(`photo: ${e.message}`))));
     return jobs.length;
   }
 
