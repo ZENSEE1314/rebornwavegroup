@@ -9,6 +9,7 @@ export const BOX_CONTROL_COMMANDS = {
   micDown: "Mic_down",
   mute: "Mute",          // mute / unmute
   pause: "Play",         // pause / resume the song on now
+  repeat: "Reset",       // play the song on now again from the start
 } as const;
 
 export type BoxControl = keyof typeof BOX_CONTROL_COMMANDS;

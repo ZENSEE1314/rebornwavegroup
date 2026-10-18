@@ -2793,8 +2793,9 @@ export function registerRebornRoutes(app: Express) {
     const key = String(cid);
     if (!isBoxOnline(key)) return res.status(503).json({ message: tr(req, { en: "The song system is offline: the program at the venue is not running.", zh: "点歌系统离线：场地的程序没有运行。", id: "Sistem lagu offline: program di venue tidak berjalan." }) });
     // The singer's voice of the song on now is kept in the app (the bridge follows it); only with no app song on is the box button pressed directly.
-    const current = control === "voice" ? await songNowPlaying(cid) : null;
-    if (current) await db.update(songRequests).set({ vocal: current.vocal === "original" ? "karaoke" : "original" }).where(eq(songRequests.id, current.id));
+    const current = control === "voice" || control === "repeat" ? await songNowPlaying(cid) : null;
+    if (current && control === "repeat") await db.update(songRequests).set({ repeatCount: sql`${songRequests.repeatCount} + 1` }).where(eq(songRequests.id, current.id)); // the bridge replays it on the box
+    else if (current) await db.update(songRequests).set({ vocal: current.vocal === "original" ? "karaoke" : "original" }).where(eq(songRequests.id, current.id));
     else if (!boxControls.push(key, control)) return res.status(429).json({ message: tr(req, { en: "Too many presses are waiting: the venue program is not taking them.", zh: "等待的按键过多：场地程序没有在处理。", id: "Terlalu banyak tekanan menunggu: program venue tidak mengambilnya." }) });
     await logAdmin(req, { targetType: "system", action: "karaoke_control", entityType: "settings", description: `Song system button: ${control}` });
     emitLiveUpdate("/api/reborn/song-queue", { action: "CONTROL" });

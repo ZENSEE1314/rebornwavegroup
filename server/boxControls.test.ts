@@ -36,6 +36,7 @@ describe("BoxControlQueue", () => {
   });
   it("should only know the listed buttons", () => {
     assert.equal(isBoxControl("voice"), true);
+    assert.equal(isBoxControl("repeat"), true);
     assert.equal(isBoxControl("Skip"), false);
     assert.equal(isBoxControl("toString"), false);
   });

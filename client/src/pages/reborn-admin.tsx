@@ -1316,6 +1316,7 @@ function SongRequests() {
         <div className="flex flex-wrap gap-2 mt-3">
           <button onClick={() => next.mutate(false)} disabled={next.isPending || paused || (!playing && !rows.length)} className={btnSave}>▶ {playing ? t("admin.req.next") : t("admin.req.start")}</button>
           {playing && <button onClick={() => next.mutate(true)} disabled={next.isPending} className={btnDel}>⏭ {t("admin.req.skip")}</button>}
+          {playing && <button onClick={() => control.mutate("repeat")} disabled={control.isPending} className="px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white">{t("admin.req.ctlRepeat")}</button>}
           {<button onClick={() => pause.mutate(!paused)} disabled={pause.isPending} className="px-3 py-2 rounded-lg text-sm font-semibold bg-amber-400/15 text-amber-200">{paused ? `▶ ${t("admin.req.resume")}` : `⏸ ${t("admin.req.pause")}`}</button>}
           {playing && <button onClick={() => cancel.mutate({ id: playing.id })} className="px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white/70">{t("admin.req.stop")}</button>}
         </div>
@@ -1328,7 +1329,7 @@ function SongRequests() {
       <Card>
         <p className="text-sm font-bold">🎚️ {t("admin.req.controls")}</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          {([["voice", "admin.req.ctlVoice"], ["pause", "admin.req.ctlPause"], ["mute", "admin.req.ctlMute"], ["musicUp", "admin.req.ctlMusicUp"], ["musicDown", "admin.req.ctlMusicDown"], ["micUp", "admin.req.ctlMicUp"], ["micDown", "admin.req.ctlMicDown"]] as const).map(([action, label]) => (
+          {([["voice", "admin.req.ctlVoice"], ["repeat", "admin.req.ctlRepeat"], ["pause", "admin.req.ctlPause"], ["mute", "admin.req.ctlMute"], ["musicUp", "admin.req.ctlMusicUp"], ["musicDown", "admin.req.ctlMusicDown"], ["micUp", "admin.req.ctlMicUp"], ["micDown", "admin.req.ctlMicDown"]] as const).map(([action, label]) => (
             <button key={action} onClick={() => control.mutate(action)} disabled={control.isPending} className="rounded-xl bg-white/10 px-3 py-3 text-sm font-bold">{t(label)}</button>
           ))}
         </div>
