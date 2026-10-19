@@ -13,6 +13,7 @@ import ReceiptScan from "@/components/ReceiptScan";
 import AccountingFresh from "@/components/AccountingFresh";
 import StockSuppliers from "@/components/StockSuppliers";
 import { ItemBundles, CreditPackages, PieceRow } from "@/components/ItemBundles";
+import { HappyHourManager } from "@/components/HappyHourManager";
 import { StockAdjust } from "@/components/StockAdjust";
 import { VenueSyncCard } from "@/components/VenueSyncCard";
 import ProductPicture from "@/components/ProductPicture";
@@ -2854,6 +2855,7 @@ function Inventory() {
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
       {canChange && <ReceiptScan />}
       {role === "admin" && <SupplierReorderPanel />}
+      {canChange && <HappyHourManager />}
       {canChange && <CreditPackages />}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>

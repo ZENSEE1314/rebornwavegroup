@@ -5682,6 +5682,26 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     res.json({ changed: applied.length });
   }));
+  // Happy hour for many items at once (Admin › Inventory › Happy hour): the same window for every ticked item, a happy price that is a % off each item's own price
+  // or one price for all, and optionally "only sold in these hours". `clear` takes happy hour off the ticked items. The per-item box still sets each item on its own.
+  app.post("/api/reborn/admin/happy-hour", requireManager(async (req, res) => {
+    const ids = (Array.isArray(req.body?.productIds) ? req.body.productIds : []).map((x: unknown) => Number(x)).filter((x: number) => Number.isInteger(x) && x > 0).slice(0, 500);
+    if (!ids.length) return res.status(400).json({ message: tr(req, { en: "Tick at least one item", zh: "请至少勾选一件商品", id: "Pilih minimal satu item" }) });
+    const cid = await rebornCompanyId(req);
+    const clear = !!req.body?.clear;
+    if (!clear && !(isValidClock(req.body?.start) && isValidClock(req.body?.end) && req.body.start !== req.body.end)) return res.status(400).json({ message: tr(req, { en: "Set the start and the end time of the happy hour", zh: "请设置欢乐时光的开始和结束时间", id: "Atur jam mulai dan jam selesai happy hour" }) });
+    const percent = Math.min(100, Math.max(0, Number(req.body?.percent) || 0));
+    const samePrice = Math.max(0, Number(req.body?.price) || 0);
+    const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), inArray(posProducts.id, ids)));
+    for (const row of rows) {
+      const patch = clear
+        ? { happyStart: null, happyEnd: null, happyPrice: null, happyOnly: false }
+        : happyFieldsOf({ happyStart: req.body.start, happyEnd: req.body.end, happyOnly: !!req.body?.onlyDuring, happyPrice: percent > 0 ? roundMoney((Number(row.price) || 0) * (1 - percent / 100)) : samePrice > 0 ? samePrice : null });
+      await db.update(posProducts).set(patch).where(eq(posProducts.id, row.id));
+    }
+    await logAdmin(req, { targetType: "pos_product", action: "happy_hour", entityType: "settings", description: clear ? `Happy hour taken off ${rows.length} item(s)` : `Happy hour ${req.body.start}-${req.body.end} on ${rows.length} item(s)${percent > 0 ? `, ${percent}% off` : samePrice > 0 ? `, RP ${samePrice}` : ""}${req.body?.onlyDuring ? ", only in these hours" : ""}` });
+    res.json({ changed: rows.length });
+  }));
   app.get("/api/reborn/admin/inventory", requireManager(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);
