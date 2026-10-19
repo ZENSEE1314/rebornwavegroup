@@ -58,6 +58,9 @@ public class MainActivity extends Activity {
         root.addView(button(t("1. Allow drawing over other apps", "1. 允许显示在其他应用上方", "1. Izinkan tampil di atas aplikasi lain"), new View.OnClickListener() {
             @Override public void onClick(View v) { askOverlayPermission(); }
         }));
+        root.addView(button(t("1b. Or allow it in Accessibility (when step 1 says Feature not available)", "1b. 或在“无障碍”中允许（当第1步显示“功能不可用”时）", "1b. Atau izinkan di Aksesibilitas (jika langkah 1 bilang Fitur tidak tersedia)"), new View.OnClickListener() {
+            @Override public void onClick(View v) { openAccessibilitySettings(); }
+        }));
         root.addView(button(t("2. Link this box to a TV screen (shows a code)", "2. 将本机链接到电视屏幕（显示代码）", "2. Hubungkan perangkat ini ke layar TV (menampilkan kode)"), new View.OnClickListener() {
             @Override public void onClick(View v) { startPairing(); }
         }));
@@ -122,8 +125,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void openAccessibilitySettings() {
+        try {
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            status.setText(t("Find \"Reborn TV Overlay\" in the list and switch it on.", "在列表中找到“Reborn TV Overlay”并打开。", "Cari \"Reborn TV Overlay\" di daftar lalu aktifkan."));
+        } catch (RuntimeException e) {
+            status.setText(t("This box has no Accessibility screen either.", "本机也没有“无障碍”页面。", "Perangkat ini juga tidak punya layar Aksesibilitas."));
+        }
+    }
+
     private void startOverlay() {
-        if (!OverlayService.canDraw(this)) { askOverlayPermission(); return; }
+        if (!OverlayService.canDraw(this)) {
+            if (OverlayAccessibilityService.isEnabled(this)) { refresh(); return; } // the accessibility service shows the page by itself once the box is linked
+            askOverlayPermission();
+            return;
+        }
         if (!Link.isLinked(this)) { startPairing(); return; }
         OverlayService.start(this);
         ui.postDelayed(new Runnable() { @Override public void run() { refresh(); } }, 800);
@@ -167,7 +183,9 @@ public class MainActivity extends Activity {
     private void refresh() {
         String allowed = OverlayService.canDraw(this) ? t("allowed", "已允许", "diizinkan") : t("NOT allowed yet", "尚未允许", "belum diizinkan");
         String linked = Link.isLinked(this) ? t("linked", "已链接", "terhubung") : t("not linked", "未链接", "belum terhubung");
-        String running = OverlayService.running ? t("RUNNING", "运行中", "BERJALAN") : t("stopped", "已停止", "berhenti");
+        boolean viaAccessibility = OverlayAccessibilityService.isEnabled(this);
+        if (viaAccessibility) allowed = t("allowed (Accessibility)", "已允许（无障碍）", "diizinkan (Aksesibilitas)");
+        String running = (OverlayService.running || (viaAccessibility && OverlayAccessibilityService.running && Link.isLinked(this))) ? t("RUNNING", "运行中", "BERJALAN") : t("stopped", "已停止", "berhenti");
         status.setText(t("Drawing over other apps: ", "显示在其他应用上方：", "Tampil di atas aplikasi lain: ") + allowed
                 + "\n" + t("TV screen: ", "电视屏幕：", "Layar TV: ") + linked
                 + "\n" + t("Overlay: ", "叠加：", "Overlay: ") + running
@@ -178,7 +196,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refresh();
-        if (Link.isLinked(this) && OverlayService.canDraw(this) && !OverlayService.running) startOverlay();
+        if (Link.isLinked(this) && OverlayService.canDraw(this) && !OverlayService.running && !OverlayAccessibilityService.isEnabled(this)) startOverlay();
     }
 
     @Override

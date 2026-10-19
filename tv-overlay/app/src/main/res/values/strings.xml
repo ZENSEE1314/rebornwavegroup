@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_description">Lets Reborn TV Overlay draw the gift effects over the karaoke picture on boxes that hide the "Display over other apps" setting. It does not read the screen or any text.</string>
+</resources>
