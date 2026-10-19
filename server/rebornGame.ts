@@ -630,6 +630,7 @@ async function chargeStaff(req: any, o: { userId: unknown; productId?: number | 
   return true;
 }
 const atCostLabel = (a: AtCost) => `At cost · ${a.who === "boss" ? "Boss" : "Staff"}${a.name ? `: ${a.name}` : ""}`;
+const OVERLAY_APK_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-latest/reborn-tv-overlay.apk";
 async function adminRole(userId: string | null): Promise<"admin" | "manager" | "staff" | "user"> {
   if (!userId) return "user";
   const u = await storage.getUser(userId);
@@ -2862,6 +2863,8 @@ export function registerRebornRoutes(app: Express) {
     res.json({ hasToken: !!m.karaokeToken, lastSeen: m.karaokeLastSeen || null, online: !!m.karaokeLastSeen && Date.now() - new Date(m.karaokeLastSeen).getTime() < 3 * 60_000, linkedSongs: Number(n) || 0 });
   }));
   // One-click setup of the bridge on a venue PC: the program itself (no secrets in it) and a setup file holding this company's address + token.
+  // A short address to type on a box or TV: rebornwave.group/overlay downloads the gift overlay app (built by GitHub from tv-overlay/).
+  app.get(["/overlay", "/overlay.apk"], (_req, res) => res.redirect(302, OVERLAY_APK_URL));
   app.get("/api/karaoke/bridge.mjs", async (_req, res) => {
     try {
       const fs = await import("node:fs/promises");

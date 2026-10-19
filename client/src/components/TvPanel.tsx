@@ -160,7 +160,7 @@ export default function TvPanel() {
         <h3 className="font-bold mb-1">{t("admin.tv.overlayTitle")}</h3>
         <p className="text-[11px] text-white/60">{t("admin.tv.overlayIntro")}</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-[11px] text-white/60">
-          <li>{t("admin.tv.overlay1")} <a href={OVERLAY_APP_URL} className="break-all text-cyan-200" target="_blank" rel="noopener noreferrer">{OVERLAY_APP_URL}</a></li>
+          <li>{t("admin.tv.overlay1")} <a href="/overlay" className="break-all text-cyan-200" target="_blank" rel="noopener noreferrer">{window.location.host}/overlay</a></li>
           <li>{t("admin.tv.overlay2")}</li>
           <li>{t("admin.tv.overlay3")}</li>
         </ol>
