@@ -238,6 +238,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.line.preview': { en: 'This line will be {total}', zh: '此行将为 {total}', id: 'Baris ini menjadi {total}' },
   'pos.line.save': { en: 'Save', zh: '保存', id: 'Simpan' },
   'pos.appDownload': { en: 'POS app for Windows (works on Windows 7)', zh: 'Windows 收银应用（支持 Windows 7）', id: 'Aplikasi POS untuk Windows (bisa di Windows 7)' },
+  'pos.receiptUpload': { en: 'Upload a receipt (supplier or expense)', zh: '上传单据（供应商或支出）', id: 'Unggah nota (pemasok atau pengeluaran)' },
+  'pos.receiptUploadHint': { en: 'Take a photo of the supplier bill or the expense receipt. Stock and the expense are recorded for the accounts; you do not see the accounts.', zh: '拍下供应商账单或支出单据。库存和支出会记入账目；你看不到账目。', id: 'Foto tagihan pemasok atau nota pengeluaran. Stok dan pengeluaran dicatat ke pembukuan; kamu tidak melihat pembukuan.' },
   'pos.offlineDownload': { en: 'Offline version for a PC (download)', zh: '电脑离线版（下载）', id: 'Versi offline untuk PC (unduh)' },
   'pos.discount': { en: 'Discount', zh: '折扣', id: 'Diskon' },
   'pos.discountRp': { en: 'Discount (RP)', zh: '折扣（RP）', id: 'Diskon (RP)' },

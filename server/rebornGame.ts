@@ -4665,7 +4665,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
 
   // ── Supplier receipts: the AI reads the photo, the admin checks the lines, saving books stock + one purchase ──
-  app.post("/api/reborn/admin/inventory/receipt/read", requireManager(async (req, res) => {
+  // Cashiers and managers upload supplier / expense receipts (they book the stock and the expense) without being able to open the accounts: the answers hold no accounting figures.
+  app.post("/api/reborn/admin/inventory/receipt/read", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const products = await db.select({ id: posProducts.id, name: posProducts.name, unitsPerPack: posProducts.unitsPerPack }).from(posProducts)
       .where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
@@ -4693,8 +4694,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       res.status(reason === "noKey" ? 503 : reason === "failed" ? 502 : 400).json({ message: tr(req, text), reason });
     }
   }));
-  app.get("/api/reborn/admin/inventory/receipt/ready", requireManager(async (_req, res) => res.json({ ai: receiptAiReady() })));
-  app.post("/api/reborn/admin/inventory/receipt/save", requireManager(async (req, res) => {
+  app.get("/api/reborn/admin/inventory/receipt/ready", requireStaff(async (_req, res) => res.json({ ai: receiptAiReady() })));
+  app.post("/api/reborn/admin/inventory/receipt/save", requireStaff(async (req, res) => {
     const b = req.body || {};
     const lines = cleanSaveLines(b.items);
     if (!lines.length) return res.status(400).json({ message: tr(req, { en: "Add at least one line with a quantity", zh: "请至少添加一行并填写数量", id: "Tambahkan minimal satu baris dengan jumlah" }) });

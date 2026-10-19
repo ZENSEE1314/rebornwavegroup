@@ -10,6 +10,7 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
 import { printClosingReport, printReceipt, printBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
+import ReceiptScan from "@/components/ReceiptScan";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
@@ -233,6 +234,7 @@ export default function RebornPos() {
       <StaffGuideButton />
       <OfflineBanner />
       <ReceiptPaperSetting />
+      <UploadReceiptCard />
       {(role === "admin" || companyRole === "manager") && <a href="/pos-app" className="mb-3 mr-2 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">⬇ {t("pos.appDownload")}</a>}
       {(role === "admin" || companyRole === "manager") && <a href="/venue-pc" className="mb-3 mr-2 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">⬇ {t("pos.offlineDownload")}</a>}
       {role === "admin" && <CommissionTypesSetting />}
@@ -300,6 +302,18 @@ function LineEditDialog({ item, onSave, onCancel }: { item: any; onSave: (body: 
       </div>
     </div>,
     document.body,
+  );
+}
+
+// Staff upload a supplier or expense receipt here: the stock and the expense are booked for the accountant, and the cashier never sees the accounts.
+function UploadReceiptCard() {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="mb-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="min-h-0 p-0 text-left text-cyan-200" style={{ fontSize: 13, fontWeight: 700 }}>📄 {t("pos.receiptUpload")} {isOpen ? "▲" : "▼"}</button>
+      {isOpen && <div className="mt-2"><p className="mb-2 text-[11px] text-white/50">{t("pos.receiptUploadHint")}</p><ReceiptScan /></div>}
+    </div>
   );
 }
 
