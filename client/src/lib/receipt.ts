@@ -92,6 +92,9 @@ const buildCss = (fullWidth = false) => {
   img.logo { max-width:40mm; max-height:22mm; object-fit:contain; margin:0 auto 4px; display:block; }
   .name { font-size:15px; font-weight:bold; }
   .row { display:flex; justify-content:space-between; font-size:12px; line-height:1.5; }
+  /* The amount stays on one line ("RP 300,000" never splits); a long name wraps instead. */
+  .row > span:last-child { white-space:nowrap; flex-shrink:0; margin-left:2mm; }
+  .row > span:first-child { min-width:0; overflow-wrap:anywhere; }
   .muted { font-size:11px; color:#000; }
   hr { border:none; border-top:2px dashed #000; margin:6px 0; }
   .big { font-size:15px; font-weight:bold; }
