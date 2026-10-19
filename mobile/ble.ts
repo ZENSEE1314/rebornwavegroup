@@ -7,6 +7,9 @@ import { scanLan } from "./lanScan";
 import { overlayAction } from "./tvOverlay";
 
 const SCAN_MS = 6000;
+// The control chips LED lights use (ELK-BLEDOM family FFF0, LEDBLE FFE0, Triones FFD5). A light that sends no name is still listed when it announces one of these.
+const LIGHT_SERVICES = ["0000fff0", "0000ffe0", "0000ffd5", "fff0", "ffe0", "ffd5"];
+const isLightChip = (uuids: string[] | null | undefined) => !!uuids?.some((uuid) => LIGHT_SERVICES.some((short) => uuid.toLowerCase().startsWith(short)));
 const CONNECT_TIMEOUT_MS = 8000;
 
 type Call = { ble: true; id: number; op: "scan" | "connect" | "disconnect" | "services" | "write" | "lanScan" | "overlay"; args: Record<string, unknown> };
@@ -40,8 +43,9 @@ export function createBleBridge(getWebView: () => WebView | null) {
     await new Promise<void>((resolve, reject) => {
       ble().startDeviceScan(null, { allowDuplicates: false }, (error, device) => {
         if (error) { ble().stopDeviceScan(); reject(new Error(error.message)); return; }
-        const name = device?.localName || device?.name;
-        if (device && name) found.set(device.id, { id: device.id, name });
+        if (!device) return;
+        const name = device.localName || device.name || (isLightChip(device.serviceUUIDs) ? `LED light ${device.id.slice(-5)}` : "");
+        if (name) found.set(device.id, { id: device.id, name });
       });
       setTimeout(() => { ble().stopDeviceScan(); resolve(); }, SCAN_MS);
     });
