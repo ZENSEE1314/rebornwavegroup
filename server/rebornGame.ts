@@ -613,13 +613,19 @@ function requireStaff(handler: (req: Request, res: Response) => Promise<any>) {
 // Admin-panel role: "admin" (main admin), "manager" (staff account whose company
 // role is manager — staff tabs + daily sales), "staff", or "user".
 // Staff / boss buy at the item's cost (no service fee, no tax): only a manager or the main admin may ring it up.
-type AtCost = { who: "staff" | "boss"; name: string };
+type AtCost = { who: "staff" | "boss"; name: string; mode: "cost" | "half" };
+// A staff / boss price on a bill, ticked in the POS: "half" = 50% off, "cost" = every item at its cost, both with no service fee and no tax.
+// `staffPrice` is open to every POS user (the bill says who it was for, the admin log keeps who rang it up); the older `atCost` field stays manager / main admin only.
 async function atCostRequest(req: any): Promise<{ atCost: AtCost | null; error?: string }> {
+  const price = req.body?.staffPrice;
+  if (price && (price.mode === "half" || price.mode === "cost")) {
+    return { atCost: { mode: price.mode, who: price.who === "boss" ? "boss" : "staff", name: String(price.name || "").trim().slice(0, 60) } };
+  }
   const raw = req.body?.atCost;
   if (!raw || (raw.who !== "staff" && raw.who !== "boss")) return { atCost: null };
   const role = await adminRole(getUserId(req));
   if (role !== "admin" && role !== "manager") return { atCost: null, error: tr(req, { en: "Only a manager or the main admin can sell at cost.", zh: "只有经理或主管理员可以按成本价销售。", id: "Hanya manajer atau admin utama yang bisa menjual dengan harga modal." }) };
-  return { atCost: { who: raw.who, name: String(raw.name || "").trim().slice(0, 60) } };
+  return { atCost: { who: raw.who, name: String(raw.name || "").trim().slice(0, 60), mode: "cost" } };
 }
 // Damage / waste that a staff member pays for: written down at cost (no tax, no service fee) and taken from their next pay (Admin › Payroll).
 async function chargeStaff(req: any, o: { userId: unknown; productId?: number | null; name: string; qty: number; amount: number; reason: string; source: string; refId: string }) {
@@ -629,7 +635,7 @@ async function chargeStaff(req: any, o: { userId: unknown; productId?: number | 
   await db.insert(staffCharges).values({ companyId: await rebornCompanyId(req), userId, productId: o.productId ?? null, name: o.name, qty: o.qty, amount: String(o.amount), reason: o.reason.slice(0, 200), source: o.source, refId: o.refId, createdBy: getUserId(req) });
   return true;
 }
-const atCostLabel = (a: AtCost) => `At cost · ${a.who === "boss" ? "Boss" : "Staff"}${a.name ? `: ${a.name}` : ""}`;
+const atCostLabel = (a: AtCost) => `${a.mode === "half" ? "Staff price 50% off" : "At cost"} · ${a.who === "boss" ? "Boss" : "Staff"}${a.name ? `: ${a.name}` : ""}`;
 const VENUE_PACK_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/venue-latest/RebornVenue-windows.zip"; // built by GitHub (.github/workflows/venue-pack.yml)
 const OVERLAY_APK_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-latest/reborn-tv-overlay.apk";
 async function adminRole(userId: string | null): Promise<"admin" | "manager" | "staff" | "user"> {
@@ -4029,7 +4035,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const settings = await getSettings();
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: !!costRequest.atCost });
+    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !u) return res.status(400).json({ message: needMemberForPackage(req) });
     const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
@@ -4351,7 +4357,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const reqDisc = req.body?.discount !== undefined ? Number(req.body.discount) : Number(o.discount || 0);
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: !!costRequest.atCost });
+    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
     const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
@@ -4485,7 +4491,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: !!costRequest.atCost });
+    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     res.json({ ...q, hasMember: !!userId });
   }));
   // A member's packages (by member code) — POS pay panel and Packages tab.

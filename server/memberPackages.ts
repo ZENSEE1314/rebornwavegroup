@@ -67,6 +67,7 @@ export async function memberWallet(userId: string) {
 export async function quoteBill(o: {
   lines: { productId?: number | null; lineTotal: number; qty?: number }[]; manualDiscount: number; userId?: string | null;
   usePackageCredit?: boolean; serviceFeePercent: number; taxPercent: number;
+  staffHalf?: boolean; // staff price: half of the bill, with no service fee, no tax and no member perk
   atCost?: boolean; // staff / boss buy at the item's cost: the discount takes every line down to its cost, with no service fee, no tax and no member perk
 }) {
   const ids = Array.from(new Set(o.lines.map((l) => Number(l.productId)).filter(Boolean)));
@@ -80,14 +81,15 @@ export async function quoteBill(o: {
     else if (p && p.creditOk !== false) creditBase += amt;
   }
   const costTotal = o.atCost ? money(o.lines.reduce((sum, l) => { const p = byId.get(Number(l.productId)); return sum + (p ? Number(p.cost || 0) * (Number(l.qty) || 1) : Number(l.lineTotal) || 0); }, 0)) : 0;
-  const manualDiscount = o.atCost ? Math.min(subtotal, Math.max(0, money(subtotal - costTotal))) : Math.min(subtotal, Math.max(0, Number(o.manualDiscount) || 0));
+  const noFees = !!(o.atCost || o.staffHalf);
+  const manualDiscount = o.atCost ? Math.min(subtotal, Math.max(0, money(subtotal - costTotal))) : o.staffHalf ? money(subtotal / 2) : Math.min(subtotal, Math.max(0, Number(o.manualDiscount) || 0));
   const wallet = o.userId ? await memberWallet(o.userId) : null;
-  const perkPercent = o.atCost ? 0 : wallet?.perk?.percent || 0;
+  const perkPercent = noFees ? 0 : wallet?.perk?.percent || 0;
   const perkAmount = money(Math.max(0, subtotal - packageBase - manualDiscount) * perkPercent / 100);
   const discount = Math.min(subtotal, manualDiscount + perkAmount);
   const taxable = money(subtotal - discount);
-  const serviceFee = o.atCost ? 0 : money(taxable * o.serviceFeePercent / 100);
-  const tax = o.atCost ? 0 : money(taxable * o.taxPercent / 100);
+  const serviceFee = noFees ? 0 : money(taxable * o.serviceFeePercent / 100);
+  const tax = noFees ? 0 : money(taxable * o.taxPercent / 100);
   const total = money(taxable + serviceFee + tax);
   const creditable = subtotal > 0 ? money(total * creditBase / subtotal) : 0;
   const creditBalance = wallet?.creditBalance || 0;

@@ -31,6 +31,12 @@ const beer = (await admin("POST", "/api/reborn/admin/pos/products", { name: "Cos
 const items = [{ productId: beer.id, price: 100000, qty: 2 }];
 let r = await staff("POST", "/api/reborn/pos/quote", { items, atCost: { who: "staff", name: "Wati" } });
 check("a cashier cannot ask for a price at cost", r.status === 403, r.status);
+r = await staff("POST", "/api/reborn/pos/quote", { items, staffPrice: { mode: "half", who: "staff", name: "Wati" } });
+check("a cashier can tick the staff price: 50% off, no service fee, no tax", r.status === 200 && r.json.total === 100000 && r.json.serviceFee === 0 && r.json.tax === 0, JSON.stringify(r.json));
+r = await staff("POST", "/api/reborn/pos/quote", { items, staffPrice: { mode: "cost", who: "boss", name: "Mr Lim" } });
+check("a cashier can tick the cost price: the bill is the cost, no fees", r.status === 200 && r.json.total === 80000 && r.json.serviceFee === 0 && r.json.tax === 0, JSON.stringify(r.json));
+r = await staff("POST", "/api/reborn/pos/quote", { items, staffPrice: { mode: "bogus" } });
+check("an unknown staff price mode is ignored (normal bill)", r.status === 200 && r.json.serviceFee > 0, JSON.stringify(r.json));
 r = await admin("POST", "/api/reborn/pos/quote", { items });
 check("a normal quote has service fee and tax", r.status === 200 && r.json.serviceFee > 0 && r.json.tax > 0, JSON.stringify(r.json));
 r = await admin("POST", "/api/reborn/pos/quote", { items, atCost: { who: "staff", name: "Wati" } });
@@ -47,6 +53,12 @@ r = await admin("POST", `/api/reborn/pos/orders/${order.id}/pay`, { paymentMetho
 check("a table bill is paid at cost", r.status === 200, JSON.stringify(r.json));
 const bill = (await db.query("SELECT total, discount_reason FROM pos_tickets WHERE id=$1", [order.id])).rows[0];
 check("the table bill total is the cost and carries the label", Number(bill.total) === 40000 && /At cost · Staff: Wati/.test(bill.discount_reason || ""), JSON.stringify(bill));
+
+const halfOrder = (await admin("POST", "/api/reborn/pos/orders", { tableNumber: "H" + tag.slice(-3) })).json.order;
+await admin("POST", `/api/reborn/pos/orders/${halfOrder.id}/items`, { items: [{ productId: beer.id, qty: 1 }] });
+r = await staff("POST", `/api/reborn/pos/orders/${halfOrder.id}/pay`, { paymentMethod: "cash", cashReceived: 50000, staffPrice: { mode: "half", who: "staff", name: "Wati" } });
+const halfBill = (await db.query("SELECT total, service_fee, tax, discount_reason FROM pos_tickets WHERE id=$1", [halfOrder.id])).rows[0];
+check("a cashier pays a bill at the staff price (50%) and the bill says so", r.status === 200 && Number(halfBill.total) === 50000 && Number(halfBill.service_fee) === 0 && Number(halfBill.tax) === 0 && /Staff price 50% off · Staff: Wati/.test(halfBill.discount_reason || ""), JSON.stringify([r.status, halfBill]));
 
 // ── damage / waste charged to staff ──
 const lostOrder = (await admin("POST", "/api/reborn/pos/orders", { tableNumber: "L" + tag.slice(-3) })).json.order;
