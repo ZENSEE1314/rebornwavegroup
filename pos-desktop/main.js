@@ -8,7 +8,10 @@ const { printDirect } = require("./escpos");
 
 const DEFAULT_URL = "https://rebornwave.group/pos";
 const PRINTER_PORT = 9100; // raw printing port of a network receipt printer
-const DRAWER_KICK = Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa]); // ESC p 0 25 250: the standard "open the cash drawer" pulse
+// ESC p m t1 t2 = "open the cash drawer": a pulse of t1 x 2 ms on the drawer socket's pin m (0 = pin 2, 1 = pin 5). Drawers are wired to one or the other and many need a
+// pulse longer than the 50 ms default, so both pins get a 100 ms pulse.
+const DRAWER_PULSE = 0x32;
+const DRAWER_KICK = Buffer.from([0x1b, 0x70, 0x00, DRAWER_PULSE, 0xfa, 0x1b, 0x70, 0x01, DRAWER_PULSE, 0xfa]);
 const DRAWER_TIMEOUT_MS = 3000;
 const PRINT_WINDOW_MS = 20000;
 
