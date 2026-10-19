@@ -47,9 +47,17 @@ function saleHeaders(): Record<string, string> {
   return headers;
 }
 
+// AbortSignal.timeout only exists from Chrome 124; the Windows 7 POS terminals stop at Chrome 109, where it would crash every sale and send it to the offline queue.
+function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  window.setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
+
 async function sendSale(sale: Pick<OfflineSale, "offlineId" | "at" | "payload">): Promise<Response | null> {
   try {
-    return await fetch(SALE_URL, { method: "POST", headers: saleHeaders(), credentials: "include", body: JSON.stringify({ ...sale.payload, offlineId: sale.offlineId, offlineAt: sale.at }), signal: AbortSignal.timeout(SALE_TIMEOUT_MS) });
+    return await fetch(SALE_URL, { method: "POST", headers: saleHeaders(), credentials: "include", body: JSON.stringify({ ...sale.payload, offlineId: sale.offlineId, offlineAt: sale.at }), signal: timeoutSignal(SALE_TIMEOUT_MS) });
   } catch { return null; }
 }
 const messageOf = async (res: Response | null) => (res ? (await res.json().catch(() => ({})))?.message : "") || translate("pos.failed");
