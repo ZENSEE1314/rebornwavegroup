@@ -16,6 +16,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.view.WindowManager
+import android.view.View
+import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -68,13 +70,20 @@ class OverlayService : Service() {
     view.settings.javaScriptEnabled = true
     view.settings.domStorageEnabled = true
     view.settings.mediaPlaybackRequiresUserGesture = false
+    // Hidden until the page itself says it runs (RebornOverlay.ready()): a page that cannot load or run on this device never covers the picture.
+    view.visibility = View.INVISIBLE
+    view.addJavascriptInterface(object {
+      @JavascriptInterface
+      fun ready() { handler.post { web?.visibility = View.VISIBLE } }
+    }, "RebornOverlay")
     view.webViewClient = object : WebViewClient() {
       override fun onReceivedError(webView: WebView, request: WebResourceRequest, error: WebResourceError) {
-        if (request.isForMainFrame) reloadLater()
+        if (request.isForMainFrame) { webView.visibility = View.INVISIBLE; reloadLater() }
       }
 
       override fun onReceivedSslError(webView: WebView, sslHandler: SslErrorHandler, error: SslError) {
         sslHandler.cancel() // never carry on past a certificate problem
+        webView.visibility = View.INVISIBLE
         reloadLater()
       }
     }

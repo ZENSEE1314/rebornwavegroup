@@ -179,6 +179,11 @@ export default function TvDisplay() {
   }, []);
 
   useEffect(() => {
+    // The overlay app keeps its window hidden until the page says it can run here (an old browser engine never gets this far, so nothing covers the screen).
+    (window as unknown as { RebornOverlay?: { ready?: () => void } }).RebornOverlay?.ready?.();
+  }, []);
+
+  useEffect(() => {
     const previous = { body: document.body.style.background, root: document.documentElement.style.background };
     document.body.style.background = "transparent";
     document.documentElement.style.background = "transparent";

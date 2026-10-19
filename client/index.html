@@ -66,6 +66,10 @@
       }
     </script>
   </head>
+  <script>
+    // A TV screen (/tv/<token>) is drawn over the karaoke picture: see-through from the first paint, not white while the app loads.
+    if (/^\/tv\/[^/]+/.test(location.pathname)) document.write('<style>html,body{background:transparent!important}</style>');
+  </script>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

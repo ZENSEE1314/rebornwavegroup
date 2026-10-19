@@ -14,7 +14,9 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
+import android.view.View;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -87,10 +89,18 @@ public class OverlayService extends Service {
         settings.setDomStorageEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // Hidden until the page itself says it runs (RebornOverlay.ready()): a page that cannot load or run on this box never covers the picture.
+        web.setVisibility(View.INVISIBLE);
+        web.addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void ready() {
+                handler.post(new Runnable() { @Override public void run() { if (web != null) web.setVisibility(View.VISIBLE); } });
+            }
+        }, "RebornOverlay");
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) reloadLater();
+                if (request.isForMainFrame()) { view.setVisibility(View.INVISIBLE); reloadLater(); }
             }
 
             @Override
@@ -102,6 +112,7 @@ public class OverlayService extends Service {
             @Override
             public void onReceivedSslError(WebView view, SslErrorHandler sslHandler, SslError error) {
                 sslHandler.cancel(); // never carry on past a certificate problem
+                view.setVisibility(View.INVISIBLE);
                 reloadLater();
             }
         });
