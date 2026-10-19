@@ -7,7 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
-import { printClosingReport, printReceipt, printBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies } from "@/lib/receipt";
+import { printClosingReport, printReceipt, printBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
@@ -161,6 +161,7 @@ function ReceiptPaperSetting() {
   const [isOpen, setIsOpen] = useState(false);
   const change = (next: { widthMm: number; shiftMm: number }) => { setPaper(next); saveReceiptPaper(next); };
   const [copies, setCopies] = useState(getReceiptCopies);
+  useEffect(() => { void syncReceiptSettings().then((isShared) => { if (isShared) { setPaper(getReceiptPaper()); setCopies(getReceiptCopies()); } }); }, []);
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
   const applyRuler = () => {
@@ -209,7 +210,7 @@ export default function RebornPos() {
   // Managers (staff with the company role "manager") close the day here too.
   const { data: myRole } = useQuery<{ role: string }>({ queryKey: ["/api/reborn/my-role"], queryFn: () => apiRequest("GET", "/api/reborn/my-role").then((r) => r.json()), enabled: isStaff });
   const companyRole = myRole?.role;
-  useEffect(() => { void prepareOfflinePos(); }, []);
+  useEffect(() => { void prepareOfflinePos(); void syncReceiptSettings(); }, []);
 
   if (!isLoading && !isStaff) {
     return <RebornLayout active="/pos" title={t("pos.title")}><div className="text-center py-16 text-white/50">{t("pos.staffOnly")} <button className="text-amber-300 underline" onClick={() => navigate("/")}>{t("pos.goHome")}</button></div></RebornLayout>;

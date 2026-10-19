@@ -3926,6 +3926,21 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const bookCommission = async (ticketId: number, orderNo: string, c: NonNullable<ReturnType<typeof commissionOf>>, userId: string | null) => {
     await db.insert(ledgerEntries).values({ kind: "expense", category: "commission", amount: String(c.amount), note: `Commission${c.label ? ` ${c.label}` : ""}${c.payee ? ` · ${c.payee}` : ""} · ${orderNo}`, refType: "pos_commission", refId: String(ticketId), userId });
   };
+  // The receipt roll (width + shift) and the number of copies are shared by every browser of the shop, so a second browser or PC prints the same.
+  const RECEIPT_PAPER_KEY = "receiptPaper";
+  app.get("/api/reborn/pos/receipt-paper", requireStaff(async (_req, res) => {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, RECEIPT_PAPER_KEY)).limit(1);
+    let saved: unknown = {};
+    try { saved = JSON.parse(row?.value || "{}"); } catch { /* bad value: nothing saved */ }
+    res.set("Cache-Control", "no-store").json(saved);
+  }));
+  app.put("/api/reborn/pos/receipt-paper", requireStaff(async (req, res) => {
+    const width = Number(req.body?.widthMm), shift = Number(req.body?.shiftMm);
+    if (!(width >= 40 && width <= 120)) return res.status(400).json({ message: tr(req, { en: "Paper width must be 40–120 mm", zh: "纸宽须为 40–120 毫米", id: "Lebar kertas harus 40–120 mm" }) });
+    const value = JSON.stringify({ widthMm: Math.round(width * 10) / 10, shiftMm: Math.max(0, Math.min(40, Math.round((Number.isFinite(shift) ? shift : 0) * 10) / 10)), copies: req.body?.copies === "two" ? "two" : "one" });
+    await db.insert(appSettings).values({ key: RECEIPT_PAPER_KEY, value, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+    res.json(JSON.parse(value));
+  }));
   app.get("/api/reborn/pos/commission-types", requireStaff(async (_req, res) => { res.set("Cache-Control", "no-store").json(await commissionTypesOf()); }));
   app.put("/api/reborn/admin/commission-types", requireAdmin(async (req, res) => {
     const list = (Array.isArray(req.body?.types) ? req.body.types : []).slice(0, MAX_COMMISSION_TYPES).map((x: any, i: number) => {

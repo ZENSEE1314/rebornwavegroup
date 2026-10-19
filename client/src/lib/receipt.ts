@@ -2,6 +2,7 @@
 // dialog. Set your thermal printer as the default printer (or "Save as PDF").
 import { translate as tr, localeTag } from "@/lib/i18n";
 import { money } from "@/lib/money";
+import { apiRequest } from "@/lib/queryClient";
 import { qrSvgNow } from "@/lib/qr-download";
 
 interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; status?: string; }
@@ -30,7 +31,7 @@ const receiptFileName = (o: Order) => (o.receiptSeq && o.receiptDay ? `Receipt_$
 const esc = (s: any) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 
 // The roll in this printer: its width and how far the print is moved to the right. A 58 mm roll in an 80 mm printer often sits against one side, so the left of every line would print in the air.
-// A property of the printer on this PC, so it is saved in this browser, not on the server.
+// Kept in this browser for the printing code, and shared through the server (syncReceiptSettings) so every browser of the shop prints the same.
 export interface ReceiptPaper { widthMm: number; shiftMm: number }
 const PAPER_KEY = "rw.receipt.paper";
 const DEFAULT_PAPER: ReceiptPaper = { widthMm: 80, shiftMm: 0 };
@@ -49,9 +50,33 @@ export function getReceiptCopies(): ReceiptCopies {
 }
 export function saveReceiptCopies(copies: ReceiptCopies) {
   try { localStorage.setItem(COPIES_KEY, copies); } catch { /* storage blocked: the choice lasts until the page is closed */ }
+  void shareReceiptSettings();
 }
 export function saveReceiptPaper(paper: ReceiptPaper) {
   try { localStorage.setItem(PAPER_KEY, JSON.stringify(paper)); } catch { /* storage blocked: the choice lasts until the page is closed */ }
+  void shareReceiptSettings();
+}
+
+const PAPER_URL = "/api/reborn/pos/receipt-paper";
+const hasOwnPaper = () => { try { return localStorage.getItem(PAPER_KEY) !== null; } catch { return false; } };
+// Tells the server what this browser prints with (a failure is ignored: the browser keeps its own choice).
+async function shareReceiptSettings() {
+  const paper = getReceiptPaper();
+  try { await apiRequest("PUT", PAPER_URL, { widthMm: paper.widthMm, shiftMm: paper.shiftMm, copies: getReceiptCopies() }); } catch { /* offline or not allowed */ }
+}
+// Opening the POS: take the shop's saved roll and copies (a browser that never set them prints the same as the others); a browser that has its own
+// choice while the shop has none teaches the server, so the first good setting reaches every other browser.
+export async function syncReceiptSettings(): Promise<boolean> {
+  try {
+    const saved = await (await apiRequest("GET", PAPER_URL)).json();
+    if (saved && Number(saved.widthMm) >= 40) {
+      localStorage.setItem(PAPER_KEY, JSON.stringify({ widthMm: Number(saved.widthMm), shiftMm: Number(saved.shiftMm) || 0 }));
+      localStorage.setItem(COPIES_KEY, saved.copies === "two" ? "two" : "one");
+      return true;
+    }
+    if (hasOwnPaper()) await shareReceiptSettings();
+  } catch { /* offline: keep what this browser has */ }
+  return false;
 }
 const NARROW_PAPER_MM = 60;
 const NARROW_SIDE_PADDING_MM = 1.5;
