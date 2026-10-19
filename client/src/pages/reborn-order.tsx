@@ -1,3 +1,4 @@
+import { ScanFirstCard } from "@/components/VenueScan";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -71,6 +72,8 @@ export default function RebornOrder() {
         <span className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "rgba(78,205,196,0.15)", color: "#4ecdc4" }}><Utensils className="w-5 h-5" /></span>
         <div><h1 className="text-xl font-extrabold leading-none">{t("vn.order.heading")}</h1><p className="text-sm text-white/50">{t("vn.order.payAtTable")}</p></div>
       </div>
+
+      <ScanFirstCard show={!!venue && !venue.checkedIn} what="food" />
 
       {myOrders.filter((o) => o.status === "open").length > 0 && (
         <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-3 space-y-2">

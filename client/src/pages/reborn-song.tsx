@@ -1,3 +1,4 @@
+import { ScanFirstCard } from "@/components/VenueScan";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -44,13 +45,7 @@ function useSongQueueInfo() {
 }
 function TableScanNotice({ qi }: { qi: any }) {
   const { t } = useTranslation();
-  if (qi?.needTable) return (
-    <a href="/kos" className="block mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3.5">
-      <span className="block font-bold text-amber-200">📷 {t("vn.song.needTableTitle")}</span>
-      <span className="block text-xs text-white/65 mt-1">{t("vn.song.needTableBody")}</span>
-      <span className="inline-block mt-2 px-3 py-1.5 rounded-lg bg-amber-300 text-black text-xs font-bold">{t("vn.kos.scanTableQr")}</span>
-    </a>
-  );
+  if (qi?.needTable) return <ScanFirstCard show what="song" />;
   if (qi?.mode === "table" && qi?.table) return <p className="mb-3 text-xs font-bold text-emerald-300">✓ {t("vn.kos.checkedInTable", { t: qi.table })}</p>;
   return null;
 }

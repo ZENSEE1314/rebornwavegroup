@@ -92,6 +92,25 @@ export function CallServiceCard() {
   );
 }
 
+// "Scan your table QR to <do this>": shown on the pages that need a check-in (songs, food, gifts) while the member has not scanned yet; the button opens the camera right here.
+export function ScanFirstCard({ show, what }: { show: boolean; what: "song" | "food" | "gift" }) {
+  const { t } = useTranslation();
+  const [scanning, setScanning] = useState(false);
+  const checkIn = useVenueCheckIn();
+  if (!show) return null;
+  const action = t(`vn.scanFirst.${what}`);
+  return (
+    <>
+      <div className="mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3.5">
+        <span className="block font-bold text-amber-200">📷 {t("vn.scanFirst.title", { what: action })}</span>
+        <span className="block text-xs text-white/65 mt-1">{t("vn.scanFirst.body", { what: action })}</span>
+        <button type="button" onClick={() => setScanning(true)} className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-300 px-3 py-2 text-xs font-bold text-black">📷 {t("vn.kos.scanTableQr")}</button>
+      </div>
+      {scanning && <VenueScanner onClose={() => setScanning(false)} onDetect={(code) => { setScanning(false); checkIn(code); }} />}
+    </>
+  );
+}
+
 export function ScanTableCard() {
   const { t } = useTranslation();
   const [scanning, setScanning] = useState(false);

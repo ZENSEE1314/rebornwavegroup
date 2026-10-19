@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
 import { sfx } from "@/lib/sfx";
-import { VenueScanner, useVenueCheckIn } from "@/components/VenueScan";
+import { VenueScanner, useVenueCheckIn, ScanFirstCard } from "@/components/VenueScan";
 import { TableQrSheet } from "@/components/TableQrs";
 import { LevelAvatar, LevelChips, GifterPodium } from "@/components/LevelRing";
 import doluruuImg from "@assets/Doluruu Boy_1749664545355.png";
@@ -150,13 +150,8 @@ export default function RebornKos() {
         <p className="text-white/50 text-[11px] mt-2.5 text-center">{t("vn.kos.rateInfo", { per: wallet?.kgoldPerRp ?? 100, pct: 100 - (wallet?.feePercent ?? 30) })}</p>
       </div>
 
+      <ScanFirstCard show={!!venue && !venue.checkedIn} what="gift" />
       {/* Venue check-in */}
-      {venue && !venue.checkedIn && (
-        <button onClick={() => setScanning(true)} className="arc-room-row kos-checkin w-full mb-4 text-left" style={{ ["--c1" as any]: "#f3b52f", ["--c" as any]: "#f3b52f" }}>
-          <span className="arc-icon shrink-0" style={{ width: 46, height: 46, fontSize: 22, ["--c1" as any]: "#ffe89a", ["--c2" as any]: "#f3b52f" }}><span>📷</span></span>
-          <span className="min-w-0"><span className="block font-black italic uppercase tracking-wide">{t("vn.kos.scanVenueQr")}</span><span className="block text-xs text-white/55">{t("vn.kos.scanHint")}</span></span>
-        </button>
-      )}
       {venue?.checkedIn && <div className="flex flex-wrap items-center gap-2 mb-4">
         <p className="arc-badge" style={{ ["--c1" as any]: "#22c55e", marginTop: 0 }}><CheckCircle2 className="w-4 h-4" /> {venue.table ? t("vn.kos.checkedInTable", { t: venue.table }) : t("vn.kos.checkedInToday")}</p>
         {!venue.table && <button onClick={() => setScanning(true)} className="text-xs font-bold text-amber-300 underline">{t("vn.kos.scanTableQr")}</button>}
