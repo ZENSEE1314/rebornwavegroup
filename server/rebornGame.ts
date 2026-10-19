@@ -2823,6 +2823,24 @@ export function registerRebornRoutes(app: Express) {
     emitLiveUpdate("/api/reborn/song-queue", { action: "CONTROL" });
     res.json({ ok: true });
   }));
+  // Buttons for everyone at the venue (checked in): pause / play, mute, volume of the music and the microphone. Skip, repeat and the singer's voice stay with the person whose song it is (and staff).
+  const MEMBER_BOX_CONTROLS = new Set(["pause", "mute", "musicUp", "musicDown", "micUp", "micDown"]);
+  const MEMBER_PRESS_GAP_MS = 1200;
+  const lastMemberPress = new Map<string, number>();
+  app.post("/api/reborn/songs/box-control", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const control = req.body?.action;
+    if (!isBoxControl(control) || !MEMBER_BOX_CONTROLS.has(control)) return res.status(400).json({ message: tr(req, { en: "Unknown button", zh: "未知按钮", id: "Tombol tidak dikenal" }) });
+    if (!(await activeCheckin(userId).catch(() => null))) return res.status(403).json({ needTable: true, message: tr(req, { en: "Scan the QR code on your table first to use the controls.", zh: "请先扫描桌上的二维码再使用控制。", id: "Pindai kode QR di mejamu dulu untuk memakai kontrol." }) });
+    const key = String(await rebornCompanyId(req));
+    if (!isBoxOnline(key)) return res.status(503).json({ message: tr(req, { en: "The song system is offline.", zh: "点歌系统离线。", id: "Sistem lagu offline." }) });
+    const last = lastMemberPress.get(userId) || 0;
+    if (Date.now() - last < MEMBER_PRESS_GAP_MS) return res.status(429).json({ message: tr(req, { en: "One moment, then press again.", zh: "请稍等片刻再按。", id: "Tunggu sebentar lalu tekan lagi." }) });
+    lastMemberPress.set(userId, Date.now());
+    if (!boxControls.push(key, control)) return res.status(429).json({ message: tr(req, { en: "Too many presses are waiting.", zh: "等待的按键过多。", id: "Terlalu banyak tombol menunggu." }) });
+    emitLiveUpdate("/api/reborn/song-queue", { action: "CONTROL" });
+    res.json({ ok: true });
+  });
   // Remove or move up one song that was ordered on the box itself (admin / staff): the bridge presses Del1 / Pro2 with the box's own number for it.
   app.post("/api/reborn/admin/karaoke/box-song", requireStaff(async (req, res) => {
     const { action, id } = req.body || {};

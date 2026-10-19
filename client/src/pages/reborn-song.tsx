@@ -73,6 +73,27 @@ function NowSinging({ onOpen }: { onOpen: () => void }) {
     </button>
   );
 }
+// Buttons for everyone at the venue: pause / play, mute and the volume of the music and the microphone (the box's own phone page has the same).
+const MEMBER_CONTROLS = [["pause", "vn.song.ctlPause"], ["mute", "vn.song.ctlMute"], ["musicDown", "vn.song.ctlMusicDown"], ["musicUp", "vn.song.ctlMusicUp"], ["micDown", "vn.song.ctlMicDown"], ["micUp", "vn.song.ctlMicUp"]] as const;
+function MemberControls() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const press = useMutation({
+    mutationFn: (action: string) => apiRequest("POST", "/api/reborn/songs/box-control", { action }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onError: (e: any) => toast({ title: t("vn.common.failed"), description: errText(e), variant: "destructive" }),
+  });
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-3">
+      <p className="mb-2 text-xs font-bold text-white/60">🎚️ {t("vn.song.ctlTitle")}</p>
+      <div className="grid grid-cols-3 gap-2">
+        {MEMBER_CONTROLS.map(([action, label]) => (
+          <button key={action} type="button" onClick={() => press.mutate(action)} disabled={press.isPending} className="rounded-xl bg-white/10 px-2 py-2.5 text-xs font-bold">{t(label)}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function QueueBoard() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -128,6 +149,7 @@ function QueueBoard() {
           {r.position === 1 && <span className="text-[10px] font-bold text-emerald-300 flex-shrink-0">{t("vn.song.upNext")}</span>}
         </div>
       ))}
+      <MemberControls />
       {onBoxWaiting.length > 0 && (
         <div className="pt-2">
           <p className="px-1 pb-1 text-xs font-bold text-white/50">{t("vn.song.onSystem")}</p>
