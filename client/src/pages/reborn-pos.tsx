@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -251,6 +252,46 @@ function billTotals(subtotal: number, discount: number, settings: any) {
   const serviceFee = roundMoney(taxable * (Number(settings?.serviceFeePercent) || 0) / 100);
   const tax = roundMoney(taxable * (Number(settings?.taxPercent) || 0) / 100);
   return { taxable, serviceFee, tax, total: taxable + serviceFee + tax };
+}
+
+// Edit one bill line in an in-app box (a phone browser blocks prompt()): the price of one, the quantity, a discount (% or RP off the line) or "at cost".
+function LineEditDialog({ item, onSave, onCancel }: { item: any; onSave: (body: any) => void; onCancel: () => void }) {
+  const { t } = useTranslation();
+  const role = useAdminRole();
+  const canLower = role === "admin" || role === "manager";
+  const [price, setPrice] = useState(String(Number(item.price)));
+  const [qty, setQty] = useState(String(item.qty));
+  const [percent, setPercent] = useState("");
+  const [amount, setAmount] = useState("");
+  const [isAtCost, setIsAtCost] = useState(false);
+  const unit = Number(price) || 0;
+  const count = Math.max(1, Math.floor(Number(qty) || 1));
+  const afterPercent = roundMoney(unit * (1 - Math.min(100, Math.max(0, Number(percent) || 0)) / 100));
+  const preview = isAtCost ? null : Math.max(0, roundMoney(afterPercent * count - Math.max(0, Number(amount) || 0)));
+  const input = "w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm";
+  const save = () => onSave({ price: unit, qty: count, ...(isAtCost ? { atCost: true } : {}), ...(Number(percent) > 0 ? { discountPercent: Number(percent) } : {}), ...(Number(amount) > 0 ? { discountAmount: Number(amount) } : {}) });
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 text-white" onClick={onCancel} role="dialog" aria-modal="true">
+      <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#160f2a] p-4" onClick={(event) => event.stopPropagation()}>
+        <p className="font-bold">{t("pos.line.title", { name: item.name })}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="text-[11px] text-white/55">{t("pos.line.price")}<input type="number" min={0} value={price} onChange={(e) => { setPrice(e.target.value); setIsAtCost(false); }} className={input} /></label>
+          <label className="text-[11px] text-white/55">{t("pos.line.qty")}<input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} className={input} /></label>
+          {canLower && <>
+            <label className="text-[11px] text-white/55">{t("pos.line.percent")}<input type="number" min={0} max={100} value={percent} onChange={(e) => setPercent(e.target.value)} placeholder="0" className={input} /></label>
+            <label className="text-[11px] text-white/55">{t("pos.line.amount")}<input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className={input} /></label>
+          </>}
+        </div>
+        {canLower && <button type="button" onClick={() => setIsAtCost(!isAtCost)} className={`mt-2 w-full rounded-xl border py-2 text-xs font-bold ${isAtCost ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/70"}`}>{t("pos.line.atCost")}</button>}
+        <p className="mt-2 text-xs text-white/60">{isAtCost ? t("pos.line.atCostNote") : t("pos.line.preview", { total: rp(preview ?? 0) })}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onCancel} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">{t("pos.item.dialogCancel")}</button>
+          <button type="button" onClick={save} className="rounded-xl bg-amber-400 py-2.5 text-sm font-bold text-black">{t("pos.line.save")}</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 function ClosePosDay() {
@@ -560,6 +601,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSettled: () => { invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
   });
   const [ask, setAsk] = useState<{ kind: "remove" | "lose"; item: any } | null>(null);
+  const [lineEdit, setLineEdit] = useState<any>(null);
   // Removing or losing a line shows at once (the bill and the total follow); the server's answer then confirms it, or the line comes back.
   const itemEdit = useMutation({
     mutationFn: (v: { id: number; op: string; body?: any }) => post(`/api/reborn/pos/items/${v.id}/${v.op}`, v.body || {}),
@@ -646,8 +688,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                       <div className="flex flex-wrap gap-1.5 pb-1">
                         {it.status === "ready" && <><span className="ml-1 text-[10px] text-pink-300">{t("pos.item.ready")}{it.readyByName ? ` · ${t("pos.item.by2", { n: it.readyByName })}` : ""}</span> <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-emerald-500 text-black">{t("pos.item.collected")}</button></>}
                         {it.status === "accepted" && <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/70">{t("pos.item.markServed")}</button>}
-                        <button onClick={() => { const p = prompt(t("pos.item.pricePrompt", { name: it.name }), String(Number(it.price))); if (p !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { price: Number(p) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.item.price")}</button>
-                        <button onClick={() => { const q = prompt(t("pos.item.qtyPrompt", { name: it.name }), String(it.qty)); if (q !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { qty: Number(q) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.qtyShort")}</button>
+                        <button onClick={() => setLineEdit(it)} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.line.edit")}</button>
                         <button onClick={() => { const tn = prompt(t("pos.item.movePrompt", { name: it.name }), ""); if (tn && tn.trim()) itemEdit.mutate({ id: it.id, op: "move", body: { tableNumber: tn.trim() } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">{t("pos.item.move")}</button>
                         <button onClick={() => setAsk({ kind: "remove", item: it })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-red-500/15 text-red-200">{t("pos.item.remove")}</button>
                         {it.status !== "pending" && <button onClick={() => setAsk({ kind: "lose", item: it })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-orange-500/15 text-orange-200">{t("pos.item.lose")}</button>}
@@ -712,6 +753,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
         </div>
       </div>
       {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>{setReceiptResult(null);invalidate();onBack();}} />}
+      {lineEdit && <LineEditDialog item={lineEdit} onCancel={() => setLineEdit(null)} onSave={(body) => { itemEdit.mutate({ id: lineEdit.id, op: "edit", body }); setLineEdit(null); }} />}
       {ask && <ReasonDialog
         title={t(ask.kind === "lose" ? "pos.item.loseTitle" : "pos.item.removeTitle", { name: ask.item.name })}
         hint={ask.kind === "lose" ? t("pos.item.loseHint") : undefined}
