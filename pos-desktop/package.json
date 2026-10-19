@@ -16,7 +16,7 @@
     "appId": "group.rebornwave.pos",
     "productName": "Reborn POS",
     "artifactName": "RebornPOS-Setup.${ext}",
-    "files": ["main.js", "preload.js", "settings.html"],
+    "files": ["main.js", "preload.js", "escpos.js", "settings.html"],
     "win": { "target": "nsis" },
     "nsis": { "oneClick": true, "perMachine": false, "runAfterFinish": true, "createDesktopShortcut": true }
   }

@@ -24,6 +24,12 @@
   <input id="drawer" type="text" placeholder="192.168.1.87" />
   <div class="note">The drawer plugs into the printer; the app sends the open signal to this address over your network. Leave empty if the drawer opens by the printer driver.</div>
 
+  <label><input id="direct" type="checkbox" /> Print directly to the printer address above (recommended: no Windows printer driver, nothing gets cut)</label>
+  <label for="width">Width that prints, in mm (48 for 55-58 mm paper, 72 for 80 mm paper)</label>
+  <input id="width" type="text" />
+  <label for="left">Gap from the left edge of the printer head, in mm (0 unless a narrow roll sits to one side)</label>
+  <input id="left" type="text" />
+
   <label for="url">POS address</label>
   <input id="url" type="text" />
 
@@ -32,6 +38,7 @@
   <div>
     <button id="save">Save</button>
     <button id="test" class="alt">Test the drawer</button>
+    <button id="slip" class="alt">Print a test slip</button>
   </div>
   <div id="msg"></div>
 
@@ -46,10 +53,19 @@
     $("drawer").value = config.drawerIp || "";
     $("url").value = config.url;
     $("full").checked = !!config.fullScreen;
+    $("direct").checked = !!config.directPrint;
+    $("width").value = config.printWidthMm;
+    $("left").value = config.printLeftMm;
   })();
+  const values = () => ({ printerName: $("printer").value, drawerIp: $("drawer").value, url: $("url").value, fullScreen: $("full").checked, directPrint: $("direct").checked, printWidthMm: Number($("width").value), printLeftMm: Number($("left").value) });
   $("save").onclick = async () => {
-    await window.rebornDesktop.setConfig({ printerName: $("printer").value, drawerIp: $("drawer").value, url: $("url").value, fullScreen: $("full").checked });
+    await window.rebornDesktop.setConfig(values());
     say("Saved.");
+  };
+  $("slip").onclick = async () => {
+    await window.rebornDesktop.setConfig(values());
+    const result = await window.rebornDesktop.testPrint();
+    say(result.ok ? "Test slip sent." : "Could not print: " + result.error, !result.ok);
   };
   $("test").onclick = async () => {
     await window.rebornDesktop.setConfig({ drawerIp: $("drawer").value });

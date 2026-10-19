@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld("rebornDesktop", {
   setConfig: (next) => ipcRenderer.invoke("reborn:config:set", next),
   printers: () => ipcRenderer.invoke("reborn:printers"),
   testDrawer: () => ipcRenderer.invoke("reborn:testDrawer"),
+  testPrint: () => ipcRenderer.invoke("reborn:testPrint"),
 });

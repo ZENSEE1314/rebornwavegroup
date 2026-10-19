@@ -4,6 +4,7 @@ const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
 const fs = require("fs");
 const net = require("net");
 const path = require("path");
+const { printDirect } = require("./escpos");
 
 const DEFAULT_URL = "https://rebornwave.group/pos";
 const PRINTER_PORT = 9100; // raw printing port of a network receipt printer
@@ -12,7 +13,7 @@ const DRAWER_TIMEOUT_MS = 3000;
 const PRINT_WINDOW_MS = 20000;
 
 const configFile = () => path.join(app.getPath("userData"), "config.json");
-const DEFAULTS = { url: DEFAULT_URL, printerName: "", drawerIp: "", fullScreen: true };
+const DEFAULTS = { url: DEFAULT_URL, printerName: "", drawerIp: "", fullScreen: true, directPrint: false, printWidthMm: 48, printLeftMm: 0 };
 const readConfig = () => { try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(configFile(), "utf8")) }; } catch { return { ...DEFAULTS }; } };
 const writeConfig = (next) => { fs.mkdirSync(path.dirname(configFile()), { recursive: true }); fs.writeFileSync(configFile(), JSON.stringify({ ...readConfig(), ...next }, null, 2)); };
 
@@ -41,8 +42,10 @@ function openSettings() {
 
 // A receipt: loaded into a hidden window and printed with no dialog on the chosen printer (the default one when none is chosen).
 function printHtml(html) {
+  const config = readConfig();
+  // Direct printing: the receipt is drawn as a picture and sent to the printer's own port, so no Windows driver, paper size or print scaling can cut it.
+  if (config.directPrint && config.drawerIp) return printDirect(html, { host: config.drawerIp, widthMm: Number(config.printWidthMm) || 48, leftMm: Number(config.printLeftMm) || 0 }).catch((error) => ({ ok: false, error: String(error.message || error) }));
   return new Promise((resolve) => {
-    const config = readConfig();
     const win = new BrowserWindow({ show: false, webPreferences: { offscreen: false, sandbox: true } });
     const timer = setTimeout(() => { win.destroy(); resolve({ ok: false, error: "timeout" }); }, PRINT_WINDOW_MS);
     win.webContents.on("did-finish-load", () => {
@@ -74,12 +77,21 @@ ipcMain.handle("reborn:config:set", (_event, next) => {
   if (typeof next.printerName === "string") clean.printerName = next.printerName;
   if (typeof next.drawerIp === "string") clean.drawerIp = next.drawerIp.trim();
   if (typeof next.fullScreen === "boolean") clean.fullScreen = next.fullScreen;
+  if (typeof next.directPrint === "boolean") clean.directPrint = next.directPrint;
+  if (Number(next.printWidthMm) >= 20 && Number(next.printWidthMm) <= 80) clean.printWidthMm = Number(next.printWidthMm);
+  if (Number(next.printLeftMm) >= 0 && Number(next.printLeftMm) <= 40) clean.printLeftMm = Number(next.printLeftMm);
   writeConfig(clean);
   if (main) { main.setFullScreen(readConfig().fullScreen); main.loadURL(readConfig().url); }
   return readConfig();
 });
 ipcMain.handle("reborn:printers", async () => (main ? (await main.webContents.getPrintersAsync()).map((p) => ({ name: p.name, isDefault: !!p.isDefault })) : []));
 ipcMain.handle("reborn:testDrawer", () => openDrawer());
+// A test slip with a frame, a ruler and the widest lines a receipt has, to see at once whether anything is cut.
+ipcMain.handle("reborn:testPrint", () => {
+  const ruler = Array.from({ length: 9 }, (_, i) => `<span style="position:absolute;left:${i * 10}mm;top:0;border-left:2px solid #000;height:${i % 2 ? 4 : 7}mm"></span>${i % 2 === 0 ? `<span style="position:absolute;left:${i * 10}mm;top:8mm;font-size:11px">${i * 10}</span>` : ""}`).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box;font-family:'Courier New',monospace;font-weight:700} body{padding:4mm 1.5mm} .row{display:flex;justify-content:space-between;font-size:12px;line-height:1.5} .box{border:2px solid #000;padding:2mm;margin:2mm 0}</style></head><body><div class="box"><div class="row"><span>LEFT EDGE</span><span>RIGHT EDGE</span></div><div class="row"><span>1x Heineken Beer PINT</span><span>RP 300,000</span></div><div class="row"><span>TOTAL</span><span>RP 2,016,000</span></div></div><div style="position:relative;height:13mm;margin-top:2mm">${ruler}</div><div class="row"><span>If the box is whole,</span></div><div class="row"><span>nothing is cut.</span></div></body></html>`;
+  return printHtml(html);
+});
 
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 else {
