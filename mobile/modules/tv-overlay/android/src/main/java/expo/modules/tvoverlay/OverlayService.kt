@@ -86,6 +86,7 @@ class OverlayService : Service() {
         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
       PixelFormat.TRANSLUCENT,
     )
+    params.alpha = TOUCH_PASS_THROUGH_ALPHA // Android 12+ drops taps that pass through another app's window more opaque than this
     manager.addView(view, params)
     web = view
     view.loadUrl(url)
@@ -115,6 +116,7 @@ class OverlayService : Service() {
     private const val CHANNEL = "overlay"
     private const val NOTIFICATION_ID = 1
     private const val RELOAD_AFTER_MS = 10_000L
+    private const val TOUCH_PASS_THROUGH_ALPHA = 0.79f
     private const val EXTRA_URL = "url"
     private const val PREFS = "tv_overlay"
     private const val KEY_URL = "url"

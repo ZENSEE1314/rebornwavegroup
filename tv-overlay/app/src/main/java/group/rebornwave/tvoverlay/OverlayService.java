@@ -32,6 +32,7 @@ public class OverlayService extends Service {
     private static final String CHANNEL = "overlay";
     private static final int NOTIFICATION_ID = 1;
     private static final long RELOAD_AFTER_MS = 10_000;
+    private static final float TOUCH_PASS_THROUGH_ALPHA = 0.79f;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WindowManager windows;
@@ -111,6 +112,7 @@ public class OverlayService extends Service {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
+        params.alpha = TOUCH_PASS_THROUGH_ALPHA; // Android 12+ drops taps that pass through another app's window more opaque than this
         windows.addView(web, params);
         web.loadUrl(Link.pageUrl(this));
     }
