@@ -20,7 +20,10 @@ function reloadForNewVersion(): boolean {
     if (Date.now() - last < 30_000) return false; // already tried just now → show the error
     sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
   } catch { /* storage blocked: still reload once */ }
-  window.location.reload();
+  // The saved copy of the app (service worker) would hand back the same old page after the reload: drop it first.
+  const reload = () => window.location.reload();
+  if (typeof caches !== "undefined") caches.keys().then((names) => Promise.all(names.filter((n) => n.startsWith("rw-shell")).map((n) => caches.delete(n)))).then(reload, reload);
+  else reload();
   return true;
 }
 function lazy<T extends ComponentType<any>>(load: () => Promise<{ default: T }>) {

@@ -10,7 +10,7 @@ self.addEventListener("activate", (e) => e.waitUntil(
 // ── Offline POS ─────────────────────────────────────────────────────────────
 // The app shell, the built files (/assets, named by their content) and the few GET answers the POS needs are kept, so the POS opens and
 // sells with no internet. Selling itself is queued by the page (client/src/lib/offline-sales.ts); nothing that writes is ever answered from here.
-const SHELL = "rw-shell-v2"; // a new name drops the pages and files saved by an older version
+const SHELL = "rw-shell-v3"; // a new name drops the pages and files saved by an older version
 const API = "rw-api-v1";
 const SHELL_KEY = "/__shell";
 const NAVIGATE_TIMEOUT_MS = 10000; // a slow (not offline) connection still gets the newest page
@@ -23,7 +23,7 @@ const API_MAX_ENTRIES = 300;
 const API_MAX_BYTES = 1500000;
 const NEVER_KEEP = /^\/api\/(auth\/(?!user$)|logout|karaoke|tv\/|venue-bridge|meta|whatsapp|telegram|client-error)|\/(stream|token|tokens|secret|password|pdf|qr|download|export|backups?|invite|contracts|my-employment|payslips|staff-hr|crm|chat|messages)(\/|$)|\/pos\/member(s|\/)?|\/id\//i;
 const STATIC_FILE = /^\/(assets\/|icon-|apple-touch-icon)/;
-const NOT_THE_APP = /^\/(api\/|\.well-known\/)/; // downloads, sign-in returns and the like are never answered with the saved page
+const NOT_THE_APP = /^\/(api\/|\.well-known\/|reset$|overlay)/; // downloads, sign-in returns and the like are never answered with the saved page
 
 function fetchWithin(request, ms) {
   const controller = new AbortController();

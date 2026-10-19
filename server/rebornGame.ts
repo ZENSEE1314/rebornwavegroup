@@ -2884,6 +2884,10 @@ export function registerRebornRoutes(app: Express) {
   }));
   // One-click setup of the bridge on a venue PC: the program itself (no secrets in it) and a setup file holding this company's address + token.
   // A short address to type on a box or TV: rebornwave.group/overlay downloads the gift overlay app (built by GitHub from tv-overlay/).
+  // rebornwave.group/reset: tells the browser to forget the saved copy of the site (cache, service worker, stored data) and opens it again. For a browser that keeps loading.
+  app.get("/reset", (_req, res) => {
+    res.set({ "Clear-Site-Data": '"cache", "storage"', "Cache-Control": "no-store" }).type("html").send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="2;url=/"><body style="font-family:sans-serif;background:#0a0714;color:#fff;text-align:center;padding:3rem 1rem"><h2>Cleaned.</h2><p>Opening Reborn Wave again…</p><p><a style="color:#fcd34d" href="/">Open now</a></p></body>');
+  });
   app.get(["/overlay", "/overlay.apk"], (_req, res) => res.redirect(302, OVERLAY_APK_URL));
   app.get("/api/karaoke/bridge.mjs", async (_req, res) => {
     try {
