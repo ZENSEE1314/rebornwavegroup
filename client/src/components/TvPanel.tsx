@@ -12,6 +12,7 @@ interface Screen { id: string; token: string; name: string; view: TvView; tables
 const VIEWS: TvView[] = ["overlay", "queue", "gifts", "off"];
 const DEFAULT_MAX_SCREENS = 12;
 const NOTICE_MS = 4000;
+const OVERLAY_SETTLE_MS = 800;
 const OVERLAY_APP_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-latest/reborn-tv-overlay.apk"; // built by GitHub from tv-overlay/
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
 const field = "min-w-0 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60";
@@ -24,10 +25,26 @@ const tvAddress = (token: string) => {
 };
 const tablesText = (tables: string[]) => tables.join(", ");
 
+// The Reborn app's own overlay (window.__rebornOverlay, only inside the Android app): draws a TV screen over everything on this device.
+interface OverlayStatus { canDraw: boolean; running: boolean; url: string }
+type OverlayBridge = (action: string, url?: string) => Promise<OverlayStatus | true>;
+const overlayBridge = (): OverlayBridge | null => (window as unknown as { __rebornOverlay?: OverlayBridge }).__rebornOverlay ?? null;
+
 export default function TvPanel() {
   const { t } = useTranslation();
   const [screens, setScreens] = useState<Screen[]>([]);
   const [max, setMax] = useState(DEFAULT_MAX_SCREENS);
+  const [overlay, setOverlay] = useState<OverlayStatus | null>(null);
+  const refreshOverlay = async () => {
+    const bridge = overlayBridge();
+    if (!bridge) return;
+    try { setOverlay((await bridge("status")) as OverlayStatus); } catch (error) { say(String((error as Error).message || error)); }
+  };
+  const runOverlay = async (action: string, url = "") => {
+    try { await overlayBridge()?.(action, url); } catch (error) { say(String((error as Error).message || error)); }
+    window.setTimeout(refreshOverlay, OVERLAY_SETTLE_MS);
+  };
+  useEffect(() => { void refreshOverlay(); }, []);
   const [tableDrafts, setTableDrafts] = useState<Record<string, string>>({});
   const [qrFor, setQrFor] = useState<string | null>(null); // the TV whose address QR is open
   const [codes, setCodes] = useState<Record<string, string>>({}); // the code typed for each TV screen
@@ -125,6 +142,20 @@ export default function TvPanel() {
   return (
     <div className="space-y-4">
       <NearbyDevices kind="tv" onAdd={addScreen} />
+      {overlay && (
+        <div className={card}>
+          <h3 className="font-bold mb-1">{t("admin.tv.devTitle")}</h3>
+          <p className="text-[11px] text-white/60">{t("admin.tv.devIntro")}</p>
+          <p className="mt-2 text-xs">{overlay.running ? `✅ ${t("admin.tv.devRunning")}` : `⏹ ${t("admin.tv.devStopped")}`}{overlay.canDraw ? "" : ` · ⚠️ ${t("admin.tv.devNotAllowed")}`}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!overlay.canDraw && <button type="button" className={button} onClick={() => runOverlay("permission")}>1. {t("admin.tv.devAllow")}</button>}
+            {screens.filter((screen) => screen.token).map((screen) => (
+              <button key={screen.id} type="button" className={button} disabled={!overlay.canDraw} onClick={() => runOverlay("start", tvAddress(screen.token))}>▶ {t("admin.tv.devShow", { name: screen.name })}</button>
+            ))}
+            {overlay.running && <button type="button" className={button} onClick={() => runOverlay("stop")}>⏹ {t("admin.tv.devStop")}</button>}
+          </div>
+        </div>
+      )}
       <div className={card}>
         <h3 className="font-bold mb-1">{t("admin.tv.overlayTitle")}</h3>
         <p className="text-[11px] text-white/60">{t("admin.tv.overlayIntro")}</p>

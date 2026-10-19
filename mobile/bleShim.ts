@@ -3,6 +3,7 @@
 // (mobile/ble.ts) through `ReactNativeWebView.postMessage`. The page's own code does not change.
 //
 // Page → app:  { ble: true, id, op, args }          op: scan | connect | disconnect | services | write
+// Also: window.__rebornOverlay(action, url) shows a TV screen over everything on this device (mobile/tvOverlay.ts).
 // Also: window.__rebornLanScan() asks the app to scan the Wi-Fi network for cameras and TVs (mobile/lanScan.ts).
 // App → page:  window.__rebornBleReply(id, ok, payload)  and  window.__rebornBleEvent(deviceId, "gattserverdisconnected")
 export const BLE_SHIM = `
@@ -34,6 +35,8 @@ export const BLE_SHIM = `
 
   // The phone scans its Wi-Fi for CCTV cameras and TVs; resolves with [{ ip, kind, name, model, rtsp, via }].
   window.__rebornLanScan = function () { return call("lanScan", {}); };
+  // The gift overlay on this device: action = status | permission | start (with the TV screen address) | stop.
+  window.__rebornOverlay = function (action, url) { return call("overlay", { action: action, url: url || "" }); };
   if (navigator.bluetooth) return;
 
   function toBase64(value) {
