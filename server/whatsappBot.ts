@@ -34,6 +34,7 @@ const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
 const DEFAULT_PASSWORD = "123456";
 const WEBSITE_ADDRESS = "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront – Batam Centre, Blok A No. 51, Sadai, Bengkong, Batam City, Riau Islands 29444";
 const HOUR_MS = 3600_000;
+const RETRY_FAILED_REMINDER_MS = 6 * HOUR_MS; // a reminder WhatsApp refused is tried again after this long
 const DAY_MS = 24 * HOUR_MS;
 
 // Where another company's members open their app when it has no domain of its own.
@@ -2330,6 +2331,8 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
       const blang = await langForPhone(phone, b.userId);
       const ok = await sendWhatsApp(phone, L(blang, "bottle", { name: b.memberName || "", item: b.name, qty: String(b.quantity), days: String(daysLeft) }));
       if (ok) { await db.update(bottleKeeps).set({ lastReminderAt: new Date() }).where(eq(bottleKeeps.id, b.id)); out.bottles++; }
+      // A message WhatsApp refused is tried again in 6 hours, not at every run (it used to fail and fill the error list every hour).
+      else await db.update(bottleKeeps).set({ lastReminderAt: new Date(now - gapNeeded + RETRY_FAILED_REMINDER_MS) }).where(eq(bottleKeeps.id, b.id));
     }
   } catch (e) { waError("bottle reminders", e); }
 
