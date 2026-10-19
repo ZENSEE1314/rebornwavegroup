@@ -1,0 +1,44 @@
+# Builds the offline version of the app for a venue PC (venue/pack.mjs: Node, the built app and the local database engine in one zip) and publishes it as the
+# release "venue-latest": https://github.com/ZENSEE1314/rebornwavegroup/releases/download/venue-latest/RebornVenue-windows.zip
+# Shown to admins in Admin > Settings > Venue server and on the POS page; the short address is <site>/venue-pc.
+name: Venue PC pack
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["venue/pack.mjs", "venue/start-venue.mjs", "venue/package.json", "venue/package-lock.json", ".github/workflows/venue-pack.yml"]
+  schedule:
+    - cron: "0 20 * * 0" # every Sunday, so the download is never far behind the app
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Build the pack
+        run: node venue/pack.mjs
+        env:
+          PACK_OUT: ${{ runner.temp }}\venue-pack
+
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACK_OUT: ${{ runner.temp }}\venue-pack
+        run: |
+          ZIP="$(cygpath -u "$PACK_OUT")/RebornVenue-windows.zip"
+          ls -la "$ZIP"
+          gh release view venue-latest >/dev/null 2>&1 || gh release create venue-latest --title "Reborn venue server (offline version for a PC)" --notes "Download RebornVenue-windows.zip and follow READ ME FIRST.txt inside. See Admin > Settings > Venue server." --latest=false
+          gh release upload venue-latest "$ZIP" --clobber

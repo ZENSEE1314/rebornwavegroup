@@ -235,6 +235,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.line.atCostNote': { en: 'The price becomes the item\'s cost.', zh: '价格将变为该商品的成本。', id: 'Harga menjadi harga modal item.' },
   'pos.line.preview': { en: 'This line will be {total}', zh: '此行将为 {total}', id: 'Baris ini menjadi {total}' },
   'pos.line.save': { en: 'Save', zh: '保存', id: 'Simpan' },
+  'pos.offlineDownload': { en: 'Offline version for a PC (download)', zh: '电脑离线版（下载）', id: 'Versi offline untuk PC (unduh)' },
   'pos.discount': { en: 'Discount', zh: '折扣', id: 'Diskon' },
   'pos.discountRp': { en: 'Discount (RP)', zh: '折扣（RP）', id: 'Diskon (RP)' },
   'pos.rpAmount': { en: 'RP amount', zh: 'RP 金额', id: 'Jumlah RP' },

@@ -49,6 +49,7 @@ export function VenueSyncCard() {
     <div className={card}>
       <h3 className="font-bold mb-1">🏠 {t("admin.venue.titleCloud")}</h3>
       <p className="text-[11px] text-white/50 mb-2">{t("admin.venue.cloudHint")}</p>
+      <a href="/venue-pc" className="mb-3 inline-flex items-center gap-1.5 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-bold text-amber-200">⬇ {t("admin.venue.download")}</a>
       {!cloud?.enabled && <button type="button" onClick={() => enable.mutate(false)} disabled={enable.isPending} className="rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black disabled:opacity-40">{t("admin.venue.turnOn")}</button>}
       {cloud?.enabled && (
         <div className="space-y-1 text-xs text-white/70">

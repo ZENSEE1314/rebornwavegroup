@@ -1085,6 +1085,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.req.controls': { en: "Song system controls", zh: "点歌系统控制", id: "Kontrol sistem lagu" },
   'admin.req.boxNext': { en: "Play next", zh: "下一首播放", id: "Putar berikutnya" },
   'admin.req.boxRemove': { en: "Remove", zh: "移除", id: "Hapus" },
+  'admin.venue.download': { en: 'Download the offline version for a PC (about 290 MB)', zh: '下载电脑离线版（约 290 MB）', id: 'Unduh versi offline untuk PC (sekitar 290 MB)' },
   'admin.req.ctlRepeat': { en: "🔁 Repeat the song", zh: "🔁 重唱这首歌", id: "🔁 Ulang lagu" },
   'admin.req.ctlVoice': { en: "🎤 Singer's voice on / off", zh: "🎤 原唱 开 / 关", id: "🎤 Suara penyanyi aktif / mati" },
   'admin.req.ctlPause': { en: "⏸ Pause / ▶ Resume song", zh: "⏸ 暂停 / ▶ 继续播放", id: "⏸ Jeda / ▶ Lanjut lagu" },

@@ -226,6 +226,7 @@ export default function RebornPos() {
       <StaffGuideButton />
       <OfflineBanner />
       <ReceiptPaperSetting />
+      {(role === "admin" || companyRole === "manager") && <a href="/venue-pc" className="mb-3 mr-2 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">⬇ {t("pos.offlineDownload")}</a>}
       {role === "admin" && <CommissionTypesSetting />}
       <a href="/kitchen" className="mb-3 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🍳 {t("pos.kitchen.open")}</a>
       {(role === "admin" || companyRole === "manager") && <ClosePosDay />}
