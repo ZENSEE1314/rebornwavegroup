@@ -1,0 +1,38 @@
+# Builds the Windows POS app (pos-desktop/, Electron 22: the last version that runs on Windows 7) and publishes the installer as the release "pos-desktop-latest":
+# https://github.com/ZENSEE1314/rebornwavegroup/releases/download/pos-desktop-latest/RebornPOS-Setup.exe   (short address: <site>/pos-app)
+name: POS desktop app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["pos-desktop/**", ".github/workflows/pos-desktop.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build the installer
+        working-directory: pos-desktop
+        run: |
+          npm install --no-audit --no-fund
+          npm run dist
+
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la pos-desktop/dist
+          gh release delete pos-desktop-latest --yes --cleanup-tag || true
+          gh release create pos-desktop-latest pos-desktop/dist/RebornPOS-Setup.exe --title "Reborn POS app for Windows" --notes "Install this on the POS PC (Windows 7 or newer). See POS > Reborn POS settings for the printer and the cash drawer."

@@ -47,11 +47,13 @@ async function kickViaUrl(): Promise<boolean> {
 
 // Best-effort open. Returns true if a transport accepted the command.
 export async function openCashDrawer(): Promise<boolean> {
+  const desktop = (window as any).rebornDesktop; // the Windows POS app sends the signal over the network to the printer
+  if (desktop?.openDrawer) return !!(await desktop.openDrawer())?.ok;
   if (await kickViaSerial()) return true;
   if (await kickViaUrl()) return true;
   return false;
 }
 
 export function drawerConfigured(): boolean {
-  return !!getDrawerUrl() || serialSupported();
+  return !!(window as any).rebornDesktop?.openDrawer || !!getDrawerUrl() || serialSupported();
 }

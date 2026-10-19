@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Reborn POS settings</title>
+<style>
+  body { font-family: "Segoe UI", sans-serif; background: #12091f; color: #fff; margin: 0; padding: 20px; }
+  h2 { margin: 0 0 12px; }
+  label { display: block; margin: 14px 0 4px; font-size: 13px; color: #cbb8ff; }
+  select, input[type=text] { width: 100%; box-sizing: border-box; padding: 10px; font-size: 15px; border-radius: 8px; border: 1px solid #4b3a78; background: #1e1433; color: #fff; }
+  button { margin-top: 16px; padding: 11px 16px; font-size: 15px; border: 0; border-radius: 8px; cursor: pointer; background: #fcd34d; color: #000; font-weight: 700; }
+  button.alt { background: #3a2c5c; color: #fff; margin-left: 8px; }
+  .note { font-size: 12px; color: #a99ac9; margin-top: 4px; }
+  #msg { margin-top: 14px; min-height: 20px; color: #86efac; }
+</style>
+</head>
+<body>
+  <h2>Reborn POS settings</h2>
+
+  <label for="printer">Receipt printer (receipts print here with no window)</label>
+  <select id="printer"></select>
+
+  <label for="drawer">Address of the receipt printer for the cash drawer, e.g. 192.168.1.87</label>
+  <input id="drawer" type="text" placeholder="192.168.1.87" />
+  <div class="note">The drawer plugs into the printer; the app sends the open signal to this address over your network. Leave empty if the drawer opens by the printer driver.</div>
+
+  <label for="url">POS address</label>
+  <input id="url" type="text" />
+
+  <label><input id="full" type="checkbox" /> Open in full screen (F11 to switch)</label>
+
+  <div>
+    <button id="save">Save</button>
+    <button id="test" class="alt">Test the drawer</button>
+  </div>
+  <div id="msg"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const say = (text, isError) => { $("msg").style.color = isError ? "#fca5a5" : "#86efac"; $("msg").textContent = text; };
+  (async () => {
+    const config = await window.rebornDesktop.getConfig();
+    const printers = await window.rebornDesktop.printers();
+    $("printer").innerHTML = '<option value="">(the Windows default printer)</option>' + printers.map((p) => `<option value="${p.name.replace(/"/g, "&quot;")}">${p.name}${p.isDefault ? " (default)" : ""}</option>`).join("");
+    $("printer").value = config.printerName || "";
+    $("drawer").value = config.drawerIp || "";
+    $("url").value = config.url;
+    $("full").checked = !!config.fullScreen;
+  })();
+  $("save").onclick = async () => {
+    await window.rebornDesktop.setConfig({ printerName: $("printer").value, drawerIp: $("drawer").value, url: $("url").value, fullScreen: $("full").checked });
+    say("Saved.");
+  };
+  $("test").onclick = async () => {
+    await window.rebornDesktop.setConfig({ drawerIp: $("drawer").value });
+    const result = await window.rebornDesktop.testDrawer();
+    say(result.ok ? "Signal sent: the drawer should open." : "Could not reach the printer: " + result.error, !result.ok);
+  };
+</script>
+</body>
+</html>

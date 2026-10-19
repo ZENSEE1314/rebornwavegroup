@@ -1,0 +1,23 @@
+{
+  "name": "reborn-pos",
+  "version": "1.0.0",
+  "description": "Reborn POS: the POS as a Windows app (silent receipts, instant cash drawer). Electron 22 is the last version that runs on Windows 7.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "22.3.27",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "group.rebornwave.pos",
+    "productName": "Reborn POS",
+    "artifactName": "RebornPOS-Setup.${ext}",
+    "files": ["main.js", "preload.js", "settings.html"],
+    "win": { "target": "nsis" },
+    "nsis": { "oneClick": true, "perMachine": false, "runAfterFinish": true, "createDesktopShortcut": true }
+  }
+}

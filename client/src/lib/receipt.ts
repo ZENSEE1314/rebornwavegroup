@@ -167,6 +167,9 @@ function kitchenHtml(o: Order, title?: string) {
 function printDoc(inner: string, fileName?: string, fullWidth = false): boolean {
   const title = fileName || tr("pos.rc.docTitle");
   const fullHtml = `<!doctype html><html lang="${localeTag()}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${buildCss(fullWidth)}</style></head><body>${inner}</body></html>`;
+  // The Windows POS app (pos-desktop/) prints with no dialog on the printer chosen in its settings.
+  const desktop = (window as any).rebornDesktop;
+  if (desktop?.printHtml) { void desktop.printHtml(fullHtml); return true; }
   const nativeBridge = (window as any).ReactNativeWebView;
   if (nativeBridge?.postMessage) {
     nativeBridge.postMessage(JSON.stringify({ type: "PRINT_HTML", html: fullHtml, title }));

@@ -637,6 +637,7 @@ async function chargeStaff(req: any, o: { userId: unknown; productId?: number | 
 }
 const atCostLabel = (a: AtCost) => `${a.mode === "half" ? "Staff price 50% off" : "At cost"} · ${a.who === "boss" ? "Boss" : "Staff"}${a.name ? `: ${a.name}` : ""}`;
 const VENUE_PACK_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/venue-latest/RebornVenue-windows.zip"; // built by GitHub (.github/workflows/venue-pack.yml)
+const POS_APP_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/pos-desktop-latest/RebornPOS-Setup.exe"; // built by GitHub (.github/workflows/pos-desktop.yml)
 const OVERLAY_APK_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-latest/reborn-tv-overlay.apk";
 async function adminRole(userId: string | null): Promise<"admin" | "manager" | "staff" | "user"> {
   if (!userId) return "user";
@@ -2896,6 +2897,8 @@ export function registerRebornRoutes(app: Express) {
     res.set({ "Clear-Site-Data": '"cache", "storage"', "Cache-Control": "no-store" }).type("html").send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="2;url=/"><body style="font-family:sans-serif;background:#0a0714;color:#fff;text-align:center;padding:3rem 1rem"><h2>Cleaned.</h2><p>Opening Reborn Wave again…</p><p><a style="color:#fcd34d" href="/">Open now</a></p></body>');
   });
   // <site>/venue-pc: the offline version of the app for a venue PC (Admin > Settings > Venue server, POS page).
+  // <site>/pos-app: the Windows POS app (works on Windows 7 and newer).
+  app.get("/pos-app", (_req, res) => res.redirect(302, POS_APP_URL));
   app.get("/venue-pc", (_req, res) => res.redirect(302, VENUE_PACK_URL));
   app.get(["/overlay", "/overlay.apk"], (_req, res) => res.redirect(302, OVERLAY_APK_URL));
   app.get("/api/karaoke/bridge.mjs", async (_req, res) => {
