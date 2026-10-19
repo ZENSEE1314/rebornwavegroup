@@ -969,6 +969,24 @@ export const receiptMemory = pgTable("receipt_memory", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [uniqueIndex("receipt_memory_key").on(table.companyId, table.supplierKey, table.lineKey)]);
 
+// Damage / waste a staff member pays for: at the item's cost (no tax, no service fee). Taken from the pay in Admin › Payroll, then marked settled.
+export const staffCharges = pgTable("staff_charges", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  userId: varchar("user_id").notNull(),
+  productId: integer("product_id"),
+  name: varchar("name").notNull(),
+  qty: integer("qty").default(1).notNull(),
+  amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+  reason: varchar("reason"),
+  source: varchar("source").notNull(),
+  refId: varchar("ref_id"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  settledAt: timestamp("settled_at"),
+  settledNote: varchar("settled_note"),
+});
+
 export const posTickets = pgTable("pos_tickets", {
   id: serial("id").primaryKey(),
   companyId: integer("company_id"),

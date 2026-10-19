@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -61,6 +62,27 @@ const emptyCommission = (): CommissionInput => ({ label: "", payee: "", kind: "p
 const commissionToSend = (c: CommissionInput) => (c.value > 0 ? c : undefined);
 const commissionAmountOf = (c: CommissionInput, base: number) => (c.value > 0 ? Math.min(Math.max(0, base), roundMoney(c.kind === "percent" ? (base * c.value) / 100 : c.value)) : 0);
 const commissionPreview = (c: CommissionInput, base: number) => { const amount = commissionAmountOf(c, base); return amount > 0 ? { commissionLabel: c.label, commissionPayee: c.payee, commissionAmount: amount } : {}; };
+
+// Staff / boss buy at the item's cost: the server takes every line down to its cost, with no service fee and no tax (manager / main admin only).
+type AtCostInput = { who: "" | "staff" | "boss"; name: string };
+const emptyAtCost = (): AtCostInput => ({ who: "", name: "" });
+const atCostToSend = (a: AtCostInput) => (a.who ? { who: a.who, name: a.name.trim() } : undefined);
+function AtCostBox({ value, onChange }: { value: AtCostInput; onChange: (next: AtCostInput) => void }) {
+  const { t } = useTranslation();
+  const role = useAdminRole();
+  if (role !== "admin" && role !== "manager") return null;
+  const choice = (who: "staff" | "boss") => (
+    <button key={who} type="button" onClick={() => onChange(value.who === who ? emptyAtCost() : { ...value, who })} className={`py-2 rounded-xl border font-semibold text-xs ${value.who === who ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.atCost.${who}`)}</button>
+  );
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-2 mb-2">
+      <p className="text-xs text-white/50 mb-1">{t("pos.atCost.title")}</p>
+      <div className="grid grid-cols-2 gap-2">{choice("staff")}{choice("boss")}</div>
+      {value.who && <input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} placeholder={t("pos.atCost.name")} className="mt-2 w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />}
+      {value.who && <p className="mt-1 text-[11px] text-amber-200/80">{t("pos.atCost.note")}</p>}
+    </div>
+  );
+}
 
 function CommissionBox({ value, onChange, base }: { value: CommissionInput; onChange: (next: CommissionInput) => void; base: number }) {
   const { t } = useTranslation();
@@ -486,6 +508,8 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
   const [commission, setCommission] = useState(emptyCommission);
+  const [atCost, setAtCost] = useState(emptyAtCost);
+  const { data: staffList = [] } = useStaff();
   const [useCredit, setUseCredit] = useState(false);
   const { data: posSettings } = usePosSettings();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] });
@@ -500,7 +524,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: t("pos.notFound"), description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, commission: commissionToSend(commission) }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, commission: commissionToSend(commission), atCost: atCostToSend(atCost) }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: t("pos.drawerNotOpened"), description: t("pos.checkDrawerSetup") }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
@@ -575,7 +599,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { data: openTickets = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/orders"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=open").then((r) => r.json()) });
   const subtotal = Number(order.subtotal ?? order.total);
   // The server's quote adds the member's perk and package credit (lib: server/memberPackages.ts).
-  const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}` }, true);
+  const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, atCost: atCostToSend(atCost), v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}` }, true);
   const due = quoteTotals(quote, billTotals(subtotal, discount, posSettings));
   const total = due.total;
   const payable = due.payable;
@@ -678,6 +702,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             {payable > 0 && pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
             {payable > 0 && pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={payable} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(payable)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
             <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
+            <AtCostBox value={atCost} onChange={setAtCost} />
             <button onClick={() => printBill({ ...order, subtotal, discount: Math.max(0, subtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: due.total, packageCreditUsed: due.creditUse, items: (order.items || []).filter((item: any) => !OFF_BILL.includes(item.status)) } as any, savedReceiptMeta())} className="w-full py-2.5 rounded-xl mb-2 text-sm font-semibold bg-white/10 border border-white/10">🧾 {t("pos.bill.print")}</button>
             <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks} onAddCorkage={(service, quantity) => addItems.mutate([{ productId: service.id, name: service.name, price: Number(service.salePrice ?? service.price), qty: quantity }])}/>
             <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (quote?.hasPackages && !order.memberCode) || (payable > 0 && ((pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "credits" && (creditBal === null || creditBal < payable)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{payable > 0 ? t("pos.chargeAmount", { amount: rp(payable), method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(total) })}</button>
@@ -692,7 +717,8 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
         confirmLabel={t(ask.kind === "lose" ? "pos.item.lose" : "pos.item.remove")}
         isDanger
         onCancel={() => setAsk(null)}
-        onConfirm={(reason) => { itemEdit.mutate({ id: ask.item.id, op: ask.kind, body: { reason } }); setAsk(null); }} />}
+        staffOptions={ask.kind === "lose" ? staffList.map((person) => ({ id: person.id, name: person.name })) : undefined}
+        onConfirm={(reason, chargeStaffId) => { itemEdit.mutate({ id: ask.item.id, op: ask.kind, body: { reason, chargeStaffId } }); setAsk(null); }} />}
     </div>
   );
 }
@@ -716,8 +742,9 @@ function QuickSaleTab() {
   const [useCredit, setUseCredit] = useState(false);
   const { data: posSettings } = usePosSettings();
   const [commission, setCommission] = useState(emptyCommission);
+  const [atCost, setAtCost] = useState(emptyAtCost);
   const cartSubtotal = cartItems.reduce((sum,item)=>sum+Number(item.price)*Number(item.qty),0);
-  const quote = useQuote({ items: cartItems.map((x) => ({ productId: x.id, price: Number(x.price), qty: x.qty })), memberCode: member?.code || "", discount, usePackageCredit: useCredit }, cartItems.length > 0);
+  const quote = useQuote({ items: cartItems.map((x) => ({ productId: x.id, price: Number(x.price), qty: x.qty })), memberCode: member?.code || "", discount, usePackageCredit: useCredit, atCost: atCostToSend(atCost) }, cartItems.length > 0);
   const due = quoteTotals(cartItems.length ? quote : null, billTotals(cartSubtotal, discount, posSettings));
   const payable = due.payable;
   const lookup = useMutation({
@@ -727,7 +754,7 @@ function QuickSaleTab() {
   const { isOffline } = useOfflineSales();
   const sell = useMutation({
     mutationFn: async (items: any[]) => {
-      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit, commission: commissionToSend(commission) }, { label: t("pos.offline.items", { n: items.length }), total: payable });
+      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit, commission: commissionToSend(commission), atCost: atCostToSend(atCost) }, { label: t("pos.offline.items", { n: items.length }), total: payable });
       if (!outcome.queued) return outcome.data;
       // Saved on this device: a receipt is made from the numbers on the screen (the server prices it again when it is sent).
       const cashIn = Number(cashReceived) || 0;
@@ -772,6 +799,7 @@ function QuickSaleTab() {
         <MemberWallet code={member?.code} quote={cartItems.length ? quote : null} useCredit={useCredit} onUseCredit={setUseCredit} />
         {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} />}
         <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
+        <AtCostBox value={atCost} onChange={setAtCost} />
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${isOffline ? 2 : 3}, minmax(0, 1fr))` }}>
           {(["cash", "card", "credits"] as const).filter((m) => m !== "credits" || !isOffline).map((m) => (

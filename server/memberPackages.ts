@@ -65,11 +65,12 @@ export async function memberWallet(userId: string) {
 // `lines` are the bill's items; package products get no perk, and only products the
 // admin allows (credit_ok, not a package) can be paid with package credit.
 export async function quoteBill(o: {
-  lines: { productId?: number | null; lineTotal: number }[]; manualDiscount: number; userId?: string | null;
+  lines: { productId?: number | null; lineTotal: number; qty?: number }[]; manualDiscount: number; userId?: string | null;
   usePackageCredit?: boolean; serviceFeePercent: number; taxPercent: number;
+  atCost?: boolean; // staff / boss buy at the item's cost: the discount takes every line down to its cost, with no service fee, no tax and no member perk
 }) {
   const ids = Array.from(new Set(o.lines.map((l) => Number(l.productId)).filter(Boolean)));
-  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
+  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, cost: posProducts.cost }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
   const byId = new Map(products.map((p) => [p.id, p]));
   let subtotal = 0, packageBase = 0, creditBase = 0;
   for (const l of o.lines) {
@@ -78,14 +79,15 @@ export async function quoteBill(o: {
     if (p?.packageKind) packageBase += amt;
     else if (p && p.creditOk !== false) creditBase += amt;
   }
-  const manualDiscount = Math.min(subtotal, Math.max(0, Number(o.manualDiscount) || 0));
+  const costTotal = o.atCost ? money(o.lines.reduce((sum, l) => { const p = byId.get(Number(l.productId)); return sum + (p ? Number(p.cost || 0) * (Number(l.qty) || 1) : Number(l.lineTotal) || 0); }, 0)) : 0;
+  const manualDiscount = o.atCost ? Math.min(subtotal, Math.max(0, money(subtotal - costTotal))) : Math.min(subtotal, Math.max(0, Number(o.manualDiscount) || 0));
   const wallet = o.userId ? await memberWallet(o.userId) : null;
-  const perkPercent = wallet?.perk?.percent || 0;
+  const perkPercent = o.atCost ? 0 : wallet?.perk?.percent || 0;
   const perkAmount = money(Math.max(0, subtotal - packageBase - manualDiscount) * perkPercent / 100);
   const discount = Math.min(subtotal, manualDiscount + perkAmount);
   const taxable = money(subtotal - discount);
-  const serviceFee = money(taxable * o.serviceFeePercent / 100);
-  const tax = money(taxable * o.taxPercent / 100);
+  const serviceFee = o.atCost ? 0 : money(taxable * o.serviceFeePercent / 100);
+  const tax = o.atCost ? 0 : money(taxable * o.taxPercent / 100);
   const total = money(taxable + serviceFee + tax);
   const creditable = subtotal > 0 ? money(total * creditBase / subtotal) : 0;
   const creditBalance = wallet?.creditBalance || 0;

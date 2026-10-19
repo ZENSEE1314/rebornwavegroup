@@ -1,7 +1,7 @@
 // Admin › Inventory › an item: put stock in (supplier, price, the date and time it arrived) or take stock out with a reason.
 // Both are recorded as stock movements (the history and oldest-first costing follow them); the number itself is never typed over.
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,8 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
   const [mode, setMode] = useState<"in" | "out">("in");
   const [f, setF] = useState({ qty: "", supplier: p.supplierName || "", unitCost: "", at: nowLocal(), reason: REASONS[0].value, note: "", perBox: p.unitsPerPack && p.unitsPerPack > 1 ? String(p.unitsPerPack) : "", boxCost: Number(p.packPrice) > 0 ? String(Number(p.packPrice)) : "" });
   const [isBox, setIsBox] = useState(false);
+  const [payer, setPayer] = useState("");
+  const { data: staff = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/reborn/pos/staff"], queryFn: () => apiRequest("GET", "/api/reborn/pos/staff").then((r) => r.json()), enabled: isOpen && mode === "out" });
   // By box: the quantity is boxes, so the units are boxes × units per box, and the price typed is for a whole box.
   const perBox = Math.max(0, Math.floor(Number(f.perBox) || 0));
   const entered = Math.floor(Number(f.qty) || 0);
@@ -41,11 +43,12 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
   const save = useMutation({
     mutationFn: () => apiRequest("POST", STOCK_IN, {
       productId: p.id, qty: mode === "in" ? qty : -qty, receivedAt: f.at ? new Date(f.at).toISOString() : undefined,
-      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: isBox ? unitCostOfBox : (f.unitCost ? Number(f.unitCost) : undefined) } : { reason: f.reason, note: f.note }),
+      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: isBox ? unitCostOfBox : (f.unitCost ? Number(f.unitCost) : undefined) } : { reason: f.reason, note: f.note, chargeStaffId: payer || undefined }),
     }).then((r) => r.json()),
     onSuccess: () => {
       toast({ title: t("admin.sa.saved") });
       setF({ ...f, qty: "", unitCost: "", note: "", at: nowLocal() });
+      setPayer("");
       qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: fail,
@@ -79,6 +82,15 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
               <label className="text-[11px] text-white/50">{t("admin.sa.reason")}<select value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} className={inp + " mt-0.5 block"}>{REASONS.map((r) => <option key={r.value} value={r.value}>{t(r.key)}</option>)}</select></label>
               <label className="min-w-0 flex-1 text-[11px] text-white/50">{needsNote ? t("admin.sa.noteRequired") : t("admin.sa.note")}<input value={f.note} maxLength={200} onChange={(e) => setF({ ...f, note: e.target.value })} className={inp + " mt-0.5 block w-full"} /></label>
             </div>
+          )}
+          {mode === "out" && f.reason !== "Count correction" && (
+            <label className="block text-[11px] text-white/50">{t("pos.item.staffPays")}
+              <select value={payer} onChange={(e) => setPayer(e.target.value)} className={inp + " mt-0.5 block w-full"}>
+                <option value="">{t("pos.item.nobodyPays")}</option>
+                {staff.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+              </select>
+              {payer && <span className="mt-1 block text-amber-200/80">{t("pos.item.staffPaysNote")}</span>}
+            </label>
           )}
           {isBox && <p className="text-[12px] font-semibold text-amber-200">{perBox >= 2 ? t("admin.sa.boxTotal", { b: String(entered), u: String(perBox), n: String(qty) }) : t("admin.sa.needPerBox")}</p>}
           <p className="text-[11px] text-white/40">{mode === "in" ? t("admin.sa.hintIn") : t("admin.sa.hintOut")}</p>

@@ -64,7 +64,7 @@ import {
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, staffCharges, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
   staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory,
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
@@ -612,6 +612,24 @@ function requireStaff(handler: (req: Request, res: Response) => Promise<any>) {
 }
 // Admin-panel role: "admin" (main admin), "manager" (staff account whose company
 // role is manager — staff tabs + daily sales), "staff", or "user".
+// Staff / boss buy at the item's cost (no service fee, no tax): only a manager or the main admin may ring it up.
+type AtCost = { who: "staff" | "boss"; name: string };
+async function atCostRequest(req: any): Promise<{ atCost: AtCost | null; error?: string }> {
+  const raw = req.body?.atCost;
+  if (!raw || (raw.who !== "staff" && raw.who !== "boss")) return { atCost: null };
+  const role = await adminRole(getUserId(req));
+  if (role !== "admin" && role !== "manager") return { atCost: null, error: tr(req, { en: "Only a manager or the main admin can sell at cost.", zh: "只有经理或主管理员可以按成本价销售。", id: "Hanya manajer atau admin utama yang bisa menjual dengan harga modal." }) };
+  return { atCost: { who: raw.who, name: String(raw.name || "").trim().slice(0, 60) } };
+}
+// Damage / waste that a staff member pays for: written down at cost (no tax, no service fee) and taken from their next pay (Admin › Payroll).
+async function chargeStaff(req: any, o: { userId: unknown; productId?: number | null; name: string; qty: number; amount: number; reason: string; source: string; refId: string }) {
+  const userId = String(o.userId || "");
+  if (!userId || !(o.amount > 0)) return false;
+  if (!(await storage.getUser(userId))) return false;
+  await db.insert(staffCharges).values({ companyId: await rebornCompanyId(req), userId, productId: o.productId ?? null, name: o.name, qty: o.qty, amount: String(o.amount), reason: o.reason.slice(0, 200), source: o.source, refId: o.refId, createdBy: getUserId(req) });
+  return true;
+}
+const atCostLabel = (a: AtCost) => `At cost · ${a.who === "boss" ? "Boss" : "Staff"}${a.name ? `: ${a.name}` : ""}`;
 async function adminRole(userId: string | null): Promise<"admin" | "manager" | "staff" | "user"> {
   if (!userId) return "user";
   const u = await storage.getUser(userId);
@@ -3710,6 +3728,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const lossCost = roundMoney((Number(p.cost) || 0) * -qty);
     if (qty < 0 && outReason !== STOCK_OUT_CORRECTION && lossCost > 0)
       await db.insert(ledgerEntries).values({ kind: "expense", category: "loss", amount: String(lossCost), note: `Stock out: ${-qty} × ${p.name} (${outReason}${outNote ? `: ${outNote}` : ""})`, refType: "stock_out", refId: String(id), createdAt, userId: getUserId(req)! });
+    if (qty < 0 && outReason !== STOCK_OUT_CORRECTION) await chargeStaff(req, { userId: req.body?.chargeStaffId, productId: id, name: p.name, qty: -qty, amount: lossCost, reason: `${outReason}${outNote ? `: ${outNote}` : ""}`, source: "stock_out", refId: String(id) });
     if (qty > 0 && unitCost > 0)
       await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}`, refType: "stock_movement", refId: String(id), createdAt, userId: getUserId(req)! });
     await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"${supplier ? ` (${supplier})` : ""}${qty < 0 ? ` — ${outReason}${outNote ? `: ${outNote}` : ""}` : ""}` });
@@ -3963,7 +3982,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (req.body?.keepBottle?.enabled && !u) return res.status(400).json({ message: tr(req, { en: "Select a member before keeping a bottle at checkout", zh: "结账寄存酒瓶前请先选择会员", id: "Pilih member sebelum menitipkan botol saat pembayaran" }) });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }) });
     const settings = await getSettings();
-    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent });
+    const costRequest = await atCostRequest(req);
+    if (costRequest.error) return res.status(403).json({ message: costRequest.error });
+    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: !!costRequest.atCost });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !u) return res.status(400).json({ message: needMemberForPackage(req) });
     const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
@@ -3982,7 +4003,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       companyId: await rebornCompanyId(req),
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
       ...memberTag(u), ...(await salesTag(req.body)), ...commissionColumns(commission), tableNumber: req.body?.tableNumber || null,
-      subtotal: String(subtotal), discount: String(discount), discountReason: q.perkAmount > 0 ? `Member ${q.perkPercent}%` : null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
+      subtotal: String(subtotal), discount: String(discount), discountReason: [q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
       paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
     }).returning();
     const spent = await spendPackageCredit(u?.id || "", q.creditUse, row.id, staffId);
@@ -4168,9 +4189,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await db.update(posTicketItems).set({ status: "lost", rejectReason: reason }).where(eq(posTicketItems.id, id));
     await recalcTicket(it.orderId);
     if (cost > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "loss", amount: String(cost), note: `Lost: ${it.name} ×${it.qty} (${reason}) · ${ticket.orderNo}`, refType: "pos_loss", refId: String(id), userId: getUserId(req) });
+    const charged = await chargeStaff(req, { userId: req.body?.chargeStaffId, productId: it.productId, name: it.name, qty: it.qty, amount: cost, reason: `Lost (${reason}) · ${ticket.orderNo}`, source: "pos_lost", refId: String(id) });
     emitLiveUpdate("/api/reborn/pos/orders", { action: "ITEM_LOST", resource: String(it.orderId) });
     await logAdmin(req, { targetType: "pos_item", targetId: id, action: "lose", entityType: "order", description: `Lost "${it.name}" ×${it.qty} (${reason}), cost ${cost}` });
-    res.json({ message: tr(req, { en: "Marked as lost: {n} (cost RP {c})", zh: "已记为损耗：{n}（成本 RP {c}）", id: "Dicatat hilang: {n} (modal RP {c})" }, { n: it.name, c: cost }) });
+    res.json({ charged, message: tr(req, { en: "Marked as lost: {n} (cost RP {c})", zh: "已记为损耗：{n}（成本 RP {c}）", id: "Dicatat hilang: {n} (modal RP {c})" }, { n: it.name, c: cost }) });
   }));
   // Move one item to another table's open ticket (split a bill). Creates the ticket if needed.
   app.post("/api/reborn/pos/items/:id/move", requireStaff(async (req, res) => {
@@ -4264,7 +4286,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id))).filter((x) => !GONE_ITEM.includes(x.status));
     // Use the request discount if provided, else the discount already set on the ticket.
     const reqDisc = req.body?.discount !== undefined ? Number(req.body.discount) : Number(o.discount || 0);
-    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal) })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent });
+    const costRequest = await atCostRequest(req);
+    if (costRequest.error) return res.status(403).json({ message: costRequest.error });
+    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: !!costRequest.atCost });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
     const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
@@ -4284,7 +4308,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const paid = await payWithCredits(o.memberId!, due, o.orderNo, id);
       if (!paid.ok) { if (spent.spent) await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(400).json({ message: notEnoughCredits(req, due, paid.balance) }); }
     }
-    const discountReason = q.perkAmount > 0 ? [o.discountReason, `Member ${q.perkPercent}%`].filter(Boolean).join(" · ") : o.discountReason;
+    const discountReason = [o.discountReason, q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null;
     await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
@@ -4390,13 +4414,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (req.body?.ticketId) {
       const [o] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.body.ticketId)));
       if (!o) return res.status(404).json({ message: tr(req, { en: "Order not found", zh: "找不到该订单", id: "Pesanan tidak ditemukan" }) });
-      lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal) }));
+      lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty }));
       userId = o.memberId;
     } else {
-      lines = (Array.isArray(req.body?.items) ? req.body.items : []).map((it: any) => ({ productId: Number(it.productId) || null, lineTotal: (Number(it.price) || 0) * Math.max(1, Math.floor(Number(it.qty) || 1)) }));
+      lines = (Array.isArray(req.body?.items) ? req.body.items : []).map((it: any) => ({ productId: Number(it.productId) || null, lineTotal: (Number(it.price) || 0) * Math.max(1, Math.floor(Number(it.qty) || 1)), qty: Math.max(1, Math.floor(Number(it.qty) || 1)) }));
       userId = (await findMemberByCode(req.body?.memberCode || ""))?.id || null;
     }
-    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent });
+    const costRequest = await atCostRequest(req);
+    if (costRequest.error) return res.status(403).json({ message: costRequest.error });
+    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: !!costRequest.atCost });
     res.json({ ...q, hasMember: !!userId });
   }));
   // A member's packages (by member code) — POS pay panel and Packages tab.
@@ -4825,6 +4851,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
   // Statutory contributions (CPF / BPJS / EPF…): the company's country rates, editable by the admin.
   const payrollRules=async()=>{const [row]=await db.select().from(appSettings).where(eq(appSettings.key,"payrollRules"));let saved:any=null;try{saved=row?.value?JSON.parse(row.value):null}catch{}return saved?cleanPayrollRules(saved,companyCountry()):defaultPayrollRules(companyCountry());};
+  // A charge the admin decides not to take from the pay.
+  app.post("/api/reborn/admin/staff-charges/:id/waive", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const [row] = await db.update(staffCharges).set({ settledAt: new Date(), settledNote: "Waived" }).where(and(eq(staffCharges.id, id), isNull(staffCharges.settledAt))).returning();
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Charge not found", zh: "找不到该扣款", id: "Tagihan tidak ditemukan" }) });
+    await logAdmin(req, { targetType: "staff_charge", targetId: id, action: "waive", entityType: "payroll", description: `Waived charge ${row.name} ×${row.qty} (${row.amount}) for ${row.userId}` });
+    res.json({ ok: true });
+  }));
   app.get("/api/reborn/admin/payroll/rules", requireAdmin(async(_req,res)=>{res.json({rules:await payrollRules(),country:companyCountry(),money:companyMoney(),defaults:defaultPayrollRules(companyCountry())});}));
   app.post("/api/reborn/admin/payroll/rules", requireAdmin(async(req,res)=>{
     const rules=req.body?.reset?defaultPayrollRules(companyCountry()):cleanPayrollRules(req.body?.rules,companyCountry());
@@ -4840,6 +4874,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,(SELECT bp.name FROM bridge_positions bp WHERE bp.id=m.position_id) position_name,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
     const staff=((result.rows||result) as any[]).map((x)=>{const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
+    const openCharges=await db.select().from(staffCharges).where(isNull(staffCharges.settledAt));
+    for(const row of staff as any[]){const mine=openCharges.filter((x)=>x.userId===row.user_id);row.charges=mine.map((x)=>({id:x.id,name:x.name,qty:x.qty,amount:Number(x.amount),reason:x.reason,at:x.createdAt}));}
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
     res.json({month,from,to,staff,referrals:refs.rows||refs,rules,money,country:companyCountry()});
   }));
@@ -4860,6 +4896,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const deduction=Math.min(roundMoney(Math.max(0,Number(b.deduction)||0)),Math.max(0,c.net));const deductionNote=String(b.deductionNote||"").trim().slice(0,300);const netPay=roundMoney(c.net-deduction);
     const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(roundMoney(amount-deduction)),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}${deduction>0?`, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}`:""}, net pay ${netPay}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
     if(c.employer>0)await db.insert(ledgerEntries).values({kind:"expense",category:"statutory_contribution",amount:String(c.employer),note:`Employer contributions ${b.name||userId} · ${month}${parts?` (${parts})`:""}`,refType:"payroll_employer",refId:`${userId}:${month}`,userId});
+    const chargeIds=(Array.isArray(b.chargeIds)?b.chargeIds:[]).map((x:unknown)=>Number(x)).filter((x:number)=>Number.isInteger(x)&&x>0);
+    if(chargeIds.length)await db.update(staffCharges).set({settledAt:new Date(),settledNote:`Taken from the pay of ${month}`}).where(and(inArray(staffCharges.id,chargeIds),eq(staffCharges.userId,userId),isNull(staffCharges.settledAt)));
     await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}, net ${netPay}, employer ${c.employer}`});
     // The payslip: what was earned (the parts must add up to the gross, else it is all "basic"), what the staff member paid, and the net pay.
     try{
