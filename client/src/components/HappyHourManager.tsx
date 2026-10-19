@@ -9,6 +9,7 @@ import { money } from "@/lib/money";
 
 interface Item { id: number; name: string; category: string; price: string | number; happyPrice?: string | number | null; happyStart?: string | null; happyEnd?: string | null; happyOnly?: boolean | null; packageKind?: string | null; isService?: boolean | null }
 
+interface Edit { price: string; start: string; end: string; only: boolean }
 const inp = "rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-sm text-white outline-none focus:border-amber-300";
 const DEFAULT_START = "17:00";
 const DEFAULT_END = "20:00";
@@ -25,6 +26,8 @@ export function HappyHourManager() {
   const [isOnly, setIsOnly] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [query, setQuery] = useState("");
+  const [isEach, setIsEach] = useState(false);
+  const [edits, setEdits] = useState<Record<number, Edit>>({});
   const { data: all = [] } = useQuery<Item[]>({ queryKey: ["/api/reborn/pos/products", "happy"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()), enabled: isOpen });
   const items = useMemo(() => all.filter((x) => !x.packageKind && !x.isService && x.name.toLowerCase().includes(query.trim().toLowerCase())), [all, query]);
   const groups = useMemo(() => {
@@ -46,6 +49,18 @@ export function HappyHourManager() {
     },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
   });
+  // Each item's own happy price and hours: the row shows what is saved until it is changed; a row with no hours is taken off happy hour.
+  const editOf = (item: Item): Edit => edits[item.id] ?? { price: item.happyPrice === null || item.happyPrice === undefined ? "" : String(Number(item.happyPrice)), start: item.happyStart || "", end: item.happyEnd || "", only: !!item.happyOnly };
+  const change = (item: Item, next: Partial<Edit>) => setEdits((current) => ({ ...current, [item.id]: { ...editOf(item), ...next } }));
+  const saveEach = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/happy-hour/items", { items: Object.entries(edits).map(([id, e]) => ({ id: Number(id), happyStart: e.start, happyEnd: e.end, happyPrice: e.price === "" ? null : Number(e.price), happyOnly: e.only })) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: { changed: number }) => {
+      toast({ title: t("admin.hh.saved", { n: String(d.changed) }) });
+      setEdits({});
+      qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] });
+    },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
   const chip = (item: Item) => (item.happyStart && item.happyEnd
     ? <span className="ml-1 rounded-full bg-pink-400/20 px-2 py-0.5 text-[10px] text-pink-200">🍹 {item.happyStart}–{item.happyEnd}{item.happyPrice !== null && item.happyPrice !== undefined && item.happyPrice !== "" ? ` · ${money(Number(item.happyPrice))}` : ""}{item.happyOnly ? ` · ${t("admin.hh.onlyChip")}` : ""}</span>
     : null);
@@ -56,6 +71,36 @@ export function HappyHourManager() {
       {isOpen && (
         <div className="mt-2 space-y-3">
           <p className="text-[11px] text-white/50">{t("admin.hh.intro")}</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setIsEach(false)} aria-pressed={!isEach} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold ${!isEach ? "bg-pink-400 text-black" : "bg-white/10 text-white/70"}`}>{t("admin.hh.modeMany")}</button>
+            <button type="button" onClick={() => setIsEach(true)} aria-pressed={isEach} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold ${isEach ? "bg-pink-400 text-black" : "bg-white/10 text-white/70"}`}>{t("admin.hh.modeEach")}</button>
+          </div>
+          {isEach && (
+            <div className="space-y-2">
+              <p className="text-[11px] text-white/45">{t("admin.hh.eachHint")}</p>
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
+              <div className="max-h-96 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
+                {items.map((item) => {
+                  const e = editOf(item);
+                  const isChanged = !!edits[item.id];
+                  return (
+                    <div key={item.id} className={`mb-2 rounded-lg border p-2 ${isChanged ? "border-pink-400/60 bg-pink-400/5" : "border-white/10"}`}>
+                      <div className="flex items-center justify-between gap-2 text-xs"><span className="min-w-0 truncate font-semibold">{item.name}</span><span className="shrink-0 text-white/45">{money(Number(item.price))}</span></div>
+                      <div className="mt-1 flex flex-wrap items-end gap-2">
+                        <label className="text-[10px] text-white/45">{t("admin.happy.price")}<input type="number" inputMode="numeric" min={0} value={e.price} onChange={(ev) => change(item, { price: ev.target.value })} className={inp + " mt-0.5 block w-28"} /></label>
+                        <label className="text-[10px] text-white/45">{t("admin.happy.from")}<input type="time" value={e.start} onChange={(ev) => change(item, { start: ev.target.value })} className={inp + " mt-0.5 block"} style={{ colorScheme: "dark" }} /></label>
+                        <label className="text-[10px] text-white/45">{t("admin.happy.to")}<input type="time" value={e.end} onChange={(ev) => change(item, { end: ev.target.value })} className={inp + " mt-0.5 block"} style={{ colorScheme: "dark" }} /></label>
+                        <label className="flex items-center gap-1 pb-2 text-[11px] text-white/60"><input type="checkbox" checked={e.only} onChange={(ev) => change(item, { only: ev.target.checked })} />{t("admin.hh.onlyShort")}</label>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!items.length && <p className="p-2 text-xs text-white/40">{t("admin.hh.noItems")}</p>}
+              </div>
+              <button type="button" onClick={() => saveEach.mutate()} disabled={saveEach.isPending || Object.keys(edits).length === 0} className="rounded-lg bg-pink-400 px-4 py-2 text-xs font-bold text-black disabled:opacity-40">{t("admin.hh.saveEach", { n: String(Object.keys(edits).length) })}</button>
+            </div>
+          )}
+          {!isEach && <>
           <div className="flex flex-wrap items-end gap-2">
             <label className="text-[11px] text-white/50">{t("admin.happy.from")}<input type="time" value={from} onChange={(e) => setFrom(e.target.value)} className={inp + " mt-0.5 block"} style={{ colorScheme: "dark" }} /></label>
             <label className="text-[11px] text-white/50">{t("admin.happy.to")}<input type="time" value={until} onChange={(e) => setUntil(e.target.value)} className={inp + " mt-0.5 block"} style={{ colorScheme: "dark" }} /></label>
@@ -81,6 +126,7 @@ export function HappyHourManager() {
             <button type="button" onClick={() => save.mutate(false)} disabled={save.isPending || picked.size === 0 || !hasWay} className="rounded-lg bg-pink-400 px-4 py-2 text-xs font-bold text-black disabled:opacity-40">{t("admin.hh.apply", { n: String(picked.size) })}</button>
             <button type="button" onClick={() => save.mutate(true)} disabled={save.isPending || picked.size === 0} className="rounded-lg bg-white/10 px-4 py-2 text-xs font-bold text-white/80 disabled:opacity-40">{t("admin.hh.clear", { n: String(picked.size) })}</button>
           </div>
+          </>}
           {withHappy.length > 0 && <p className="text-[11px] text-white/50">{t("admin.hh.count", { n: String(withHappy.length) })}</p>}
         </div>
       )}

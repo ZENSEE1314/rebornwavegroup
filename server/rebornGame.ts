@@ -5705,6 +5705,21 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "pos_product", action: "happy_hour", entityType: "settings", description: clear ? `Happy hour taken off ${rows.length} item(s)` : `Happy hour ${req.body.start}-${req.body.end} on ${rows.length} item(s)${percent > 0 ? `, ${percent}% off` : samePrice > 0 ? `, RP ${samePrice}` : ""}${req.body?.onlyDuring ? ", only in these hours" : ""}` });
     res.json({ changed: rows.length });
   }));
+  // Happy hour item by item (Admin › Inventory › Happy hour › "Each item"): every item has its own happy price and its own hours. An item with no hours is taken off happy hour.
+  app.post("/api/reborn/admin/happy-hour/items", requireManager(async (req, res) => {
+    const list = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 500);
+    const cid = await rebornCompanyId(req);
+    let changed = 0;
+    for (const entry of list) {
+      const id = Number(entry?.id);
+      if (!Number.isInteger(id) || id <= 0) continue;
+      const patch = happyFieldsOf({ happyStart: entry.happyStart, happyEnd: entry.happyEnd, happyPrice: entry.happyPrice, happyOnly: !!entry.happyOnly });
+      const done = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning({ id: posProducts.id });
+      changed += done.length;
+    }
+    await logAdmin(req, { targetType: "pos_product", action: "happy_hour_items", entityType: "settings", description: `Happy hour edited item by item on ${changed} item(s)` });
+    res.json({ changed });
+  }));
   app.get("/api/reborn/admin/inventory", requireManager(async (req, res) => {
     const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
     const cid = await rebornCompanyId(req);

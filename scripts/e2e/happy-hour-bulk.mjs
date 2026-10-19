@@ -46,6 +46,20 @@ r = await admin("POST", "/api/reborn/admin/happy-hour", { productIds: [beer.id, 
 a = await row(beer.id); b = await row(fries.id);
 check("taking happy hour off clears every field", r.status === 200 && a.happy_start === null && a.happy_price === null && a.happy_only === false && b.happy_start === null, JSON.stringify([a, b]));
 
+// item by item
+r = await staff("POST", "/api/reborn/admin/happy-hour/items", { items: [{ id: beer.id, happyStart: "16:00", happyEnd: "19:00", happyPrice: 70000 }] });
+check("a cashier cannot edit happy hour item by item", r.status === 403 || r.status === 401, r.status);
+r = await admin("POST", "/api/reborn/admin/happy-hour/items", { items: [
+  { id: beer.id, happyStart: "16:00", happyEnd: "19:00", happyPrice: 70000, happyOnly: false },
+  { id: fries.id, happyStart: "18:00", happyEnd: "21:00", happyPrice: 15000, happyOnly: true },
+] });
+a = await row(beer.id); b = await row(fries.id);
+check("each item keeps its own price and hours", r.status === 200 && r.json.changed === 2 && Number(a.happy_price) === 70000 && a.happy_start === "16:00" && Number(b.happy_price) === 15000 && b.happy_end === "21:00" && b.happy_only === true, JSON.stringify([r.json, a, b]));
+r = await admin("POST", "/api/reborn/admin/happy-hour/items", { items: [{ id: beer.id, happyStart: "", happyEnd: "", happyPrice: 70000 }] });
+a = await row(beer.id);
+check("an item with no hours is taken off happy hour", r.status === 200 && a.happy_start === null && a.happy_price === null, JSON.stringify(a));
+await admin("POST", "/api/reborn/admin/happy-hour", { productIds: [beer.id, fries.id], clear: true });
+
 await db.end();
 console.log(failures ? `${failures} FAILED` : "ALL PASSED");
 process.exit(failures ? 1 : 0);
