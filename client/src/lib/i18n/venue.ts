@@ -101,6 +101,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.song.repeat': { en: "Repeat", zh: "重播", id: "Ulangi" },
   'vn.song.skip': { en: "Skip", zh: "跳过", id: "Lewati" },
   'vn.song.onSystem': { en: "Ordered on the song system", zh: "在点歌系统上点的歌", id: "Dipesan di sistem lagu" },
+  'vn.song.searchSlow': { en: "The song system is slow to answer. Change a letter or wait a moment and search again.", zh: "点歌系统响应较慢。请稍等片刻，或改动一个字后再搜索。", id: "Sistem lagu lambat menjawab. Tunggu sebentar atau ubah satu huruf lalu cari lagi." },
   'vn.song.orderedOnSystem': { en: "ordered on the system", zh: "在系统上点的", id: "dipesan di sistem" },
   'vn.song.tabSongs': { en: "Songs", zh: "歌曲", id: "Lagu" },
   'vn.song.tabMine': { en: "My requests", zh: "我的点歌", id: "Permintaanku" },

@@ -1129,7 +1129,7 @@ let karaokeLastSeenWrite = 0;
 // ── Searching the karaoke box's own song list ───────────────────────────────
 // The box sits on the venue Wi-Fi and the cloud cannot reach it, so the bridge program (venue/karaoke-bridge.mjs) holds a long request open here; a member's search
 // becomes a job it picks up at once, runs on the box and answers. No bridge connected (not polling for 45 s) = no box results, the search still shows the library.
-const BOX_SEARCH_WAIT_MS = 6000;
+const BOX_SEARCH_WAIT_MS = 15_000; // the venue PC's round trip to this server is ~2 s each way, so 6 s lost searches to the library fallback
 const BRIDGE_HOLD_MS = 20_000;
 const BRIDGE_ONLINE_MS = 45_000;
 const BOX_RESULT_LIMIT = 40;
@@ -2441,6 +2441,8 @@ export function registerRebornRoutes(app: Express) {
       await seedSongsIfEmpty();
       const query = String(req.query.q || "").trim();
       const [catalog, box] = await Promise.all([searchSongCatalog(req.query.q, 10, 100), query ? searchKaraokeBox(String(await rebornCompanyId(req)), query) : Promise.resolve(null)]);
+      // The song system is connected but did not answer in time: show nothing from the library (those songs cannot be played) and let the member try again.
+      if (!box && isBoxOnline(String(await rebornCompanyId(req)))) return res.json({ ...catalog, songs: [], boxConnected: true, slow: true });
       if (!box) return res.json({ ...catalog, boxConnected: false });
       const fromBox = box.map((x) => ({ source: "karaoke", title: x.title, titlePinyin: "", artist: x.artist, artistPinyin: "", karaokeCode: x.code, photo: x.photo }));
       res.json({ ...catalog, songs: fromBox, boxConnected: true }); // only what the box can play

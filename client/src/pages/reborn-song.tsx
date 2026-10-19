@@ -15,7 +15,7 @@ function useDebounced(value: string, delay = 250) {
   return debounced;
 }
 
-type SearchResponse = { songs: any[]; spotifyConnected: boolean; freeCatalogConnected: boolean; boxConnected?: boolean };
+type SearchResponse = { songs: any[]; spotifyConnected: boolean; freeCatalogConnected: boolean; boxConnected?: boolean; slow?: boolean };
 
 export default function RebornSong() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Songs");
@@ -227,7 +227,7 @@ function SongSystem() {
         <>
           <p className="mb-3 flex items-center gap-2 text-xs text-white/40">{isSearching && <Loader2 className="w-4 h-4 animate-spin text-amber-300" />}{isSearching ? t("vn.song.searchingAll") : t("vn.song.resultsBox")}</p>
           {isSearching && !(found?.songs || []).length && <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-amber-300" /></div>}
-          {!isSearching && !(found?.songs || []).length && <div className="text-center py-10 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.song.noSongsSystem")}</p></div>}
+          {!isSearching && !(found?.songs || []).length && <div className="text-center py-10 text-white/40"><Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{found?.slow ? t("vn.song.searchSlow") : t("vn.song.noSongsSystem")}</p></div>}
           <div className="space-y-2">{(found?.songs || []).map(rowOf)}</div>
         </>
       ) : singer ? (
