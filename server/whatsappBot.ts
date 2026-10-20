@@ -2346,7 +2346,9 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
       if (age < 3 * DAY_MS || age > 4 * DAY_MS) continue; // once, ~3 days after
       if (c.lastComebackReminderAt && new Date(c.lastComebackReminderAt).getTime() > visit) continue;
       const ok = await sendWhatsApp(c.phone, L(await langForPhone(c.phone, c.userId), "comeback", { name: c.name || "" }));
-      if (ok) { await patchContact(c.id, { lastComebackReminderAt: new Date() }); out.comeback++; }
+      // This is a one-shot message: it is marked as tried even when WhatsApp refuses it, so a broken token does not repeat it (and its error) every hour for a day.
+      await patchContact(c.id, { lastComebackReminderAt: new Date() });
+      if (ok) out.comeback++;
     }
   } catch (e) { waError("comeback reminders", e); }
 
