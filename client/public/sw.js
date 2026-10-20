@@ -21,7 +21,7 @@ const CACHED_AT = "x-sw-cached-at";
 // Never kept: sign-in / password calls, live streams, member look-ups, chats, contracts / ID / payslips, files and codes.
 const API_MAX_ENTRIES = 300;
 const API_MAX_BYTES = 1500000;
-const NEVER_KEEP = /^\/api\/(auth\/(?!user$)|logout|karaoke|tv\/|venue-bridge|meta|whatsapp|telegram|client-error)|\/(stream|token|tokens|secret|password|pdf|qr|download|export|backups?|invite|contracts|my-employment|payslips|staff-hr|crm|chat|messages)(\/|$)|\/pos\/member(s|\/)?|\/id\//i;
+const NEVER_KEEP = /^\/api\/(auth\/(?!user$)|logout|karaoke|tv\/|venue-bridge|meta|whatsapp|telegram|client-error|reborn\/(song-queue-info|venue\/status))|\/(stream|token|tokens|secret|password|pdf|qr|download|export|backups?|invite|contracts|my-employment|payslips|staff-hr|crm|chat|messages)(\/|$)|\/pos\/member(s|\/)?|\/id\//i;
 const STATIC_FILE = /^\/(assets\/|icon-|apple-touch-icon)/;
 const NOT_THE_APP = /^\/(api\/|\.well-known\/|reset$|overlay)/; // downloads, sign-in returns and the like are never answered with the saved page
 

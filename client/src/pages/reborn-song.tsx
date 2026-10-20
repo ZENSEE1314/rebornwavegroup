@@ -222,7 +222,8 @@ function SongSystem() {
     onError: (e: any) => { qc.invalidateQueries({ queryKey: ["/api/reborn/song-queue-info"] }); toast({ title: t("vn.common.failed"), description: errText(e), variant: "destructive" }); },
   });
   const qi = useSongQueueInfo();
-  const ask = (x: any) => (qi?.needTable ? toast({ title: t("vn.song.needTableTitle"), description: t("vn.song.needTableBody"), variant: "destructive" }) : req.mutate(x));
+  // The server decides whether the table was scanned: a copy of "not checked in" kept on the phone must never stop a request from being sent.
+  const ask = (x: any) => req.mutate(x);
   const rowOf = (x: any) => <SongRow key={x.code || x.karaokeCode} s={{ ...x, source: "karaoke", karaokeCode: x.karaokeCode || x.code }} onRequest={ask} pending={req.isPending} />;
 
   if (status && !status.online) return (

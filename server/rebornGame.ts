@@ -2730,7 +2730,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/song-queue-info", requireAuth, async (req, res) => {
     const s = await getSettings();
     const seat = s.songQueueMode === "table" ? await activeCheckin(getUserId(req)!).catch(() => null) : null;
-    res.json({ mode: s.songQueueMode, perTurn: s.songsPerTurn, table: seat?.tableLabel || null, needTable: s.songQueueMode === "table" && !seat?.tableLabel, paused: await songQueuePaused() });
+    res.set("Cache-Control", "no-store").json({ mode: s.songQueueMode, perTurn: s.songsPerTurn, table: seat?.tableLabel || null, needTable: s.songQueueMode === "table" && !seat?.tableLabel, paused: await songQueuePaused() });
   });
   // ── Karaoke bridge API (token, no login) ──
   app.get("/api/karaoke/queue", async (req, res) => {
