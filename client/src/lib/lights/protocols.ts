@@ -8,7 +8,7 @@
 
 export interface Rgb { r: number; g: number; b: number }
 
-export type ProfileId = "elk1" | "elk2" | "elk3" | "ledble" | "ledDash" | "triones";
+export type ProfileId = "elk1" | "elk2" | "elk3" | "ledble" | "ledDash" | "leddmx" | "triones";
 
 export interface MusicSupport {
   /** Number of music modes the controller's own microphone offers. */
@@ -135,6 +135,24 @@ const ledDash: LightProfile = {
   ],
 };
 
+// LEDDMX-03 controllers (named LEDDMX-03-XXXX, sold with the "LED LAMP" app): service 0xFFE0, characteristic 0xFFE1, 9-byte frames 0x7B 0xFF … 0xBF, written without response.
+// Sources: github.com/PUMPKIN97-svg/leddmx-ble-homeassistant (frames taken from LED LAMP, confirmed on an LEDDMX-03) and github.com/kRystalDevv/leddmx-web-controller (colour frame).
+const LEDDMX_EFFECT_COUNT = 100; // the controller has 210 effects; the first 100 are offered
+
+const leddmx: LightProfile = {
+  id: "leddmx",
+  label: "LEDDMX (LED LAMP)",
+  service: LEDBLE_SERVICE,
+  characteristic: LEDBLE_CHARACTERISTIC,
+  builtInCount: LEDDMX_EFFECT_COUNT,
+  power: (isOn) => [0x7b, 0xff, 0x04, isOn ? 0x01 : 0x00, 0xff, 0xff, 0xff, 0xff, 0xbf],
+  colour: ({ r, g, b }) => [0x7b, 0xff, 0x07, channel(r), channel(g), channel(b), 0x00, 0xff, 0xbf],
+  builtIn: (index, speed) => [
+    [0x7b, 0xff, 0x02, clampInt(speed, 1, 100), 0xff, 0x00, 0xff, 0xff, 0xbf],
+    [0x7b, 0xff, 0x03, clampInt(index, 1, LEDDMX_EFFECT_COUNT), 0xff, 0xff, 0xff, 0xff, 0xbf],
+  ],
+};
+
 // Triones / HappyLighting family: service 0xFFD5, characteristic 0xFFD9.
 const TRIONES_FIRST_MODE = 0x25;
 const TRIONES_MODE_COUNT = 20;
@@ -156,8 +174,8 @@ const triones: LightProfile = {
   ]],
 };
 
-export const PROFILES: Record<ProfileId, LightProfile> = { elk1, elk2, elk3, ledble, ledDash, triones };
-export const PROFILE_LIST: LightProfile[] = [elk1, elk2, elk3, ledble, ledDash, triones];
+export const PROFILES: Record<ProfileId, LightProfile> = { elk1, elk2, elk3, ledble, ledDash, leddmx, triones };
+export const PROFILE_LIST: LightProfile[] = [elk1, elk2, elk3, ledble, ledDash, leddmx, triones];
 
 // Services of other common families. They are only asked for so a light we cannot drive yet can be reported by what it offers.
 export const OTHER_KNOWN_SERVICES: Record<string, string> = {
@@ -177,7 +195,7 @@ export function chooseProfile(deviceName: string, serviceUuids: string[]): Light
     if (/^elk-(ble|bulb|lampl|btc)/.test(name)) return elk2;
     return elk1;
   }
-  if (offered.has(LEDBLE_SERVICE)) return /^(led-|jackyled)/.test(name) ? ledDash : ledble;
+  if (offered.has(LEDBLE_SERVICE)) return /^leddmx/.test(name) ? leddmx : /^(led-|jackyled)/.test(name) ? ledDash : ledble;
   if (offered.has(PROFILES.triones.service)) return triones;
   return null;
 }
@@ -192,3 +210,8 @@ export function describeOtherServices(serviceUuids: string[]): string[] {
 }
 
 export const DETECTION_SERVICES: string[] = Array.from(new Set([...PROFILE_LIST.map((profile) => profile.service), ...Object.keys(OTHER_KNOWN_SERVICES)]));
+
+/** A light saved with an older guess (LEDBLE / LED-) whose name says LEDDMX is moved to its own command style. */
+export function profileForSaved(name: string, profileId: ProfileId): ProfileId {
+  return /^leddmx/i.test(name) && (profileId === "ledble" || profileId === "ledDash") ? "leddmx" : profileId;
+}

@@ -2,7 +2,7 @@
 // native Bluetooth (mobile/bleShim.ts + mobile/ble.ts); a plain iPhone browser has none.
 // Every light is chosen by the admin once per visit in the browser's own device chooser; the hub then reconnects them as needed.
 import type { LightInfo, LightLink } from "./hub";
-import { DETECTION_SERVICES, PROFILES, chooseProfile, describeOtherServices, type LightProfile, type ProfileId } from "./protocols";
+import { DETECTION_SERVICES, PROFILES, chooseProfile, profileForSaved, describeOtherServices, type LightProfile, type ProfileId } from "./protocols";
 
 const CONNECT_TIMEOUT_MS = 8000;
 const FRAME_GAP_MS = 40;
@@ -117,8 +117,9 @@ export async function restoreSavedLights(saved: SavedLight[]): Promise<{ info: L
   const byId = new Map(devices.map((device) => [device.id, device]));
   return saved.flatMap((light) => {
     const device = byId.get(light.id);
-    const profile = PROFILES[light.profileId];
-    return device && profile ? [{ info: { id: light.id, name: light.name, profileId: light.profileId }, link: new BluetoothLink(device, profile) as LightLink, group: light.group || "" }] : [];
+    const profileId = profileForSaved(light.name, light.profileId);
+    const profile = PROFILES[profileId];
+    return device && profile ? [{ info: { id: light.id, name: light.name, profileId }, link: new BluetoothLink(device, profile) as LightLink, group: light.group || "" }] : [];
   });
 }
 

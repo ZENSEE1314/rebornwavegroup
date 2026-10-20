@@ -111,6 +111,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.lt.tick': { en: "Tick {name} to control it", zh: "勾选 {name} 以控制它", id: "Centang {name} untuk mengontrolnya" },
   'admin.lt.live': { en: "connected", zh: "已连接", id: "terhubung" },
   'admin.lt.idle': { en: "waiting", zh: "待命", id: "menunggu" },
+  'admin.lt.rename': { en: 'Name (tap to rename)', zh: '名称（点击改名）', id: 'Nama (ketuk untuk mengubah)' },
   'admin.lt.group': { en: "Group", zh: "分组", id: "Grup" },
   'admin.lt.groupPh': { en: "e.g. Floor 1", zh: "例如：一楼", id: "mis. Lantai 1" },
   'admin.lt.remove': { en: "Remove this light", zh: "移除此灯", id: "Hapus lampu ini" },

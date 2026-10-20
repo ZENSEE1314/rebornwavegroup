@@ -169,6 +169,14 @@ export class LightHub {
     this.emit();
   }
 
+  /** The name the admin gave a light (saved on the phone with the light). */
+  rename(id: string, name: string) {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    entry.info = { ...entry.info, name: name.slice(0, 40) };
+    this.emit();
+  }
+
   toggleSelected(id: string) {
     const entry = this.entries.get(id);
     if (!entry) return;

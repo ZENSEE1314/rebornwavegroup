@@ -305,7 +305,7 @@ export default function LightsPanel() {
                   <input type="checkbox" checked={light.isSelected} onChange={() => hub.toggleSelected(light.id)} aria-label={t("admin.lt.tick", { name: light.name })} className="w-5 h-5 accent-amber-400 shrink-0" />
                   <Dot shown={light.shown} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm truncate">{light.name}</p>
+                    <input value={light.name} onChange={(event) => hub.rename(light.id, event.target.value)} aria-label={t("admin.lt.rename")} placeholder={t("admin.lt.rename")} className="w-full min-w-0 truncate border-b border-dashed border-white/20 bg-transparent p-0 text-sm text-white outline-none focus:border-amber-300" />
                     <p className={`text-[11px] truncate ${light.failure ? "text-red-300" : "text-white/40"}`}>{light.failure || (light.isLive ? t("admin.lt.live") : t("admin.lt.idle"))}</p>
                   </div>
                   <button type="button" onClick={() => { hub.removeLight(light.id); forgetBluetoothLight(light.id); }} aria-label={t("admin.lt.remove")} className="w-9 h-9 p-0 flex items-center justify-center shrink-0 text-white/50 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>

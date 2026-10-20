@@ -84,7 +84,7 @@ export const BLE_SHIM = `
       var box = document.createElement("div");
       box.style.cssText = "width:100%;max-width:420px;max-height:80vh;overflow:auto;background:#160f2a;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:16px";
       var title = document.createElement("p");
-      title.textContent = list.length ? "Choose a light" : "No lights found. Switch the light on, close its own app, and try again.";
+      title.textContent = list.length ? "Choose a light" : "No new lights found. Lights you already added are hidden. Switch the light on, close its own app, and try again.";
       title.style.cssText = "margin:0 0 12px;font-weight:700";
       box.appendChild(title);
       function close(action) { document.body.removeChild(overlay); action(); }
@@ -194,18 +194,20 @@ export const BLE_SHIM = `
       localStorage.setItem(KNOWN_KEY, JSON.stringify(known));
     } catch (e) { /* storage blocked: the lights are chosen again next visit */ }
   }
+  // Lights already added are not offered again (until they are removed): a new scan lists only the ones that are not yet in the list.
+  function fresh(list) { var known = loadKnown(); return list.filter(function (item) { return !known.some(function (k) { return k.id === item.id; }); }); }
   var bluetooth = {
     getDevices: function () { return Promise.resolve(loadKnown().map(makeDevice)); },
     // Not part of Web Bluetooth: take a light off the phone's saved list.
     forgetDevice: function (id) { try { localStorage.setItem(KNOWN_KEY, JSON.stringify(loadKnown().filter(function (item) { return item.id !== id; }))); } catch (e) { /* ignore */ } },
     requestDevice: function (options) {
       var stop = scanning();
-      return call("scan", {}).then(function (list) { stop(); return choose(list); }, function (error) { stop(); throw error; }).then(function (info) { saveKnown([info]); return makeDevice(info); });
+      return call("scan", {}).then(function (list) { stop(); return choose(fresh(list)); }, function (error) { stop(); throw error; }).then(function (info) { saveKnown([info]); return makeDevice(info); });
     },
     // Not part of Web Bluetooth: the same scan, with several lights ticked at once. The page uses it when it exists.
     requestDevices: function (options) {
       var stop = scanning();
-      return call("scan", {}).then(function (list) { stop(); return chooseMany(list, function () { return call("scan", {}); }); }, function (error) { stop(); throw error; }).then(function (list) { saveKnown(list); return list.map(makeDevice); });
+      return call("scan", {}).then(function (list) { stop(); return chooseMany(fresh(list), function () { return call("scan", {}).then(fresh); }); }, function (error) { stop(); throw error; }).then(function (list) { saveKnown(list); return list.map(makeDevice); });
     }
   };
   try { Object.defineProperty(navigator, "bluetooth", { value: bluetooth, configurable: true }); } catch (e) { navigator.bluetooth = bluetooth; }

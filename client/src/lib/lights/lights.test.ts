@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { APP_EFFECTS, hsvToRgb, renderEffect, rgbToHsv, scaleRgb } from "./effects";
 import { DEFAULT_MAX_LIVE, LightHub, type LightLink } from "./hub";
-import { PROFILES, chooseProfile, stylesSharingConnection, type ProfileId } from "./protocols";
+import { PROFILES, chooseProfile, profileForSaved, stylesSharingConnection, type ProfileId } from "./protocols";
 import { restoreSavedLights } from "./bluetooth";
 
 const hex = (bytes: number[]) => bytes.map((b) => b.toString(16).padStart(2, "0")).join(" ");
@@ -109,7 +109,7 @@ describe("choosing the command style", () => {
 
   it("should only offer styles that talk on the same characteristic", () => {
     assert.deepEqual(stylesSharingConnection(PROFILES.elk1).map((p) => p.id), ["elk1", "elk2", "elk3"]);
-    assert.deepEqual(stylesSharingConnection(PROFILES.ledble).map((p) => p.id), ["ledble", "ledDash"]);
+    assert.deepEqual(stylesSharingConnection(PROFILES.ledble).map((p) => p.id), ["ledble", "ledDash", "leddmx"]);
     assert.deepEqual(stylesSharingConnection(PROFILES.triones).map((p) => p.id), ["triones"]);
   });
 });
@@ -412,5 +412,25 @@ describe("lights saved on the device", () => {
       assert.deepEqual(restored.map((light) => [light.info.id, light.info.name, light.group]), [["AA", "Bar 1", "Bar"]]);
       assert.equal(connects, 0);
     } finally { if (original) Object.defineProperty(globalThis, "navigator", original); else delete (globalThis as any).navigator; }
+  });
+});
+
+describe("LEDDMX (LED LAMP) lights", () => {
+  it("should send the 0x7B 0xFF colour frame", () => {
+    assert.equal(hex(PROFILES.leddmx.colour({ r: 255, g: 128, b: 0 })), "7b ff 07 ff 80 00 00 ff bf");
+  });
+  it("should switch on and off with the 0x04 frame", () => {
+    assert.equal(hex(PROFILES.leddmx.power(true)), "7b ff 04 01 ff ff ff ff bf");
+    assert.equal(hex(PROFILES.leddmx.power(false)), "7b ff 04 00 ff ff ff ff bf");
+  });
+  it("should set the speed and then the effect", () => {
+    assert.deepEqual(PROFILES.leddmx.builtIn(5, 60).map(hex), ["7b ff 02 3c ff 00 ff ff bf", "7b ff 03 05 ff ff ff ff bf"]);
+  });
+  it("should be chosen for a light named LEDDMX-03", () => {
+    assert.equal(chooseProfile("LEDDMX-03-04D8", [service("ledble")])?.id, "leddmx");
+  });
+  it("should move a light saved as LEDBLE with an LEDDMX name to the LEDDMX style", () => {
+    assert.equal(profileForSaved("LEDDMX-03-04D8", "ledble"), "leddmx");
+    assert.equal(profileForSaved("LEDBLE-1234", "ledble"), "ledble");
   });
 });
