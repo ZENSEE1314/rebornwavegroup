@@ -19,7 +19,7 @@ import { ReasonDialog } from "@/components/ReasonDialog";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
-interface Product { bundleItemId?: number | null; isService?: boolean; salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
+interface Product { bundleItemId?: number | null; bundleQty?: number | null; isService?: boolean; salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
@@ -508,13 +508,27 @@ const emptyBottle = () => ({ enabled: false, isOwn: false, type: "beer", name: "
 const isDrink = (category = "", name = "") => /drink|beverage|beer|lager|ale|wine|whisky|whiskey|spirit|vodka|gin|rum|tequila|cocktail|bottle/i.test(`${category} ${name}`);
 const bottleType = (category = "", name = "") => /whisky|whiskey|spirit|vodka|gin|rum/i.test(`${category} ${name}`) ? "whisky" : /wine/i.test(`${category} ${name}`) ? "wine" : /beer|lager|ale/i.test(`${category} ${name}`) ? "beer" : "other";
 // onAddCorkage: puts a corkage service (a product marked as a service) on the bill being paid, once per bottle kept; the bill total changes before it is charged.
-function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [], onAddCorkage }: { value: any; onChange: (value: any) => void; hasMember: boolean; drinkOptions?: Array<{ name: string; category?: string }>; onAddCorkage?: (service: Product, quantity: number) => void }) {
+function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [], onAddCorkage }: { value: any; onChange: (value: any) => void; hasMember: boolean; drinkOptions?: Array<{ name: string; category?: string; productId?: number | null; qty?: number }>; onAddCorkage?: (service: Product, quantity: number) => void }) {
   const { t } = useTranslation();
   const { data: allProducts = [] } = useProducts();
   const services = allProducts.filter((p) => p.isService && Number(p.salePrice ?? p.price) > 0);
   const [corkageId, setCorkageId] = useState("");
   const input = "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white";
-  const unique = Array.from(new Map(drinkOptions.map((x)=>[x.name,x])).values());
+  // A bundle on the bill ("12 x HEINEKEN") is offered as the single beer inside it, with all its bottles counted: 2 bundles of 12 = 24 bottles that can be kept.
+  const byId = new Map(allProducts.map((p) => [p.id, p]));
+  const counted = new Map<string, { name: string; category?: string; bottles: number }>();
+  for (const x of drinkOptions) {
+    const product = x.productId ? byId.get(x.productId) : undefined;
+    const base = product?.bundleItemId ? byId.get(product.bundleItemId) : undefined;
+    const inBundle = product?.bundleItemId ? Math.max(1, Number(product.bundleQty) || 1) : 1; // bottles in one bundle (even when the single item itself is not in the POS list)
+    const name = base?.name || (inBundle > 1 ? x.name.replace(/^\s*\d+\s*x\s*/i, "") : x.name);
+    const bottles = Math.max(1, Number(x.qty) || 1) * inBundle;
+    const known = counted.get(name);
+    counted.set(name, { name, category: (base || product)?.category ?? x.category, bottles: (known?.bottles || 0) + bottles });
+  }
+  const unique = Array.from(counted.values());
+  const chosen = value.isOwn ? undefined : unique.find((x) => x.name === value.name);
+  const maxBottles = chosen?.bottles;
   const availableTypes = value.isOwn ? ["beer", "wine", "whisky", "other"] : Array.from(new Set(unique.map((x)=>bottleType(x.category,x.name))));
   const filtered = unique.filter((x)=>bottleType(x.category,x.name)===value.type);
   useEffect(() => {
@@ -525,14 +539,15 @@ function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [], onA
     <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.enabled} onChange={(e) => onChange({ ...value, enabled: e.target.checked })}/><Wine className="h-4 w-4 text-amber-300"/> {t("pos.keep.checkbox")}</label>
     {value.enabled && <div className="mt-3 space-y-2">
       {!hasMember && <p className="rounded-lg bg-red-500/10 p-2 text-xs text-red-200">{t("pos.keep.needMember")}</p>}
-      <div className="grid grid-cols-[1fr_80px] gap-2"><select className={input} value={value.type} onChange={(e)=>onChange({...value,type:e.target.value,name:"",photoUrl:""})}>{availableTypes.map((type)=><option key={type} value={type}>{t(`pos.bottleType.${type}`)}</option>)}</select><input className={input} type="number" min={1} value={value.quantity} onChange={(e)=>onChange({...value,quantity:Number(e.target.value)})}/></div>
+      <div className="grid grid-cols-[1fr_80px] gap-2"><select className={input} value={value.type} onChange={(e)=>onChange({...value,type:e.target.value,name:"",photoUrl:""})}>{availableTypes.map((type)=><option key={type} value={type}>{t(`pos.bottleType.${type}`)}</option>)}</select><input className={input} type="number" min={1} max={maxBottles} value={value.quantity} onChange={(e)=>onChange({...value,quantity:Math.min(maxBottles || Infinity, Math.max(1, Number(e.target.value) || 1))})}/></div>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!value.isOwn} onChange={(e) => onChange({ ...value, isOwn: e.target.checked, name: "", photoUrl: "" })} /> {t("pos.ownBottle")}</label>
       {value.isOwn
         ? <input className={input} value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} placeholder={t("pos.ownBottleName")} />
         :       <select className={input} value={value.name} onChange={(e)=>onChange({...value,name:e.target.value})}>
           <option value="">{t("pos.keep.selectFromOrder", { type: t(`pos.bottleType.${value.type}`) })}</option>
-          {filtered.map((x)=><option key={x.name} value={x.name}>{x.name}</option>)}
+          {filtered.map((x)=><option key={x.name} value={x.name}>{x.name} ({t("pos.keep.onBill", { n: String(x.bottles) })})</option>)}
         </select>}
+      {maxBottles ? <p className="text-[11px] text-amber-200/90">{t("pos.keep.maxNote", { n: String(maxBottles) })}</p> : null}
       <div className="rounded-xl border border-white/10 p-2.5">
         <p className="mb-1.5 text-xs text-white/50">🛎️ {t("pos.corkage.title")}</p>
         {services.length === 0 ? <p className="text-[11px] text-amber-200">{t("pos.corkage.noService")}</p> : (
@@ -564,7 +579,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { t } = useTranslation();
   const { data: products = [] } = useProducts();
   const productById = useMemo(() => new Map(products.map((p)=>[p.id,p])), [products]);
-  const orderDrinks = (order.items || []).filter((item:any)=>!OFF_BILL.includes(item.status)).map((item:any)=>({ name:item.name, category:productById.get(item.productId)?.category || "" })).filter((item:any)=>isDrink(item.category,item.name));
+  const orderDrinks = (order.items || []).filter((item:any)=>!OFF_BILL.includes(item.status)).map((item:any)=>({ name:item.name, category:productById.get(item.productId)?.category || "", productId:item.productId, qty:item.qty })).filter((item:any)=>isDrink(item.category,item.name));
   const [code, setCode] = useState("");
   const [sales, setSales] = useState("");
   const [discount, setDiscount] = useState(Number((order as any).discount) || 0);
@@ -866,7 +881,7 @@ function QuickSaleTab() {
         {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} />}
         <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
         <AtCostBox value={atCost} onChange={setAtCost} />
-        <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category}))}/>
+        <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category,productId:x.id,qty:x.qty}))}/>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${isOffline ? 2 : 3}, minmax(0, 1fr))` }}>
           {(["cash", "card", "credits"] as const).filter((m) => m !== "credits" || !isOffline).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>

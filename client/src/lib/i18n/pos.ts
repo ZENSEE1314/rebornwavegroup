@@ -176,6 +176,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.bottleType.other': { en: 'Other', zh: '其他', id: 'Lainnya' },
   'pos.keep.checkbox': { en: 'Keep unfinished bottle with this checkout', zh: '结账时寄存未喝完的酒', id: 'Simpan botol yang belum habis dengan pembayaran ini' },
   'pos.keep.needMember': { en: 'Select or tag a member first.', zh: '请先选择或绑定会员。', id: 'Pilih atau tandai member terlebih dahulu.' },
+  'pos.keep.onBill': { en: '{n} on this bill', zh: '本单共 {n}', id: '{n} di tagihan ini' },
+  'pos.keep.maxNote': { en: 'Type how many bottles are left. You can keep up to {n} from this bill.', zh: '请输入剩余瓶数。本单最多可寄存 {n} 瓶。', id: 'Ketik berapa botol yang tersisa. Maksimal {n} dari tagihan ini.' },
   'pos.keep.selectFromOrder': { en: 'Select {type} from this order', zh: '从本单中选择{type}', id: 'Pilih {type} dari pesanan ini' },
   'pos.keep.addDrinkFirst': { en: 'Add a drink to the order before keeping it.', zh: '请先在订单中添加酒水再寄存。', id: 'Tambahkan minuman ke pesanan sebelum menyimpannya.' },
   'pos.keep.photoLevel': { en: 'Photo of the remaining bottle level (required)', zh: '剩余酒量照片（必填）', id: 'Foto sisa isi botol (wajib)' },
