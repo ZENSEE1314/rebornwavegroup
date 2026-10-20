@@ -16,6 +16,7 @@ import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt,
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { ReasonDialog } from "@/components/ReasonDialog";
+import { publishScreen, useMirrorBill } from "@/lib/customer-screen";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
@@ -238,6 +239,7 @@ export default function RebornPos() {
       {(role === "admin" || companyRole === "manager") && <a href="/pos-app" className="mb-3 mr-2 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">⬇ {t("pos.appDownload")}</a>}
       {(role === "admin" || companyRole === "manager") && <a href="/venue-pc" className="mb-3 mr-2 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">⬇ {t("pos.offlineDownload")}</a>}
       {role === "admin" && <CommissionTypesSetting />}
+      <button onClick={() => window.open("/customer", "rw-customer", "popup,width=1024,height=768")} className="mb-3 mr-2 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🖥 {t("cs.open")}</button>
       <a href="/kitchen" className="mb-3 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🍳 {t("pos.kitchen.open")}</a>
       {(role === "admin" || companyRole === "manager") && <ClosePosDay />}
       <div className="grid gap-2 mb-4 max-w-3xl" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
@@ -608,6 +610,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: t("pos.drawerNotOpened"), description: t("pos.checkDrawerSetup") }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
+      publishScreen({ type: "thanks", total: payable });
       toast({ title: t("pos.paid"), description: d.message }); setReceiptResult(d);
     },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
@@ -684,6 +687,12 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const due = quoteTotals(quote, billTotals(subtotal, discount, posSettings));
   const total = due.total;
   const payable = due.payable;
+  useMirrorBill({
+    table: order.tableNumber || undefined,
+    member: order.memberName || undefined,
+    lines: (order.items || []).filter((item: any) => !OFF_BILL.includes(item.status)).map((item: any) => ({ name: item.name, qty: Number(item.qty), total: Number(item.lineTotal) })),
+    subtotal, discount: Math.max(0, subtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: payable,
+  });
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1 text-white/60 text-sm mb-3"><ChevronLeft className="w-4 h-4" /> {t("pos.allTables")}</button>
@@ -828,6 +837,11 @@ function QuickSaleTab() {
   const quote = useQuote({ items: cartItems.map((x) => ({ productId: x.id, price: Number(x.price), qty: x.qty })), memberCode: member?.code || "", discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost) }, cartItems.length > 0);
   const due = quoteTotals(cartItems.length ? quote : null, billTotals(cartSubtotal, discount, posSettings));
   const payable = due.payable;
+  useMirrorBill(cartItems.length ? {
+    member: member?.name || undefined,
+    lines: cartItems.map((item: any) => ({ name: item.name, qty: Number(item.qty), total: Number(item.price) * Number(item.qty) })),
+    subtotal: cartSubtotal, discount: Math.max(0, cartSubtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: payable,
+  } : null);
   const lookup = useMutation({
     mutationFn: () => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent(code.trim())}`).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: t("pos.memberFound"), description: d.name }); } else toast({ title: t("pos.notFound"), description: d.message, variant: "destructive" }); },
@@ -844,6 +858,7 @@ function QuickSaleTab() {
       return { queued: true, order, receipt: savedReceiptMeta(), message: t("pos.offline.savedToast") };
     },
     onSuccess: async (d) => {
+      publishScreen({ type: "thanks", total: payable });
       if (pay === "cash") await openCashDrawer();
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
       toast({ title: t("pos.saleComplete"), description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setUseCredit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); setPaymentReference(""); setCashReceived(""); setKeepBottle(emptyBottle()); setCommission(emptyCommission()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });

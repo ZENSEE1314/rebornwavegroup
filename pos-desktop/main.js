@@ -1,6 +1,6 @@
 // Reborn POS for Windows (7 and newer): opens the POS full screen, prints receipts silently on the chosen printer and opens the cash drawer
 // straight over the network. Everything else is the normal web POS (rebornwave.group/pos): the same login, the same screens.
-const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, screen, shell } = require("electron");
 const fs = require("fs");
 const net = require("net");
 const path = require("path");
@@ -31,7 +31,18 @@ function openMain() {
   });
   main.loadURL(config.url || DEFAULT_URL);
   // Links to other sites (a map, WhatsApp) open in the normal browser, not inside the cash register.
-  main.webContents.setWindowOpenHandler(({ url }) => { if (!url.startsWith(config.url || DEFAULT_URL)) { shell.openExternal(url); return { action: "deny" }; } return { action: "allow" }; });
+  main.webContents.setWindowOpenHandler(({ url }) => {
+    if (!url.startsWith(config.url || DEFAULT_URL)) { shell.openExternal(url); return { action: "deny" }; }
+    // The customer screen goes full screen on the second monitor (the one facing the customer); with one monitor it is a normal window.
+    if (new URL(url).pathname === "/customer") {
+      const others = screen.getAllDisplays().filter((display) => display.id !== screen.getDisplayMatching(main.getBounds()).id);
+      const target = others[0];
+      return { action: "allow", overrideBrowserWindowOptions: target
+        ? { x: target.bounds.x, y: target.bounds.y, width: target.bounds.width, height: target.bounds.height, fullscreen: true, autoHideMenuBar: true, backgroundColor: "#05030c" }
+        : { width: 1024, height: 768, autoHideMenuBar: true, backgroundColor: "#05030c" } };
+    }
+    return { action: "allow" };
+  });
   main.webContents.on("did-fail-load", (_event, _code, _text, _url, isMainFrame) => { if (isMainFrame) setTimeout(() => main && main.loadURL(readConfig().url || DEFAULT_URL), 5000); });
   main.on("closed", () => { main = null; });
 }
