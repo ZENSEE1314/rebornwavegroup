@@ -66,16 +66,16 @@ export default function CustomerDisplay() {
   return (
     <div className="fixed inset-0 flex bg-[#05030c] text-white">
       <style>{"@keyframes csfade{from{opacity:0}to{opacity:1}}"}</style>
-      <div className={bill || thanks !== null ? "hidden h-full flex-1 md:block" : "h-full w-full"}>{posterPane}</div>
+      <div className="absolute inset-0">{posterPane}</div>
       {thanks !== null && (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1b0f33] to-[#05030c] p-8 text-center md:w-[42%] md:flex-none">
+        <div className="absolute inset-y-0 right-0 z-30 flex w-full flex-col items-center justify-center gap-4 bg-[#0a0714]/80 p-8 text-center backdrop-blur-md md:w-[42%]">
           <p className="text-6xl">💜</p>
           <p className="text-4xl font-extrabold md:text-5xl">{t("cs.thanks")}</p>
           <p className="text-2xl text-amber-300">{money(thanks)}</p>
         </div>
       )}
       {bill && (
-        <div className="flex h-full w-full flex-col bg-gradient-to-b from-[#1b0f33] to-[#0a0714] p-6 md:w-[42%] md:flex-none">
+        <div className="absolute inset-y-0 right-0 z-30 flex w-full flex-col bg-[#0a0714]/80 p-6 backdrop-blur-md md:w-[42%]">
           <p className="text-sm font-bold uppercase tracking-widest text-amber-300">{t("cs.yourOrder")}{bill.table ? ` · ${t("cs.table", { t: bill.table })}` : ""}</p>
           {bill.member && <p className="text-white/60">{bill.member}</p>}
           <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
