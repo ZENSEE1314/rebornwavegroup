@@ -10,6 +10,7 @@ import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL, GIFT_LEVELS_SINCE_KEY } from "./giftLevels";
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
 import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
+import { payReferralCommission, reverseReferralCommission } from "./referralCommission";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
@@ -106,6 +107,8 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   payrollDay: "15",         // day of month payroll is recorded/paid (the admin reminder comes then)
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
   appOrdersAutoAccept: "true", // an order from the member app goes straight to the kitchen (no Accept tap at the counter)
+  referralOn: "false", referralPercent: "10", // the referrer earns RP credits on a referred member's paid bills (not on promo items); off until the admin turns it on
+  appDiscountOn: "false", appDiscountPercent: "5", // items a member orders through the app get this % off
   allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
   bookingTableDayLock: "false", // a table booked at any time is closed for the rest of that day
   bookingAskHours: "true",      // ask guests how many hours they'll stay (off → default 2 hours)
@@ -166,6 +169,10 @@ async function getSettings() {
     overtimeHourlyRate: Math.max(0, Number(map.overtimeHourlyRate) || 0),
     allowNegativeStock: map.allowNegativeStock === "true",
     appOrdersAutoAccept: map.appOrdersAutoAccept !== "false",
+    referralOn: map.referralOn === "true",
+    referralPercent: Math.min(100, Math.max(0, Number(map.referralPercent) || 0)),
+    appDiscountOn: map.appDiscountOn === "true",
+    appDiscountPercent: Math.min(100, Math.max(0, Number(map.appDiscountPercent) || 0)),
     bookingTableDayLock: map.bookingTableDayLock === "true",
     bookingAskHours: map.bookingAskHours !== "false",
     bookingAskSpecial: map.bookingAskSpecial !== "false",
@@ -3145,7 +3152,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
+    const allowed = ["referralOn", "referralPercent", "appDiscountOn", "appDiscountPercent", "receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -3682,7 +3689,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       cost: isService ? "0" : String(Number(b.cost) || 0), stock: isService ? 0 : Number(b.stock) || 0, imageUrl: await pictureFromAddress(b.imageUrl),
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
-      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, sortOrder: Number(b.sortOrder) || 0,
+      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, sortOrder: Number(b.sortOrder) || 0,
       ...happyFieldsOf(b),
       isService: !!b.isService,
       ...packageFields(b),
@@ -3727,6 +3734,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.active !== undefined) patch.active = !!b.active;
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
+    if (b.referralOk !== undefined) patch.referralOk = !!b.referralOk;
     if (b.isService !== undefined) patch.isService = !!b.isService;
     if (patch.isService) patch.cost = "0"; // a service has no cost and holds no stock (its stock count is ignored from now on)
     if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined || b.happyBuyQty !== undefined || b.happyFreeQty !== undefined) Object.assign(patch, happyFieldsOf({ happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, happyBuyQty: prev.happyBuyQty, happyFreeQty: prev.happyFreeQty, ...b }));
@@ -3951,6 +3959,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (amount <= 0) return null;
     return { label: clean(c.label, COMMISSION_LABEL_MAX), payee: clean(c.payee, COMMISSION_PAYEE_MAX), amount };
   };
+  const appDiscountPercentOf = (settings: { appDiscountOn: boolean; appDiscountPercent: number }) => (settings.appDiscountOn ? settings.appDiscountPercent : 0);
+  // The referrer's share of a paid bill (server/referralCommission.ts); the referrer is told when RP credits arrive. A failure here never stops the payment.
+  const payReferral = async (ticketId: number, totals: { subtotal: number; discount: number; total: number; due: number }, settings: { referralOn: boolean; referralPercent: number; houseReferralUserId: string }) => {
+    try {
+      const paid = await payReferralCommission(ticketId, totals, { isOn: settings.referralOn, percent: settings.referralPercent, houseUserId: settings.houseReferralUserId });
+      if (paid) await notifyUserI18n(paid.referrerId, "referral_commission", (lang) => ({ title: pick(lang, { en: "Referral commission", zh: "推荐佣金", id: "Komisi referral" }), body: pick(lang, { en: "You earned RP {n} credits from a member you referred.", zh: "你推荐的会员消费，你获得了 RP {n} 余额。", id: "Kamu mendapat kredit RP {n} dari member yang kamu referensikan." }, { n: fmtN(paid.amount, lang) }) }), { path: "/my-referral" });
+    } catch (error) { console.error("referral commission failed", error); }
+  };
   const commissionColumns = (c: ReturnType<typeof commissionOf>) => (c ? { commissionLabel: c.label || null, commissionPayee: c.payee || null, commissionAmount: String(c.amount) } : {});
   const bookCommission = async (ticketId: number, orderNo: string, c: NonNullable<ReturnType<typeof commissionOf>>, userId: string | null) => {
     await db.insert(ledgerEntries).values({ kind: "expense", category: "commission", amount: String(c.amount), note: `Commission${c.label ? ` ${c.label}` : ""}${c.payee ? ` · ${c.payee}` : ""} · ${orderNo}`, refType: "pos_commission", refId: String(ticketId), userId });
@@ -4085,6 +4101,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), ...(offlineAt ? { createdAt: offlineAt } : {}), userId: u?.id || null });
     if (commission) await bookCommission(row.id, row.orderNo, commission, staffId);
+    if (!costRequest.atCost) await payReferral(row.id, { subtotal, discount, total, due }, settings);
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: row.id });
     if (u?.id) await notifyUserI18n(u.id, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: row.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: row.id });
     const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, staffId, reqLang(req)) : null;
@@ -4099,7 +4116,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await freeTableAfterBill(row.companyId, row.tableNumber); // paid at a table → the table's booking frees it
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
     const numbered = (await receiptNumbers(row.companyId, [row.id])).get(row.id);
-    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...row, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items, receiptSeq: numbered?.seq, receiptDay: numbered?.day }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint, qr: receiptQrOf(settings) } });
+    const [referralRow] = await db.select().from(posTickets).where(eq(posTickets.id, row.id)); // the referral figures were written after the ticket was made
+    res.json({ message: tr(req, { en: "Paid RP {n}", zh: "已付款 RP {n}", id: "Dibayar RP {n}" }, { n: fmtN(total, reqLang(req)) }) + paidExtras(req, { points, bottle: !!keptBottle, creditUse: q.creditUse, perkAmount: q.perkAmount, perkPercent: q.perkPercent, packages: packagesAdded.length }), order: { ...row, referralPayee: referralRow?.referralPayee, referralBase: referralRow?.referralBase, referralPercent: referralRow?.referralPercent, referralAmount: referralRow?.referralAmount, referralNote: referralRow?.referralNote, subtotal: String(subtotal), discount: String(discount), serviceFee: String(serviceFee), tax: String(tax), total: String(total), items, receiptSeq: numbered?.seq, receiptDay: numbered?.day }, bottle: keptBottle, packages: packagesAdded, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, autoPrint: settings.posAutoPrint, qr: receiptQrOf(settings) } });
   }));
 
   // Member orders from the app — merges into their table's open ticket (or opens one).
@@ -4373,7 +4391,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const reqDisc = req.body?.discount !== undefined ? Number(req.body.discount) : Number(o.discount || 0);
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
     const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
@@ -4393,13 +4411,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const paid = await payWithCredits(o.memberId!, due, o.orderNo, id);
       if (!paid.ok) { if (spent.spent) await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(400).json({ message: notEnoughCredits(req, due, paid.balance) }); }
     }
-    const discountReason = [o.discountReason, q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null;
+    const discountReason = [o.discountReason, q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", q.appDiscount > 0 ? `App order ${q.appPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null;
     await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
     const commission = commissionOf(req.body, subtotal - discount);
     if (commission) { await db.update(posTickets).set(commissionColumns(commission)).where(eq(posTickets.id, id)); await bookCommission(id, o.orderNo, commission, staffId); }
+    if (!costRequest.atCost) await payReferral(id, { subtotal, discount, total, due }, settings);
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: o.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: id });
     if (o.memberId) await notifyUserI18n(o.memberId, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: o.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: id });
     const [member] = o.memberId ? await db.select().from(users).where(eq(users.id, o.memberId)).limit(1) : [];
@@ -4494,12 +4513,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // The bill with the member's perk and package credit, for the POS pay panel.
   app.post("/api/reborn/pos/quote", requireStaff(async (req, res) => {
     const settings = await getSettings();
-    let lines: { productId?: number | null; lineTotal: number }[] = [];
+    let lines: { productId?: number | null; lineTotal: number; qty?: number; fromApp?: boolean }[] = [];
     let userId: string | null = null;
     if (req.body?.ticketId) {
       const [o] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.body.ticketId)));
       if (!o) return res.status(404).json({ message: tr(req, { en: "Order not found", zh: "找不到该订单", id: "Pesanan tidak ditemukan" }) });
-      lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty }));
+      lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" }));
       userId = o.memberId;
     } else {
       const requested = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -4512,7 +4531,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     res.json({ ...q, hasMember: !!userId });
   }));
   // A member's packages (by member code) — POS pay panel and Packages tab.
@@ -4838,6 +4857,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund", rpAmount: String(paidAmount), kgoldAmount: 0, description: `Refund ${order.orderNo}: ${reason}`, referenceType: "pos_order", referenceId: String(id) });
     }
     if (paidAmount > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(paidAmount), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
+    await reverseReferralCommission(id); // the referrer's RP credits for this bill go back
     if (Number(order.commissionAmount) > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "commission_reversal", amount: String(order.commissionAmount), note: `Commission returned (refund ${order.orderNo})`, refType: "pos_commission_reversal", refId: String(id), userId: actorId });
     return { status: 200 as const, body: { message: tr(req, { en: "{no} refunded and stock restored", zh: "{no} 已退款，库存已恢复", id: "{no} di-refund dan stok dikembalikan" }, { no: order.orderNo }), order: { ...updated, items } }, order };
   };

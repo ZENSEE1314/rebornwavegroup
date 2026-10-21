@@ -17,6 +17,7 @@ interface Order {
   packageCreditUsed?: string | number; discountReason?: string | null;
   receiptSeq?: number; receiptDay?: string; // the paid bill's number within its venue day (1, 2, 3 ...) and that day's date
   commissionLabel?: string | null; commissionPayee?: string | null; commissionAmount?: string | number | null; // commission paid out of this sale: the sales copy shows it, the customer's copy never does
+  referralPayee?: string | null; referralBase?: string | number | null; referralPercent?: string | number | null; referralAmount?: string | number | null; referralNote?: string | null; // the referrer's commission on this bill (sales copy only)
 }
 interface ReceiptMeta { clubName?: string; logoUrl?: string; footer?: string; serviceFeePercent?: number; taxPercent?: number; qr?: { text: string; caption?: string } | null; }
 
@@ -117,6 +118,9 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
   const commission = showCommission && Number(o.commissionAmount) > 0
     ? `<div class="row"><span>${tr("pos.rc.commissionBase")}</span><span>${rp(Number(o.subtotal ?? o.total) - Number(o.discount || 0))}</span></div><div class="row"><span>${tr("pos.rc.commission")}${o.commissionLabel ? ` ${esc(o.commissionLabel)}` : ""}${o.commissionPayee ? ` · ${esc(o.commissionPayee)}` : ""}</span><span>${rp(o.commissionAmount)}</span></div><div class="c muted">${tr("pos.rc.commissionNote")}</div>`
     : "";
+  const referral = showCommission && o.referralPayee
+    ? `<div class="row"><span>${tr("pos.rc.referralBase", { pct: Number(o.referralPercent) || 0 })}</span><span>${rp(o.referralBase)}</span></div><div class="row"><span>${tr("pos.rc.referral")} · ${esc(o.referralPayee)}</span><span>${rp(o.referralAmount)}</span></div>${o.referralNote ? `<div class="c muted">${esc(tr("pos.rc.referralLeftOut", { items: o.referralNote }))}</div>` : ""}<div class="c muted">${tr("pos.rc.commissionNote")}</div>`
+    : "";
   return `
     <div class="c">
       ${m.logoUrl ? `<img class="logo" src="${m.logoUrl}" />` : ""}
@@ -142,7 +146,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
     ${o.paymentReference ? `<div class="row"><span>${tr("pos.rc.cardRef")}</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
     ${o.paymentMethod === "cash" ? `<div class="row"><span>${tr("pos.rc.cashReceived")}</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>${tr("pos.rc.change")}</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
     ${o.status === "refunded" ? `<div class="c b" style="font-size:18px;margin-top:6px;">${tr("pos.rc.refunded")}</div>` : ""}
-    ${commission}
+    ${commission}${referral}
     <hr/>
     ${withQr && m.qr?.text ? `<div class="c qr">${qrSvgNow(m.qr.text)}${m.qr.caption ? `<div class="muted b">${esc(m.qr.caption)}</div>` : ""}</div>` : ""}
     <div class="c muted">${esc(m.footer || tr("pos.rc.thanks"))}</div>
@@ -200,7 +204,7 @@ function printDoc(inner: string, fileName?: string, fullWidth = false): boolean 
 // `duplicate` = a reprint from the sales history: every copy is marked DUPLICATE with the time it was printed again.
 export function printReceipt(order: Order, meta: ReceiptMeta, opts: { duplicate?: boolean } = {}) {
   const dup = !!opts.duplicate;
-  const withSalesCopy = getReceiptCopies() === "two" || Number(order.commissionAmount) > 0;
+  const withSalesCopy = getReceiptCopies() === "two" || Number(order.commissionAmount) > 0 || !!order.referralPayee;
   const salesCopy = withSalesCopy ? receiptHtml(order, meta, tr("pos.rc.merchantCopy"), false, true, dup) + `<div style="page-break-after:always;height:8mm;"></div>` : "";
   return printDoc(salesCopy + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true, false, dup), dup && receiptFileName(order) ? `${receiptFileName(order)}_duplicate` : receiptFileName(order));
 }

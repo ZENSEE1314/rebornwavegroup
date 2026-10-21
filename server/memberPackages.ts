@@ -65,20 +65,26 @@ export async function memberWallet(userId: string) {
 // `lines` are the bill's items; package products get no perk, and only products the
 // admin allows (credit_ok, not a package) can be paid with package credit.
 export async function quoteBill(o: {
-  lines: { productId?: number | null; lineTotal: number; qty?: number }[]; manualDiscount: number; userId?: string | null;
+  lines: { productId?: number | null; lineTotal: number; qty?: number; fromApp?: boolean }[]; manualDiscount: number; userId?: string | null;
   usePackageCredit?: boolean; serviceFeePercent: number; taxPercent: number;
+  appPercent?: number; // % off the lines a member ordered through the app (admin setting; not on staff-price / at-cost bills)
   staffHalf?: boolean; // staff price: half of the bill, with no service fee, no tax and no member perk
   atCost?: boolean; // staff / boss buy at the item's cost: the discount takes every line down to its cost, with no service fee, no tax and no member perk
 }) {
   const ids = Array.from(new Set(o.lines.map((l) => Number(l.productId)).filter(Boolean)));
-  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, cost: posProducts.cost }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
+  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, cost: posProducts.cost, price: posProducts.price }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
   const byId = new Map(products.map((p) => [p.id, p]));
-  let subtotal = 0, packageBase = 0, creditBase = 0;
+  let subtotal = 0, packageBase = 0, creditBase = 0, appBase = 0;
   for (const l of o.lines) {
     const amt = Number(l.lineTotal) || 0, p = byId.get(Number(l.productId));
     subtotal = money(subtotal + amt);
     if (p?.packageKind) packageBase += amt;
-    else if (p && p.creditOk !== false) creditBase += amt;
+    else {
+      if (p && p.creditOk !== false) creditBase += amt;
+      const qty = Number(l.qty) || 1;
+      const isPromo = !!p && amt / qty < Number(p.price) - 0.005; // a happy-hour price or a free unit is not discounted again
+      if (l.fromApp && !isPromo) appBase += amt;
+    }
   }
   const costTotal = o.atCost ? money(o.lines.reduce((sum, l) => { const p = byId.get(Number(l.productId)); return sum + (p ? Number(p.cost || 0) * (Number(l.qty) || 1) : Number(l.lineTotal) || 0); }, 0)) : 0;
   const noFees = !!(o.atCost || o.staffHalf);
@@ -86,7 +92,9 @@ export async function quoteBill(o: {
   const wallet = o.userId ? await memberWallet(o.userId) : null;
   const perkPercent = noFees ? 0 : wallet?.perk?.percent || 0;
   const perkAmount = money(Math.max(0, subtotal - packageBase - manualDiscount) * perkPercent / 100);
-  const discount = Math.min(subtotal, manualDiscount + perkAmount);
+  const appPercent = noFees ? 0 : Math.max(0, Math.min(100, Number(o.appPercent) || 0));
+  const appDiscount = money(Math.max(0, appBase) * appPercent / 100);
+  const discount = Math.min(subtotal, manualDiscount + perkAmount + appDiscount);
   const taxable = money(subtotal - discount);
   const serviceFee = noFees ? 0 : money(taxable * o.serviceFeePercent / 100);
   const tax = noFees ? 0 : money(taxable * o.taxPercent / 100);
@@ -94,7 +102,7 @@ export async function quoteBill(o: {
   const creditable = subtotal > 0 ? money(total * creditBase / subtotal) : 0;
   const creditBalance = wallet?.creditBalance || 0;
   const creditUse = o.usePackageCredit ? Math.min(creditable, creditBalance) : 0;
-  return { subtotal, manualDiscount, perkPercent, perkAmount, discount, serviceFee, tax, total, creditBalance, creditable, creditUse, due: money(total - creditUse), hasPackages: packageBase > 0 };
+  return { subtotal, manualDiscount, perkPercent, perkAmount, appPercent: appDiscount > 0 ? appPercent : 0, appDiscount, discount, serviceFee, tax, total, creditBalance, creditable, creditUse, due: money(total - creditUse), hasPackages: packageBase > 0 };
 }
 
 // Spend package credit, oldest-expiring first. Each package is taken with an atomic

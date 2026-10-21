@@ -905,6 +905,7 @@ export const posProducts = pgTable("pos_products", {
   happyStart: varchar("happy_start"),                           // "HH:MM" on the venue clock
   happyEnd: varchar("happy_end"),
   happyOnly: boolean("happy_only").default(false).notNull(),
+  referralOk: boolean("referral_ok").default(true).notNull(),   // false = a referrer never earns commission on this item
   happyBuyQty: integer("happy_buy_qty").default(0).notNull(),   // "buy X get Y free" inside the window; 0 = no deal
   happyFreeQty: integer("happy_free_qty").default(0).notNull(),
   isService: boolean("is_service").default(false).notNull(),     // a service (corkage, room fee): no stock, no cost, never sold out, not in Inventory    // only sold (shown to order) inside the window
@@ -1029,6 +1030,11 @@ export const posTickets = pgTable("pos_tickets", {
   commissionLabel: varchar("commission_label"),   // a commission paid out of this sale (an agent, a driver ...): our own cost, never on the customer's receipt
   commissionPayee: varchar("commission_payee"),
   commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).default("0").notNull(),
+  referralPayee: varchar("referral_payee"),        // the referrer paid RP credits for this bill (see server/referralCommission.ts)
+  referralBase: decimal("referral_base", { precision: 14, scale: 2 }).default("0").notNull(),     // the part of the bill that earns commission (promo / flagged items left out)
+  referralPercent: decimal("referral_percent", { precision: 5, scale: 2 }).default("0").notNull(),
+  referralAmount: decimal("referral_amount", { precision: 14, scale: 2 }).default("0").notNull(),
+  referralNote: varchar("referral_note"),          // the items that did not earn commission, for the sales copy of the receipt
   note: text("note"),
   packageCreditUsed: decimal("package_credit_used", { precision: 14, scale: 2 }).default("0").notNull(), // part of the total paid with package credit
   createdAt: timestamp("created_at").defaultNow(),

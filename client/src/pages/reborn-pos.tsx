@@ -964,6 +964,7 @@ function SalesTodayTab() {
                 <p className="text-[11px] text-white/45">{new Date(o.paidAt || o.createdAt).toLocaleTimeString(localeTag(language), { hour: "numeric", minute: "2-digit" })} · {tOr(t, `pos.pay.${o.paymentMethod || "cash"}`, o.paymentMethod || "cash")}{o.salesStaffName ? ` · ${o.salesStaffName}` : ""}{o.memberName ? ` · ${o.memberName}` : ""}</p>
                 <p className="text-[11px] text-white/40 truncate">{items.map((it: any) => `${it.qty}× ${it.name}`).join(", ")}</p>
                 {Number(o.commissionAmount) > 0 && <p className="text-[11px] text-amber-200/80">💼 {t("pos.rc.commission")}{o.commissionLabel ? ` ${o.commissionLabel}` : ""}{o.commissionPayee ? ` · ${o.commissionPayee}` : ""}: {rp(Number(o.commissionAmount))} · {t("pos.rc.commissionBase")} {rp(Number(o.subtotal ?? o.total) - Number(o.discount || 0))}</p>}
+                {o.referralPayee && <p className="text-[11px] text-emerald-200/80">🤝 {t("pos.rc.referral")} · {o.referralPayee}: {rp(Number(o.referralAmount))} ({t("pos.rc.referralBase", { pct: Number(o.referralPercent) || 0 })} {rp(Number(o.referralBase))}){o.referralNote ? ` · ${t("pos.rc.referralLeftOut", { items: o.referralNote })}` : ""}</p>}
               </div>
               <div className="text-right flex-shrink-0">
                 <p className={`font-extrabold ${isRef ? "text-white/40 line-through" : ""}`}>{rp(Number(o.total))}</p>
@@ -1256,14 +1257,15 @@ function useQuote(body: any, enabled: boolean) {
 }
 // Bill numbers for the pay panel: the server quote when there is one, else the local estimate.
 function quoteTotals(q: any, local: { taxable: number; serviceFee: number; tax: number; total: number }) {
-  if (!q) return { ...local, perkAmount: 0, perkPercent: 0, creditUse: 0, payable: local.total };
-  return { taxable: q.subtotal - q.discount, serviceFee: q.serviceFee, tax: q.tax, total: q.total, perkAmount: q.perkAmount, perkPercent: q.perkPercent, creditUse: q.creditUse, payable: q.due };
+  if (!q) return { ...local, perkAmount: 0, perkPercent: 0, appDiscount: 0, appPercent: 0, creditUse: 0, payable: local.total };
+  return { taxable: q.subtotal - q.discount, serviceFee: q.serviceFee, tax: q.tax, total: q.total, perkAmount: q.perkAmount, perkPercent: q.perkPercent, appDiscount: q.appDiscount || 0, appPercent: q.appPercent || 0, creditUse: q.creditUse, payable: q.due };
 }
 function BillSummary({ due, settings }: { due: ReturnType<typeof quoteTotals>; settings: any }) {
   const { t } = useTranslation();
   return (
     <div className="mb-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
       {due.perkAmount > 0 && <div className="flex justify-between text-sky-200"><span>{t("pos.pkg.perkLine", { p: due.perkPercent })}</span><span>- {rp(due.perkAmount)}</span></div>}
+      {due.appDiscount > 0 && <div className="flex justify-between text-sky-200"><span>{t("pos.appDiscLine", { p: due.appPercent })}</span><span>- {rp(due.appDiscount)}</span></div>}
       <div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div>
       <div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number(settings?.serviceFeePercent) || 0 })}</span><span>{rp(due.serviceFee)}</span></div>
       <div className="flex justify-between"><span>{t("pos.taxPct", { n: Number(settings?.taxPercent) || 0 })}</span><span>{rp(due.tax)}</span></div>

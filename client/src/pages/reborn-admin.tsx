@@ -939,6 +939,16 @@ function Settings() {
           </select>
         </label>
         <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.appOrdersAutoAccept !== false} onChange={(e) => setStr("appOrdersAutoAccept", e.target.checked)} /> {t("admin.set.autoAccept")}</label>
+        <div className="mb-3 rounded-xl border border-white/10 p-3 text-sm">
+          <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={cur.appDiscountOn === true} onChange={(e) => setStr("appDiscountOn", e.target.checked)} /> {t("admin.set.appDisc")}</label>
+          <Field label={t("admin.set.appDiscPct")} value={cur.appDiscountPercent} onChange={(v: any) => set("appDiscountPercent", v)} />
+          <p className="-mt-2 text-[11px] text-white/40">{t("admin.set.appDiscHint")}</p>
+        </div>
+        <div className="mb-3 rounded-xl border border-white/10 p-3 text-sm">
+          <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={cur.referralOn === true} onChange={(e) => setStr("referralOn", e.target.checked)} /> {t("admin.set.referral")}</label>
+          <Field label={t("admin.set.referralPct")} value={cur.referralPercent} onChange={(v: any) => set("referralPercent", v)} />
+          <p className="-mt-2 text-[11px] text-white/40">{t("admin.set.referralHint")}</p>
+        </div>
         <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.allowNegativeStock === true} onChange={(e) => setStr("allowNegativeStock", e.target.checked)} /> {t("admin.set.negStock")}</label>
         <p className="-mt-2 mb-3 text-[11px] text-white/40">{t("admin.set.negStockHint")}</p>
         <Field label={t("admin.set.bottleDays")} value={cur.bottleExpiryDays} onChange={(v: any) => set("bottleExpiryDays", v)} />
@@ -2541,6 +2551,7 @@ function SellOptions({ value, onChange }: { value: any; onChange: (v: any) => vo
   return (
     <>
       <label className={box}><input type="checkbox" checked={!!value.recommended} onChange={(e) => onChange({ ...value, recommended: e.target.checked })} /> ⭐ {t("admin.prod.recommend")} <span className="text-white/40 text-xs">{t("admin.prod.recommendHint")}</span></label>
+      <label className={box}><input type="checkbox" checked={value.referralOk !== false} onChange={(e) => onChange({ ...value, referralOk: e.target.checked })} /> {t("admin.prod.referralOk")} <span className="text-white/40 text-xs">{t("admin.prod.referralOkHint")}</span></label>
       <label className={box}><input type="checkbox" checked={value.creditOk !== false} onChange={(e) => onChange({ ...value, creditOk: e.target.checked })} /> {t("admin.pkg.creditOk")} <span className="text-white/40 text-xs">{t("admin.pkg.creditOkHint")}</span></label>
       <div className={box + " flex-wrap"}>
         <span className="font-semibold">🍹 {t("admin.happy.title")}</span>
@@ -2566,7 +2577,7 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState<any>({ name: p.name, isService: !!p.isService, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyOnly: !!p.happyOnly, happyBuyQty: p.happyBuyQty || 0, happyFreeQty: p.happyFreeQty || 0, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
+  const [f, setF] = useState<any>({ name: p.name, isService: !!p.isService, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyOnly: !!p.happyOnly, happyBuyQty: p.happyBuyQty || 0, happyFreeQty: p.happyFreeQty || 0, referralOk: p.referralOk !== false, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
   const industryOptions = useCompanyIndustries();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),

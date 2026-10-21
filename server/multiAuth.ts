@@ -198,7 +198,8 @@ export function setupAuthRoutes(app: Express) {
       // Handle referral if provided; otherwise the signup belongs to the house
       // (admin) account so un-referred signups still generate commission.
       if (referralCode) {
-        await storage.handleReferral(userId, referralCode);
+        // The saved member's id (storage makes its own), not the temporary one above: the link used to go to an id nobody has.
+        await storage.handleReferral(newUser.id, String(referralCode).trim());
       } else {
         try {
           const rows: any = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'houseReferralUserId'`);
