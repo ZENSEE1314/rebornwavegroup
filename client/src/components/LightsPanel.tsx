@@ -3,7 +3,7 @@ import { Bluetooth, Plus, Power, Trash2 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { APP_EFFECTS, hsvToRgb, rgbToHsv } from "@/lib/lights/effects";
 import { LightHub, type LightShown, type Target } from "@/lib/lights/hub";
-import { UnsupportedLightError, forgetBluetoothLight, isBluetoothSupported, pairBluetoothLights, restoreSavedLights, type SavedLight } from "@/lib/lights/bluetooth";
+import { UnsupportedLightError, forgetBluetoothLight, isBluetoothSupported, pairBluetoothLights, restoreSavedLights, retryLinking, type PairFailure, type SavedLight } from "@/lib/lights/bluetooth";
 import type { ProfileId, Rgb } from "@/lib/lights/protocols";
 
 const WHEEL_SIZE = 240;
@@ -21,6 +21,25 @@ function loadSavedLights(): SavedLight[] {
     return []; // storage blocked or unreadable: the lights are chosen again
   }
 }
+const NOT_LINKED_KEY = "lights.notLinked";
+const EXPECTED_TOTAL_KEY = "lights.expectedTotal";
+const MAX_EXPECTED_LIGHTS = 500;
+
+type NotLinked = { id: string; name: string };
+
+function loadNotLinked(): NotLinked[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem(NOT_LINKED_KEY) || "[]");
+    return Array.isArray(stored) ? stored.filter((light) => light && typeof light.id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadExpectedTotal(): number {
+  try { return Math.max(0, Math.min(MAX_EXPECTED_LIGHTS, Number(localStorage.getItem(EXPECTED_TOTAL_KEY)) || 0)); } catch { return 0; }
+}
+
 const PRESETS: Rgb[] = [
   { r: 255, g: 0, b: 0 }, { r: 0, g: 255, b: 0 }, { r: 0, g: 0, b: 255 },
   { r: 255, g: 255, b: 255 }, { r: 255, g: 255, b: 0 }, { r: 255, g: 0, b: 255 },
@@ -138,6 +157,25 @@ export default function LightsPanel() {
     try { localStorage.setItem(SAVED_LIGHTS_KEY, JSON.stringify(list)); } catch { /* private mode: lights last for this visit only */ }
   }, [view.lights, isRestored]);
 
+  // Lights that would not link (usually "was disconnected": weak signal or too many at once) are kept, so they can be tried again later and are not lost.
+  const [notLinked, setNotLinked] = useState<NotLinked[]>(loadNotLinked);
+  const [expectedTotal, setExpectedTotal] = useState<number>(loadExpectedTotal);
+  useEffect(() => {
+    try { localStorage.setItem(NOT_LINKED_KEY, JSON.stringify(notLinked)); } catch { /* private mode: the list lasts for this visit only */ }
+  }, [notLinked]);
+  const changeExpectedTotal = (value: number) => {
+    const next = Math.max(0, Math.min(MAX_EXPECTED_LIGHTS, Math.floor(value) || 0));
+    setExpectedTotal(next);
+    try { localStorage.setItem(EXPECTED_TOTAL_KEY, String(next)); } catch { /* private mode: the number lasts for this visit only */ }
+  };
+  const afterLinking = (linkedIds: string[], failed: PairFailure[]) => {
+    const retryable = failed.filter(({ error }) => !(error instanceof UnsupportedLightError));
+    setNotLinked((current) => {
+      const stillMissing = current.filter((light) => !linkedIds.includes(light.id) && !retryable.some((item) => item.id === light.id));
+      return [...stillMissing, ...retryable.map(({ id, name }) => ({ id, name }))];
+    });
+  };
+
   const addLight = async () => {
     setNotice({ isError: false, text: t("admin.lt.pairing") });
     setIsPairing(true);
@@ -145,11 +183,31 @@ export default function LightsPanel() {
       const { lights, failed } = await pairBluetoothLights();
       if (!lights.length && !failed.length) { setNotice(null); return; }
       for (const paired of lights) hub.addLight(paired.info, paired.link);
-      const bad = failed.map(({ name, error }) => error instanceof UnsupportedLightError
-        ? `${t("admin.lt.unsupported", { name: error.deviceName || name })}${error.knownServices.length ? ` (${error.knownServices.join(", ")})` : ""}`
-        : t("admin.lt.pairFailed", { error: `${name}: ${error instanceof Error ? error.message : String(error)}` }));
+      afterLinking(lights.map((paired) => paired.info.id), failed);
+      const unsupported = failed.filter(({ error }) => error instanceof UnsupportedLightError).map(({ name, error }) => {
+        const known = error instanceof UnsupportedLightError ? error : null;
+        return `${t("admin.lt.unsupported", { name: known?.deviceName || name })}${known?.knownServices.length ? ` (${known.knownServices.join(", ")})` : ""}`;
+      });
+      const retryable = failed.filter(({ error }) => !(error instanceof UnsupportedLightError));
+      const firstError = retryable[0] ? `${retryable[0].name}: ${retryable[0].error instanceof Error ? retryable[0].error.message : String(retryable[0].error)}` : "";
       const ok = lights.length === 1 ? t("admin.lt.paired", { name: lights[0].info.name }) : lights.length ? t("admin.lt.pairedMany", { n: lights.length }) : "";
-      setNotice({ isError: !lights.length, text: [ok, ...bad].filter(Boolean).join(" ") });
+      const bad = retryable.length ? t("admin.lt.pairFailedMany", { n: retryable.length, error: firstError }) : "";
+      setNotice({ isError: !lights.length, text: [ok, bad, ...unsupported].filter(Boolean).join(" ") });
+    } catch (error) {
+      setNotice({ isError: true, text: t("admin.lt.pairFailed", { error: error instanceof Error ? error.message : String(error) }) });
+    } finally {
+      setIsPairing(false);
+    }
+  };
+
+  const retryNotLinked = async () => {
+    setIsPairing(true);
+    setNotice({ isError: false, text: t("admin.lt.retrying", { done: 0, total: notLinked.length }) });
+    try {
+      const { lights, failed } = await retryLinking(notLinked.map((light) => light.id), (done, total) => setNotice({ isError: false, text: t("admin.lt.retrying", { done, total }) }));
+      for (const paired of lights) hub.addLight(paired.info, paired.link);
+      afterLinking(lights.map((paired) => paired.info.id), failed);
+      setNotice({ isError: !lights.length, text: t("admin.lt.retryDone", { n: lights.length, left: failed.length }) });
     } catch (error) {
       setNotice({ isError: true, text: t("admin.lt.pairFailed", { error: error instanceof Error ? error.message : String(error) }) });
     } finally {
@@ -183,6 +241,23 @@ export default function LightsPanel() {
         </label>
         <p className="text-[11px] text-white/40">{t("admin.lt.maxLiveNote")}</p>
         {notice && <p role="status" className={`mt-3 text-xs ${notice.isError ? "text-red-300" : "text-white/70"}`}>{notice.text}</p>}
+        <label className="mt-3 flex items-center gap-2 text-[11px] text-white/60">{t("admin.lt.expected")}
+          <input type="number" inputMode="numeric" min={0} max={MAX_EXPECTED_LIGHTS} value={expectedTotal || ""} placeholder="0" onChange={(event) => changeExpectedTotal(Number(event.target.value))} className={field + " w-24 min-h-[44px]"} />
+        </label>
+        {expectedTotal > 0 && (
+          <p className="mt-1 text-xs text-white/70">
+            {t("admin.lt.progress", { n: view.lights.length, total: expectedTotal })}
+            {expectedTotal - view.lights.length - notLinked.length > 0 && <span className="block text-[11px] text-amber-200">{t("admin.lt.stillToFind", { n: expectedTotal - view.lights.length - notLinked.length })}</span>}
+          </p>
+        )}
+        {notLinked.length > 0 && (
+          <div className="mt-3 rounded-xl border border-red-400/30 bg-red-400/5 p-3">
+            <p className="text-xs font-semibold text-red-200">{t("admin.lt.notLinkedTitle", { n: notLinked.length })}</p>
+            <p className="mt-1 text-[11px] text-white/60 break-words">{notLinked.map((light) => light.name).join(", ")}</p>
+            <button type="button" onClick={retryNotLinked} disabled={!canBluetooth || isPairing} className="mt-2 min-h-[44px] px-4 rounded-lg bg-red-300 text-black text-xs font-bold disabled:opacity-40">{t("admin.lt.retryLink")}</button>
+            <p className="mt-1 text-[11px] text-white/40">{t("admin.lt.retryNote")}</p>
+          </div>
+        )}
       </div>
 
       {view.lights.length === 0 ? (
@@ -298,6 +373,13 @@ export default function LightsPanel() {
 
           <div className={card + " space-y-3"}>
             <p className="text-[11px] text-white/50">{t("admin.lt.testHint")}</p>
+            {view.missedCount > 0 && (
+              <div className="rounded-xl border border-red-400/30 bg-red-400/5 p-3">
+                <p className="text-xs text-red-200">{t("admin.lt.missedSummary", { n: view.missedCount, total: view.lights.length })}</p>
+                <button type="button" onClick={() => hub.resendMissed()} className="mt-2 min-h-[44px] px-4 rounded-lg bg-red-300 text-black text-xs font-bold">{t("admin.lt.resendMissed")}</button>
+                <p className="mt-1 text-[11px] text-white/40">{t("admin.lt.missedNote")}</p>
+              </div>
+            )}
             <datalist id="light-groups">{view.groups.map((group) => <option key={group} value={group} />)}</datalist>
             {view.lights.map((light) => (
               <div key={light.id} className="space-y-2 pb-3 border-b border-white/5 last:border-0 last:pb-0">
@@ -306,7 +388,7 @@ export default function LightsPanel() {
                   <Dot shown={light.shown} />
                   <div className="min-w-0 flex-1">
                     <input value={light.name} onChange={(event) => hub.rename(light.id, event.target.value)} aria-label={t("admin.lt.rename")} placeholder={t("admin.lt.rename")} className="w-full min-w-0 truncate border-b border-dashed border-white/20 bg-transparent p-0 text-sm text-white outline-none focus:border-amber-300" />
-                    <p className={`text-[11px] truncate ${light.failure ? "text-red-300" : "text-white/40"}`}>{light.failure || (light.isLive ? t("admin.lt.live") : t("admin.lt.idle"))}</p>
+                    <p className={`text-[11px] truncate ${light.failure || light.isMissed ? "text-red-300" : "text-white/40"}`}>{light.failure || (light.isMissed ? t("admin.lt.missed") : light.isLive ? t("admin.lt.live") : t("admin.lt.idle"))}</p>
                   </div>
                   <button type="button" onClick={() => { hub.removeLight(light.id); forgetBluetoothLight(light.id); }} aria-label={t("admin.lt.remove")} className="w-9 h-9 p-0 flex items-center justify-center shrink-0 text-white/50 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
                 </div>

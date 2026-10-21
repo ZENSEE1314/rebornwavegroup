@@ -39,6 +39,8 @@ export interface LightView {
   isLive: boolean;
   failure: string;
   shown: LightShown;
+  /** The light did not get the colour / effect that is on now (a command failed, or an older one is still showing). */
+  isMissed: boolean;
 }
 
 export type Target = { kind: "all" } | { kind: "group"; group: string } | { kind: "selected" };
@@ -71,6 +73,8 @@ export interface HubView {
   maxLive: number;
   /** The light currently flashing its test colours, or "". */
   testingId: string;
+  /** Lights that did not get what is on now. */
+  missedCount: number;
 }
 
 interface Entry {
@@ -307,6 +311,39 @@ export class LightHub {
     return this.control.music === null ? Promise.resolve() : this.flush(() => this.sendSensitivityNow());
   }
 
+  /** Sends what is on now again to the lights that missed it (out of range, dropped, or still showing an older colour). */
+  async resendMissed() {
+    const ids = Array.from(this.entries.values()).filter((entry) => this.isMissed(entry)).map((entry) => entry.info.id);
+    if (!ids.length) return;
+    const { control } = this;
+    await this.sendBatch(ids, (entry) => {
+      const profile = PROFILES[entry.info.profileId];
+      if (!control.isOn) return { frames: this.leaveMusic(entry, [profile.power(false)]), shown: { kind: "off" } };
+      if (control.builtIn !== null) return { frames: this.leaveMusic(entry, profile.builtIn(control.builtIn, control.speed)), shown: { kind: "builtin", index: control.builtIn } };
+      return { frames: this.leaveMusic(entry, [profile.power(true), profile.colour(this.scaledColour())]), shown: this.shownColour() };
+    });
+  }
+
+  // What every light should be showing now; running effects and music are not checked (they move all the time).
+  private wantedShown(): LightShown | undefined {
+    const { control } = this;
+    if (control.effect || control.music !== null) return undefined;
+    if (!control.isOn) return { kind: "off" };
+    if (control.builtIn !== null) return { kind: "builtin", index: control.builtIn };
+    return this.shownColour();
+  }
+
+  private isMissed(entry: Entry): boolean {
+    if (entry.failure) return true;
+    const want = this.wantedShown();
+    const shown = entry.shown;
+    if (!want || !shown) return false;
+    if (shown.kind !== want.kind) return true;
+    if (shown.kind === "colour" && want.kind === "colour") return shown.rgb.r !== want.rgb.r || shown.rgb.g !== want.rgb.g || shown.rgb.b !== want.rgb.b;
+    if (shown.kind === "builtin" && want.kind === "builtin") return shown.index !== want.index;
+    return false;
+  }
+
   /** Draws one frame of the running app effect at `time` seconds. Public so tests can step time themselves. */
   async renderFrame(time: number) {
     const effect = this.control.effect;
@@ -486,7 +523,7 @@ export class LightHub {
       lights: entries.map((entry) => ({
         id: entry.info.id, name: entry.info.name, group: entry.group, profileId: entry.info.profileId,
         styles: stylesSharingConnection(PROFILES[entry.info.profileId]).map(({ id: styleId, label }) => ({ id: styleId, label })),
-        isSelected: entry.isSelected, isLive: entry.link.isLive(), failure: entry.failure, shown: entry.shown,
+        isSelected: entry.isSelected, isLive: entry.link.isLive(), failure: entry.failure, shown: entry.shown, isMissed: this.isMissed(entry),
       })),
       groups: Array.from(new Set(entries.map((entry) => entry.group).filter(Boolean))).sort(),
       target: this.target,
@@ -499,6 +536,7 @@ export class LightHub {
       musicLimit: musical.length ? Math.min(...musical.map((entry) => PROFILES[entry.info.profileId].music!.modeCount)) : 0,
       maxLive: this.maxLive,
       testingId: this.testingId,
+      missedCount: entries.filter((entry) => this.isMissed(entry)).length,
     };
   }
 }

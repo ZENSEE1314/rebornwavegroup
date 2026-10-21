@@ -131,7 +131,23 @@ export function forgetBluetoothLight(id: string) { api()?.forgetDevice?.(id); }
  * returns the ones that worked. `failed` lists the lights whose commands are not known (or that did not answer).
  * Resolves with no lights when the chooser is closed without picking anything.
  */
-export async function pairBluetoothLights(): Promise<{ lights: PairedLight[]; failed: { name: string; error: unknown }[] }> {
+export type PairFailure = { id: string; name: string; error: unknown };
+
+/** One pass over lights the phone already remembers (the ones that failed to link before): each is tried once, one at a time. */
+export async function retryLinking(ids: string[], onProgress?: (done: number, total: number) => void): Promise<{ lights: PairedLight[]; failed: PairFailure[] }> {
+  const bluetooth = api();
+  const known = bluetooth?.getDevices ? await bluetooth.getDevices() : [];
+  const wanted = known.filter((device) => ids.includes(device.id));
+  const lights: PairedLight[] = [];
+  const failed: PairFailure[] = [];
+  for (const device of wanted) {
+    try { lights.push(await pairDevice(device, false)); } catch (error) { failed.push({ id: device.id, name: device.name || "?", error }); }
+    onProgress?.(lights.length + failed.length, wanted.length);
+  }
+  return { lights, failed };
+}
+
+export async function pairBluetoothLights(): Promise<{ lights: PairedLight[]; failed: PairFailure[] }> {
   const bluetooth = api();
   if (!bluetooth) throw new Error("Bluetooth is not available in this browser");
   const options = { acceptAllDevices: true, optionalServices: DETECTION_SERVICES };
@@ -143,9 +159,9 @@ export async function pairBluetoothLights(): Promise<{ lights: PairedLight[]; fa
     throw error;
   }
   const lights: PairedLight[] = [];
-  const failed: { name: string; error: unknown }[] = [];
+  const failed: PairFailure[] = [];
   for (const device of devices) {
-    try { lights.push(await pairDevice(device, devices.length === 1)); } catch (error) { failed.push({ name: device.name || "?", error }); }
+    try { lights.push(await pairDevice(device, devices.length === 1)); } catch (error) { failed.push({ id: device.id, name: device.name || "?", error }); }
   }
   return { lights, failed };
 }

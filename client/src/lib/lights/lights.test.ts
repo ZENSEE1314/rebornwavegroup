@@ -256,6 +256,30 @@ describe("light hub", () => {
     hub.dispose();
   });
 
+  it("should not mark any light as missed before a colour was sent", () => {
+    const { hub } = fleet(3);
+    assert.equal(hub.getSnapshot().missedCount, 0);
+    hub.dispose();
+  });
+
+  it("should mark the light that missed the colour", async () => {
+    const { hub } = fleet(3, { failConnect: ["light-2"] });
+    await hub.setColour({ r: 255, g: 0, b: 0 });
+    assert.deepEqual(hub.getSnapshot().lights.map((light) => light.isMissed), [false, true, false]);
+    hub.dispose();
+  });
+
+  it("should reach only the missed light when the colour is sent again", async () => {
+    const failing = ["light-2"];
+    const { hub, lights } = fleet(3, { failConnect: failing });
+    await hub.setColour({ r: 255, g: 0, b: 0 });
+    failing.length = 0;
+    await hub.resendMissed();
+    assert.equal(hub.getSnapshot().missedCount, 0);
+    assert.deepEqual(lights.map((light) => light.frames.length), [1, 1, 1]);
+    hub.dispose();
+  });
+
   it("should end with the latest colour when several arrive while one is still being sent", async () => {
     const { hub, lights } = fleet(2);
     await Promise.all([hub.setColour({ r: 255, g: 0, b: 0 }), hub.setColour({ r: 0, g: 255, b: 0 }), hub.setColour({ r: 0, g: 0, b: 255 })]);
