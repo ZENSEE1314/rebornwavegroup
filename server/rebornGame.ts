@@ -39,6 +39,7 @@ import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } f
 import { canUseExpenses, cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyActuals } from "@shared/fixedCosts";
 import { COST_SECTIONS, classifyLine, monthlyReports, periodReport } from "@shared/accountingReport";
+import { cleanRate } from "@shared/taxFees";
 import { DEFAULT_PAY_DAYS, MAX_PAY_DAYS, MIN_PAY_DAYS, cleanNoLeaveMonths, leaveSummary, unpaidDeduction } from "@shared/payrollLeave";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
@@ -3986,6 +3987,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (amount <= 0) return null;
     return { label: clean(c.label, COMMISSION_LABEL_MAX), payee: clean(c.payee, COMMISSION_PAYEE_MAX), amount };
   };
+  // The tax and service fee a bill is opened with stay on that bill: a change in Accounting only reaches bills opened after it.
+  const ticketRates = async () => { const current = await getSettings(); return { taxPercent: String(current.taxPercent), serviceFeePercent: String(current.serviceFeePercent) }; };
+  const ticketRate = (stored: unknown, current: number): number => (stored === null || stored === undefined || stored === "" || !Number.isFinite(Number(stored)) ? current : Number(stored));
   const appDiscountPercentOf = (settings: { appDiscountOn: boolean; appDiscountPercent: number }) => (settings.appDiscountOn ? settings.appDiscountPercent : 0);
   // The referrer's share of a paid bill (server/referralCommission.ts); the referrer is told when RP credits arrive. A failure here never stops the payment.
   const payReferral = async (ticketId: number, totals: { subtotal: number; discount: number; total: number; due: number }, settings: { referralOn: boolean; referralPercent: number; houseReferralUserId: string }) => {
@@ -4042,7 +4046,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const u = await findMemberByCode(req.body?.memberCode || "");
     const [row] = await db.insert(posTickets).values({
       companyId: cid,
-      orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open",
+      orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", ...(await ticketRates()),
       ...memberTag(u), ...(await salesTag(req.body)), tableNumber, orderMode: req.body?.orderMode === "take_away" ? "take_away" : "dine_in",
       subtotal: "0", total: "0", staffId: getUserId(req)!,
     }).returning();
@@ -4114,7 +4118,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const commission = commissionOf(req.body, subtotal - discount);
     const [row] = await db.insert(posTickets).values({
       companyId: await rebornCompanyId(req),
-      orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
+      orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", taxPercent: String(settings.taxPercent), serviceFeePercent: String(settings.serviceFeePercent), ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
       ...memberTag(u), ...(await salesTag(req.body)), ...commissionColumns(commission), tableNumber: req.body?.tableNumber || null,
       subtotal: String(subtotal), discount: String(discount), discountReason: [q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
       paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
@@ -4165,7 +4169,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!order) {
       [order] = await db.insert(posTickets).values({
         companyId: cid,
-        orderNo: "A" + Date.now().toString(36).toUpperCase(), source: "app", status: "open",
+        orderNo: "A" + Date.now().toString(36).toUpperCase(), source: "app", status: "open", ...(await ticketRates()),
         memberId: userId, memberCode: u?.referralCode || null,
         memberName: [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || null,
         tableNumber, orderMode: req.body?.orderMode === "take_away" ? "take_away" : "dine_in", subtotal: "0", total: "0",
@@ -4337,7 +4341,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!it) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
     let [dest] = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, table))).limit(1);
     if (!dest) {
-      [dest] = await db.insert(posTickets).values({ orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", tableNumber: table, subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
+      [dest] = await db.insert(posTickets).values({ orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", ...(await ticketRates()), tableNumber: table, subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
     }
     if (dest.id === it.orderId) return res.status(400).json({ message: tr(req, { en: "Item already on that table", zh: "该品项已在那张桌上", id: "Item sudah ada di meja itu" }) });
     await db.update(posTicketItems).set({ orderId: dest.id }).where(eq(posTicketItems.id, id));
@@ -4422,7 +4426,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const reqDisc = req.body?.discount !== undefined ? Number(req.body.discount) : Number(o.discount || 0);
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const ratesUsed = { service: ticketRate(o.serviceFeePercent, settings.serviceFeePercent), tax: ticketRate(o.taxPercent, settings.taxPercent) };
+    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: ratesUsed.service, taxPercent: ratesUsed.tax, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
     const split = due > 0 ? splitPlanOf(req, due) : null;
@@ -4446,7 +4451,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       if (!paid.ok) { if (spent.spent) await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(400).json({ message: notEnoughCredits(req, creditsToPay, paid.balance) }); }
     }
     const discountReason = [o.discountReason, q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", q.appDiscount > 0 ? `App order ${q.appPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null;
-    await db.update(posTickets).set({ status: "paid", paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
+    await db.update(posTickets).set({ status: "paid", taxPercent: String(ratesUsed.tax), serviceFeePercent: String(ratesUsed.service), paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
@@ -4514,7 +4519,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (corkageLines.length) {
       const cid = await rebornCompanyId(req);
       let [ticket] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, corkageTable))).limit(1);
-      if (!ticket) [ticket] = await db.insert(posTickets).values({ companyId: cid, orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", ...memberTag(u), tableNumber: corkageTable, orderMode: "dine_in", subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
+      if (!ticket) [ticket] = await db.insert(posTickets).values({ companyId: cid, orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", ...(await ticketRates()), ...memberTag(u), tableNumber: corkageTable, orderMode: "dine_in", subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
       await appendItems(ticket.id, ticket.orderNo, corkageLines, getUserId(req)!);
     }
     await logAdmin(req, { targetUserId: u.id, targetType: "bottle_keep", targetId: row.id, action: "store", entityType: "bottle", description: `Kept ${row.quantity}× ${row.name} for ${row.memberName} (30 days)` });
@@ -4549,11 +4554,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const settings = await getSettings();
     let lines: { productId?: number | null; lineTotal: number; qty?: number; fromApp?: boolean }[] = [];
     let userId: string | null = null;
+    let rates = { service: settings.serviceFeePercent, tax: settings.taxPercent };
     if (req.body?.ticketId) {
       const [o] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.body.ticketId)));
       if (!o) return res.status(404).json({ message: tr(req, { en: "Order not found", zh: "找不到该订单", id: "Pesanan tidak ditemukan" }) });
       lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" }));
       userId = o.memberId;
+      rates = { service: ticketRate(o.serviceFeePercent, settings.serviceFeePercent), tax: ticketRate(o.taxPercent, settings.taxPercent) };
     } else {
       const requested = Array.isArray(req.body?.items) ? req.body.items : [];
       // The sale charges what resolveItems prices (happy-hour price, free units of a "buy X get Y free" deal), so the quote shows the same; a line it cannot price falls back to what the screen sent.
@@ -4565,8 +4572,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
-    res.json({ ...q, hasMember: !!userId });
+    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: rates.service, taxPercent: rates.tax, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    res.json({ ...q, serviceFeePercent: rates.service, taxPercent: rates.tax, hasMember: !!userId });
   }));
   // A member's packages (by member code) — POS pay panel and Packages tab.
   app.get("/api/reborn/pos/member-packages", requireStaff(async (req, res) => {
@@ -5506,6 +5513,31 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (row.fixedCostId) await syncActualFromUploads(row.fixedCostId, row.spentOn);
     await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_void", entityType: "accounting", description: `Expense #${row.id} (${row.category} RP ${row.amount}) voided: ${reason}` });
     res.json({ message: tr(req, { en: "Expense voided", zh: "支出已作废", id: "Pengeluaran dibatalkan" }) });
+  }));
+
+  // ── Tax and service fee (Admin › Accounting › Tax and service fee): a change only reaches bills opened after it, every change is kept with who made it ──
+  const TAX_FEE_HISTORY_KEY = "taxFeeHistory";
+  const MAX_TAX_FEE_HISTORY = 30;
+  app.get("/api/reborn/admin/tax-fees", requireAdmin(async (_req, res) => {
+    const current = await getSettings();
+    res.json({ taxPercent: current.taxPercent, serviceFeePercent: current.serviceFeePercent, history: await readSetting<unknown[]>(TAX_FEE_HISTORY_KEY, []) });
+  }));
+  app.put("/api/reborn/admin/tax-fees", requireAdmin(async (req, res) => {
+    const taxPercent = cleanRate(req.body?.taxPercent);
+    const serviceFeePercent = cleanRate(req.body?.serviceFeePercent);
+    if (taxPercent === null || serviceFeePercent === null) return res.status(400).json({ message: tr(req, { en: "Enter the tax and the service fee as a percent from 0 to 100", zh: "请输入 0 到 100 的税率和服务费百分比", id: "Masukkan pajak dan biaya layanan sebagai persen 0 sampai 100" }) });
+    const before = await getSettings();
+    if (before.taxPercent === taxPercent && before.serviceFeePercent === serviceFeePercent) return res.json({ taxPercent, serviceFeePercent, unchanged: true });
+    for (const [key, value] of [["taxPercent", taxPercent], ["serviceFeePercent", serviceFeePercent]] as const) {
+      await db.insert(appSettings).values({ key, value: String(value), updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: String(value), updatedAt: new Date() } });
+    }
+    const userId = getUserId(req)!;
+    const [admin] = await db.select().from(users).where(eq(users.id, userId));
+    const by = [admin?.firstName, admin?.lastName].filter(Boolean).join(" ") || admin?.username || admin?.email || userId;
+    const history = [{ at: new Date().toISOString(), by, tax: taxPercent, service: serviceFeePercent, prevTax: before.taxPercent, prevService: before.serviceFeePercent }, ...(await readSetting<unknown[]>(TAX_FEE_HISTORY_KEY, []))].slice(0, MAX_TAX_FEE_HISTORY);
+    await writeSetting(TAX_FEE_HISTORY_KEY, history);
+    await logAdmin(req, { targetType: "settings", targetId: "taxFees", action: "tax_fees", entityType: "settings", oldValues: { tax: before.taxPercent, service: before.serviceFeePercent }, newValues: { tax: taxPercent, service: serviceFeePercent }, description: `Tax ${before.taxPercent}% → ${taxPercent}%, service fee ${before.serviceFeePercent}% → ${serviceFeePercent}% (bills opened before keep their rates)` });
+    res.json({ taxPercent, serviceFeePercent, history });
   }));
 
   // ── Monthly and overall accounting reports (Admin › Accounting › Reports) ──

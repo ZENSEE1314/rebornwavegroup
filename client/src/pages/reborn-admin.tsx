@@ -35,6 +35,7 @@ const LightsTvPanel = lazy(() => import("@/components/LightsTvPanel")); // Bluet
 import { useAuth } from "@/hooks/useAuth";
 import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
 import ExpensesPanel from "@/components/ExpensesPanel";
+import TaxFeesCard from "@/components/TaxFeesCard";
 import AccountingReports, { PeriodBreakdown } from "@/components/AccountingReports";
 import { LeaveRulesCard, PoliceMoneyCard } from "@/components/PayrollExtras";
 import { DailyTargetCard, FixedCostsPanel } from "@/components/DailyTarget";
@@ -2677,6 +2678,7 @@ function Accounting() {
         {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.acc.days", { n: d })}</button>)}
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
+      <TaxFeesCard />
       <AccountingReports />
       <AccountingFresh />
       <FixedCostsPanel />

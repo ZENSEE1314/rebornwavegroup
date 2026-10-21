@@ -1267,7 +1267,7 @@ function useQuote(body: any, enabled: boolean) {
 // Bill numbers for the pay panel: the server quote when there is one, else the local estimate.
 function quoteTotals(q: any, local: { taxable: number; serviceFee: number; tax: number; total: number }) {
   if (!q) return { ...local, perkAmount: 0, perkPercent: 0, appDiscount: 0, appPercent: 0, creditUse: 0, payable: local.total };
-  return { taxable: q.subtotal - q.discount, serviceFee: q.serviceFee, tax: q.tax, total: q.total, perkAmount: q.perkAmount, perkPercent: q.perkPercent, appDiscount: q.appDiscount || 0, appPercent: q.appPercent || 0, creditUse: q.creditUse, payable: q.due };
+  return { servicePercent: q.serviceFeePercent, taxPercent: q.taxPercent, taxable: q.subtotal - q.discount, serviceFee: q.serviceFee, tax: q.tax, total: q.total, perkAmount: q.perkAmount, perkPercent: q.perkPercent, appDiscount: q.appDiscount || 0, appPercent: q.appPercent || 0, creditUse: q.creditUse, payable: q.due };
 }
 function BillSummary({ due, settings }: { due: ReturnType<typeof quoteTotals>; settings: any }) {
   const { t } = useTranslation();
@@ -1276,8 +1276,8 @@ function BillSummary({ due, settings }: { due: ReturnType<typeof quoteTotals>; s
       {due.perkAmount > 0 && <div className="flex justify-between text-sky-200"><span>{t("pos.pkg.perkLine", { p: due.perkPercent })}</span><span>- {rp(due.perkAmount)}</span></div>}
       {due.appDiscount > 0 && <div className="flex justify-between text-sky-200"><span>{t("pos.appDiscLine", { p: due.appPercent })}</span><span>- {rp(due.appDiscount)}</span></div>}
       <div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div>
-      <div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number(settings?.serviceFeePercent) || 0 })}</span><span>{rp(due.serviceFee)}</span></div>
-      <div className="flex justify-between"><span>{t("pos.taxPct", { n: Number(settings?.taxPercent) || 0 })}</span><span>{rp(due.tax)}</span></div>
+      <div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number((due as any).servicePercent ?? settings?.serviceFeePercent) || 0 })}</span><span>{rp(due.serviceFee)}</span></div>
+      <div className="flex justify-between"><span>{t("pos.taxPct", { n: Number((due as any).taxPercent ?? settings?.taxPercent) || 0 })}</span><span>{rp(due.tax)}</span></div>
       <div className="flex justify-between text-sm font-black text-amber-300"><span>{t("pos.total")}</span><span>{rp(due.total)}</span></div>
       {due.creditUse > 0 && <>
         <div className="flex justify-between text-sky-200"><span>{t("pos.rc.packageCredit")}</span><span>- {rp(due.creditUse)}</span></div>

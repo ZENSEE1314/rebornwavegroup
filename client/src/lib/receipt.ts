@@ -5,12 +5,14 @@ import { money } from "@/lib/money";
 import { apiRequest } from "@/lib/queryClient";
 import { qrSvgNow } from "@/lib/qr-download";
 import { readSplit } from "@shared/payments";
+import { percentOf } from "@shared/taxFees";
 
 interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; status?: string; }
 // Lines that left the bill (rejected, lost) are not on the receipt: they are not in its total either.
 const OFF_RECEIPT = ["rejected", "lost", "cancelled"];
 interface Order {
   orderNo: string; tableNumber?: string; memberName?: string; salesStaffName?: string;
+  taxPercent?: string | number | null; serviceFeePercent?: string | number | null; // the rates this bill was opened with
   paymentSplit?: string | null; // JSON list of what each method paid when payment_method is "split"
   orderMode?: string; paymentMethod?: string; subtotal?: string | number; discount?: string | number;
   paymentReference?: string;
@@ -115,8 +117,11 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
   const disc = Number(o.discount) > 0 ? `<div class="row"><span>${tr("pos.rc.discount")}${o.discountReason ? ` (${esc(o.discountReason)})` : ""}</span><span>- ${rp(o.discount)}</span></div>` : "";
   // Part of the bill paid with the member's package credit, and what was left to pay.
   const pkg = Number(o.packageCreditUsed) > 0 ? `<div class="row"><span>${tr("pos.rc.packageCredit")}</span><span>- ${rp(o.packageCreditUsed)}</span></div><div class="row b"><span>${tr("pos.rc.toPay")}</span><span>${rp(Number(o.total) - Number(o.packageCreditUsed))}</span></div>` : "";
-  const service = Number(o.serviceFee) > 0 ? `<div class="row"><span>${m.serviceFeePercent ? tr("pos.rc.serviceFeePct", { n: m.serviceFeePercent }) : tr("pos.rc.serviceFee")}</span><span>${rp(o.serviceFee)}</span></div>` : "";
-  const tax = Number(o.tax) > 0 ? `<div class="row"><span>${m.taxPercent ? tr("pos.rc.taxPct", { n: m.taxPercent }) : tr("pos.rc.tax")}</span><span>${rp(o.tax)}</span></div>` : "";
+  const billBase = Number(o.subtotal ?? o.total) - Number(o.discount || 0);
+  const servicePct = percentOf(o.serviceFeePercent, Number(o.serviceFee), billBase, m.serviceFeePercent ?? 0);
+  const taxPct = percentOf(o.taxPercent, Number(o.tax), billBase, m.taxPercent ?? 0);
+  const service = Number(o.serviceFee) > 0 ? `<div class="row"><span>${servicePct ? tr("pos.rc.serviceFeePct", { n: servicePct }) : tr("pos.rc.serviceFee")}</span><span>${rp(o.serviceFee)}</span></div>` : "";
+  const tax = Number(o.tax) > 0 ? `<div class="row"><span>${taxPct ? tr("pos.rc.taxPct", { n: taxPct }) : tr("pos.rc.tax")}</span><span>${rp(o.tax)}</span></div>` : "";
   const commission = showCommission && Number(o.commissionAmount) > 0
     ? `<div class="row"><span>${tr("pos.rc.commissionBase")}</span><span>${rp(Number(o.subtotal ?? o.total) - Number(o.discount || 0))}</span></div><div class="row"><span>${tr("pos.rc.commission")}${o.commissionLabel ? ` ${esc(o.commissionLabel)}` : ""}${o.commissionPayee ? ` · ${esc(o.commissionPayee)}` : ""}</span><span>${rp(o.commissionAmount)}</span></div><div class="c muted">${tr("pos.rc.commissionNote")}</div>`
     : "";

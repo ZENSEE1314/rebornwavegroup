@@ -1034,6 +1034,8 @@ export const posTickets = pgTable("pos_tickets", {
   commissionLabel: varchar("commission_label"),   // a commission paid out of this sale (an agent, a driver ...): our own cost, never on the customer's receipt
   commissionPayee: varchar("commission_payee"),
   commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).default("0").notNull(),
+  taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }),                 // the rates this bill was opened with: changing the rates later only changes new bills
+  serviceFeePercent: decimal("service_fee_percent", { precision: 5, scale: 2 }),
   paymentSplit: text("payment_split"),             // JSON [{method, amount, reference?}] when a bill was paid with several methods together (payment_method is then "split")
   referralPayee: varchar("referral_payee"),       // the referrer paid RP credits for this bill (see server/referralCommission.ts)
   referralBase: decimal("referral_base", { precision: 14, scale: 2 }).default("0").notNull(),     // the part of the bill that earns commission (promo / flagged items left out)
