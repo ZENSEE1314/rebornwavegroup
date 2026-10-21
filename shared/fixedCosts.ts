@@ -1,7 +1,7 @@
 // What the venue must earn each day just to cover its running costs (rent, electricity, water, internet, salaries, security ...).
 // A cost is typed once with how often it is paid; a bill that only arrives at month end (electricity, water) is left empty and counted
 // from the day the admin enters it — until then the target says it is not counting it yet.
-export const FIXED_COST_CATEGORIES = ["rent", "electricity", "water", "internet", "salary", "security", "other"] as const;
+export const FIXED_COST_CATEGORIES = ["rent", "electricity", "water", "internet", "salary", "security", "police", "other"] as const;
 export type FixedCostCategory = (typeof FIXED_COST_CATEGORIES)[number];
 export const FIXED_COST_PERIODS = ["daily", "weekly", "monthly", "yearly"] as const;
 export type FixedPeriod = (typeof FIXED_COST_PERIODS)[number];

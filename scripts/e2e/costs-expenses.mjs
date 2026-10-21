@@ -43,6 +43,7 @@ r = await staff("POST", "/api/reborn/expenses", { category: "nope", amount: 1000
 check("an unknown category is refused", r.status === 400, JSON.stringify(r));
 r = await staff("POST", "/api/reborn/expenses", { category: "rent", amount: 1000, spentOn: "2099-01-01", note: "x" });
 check("a date in the future is refused", r.status === 400, JSON.stringify(r));
+const securityBefore = (await staff("GET", "/api/reborn/expenses")).json.totals.security || 0;
 r = await staff("POST", "/api/reborn/expenses", { category: "security", amount: 450000, spentOn: today, payee: "Guard Co", note: "October guards" });
 const expense = r.json?.expense;
 check("an expense is saved with who uploaded it", r.status === 200 && expense?.uploadedByName === "Accounts Staff" && Number(expense.amount) === 450000, JSON.stringify(r));
@@ -60,12 +61,13 @@ r = await admin("POST", `/api/reborn/expenses/${expense.id}/void`, { reason: "en
 const reversal = (await db.query("SELECT kind, amount FROM ledger_entries WHERE ref_type='expense_void' AND ref_id=$1", [String(expense.id)])).rows[0];
 check("the main admin voids it and the accounts get a reversal", r.status === 200 && reversal?.kind === "income" && Number(reversal.amount) === 450000, JSON.stringify([r, reversal]));
 r = await staff("GET", "/api/reborn/expenses");
-check("a voided expense no longer counts in the total", !(r.json.totals.security > 0) || r.json.totals.security < 450000, JSON.stringify(r.json.totals));
+check("a voided expense no longer counts in the total", (r.json.totals.security || 0) === securityBefore, JSON.stringify([securityBefore, r.json.totals]));
 r = await admin("POST", `/api/reborn/expenses/${expense.id}/void`, { reason: "again" });
 check("it cannot be voided twice", r.status === 400, JSON.stringify(r));
 
 // running costs and the daily target
 const day = "2026-10-15"; // 31 days in the month
+await admin("PUT", "/api/reborn/admin/fixed-costs/actual", { month: "2026-10", id: "power", amount: null }); // a bill typed by an earlier run
 await admin("PUT", "/api/reborn/admin/fixed-costs", { costs: [
   { id: "rent", name: "Rent", category: "rent", amount: 3100000, period: "monthly", isCounted: true },
   { id: "power", name: "Electricity", category: "electricity", amount: null, period: "monthly", isCounted: true },
@@ -92,6 +94,29 @@ check("the admin can also type a month's bill by hand", r.status === 200, JSON.s
 r = await admin("GET", `/api/reborn/manager/daily-target?day=${day}`);
 check("a typed bill counts too", r.json.perDay === 110000, JSON.stringify(r.json));
 
+// reports: every number can be opened to the lines behind it
+const month = today.slice(0, 7);
+r = await staff("POST", "/api/reborn/expenses", { category: "security", amount: 200000, spentOn: today, payee: "Guard Co", note: "guards", photoUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" });
+const guardsId = r.json.expense.id;
+await staff("POST", "/api/reborn/expenses", { category: "police", amount: 100000, spentOn: today, payee: "Station", note: "monthly" });
+r = await admin("GET", `/api/reborn/admin/accounting/monthly?month=${month}`);
+check("the monthly report lists security and police on their own lines", r.status === 200 && r.json.report.costs.security >= 200000 && r.json.report.costs.police >= 100000, JSON.stringify(r.json.report?.costs));
+check("the report adds the costs up in four groups: items, staff, utilities, company", r.json.report.groups && r.json.report.groups.staff >= 300000 && Object.values(r.json.report.groups).reduce((a, b) => a + b, 0) === r.json.report.costTotal, JSON.stringify(r.json.report?.groups));
+check("a voided upload is not counted in its line", r.json.report.costs.electricity === 0, JSON.stringify(r.json.report?.costs));
+r = await admin("GET", `/api/reborn/admin/accounting/report-lines?group=security&month=${month}`);
+const guardLine = r.json?.lines?.find((l) => l.upload?.id === guardsId);
+check("a line opens to the entries behind it, with who uploaded it", r.status === 200 && guardLine?.upload?.uploadedBy === "Accounts Staff" && guardLine.upload.payee === "Guard Co", JSON.stringify(r.json?.lines?.[0]));
+check("the lines add up to the number on the report", Math.abs(r.json.total - (await admin("GET", `/api/reborn/admin/accounting/monthly?month=${month}`)).json.report.costs.security) < 0.01, JSON.stringify(r.json?.total));
+r = await admin("GET", `/api/reborn/admin/accounting/ledger/${guardLine.id}/photo`);
+check("the receipt photo of a line can be opened", r.status === 200 && String(r.json.photoUrl).startsWith("data:image"), JSON.stringify(r));
+r = await admin("GET", "/api/reborn/admin/accounting/report-lines?group=nope");
+check("an unknown line is refused", r.status === 400, JSON.stringify(r));
+r = await staff("GET", `/api/reborn/admin/accounting/monthly?month=${month}`);
+check("staff cannot read the reports", r.status === 403 || r.status === 401, JSON.stringify(r));
+r = await admin("GET", "/api/reborn/admin/accounting/overall");
+check("the overall report has the total and a row per month", r.status === 200 && r.json.months.some((m) => m.month === month) && r.json.total.costs.security >= 200000, JSON.stringify(r.json?.months?.[0]));
+
+await admin("PUT", "/api/reborn/admin/fixed-costs/actual", { month: "2026-10", id: "power", amount: null });
 await admin("PUT", "/api/reborn/admin/fixed-costs", { costs: [], salaryFromPayroll: false });
 await db.end();
 console.log(failures ? `${failures} FAILED` : "ALL PASSED");

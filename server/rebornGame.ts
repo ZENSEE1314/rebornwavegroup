@@ -38,6 +38,7 @@ import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
 import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } from "@shared/packPricing";
 import { canUseExpenses, cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyActuals } from "@shared/fixedCosts";
+import { COST_SECTIONS, classifyLine, monthlyReports, periodReport } from "@shared/accountingReport";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerStaffContractRoutes } from "./staffContracts";
@@ -5321,7 +5322,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const MAX_EXPENSE_PHOTO_LENGTH = 4_000_000;
   const EXPENSE_NOTE_MAX = 300;
   const EXPENSE_PAYEE_MAX = 80;
-  const UPLOAD_CATEGORIES = ["rent", "electricity", "water", "internet", "salary", "security", "supplies", "other"];
+  const UPLOAD_CATEGORIES = ["rent", "electricity", "water", "internet", "salary", "security", "police", "supplies", "other"];
   const LEDGER_CATEGORY: Record<string, string> = { rent: "rental", electricity: "utilities", water: "utilities", internet: "utilities", salary: "salary" }; // what Accounting already groups by; the rest is "other"
   const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
   const MONTH_RE = /^\d{4}-\d{2}$/;
@@ -5477,6 +5478,74 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (row.fixedCostId) await syncActualFromUploads(row.fixedCostId, row.spentOn);
     await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_void", entityType: "accounting", description: `Expense #${row.id} (${row.category} RP ${row.amount}) voided: ${reason}` });
     res.json({ message: tr(req, { en: "Expense voided", zh: "支出已作废", id: "Pengeluaran dibatalkan" }) });
+  }));
+
+  // ── Monthly and overall accounting reports (Admin › Accounting › Reports) ──
+  const MONTH_START_OFFSET = "+07:00"; // the venue's clock, as receipts are booked
+  const reportUploads = async (cid: number) => (await db.select({ id: expenseUploads.id, ledgerEntryId: expenseUploads.ledgerEntryId, category: expenseUploads.category }).from(expenseUploads).where(eq(expenseUploads.companyId, cid)));
+  const monthBounds = (month: string) => {
+    const [year, number] = month.split("-").map(Number);
+    const next = number === 12 ? `${year + 1}-01` : `${year}-${String(number + 1).padStart(2, "0")}`;
+    return { from: new Date(`${month}-01T00:00:00${MONTH_START_OFFSET}`), to: new Date(`${next}-01T00:00:00${MONTH_START_OFFSET}`) };
+  };
+  app.get("/api/reborn/admin/accounting/monthly", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const month = MONTH_RE.test(String(req.query.month || "")) ? String(req.query.month) : (await ensureVenueSession()).day.slice(0, 7);
+    const { from, to } = monthBounds(month);
+    const lines = await db.select().from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${from}`, sql`${ledgerEntries.createdAt} < ${to}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
+    const costs = cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, []));
+    const actuals = await readSetting<MonthlyActuals>(FIXED_ACTUALS_KEY, {});
+    const payrollMonthly = (await readSetting<boolean>(SALARY_FROM_PAYROLL_KEY, false)) ? await monthlyPayrollSalary(cid) : 0;
+    const days = daysInMonth(month);
+    const planned = dailyCosts(costs, month, actuals, payrollMonthly / days);
+    res.json({ month, report: periodReport(lines, await reportUploads(cid)), plannedRunningCosts: Math.round(planned.perDay * days * 100) / 100, pendingBills: planned.pending, prizePool: await getSpinPool() });
+  }));
+  app.get("/api/reborn/admin/accounting/overall", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const lines = await db.select().from(ledgerEntries).where(sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`);
+    const uploads = await reportUploads(cid);
+    res.json({ total: periodReport(lines, uploads), months: monthlyReports(lines, uploads), prizePool: await getSpinPool() });
+  }));
+
+  // The lines behind one number of a report, each with where it came from: the POS bill, the expense upload (who, when, receipt), the stock delivery or the payroll entry.
+  app.get("/api/reborn/admin/accounting/ledger/:id/photo", requireAdmin(async (req, res) => {
+    const [row] = await db.select({ photoUrl: ledgerEntries.photoUrl }).from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
+    res.json({ photoUrl: row?.photoUrl || null });
+  }));
+  const MAX_DRILL_LINES = 500;
+  app.get("/api/reborn/admin/accounting/report-lines", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const group = String(req.query.group || "");
+    if (group !== "income" && !(COST_SECTIONS as readonly string[]).includes(group)) return res.status(400).json({ message: tr(req, { en: "Choose a line of the report", zh: "请选择报表中的一项", id: "Pilih satu baris laporan" }) });
+    const monthQuery = String(req.query.month || "");
+    const range = MONTH_RE.test(monthQuery) ? monthBounds(monthQuery) : null;
+    const rows = await db.select().from(ledgerEntries).where(and(range ? sql`${ledgerEntries.createdAt} >= ${range.from} AND ${ledgerEntries.createdAt} < ${range.to}` : sql`TRUE`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`)).orderBy(desc(ledgerEntries.createdAt));
+    const uploads = await reportUploads(cid);
+    const matched = rows.map((row) => ({ row, counted: classifyLine(row, uploads) })).filter((entry) => entry.counted.group === group);
+    const shown = matched.slice(0, MAX_DRILL_LINES);
+    const userIds = Array.from(new Set(shown.map((entry) => entry.row.userId).filter((id): id is string => !!id)));
+    const people = userIds.length ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email }).from(users).where(inArray(users.id, userIds)) : [];
+    const nameOf = new Map(people.map((person) => [person.id, [person.firstName, person.lastName].filter(Boolean).join(" ") || person.username || person.email || ""]));
+    const ticketIds = Array.from(new Set(shown.filter((entry) => entry.row.refType === "pos_order" || entry.row.refType === "pos_refund" || entry.row.refType === "pos_commission" || entry.row.refType === "pos_commission_reversal").map((entry) => Number(entry.row.refId)).filter((id) => Number.isInteger(id) && id > 0)));
+    const tickets = ticketIds.length ? await db.select({ id: posTickets.id, orderNo: posTickets.orderNo, tableNumber: posTickets.tableNumber, memberName: posTickets.memberName }).from(posTickets).where(inArray(posTickets.id, ticketIds)) : [];
+    const ticketById = new Map(tickets.map((ticket) => [ticket.id, ticket]));
+    const uploadIds = Array.from(new Set(shown.map((entry) => entry.row.refType === "expense_upload" || entry.row.refType === "expense_void" ? Number(entry.row.refId) : 0).filter((id) => id > 0)));
+    const uploadRows = uploadIds.length ? await db.select().from(expenseUploads).where(inArray(expenseUploads.id, uploadIds)) : [];
+    const uploadRowById = new Map(uploadRows.map((upload) => [upload.id, upload]));
+    res.json({
+      group, count: matched.length, truncated: matched.length > shown.length,
+      total: Math.round(matched.reduce((sum, entry) => sum + entry.counted.amount, 0) * 100) / 100,
+      lines: shown.map(({ row, counted }) => {
+        const ticket = ticketById.get(Number(row.refId));
+        const upload = uploadRowById.get(Number(row.refId));
+        return {
+          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, by: row.userId ? nameOf.get(row.userId) || "" : "",
+          hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
+          bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,
+          upload: upload ? { id: upload.id, payee: upload.payee, uploadedBy: upload.uploadedByName, spentOn: upload.spentOn, status: upload.status, voidReason: upload.voidReason, hasPhoto: !!upload.photoUrl } : null,
+        };
+      }),
+    });
   }));
 
   app.get("/api/reborn/industries", requireStaff(async (_req, res) => { res.json(await companyIndustries()); }));

@@ -8,11 +8,14 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
 import { ImageUpload } from "@/components/ImageUpload";
+import { EXPENSE_GROUPS, GROUP_OF_SECTION, sectionOf, type ExpenseGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
 const field = "min-w-0 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60";
 const PHOTO_MAX_DIM = 1400;
 const PHOTO_QUALITY = 0.8;
+// What the upload is for, grouped as the reports show it. Items bought for the shop's stock are not uploaded here (Inventory › Scan a supplier receipt).
+const groupOf = (category: string): ExpenseGroup => GROUP_OF_SECTION[sectionOf(category)];
 const todayText = () => new Date().toISOString().slice(0, 10);
 
 interface Expense { id: number; category: string; amount: string; spentOn: string; payee?: string | null; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
@@ -53,11 +56,14 @@ export default function ExpensesPanel() {
       <div className={card + " space-y-3"}>
         <h3 className="font-extrabold flex items-center gap-2"><Receipt className="w-5 h-5 text-amber-300" /> {t("ex.title")}</h3>
         <p className="text-[11px] text-white/50">{t("ex.intro")}</p>
+        <p className="text-[11px] text-white/40">{t("ex.itemsNote")}</p>
         <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           <label className="block text-xs text-white/60">{t("ex.category")}
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field + " mt-1"}>
               <option value="">—</option>
-              {(data?.categories || []).map((c) => <option key={c} value={c}>{t(`ex.cat.${c}`)}</option>)}
+              {EXPENSE_GROUPS.filter((group) => (data?.categories || []).some((c) => groupOf(c) === group)).map((group) => (
+                <optgroup key={group} label={t(`ar.group.${group}`)}>{(data?.categories || []).filter((c) => groupOf(c) === group).map((c) => <option key={c} value={c}>{t(`ex.cat.${c}`)}</option>)}</optgroup>
+              ))}
             </select>
           </label>
           <label className="block text-xs text-white/60">{t("ex.amount")}<input type="number" inputMode="numeric" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field + " mt-1"} /></label>
@@ -85,7 +91,14 @@ export default function ExpensesPanel() {
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={field + " w-auto"} />
         </div>
         {data && <p className="mt-1 text-sm font-black text-amber-200">{t("ex.total", { n: money(data.total) })}</p>}
-        {data && Object.keys(data.totals).length > 0 && <p className="mt-1 text-[11px] text-white/50">{Object.entries(data.totals).map(([c, n]) => `${t(`ex.cat.${c}`)} ${money(n)}`).join(" · ")}</p>}
+        {data && Object.keys(data.totals).length > 0 && (
+          <div className="mt-1 space-y-0.5 text-[11px] text-white/50">
+            {EXPENSE_GROUPS.map((group) => {
+              const inGroup = Object.entries(data.totals).filter(([c]) => groupOf(c) === group);
+              return inGroup.length ? <p key={group}><b className="text-amber-200">{t(`ar.group.${group}`)} {money(inGroup.reduce((sum, [, n]) => sum + n, 0))}</b> · {inGroup.map(([c, n]) => `${t(`ex.cat.${c}`)} ${money(n)}`).join(" · ")}</p> : null;
+            })}
+          </div>
+        )}
         <div className="mt-3 space-y-2">
           {(data?.expenses || []).map((row) => (
             <div key={row.id} className={`rounded-xl border p-3 text-xs ${row.status === "voided" ? "border-white/10 opacity-50" : "border-white/10 bg-black/20"}`}>
