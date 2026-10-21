@@ -13,7 +13,7 @@ import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredi
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
-import { clockInZone, isHappyNow, isOffHours, isValidClock, salePriceNow } from "@shared/happyHour";
+import { clockInZone, dealOf, freeUnitsFor, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
@@ -1345,10 +1345,12 @@ const OFFLINE_SALE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // a sale saved offline
 const happyFieldsOf = (b: any) => {
   const hasWindow = isValidClock(b.happyStart) && isValidClock(b.happyEnd) && b.happyStart !== b.happyEnd;
   const price = b.happyPrice === "" || b.happyPrice === null || b.happyPrice === undefined ? null : Math.max(0, Number(b.happyPrice));
+  const deal = dealOf({ happyBuyQty: Math.min(MAX_DEAL_QTY, Number(b.happyBuyQty)), happyFreeQty: Math.min(MAX_DEAL_QTY, Number(b.happyFreeQty)) });
   return {
     happyStart: hasWindow ? b.happyStart : null, happyEnd: hasWindow ? b.happyEnd : null,
     happyPrice: hasWindow && price !== null && Number.isFinite(price) ? String(price) : null,
     happyOnly: hasWindow && !!b.happyOnly,
+    happyBuyQty: hasWindow && deal ? deal.buy : 0, happyFreeQty: hasWindow && deal ? deal.free : 0,
   };
 };
 const DEADLOCK_CODE = "40P01";
@@ -3662,7 +3664,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const named = wanted.length ? await db.select({ id: posProducts.id, name: posProducts.name }).from(posProducts).where(inArray(posProducts.id, wanted)) : [];
     const nameOf = new Map(named.map((x) => [x.id, x.name]));
     res.json(withHappyHour(await withBundleStock(rows)).filter((p) => Number(p.price) > 0 && !p.offHours && (p.packageKind || p.isService || allowNegative || (p.stock ?? 0) > 0)).map((p) => ({
-      id: p.id, name: p.name, category: p.category, price: p.salePrice, regularPrice: p.happyNow ? p.price : undefined, happyNow: p.happyNow, stock: p.stock, imageUrl: productImageLink(p), recommended: p.recommended, soldOut: false,
+      id: p.id, name: p.name, category: p.category, price: p.salePrice, regularPrice: p.happyNow ? p.price : undefined, happyNow: p.happyNow, deal: p.happyNow ? dealOf(p) : null, stock: p.stock, imageUrl: productImageLink(p), recommended: p.recommended, soldOut: false,
       packageKind: p.packageKind, packageUses: p.packageUses, packageCredit: p.packageCredit, packageValidDays: p.packageValidDays,
       packageItems: itemIdsOf(p).map((id) => nameOf.get(id)).filter(Boolean),
     })));
@@ -3727,7 +3729,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
     if (b.isService !== undefined) patch.isService = !!b.isService;
     if (patch.isService) patch.cost = "0"; // a service has no cost and holds no stock (its stock count is ignored from now on)
-    if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined) Object.assign(patch, happyFieldsOf({ happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, ...b }));
+    if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined || b.happyBuyQty !== undefined || b.happyFreeQty !== undefined) Object.assign(patch, happyFieldsOf({ happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, happyBuyQty: prev.happyBuyQty, happyFreeQty: prev.happyFreeQty, ...b }));
     if (b.bundleItemId !== undefined || b.bundleQty !== undefined) {
       const bundle = await bundleFieldsFor({ ...b, packageKind: b.packageKind !== undefined ? b.packageKind : prev.packageKind }, cid, id);
       if ("error" in bundle) return res.status(400).json({ message: bundle.error });
@@ -3827,6 +3829,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // Ticket subtotal/total = sum of non-rejected line totals.
   // A line taken off the bill: rejected (never served) or lost (spilled / broken after it was made).
   const GONE_ITEM = ["rejected", "lost"];
+  async function unitsOnBill(orderId: number | undefined): Promise<Map<number, number>> {
+    const units = new Map<number, number>();
+    if (!orderId) return units;
+    const rows = await db.select({ productId: posTicketItems.productId, qty: posTicketItems.qty, status: posTicketItems.status }).from(posTicketItems).where(eq(posTicketItems.orderId, orderId));
+    for (const row of rows) if (row.productId && !GONE_ITEM.includes(row.status)) units.set(row.productId, (units.get(row.productId) ?? 0) + row.qty);
+    return units;
+  }
   async function recalcTicket(orderId: number) {
     const rows = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, orderId));
     const total = rows.filter((r) => !GONE_ITEM.includes(r.status)).reduce((s, r) => s + Number(r.lineTotal), 0);
@@ -3866,12 +3875,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }
   // What a customer sees and pays right now: the happy-hour price inside the window, and items sold only in the window hidden outside it.
   const venueClockNow = () => clockInZone(new Date(), countryOf(companyCountry()).timezone);
-  const withHappyHour = <T extends { price: any; happyPrice?: any; happyStart?: any; happyEnd?: any; happyOnly?: any }>(rows: T[]) => {
+  const withHappyHour = <T extends { price: any; happyPrice?: any; happyStart?: any; happyEnd?: any; happyOnly?: any; happyBuyQty?: any; happyFreeQty?: any }>(rows: T[]) => {
     const clock = venueClockNow();
-    return rows.map((p) => ({ ...p, salePrice: String(salePriceNow(p, clock)), happyNow: isHappyNow(p, clock), offHours: isOffHours(p, clock) }));
+    return rows.map((p) => ({ ...p, salePrice: String(salePriceNow(p, clock)), happyNow: isHappyNow(p, clock), offHours: isOffHours(p, clock), deal: isHappyNow(p, clock) ? dealOf(p) : null }));
   };
   // Validate requested items against the live catalogue + stock.
-  async function resolveItems(items: any[], lang: Lang = "en", alreadySold = false): Promise<{ clean?: any[]; error?: string }> {
+  // `onBill` = units of each item the bill already holds, so a "buy 1 get 1 free" deal keeps counting across orders added one at a time.
+  async function resolveItems(items: any[], lang: Lang = "en", alreadySold = false, onBill: Map<number, number> = new Map()): Promise<{ clean?: any[]; error?: string }> {
     const ids = items.map((it) => Number(it.productId)).filter(Boolean);
     const products = ids.length ? await db.select().from(posProducts).where(or(...ids.map((i: number) => eq(posProducts.id, i)))) : [];
     const byId = new Map((await withBundleStock(products)).map((p) => [p.id, p]));
@@ -3883,7 +3893,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
       if (!allowNegative && !alreadySold && !p.packageKind && !p.isService && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
       if (!alreadySold && isOffHours(p, venueClockNow())) return { error: pick(lang, { en: "{item} is only sold during its happy hour", zh: "{item} 仅在欢乐时段供应", id: "{item} hanya dijual saat happy hour" }, { item: p.name }) };
-      clean.push({ productId: p.id, name: p.name, price: salePriceNow(p, venueClockNow()), qty });
+      const free = alreadySold ? 0 : freeUnitsFor(p, venueClockNow(), qty, onBill.get(p.id) ?? 0);
+      if (free < qty) clean.push({ productId: p.id, name: p.name, price: salePriceNow(p, venueClockNow()), qty: qty - free });
+      if (free > 0) clean.push({ productId: p.id, name: `${p.name} ${pick(lang, { en: "(free)", zh: "（赠送）", id: "(gratis)" })}`, price: 0, qty: free });
+      onBill.set(p.id, (onBill.get(p.id) ?? 0) + qty);
     }
     return { clean };
   }
@@ -3999,7 +4012,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const id = Number(req.params.id);
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
-    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req), false, await unitsOnBill(id));
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
     const total = await appendItems(id, o.orderNo, clean!, getUserId(req)!);
@@ -4094,12 +4107,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const userId = getUserId(req)!;
     const tableNumber = String(req.body?.tableNumber || "").trim() || (await activeCheckin(getUserId(req)!).catch(() => null))?.tableLabel || "";
     if (!tableNumber) return res.status(400).json({ message: tr(req, { en: "Enter your table number", zh: "请输入你的桌号", id: "Masukkan nomor mejamu" }) });
-    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req));
+    const cid = await rebornCompanyId(req);
+    let [order] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req), false, await unitsOnBill(order?.id));
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "Your order is empty", zh: "你的订单是空的", id: "Pesananmu kosong" }) });
-    const cid = await rebornCompanyId(req);
     const [u] = await db.select().from(users).where(eq(users.id, userId));
-    let [order] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
     if (!order) {
       [order] = await db.insert(posTickets).values({
         companyId: cid,
@@ -4489,7 +4502,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty }));
       userId = o.memberId;
     } else {
-      lines = (Array.isArray(req.body?.items) ? req.body.items : []).map((it: any) => ({ productId: Number(it.productId) || null, lineTotal: (Number(it.price) || 0) * Math.max(1, Math.floor(Number(it.qty) || 1)), qty: Math.max(1, Math.floor(Number(it.qty) || 1)) }));
+      const requested = Array.isArray(req.body?.items) ? req.body.items : [];
+      // The sale charges what resolveItems prices (happy-hour price, free units of a "buy X get Y free" deal), so the quote shows the same; a line it cannot price falls back to what the screen sent.
+      const priced = await resolveItems(requested, reqLang(req));
+      lines = priced.clean
+        ? priced.clean.map((it: any) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty }))
+        : requested.map((it: any) => ({ productId: Number(it.productId) || null, lineTotal: (Number(it.price) || 0) * Math.max(1, Math.floor(Number(it.qty) || 1)), qty: Math.max(1, Math.floor(Number(it.qty) || 1)) }));
       userId = (await findMemberByCode(req.body?.memberCode || ""))?.id || null;
     }
     const costRequest = await atCostRequest(req);
@@ -5699,8 +5717,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), inArray(posProducts.id, ids)));
     for (const row of rows) {
       const patch = clear
-        ? { happyStart: null, happyEnd: null, happyPrice: null, happyOnly: false }
-        : happyFieldsOf({ happyStart: req.body.start, happyEnd: req.body.end, happyOnly: !!req.body?.onlyDuring, happyPrice: percent > 0 ? roundMoney((Number(row.price) || 0) * (1 - percent / 100)) : samePrice > 0 ? samePrice : null });
+        ? { happyStart: null, happyEnd: null, happyPrice: null, happyOnly: false, happyBuyQty: 0, happyFreeQty: 0 }
+        : happyFieldsOf({ happyStart: req.body.start, happyEnd: req.body.end, happyOnly: !!req.body?.onlyDuring, happyBuyQty: req.body?.buyQty, happyFreeQty: req.body?.freeQty, happyPrice: percent > 0 ? roundMoney((Number(row.price) || 0) * (1 - percent / 100)) : samePrice > 0 ? samePrice : null });
       await db.update(posProducts).set(patch).where(eq(posProducts.id, row.id));
     }
     await logAdmin(req, { targetType: "pos_product", action: "happy_hour", entityType: "settings", description: clear ? `Happy hour taken off ${rows.length} item(s)` : `Happy hour ${req.body.start}-${req.body.end} on ${rows.length} item(s)${percent > 0 ? `, ${percent}% off` : samePrice > 0 ? `, RP ${samePrice}` : ""}${req.body?.onlyDuring ? ", only in these hours" : ""}` });
@@ -5714,7 +5732,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     for (const entry of list) {
       const id = Number(entry?.id);
       if (!Number.isInteger(id) || id <= 0) continue;
-      const patch = happyFieldsOf({ happyStart: entry.happyStart, happyEnd: entry.happyEnd, happyPrice: entry.happyPrice, happyOnly: !!entry.happyOnly });
+      const patch = happyFieldsOf({ happyStart: entry.happyStart, happyEnd: entry.happyEnd, happyPrice: entry.happyPrice, happyOnly: !!entry.happyOnly, happyBuyQty: entry.happyBuyQty, happyFreeQty: entry.happyFreeQty });
       const done = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning({ id: posProducts.id });
       changed += done.length;
     }

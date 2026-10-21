@@ -905,6 +905,8 @@ export const posProducts = pgTable("pos_products", {
   happyStart: varchar("happy_start"),                           // "HH:MM" on the venue clock
   happyEnd: varchar("happy_end"),
   happyOnly: boolean("happy_only").default(false).notNull(),
+  happyBuyQty: integer("happy_buy_qty").default(0).notNull(),   // "buy X get Y free" inside the window; 0 = no deal
+  happyFreeQty: integer("happy_free_qty").default(0).notNull(),
   isService: boolean("is_service").default(false).notNull(),     // a service (corkage, room fee): no stock, no cost, never sold out, not in Inventory    // only sold (shown to order) inside the window
   unitsPerPack: integer("units_per_pack"),                    // sold by the pack too: how many units in one pack (24 cans)
   packPrice: decimal("pack_price", { precision: 14, scale: 2 }), // the price of one whole pack; the unit price = this ÷ units per pack

@@ -20,7 +20,7 @@ import { publishScreen, useMirrorBill } from "@/lib/customer-screen";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
-interface Product { bundleItemId?: number | null; bundleQty?: number | null; isService?: boolean; salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
+interface Product { deal?: { buy: number; free: number } | null; bundleItemId?: number | null; bundleQty?: number | null; isService?: boolean; salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
@@ -402,7 +402,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
                   : <div className="w-full aspect-square flex items-center justify-center text-2xl bg-white/5">{p.packageKind === "uses" ? "📦" : p.packageKind === "credit" ? "💳" : "🍸"}</div>}
                 <div className="p-2">
                   <p className="text-[13px] font-semibold leading-tight line-clamp-2 break-words">{p.recommended && cat !== RECOMMENDED_GROUP ? "⭐ " : ""}{p.name}</p>
-                  <p className="text-xs text-amber-300">{rp(Number(p.salePrice ?? p.price))}{p.happyNow && <span className="ml-1 text-[10px] text-pink-300">🍹 {t("pos.happy.now")}</span>}</p>
+                  <p className="text-xs text-amber-300">{rp(Number(p.salePrice ?? p.price))}{p.happyNow && <span className="ml-1 text-[10px] text-pink-300">🍹 {t("pos.happy.now")}{p.deal ? ` ${p.deal.buy}+${p.deal.free}` : ""}</span>}</p>
                   <p className="text-[10px] text-white/40">{p.isService ? "🛎️" : p.packageKind === "uses" ? t("pos.pkg.tileUses", { n: p.packageUses || 1 }) : p.packageKind === "credit" ? t("pos.pkg.tileCredit", { n: rp(Number(p.packageCredit)) }) : t("pos.stockCount", { n: p.stock })}</p>
                 </div>
                 {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}

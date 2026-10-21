@@ -6,7 +6,11 @@ export interface HappyHourFields {
   happyStart?: string | null;
   happyEnd?: string | null;
   happyOnly?: boolean | null;
+  happyBuyQty?: number | null;
+  happyFreeQty?: number | null;
 }
+
+export const MAX_DEAL_QTY = 10;
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MINUTES_PER_HOUR = 60;
@@ -36,6 +40,22 @@ export function salePriceNow(p: HappyHourFields, clockNow: string): number {
   const normal = Number(p.price) || 0;
   const happy = p.happyPrice === null || p.happyPrice === undefined || p.happyPrice === "" ? NaN : Number(p.happyPrice);
   return isHappyNow(p, clockNow) && Number.isFinite(happy) && happy >= 0 ? happy : normal;
+}
+
+// "Buy X, get Y free" inside the window: in every group of X + Y units the last Y are free. `alreadyOnBill` is how many units of this item the bill already holds,
+// so adding one beer at a time still makes the second one free.
+export function dealOf(p: HappyHourFields): { buy: number; free: number } | null {
+  const buy = Math.floor(Number(p.happyBuyQty)); const free = Math.floor(Number(p.happyFreeQty));
+  return buy >= 1 && free >= 1 ? { buy, free } : null;
+}
+
+export function freeUnitsFor(p: HappyHourFields, clockNow: string, qty: number, alreadyOnBill = 0): number {
+  const deal = dealOf(p);
+  if (!deal || !isHappyNow(p, clockNow)) return 0;
+  const cycle = deal.buy + deal.free;
+  let free = 0;
+  for (let i = 0; i < qty; i++) if ((alreadyOnBill + i) % cycle >= deal.buy) free++;
+  return free;
 }
 
 // An item that is only sold in its window is not offered outside it.

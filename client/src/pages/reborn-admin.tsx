@@ -2547,6 +2547,12 @@ function SellOptions({ value, onChange }: { value: any; onChange: (v: any) => vo
         <label className="text-xs text-white/50">{t("admin.happy.from")}<input type="time" value={value.happyStart || ""} onChange={(e) => onChange({ ...value, happyStart: e.target.value })} className={inp + " ml-1"} /></label>
         <label className="text-xs text-white/50">{t("admin.happy.to")}<input type="time" value={value.happyEnd || ""} onChange={(e) => onChange({ ...value, happyEnd: e.target.value })} className={inp + " ml-1"} /></label>
         <label className="text-xs text-white/50">{t("admin.happy.price")}<input type="number" inputMode="numeric" value={value.happyPrice ?? ""} onFocus={(e) => e.currentTarget.select()} placeholder={t("admin.happy.samePrice")} onChange={(e) => onChange({ ...value, happyPrice: e.target.value })} className={inp + " ml-1 w-32"} /></label>
+        <span className="flex w-full flex-wrap items-center gap-1.5 text-xs text-white/60">{t("admin.hh.deal")}
+          <input type="number" inputMode="numeric" min={0} max={10} value={value.happyBuyQty || ""} placeholder="0" aria-label={t("admin.hh.dealBuy")} onChange={(e) => onChange({ ...value, happyBuyQty: Number(e.target.value) || 0 })} className={inp + " w-16"} />
+          {t("admin.hh.dealGet")}
+          <input type="number" inputMode="numeric" min={0} max={10} value={value.happyFreeQty || ""} placeholder="0" aria-label={t("admin.hh.dealFree")} onChange={(e) => onChange({ ...value, happyFreeQty: Number(e.target.value) || 0 })} className={inp + " w-16"} />
+          {t("admin.hh.dealFree")}
+        </span>
         <label className="flex items-center gap-2 text-xs text-white/70 w-full"><input type="checkbox" checked={!!value.happyOnly} onChange={(e) => onChange({ ...value, happyOnly: e.target.checked })} /> {t("admin.happy.only")}</label>
         <p className="w-full text-[11px] text-white/40">{t("admin.happy.hint")}</p>
       </div>
@@ -2560,7 +2566,7 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState<any>({ name: p.name, isService: !!p.isService, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyOnly: !!p.happyOnly, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
+  const [f, setF] = useState<any>({ name: p.name, isService: !!p.isService, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyOnly: !!p.happyOnly, happyBuyQty: p.happyBuyQty || 0, happyFreeQty: p.happyFreeQty || 0, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
   const industryOptions = useCompanyIndustries();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
