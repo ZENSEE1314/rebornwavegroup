@@ -1,4 +1,5 @@
-// POS pay panels: "Split" lets the customer pay one bill with RP credits, card and cash together. The rest after credits and card is cash (change is worked out).
+// POS pay panels: "Split" lets the customer pay one bill with cash, card and RP credits together. Type what was paid in cash first, then the card amount (or tap "fill the rest"):
+// the box shows what has been entered and what is still to pay, and the receipt lists every part. Cash may be more than needed (the change is worked out).
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -27,6 +28,8 @@ export function isSplitReady(form: SplitForm, due: number, memberCredits: number
   return !wantsCredits || (memberCredits !== null && memberCredits >= Number(form.credits));
 }
 
+type Field = "cash" | "card" | "credits";
+
 export function SplitPayBox({ due, memberCode, form, onChange, onBalance }: { due: number; memberCode?: string | null; form: SplitForm; onChange: (next: SplitForm) => void; onBalance: (balance: number | null) => void }) {
   const { t } = useTranslation();
   const { data } = useQuery<any>({
@@ -37,41 +40,39 @@ export function SplitPayBox({ due, memberCode, form, onChange, onBalance }: { du
   const balance = data?.credits !== undefined ? Number(data.credits) : null;
   useEffect(() => { onBalance(balance); }, [balance]);
   const plan = splitPlanOf(form, due);
-  const credits = Number(form.credits) || 0;
-  const card = Number(form.card) || 0;
-  const cashNeeded = Math.max(0, due - credits - card);
+  const amounts: Record<Field, number> = { cash: Number(form.cash) || 0, card: Number(form.card) || 0, credits: Number(form.credits) || 0 };
+  const entered = amounts.cash + amounts.card + amounts.credits;
+  const remaining = Math.max(0, due - entered);
   const set = (patch: Partial<SplitForm>) => onChange({ ...form, ...patch });
-  const fillRest = (key: "credits" | "card") => {
-    const others = key === "credits" ? card : credits;
+  // "Fill the rest" puts into this field whatever the other two have not covered (credits are capped by the member's balance).
+  const fillRest = (key: Field) => {
+    const others = entered - amounts[key];
     const room = Math.max(0, due - others);
     set({ [key]: String(key === "credits" && balance !== null ? Math.min(room, balance) : room) });
   };
-  const problem = plan.problem === "tooMuch" ? t("pos.split.tooMuch") : plan.problem === "needCardReference" ? t("pos.split.needRef") : plan.problem === "cashShort" ? t("pos.split.cashShort", { n: money(cashNeeded) }) : null;
+  const problem = plan.problem === "tooMuch" ? t("pos.split.tooMuch") : plan.problem === "needCardReference" ? t("pos.split.needRef") : null;
+  const restButton = (key: Field) => <button type="button" onClick={() => fillRest(key)} className="min-h-0 p-0 text-amber-300">{t("pos.split.fill")}</button>;
   return (
     <div className="mb-2 space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
       <p className="text-[11px] text-white/50">{t("pos.split.hint")}</p>
-      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-        <label className="block text-xs text-white/60">{t("pos.split.credits")}
-          <input type="number" min={0} value={form.credits} disabled={!memberCode} onChange={(e) => set({ credits: e.target.value })} placeholder="0" className={inputClass + " disabled:opacity-40"} />
-          <span className="mt-0.5 flex items-center justify-between text-[10px] text-white/40">
-            {memberCode ? (balance === null ? "…" : t("pos.split.balance", { n: money(balance) })) : t("pos.credits.needMember")}
-            {memberCode && <button type="button" onClick={() => fillRest("credits")} className="min-h-0 p-0 text-amber-300">{t("pos.split.fill")}</button>}
-          </span>
-        </label>
-        <label className="block text-xs text-white/60">{t("pos.split.card")}
-          <input type="number" min={0} value={form.card} onChange={(e) => set({ card: e.target.value })} placeholder="0" className={inputClass} />
-          <span className="mt-0.5 flex justify-end text-[10px]"><button type="button" onClick={() => fillRest("card")} className="min-h-0 p-0 text-amber-300">{t("pos.split.fill")}</button></span>
-        </label>
-      </div>
-      {card > 0 && <label className="block text-xs text-white/60">{t("pos.cardRef")}<input value={form.reference} onChange={(e) => set({ reference: e.target.value })} placeholder={t("pos.cardRefRequired")} className={inputClass} /></label>}
-      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-        <label className="block text-xs text-white/60">{t("pos.split.cashHanded", { n: money(cashNeeded) })}
-          <input type="number" min={0} value={form.cash} onChange={(e) => set({ cash: e.target.value })} placeholder={String(cashNeeded)} className={inputClass} />
-        </label>
-        <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3">
-          <p className="text-[11px] text-white/60">{t("pos.change")}</p>
-          <p className="text-lg font-black text-emerald-200">{money(plan.change)}</p>
-        </div>
+      <label className="block text-xs text-white/60">
+        <span className="flex items-center justify-between">{t("pos.split.cash")}{restButton("cash")}</span>
+        <input type="number" min={0} value={form.cash} onChange={(e) => set({ cash: e.target.value })} placeholder="0" className={inputClass} />
+      </label>
+      <label className="block text-xs text-white/60">
+        <span className="flex items-center justify-between">{t("pos.split.card")}{restButton("card")}</span>
+        <input type="number" min={0} value={form.card} onChange={(e) => set({ card: e.target.value })} placeholder="0" className={inputClass} />
+      </label>
+      {amounts.card > 0 && <label className="block text-xs text-white/60">{t("pos.cardRef")}<input value={form.reference} onChange={(e) => set({ reference: e.target.value })} placeholder={t("pos.cardRefRequired")} className={inputClass} /></label>}
+      <label className="block text-xs text-white/60">
+        <span className="flex items-center justify-between">{t("pos.split.credits")}{memberCode && restButton("credits")}</span>
+        <input type="number" min={0} value={form.credits} disabled={!memberCode} onChange={(e) => set({ credits: e.target.value })} placeholder="0" className={inputClass + " disabled:opacity-40"} />
+        <span className="mt-0.5 block text-[10px] text-white/40">{memberCode ? (balance === null ? "…" : t("pos.split.balance", { n: money(balance) })) : t("pos.credits.needMember")}</span>
+      </label>
+      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        <div className="rounded-xl border border-white/10 bg-black/30 p-2"><p className="text-[10px] text-white/50">{t("pos.split.entered")}</p><p className="text-sm font-bold">{money(entered)}</p></div>
+        <div className={`rounded-xl border p-2 ${remaining > 0 ? "border-amber-400/40 bg-amber-400/10" : "border-emerald-400/30 bg-emerald-400/10"}`}><p className="text-[10px] text-white/60">{t("pos.split.remaining")}</p><p className={`text-sm font-black ${remaining > 0 ? "text-amber-200" : "text-emerald-200"}`}>{money(remaining)}</p></div>
+        <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-2"><p className="text-[10px] text-white/60">{t("pos.change")}</p><p className="text-sm font-black text-emerald-200">{money(plan.change)}</p></div>
       </div>
       {problem && <p role="status" className="text-[11px] font-semibold text-red-300">{problem}</p>}
     </div>
