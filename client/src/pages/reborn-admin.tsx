@@ -34,6 +34,8 @@ const SecurityPanel = lazy(() => import("@/components/SecurityPanel"));
 const LightsTvPanel = lazy(() => import("@/components/LightsTvPanel")); // Bluetooth + TV code is only fetched when the tab opens
 import { useAuth } from "@/hooks/useAuth";
 import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
+import ExpensesPanel from "@/components/ExpensesPanel";
+import { DailyTargetCard, FixedCostsPanel } from "@/components/DailyTarget";
 import { APP_FEATURES } from "@/lib/features";
 import { printClosingReport, printReceipt } from "@/lib/receipt";
 import { money, moneySymbol, moneyStep, roundMoney, appMoney } from "@/lib/money";
@@ -43,7 +45,7 @@ import { CUSTOM_PALETTE, type AppColours } from "@shared/appSkins";
 import { applyAppSkin } from "@/lib/appSkin";
 import { computeContributions, type PayrollRules, type CpfRules } from "@shared/payrollRules";
 import { countryOf } from "@shared/countries";
-import { ADMIN_TABS, STAFF_TABS, MANAGER_TABS, tabsForRole, visibleTabs, type AdminRole } from "@shared/adminTabs";
+import { ADMIN_TABS, STAFF_TABS, MANAGER_TABS, OPT_IN_TABS, tabsForRole, visibleTabs, type AdminRole } from "@shared/adminTabs";
 
 // Display text for a stored value (status, type…): its translation when a key exists, else the raw value.
 const tv = (t: (k: string) => string, key: string, raw: any) => (translations[key] ? t(key) : String(raw ?? ""));
@@ -101,6 +103,7 @@ export default function RebornAdmin() {
       {tab === "Products" && <Products />}
       {tab === "Inventory" && <Inventory />}
       {tab === "Accounting" && <Accounting />}
+      {tab === "Expenses" && <ExpensesPanel />}
       {tab === "Games" && <GamesAdmin />}
       {tab === "Payroll" && <Payroll />}
       {tab === "Staff" && <StaffHr isAdmin={isFullAdmin} />}
@@ -192,7 +195,7 @@ function Broadcast() {
 }
 
 const TAB_ICON: Record<string, JSX.Element> = {
-  QR: <QrCode className="w-4 h-4" />,
+  QR: <QrCode className="w-4 h-4" />, Expenses: <Calculator className="w-4 h-4" />,
   Overview: <LayoutGrid className="w-4 h-4" />, Requests: <Music2 className="w-4 h-4" />, Redemptions: <Gift className="w-4 h-4" />,
   "Top-ups": <Coins className="w-4 h-4" />, Pet: <PawPrint className="w-4 h-4" />, Sales: <Coins className="w-4 h-4" />, POS: <Receipt className="w-4 h-4" />,
   Songs: <Music2 className="w-4 h-4" />, Events: <Megaphone className="w-4 h-4" />, Broadcast: <Send className="w-4 h-4" />,
@@ -315,7 +318,7 @@ function TabAccessBox({ u, tabs, onSaved }: { u: any; tabs: string[] | null; onS
   const { t } = useTranslation();
   const { toast } = useToast();
   const role: AdminRole = u.role === "staff" && u.member_role === "manager" ? "manager" : (u.role as AdminRole);
-  const all = tabsForRole(role);
+  const all = [...tabsForRole(role), ...(role === "staff" ? OPT_IN_TABS : [])]; // Expenses is switched on per person for staff
   const [isOpen, setIsOpen] = useState(false);
   const [ticked, setTicked] = useState<string[]>(() => visibleTabs(role, tabs));
   const save = useMutation({
@@ -1924,6 +1927,7 @@ function DailySales() {
         </div>
         <p className="text-[11px] text-white/45 mt-2">{t("admin.sales.breakdown", { discount: money(tot.discount), service: money(tot.serviceFee), tax: money(tot.tax) })}</p>
       </Card>
+      <DailyTargetCard day={day || d?.day || ""} />
       {(d?.report?.items || []).length > 0 && <Card>
         <p className="font-bold text-sm mb-2">{t("admin.sales.topItems")}</p>
         <div className="space-y-1">{d.report.items.slice(0, 10).map((it: any) => (
@@ -2672,6 +2676,7 @@ function Accounting() {
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
       <AccountingFresh />
+      <FixedCostsPanel />
       {byIndustry.length > 0 && <Card>
         <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.acc.byIndustry", { n: days })}</p>
         <div className="space-y-1.5">{byIndustry.map((r) => (

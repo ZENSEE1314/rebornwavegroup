@@ -287,12 +287,31 @@ describe("light hub", () => {
     hub.dispose();
   });
 
-  it("should animate no more lights than the connection limit allows", async () => {
+  it("should update no more lights in one frame than the connection limit allows", async () => {
     const { hub, lights } = fleet(12);
-    hub.startEffect("rainbow");
-    await hub.renderFrame(0);
+    hub.startEffect("rainbow"); // draws its own first frame as soon as it starts
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
     assert.equal(hub.getSnapshot().animatedCount, DEFAULT_MAX_LIVE);
     assert.equal(lights.filter((light) => light.frames.length > 0).length, DEFAULT_MAX_LIVE);
+    hub.dispose();
+  });
+
+  it("should reach every light over the next frames, not only the first few", async () => {
+    const { hub, lights } = fleet(12);
+    hub.startEffect("rainbow");
+    await new Promise<void>((resolve) => setTimeout(resolve, 20)); // the effect draws its own first frame as soon as it starts
+    await hub.renderFrame(1);
+    await hub.renderFrame(2);
+    assert.equal(lights.filter((light) => light.frames.length > 0).length, 12);
+    hub.dispose();
+  });
+
+  it("should give each light its own place in the rainbow", async () => {
+    const { hub, lights } = fleet(4);
+    hub.startEffect("rainbow");
+    await hub.renderFrame(0);
+    const shown = new Set(lights.map((light) => hex(light.frames.at(-1)![0])));
+    assert.equal(shown.size, 4);
     hub.dispose();
   });
 

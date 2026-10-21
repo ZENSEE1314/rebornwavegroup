@@ -4,12 +4,14 @@ import { translate as tr, localeTag } from "@/lib/i18n";
 import { money } from "@/lib/money";
 import { apiRequest } from "@/lib/queryClient";
 import { qrSvgNow } from "@/lib/qr-download";
+import { readSplit } from "@shared/payments";
 
 interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; status?: string; }
 // Lines that left the bill (rejected, lost) are not on the receipt: they are not in its total either.
 const OFF_RECEIPT = ["rejected", "lost", "cancelled"];
 interface Order {
   orderNo: string; tableNumber?: string; memberName?: string; salesStaffName?: string;
+  paymentSplit?: string | null; // JSON list of what each method paid when payment_method is "split"
   orderMode?: string; paymentMethod?: string; subtotal?: string | number; discount?: string | number;
   paymentReference?: string;
   cashReceived?: string | number; changeGiven?: string | number; status?: string;
@@ -144,6 +146,8 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
     ${pkg}
     ${o.paymentMethod ? `<div class="row"><span>${tr("pos.rc.paid")}</span><span class="b">${esc(payLabel(String(o.paymentMethod)).toUpperCase())}</span></div>` : ""}
     ${o.paymentReference ? `<div class="row"><span>${tr("pos.rc.cardRef")}</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
+    ${o.paymentMethod === "split" ? readSplit(o.paymentSplit).map((part) => `<div class="row"><span>${esc(payLabel(part.method))}</span><span>${rp(part.amount)}</span></div>`).join("") : ""}
+    ${o.paymentMethod === "split" && Number(o.cashReceived) > 0 ? `<div class="row"><span>${tr("pos.rc.cashReceived")}</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>${tr("pos.rc.change")}</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
     ${o.paymentMethod === "cash" ? `<div class="row"><span>${tr("pos.rc.cashReceived")}</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>${tr("pos.rc.change")}</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
     ${o.status === "refunded" ? `<div class="c b" style="font-size:18px;margin-top:6px;">${tr("pos.rc.refunded")}</div>` : ""}
     ${commission}${referral}

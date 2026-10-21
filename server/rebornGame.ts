@@ -11,6 +11,7 @@ import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL, GIFT_LEVELS_SINCE_KEY 
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
 import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { payReferralCommission, reverseReferralCommission } from "./referralCommission";
+import { planSplit, readSplit, type SplitPlan } from "@shared/payments";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
@@ -35,7 +36,8 @@ import { tvPhoto } from "./tvLogic";
 import { cleanImportRows, matchKey } from "./inventoryImport";
 import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
 import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } from "@shared/packPricing";
-import { cleanTabAccess, type AdminRole } from "@shared/adminTabs";
+import { canUseExpenses, cleanTabAccess, type AdminRole } from "@shared/adminTabs";
+import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyActuals } from "@shared/fixedCosts";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerStaffContractRoutes } from "./staffContracts";
@@ -66,7 +68,7 @@ import {
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
   posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, staffCharges, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
-  staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory,
+  staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory, expenseUploads,
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
@@ -451,6 +453,7 @@ async function buildDailyClosingReport(day: string) {
     if (ticket.paymentMethod === "cash") sum.cash += paid;
     if (ticket.paymentMethod === "card") sum.card += paid;
     if (ticket.paymentMethod === "credits") sum.credits += paid;
+    if (ticket.paymentMethod === "split") for (const part of readSplit(ticket.paymentSplit)) sum[part.method] += part.amount; // a bill paid with several methods counts each part where it was paid
     return sum;
   }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, commission: 0, cash: 0, card: 0, credits: 0, packageCredit: 0 });
   const items = Array.from(grouped.values()).sort((a, b) => b.sales - a.sales);
@@ -469,8 +472,30 @@ async function payWithCredits(userId: string, total: number, orderNo: string, ti
   return { ok: true, balance: Number(row.credits) };
 }
 const posMethod = (m: any) => (m === "card" ? "card" : m === "credits" ? "credits" : "cash");
+// A bill paid with several methods together (shared/payments.ts): the screen sends `payments: [{ method, amount, reference? }]`. Fewer than two real parts is an ordinary single-method payment (null here).
+const MAX_PAY_PARTS = 3;
+const paymentsOf = (req: Request): { method: "cash" | "card" | "credits"; amount: number; reference: string }[] =>
+  (Array.isArray(req.body?.payments) ? req.body.payments.slice(0, MAX_PAY_PARTS) : [])
+    .map((part: any) => ({ method: posMethod(part?.method), amount: Math.max(0, Number(part?.amount) || 0), reference: String(part?.reference || "").trim() }))
+    .filter((part: { amount: number }) => part.amount > 0);
+const splitCreditsOf = (req: Request) => (paymentsOf(req).length >= 2 ? paymentsOf(req).filter((part) => part.method === "credits").reduce((sum, part) => sum + part.amount, 0) : 0);
+const splitPlanOf = (req: Request, due: number): null | { plan: SplitPlan; error?: string; reference: string; creditsAmount: number } => {
+  const parts = paymentsOf(req);
+  if (parts.length < 2) return null;
+  const input = { cash: 0, card: 0, credits: 0, cardReference: "" };
+  for (const part of parts) { input[part.method] += part.amount; if (part.method === "card") input.cardReference = part.reference; }
+  const plan = planSplit(input, due);
+  const lang = reqLang(req);
+  const cashNeeded = Math.max(0, due - input.credits - input.card);
+  const error = plan.problem === "tooMuch" ? pick(lang, { en: "RP credits and card add up to more than the bill (RP {n})", zh: "RP 余额和刷卡的总额超过账单（RP {n}）", id: "Kredit RP dan kartu melebihi tagihan (RP {n})" }, { n: fmtN(due, lang) })
+    : plan.problem === "needCardReference" ? pick(lang, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" })
+    : plan.problem === "cashShort" ? pick(lang, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(cashNeeded, lang) })
+    : undefined;
+  return { plan, error, reference: input.cardReference, creditsAmount: input.credits };
+};
+const needMemberForCredits = (req: Request) => tr(req, { en: "Enter the member code to pay with their RP credits", zh: "使用 RP 余额付款前请输入会员码", id: "Masukkan kode member untuk membayar dengan kredit RP" });
 // "package" = the whole bill was paid with package credit (server/memberPackages.ts).
-const methodLabel = (m: string, lang: Lang) => m === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : m === "credits" ? pick(lang, { en: "RP CREDITS", zh: "RP 余额", id: "KREDIT RP" }) : m === "package" ? pick(lang, { en: "PACKAGE CREDIT", zh: "套餐余额", id: "KREDIT PAKET" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" });
+const methodLabel = (m: string, lang: Lang) => m === "card" ? pick(lang, { en: "CARD", zh: "刷卡", id: "KARTU" }) : m === "credits" ? pick(lang, { en: "RP CREDITS", zh: "RP 余额", id: "KREDIT RP" }) : m === "package" ? pick(lang, { en: "PACKAGE CREDIT", zh: "套餐余额", id: "KREDIT PAKET" }) : m === "split" ? pick(lang, { en: "SPLIT PAYMENT", zh: "分开付款", id: "BAYAR CAMPUR" }) : pick(lang, { en: "CASH", zh: "现金", id: "TUNAI" });
 const notEnoughCredits = (req: Request, total: number, balance: number) => tr(req, { en: "Not enough RP credits: the bill is RP {n}, the member has RP {b}.", zh: "RP 余额不足：账单 RP {n}，会员余额 RP {b}。", id: "Kredit RP tidak cukup: tagihan RP {n}, saldo member RP {b}." }, { n: fmtN(total, reqLang(req)), b: fmtN(balance, reqLang(req)) });
 
 // Contribute the pool % only for UN-referred buyers (a referred buyer's 10% is their
@@ -4061,7 +4086,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
     const paymentReference = String(req.body?.paymentReference || "").trim();
     const u = await findMemberByCode(req.body?.memberCode || "");
-    if (req.body?.paymentMethod === "credits" && !u) return res.status(400).json({ message: tr(req, { en: "Enter the member code to pay with their RP credits", zh: "使用 RP 余额付款前请输入会员码", id: "Masukkan kode member untuk membayar dengan kredit RP" }) });
+    if ((req.body?.paymentMethod === "credits" || splitCreditsOf(req) > 0) && !u) return res.status(400).json({ message: needMemberForCredits(req) });
     if (req.body?.keepBottle?.enabled && !u) return res.status(400).json({ message: tr(req, { en: "Select a member before keeping a bottle at checkout", zh: "结账寄存酒瓶前请先选择会员", id: "Pilih member sebelum menitipkan botol saat pembayaran" }) });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }) });
     const settings = await getSettings();
@@ -4070,14 +4095,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !u) return res.status(400).json({ message: needMemberForPackage(req) });
-    const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
+    const split = due > 0 ? splitPlanOf(req, due) : null;
+    if (split?.error) return res.status(400).json({ message: split.error });
+    const paymentMethod = due <= 0 ? "package" : split ? "split" : posMethod(req.body?.paymentMethod);
     if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
-    const cashReceived = paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
+    const cashReceived = split ? split.plan.cashReceived : paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
     if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < due)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(due, reqLang(req)) }) });
-    const changeGiven = paymentMethod === "cash" ? cashReceived! - due : null;
+    const changeGiven = split ? split.plan.change : paymentMethod === "cash" ? cashReceived! - due : null;
     const keepType = String(req.body?.keepBottle?.type || "");
     if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: tr(req, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }) });
     if (paymentMethod === "credits" && Number(u!.credits || 0) < due) return res.status(400).json({ message: notEnoughCredits(req, due, Number(u!.credits || 0)) });
+    if (split && split.creditsAmount > Number(u?.credits || 0)) return res.status(400).json({ message: notEnoughCredits(req, split.creditsAmount, Number(u?.credits || 0)) });
     const points = u ? Math.floor(due / await pointsSpendRp()) : 0;
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : "dine_in";
     const staffId = getUserId(req)!;
@@ -4087,13 +4115,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
       ...memberTag(u), ...(await salesTag(req.body)), ...commissionColumns(commission), tableNumber: req.body?.tableNumber || null,
       subtotal: String(subtotal), discount: String(discount), discountReason: [q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
-      paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
+      paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
     }).returning();
     const spent = await spendPackageCredit(u?.id || "", q.creditUse, row.id, staffId);
     if (spent.spent < q.creditUse) { await restorePackageCredit(row.id, staffId, "Payment not completed"); await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(409).json({ message: packageCreditChanged(req) }); }
-    if (paymentMethod === "credits") {
-      const paid = await payWithCredits(u!.id, due, row.orderNo, row.id);
-      if (!paid.ok) { if (spent.spent) await restorePackageCredit(row.id, staffId, "Payment not completed"); await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(400).json({ message: notEnoughCredits(req, due, paid.balance) }); }
+    const creditsToPay = split ? split.creditsAmount : paymentMethod === "credits" ? due : 0;
+    if (creditsToPay > 0) {
+      const paid = await payWithCredits(u!.id, creditsToPay, row.orderNo, row.id);
+      if (!paid.ok) { if (spent.spent) await restorePackageCredit(row.id, staffId, "Payment not completed"); await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(400).json({ message: notEnoughCredits(req, creditsToPay, paid.balance) }); }
     }
     await appendItems(row.id, row.orderNo, clean!, staffId);
     await logAdmin(req, { targetType: "pos_order", targetId: String(row.id), action: "add_items", entityType: "order", description: `${row.tableNumber ? `Table ${row.tableNumber}` : "Sale"} (${row.orderNo}): ordered ${clean!.map((x: any) => `${x.qty}× ${x.name}`).join(", ")}` });
@@ -4382,7 +4411,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const paymentReference = String(req.body?.paymentReference || "").trim();
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Order not open", zh: "该订单未开启", id: "Pesanan tidak terbuka" }) });
-    if (req.body?.paymentMethod === "credits" && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member to pay with their RP credits", zh: "使用 RP 余额付款前请先标记会员", id: "Tandai member untuk membayar dengan kredit RP" }) });
+    if ((req.body?.paymentMethod === "credits" || splitCreditsOf(req) > 0) && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member to pay with their RP credits", zh: "使用 RP 余额付款前请先标记会员", id: "Tandai member untuk membayar dengan kredit RP" }) });
     if (req.body?.keepBottle?.enabled && !o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member before keeping a bottle at checkout", zh: "结账寄存酒瓶前请先标记会员", id: "Tandai member sebelum menitipkan botol saat pembayaran" }) });
     if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: tr(req, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }) });
     const settings = await getSettings();
@@ -4394,11 +4423,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
-    const paymentMethod = due <= 0 ? "package" : posMethod(req.body?.paymentMethod);
+    const split = due > 0 ? splitPlanOf(req, due) : null;
+    if (split?.error) return res.status(400).json({ message: split.error });
+    const paymentMethod = due <= 0 ? "package" : split ? "split" : posMethod(req.body?.paymentMethod);
     if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
-    const cashReceived = paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
+    const cashReceived = split ? split.plan.cashReceived : paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
     if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < due)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(due, reqLang(req)) }) });
-    const changeGiven = paymentMethod === "cash" ? cashReceived! - due : null;
+    const changeGiven = split ? split.plan.change : paymentMethod === "cash" ? cashReceived! - due : null;
     const keepType = String(req.body?.keepBottle?.type || "");
     if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: tr(req, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }) });
     const points = o.memberId ? Math.floor(due / await pointsSpendRp()) : 0;
@@ -4407,12 +4438,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const staffId = getUserId(req)!;
     const spent = await spendPackageCredit(o.memberId || "", q.creditUse, id, staffId);
     if (spent.spent < q.creditUse) { await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(409).json({ message: packageCreditChanged(req) }); }
-    if (paymentMethod === "credits") {
-      const paid = await payWithCredits(o.memberId!, due, o.orderNo, id);
-      if (!paid.ok) { if (spent.spent) await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(400).json({ message: notEnoughCredits(req, due, paid.balance) }); }
+    const creditsToPay = split ? split.creditsAmount : paymentMethod === "credits" ? due : 0;
+    if (creditsToPay > 0) {
+      const paid = await payWithCredits(o.memberId!, creditsToPay, o.orderNo, id);
+      if (!paid.ok) { if (spent.spent) await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(400).json({ message: notEnoughCredits(req, creditsToPay, paid.balance) }); }
     }
     const discountReason = [o.discountReason, q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", q.appDiscount > 0 ? `App order ${q.appPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null;
-    await db.update(posTickets).set({ status: "paid", paymentMethod, paymentReference: paymentReference || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
+    await db.update(posTickets).set({ status: "paid", paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
@@ -4851,10 +4883,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await restorePackageCredit(id, actorId, `Refund ${order.orderNo}: ${reason}`);
     await refundPackagesOfTicket(id);
     const paidAmount = Number(order.total) - Number(order.packageCreditUsed || 0); // what was paid in cash / card / RP credits
-    if (order.paymentMethod === "credits" && order.memberId) {
-      // Paid from RP credits → the credits go back to the member (the sale was booked as income when paid, so the refund is booked below like any other).
-      await db.update(users).set({ credits: sql`${users.credits} + ${paidAmount}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
-      await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund", rpAmount: String(paidAmount), kgoldAmount: 0, description: `Refund ${order.orderNo}: ${reason}`, referenceType: "pos_order", referenceId: String(id) });
+    const creditsPaid = order.paymentMethod === "credits" ? paidAmount : order.paymentMethod === "split" ? readSplit(order.paymentSplit).filter((part) => part.method === "credits").reduce((sum, part) => sum + part.amount, 0) : 0;
+    if (creditsPaid > 0 && order.memberId) {
+      // Paid (or part-paid) from RP credits → those credits go back to the member (the sale was booked as income when paid, so the refund is booked below like any other).
+      await db.update(users).set({ credits: sql`${users.credits} + ${creditsPaid}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
+      await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund", rpAmount: String(creditsPaid), kgoldAmount: 0, description: `Refund ${order.orderNo}: ${reason}`, referenceType: "pos_order", referenceId: String(id) });
     }
     if (paidAmount > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(paidAmount), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
     await reverseReferralCommission(id); // the referrer's RP credits for this bill go back
@@ -5278,6 +5311,174 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetUserId: id, targetType: "user", action: "tab_access", entityType: "profile", newValues: { tabs }, description: tabs ? `Admin page limited to: ${tabs.join(", ")}` : "Admin page: all buttons of their role" });
     res.json({ tabs });
   }));
+  // ── Running costs, the daily target and the day's expenses (Admin › Accounting › Fixed costs, Daily sales, Admin › Expenses) ──
+  const FIXED_COSTS_KEY = "fixedCosts";
+  const FIXED_ACTUALS_KEY = "fixedCostActuals";
+  const SALARY_FROM_PAYROLL_KEY = "fixedSalaryFromPayroll";
+  const MARGIN_LOOKBACK_DAYS = 30;
+  const PAYROLL_COST_ID = "payroll";
+  const MAX_EXPENSE_AMOUNT = 1_000_000_000_000;
+  const MAX_EXPENSE_PHOTO_LENGTH = 4_000_000;
+  const EXPENSE_NOTE_MAX = 300;
+  const EXPENSE_PAYEE_MAX = 80;
+  const UPLOAD_CATEGORIES = ["rent", "electricity", "water", "internet", "salary", "security", "supplies", "other"];
+  const LEDGER_CATEGORY: Record<string, string> = { rent: "rental", electricity: "utilities", water: "utilities", internet: "utilities", salary: "salary" }; // what Accounting already groups by; the rest is "other"
+  const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const MONTH_RE = /^\d{4}-\d{2}$/;
+  const readSetting = async <T,>(key: string, fallback: T): Promise<T> => {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, key));
+    try { return row?.value ? JSON.parse(row.value) as T : fallback; } catch { return fallback; }
+  };
+  const writeSetting = async (key: string, value: unknown) => {
+    const text = JSON.stringify(value);
+    await db.insert(appSettings).values({ key, value: text, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: text, updatedAt: new Date() } });
+  };
+  const monthlyPayrollSalary = async (cid: number): Promise<number> => {
+    const result = await db.execute(sql`SELECT COALESCE(SUM(p.base_salary::numeric),0) AS total FROM bridge_staff_profiles p JOIN bridge_company_members m ON m.user_id=p.user_id AND m.company_id=p.company_id WHERE p.company_id=${cid} AND p.pay_type='salary'`);
+    return Number(((result as any).rows || result)[0]?.total) || 0;
+  };
+  // The share of a sale that is left after the cost of goods, from the last 30 days of paid bills (item cost as it is now): what turns "cost per day" into "sales per day".
+  const recentMargin = async (cid: number): Promise<number | null> => {
+    const result = await db.execute(sql`SELECT COALESCE(SUM(i.line_total::numeric),0) AS revenue, COALESCE(SUM(i.qty * COALESCE(p.cost::numeric,0)),0) AS cost FROM pos_ticket_items i JOIN pos_tickets t ON t.id=i.order_id LEFT JOIN pos_products p ON p.id=i.product_id WHERE t.company_id=${cid} AND t.status='paid' AND t.paid_at >= now() - ${`${MARGIN_LOOKBACK_DAYS} days`}::interval AND i.status NOT IN ('rejected','lost')`);
+    const row = ((result as any).rows || result)[0];
+    const revenue = Number(row?.revenue) || 0;
+    return revenue > 0 ? (revenue - (Number(row?.cost) || 0)) / revenue : null;
+  };
+  const payrollLine = (monthly: number, month: string) => ({ id: PAYROLL_COST_ID, name: "Payroll", category: "salary" as const, daily: Math.round((monthly / daysInMonth(month)) * 100) / 100, isPending: false, isActual: false });
+
+  app.get("/api/reborn/manager/daily-target", requireManager(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const day = DAY_RE.test(String(req.query.day || "")) ? String(req.query.day) : (await ensureVenueSession()).day;
+    const month = day.slice(0, 7);
+    const costs = cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, []));
+    const actuals = await readSetting<MonthlyActuals>(FIXED_ACTUALS_KEY, {});
+    const payrollMonthly = (await readSetting<boolean>(SALARY_FROM_PAYROLL_KEY, false)) ? await monthlyPayrollSalary(cid) : 0;
+    const costsToday = dailyCosts(costs, month, actuals, payrollMonthly / daysInMonth(month));
+    const margin = await recentMargin(cid);
+    const totals = (await buildDailyClosingReport(day)).totals;
+    const salesToday = totals.salesNet;
+    const profitToday = salesToday - totals.cost;
+    const needSales = breakEvenSales(costsToday.perDay, margin);
+    res.json({
+      day, month, perDay: costsToday.perDay, lines: payrollMonthly > 0 ? [...costsToday.lines, payrollLine(payrollMonthly, month)] : costsToday.lines, pending: costsToday.pending,
+      margin, needSales, needProfit: costsToday.perDay, salesToday, costToday: totals.cost, profitToday,
+      isCovered: costsToday.perDay > 0 && profitToday >= costsToday.perDay,
+    });
+  }));
+  app.get("/api/reborn/admin/fixed-costs", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const month = (await ensureVenueSession()).day.slice(0, 7);
+    const salaryFromPayroll = await readSetting<boolean>(SALARY_FROM_PAYROLL_KEY, false);
+    const paid = await db.select({ id: expenseUploads.fixedCostId, total: sql<string>`COALESCE(SUM(${expenseUploads.amount}),0)` }).from(expenseUploads)
+      .where(and(eq(expenseUploads.status, "active"), sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`, isNotNull(expenseUploads.fixedCostId))).groupBy(expenseUploads.fixedCostId);
+    res.json({
+      month, costs: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])), actuals: await readSetting<MonthlyActuals>(FIXED_ACTUALS_KEY, {}),
+      salaryFromPayroll, payrollMonthly: await monthlyPayrollSalary(cid), paidThisMonth: Object.fromEntries(paid.map((row) => [row.id, Number(row.total)])),
+    });
+  }));
+  app.put("/api/reborn/admin/fixed-costs", requireAdmin(async (req, res) => {
+    const costs = cleanFixedCosts(req.body?.costs);
+    await writeSetting(FIXED_COSTS_KEY, costs);
+    if (req.body?.salaryFromPayroll !== undefined) await writeSetting(SALARY_FROM_PAYROLL_KEY, !!req.body.salaryFromPayroll);
+    await logAdmin(req, { targetType: "settings", targetId: FIXED_COSTS_KEY, action: "fixed_costs", entityType: "accounting", description: `Running costs saved: ${costs.map((cost) => `${cost.name} ${cost.amount ?? "?"}/${cost.period}`).join(", ") || "none"}` });
+    res.json({ costs });
+  }));
+  // The real amount of a month's bill (electricity, water ...): from then on that month counts with it.
+  app.put("/api/reborn/admin/fixed-costs/actual", requireAdmin(async (req, res) => {
+    const month = String(req.body?.month || "");
+    const id = String(req.body?.id || "");
+    if (!MONTH_RE.test(month) || !id) return res.status(400).json({ message: tr(req, { en: "Pick a month and a cost", zh: "请选择月份和费用", id: "Pilih bulan dan biaya" }) });
+    const actuals = await readSetting<MonthlyActuals>(FIXED_ACTUALS_KEY, {});
+    const amount = req.body?.amount === null || req.body?.amount === "" ? null : Number(req.body?.amount);
+    if (amount !== null && !(Number.isFinite(amount) && amount >= 0)) return res.status(400).json({ message: tr(req, { en: "Enter the amount of the bill", zh: "请输入账单金额", id: "Masukkan jumlah tagihan" }) });
+    const forMonth = { ...(actuals[month] || {}) };
+    if (amount === null) delete forMonth[id]; else forMonth[id] = amount;
+    const next = { ...actuals, [month]: forMonth };
+    if (!Object.keys(forMonth).length) delete next[month];
+    await writeSetting(FIXED_ACTUALS_KEY, next);
+    await logAdmin(req, { targetType: "settings", targetId: id, action: "fixed_cost_actual", entityType: "accounting", description: `Bill for ${month} (${id}): ${amount === null ? "cleared" : amount}` });
+    res.json({ actuals: next });
+  }));
+
+  const requireExpenses = (handler: (req: Request, res: Response) => Promise<any>) => async (req: Request, res: Response) => {
+    const userId = getUserId(req);
+    if (!canUseExpenses(await adminRole(userId), userId ? (await readTabAccess())[userId] ?? null : null)) return res.status(403).json({ message: tr(req, { en: "The Expenses screen has not been switched on for you", zh: "你尚未获得“支出”页面的权限", id: "Layar Pengeluaran belum diaktifkan untuk kamu" }) });
+    return handler(req, res);
+  };
+  // A monthly cost that an uploaded expense settles takes the month's total of those uploads as its real amount.
+  const syncActualFromUploads = async (fixedCostId: string, spentOn: string) => {
+    const month = spentOn.slice(0, 7);
+    const cost = cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).find((item) => item.id === fixedCostId);
+    if (!cost || cost.period !== "monthly") return;
+    const [row] = await db.select({ total: sql<string>`COALESCE(SUM(${expenseUploads.amount}),0)` }).from(expenseUploads)
+      .where(and(eq(expenseUploads.fixedCostId, fixedCostId), eq(expenseUploads.status, "active"), sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`));
+    const actuals = await readSetting<MonthlyActuals>(FIXED_ACTUALS_KEY, {});
+    const forMonth = { ...(actuals[month] || {}) };
+    if (Number(row?.total) > 0) forMonth[fixedCostId] = Number(row.total); else delete forMonth[fixedCostId];
+    const next = { ...actuals, [month]: forMonth };
+    if (!Object.keys(forMonth).length) delete next[month];
+    await writeSetting(FIXED_ACTUALS_KEY, next);
+  };
+  const expenseView = (row: typeof expenseUploads.$inferSelect) => ({ ...row, photoUrl: undefined, hasPhoto: !!row.photoUrl });
+
+  app.get("/api/reborn/expenses", requireExpenses(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const month = MONTH_RE.test(String(req.query.month || "")) ? String(req.query.month) : (await ensureVenueSession()).day.slice(0, 7);
+    const rows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id));
+    const totals: Record<string, number> = {};
+    for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
+    const role = await adminRole(getUserId(req));
+    res.json({ month, expenses: rows.map(expenseView), totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+  }));
+  app.get("/api/reborn/expenses/:id/photo", requireExpenses(async (req, res) => {
+    const [row] = await db.select({ photoUrl: expenseUploads.photoUrl }).from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, await rebornCompanyId(req))));
+    res.json({ photoUrl: row?.photoUrl || null });
+  }));
+  app.post("/api/reborn/expenses", requireExpenses(async (req, res) => {
+    const b = req.body || {};
+    const category = String(b.category || "");
+    const amount = Number(b.amount);
+    const spentOn = String(b.spentOn || "");
+    const note = String(b.note || "").trim().slice(0, EXPENSE_NOTE_MAX);
+    const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") && b.photoUrl.length <= MAX_EXPENSE_PHOTO_LENGTH ? b.photoUrl : "";
+    if (!UPLOAD_CATEGORIES.includes(category)) return res.status(400).json({ message: tr(req, { en: "Choose what the expense is for", zh: "请选择支出类别", id: "Pilih jenis pengeluaran" }) });
+    if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
+    if (!DAY_RE.test(spentOn) || Number.isNaN(new Date(`${spentOn}T12:00:00+07:00`).getTime()) || new Date(`${spentOn}T00:00:00+07:00`).getTime() > Date.now() + 24 * 3_600_000) return res.status(400).json({ message: tr(req, { en: "Enter the date on the receipt (not in the future)", zh: "请输入收据上的日期（不能是未来）", id: "Masukkan tanggal di struk (bukan masa depan)" }) });
+    if (!photoUrl && !note) return res.status(400).json({ message: tr(req, { en: "Add a photo of the receipt or write a note", zh: "请附上收据照片或填写备注", id: "Tambahkan foto struk atau tulis catatan" }) });
+    const userId = getUserId(req)!;
+    const [uploader] = await db.select().from(users).where(eq(users.id, userId));
+    const uploaderName = [uploader?.firstName, uploader?.lastName].filter(Boolean).join(" ") || uploader?.username || uploader?.email || "";
+    const payee = String(b.payee || "").trim().slice(0, EXPENSE_PAYEE_MAX);
+    const fixedCostId = String(b.fixedCostId || "").trim().slice(0, 24) || null;
+    const cid = await rebornCompanyId(req);
+    const saved = await db.transaction(async (tx) => {
+      const [entry] = await tx.insert(ledgerEntries).values({ kind: "expense", category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}`, photoUrl: photoUrl || null, refType: "expense_upload", userId, createdAt: new Date(`${spentOn}T12:00:00+07:00`) }).returning();
+      const [row] = await tx.insert(expenseUploads).values({ companyId: cid, category, amount: String(amount), spentOn, payee: payee || null, note: note || null, photoUrl: photoUrl || null, fixedCostId, ledgerEntryId: entry.id, uploadedBy: userId, uploadedByName: uploaderName }).returning();
+      await tx.update(ledgerEntries).set({ refId: String(row.id) }).where(eq(ledgerEntries.id, entry.id));
+      return row;
+    });
+    if (fixedCostId) await syncActualFromUploads(fixedCostId, spentOn);
+    await logAdmin(req, { targetType: "expense", targetId: String(saved.id), action: "expense_upload", entityType: "accounting", description: `${uploaderName || userId} uploaded an expense: ${category} RP ${amount}${payee ? ` (${payee})` : ""} for ${spentOn}` });
+    res.json({ message: tr(req, { en: "Expense saved", zh: "支出已保存", id: "Pengeluaran disimpan" }), expense: expenseView(saved) });
+  }));
+  app.post("/api/reborn/expenses/:id/void", requireExpenses(async (req, res) => {
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    if (role !== "admin" && role !== "manager") return res.status(403).json({ message: tr(req, { en: "Only a manager or the main admin can void an expense", zh: "只有经理或主管理员可以作废支出", id: "Hanya manajer atau admin utama yang bisa membatalkan pengeluaran" }) });
+    const reason = String(req.body?.reason || "").trim().slice(0, EXPENSE_NOTE_MAX);
+    if (!reason) return res.status(400).json({ message: tr(req, { en: "A reason is required", zh: "请填写原因", id: "Alasan wajib diisi" }) });
+    const [row] = await db.select().from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, await rebornCompanyId(req))));
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Expense not found", zh: "找不到该支出", id: "Pengeluaran tidak ditemukan" }) });
+    if (row.status === "voided") return res.status(400).json({ message: tr(req, { en: "Already voided", zh: "已作废", id: "Sudah dibatalkan" }) });
+    await db.transaction(async (tx) => {
+      await tx.update(expenseUploads).set({ status: "voided", voidReason: reason, voidedBy: userId, voidedAt: new Date() }).where(eq(expenseUploads.id, row.id));
+      await tx.insert(ledgerEntries).values({ kind: "income", category: "expense_reversal", amount: row.amount, note: `Expense voided (${row.category}${row.payee ? ` · ${row.payee}` : ""}): ${reason}`, refType: "expense_void", refId: String(row.id), userId });
+    });
+    if (row.fixedCostId) await syncActualFromUploads(row.fixedCostId, row.spentOn);
+    await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_void", entityType: "accounting", description: `Expense #${row.id} (${row.category} RP ${row.amount}) voided: ${reason}` });
+    res.json({ message: tr(req, { en: "Expense voided", zh: "支出已作废", id: "Pengeluaran dibatalkan" }) });
+  }));
+
   app.get("/api/reborn/industries", requireStaff(async (_req, res) => { res.json(await companyIndustries()); }));
   // Drops old industry names from the items (what the BridgeX admin removed from the list), keeping the ones still offered.
   app.post("/api/reborn/admin/industries/tidy", requireAdmin(async (req, res) => {

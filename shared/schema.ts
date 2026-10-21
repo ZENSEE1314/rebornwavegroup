@@ -1030,7 +1030,8 @@ export const posTickets = pgTable("pos_tickets", {
   commissionLabel: varchar("commission_label"),   // a commission paid out of this sale (an agent, a driver ...): our own cost, never on the customer's receipt
   commissionPayee: varchar("commission_payee"),
   commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).default("0").notNull(),
-  referralPayee: varchar("referral_payee"),        // the referrer paid RP credits for this bill (see server/referralCommission.ts)
+  paymentSplit: text("payment_split"),             // JSON [{method, amount, reference?}] when a bill was paid with several methods together (payment_method is then "split")
+  referralPayee: varchar("referral_payee"),       // the referrer paid RP credits for this bill (see server/referralCommission.ts)
   referralBase: decimal("referral_base", { precision: 14, scale: 2 }).default("0").notNull(),     // the part of the bill that earns commission (promo / flagged items left out)
   referralPercent: decimal("referral_percent", { precision: 5, scale: 2 }).default("0").notNull(),
   referralAmount: decimal("referral_amount", { precision: 14, scale: 2 }).default("0").notNull(),
@@ -1154,6 +1155,28 @@ export const ledgerEntries = pgTable("ledger_entries", {
   refType: varchar("ref_type"), // 'pos_order' | 'topup' | 'stock_movement'
   refId: varchar("ref_id"),
   userId: varchar("user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Daily expenses uploaded by the accounts staff (Admin › Expenses): rent, electricity, salary ... each with who uploaded it and the receipt photo.
+// It books one ledger expense; a mistake is voided (with a reason), never deleted, and the void books a reversal.
+export const expenseUploads = pgTable("expense_uploads", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  category: varchar("category").notNull(),        // rent | electricity | water | internet | salary | security | supplies | other
+  amount: decimal("amount", { precision: 16, scale: 2 }).notNull(),
+  spentOn: varchar("spent_on").notNull(),         // "YYYY-MM-DD", the day on the receipt
+  payee: varchar("payee"),
+  note: text("note"),
+  photoUrl: text("photo_url"),
+  fixedCostId: varchar("fixed_cost_id"),          // the running cost (Fixed costs list) this settles, if any
+  status: varchar("status").default("active").notNull(), // active | voided
+  voidReason: text("void_reason"),
+  voidedBy: varchar("voided_by"),
+  voidedAt: timestamp("voided_at"),
+  ledgerEntryId: integer("ledger_entry_id"),
+  uploadedBy: varchar("uploaded_by"),
+  uploadedByName: varchar("uploaded_by_name"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

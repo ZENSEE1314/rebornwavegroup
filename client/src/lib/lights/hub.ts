@@ -121,6 +121,7 @@ export class LightHub {
   private connectQueue: Promise<unknown> = Promise.resolve();
   private effectTimer: ReturnType<typeof setInterval> | null = null;
   private effectStart = 0;
+  private effectCursor = 0;
   private isFrameRunning = false;
   private isFlushing = false;
   private pendingJob: (() => Promise<void>) | null = null;
@@ -271,6 +272,7 @@ export class LightHub {
     this.stopEffect();
     this.control = { ...this.control, effect, isOn: true, builtIn: null, music: null };
     this.effectStart = this.now();
+    this.effectCursor = 0;
     this.effectTimer = setInterval(() => this.runFrame(), FRAME_MS);
     this.emit();
     this.runFrame();
@@ -349,14 +351,18 @@ export class LightHub {
     const effect = this.control.effect;
     if (!effect) return;
     const ids = this.targetIds();
-    const isLive = (id: string) => !!this.entries.get(id)?.link.isLive();
-    // Lights that are already connected go first: only a handful can be animated at once.
-    const animated = [...ids.filter(isLive), ...ids.filter((id) => !isLive(id))].slice(0, this.maxLive);
+    // Only a handful of lights can be connected at once, so each frame updates the next few in the list and the next frame carries on from there:
+    // every selected light is reached in turn, and each one shows its own place in the effect (a rainbow spreads over all of them).
+    const batchSize = Math.min(this.maxLive, ids.length);
+    const start = ids.length ? this.effectCursor % ids.length : 0;
+    const animated = Array.from({ length: batchSize }, (_, k) => ids[(start + k) % ids.length]);
+    this.effectCursor = ids.length > batchSize ? (start + batchSize) % ids.length : 0;
     this.animatedIds = animated;
-    await Promise.all(animated.map((id, index) => {
+    await Promise.all(animated.map((id) => {
       const entry = this.entries.get(id)!;
+      const index = ids.indexOf(id);
       const rgb = scaleRgb(
-        renderEffect(effect, { time, index, count: animated.length, base: this.control.colour, speed: this.control.speed }),
+        renderEffect(effect, { time, index, count: ids.length, base: this.control.colour, speed: this.control.speed }),
         this.control.brightness / 100,
       );
       const key = `${rgb.r},${rgb.g},${rgb.b}`;

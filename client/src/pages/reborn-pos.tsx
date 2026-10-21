@@ -17,6 +17,8 @@ import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { ReasonDialog } from "@/components/ReasonDialog";
 import { publishScreen, useMirrorBill } from "@/lib/customer-screen";
+import { EMPTY_SPLIT, SplitPayBox, isSplitReady, splitPayments, type SplitForm } from "@/components/SplitPayBox";
+import { readSplit } from "@shared/payments";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
@@ -573,10 +575,11 @@ function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [], onA
 function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [pay, setPay] = useState<"cash" | "card" | "credits">("cash");
+  const [pay, setPay] = useState<"cash" | "card" | "credits" | "split">("cash");
   const [creditBal, setCreditBal] = useState<number | null>(null);
   const [paymentReference, setPaymentReference] = useState("");
   const [cashReceived, setCashReceived] = useState("");
+  const [split, setSplit] = useState<SplitForm>(EMPTY_SPLIT);
   const [receiptResult, setReceiptResult] = useState<any>(null);
   const { t } = useTranslation();
   const { data: products = [] } = useProducts();
@@ -606,7 +609,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: t("pos.notFound"), description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost) }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay === "split" ? "cash" : pay, payments: pay === "split" ? splitPayments(split, payable) : undefined, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost) }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: t("pos.drawerNotOpened"), description: t("pos.checkDrawerSetup") }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
@@ -780,11 +783,12 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               <input value={discReason} onChange={(e) => setDiscReason(e.target.value)} placeholder={t("pos.reasonOptional")} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm mb-2" />
               <button onClick={() => setBillDiscount.mutate(discPct ? { percent: Number(discPct), reason: discReason } : { amount: discount, reason: discReason })} className="w-full py-2 rounded-xl bg-white/10 text-sm font-semibold">{t("pos.applyDiscount")}</button>
             </div>
-            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-              {(["cash", "card", "credits"] as const).map((m) => (
+            <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+              {(["cash", "card", "credits", "split"] as const).map((m) => (
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
               ))}
             </div>
+            {payable > 0 && pay === "split" && <SplitPayBox due={payable} memberCode={order.memberCode} form={split} onChange={setSplit} onBalance={setCreditBal} />}
             <MemberWallet code={order.memberCode} quote={quote} useCredit={useCredit} onUseCredit={setUseCredit} ticketId={order.id} />
             <BillSummary due={due} settings={posSettings} />
             {payable > 0 && pay === "credits" && <CreditsLine code={order.memberCode} total={payable} onBalance={setCreditBal} />}
@@ -794,7 +798,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             <AtCostBox value={atCost} onChange={setAtCost} />
             <button onClick={() => printBill({ ...order, subtotal, discount: Math.max(0, subtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: due.total, packageCreditUsed: due.creditUse, items: (order.items || []).filter((item: any) => !OFF_BILL.includes(item.status)) } as any, savedReceiptMeta())} className="w-full py-2.5 rounded-xl mb-2 text-sm font-semibold bg-white/10 border border-white/10">🧾 {t("pos.bill.print")}</button>
             <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks} onAddCorkage={(service, quantity) => addItems.mutate([{ productId: service.id, name: service.name, price: Number(service.salePrice ?? service.price), qty: quantity }])}/>
-            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (quote?.hasPackages && !order.memberCode) || (payable > 0 && ((pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "credits" && (creditBal === null || creditBal < payable)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{payable > 0 ? t("pos.chargeAmount", { amount: rp(payable), method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(total) })}</button>
+            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (quote?.hasPackages && !order.memberCode) || (payable > 0 && ((pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "credits" && (creditBal === null || creditBal < payable)) || (pay === "split" && !isSplitReady(split, payable, creditBal)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{payable > 0 ? t("pos.chargeAmount", { amount: rp(payable), method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(total) })}</button>
             <button onClick={() => { if (confirm(t("pos.cancelConfirm"))) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">{t("pos.cancelTicket")}</button>
           </div>
         </div>
@@ -819,9 +823,10 @@ function QuickSaleTab() {
   const qc = useQueryClient();
   const [code, setCode] = useState("");
   const [member, setMember] = useState<any>(null);
-  const [pay, setPay] = useState<"cash" | "card" | "credits">("cash");
+  const [pay, setPay] = useState<"cash" | "card" | "credits" | "split">("cash");
   const [paymentReference, setPaymentReference] = useState("");
   const [cashReceived, setCashReceived] = useState("");
+  const [split, setSplit] = useState<SplitForm>(EMPTY_SPLIT);
   const [receiptResult, setReceiptResult] = useState<any>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const { t } = useTranslation();
@@ -833,6 +838,7 @@ function QuickSaleTab() {
   const { data: posSettings } = usePosSettings();
   const [commission, setCommission] = useState(emptyCommission);
   const [atCost, setAtCost] = useState(emptyAtCost);
+  const [quickCreditBal, setQuickCreditBal] = useState<number | null>(null);
   const cartSubtotal = cartItems.reduce((sum,item)=>sum+Number(item.price)*Number(item.qty),0);
   const quote = useQuote({ items: cartItems.map((x) => ({ productId: x.id, price: Number(x.price), qty: x.qty })), memberCode: member?.code || "", discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost) }, cartItems.length > 0);
   const due = quoteTotals(cartItems.length ? quote : null, billTotals(cartSubtotal, discount, posSettings));
@@ -849,7 +855,7 @@ function QuickSaleTab() {
   const { isOffline } = useOfflineSales();
   const sell = useMutation({
     mutationFn: async (items: any[]) => {
-      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost) }, { label: t("pos.offline.items", { n: items.length }), total: payable });
+      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay === "split" ? "cash" : pay, payments: pay === "split" ? splitPayments(split, payable) : undefined, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost) }, { label: t("pos.offline.items", { n: items.length }), total: payable });
       if (!outcome.queued) return outcome.data;
       // Saved on this device: a receipt is made from the numbers on the screen (the server prices it again when it is sent).
       const cashIn = Number(cashReceived) || 0;
@@ -868,7 +874,7 @@ function QuickSaleTab() {
   return (
     <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
       <div className="order-2 lg:order-1">
-        <ProductPicker label={payable > 0 || !cartItems.length ? t("pos.chargeMethod", { method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(due.total) })} displayTotal={payable} busy={sell.isPending || (quote?.hasPackages && !member) || (payable > 0 && ((pay === "credits" && (!member || Number(member.credits || 0) < payable)) || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
+        <ProductPicker label={payable > 0 || !cartItems.length ? t("pos.chargeMethod", { method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(due.total) })} displayTotal={payable} busy={sell.isPending || (quote?.hasPackages && !member) || (payable > 0 && ((pay === "credits" && (!member || Number(member.credits || 0) < payable)) || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "split" && !isSplitReady(split, payable, quickCreditBal)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
       </div>
       <div className="order-1 lg:order-2 mb-3 lg:mb-0 space-y-3 h-fit">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -897,12 +903,13 @@ function QuickSaleTab() {
         <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
         <AtCostBox value={atCost} onChange={setAtCost} />
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category,productId:x.id,qty:x.qty}))}/>
-        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${isOffline ? 2 : 3}, minmax(0, 1fr))` }}>
-          {(["cash", "card", "credits"] as const).filter((m) => m !== "credits" || !isOffline).map((m) => (
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${isOffline ? 2 : 4}, minmax(0, 1fr))` }}>
+          {(["cash", "card", "credits", "split"] as const).filter((m) => (m !== "credits" && m !== "split") || !isOffline).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
           ))}
         </div>
         {payable > 0 && pay === "credits" && <CreditsLine code={member?.code} total={payable} onBalance={() => {}} />}
+        {payable > 0 && pay === "split" && <SplitPayBox due={payable} memberCode={member?.code} form={split} onChange={setSplit} onBalance={setQuickCreditBal} />}
         {pay === "card" && <label className="block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
         {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={t("pos.required")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
         <p className="text-[11px] text-white/40 text-center">{t("pos.receiptNote")}</p>
@@ -1177,8 +1184,10 @@ function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone
         {Number(order.tax)>0 && <div className="flex justify-between"><span>{t("pos.tax")}</span><span>{rp(Number(order.tax))}</span></div>}
         <div className="flex justify-between text-lg font-black"><span>{t("pos.rc.total")}</span><span>{rp(Number(order.total))}</span></div>
         {Number(order.packageCreditUsed)>0 && <><div className="flex justify-between"><span>{t("pos.rc.packageCredit")}</span><span>- {rp(Number(order.packageCreditUsed))}</span></div><div className="flex justify-between font-bold"><span>{t("pos.rc.toPay")}</span><span>{rp(Number(order.total) - Number(order.packageCreditUsed))}</span></div></>}
-        <div className="flex justify-between"><span>{t("pos.rc.paid")}</span><b>{order.paymentMethod === "cash" || order.paymentMethod === "card" || order.paymentMethod === "credits" || order.paymentMethod === "package" ? t(`pos.pay.${order.paymentMethod}`).toUpperCase() : String(order.paymentMethod || "").toUpperCase()}</b></div>
+        <div className="flex justify-between"><span>{t("pos.rc.paid")}</span><b>{order.paymentMethod === "cash" || order.paymentMethod === "card" || order.paymentMethod === "credits" || order.paymentMethod === "package" || order.paymentMethod === "split" ? t(`pos.pay.${order.paymentMethod}`).toUpperCase() : String(order.paymentMethod || "").toUpperCase()}</b></div>
         {order.paymentReference && <div className="flex justify-between gap-3"><span>{t("pos.rc.cardRef")}</span><b className="text-right">{order.paymentReference}</b></div>}
+        {order.paymentMethod === "split" && readSplit(order.paymentSplit).map((part) => <div key={part.method} className="flex justify-between"><span>{t(`pos.pay.${part.method}`)}</span><b>{rp(part.amount)}</b></div>)}
+        {order.paymentMethod === "split" && Number(order.cashReceived) > 0 && <><div className="flex justify-between"><span>{t("pos.cashReceived")}</span><b>{rp(Number(order.cashReceived))}</b></div><div className="flex justify-between"><span>{t("pos.change")}</span><b>{rp(Number(order.changeGiven))}</b></div></>}
         {order.paymentMethod === "cash" && <><div className="flex justify-between"><span>{t("pos.cashReceived")}</span><b>{rp(Number(order.cashReceived))}</b></div><div className="flex justify-between"><span>{t("pos.change")}</span><b>{rp(Number(order.changeGiven))}</b></div></>}
       </div>
       <p className="mt-4 border-t border-dashed border-black/50 pt-4 text-center text-xs">{meta?.footer || t("pos.rc.thanks")}</p>
