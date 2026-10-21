@@ -183,6 +183,10 @@ export const bridgeStaffProfiles = pgTable("bridge_staff_profiles", {
   deposit: decimal("deposit", { precision: 14, scale: 2 }).default("0").notNull(), // money the staff member left with the company
   depositNote: text("deposit_note"),
   realName: varchar("real_name"), // set by the admin: the real name of a person whose account uses another name
+  staffKind: varchar("staff_kind").notNull().default("staff"), // staff | guard (a security guard works fixed hours and needs no attendance)
+  shiftStart: varchar("shift_start"), // "HH:MM" — a guard's fixed shift, e.g. 18:00 to 06:00 (past midnight is fine)
+  shiftEnd: varchar("shift_end"),
+  needsAttendance: boolean("needs_attendance").notNull().default(true), // false = no check-in; never counted absent
   status: varchar("status").notNull().default("active"),
   rankingScore: decimal("ranking_score", { precision: 10, scale: 2 }).default("0").notNull(),
   starGrade: decimal("star_grade", { precision: 3, scale: 2 }).default("0").notNull(),

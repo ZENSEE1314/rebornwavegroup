@@ -39,6 +39,7 @@ import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } f
 import { canUseExpenses, cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyActuals } from "@shared/fixedCosts";
 import { COST_SECTIONS, classifyLine, monthlyReports, periodReport } from "@shared/accountingReport";
+import { DEFAULT_PAY_DAYS, MAX_PAY_DAYS, MIN_PAY_DAYS, cleanNoLeaveMonths, leaveSummary, unpaidDeduction } from "@shared/payrollLeave";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerStaffContractRoutes } from "./staffContracts";
@@ -5016,15 +5017,42 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
-    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,(SELECT bp.name FROM bridge_positions bp WHERE bp.id=m.position_id) position_name,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,(SELECT bp.name FROM bridge_positions bp WHERE bp.id=m.position_id) position_name,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(p.staff_kind,'staff') staff_kind,p.shift_start,p.shift_end,COALESCE(p.needs_attendance,true) needs_attendance,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
     const staff=((result.rows||result) as any[]).map((x)=>{const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
+    // Leave, MC and absence of the month (shared/payrollLeave.ts): the unpaid days are taken off a salaried person's pay, and the deduction box starts filled in with it.
+    const leaveRules=await readLeaveRules();
+    const leaveRows=((await db.execute(sql`SELECT user_id,type,start_date,end_date,paid FROM leave_requests WHERE status='approved' AND start_date<${to} AND end_date>=${from} AND (company_id=${reborn.id} OR company_id IS NULL)`)) as any);
+    const shiftRows=((await db.execute(sql`SELECT user_id,shift_date FROM worker_shifts WHERE shift_date>=${from} AND shift_date<${to} AND (company_id=${reborn.id} OR company_id IS NULL)`)) as any);
+    const attendRows=((await db.execute(sql`SELECT DISTINCT user_id,work_date FROM staff_attendance WHERE work_date>=${from} AND work_date<${to} AND check_in_at IS NOT NULL AND (company_id=${reborn.id} OR company_id IS NULL)`)) as any);
+    const todayText=new Date(Date.now()+7*3_600_000).toISOString().slice(0,10);
+    for(const row of staff as any[]){
+      const mine=(rows:any)=>(rows.rows||rows).filter((x:any)=>x.user_id===row.user_id);
+      const summary=leaveSummary({month,leaves:mine(leaveRows).map((x:any)=>({type:x.type,startDate:x.start_date,endDate:x.end_date,paid:x.paid})),noLeaveMonths:leaveRules.noLeaveMonths,scheduledDates:mine(shiftRows).map((x:any)=>x.shift_date),attendedDates:mine(attendRows).map((x:any)=>x.work_date),needsAttendance:row.needs_attendance!==false,today:todayText});
+      const isSalaried=row.pay_type!=="hourly";
+      const off=isSalaried?unpaidDeduction(Number(row.base_salary),leaveRules.payDays,summary.unpaidDays):0;
+      row.leave={...summary,payDays:leaveRules.payDays,deduction:off};
+      if(off>0){row.deduction=off;row.deduction_note=[summary.unpaidLeaveDays?`${summary.unpaidLeaveDays} unpaid leave / MC day(s)${summary.isNoLeaveMonth?" (no-leave month)":""}`:"",summary.absentDays?`${summary.absentDays} day(s) scheduled but not at work`:""].filter(Boolean).join(", ");}
+    }
     const openCharges=await db.select().from(staffCharges).where(isNull(staffCharges.settledAt));
     for(const row of staff as any[]){const mine=openCharges.filter((x)=>x.userId===row.user_id);row.charges=mine.map((x)=>({id:x.id,name:x.name,qty:x.qty,amount:Number(x.amount),reason:x.reason,at:x.createdAt}));}
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
-    res.json({month,from,to,staff,referrals:refs.rows||refs,rules,money,country:companyCountry()});
+    res.json({month,from,to,staff,referrals:refs.rows||refs,rules,money,country:companyCountry(),leaveRules});
   }));
-  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),birthDate:/^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate||""))?String(b.birthDate):null,residency:asResidency(b.residency),statutoryOn:b.statutoryOn!==false,deposit:String(Math.max(0,Number(b.deposit)||0)),depositNote:String(b.depositNote||"").trim().slice(0,300)||null,updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
+  // Which months leave and MC are not paid, and how many days of pay a month has (one day of pay = the monthly salary over that).
+  const readLeaveRules=async()=>{
+    const noLeaveMonths=cleanNoLeaveMonths(await readSetting<unknown>("payrollNoLeaveMonths",[]));
+    const days=Number(await readSetting<unknown>("payrollWorkDays",DEFAULT_PAY_DAYS));
+    return {noLeaveMonths,payDays:Number.isFinite(days)&&days>=MIN_PAY_DAYS&&days<=MAX_PAY_DAYS?Math.floor(days):DEFAULT_PAY_DAYS};
+  };
+  app.put("/api/reborn/admin/payroll/leave-rules",requireAdmin(async(req,res)=>{
+    const noLeaveMonths=cleanNoLeaveMonths(req.body?.noLeaveMonths);
+    const payDays=Math.min(MAX_PAY_DAYS,Math.max(MIN_PAY_DAYS,Math.floor(Number(req.body?.payDays))||DEFAULT_PAY_DAYS));
+    await writeSetting("payrollNoLeaveMonths",noLeaveMonths);await writeSetting("payrollWorkDays",payDays);
+    await logAdmin(req,{targetType:"settings",targetId:"payrollLeave",action:"payroll_leave_rules",entityType:"accounting",description:`Leave / MC not paid in: ${noLeaveMonths.join(", ")||"no month"}; ${payDays} days of pay a month`});
+    res.json({noLeaveMonths,payDays});
+  }));
+  app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),birthDate:/^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate||""))?String(b.birthDate):null,residency:asResidency(b.residency),statutoryOn:b.statutoryOn!==false,deposit:String(Math.max(0,Number(b.deposit)||0)),depositNote:String(b.depositNote||"").trim().slice(0,300)||null,staffKind:b.staffKind==="guard"?"guard":"staff",shiftStart:isValidClock(b.shiftStart)?b.shiftStart:null,shiftEnd:isValidClock(b.shiftEnd)?b.shiftEnd:null,needsAttendance:b.staffKind==="guard"?b.needsAttendance===true:b.needsAttendance!==false,updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();res.json(row);}));
   // Record a month's pay: the gross salary as an expense, plus the employer's statutory
   // contributions (CPF / BPJS…) as their own expense. The employee's share is part of the
   // gross: it is withheld from the staff member and paid to the fund with the employer's.
@@ -5500,6 +5528,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const planned = dailyCosts(costs, month, actuals, payrollMonthly / days);
     res.json({ month, report: periodReport(lines, await reportUploads(cid)), plannedRunningCosts: Math.round(planned.perDay * days * 100) / 100, pendingBills: planned.pending, prizePool: await getSpinPool() });
   }));
+  // The last N days (the 7 / 30 / 90 day buttons at the top of Accounting), read the same way as a month.
+  const sinceDays = (value: unknown) => new Date(Date.now() - Math.min(365, Math.max(1, Number(value) || 30)) * DAY_MS);
+  app.get("/api/reborn/admin/accounting/period", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+    const lines = await db.select().from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${sinceDays(days)}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
+    res.json({ days, report: periodReport(lines, await reportUploads(cid)), prizePool: await getSpinPool() });
+  }));
   app.get("/api/reborn/admin/accounting/overall", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const lines = await db.select().from(ledgerEntries).where(sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`);
@@ -5519,7 +5555,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (group !== "income" && !(COST_SECTIONS as readonly string[]).includes(group)) return res.status(400).json({ message: tr(req, { en: "Choose a line of the report", zh: "请选择报表中的一项", id: "Pilih satu baris laporan" }) });
     const monthQuery = String(req.query.month || "");
     const range = MONTH_RE.test(monthQuery) ? monthBounds(monthQuery) : null;
-    const rows = await db.select().from(ledgerEntries).where(and(range ? sql`${ledgerEntries.createdAt} >= ${range.from} AND ${ledgerEntries.createdAt} < ${range.to}` : sql`TRUE`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`)).orderBy(desc(ledgerEntries.createdAt));
+    const since = req.query.days ? sinceDays(req.query.days) : null;
+    const rows = await db.select().from(ledgerEntries).where(and(range ? sql`${ledgerEntries.createdAt} >= ${range.from} AND ${ledgerEntries.createdAt} < ${range.to}` : since ? sql`${ledgerEntries.createdAt} >= ${since}` : sql`TRUE`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`)).orderBy(desc(ledgerEntries.createdAt));
     const uploads = await reportUploads(cid);
     const matched = rows.map((row) => ({ row, counted: classifyLine(row, uploads) })).filter((entry) => entry.counted.group === group);
     const shown = matched.slice(0, MAX_DRILL_LINES);

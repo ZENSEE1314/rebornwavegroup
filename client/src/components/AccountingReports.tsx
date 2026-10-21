@@ -23,10 +23,10 @@ interface DrillLine {
 }
 interface Drill { group: string; count: number; total: number; truncated: boolean; lines: DrillLine[] }
 
-function Detail({ group, month }: { group: ReportGroup; month: string }) {
+function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
   const { t, language } = useTranslation();
   const [photo, setPhoto] = useState<{ id: number; url: string | null } | null>(null);
-  const url = `/api/reborn/admin/accounting/report-lines?group=${group}${month ? `&month=${month}` : ""}`;
+  const url = `/api/reborn/admin/accounting/report-lines?group=${group}${scope ? `&${scope}` : ""}`;
   const { data } = useQuery<Drill>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
   const showPhoto = async (id: number) => {
     setPhoto({ id, url: null });
@@ -57,7 +57,7 @@ function Detail({ group, month }: { group: ReportGroup; month: string }) {
   );
 }
 
-function Lines({ report, month }: { report: PeriodReport; month: string }) {
+function Lines({ report, scope }: { report: PeriodReport; scope: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<ReportGroup | null>(null);
   const toggle = (group: ReportGroup) => setOpen(open === group ? null : group);
@@ -66,7 +66,7 @@ function Lines({ report, month }: { report: PeriodReport; month: string }) {
       <button type="button" onClick={() => toggle(group)} aria-expanded={open === group} className={`w-full min-h-[40px] flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-left text-sm hover:bg-white/5 ${amount === 0 ? "text-white/30" : tone}`}>
         <span>{open === group ? "▼" : "▶"} {label}</span><span>{money(amount)}</span>
       </button>
-      {open === group && <Detail group={group} month={month} />}
+      {open === group && <Detail group={group} scope={scope} />}
     </div>
   );
   return (
@@ -97,7 +97,7 @@ function MonthlyReport() {
       <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} aria-label={t("ar.month")} className={field} />
       {data && (
         <>
-          <Lines report={data.report} month={month} />
+          <Lines report={data.report} scope={`month=${month}`} />
           <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-1 text-xs">
             <p className="font-semibold text-white/70">{t("ar.running")}</p>
             <div className="flex justify-between text-white/60"><span>{t("ar.planned")}</span><span>{money(data.plannedRunningCosts)}</span></div>
@@ -118,7 +118,7 @@ function OverallReport() {
   if (!data) return null;
   return (
     <div className="space-y-3">
-      <Lines report={data.total} month="" />
+      <Lines report={data.total} scope="" />
       {data.months.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -153,6 +153,32 @@ export default function AccountingReports() {
         <button type="button" onClick={() => setView("overall")} className={chip(view === "overall")}>{t("ar.overall")}</button>
       </div>
       {view === "monthly" ? <MonthlyReport /> : <OverallReport />}
+    </div>
+  );
+}
+
+interface PeriodData { days: number; report: PeriodReport; prizePool: number }
+
+/** The top of Accounting for the last 7 / 30 / 90 days: money in, all costs and what is left, then every cost in its group — each line opens to the entries behind it. */
+export function PeriodBreakdown({ days }: { days: number }) {
+  const { t } = useTranslation();
+  const url = `/api/reborn/admin/accounting/period?days=${days}`;
+  const { data } = useQuery<PeriodData>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
+  if (!data) return null;
+  const { report } = data;
+  const tile = (label: string, value: string, tone: string) => <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center"><p className="text-[11px] text-white/50">{label}</p><p className={`text-base font-extrabold ${tone}`}>{value}</p></div>;
+  return (
+    <div className="space-y-2">
+      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        {tile(t("ar.moneyIn"), money(report.income), "text-emerald-300")}
+        {tile(t("ar.costTotal"), money(report.costTotal), "text-red-300")}
+        {tile(t("ar.net"), money(report.net), report.net >= 0 ? "text-amber-300" : "text-red-300")}
+      </div>
+      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        {tile(t("ar.grossProfit"), money(report.grossProfit), "text-white")}
+        {tile(t("admin.acc.prizePool"), money(data.prizePool), "text-amber-300")}
+      </div>
+      <div className={card}><Lines report={report} scope={`days=${days}`} /><p className="mt-2 text-[11px] text-white/40">{t("ar.pool", { n: money(data.prizePool) })}</p></div>
     </div>
   );
 }
