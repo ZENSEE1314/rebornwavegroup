@@ -20,6 +20,8 @@ const CLOUD_TIMEOUT_MS = 20000;
 const STATE_EVERY_MS = 10000;
 const NOT_STARTED_MS = 25000; // the box took a song but never showed it as busy: give up on it
 const PLAYER_CALLBACK = "cb";
+const MIN_LOOKAHEAD = 2;   // from this many songs on the box the bridge loads songs ahead (the app's setting; 0 / 1 = one song at a time)
+const MAX_LOOKAHEAD = 10;
 const JOB_POLL_TIMEOUT_MS = 30000; // the app holds the request up to 20 s
 const RETRY_AFTER_ERROR_MS = 3000;
 const SEARCH_PAGES = 3;          // pages (15 songs each) read per search text for a member's search
@@ -92,6 +94,9 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
   const box = boxUrl.replace(/\/+$/, "");
   const cloud = cloudUrl.replace(/\/+$/, "");
   let sent = null; // { id, code, at, seenBusy, repeatDone } the app's song that is on the box now
+  // Loading ahead: the app's songs ordered on the box, in the order the box plays them (the first is playing): { id, code, xH, at, repeatDone }. xH is the box's own number of the song, known once it shows in the box's list.
+  let ahead = [];
+  const codeOfSong = new Map(); // app song id → the box's song number, or null when the box does not have it
   // The box only has a toggle between the singer's own voice (original / analog) and accompaniment, and cannot tell us which is on: we remember what we last set (it starts as accompaniment).
   let boxVocal = "karaoke";
   let lastStateAt = 0, lastStateCount = -1;
@@ -224,13 +229,15 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     return null;
   };
   // The songs waiting on the box itself, so staff and members can see them next to our queue.
-  async function reportBoxState(count) {
+  const boxPlaylist = async () => JSON.parse((await boxCall("PlaylistServlet", { onSelectPage: "true", click: "true", type: "1" })).songList || "[]");
+  async function reportBoxState(count, known = null) {
     lastStateAt = now(); lastStateCount = count;
     try {
-      const list = count > 0 ? JSON.parse((await boxCall("PlaylistServlet", { onSelectPage: "true", click: "true", type: "1" })).songList || "[]") : [];
+      const list = known ?? (count > 0 ? await boxPlaylist() : []);
+      const ours = new Set(ahead.map((e) => e.xH).filter(Boolean));
       // The song the app itself ordered is in the box's list too: leave it out so it is not shown twice (the box's own number xH lets the app remove or move a song).
       const own = sent ? list.findIndex((x) => String(x.sONGBM) === String(sent.code)) : -1;
-      await cloudCall("POST", "/api/karaoke/box-state", { songs: list.filter((_, i) => i !== own).map((x) => ({ id: String(x.xH ?? ""), title: x.sONGNAME, artist: singerNames(x.sINGER).join(", ") })) });
+      await cloudCall("POST", "/api/karaoke/box-state", { songs: list.filter((x, i) => i !== own && !ours.has(String(x.xH ?? ""))).map((x) => ({ id: String(x.xH ?? ""), title: x.sONGNAME, artist: singerNames(x.sINGER).join(", ") })) });
     } catch (error) { log(`box list not sent: ${error.message}`); }
   }
   const finish = (finishedId, skip) => cloudCall("POST", "/api/karaoke/next", { finishedId, ...(skip ? { skip: true } : {}) });
@@ -248,10 +255,110 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     } catch (error) { log(`controls not read: ${error.message}`); }
   }
 
+  // ── Loading songs ahead ────────────────────────────────────────────────────────────────────────────
+  // With a lookahead the box holds the next songs of the app's fair queue already, so the next song starts the moment one ends (no wait for the app).
+  // The app's order decides: the box's list is kept equal to [song on now, next songs ...]. When a table with a turn comes in, the songs now out of order
+  // are taken off the box (Del1) and loaded again when their turn comes.
+  const boxDelete = (entry, isPlaying) => boxCall("CommandServlet", isPlaying ? { cmd: "Skip", cmdValue: "" } : { cmd: "Del1", cmdValue: String(entry.xH) });
+  const codeFor = async (song) => {
+    if (song.karaokeCode) return song.karaokeCode;
+    if (codeOfSong.has(song.id)) return codeOfSong.get(song.id);
+    const code = await findCode(song);
+    codeOfSong.set(song.id, code);
+    return code;
+  };
+  async function loadAhead(board, wanted) {
+    const desired = [board.nowPlaying, ...(board.queue || [])].slice(0, wanted);
+    let same = 1; // the song on now is already first on the box
+    while (same < ahead.length && same < desired.length && ahead[same].id === desired[same].id) same++;
+    const wrong = ahead.slice(same);
+    if (wrong.some((e) => !e.xH)) return; // just ordered and not in the box's list yet: it can be taken off next round
+    for (const entry of wrong) { await boxDelete(entry, false); log(`song ${entry.id} taken off the box: it waits for its turn`); }
+    ahead = ahead.slice(0, same);
+    for (const song of desired.slice(ahead.length)) {
+      const code = await codeFor(song);
+      if (!code) break; // a song the box does not have: nothing after it is loaded, so the order stays right (the app skips it when its turn comes)
+      await boxCall("CommandServlet", { cmd: "Add1", cmdValue: code });
+      ahead.push({ id: song.id, code, xH: null, at: now(), repeatDone: song.repeat || 0 });
+      log(`loaded "${song.title}" (${code}) on the box`);
+    }
+  }
+  async function tickAhead(board) {
+    const list = await boxPlaylist();
+    const count = list.length;
+    if (now() - lastStateAt > STATE_EVERY_MS || count !== lastStateCount) await reportBoxState(count, list);
+    const current = board.nowPlaying;
+    // which entry of the box's list is each loaded song (the box numbers a song when it is added)
+    const taken = new Set(ahead.map((e) => e.xH).filter(Boolean));
+    for (const entry of ahead) {
+      if (entry.xH) continue;
+      const hit = list.find((x) => String(x.sONGBM) === String(entry.code) && !taken.has(String(x.xH)));
+      if (hit) { entry.xH = String(hit.xH); taken.add(entry.xH); }
+    }
+    const onBox = new Set(list.map((x) => String(x.xH)));
+    const first = ahead[0];
+    const lostFirst = first && !first.xH && now() - first.at > NOT_STARTED_MS;
+    const gone = ahead.filter((e) => (e.xH && !onBox.has(e.xH)) || (!e.xH && now() - e.at > NOT_STARTED_MS)); // played to the end, or taken off by hand, or never showed up
+    ahead = ahead.filter((e) => !gone.includes(e));
+    if (first && gone.includes(first)) {
+      await finish(first.id, !!lostFirst); // the box moved on: the app moves on to the same next song (it is the first of the fair queue we loaded)
+      log(lostFirst ? `song ${first.id} never started on the box: skipped` : `song ${first.id} finished on the box`);
+      return lostFirst ? "lost" : "finished";
+    }
+    if (!current) {
+      if (ahead.length) { // the app has nothing on now (skipped / done there): cut what the box still plays of ours
+        await boxDelete(ahead[0], true);
+        for (const entry of ahead.slice(1)) if (entry.xH) await boxDelete(entry, false);
+        log(`song ${ahead[0].id} left the app's queue: cut on the box`);
+        ahead = [];
+        return "cut";
+      }
+      if (board.paused || !board.queue?.length || count > 0) return "idle";
+      await cloudCall("POST", "/api/karaoke/next", {});
+      log("started the first waiting song");
+      return "started";
+    }
+    if (ahead.length && ahead[0].id !== current.id) { // the app chose another song than the one the box plays: the box follows the app
+      const at = ahead.findIndex((e) => e.id === current.id);
+      const drop = at > 0 ? ahead.slice(0, at) : ahead;
+      await boxDelete(drop[0], true);
+      for (const entry of drop.slice(1)) if (entry.xH) await boxDelete(entry, false);
+      ahead = at > 0 ? ahead.slice(at) : [];
+      log("the box was playing another song than the app's: cut");
+      return "cut";
+    }
+    if (!ahead.length) {
+      if (count > 0) return "box busy"; // someone is playing songs on the box by hand: wait until it is idle
+      const code = await codeFor(current);
+      if (!code) { await finish(current.id, true); log(`"${current.title}" is not in the box's song list: skipped`); return "not found"; }
+      const wantVocal = current.vocal === "original" ? "original" : "karaoke";
+      if (wantVocal !== boxVocal) { await boxCall("CommandServlet", { cmd: "MuOr", cmdValue: "" }); boxVocal = wantVocal; log(`singer's voice ${wantVocal === "original" ? "on" : "off"} for "${current.title}"`); }
+      await boxCall("CommandServlet", { cmd: "Add1", cmdValue: code });
+      ahead.push({ id: current.id, code, xH: null, at: now(), repeatDone: current.repeat || 0 });
+      log(`ordered "${current.title}" (${code}) on the box`);
+    } else {
+      if ((current.repeat || 0) > ahead[0].repeatDone) { await boxCall("CommandServlet", { cmd: "Reset", cmdValue: "" }); ahead[0].repeatDone = current.repeat; log(`song ${current.id} played again`); return "repeated"; }
+      const wantVoice = current.vocal === "original" ? "original" : "karaoke";
+      if (wantVoice !== boxVocal) { await boxCall("CommandServlet", { cmd: "MuOr", cmdValue: "" }); boxVocal = wantVoice; log(`singer's voice ${wantVoice === "original" ? "on" : "off"} while "${current.title}" plays`); }
+    }
+    if (!board.paused) await loadAhead(board, Math.min(MAX_LOOKAHEAD, Number(board.lookahead) || MIN_LOOKAHEAD));
+    return ahead.length > 1 ? "loaded ahead" : "playing";
+  }
+  // Back to one song at a time (the setting was turned off): keep the song that plays, take the waiting ones off the box.
+  async function leaveLookahead() {
+    const [playing, ...waiting] = ahead;
+    ahead = [];
+    for (const entry of waiting) if (entry.xH) await boxDelete(entry, false);
+    if (playing) sent = { id: playing.id, code: playing.code, at: now(), seenBusy: true, repeatDone: playing.repeatDone };
+  }
+
   // One round: look at the app's queue and the box, and move whichever side is behind. `controls: false` when pressControls runs on its own loop.
   async function tick({ controls = true } = {}) {
     if (controls) await pressControls();
-    const [board, count] = await Promise.all([cloudCall("GET", "/api/karaoke/queue"), boxCount()]);
+    const board = await cloudCall("GET", "/api/karaoke/queue");
+    if (Number(board.lookahead) >= MIN_LOOKAHEAD) return tickAhead(board);
+    if (ahead.length) await leaveLookahead();
+    const count = await boxCount();
     const current = board.nowPlaying;
     if (now() - lastStateAt > STATE_EVERY_MS || count !== lastStateCount) await reportBoxState(count);
 

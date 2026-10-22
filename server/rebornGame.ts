@@ -109,6 +109,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   songRequestModeEnabled: "true",
   songQueueMode: "user",    // song turns go per member ("user") or per checked-in table ("table")
   songsPerTurn: "1",        // songs each member/table sings per turn (1–3)
+  songLookahead: "0",       // songs kept loaded on the karaoke system ahead of the one playing (0 = off: one song at a time)
   timezone: "Asia/Jakarta", // club country timezone — booking slots, "today" and WhatsApp reminders use this
   bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
   receiptQrKind: "none", receiptQrLink: "", receiptQrCaption: "", // a QR at the bottom of the customer receipt: none | wifi | review | link
@@ -173,6 +174,7 @@ async function getSettings() {
     songRequestModeEnabled: map.songRequestModeEnabled !== "false",
     songQueueMode: map.songQueueMode === "table" ? "table" : "user",
     songsPerTurn: Math.min(3, Math.max(1, Math.floor(Number(map.songsPerTurn) || 1))),
+    songLookahead: Math.min(10, Math.max(0, Math.floor(Number(map.songLookahead) || 0))),
     timezone: map.timezone || "Asia/Jakarta",
     bottleExpiryDays: Math.max(1, Number(map.bottleExpiryDays) || 90),
     receiptQrKind: RECEIPT_QR_KINDS.includes(map.receiptQrKind as any) ? map.receiptQrKind : "none", receiptQrLink: map.receiptQrLink || "", receiptQrCaption: map.receiptQrCaption || "",
@@ -1151,7 +1153,7 @@ async function songQueueBoard(cid: number | null, viewerId?: string | null) {
   const view = (r: any) => ({ id: r.id, title: r.title, vocal: r.vocal || "karaoke", repeat: r.repeatCount || 0, boxQueries: boxQueries(r.title), artist: r.artist || "", performanceMode: r.performanceMode, table: r.table || r.tableLabel || null, name: nameOf.get(r.userId) || "", mine: !!viewerId && r.userId === viewerId, karaokeCode: r.songId ? codes.get(r.songId) || null : null });
   const s = await getSettings();
   return {
-    mode: s.songQueueMode, perTurn: s.songsPerTurn, paused,
+    mode: s.songQueueMode, perTurn: s.songsPerTurn, lookahead: s.songLookahead, paused,
     nowPlaying: now ? { ...view(now), startedAt: now.confirmedAt } : null,
     queue: queue.map((r) => ({ ...view(r), position: r.position, round: r.round + 1, playNext: !!r.bumpedAt })),
   };
@@ -3190,7 +3192,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["referralOn", "referralPercent", "appDiscountOn", "appDiscountPercent", "receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
+    const allowed = ["referralOn", "referralPercent", "appDiscountOn", "appDiscountPercent", "receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "songLookahead", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);

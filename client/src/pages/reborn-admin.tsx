@@ -1010,6 +1010,12 @@ function Settings() {
               {[1, 2, 3].map((n) => <option key={n} value={n}>{t("admin.set.songsN", { n })}</option>)}
             </select></label>
         </div>
+        <label className="mt-3 block"><span className="text-xs text-white/60 block mb-1">{t("admin.set.songLookahead")}</span>
+          <select value={String(cur.songLookahead || 0)} onChange={(e) => setStr("songLookahead", Number(e.target.value))} className={inp + " w-full"}>
+            <option value={0}>{t("admin.set.songLookaheadOff")}</option>
+            {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{t("admin.set.songLookaheadN", { n })}</option>)}
+          </select></label>
+        <p className="text-[11px] text-white/40 mt-1">{t("admin.set.songLookaheadHint")}</p>
         <p className="text-[11px] text-white/40 mt-2">{t("admin.set.songQueueHint")}</p>
         <button onClick={()=>save.mutate()} disabled={save.isPending} className={btn+" mt-3 w-full justify-center"}>{save.isPending?t("admin.c.saving"):t("admin.c.save")}</button>
       </Card>

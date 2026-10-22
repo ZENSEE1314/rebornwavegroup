@@ -380,3 +380,126 @@ describe("finding the box on the network", () => {
     assert.equal(await isBox("http://192.168.1.1:8084/demo", async () => ({ text: async () => "<html>router</html>" })), false);
   });
 });
+
+// A box that keeps its own playlist: Add1 adds a song at the end, Del1 removes one by the box's number, Skip cuts the first, and the test lets the first song end.
+function playlistWorld(initial: { nowPlaying: any; queue?: any[]; lookahead?: number; paused?: boolean }) {
+  const state = {
+    board: { paused: !!initial.paused, lookahead: initial.lookahead ?? 3, nowPlaying: initial.nowPlaying as any, queue: (initial.queue || []) as any[] },
+    playlist: [] as { xH: string; sONGBM: string; sONGNAME: string; sINGER: string }[],
+    commands: [] as string[], nextCalls: [] as any[], nextXH: 100,
+  };
+  const reply = (value: unknown) => ({ ok: true, status: 200, text: async () => `cb(${JSON.stringify(value)})`, json: async () => value });
+  const fetchImpl = async (url: string, init?: any) => {
+    const u = new URL(url);
+    if (u.pathname.endsWith("/api/karaoke/queue")) return reply(state.board);
+    if (u.pathname.endsWith("/api/karaoke/next")) {
+      state.nextCalls.push(JSON.parse(init.body));
+      const [next, ...rest] = state.board.queue; // the app starts the first of its fair queue
+      state.board = { ...state.board, nowPlaying: next || null, queue: rest };
+      return reply({});
+    }
+    if (u.pathname.endsWith("PlaylistServlet")) return reply({ number: String(state.playlist.length), songList: JSON.stringify(state.playlist) });
+    if (u.pathname.endsWith("SearchServlet")) return reply({ number: "0", page: "1", songList: "[]" });
+    if (u.pathname.endsWith("CommandServlet")) {
+      const cmd = u.searchParams.get("cmd"); const value = u.searchParams.get("cmdValue") || "";
+      state.commands.push(`${cmd}:${value}`);
+      if (cmd === "Add1") state.playlist.push({ xH: String(state.nextXH++), sONGBM: value, sONGNAME: "song " + value, sINGER: "x" });
+      if (cmd === "Del1") state.playlist = state.playlist.filter((x) => x.xH !== value);
+      if (cmd === "Skip") state.playlist.shift();
+      return reply({ cmd });
+    }
+    throw new Error("unexpected " + url);
+  };
+  let clock = 1_000_000;
+  const bridge = createBridge({ cloudUrl: "https://cloud.test", token: "t", boxUrl: "http://box/demo", fetchImpl, log: () => {}, now: () => clock });
+  return { state, bridge, advance: (ms: number) => { clock += ms; } };
+}
+const req = (id: number, table: string, extra: object = {}) => ({ id, title: "Song " + id, artist: "x", table, vocal: "karaoke", repeat: 0, karaokeCode: "c" + id, ...extra });
+
+describe("loading songs ahead on the box", () => {
+  it("should order the song on now and the next songs of the fair queue at once", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A"), req(3, "B"), req(4, "C")], lookahead: 3 });
+    await bridge.tick();
+    assert.deepEqual(state.commands, ["Add1:c1", "Add1:c2", "Add1:c3"]);
+  });
+
+  it("should not load more than the lookahead", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A"), req(3, "B"), req(4, "C"), req(5, "D")], lookahead: 2 });
+    await bridge.tick();
+    assert.deepEqual(state.commands, ["Add1:c1", "Add1:c2"]);
+  });
+
+  it("should load a third song of the same table when nobody else is waiting", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A"), req(3, "A")], lookahead: 3 });
+    await bridge.tick();
+    assert.deepEqual(state.commands, ["Add1:c1", "Add1:c2", "Add1:c3"]);
+  });
+
+  it("should take a table's extra song off the box when another table asks, and load the new table's song instead", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A"), req(3, "A")], lookahead: 3 });
+    await bridge.tick();
+    await bridge.tick(); // the box now shows all three: the bridge knows their numbers
+    state.commands.length = 0;
+    state.board.queue = [req(2, "A"), req(9, "B"), req(3, "A")]; // table B asked: its song comes before A's extra one
+    await bridge.tick();
+    const removed = state.commands.filter((c) => c.startsWith("Del1"));
+    assert.equal(removed.length, 1, "the extra song of A is taken off");
+    assert.deepEqual(state.commands.filter((c) => c.startsWith("Add1")), ["Add1:c9"]);
+    assert.deepEqual(state.playlist.map((x) => x.sONGBM), ["c1", "c2", "c9"]);
+  });
+
+  it("should load the waiting song again when its turn comes", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A"), req(9, "B"), req(3, "A")], lookahead: 3 });
+    await bridge.tick(); await bridge.tick();
+    assert.deepEqual(state.playlist.map((x) => x.sONGBM), ["c1", "c2", "c9"]);
+    state.playlist.shift(); // song 1 ended on the box
+    await bridge.tick(); // finished: the app moves on to song 2
+    assert.deepEqual(state.nextCalls, [{ finishedId: 1 }]);
+    await bridge.tick(); await bridge.tick();
+    assert.deepEqual(state.playlist.map((x) => x.sONGBM), ["c2", "c9", "c3"]);
+  });
+
+  it("should tell the app a song ended when the box moves to the next loaded song", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A")], lookahead: 2 });
+    await bridge.tick(); await bridge.tick();
+    state.playlist.shift();
+    assert.equal(await bridge.tick(), "finished");
+    assert.equal(state.board.nowPlaying.id, 2);
+  });
+
+  it("should cut the song on the box when the app skipped it", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A")], lookahead: 2 });
+    await bridge.tick(); await bridge.tick();
+    state.board = { ...state.board, nowPlaying: null, queue: [] };
+    assert.equal(await bridge.tick(), "cut");
+    assert.ok(state.commands.includes("Skip:"));
+  });
+
+  it("should load nothing new while the queue is paused", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A")], lookahead: 3, paused: true });
+    await bridge.tick();
+    assert.deepEqual(state.commands, ["Add1:c1"]);
+  });
+
+  it("should stop loading at a song the box does not have", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A", { karaokeCode: undefined, title: "Zzz nothing" }), req(3, "B")], lookahead: 3 });
+    await bridge.tick();
+    assert.deepEqual(state.commands, ["Add1:c1"]);
+  });
+
+  it("should press the repeat button when the singer asks for the song again", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [], lookahead: 2 });
+    await bridge.tick(); await bridge.tick();
+    state.board.nowPlaying = req(1, "A", { repeat: 1 });
+    assert.equal(await bridge.tick(), "repeated");
+    assert.ok(state.commands.includes("Reset:"));
+  });
+
+  it("should go back to one song at a time when the setting is turned off", async () => {
+    const { bridge, state } = playlistWorld({ nowPlaying: req(1, "A"), queue: [req(2, "A")], lookahead: 2 });
+    await bridge.tick(); await bridge.tick();
+    state.board.lookahead = 0;
+    await bridge.tick();
+    assert.deepEqual(state.playlist.map((x) => x.sONGBM), ["c1"]);
+  });
+});
