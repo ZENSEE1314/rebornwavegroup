@@ -1,0 +1,22 @@
+# Render blueprint: a STANDBY copy of the Reborn server, for when the main host (Railway) cannot deploy.
+# It runs the same code against the same database, with STANDBY_MODE=1 so it does NOT run the background jobs
+# (reminders, pet decay, daily tokens, tournaments, WhatsApp Web) — the main server keeps doing those, so nothing is sent or counted twice.
+# autoDeploy is off: it only deploys when someone presses Deploy in Render. Steps: RENDER_STANDBY.md.
+services:
+  - type: web
+    name: reborn-standby
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: singapore
+    healthCheckPath: /api/v1/tenant/resolve
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STANDBY_MODE
+        value: "1"
+      - key: DATABASE_URL
+        sync: false # pasted in Render's dashboard: the live database's PUBLIC address
+      - key: SESSION_SECRET
+        generateValue: true # its own secret: people log in again on the standby address

@@ -45,7 +45,7 @@ import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
 import { registerStaffContractRoutes } from "./staffContracts";
 import { stationFor, STATIONS } from "@shared/station";
-import { VENUE_MODE, CLOUD_URL } from "./venueMode";
+import { VENUE_MODE, BACKGROUND_JOBS_OFF, CLOUD_URL } from "./venueMode";
 import { cloudSyncStatus, enableVenueSync } from "./venueSync/cloudRoutes";
 import { syncNow, venueSyncStatus } from "./venueSync/engine";
 import { registerPayslipRoutes, savePayslip, runPayrollReminder, type PayslipDeps } from "./payslips";
@@ -1408,9 +1408,9 @@ const SHIFT_DATES_IN_NOTICE = 6;
 
 export function registerRebornRoutes(app: Express) {
   // A table's call keeps alerting staff until someone accepts it.
-  setInterval(() => { void inEveryDataSpace(remindServiceCalls); }, SERVICE_CALL_CHECK_MS);
+  if (!BACKGROUND_JOBS_OFF) setInterval(() => { void inEveryDataSpace(remindServiceCalls); }, SERVICE_CALL_CHECK_MS);
   // Low stock → a drafted message to the supplier, waiting for the admin's approval (when switched on).
-  if (!VENUE_MODE) setInterval(() => { void inEveryDataSpace(async () => { await runSupplierReorderCheck(); }).catch((error) => console.error("[supplier reorder]", error)); }, SUPPLIER_REORDER_CHECK_MS);
+  if (!BACKGROUND_JOBS_OFF) setInterval(() => { void inEveryDataSpace(async () => { await runSupplierReorderCheck(); }).catch((error) => console.error("[supplier reorder]", error)); }, SUPPLIER_REORDER_CHECK_MS);
 
   // Payday: once a month the admins are told who is still unpaid for the month that ended.
   const payslipDeps: PayslipDeps = {
@@ -1423,7 +1423,7 @@ export function registerRebornRoutes(app: Express) {
     notifyAdmins: (text) => notifyStaffI18n("payday", (lang) => ({ title: pick(lang, { en: "Payday", zh: "发薪日", id: "Hari gajian" }), body: text[lang] }), undefined, { adminsOnly: true }),
     payrollDay: async () => (await getSettings()).payrollDay,
   };
-  if (!VENUE_MODE) setInterval(() => { void inEveryDataSpace(async () => { await runPayrollReminder(payslipDeps); }).catch((error) => console.error("[payroll reminder]", error)); }, PAYROLL_REMINDER_CHECK_MS);
+  if (!BACKGROUND_JOBS_OFF) setInterval(() => { void inEveryDataSpace(async () => { await runPayrollReminder(payslipDeps); }).catch((error) => console.error("[payroll reminder]", error)); }, PAYROLL_REMINDER_CHECK_MS);
 
   console.log("*** REBORN GAME ROUTES REGISTERED");
   void dedupeGiftTypes();

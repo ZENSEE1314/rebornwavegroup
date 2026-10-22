@@ -1,4 +1,4 @@
-import { VENUE_MODE } from "./venueMode";
+import { VENUE_MODE, BACKGROUND_JOBS_OFF } from "./venueMode";
 import { registerVenueSyncRoutes, venueToken, pruneCloudLog } from "./venueSync/cloudRoutes";
 import { ensureSyncInfra } from "./venueSync/infra";
 import { startVenueSync } from "./venueSync/engine";
@@ -140,7 +140,7 @@ app.use((req, res, next) => {
   if (!bridgeXPortalOnly) {
     registerWhatsAppBot(app);
     // Resume a previously QR-linked WhatsApp Web session if one exists.
-    if (!VENUE_MODE) resumeWhatsAppWebIfLinked().catch(() => {}); // the venue PC leaves WhatsApp to the cloud
+    if (!BACKGROUND_JOBS_OFF) resumeWhatsAppWebIfLinked().catch(() => {}); // the venue PC leaves WhatsApp to the cloud
   }
 
   // Background pet decay system - runs every 3 minutes
@@ -245,7 +245,7 @@ app.use((req, res, next) => {
   };
 
   // Start background decay system
-  if (!bridgeXPortalOnly && !VENUE_MODE) { // pet decay and daily tokens run in the cloud only (the venue PC gets their results)
+  if (!bridgeXPortalOnly && !BACKGROUND_JOBS_OFF) { // pet decay and daily tokens run in the cloud only (the venue PC gets their results)
     startBackgroundDecay();
     console.log("Background pet decay system started - runs every 3 minutes");
   }
@@ -357,7 +357,7 @@ app.use((req, res, next) => {
   };
 
   // Start daily token distribution system
-  if (!bridgeXPortalOnly && !VENUE_MODE) {
+  if (!bridgeXPortalOnly && !BACKGROUND_JOBS_OFF) {
     startDailyTokenDistribution();
     console.log(
       "Background daily token distribution started - runs every 10 minutes",
