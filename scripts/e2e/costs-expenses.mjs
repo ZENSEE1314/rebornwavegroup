@@ -39,13 +39,13 @@ check("that person can open Expenses again", r.status === 200 && Array.isArray(r
 
 // uploading
 const today = new Date().toISOString().slice(0, 10);
-r = await staff("POST", "/api/reborn/expenses", { category: "rent", amount: 1000, spentOn: today });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "rent", amount: 1000, spentOn: today });
 check("an expense with no photo and no note is refused", r.status === 400, JSON.stringify(r));
-r = await staff("POST", "/api/reborn/expenses", { category: "nope", amount: 1000, spentOn: today, note: "x" });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "nope", amount: 1000, spentOn: today, note: "x" });
 check("an unknown category is refused", r.status === 400, JSON.stringify(r));
-r = await staff("POST", "/api/reborn/expenses", { category: "rent", amount: 1000, spentOn: "2099-01-01", note: "x" });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "rent", amount: 1000, spentOn: "2099-01-01", note: "x" });
 check("a date in the future is refused", r.status === 400, JSON.stringify(r));
-r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 90000, spentOn: new Date().toISOString().slice(0, 10), spentTime: "14:05", payee: "Toko Maju", payeeAddress: "Jl. Sudirman 12", payeePhone: "0812555", invoiceNo: "INV-" + tag, items: [{ name: "Tissue", qty: 3, unitCost: 20000 }, { name: "Soap", qty: 1, unitCost: 30000 }], note: "cleaning" });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "supplies", amount: 90000, spentOn: new Date().toISOString().slice(0, 10), spentTime: "14:05", payee: "Toko Maju", payeeAddress: "Jl. Sudirman 12", payeePhone: "0812555", invoiceNo: "INV-" + tag, items: [{ name: "Tissue", qty: 3, unitCost: 20000 }, { name: "Soap", qty: 1, unitCost: 30000 }], note: "cleaning" });
 check("an upload keeps supplier address, phone, time and the item lines", r.status === 200 && r.json.expense.payeeAddress === "Jl. Sudirman 12" && r.json.expense.spentTime === "14:05" && r.json.expense.items.length === 2 && r.json.expense.items[0].qty === 3, JSON.stringify(r.json));
 const otherEmail = `other${tag}@test.local`;
 const other = makeClient();
@@ -57,7 +57,7 @@ check("another staff member does not see these uploads", r.status === 200 && r.j
 r = await admin("GET", "/api/reborn/expenses");
 check("the main admin sees every upload with the supplier address", r.json.expenses.some((e) => e.invoiceNo === "INV-" + tag && e.payeePhone === "0812555"), JSON.stringify(r.json.expenses?.length));
 const securityBefore = (await staff("GET", "/api/reborn/expenses")).json.totals.security || 0;
-r = await staff("POST", "/api/reborn/expenses", { category: "security", amount: 450000, spentOn: today, payee: "Guard Co", note: "October guards" });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "security", amount: 450000, spentOn: today, payee: "Guard Co", note: "October guards" });
 const expense = r.json?.expense;
 check("an expense is saved with who uploaded it", r.status === 200 && expense?.uploadedByName === "Accounts Staff" && Number(expense.amount) === 450000, JSON.stringify(r));
 const ledger = (await db.query("SELECT kind, category, amount, user_id FROM ledger_entries WHERE ref_type='expense_upload' AND ref_id=$1", [String(expense.id)])).rows[0];
@@ -94,7 +94,7 @@ check("a bill that has not come yet is named, not counted", JSON.stringify(r.jso
 check("a cost marked not counted is left out", !r.json.lines.some((line) => line.id === "hq"), JSON.stringify(r.json.lines));
 
 // an upload that settles a monthly cost becomes that month's real bill
-r = await staff("POST", "/api/reborn/expenses", { category: "electricity", amount: 620000, spentOn: "2026-10-10", payee: "PLN", note: "October", fixedCostId: "power" });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "electricity", amount: 620000, spentOn: "2026-10-10", payee: "PLN", note: "October", fixedCostId: "power" });
 check("an upload can settle a running cost", r.status === 200, JSON.stringify(r));
 const powerId = r.json.expense.id;
 r = await admin("GET", `/api/reborn/manager/daily-target?day=${day}`);
@@ -109,9 +109,9 @@ check("a typed bill counts too", r.json.perDay === 110000, JSON.stringify(r.json
 
 // reports: every number can be opened to the lines behind it
 const month = today.slice(0, 7);
-r = await staff("POST", "/api/reborn/expenses", { category: "security", amount: 200000, spentOn: today, payee: "Guard Co", note: "guards", photoUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "security", amount: 200000, spentOn: today, payee: "Guard Co", note: "guards", photoUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" });
 const guardsId = r.json.expense.id;
-await staff("POST", "/api/reborn/expenses", { category: "police", amount: 100000, spentOn: today, payee: "Station", note: "monthly" });
+await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "police", amount: 100000, spentOn: today, payee: "Station", note: "monthly" });
 r = await admin("GET", `/api/reborn/admin/accounting/monthly?month=${month}`);
 check("the monthly report lists security and police on their own lines", r.status === 200 && r.json.report.costs.security >= 200000 && r.json.report.costs.police >= 100000, JSON.stringify(r.json.report?.costs));
 check("the report adds the costs up in four groups: items, staff, utilities, company", r.json.report.groups && r.json.report.groups.staff >= 300000 && Object.values(r.json.report.groups).reduce((a, b) => a + b, 0) === r.json.report.costTotal, JSON.stringify(r.json.report?.groups));

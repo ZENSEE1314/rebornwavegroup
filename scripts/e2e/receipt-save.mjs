@@ -18,7 +18,7 @@ await admin("POST", "/api/auth/login", { email: "admin@test.local", password: "P
 
 // goods: a box line becomes bottles, the item is made with supplier + phone + pack, dated the receipt's day
 const name = "Rcpt Beer " + tag;
-let r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { supplier: "CV Test Supplier", supplierPhone: "0778123456", invoiceNo: "SL-" + tag, date: "2026-10-14", kind: "goods",
+let r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { payMethod: "cash", supplier: "CV Test Supplier", supplierPhone: "0778123456", invoiceNo: "SL-" + tag, date: "2026-10-14", kind: "goods",
   items: [{ name, qty: 2, unitCost: 480000, packSize: 24, productId: null }] });
 check("the receipt is saved", r.status === 200 && r.json.created === 1, JSON.stringify(r.json));
 const p = (await db.query("SELECT id, stock, cost, units_per_pack, pack_price, supplier_name, supplier_phone, pos_visible FROM pos_products WHERE name=$1", [name])).rows[0];
@@ -33,32 +33,32 @@ const l = (await db.query("SELECT kind, category, amount, created_at::date::text
 check("the purchase is booked at the box total on the same day", l && l.kind === "expense" && l.category === "purchase" && Number(l.amount) === 960000 && l.day === "2026-10-14", JSON.stringify(l));
 
 // a second delivery of the same item adds to it
-r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { supplier: "CV Test Supplier", date: "2026-10-14", kind: "goods", items: [{ productId: p.id, name, qty: 1, unitCost: 480000, packSize: 24 }] });
+r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { payMethod: "cash", supplier: "CV Test Supplier", date: "2026-10-14", kind: "goods", items: [{ productId: p.id, name, qty: 1, unitCost: 480000, packSize: 24 }] });
 const p2 = (await db.query("SELECT stock FROM pos_products WHERE id=$1", [p.id])).rows[0];
 check("a later delivery adds another 24", r.status === 200 && p2.stock === 72, JSON.stringify(p2));
 
 // a line with no pack stays one for one
-r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { supplier: "CV Test Supplier", date: "2026-10-14", kind: "goods", items: [{ productId: p.id, name, qty: 5, unitCost: 20000 }] });
+r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { payMethod: "cash", supplier: "CV Test Supplier", date: "2026-10-14", kind: "goods", items: [{ productId: p.id, name, qty: 5, unitCost: 20000 }] });
 const p3 = (await db.query("SELECT stock FROM pos_products WHERE id=$1", [p.id])).rows[0];
 check("a line without a pack size adds the same number of units", r.status === 200 && p3.stock === 77, JSON.stringify(p3));
 
 // a future date falls back to now
-r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { supplier: "S", date: "2099-01-01", kind: "goods", items: [{ productId: p.id, name, qty: 1, unitCost: 20000 }] });
+r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { payMethod: "cash", supplier: "S", date: "2099-01-01", kind: "goods", items: [{ productId: p.id, name, qty: 1, unitCost: 20000 }] });
 const mvf = (await db.query("SELECT created_at FROM stock_movements WHERE product_id=$1 ORDER BY id DESC LIMIT 1", [p.id])).rows[0];
 check("a date in the future is not used", r.status === 200 && mvf.created_at.getFullYear() < 2090, JSON.stringify(mvf));
 
 // expense bill: no stock, one expense line, chosen category, bill's day
 const before = (await db.query("SELECT count(*)::int n FROM stock_movements")).rows[0].n;
-r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "expense", category: "utilities", supplier: "PLN", invoiceNo: "PLN-" + tag, date: "2026-10-13", items: [{ name: "Electricity October", qty: 1, unitCost: 2500000 }] });
+r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { payMethod: "cash", kind: "expense", category: "utilities", supplier: "PLN", invoiceNo: "PLN-" + tag, date: "2026-10-13", items: [{ name: "Electricity October", qty: 1, unitCost: 2500000 }] });
 check("the bill is saved", r.status === 200 && Number(r.json.amount) === 2500000, JSON.stringify(r.json));
 const e = (await db.query("SELECT kind, category, amount, note, created_at::date::text AS day FROM ledger_entries WHERE ref_type='receipt_expense' AND ref_id=$1", ["PLN-" + tag])).rows[0];
 check("the bill is one expense line in its category and on its day", e && e.kind === "expense" && e.category === "utilities" && Number(e.amount) === 2500000 && e.day === "2026-10-13" && /PLN/.test(e.note), JSON.stringify(e));
 const after = (await db.query("SELECT count(*)::int n FROM stock_movements")).rows[0].n;
 check("a bill touches no stock", before === after, `${before} → ${after}`);
-r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "expense", category: "nonsense", date: "2026-10-13", items: [{ name: "Something", qty: 1, unitCost: 1000 }] });
+r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { payMethod: "cash", kind: "expense", category: "nonsense", date: "2026-10-13", items: [{ name: "Something", qty: 1, unitCost: 1000 }] });
 const e2 = (await db.query("SELECT category FROM ledger_entries WHERE ref_type='receipt_expense' AND amount=1000 ORDER BY id DESC LIMIT 1")).rows[0];
 check("an unknown category becomes other", r.status === 200 && e2?.category === "other", JSON.stringify(e2));
-r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "expense", category: "other", items: [{ name: "Free", qty: 1, unitCost: 0 }] });
+r = await admin("POST", "/api/reborn/admin/inventory/receipt/save", { payMethod: "cash", kind: "expense", category: "other", items: [{ name: "Free", qty: 1, unitCost: 0 }] });
 check("a bill with no amount is refused", r.status === 400, r.status);
 
 

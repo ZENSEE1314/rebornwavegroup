@@ -31,6 +31,7 @@ export default function ReceiptScan() {
   const [lines, setLines] = useState<Line[] | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [readPercent, setReadPercent] = useState(0);
+  const [payMethod, setPayMethod] = useState(""); // cash | card, asked whenever it is paid
   const [isPaid, setIsPaid] = useState(true); // false = credit terms: booked now, listed under "not paid yet" (Admin › Expenses) until marked paid
   const [termsDays, setTermsDays] = useState(String(DEFAULT_TERMS_DAYS));
   const dueDate = isPaid ? "" : dueDateFrom(head.date || new Date().toISOString().slice(0, 10), Number(termsDays));
@@ -47,9 +48,9 @@ export default function ReceiptScan() {
     },
     onError: (e: any) => toast({ title: t("admin.rcpt.readFail"), description: e.message, variant: "destructive" }),
   });
-  const reset = () => { setPhoto(""); setHead(EMPTY_HEAD); setLines(null); setConfirming(false); setIsPaid(true); };
+  const reset = () => { setPhoto(""); setHead(EMPTY_HEAD); setLines(null); setConfirming(false); setIsPaid(true); setPayMethod(""); };
   const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { ...head, photoUrl: photo || null, paid: isPaid, dueDate, items: (lines || []).map(({ productId, name, qty, unitCost, packSize }) => ({ productId, name, qty, unitCost, packSize })) }).then((r) => r.json()),
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { ...head, photoUrl: photo || null, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: (lines || []).map(({ productId, name, qty, unitCost, packSize }) => ({ productId, name, qty, unitCost, packSize })) }).then((r) => r.json()),
     onSuccess: (d: any) => {
       toast({ title: d.message });
       reset();
@@ -92,6 +93,7 @@ export default function ReceiptScan() {
                 <option value="unpaid">{t("ex.notPaid")}</option>
               </select>
             </label>
+            {isPaid && <label className="block text-[11px] text-white/50">{t("ex.payMethod")}<select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={inp + " w-full" + " mt-0.5"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option></select></label>}
             {!isPaid && <label className="block text-[11px] text-white/50">{t("ex.termsDays")}<input type="number" inputMode="numeric" min={0} max={365} value={termsDays} onChange={(e) => setTermsDays(e.target.value)} className={inp + " w-full mt-0.5"} /><span className="mt-0.5 block text-[10px] text-white/40">{dueDate ? t("ex.dueOn", { d: dueDate }) : ""}</span></label>}
           </div>
           <div className="space-y-2">
@@ -124,7 +126,7 @@ export default function ReceiptScan() {
             <span className="text-base font-extrabold text-amber-300">{money(total)}</span>
           </div>
           {totalDiffers && <p className="text-[11px] text-amber-200">{t("admin.rcpt.totalDiffers", { receipt: money(head.total), lines: money(total) })}</p>}
-          <button onClick={() => setConfirming(true)} disabled={!valid.length || save.isPending} className="w-full min-h-[44px] rounded-lg text-sm font-bold bg-emerald-500 text-black disabled:opacity-50">{t("admin.rcpt.save")}</button>
+          <button onClick={() => setConfirming(true)} disabled={!valid.length || save.isPending || (isPaid && !payMethod)} className="w-full min-h-[44px] rounded-lg text-sm font-bold bg-emerald-500 text-black disabled:opacity-50">{t("admin.rcpt.save")}</button>
         </div>
       )}
 

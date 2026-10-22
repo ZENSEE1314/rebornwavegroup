@@ -29,7 +29,7 @@ check("a signed-out visitor cannot upload a receipt", r.status === 401 || r.stat
 r = await staff("GET", "/api/reborn/admin/inventory/receipt/ready");
 check("a cashier can ask whether the receipt reader is ready", r.status === 200, r.status);
 
-r = await staff("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "expense", supplier: "PLN", invoiceNo: "EL-" + tag, date: "2026-10-14", amount: 450000, category: "utilities", items: [{ name: "Electricity October", qty: 1, unitCost: 450000 }] });
+r = await staff("POST", "/api/reborn/admin/inventory/receipt/save", { payMethod: "cash", kind: "expense", supplier: "PLN", invoiceNo: "EL-" + tag, date: "2026-10-14", amount: 450000, category: "utilities", items: [{ name: "Electricity October", qty: 1, unitCost: 450000 }] });
 check("a cashier saves an expense receipt", r.status === 200, JSON.stringify(r.json));
 const booked = (await db.query("SELECT kind, category, amount, user_id FROM ledger_entries WHERE ref_type='receipt_expense' AND ref_id=$1", ["EL-" + tag])).rows;
 check("the expense is booked in the accounts under the cashier's name", booked.length === 1 && booked[0].kind === "expense" && Number(booked[0].amount) === 450000 && booked[0].user_id === staffId, JSON.stringify(booked));
@@ -44,7 +44,7 @@ r = await anon("POST", "/api/reborn/admin/inventory/receipt/read-text", { text: 
 check("a signed-out visitor cannot use the text reader", r.status === 401 || r.status === 403, r.status);
 
 // a supplier typed by hand once is recognised on the next receipt
-r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 30000, spentOn: new Date().toISOString().slice(0, 10), payee: "CV SINAR BINTANG", payeeAddress: "Jl. Sudirman 12", payeePhone: "0821-7603-100", note: "first time, typed by hand", items: [{ name: "Coca Cola 1L", qty: 2, unitCost: 15000 }] });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "supplies", amount: 30000, spentOn: new Date().toISOString().slice(0, 10), payee: "CV SINAR BINTANG", payeeAddress: "Jl. Sudirman 12", payeePhone: "0821-7603-100", note: "first time, typed by hand", items: [{ name: "Coca Cola 1L", qty: 2, unitCost: 15000 }] });
 check("a supplier is saved by hand the first time", r.status === 200, JSON.stringify(r.json));
 r = await staff("GET", "/api/reborn/expenses/vendors");
 check("the supplier list has it with its address and category", r.status === 200 && r.json.vendors.some((v) => v.name === "CV SINAR BINTANG" && v.address === "Jl. Sudirman 12" && v.category === "supplies" && v.items.length === 1), JSON.stringify(r.json));
@@ -66,14 +66,14 @@ r = await staff("GET", "/api/reborn/expenses/payables");
 const mine = (r.json?.payables || []).filter((p) => (p.supplier || "").includes(tag));
 check("the staff member sees both unpaid bills with their due dates", r.status === 200 && mine.length === 2 && mine.some((p) => p.dueDate === "2026-12-01") && r.json.canPay === false, JSON.stringify(r.json));
 check("the unpaid bills are counted in the amount owed", r.json.total >= 220000, String(r.json?.total));
-r = await staff("POST", `/api/reborn/expenses/payables/${mine[0].id}/pay`, {});
+r = await staff("POST", `/api/reborn/expenses/payables/${mine[0].id}/pay`, { method: "cash" });
 check("staff cannot mark a bill as paid", r.status === 403, JSON.stringify(r));
 r = await boss("GET", "/api/reborn/expenses/payables");
 check("the admin sees every unpaid bill and may mark them paid", r.status === 200 && r.json.canPay === true && r.json.payables.length >= 2, JSON.stringify(r.json?.payables?.length));
 const stockBill = mine.find((p) => p.kind === "stock");
-r = await boss("POST", `/api/reborn/expenses/payables/${stockBill.id}/pay`, {});
+r = await boss("POST", `/api/reborn/expenses/payables/${stockBill.id}/pay`, { method: "cash" });
 check("the admin marks the stock bill as paid", r.status === 200 && r.json.payable.status === "paid", JSON.stringify(r.json));
-r = await boss("POST", `/api/reborn/expenses/payables/${stockBill.id}/pay`, {});
+r = await boss("POST", `/api/reborn/expenses/payables/${stockBill.id}/pay`, { method: "cash" });
 check("a bill cannot be paid twice", r.status === 404, r.status);
 r = await boss("POST", `/api/reborn/expenses/${expenseId}/void`, { reason: "wrong supplier" });
 r = await staff("GET", "/api/reborn/expenses/payables");
@@ -82,7 +82,7 @@ const bookedUnpaid = (await db.query("SELECT count(*)::int n FROM ledger_entries
 check("an unpaid stock receipt is still booked in the accounts (the goods came in)", bookedUnpaid === 1, String(bookedUnpaid));
 
 // correcting an upload: the uploader for 24 h, a manager / the admin any time; the accounts follow
-r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 70000, spentOn: today, payee: "Toko Salah " + tag, note: "typo" });
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "supplies", amount: 70000, spentOn: today, payee: "Toko Salah " + tag, note: "typo" });
 const wrong = r.json.expense;
 r = await staff("POST", `/api/reborn/expenses/${wrong.id}/edit`, { category: "electricity", amount: 75000, spentOn: today, payee: "PLN " + tag, note: "corrected" });
 check("the uploader corrects their own upload", r.status === 200 && r.json.expense.category === "electricity" && Number(r.json.expense.amount) === 75000 && r.json.expense.editCount === 1, JSON.stringify(r.json));
@@ -123,6 +123,22 @@ r = await boss("POST", `/api/reborn/pos/orders/${bill.id}/pay`, { paymentMethod:
 check("next day it is paid like any bill", r.status === 200, JSON.stringify(r.json?.message));
 const paidRow = (await db.query("SELECT status, total, on_account FROM pos_tickets WHERE id=$1", [bill.id])).rows[0];
 check("and it is paid, with the on-account note kept", paidRow.status === "paid" && Number(paidRow.total) === 200000 && paidRow.on_account === true, JSON.stringify(paidRow));
+
+// every paid bill states cash or card
+r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 5000, spentOn: today, note: "no method" });
+check("a paid expense without cash or card is refused", r.status === 400, JSON.stringify(r));
+r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 5000, spentOn: today, note: "by card", payMethod: "card" });
+check("a card expense is saved with its method", r.status === 200 && r.json.expense.payMethod === "card", JSON.stringify(r.json));
+const cardNote = (await db.query("SELECT note FROM ledger_entries WHERE id=$1", [r.json.expense.ledgerEntryId])).rows[0].note;
+check("the accounting line says it was paid by card", /card/.test(cardNote), cardNote);
+r = await staff("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "goods", supplier: "No Method " + tag, items: [{ productId: null, name: "Nm Item " + tag, qty: 1, unitCost: 1000, packSize: 1 }] });
+check("a paid stock receipt without cash or card is refused", r.status === 400, JSON.stringify(r));
+r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 8000, spentOn: today, payee: "Method Later " + tag, note: "credit", paid: false });
+const laterBill = (await boss("GET", "/api/reborn/expenses/payables")).json.payables.find((p) => p.supplier === "Method Later " + tag);
+r = await boss("POST", `/api/reborn/expenses/payables/${laterBill.id}/pay`, {});
+check("marking a bill paid needs cash or card too", r.status === 400, JSON.stringify(r));
+r = await boss("POST", `/api/reborn/expenses/payables/${laterBill.id}/pay`, { method: "card" });
+check("and it records the method", r.status === 200 && r.json.payable.payMethod === "card", JSON.stringify(r.json));
 
 r = await staff("GET", "/api/reborn/admin/accounting/ledger");
 check("the cashier cannot open the accounts (ledger)", r.status === 403 || r.status === 401, r.status);

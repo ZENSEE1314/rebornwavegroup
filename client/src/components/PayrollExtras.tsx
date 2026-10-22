@@ -60,7 +60,7 @@ export function PoliceMoneyCard({ month }: { month: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ amount: "", payee: "", spentOn: today, note: "" });
+  const [form, setForm] = useState({ amount: "", payee: "", spentOn: today, note: "", payMethod: "" });
   const [voiding, setVoiding] = useState<PoliceRow | null>(null);
   const [reason, setReason] = useState("");
   const url = `/api/reborn/expenses?month=${month}`;
@@ -70,8 +70,8 @@ export function PoliceMoneyCard({ month }: { month: string }) {
   const refresh = () => qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/expenses") });
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/expenses", { category: "police", amount: Number(form.amount), spentOn: form.spentOn, payee: form.payee, note: form.note }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
-    onSuccess: () => { toast({ title: t("ex.saved") }); setForm({ ...form, amount: "", payee: "", note: "" }); refresh(); },
+    mutationFn: () => apiRequest("POST", "/api/reborn/expenses", { category: "police", amount: Number(form.amount), spentOn: form.spentOn, payee: form.payee, note: form.note, payMethod: form.payMethod }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: () => { toast({ title: t("ex.saved") }); setForm({ ...form, amount: "", payee: "", note: "", payMethod: "" }); refresh(); },
     onError: fail,
   });
   const voidIt = useMutation({
@@ -87,9 +87,10 @@ export function PoliceMoneyCard({ month }: { month: string }) {
         <label className="text-[11px] text-white/50">{t("ex.amount")}<input type="number" inputMode="numeric" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field + " mt-1"} /></label>
         <label className="text-[11px] text-white/50">{t("pm.paidTo")}<input value={form.payee} onChange={(e) => setForm({ ...form, payee: e.target.value })} className={field + " mt-1"} /></label>
         <label className="text-[11px] text-white/50">{t("ex.date")}<input type="date" max={today} value={form.spentOn} onChange={(e) => setForm({ ...form, spentOn: e.target.value })} className={field + " mt-1"} style={{ colorScheme: "dark" }} /></label>
+        <label className="text-[11px] text-white/50">{t("ex.payMethod")}<select value={form.payMethod} onChange={(e) => setForm({ ...form, payMethod: e.target.value })} className={field + " mt-1"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option></select></label>
         <label className="text-[11px] text-white/50">{t("ex.note")}<input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className={field + " mt-1"} /></label>
       </div>
-      <button type="button" onClick={() => save.mutate()} disabled={save.isPending || !(Number(form.amount) > 0) || !form.note.trim()} className="min-h-[44px] px-5 rounded-lg bg-sky-300 text-black text-sm font-bold disabled:opacity-40">{t("pm.save")}</button>
+      <button type="button" onClick={() => save.mutate()} disabled={save.isPending || !(Number(form.amount) > 0) || !form.note.trim() || !form.payMethod} className="min-h-[44px] px-5 rounded-lg bg-sky-300 text-black text-sm font-bold disabled:opacity-40">{t("pm.save")}</button>
       <p className="text-sm font-black text-amber-200">{t("pm.total", { n: money(total) })}</p>
       <div className="space-y-1.5">
         {rows.map((row) => (

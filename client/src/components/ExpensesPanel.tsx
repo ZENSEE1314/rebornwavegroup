@@ -32,7 +32,7 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
   return kind === "goods" ? STOCK_KIND : "";
 }
 
-interface Expense { canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
+interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
 interface ExpenseList { month: string; expenses: Expense[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
 interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null }
@@ -53,6 +53,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const [readMessage, setReadMessage] = useState("");
   const [readPercent, setReadPercent] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null); // an upload being corrected: Save then changes it instead of adding one
+  const [payMethod, setPayMethod] = useState(""); // cash | card, asked whenever it is paid
   const [isPaid, setIsPaid] = useState(true); // false = the supplier gives credit terms: booked now, listed under "not paid yet" until marked paid
   const [termsDays, setTermsDays] = useState(String(DEFAULT_TERMS_DAYS));
   const lastRead = useRef("");
@@ -70,12 +71,12 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
     mutationFn: () => (editingId
-      ? apiRequest("POST", `/api/reborn/expenses/${editingId}/edit`, { ...form, photoUrl: form.photoUrl || undefined, fixedCostId: form.fixedCostId || null, paid: isPaid, dueDate, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
+      ? apiRequest("POST", `/api/reborn/expenses/${editingId}/edit`, { ...form, photoUrl: form.photoUrl || undefined, fixedCostId: form.fixedCostId || null, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
       : isStock
-      ? apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "goods", supplier: form.payee, supplierPhone: form.payeePhone, invoiceNo: form.invoiceNo, date: form.spentOn, photoUrl: form.photoUrl || null, paid: isPaid, dueDate, items: stockLines.map((l) => ({ productId: l.productId ?? null, name: l.name, qty: l.qty, unitCost: l.unitCost, packSize: l.packSize || 1 })) })
-      : apiRequest("POST", "/api/reborn/expenses", { ...form, fixedCostId: form.fixedCostId || undefined, paid: isPaid, dueDate, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
+      ? apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "goods", supplier: form.payee, supplierPhone: form.payeePhone, invoiceNo: form.invoiceNo, date: form.spentOn, photoUrl: form.photoUrl || null, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: stockLines.map((l) => ({ productId: l.productId ?? null, name: l.name, qty: l.qty, unitCost: l.unitCost, packSize: l.packSize || 1 })) })
+      : apiRequest("POST", "/api/reborn/expenses", { ...form, fixedCostId: form.fixedCostId || undefined, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
     ).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
-    onSuccess: (d: any) => { toast({ title: d?.message || t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setIsPaid(true); setEditingId(null); setReadState("idle"); lastRead.current = ""; refresh(); },
+    onSuccess: (d: any) => { toast({ title: d?.message || t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setIsPaid(true); setPayMethod(""); setEditingId(null); setReadState("idle"); lastRead.current = ""; refresh(); },
     onError: fail,
   });
   const voidIt = useMutation({
@@ -85,7 +86,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   });
   const { data: payables } = useQuery<{ canPay: boolean; total: number; payables: Payable[] }>({ queryKey: ["/api/reborn/expenses/payables"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/payables").then((r) => r.json()) });
   const markPaid = useMutation({
-    mutationFn: (id: number) => apiRequest("POST", `/api/reborn/expenses/payables/${id}/pay`, {}).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    mutationFn: ({ id, method }: { id: number; method: string }) => apiRequest("POST", `/api/reborn/expenses/payables/${id}/pay`, { method }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: (d: any) => { toast({ title: d.message }); refresh(); },
     onError: fail,
   });
@@ -95,11 +96,12 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
     setForm({ ...emptyForm(), category: row.category, amount: String(Number(row.amount)), spentOn: row.spentOn, spentTime: row.spentTime || "", payee: row.payee || "", payeeAddress: row.payeeAddress || "", payeePhone: row.payeePhone || "", invoiceNo: row.invoiceNo || "", note: row.note || "", photoUrl: "", fixedCostId: row.fixedCostId || "" });
     setLines((row.items || []).map((it) => newLine(it)));
     setIsPaid(row.bill?.status !== "unpaid");
+    setPayMethod(row.payMethod || "");
     setTermsDays(String(termsFromDue));
     setReadState("idle");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const cancelEdit = () => { setEditingId(null); setForm(emptyForm(startWith)); setLines([]); setIsPaid(true); };
+  const cancelEdit = () => { setEditingId(null); setForm(emptyForm(startWith)); setLines([]); setIsPaid(true); setPayMethod(""); };
   const showPhoto = async (id: number) => {
     setPhoto({ id, url: null });
     const r = await apiRequest("GET", `/api/reborn/expenses/${id}/photo`);
@@ -147,7 +149,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   }, [form.photoUrl, reader?.ai]);
   const isChecked = readState === "done";
   const ring = (value: string | number) => (isChecked && !value ? CHECK_RING : "");
-  const isReady = editingId ? !!form.category && Number(form.amount) > 0 && !!form.spentOn : isStock ? stockLines.length > 0 && !!form.spentOn : !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim());
+  const isReady = (!isPaid || !!payMethod) && (editingId ? !!form.category && Number(form.amount) > 0 && !!form.spentOn : isStock ? stockLines.length > 0 && !!form.spentOn : !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim()));
   return (
     <div className="space-y-3">
       <div className={card + " space-y-3"}>
@@ -183,6 +185,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               <option value="unpaid">{t("ex.notPaid")}</option>
             </select>
           </label>
+          {isPaid && <label className="block text-xs text-white/60">{t("ex.payMethod")}<select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={field + " mt-1"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option></select></label>}
           {!isPaid && <label className="block text-xs text-white/60">{t("ex.termsDays")}<input type="number" inputMode="numeric" min={0} max={365} value={termsDays} onChange={(e) => setTermsDays(e.target.value)} className={field + " mt-1"} /><span className="mt-0.5 block text-[10px] text-white/40">{dueDate ? t("ex.dueOn", { d: dueDate }) : ""}</span></label>}
         </div>
         {(data?.runningCosts || []).length > 0 && (
@@ -242,7 +245,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
             <div key={p.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
               <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{p.supplier || "—"}{p.invoiceNo ? ` · ${p.invoiceNo}` : ""}</span><span className="font-black text-amber-200">{money(Number(p.amount))}</span></div>
               <p className={`mt-0.5 ${p.isOverdue ? "text-red-300" : "text-white/50"}`}>{p.dueDate ? t("ex.dueOn", { d: p.dueDate }) : t("ex.noDue")}{p.isOverdue ? ` · ${t("ex.overdue")}` : ""}{p.createdByName ? ` · ${t("ex.by", { name: p.createdByName })}` : ""}</p>
-              {payables!.canPay && <button type="button" onClick={() => markPaid.mutate(p.id)} disabled={markPaid.isPending} className="mt-1 min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t("ex.markPaid")}</button>}
+              {payables!.canPay && <div className="mt-1 flex flex-wrap gap-2">{["cash", "card"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: p.id, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}</div>}
             </div>
           ))}
         </div>
@@ -269,7 +272,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 <span className="font-semibold">{t(`ex.cat.${row.category}`)}{row.payee ? ` · ${row.payee}` : ""}</span>
                 <span className={`font-black ${row.status === "voided" ? "line-through" : "text-amber-200"}`}>{money(Number(row.amount))}</span>
               </div>
-              <p className="mt-0.5 text-white/50">{row.spentOn}{row.spentTime ? ` ${row.spentTime}` : ""}{row.uploadedByName ? ` · ${t("ex.by", { name: row.uploadedByName })}` : ""}{row.note ? ` · ${row.note}` : ""}{row.editCount ? ` · ${t("ex.editedBy", { name: row.editedByName || "" })}` : ""}</p>
+              <p className="mt-0.5 text-white/50">{row.spentOn}{row.spentTime ? ` ${row.spentTime}` : ""}{row.payMethod ? ` · ${t(`ex.pm.${row.payMethod}`)}` : ""}{row.uploadedByName ? ` · ${t("ex.by", { name: row.uploadedByName })}` : ""}{row.note ? ` · ${row.note}` : ""}{row.editCount ? ` · ${t("ex.editedBy", { name: row.editedByName || "" })}` : ""}</p>
               {(row.payeePhone || row.payeeAddress || row.invoiceNo) && <p className="mt-0.5 text-white/40">{[row.invoiceNo, row.payeePhone, row.payeeAddress].filter(Boolean).join(" · ")}</p>}
               {(row.items || []).length > 0 && <p className="mt-0.5 text-white/40">{(row.items || []).map((it) => `${it.qty} × ${it.name} ${money(it.unitCost)}`).join(" · ")}</p>}
               {row.status === "voided" && <p className="mt-0.5 text-red-300">{t("ex.voided", { reason: row.voidReason || "" })}</p>}

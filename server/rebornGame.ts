@@ -4832,6 +4832,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     return row ? vendorView(row) : null;
   };
   // A bill that is not paid yet (credit terms): booked in the accounts now, kept in supplier_payables until someone marks it paid.
+  // How a bill was paid: cash or card (required whenever it is paid, so the day's cash can be checked against it).
+  const payMethodOf = (raw: unknown): "cash" | "card" | null => (raw === "cash" || raw === "card" ? raw : null);
+  const needPayMethod = (req: Request) => tr(req, { en: "Choose how it was paid: cash or card", zh: "请选择付款方式：现金或刷卡", id: "Pilih cara bayar: tunai atau kartu" });
   const unpaidOf = (paid: unknown, dueDate: unknown): { dueDate: string | null } | null => (paid === false ? { dueDate: /^\d{4}-\d{2}-\d{2}$/.test(String(dueDate || "")) ? String(dueDate) : null } : null);
   const userNameOf = async (userId: string) => {
     const [u] = await db.select().from(users).where(eq(users.id, userId));
@@ -4894,6 +4897,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : "";
     const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") ? b.photoUrl : null;
     const unpaid = unpaidOf(b.paid, b.dueDate);
+    const payMethod = payMethodOf(b.payMethod);
+    if (!unpaid && !payMethod) return res.status(400).json({ message: needPayMethod(req) });
     const decimals = companyMoney().decimals;
     if (supplier || supplierPhone) await rememberVendor(cid, { name: supplier || "", phone: supplierPhone }).catch(() => {});
     // The reader learns from every saved receipt: the item + pack size of each printed line, and the supplier's kind / category.
@@ -4910,7 +4915,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const when = day && new Date(`${day}${RECEIPT_TIME_SUFFIX}`) <= new Date() ? new Date(`${day}${RECEIPT_TIME_SUFFIX}`) : null;
       const category = expenseCategoryOf(b.category);
       const what = lines.map((l) => l.name).filter(Boolean).join(", ");
-      const note = [`Bill${invoiceNo ? ` ${invoiceNo}` : ""}`, supplier, day, what].filter(Boolean).join(" · ").slice(0, 300);
+      const note = [`Bill${invoiceNo ? ` ${invoiceNo}` : ""}`, supplier, day, what, unpaid ? "" : payMethod].filter(Boolean).join(" · ").slice(0, 300);
       await remember(db, "", { kind: "expense", category }).catch(() => {});
       for (const l of lines) if (l.name) await remember(db, "x:" + expenseKeyOf(l.name), { kind: "expense", category }).catch(() => {});
       const [row] = await db.insert(ledgerEntries).values({ kind: "expense", category, amount: String(amount), note, photoUrl, refType: "receipt_expense", refId: invoiceNo || null, userId, ...(when ? { createdAt: when } : {}) }).returning();
@@ -4947,7 +4952,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         }
         const amount = Number(total.toFixed(decimals));
         if (amount > 0) {
-          const [purchase] = await tx.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(amount), note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved), photoUrl, refType: "receipt", refId: invoiceNo || null, userId, ...(receivedAt ? { createdAt: receivedAt } : {}) }).returning();
+          const [purchase] = await tx.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(amount), note: `${receiptNote({ supplier: supplier || "", invoiceNo, date }, saved)}${unpaid ? "" : ` · ${payMethod}`}`.slice(0, 900), photoUrl, refType: "receipt", refId: invoiceNo || null, userId, ...(receivedAt ? { createdAt: receivedAt } : {}) }).returning();
           if (unpaid) await recordPayable(tx, cid, { ledgerEntryId: purchase.id, kind: "stock", supplier, invoiceNo, amount, spentOn: date || null, dueDate: unpaid.dueDate, userId, note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved) });
         }
         await remember(tx, "", { kind: "goods" });
@@ -5625,12 +5630,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const userId = getUserId(req)!;
     const role = await adminRole(userId);
     if (role !== "admin" && role !== "manager") return res.status(403).json({ message: tr(req, { en: "Only a manager or the main admin can mark a bill as paid", zh: "只有经理或主管理员可以将账单标记为已付", id: "Hanya manajer atau admin utama yang bisa menandai tagihan sebagai dibayar" }) });
+    const method = payMethodOf(req.body?.method);
+    if (!method) return res.status(400).json({ message: needPayMethod(req) });
     const today = (await ensureVenueSession()).day;
     const paidOn = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.paidOn || "")) && String(req.body.paidOn) <= today ? String(req.body.paidOn) : today;
-    const [row] = await db.update(supplierPayables).set({ status: "paid", paidOn, paidBy: userId, paidByName: await userNameOf(userId) })
+    const [row] = await db.update(supplierPayables).set({ status: "paid", paidOn, paidBy: userId, paidByName: await userNameOf(userId), payMethod: method })
       .where(and(eq(supplierPayables.id, Number(req.params.id)), eq(supplierPayables.companyId, await rebornCompanyId(req)), eq(supplierPayables.status, "unpaid"))).returning();
     if (!row) return res.status(404).json({ message: tr(req, { en: "That bill is not waiting for payment", zh: "该账单不在待付款中", id: "Tagihan itu tidak sedang menunggu pembayaran" }) });
-    await logAdmin(req, { targetType: "payable", targetId: String(row.id), action: "payable_paid", entityType: "accounting", description: `Supplier bill paid: ${row.supplier || ""} ${row.invoiceNo || ""} RP ${row.amount} on ${paidOn}` });
+    await logAdmin(req, { targetType: "payable", targetId: String(row.id), action: "payable_paid", entityType: "accounting", description: `Supplier bill paid (${method}): ${row.supplier || ""} ${row.invoiceNo || ""} RP ${row.amount} on ${paidOn}` });
     res.json({ message: tr(req, { en: "Marked as paid", zh: "已标记为已付", id: "Ditandai sudah dibayar" }), payable: row });
   }));
   app.get("/api/reborn/expenses/vendors", requireExpenses(async (req, res) => {
@@ -5654,6 +5661,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
     if (!DAY_RE.test(spentOn) || Number.isNaN(new Date(`${spentOn}T12:00:00+07:00`).getTime()) || new Date(`${spentOn}T00:00:00+07:00`).getTime() > Date.now() + 24 * 3_600_000) return res.status(400).json({ message: tr(req, { en: "Enter the date on the receipt (not in the future)", zh: "请输入收据上的日期（不能是未来）", id: "Masukkan tanggal di struk (bukan masa depan)" }) });
     if (!photoUrl && !note) return res.status(400).json({ message: tr(req, { en: "Add a photo of the receipt or write a note", zh: "请附上收据照片或填写备注", id: "Tambahkan foto struk atau tulis catatan" }) });
+    const payMethod = payMethodOf(b.payMethod);
+    if (b.paid !== false && !payMethod) return res.status(400).json({ message: needPayMethod(req) });
     const userId = getUserId(req)!;
     const [uploader] = await db.select().from(users).where(eq(users.id, userId));
     const uploaderName = [uploader?.firstName, uploader?.lastName].filter(Boolean).join(" ") || uploader?.username || uploader?.email || "";
@@ -5666,8 +5675,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const fixedCostId = String(b.fixedCostId || "").trim().slice(0, 24) || null;
     const cid = await rebornCompanyId(req);
     const saved = await db.transaction(async (tx) => {
-      const [entry] = await tx.insert(ledgerEntries).values({ kind: "expense", category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}`, photoUrl: photoUrl || null, refType: "expense_upload", userId, createdAt: new Date(`${spentOn}T12:00:00+07:00`) }).returning();
-      const [row] = await tx.insert(expenseUploads).values({ companyId: cid, category, amount: String(amount), spentOn, payee: payee || null, payeeAddress, payeePhone, spentTime, invoiceNo, items: itemLines.length ? JSON.stringify(itemLines) : null, note: note || null, photoUrl: photoUrl || null, fixedCostId, ledgerEntryId: entry.id, uploadedBy: userId, uploadedByName: uploaderName }).returning();
+      const [entry] = await tx.insert(ledgerEntries).values({ kind: "expense", category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}${b.paid === false ? "" : ` · ${payMethod}`}`, photoUrl: photoUrl || null, refType: "expense_upload", userId, createdAt: new Date(`${spentOn}T12:00:00+07:00`) }).returning();
+      const [row] = await tx.insert(expenseUploads).values({ companyId: cid, category, amount: String(amount), spentOn, payee: payee || null, payeeAddress, payeePhone, spentTime, invoiceNo, payMethod: b.paid === false ? null : payMethod, items: itemLines.length ? JSON.stringify(itemLines) : null, note: note || null, photoUrl: photoUrl || null, fixedCostId, ledgerEntryId: entry.id, uploadedBy: userId, uploadedByName: uploaderName }).returning();
       await tx.update(ledgerEntries).set({ refId: String(row.id) }).where(eq(ledgerEntries.id, entry.id));
       const unpaid = unpaidOf(b.paid, b.dueDate);
       if (unpaid) await recordPayable(tx, cid, { ledgerEntryId: entry.id, kind: "expense", supplier: payee || null, invoiceNo, amount, spentOn, dueDate: unpaid.dueDate, userId, note: note || category });
@@ -5703,21 +5712,23 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const invoiceNo = text(b.invoiceNo, row.invoiceNo, 60);
     const spentTime = b.spentTime === undefined ? row.spentTime : (TIME_RE.test(String(b.spentTime || "")) ? String(b.spentTime) : null);
     const itemLines = b.items === undefined ? null : expenseItemsOf(b.items);
+    const finalMethod = b.payMethod === undefined ? row.payMethod : payMethodOf(b.payMethod);
+    if (b.paid === true && !finalMethod) return res.status(400).json({ message: needPayMethod(req) });
     const fixedCostId = b.fixedCostId === undefined ? row.fixedCostId : (String(b.fixedCostId || "").trim().slice(0, 24) || null);
     const editorName = await userNameOf(userId);
     const updated = await db.transaction(async (tx) => {
       const [saved] = await tx.update(expenseUploads).set({
-        category, amount: String(amount), spentOn, spentTime, payee, payeeAddress, payeePhone, invoiceNo, note: note || null, fixedCostId,
+        category, amount: String(amount), spentOn, spentTime, payee, payeeAddress, payeePhone, invoiceNo, note: note || null, fixedCostId, payMethod: b.paid === false ? null : finalMethod,
         ...(itemLines ? { items: itemLines.length ? JSON.stringify(itemLines) : null } : {}), ...(newPhoto ? { photoUrl: newPhoto } : {}),
         editedAt: new Date(), editedByName: editorName, editCount: sql`${expenseUploads.editCount} + 1`,
       }).where(eq(expenseUploads.id, row.id)).returning();
       if (row.ledgerEntryId) {
-        await tx.update(ledgerEntries).set({ category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}`, createdAt: new Date(`${spentOn}T12:00:00+07:00`), ...(newPhoto ? { photoUrl: newPhoto } : {}) }).where(eq(ledgerEntries.id, row.ledgerEntryId));
+        await tx.update(ledgerEntries).set({ category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}${b.paid === false || !finalMethod ? "" : ` · ${finalMethod}`}`, createdAt: new Date(`${spentOn}T12:00:00+07:00`), ...(newPhoto ? { photoUrl: newPhoto } : {}) }).where(eq(ledgerEntries.id, row.ledgerEntryId));
         const [bill] = await tx.select().from(supplierPayables).where(and(eq(supplierPayables.ledgerEntryId, row.ledgerEntryId), inArray(supplierPayables.status, ["unpaid", "paid"])));
         if (bill && bill.status === "unpaid") {
           const today = (await ensureVenueSession()).day;
           const due = unpaidOf(false, b.dueDate)?.dueDate ?? bill.dueDate;
-          await tx.update(supplierPayables).set(b.paid === true ? { status: "paid", paidOn: today, paidBy: userId, paidByName: editorName, amount: String(amount), supplier: payee, invoiceNo, spentOn } : { amount: String(amount), supplier: payee, invoiceNo, spentOn, dueDate: due }).where(eq(supplierPayables.id, bill.id));
+          await tx.update(supplierPayables).set(b.paid === true ? { status: "paid", paidOn: today, paidBy: userId, paidByName: editorName, payMethod: finalMethod, amount: String(amount), supplier: payee, invoiceNo, spentOn } : { amount: String(amount), supplier: payee, invoiceNo, spentOn, dueDate: due }).where(eq(supplierPayables.id, bill.id));
         } else if (!bill && b.paid === false) {
           await recordPayable(tx, cid, { ledgerEntryId: row.ledgerEntryId, kind: "expense", supplier: payee, invoiceNo, amount, spentOn, dueDate: unpaidOf(false, b.dueDate)?.dueDate ?? null, userId, note: note || category });
         }

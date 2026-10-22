@@ -990,6 +990,7 @@ export const supplierPayables = pgTable("supplier_payables", {
   paidOn: varchar("paid_on"),
   paidBy: varchar("paid_by"),
   paidByName: varchar("paid_by_name"),
+  payMethod: varchar("pay_method"),                      // cash | card, set when it is paid
   createdBy: varchar("created_by"),
   createdByName: varchar("created_by_name"),
   note: text("note"),
@@ -1224,6 +1225,7 @@ export const expenseUploads = pgTable("expense_uploads", {
   note: text("note"),
   photoUrl: text("photo_url"),
   fixedCostId: varchar("fixed_cost_id"),          // the running cost (Fixed costs list) this settles, if any
+  payMethod: varchar("pay_method"),               // cash | card (empty while the bill is not paid yet)
   editedAt: timestamp("edited_at"),
   editedByName: varchar("edited_by_name"),
   editCount: integer("edit_count").default(0).notNull(),
