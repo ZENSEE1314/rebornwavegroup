@@ -961,6 +961,20 @@ export const memberPackageUses = pgTable("member_package_uses", {
 });
 
 // Reborn POS tickets (separate from the legacy posOrders table above)
+// Suppliers seen on Expenses uploads and stock receipts: the next receipt from the same name (or phone) fills in the address, phone, kind of expense and usual lines.
+export const expenseVendors = pgTable("expense_vendors", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  vendorKey: varchar("vendor_key").notNull(),
+  name: varchar("name"),
+  address: varchar("address"),
+  phone: varchar("phone"),
+  category: varchar("category"),
+  items: text("items"),
+  uses: integer("uses").default(1).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [uniqueIndex("expense_vendors_key").on(table.companyId, table.vendorKey)]);
+
 // What the receipt reader has learned from receipts the admin saved: per supplier, which item a printed line is and its pack size;
 // a row with an empty lineKey is the supplier itself (goods or an expense category).
 export const receiptMemory = pgTable("receipt_memory", {

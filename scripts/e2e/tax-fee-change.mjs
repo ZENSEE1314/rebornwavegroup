@@ -66,6 +66,37 @@ check("saving the same rates changes nothing", r.status === 200 && r.json.unchan
 r = await admin("GET", "/api/reborn/admin/tax-fees");
 check("the history lists the changes, newest first", r.status === 200 && r.json.history.length >= 3 && r.json.taxPercent === 7 && r.json.serviceFeePercent === 3, JSON.stringify(r.json.history?.length));
 
+// untick = 0 but the % is remembered; the POS may change a bill's rates only when the admin allows it
+await rates(8, 6);
+r = await admin("PUT", "/api/reborn/admin/tax-fees", { taxPercent: 0, serviceFeePercent: 6, taxKept: 8, posCanChangeFees: false });
+check("tax is switched off (0) and its last % is remembered", r.status === 200 && r.json.taxPercent === 0 && r.json.taxKept === 8 && r.json.serviceFeePercent === 6, JSON.stringify(r.json));
+r = await admin("GET", "/api/reborn/admin/tax-fees");
+check("the card reads the remembered % back", r.json.taxPercent === 0 && r.json.taxKept === 8 && r.json.posCanChangeFees === false, JSON.stringify(r.json));
+r = await admin("GET", "/api/reborn/pos/settings");
+check("the POS is told it may not change the rates", r.json.canChangeFees === false && r.json.taxPercent === 0, JSON.stringify(r.json));
+const billC = await openBill(`TC${tag}`.slice(0, 7));
+r = await admin("POST", `/api/reborn/pos/orders/${billC.id}/rates`, { taxPercent: 1, serviceFeePercent: 1 });
+check("the POS cannot change a bill's rates while that is off", r.status === 403, JSON.stringify(r));
+q = await quote(billC.id);
+check("the bill keeps the admin's rates (6% service, no tax)", q.serviceFeePercent === 6 && q.taxPercent === 0 && q.serviceFee === 6000 && q.tax === 0, JSON.stringify(q));
+let quick = (await admin("POST", "/api/reborn/pos/quote", { items: [{ productId: item.id, price: 100000, qty: 1 }], rates: { taxPercent: 50, serviceFeePercent: 50 } })).json;
+check("a quick sale ignores a rate sent while changing is off", quick.serviceFee === 6000 && quick.tax === 0, JSON.stringify(quick));
+await admin("PUT", "/api/reborn/admin/tax-fees", { taxPercent: 0, serviceFeePercent: 6, posCanChangeFees: true });
+r = await admin("POST", `/api/reborn/pos/orders/${billC.id}/rates`, { taxPercent: 2, serviceFeePercent: 0 });
+check("with changing on, the POS sets this bill's own rates", r.status === 200 && r.json.taxPercent === 2 && r.json.serviceFeePercent === 0, JSON.stringify(r));
+q = await quote(billC.id);
+check("that bill is now quoted with them", q.tax === 2000 && q.serviceFee === 0, JSON.stringify(q));
+const billD = await openBill(`TD${tag}`.slice(0, 7));
+q = await quote(billD.id);
+check("another bill still gets the admin's rates", q.serviceFee === 6000 && q.tax === 0, JSON.stringify(q));
+r = await admin("POST", `/api/reborn/pos/orders/${billC.id}/rates`, { taxPercent: 120, serviceFeePercent: 0 });
+check("a rate above 100 is refused for a bill", r.status === 403 || r.status === 400, JSON.stringify(r));
+quick = (await admin("POST", "/api/reborn/pos/quote", { items: [{ productId: item.id, price: 100000, qty: 1 }], rates: { taxPercent: 5, serviceFeePercent: 0 } })).json;
+check("a quick sale can carry its own rates now", quick.tax === 5000 && quick.serviceFee === 0, JSON.stringify(quick));
+r = await admin("POST", "/api/reborn/pos/sale", { items: [{ productId: item.id, qty: 1 }], paymentMethod: "cash", cashReceived: 1000000, rates: { taxPercent: 5, serviceFeePercent: 0 } });
+check("and is charged with them", r.status === 200 && Number(r.json.order.tax) === 5000 && Number(r.json.order.serviceFee) === 0, JSON.stringify([r.status, r.json?.order?.tax, r.json?.order?.serviceFee]));
+await admin("PUT", "/api/reborn/admin/tax-fees", { taxPercent: 0, serviceFeePercent: 0, posCanChangeFees: false });
+
 await rates(0, 0);
 await db.end();
 console.log(failures ? `${failures} FAILED` : "ALL PASSED");

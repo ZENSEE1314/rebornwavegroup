@@ -3,7 +3,7 @@ import { inEveryDataSpace } from "./tenantSpace";
 import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
-import { and, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
@@ -15,6 +15,7 @@ import { planSplit, readSplit, type SplitPlan } from "@shared/payments";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
+import { parseReceiptText } from "@shared/receiptText";
 import { clockInZone, dealOf, freeUnitsFor, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
@@ -63,7 +64,7 @@ import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
 import { karaokeSetupBat } from "./karaokeSetup";
 import { BoxControlQueue, isBoxControl, isBoxSongAction, isBoxSongId } from "./boxControls";
-import { cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
+import { cleanReceipt, type ReadReceipt, cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -71,7 +72,7 @@ import {
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
   posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, staffCharges, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
-  staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory, expenseUploads,
+  staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory, expenseUploads, expenseVendors,
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
@@ -84,6 +85,9 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   minCashoutRp: "1000",     // minimum RP a member can cash out
   taxPercent: "0",          // POS sales tax %
   serviceFeePercent: "0",   // POS service charge %
+  taxKept: "0",             // the last tax % that was on, restored when the admin ticks tax on again
+  serviceFeeKept: "0",      // the same for the service fee
+  posCanChangeFees: "false", // the cashier may change the tax / service fee of one bill
   clubName: "Reborn Wave Group",
   receiptLogoUrl: "",       // data URL / image for receipts
   receiptFooter: "Thank you — see you again!",
@@ -145,6 +149,9 @@ async function getSettings() {
     minCashoutRp: Number(map.minCashoutRp) || 1000,
     taxPercent: Number(map.taxPercent) || 0,
     serviceFeePercent: Number(map.serviceFeePercent) || 0,
+    taxKept: Number(map.taxKept) || 0,
+    serviceFeeKept: Number(map.serviceFeeKept) || 0,
+    posCanChangeFees: map.posCanChangeFees === "true",
     clubName: map.clubName || defaults.clubName,
     receiptLogoUrl: map.receiptLogoUrl || "",
     receiptFooter: map.receiptFooter || "",
@@ -3989,6 +3996,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   };
   // The tax and service fee a bill is opened with stay on that bill: a change in Accounting only reaches bills opened after it.
   const ticketRates = async () => { const current = await getSettings(); return { taxPercent: String(current.taxPercent), serviceFeePercent: String(current.serviceFeePercent) }; };
+  // The cashier's own tax / service fee for one bill: only honoured when the admin allowed it (Accounting › Tax and service fee), else the admin's rates stand.
+  const feeOverride = (raw: any, settings: { posCanChangeFees: boolean }): { tax: number; service: number } | null => {
+    if (!settings.posCanChangeFees || !raw) return null;
+    const tax = cleanRate(raw.taxPercent);
+    const service = cleanRate(raw.serviceFeePercent);
+    return tax === null || service === null ? null : { tax, service };
+  };
   const ticketRate = (stored: unknown, current: number): number => (stored === null || stored === undefined || stored === "" || !Number.isFinite(Number(stored)) ? current : Number(stored));
   const appDiscountPercentOf = (settings: { appDiscountOn: boolean; appDiscountPercent: number }) => (settings.appDiscountOn ? settings.appDiscountPercent : 0);
   // The referrer's share of a paid bill (server/referralCommission.ts); the referrer is told when RP credits arrive. A failure here never stops the payment.
@@ -4098,7 +4112,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const settings = await getSettings();
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: settings.serviceFeePercent, taxPercent: settings.taxPercent, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const saleRates = feeOverride(req.body?.rates, settings) || { tax: settings.taxPercent, service: settings.serviceFeePercent };
+    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: saleRates.service, taxPercent: saleRates.tax, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !u) return res.status(400).json({ message: needMemberForPackage(req) });
     const split = due > 0 ? splitPlanOf(req, due) : null;
@@ -4118,7 +4133,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const commission = commissionOf(req.body, subtotal - discount);
     const [row] = await db.insert(posTickets).values({
       companyId: await rebornCompanyId(req),
-      orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", taxPercent: String(settings.taxPercent), serviceFeePercent: String(settings.serviceFeePercent), ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
+      orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", taxPercent: String(saleRates.tax), serviceFeePercent: String(saleRates.service), ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
       ...memberTag(u), ...(await salesTag(req.body)), ...commissionColumns(commission), tableNumber: req.body?.tableNumber || null,
       subtotal: String(subtotal), discount: String(discount), discountReason: [q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
       paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
@@ -4562,6 +4577,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       userId = o.memberId;
       rates = { service: ticketRate(o.serviceFeePercent, settings.serviceFeePercent), tax: ticketRate(o.taxPercent, settings.taxPercent) };
     } else {
+      const custom = feeOverride(req.body?.rates, settings);
+      if (custom) rates = { service: custom.service, tax: custom.tax };
       const requested = Array.isArray(req.body?.items) ? req.body.items : [];
       // The sale charges what resolveItems prices (happy-hour price, free units of a "buy X get Y free" deal), so the quote shows the same; a line it cannot price falls back to what the screen sent.
       const priced = await resolveItems(requested, reqLang(req));
@@ -4645,7 +4662,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
   app.get("/api/reborn/pos/settings", requireStaff(async (_req, res) => {
     const settings = await getSettings();
-    res.json({ taxPercent: settings.taxPercent, serviceFeePercent: settings.serviceFeePercent });
+    res.json({ taxPercent: settings.taxPercent, serviceFeePercent: settings.serviceFeePercent, canChangeFees: settings.posCanChangeFees });
+  }));
+  // One open bill gets its own tax / service fee (only when the admin allowed the cashier to); the bill keeps them like any bill keeps the rates it was opened with.
+  app.post("/api/reborn/pos/orders/:id/rates", requireStaff(async (req, res) => {
+    const settings = await getSettings();
+    const custom = feeOverride(req.body, settings);
+    if (!custom) return res.status(403).json({ message: tr(req, { en: "Changing the tax and service fee of a bill is not switched on", zh: "未开启更改账单税费和服务费", id: "Mengubah pajak dan biaya layanan tagihan belum diaktifkan" }) });
+    const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.params.id)));
+    if (!ticket) return res.status(404).json({ message: tr(req, { en: "Order not found", zh: "找不到该订单", id: "Pesanan tidak ditemukan" }) });
+    if (ticket.status !== "open") return res.status(400).json({ message: tr(req, { en: "Only an open bill can be changed", zh: "只能更改未结账的账单", id: "Hanya tagihan yang masih terbuka yang bisa diubah" }) });
+    await db.update(posTickets).set({ taxPercent: String(custom.tax), serviceFeePercent: String(custom.service) }).where(eq(posTickets.id, ticket.id));
+    await logAdmin(req, { targetType: "ticket", targetId: String(ticket.id), action: "bill_rates", entityType: "pos", oldValues: { tax: ticket.taxPercent, service: ticket.serviceFeePercent }, newValues: { tax: custom.tax, service: custom.service }, description: `Bill ${ticket.orderNo}: tax ${ticket.taxPercent ?? settings.taxPercent}% → ${custom.tax}%, service fee ${ticket.serviceFeePercent ?? settings.serviceFeePercent}% → ${custom.service}%` });
+    res.json({ taxPercent: custom.tax, serviceFeePercent: custom.service });
   }));
   app.get("/api/reborn/admin/accounting/closings", requireAdmin(async (req, res) => {
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
@@ -4744,23 +4773,62 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
 
   // ── Supplier receipts: the AI reads the photo, the admin checks the lines, saving books stock + one purchase ──
   // Cashiers and managers upload supplier / expense receipts (they book the stock and the expense) without being able to open the accounts: the answers hold no accounting figures.
+  // Suppliers we have seen before (Expenses uploads and stock receipts): the first time a supplier is typed by hand, the next receipt from the same name (or phone) fills in its address, phone, kind of expense and usual lines.
+  const VENDOR_PHONE_TAIL = 8;
+  const MAX_VENDOR_LINES = 20;
+  const digitsOf = (value: string) => String(value || "").replace(/\D/g, "");
+  const vendorKeyOf = (name: string, phone: string) => supplierKeyOf(name) || digitsOf(phone).slice(-VENDOR_PHONE_TAIL);
+  type VendorLine = { name: string; qty: number; unitCost: number };
+  const rememberVendor = async (cid: number, v: { name: string; address?: string | null; phone?: string | null; category?: string | null; items?: VendorLine[] }) => {
+    const key = vendorKeyOf(v.name, v.phone || "");
+    if (!key) return;
+    const items = (v.items || []).slice(0, MAX_VENDOR_LINES);
+    const patch = { name: v.name.slice(0, 120), ...(v.address ? { address: v.address } : {}), ...(v.phone ? { phone: v.phone } : {}), ...(v.category ? { category: v.category } : {}), ...(items.length ? { items: JSON.stringify(items) } : {}) };
+    await db.insert(expenseVendors).values({ companyId: cid, vendorKey: key, ...patch }).onConflictDoUpdate({ target: [expenseVendors.companyId, expenseVendors.vendorKey], set: { ...patch, uses: sql`${expenseVendors.uses} + 1`, updatedAt: new Date() } });
+  };
+  const vendorView = (row: typeof expenseVendors.$inferSelect) => {
+    let items: VendorLine[] = [];
+    try { items = row.items ? JSON.parse(row.items) : []; } catch { /* unreadable saved lines */ }
+    return { name: row.name, address: row.address || "", phone: row.phone || "", category: row.category || "", items };
+  };
+  const findVendor = async (cid: number, name: string, phone: string) => {
+    const rows = await db.select().from(expenseVendors).where(eq(expenseVendors.companyId, cid));
+    const key = supplierKeyOf(name);
+    const tail = digitsOf(phone).slice(-VENDOR_PHONE_TAIL);
+    const row = rows.find((r) => key && r.vendorKey === key) || rows.find((r) => tail.length === VENDOR_PHONE_TAIL && digitsOf(r.phone || "").slice(-VENDOR_PHONE_TAIL) === tail);
+    return row ? vendorView(row) : null;
+  };
+  const MAX_OCR_TEXT = 20_000;
+  const inventoryForReceipt = async (cid: number) => db.select({ id: posProducts.id, name: posProducts.name, unitsPerPack: posProducts.unitsPerPack }).from(posProducts)
+    .where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
+  // A receipt as read (by the AI or from OCR text): filled from what earlier saved receipts taught (this supplier's lines — item + pack size — and whether its bills are goods or one of our expenses), then each line matched to an inventory item.
+  const withInventoryMatches = async (cid: number, printed: ReadReceipt, products: Awaited<ReturnType<typeof inventoryForReceipt>>) => {
+    const memory = await db.select().from(receiptMemory).where(eq(receiptMemory.companyId, cid));
+    const { read, learned } = applyMemory(printed, memory, new Set(products.map((p) => p.id)));
+    const vendor = await findVendor(cid, read.supplier, read.supplierPhone);
+    return { ...read, learned, vendor, items: read.items.map((it) => {
+      if (it.learnedProductId) return { ...it, productId: it.learnedProductId, packSize: Math.max(1, it.packSize || 1) };
+      const productId = matchProduct(it, products);
+      // A line priced per box (Dus, Ctn): the printed pack size, else the item's own pack size, else one.
+      const itemPack = products.find((p) => p.id === productId)?.unitsPerPack || 0;
+      const packSize = it.packSize || (PACK_UNIT_RE.test(it.unit || "") && itemPack > 1 ? itemPack : 1);
+      return { ...it, productId, packSize };
+    }) };
+  };
+  // No AI key: the browser reads the photo's letters itself (OCR) and sends the text; the same checks and matching follow.
+  app.post("/api/reborn/admin/inventory/receipt/read-text", requireStaff(async (req, res) => {
+    const text = String(req.body?.text || "").slice(0, MAX_OCR_TEXT);
+    const cid = await rebornCompanyId(req);
+    const printed = cleanReceipt(parseReceiptText(text));
+    if (!printed.items.length && !printed.total && !printed.date && !printed.supplierPhone) return res.status(400).json({ message: tr(req, { en: "Couldn't read a receipt in this photo. Try a clearer, straight photo.", zh: "无法从这张照片读取收据，请拍一张更清晰、端正的照片。", id: "Struk di foto ini tidak terbaca. Coba foto yang lebih jelas dan lurus." }), reason: "unreadable" });
+    res.json(await withInventoryMatches(cid, printed, await inventoryForReceipt(cid)));
+  }));
   app.post("/api/reborn/admin/inventory/receipt/read", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const products = await db.select({ id: posProducts.id, name: posProducts.name, unitsPerPack: posProducts.unitsPerPack }).from(posProducts)
-      .where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
+    const products = await inventoryForReceipt(cid);
     try {
       const printed = await readReceiptPhoto(String(req.body?.image || ""), products.map((p) => p.name));
-      // What earlier saved receipts taught: this supplier's lines (item + pack size) and whether its bills are goods or one of our expenses.
-      const memory = await db.select().from(receiptMemory).where(eq(receiptMemory.companyId, cid));
-      const { read, learned } = applyMemory(printed, memory, new Set(products.map((p) => p.id)));
-      res.json({ ...read, learned, items: read.items.map((it) => {
-        if (it.learnedProductId) return { ...it, productId: it.learnedProductId, packSize: Math.max(1, it.packSize || 1) };
-        const productId = matchProduct(it, products);
-        // A line priced per box (Dus, Ctn): the printed pack size, else the item's own pack size, else one.
-        const itemPack = products.find((p) => p.id === productId)?.unitsPerPack || 0;
-        const packSize = it.packSize || (PACK_UNIT_RE.test(it.unit || "") && itemPack > 1 ? itemPack : 1);
-        return { ...it, productId, packSize };
-      }) });
+      res.json(await withInventoryMatches(cid, printed, products));
     } catch (error) {
       const reason = error instanceof ReceiptReadError ? error.reason : "failed";
       const text = {
@@ -4785,6 +4853,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : "";
     const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") ? b.photoUrl : null;
     const decimals = companyMoney().decimals;
+    if (supplier || supplierPhone) await rememberVendor(cid, { name: supplier || "", phone: supplierPhone }).catch(() => {});
     // The reader learns from every saved receipt: the item + pack size of each printed line, and the supplier's kind / category.
     const remember = async (executor: any, lineKey: string, patch: { productId?: number | null; packSize?: number; kind?: string | null; category?: string | null }) => {
       const supplierKey = supplierKeyOf(supplier || "");
@@ -5486,6 +5555,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
     res.json({ month, expenses: rows.map(expenseView), totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
+  app.get("/api/reborn/expenses/vendors", requireExpenses(async (req, res) => {
+    const rows = await db.select().from(expenseVendors).where(eq(expenseVendors.companyId, await rebornCompanyId(req))).orderBy(desc(expenseVendors.uses), asc(expenseVendors.name));
+    res.json({ vendors: rows.map(vendorView) });
+  }));
   app.get("/api/reborn/expenses/:id/photo", requireExpenses(async (req, res) => {
     const role = await adminRole(getUserId(req));
     const mine = role === "admin" || role === "manager" ? undefined : eq(expenseUploads.uploadedBy, getUserId(req)!);
@@ -5521,6 +5594,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       return row;
     });
     if (fixedCostId) await syncActualFromUploads(fixedCostId, spentOn);
+    if (payee || payeePhone) await rememberVendor(cid, { name: payee, address: payeeAddress, phone: payeePhone, category, items: itemLines }).catch(() => {});
     await logAdmin(req, { targetType: "expense", targetId: String(saved.id), action: "expense_upload", entityType: "accounting", description: `${uploaderName || userId} uploaded an expense: ${category} RP ${amount}${payee ? ` (${payee})` : ""} for ${spentOn}` });
     res.json({ message: tr(req, { en: "Expense saved", zh: "支出已保存", id: "Pengeluaran disimpan" }), expense: expenseView(saved) });
   }));
@@ -5547,24 +5621,30 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const MAX_TAX_FEE_HISTORY = 30;
   app.get("/api/reborn/admin/tax-fees", requireAdmin(async (_req, res) => {
     const current = await getSettings();
-    res.json({ taxPercent: current.taxPercent, serviceFeePercent: current.serviceFeePercent, history: await readSetting<unknown[]>(TAX_FEE_HISTORY_KEY, []) });
+    res.json({ taxPercent: current.taxPercent, serviceFeePercent: current.serviceFeePercent, taxKept: current.taxKept, serviceFeeKept: current.serviceFeeKept, posCanChangeFees: current.posCanChangeFees, history: await readSetting<unknown[]>(TAX_FEE_HISTORY_KEY, []) });
   }));
   app.put("/api/reborn/admin/tax-fees", requireAdmin(async (req, res) => {
     const taxPercent = cleanRate(req.body?.taxPercent);
     const serviceFeePercent = cleanRate(req.body?.serviceFeePercent);
     if (taxPercent === null || serviceFeePercent === null) return res.status(400).json({ message: tr(req, { en: "Enter the tax and the service fee as a percent from 0 to 100", zh: "请输入 0 到 100 的税率和服务费百分比", id: "Masukkan pajak dan biaya layanan sebagai persen 0 sampai 100" }) });
     const before = await getSettings();
-    if (before.taxPercent === taxPercent && before.serviceFeePercent === serviceFeePercent) return res.json({ taxPercent, serviceFeePercent, unchanged: true });
-    for (const [key, value] of [["taxPercent", taxPercent], ["serviceFeePercent", serviceFeePercent]] as const) {
+    // Unticking tax (or the service fee) saves 0 but keeps the last % so ticking it again brings it back.
+    const taxKept = taxPercent > 0 ? taxPercent : (cleanRate(req.body?.taxKept) ?? before.taxKept);
+    const serviceFeeKept = serviceFeePercent > 0 ? serviceFeePercent : (cleanRate(req.body?.serviceFeeKept) ?? before.serviceFeeKept);
+    const posCanChangeFees = typeof req.body?.posCanChangeFees === "boolean" ? req.body.posCanChangeFees : before.posCanChangeFees;
+    const ratesChanged = before.taxPercent !== taxPercent || before.serviceFeePercent !== serviceFeePercent;
+    if (!ratesChanged && taxKept === before.taxKept && serviceFeeKept === before.serviceFeeKept && posCanChangeFees === before.posCanChangeFees) return res.json({ taxPercent, serviceFeePercent, taxKept, serviceFeeKept, posCanChangeFees, unchanged: true });
+    for (const [key, value] of [["taxPercent", taxPercent], ["serviceFeePercent", serviceFeePercent], ["taxKept", taxKept], ["serviceFeeKept", serviceFeeKept], ["posCanChangeFees", posCanChangeFees]] as const) {
       await db.insert(appSettings).values({ key, value: String(value), updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: String(value), updatedAt: new Date() } });
     }
     const userId = getUserId(req)!;
     const [admin] = await db.select().from(users).where(eq(users.id, userId));
     const by = [admin?.firstName, admin?.lastName].filter(Boolean).join(" ") || admin?.username || admin?.email || userId;
-    const history = [{ at: new Date().toISOString(), by, tax: taxPercent, service: serviceFeePercent, prevTax: before.taxPercent, prevService: before.serviceFeePercent }, ...(await readSetting<unknown[]>(TAX_FEE_HISTORY_KEY, []))].slice(0, MAX_TAX_FEE_HISTORY);
-    await writeSetting(TAX_FEE_HISTORY_KEY, history);
+    const earlier = await readSetting<unknown[]>(TAX_FEE_HISTORY_KEY, []);
+    const history = ratesChanged ? [{ at: new Date().toISOString(), by, tax: taxPercent, service: serviceFeePercent, prevTax: before.taxPercent, prevService: before.serviceFeePercent }, ...earlier].slice(0, MAX_TAX_FEE_HISTORY) : earlier;
+    if (ratesChanged) await writeSetting(TAX_FEE_HISTORY_KEY, history);
     await logAdmin(req, { targetType: "settings", targetId: "taxFees", action: "tax_fees", entityType: "settings", oldValues: { tax: before.taxPercent, service: before.serviceFeePercent }, newValues: { tax: taxPercent, service: serviceFeePercent }, description: `Tax ${before.taxPercent}% → ${taxPercent}%, service fee ${before.serviceFeePercent}% → ${serviceFeePercent}% (bills opened before keep their rates)` });
-    res.json({ taxPercent, serviceFeePercent, history });
+    res.json({ taxPercent, serviceFeePercent, taxKept, serviceFeeKept, posCanChangeFees, history });
   }));
 
   // ── Monthly and overall accounting reports (Admin › Accounting › Reports) ──

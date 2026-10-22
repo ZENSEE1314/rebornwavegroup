@@ -35,6 +35,24 @@ const booked = (await db.query("SELECT kind, category, amount, user_id FROM ledg
 check("the expense is booked in the accounts under the cashier's name", booked.length === 1 && booked[0].kind === "expense" && Number(booked[0].amount) === 450000 && booked[0].user_id === staffId, JSON.stringify(booked));
 check("the answer shows no accounting figures beyond the bill itself", r.json && !("balance" in r.json) && !("income" in r.json) && !("profit" in r.json), JSON.stringify(r.json));
 
+const ocrText = ["CV SINAR BINTANG", "Jl. Sudirman No. 12 Jakarta", "Telp 0821-7603-100", "14/10/2026 14:05", "2 Coca Cola 1L 15.000 30.000", "TOTAL 30.000"].join("\n");
+r = await staff("POST", "/api/reborn/admin/inventory/receipt/read-text", { text: ocrText });
+check("text read from a photo by the browser becomes supplier, address, date and a line", r.status === 200 && r.json.supplier === "CV SINAR BINTANG" && r.json.supplierAddress.startsWith("Jl. Sudirman") && r.json.date === "2026-10-14" && r.json.items.length === 1 && r.json.items[0].qty === 2, JSON.stringify(r.json));
+r = await staff("POST", "/api/reborn/admin/inventory/receipt/read-text", { text: "zzz" });
+check("text with nothing readable is refused", r.status === 400, r.status);
+r = await anon("POST", "/api/reborn/admin/inventory/receipt/read-text", { text: ocrText });
+check("a signed-out visitor cannot use the text reader", r.status === 401 || r.status === 403, r.status);
+
+// a supplier typed by hand once is recognised on the next receipt
+r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 30000, spentOn: new Date().toISOString().slice(0, 10), payee: "CV SINAR BINTANG", payeeAddress: "Jl. Sudirman 12", payeePhone: "0821-7603-100", note: "first time, typed by hand", items: [{ name: "Coca Cola 1L", qty: 2, unitCost: 15000 }] });
+check("a supplier is saved by hand the first time", r.status === 200, JSON.stringify(r.json));
+r = await staff("GET", "/api/reborn/expenses/vendors");
+check("the supplier list has it with its address and category", r.status === 200 && r.json.vendors.some((v) => v.name === "CV SINAR BINTANG" && v.address === "Jl. Sudirman 12" && v.category === "supplies" && v.items.length === 1), JSON.stringify(r.json));
+r = await staff("POST", "/api/reborn/admin/inventory/receipt/read-text", { text: "CV SINAR BINTANG\nTOTAL 30.000" });
+check("the next receipt with that name brings the saved details back", r.status === 200 && r.json.vendor && r.json.vendor.address === "Jl. Sudirman 12" && r.json.vendor.items[0].name === "Coca Cola 1L", JSON.stringify(r.json.vendor));
+r = await staff("POST", "/api/reborn/admin/inventory/receipt/read-text", { text: "Toko Lain Sekali\nTOTAL 30.000" });
+check("a new supplier brings nothing back", r.status === 200 && !r.json.vendor, JSON.stringify(r.json.vendor));
+
 r = await staff("GET", "/api/reborn/admin/accounting/ledger");
 check("the cashier cannot open the accounts (ledger)", r.status === 403 || r.status === 401, r.status);
 r = await staff("GET", "/api/reborn/admin/accounting/summary");

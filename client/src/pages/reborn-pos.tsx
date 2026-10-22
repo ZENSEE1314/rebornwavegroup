@@ -686,7 +686,13 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { data: openTickets = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/orders"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=open").then((r) => r.json()) });
   const subtotal = Number(order.subtotal ?? order.total);
   // The server's quote adds the member's perk and package credit (lib: server/memberPackages.ts).
-  const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost), v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}` }, true);
+  const [ratesVersion, setRatesVersion] = useState(0);
+  const setBillRates = useMutation({
+    mutationFn: (rates: { taxPercent: number; serviceFeePercent: number }) => post(`/api/reborn/pos/orders/${order.id}/rates`, rates),
+    onSuccess: () => { setRatesVersion((n) => n + 1); invalidate(); },
+    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+  });
+  const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost), v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}:${ratesVersion}` }, true);
   const due = quoteTotals(quote, billTotals(subtotal, discount, posSettings));
   const total = due.total;
   const payable = due.payable;
@@ -790,7 +796,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             </div>
             {payable > 0 && pay === "split" && <SplitPayBox due={payable} memberCode={order.memberCode} form={split} onChange={setSplit} onBalance={setCreditBal} />}
             <MemberWallet code={order.memberCode} quote={quote} useCredit={useCredit} onUseCredit={setUseCredit} ticketId={order.id} />
-            <BillSummary due={due} settings={posSettings} />
+            <BillSummary due={due} settings={posSettings} onRates={(rates) => setBillRates.mutate(rates)} />
             {payable > 0 && pay === "credits" && <CreditsLine code={order.memberCode} total={payable} onBalance={setCreditBal} />}
             {payable > 0 && pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
             {payable > 0 && pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={payable} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(payable)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
@@ -839,9 +845,10 @@ function QuickSaleTab() {
   const [commission, setCommission] = useState(emptyCommission);
   const [atCost, setAtCost] = useState(emptyAtCost);
   const [quickCreditBal, setQuickCreditBal] = useState<number | null>(null);
+  const [feeRates, setFeeRates] = useState<{ taxPercent: number; serviceFeePercent: number } | null>(null); // this sale's own tax / service fee, when the admin allows it
   const cartSubtotal = cartItems.reduce((sum,item)=>sum+Number(item.price)*Number(item.qty),0);
-  const quote = useQuote({ items: cartItems.map((x) => ({ productId: x.id, price: Number(x.price), qty: x.qty })), memberCode: member?.code || "", discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost) }, cartItems.length > 0);
-  const due = quoteTotals(cartItems.length ? quote : null, billTotals(cartSubtotal, discount, posSettings));
+  const quote = useQuote({ items: cartItems.map((x) => ({ productId: x.id, price: Number(x.price), qty: x.qty })), memberCode: member?.code || "", discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost), rates: feeRates || undefined }, cartItems.length > 0);
+  const due = quoteTotals(cartItems.length ? quote : null, billTotals(cartSubtotal, discount, feeRates ? { ...posSettings, ...feeRates } : posSettings));
   const payable = due.payable;
   useMirrorBill(cartItems.length ? {
     member: member?.name || undefined,
@@ -855,7 +862,7 @@ function QuickSaleTab() {
   const { isOffline } = useOfflineSales();
   const sell = useMutation({
     mutationFn: async (items: any[]) => {
-      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay === "split" ? "cash" : pay, payments: pay === "split" ? splitPayments(split, payable) : undefined, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost) }, { label: t("pos.offline.items", { n: items.length }), total: payable });
+      const outcome = await submitSale({ memberCode: member?.code || undefined, paymentMethod: pay === "split" ? "cash" : pay, payments: pay === "split" ? splitPayments(split, payable) : undefined, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost), rates: feeRates || undefined }, { label: t("pos.offline.items", { n: items.length }), total: payable });
       if (!outcome.queued) return outcome.data;
       // Saved on this device: a receipt is made from the numbers on the screen (the server prices it again when it is sent).
       const cashIn = Number(cashReceived) || 0;
@@ -867,7 +874,7 @@ function QuickSaleTab() {
       publishScreen({ type: "thanks", total: payable });
       if (pay === "cash") await openCashDrawer();
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
-      toast({ title: t("pos.saleComplete"), description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setUseCredit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); setPaymentReference(""); setCashReceived(""); setKeepBottle(emptyBottle()); setCommission(emptyCommission()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+      toast({ title: t("pos.saleComplete"), description: d.message }); setReceiptResult(d); setMember(null); setCode(""); setDiscount(0); setUseCredit(false); setFeeRates(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/packages"] }); setPaymentReference(""); setCashReceived(""); setKeepBottle(emptyBottle()); setCommission(emptyCommission()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
@@ -899,7 +906,7 @@ function QuickSaleTab() {
         <SalesPicker value={sales} onChange={setSales} />
         <label className="text-xs text-white/50 block">{t("pos.discountRp")}<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
         <MemberWallet code={member?.code} quote={cartItems.length ? quote : null} useCredit={useCredit} onUseCredit={setUseCredit} />
-        {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} />}
+        {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} onRates={setFeeRates} />}
         <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
         <AtCostBox value={atCost} onChange={setAtCost} />
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category,productId:x.id,qty:x.qty}))}/>
@@ -1269,8 +1276,33 @@ function quoteTotals(q: any, local: { taxable: number; serviceFee: number; tax: 
   if (!q) return { ...local, perkAmount: 0, perkPercent: 0, appDiscount: 0, appPercent: 0, creditUse: 0, payable: local.total };
   return { servicePercent: q.serviceFeePercent, taxPercent: q.taxPercent, taxable: q.subtotal - q.discount, serviceFee: q.serviceFee, tax: q.tax, total: q.total, perkAmount: q.perkAmount, perkPercent: q.perkPercent, appDiscount: q.appDiscount || 0, appPercent: q.appPercent || 0, creditUse: q.creditUse, payable: q.due };
 }
-function BillSummary({ due, settings }: { due: ReturnType<typeof quoteTotals>; settings: any }) {
+// The tax and service fee of this bill, changed by the cashier. Only offered when the admin switched it on (Admin › Accounting › Tax and service fee); 0 leaves that charge off.
+function BillFeeEditor({ service, tax, onApply }: { service: number; tax: number; onApply: (rates: { taxPercent: number; serviceFeePercent: number }) => void }) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [serviceText, setServiceText] = useState(String(service));
+  const [taxText, setTaxText] = useState(String(tax));
+  if (!isOpen) return <button type="button" onClick={() => { setServiceText(String(service)); setTaxText(String(tax)); setIsOpen(true); }} className="min-h-0 p-0 text-left text-amber-200 underline">{t("pos.fee.change")}</button>;
+  const apply = () => { onApply({ serviceFeePercent: Math.min(100, Math.max(0, Number(serviceText) || 0)), taxPercent: Math.min(100, Math.max(0, Number(taxText) || 0)) }); setIsOpen(false); };
+  return (
+    <div className="space-y-1.5 rounded-lg border border-amber-300/30 bg-black/30 p-2">
+      <div className="flex items-center gap-2">
+        <label className="flex-1 text-[11px] text-white/60">{t("pos.fee.service")}<input type="number" inputMode="decimal" min={0} max={100} step="0.1" value={serviceText} onChange={(e) => setServiceText(e.target.value)} className="mt-0.5 w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-white" /></label>
+        <label className="flex-1 text-[11px] text-white/60">{t("pos.fee.tax")}<input type="number" inputMode="decimal" min={0} max={100} step="0.1" value={taxText} onChange={(e) => setTaxText(e.target.value)} className="mt-0.5 w-full min-w-0 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-white" /></label>
+      </div>
+      <p className="text-[10px] text-white/40">{t("pos.fee.hint")}</p>
+      <div className="flex gap-2">
+        <button type="button" onClick={apply} className="min-h-[40px] rounded-lg bg-amber-300 px-4 text-xs font-bold text-black">{t("pos.fee.apply")}</button>
+        <button type="button" onClick={() => { onApply({ serviceFeePercent: 0, taxPercent: 0 }); setIsOpen(false); }} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("pos.fee.none")}</button>
+        <button type="button" onClick={() => setIsOpen(false)} className="min-h-[40px] rounded-lg bg-white/5 px-3 text-xs text-white/60">{t("pos.fee.cancel")}</button>
+      </div>
+    </div>
+  );
+}
+function BillSummary({ due, settings, onRates }: { due: ReturnType<typeof quoteTotals>; settings: any; onRates?: (rates: { taxPercent: number; serviceFeePercent: number }) => void }) {
+  const { t } = useTranslation();
+  const servicePercent = Number((due as any).servicePercent ?? settings?.serviceFeePercent) || 0;
+  const taxPercent = Number((due as any).taxPercent ?? settings?.taxPercent) || 0;
   return (
     <div className="mb-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
       {due.perkAmount > 0 && <div className="flex justify-between text-sky-200"><span>{t("pos.pkg.perkLine", { p: due.perkPercent })}</span><span>- {rp(due.perkAmount)}</span></div>}
@@ -1278,6 +1310,7 @@ function BillSummary({ due, settings }: { due: ReturnType<typeof quoteTotals>; s
       <div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div>
       <div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number((due as any).servicePercent ?? settings?.serviceFeePercent) || 0 })}</span><span>{rp(due.serviceFee)}</span></div>
       <div className="flex justify-between"><span>{t("pos.taxPct", { n: Number((due as any).taxPercent ?? settings?.taxPercent) || 0 })}</span><span>{rp(due.tax)}</span></div>
+      {settings?.canChangeFees && onRates && <BillFeeEditor service={servicePercent} tax={taxPercent} onApply={onRates} />}
       <div className="flex justify-between text-sm font-black text-amber-300"><span>{t("pos.total")}</span><span>{rp(due.total)}</span></div>
       {due.creditUse > 0 && <>
         <div className="flex justify-between text-sky-200"><span>{t("pos.rc.packageCredit")}</span><span>- {rp(due.creditUse)}</span></div>

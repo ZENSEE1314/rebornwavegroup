@@ -8,6 +8,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUpload } from "@/components/ImageUpload";
+import { readReceipt } from "@/lib/receipt-ocr";
 import { money, roundMoney } from "@/lib/money";
 
 interface Line { key: number; productId: number | null; name: string; qty: number; unitCost: number; packSize: number }
@@ -28,12 +29,13 @@ export default function ReceiptScan() {
   const [head, setHead] = useState<Head>(EMPTY_HEAD);
   const [lines, setLines] = useState<Line[] | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [readPercent, setReadPercent] = useState(0);
   const { data: ready } = useQuery<{ ai: boolean }>({ queryKey: ["/api/reborn/admin/inventory/receipt/ready"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory/receipt/ready").then((r) => r.json()) });
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()) });
   const sorted = [...products].sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
   const read = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/inventory/receipt/read", { image: photo }).then((r) => r.json()),
+    mutationFn: () => { setReadPercent(0); return readReceipt(photo, !!ready?.ai, setReadPercent); },
     onSuccess: (d: any) => {
       setHead({ supplier: d.supplier || "", supplierPhone: d.supplierPhone || "", invoiceNo: d.invoiceNo || "", date: d.date || "", total: Number(d.total) || 0, kind: d.kind === "expense" ? "expense" : "goods", category: d.category || "other" });
       setLines((d.items || []).map((it: any) => newLine({ productId: it.productId ?? null, name: it.name, qty: it.qty, unitCost: roundMoney(it.unitCost), packSize: Math.max(1, Number(it.packSize) || 1) })));
@@ -66,7 +68,7 @@ export default function ReceiptScan() {
       </div>
       <ImageUpload value={photo} onChange={setPhoto} label={t("admin.rcpt.photo")} output="jpeg" maxDim={1600} quality={0.85} />
       <div className="flex flex-wrap gap-2">
-        {ready?.ai && <button onClick={() => read.mutate()} disabled={!photo || read.isPending} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-black text-sm bg-amber-400 disabled:opacity-50"><Sparkles className="w-4 h-4" /> {read.isPending ? t("admin.rcpt.reading") : t("admin.rcpt.read")}</button>}
+        {ready && <button onClick={() => read.mutate()} disabled={!photo || read.isPending} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-black text-sm bg-amber-400 disabled:opacity-50"><Sparkles className="w-4 h-4" /> {read.isPending ? (ready.ai ? t("admin.rcpt.reading") : t("ex.readingFree", { n: String(readPercent) })) : t("admin.rcpt.read")}</button>}
         {!lines && <button onClick={() => setLines([newLine()])} className="px-4 py-2 rounded-lg text-sm font-semibold bg-white/10 border border-white/15">{t("admin.rcpt.typeIn")}</button>}
         {(lines || photo) && <button onClick={reset} className="px-4 py-2 rounded-lg text-sm font-semibold bg-white/5 text-white/60">{t("admin.rcpt.clear")}</button>}
       </div>

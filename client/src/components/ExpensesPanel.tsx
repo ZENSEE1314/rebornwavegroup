@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
 import { ImageUpload } from "@/components/ImageUpload";
+import { readReceipt } from "@/lib/receipt-ocr";
 import { EXPENSE_GROUPS, GROUP_OF_SECTION, sectionOf, type ExpenseGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
@@ -31,6 +32,7 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
 interface Expense { id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
 interface ExpenseList { month: string; expenses: Expense[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number }
+interface Vendor { name: string; address: string; phone: string; category: string; items: { name: string; qty: number; unitCost: number }[] }
 let nextLineKey = 1;
 const newLine = (line: Partial<Line> = {}): Line => ({ key: nextLineKey++, name: "", qty: 1, unitCost: 0, ...line });
 const emptyForm = (category = "") => ({ category, amount: "", spentOn: todayText(), spentTime: nowTimeText(), payee: "", payeeAddress: "", payeePhone: "", invoiceNo: "", note: "", photoUrl: "", fixedCostId: "" });
@@ -45,6 +47,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const [lines, setLines] = useState<Line[]>([]);
   const [readState, setReadState] = useState<"idle" | "reading" | "done" | "failed">("idle");
   const [readMessage, setReadMessage] = useState("");
+  const [readPercent, setReadPercent] = useState(0);
   const lastRead = useRef("");
   const [voiding, setVoiding] = useState<Expense | null>(null);
   const [reason, setReason] = useState("");
@@ -55,7 +58,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/expenses", { ...form, fixedCostId: form.fixedCostId || undefined, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
-    onSuccess: () => { toast({ title: t("ex.saved") }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setReadState("idle"); lastRead.current = ""; refresh(); },
+    onSuccess: () => { toast({ title: t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setReadState("idle"); lastRead.current = ""; refresh(); },
     onError: fail,
   });
   const voidIt = useMutation({
@@ -69,7 +72,14 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
     setPhoto({ id, url: (await r.json()).photoUrl });
   };
   const { data: reader } = useQuery<{ ai: boolean }>({ queryKey: ["/api/reborn/admin/inventory/receipt/ready"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory/receipt/ready").then((r) => r.json()) });
-  const linesTotal = lines.reduce((sum, l) => sum + l.qty * l.unitCost, 0);
+  const { data: vendorList } = useQuery<{ vendors: Vendor[] }>({ queryKey: ["/api/reborn/expenses/vendors"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/vendors").then((r) => r.json()) });
+  // Typing (or picking) the name of a supplier saved before fills its address, phone, kind and usual lines into the boxes that are still empty.
+  const setPayee = (value: string) => {
+    const known = (vendorList?.vendors || []).find((v) => v.name.toLowerCase() === value.trim().toLowerCase());
+    setForm((current) => ({ ...current, payee: value, ...(known ? { payeeAddress: current.payeeAddress || known.address, payeePhone: current.payeePhone || known.phone, category: current.category || known.category } : {}) }));
+    if (known && !lines.length && known.items.length) setLines(known.items.map((it) => newLine(it)));
+  };
+  const linesTotal =lines.reduce((sum, l) => sum + l.qty * l.unitCost, 0);
   const setLine = (key: number, patch: Partial<Line>) => {
     const next = lines.map((l) => (l.key === key ? { ...l, ...patch } : l));
     setLines(next);
@@ -78,26 +88,27 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   };
   // A new photo is read at once: whatever the reader finds fills the form; anything it could not read stays empty (ringed) for the person to type.
   useEffect(() => {
-    if (!form.photoUrl || lastRead.current === form.photoUrl || reader?.ai === false) return;
+    if (!form.photoUrl || lastRead.current === form.photoUrl || !reader) return;
     lastRead.current = form.photoUrl;
     setReadState("reading");
-    apiRequest("POST", "/api/reborn/admin/inventory/receipt/read", { image: form.photoUrl }).then(async (r) => {
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.message || "");
-      const read: Line[] = (d.items || []).map((it: any) => newLine({ name: it.name, qty: Number(it.qty) || 1, unitCost: Number(it.unitCost) || 0 }));
+    setReadPercent(0);
+    readReceipt(form.photoUrl, reader.ai, setReadPercent).then((d) => {
+      const vendor: Vendor | null = d.vendor || null;
+      const readLines: any[] = (d.items || []).length ? d.items : vendor?.items || []; // nothing read: this supplier's usual lines from last time
+      const read: Line[] = readLines.map((it: any) => newLine({ name: it.name, qty: Number(it.qty) || 1, unitCost: Number(it.unitCost) || 0 }));
       const sum = read.reduce((total, l) => total + l.qty * l.unitCost, 0);
       const total = Number(d.total) || sum;
       const validDate = /^\d{4}-\d{2}-\d{2}$/.test(d.date || "") && d.date <= todayText();
       setLines(read);
       setForm((current) => ({
         ...current,
-        payee: d.supplier || current.payee, payeeAddress: d.supplierAddress || current.payeeAddress, payeePhone: d.supplierPhone || current.payeePhone, invoiceNo: d.invoiceNo || current.invoiceNo,
+        payee: d.supplier || vendor?.name || current.payee, payeeAddress: d.supplierAddress || vendor?.address || current.payeeAddress, payeePhone: d.supplierPhone || vendor?.phone || current.payeePhone, invoiceNo: d.invoiceNo || current.invoiceNo,
         spentOn: validDate ? d.date : current.spentOn, spentTime: d.time || current.spentTime,
         amount: total > 0 ? String(total) : current.amount,
-        category: current.category || categoryFromRead(d.kind, d.category, [d.supplier, ...(d.items || []).map((it: any) => it.name)].join(" ")),
+        category: current.category || vendor?.category || categoryFromRead(d.kind, d.category, [d.supplier, ...(d.items || []).map((it: any) => it.name)].join(" ")),
       }));
       setReadState("done");
-      setReadMessage(d.kind === "goods" ? t("ex.readGoods") : "");
+      setReadMessage(vendor ? t("ex.knownVendor", { name: vendor.name }) : d.kind === "goods" ? t("ex.readGoods") : "");
     }).catch((e: any) => { setReadState("failed"); setReadMessage(String(e.message || "").replace(/^\d{3}:\s*/, "")); });
   }, [form.photoUrl, reader?.ai]);
   const isChecked = readState === "done";
@@ -108,10 +119,10 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
       <div className={card + " space-y-3"}>
         <h3 className="font-extrabold flex items-center gap-2"><Receipt className="w-5 h-5 text-amber-300" /> {t("ex.title")}</h3>
         <ImageUpload value={form.photoUrl} onChange={(photoUrl) => { setForm({ ...form, photoUrl }); if (!photoUrl) { setReadState("idle"); lastRead.current = ""; } }} label={t("ex.photo")} output="jpeg" maxDim={PHOTO_MAX_DIM} quality={PHOTO_QUALITY} />
-        {readState === "reading" && <p className="text-xs text-amber-200 inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> {t("ex.reading")}</p>}
+        {readState === "reading" && <p className="text-xs text-amber-200 inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> {reader?.ai ? t("ex.reading") : t("ex.readingFree", { n: String(readPercent) })}</p>}
         {readState === "done" && <p className="text-xs text-emerald-300">{t("ex.readDone")}{readMessage ? ` ${readMessage}` : ""}</p>}
         {readState === "failed" && <p className="text-xs text-amber-200">{readMessage || t("ex.readFail")} {t("ex.typeIn")}</p>}
-        {form.photoUrl && reader?.ai === false && <p className="text-xs text-amber-200">{t("ex.noAi")}</p>}
+        {readState === "done" && reader?.ai === false && <p className="text-xs text-amber-200">{t("ex.freeCheck")}</p>}
         <p className="text-[11px] text-white/50">{t("ex.intro")}</p>
         <p className="text-[11px] text-white/40">{t("ex.itemsNote")}</p>
         <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
@@ -126,7 +137,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <label className="block text-xs text-white/60">{t("ex.amount")}<input type="number" inputMode="numeric" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field + " mt-1" + ring(form.amount)} /></label>
           <label className="block text-xs text-white/60">{t("ex.date")}<input type="date" max={todayText()} value={form.spentOn} onChange={(e) => setForm({ ...form, spentOn: e.target.value })} className={field + " mt-1"} /></label>
           <label className="block text-xs text-white/60">{t("ex.time")}<input type="time" value={form.spentTime} onChange={(e) => setForm({ ...form, spentTime: e.target.value })} className={field + " mt-1"} /></label>
-          <label className="block text-xs text-white/60">{t("ex.payee")}<input value={form.payee} onChange={(e) => setForm({ ...form, payee: e.target.value })} className={field + " mt-1" + ring(form.payee)} /></label>
+          <label className="block text-xs text-white/60">{t("ex.payee")}<input list="expense-vendors" value={form.payee} onChange={(e) => setPayee(e.target.value)} className={field + " mt-1" + ring(form.payee)} /><datalist id="expense-vendors">{(vendorList?.vendors || []).map((v) => <option key={v.name} value={v.name} />)}</datalist></label>
           <label className="block text-xs text-white/60">{t("ex.phone")}<input type="tel" value={form.payeePhone} onChange={(e) => setForm({ ...form, payeePhone: e.target.value })} className={field + " mt-1" + ring(form.payeePhone)} /></label>
           <label className="block text-xs text-white/60" style={{ gridColumn: "1 / -1" }}>{t("ex.address")}<input value={form.payeeAddress} onChange={(e) => setForm({ ...form, payeeAddress: e.target.value })} className={field + " mt-1" + ring(form.payeeAddress)} /></label>
           <label className="block text-xs text-white/60">{t("ex.invoice")}<input value={form.invoiceNo} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} className={field + " mt-1"} /></label>
