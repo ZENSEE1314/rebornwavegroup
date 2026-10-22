@@ -32,7 +32,7 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
   return kind === "goods" ? STOCK_KIND : "";
 }
 
-interface Expense { id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
+interface Expense { canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
 interface ExpenseList { month: string; expenses: Expense[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
 interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null }
@@ -52,6 +52,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const [readState, setReadState] = useState<"idle" | "reading" | "done" | "failed">("idle");
   const [readMessage, setReadMessage] = useState("");
   const [readPercent, setReadPercent] = useState(0);
+  const [editingId, setEditingId] = useState<number | null>(null); // an upload being corrected: Save then changes it instead of adding one
   const [isPaid, setIsPaid] = useState(true); // false = the supplier gives credit terms: booked now, listed under "not paid yet" until marked paid
   const [termsDays, setTermsDays] = useState(String(DEFAULT_TERMS_DAYS));
   const lastRead = useRef("");
@@ -68,11 +69,13 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const refresh = () => { qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/expenses") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/fixed-costs"] }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); };
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
-    mutationFn: () => (isStock
+    mutationFn: () => (editingId
+      ? apiRequest("POST", `/api/reborn/expenses/${editingId}/edit`, { ...form, photoUrl: form.photoUrl || undefined, fixedCostId: form.fixedCostId || null, paid: isPaid, dueDate, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
+      : isStock
       ? apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "goods", supplier: form.payee, supplierPhone: form.payeePhone, invoiceNo: form.invoiceNo, date: form.spentOn, photoUrl: form.photoUrl || null, paid: isPaid, dueDate, items: stockLines.map((l) => ({ productId: l.productId ?? null, name: l.name, qty: l.qty, unitCost: l.unitCost, packSize: l.packSize || 1 })) })
       : apiRequest("POST", "/api/reborn/expenses", { ...form, fixedCostId: form.fixedCostId || undefined, paid: isPaid, dueDate, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
     ).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
-    onSuccess: (d: any) => { toast({ title: d?.message || t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setIsPaid(true); setReadState("idle"); lastRead.current = ""; refresh(); },
+    onSuccess: (d: any) => { toast({ title: d?.message || t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setIsPaid(true); setEditingId(null); setReadState("idle"); lastRead.current = ""; refresh(); },
     onError: fail,
   });
   const voidIt = useMutation({
@@ -86,6 +89,17 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
     onSuccess: (d: any) => { toast({ title: d.message }); refresh(); },
     onError: fail,
   });
+  const startEdit = (row: Expense) => {
+    const termsFromDue = row.bill?.dueDate ? Math.max(0, Math.round((new Date(`${row.bill.dueDate}T00:00:00Z`).getTime() - new Date(`${row.spentOn}T00:00:00Z`).getTime()) / 86_400_000)) : DEFAULT_TERMS_DAYS;
+    setEditingId(row.id);
+    setForm({ ...emptyForm(), category: row.category, amount: String(Number(row.amount)), spentOn: row.spentOn, spentTime: row.spentTime || "", payee: row.payee || "", payeeAddress: row.payeeAddress || "", payeePhone: row.payeePhone || "", invoiceNo: row.invoiceNo || "", note: row.note || "", photoUrl: "", fixedCostId: row.fixedCostId || "" });
+    setLines((row.items || []).map((it) => newLine(it)));
+    setIsPaid(row.bill?.status !== "unpaid");
+    setTermsDays(String(termsFromDue));
+    setReadState("idle");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const cancelEdit = () => { setEditingId(null); setForm(emptyForm(startWith)); setLines([]); setIsPaid(true); };
   const showPhoto = async (id: number) => {
     setPhoto({ id, url: null });
     const r = await apiRequest("GET", `/api/reborn/expenses/${id}/photo`);
@@ -133,11 +147,12 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   }, [form.photoUrl, reader?.ai]);
   const isChecked = readState === "done";
   const ring = (value: string | number) => (isChecked && !value ? CHECK_RING : "");
-  const isReady = isStock ? stockLines.length > 0 && !!form.spentOn : !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim());
+  const isReady = editingId ? !!form.category && Number(form.amount) > 0 && !!form.spentOn : isStock ? stockLines.length > 0 && !!form.spentOn : !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim());
   return (
     <div className="space-y-3">
       <div className={card + " space-y-3"}>
         <h3 className="font-extrabold flex items-center gap-2"><Receipt className="w-5 h-5 text-amber-300" /> {t("ex.title")}</h3>
+        {editingId && <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 p-2 text-xs text-amber-200"><span>{t("ex.editing", { n: String(editingId) })}</span><button type="button" onClick={cancelEdit} className="min-h-[36px] rounded-lg bg-white/10 px-3 text-xs">{t("ex.cancelEdit")}</button></div>}
         <ImageUpload value={form.photoUrl} onChange={(photoUrl) => { setForm({ ...form, photoUrl }); if (!photoUrl) { setReadState("idle"); lastRead.current = ""; } }} label={t("ex.photo")} output="jpeg" maxDim={PHOTO_MAX_DIM} quality={PHOTO_QUALITY} />
         {readState === "reading" && <p className="text-xs text-amber-200 inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> {reader?.ai ? t("ex.reading") : t("ex.readingFree", { n: String(readPercent) })}</p>}
         {readState === "done" && <p className="text-xs text-emerald-300">{t("ex.readDone")}{readMessage ? ` ${readMessage}` : ""}</p>}
@@ -186,6 +201,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
             <button type="button" onClick={() => setLines([...lines, newLine()])} className="min-h-0 px-2 py-1 rounded-lg bg-white/10 text-xs inline-flex items-center gap-1"><Plus className="w-3 h-3" /> {t("ex.addLine")}</button>
           </div>
           {isStock && <p className="text-[11px] text-emerald-300">{t("ex.stockNote")}</p>}
+          {isStock && lines.length > 0 && <p className="text-[11px] font-semibold text-white/70">{t("ex.stockSummary", { a: String(stockLines.filter((l) => l.productId).length), b: String(stockLines.filter((l) => !l.productId).length) })}</p>}
           {isStock && lines.map((line) => (
             <div key={line.key} className="space-y-1.5 rounded-xl border border-white/10 bg-black/20 p-2">
               <div className="flex items-center gap-1.5">
@@ -195,6 +211,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 </select>
                 <button type="button" onClick={() => setLines(lines.filter((l) => l.key !== line.key))} aria-label={t("ex.removeLine")} className="w-9 h-9 shrink-0 rounded-lg bg-white/10 inline-flex items-center justify-center p-0"><X className="w-4 h-4" /></button>
               </div>
+              <p className={`text-[11px] font-bold ${line.productId ? "text-emerald-300" : "text-amber-300"}`}>{line.productId ? `✓ ${t("ex.inInventory")}` : `＋ ${t("ex.newItemBadge")}`}</p>
               {!line.productId && <input value={line.name} onChange={(e) => setLine(line.key, { name: e.target.value })} placeholder={t("admin.rcpt.newName")} aria-label={t("admin.rcpt.newName")} className={field} />}
               {line.productId && line.name && <p className="truncate text-[11px] text-white/40">{t("admin.rcpt.onReceipt", { name: line.name })}</p>}
               <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
@@ -215,7 +232,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           {lines.length > 0 && <p className="text-[11px] text-white/50">{t("ex.itemsSum", { n: money(linesTotal) })}</p>}
         </div>
         <p className="text-[11px] text-white/40">{t("ex.needProof")}</p>
-        <button type="button" onClick={() => save.mutate()} disabled={!isReady || save.isPending} className="min-h-[44px] px-5 rounded-lg bg-amber-400 text-black text-sm font-bold disabled:opacity-40">{t("ex.save")}</button>
+        <button type="button" onClick={() => save.mutate()} disabled={!isReady || save.isPending} className="min-h-[44px] px-5 rounded-lg bg-amber-400 text-black text-sm font-bold disabled:opacity-40">{editingId ? t("ex.saveChanges") : t("ex.save")}</button>
       </div>
 
       {(payables?.payables || []).length > 0 && (
@@ -252,12 +269,13 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 <span className="font-semibold">{t(`ex.cat.${row.category}`)}{row.payee ? ` · ${row.payee}` : ""}</span>
                 <span className={`font-black ${row.status === "voided" ? "line-through" : "text-amber-200"}`}>{money(Number(row.amount))}</span>
               </div>
-              <p className="mt-0.5 text-white/50">{row.spentOn}{row.spentTime ? ` ${row.spentTime}` : ""}{row.uploadedByName ? ` · ${t("ex.by", { name: row.uploadedByName })}` : ""}{row.note ? ` · ${row.note}` : ""}</p>
+              <p className="mt-0.5 text-white/50">{row.spentOn}{row.spentTime ? ` ${row.spentTime}` : ""}{row.uploadedByName ? ` · ${t("ex.by", { name: row.uploadedByName })}` : ""}{row.note ? ` · ${row.note}` : ""}{row.editCount ? ` · ${t("ex.editedBy", { name: row.editedByName || "" })}` : ""}</p>
               {(row.payeePhone || row.payeeAddress || row.invoiceNo) && <p className="mt-0.5 text-white/40">{[row.invoiceNo, row.payeePhone, row.payeeAddress].filter(Boolean).join(" · ")}</p>}
               {(row.items || []).length > 0 && <p className="mt-0.5 text-white/40">{(row.items || []).map((it) => `${it.qty} × ${it.name} ${money(it.unitCost)}`).join(" · ")}</p>}
               {row.status === "voided" && <p className="mt-0.5 text-red-300">{t("ex.voided", { reason: row.voidReason || "" })}</p>}
               <div className="mt-1 flex gap-3">
                 {row.hasPhoto ? <button type="button" onClick={() => showPhoto(row.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ex.viewPhoto")}</button> : <span className="text-white/30">{t("ex.noPhoto")}</span>}
+                {row.canEdit && <button type="button" onClick={() => startEdit(row)} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>}
                 {data?.canVoid && row.status === "active" && <button type="button" onClick={() => { setVoiding(row); setReason(""); }} className="min-h-0 p-0 text-red-300 underline">{t("ex.void")}</button>}
               </div>
             </div>

@@ -398,7 +398,7 @@ async function freeTableAfterBill(companyId: number | null, table: string | null
   const label = String(table || "").trim();
   if (!label) return;
   try {
-    const open = await db.select({ id: posTickets.id }).from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, label), ...(companyId ? [eq(posTickets.companyId, companyId)] : []))).limit(1);
+    const open = await db.select({ id: posTickets.id }).from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.onAccount, false), eq(posTickets.tableNumber, label), ...(companyId ? [eq(posTickets.companyId, companyId)] : []))).limit(1);
     if (open.length) return; // the table still has an open bill
     const released = await releaseTableAfterPayment(label);
     if (released) emitLiveUpdate("/api/reborn/admin/bookings", { action: "TABLE_FREED" });
@@ -468,7 +468,10 @@ async function buildDailyClosingReport(day: string) {
   }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, commission: 0, cash: 0, card: 0, credits: 0, packageCredit: 0 });
   const items = Array.from(grouped.values()).sort((a, b) => b.sales - a.sales);
   const cost = items.reduce((sum, item) => sum + item.cost, 0);
-  return { day, closedAt: new Date().toISOString(), ticketCount: tickets.length, items, totals: { ...totals, cost, salesNet: totals.subtotal - totals.discount, profit: totals.revenue - totals.tax - cost - totals.commission } };
+  // Bills the customer has not paid (kept open "on account"): carried over to the next day, listed on the closing report.
+  const unpaid = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.onAccount, true)));
+  const onAccount = { count: unpaid.length, total: unpaid.reduce((sum, t) => sum + Number(t.total), 0), bills: unpaid.slice(0, 50).map((t) => ({ orderNo: t.orderNo, customer: t.onAccountCustomer || "", phone: t.onAccountPhone || "", total: Number(t.total), since: t.onAccountDay || "" })) };
+  return { day, closedAt: new Date().toISOString(), ticketCount: tickets.length, items, onAccount, totals: { ...totals, cost, salesNet: totals.subtotal - totals.discount, profit: totals.revenue - totals.tax - cost - totals.commission } };
 }
 // Pay a POS bill from the member's RP credits: one atomic UPDATE that only
 // succeeds when the balance covers it. Returns the new balance, or null (+ current
@@ -4055,7 +4058,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const tableNumber = String(req.body?.tableNumber || "").trim();
     if (!tableNumber) return res.status(400).json({ message: tr(req, { en: "Enter a table number", zh: "请输入桌号", id: "Masukkan nomor meja" }) });
     const cid = await rebornCompanyId(req);
-    const [existing] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
+    const [existing] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.onAccount, false), eq(posTickets.tableNumber, tableNumber))).limit(1);
     if (existing) return res.json({ message: tr(req, { en: "Table {t} already has an open ticket", zh: "{t} 号桌已有未结账单", id: "Meja {t} sudah punya tagihan terbuka" }, { t: tableNumber }), order: existing });
     const u = await findMemberByCode(req.body?.memberCode || "");
     const [row] = await db.insert(posTickets).values({
@@ -4176,7 +4179,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const tableNumber = String(req.body?.tableNumber || "").trim() || (await activeCheckin(getUserId(req)!).catch(() => null))?.tableLabel || "";
     if (!tableNumber) return res.status(400).json({ message: tr(req, { en: "Enter your table number", zh: "请输入你的桌号", id: "Masukkan nomor mejamu" }) });
     const cid = await rebornCompanyId(req);
-    let [order] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
+    let [order] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.onAccount, false), eq(posTickets.tableNumber, tableNumber))).limit(1);
     const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req), false, await unitsOnBill(order?.id));
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "Your order is empty", zh: "你的订单是空的", id: "Pesananmu kosong" }) });
@@ -4354,7 +4357,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!table) return res.status(400).json({ message: tr(req, { en: "Enter a table number", zh: "请输入桌号", id: "Masukkan nomor meja" }) });
     const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
     if (!it) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
-    let [dest] = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, table))).limit(1);
+    let [dest] = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.onAccount, false), eq(posTickets.tableNumber, table))).limit(1);
     if (!dest) {
       [dest] = await db.insert(posTickets).values({ orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", ...(await ticketRates()), tableNumber: table, subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
     }
@@ -4426,6 +4429,34 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const numbers = status === "open" ? new Map<number, { seq: number; day: string }>() : await receiptNumbers(cid, rows.map((o) => o.id));
     const withItems = await Promise.all(rows.map(async (o) => ({ ...o, receiptSeq: numbers.get(o.id)?.seq, receiptDay: numbers.get(o.id)?.day, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id)) })));
     res.json(withItems);
+  }));
+  // Not paid at closing time: the bill is kept open "on account" with who owes it, printed for them, and the table is free again. Next day it is still in the POS list; when it is paid it is paid like any bill (and counts that day).
+  const ON_ACCOUNT_CUSTOMER_MAX = 80;
+  const ON_ACCOUNT_NOTE_MAX = 300;
+  app.post("/api/reborn/pos/orders/:id/on-account", requireStaff(async (req, res) => {
+    const customer = String(req.body?.customer || "").replace(/\s+/g, " ").trim().slice(0, ON_ACCOUNT_CUSTOMER_MAX);
+    const phone = String(req.body?.phone || "").trim().slice(0, 40);
+    const note = String(req.body?.note || "").trim().slice(0, ON_ACCOUNT_NOTE_MAX);
+    if (!customer) return res.status(400).json({ message: tr(req, { en: "Enter who has not paid yet", zh: "请填写未付款的人", id: "Isi siapa yang belum membayar" }) });
+    const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.params.id)));
+    if (!ticket || ticket.status !== "open") return res.status(400).json({ message: tr(req, { en: "Order not open", zh: "该订单未开启", id: "Pesanan tidak terbuka" }) });
+    if (!(Number(ticket.total) > 0)) return res.status(400).json({ message: tr(req, { en: "There is nothing on this bill", zh: "此账单没有内容", id: "Tagihan ini kosong" }) });
+    const userId = getUserId(req)!;
+    const day = (await ensureVenueSession()).day;
+    await db.update(posTickets).set({ onAccount: true, onAccountAt: new Date(), onAccountBy: userId, onAccountByName: await userNameOf(userId), onAccountCustomer: customer, onAccountPhone: phone || null, onAccountNote: note || null, onAccountDay: day }).where(eq(posTickets.id, ticket.id));
+    await logAdmin(req, { targetType: "ticket", targetId: String(ticket.id), action: "bill_on_account", entityType: "pos", description: `Bill ${ticket.orderNo} (table ${ticket.tableNumber || "—"}, RP ${ticket.total}) kept on account for ${customer}${phone ? ` ${phone}` : ""} on ${day}` });
+    res.json({ message: tr(req, { en: "Kept on account: not paid yet. It stays in the POS until it is paid.", zh: "已记账：尚未付款。付款前会保留在 POS 中。", id: "Dicatat sebagai piutang: belum dibayar. Tetap ada di POS sampai dibayar." }), customer, phone, day });
+  }));
+  app.post("/api/reborn/pos/orders/:id/on-account/clear", requireStaff(async (req, res) => {
+    const [ticket] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.params.id)));
+    if (!ticket || ticket.status !== "open" || !ticket.onAccount) return res.status(400).json({ message: tr(req, { en: "That bill is not on account", zh: "该账单不是记账状态", id: "Tagihan itu bukan piutang" }) });
+    if (ticket.tableNumber) {
+      const [taken] = await db.select({ id: posTickets.id }).from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.onAccount, false), eq(posTickets.tableNumber, ticket.tableNumber))).limit(1);
+      if (taken) return res.status(400).json({ message: tr(req, { en: "Table {t} has another open bill now", zh: "桌号 {t} 现在有另一张未结账单", id: "Meja {t} sekarang punya tagihan terbuka lain" }, { t: ticket.tableNumber }) });
+    }
+    await db.update(posTickets).set({ onAccount: false }).where(eq(posTickets.id, ticket.id));
+    await logAdmin(req, { targetType: "ticket", targetId: String(ticket.id), action: "bill_on_account_cleared", entityType: "pos", description: `Bill ${ticket.orderNo} is an ordinary open bill again` });
+    res.json({ message: tr(req, { en: "Back to an ordinary open bill", zh: "已恢复为普通未结账单", id: "Kembali menjadi tagihan terbuka biasa" }) });
   }));
   app.post("/api/reborn/pos/orders/:id/pay", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
@@ -4533,7 +4564,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!row) return res.status(400).json({ message: tr(req, { en: "Could not store bottle", zh: "无法寄存酒瓶", id: "Tidak dapat menyimpan botol" }) });
     if (corkageLines.length) {
       const cid = await rebornCompanyId(req);
-      let [ticket] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.tableNumber, corkageTable))).limit(1);
+      let [ticket] = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "open"), eq(posTickets.onAccount, false), eq(posTickets.tableNumber, corkageTable))).limit(1);
       if (!ticket) [ticket] = await db.insert(posTickets).values({ companyId: cid, orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", ...(await ticketRates()), ...memberTag(u), tableNumber: corkageTable, orderMode: "dine_in", subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
       await appendItems(ticket.id, ticket.orderNo, corkageLines, getUserId(req)!);
     }
@@ -5566,8 +5597,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const rows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id));
     const totals: Record<string, number> = {};
     for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
-    res.json({ month, expenses: rows.map(expenseView), totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+    const userId = getUserId(req)!;
+    const ledgerIds = rows.map((r) => r.ledgerEntryId).filter((id): id is number => !!id);
+    const bills = ledgerIds.length ? await db.select().from(supplierPayables).where(and(eq(supplierPayables.companyId, cid), inArray(supplierPayables.ledgerEntryId, ledgerIds))) : [];
+    const billOf = new Map(bills.map((b) => [b.ledgerEntryId, { status: b.status, dueDate: b.dueDate }]));
+    const listed = rows.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
+    res.json({ month, expenses: listed, totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
+  // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
+  const EXPENSE_EDIT_WINDOW_MS = 24 * 3_600_000;
+  const canEditExpense = (role: string, userId: string, row: { uploadedBy: string | null; createdAt: Date | null }) =>
+    role === "admin" || role === "manager" || (row.uploadedBy === userId && !!row.createdAt && Date.now() - new Date(row.createdAt).getTime() < EXPENSE_EDIT_WINDOW_MS);
   // Bills not paid yet (credit terms): staff see their own, managers and the main admin see all and mark them paid.
   app.get("/api/reborn/expenses/payables", requireExpenses(async (req, res) => {
     const userId = getUserId(req)!;
@@ -5635,6 +5675,57 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (payee || payeePhone) await rememberVendor(cid, { name: payee, address: payeeAddress, phone: payeePhone, category, items: itemLines }).catch(() => {});
     await logAdmin(req, { targetType: "expense", targetId: String(saved.id), action: "expense_upload", entityType: "accounting", description: `${uploaderName || userId} uploaded an expense: ${category} RP ${amount}${payee ? ` (${payee})` : ""} for ${spentOn}` });
     res.json({ message: tr(req, { en: "Expense saved", zh: "支出已保存", id: "Pengeluaran disimpan" }), expense: expenseView(saved) });
+  }));
+  app.post("/api/reborn/expenses/:id/edit", requireExpenses(async (req, res) => {
+    const b = req.body || {};
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    const cid = await rebornCompanyId(req);
+    const [row] = await db.select().from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, cid)));
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Expense not found", zh: "找不到该支出", id: "Pengeluaran tidak ditemukan" }) });
+    if (row.status !== "active") return res.status(400).json({ message: tr(req, { en: "A voided expense cannot be edited", zh: "已作废的支出不能编辑", id: "Pengeluaran yang dibatalkan tidak bisa diubah" }) });
+    if (!canEditExpense(role, userId, row)) return res.status(403).json({ message: tr(req, { en: "You can edit your own uploads for 24 hours; ask a manager after that", zh: "你只能在 24 小时内编辑自己的上传；之后请找经理", id: "Anda bisa mengubah unggahan sendiri selama 24 jam; setelah itu minta manajer" }) });
+    const category = String(b.category || row.category);
+    const amount = Number(b.amount ?? row.amount);
+    const spentOn = String(b.spentOn || row.spentOn);
+    const note = String(b.note ?? row.note ?? "").trim().slice(0, EXPENSE_NOTE_MAX);
+    const newPhoto = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") && b.photoUrl.length <= MAX_EXPENSE_PHOTO_LENGTH ? b.photoUrl : "";
+    if (!UPLOAD_CATEGORIES.includes(category)) return res.status(400).json({ message: tr(req, { en: "Choose what the expense is for", zh: "请选择支出类别", id: "Pilih jenis pengeluaran" }) });
+    if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
+    if (!DAY_RE.test(spentOn) || Number.isNaN(new Date(`${spentOn}T12:00:00+07:00`).getTime()) || new Date(`${spentOn}T00:00:00+07:00`).getTime() > Date.now() + 24 * 3_600_000) return res.status(400).json({ message: tr(req, { en: "Enter the date on the receipt (not in the future)", zh: "请输入收据上的日期（不能是未来）", id: "Masukkan tanggal di struk (bukan masa depan)" }) });
+    if (!newPhoto && !row.photoUrl && !note) return res.status(400).json({ message: tr(req, { en: "Add a photo of the receipt or write a note", zh: "请附上收据照片或填写备注", id: "Tambahkan foto struk atau tulis catatan" }) });
+    const text = (value: unknown, fallback: string | null, max: number) => (value === undefined ? fallback : String(value || "").trim().slice(0, max) || null);
+    const payee = text(b.payee, row.payee, EXPENSE_PAYEE_MAX);
+    const payeeAddress = text(b.payeeAddress, row.payeeAddress, EXPENSE_ADDRESS_MAX);
+    const payeePhone = text(b.payeePhone, row.payeePhone, 40);
+    const invoiceNo = text(b.invoiceNo, row.invoiceNo, 60);
+    const spentTime = b.spentTime === undefined ? row.spentTime : (TIME_RE.test(String(b.spentTime || "")) ? String(b.spentTime) : null);
+    const itemLines = b.items === undefined ? null : expenseItemsOf(b.items);
+    const fixedCostId = b.fixedCostId === undefined ? row.fixedCostId : (String(b.fixedCostId || "").trim().slice(0, 24) || null);
+    const editorName = await userNameOf(userId);
+    const updated = await db.transaction(async (tx) => {
+      const [saved] = await tx.update(expenseUploads).set({
+        category, amount: String(amount), spentOn, spentTime, payee, payeeAddress, payeePhone, invoiceNo, note: note || null, fixedCostId,
+        ...(itemLines ? { items: itemLines.length ? JSON.stringify(itemLines) : null } : {}), ...(newPhoto ? { photoUrl: newPhoto } : {}),
+        editedAt: new Date(), editedByName: editorName, editCount: sql`${expenseUploads.editCount} + 1`,
+      }).where(eq(expenseUploads.id, row.id)).returning();
+      if (row.ledgerEntryId) {
+        await tx.update(ledgerEntries).set({ category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}`, createdAt: new Date(`${spentOn}T12:00:00+07:00`), ...(newPhoto ? { photoUrl: newPhoto } : {}) }).where(eq(ledgerEntries.id, row.ledgerEntryId));
+        const [bill] = await tx.select().from(supplierPayables).where(and(eq(supplierPayables.ledgerEntryId, row.ledgerEntryId), inArray(supplierPayables.status, ["unpaid", "paid"])));
+        if (bill && bill.status === "unpaid") {
+          const today = (await ensureVenueSession()).day;
+          const due = unpaidOf(false, b.dueDate)?.dueDate ?? bill.dueDate;
+          await tx.update(supplierPayables).set(b.paid === true ? { status: "paid", paidOn: today, paidBy: userId, paidByName: editorName, amount: String(amount), supplier: payee, invoiceNo, spentOn } : { amount: String(amount), supplier: payee, invoiceNo, spentOn, dueDate: due }).where(eq(supplierPayables.id, bill.id));
+        } else if (!bill && b.paid === false) {
+          await recordPayable(tx, cid, { ledgerEntryId: row.ledgerEntryId, kind: "expense", supplier: payee, invoiceNo, amount, spentOn, dueDate: unpaidOf(false, b.dueDate)?.dueDate ?? null, userId, note: note || category });
+        }
+      }
+      return saved;
+    });
+    if (row.fixedCostId) await syncActualFromUploads(row.fixedCostId, row.spentOn);
+    if (fixedCostId && (fixedCostId !== row.fixedCostId || spentOn !== row.spentOn)) await syncActualFromUploads(fixedCostId, spentOn);
+    await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_edit", entityType: "accounting", oldValues: { category: row.category, amount: row.amount, spentOn: row.spentOn, payee: row.payee }, newValues: { category, amount, spentOn, payee }, description: `${editorName || userId} edited expense #${row.id}: ${row.category} RP ${row.amount} → ${category} RP ${amount} (${spentOn})` });
+    res.json({ message: tr(req, { en: "Expense updated", zh: "支出已更新", id: "Pengeluaran diperbarui" }), expense: expenseView(updated) });
   }));
   app.post("/api/reborn/expenses/:id/void", requireExpenses(async (req, res) => {
     const userId = getUserId(req)!;

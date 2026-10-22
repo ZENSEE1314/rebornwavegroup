@@ -1071,6 +1071,14 @@ export const posTickets = pgTable("pos_tickets", {
   commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).default("0").notNull(),
   taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }),                 // the rates this bill was opened with: changing the rates later only changes new bills
   serviceFeePercent: decimal("service_fee_percent", { precision: 5, scale: 2 }),
+  onAccount: boolean("on_account").default(false).notNull(), // the customer has not paid: the bill is kept open "on account" (printed, table freed) until it is paid
+  onAccountAt: timestamp("on_account_at"),
+  onAccountBy: varchar("on_account_by"),
+  onAccountByName: varchar("on_account_by_name"),
+  onAccountCustomer: varchar("on_account_customer"),
+  onAccountPhone: varchar("on_account_phone"),
+  onAccountNote: text("on_account_note"),
+  onAccountDay: varchar("on_account_day"),             // the venue day it was put on account
   paymentSplit: text("payment_split"),             // JSON [{method, amount, reference?}] when a bill was paid with several methods together (payment_method is then "split")
   referralPayee: varchar("referral_payee"),       // the referrer paid RP credits for this bill (see server/referralCommission.ts)
   referralBase: decimal("referral_base", { precision: 14, scale: 2 }).default("0").notNull(),     // the part of the bill that earns commission (promo / flagged items left out)
@@ -1216,6 +1224,9 @@ export const expenseUploads = pgTable("expense_uploads", {
   note: text("note"),
   photoUrl: text("photo_url"),
   fixedCostId: varchar("fixed_cost_id"),          // the running cost (Fixed costs list) this settles, if any
+  editedAt: timestamp("edited_at"),
+  editedByName: varchar("edited_by_name"),
+  editCount: integer("edit_count").default(0).notNull(),
   status: varchar("status").default("active").notNull(), // active | voided
   voidReason: text("void_reason"),
   voidedBy: varchar("voided_by"),

@@ -81,6 +81,49 @@ check("a voided expense leaves the unpaid list", !(r.json?.payables || []).some(
 const bookedUnpaid = (await db.query("SELECT count(*)::int n FROM ledger_entries WHERE ref_type='receipt' AND ref_id=$1", ["TP-" + tag])).rows[0].n;
 check("an unpaid stock receipt is still booked in the accounts (the goods came in)", bookedUnpaid === 1, String(bookedUnpaid));
 
+// correcting an upload: the uploader for 24 h, a manager / the admin any time; the accounts follow
+r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 70000, spentOn: today, payee: "Toko Salah " + tag, note: "typo" });
+const wrong = r.json.expense;
+r = await staff("POST", `/api/reborn/expenses/${wrong.id}/edit`, { category: "electricity", amount: 75000, spentOn: today, payee: "PLN " + tag, note: "corrected" });
+check("the uploader corrects their own upload", r.status === 200 && r.json.expense.category === "electricity" && Number(r.json.expense.amount) === 75000 && r.json.expense.editCount === 1, JSON.stringify(r.json));
+const ledgerNow = (await db.query("SELECT amount, category FROM ledger_entries WHERE id=$1", [wrong.ledgerEntryId])).rows[0];
+check("the accounting line follows the correction", Number(ledgerNow.amount) === 75000 && ledgerNow.category === "utilities", JSON.stringify(ledgerNow));
+r = await staff("POST", `/api/reborn/expenses/${expenseId}/edit`, { amount: 1 });
+check("a voided upload cannot be edited", r.status === 400, JSON.stringify(r));
+await db.query("UPDATE expense_uploads SET created_at = now() - interval '3 days' WHERE id=$1", [wrong.id]);
+r = await staff("POST", `/api/reborn/expenses/${wrong.id}/edit`, { amount: 76000 });
+check("staff cannot edit their own upload after 24 hours", r.status === 403, JSON.stringify(r));
+r = await boss("POST", `/api/reborn/expenses/${wrong.id}/edit`, { amount: 76000, paid: false, dueDate: "2026-12-15" });
+check("a manager / the admin can still edit it, and make it a bill not paid yet", r.status === 200 && Number(r.json.expense.amount) === 76000 && r.json.expense.editCount === 2, JSON.stringify(r.json));
+r = await boss("GET", "/api/reborn/expenses/payables");
+check("the corrected upload shows as a bill to pay with the new amount", (r.json.payables || []).some((p) => p.supplier === "PLN " + tag && Number(p.amount) === 76000 && p.dueDate === "2026-12-15"), JSON.stringify(r.json?.payables?.map((p) => p.supplier)));
+
+// a bill the customer has not paid at closing time: kept open on account, table freed, paid later
+const itemRow = (await boss("POST", "/api/reborn/admin/pos/products", { name: "Account Item " + tag, category: "Food", price: 100000, cost: 10000, stock: 50 })).json;
+const mkBill = async (table) => { const o = (await boss("POST", "/api/reborn/pos/orders", { tableNumber: table })).json.order; await boss("POST", `/api/reborn/pos/orders/${o.id}/items`, { items: [{ productId: itemRow.id, qty: 2 }] }); return o; };
+const tableName = ("AC" + tag).slice(0, 7);
+const bill = await mkBill(tableName);
+r = await boss("POST", `/api/reborn/pos/orders/${bill.id}/on-account`, { customer: "" });
+check("who owes it must be named", r.status === 400, JSON.stringify(r));
+r = await boss("POST", `/api/reborn/pos/orders/${bill.id}/on-account`, { customer: "Pak Budi", phone: "0812999", note: "pays Friday" });
+check("a bill can be kept on account", r.status === 200 && r.json.customer === "Pak Budi", JSON.stringify(r.json));
+const listed = (await boss("GET", "/api/reborn/pos/orders?status=open")).json.find((o) => o.id === bill.id);
+check("it stays in the open list with who owes it", !!listed && listed.onAccount === true && listed.onAccountCustomer === "Pak Budi" && listed.onAccountPhone === "0812999", JSON.stringify(listed && [listed.onAccount, listed.onAccountCustomer]));
+const again = (await boss("POST", "/api/reborn/pos/orders", { tableNumber: tableName })).json.order;
+check("the table is free: opening it again starts a new bill", again && again.id !== bill.id, JSON.stringify([again?.id, bill.id]));
+await boss("POST", `/api/reborn/pos/orders/${again.id}/items`, { items: [{ productId: itemRow.id, qty: 1 }] });
+r = await boss("POST", `/api/reborn/pos/orders/${bill.id}/on-account/clear`);
+check("it cannot go back to an ordinary bill while the table has another one", r.status === 400, JSON.stringify(r));
+await boss("POST", `/api/reborn/pos/orders/${again.id}/pay`, { paymentMethod: "cash", cashReceived: 1000000 });
+const report = (await boss("POST", "/api/reborn/admin/venue/close")).json.report;
+check("closing the day lists the unpaid bill and carries it over", report && report.onAccount.count >= 1 && report.onAccount.bills.some((b) => b.customer === "Pak Budi" && b.total === 200000), JSON.stringify(report?.onAccount));
+const stillOpen = (await boss("GET", "/api/reborn/pos/orders?status=open")).json.find((o) => o.id === bill.id);
+check("after closing the day the bill is still open", !!stillOpen && stillOpen.onAccount === true, JSON.stringify(stillOpen && stillOpen.status));
+r = await boss("POST", `/api/reborn/pos/orders/${bill.id}/pay`, { paymentMethod: "cash", cashReceived: 1000000 });
+check("next day it is paid like any bill", r.status === 200, JSON.stringify(r.json?.message));
+const paidRow = (await db.query("SELECT status, total, on_account FROM pos_tickets WHERE id=$1", [bill.id])).rows[0];
+check("and it is paid, with the on-account note kept", paidRow.status === "paid" && Number(paidRow.total) === 200000 && paidRow.on_account === true, JSON.stringify(paidRow));
+
 r = await staff("GET", "/api/reborn/admin/accounting/ledger");
 check("the cashier cannot open the accounts (ledger)", r.status === 403 || r.status === 401, r.status);
 r = await staff("GET", "/api/reborn/admin/accounting/summary");
