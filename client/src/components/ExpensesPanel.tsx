@@ -1,5 +1,6 @@
 // Admin › Expenses: the accounts staff upload the day's expenses (rent, electricity, salary, security ...) with the receipt photo. Every entry keeps who uploaded it and when;
-// a mistake is voided with a reason (managers and the main admin), never deleted. Different from the Inventory receipt scan, which is for stock bought.
+// a mistake is voided with a reason (managers and the main admin), never deleted. Food and drinks bought for the shop (kind "Food & drinks") are not an expense upload: the lines go into the inventory
+// stock and one purchase is booked, exactly like Inventory › Scan a supplier receipt (same route).
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Receipt, Sparkles, X } from "lucide-react";
@@ -9,6 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
 import { ImageUpload } from "@/components/ImageUpload";
 import { readReceipt } from "@/lib/receipt-ocr";
+import { DEFAULT_TERMS_DAYS, dueDateFrom } from "@shared/payables";
 import { EXPENSE_GROUPS, GROUP_OF_SECTION, sectionOf, type ExpenseGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
@@ -20,21 +22,23 @@ const groupOf = (category: string): ExpenseGroup => GROUP_OF_SECTION[sectionOf(c
 const todayText = () => new Date().toISOString().slice(0, 10);
 const nowTimeText = () => new Date().toTimeString().slice(0, 5);
 const CHECK_RING = " ring-1 ring-amber-400";
+const STOCK_KIND = "stock"; // food and drinks for the shop: added to the inventory
 const UTILITY_WORDS: [RegExp, string][] = [[/electric|listrik|pln|power/i, "electricity"], [/water|air|pdam/i, "water"], [/internet|wifi|wi-fi|fiber|telkom|indihome/i, "internet"]];
 // The reader says rental / utilities / salary / other (or goods); this screen's own list is finer.
 function categoryFromRead(kind: string, category: string, hint: string): string {
   if (category === "rental") return "rent";
   if (category === "salary") return "salary";
   if (category === "utilities") return UTILITY_WORDS.find(([re]) => re.test(hint))?.[1] || "";
-  return kind === "goods" ? "supplies" : "";
+  return kind === "goods" ? STOCK_KIND : "";
 }
 
 interface Expense { id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
 interface ExpenseList { month: string; expenses: Expense[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
-interface Line { key: number; name: string; qty: number; unitCost: number }
+interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
+interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null }
 interface Vendor { name: string; address: string; phone: string; category: string; items: { name: string; qty: number; unitCost: number }[] }
 let nextLineKey = 1;
-const newLine = (line: Partial<Line> = {}): Line => ({ key: nextLineKey++, name: "", qty: 1, unitCost: 0, ...line });
+const newLine = (line: Partial<Line> = {}): Line => ({ key: nextLineKey++, name: "", qty: 1, unitCost: 0, productId: null, packSize: 1, ...line });
 const emptyForm = (category = "") => ({ category, amount: "", spentOn: todayText(), spentTime: nowTimeText(), payee: "", payeeAddress: "", payeePhone: "", invoiceNo: "", note: "", photoUrl: "", fixedCostId: "" });
 
 /** startWith: the kind pre-picked in the form (the Accounting page opens it on "Other"). */
@@ -48,22 +52,38 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const [readState, setReadState] = useState<"idle" | "reading" | "done" | "failed">("idle");
   const [readMessage, setReadMessage] = useState("");
   const [readPercent, setReadPercent] = useState(0);
+  const [isPaid, setIsPaid] = useState(true); // false = the supplier gives credit terms: booked now, listed under "not paid yet" until marked paid
+  const [termsDays, setTermsDays] = useState(String(DEFAULT_TERMS_DAYS));
   const lastRead = useRef("");
   const [voiding, setVoiding] = useState<Expense | null>(null);
   const [reason, setReason] = useState("");
   const [photo, setPhoto] = useState<{ id: number; url: string | null } | null>(null);
+  const isStock = form.category === STOCK_KIND;
+  const dueDate = isPaid ? "" : dueDateFrom(form.spentOn, Number(termsDays));
+  const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()), enabled: isStock });
+  const inventoryByName = [...inventory].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const stockLines = lines.filter((l) => l.qty >= 1 && (l.productId || l.name.trim()));
   const url = `/api/reborn/expenses?month=${month}`;
   const { data } = useQuery<ExpenseList>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
   const refresh = () => { qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/expenses") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/fixed-costs"] }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); };
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/expenses", { ...form, fixedCostId: form.fixedCostId || undefined, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
-    onSuccess: () => { toast({ title: t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setReadState("idle"); lastRead.current = ""; refresh(); },
+    mutationFn: () => (isStock
+      ? apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "goods", supplier: form.payee, supplierPhone: form.payeePhone, invoiceNo: form.invoiceNo, date: form.spentOn, photoUrl: form.photoUrl || null, paid: isPaid, dueDate, items: stockLines.map((l) => ({ productId: l.productId ?? null, name: l.name, qty: l.qty, unitCost: l.unitCost, packSize: l.packSize || 1 })) })
+      : apiRequest("POST", "/api/reborn/expenses", { ...form, fixedCostId: form.fixedCostId || undefined, paid: isPaid, dueDate, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
+    ).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d?.message || t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setIsPaid(true); setReadState("idle"); lastRead.current = ""; refresh(); },
     onError: fail,
   });
   const voidIt = useMutation({
     mutationFn: () => apiRequest("POST", `/api/reborn/expenses/${voiding!.id}/void`, { reason }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: () => { toast({ title: t("ex.voidedToast") }); setVoiding(null); setReason(""); refresh(); },
+    onError: fail,
+  });
+  const { data: payables } = useQuery<{ canPay: boolean; total: number; payables: Payable[] }>({ queryKey: ["/api/reborn/expenses/payables"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/payables").then((r) => r.json()) });
+  const markPaid = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/reborn/expenses/payables/${id}/pay`, {}).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); refresh(); },
     onError: fail,
   });
   const showPhoto = async (id: number) => {
@@ -95,7 +115,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
     readReceipt(form.photoUrl, reader.ai, setReadPercent).then((d) => {
       const vendor: Vendor | null = d.vendor || null;
       const readLines: any[] = (d.items || []).length ? d.items : vendor?.items || []; // nothing read: this supplier's usual lines from last time
-      const read: Line[] = readLines.map((it: any) => newLine({ name: it.name, qty: Number(it.qty) || 1, unitCost: Number(it.unitCost) || 0 }));
+      const read: Line[] = readLines.map((it: any) => newLine({ name: it.name, qty: Number(it.qty) || 1, unitCost: Number(it.unitCost) || 0, productId: it.productId ?? null, packSize: Math.max(1, Number(it.packSize) || 1) }));
       const sum = read.reduce((total, l) => total + l.qty * l.unitCost, 0);
       const total = Number(d.total) || sum;
       const validDate = /^\d{4}-\d{2}-\d{2}$/.test(d.date || "") && d.date <= todayText();
@@ -113,7 +133,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   }, [form.photoUrl, reader?.ai]);
   const isChecked = readState === "done";
   const ring = (value: string | number) => (isChecked && !value ? CHECK_RING : "");
-  const isReady = !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim());
+  const isReady = isStock ? stockLines.length > 0 && !!form.spentOn : !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim());
   return (
     <div className="space-y-3">
       <div className={card + " space-y-3"}>
@@ -129,6 +149,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <label className="block text-xs text-white/60">{t("ex.category")}
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field + " mt-1" + ring(form.category)}>
               <option value="">—</option>
+              <option value={STOCK_KIND}>{t("ex.cat.stock")}</option>
               {EXPENSE_GROUPS.filter((group) => (data?.categories || []).some((c) => groupOf(c) === group)).map((group) => (
                 <optgroup key={group} label={t(`ar.group.${group}`)}>{(data?.categories || []).filter((c) => groupOf(c) === group).map((c) => <option key={c} value={c}>{t(`ex.cat.${c}`)}</option>)}</optgroup>
               ))}
@@ -141,6 +162,13 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <label className="block text-xs text-white/60">{t("ex.phone")}<input type="tel" value={form.payeePhone} onChange={(e) => setForm({ ...form, payeePhone: e.target.value })} className={field + " mt-1" + ring(form.payeePhone)} /></label>
           <label className="block text-xs text-white/60" style={{ gridColumn: "1 / -1" }}>{t("ex.address")}<input value={form.payeeAddress} onChange={(e) => setForm({ ...form, payeeAddress: e.target.value })} className={field + " mt-1" + ring(form.payeeAddress)} /></label>
           <label className="block text-xs text-white/60">{t("ex.invoice")}<input value={form.invoiceNo} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} className={field + " mt-1"} /></label>
+          <label className="block text-xs text-white/60">{t("ex.payment")}
+            <select value={isPaid ? "paid" : "unpaid"} onChange={(e) => setIsPaid(e.target.value === "paid")} className={field + " mt-1"}>
+              <option value="paid">{t("ex.paid")}</option>
+              <option value="unpaid">{t("ex.notPaid")}</option>
+            </select>
+          </label>
+          {!isPaid && <label className="block text-xs text-white/60">{t("ex.termsDays")}<input type="number" inputMode="numeric" min={0} max={365} value={termsDays} onChange={(e) => setTermsDays(e.target.value)} className={field + " mt-1"} /><span className="mt-0.5 block text-[10px] text-white/40">{dueDate ? t("ex.dueOn", { d: dueDate }) : ""}</span></label>}
         </div>
         {(data?.runningCosts || []).length > 0 && (
           <label className="block text-xs text-white/60">{t("ex.settles")}
@@ -157,7 +185,26 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
             <p className="text-xs text-white/60">{t("ex.items")}</p>
             <button type="button" onClick={() => setLines([...lines, newLine()])} className="min-h-0 px-2 py-1 rounded-lg bg-white/10 text-xs inline-flex items-center gap-1"><Plus className="w-3 h-3" /> {t("ex.addLine")}</button>
           </div>
-          {lines.map((line) => (
+          {isStock && <p className="text-[11px] text-emerald-300">{t("ex.stockNote")}</p>}
+          {isStock && lines.map((line) => (
+            <div key={line.key} className="space-y-1.5 rounded-xl border border-white/10 bg-black/20 p-2">
+              <div className="flex items-center gap-1.5">
+                <select value={line.productId ?? ""} onChange={(e) => setLine(line.key, { productId: e.target.value ? Number(e.target.value) : null })} aria-label={t("admin.rcpt.newItem")} className={field + " flex-1"}>
+                  <option value="">{t("admin.rcpt.newItem")}</option>
+                  {inventoryByName.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button type="button" onClick={() => setLines(lines.filter((l) => l.key !== line.key))} aria-label={t("ex.removeLine")} className="w-9 h-9 shrink-0 rounded-lg bg-white/10 inline-flex items-center justify-center p-0"><X className="w-4 h-4" /></button>
+              </div>
+              {!line.productId && <input value={line.name} onChange={(e) => setLine(line.key, { name: e.target.value })} placeholder={t("admin.rcpt.newName")} aria-label={t("admin.rcpt.newName")} className={field} />}
+              {line.productId && line.name && <p className="truncate text-[11px] text-white/40">{t("admin.rcpt.onReceipt", { name: line.name })}</p>}
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+                <label className="text-[10px] text-white/50">{t("ex.qty")}<input type="number" inputMode="decimal" min={1} value={line.qty} onChange={(e) => setLine(line.key, { qty: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} className={field + " mt-0.5"} /></label>
+                <label className="text-[10px] text-white/50">{t("admin.rcpt.pack")}<input type="number" inputMode="decimal" min={1} value={line.packSize || 1} onChange={(e) => setLine(line.key, { packSize: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} className={field + " mt-0.5"} /></label>
+                <label className="text-[10px] text-white/50">{t("ex.price")}<input type="number" inputMode="decimal" min={0} value={line.unitCost} onChange={(e) => setLine(line.key, { unitCost: Math.max(0, Number(e.target.value) || 0) })} className={field + " mt-0.5"} /></label>
+              </div>
+            </div>
+          ))}
+          {!isStock && lines.map((line) => (
             <div key={line.key} className="flex items-center gap-1.5">
               <input value={line.name} onChange={(e) => setLine(line.key, { name: e.target.value })} placeholder={t("ex.itemName")} aria-label={t("ex.itemName")} className={field + " flex-1"} />
               <input type="number" inputMode="decimal" min={0} value={line.qty} onChange={(e) => setLine(line.key, { qty: Number(e.target.value) })} aria-label={t("ex.qty")} className={field} style={{ width: 64 }} />
@@ -170,6 +217,19 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
         <p className="text-[11px] text-white/40">{t("ex.needProof")}</p>
         <button type="button" onClick={() => save.mutate()} disabled={!isReady || save.isPending} className="min-h-[44px] px-5 rounded-lg bg-amber-400 text-black text-sm font-bold disabled:opacity-40">{t("ex.save")}</button>
       </div>
+
+      {(payables?.payables || []).length > 0 && (
+        <div className={card + " space-y-2 border-amber-400/30"}>
+          <p className="font-bold text-sm">{t("ex.payables")} · <span className="text-amber-200">{t("ex.owed", { n: money(payables!.total) })}</span></p>
+          {payables!.payables.map((p) => (
+            <div key={p.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
+              <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{p.supplier || "—"}{p.invoiceNo ? ` · ${p.invoiceNo}` : ""}</span><span className="font-black text-amber-200">{money(Number(p.amount))}</span></div>
+              <p className={`mt-0.5 ${p.isOverdue ? "text-red-300" : "text-white/50"}`}>{p.dueDate ? t("ex.dueOn", { d: p.dueDate }) : t("ex.noDue")}{p.isOverdue ? ` · ${t("ex.overdue")}` : ""}{p.createdByName ? ` · ${t("ex.by", { name: p.createdByName })}` : ""}</p>
+              {payables!.canPay && <button type="button" onClick={() => markPaid.mutate(p.id)} disabled={markPaid.isPending} className="mt-1 min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t("ex.markPaid")}</button>}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className={card}>
         <div className="flex items-center justify-between gap-2 flex-wrap">

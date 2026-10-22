@@ -53,6 +53,34 @@ check("the next receipt with that name brings the saved details back", r.status 
 r = await staff("POST", "/api/reborn/admin/inventory/receipt/read-text", { text: "Toko Lain Sekali\nTOTAL 30.000" });
 check("a new supplier brings nothing back", r.status === 200 && !r.json.vendor, JSON.stringify(r.json.vendor));
 
+// bills on credit terms: booked now, listed as not paid until a manager / the admin marks them paid
+const boss = makeClient();
+await boss("POST", "/api/auth/login", { email: "admin@test.local", password: "Passw0rd!" });
+const today = new Date().toISOString().slice(0, 10);
+r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 120000, spentOn: today, payee: "Toko Tempo " + tag, note: "30 days", paid: false, dueDate: "2026-12-01" });
+check("an expense upload can be left not paid yet (credit terms)", r.status === 200, JSON.stringify(r.json));
+const expenseId = r.json?.expense?.id;
+r = await staff("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "goods", supplier: "PT Tempo " + tag, invoiceNo: "TP-" + tag, date: today, paid: false, dueDate: "2026-11-30", items: [{ productId: null, name: "Tempo Beer " + tag, qty: 2, unitCost: 50000, packSize: 1 }] });
+check("a stock receipt can be left not paid yet", r.status === 200 && r.json.created === 1, JSON.stringify(r.json));
+r = await staff("GET", "/api/reborn/expenses/payables");
+const mine = (r.json?.payables || []).filter((p) => (p.supplier || "").includes(tag));
+check("the staff member sees both unpaid bills with their due dates", r.status === 200 && mine.length === 2 && mine.some((p) => p.dueDate === "2026-12-01") && r.json.canPay === false, JSON.stringify(r.json));
+check("the unpaid bills are counted in the amount owed", r.json.total >= 220000, String(r.json?.total));
+r = await staff("POST", `/api/reborn/expenses/payables/${mine[0].id}/pay`, {});
+check("staff cannot mark a bill as paid", r.status === 403, JSON.stringify(r));
+r = await boss("GET", "/api/reborn/expenses/payables");
+check("the admin sees every unpaid bill and may mark them paid", r.status === 200 && r.json.canPay === true && r.json.payables.length >= 2, JSON.stringify(r.json?.payables?.length));
+const stockBill = mine.find((p) => p.kind === "stock");
+r = await boss("POST", `/api/reborn/expenses/payables/${stockBill.id}/pay`, {});
+check("the admin marks the stock bill as paid", r.status === 200 && r.json.payable.status === "paid", JSON.stringify(r.json));
+r = await boss("POST", `/api/reborn/expenses/payables/${stockBill.id}/pay`, {});
+check("a bill cannot be paid twice", r.status === 404, r.status);
+r = await boss("POST", `/api/reborn/expenses/${expenseId}/void`, { reason: "wrong supplier" });
+r = await staff("GET", "/api/reborn/expenses/payables");
+check("a voided expense leaves the unpaid list", !(r.json?.payables || []).some((p) => p.supplier === "Toko Tempo " + tag), JSON.stringify(r.json?.payables?.map((p) => p.supplier)));
+const bookedUnpaid = (await db.query("SELECT count(*)::int n FROM ledger_entries WHERE ref_type='receipt' AND ref_id=$1", ["TP-" + tag])).rows[0].n;
+check("an unpaid stock receipt is still booked in the accounts (the goods came in)", bookedUnpaid === 1, String(bookedUnpaid));
+
 r = await staff("GET", "/api/reborn/admin/accounting/ledger");
 check("the cashier cannot open the accounts (ledger)", r.status === 403 || r.status === 401, r.status);
 r = await staff("GET", "/api/reborn/admin/accounting/summary");

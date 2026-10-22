@@ -35,6 +35,7 @@ export const REPLICATED_TABLES: TableSpec[] = [
   t("ledger_entries", [], "company"),
   t("expense_uploads", [], "company"),
   t("expense_vendors", [], "company"),
+  t("supplier_payables", [], "company"),
   t("receipt_memory", [], "company"),
   t("payslips", [], "company"),
   t("staff_contracts", [], "company"),

@@ -975,6 +975,27 @@ export const expenseVendors = pgTable("expense_vendors", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [uniqueIndex("expense_vendors_key").on(table.companyId, table.vendorKey)]);
 
+// Bills from suppliers that are not paid yet (credit terms, e.g. 30 days): booked in the accounts when the goods / bill came, listed here until someone marks them paid.
+export const supplierPayables = pgTable("supplier_payables", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  ledgerEntryId: integer("ledger_entry_id"),
+  kind: varchar("kind").default("expense").notNull(),   // stock | expense
+  supplier: varchar("supplier"),
+  invoiceNo: varchar("invoice_no"),
+  amount: decimal("amount", { precision: 16, scale: 2 }).notNull(),
+  spentOn: varchar("spent_on"),                         // the day on the receipt
+  dueDate: varchar("due_date"),                         // YYYY-MM-DD, the end of the credit terms
+  status: varchar("status").default("unpaid").notNull(), // unpaid | paid | void
+  paidOn: varchar("paid_on"),
+  paidBy: varchar("paid_by"),
+  paidByName: varchar("paid_by_name"),
+  createdBy: varchar("created_by"),
+  createdByName: varchar("created_by_name"),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // What the receipt reader has learned from receipts the admin saved: per supplier, which item a printed line is and its pack size;
 // a row with an empty lineKey is the supplier itself (goods or an expense category).
 export const receiptMemory = pgTable("receipt_memory", {

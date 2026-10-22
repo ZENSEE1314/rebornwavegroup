@@ -72,7 +72,7 @@ import {
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
   posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, staffCharges, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
-  staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory, expenseUploads, expenseVendors,
+  staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory, expenseUploads, expenseVendors, supplierPayables,
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
@@ -4798,6 +4798,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const row = rows.find((r) => key && r.vendorKey === key) || rows.find((r) => tail.length === VENDOR_PHONE_TAIL && digitsOf(r.phone || "").slice(-VENDOR_PHONE_TAIL) === tail);
     return row ? vendorView(row) : null;
   };
+  // A bill that is not paid yet (credit terms): booked in the accounts now, kept in supplier_payables until someone marks it paid.
+  const unpaidOf = (paid: unknown, dueDate: unknown): { dueDate: string | null } | null => (paid === false ? { dueDate: /^\d{4}-\d{2}-\d{2}$/.test(String(dueDate || "")) ? String(dueDate) : null } : null);
+  const userNameOf = async (userId: string) => {
+    const [u] = await db.select().from(users).where(eq(users.id, userId));
+    return [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.username || u?.email || "";
+  };
+  const recordPayable = async (executor: any, cid: number, p: { ledgerEntryId: number; kind: "stock" | "expense"; supplier: string | null; invoiceNo: string | null; amount: number; spentOn: string | null; dueDate: string | null; userId: string; note?: string }) =>
+    executor.insert(supplierPayables).values({ companyId: cid, ledgerEntryId: p.ledgerEntryId, kind: p.kind, supplier: p.supplier, invoiceNo: p.invoiceNo || null, amount: String(p.amount), spentOn: p.spentOn, dueDate: p.dueDate, createdBy: p.userId, createdByName: await userNameOf(p.userId), note: p.note || null });
   const MAX_OCR_TEXT = 20_000;
   const inventoryForReceipt = async (cid: number) => db.select({ id: posProducts.id, name: posProducts.name, unitsPerPack: posProducts.unitsPerPack }).from(posProducts)
     .where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind)));
@@ -4852,6 +4860,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const invoiceNo = String(b.invoiceNo || "").trim().slice(0, 60);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : "";
     const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") ? b.photoUrl : null;
+    const unpaid = unpaidOf(b.paid, b.dueDate);
     const decimals = companyMoney().decimals;
     if (supplier || supplierPhone) await rememberVendor(cid, { name: supplier || "", phone: supplierPhone }).catch(() => {});
     // The reader learns from every saved receipt: the item + pack size of each printed line, and the supplier's kind / category.
@@ -4872,6 +4881,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       await remember(db, "", { kind: "expense", category }).catch(() => {});
       for (const l of lines) if (l.name) await remember(db, "x:" + expenseKeyOf(l.name), { kind: "expense", category }).catch(() => {});
       const [row] = await db.insert(ledgerEntries).values({ kind: "expense", category, amount: String(amount), note, photoUrl, refType: "receipt_expense", refId: invoiceNo || null, userId, ...(when ? { createdAt: when } : {}) }).returning();
+      if (unpaid) await recordPayable(db, cid, { ledgerEntryId: row.id, kind: "expense", supplier, invoiceNo, amount, spentOn: day || null, dueDate: unpaid.dueDate, userId, note });
       await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "receipt_expense", entityType: "accounting", description: `${note}: expense ${amount} (${category})` });
       return res.json({ lines: lines.length, created: 0, amount, message: tr(req, { en: "Saved: the bill was booked as an expense.", zh: "已保存：该账单已记为支出。", id: "Tersimpan: tagihan dicatat sebagai pengeluaran." }) });
     }
@@ -4903,7 +4913,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
           if (line.name) await remember(tx, lineKeyOf(line.name), { productId: product.id, packSize: line.packSize });
         }
         const amount = Number(total.toFixed(decimals));
-        if (amount > 0) await tx.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(amount), note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved), photoUrl, refType: "receipt", refId: invoiceNo || null, userId, ...(receivedAt ? { createdAt: receivedAt } : {}) });
+        if (amount > 0) {
+          const [purchase] = await tx.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(amount), note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved), photoUrl, refType: "receipt", refId: invoiceNo || null, userId, ...(receivedAt ? { createdAt: receivedAt } : {}) }).returning();
+          if (unpaid) await recordPayable(tx, cid, { ledgerEntryId: purchase.id, kind: "stock", supplier, invoiceNo, amount, spentOn: date || null, dueDate: unpaid.dueDate, userId, note: receiptNote({ supplier: supplier || "", invoiceNo, date }, saved) });
+        }
         await remember(tx, "", { kind: "goods" });
         return { lines: saved.length, created, amount };
       });
@@ -5555,6 +5568,29 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
     res.json({ month, expenses: rows.map(expenseView), totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
+  // Bills not paid yet (credit terms): staff see their own, managers and the main admin see all and mark them paid.
+  app.get("/api/reborn/expenses/payables", requireExpenses(async (req, res) => {
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    const canPay = role === "admin" || role === "manager";
+    const rows = await db.select().from(supplierPayables)
+      .where(and(eq(supplierPayables.companyId, await rebornCompanyId(req)), eq(supplierPayables.status, "unpaid"), canPay ? undefined : eq(supplierPayables.createdBy, userId)))
+      .orderBy(sql`${supplierPayables.dueDate} NULLS LAST`, asc(supplierPayables.id));
+    const today = (await ensureVenueSession()).day;
+    res.json({ canPay, today, total: rows.reduce((sum, r) => sum + Number(r.amount), 0), payables: rows.map((r) => ({ ...r, isOverdue: !!r.dueDate && r.dueDate < today })) });
+  }));
+  app.post("/api/reborn/expenses/payables/:id/pay", requireExpenses(async (req, res) => {
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    if (role !== "admin" && role !== "manager") return res.status(403).json({ message: tr(req, { en: "Only a manager or the main admin can mark a bill as paid", zh: "只有经理或主管理员可以将账单标记为已付", id: "Hanya manajer atau admin utama yang bisa menandai tagihan sebagai dibayar" }) });
+    const today = (await ensureVenueSession()).day;
+    const paidOn = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.paidOn || "")) && String(req.body.paidOn) <= today ? String(req.body.paidOn) : today;
+    const [row] = await db.update(supplierPayables).set({ status: "paid", paidOn, paidBy: userId, paidByName: await userNameOf(userId) })
+      .where(and(eq(supplierPayables.id, Number(req.params.id)), eq(supplierPayables.companyId, await rebornCompanyId(req)), eq(supplierPayables.status, "unpaid"))).returning();
+    if (!row) return res.status(404).json({ message: tr(req, { en: "That bill is not waiting for payment", zh: "该账单不在待付款中", id: "Tagihan itu tidak sedang menunggu pembayaran" }) });
+    await logAdmin(req, { targetType: "payable", targetId: String(row.id), action: "payable_paid", entityType: "accounting", description: `Supplier bill paid: ${row.supplier || ""} ${row.invoiceNo || ""} RP ${row.amount} on ${paidOn}` });
+    res.json({ message: tr(req, { en: "Marked as paid", zh: "已标记为已付", id: "Ditandai sudah dibayar" }), payable: row });
+  }));
   app.get("/api/reborn/expenses/vendors", requireExpenses(async (req, res) => {
     const rows = await db.select().from(expenseVendors).where(eq(expenseVendors.companyId, await rebornCompanyId(req))).orderBy(desc(expenseVendors.uses), asc(expenseVendors.name));
     res.json({ vendors: rows.map(vendorView) });
@@ -5591,6 +5627,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const [entry] = await tx.insert(ledgerEntries).values({ kind: "expense", category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}`, photoUrl: photoUrl || null, refType: "expense_upload", userId, createdAt: new Date(`${spentOn}T12:00:00+07:00`) }).returning();
       const [row] = await tx.insert(expenseUploads).values({ companyId: cid, category, amount: String(amount), spentOn, payee: payee || null, payeeAddress, payeePhone, spentTime, invoiceNo, items: itemLines.length ? JSON.stringify(itemLines) : null, note: note || null, photoUrl: photoUrl || null, fixedCostId, ledgerEntryId: entry.id, uploadedBy: userId, uploadedByName: uploaderName }).returning();
       await tx.update(ledgerEntries).set({ refId: String(row.id) }).where(eq(ledgerEntries.id, entry.id));
+      const unpaid = unpaidOf(b.paid, b.dueDate);
+      if (unpaid) await recordPayable(tx, cid, { ledgerEntryId: entry.id, kind: "expense", supplier: payee || null, invoiceNo, amount, spentOn, dueDate: unpaid.dueDate, userId, note: note || category });
       return row;
     });
     if (fixedCostId) await syncActualFromUploads(fixedCostId, spentOn);
@@ -5609,6 +5647,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (row.status === "voided") return res.status(400).json({ message: tr(req, { en: "Already voided", zh: "已作废", id: "Sudah dibatalkan" }) });
     await db.transaction(async (tx) => {
       await tx.update(expenseUploads).set({ status: "voided", voidReason: reason, voidedBy: userId, voidedAt: new Date() }).where(eq(expenseUploads.id, row.id));
+      if (row.ledgerEntryId) await tx.update(supplierPayables).set({ status: "void" }).where(and(eq(supplierPayables.ledgerEntryId, row.ledgerEntryId), eq(supplierPayables.status, "unpaid")));
       await tx.insert(ledgerEntries).values({ kind: "income", category: "expense_reversal", amount: row.amount, note: `Expense voided (${row.category}${row.payee ? ` · ${row.payee}` : ""}): ${reason}`, refType: "expense_void", refId: String(row.id), userId });
     });
     if (row.fixedCostId) await syncActualFromUploads(row.fixedCostId, row.spentOn);

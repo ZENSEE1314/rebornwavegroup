@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUpload } from "@/components/ImageUpload";
 import { readReceipt } from "@/lib/receipt-ocr";
+import { DEFAULT_TERMS_DAYS, dueDateFrom } from "@shared/payables";
 import { money, roundMoney } from "@/lib/money";
 
 interface Line { key: number; productId: number | null; name: string; qty: number; unitCost: number; packSize: number }
@@ -30,6 +31,9 @@ export default function ReceiptScan() {
   const [lines, setLines] = useState<Line[] | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [readPercent, setReadPercent] = useState(0);
+  const [isPaid, setIsPaid] = useState(true); // false = credit terms: booked now, listed under "not paid yet" (Admin › Expenses) until marked paid
+  const [termsDays, setTermsDays] = useState(String(DEFAULT_TERMS_DAYS));
+  const dueDate = isPaid ? "" : dueDateFrom(head.date || new Date().toISOString().slice(0, 10), Number(termsDays));
   const { data: ready } = useQuery<{ ai: boolean }>({ queryKey: ["/api/reborn/admin/inventory/receipt/ready"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory/receipt/ready").then((r) => r.json()) });
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()) });
   const sorted = [...products].sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -43,9 +47,9 @@ export default function ReceiptScan() {
     },
     onError: (e: any) => toast({ title: t("admin.rcpt.readFail"), description: e.message, variant: "destructive" }),
   });
-  const reset = () => { setPhoto(""); setHead(EMPTY_HEAD); setLines(null); setConfirming(false); };
+  const reset = () => { setPhoto(""); setHead(EMPTY_HEAD); setLines(null); setConfirming(false); setIsPaid(true); };
   const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { ...head, photoUrl: photo || null, items: (lines || []).map(({ productId, name, qty, unitCost, packSize }) => ({ productId, name, qty, unitCost, packSize })) }).then((r) => r.json()),
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { ...head, photoUrl: photo || null, paid: isPaid, dueDate, items: (lines || []).map(({ productId, name, qty, unitCost, packSize }) => ({ productId, name, qty, unitCost, packSize })) }).then((r) => r.json()),
     onSuccess: (d: any) => {
       toast({ title: d.message });
       reset();
@@ -82,6 +86,13 @@ export default function ReceiptScan() {
             <label className="text-[11px] text-white/50">{t("admin.rcpt.phone")}<input value={head.supplierPhone} onChange={(e) => setHead({ ...head, supplierPhone: e.target.value })} className={inp + " w-full mt-0.5"} /></label>
             <label className="text-[11px] text-white/50">{t("admin.rcpt.invoice")}<input value={head.invoiceNo} onChange={(e) => setHead({ ...head, invoiceNo: e.target.value })} className={inp + " w-full mt-0.5"} /></label>
             <label className="text-[11px] text-white/50">{t("admin.rcpt.date")}<input type="date" value={head.date} onChange={(e) => setHead({ ...head, date: e.target.value })} className={inp + " w-full mt-0.5"} /></label>
+            <label className="block text-[11px] text-white/50">{t("ex.payment")}
+              <select value={isPaid ? "paid" : "unpaid"} onChange={(e) => setIsPaid(e.target.value === "paid")} className={inp + " w-full mt-0.5"}>
+                <option value="paid">{t("ex.paid")}</option>
+                <option value="unpaid">{t("ex.notPaid")}</option>
+              </select>
+            </label>
+            {!isPaid && <label className="block text-[11px] text-white/50">{t("ex.termsDays")}<input type="number" inputMode="numeric" min={0} max={365} value={termsDays} onChange={(e) => setTermsDays(e.target.value)} className={inp + " w-full mt-0.5"} /><span className="mt-0.5 block text-[10px] text-white/40">{dueDate ? t("ex.dueOn", { d: dueDate }) : ""}</span></label>}
           </div>
           <div className="space-y-2">
             {lines.map((l) => (
