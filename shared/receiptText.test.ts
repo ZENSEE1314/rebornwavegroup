@@ -45,3 +45,41 @@ describe("parseReceiptText on a bill and on rubbish", () => {
   it("should read a 2-digit year and a month name", () => assert.equal(parseReceiptText("Toko Maju\n5 Okt 26").date, "2026-10-05"));
   it("should give empty fields for text with nothing in it", () => assert.deepEqual([parseReceiptText("").supplier, parseReceiptText("").items.length, parseReceiptText("").total], ["", 0, 0]));
 });
+
+const REAL_INVOICE_PLAIN = [
+  "PT. LIM SIANG HUAT Invoice",
+  "Ry Komp. Int Batam Business & Industrial Park Ship/Bill To: ®",
+  "Workshop Block A No. 58 Sei Panas - Bal ~",
+  "e Tob (0778) 420359 030 Fat (0778) 31813 Invoice 26105064 A1050555 Reborn Wave House",
+  "Ruko Oceanic Bliss, Jl Pasir Putih",
+  "Date Your P.O. No. Ship Date Due Date salesperson PG.",
+  "22-10-2026 05-11-26 R2M6C2 MN-P&B",
+  "Qty. Unit Item No. Description Price Disc % Extended Price 1 Ek:",
+  "Es 480 pes 01.1.101 CBN2D 24 Carlsberg Bottle 330ml Rp18,541.67 Rp8,900,000.00 1311",
+  "Sale Amount Rpg 900,000.00",
+  "Rek Danamon alc 88 0000 1326 a/n Lim Siang Huat Keprindo BALANCE Rp8,900,000.00 ®",
+  "CA ale 833 5266 668 a/n Lim Siang Huat Keprindo",
+].join("\n");
+// the same invoice read after the photo was made larger and greyer: other letters are wrong, so the page must not depend on them
+const REAL_INVOICE_SMUDGED = [
+  "PT. LIM SIANG HUAT Invoice",
+  "¥ - Komp. Inti Batam Business & Industrial Park Ship/Bill To: 6",
+  "® Workshop Block A No. 5B Sei Panas - Batam i",
+  "ran BUNGA Se Invoice ¥6105064 A1050555 Reborn Wave House",
+  "Bip : (0778) 430359, 430360 Fax : (0778) 431813",
+  "22-10-2026 05-11-26 ~~ R2M6C2  MN-P2B",
+  "Eid 480 pcs 01.1.101CBN2D24 Carlsberg Bottle 330ml Rp18,541.67 Rp&,900,000.00 1318",
+  "y Sale Amount Rp8,900,000.00",
+].join("\n");
+
+describe("parseReceiptText on a real invoice with one item", () => {
+  for (const [label, text] of [["a clean read", REAL_INVOICE_PLAIN], ["a smudged read", REAL_INVOICE_SMUDGED]] as const) {
+    const read = parseReceiptText(text);
+    it(`should list only the one item (${label})`, () => assert.equal(read.items.length, 1));
+    it(`should read its description, quantity and price (${label})`, () => assert.deepEqual([read.items[0].name, read.items[0].qty, read.items[0].unitCost], ["Carlsberg Bottle 330ml", 480, 18541.67]));
+    it(`should take the invoice date, not the due date (${label})`, () => assert.equal(read.date, "2026-10-22"));
+    it(`should read the supplier without the word Invoice (${label})`, () => assert.equal(read.supplier, "PT. LIM SIANG HUAT"));
+    it(`should read the total (${label})`, () => assert.equal(read.total, 8900000));
+    it(`should keep the supplier's address and leave the buyer's out (${label})`, () => assert.ok(read.supplierAddress.includes("Industrial Park") && !read.supplierAddress.includes("Oceanic")));
+  }
+});
