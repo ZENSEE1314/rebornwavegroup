@@ -7,7 +7,7 @@ export type ReceiptKind = "goods" | "expense";
 export const EXPENSE_CATEGORIES = ["rental", "utilities", "salary", "other"] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 export const expenseCategoryOf = (v: unknown): ExpenseCategory => (EXPENSE_CATEGORIES as readonly string[]).includes(String(v)) ? (String(v) as ExpenseCategory) : "other";
-export interface ReadReceipt { supplier: string; supplierPhone: string; invoiceNo: string; date: string; total: number; items: ReadLine[]; kind: ReceiptKind; category: ExpenseCategory }
+export interface ReadReceipt { supplier: string; supplierPhone: string; supplierAddress: string; time: string; invoiceNo: string; date: string; total: number; items: ReadLine[]; kind: ReceiptKind; category: ExpenseCategory }
 export interface ProductLite { id: number; name: string }
 // qty and unitCost are as the receipt prices them (e.g. 30 boxes at 480,000); packSize = units in one of those (24), so stock gets qty × packSize units at unitCost ÷ packSize each.
 export interface ReceiptLine { name: string; qty: number; unitCost: number; productId: number | null; packSize: number }
@@ -108,7 +108,8 @@ export function cleanReceipt(raw: any): ReadReceipt {
     if (items.length >= MAX_LINES) break;
   }
   const date = /^\d{4}-\d{2}-\d{2}$/.test(text(raw?.date)) ? text(raw.date) : "";
-  return { supplier: text(raw?.supplier), supplierPhone: text(raw?.supplierPhone, 40), invoiceNo: text(raw?.invoiceNo, 60), date, total: num(raw?.total), items, kind: raw?.kind === "expense" ? "expense" : "goods", category: expenseCategoryOf(raw?.category) };
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(text(raw?.time)) ? text(raw.time) : "";
+  return { supplier: text(raw?.supplier), supplierPhone: text(raw?.supplierPhone, 40), supplierAddress: text(raw?.supplierAddress, 200), time, invoiceNo: text(raw?.invoiceNo, 60), date, total: num(raw?.total), items, kind: raw?.kind === "expense" ? "expense" : "goods", category: expenseCategoryOf(raw?.category) };
 }
 
 /** Lines the admin sends back to save: name, quantity ≥ 1, a price ≥ 0, and an item or a new name. */

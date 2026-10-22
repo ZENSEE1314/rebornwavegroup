@@ -2680,6 +2680,7 @@ function Accounting() {
       </div>
       <TaxFeesCard />
       <AccountingReports />
+      <ExpensesPanel startWith="other" />
       <AccountingFresh />
       <FixedCostsPanel />
       {byIndustry.length > 0 && <Card>

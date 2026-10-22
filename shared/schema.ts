@@ -1173,6 +1173,11 @@ export const expenseUploads = pgTable("expense_uploads", {
   amount: decimal("amount", { precision: 16, scale: 2 }).notNull(),
   spentOn: varchar("spent_on").notNull(),         // "YYYY-MM-DD", the day on the receipt
   payee: varchar("payee"),
+  payeeAddress: varchar("payee_address"),
+  payeePhone: varchar("payee_phone"),
+  spentTime: varchar("spent_time"),         // "HH:MM" on the receipt, or when it was uploaded
+  invoiceNo: varchar("invoice_no"),
+  items: text("items"),                      // JSON [{name, qty, unitCost}] read from the receipt
   note: text("note"),
   photoUrl: text("photo_url"),
   fixedCostId: varchar("fixed_cost_id"),          // the running cost (Fixed costs list) this settles, if any

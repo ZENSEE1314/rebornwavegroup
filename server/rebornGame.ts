@@ -5357,6 +5357,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const MAX_EXPENSE_PHOTO_LENGTH = 4_000_000;
   const EXPENSE_NOTE_MAX = 300;
   const EXPENSE_PAYEE_MAX = 80;
+  const EXPENSE_ADDRESS_MAX = 200;
+  const EXPENSE_MAX_LINES = 80;
+  const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
   const UPLOAD_CATEGORIES = ["rent", "electricity", "water", "internet", "salary", "security", "police", "supplies", "other"];
   const LEDGER_CATEGORY: Record<string, string> = { rent: "rental", electricity: "utilities", water: "utilities", internet: "utilities", salary: "salary" }; // what Accounting already groups by; the rest is "other"
   const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -5455,19 +5458,38 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!Object.keys(forMonth).length) delete next[month];
     await writeSetting(FIXED_ACTUALS_KEY, next);
   };
-  const expenseView = (row: typeof expenseUploads.$inferSelect) => ({ ...row, photoUrl: undefined, hasPhoto: !!row.photoUrl });
+  const expenseItemsOf = (raw: unknown): { name: string; qty: number; unitCost: number }[] => {
+    const lines: { name: string; qty: number; unitCost: number }[] = [];
+    for (const it of Array.isArray(raw) ? raw : []) {
+      const name = String((it as any)?.name || "").replace(/\s+/g, " ").trim().slice(0, 120);
+      const qty = Number((it as any)?.qty);
+      const unitCost = Number((it as any)?.unitCost);
+      if (!name) continue;
+      lines.push({ name, qty: Number.isFinite(qty) && qty > 0 ? qty : 1, unitCost: Number.isFinite(unitCost) && unitCost > 0 ? unitCost : 0 });
+      if (lines.length >= EXPENSE_MAX_LINES) break;
+    }
+    return lines;
+  };
+  const expenseView = (row: typeof expenseUploads.$inferSelect) => {
+    let items: unknown = [];
+    try { items = row.items ? JSON.parse(row.items) : []; } catch { /* a row saved with no readable lines */ }
+    return { ...row, photoUrl: undefined, hasPhoto: !!row.photoUrl, items };
+  };
 
   app.get("/api/reborn/expenses", requireExpenses(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const month = MONTH_RE.test(String(req.query.month || "")) ? String(req.query.month) : (await ensureVenueSession()).day.slice(0, 7);
-    const rows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id));
+    const role = await adminRole(getUserId(req));
+    const mine = role === "admin" || role === "manager" ? undefined : eq(expenseUploads.uploadedBy, getUserId(req)!); // staff see only what they uploaded
+    const rows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id));
     const totals: Record<string, number> = {};
     for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
-    const role = await adminRole(getUserId(req));
     res.json({ month, expenses: rows.map(expenseView), totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   app.get("/api/reborn/expenses/:id/photo", requireExpenses(async (req, res) => {
-    const [row] = await db.select({ photoUrl: expenseUploads.photoUrl }).from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, await rebornCompanyId(req))));
+    const role = await adminRole(getUserId(req));
+    const mine = role === "admin" || role === "manager" ? undefined : eq(expenseUploads.uploadedBy, getUserId(req)!);
+    const [row] = await db.select({ photoUrl: expenseUploads.photoUrl }).from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, await rebornCompanyId(req)), mine));
     res.json({ photoUrl: row?.photoUrl || null });
   }));
   app.post("/api/reborn/expenses", requireExpenses(async (req, res) => {
@@ -5485,11 +5507,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const [uploader] = await db.select().from(users).where(eq(users.id, userId));
     const uploaderName = [uploader?.firstName, uploader?.lastName].filter(Boolean).join(" ") || uploader?.username || uploader?.email || "";
     const payee = String(b.payee || "").trim().slice(0, EXPENSE_PAYEE_MAX);
+    const payeeAddress = String(b.payeeAddress || "").trim().slice(0, EXPENSE_ADDRESS_MAX) || null;
+    const payeePhone = String(b.payeePhone || "").trim().slice(0, 40) || null;
+    const invoiceNo = String(b.invoiceNo || "").trim().slice(0, 60) || null;
+    const spentTime = TIME_RE.test(String(b.spentTime || "")) ? String(b.spentTime) : null;
+    const itemLines = expenseItemsOf(b.items);
     const fixedCostId = String(b.fixedCostId || "").trim().slice(0, 24) || null;
     const cid = await rebornCompanyId(req);
     const saved = await db.transaction(async (tx) => {
       const [entry] = await tx.insert(ledgerEntries).values({ kind: "expense", category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}`, photoUrl: photoUrl || null, refType: "expense_upload", userId, createdAt: new Date(`${spentOn}T12:00:00+07:00`) }).returning();
-      const [row] = await tx.insert(expenseUploads).values({ companyId: cid, category, amount: String(amount), spentOn, payee: payee || null, note: note || null, photoUrl: photoUrl || null, fixedCostId, ledgerEntryId: entry.id, uploadedBy: userId, uploadedByName: uploaderName }).returning();
+      const [row] = await tx.insert(expenseUploads).values({ companyId: cid, category, amount: String(amount), spentOn, payee: payee || null, payeeAddress, payeePhone, spentTime, invoiceNo, items: itemLines.length ? JSON.stringify(itemLines) : null, note: note || null, photoUrl: photoUrl || null, fixedCostId, ledgerEntryId: entry.id, uploadedBy: userId, uploadedByName: uploaderName }).returning();
       await tx.update(ledgerEntries).set({ refId: String(row.id) }).where(eq(ledgerEntries.id, entry.id));
       return row;
     });

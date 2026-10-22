@@ -27,13 +27,15 @@ const staffId = (await db.query("SELECT id FROM users WHERE email=$1", [staffEma
 const company = (await db.query("SELECT id FROM bridge_companies WHERE slug=$1", ["reborn-wave-group"])).rows[0];
 await db.query("INSERT INTO bridge_company_members (company_id, user_id, role) VALUES ($1,$2,'staff') ON CONFLICT DO NOTHING", [company.id, staffId]);
 
-// the Expenses screen is closed to staff until the main admin switches it on
+// every staff account has the Expenses page; the main admin can hide it from one person
 let r = await staff("GET", "/api/reborn/expenses");
-check("staff cannot open Expenses by default", r.status === 403, JSON.stringify(r));
-r = await admin("PUT", `/api/reborn/admin/tab-access/${staffId}`, { tabs: ["Overview", "POS", "Expenses"] });
-check("the main admin switches Expenses on for one person", r.status === 200 && r.json.tabs.includes("Expenses"), JSON.stringify(r));
+check("staff can open Expenses by default", r.status === 200 && Array.isArray(r.json.expenses), JSON.stringify(r));
+r = await admin("PUT", `/api/reborn/admin/tab-access/${staffId}`, { tabs: ["Overview", "POS"] });
 r = await staff("GET", "/api/reborn/expenses");
-check("that person can now open Expenses", r.status === 200 && Array.isArray(r.json.expenses), JSON.stringify(r));
+check("a staff member limited without Expenses cannot open it", r.status === 403, JSON.stringify(r));
+r = await admin("PUT", `/api/reborn/admin/tab-access/${staffId}`, { tabs: ["Overview", "POS", "Expenses"] });
+r = await staff("GET", "/api/reborn/expenses");
+check("that person can open Expenses again", r.status === 200 && Array.isArray(r.json.expenses), JSON.stringify(r));
 
 // uploading
 const today = new Date().toISOString().slice(0, 10);
@@ -43,6 +45,17 @@ r = await staff("POST", "/api/reborn/expenses", { category: "nope", amount: 1000
 check("an unknown category is refused", r.status === 400, JSON.stringify(r));
 r = await staff("POST", "/api/reborn/expenses", { category: "rent", amount: 1000, spentOn: "2099-01-01", note: "x" });
 check("a date in the future is refused", r.status === 400, JSON.stringify(r));
+r = await staff("POST", "/api/reborn/expenses", { category: "supplies", amount: 90000, spentOn: new Date().toISOString().slice(0, 10), spentTime: "14:05", payee: "Toko Maju", payeeAddress: "Jl. Sudirman 12", payeePhone: "0812555", invoiceNo: "INV-" + tag, items: [{ name: "Tissue", qty: 3, unitCost: 20000 }, { name: "Soap", qty: 1, unitCost: 30000 }], note: "cleaning" });
+check("an upload keeps supplier address, phone, time and the item lines", r.status === 200 && r.json.expense.payeeAddress === "Jl. Sudirman 12" && r.json.expense.spentTime === "14:05" && r.json.expense.items.length === 2 && r.json.expense.items[0].qty === 3, JSON.stringify(r.json));
+const otherEmail = `other${tag}@test.local`;
+const other = makeClient();
+await other("POST", "/api/auth/register", { email: otherEmail, password: "Passw0rd!", firstName: "Other", lastName: "Staff", phoneNumber: `08185${digits}`.slice(0, 12), dateOfBirth: "1995-01-01", gender: "female" });
+await db.query("UPDATE users SET role='staff' WHERE email=$1", [otherEmail]);
+await other("POST", "/api/auth/login", { email: otherEmail, password: "Passw0rd!" });
+r = await other("GET", "/api/reborn/expenses");
+check("another staff member does not see these uploads", r.status === 200 && r.json.expenses.length === 0 && r.json.total === 0, JSON.stringify(r.json));
+r = await admin("GET", "/api/reborn/expenses");
+check("the main admin sees every upload with the supplier address", r.json.expenses.some((e) => e.invoiceNo === "INV-" + tag && e.payeePhone === "0812555"), JSON.stringify(r.json.expenses?.length));
 const securityBefore = (await staff("GET", "/api/reborn/expenses")).json.totals.security || 0;
 r = await staff("POST", "/api/reborn/expenses", { category: "security", amount: 450000, spentOn: today, payee: "Guard Co", note: "October guards" });
 const expense = r.json?.expense;

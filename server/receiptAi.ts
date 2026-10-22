@@ -15,8 +15,10 @@ const ReceiptSchema = z.object({
   category: z.enum(["rental", "utilities", "salary", "other"]).describe("for an expense: rental, utilities (electricity / water / internet / gas), salary, or other; use other for goods"),
   supplier: z.string().describe("the seller's business name, as printed"),
   supplierPhone: z.string().describe("the seller's phone number, or empty"),
+  supplierAddress: z.string().describe("the seller's street address as printed, or empty"),
   invoiceNo: z.string().describe("invoice / receipt / delivery note number, or empty"),
   date: z.string().describe("the receipt date as YYYY-MM-DD, or empty"),
+  time: z.string().describe("the time printed on the receipt as 24-hour HH:MM, or empty"),
   total: z.number().describe("the grand total to pay, 0 if not shown"),
   items: z.array(z.object({
     name: z.string().describe("the item as printed"),

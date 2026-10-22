@@ -117,3 +117,11 @@ describe("what the reader learns from saved receipts", () => {
     assert.equal(out.read.category, "utilities");
   });
 });
+
+describe("cleanReceipt address and time", () => {
+  it("should keep the supplier's address and a 24-hour time", () => {
+    const r = cleanReceipt({ supplierAddress: " Jl. Sudirman  12 ", time: "14:05", items: [] });
+    assert.deepEqual([r.supplierAddress, r.time], ["Jl. Sudirman 12", "14:05"]);
+  });
+  it("should drop a time that is not HH:MM", () => assert.equal(cleanReceipt({ time: "2pm", items: [] }).time, ""));
+});

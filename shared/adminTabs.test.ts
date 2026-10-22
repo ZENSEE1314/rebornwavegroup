@@ -17,14 +17,15 @@ describe("what one account sees", () => {
   it("should never gain a tab its kind of account does not have", () => assert.equal(visibleTabs("staff", ["Overview", "Settings"]).includes("Settings"), false));
 });
 
-describe("the Expenses tab (accounts staff)", () => {
-  it("should not be shown to staff by default", () => assert.equal(visibleTabs("staff", null).includes("Expenses"), false));
-  it("should be shown to staff once it is switched on for them", () => assert.equal(visibleTabs("staff", ["Overview", "Expenses"]).includes("Expenses"), true));
-  it("should keep POS last when it is added", () => assert.equal(visibleTabs("staff", ["Overview", "POS", "Expenses"]).at(-1), "POS"));
-  it("should be kept when the main admin ticks every staff tab and Expenses", () => assert.ok(cleanTabAccess([...tabsForRole("staff"), "Expenses"], "staff")?.includes("Expenses")));
+describe("the Expenses tab (upload page for staff)", () => {
+  it("should be shown to staff by default", () => assert.equal(visibleTabs("staff", null).includes("Expenses"), true));
+  it("should be hidden from a staff member the main admin limited", () => assert.equal(visibleTabs("staff", ["Overview", "Bookings"]).includes("Expenses"), false));
+  it("should keep POS last", () => assert.equal(visibleTabs("staff", null).at(-1), "POS"));
+  it("should be there for managers once", () => assert.equal(tabsForRole("manager").filter((tab) => tab === "Expenses").length, 1));
   it("should be there for managers and the main admin", () => assert.deepEqual([canUseExpenses("manager", null), canUseExpenses("admin", null)], [true, true]));
-  it("should be refused to staff who were not given it", () => assert.equal(canUseExpenses("staff", ["Overview", "Bookings"]), false));
-  it("should be allowed to staff who were given it", () => assert.equal(canUseExpenses("staff", ["Overview", "Expenses"]), true));
+  it("should be allowed to staff by default", () => assert.equal(canUseExpenses("staff", null), true));
+  it("should be refused to staff who were limited without it", () => assert.equal(canUseExpenses("staff", ["Overview", "Bookings"]), false));
+  it("should be allowed to staff whose list has it", () => assert.equal(canUseExpenses("staff", ["Overview", "Expenses"]), true));
 });
 
 describe("saving the ticked tabs", () => {

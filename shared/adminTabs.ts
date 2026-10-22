@@ -1,11 +1,11 @@
 // The buttons (tabs) of the Reborn admin page, per kind of account. The main admin can narrow what one person sees (below).
-export const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "Security", "POS"] as const;
+export const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "Security", "Expenses", "POS"] as const;
 // Managers: the staff tabs + users, products, inventory, Expenses and Daily sales. The QR codes tab comes second, as for the main admin.
-export const MANAGER_TABS = ["Overview", "QR", ...STAFF_TABS.slice(1, -1), "Users", "Products", "Inventory", "Expenses", "Sales", "POS"] as const;
+export const MANAGER_TABS = ["Overview", "QR", ...STAFF_TABS.slice(1, -1), "Users", "Products", "Inventory", "Sales", "POS"] as const;
 export const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Expenses", "Prizes", "Gifts", "FAQ", "Features", "Lights", "Security", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
 
-/** Tabs staff do not have until the main admin switches them on for that person (the accounts staff upload the day's expenses here). */
-export const OPT_IN_TABS = ["Expenses"] as const;
+/** Tabs staff only get once the main admin switches them on for that person (none now: every staff account can upload expenses). */
+export const OPT_IN_TABS: readonly string[] = [];
 
 export type AdminRole = "admin" | "manager" | "staff" | "user";
 export const ALWAYS_VISIBLE_TAB = "Overview";
@@ -34,7 +34,7 @@ export function cleanTabAccess(raw: unknown, role: AdminRole): string[] | null {
   return chosen.length === base.length && !extra.length ? null : [...chosen, ...extra];
 }
 
-/** Whether an account may use the Expenses screen (and its routes): managers and the main admin always, staff only when it was switched on for them. */
+/** Whether an account may use the Expenses screen (and its routes): managers and the main admin always, staff unless the main admin hid it from that person. */
 export function canUseExpenses(role: AdminRole, allowed: readonly string[] | null | undefined): boolean {
-  return role === "admin" || role === "manager" || (role === "staff" && !!allowed?.includes("Expenses"));
+  return role === "admin" || role === "manager" || (role === "staff" && (!allowed || allowed.includes("Expenses")));
 }
