@@ -117,6 +117,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   payrollDay: "15",         // day of month payroll is recorded/paid (the admin reminder comes then)
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
   appOrdersAutoAccept: "true", // an order from the member app goes straight to the kitchen (no Accept tap at the counter)
+  referralHoldHours: "18",   // a new referral earns nothing for this many hours (anti-cheat: no signing a friend up and ordering on their account at once)
   referralOn: "false", referralPercent: "10", // the referrer earns RP credits on a referred member's paid bills (not on promo items); off until the admin turns it on
   appDiscountOn: "false", appDiscountPercent: "5", // items a member orders through the app get this % off
   allowNegativeStock: "false", // let staff sell items even when stock hits 0 (goes negative)
@@ -184,6 +185,7 @@ async function getSettings() {
     allowNegativeStock: map.allowNegativeStock === "true",
     appOrdersAutoAccept: map.appOrdersAutoAccept !== "false",
     referralOn: map.referralOn === "true",
+    referralHoldHours: Math.min(720, Math.max(0, Number(map.referralHoldHours) || 0)),
     referralPercent: Math.min(100, Math.max(0, Number(map.referralPercent) || 0)),
     appDiscountOn: map.appDiscountOn === "true",
     appDiscountPercent: Math.min(100, Math.max(0, Number(map.appDiscountPercent) || 0)),
@@ -3192,7 +3194,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["referralOn", "referralPercent", "appDiscountOn", "appDiscountPercent", "receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "songLookahead", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
+    const allowed = ["referralOn", "referralPercent", "referralHoldHours", "appDiscountOn", "appDiscountPercent", "receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "songLookahead", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -4011,9 +4013,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const ticketRate = (stored: unknown, current: number): number => (stored === null || stored === undefined || stored === "" || !Number.isFinite(Number(stored)) ? current : Number(stored));
   const appDiscountPercentOf = (settings: { appDiscountOn: boolean; appDiscountPercent: number }) => (settings.appDiscountOn ? settings.appDiscountPercent : 0);
   // The referrer's share of a paid bill (server/referralCommission.ts); the referrer is told when RP credits arrive. A failure here never stops the payment.
-  const payReferral = async (ticketId: number, totals: { subtotal: number; discount: number; total: number; due: number }, settings: { referralOn: boolean; referralPercent: number; houseReferralUserId: string }) => {
+  const payReferral = async (ticketId: number, totals: { subtotal: number; discount: number; total: number; due: number }, settings: { referralOn: boolean; referralPercent: number; referralHoldHours: number; houseReferralUserId: string }) => {
     try {
-      const paid = await payReferralCommission(ticketId, totals, { isOn: settings.referralOn, percent: settings.referralPercent, houseUserId: settings.houseReferralUserId });
+      const paid = await payReferralCommission(ticketId, totals, { isOn: settings.referralOn, percent: settings.referralPercent, holdHours: settings.referralHoldHours, houseUserId: settings.houseReferralUserId });
       if (paid) await notifyUserI18n(paid.referrerId, "referral_commission", (lang) => ({ title: pick(lang, { en: "Referral commission", zh: "推荐佣金", id: "Komisi referral" }), body: pick(lang, { en: "You earned RP {n} credits from a member you referred.", zh: "你推荐的会员消费，你获得了 RP {n} 余额。", id: "Kamu mendapat kredit RP {n} dari member yang kamu referensikan." }, { n: fmtN(paid.amount, lang) }) }), { path: "/my-referral" });
     } catch (error) { console.error("referral commission failed", error); }
   };

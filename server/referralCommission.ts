@@ -4,7 +4,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { commissionHistory, creditHistory, posProducts, posTicketItems, posTickets, referrals, users } from "@shared/schema";
-import { referralCommission, type ReferralLine } from "@shared/referral";
+import { isReferralHeld, referralCommission, referralReleaseAt, type ReferralLine } from "@shared/referral";
 
 const OFF_BILL_STATUSES = ["rejected", "lost"];
 const NOTE_MAX_LENGTH = 250;
@@ -13,6 +13,8 @@ const POS_ORDER = "pos_order";
 export interface ReferralSettings {
   isOn: boolean;
   percent: number;
+  /** Hours after a referral is made before it earns anything (0 = no wait). */
+  holdHours?: number;
   /** The house account every un-referred sign-up is linked to: it never earns commission. */
   houseUserId: string;
 }
@@ -32,6 +34,17 @@ export async function payReferralCommission(ticketId: number, totals: ReferralBi
   const [referrer] = await db.select().from(users).where(eq(users.id, referrerId));
   if (!referrer) return null;
 
+  // A referral made a moment ago earns nothing yet: bills paid inside the hold pay no commission (and none is paid later for them).
+  const holdHours = settings.holdHours ?? 0;
+  if (holdHours > 0) {
+    const [link] = await db.select({ createdAt: referrals.createdAt }).from(referrals).where(and(eq(referrals.referrerId, referrerId), eq(referrals.referredId, buyer.id))).orderBy(referrals.createdAt).limit(1);
+    const linkedAt = link?.createdAt || buyer.createdAt;
+    if (linkedAt && isReferralHeld(new Date(linkedAt), holdHours)) {
+      const starts = referralReleaseAt(new Date(linkedAt), holdHours).toISOString().slice(0, 16).replace("T", " ");
+      await db.update(posTickets).set({ referralPayee: nameOf(referrer), referralBase: "0", referralPercent: String(settings.percent), referralAmount: "0", referralNote: `new referral: commission starts ${starts} UTC` }).where(eq(posTickets.id, ticketId));
+      return null;
+    }
+  }
   const items = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, ticketId))).filter((item) => !OFF_BILL_STATUSES.includes(item.status));
   const productIds = Array.from(new Set(items.map((item) => item.productId).filter((id): id is number => !!id)));
   const products = productIds.length ? await db.select().from(posProducts).where(inArray(posProducts.id, productIds)) : [];

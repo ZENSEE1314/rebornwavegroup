@@ -55,7 +55,7 @@ let before = await credits();
 let { order: first } = await payBill(`R${tag}`.slice(0, 7), [{ productId: beer.id, qty: 2 }], member.code);
 check("nothing is paid while referral commission is off", (await credits()) === before);
 
-await admin("POST", "/api/reborn/admin/settings", { referralOn: true, referralPercent: 10, appDiscountOn: true, appDiscountPercent: 10 });
+await admin("POST", "/api/reborn/admin/settings", { referralOn: true, referralPercent: 10, referralHoldHours: 0, appDiscountOn: true, appDiscountPercent: 10 });
 const settings = (await admin("GET", "/api/reborn/admin/settings")).json;
 check("the settings are saved", settings.referralOn === true && settings.referralPercent === 10 && settings.appDiscountOn === true && settings.appDiscountPercent === 10, JSON.stringify(settings));
 
@@ -94,6 +94,25 @@ const cashier = (await admin("POST", "/api/reborn/pos/orders", { tableNumber: st
 await admin("POST", `/api/reborn/pos/orders/${cashier.id}/items`, { items: [{ productId: beer.id, qty: 1 }] });
 const staffQuote = await admin("POST", "/api/reborn/pos/quote", { ticketId: cashier.id });
 check("items the cashier adds get no app discount", Number(staffQuote.json.appDiscount) === 0, JSON.stringify(staffQuote.json));
+
+// anti-cheat: a new referral earns nothing for 18 hours
+await admin("POST", "/api/reborn/admin/settings", { referralOn: true, referralPercent: 10, referralHoldHours: 18 });
+const newcomer = await register("Fresh", "3", referrer.code);
+before = await credits();
+const early = await payBill(`H${tag}`.slice(0, 7), [{ productId: beer.id, qty: 2 }], newcomer.code);
+const earlyRow = await ticketRow(early.order.id);
+check("a bill on a brand-new referral pays the referrer nothing", early.paid.status === 200 && (await credits()) === before && Number(earlyRow.referral_amount) === 0, JSON.stringify([earlyRow, await credits() - before]));
+check("the bill says when the commission starts", String(earlyRow.referral_note || "").includes("commission starts"), JSON.stringify(earlyRow.referral_note));
+await db.query("UPDATE referrals SET created_at = (now() AT TIME ZONE 'UTC') - interval '19 hours' WHERE referred_id=$1", [newcomer.id]);
+before = await credits();
+const late = await payBill(`J${tag}`.slice(0, 7), [{ productId: beer.id, qty: 2 }], newcomer.code);
+const lateRow = await ticketRow(late.order.id);
+check("19 hours after the referral the commission is paid", late.paid.status === 200 && Number(lateRow.referral_amount) === 8000 && (await credits()) === before + 8000, JSON.stringify([lateRow, await credits() - before]));
+await db.query("UPDATE referrals SET created_at = (now() AT TIME ZONE 'UTC') WHERE referred_id=$1", [newcomer.id]);
+await admin("POST", "/api/reborn/admin/settings", { referralHoldHours: 0 });
+before = await credits();
+await payBill(`K${tag}`.slice(0, 7), [{ productId: beer.id, qty: 1 }], newcomer.code);
+check("with the hold set to 0 hours it pays at once", (await credits()) === before + 4000, String(await credits() - before));
 
 await admin("POST", "/api/reborn/admin/settings", { referralOn: false, appDiscountOn: false });
 await db.end();

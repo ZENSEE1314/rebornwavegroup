@@ -953,6 +953,8 @@ function Settings() {
         <div className="mb-3 rounded-xl border border-white/10 p-3 text-sm">
           <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={cur.referralOn === true} onChange={(e) => setStr("referralOn", e.target.checked)} /> {t("admin.set.referral")}</label>
           <Field label={t("admin.set.referralPct")} value={cur.referralPercent} onChange={(v: any) => set("referralPercent", v)} />
+          <Field label={t("admin.set.referralHold")} value={cur.referralHoldHours} onChange={(v: any) => set("referralHoldHours", v)} />
+          <p className="-mt-2 text-[11px] text-white/40">{t("admin.set.referralHoldHint")}</p>
           <p className="-mt-2 text-[11px] text-white/40">{t("admin.set.referralHint")}</p>
         </div>
         <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.allowNegativeStock === true} onChange={(e) => setStr("allowNegativeStock", e.target.checked)} /> {t("admin.set.negStock")}</label>

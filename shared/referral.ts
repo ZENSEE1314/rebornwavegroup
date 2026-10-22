@@ -42,3 +42,17 @@ export function referralCommission(lines: ReferralLine[], bill: ReferralBill): R
   const percent = Math.max(0, Math.min(100, bill.percent));
   return { base, amount: round(base * percent / 100), excluded };
 }
+
+// Anti-cheat: a new referral earns nothing for a while, so a referrer cannot sign a friend up and order drinks on that account at once to collect the commission.
+// Bills paid before the hold ends pay no commission (they are not paid later); bills paid after it do.
+export const DEFAULT_REFERRAL_HOLD_HOURS = 18;
+const MS_PER_HOUR = 3_600_000;
+
+/** When the referral starts to earn: the moment the link was made plus the hold. */
+export function referralReleaseAt(linkedAt: Date, holdHours: number): Date {
+  return new Date(linkedAt.getTime() + Math.max(0, holdHours) * MS_PER_HOUR);
+}
+
+export function isReferralHeld(linkedAt: Date, holdHours: number, now: Date = new Date()): boolean {
+  return holdHours > 0 && now.getTime() < referralReleaseAt(linkedAt, holdHours).getTime();
+}

@@ -42,3 +42,13 @@ describe("referralCommission", () => {
     assert.equal(referralCommission([line()], bill({ percent: 0 })).amount, 0);
   });
 });
+
+import { isReferralHeld, referralReleaseAt } from "./referral";
+
+describe("the hold on a new referral", () => {
+  const linked = new Date("2026-10-22T10:00:00Z");
+  it("should release the referral 18 hours after it was made", () => assert.equal(referralReleaseAt(linked, 18).toISOString(), "2026-10-23T04:00:00.000Z"));
+  it("should hold a bill paid 17 hours after the link", () => assert.equal(isReferralHeld(linked, 18, new Date("2026-10-23T03:00:00Z")), true));
+  it("should pay a bill paid 19 hours after the link", () => assert.equal(isReferralHeld(linked, 18, new Date("2026-10-23T05:00:00Z")), false));
+  it("should never hold when the hold is 0 hours", () => assert.equal(isReferralHeld(linked, 0, new Date("2026-10-22T10:00:01Z")), false));
+});
