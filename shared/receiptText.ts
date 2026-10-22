@@ -186,7 +186,7 @@ export function parseReceiptText(raw: string): ParsedReceipt {
     if (items.length >= MAX_ITEMS) break;
   }
   const sum = items.reduce((total, it) => total + it.lineTotal, 0);
-  return { supplier, supplierPhone: phone, supplierAddress: address, invoiceNo, date: findDate(text), time: findTime(text), total: totals.length ? Math.max(...totals) : sum, ...kindOf(text), items };
+  return { supplier, supplierPhone: phone, supplierAddress: address, invoiceNo, date: findDate(text), time: findTime(text), total: totals.length && Math.max(...totals) >= Math.max(0, ...items.map((it) => it.lineTotal)) ? Math.max(...totals) : sum, // a total smaller than one of its own lines was smudged: the lines' sum is used ...kindOf(text), items };
 }
 
 /** How much of a reading looks right (higher is better): used to pick the better of two readings of one photo. */

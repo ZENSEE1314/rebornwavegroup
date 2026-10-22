@@ -99,3 +99,10 @@ describe("parseReceiptText when the print is smudged and no total can be read", 
   it("should leave an unreadable supplier empty instead of guessing", () => assert.equal(read.supplier, ""));
   it("should score a reading with a consistent item above a reading with none", () => assert.ok(receiptTextScore(read) > receiptTextScore(parseReceiptText("@ TE - LJ"))));
 });
+
+describe("parseReceiptText with a smudged total", () => {
+  it("should use the sum of the lines when the printed total is smaller than a line", () => {
+    const read = parseReceiptText(["PT. LIM SIANG HUAT Invoice", "480 pcs 01.1.101 Carlsberg Bottle 330ml Rp18,541.67 Rp8,900,000.00", "Sale Amount Rpg 900,000.00"].join("\n"));
+    assert.equal(read.total, 8900000);
+  });
+});
