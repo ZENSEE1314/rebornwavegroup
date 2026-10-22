@@ -4885,7 +4885,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
   }));
   app.get("/api/reborn/admin/inventory/receipt/ready", requireStaff(async (_req, res) => res.json({ ai: receiptAiReady() })));
-  app.post("/api/reborn/admin/inventory/receipt/save", requireStaff(async (req, res) => {
+  const saveReceipt = async (req: Request, res: Response) => {
     const b = req.body || {};
     const lines = cleanSaveLines(b.items);
     if (!lines.length) return res.status(400).json({ message: tr(req, { en: "Add at least one line with a quantity", zh: "请至少添加一行并填写数量", id: "Tambahkan minimal satu baris dengan jumlah" }) });
@@ -4964,7 +4964,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       if (error?.message === "missing") return res.status(404).json({ message: tr(req, { en: "An item on the receipt was not found. Reload and try again.", zh: "收据中的某个商品不存在，请刷新后重试。", id: "Ada item di struk yang tidak ditemukan. Muat ulang dan coba lagi." }) });
       throw error;
     }
-  }));
+  };
+  app.post("/api/reborn/admin/inventory/receipt/save", requireStaff(saveReceipt));
+  // Runs a route handler for another route and hands back what it answered instead of sending it.
+  const runHandler = (handler: (req: Request, res: Response) => Promise<any>, req: Request) => new Promise<{ status: number; body: any }>((resolve) => {
+    const res: any = { statusCode: 200, status(code: number) { this.statusCode = code; return this; }, json(body: any) { resolve({ status: this.statusCode, body }); return this; } };
+    Promise.resolve(handler(req, res)).catch((error) => { console.error("handler failed", error); resolve({ status: 500, body: { message: "failed" } }); });
+  });
 
   app.get("/api/reborn/admin/accounting/orders", requireAdmin(async (req, res) => {
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
@@ -5749,14 +5755,34 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const [row] = await db.select().from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, await rebornCompanyId(req))));
     if (!row) return res.status(404).json({ message: tr(req, { en: "Expense not found", zh: "找不到该支出", id: "Pengeluaran tidak ditemukan" }) });
     if (row.status === "voided") return res.status(400).json({ message: tr(req, { en: "Already voided", zh: "已作废", id: "Sudah dibatalkan" }) });
+    await voidExpenseUpload(row, reason, userId);
+    await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_void", entityType: "accounting", description: `Expense #${row.id} (${row.category} RP ${row.amount}) voided: ${reason}` });
+    res.json({ message: tr(req, { en: "Expense voided", zh: "支出已作废", id: "Pengeluaran dibatalkan" }) });
+  }));
+  async function voidExpenseUpload(row: typeof expenseUploads.$inferSelect, reason: string, userId: string) {
     await db.transaction(async (tx) => {
       await tx.update(expenseUploads).set({ status: "voided", voidReason: reason, voidedBy: userId, voidedAt: new Date() }).where(eq(expenseUploads.id, row.id));
       if (row.ledgerEntryId) await tx.update(supplierPayables).set({ status: "void" }).where(and(eq(supplierPayables.ledgerEntryId, row.ledgerEntryId), eq(supplierPayables.status, "unpaid")));
       await tx.insert(ledgerEntries).values({ kind: "income", category: "expense_reversal", amount: row.amount, note: `Expense voided (${row.category}${row.payee ? ` · ${row.payee}` : ""}): ${reason}`, refType: "expense_void", refId: String(row.id), userId });
     });
     if (row.fixedCostId) await syncActualFromUploads(row.fixedCostId, row.spentOn);
-    await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_void", entityType: "accounting", description: `Expense #${row.id} (${row.category} RP ${row.amount}) voided: ${reason}` });
-    res.json({ message: tr(req, { en: "Expense voided", zh: "支出已作废", id: "Pengeluaran dibatalkan" }) });
+  }
+  // An upload that was really food or drinks for the shop: the lines go into the stock like a stock receipt (same save), then the expense upload is voided
+  // (its accounting line is reversed) so the purchase is counted once. Who may: the same people as for an edit.
+  app.post("/api/reborn/expenses/:id/to-stock", requireExpenses(async (req, res) => {
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    const [row] = await db.select().from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, await rebornCompanyId(req))));
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Expense not found", zh: "找不到该支出", id: "Pengeluaran tidak ditemukan" }) });
+    if (row.status !== "active") return res.status(400).json({ message: tr(req, { en: "A voided expense cannot be moved", zh: "已作废的支出不能转入库存", id: "Pengeluaran yang dibatalkan tidak bisa dipindahkan" }) });
+    if (!canEditExpense(role, userId, row)) return res.status(403).json({ message: tr(req, { en: "You can change your own uploads for 24 hours; ask a manager after that", zh: "你只能在 24 小时内更改自己的上传；之后请找经理", id: "Anda bisa mengubah unggahan sendiri selama 24 jam; setelah itu minta manajer" }) });
+    const sub: any = Object.create(req);
+    sub.body = { ...req.body, kind: "goods", photoUrl: typeof req.body?.photoUrl === "string" && req.body.photoUrl.startsWith("data:image/") ? req.body.photoUrl : row.photoUrl };
+    const outcome = await runHandler(saveReceipt, sub);
+    if (outcome.status !== 200) return res.status(outcome.status).json(outcome.body);
+    await voidExpenseUpload(row, "Moved to stock (Food & drinks)", userId);
+    await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_to_stock", entityType: "accounting", description: `Expense #${row.id} (${row.category} RP ${row.amount}) moved to stock: ${outcome.body.lines} lines` });
+    res.json({ ...outcome.body, message: tr(req, { en: "Moved to stock: {n} lines added to the inventory and the expense was replaced.", zh: "已转入库存：{n} 行已入库，原支出已替换。", id: "Dipindahkan ke stok: {n} baris masuk inventaris dan pengeluaran diganti." }, { n: String(outcome.body.lines) }) });
   }));
 
   // ── Tax and service fee (Admin › Accounting › Tax and service fee): a change only reaches bills opened after it, every change is kept with who made it ──

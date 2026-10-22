@@ -1243,6 +1243,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'ex.pm.card': { en: "Card", zh: "刷卡", id: "Kartu" },
   'ex.markPaid.cash': { en: "Paid by cash", zh: "现金支付", id: "Dibayar tunai" },
   'ex.markPaid.card': { en: "Paid by card", zh: "刷卡支付", id: "Dibayar kartu" },
+  'ex.moveToStock': { en: "Move to stock", zh: "转入库存", id: "Pindahkan ke stok" },
+  'ex.moveNote': { en: "This expense will be replaced by a stock delivery: the lines go into the inventory, and the old expense is voided so it is not counted twice.", zh: "此支出将被入库记录取代：物品加入库存，旧支出作废，不会重复计算。", id: "Pengeluaran ini akan diganti dengan penerimaan stok: barisnya masuk inventaris dan pengeluaran lama dibatalkan agar tidak dihitung dua kali." },
   'ex.none': { en: "No expenses this month yet.", zh: "本月还没有支出。", id: "Belum ada pengeluaran bulan ini." },
   'ar.open': { en: "Tap a line to see every entry behind it and where it came from.", zh: "点击任意一项，查看它背后的每一笔记录及其来源。", id: "Ketuk satu baris untuk melihat setiap catatan di baliknya dan dari mana asalnya." },
   'ar.noLines': { en: "No entries in this line.", zh: "此项没有记录。", id: "Tidak ada catatan di baris ini." },

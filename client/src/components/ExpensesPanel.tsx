@@ -60,7 +60,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const [voiding, setVoiding] = useState<Expense | null>(null);
   const [reason, setReason] = useState("");
   const [photo, setPhoto] = useState<{ id: number; url: string | null } | null>(null);
-  const isStock = !editingId && form.category === STOCK_KIND; // an upload being corrected cannot become a stock delivery (add that as a new one)
+  const isStock = form.category === STOCK_KIND; // while editing an upload this moves it to the stock: the expense is replaced by a stock delivery
   const dueDate = isPaid ? "" : dueDateFrom(form.spentOn, Number(termsDays));
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()), enabled: isStock });
   const inventoryByName = [...inventory].sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -70,7 +70,9 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const refresh = () => { qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/expenses") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/fixed-costs"] }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); };
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
-    mutationFn: () => (editingId
+    mutationFn: () => (editingId && isStock
+      ? apiRequest("POST", `/api/reborn/expenses/${editingId}/to-stock`, { supplier: form.payee, supplierPhone: form.payeePhone, invoiceNo: form.invoiceNo, date: form.spentOn, photoUrl: form.photoUrl || null, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: stockLines.map((l) => ({ productId: l.productId ?? null, name: l.name, qty: l.qty, unitCost: l.unitCost, packSize: l.packSize || 1 })) })
+      : editingId
       ? apiRequest("POST", `/api/reborn/expenses/${editingId}/edit`, { ...form, photoUrl: form.photoUrl || undefined, fixedCostId: form.fixedCostId || null, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
       : isStock
       ? apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "goods", supplier: form.payee, supplierPhone: form.payeePhone, invoiceNo: form.invoiceNo, date: form.spentOn, photoUrl: form.photoUrl || null, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: stockLines.map((l) => ({ productId: l.productId ?? null, name: l.name, qty: l.qty, unitCost: l.unitCost, packSize: l.packSize || 1 })) })
@@ -149,7 +151,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   }, [form.photoUrl, reader?.ai]);
   const isChecked = readState === "done";
   const ring = (value: string | number) => (isChecked && !value ? CHECK_RING : "");
-  const isReady = (!isPaid || !!payMethod) && (editingId ? !!form.category && Number(form.amount) > 0 && !!form.spentOn : isStock ? stockLines.length > 0 && !!form.spentOn : !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim()));
+  const isReady = (!isPaid || !!payMethod) && (editingId && !isStock ? !!form.category && Number(form.amount) > 0 && !!form.spentOn : isStock ? stockLines.length > 0 && !!form.spentOn : !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim()));
   return (
     <div className="space-y-3">
       <div className={card + " space-y-3"}>
@@ -166,7 +168,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <label className="block text-xs text-white/60">{t("ex.category")}
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field + " mt-1" + ring(form.category)}>
               <option value="">—</option>
-              {!editingId && <option value={STOCK_KIND}>{t("ex.cat.stock")}</option>}
+              <option value={STOCK_KIND}>{t("ex.cat.stock")}</option>
               {EXPENSE_GROUPS.filter((group) => (data?.categories || []).some((c) => groupOf(c) === group)).map((group) => (
                 <optgroup key={group} label={t(`ar.group.${group}`)}>{(data?.categories || []).filter((c) => groupOf(c) === group).map((c) => <option key={c} value={c}>{t(`ex.cat.${c}`)}</option>)}</optgroup>
               ))}
@@ -203,6 +205,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
             <p className="text-xs text-white/60">{t("ex.items")}</p>
             <button type="button" onClick={() => setLines([...lines, newLine()])} className="min-h-0 px-2 py-1 rounded-lg bg-white/10 text-xs inline-flex items-center gap-1"><Plus className="w-3 h-3" /> {t("ex.addLine")}</button>
           </div>
+          {isStock && editingId && <p className="text-[11px] font-semibold text-amber-200">{t("ex.moveNote")}</p>}
           {isStock && <p className="text-[11px] text-emerald-300">{t("ex.stockNote")}</p>}
           {isStock && lines.length > 0 && <p className="text-[11px] font-semibold text-white/70">{t("ex.stockSummary", { a: String(stockLines.filter((l) => l.productId).length), b: String(stockLines.filter((l) => !l.productId).length) })}</p>}
           {isStock && lines.map((line) => (
@@ -235,7 +238,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           {lines.length > 0 && <p className="text-[11px] text-white/50">{t("ex.itemsSum", { n: money(linesTotal) })}</p>}
         </div>
         <p className="text-[11px] text-white/40">{t("ex.needProof")}</p>
-        <button type="button" onClick={() => save.mutate()} disabled={!isReady || save.isPending} className="min-h-[44px] px-5 rounded-lg bg-amber-400 text-black text-sm font-bold disabled:opacity-40">{editingId ? t("ex.saveChanges") : t("ex.save")}</button>
+        <button type="button" onClick={() => save.mutate()} disabled={!isReady || save.isPending} className="min-h-[44px] px-5 rounded-lg bg-amber-400 text-black text-sm font-bold disabled:opacity-40">{editingId ? (isStock ? t("ex.moveToStock") : t("ex.saveChanges")) : t("ex.save")}</button>
       </div>
 
       {(payables?.payables || []).length > 0 && (

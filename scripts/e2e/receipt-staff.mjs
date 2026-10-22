@@ -140,6 +140,20 @@ check("marking a bill paid needs cash or card too", r.status === 400, JSON.strin
 r = await boss("POST", `/api/reborn/expenses/payables/${laterBill.id}/pay`, { method: "card" });
 check("and it records the method", r.status === 200 && r.json.payable.payMethod === "card", JSON.stringify(r.json));
 
+// an upload that was really food or drinks is moved to the stock: the expense is replaced, the purchase counted once
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "supplies", amount: 60000, spentOn: today, payee: "Warung Pindah " + tag, note: "air galon" });
+const toMove = r.json.expense;
+r = await staff("POST", `/api/reborn/expenses/${toMove.id}/to-stock`, { supplier: "Warung Pindah " + tag, date: today, paid: true, payMethod: "cash", items: [{ productId: null, name: "Air Galon " + tag, qty: 4, unitCost: 15000, packSize: 1 }] });
+check("an upload is moved to the stock", r.status === 200 && r.json.created === 1 && r.json.lines === 1, JSON.stringify(r.json));
+const moved = (await db.query("SELECT status, void_reason FROM expense_uploads WHERE id=$1", [toMove.id])).rows[0];
+check("the old expense is voided with the reason", moved.status === "voided" && /stock/i.test(moved.void_reason), JSON.stringify(moved));
+const newItem = (await db.query("SELECT id, stock, pos_visible FROM pos_products WHERE name=$1", ["Air Galon " + tag])).rows[0];
+check("the new item is in the inventory with its stock, hidden from the POS", !!newItem && newItem.stock === 4 && newItem.pos_visible === false, JSON.stringify(newItem));
+const bookKinds = (await db.query("SELECT ref_type FROM ledger_entries WHERE ref_id = $1 OR ref_id = $2 ORDER BY id", [String(toMove.id), "none"])).rows.map((x) => x.ref_type);
+check("the expense's accounting line is reversed", bookKinds.includes("expense_void"), JSON.stringify(bookKinds));
+r = await staff("POST", `/api/reborn/expenses/${toMove.id}/to-stock`, { supplier: "x", date: today, paid: true, payMethod: "cash", items: [{ productId: null, name: "Again " + tag, qty: 1, unitCost: 1000, packSize: 1 }] });
+check("a voided expense cannot be moved again", r.status === 400, JSON.stringify(r));
+
 r = await staff("GET", "/api/reborn/admin/accounting/ledger");
 check("the cashier cannot open the accounts (ledger)", r.status === 403 || r.status === 401, r.status);
 r = await staff("GET", "/api/reborn/admin/accounting/summary");
