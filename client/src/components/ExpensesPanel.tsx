@@ -60,7 +60,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const [voiding, setVoiding] = useState<Expense | null>(null);
   const [reason, setReason] = useState("");
   const [photo, setPhoto] = useState<{ id: number; url: string | null } | null>(null);
-  const isStock = form.category === STOCK_KIND;
+  const isStock = !editingId && form.category === STOCK_KIND; // an upload being corrected cannot become a stock delivery (add that as a new one)
   const dueDate = isPaid ? "" : dueDateFrom(form.spentOn, Number(termsDays));
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()), enabled: isStock });
   const inventoryByName = [...inventory].sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -166,7 +166,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <label className="block text-xs text-white/60">{t("ex.category")}
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field + " mt-1" + ring(form.category)}>
               <option value="">—</option>
-              <option value={STOCK_KIND}>{t("ex.cat.stock")}</option>
+              {!editingId && <option value={STOCK_KIND}>{t("ex.cat.stock")}</option>}
               {EXPENSE_GROUPS.filter((group) => (data?.categories || []).some((c) => groupOf(c) === group)).map((group) => (
                 <optgroup key={group} label={t(`ar.group.${group}`)}>{(data?.categories || []).filter((c) => groupOf(c) === group).map((c) => <option key={c} value={c}>{t(`ex.cat.${c}`)}</option>)}</optgroup>
               ))}
