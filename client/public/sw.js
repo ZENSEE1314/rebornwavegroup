@@ -13,8 +13,10 @@ self.addEventListener("activate", (e) => e.waitUntil(
 const SHELL = "rw-shell-v3"; // a new name drops the pages and files saved by an older version
 const API = "rw-api-v1";
 const SHELL_KEY = "/__shell";
-const NAVIGATE_TIMEOUT_MS = 10000; // a slow (not offline) connection still gets the newest page
-const API_TIMEOUT_MS = 8000;
+// A copy of the server running on a PC at the venue (localhost) reaches the cloud database over a slow line: wait much longer there before showing the saved copy as "no internet".
+const IS_LOCAL_COPY = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
+const NAVIGATE_TIMEOUT_MS = IS_LOCAL_COPY ? 60000 : 10000; // a slow (not offline) connection still gets the newest page
+const API_TIMEOUT_MS = IS_LOCAL_COPY ? 60000 : 8000;
 const API_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const CACHED_AT = "x-sw-cached-at";
 // Every page of the app can be opened offline: the last answer of each read (GET) is kept for 3 days and shown when the network is down.
