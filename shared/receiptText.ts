@@ -8,6 +8,8 @@ export interface ParsedReceipt {
 
 const MAX_ITEMS = 80;
 const MIN_PRICE = 100;
+const MAX_SHORT_WORD_SHARE = 0.3; // real descriptions have few one- or two-letter words
+const MIN_UNIT_PRICE = 1000; // no goods are priced under Rp 1,000: a smaller figure is a stray number
 const MAX_QTY = 10_000;
 const TOLERANCE = 0.005;
 const ADDRESS_LOOKAHEAD_LINES = 5;
@@ -62,6 +64,13 @@ const cleanName = (s: string) => s.replace(/[|_~=]+/g, " ").replace(/^[\s\-*.:#)
 const letters = (s: string) => (s.match(/[A-Za-zÀ-￿]/g) || []).length;
 const near = (a: number, b: number) => b > 0 && Math.abs(a - b) <= Math.max(1, b * TOLERANCE);
 
+/** A description made of real words: at least half of its words have three or more letters, and one has four (smudged print comes out as "Yel Le omer we WRG TT ee"). */
+function isReadableName(name: string): boolean {
+  const words = name.split(/\s+/).filter(Boolean);
+  const short = words.filter((w) => letters(w) <= 2).length;
+  return words.some((w) => letters(w) >= 4) && short <= Math.max(1, Math.floor(words.length * MAX_SHORT_WORD_SHARE));
+}
+
 /** Words before the price: in a table row the quantity, unit and item code come first and the description after them ("480 pcs 01.1.101 CBN2D 24 Carlsberg Bottle 330ml"). */
 function itemNameFrom(before: string): string {
   const withoutTail = before.replace(/\s*\d*\s*[x×@*]\s*$/i, "").replace(/\s+\d+\s*$/, "");
@@ -91,10 +100,24 @@ function readItem(line: string, documentTotal: number): ParsedReceipt["items"][n
     }
   }
   // Otherwise a unit price and a line total tie together through the quantity: 24 × 20,000 = 480,000.
-  for (let i = 0; !best && i < money.length; i++) {
-    for (let j = i + 1; j < money.length; j++) {
-      const qty = Math.round(money[j].value / money[i].value);
-      if (qty >= 1 && qty <= MAX_QTY && near(qty * money[i].value, money[j].value) && (!best || money[j].value > best.total.value)) best = { unit: money[i], total: money[j], qty };
+  // A pair whose quantity is also printed on the line ("480 pcs") beats one that only happens to divide ("1875 × 480").
+  if (!best) {
+    const printed = new Set(nums.filter((n) => Number.isInteger(n.value) && n.value > 0).map((n) => n.value));
+    let bestPrinted = false;
+    for (let i = 0; i < money.length; i++) {
+      for (let j = i + 1; j < money.length; j++) {
+        const qty = Math.round(money[j].value / money[i].value);
+        if (!(qty >= 1 && qty <= MAX_QTY && near(qty * money[i].value, money[j].value))) continue;
+        const isPrinted = printed.has(qty);
+        if (!best || (isPrinted && !bestPrinted) || (isPrinted === bestPrinted && money[j].value > best.total.value)) { best = { unit: money[i], total: money[j], qty }; bestPrinted = isPrinted; }
+      }
+    }
+    // Nothing ties together (a smudged total) but the row says "480 pcs": that is the quantity and the next amount after it is the price.
+    const qtyWithUnit = /(\d{1,5})\s*(pcs?|pes|unit|btl|botol|ctn|karton|dus|box|krat|pack|pak)\b/i.exec(line);
+    if (qtyWithUnit && (!best || !bestPrinted)) {
+      const after = (qtyWithUnit.index ?? 0) + qtyWithUnit[0].length;
+      const price = money.find((n) => n.at >= after && n.value !== Number(qtyWithUnit[1]));
+      if (price) best = { unit: price, total: { at: price.at, value: Number(qtyWithUnit[1]) * price.value }, qty: Number(qtyWithUnit[1]) };
     }
   }
   if (!best && money.length > 1 && money[money.length - 1].value < money[money.length - 2].value) return null; // numbers that do not read as price then total (a bank account line)
@@ -113,8 +136,8 @@ function readItem(line: string, documentTotal: number): ParsedReceipt["items"][n
     const lead = /^(\d{1,4})\s*[x×]?\s+/.exec(line.trim());
     if (lead && Number(lead[1]) > 0) qty = Number(lead[1]);
   }
-  if (letters(name) < 2) return null;
-  const unit = (line.match(/\b(pcs?|pes|btl|botol|ctn|karton|dus|box|krat|pack|pak)\b/i)?.[1] || "").toLowerCase();
+  if (letters(name) < 2 || unitCost < MIN_UNIT_PRICE || !isReadableName(name)) return null;
+  const unit =(line.match(/\b(pcs?|pes|btl|botol|ctn|karton|dus|box|krat|pack|pak)\b/i)?.[1] || "").toLowerCase();
   return { name, qty, unit, packSize: 0, unitCost, lineTotal: lineTotal || unitCost * qty, matchedProduct: "" };
 }
 
@@ -147,7 +170,7 @@ export function parseReceiptText(raw: string): ParsedReceipt {
   const text = lines.join("\n");
   const phone = (MOBILE_RE.exec(text) || LANDLINE_RE.exec(text))?.[0].replace(/\s+/g, " ").trim() || "";
   const supplierIndex = lines.slice(0, 6).findIndex((l) => COMPANY_RE.test(l));
-  const fallbackIndex = lines.slice(0, 6).findIndex((l) => letters(l) >= 3 && !ADDRESS_WORDS_RE.test(l) && !MOBILE_RE.test(l) && !findDate(l) && !/^(struk|nota|invoice|faktur|receipt)/i.test(l));
+  const fallbackIndex = lines.slice(0, 6).findIndex((l) => isReadableName(l.replace(DOCUMENT_WORD_RE, "")) && !ADDRESS_WORDS_RE.test(l) && !MOBILE_RE.test(l) && !LANDLINE_RE.test(l) && Array.from(l.matchAll(NUMBER_RE)).filter((t) => parseAmount(t[0]) >= MIN_PRICE).length < 2 && !findDate(l) && !/^(struk|nota|invoice|faktur|receipt)/i.test(l));
   const supplierAt = supplierIndex >= 0 ? supplierIndex : fallbackIndex;
   const supplier = supplierAt >= 0 ? cleanName(lines[supplierAt].replace(DOCUMENT_WORD_RE, "")) : "";
   const address = findAddress(lines, supplierAt);
@@ -164,4 +187,16 @@ export function parseReceiptText(raw: string): ParsedReceipt {
   }
   const sum = items.reduce((total, it) => total + it.lineTotal, 0);
   return { supplier, supplierPhone: phone, supplierAddress: address, invoiceNo, date: findDate(text), time: findTime(text), total: totals.length ? Math.max(...totals) : sum, ...kindOf(text), items };
+}
+
+/** How much of a reading looks right (higher is better): used to pick the better of two readings of one photo. */
+export function receiptTextScore(read: ParsedReceipt): number {
+  let score = 0;
+  if (read.supplier) score += 2;
+  if (read.date) score += 1;
+  if (read.invoiceNo) score += 1;
+  if (read.supplierPhone) score += 1;
+  if (read.total > 0) score += 1;
+  for (const item of read.items) score += near(item.qty * item.unitCost, item.lineTotal) ? 3 : -1;
+  return score;
 }

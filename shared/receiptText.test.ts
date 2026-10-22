@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseAmount, parseReceiptText } from "./receiptText";
+import { parseAmount, parseReceiptText, receiptTextScore } from "./receiptText";
 
 const SAMPLE = [
   "CV SINAR BINTANG",
@@ -82,4 +82,20 @@ describe("parseReceiptText on a real invoice with one item", () => {
     it(`should read the total (${label})`, () => assert.equal(read.total, 8900000));
     it(`should keep the supplier's address and leave the buyer's out (${label})`, () => assert.ok(read.supplierAddress.includes("Industrial Park") && !read.supplierAddress.includes("Oceanic")));
   }
+});
+
+const REAL_INVOICE_NO_TOTAL = [
+  "@ TE - LJ",
+  "Bip : (0778) 430359, 430360 Fax : (0778) 431813",
+  "Invoice 6105064 22-10-2026 05-11-26",
+  "Evid 480 pcs 01.1.101CBN2D24 Carlsberg Bottle 330ml Rp18,541.67 Rp&,900,000.00 1318",
+  "[Yel Le omer abageg we WRG TT ee ITER Bi SET 5508",
+].join("\n");
+
+describe("parseReceiptText when the print is smudged and no total can be read", () => {
+  const read = parseReceiptText(REAL_INVOICE_NO_TOTAL);
+  it("should take the printed quantity and the price after it", () => assert.deepEqual([read.items[0].qty, read.items[0].unitCost], [480, 18541.67]));
+  it("should drop a line of broken letters", () => assert.equal(read.items.length, 1));
+  it("should leave an unreadable supplier empty instead of guessing", () => assert.equal(read.supplier, ""));
+  it("should score a reading with a consistent item above a reading with none", () => assert.ok(receiptTextScore(read) > receiptTextScore(parseReceiptText("@ TE - LJ"))));
 });

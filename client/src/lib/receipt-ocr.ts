@@ -1,6 +1,10 @@
 // Reads a receipt photo for the admin forms. With the AI key on the server the server reads it; without one the browser reads the letters itself
 // (tesseract.js, loaded only when used, English + Indonesian) and the server turns the text into supplier / date / items and matches the items.
 import { apiRequest } from "@/lib/queryClient";
+import { parseReceiptText, receiptTextScore } from "@shared/receiptText";
+
+const GOOD_SCORE = 9; // supplier + date + invoice + phone + total + one item whose figures tie together
+const PASS_SHARE = 0.5;
 
 const READ_URL = "/api/reborn/admin/inventory/receipt/read";
 const READ_TEXT_URL = "/api/reborn/admin/inventory/receipt/read-text";
@@ -45,14 +49,20 @@ async function prepareForOcr(src: string): Promise<HTMLCanvasElement | string> {
   }
 }
 
+/** The photo is read as it is; only when that reading looks weak is it read again, enlarged and made greyer, and the better of the two is kept. */
 export async function ocrReceiptText(image: string, onProgress?: (percent: number) => void): Promise<string> {
   const { createWorker } = await import("tesseract.js");
+  let offset = 0;
   const worker = await createWorker(OCR_LANGUAGES, 1, {
-    logger: (message: { status: string; progress: number }) => { if (message.status === "recognizing text") onProgress?.(Math.round(message.progress * PERCENT)); },
+    logger: (message: { status: string; progress: number }) => { if (message.status === "recognizing text") onProgress?.(Math.round((offset + message.progress * PASS_SHARE) * PERCENT)); },
   });
   try {
-    const { data } = await worker.recognize(await prepareForOcr(image));
-    return data.text;
+    const plain = (await worker.recognize(image)).data.text;
+    const plainScore = receiptTextScore(parseReceiptText(plain));
+    if (plainScore >= GOOD_SCORE) return plain;
+    offset = PASS_SHARE;
+    const enhanced = (await worker.recognize(await prepareForOcr(image))).data.text;
+    return receiptTextScore(parseReceiptText(enhanced)) > plainScore ? enhanced : plain;
   } finally {
     await worker.terminate();
   }
