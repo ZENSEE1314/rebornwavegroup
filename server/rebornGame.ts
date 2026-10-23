@@ -16,6 +16,7 @@ import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
 import { parseReceiptText } from "@shared/receiptText";
+import { canEarn, commissionFor, eligibleStaffOf, ruleOf } from "@shared/itemCommission";
 import { cleanDays, clockInZone, dealOf, freeUnitsFor, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
@@ -71,7 +72,7 @@ import {
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, staffCharges, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, staffCharges, staffItemCommissions, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
   staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory, expenseUploads, expenseVendors, supplierPayables,
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
@@ -1408,6 +1409,12 @@ const saleTicksOf = (b: any) => ({
   ...(b?.appDiscountOk === undefined || b.appDiscountOk === null ? {} : { appDiscountOk: !!b.appDiscountOk }),
   ...(b?.referralOk === undefined || b.referralOk === null ? {} : { referralOk: !!b.referralOk }),
 });
+// The item staff-commission rule from a request (kind "percent" | "fixed" + value); anything else clears it.
+const staffCommissionFields = (b: any) => {
+  const rule = ruleOf({ kind: b?.staffCommissionKind, value: b?.staffCommissionValue });
+  const staffIds = eligibleStaffOf(b?.staffCommissionStaffIds);
+  return { staffCommissionKind: rule ? rule.kind : null, staffCommissionValue: String(rule ? rule.value : 0), staffCommissionStaffIds: rule && staffIds.length ? JSON.stringify(staffIds) : null };
+};
 const DEADLOCK_CODE = "40P01";
 const DEADLOCK_RETRIES = 3;
 // Two staff changing the same bill at once can make Postgres cancel one of them ("deadlock detected"): that one is simply run again.
@@ -3785,7 +3792,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       cost: isService ? "0" : String(Number(b.cost) || 0), stock: isService ? 0 : Number(b.stock) || 0, imageUrl: await pictureFromAddress(b.imageUrl),
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
-      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, appDiscountOk: b.appDiscountOk !== false, sortOrder: Number(b.sortOrder) || 0,
+      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, appDiscountOk: b.appDiscountOk !== false, ...staffCommissionFields(b), sortOrder: Number(b.sortOrder) || 0,
       ...happyFieldsOf(b),
       isService: !!b.isService,
       ...packageFields(b),
@@ -3832,6 +3839,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
     if (b.referralOk !== undefined) patch.referralOk = !!b.referralOk;
     if (b.appDiscountOk !== undefined) patch.appDiscountOk = !!b.appDiscountOk;
+    if (b.staffCommissionKind !== undefined || b.staffCommissionValue !== undefined || b.staffCommissionStaffIds !== undefined) Object.assign(patch, staffCommissionFields({ staffCommissionKind: prev.staffCommissionKind, staffCommissionValue: prev.staffCommissionValue, staffCommissionStaffIds: prev.staffCommissionStaffIds, ...b }));
     if (b.isService !== undefined) patch.isService = !!b.isService;
     if (patch.isService) patch.cost = "0"; // a service has no cost and holds no stock (its stock count is ignored from now on)
     if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined || b.happyBuyQty !== undefined || b.happyFreeQty !== undefined || b.happyDays !== undefined) Object.assign(patch, happyFieldsOf({ happyDays: prev.happyDays, happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, happyBuyQty: prev.happyBuyQty, happyFreeQty: prev.happyFreeQty, ...b }));
@@ -4036,6 +4044,51 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       .from(users).where(or(eq(users.role, "staff"), eq(users.role, "admin"))).orderBy(users.firstName).limit(200);
     res.json(rows.map((u) => ({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email, role: u.role })));
   }));
+  // Staff commission on items (ladies drinks): when a bill is paid, every paid line of an item with a rule earns its commission for the person picked on the
+  // line (else the one who ordered it, else the cashier). A refund cancels what is not yet in a payroll.
+  const bookItemCommissions = async (ticketId: number, cashierId: string | null) => {
+    try {
+      const lines = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, ticketId));
+      const ids = Array.from(new Set(lines.map((l) => l.productId).filter((x): x is number => !!x)));
+      if (ids.length === 0) return;
+      const products = new Map((await db.select().from(posProducts).where(inArray(posProducts.id, ids))).map((p) => [p.id, p]));
+      const cid = await rebornCompanyId();
+      const decimals = companyMoney().decimals;
+      await db.delete(staffItemCommissions).where(and(eq(staffItemCommissions.ticketId, ticketId), isNull(staffItemCommissions.settledAt)));
+      for (const line of lines) {
+        if (GONE_ITEM.includes(line.status) || line.status === "cancelled" || !line.productId) continue;
+        const product = products.get(line.productId);
+        const amount = commissionFor({ kind: product?.staffCommissionKind, value: product?.staffCommissionValue }, Number(line.lineTotal), line.qty, decimals);
+        const eligible = eligibleStaffOf(product?.staffCommissionStaffIds);
+        // The picked person, else whoever ordered it, else the cashier: the first of them the item's list allows (any when the item has no list).
+        const userId = [line.commissionStaffId, line.source === "app" ? null : line.addedBy, cashierId].find((id) => canEarn(eligible, id)) || null;
+        if (amount <= 0 || !userId) continue;
+        await db.insert(staffItemCommissions).values({ companyId: cid, userId, ticketId, itemId: line.id, name: line.name, qty: line.qty, base: String(Number(line.lineTotal)), amount: String(amount) });
+      }
+    } catch (error) { console.error("[item commission]", error); }
+  };
+  const voidItemCommissions = async (ticketId: number) => {
+    await db.update(staffItemCommissions).set({ voidedAt: new Date() }).where(and(eq(staffItemCommissions.ticketId, ticketId), isNull(staffItemCommissions.settledAt), isNull(staffItemCommissions.voidedAt)));
+  };
+  // Pick who earns the staff commission of one bill line (a ladies drink): any staff member / admin; empty = back to the person who ordered it.
+  app.post("/api/reborn/pos/items/:id/commission-staff", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [line] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
+    if (!line) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
+    const staffId = String(req.body?.staffId || "").trim();
+    let name: string | null = null;
+    if (staffId && line.productId) {
+      const [product] = await db.select({ ids: posProducts.staffCommissionStaffIds }).from(posProducts).where(eq(posProducts.id, line.productId));
+      if (!canEarn(eligibleStaffOf(product?.ids), staffId)) return res.status(400).json({ message: tr(req, { en: "This item's commission is only for the staff chosen in Inventory", zh: "此商品的佣金只给库存中指定的员工", id: "Komisi item ini hanya untuk staf yang dipilih di Inventory" }) });
+    }
+    if (staffId) {
+      const person = await storage.getUser(staffId);
+      if (!person || (person.role !== "staff" && person.role !== "admin")) return res.status(400).json({ message: tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" }) });
+      name = [person.firstName, person.lastName].filter(Boolean).join(" ") || person.username || person.email || staffId;
+    }
+    await db.update(posTicketItems).set({ commissionStaffId: staffId || null, commissionStaffName: name }).where(eq(posTicketItems.id, id));
+    res.json({ ok: true, staffId: staffId || null, staffName: name });
+  }));
   // Commission paid to someone for a sale (an agent, a driver ...): our own cost. It never raises what the customer pays and is left off the customer's copy of the receipt.
   const COMMISSION_TYPES_KEY = "commissionTypes";
   const COMMISSION_LABEL_MAX = 40;
@@ -4214,6 +4267,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), ...(offlineAt ? { createdAt: offlineAt } : {}), userId: u?.id || null });
     if (commission) await bookCommission(row.id, row.orderNo, commission, staffId);
     if (!costRequest.atCost) await payReferral(row.id, { subtotal, discount, total, due }, settings);
+    await bookItemCommissions(row.id, staffId);
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: row.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: row.id });
     if (u?.id) await notifyUserI18n(u.id, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: row.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: row.id });
     const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, staffId, reqLang(req)) : null;
@@ -4563,6 +4617,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const commission = commissionOf(req.body, subtotal - discount);
     if (commission) { await db.update(posTickets).set(commissionColumns(commission)).where(eq(posTickets.id, id)); await bookCommission(id, o.orderNo, commission, staffId); }
     if (!costRequest.atCost) await payReferral(id, { subtotal, discount, total, due }, settings);
+    await bookItemCommissions(id, staffId);
     await notifyStaffI18n("payment_completed", (lang) => ({ title: pick(lang, { en: "Payment completed · {no}", zh: "付款完成 · {no}", id: "Pembayaran selesai · {no}" }, { no: o.orderNo }), body: `RP ${fmtN(total, lang)} · ${methodLabel(paymentMethod, lang)}` }), { path: "/reborn-admin", ticketId: id });
     if (o.memberId) await notifyUserI18n(o.memberId, "order_paid", (lang) => ({ title: pick(lang, { en: "Payment completed", zh: "付款完成", id: "Pembayaran selesai" }), body: pick(lang, { en: "{no} · RP {n}. Your receipt is ready.", zh: "{no} · RP {n}。你的收据已准备好。", id: "{no} · RP {n}. Struk kamu sudah siap." }, { no: o.orderNo, n: fmtN(total, lang) }) }), { path: "/history", ticketId: id });
     const [member] = o.memberId ? await db.select().from(users).where(eq(users.id, o.memberId)).limit(1) : [];
@@ -5083,6 +5138,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     if (paidAmount > 0) await db.insert(ledgerEntries).values({ kind: "expense", category: "refund", amount: String(paidAmount), note: `Refund ${order.orderNo}: ${reason}`, refType: "pos_refund", refId: String(id), userId: order.memberId || null });
     await reverseReferralCommission(id); // the referrer's RP credits for this bill go back
+    await voidItemCommissions(id);
     if (Number(order.commissionAmount) > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "commission_reversal", amount: String(order.commissionAmount), note: `Commission returned (refund ${order.orderNo})`, refType: "pos_commission_reversal", refId: String(id), userId: actorId });
     return { status: 200 as const, body: { message: tr(req, { en: "{no} refunded and stock restored", zh: "{no} 已退款，库存已恢复", id: "{no} di-refund dan stok dikembalikan" }, { no: order.orderNo }), order: { ...updated, items } }, order };
   };
@@ -5209,7 +5265,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const otRate=(await getSettings()).overtimeHourlyRate;
     const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,(SELECT bp.name FROM bridge_positions bp WHERE bp.id=m.position_id) position_name,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(p.staff_kind,'staff') staff_kind,p.shift_start,p.shift_end,COALESCE(p.needs_attendance,true) needs_attendance,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
-    const staff=((result.rows||result) as any[]).map((x)=>{const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
+    const itemCommissionRows=((await db.execute(sql`SELECT user_id,sum(amount)::numeric total,count(*)::int n FROM staff_item_commissions WHERE voided_at IS NULL AND created_at>=${new Date(from+"T00:00:00Z")} AND created_at<${new Date(to+"T00:00:00Z")} GROUP BY user_id`)) as any);
+    const itemCommissionOf=new Map(((itemCommissionRows.rows||itemCommissionRows) as any[]).map((r:any)=>[r.user_id,{total:roundMoney(Number(r.total)),count:Number(r.n)}]));
+    const staff=((result.rows||result) as any[]).map((x)=>{const itemCommission=itemCommissionOf.get(x.user_id)?.total||0;const itemCommissionCount=itemCommissionOf.get(x.user_id)?.count||0;const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100+itemCommission);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,itemCommission,itemCommissionCount,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     // Leave, MC and absence of the month (shared/payrollLeave.ts): the unpaid days are taken off a salaried person's pay, and the deduction box starts filled in with it.
     const leaveRules=await readLeaveRules();
     const leaveRows=((await db.execute(sql`SELECT user_id,type,start_date,end_date,paid FROM leave_requests WHERE status='approved' AND start_date<${to} AND end_date>=${from} AND (company_id=${reborn.id} OR company_id IS NULL)`)) as any);
@@ -5260,6 +5318,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(roundMoney(amount-deduction)),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}${deduction>0?`, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}`:""}, net pay ${netPay}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
     if(c.employer>0)await db.insert(ledgerEntries).values({kind:"expense",category:"statutory_contribution",amount:String(c.employer),note:`Employer contributions ${b.name||userId} · ${month}${parts?` (${parts})`:""}`,refType:"payroll_employer",refId:`${userId}:${month}`,userId});
     const chargeIds=(Array.isArray(b.chargeIds)?b.chargeIds:[]).map((x:unknown)=>Number(x)).filter((x:number)=>Number.isInteger(x)&&x>0);
+    await db.execute(sql`UPDATE staff_item_commissions SET settled_at=now() WHERE user_id=${userId} AND voided_at IS NULL AND settled_at IS NULL AND created_at>=${new Date(month+"-01T00:00:00Z")} AND created_at<${new Date(new Date(month+"-01T00:00:00Z").setUTCMonth(new Date(month+"-01T00:00:00Z").getUTCMonth()+1))}`);
     if(chargeIds.length)await db.update(staffCharges).set({settledAt:new Date(),settledNote:`Taken from the pay of ${month}`}).where(and(inArray(staffCharges.id,chargeIds),eq(staffCharges.userId,userId),isNull(staffCharges.settledAt)));
     await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}, net ${netPay}, employer ${c.employer}`});
     // The payslip: what was earned (the parts must add up to the gross, else it is all "basic"), what the staff member paid, and the net pay.

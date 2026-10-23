@@ -910,6 +910,9 @@ export const posProducts = pgTable("pos_products", {
   happyEnd: varchar("happy_end"),
   happyDays: varchar("happy_days"),                             // weekdays it runs on "1,2,5" (0 = Sunday); empty = every day
   happyOnly: boolean("happy_only").default(false).notNull(),
+  staffCommissionKind: varchar("staff_commission_kind"),        // ladies drink etc.: "percent" | "fixed" | empty = none
+  staffCommissionStaffIds: text("staff_commission_staff_ids"),  // JSON list of the staff who may earn it; empty = any staff member
+  staffCommissionValue: decimal("staff_commission_value", { precision: 14, scale: 2 }).default("0").notNull(),
   appDiscountOk: boolean("app_discount_ok").default(true).notNull(), // false = the app-order discount never applies to this item
   referralOk: boolean("referral_ok").default(true).notNull(),   // false = a referrer never earns commission on this item
   happyBuyQty: integer("happy_buy_qty").default(0).notNull(),   // "buy X get Y free" inside the window; 0 = no deal
@@ -1015,6 +1018,22 @@ export const receiptMemory = pgTable("receipt_memory", {
 }, (table) => [uniqueIndex("receipt_memory_key").on(table.companyId, table.supplierKey, table.lineKey)]);
 
 // Damage / waste a staff member pays for: at the item's cost (no tax, no service fee). Taken from the pay in Admin › Payroll, then marked settled.
+// Commission a staff member earned on an item of a paid bill (a ladies drink): kept until the payroll of that month is recorded.
+export const staffItemCommissions = pgTable("staff_item_commissions", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  userId: varchar("user_id").notNull(),
+  ticketId: integer("ticket_id").notNull(),
+  itemId: integer("item_id").notNull(),
+  name: varchar("name").notNull(),
+  qty: integer("qty").default(1).notNull(),
+  base: decimal("base", { precision: 14, scale: 2 }).notNull(),
+  amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  voidedAt: timestamp("voided_at"),
+  settledAt: timestamp("settled_at"),
+});
+
 export const staffCharges = pgTable("staff_charges", {
   id: serial("id").primaryKey(),
   companyId: integer("company_id"),
@@ -1109,6 +1128,8 @@ export const posTicketItems = pgTable("pos_ticket_items", {
   servedAt: timestamp("served_at"),
   printedAt: timestamp("printed_at"), // when the kitchen / bar printer got this item's docket (null = still to print)
   addedBy: varchar("added_by"),         // the staff member (or app member) who ordered this line
+  commissionStaffId: varchar("commission_staff_id"),   // who earns the item staff commission (the person who ordered it unless someone else was picked)
+  commissionStaffName: varchar("commission_staff_name"),
   addedByName: varchar("added_by_name"), // their name at that time ("Name (app)" for an order from the member app)
   addedAt: timestamp("added_at").defaultNow(),
   readyByName: varchar("ready_by_name"),   // who tapped Ready (kitchen / bar)

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
+import { canEarn, eligibleStaffOf } from "@shared/itemCommission";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -22,7 +23,7 @@ import { readSplit } from "@shared/payments";
 import { prepareOfflinePos, savedReceiptMeta, submitSale, useOfflineSales } from "@/lib/offline-sales";
 import { money, roundMoney } from "@/lib/money";
 
-interface Product { deal?: { buy: number; free: number } | null; bundleItemId?: number | null; bundleQty?: number | null; isService?: boolean; salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
+interface Product { staffCommissionStaffIds?: string | null; staffCommissionKind?: string | null; staffCommissionValue?: string | null; deal?: { buy: number; free: number } | null; bundleItemId?: number | null; bundleQty?: number | null; isService?: boolean; salePrice?: string; happyNow?: boolean; offHours?: boolean; recommended?: boolean; id: number; name: string; category: string; department?: string | null; price: string; stock: number; soldOut?: boolean; imageUrl?: string; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; }
 // A product's department holds one or more industries as a comma-separated list (e.g. "KTV,Bar").
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
@@ -683,6 +684,11 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   // Accept / reject / served shows on the ticket the moment it is tapped (the button it was
   // tapped on is gone, so it cannot be tapped twice); the server's answer follows, and a
   // failed save puts the ticket back as it was.
+  const commissionStaff = useMutation({
+    mutationFn: (v: { id: number; staffId: string }) => post(`/api/reborn/pos/items/${v.id}/commission-staff`, { staffId: v.staffId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: OPEN_TICKETS, exact: true }),
+    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+  });
   const itemStatus = useMutation({
     mutationFn: (v: { id: number; status: string; reason?: string }) => post(`/api/reborn/pos/items/${v.id}/status`, { status: v.status, reason: v.reason }),
     onMutate: async (v) => {
@@ -807,6 +813,19 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                         {it.status !== "pending" && <button onClick={() => setAsk({ kind: "lose", item: it })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-orange-500/15 text-orange-200">{t("pos.item.lose")}</button>}
                       </div>
                     )}
+                    {!OFF_BILL.includes(it.status) && products.find((p) => p.id === it.productId)?.staffCommissionKind && (() => {
+                      const eligible = eligibleStaffOf(products.find((p) => p.id === it.productId)?.staffCommissionStaffIds);
+                      const people = staffList.filter((person) => canEarn(eligible, person.id));
+                      return (
+                        <label className="flex items-center gap-1.5 pb-1 text-[11px] text-pink-200">
+                          {t("pos.item.commissionTo")}
+                          <select value={it.commissionStaffId || ""} onChange={(e) => commissionStaff.mutate({ id: it.id, staffId: e.target.value })} className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/40 px-1.5 py-1 text-[11px] text-white">
+                            <option value="">{eligible.length > 0 ? t("pos.item.commissionPick") : it.addedByName && !String(it.addedByName).includes("(app)") ? it.addedByName : t("pos.item.commissionCashier")}</option>
+                            {people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+                          </select>
+                        </label>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
