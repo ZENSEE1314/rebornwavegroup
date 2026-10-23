@@ -836,6 +836,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.sc.value': { en: 'Amount or %', zh: '金额或 %', id: 'Jumlah atau %' },
   'admin.sc.hint': { en: 'On the POS bill, pick which staff member earns it (the person who ordered by default). It is added to that staff member\'s commission in Payroll for the month the bill is paid. Free units earn nothing; a refund cancels it.', zh: '在 POS 账单上选择由哪位员工获得（默认为下单的人）。它会加入该员工在账单付款当月的工资佣金中。免费的杯数没有佣金；退款会取消。', id: 'Di tagihan POS pilih staf yang mendapatkannya (default orang yang memesan). Ditambahkan ke komisi staf itu di Payroll untuk bulan tagihan dibayar. Unit gratis tidak dapat komisi; refund membatalkannya.' },
   'admin.sc.people': { en: 'Only these staff can earn it (none ticked = any staff)', zh: '只有这些员工可获得（不选 = 任何员工）', id: 'Hanya staf ini yang dapat (tidak dicentang = semua staf)' },
+  'ex.recentTitle': { en: 'Saved in the last 7 days with a receipt date in another month', zh: '最近 7 天保存、但收据日期在其他月份的记录', id: 'Disimpan 7 hari terakhir dengan tanggal struk di bulan lain' },
+  'ex.stockTitle': { en: 'Stock deliveries saved in the last 7 days (Food & drinks)', zh: '最近 7 天保存的入库（食品饮料）', id: 'Penerimaan stok 7 hari terakhir (Makanan & minuman)' },
   'admin.sec.pw': { en: "Main-admin reset password", zh: "主管理员清零密码", id: "Kata sandi reset admin utama" },
   'admin.sec.pwPh': { en: "Set a strong password", zh: "设置高强度密码", id: "Atur kata sandi yang kuat" },
   'admin.set.save': { en: "Save settings", zh: "保存设置", id: "Simpan pengaturan" },

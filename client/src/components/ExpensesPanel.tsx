@@ -33,7 +33,8 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
 }
 
 interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
-interface ExpenseList { month: string; expenses: Expense[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
+interface StockDelivery { id: number; amount: string; note: string | null; createdAt: string }
+interface ExpenseList { month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
 interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null }
 interface Vendor { name: string; address: string; phone: string; category: string; items: { name: string; qty: number; unitCost: number }[] }
@@ -78,7 +79,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
       ? apiRequest("POST", "/api/reborn/admin/inventory/receipt/save", { kind: "goods", supplier: form.payee, supplierPhone: form.payeePhone, invoiceNo: form.invoiceNo, date: form.spentOn, photoUrl: form.photoUrl || null, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: stockLines.map((l) => ({ productId: l.productId ?? null, name: l.name, qty: l.qty, unitCost: l.unitCost, packSize: l.packSize || 1 })) })
       : apiRequest("POST", "/api/reborn/expenses", { ...form, fixedCostId: form.fixedCostId || undefined, paid: isPaid, dueDate, payMethod: isPaid ? payMethod : undefined, items: lines.filter((l) => l.name.trim()).map(({ name, qty, unitCost }) => ({ name, qty, unitCost })) })
     ).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
-    onSuccess: (d: any) => { toast({ title: d?.message || t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setIsPaid(true); setPayMethod(""); setEditingId(null); setReadState("idle"); lastRead.current = ""; refresh(); },
+    onSuccess: (d: any) => { toast({ title: d?.message || t("ex.saved") }); qc.invalidateQueries({ queryKey: ["/api/reborn/expenses/vendors"] }); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); setForm({ ...emptyForm(startWith), spentOn: form.spentOn }); setLines([]); setIsPaid(true); setPayMethod(""); setEditingId(null); setReadState("idle"); lastRead.current = ""; if (!isStock && /^\d{4}-\d{2}-\d{2}$/.test(form.spentOn)) setMonth(form.spentOn.slice(0, 7)); /* show the month the saved bill belongs to */ refresh(); },
     onError: fail,
   });
   const voidIt = useMutation({
@@ -269,7 +270,8 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           </div>
         )}
         <div className="mt-3 space-y-2">
-          {(data?.expenses || []).map((row) => (
+          {(() => {
+            const renderRow = (row: Expense) => (
             <div key={row.id} className={`rounded-xl border p-3 text-xs ${row.status === "voided" ? "border-white/10 opacity-50" : "border-white/10 bg-black/20"}`}>
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-semibold">{t(`ex.cat.${row.category}`)}{row.payee ? ` · ${row.payee}` : ""}</span>
@@ -285,7 +287,21 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 {data?.canVoid && row.status === "active" && <button type="button" onClick={() => { setVoiding(row); setReason(""); }} className="min-h-0 p-0 text-red-300 underline">{t("ex.void")}</button>}
               </div>
             </div>
-          ))}
+            );
+            return (<>
+              {(data?.expenses || []).map(renderRow)}
+              {(data?.recent || []).length > 0 && <p className="pt-2 text-[11px] font-bold text-sky-200">{t("ex.recentTitle")}</p>}
+              {(data?.recent || []).map(renderRow)}
+              {(data?.stockDeliveries || []).length > 0 && <p className="pt-2 text-[11px] font-bold text-emerald-200">{t("ex.stockTitle")}</p>}
+              {(data?.stockDeliveries || []).map((delivery) => (
+                <div key={delivery.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
+                  <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{t("ex.cat.stock")}</span><span className="font-black text-amber-200">{money(Number(delivery.amount))}</span></div>
+                  <p className="mt-0.5 text-white/50">{delivery.createdAt ? new Date(delivery.createdAt).toLocaleString() : ""}</p>
+                  <p className="mt-0.5 text-white/40">{delivery.note}</p>
+                </div>
+              ))}
+            </>);
+          })()}
           {data && data.expenses.length === 0 && <p className="text-xs text-white/40">{t("ex.none")}</p>}
         </div>
       </div>

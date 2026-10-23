@@ -3,7 +3,7 @@ import { inEveryDataSpace } from "./tenantSpace";
 import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
-import { and, asc, desc, eq, sql, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
@@ -5724,6 +5724,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const role = await adminRole(getUserId(req));
     const mine = role === "admin" || role === "manager" ? undefined : eq(expenseUploads.uploadedBy, getUserId(req)!); // staff see only what they uploaded
     const rows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id));
+    // What was uploaded in the last week with a receipt date in another month (an older bill keyed in today) and the stock deliveries ("Food & drinks"),
+    // which are not expense uploads: the list of the chosen month alone made them look as if they had not been saved.
+    const RECENT_DAYS = 7;
+    const since = new Date(Date.now() - RECENT_DAYS * 24 * 3_600_000);
+    const recent = (await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), gte(expenseUploads.createdAt, since), sql`${expenseUploads.spentOn} NOT LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.id)).limit(50)).map(expenseView);
+    const stockDeliveries = (await db.select({ id: ledgerEntries.id, amount: ledgerEntries.amount, note: ledgerEntries.note, createdAt: ledgerEntries.createdAt, userId: ledgerEntries.userId }).from(ledgerEntries)
+      .where(and(eq(ledgerEntries.refType, "receipt"), gte(ledgerEntries.createdAt, since), role === "admin" || role === "manager" ? undefined : eq(ledgerEntries.userId, getUserId(req)!))).orderBy(desc(ledgerEntries.id)).limit(50));
     const totals: Record<string, number> = {};
     for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
     const userId = getUserId(req)!;
@@ -5731,7 +5738,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const bills = ledgerIds.length ? await db.select().from(supplierPayables).where(and(eq(supplierPayables.companyId, cid), inArray(supplierPayables.ledgerEntryId, ledgerIds))) : [];
     const billOf = new Map(bills.map((b) => [b.ledgerEntryId, { status: b.status, dueDate: b.dueDate }]));
     const listed = rows.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
-    res.json({ month, expenses: listed, totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+    res.json({ month, expenses: listed, recent, stockDeliveries, totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
   const EXPENSE_EDIT_WINDOW_MS = 24 * 3_600_000;

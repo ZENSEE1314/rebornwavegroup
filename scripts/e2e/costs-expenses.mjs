@@ -131,6 +131,16 @@ check("the overall report has the total and a row per month", r.status === 200 &
 
 await admin("PUT", "/api/reborn/admin/fixed-costs/actual", { month: "2026-10", id: "power", amount: null });
 await admin("PUT", "/api/reborn/admin/fixed-costs", { costs: [], salaryFromPayroll: false });
+// a bill keyed in today with an older receipt date is not lost from view
+const older = new Date(); older.setUTCMonth(older.getUTCMonth() - 2);
+const olderDay = older.toISOString().slice(0, 10);
+r = await staff("POST", "/api/reborn/expenses", { payMethod: "cash", category: "supplies", amount: 4321, spentOn: olderDay, payee: "Old Bill Shop", note: "older month" });
+check("a bill with an older receipt date is saved", r.status === 200, JSON.stringify(r));
+r = await staff("GET", "/api/reborn/expenses");
+check("it is not in this month's list", !r.json.expenses.some((x) => x.payee === "Old Bill Shop"));
+check("but the list shows it under 'saved recently, other month'", r.json.recent.some((x) => x.payee === "Old Bill Shop"), JSON.stringify(r.json.recent?.map((x) => x.payee)));
+r = await staff("GET", `/api/reborn/expenses?month=${olderDay.slice(0, 7)}`);
+check("and it is in its own month's list", r.json.expenses.some((x) => x.payee === "Old Bill Shop"));
 await db.end();
 console.log(failures ? `${failures} FAILED` : "ALL PASSED");
 process.exit(failures ? 1 : 0);
