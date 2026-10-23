@@ -1421,6 +1421,7 @@ const MAX_SHIFTS_AT_ONCE = 300;
 const SHIFT_DATES_IN_NOTICE = 6;
 
 import { checkSecret, hashSecret, isHashedSecret, MIN_MAIN_ADMIN_PASSWORD_LENGTH } from "./adminSecret";
+import { canSaveSecrets, isSecretName, removeSecret, saveSecret, secretStates } from "./secrets";
 
 /** One-off at start-up (every company's data): a main-admin password still saved as readable text is turned into a hash. */
 export async function migrateMainAdminPassword(): Promise<void> {
@@ -3205,6 +3206,31 @@ export function registerRebornRoutes(app: Express) {
     const appID = `${team}.${process.env.IOS_BUNDLE_ID || "com.zensee.rebornwavegroup"}`;
     res.type("application/json").json({ applinks: { apps: [], details: team ? [{ appID, appIDs: [appID], paths: ["/kos", "/kos*"], components: [{ "/": "/kos*" }] }] : [] } });
   });
+
+  // Keys the main admin saves in the website instead of the host's variables (AES-256-GCM in the database, see server/secrets.ts).
+  // They belong to the platform, so only the platform's own main admin sees them; a value is never sent back, only whether it is set.
+  const secretsGuard = (handler: (req: Request, res: Response, name?: string) => Promise<any>) => requireAdmin(async (req, res) => {
+    if (currentTenant()) return res.status(403).json({ message: tr(req, { en: "Only the platform's main admin can change these keys.", zh: "只有平台主管理员可以更改这些密钥。", id: "Hanya admin utama platform yang dapat mengubah kunci ini." }) });
+    const name = String(req.params.name || "");
+    if (name && !isSecretName(name)) return res.status(404).json({ message: tr(req, { en: "Unknown key.", zh: "未知的密钥。", id: "Kunci tidak dikenal." }) });
+    const { mainAdminPassword } = await getSettings();
+    if (req.method !== "GET" && !(await verifyMainAdminPassword(String(req.body?.password || ""), mainAdminPassword))) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
+    return handler(req, res, name);
+  });
+  app.get("/api/reborn/admin/secrets", secretsGuard(async (_req, res) => res.json({ canSave: canSaveSecrets(), keys: secretStates() })));
+  app.post("/api/reborn/admin/secrets/:name", secretsGuard(async (req, res, name) => {
+    if (!canSaveSecrets()) return res.status(409).json({ message: tr(req, { en: "The server has no SESSION_SECRET or SECRETS_KEY to lock keys with.", zh: "服务器没有 SESSION_SECRET 或 SECRETS_KEY 来加密密钥。", id: "Server tidak punya SESSION_SECRET atau SECRETS_KEY untuk mengunci kunci." }) });
+    const value = String(req.body?.value || "").trim();
+    if (!value || value.length > 4000) return res.status(400).json({ message: tr(req, { en: "Type the key first.", zh: "请先输入密钥。", id: "Ketik kuncinya dulu." }) });
+    await saveSecret(name as any, value, getUserId(req));
+    await logAdmin(req, { targetType: "settings", action: "secret_save", entityType: "settings", description: `Saved key ${name} in the website` });
+    res.json({ ok: true });
+  }));
+  app.post("/api/reborn/admin/secrets/:name/remove", secretsGuard(async (req, res, name) => {
+    await removeSecret(name as any);
+    await logAdmin(req, { targetType: "settings", action: "secret_remove", entityType: "settings", description: `Removed key ${name} from the website` });
+    res.json({ ok: true });
+  }));
 
   app.get("/api/reborn/admin/settings", requireAdmin(async (_req, res) => {
     const { mainAdminPassword, ...settings } = await getSettings();

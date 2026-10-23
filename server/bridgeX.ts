@@ -1,4 +1,5 @@
 import { stationFor } from "@shared/station";
+import { secret } from "./secrets";
 import type { Express, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
@@ -426,7 +427,7 @@ export async function sendBridgeXNotifications(companyId: number, userIds: strin
   }));
   // When the Expo project has "Enhanced Security for push" on (set once you
   // create an access token), sends must be authenticated or Expo rejects them.
-  const expoToken = process.env.EXPO_ACCESS_TOKEN;
+  const expoToken = secret("EXPO_ACCESS_TOKEN");
   const pushHeaders: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json" };
   if (expoToken) pushHeaders["Authorization"] = `Bearer ${expoToken}`;
   try {

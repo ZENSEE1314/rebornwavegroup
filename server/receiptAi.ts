@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import * as z from "zod/v4";
 import { cleanReceipt, type ReadReceipt } from "./receiptLogic";
+import { secret } from "./secrets";
 
 const MODEL = "claude-opus-5-5";
 const MAX_PRODUCT_NAMES = 400;
@@ -31,7 +32,7 @@ const ReceiptSchema = z.object({
   })),
 });
 
-export const receiptAiReady = () => Boolean(process.env.ANTHROPIC_API_KEY);
+export const receiptAiReady = () => Boolean(secret("ANTHROPIC_API_KEY"));
 
 export class ReceiptReadError extends Error {
   constructor(public reason: "noKey" | "badImage" | "unreadable" | "failed") { super(reason); }
@@ -54,7 +55,7 @@ export async function readReceiptPhoto(dataUrl: string, productNames: string[]):
   const mediaType = m[1] as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
   const names = productNames.slice(0, MAX_PRODUCT_NAMES).join("\n");
 
-  const client = new Anthropic({ timeout: TIMEOUT_MS, maxRetries: 1 });
+  const client = new Anthropic({ apiKey: secret("ANTHROPIC_API_KEY"), timeout: TIMEOUT_MS, maxRetries: 1 });
   try {
     const response = await client.beta.messages.parse({
       model: MODEL,

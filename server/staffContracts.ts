@@ -10,6 +10,7 @@ import { asContractLang, buildContractText, type ContractFields, type ContractLa
 import { renderContractPdf } from "./contractPdf";
 import { tr, pick, userLang, type Tri } from "./i18n";
 import { sendEmailDetailed } from "./emailService";
+import { secret } from "./secrets";
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 type Wrap = (handler: Handler) => (req: Request, res: Response) => unknown;
@@ -54,7 +55,7 @@ const parseText = (json: string | null | undefined): ContractText | null => { tr
 /** The duties as a tidy list: the AI writes it from the admin's job scope when a key is set, else the admin's own lines are used as they are. */
 async function dutiesFrom(lang: ContractLang, jobTitle: string, jobScope: string): Promise<string> {
   const own = jobScope.split(/\r?\n/).map((line) => line.trim().replace(/^[-•*]\s*/, "")).filter(Boolean).map((line) => `- ${line}`).join("\n");
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = secret("ANTHROPIC_API_KEY");
   if (!own || !apiKey) return own;
   const prompt = `Rewrite the job scope below as a short, clear list of duties for an employment contract, in ${LANGUAGE_NAMES[lang]}. Position: ${jobTitle}. One duty per line starting with "- ". Use only what is written; do not add duties, amounts, dates or legal references. Output the list only.\n\nJob scope:\n${jobScope}`;
   try {

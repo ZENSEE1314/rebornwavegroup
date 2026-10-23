@@ -28,6 +28,7 @@ import { qrSvg, wifiQrText, type WifiSecurity } from "@/lib/qr-download";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
+import { SavedKeys } from "@/components/SavedKeys";
 import { ResetNumbers } from "@/components/ResetNumbers";
 
 const SecurityPanel = lazy(() => import("@/components/SecurityPanel"));
@@ -1050,6 +1051,7 @@ function Settings() {
         <p className="text-[11px] text-white/50 mb-3">{t("admin.sec.hint")}</p>
         <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.sec.pw")}</span>{cur.mainAdminPasswordSet && <p className="mb-1 text-[11px] text-emerald-300">{t("admin.sec.pwSet")}</p>}<PasswordInput value={cur.mainAdminPassword || ""} onChange={(v) => setStr("mainAdminPassword", v)} placeholder={t("admin.sec.pwPh")} className={inp + " w-full"} /></label>
         <ResetNumbers />
+        <SavedKeys />
       </Card>
       <VenueSyncCard />
       <button onClick={() => save.mutate()} className={btn}>{t("admin.set.save")}</button>

@@ -30,6 +30,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import { localeOf, asLang, faqIn, pick } from "./i18n";
 import { parseDateInput, yesNo, weekdayInWeek, weekdayOfIso } from "./dateParse";
 import { chatKey, chatLabel, isSocialKey, socialOf, networkName, sendSocial, metaReady, socialMessagesIn, socialProfileName, makeLoginLink, registerChatLogin, SOCIAL_AUTH_PROVIDERS, metaSpaceFor, metaEntryId, forgetMetaRoutes, networkProvider, telegramMessageIn, answerTelegramButton, telegramSecretOk, telegramSpace } from "./socialChat";
+import { secret } from "./secrets";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -53,9 +54,9 @@ const waConfigs = new Map<string, WaConfig>();
 function envWaConfig() {
   if (currentTenant()) return { token: "", phoneId: "", verifyToken: "", adminNumber: "" };
   return {
-    token: process.env.WHATSAPP_TOKEN || "",
-    phoneId: process.env.WHATSAPP_PHONE_ID || "",
-    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || "",
+    token: secret("WHATSAPP_TOKEN") || "",
+    phoneId: secret("WHATSAPP_PHONE_ID") || "",
+    verifyToken: secret("WHATSAPP_VERIFY_TOKEN") || "",
     adminNumber: (process.env.WA_ADMIN_NUMBER || "").replace(/\D/g, ""),
   };
 }

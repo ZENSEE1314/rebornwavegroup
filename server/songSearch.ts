@@ -2,6 +2,7 @@ import { desc, ilike, or } from "drizzle-orm";
 import { pinyin } from "pinyin-pro";
 import { db } from "./db";
 import { songs } from "@shared/schema";
+import { secret } from "./secrets";
 
 export type SongSuggestion = {
   id?: number;
@@ -33,13 +34,13 @@ export function textPinyin(value: unknown): string {
 }
 
 export function spotifySearchConfigured(): boolean {
-  return Boolean(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET);
+  return Boolean(secret("SPOTIFY_CLIENT_ID") && secret("SPOTIFY_CLIENT_SECRET"));
 }
 
 async function getSpotifyToken(): Promise<string> {
   if (!spotifySearchConfigured()) return "";
   if (spotifyToken && Date.now() < spotifyTokenExpiresAt) return spotifyToken;
-  const auth = Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString("base64");
+  const auth = Buffer.from(`${secret("SPOTIFY_CLIENT_ID")}:${secret("SPOTIFY_CLIENT_SECRET")}`).toString("base64");
   const response = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },

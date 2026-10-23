@@ -1,3 +1,4 @@
+import { secret } from "./secrets";
 // Auto-translate admin text (FAQ etc.) from English into Chinese and Bahasa.
 // Tries, in order: OpenAI (if OPENAI_API_KEY is set — best quality, keeps the
 // club's tone), Google Translate's free endpoint, then MyMemory. Each provider
@@ -8,7 +9,7 @@ const NAME: Record<TLang, string> = { zh: "Simplified Chinese", id: "Bahasa Indo
 const TIMEOUT = 15000;
 
 async function viaOpenAI(texts: string[], to: TLang): Promise<string[] | null> {
-  const key = process.env.OPENAI_API_KEY;
+  const key = secret("OPENAI_API_KEY");
   if (!key) return null;
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST", signal: AbortSignal.timeout(TIMEOUT),

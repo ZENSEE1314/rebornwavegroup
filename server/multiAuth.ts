@@ -16,6 +16,7 @@ export function getUserId(req: any): string | null {
 }
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
+import { secret } from "./secrets";
 
 // Setup session middleware
 export function setupSession(app: Express) {
@@ -399,8 +400,8 @@ ${L.ignore}
               provider: emailResult.provider,
               from: emailResult.from,
               error: emailResult.error,
-              hasResendKey: Boolean(process.env.RESEND_API_KEY?.trim()),
-              hasSendGridKey: Boolean(process.env.SENDGRID_API_KEY?.trim()),
+              hasResendKey: Boolean(secret("RESEND_API_KEY")),
+              hasSendGridKey: Boolean(secret("SENDGRID_API_KEY")),
             },
           });
         }

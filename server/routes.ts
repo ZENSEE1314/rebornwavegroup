@@ -277,6 +277,7 @@ import {
   referrals,
 } from "@shared/schema";
 import { z } from "zod";
+import { secret } from "./secrets";
 
 // Enhanced pet evolution utility functions
 function getNextEvolutionThreshold(currentStage: string): number {
@@ -8696,7 +8697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if SendGrid API key is configured
-      if (!process.env.SENDGRID_API_KEY) {
+      if (!secret("SENDGRID_API_KEY")) {
         console.log('*** EMAIL ENDPOINT: SendGrid API key not configured');
         return res.status(500).json({ message: 'SendGrid API key not configured' });
       }
@@ -10631,7 +10632,7 @@ async function generateAIReply(userMessage: string, category: string, ticketId: 
   const layaReply = await generateLayaSupportReply({ ticketId, message: userMessage, category });
   if (layaReply) return layaReply;
 
-  const OPENAI_KEY = process.env.OPENAI_API_KEY;
+  const OPENAI_KEY = secret("OPENAI_API_KEY");
   const systemPrompt = `You are the friendly AI customer support assistant for Reborn Wave Group (RWG), a 5-in-1 entertainment club based in Batam, Indonesia, expanding to Singapore.
 
 RWG Services:

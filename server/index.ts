@@ -13,6 +13,7 @@ import { registerPetHomeRoutes } from "./petHome";
 import { ensureBridgeXSchema, registerBridgeXRoutes } from "./bridgeX";
 import { loadHomeMoney } from "./companyMoney";
 import { ensureMoneyColumns } from "./moneyColumns";
+import { loadSecrets } from "./secrets";
 import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
@@ -111,6 +112,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await loadSecrets().catch((error) => console.error("[secrets] could not load the keys saved in the website", error));
   // Register working star routes FIRST (bypass route conflicts)
   registerStarRoutes(app);
 

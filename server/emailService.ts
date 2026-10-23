@@ -1,12 +1,20 @@
 import { Resend } from 'resend';
 import sgMail from '@sendgrid/mail';
+import { secret } from './secrets';
 
-const resendApiKey = process.env.RESEND_API_KEY?.trim();
-const sendgridApiKey = process.env.SENDGRID_API_KEY?.trim();
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
-const hasSendGrid = Boolean(sendgridApiKey);
-if (sendgridApiKey) sgMail.setApiKey(sendgridApiKey);
-if (!resend) console.warn('RESEND_API_KEY not set — appointment emails disabled');
+// Keys can be saved in the website (Admin › Settings › Keys), so the clients are made when needed and again if a key changes.
+let resendClient: { key: string; client: Resend } | null = null;
+function getResend(): Resend | null {
+  const key = secret('RESEND_API_KEY');
+  if (!key) return null;
+  if (resendClient?.key !== key) resendClient = { key, client: new Resend(key) };
+  return resendClient.client;
+}
+function sendGridReady(): boolean {
+  const key = secret('SENDGRID_API_KEY');
+  if (key) sgMail.setApiKey(key);
+  return Boolean(key);
+}
 
 const FROM = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'Reborn Wave Group <onboarding@resend.dev>';
 const ADMIN = process.env.ADMIN_EMAIL || 'admin@rebornwave.group';
@@ -26,6 +34,8 @@ function normalizeSendGridFrom(from: string) {
 }
 
 export async function sendEmailDetailed(params: EmailParams): Promise<{ ok: boolean; provider: string; from: string; error?: string }> {
+  const resend = getResend();
+  const hasSendGrid = sendGridReady();
   const from = params.from || FROM;
 
   if (!resend && !hasSendGrid) {

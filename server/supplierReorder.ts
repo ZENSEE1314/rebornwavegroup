@@ -1,6 +1,7 @@
 // "Ask the supplier when stock is low" (Admin › Inventory). When switched on, items the admin ticked that run low get a
 // drafted WhatsApp message to their supplier. The draft only waits here: the admin reads it, edits it if needed and
 // presses Send — nothing goes to a supplier without that tap.
+import { secret } from "./secrets";
 import type { Express, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import {
@@ -40,7 +41,7 @@ const saveRequests = (deps: ReorderDeps, requests: ReorderRequest[]) => deps.wri
 /** The message: written by the AI when an AI key is set on the server, else the ready-made one. */
 async function draftMessage(lang: ReorderLang, club: string, supplierName: string, items: RequestItem[]): Promise<string> {
   const fallback = templateMessage(lang, club, supplierName, items);
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = secret("ANTHROPIC_API_KEY");
   if (!apiKey) return fallback;
   const list = items.map((item) => `- ${item.name}: order ${item.qty} pcs (we have ${item.stock} left)`).join("\n");
   const prompt = `Write a short, polite WhatsApp message in ${LANGUAGE_NAMES[lang]} from "${club}" to its supplier "${supplierName || "the supplier"}" asking them to confirm availability and price for a restock order. No markdown. List exactly these items and quantities and nothing else:\n${list}\nEnd by asking them to confirm. Output only the message.`;
@@ -80,7 +81,7 @@ export function registerSupplierReorder(app: Express, deps: ReorderDeps) {
 
   app.get("/api/reborn/admin/reorder", deps.requireAdmin(async (_req, res) => {
     const [setup, requests, products] = await Promise.all([loadSetup(deps), loadRequests(deps), deps.listProducts()]);
-    res.json({ setup, requests, hasAi: Boolean(process.env.ANTHROPIC_API_KEY), items: products.map((p) => ({ id: p.id, name: p.name, stock: p.stock, supplierName: p.supplierName, supplierPhone: p.supplierPhone, imageUrl: p.imageUrl })) });
+    res.json({ setup, requests, hasAi: Boolean(secret("ANTHROPIC_API_KEY")), items: products.map((p) => ({ id: p.id, name: p.name, stock: p.stock, supplierName: p.supplierName, supplierPhone: p.supplierPhone, imageUrl: p.imageUrl })) });
   }));
 
   app.put("/api/reborn/admin/reorder/setup", deps.requireAdmin(async (req, res) => {
