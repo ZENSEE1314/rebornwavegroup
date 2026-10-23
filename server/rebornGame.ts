@@ -16,7 +16,7 @@ import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
 import { parseReceiptText } from "@shared/receiptText";
-import { clockInZone, dealOf, freeUnitsFor, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
+import { cleanDays, clockInZone, dealOf, freeUnitsFor, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
@@ -1399,6 +1399,7 @@ const happyFieldsOf = (b: any) => {
     happyStart: hasWindow ? b.happyStart : null, happyEnd: hasWindow ? b.happyEnd : null,
     happyPrice: hasWindow && price !== null && Number.isFinite(price) ? String(price) : null,
     happyOnly: hasWindow && !!b.happyOnly,
+    happyDays: hasWindow ? cleanDays(b.happyDays) || null : null,
     happyBuyQty: hasWindow && deal ? deal.buy : 0, happyFreeQty: hasWindow && deal ? deal.free : 0,
   };
 };
@@ -3827,7 +3828,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.referralOk !== undefined) patch.referralOk = !!b.referralOk;
     if (b.isService !== undefined) patch.isService = !!b.isService;
     if (patch.isService) patch.cost = "0"; // a service has no cost and holds no stock (its stock count is ignored from now on)
-    if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined || b.happyBuyQty !== undefined || b.happyFreeQty !== undefined) Object.assign(patch, happyFieldsOf({ happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, happyBuyQty: prev.happyBuyQty, happyFreeQty: prev.happyFreeQty, ...b }));
+    if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined || b.happyBuyQty !== undefined || b.happyFreeQty !== undefined || b.happyDays !== undefined) Object.assign(patch, happyFieldsOf({ happyDays: prev.happyDays, happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, happyBuyQty: prev.happyBuyQty, happyFreeQty: prev.happyFreeQty, ...b }));
     if (b.bundleItemId !== undefined || b.bundleQty !== undefined) {
       const bundle = await bundleFieldsFor({ ...b, packageKind: b.packageKind !== undefined ? b.packageKind : prev.packageKind }, cid, id);
       if ("error" in bundle) return res.status(400).json({ message: bundle.error });
@@ -3973,7 +3974,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }
   // What a customer sees and pays right now: the happy-hour price inside the window, and items sold only in the window hidden outside it.
   const venueClockNow = () => clockInZone(new Date(), countryOf(companyCountry()).timezone);
-  const withHappyHour = <T extends { price: any; happyPrice?: any; happyStart?: any; happyEnd?: any; happyOnly?: any; happyBuyQty?: any; happyFreeQty?: any }>(rows: T[]) => {
+  const withHappyHour = <T extends { price: any; happyPrice?: any; happyStart?: any; happyEnd?: any; happyOnly?: any; happyDays?: any; happyBuyQty?: any; happyFreeQty?: any }>(rows: T[]) => {
     const clock = venueClockNow();
     return rows.map((p) => ({ ...p, salePrice: String(salePriceNow(p, clock)), happyNow: isHappyNow(p, clock), offHours: isOffHours(p, clock), deal: isHappyNow(p, clock) ? dealOf(p) : null }));
   };
@@ -6402,8 +6403,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), inArray(posProducts.id, ids)));
     for (const row of rows) {
       const patch = clear
-        ? { happyStart: null, happyEnd: null, happyPrice: null, happyOnly: false, happyBuyQty: 0, happyFreeQty: 0 }
-        : happyFieldsOf({ happyStart: req.body.start, happyEnd: req.body.end, happyOnly: !!req.body?.onlyDuring, happyBuyQty: req.body?.buyQty, happyFreeQty: req.body?.freeQty, happyPrice: percent > 0 ? roundMoney((Number(row.price) || 0) * (1 - percent / 100)) : samePrice > 0 ? samePrice : null });
+        ? { happyStart: null, happyEnd: null, happyPrice: null, happyOnly: false, happyDays: null, happyBuyQty: 0, happyFreeQty: 0 }
+        : happyFieldsOf({ happyStart: req.body.start, happyEnd: req.body.end, happyOnly: !!req.body?.onlyDuring, happyDays: req.body?.days, happyBuyQty: req.body?.buyQty, happyFreeQty: req.body?.freeQty, happyPrice: percent > 0 ? roundMoney((Number(row.price) || 0) * (1 - percent / 100)) : samePrice > 0 ? samePrice : null });
       await db.update(posProducts).set(patch).where(eq(posProducts.id, row.id));
     }
     await logAdmin(req, { targetType: "pos_product", action: "happy_hour", entityType: "settings", description: clear ? `Happy hour taken off ${rows.length} item(s)` : `Happy hour ${req.body.start}-${req.body.end} on ${rows.length} item(s)${percent > 0 ? `, ${percent}% off` : samePrice > 0 ? `, RP ${samePrice}` : ""}${req.body?.onlyDuring ? ", only in these hours" : ""}` });
@@ -6417,7 +6418,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     for (const entry of list) {
       const id = Number(entry?.id);
       if (!Number.isInteger(id) || id <= 0) continue;
-      const patch = happyFieldsOf({ happyStart: entry.happyStart, happyEnd: entry.happyEnd, happyPrice: entry.happyPrice, happyOnly: !!entry.happyOnly, happyBuyQty: entry.happyBuyQty, happyFreeQty: entry.happyFreeQty });
+      const patch = happyFieldsOf({ happyStart: entry.happyStart, happyEnd: entry.happyEnd, happyPrice: entry.happyPrice, happyOnly: !!entry.happyOnly, happyDays: entry.happyDays, happyBuyQty: entry.happyBuyQty, happyFreeQty: entry.happyFreeQty });
       const done = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning({ id: posProducts.id });
       changed += done.length;
     }

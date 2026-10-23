@@ -29,6 +29,7 @@ import { useTenantBrand } from "@/hooks/useTenantBrand";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { SavedKeys } from "@/components/SavedKeys";
+import { HappyDays } from "@/components/HappyDays";
 import { ResetNumbers } from "@/components/ResetNumbers";
 
 const SecurityPanel = lazy(() => import("@/components/SecurityPanel"));
@@ -2581,6 +2582,7 @@ function SellOptions({ value, onChange }: { value: any; onChange: (v: any) => vo
           <input type="number" inputMode="numeric" min={0} max={10} value={value.happyFreeQty || ""} placeholder="0" aria-label={t("admin.hh.dealFree")} onChange={(e) => onChange({ ...value, happyFreeQty: Number(e.target.value) || 0 })} className={inp + " w-16"} />
           {t("admin.hh.dealFree")}
         </span>
+        <HappyDays value={value.happyDays} onChange={(days) => onChange({ ...value, happyDays: days })} />
         <label className="flex items-center gap-2 text-xs text-white/70 w-full"><input type="checkbox" checked={!!value.happyOnly} onChange={(e) => onChange({ ...value, happyOnly: e.target.checked })} /> {t("admin.happy.only")}</label>
         <p className="w-full text-[11px] text-white/40">{t("admin.happy.hint")}</p>
       </div>
@@ -2594,7 +2596,7 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState<any>({ name: p.name, isService: !!p.isService, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyOnly: !!p.happyOnly, happyBuyQty: p.happyBuyQty || 0, happyFreeQty: p.happyFreeQty || 0, referralOk: p.referralOk !== false, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
+  const [f, setF] = useState<any>({ name: p.name, isService: !!p.isService, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyDays: p.happyDays || "", happyOnly: !!p.happyOnly, happyBuyQty: p.happyBuyQty || 0, happyFreeQty: p.happyFreeQty || 0, referralOk: p.referralOk !== false, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
   const industryOptions = useCompanyIndustries();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),

@@ -6,10 +6,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { money } from "@/lib/money";
+import { HappyDays, happyDaysText } from "@/components/HappyDays";
 
-interface Item { id: number; name: string; category: string; price: string | number; happyPrice?: string | number | null; happyStart?: string | null; happyEnd?: string | null; happyOnly?: boolean | null; happyBuyQty?: number | null; happyFreeQty?: number | null; packageKind?: string | null; isService?: boolean | null }
+interface Item { id: number; name: string; category: string; price: string | number; happyPrice?: string | number | null; happyStart?: string | null; happyEnd?: string | null; happyOnly?: boolean | null; happyDays?: string | null; happyBuyQty?: number | null; happyFreeQty?: number | null; packageKind?: string | null; isService?: boolean | null }
 
-interface Edit { price: string; start: string; end: string; only: boolean; buy: string; free: string }
+interface Edit { days: string; price: string; start: string; end: string; only: boolean; buy: string; free: string }
 const inp = "rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-sm text-white outline-none focus:border-amber-300";
 const DEFAULT_START = "17:00";
 const DEFAULT_END = "20:00";
@@ -24,6 +25,7 @@ export function HappyHourManager() {
   const [percent, setPercent] = useState("");
   const [price, setPrice] = useState("");
   const [isOnly, setIsOnly] = useState(false);
+  const [days, setDays] = useState("");
   const [buy, setBuy] = useState("");
   const [free, setFree] = useState("");
   const [picked, setPicked] = useState<Set<number>>(new Set());
@@ -44,7 +46,7 @@ export function HappyHourManager() {
   const hasDeal = Number(buy) >= 1 && Number(free) >= 1;
   const hasWay = Number(percent) > 0 || Number(price) > 0 || isOnly || hasDeal;
   const save = useMutation({
-    mutationFn: (clear: boolean) => apiRequest("POST", "/api/reborn/admin/happy-hour", { productIds: Array.from(picked), start: from, end: until, percent: Number(percent) || undefined, price: Number(price) || undefined, onlyDuring: isOnly, buyQty: hasDeal ? Number(buy) : 0, freeQty: hasDeal ? Number(free) : 0, clear }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    mutationFn: (clear: boolean) => apiRequest("POST", "/api/reborn/admin/happy-hour", { productIds: Array.from(picked), start: from, end: until, percent: Number(percent) || undefined, price: Number(price) || undefined, onlyDuring: isOnly, days, buyQty: hasDeal ? Number(buy) : 0, freeQty: hasDeal ? Number(free) : 0, clear }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: (d: { changed: number }, clear) => {
       toast({ title: clear ? t("admin.hh.cleared", { n: String(d.changed) }) : t("admin.hh.saved", { n: String(d.changed) }) });
       setPicked(new Set());
@@ -53,10 +55,10 @@ export function HappyHourManager() {
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
   });
   // Each item's own happy price and hours: the row shows what is saved until it is changed; a row with no hours is taken off happy hour.
-  const editOf = (item: Item): Edit => edits[item.id] ?? { price: item.happyPrice === null || item.happyPrice === undefined ? "" : String(Number(item.happyPrice)), start: item.happyStart || "", end: item.happyEnd || "", only: !!item.happyOnly, buy: item.happyBuyQty ? String(item.happyBuyQty) : "", free: item.happyFreeQty ? String(item.happyFreeQty) : "" };
+  const editOf = (item: Item): Edit => edits[item.id] ?? { days: item.happyDays || "", price: item.happyPrice === null || item.happyPrice === undefined ? "" : String(Number(item.happyPrice)), start: item.happyStart || "", end: item.happyEnd || "", only: !!item.happyOnly, buy: item.happyBuyQty ? String(item.happyBuyQty) : "", free: item.happyFreeQty ? String(item.happyFreeQty) : "" };
   const change = (item: Item, next: Partial<Edit>) => setEdits((current) => ({ ...current, [item.id]: { ...editOf(item), ...next } }));
   const saveEach = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/happy-hour/items", { items: Object.entries(edits).map(([id, e]) => ({ id: Number(id), happyStart: e.start, happyEnd: e.end, happyPrice: e.price === "" ? null : Number(e.price), happyOnly: e.only, happyBuyQty: Number(e.buy) || 0, happyFreeQty: Number(e.free) || 0 })) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/happy-hour/items", { items: Object.entries(edits).map(([id, e]) => ({ id: Number(id), happyStart: e.start, happyEnd: e.end, happyDays: e.days, happyPrice: e.price === "" ? null : Number(e.price), happyOnly: e.only, happyBuyQty: Number(e.buy) || 0, happyFreeQty: Number(e.free) || 0 })) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: (d: { changed: number }) => {
       toast({ title: t("admin.hh.saved", { n: String(d.changed) }) });
       setEdits({});
@@ -65,7 +67,7 @@ export function HappyHourManager() {
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
   });
   const chip = (item: Item) => (item.happyStart && item.happyEnd
-    ? <span className="ml-1 rounded-full bg-pink-400/20 px-2 py-0.5 text-[10px] text-pink-200">🍹 {item.happyStart}–{item.happyEnd}{item.happyPrice !== null && item.happyPrice !== undefined && item.happyPrice !== "" ? ` · ${money(Number(item.happyPrice))}` : ""}{item.happyBuyQty && item.happyFreeQty ? ` · ${item.happyBuyQty}+${item.happyFreeQty}` : ""}{item.happyOnly ? ` · ${t("admin.hh.onlyChip")}` : ""}</span>
+    ? <span className="ml-1 rounded-full bg-pink-400/20 px-2 py-0.5 text-[10px] text-pink-200">🍹 {item.happyStart}–{item.happyEnd}{item.happyDays ? ` · ${happyDaysText(item.happyDays, (d) => t(`admin.hh.day${d}`))}` : ""}{item.happyPrice !== null && item.happyPrice !== undefined && item.happyPrice !== "" ? ` · ${money(Number(item.happyPrice))}` : ""}{item.happyBuyQty && item.happyFreeQty ? ` · ${item.happyBuyQty}+${item.happyFreeQty}` : ""}{item.happyOnly ? ` · ${t("admin.hh.onlyChip")}` : ""}</span>
     : null);
 
   return (
@@ -101,6 +103,7 @@ export function HappyHourManager() {
                         </span>
                         <label className="flex items-center gap-1 pb-2 text-[11px] text-white/60"><input type="checkbox" checked={e.only} onChange={(ev) => change(item, { only: ev.target.checked })} />{t("admin.hh.onlyShort")}</label>
                       </div>
+                      <div className="mt-1"><HappyDays value={e.days} onChange={(next) => change(item, { days: next })} /></div>
                     </div>
                   );
                 })}
@@ -122,6 +125,7 @@ export function HappyHourManager() {
             <input type="number" inputMode="numeric" min={0} max={10} value={free} placeholder="0" aria-label={t("admin.hh.dealFree")} onChange={(e) => setFree(e.target.value)} className={inp + " w-16"} />
             {t("admin.hh.dealFree")}
           </div>
+          <HappyDays value={days} onChange={setDays} />
           <p className="text-[11px] text-white/40">{t("admin.hh.dealHint")}</p>
           <label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={isOnly} onChange={(e) => setIsOnly(e.target.checked)} />{t("admin.hh.only")}</label>
           <p className="text-[11px] text-white/40">{t("admin.hh.hint")}</p>
