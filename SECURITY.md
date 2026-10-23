@@ -33,7 +33,7 @@ Then check Admin › Logs for logins or changes nobody recognises, and Admin ›
 
 ## Routine
 
-- Back up the database every night to a place that is not the host (an encrypted dump kept in OneDrive or on another provider).
+- Encrypted nightly backup (`scripts/backup/`): `backup.mjs` copies every schema and table, gzips and encrypts it with AES-256-GCM (key from a passphrase via scrypt), checks the file by reading it back, and keeps the newest 30 in a folder (OneDrive). `restore.mjs <file>` puts it back into a database whose tables exist (refuses a database with rows unless `RESTORE_REPLACE=1`). `setup-nightly.ps1` asks for the passphrase on the PC and makes the 03:30 task `RebornNightlyBackup`. Keep the passphrase on paper too: a backup cannot be opened without it. Tested dump → restore → compare of 120 tables (counts + content hash), wrong passphrase and a changed file are refused.
 - Use a different password for each service; turn on two-step login for Railway / Render / GitHub / Meta / Google.
 - Never put keys in the repository, in a screenshot or in chat. Keep them only in the host's variable screen.
 - A new route that reads or changes data needs `requireAuth` (or the role guard) and must use the logged-in user, never an id from the request or a fixed one.
