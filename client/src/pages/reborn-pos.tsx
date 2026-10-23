@@ -33,6 +33,7 @@ const OPEN_TICKETS = ["/api/reborn/pos/orders"];
 // A line that no longer counts on the bill: rejected before it was served, or lost (spilled / broken) after.
 const OFF_BILL = ["rejected", "lost"];
 const RECOMMENDED_GROUP = "__recommended__";
+const HAPPY_GROUP = "__happy__";
 const PACKAGES_GROUP = "__packages__";
 // Translate a server-provided enum value, falling back to the raw value when no key exists.
 const tOr = (t: (k: string) => string, key: string, fallback: string) => { const v = t(key); return v === key ? fallback : v; };
@@ -380,6 +381,8 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const groups = useMemo(() => {
     const g: Record<string, Product[]> = {};
     const shown = products.filter((p) => Number(p.price) > 0 && !p.soldOut && !(industry && !deptHas(p.department, industry))); // an item with no price isn't offered for sale
+    const happy = shown.filter((p) => p.happyNow && !p.packageKind);
+    if (happy.length) g[HAPPY_GROUP] = happy;
     const picks = shown.filter((p) => p.recommended);
     if (picks.length) g[RECOMMENDED_GROUP] = picks;
     const bundles = shown.filter((p) => p.packageKind);
@@ -392,7 +395,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
       {industries.length > 0 && <div className="flex items-center gap-2 flex-wrap mb-3"><span className="text-xs text-white/50">{t("pos.industry")}</span>{["", ...industries].map((d) => <button key={d || "all"} onClick={() => setIndustry(d)} className={`rounded-full px-3 py-1 text-xs ${industry === d ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{d || t("pos.all")}</button>)}</div>}
       {groups.map(([cat, items]) => (
         <div key={cat} className="mb-4">
-          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat === RECOMMENDED_GROUP ? `⭐ ${t("pos.recommended")}` : cat === PACKAGES_GROUP ? `📦 ${t("pos.packagesGroup")}` : cat || t("pos.other")}</p>
+          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat === HAPPY_GROUP ? `🍹 ${t("pos.happyGroup")}` : cat === RECOMMENDED_GROUP ? `⭐ ${t("pos.recommended")}` : cat === PACKAGES_GROUP ? `📦 ${t("pos.packagesGroup")}` : cat || t("pos.other")}</p>
           {/* 2–3 tiles per row on phones, more on wider screens (inline template:
               the phone-wide grid-cols-* override would make it one huge column). */}
           <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 112px), 1fr))" }}>

@@ -10,6 +10,8 @@ import { money } from "@/lib/money";
 
 const RECOMMENDED_GROUP = "__recommended__";
 const PACKAGES_GROUP = "__packages__";
+const HAPPY_GROUP = "__happy__";
+const PRODUCTS_REFRESH_MS = 60_000; // a happy hour starting or ending shows up without leaving the page
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; soldOut?: boolean; recommended?: boolean; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; packageValidDays?: number | null; packageItems?: string[]; }
 
 const rp = (n: any) => money(n);
@@ -27,6 +29,7 @@ export default function RebornOrder() {
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["/api/reborn/shop/products"],
     queryFn: () => apiRequest("GET", "/api/reborn/shop/products").then((r) => r.json()),
+    refetchInterval: PRODUCTS_REFRESH_MS,
   });
   const { data: myOrders = [] } = useQuery<any[]>({
     queryKey: ["/api/reborn/shop/my-orders"],
@@ -36,6 +39,8 @@ export default function RebornOrder() {
 
   const categories = useMemo(() => {
     const groups: Record<string, Product[]> = {};
+    const happy = products.filter((p) => (p as any).happyNow && !p.packageKind);
+    if (happy.length) groups[HAPPY_GROUP] = happy;
     const picks = products.filter((p) => p.recommended);
     if (picks.length) groups[RECOMMENDED_GROUP] = picks;
     const bundles = products.filter((p) => p.packageKind);
@@ -103,7 +108,7 @@ export default function RebornOrder() {
 
       {Object.entries(categories).map(([cat, items]) => (
         <div key={cat} className="mb-5">
-          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat === RECOMMENDED_GROUP ? `⭐ ${t("vn.order.recommended")}` : cat === PACKAGES_GROUP ? `📦 ${t("vn.order.packages")}` : cat}</h2>
+          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat === HAPPY_GROUP ? `🍹 ${t("vn.happy.now")}` : cat === RECOMMENDED_GROUP ? `⭐ ${t("vn.order.recommended")}` : cat === PACKAGES_GROUP ? `📦 ${t("vn.order.packages")}` : cat}</h2>
           <div className="space-y-2">
             {items.map((p) => (
               <div key={p.id} className={`flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 ${p.soldOut ? "opacity-50" : ""}`}>
