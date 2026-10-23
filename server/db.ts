@@ -11,7 +11,11 @@ if (!process.env.DATABASE_URL) {
 
 const { Pool } = pg;
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// The host's database proxy closes connections that sit idle; a short idle time + keep-alive means the pool drops them itself first,
+// and an error on an idle connection is logged instead of taking the server down ("Connection terminated unexpectedly").
+export const POOL_OPTIONS = { connectionString: process.env.DATABASE_URL, keepAlive: true, keepAliveInitialDelayMillis: 10_000, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 20_000 };
+export const pool = new Pool(POOL_OPTIONS);
+pool.on("error", (error) => console.error("[db] idle connection error", error.message));
 
 // The platform's own data (`public` schema): Reborn, BridgeX, sessions.
 export const platformDb = drizzle({ client: pool, schema });

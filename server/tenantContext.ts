@@ -57,7 +57,8 @@ export function tenantDb(schemaName: string) {
   if (!SCHEMA_NAME.test(schemaName)) throw new Error(`Invalid tenant schema: ${schemaName}`);
   let database = databases.get(schemaName);
   if (!database) {
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: TENANT_POOL_MAX });
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: TENANT_POOL_MAX, keepAlive: true, keepAliveInitialDelayMillis: 10_000, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 20_000 });
+    pool.on("error", (error) => console.error(`[db] idle connection error ${schemaName}`, error.message));
     // Queued ahead of the first query on every new connection (pg runs a client's queries in order).
     pool.on("connect", (client) => { client.query(`SET search_path TO ${schemaName}`).catch((err) => console.error(`[tenant] search_path ${schemaName}`, err)); });
     database = drizzle({ client: pool, schema });

@@ -3,6 +3,7 @@ import { registerVenueSyncRoutes, venueToken, pruneCloudLog } from "./venueSync/
 import { ensureSyncInfra } from "./venueSync/infra";
 import { startVenueSync } from "./venueSync/engine";
 import { registerVenuePage } from "./venueSync/venuePage";
+import "./asyncErrors";
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
@@ -25,8 +26,10 @@ import { applyRateLimits, applySecurityHeaders } from "./webSecurity";
 
 // One failing request must never take the whole app down (Cloudflare 502 for
 // everyone): log async errors that nothing caught instead of exiting.
-process.on("unhandledRejection", (reason) => { console.error("[unhandledRejection]", reason); void recordError({ area: "server", source: "server", message: String((reason as any)?.message || reason).slice(0, 300), detail: String((reason as any)?.stack || "") }); });
-process.on("uncaughtException", (err) => { console.error("[uncaughtException]", err); void recordError({ area: "server", source: "server", message: String(err?.message || err).slice(0, 300), detail: String(err?.stack || "") }); });
+// A failed database call arrives wrapped ("Failed query: …"); the reason the database gave is in `cause`.
+const describeError = (error: any): string => [error?.cause?.message ? `cause: ${error.cause.message}` : "", error?.message || String(error)].filter(Boolean).join(" · ");
+process.on("unhandledRejection", (reason) => { console.error("[unhandledRejection]", reason); void recordError({ area: "server", source: "server", message: describeError(reason).slice(0, 300), detail: String((reason as any)?.stack || "") }); });
+process.on("uncaughtException", (err) => { console.error("[uncaughtException]", err); void recordError({ area: "server", source: "server", message: describeError(err).slice(0, 300), detail: String(err?.stack || "") }); });
 import { emitLiveUpdate, installLiveMutationBroadcast, registerLiveUpdateRoute } from "./liveUpdates";
 
 const LATE_TABLE_SYNC_MS = 60_000;
@@ -374,8 +377,9 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    console.error(`[error] ${_req.method} ${_req.path}`, err);
+    if (res.headersSent) return;
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after
