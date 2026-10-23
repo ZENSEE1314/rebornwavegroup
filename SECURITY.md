@@ -13,7 +13,7 @@
 - **Passwords**: members and staff use bcrypt. The main-admin password (reset buttons) is a bcrypt hash too (`server/adminSecret.ts`), is never sent to the browser, and a readable one from before is turned into a hash at start-up or on first use.
 - **No hard-coded accounts or test routes**: routes that acted for a fixed user id or returned any user's record without a login were removed (`/api/test-login/:id`, `/api/test-*`, `/api/kos/purchase-stars-test`); the star / vote / like routes act for the logged-in user only; the manual token distribution is for admins.
 - **SQL**: queries use Drizzle with parameters. `sql.raw` is only used with fixed text written in the code (column names, start-up SQL). Never pass request data to `sql.raw`, `sql.identifier` or a table name.
-- **Dependencies**: `npm audit fix` is run after every security notice; what remains needs a major upgrade (tailwindcss build tools, drizzle-orm 0.45) and is listed in the last audit.
+- **Dependencies**: `npm audit fix` is run after every security notice; drizzle-orm 0.45.4 and drizzle-kit 0.31.11 are in; what remains (7 findings) is the Tailwind 3 build chain, build-time only, which needs a visual-checked move to Tailwind 4.
 
 ## After a host or secret leak (for example Railway, 21 Oct 2026)
 
