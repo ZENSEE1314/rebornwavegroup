@@ -8,9 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 import { money } from "@/lib/money";
 import { HappyDays, happyDaysText } from "@/components/HappyDays";
 
-interface Item { id: number; name: string; category: string; price: string | number; happyPrice?: string | number | null; happyStart?: string | null; happyEnd?: string | null; happyOnly?: boolean | null; happyDays?: string | null; happyBuyQty?: number | null; happyFreeQty?: number | null; packageKind?: string | null; isService?: boolean | null }
+interface Item { id: number; name: string; category: string; price: string | number; happyPrice?: string | number | null; happyStart?: string | null; happyEnd?: string | null; happyOnly?: boolean | null; happyDays?: string | null; appDiscountOk?: boolean | null; referralOk?: boolean | null; happyBuyQty?: number | null; happyFreeQty?: number | null; packageKind?: string | null; isService?: boolean | null }
 
-interface Edit { days: string; price: string; start: string; end: string; only: boolean; buy: string; free: string }
+interface Edit { appOk: boolean; refOk: boolean; days: string; price: string; start: string; end: string; only: boolean; buy: string; free: string }
+type TickChoice = "keep" | "yes" | "no";
+const tickValue = (choice: TickChoice) => (choice === "keep" ? undefined : choice === "yes");
 const inp = "rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-sm text-white outline-none focus:border-amber-300";
 const DEFAULT_START = "17:00";
 const DEFAULT_END = "20:00";
@@ -26,6 +28,8 @@ export function HappyHourManager() {
   const [price, setPrice] = useState("");
   const [isOnly, setIsOnly] = useState(false);
   const [days, setDays] = useState("");
+  const [appTick, setAppTick] = useState<TickChoice>("keep");
+  const [refTick, setRefTick] = useState<TickChoice>("keep");
   const [buy, setBuy] = useState("");
   const [free, setFree] = useState("");
   const [picked, setPicked] = useState<Set<number>>(new Set());
@@ -54,11 +58,19 @@ export function HappyHourManager() {
     },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
   });
+  const saveTicks = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/sale-ticks", { productIds: Array.from(picked), appDiscountOk: tickValue(appTick), referralOk: tickValue(refTick) }).then((r) => r.json()),
+    onSuccess: (d: { changed: number }) => {
+      toast({ title: t("admin.hh.ticksSaved", { n: String(d.changed) }) });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] });
+    },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
   // Each item's own happy price and hours: the row shows what is saved until it is changed; a row with no hours is taken off happy hour.
-  const editOf = (item: Item): Edit => edits[item.id] ?? { days: item.happyDays || "", price: item.happyPrice === null || item.happyPrice === undefined ? "" : String(Number(item.happyPrice)), start: item.happyStart || "", end: item.happyEnd || "", only: !!item.happyOnly, buy: item.happyBuyQty ? String(item.happyBuyQty) : "", free: item.happyFreeQty ? String(item.happyFreeQty) : "" };
+  const editOf = (item: Item): Edit => edits[item.id] ?? { appOk: item.appDiscountOk !== false, refOk: item.referralOk !== false, days: item.happyDays || "", price: item.happyPrice === null || item.happyPrice === undefined ? "" : String(Number(item.happyPrice)), start: item.happyStart || "", end: item.happyEnd || "", only: !!item.happyOnly, buy: item.happyBuyQty ? String(item.happyBuyQty) : "", free: item.happyFreeQty ? String(item.happyFreeQty) : "" };
   const change = (item: Item, next: Partial<Edit>) => setEdits((current) => ({ ...current, [item.id]: { ...editOf(item), ...next } }));
   const saveEach = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/admin/happy-hour/items", { items: Object.entries(edits).map(([id, e]) => ({ id: Number(id), happyStart: e.start, happyEnd: e.end, happyDays: e.days, happyPrice: e.price === "" ? null : Number(e.price), happyOnly: e.only, happyBuyQty: Number(e.buy) || 0, happyFreeQty: Number(e.free) || 0 })) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/happy-hour/items", { items: Object.entries(edits).map(([id, e]) => ({ id: Number(id), happyStart: e.start, happyEnd: e.end, happyDays: e.days, appDiscountOk: e.appOk, referralOk: e.refOk, happyPrice: e.price === "" ? null : Number(e.price), happyOnly: e.only, happyBuyQty: Number(e.buy) || 0, happyFreeQty: Number(e.free) || 0 })) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: (d: { changed: number }) => {
       toast({ title: t("admin.hh.saved", { n: String(d.changed) }) });
       setEdits({});
@@ -104,6 +116,10 @@ export function HappyHourManager() {
                         <label className="flex items-center gap-1 pb-2 text-[11px] text-white/60"><input type="checkbox" checked={e.only} onChange={(ev) => change(item, { only: ev.target.checked })} />{t("admin.hh.onlyShort")}</label>
                       </div>
                       <div className="mt-1"><HappyDays value={e.days} onChange={(next) => change(item, { days: next })} /></div>
+                      <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-white/60">
+                        <label className="flex items-center gap-1"><input type="checkbox" checked={e.appOk} onChange={(ev) => change(item, { appOk: ev.target.checked })} />{t("admin.hh.appShort")}</label>
+                        <label className="flex items-center gap-1"><input type="checkbox" checked={e.refOk} onChange={(ev) => change(item, { refOk: ev.target.checked })} />{t("admin.hh.refShort")}</label>
+                      </div>
                     </div>
                   );
                 })}
@@ -126,6 +142,14 @@ export function HappyHourManager() {
             {t("admin.hh.dealFree")}
           </div>
           <HappyDays value={days} onChange={setDays} />
+          <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">{t("admin.hh.ticksTitle")}
+            {([["admin.hh.appShort", appTick, setAppTick], ["admin.hh.refShort", refTick, setRefTick]] as const).map(([label, value, setValue]) => (
+              <label key={label} className="flex items-center gap-1">{t(label)}
+                <select value={value} onChange={(e) => setValue(e.target.value as TickChoice)} className={inp}><option value="keep">{t("admin.hh.ticksNoChange")}</option><option value="yes">{t("admin.hh.ticksYes")}</option><option value="no">{t("admin.hh.ticksNo")}</option></select>
+              </label>
+            ))}
+            <button type="button" onClick={() => saveTicks.mutate()} disabled={saveTicks.isPending || picked.size === 0 || (appTick === "keep" && refTick === "keep")} className="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-white/90 disabled:opacity-40">{t("admin.hh.ticksApply", { n: String(picked.size) })}</button>
+          </div>
           <p className="text-[11px] text-white/40">{t("admin.hh.dealHint")}</p>
           <label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={isOnly} onChange={(e) => setIsOnly(e.target.checked)} />{t("admin.hh.only")}</label>
           <p className="text-[11px] text-white/40">{t("admin.hh.hint")}</p>

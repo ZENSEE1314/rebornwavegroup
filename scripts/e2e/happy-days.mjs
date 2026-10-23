@@ -35,6 +35,14 @@ r = await admin("PATCH", `/api/reborn/admin/pos/products/${beer.id}`, { happyDay
 check("the item's own box can set the days", r.status === 200 && (await happyNow()) === false, r.status);
 r = await admin("POST", "/api/reborn/admin/happy-hour/items", { items: [{ id: beer.id, happyStart: "00:00", happyEnd: "23:59", happyDays: String(today), happyPrice: 70000 }] });
 check("item by item can set the days", r.status === 200 && (await happyNow()) === true, r.status);
+r = await admin("POST", "/api/reborn/admin/sale-ticks", { productIds: [beer.id], appDiscountOk: false });
+let ticks = (await db.query("SELECT app_discount_ok, referral_ok FROM pos_products WHERE id=$1", [beer.id])).rows[0];
+check("the ticks can be set on many items (only the one sent changes)", r.status === 200 && r.json.changed === 1 && ticks.app_discount_ok === false && ticks.referral_ok === true, JSON.stringify([r.status, ticks]));
+r = await admin("POST", "/api/reborn/admin/sale-ticks", { productIds: [beer.id] });
+check("nothing to set is refused", r.status === 400, r.status);
+r = await admin("POST", "/api/reborn/admin/happy-hour/items", { items: [{ id: beer.id, happyStart: "00:00", happyEnd: "23:59", referralOk: false, appDiscountOk: true }] });
+ticks = (await db.query("SELECT app_discount_ok, referral_ok FROM pos_products WHERE id=$1", [beer.id])).rows[0];
+check("item by item can set both ticks", r.status === 200 && ticks.app_discount_ok === true && ticks.referral_ok === false, JSON.stringify(ticks));
 await db.end();
 console.log(failures === 0 ? "ALL PASSED" : `${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);

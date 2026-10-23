@@ -1403,6 +1403,11 @@ const happyFieldsOf = (b: any) => {
     happyBuyQty: hasWindow && deal ? deal.buy : 0, happyFreeQty: hasWindow && deal ? deal.free : 0,
   };
 };
+// The two per-item ticks (app-order discount, referral commission) from a request: only what was sent is changed.
+const saleTicksOf = (b: any) => ({
+  ...(b?.appDiscountOk === undefined || b.appDiscountOk === null ? {} : { appDiscountOk: !!b.appDiscountOk }),
+  ...(b?.referralOk === undefined || b.referralOk === null ? {} : { referralOk: !!b.referralOk }),
+});
 const DEADLOCK_CODE = "40P01";
 const DEADLOCK_RETRIES = 3;
 // Two staff changing the same bill at once can make Postgres cancel one of them ("deadlock detected"): that one is simply run again.
@@ -6411,6 +6416,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "pos_product", action: "happy_hour", entityType: "settings", description: clear ? `Happy hour taken off ${rows.length} item(s)` : `Happy hour ${req.body.start}-${req.body.end} on ${rows.length} item(s)${percent > 0 ? `, ${percent}% off` : samePrice > 0 ? `, RP ${samePrice}` : ""}${req.body?.onlyDuring ? ", only in these hours" : ""}` });
     res.json({ changed: rows.length });
   }));
+  // The two per-item ticks (app-order discount, referral commission) set on many items at once; only the ticks that were sent change.
+  app.post("/api/reborn/admin/sale-ticks", requireManager(async (req, res) => {
+    const ids = (Array.isArray(req.body?.productIds) ? req.body.productIds : []).map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(0, 2000);
+    const patch = saleTicksOf(req.body);
+    if (ids.length === 0 || Object.keys(patch).length === 0) return res.status(400).json({ message: tr(req, { en: "Tick the items and choose what to set", zh: "请勾选商品并选择要设置的内容", id: "Centang item dan pilih yang diatur" }) });
+    const cid = await rebornCompanyId(req);
+    const done = await db.update(posProducts).set(patch).where(and(eq(posProducts.companyId, cid), inArray(posProducts.id, ids))).returning({ id: posProducts.id });
+    await logAdmin(req, { targetType: "pos_product", action: "sale_ticks", entityType: "settings", description: `App discount / referral tick set on ${done.length} item(s): ${JSON.stringify(patch)}` });
+    res.json({ changed: done.length });
+  }));
   // Happy hour item by item (Admin › Inventory › Happy hour › "Each item"): every item has its own happy price and its own hours. An item with no hours is taken off happy hour.
   app.post("/api/reborn/admin/happy-hour/items", requireManager(async (req, res) => {
     const list = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 500);
@@ -6420,7 +6435,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const id = Number(entry?.id);
       if (!Number.isInteger(id) || id <= 0) continue;
       const patch = happyFieldsOf({ happyStart: entry.happyStart, happyEnd: entry.happyEnd, happyPrice: entry.happyPrice, happyOnly: !!entry.happyOnly, happyDays: entry.happyDays, happyBuyQty: entry.happyBuyQty, happyFreeQty: entry.happyFreeQty });
-      const done = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning({ id: posProducts.id });
+      const done = await db.update(posProducts).set({ ...patch, ...saleTicksOf(entry) }).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning({ id: posProducts.id });
       changed += done.length;
     }
     await logAdmin(req, { targetType: "pos_product", action: "happy_hour_items", entityType: "settings", description: `Happy hour edited item by item on ${changed} item(s)` });

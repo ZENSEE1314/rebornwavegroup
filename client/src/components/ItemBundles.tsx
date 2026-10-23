@@ -10,7 +10,7 @@ import { money } from "@/lib/money";
 const inp = "rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-sm text-white outline-none focus:border-amber-300";
 const MIN_BUNDLE_QTY = 2;
 
-interface Piece { id: number; name: string; category: string; department?: string | null; imageUrl?: string | null; price: string; recommended?: boolean; bundleItemId?: number | null; bundleQty?: number | null; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; packageItemIds?: string | null }
+interface Piece { id: number; name: string; category: string; department?: string | null; imageUrl?: string | null; price: string; recommended?: boolean; appDiscountOk?: boolean; referralOk?: boolean; bundleItemId?: number | null; bundleQty?: number | null; packageKind?: string | null; packageUses?: number | null; packageCredit?: string | null; packageItemIds?: string | null }
 
 export const idsOf = (raw?: string | null): number[] => { try { const ids = JSON.parse(raw || "[]"); return Array.isArray(ids) ? ids.map(Number) : []; } catch { return []; } };
 
@@ -22,10 +22,12 @@ export function PieceRow({ piece, onChanged, alsoIds = [] }: { piece: Piece; onC
   const [price, setPrice] = useState(String(Number(piece.price) || 0));
   const [isStarred, setIsStarred] = useState(!!piece.recommended);
   const [isAsking, setIsAsking] = useState(false);
-  const isDirty = name !== piece.name || Number(price) !== Number(piece.price) || isStarred !== !!piece.recommended;
+  const [isAppOk, setIsAppOk] = useState(piece.appDiscountOk !== false);
+  const [isReferralOk, setIsReferralOk] = useState(piece.referralOk !== false);
+  const isDirty = name !== piece.name || Number(price) !== Number(piece.price) || isStarred !== !!piece.recommended || isAppOk !== (piece.appDiscountOk !== false) || isReferralOk !== (piece.referralOk !== false);
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
-    mutationFn: async () => { const res = await Promise.all([piece.id, ...alsoIds].map((id) => apiRequest("PATCH", `/api/reborn/admin/pos/products/${id}`, { name, price: Number(price), recommended: isStarred }))); return res[0].json(); },
+    mutationFn: async () => { const res = await Promise.all([piece.id, ...alsoIds].map((id) => apiRequest("PATCH", `/api/reborn/admin/pos/products/${id}`, { name, price: Number(price), recommended: isStarred, appDiscountOk: isAppOk, referralOk: isReferralOk }))); return res[0].json(); },
     onSuccess: () => { toast({ title: t("admin.c.saved") }); onChanged(); }, onError: fail,
   });
   const remove = useMutation({
@@ -39,6 +41,8 @@ export function PieceRow({ piece, onChanged, alsoIds = [] }: { piece: Piece; onC
       <input value={name} onChange={(e) => setName(e.target.value)} aria-label={t("admin.prod.name")} className={inp + " min-w-0 flex-1"} />
       <span className="rounded-lg bg-white/10 px-2 py-1 text-[11px] font-semibold text-amber-200">{size}</span>
       <input type="number" inputMode="numeric" value={price} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setPrice(e.target.value)} aria-label={t("admin.prod.sellPrice")} className={inp + " w-28"} />
+      <label className="flex items-center gap-1 text-[11px] text-white/60"><input type="checkbox" checked={isAppOk} onChange={(e) => setIsAppOk(e.target.checked)} />{t("admin.hh.appShort")}</label>
+      <label className="flex items-center gap-1 text-[11px] text-white/60"><input type="checkbox" checked={isReferralOk} onChange={(e) => setIsReferralOk(e.target.checked)} />{t("admin.hh.refShort")}</label>
       <button type="button" onClick={() => save.mutate()} disabled={!isDirty || save.isPending} className="rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-black disabled:opacity-40">{t("admin.c.save")}</button>
       {isAsking
         ? <button type="button" onClick={() => remove.mutate()} disabled={remove.isPending} className="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white">{t("admin.ib.sure")}</button>
