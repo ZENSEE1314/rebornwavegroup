@@ -72,7 +72,7 @@ export async function quoteBill(o: {
   atCost?: boolean; // staff / boss buy at the item's cost: the discount takes every line down to its cost, with no service fee, no tax and no member perk
 }) {
   const ids = Array.from(new Set(o.lines.map((l) => Number(l.productId)).filter(Boolean)));
-  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, cost: posProducts.cost, price: posProducts.price }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
+  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, appDiscountOk: posProducts.appDiscountOk, cost: posProducts.cost, price: posProducts.price }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
   const byId = new Map(products.map((p) => [p.id, p]));
   let subtotal = 0, packageBase = 0, creditBase = 0, appBase = 0;
   for (const l of o.lines) {
@@ -83,7 +83,7 @@ export async function quoteBill(o: {
       if (p && p.creditOk !== false) creditBase += amt;
       const qty = Number(l.qty) || 1;
       const isPromo = !!p && amt / qty < Number(p.price) - 0.005; // a happy-hour price or a free unit is not discounted again
-      if (l.fromApp && !isPromo) appBase += amt;
+      if (l.fromApp && !isPromo && p?.appDiscountOk !== false) appBase += amt;
     }
   }
   const costTotal = o.atCost ? money(o.lines.reduce((sum, l) => { const p = byId.get(Number(l.productId)); return sum + (p ? Number(p.cost || 0) * (Number(l.qty) || 1) : Number(l.lineTotal) || 0); }, 0)) : 0;

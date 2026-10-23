@@ -3780,7 +3780,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       cost: isService ? "0" : String(Number(b.cost) || 0), stock: isService ? 0 : Number(b.stock) || 0, imageUrl: await pictureFromAddress(b.imageUrl),
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
-      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, sortOrder: Number(b.sortOrder) || 0,
+      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, appDiscountOk: b.appDiscountOk !== false, sortOrder: Number(b.sortOrder) || 0,
       ...happyFieldsOf(b),
       isService: !!b.isService,
       ...packageFields(b),
@@ -3826,6 +3826,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
     if (b.referralOk !== undefined) patch.referralOk = !!b.referralOk;
+    if (b.appDiscountOk !== undefined) patch.appDiscountOk = !!b.appDiscountOk;
     if (b.isService !== undefined) patch.isService = !!b.isService;
     if (patch.isService) patch.cost = "0"; // a service has no cost and holds no stock (its stock count is ignored from now on)
     if (b.happyPrice !== undefined || b.happyStart !== undefined || b.happyEnd !== undefined || b.happyOnly !== undefined || b.happyBuyQty !== undefined || b.happyFreeQty !== undefined || b.happyDays !== undefined) Object.assign(patch, happyFieldsOf({ happyDays: prev.happyDays, happyPrice: prev.happyPrice, happyStart: prev.happyStart, happyEnd: prev.happyEnd, happyOnly: prev.happyOnly, happyBuyQty: prev.happyBuyQty, happyFreeQty: prev.happyFreeQty, ...b }));

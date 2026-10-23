@@ -95,6 +95,17 @@ await admin("POST", `/api/reborn/pos/orders/${cashier.id}/items`, { items: [{ pr
 const staffQuote = await admin("POST", "/api/reborn/pos/quote", { ticketId: cashier.id });
 check("items the cashier adds get no app discount", Number(staffQuote.json.appDiscount) === 0, JSON.stringify(staffQuote.json));
 
+// an item the admin unticked "App-order discount applies" gets none
+await admin("PATCH", `/api/reborn/admin/pos/products/${beer.id}`, { appDiscountOk: false });
+const noDiscTable = `D${tag}`.slice(0, 7);
+await member.client("POST", "/api/reborn/shop/order", { tableNumber: noDiscTable, items: [{ productId: beer.id, qty: 2 }] });
+const noDiscOpen = (await db.query("SELECT id FROM pos_tickets WHERE table_number=$1 AND status='open'", [noDiscTable])).rows[0];
+const noDiscQuote = await admin("POST", "/api/reborn/pos/quote", { ticketId: noDiscOpen.id });
+check("an item with the app discount unticked gets none", noDiscQuote.status === 200 && Number(noDiscQuote.json.appDiscount) === 0, JSON.stringify(noDiscQuote.json));
+await admin("PATCH", `/api/reborn/admin/pos/products/${beer.id}`, { appDiscountOk: true });
+const againQuote = await admin("POST", "/api/reborn/pos/quote", { ticketId: noDiscOpen.id });
+check("ticking it again brings the discount back", Number(againQuote.json.appDiscount) === 8000, JSON.stringify(againQuote.json));
+
 // anti-cheat: a new referral earns nothing for 18 hours
 await admin("POST", "/api/reborn/admin/settings", { referralOn: true, referralPercent: 10, referralHoldHours: 18 });
 const newcomer = await register("Fresh", "3", referrer.code);

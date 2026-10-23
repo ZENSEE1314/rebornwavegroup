@@ -910,6 +910,7 @@ export const posProducts = pgTable("pos_products", {
   happyEnd: varchar("happy_end"),
   happyDays: varchar("happy_days"),                             // weekdays it runs on "1,2,5" (0 = Sunday); empty = every day
   happyOnly: boolean("happy_only").default(false).notNull(),
+  appDiscountOk: boolean("app_discount_ok").default(true).notNull(), // false = the app-order discount never applies to this item
   referralOk: boolean("referral_ok").default(true).notNull(),   // false = a referrer never earns commission on this item
   happyBuyQty: integer("happy_buy_qty").default(0).notNull(),   // "buy X get Y free" inside the window; 0 = no deal
   happyFreeQty: integer("happy_free_qty").default(0).notNull(),
