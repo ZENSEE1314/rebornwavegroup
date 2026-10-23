@@ -7,7 +7,7 @@ export function registerStarRoutes(app: Express) {
   console.log("*** STAR ROUTES REGISTERED SUCCESSFULLY");
   
   // Non-authenticated GET endpoint for user stars display (bypasses auth middleware)
-  app.get('/api/kos/user-stars/:userId', async (req, res) => {
+  app.get('/api/kos/user-stars/:userId', requireAuth, async (req, res) => {
     try {
       console.log("*** ========================================");
       console.log("*** NON-AUTH USER STARS ENDPOINT HIT!!!");
@@ -48,7 +48,8 @@ export function registerStarRoutes(app: Express) {
       console.log("User:", req.user);
       
       // Use hardcoded user ID for testing (same as test endpoint)
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Please log in first", error: "Please log in first" });
       console.log("Using hardcoded User ID for testing:", userId);
 
       const { starsAmount, rpCost } = req.body;
@@ -147,7 +148,8 @@ export function registerStarRoutes(app: Express) {
       console.log("Request body:", req.body);
       
       // Hardcode user ID for testing (bypass authentication)
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Please log in first", error: "Please log in first" });
       const { starsAmount } = req.body;
       
       // Fixed star price: 1000 RP per star
@@ -226,66 +228,6 @@ export function registerStarRoutes(app: Express) {
     }
   });
 
-  // Test endpoint without authentication for debugging
-  app.post('/api/kos/purchase-stars-test', async (req, res) => {
-    try {
-      console.log("*** ========================================");
-      console.log("*** TEST STAR PURCHASE ENDPOINT HIT!");
-      console.log("*** ========================================");
-      console.log("Request body:", req.body);
-      
-      // Hardcode user ID for testing (bypass authentication)
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
-      const { starsAmount, rpCost } = req.body;
-      
-      console.log("Test purchasing:", starsAmount, "stars for", rpCost, "RP");
-
-      // Check if user exists and has sufficient credits
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      const currentCredits = parseInt(user.credits || '0');
-      console.log("Current credits:", currentCredits, "Required:", rpCost);
-
-      if (currentCredits < rpCost) {
-        return res.status(400).json({ error: 'Insufficient credits' });
-      }
-
-      // Update credits
-      const newCredits = currentCredits - rpCost;
-      await storage.updateUserCredits(userId, newCredits.toString());
-      console.log("✓ Credits updated:", currentCredits, "→", newCredits);
-
-      // Get current stars and update
-      let userStars;
-      try {
-        userStars = await storage.getUserStars(userId);
-      } catch (error) {
-        console.log("Creating new user stars record");
-        userStars = { totalStars: 0 };
-      }
-
-      const currentStars = userStars?.totalStars || 0;
-      const newStarsCount = currentStars + starsAmount;
-      
-      await storage.updateUserStars(userId, { totalStars: newStarsCount });
-      console.log("✓ Stars updated:", currentStars, "→", newStarsCount);
-
-      console.log("*** TEST STAR PURCHASE COMPLETED SUCCESSFULLY");
-      res.json({ 
-        success: true, 
-        message: `Test: Successfully purchased ${starsAmount} stars for ${rpCost} RP`,
-        newCredits: newCredits,
-        newStarsCount: newStarsCount
-      });
-
-    } catch (error) {
-      console.error("*** TEST STAR PURCHASE ERROR:", error);
-      res.status(500).json({ error: 'Internal server error during test star purchase' });
-    }
-  });
 
   // Direct star purchase endpoint (bypassing all middleware)
   app.post("/api/stars/purchase", (req, res) => {
@@ -298,7 +240,8 @@ export function registerStarRoutes(app: Express) {
     (async () => {
       try {
         // Hardcode user ID for testing (bypass authentication)
-        const userId = 'bspsDLxUJTQqbox6vGjH5';
+        const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Please log in first", error: "Please log in first" });
         const { starsAmount, rpCost } = req.body;
         
         console.log("Direct purchasing:", starsAmount, "stars for", rpCost, "RP");
@@ -351,37 +294,7 @@ export function registerStarRoutes(app: Express) {
     })();
   });
 
-  // Test endpoint
-  app.post("/api/test-working", (req, res) => {
-    console.log("*** TEST WORKING ENDPOINT HIT!");
-    res.json({ message: "Working endpoint responding", body: req.body });
-  });
 
-  app.post('/api/test-tournament-reset', async (req, res) => {
-    try {
-      console.log("*** MANUAL TOURNAMENT RESET TEST INITIATED");
-      
-      // Get current star contributions before reset
-      const beforeReset = await storage.getAllStarContributions();
-      console.log("*** BEFORE RESET - Star Contributions:", beforeReset.slice(0, 5));
-      
-      // Reset tournament star contributions
-      await storage.resetTournamentStarContributions();
-      
-      // Get star contributions after reset
-      const afterReset = await storage.getAllStarContributions();
-      console.log("*** AFTER RESET - Star Contributions:", afterReset.slice(0, 5));
-      
-      res.json({ 
-        message: 'Tournament star contributions reset completed',
-        beforeReset: beforeReset.slice(0, 5),
-        afterReset: afterReset.slice(0, 5)
-      });
-    } catch (error) {
-      console.error("*** ERROR IN MANUAL TOURNAMENT RESET:", error);
-      res.status(500).json({ error: 'Reset failed', details: error.message });
-    }
-  });
 
   // KOS Vote endpoint (bypassing authentication like star trading endpoints)
   app.post('/api/kos/vote', async (req, res) => {
@@ -393,7 +306,8 @@ export function registerStarRoutes(app: Express) {
       console.log("*** VOTE REQUEST HEADERS:", req.headers);
       
       // Use hardcoded user ID for testing (same as star trading endpoints)
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Please log in first", error: "Please log in first" });
       console.log("*** VOTE USER ID (hardcoded for testing):", userId);
 
       const { targetUserId, starsAmount = 1, mode } = req.body;
@@ -504,7 +418,8 @@ export function registerStarRoutes(app: Express) {
       console.log("*** REQUEST HEADERS:", req.headers);
       
       // Use hardcoded user ID for testing (same as star trading endpoints)
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Please log in first", error: "Please log in first" });
       console.log("*** LIKE USER ID (hardcoded for testing):", userId);
 
       const { targetUserId, mode } = req.body;

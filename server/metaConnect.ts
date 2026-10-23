@@ -53,6 +53,9 @@ export async function loadMetaApp(): Promise<void> {
 }
 
 // The secret is never sent back; only whether it is set.
+/** The Meta app secret (from the host's variables or saved in BridgeX), used to check that webhook calls really come from Meta. */
+export function metaAppSecret(): string { return APP_SECRET; }
+
 export function metaAppStatus() {
   return { appId: APP_ID, hasSecret: Boolean(APP_SECRET), ready: metaOAuthAvailable() };
 }

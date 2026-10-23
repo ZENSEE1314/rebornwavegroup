@@ -478,7 +478,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Request body:", req.body);
       
       // Hardcode user ID for testing (bypass authentication)
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Please log in first", error: "Please log in first" });
       const { starsAmount } = req.body;
       
       // Fixed star price: 1000 RP per star
@@ -561,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   */
 
   // User stars display endpoint (BEFORE authentication middleware)
-  app.get('/api/kos/user-stars/:userId', async (req, res) => {
+  app.get('/api/kos/user-stars/:userId', requireAuth, async (req, res) => {
     try {
       const { userId } = req.params;
       console.log("*** USER STARS DISPLAY ENDPOINT - User ID:", userId);
@@ -612,7 +613,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Request body:", req.body);
       
       // Hardcode user ID for testing (bypass authentication)
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Please log in first", error: "Please log in first" });
       const { starsAmount } = req.body;
       
       if (!starsAmount || starsAmount <= 0) {
@@ -698,7 +700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Star purchase history endpoint (BEFORE authentication middleware)
-  app.get('/api/kos/star-purchases-history/:userId', async (req, res) => {
+  app.get('/api/kos/star-purchases-history/:userId', requireAuth, async (req, res) => {
     try {
       console.log("*** ========================================");
       console.log("*** STAR PURCHASES HISTORY ENDPOINT HIT!");
@@ -734,45 +736,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupMultiAuth(app);
   await registerInvestorRoutes(app);
 
-  // Test endpoint to verify changes are loaded
-  app.post("/api/test-endpoint", (req, res) => {
-    console.log("*** TEST ENDPOINT HIT - Changes are loaded!");
-    res.json({ message: "Test endpoint working", body: req.body });
-  });
 
-  // Star selling test endpoint with different pattern
-  app.post("/api/test-star-sell", async (req, res) => {
-    try {
-      console.log("*** ========================================");
-      console.log("*** TEST STAR SELLING ENDPOINT HIT!");
-      console.log("*** ========================================");
-      console.log("Request body:", req.body);
-      
-      // Hardcode user ID for testing (bypass authentication)
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
-      const { starsAmount } = req.body;
-      
-      // Calculate RP return (70% of purchase price: 1000 RP per star * 0.7 = 700 RP per star)
-      const rpReturn = starsAmount * 700;
-      console.log("TEST Selling:", starsAmount, "stars for", rpReturn, "RP (70% return rate)");
 
-      // Check if user exists
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      res.json({ 
-        success: true, 
-        message: `TEST: Would sell ${starsAmount} stars for ${rpReturn} RP (70% return rate)`,
-        testMode: true
-      });
-
-    } catch (error) {
-      console.error("*** TEST STAR SELLING ERROR:", error);
-      res.status(500).json({ error: 'Internal server error during test star sale' });
-    }
-  });
   
   // Authentication endpoints
   app.post('/api/auth/login', async (req, res) => {
@@ -1904,20 +1869,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Temporary test route to bypass auth issues
-  app.get('/api/test-login/:adminUserId', async (req, res) => {
-    try {
-      const adminUserId = req.params.adminUserId;
-      const user = await storage.getUser(adminUserId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      res.json(user);
-    } catch (error) {
-      console.error("Error in test login:", error);
-      res.status(500).json({ message: "Failed to get user" });
-    }
-  });
 
   app.post('/api/auth/change-password', requireAuth, async (req: any, res) => {
     try {
@@ -8385,7 +8336,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual daily token distribution endpoint for testing
-  app.post('/api/admin/manual-token-distribution', async (req: any, res) => {
+  app.post('/api/admin/manual-token-distribution', requireAuth, async (req: any, res) => {
+    const [caller] = await db.select().from(users).where(eq(users.id, getUserId(req)!));
+    if (!caller || caller.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
     try {
       console.log('Manual token distribution triggered');
       
@@ -9563,7 +9516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user star contributions (how many stars each user has given to others)
-  app.get("/api/kos/user-contributions", async (req, res) => {
+  app.get("/api/kos/user-contributions", requireAuth, async (req, res) => {
     try {
       const contributions = await storage.getAllStarContributions();
       res.json(contributions);
@@ -9574,7 +9527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific user's star contribution
-  app.get("/api/kos/user-contributions/:userId", async (req, res) => {
+  app.get("/api/kos/user-contributions/:userId", requireAuth, async (req, res) => {
     try {
       const userId = req.params.userId;
       const contribution = await storage.getUserStarContribution(userId);
@@ -9810,7 +9763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // KOS User Rankings and Data routes
-  app.get("/api/kos/users", async (req, res) => {
+  app.get("/api/kos/users", requireAuth, async (req, res) => {
     try {
       const type = req.query.type as string; // 'tournament' or 'individual'
       const page = parseInt(req.query.page as string) || 1;
@@ -9826,7 +9779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Search users by username
-  app.get("/api/kos/users/search", async (req, res) => {
+  app.get("/api/kos/users/search", requireAuth, async (req, res) => {
     try {
       const searchTerm = req.query.q as string;
       if (!searchTerm || searchTerm.trim().length < 2) {
@@ -10061,7 +10014,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Request cookies:", req.cookies);
       
       // Temporarily hardcode user ID for testing
-      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Please log in first", error: "Please log in first" });
       console.log("Using hardcoded userId for testing:", userId);
       
       if (!userId) {
@@ -10140,6 +10094,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (process.env.STRIPE_WEBHOOK_SECRET) {
         event = stripe.webhooks.constructEvent(req.body, sig as string, process.env.STRIPE_WEBHOOK_SECRET);
+      } else if (process.env.NODE_ENV === 'production') {
+        // Without the signing secret anybody could post a made-up payment event: refuse it.
+        return res.status(503).send('Stripe webhook is not set up');
       } else {
         // For development, we can skip webhook verification
         console.log('Stripe webhook received (no verification in development)');

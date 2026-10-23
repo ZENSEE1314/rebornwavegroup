@@ -10,6 +10,8 @@
 //
 // Without those vars the module still loads; sends are no-ops (logged) so the rest
 // of the app runs unchanged and the wa.me button on the homepage still works.
+import { clientAddress, verifyMetaSignature } from "./webSecurity";
+import { metaAppSecret } from "./metaConnect";
 import type { Express, Request, Response } from "express";
 import { and, desc, eq, gte, inArray, isNotNull, lte, gt, ilike, ne, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -2267,6 +2269,10 @@ export function registerWhatsAppBot(app: Express) {
         }
   };
   const receiveWebhook = async (req: Request, res: Response) => {
+    // Only Meta may post here: its call is signed with the app secret. Without this anybody could send made-up messages "from" a member's number.
+    const verdict = process.env.META_WEBHOOK_VERIFY === "off" ? "unverifiable" : verifyMetaSignature((req as Request & { rawBody?: Buffer }).rawBody, req.get("x-hub-signature-256"), metaAppSecret());
+    if (verdict === "bad") { console.warn(`[security] a webhook call with a wrong or missing Meta signature was refused (from ${clientAddress(req)})`); return res.sendStatus(403); }
+    if (verdict === "unverifiable") console.warn("[security] no Meta app secret is known: webhook calls cannot be checked. Set META_APP_SECRET or save the app secret in BridgeX.");
     res.sendStatus(200); // ack immediately; Meta retries on non-200
     try {
       if (req.params.slug) { await inCompany(req.params.slug, () => processWebhook(req.body)); return; }

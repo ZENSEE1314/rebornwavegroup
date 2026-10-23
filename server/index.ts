@@ -7,7 +7,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
 import { registerStarRoutes } from "./star-routes";
-import { registerRebornRoutes } from "./rebornGame";
+import { migrateMainAdminPassword, registerRebornRoutes } from "./rebornGame";
 import { registerGameRoutes } from "./games";
 import { registerPetHomeRoutes } from "./petHome";
 import { ensureBridgeXSchema, registerBridgeXRoutes } from "./bridgeX";
@@ -20,6 +20,7 @@ import { installErrorWatch, recordError, startErrorCleanup } from "./errorWatch"
 import { pool } from "./db";
 import { inEveryDataSpace, keepTenantContextAcrossMiddleware, listTenantSpaces, moveSharedCompaniesToOwnSpace, syncAllTenantSpaces, tenantSpaceMiddleware } from "./tenantSpace";
 import { runInTenant } from "./tenantContext";
+import { applyRateLimits, applySecurityHeaders } from "./webSecurity";
 
 // One failing request must never take the whole app down (Cloudflare 502 for
 // everyone): log async errors that nothing caught instead of exiting.
@@ -30,6 +31,7 @@ import { emitLiveUpdate, installLiveMutationBroadcast, registerLiveUpdateRoute }
 const LATE_TABLE_SYNC_MS = 60_000;
 
 const app = express();
+applySecurityHeaders(app);
 app.use(compression());
 
 // Health check — must be first, before any middleware, so Render can reach it immediately
@@ -46,8 +48,9 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "50mb" }));
+app.use(express.json({ limit: "50mb", verify: (req, _res, buf) => { if (req.url?.startsWith("/api/whatsapp/webhook")) (req as Request & { rawBody?: Buffer }).rawBody = buf; } })); // the webhook signature is checked on the raw bytes
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
+applyRateLimits(app);
 // Route each request to its company's own data space (before sessions, so logins are per company).
 keepTenantContextAcrossMiddleware();
 app.use(tenantSpaceMiddleware);
@@ -117,6 +120,7 @@ app.use((req, res, next) => {
 
   // BridgeXPOS uses the same authenticated session and seeds Reborn as tenant one.
   await ensureBridgeXSchema();
+  void inEveryDataSpace(migrateMainAdminPassword).catch((error) => console.error("[security] main-admin password migration failed", error));
   await loadHomeMoney();
   await ensureMoneyColumns();
   // Bring every company's own data space up to this version (new tables/columns), then apply

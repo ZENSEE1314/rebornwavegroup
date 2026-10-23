@@ -1420,7 +1420,23 @@ const STOCK_IN_FUTURE_SLACK_MS = 5 * 60 * 1000;
 const MAX_SHIFTS_AT_ONCE = 300;
 const SHIFT_DATES_IN_NOTICE = 6;
 
+import { checkSecret, hashSecret, isHashedSecret, MIN_MAIN_ADMIN_PASSWORD_LENGTH } from "./adminSecret";
+
+/** One-off at start-up (every company's data): a main-admin password still saved as readable text is turned into a hash. */
+export async function migrateMainAdminPassword(): Promise<void> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "mainAdminPassword"));
+  if (!row?.value || isHashedSecret(row.value)) return;
+  await db.update(appSettings).set({ value: await hashSecret(row.value), updatedAt: new Date() }).where(eq(appSettings.key, "mainAdminPassword"));
+  console.log("[security] the main-admin password was saved as readable text: it is now a hash");
+}
+
 export function registerRebornRoutes(app: Express) {
+  // The main-admin password check (reset buttons): a hash is compared; the old readable form is accepted once and replaced by a hash.
+  async function verifyMainAdminPassword(given: string, stored: string): Promise<boolean> {
+    const result = await checkSecret(stored, given);
+    if (result.ok && result.upgrade) await db.update(appSettings).set({ value: result.upgrade, updatedAt: new Date() }).where(eq(appSettings.key, "mainAdminPassword"));
+    return result.ok;
+  }
   // A table's call keeps alerting staff until someone accepts it.
   if (!BACKGROUND_JOBS_OFF) setInterval(() => { void inEveryDataSpace(remindServiceCalls); }, SERVICE_CALL_CHECK_MS);
   // Low stock → a drafted message to the supplier, waiting for the admin's approval (when switched on).
@@ -1927,7 +1943,7 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/kos/reset", requireAdmin(async (req, res) => {
     const s = await getSettings();
     if (!s.mainAdminPassword) return res.status(400).json({ message: tr(req, { en: "Set a main-admin password in Settings first.", zh: "请先在设置中设定主管理员密码。", id: "Atur kata sandi admin utama di Pengaturan dulu." }) });
-    if (String(req.body?.password || "") !== s.mainAdminPassword) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
+    if (!(await verifyMainAdminPassword(String(req.body?.password || ""), s.mainAdminPassword))) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
     const now = new Date();
     const result = await resetKingsOfSingers(now);
     emitLiveUpdate("kos", { type: "reset" });
@@ -3191,13 +3207,19 @@ export function registerRebornRoutes(app: Express) {
   });
 
   app.get("/api/reborn/admin/settings", requireAdmin(async (_req, res) => {
-    res.json(await getSettings());
+    const { mainAdminPassword, ...settings } = await getSettings();
+    res.json({ ...settings, mainAdminPassword: "", mainAdminPasswordSet: !!mainAdminPassword });
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
     const allowed = ["referralOn", "referralPercent", "referralHoldHours", "appDiscountOn", "appDiscountPercent", "receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "songLookahead", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
+        if (k === "mainAdminPassword") {
+          if (!v.trim()) continue; // the screen sends it empty unless a new one was typed: keep the saved one
+          if (v.length < MIN_MAIN_ADMIN_PASSWORD_LENGTH) return res.status(400).json({ message: tr(req, { en: "The main-admin password needs at least 8 characters.", zh: "主管理员密码至少需要 8 个字符。", id: "Kata sandi admin utama minimal 8 karakter." }) });
+          v = await hashSecret(v);
+        }
         if (k === "spinPoolMin") v = String(Math.max(1000000, Number(req.body[k]) || 1000000)); // floor 1,000,000
         if (k === "spinPoolPercent") v = String(Math.max(0, Math.min(100, Number(req.body[k]) || 0)));
         await db.insert(appSettings).values({ key: k, value: v, updatedAt: new Date() })
@@ -3294,7 +3316,7 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/reset-numbers", requireAdmin(async (req, res) => {
     const s = await getSettings();
     if (!s.mainAdminPassword) return res.status(400).json({ message: tr(req, { en: "Set a main-admin password in Settings first.", zh: "请先在设置中设定主管理员密码。", id: "Atur kata sandi admin utama di Pengaturan terlebih dahulu." }) });
-    if (String(req.body?.password || "") !== s.mainAdminPassword) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
+    if (!(await verifyMainAdminPassword(String(req.body?.password || ""), s.mainAdminPassword))) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
     const cid = await rebornCompanyId(req);
     const actor = getUserId(req)!;
     const note = "Main-admin reset: stock set to 0";

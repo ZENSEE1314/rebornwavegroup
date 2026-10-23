@@ -3878,7 +3878,7 @@ export class DatabaseStorage implements IStorage {
           username: user.username, // Add username field for frontend
           firstName: user.firstName, // Add firstName field
           lastName: user.lastName, // Add lastName field
-          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Anonymous',
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous',
           photo: user.profileImageUrl || '/api/placeholder/50/50', // Legacy field
           profileImageUrl: user.profileImageUrl, // New field for frontend consistency
           // Use mode-specific stars for display

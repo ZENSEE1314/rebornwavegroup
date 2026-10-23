@@ -789,6 +789,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.spin.min': { en: "Minimum pool before prizes pay out (min 1,000,000)", zh: "奖池发奖前的最低金额（至少 1,000,000）", id: "Kolam minimum sebelum hadiah dibayar (min 1.000.000)" },
   'admin.sec.title': { en: "Main-admin security", zh: "主管理员安全", id: "Keamanan admin utama" },
   'admin.sec.hint': { en: "Password required to reset all numbers — every member's tokens, points and credits, the prize pool and all stock counts (items are kept). Use the red button below, or the one in the Users tab. Keep it separate from your login password.", zh: "执行“全部清零”需要此密码——清空所有会员的代币、积分和余额、奖池以及全部库存数量（物品会保留）。请使用下方的红色按钮，或会员标签中的按钮。请与登录密码分开设置。", id: "Kata sandi yang diperlukan untuk mereset semua angka — token, poin, dan kredit semua anggota, kumpulan hadiah, serta semua jumlah stok (item tetap ada). Gunakan tombol merah di bawah, atau yang ada di tab Pengguna. Pisahkan dari kata sandi login Anda." },
+  'admin.sec.pwSet': { en: "A password is saved (it is never shown). Type a new one (8+ characters) to change it; leave empty to keep it.", zh: "已保存密码（不会显示）。输入新密码（至少 8 个字符）可更改；留空则保持不变。", id: "Kata sandi sudah tersimpan (tidak pernah ditampilkan). Ketik yang baru (8+ karakter) untuk mengubah; kosongkan untuk tetap." },
   'admin.sec.pw': { en: "Main-admin reset password", zh: "主管理员清零密码", id: "Kata sandi reset admin utama" },
   'admin.sec.pwPh': { en: "Set a strong password", zh: "设置高强度密码", id: "Atur kata sandi yang kuat" },
   'admin.set.save': { en: "Save settings", zh: "保存设置", id: "Simpan pengaturan" },

@@ -1,3 +1,4 @@
+import { sessionSecret } from './webSecurity';
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 
@@ -43,7 +44,7 @@ export function setupSession(app: Express) {
     let handler = sessions.get(cookieName);
     if (!handler) {
       handler = session({
-        secret: process.env.SESSION_SECRET || 'fallback-secret-for-dev',
+        secret: sessionSecret(),
         store: sessionStore,
         resave: false,
         saveUninitialized: false,
@@ -51,7 +52,7 @@ export function setupSession(app: Express) {
         name: cookieName,
         cookie: {
           httpOnly: true,
-          secure: false, // Force false for all Replit environments (HTTP/HTTPS both work)
+          secure: 'auto', // Secure on https (the host's proxy is trusted, see server/security.ts), still works over http on a venue PC
           maxAge: sessionTtl,
           sameSite: 'lax', // Allows cross-site requests needed for Replit
           domain: undefined, // Let browser handle domain automatically

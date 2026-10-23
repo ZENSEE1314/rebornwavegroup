@@ -1048,7 +1048,7 @@ function Settings() {
       <Card>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Coins className="w-4 h-4 text-red-300" /> {t("admin.sec.title")}</h3>
         <p className="text-[11px] text-white/50 mb-3">{t("admin.sec.hint")}</p>
-        <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.sec.pw")}</span><PasswordInput value={cur.mainAdminPassword || ""} onChange={(v) => setStr("mainAdminPassword", v)} placeholder={t("admin.sec.pwPh")} className={inp + " w-full"} /></label>
+        <label className="block"><span className="text-xs text-white/60 block mb-1">{t("admin.sec.pw")}</span>{cur.mainAdminPasswordSet && <p className="mb-1 text-[11px] text-emerald-300">{t("admin.sec.pwSet")}</p>}<PasswordInput value={cur.mainAdminPassword || ""} onChange={(v) => setStr("mainAdminPassword", v)} placeholder={t("admin.sec.pwPh")} className={inp + " w-full"} /></label>
         <ResetNumbers />
       </Card>
       <VenueSyncCard />
