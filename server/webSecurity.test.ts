@@ -56,3 +56,22 @@ describe("verifyMetaSignature", () => {
   it("should refuse a call whose body was changed", () => assert.equal(verifyMetaSignature(Buffer.from("{}"), signed("app-secret"), "app-secret"), "bad"));
   it("should say it cannot check when no app secret is known", () => assert.equal(verifyMetaSignature(body, signed("x"), ""), "unverifiable"));
 });
+
+import { contentSecurityPolicy, cspMode } from "./webSecurity";
+
+describe("contentSecurityPolicy", () => {
+  const directives = contentSecurityPolicy().split("; ");
+  it("should forbid plugins and objects", () => assert.ok(directives.includes("object-src 'none'")));
+  it("should not let a page change its base address", () => assert.ok(directives.includes("base-uri 'self'")));
+  it("should send forms only to this site", () => assert.ok(directives.includes("form-action 'self'")));
+  it("should not let other sites frame this one", () => assert.ok(directives.includes("frame-ancestors 'self'")));
+  it("should not allow scripts from any https site", () => assert.ok(!directives.find((d) => d.startsWith("script-src"))!.split(" ").includes("https:")));
+  it("should not allow eval in scripts", () => assert.ok(!contentSecurityPolicy().includes("'unsafe-eval'")));
+});
+
+describe("cspMode", () => {
+  it("should enforce when nothing is set", () => assert.equal(cspMode(undefined), "enforce"));
+  it("should only report when asked", () => assert.equal(cspMode("report-only"), "report-only"));
+  it("should switch off when asked", () => assert.equal(cspMode("off"), "off"));
+  it("should enforce for an unknown word", () => assert.equal(cspMode("banana"), "enforce"));
+});

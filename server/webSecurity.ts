@@ -76,10 +76,42 @@ const RULES: LimitRule[] = [
   { name: "chat-login", method: "GET", pattern: /^\/api\/chat-login\/[^/]+\/?$/, perAddress: { windowMinutes: 10, max: 60 } },
 ];
 
+export type CspMode = "enforce" | "report-only" | "off";
+
+export function cspMode(value = process.env.CSP_MODE): CspMode {
+  return value === "report-only" || value === "off" ? value : "enforce";
+}
+
+/**
+ * What a page may load. Scripts: only our own files, inline scripts (the page's import map and head scripts) and the one CDN the
+ * 3D pages and the receipt reader load code from. Everything that could run attacker-supplied code is closed: plugins (`object-src`),
+ * a changed base address, forms sent to other sites, the site shown inside other sites. Pictures, video and calls are left open to
+ * https because members' pictures, camera streams and map/QR images come from many places, and the venue server runs on plain http.
+ */
+export function contentSecurityPolicy(): string {
+  return [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https: http:",
+    "media-src 'self' data: blob: https: http:",
+    "connect-src 'self' data: blob: https: http: wss: ws:",
+    "worker-src 'self' blob:",
+    "frame-src 'self' https: http:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+  ].join("; ");
+}
+
 export function applySecurityHeaders(app: Express) {
   app.disable("x-powered-by");
   app.set("trust proxy", TRUSTED_PROXIES);
 
+  const mode = cspMode();
+  const policy = contentSecurityPolicy();
   // Headers that switch off whole kinds of attack (a script hidden in an upload run as a page, the site shown inside someone else's page, a leaked address in a link).
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -87,6 +119,7 @@ export function applySecurityHeaders(app: Express) {
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
     if (req.secure) res.setHeader("Strict-Transport-Security", `max-age=${HSTS_MAX_AGE_SECONDS}`);
+    if (mode !== "off") res.setHeader(mode === "report-only" ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy", policy);
     next();
   });
 

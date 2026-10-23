@@ -3,7 +3,7 @@
 ## What the server does
 
 - **Headers** (`server/webSecurity.ts`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy`, `Cross-Origin-Opener-Policy`, `Strict-Transport-Security` on https, no `X-Powered-By`.
-  No Content-Security-Policy yet: the app uses inline scripts and CDNs, so a policy has to be tested in a browser first.
+- **Content-Security-Policy** (`contentSecurityPolicy()`, on by default): scripts only from this site, inline (import maps, head scripts) and cdn.jsdelivr.net (3D pages, receipt reader); no plugins/objects, no changed base address, forms only to this site, not framed by other sites; pictures, video and calls stay open to http/https (member pictures, camera streams, the venue server on plain http). `CSP_MODE=report-only` shows violations in the browser console without blocking, `CSP_MODE=off` removes it. Checked in a real browser: login, admin, POS, songs, the 3D homepage, BridgeX page (three.js from the CDN) and the receipt reader (tesseract worker + wasm) load with no violations; a script from another site is blocked.
 - **Trusted proxy**: `trust proxy` is set to the private address ranges of the host's proxies, so `req.ip` and `req.secure` are right behind Railway / Render / Cloudflare.
   The visitor's address is `cf-connecting-ip` when present (Cloudflare hides it from `req.ip`), else `req.ip` (`clientAddress`).
 - **Login limits**: login 10 tries per account per 15 min (and 100 per address per 10 min), sign-up 5 per account / 60 per address per hour, forgot-password 5 per account / 20 per address per hour, plus reset-password, change-password, apply-referral and chat-login links.
