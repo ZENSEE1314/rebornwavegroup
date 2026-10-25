@@ -704,7 +704,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: t("pos.notFound"), description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay === "split" ? "cash" : pay, payments: pay === "split" ? splitPayments(split, payable) : undefined, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost) }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay === "split" ? "cash" : pay, payments: pay === "split" ? splitPayments(split, payable) : undefined, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost), removeAppDiscount: removeAppDiscount || undefined }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: t("pos.drawerNotOpened"), description: t("pos.checkDrawerSetup") }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
@@ -792,7 +792,8 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSuccess: () => { setRatesVersion((n) => n + 1); invalidate(); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
-  const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost), v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}:${ratesVersion}` }, true);
+  const [removeAppDiscount, setRemoveAppDiscount] = useState(false);
+  const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost), removeAppDiscount: removeAppDiscount || undefined, v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}:${ratesVersion}` }, true);
   const due = quoteTotals(quote, billTotals(subtotal, discount, posSettings));
   const total = due.total;
   const payable = due.payable;
@@ -909,7 +910,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             </div>
             {payable > 0 && pay === "split" && <SplitPayBox due={payable} memberCode={order.memberCode} form={split} onChange={setSplit} onBalance={setCreditBal} />}
             <MemberWallet code={order.memberCode} quote={quote} useCredit={useCredit} onUseCredit={setUseCredit} ticketId={order.id} />
-            <BillSummary due={due} settings={posSettings} onRates={(rates) => setBillRates.mutate(rates)} />
+            <BillSummary due={due} settings={posSettings} onRates={(rates) => setBillRates.mutate(rates)} appRemoved={removeAppDiscount} onToggleApp={() => setRemoveAppDiscount(!removeAppDiscount)} />
             {payable > 0 && pay === "credits" && <CreditsLine code={order.memberCode} total={payable} onBalance={setCreditBal} />}
             {payable > 0 && pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
             {payable > 0 && pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={payable} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(payable)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
@@ -1423,14 +1424,15 @@ function BillFeeEditor({ service, tax, onApply }: { service: number; tax: number
     </div>
   );
 }
-function BillSummary({ due, settings, onRates }: { due: ReturnType<typeof quoteTotals>; settings: any; onRates?: (rates: { taxPercent: number; serviceFeePercent: number }) => void }) {
+function BillSummary({ due, settings, onRates, appRemoved = false, onToggleApp }: { due: ReturnType<typeof quoteTotals>; settings: any; onRates?: (rates: { taxPercent: number; serviceFeePercent: number }) => void; appRemoved?: boolean; onToggleApp?: () => void }) {
   const { t } = useTranslation();
   const servicePercent = Number((due as any).servicePercent ?? settings?.serviceFeePercent) || 0;
   const taxPercent = Number((due as any).taxPercent ?? settings?.taxPercent) || 0;
   return (
     <div className="mb-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
       {due.perkAmount > 0 && <div className="flex justify-between text-sky-200"><span>{t("pos.pkg.perkLine", { p: due.perkPercent })}</span><span>- {rp(due.perkAmount)}</span></div>}
-      {due.appDiscount > 0 && <div className="flex justify-between text-sky-200"><span>{t("pos.appDiscLine", { p: due.appPercent })}</span><span>- {rp(due.appDiscount)}</span></div>}
+      {due.appDiscount > 0 && <div className="flex items-center justify-between gap-2 text-sky-200"><span>{t("pos.appDiscLine", { p: due.appPercent })}{onToggleApp && <button type="button" onClick={onToggleApp} className="ml-2 min-h-0 p-0 text-[11px] text-amber-200 underline">{t("pos.appDisc.remove")}</button>}</span><span>- {rp(due.appDiscount)}</span></div>}
+      {appRemoved && onToggleApp && <div className="flex items-center justify-between gap-2 text-amber-200"><span>{t("pos.appDisc.removed")}</span><button type="button" onClick={onToggleApp} className="min-h-0 p-0 text-[11px] underline">{t("pos.appDisc.restore")}</button></div>}
       <div className="flex justify-between"><span>{t("pos.subtotalAfterDiscount")}</span><span>{rp(due.taxable)}</span></div>
       <div className="flex justify-between"><span>{t("pos.serviceFeePct", { n: Number((due as any).servicePercent ?? settings?.serviceFeePercent) || 0 })}</span><span>{rp(due.serviceFee)}</span></div>
       <div className="flex justify-between"><span>{t("pos.taxPct", { n: Number((due as any).taxPercent ?? settings?.taxPercent) || 0 })}</span><span>{rp(due.tax)}</span></div>

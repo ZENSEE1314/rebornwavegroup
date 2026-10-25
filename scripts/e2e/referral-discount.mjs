@@ -106,6 +106,13 @@ await admin("PATCH", `/api/reborn/admin/pos/products/${beer.id}`, { appDiscountO
 const againQuote = await admin("POST", "/api/reborn/pos/quote", { ticketId: noDiscOpen.id });
 check("ticking it again brings the discount back", Number(againQuote.json.appDiscount) === 8000, JSON.stringify(againQuote.json));
 
+// the cashier can leave the app-order discount off one bill (POS pay panel: "Remove")
+const removedQuote = await admin("POST", "/api/reborn/pos/quote", { ticketId: noDiscOpen.id, removeAppDiscount: true });
+check("the POS can remove the app discount from the quote", removedQuote.status === 200 && Number(removedQuote.json.appDiscount) === 0 && Number(removedQuote.json.total) === Number(againQuote.json.total) + 8000, JSON.stringify(removedQuote.json));
+await admin("POST", `/api/reborn/pos/orders/${noDiscOpen.id}/pay`, { paymentMethod: "cash", cashReceived: 10_000_000, removeAppDiscount: true });
+const removedRow = await ticketRow(noDiscOpen.id);
+check("the paid bill has no app discount and no app line on the receipt", Number(removedRow.discount) === 0 && !String(removedRow.discount_reason || "").includes("App order"), JSON.stringify(removedRow));
+
 // anti-cheat: a new referral earns nothing for 18 hours
 await admin("POST", "/api/reborn/admin/settings", { referralOn: true, referralPercent: 10, referralHoldHours: 18 });
 const newcomer = await register("Fresh", "3", referrer.code);

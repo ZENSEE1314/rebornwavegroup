@@ -4120,6 +4120,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   };
   const ticketRate = (stored: unknown, current: number): number => (stored === null || stored === undefined || stored === "" || !Number.isFinite(Number(stored)) ? current : Number(stored));
   const appDiscountPercentOf = (settings: { appDiscountOn: boolean; appDiscountPercent: number }) => (settings.appDiscountOn ? settings.appDiscountPercent : 0);
+  // The POS can leave the app-order discount off one bill (`removeAppDiscount` on the quote and the pay request, any staff member; the customer's receipt then simply has no app line).
+  const appPercentFor = (settings: { appDiscountOn: boolean; appDiscountPercent: number }, body: any) => (body?.removeAppDiscount === true ? 0 : appDiscountPercentOf(settings));
   // The referrer's share of a paid bill (server/referralCommission.ts); the referrer is told when RP credits arrive. A failure here never stops the payment.
   const payReferral = async (ticketId: number, totals: { subtotal: number; discount: number; total: number; due: number }, settings: { referralOn: boolean; referralPercent: number; referralHoldHours: number; houseReferralUserId: string }) => {
     try {
@@ -4586,8 +4588,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
     const ratesUsed = { service: ticketRate(o.serviceFeePercent, settings.serviceFeePercent), tax: ticketRate(o.taxPercent, settings.taxPercent) };
-    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: ratesUsed.service, taxPercent: ratesUsed.tax, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: ratesUsed.service, taxPercent: ratesUsed.tax, appPercent: appPercentFor(settings, req.body), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
+    if (req.body?.removeAppDiscount === true && appDiscountPercentOf(settings) > 0 && lines.some((x) => x.source === "app")) {
+      await logAdmin(req, { targetType: "pos_order", targetId: String(o.id), action: "remove_app_discount", entityType: "order", description: `App-order discount (${appDiscountPercentOf(settings)}%) left off ${o.orderNo}` });
+    }
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
     const split = due > 0 ? splitPlanOf(req, due) : null;
     if (split?.error) return res.status(400).json({ message: split.error });
@@ -4734,7 +4739,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: rates.service, taxPercent: rates.tax, appPercent: appDiscountPercentOf(settings), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: rates.service, taxPercent: rates.tax, appPercent: appPercentFor(settings, req.body), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
     res.json({ ...q, serviceFeePercent: rates.service, taxPercent: rates.tax, hasMember: !!userId });
   }));
   // A member's packages (by member code) — POS pay panel and Packages tab.
