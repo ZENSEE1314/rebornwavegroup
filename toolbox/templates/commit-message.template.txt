@@ -1,0 +1,6 @@
+Short line saying what changed for the owner (under 70 characters, no full stop)
+
+Why it was needed, in one or two sentences (the cause, not only the symptom).
+What changed and where. What was tested.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
