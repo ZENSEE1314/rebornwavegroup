@@ -2635,6 +2635,13 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
         </div>
       ) : (
         <div>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <b className="min-w-0 truncate text-sm">{p.name}</b>
+            <div className="flex shrink-0 gap-2">
+              <button onClick={() => setEdit(false)} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">{t("admin.c.cancel")}</button>
+              <button onClick={() => save.mutate()} disabled={save.isPending} className="rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black disabled:opacity-50">{save.isPending ? t("admin.c.saving") : t("admin.c.save")}</button>
+            </div>
+          </div>
           <label className="text-xs text-white/50">{t("admin.c.name")}<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} /></label>
           <div className="text-xs text-white/50 mb-2">{t("admin.prod.industries")} <span className="text-white/30">{t("admin.prod.tickAll")}</span><IndustryPicker value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></div>
           <div className="grid grid-cols-2 gap-2 mb-2">
@@ -2649,9 +2656,10 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
           {inventory && !p.packageKind && !p.bundleItemId && <SellOptions value={f} onChange={setF} />}
           <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => save.mutate()} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
-            <button onClick={() => setEdit(false)} className={btnSm + " text-white/60"}><X className="w-4 h-4" /></button>
+          {/* The form is long (sell options, happy hour, commission): Save and Cancel stay on screen above the bottom menu. */}
+          <div className="sticky bottom-20 z-10 mt-2 flex gap-2 justify-end rounded-xl border border-white/10 bg-[#14101f]/95 p-2">
+            <button onClick={() => setEdit(false)} className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white/80">{t("admin.c.cancel")}</button>
+            <button onClick={() => save.mutate()} disabled={save.isPending} className="rounded-lg bg-amber-400 px-5 py-2 text-sm font-bold text-black disabled:opacity-50">{save.isPending ? t("admin.c.saving") : t("admin.c.save")}</button>
           </div>
           <p className="text-[11px] text-white/40 mt-1">{t("admin.prod.adjustHint")}</p>
         </div>
