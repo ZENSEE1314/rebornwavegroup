@@ -2674,6 +2674,12 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
 // Ledger category label ("income:topup" → translated), or undefined when unknown.
 const catLabel = (k: string): string | undefined => { const key = "admin.cat." + k.replace(":", "."); return translations[key] ? translate(key) : undefined; };
 
+// One item, a few suppliers, each with the price it last charged: "Budi RP 450,000 · Nanda RP 460,000" (names only when a price is not known).
+function supplierLine(it: { suppliers?: string[]; supplierPrices?: { supplier: string; unitCost: number | null }[] }): string {
+  const priced = it.supplierPrices?.length ? it.supplierPrices : (it.suppliers || []).map((supplier) => ({ supplier, unitCost: null }));
+  return priced.map((s) => (s.unitCost ? `${s.supplier} ${money(s.unitCost)}` : s.supplier)).join(" · ");
+}
+
 function Accounting() {
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -2925,7 +2931,7 @@ function Inventory() {
                 <ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-12 h-12" roundedClass="rounded-xl" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold break-words leading-snug">{it.name}{it.low && <span className="ml-1.5 align-middle text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="ml-1.5 align-middle text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</p>
-                  <p className="text-[11px] text-white/45 break-words">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${it.suppliers.join(", ")}` : ""}</p>
+                  <p className="text-[11px] text-white/45 break-words">{t("admin.inv.costValue", { cost: money(it.cost), value: money(it.stockValue) })}{it.suppliers?.length ? ` · ${supplierLine(it)}` : ""}</p>
                 </div>
                 {canChange && <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-10 h-10 shrink-0 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>}
               </div>
@@ -2985,7 +2991,7 @@ function InventoryTable({ canChange, items, money, openId, onToggle, renderEdito
                 <td className="px-2 py-1.5"><div className="flex items-center gap-2"><ProductPicture id={it.id} name={it.name} imageUrl={it.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><span className="font-medium">{it.name}</span>{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">{t("admin.inv.low")}</span>}{it.posVisible === false && <span className="text-[10px] text-amber-300 bg-amber-500/15 rounded px-1.5 py-0.5">{t("admin.inv.notInPos")}</span>}</div></td>
                 <td className="px-2 py-1.5 text-white/60">{it.category}</td>
                 <td className="px-2 py-1.5 text-white/60">{deptLabel(it.department) || "—"}</td>
-                <td className="px-2 py-1.5 text-white/50 text-xs">{it.suppliers?.length ? it.suppliers.join(", ") : "—"}</td>
+                <td className="px-2 py-1.5 text-white/50 text-xs">{it.suppliers?.length ? supplierLine(it).split(" · ").map((part: string) => <span key={part} className="block">{part}</span>) : "—"}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-white/70">{money(it.cost)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-amber-300">{money(it.stockValue)}</td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-emerald-300">{money(it.retailValue)}</td>

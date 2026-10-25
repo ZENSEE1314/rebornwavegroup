@@ -157,7 +157,8 @@ export default function AccountingReports() {
   );
 }
 
-interface PeriodData { days: number; report: PeriodReport; prizePool: number }
+interface TaxFeeMonth { month: string; serviceFee: number; tax: number; bills: number }
+interface PeriodData { days: number; report: PeriodReport; prizePool: number; taxFees?: { serviceFee: number; tax: number; bills: number; months: TaxFeeMonth[] } }
 
 /** The top of Accounting for the last 7 / 30 / 90 days: money in, all costs and what is left, then every cost in its group — each line opens to the entries behind it. */
 export function PeriodBreakdown({ days }: { days: number }) {
@@ -178,6 +179,27 @@ export function PeriodBreakdown({ days }: { days: number }) {
         {tile(t("ar.grossProfit"), money(report.grossProfit), "text-white")}
         {tile(t("admin.acc.prizePool"), money(data.prizePool), "text-amber-300")}
       </div>
+      {data.taxFees && (
+        <div className={card}>
+          <p className="text-sm font-bold">{t("ar.taxFees.title")}</p>
+          <p className="mb-2 text-[11px] text-white/45">{t("ar.taxFees.hint", { n: String(data.taxFees.bills) })}</p>
+          <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+            {tile(t("ar.taxFees.service"), money(data.taxFees.serviceFee), "text-white")}
+            {tile(t("ar.taxFees.tax"), money(data.taxFees.tax), "text-white")}
+            {tile(t("ar.taxFees.both"), money(data.taxFees.serviceFee + data.taxFees.tax), "text-amber-300")}
+          </div>
+          {data.taxFees.months.length > 0 && (
+            <details className="mt-2 text-xs text-white/70">
+              <summary className="cursor-pointer font-semibold">{t("ar.taxFees.byMonth")}</summary>
+              <div className="mt-1 space-y-1">
+                {data.taxFees.months.map((m) => (
+                  <div key={m.month} className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-2 py-1.5"><span className="font-semibold">{m.month}</span><span className="text-white/50">{m.bills}</span><span>{t("ar.taxFees.service")} {money(m.serviceFee)}</span><span>{t("ar.taxFees.tax")} {money(m.tax)}</span></div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
       <div className={card}><Lines report={report} scope={`days=${days}`} /><p className="mt-2 text-[11px] text-white/40">{t("ar.pool", { n: money(data.prizePool) })}</p></div>
     </div>
   );

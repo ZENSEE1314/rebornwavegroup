@@ -5970,8 +5970,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const cid = await rebornCompanyId(req);
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const lines = await db.select().from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${sinceDays(days)}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
-    res.json({ days, report: periodReport(lines, await reportUploads(cid)), prizePool: await getSpinPool() });
+    res.json({ days, report: periodReport(lines, await reportUploads(cid)), prizePool: await getSpinPool(), taxFees: await taxFeesCollected(cid, days) });
   }));
+  // What customers paid as service fee and tax on paid bills (refunded bills are left out): the chosen number of days, and each of the last 12 months by the day the bill was paid.
+  const TAX_FEE_MONTHS = 12;
+  const taxFeesCollected = async (cid: number, days: number) => {
+    const zone = countryOf(companyCountry()).timezone;
+    const sum = (rows: any) => ((rows.rows || rows) as any[]);
+    const period = sum(await db.execute(sql`SELECT coalesce(sum(service_fee), 0)::float AS service_fee, coalesce(sum(tax), 0)::float AS tax, count(*)::int AS bills FROM pos_tickets WHERE company_id = ${cid} AND status = 'paid' AND paid_at >= ${sinceDays(days)}`))[0];
+    const months = sum(await db.execute(sql`SELECT to_char(paid_at AT TIME ZONE ${zone}, 'YYYY-MM') AS month, coalesce(sum(service_fee), 0)::float AS service_fee, coalesce(sum(tax), 0)::float AS tax, count(*)::int AS bills FROM pos_tickets WHERE company_id = ${cid} AND status = 'paid' AND paid_at >= ${sinceDays(TAX_FEE_MONTHS * 31)} GROUP BY 1 ORDER BY 1 DESC LIMIT ${TAX_FEE_MONTHS}`));
+    return { serviceFee: roundMoney(Number(period?.service_fee) || 0), tax: roundMoney(Number(period?.tax) || 0), bills: Number(period?.bills) || 0, months: months.map((m: any) => ({ month: m.month, serviceFee: roundMoney(Number(m.service_fee) || 0), tax: roundMoney(Number(m.tax) || 0), bills: Number(m.bills) || 0 })) };
+  };
   app.get("/api/reborn/admin/accounting/overall", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const lines = await db.select().from(ledgerEntries).where(sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`);
@@ -6517,10 +6526,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const cid = await rebornCompanyId(req);
     const rows = await db.select().from(posProducts).where(and(eq(posProducts.companyId, cid), eq(posProducts.archived, false), isNull(posProducts.packageKind), eq(posProducts.isService, false), isNull(posProducts.bundleItemId))).orderBy(posProducts.category, posProducts.name); // packages and bundles hold no stock of their own
     // Distinct suppliers each product has been restocked from (one item, many suppliers).
-    const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier })
-      .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`));
+    const supRows = await db.select({ productId: stockMovements.productId, supplier: stockMovements.supplier, unitCost: stockMovements.unitCost })
+      .from(stockMovements).where(and(isNotNull(stockMovements.supplier), sql`${stockMovements.delta} > 0`)).orderBy(stockMovements.createdAt, stockMovements.id);
     const supByProduct = new Map<number, Set<string>>();
-    for (const r of supRows) { if (!r.supplier) continue; (supByProduct.get(r.productId) || supByProduct.set(r.productId, new Set()).get(r.productId)!).add(r.supplier); }
+    // The last price each supplier charged for the item (rows are oldest first, so the newest delivery wins).
+    const priceByProduct = new Map<number, Map<string, number>>();
+    for (const r of supRows) {
+      if (!r.supplier) continue;
+      (supByProduct.get(r.productId) || supByProduct.set(r.productId, new Set()).get(r.productId)!).add(r.supplier);
+      if (r.unitCost !== null && Number(r.unitCost) > 0) (priceByProduct.get(r.productId) || priceByProduct.set(r.productId, new Map()).get(r.productId)!).set(r.supplier, Number(r.unitCost));
+    }
     const fifo = await loadFifo(rows);
     const items = rows.map((p) => {
       const stock = p.stock ?? 0;
@@ -6531,6 +6546,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         id: p.id, name: p.name, category: p.category, department: p.department || null, active: p.active, posVisible: p.posVisible,
         stock, cost, price, imageUrl: productImageLink(p), unitsPerPack: p.unitsPerPack ?? null, packPrice: p.packPrice === null || p.packPrice === undefined ? null : Number(p.packPrice),
         suppliers: Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set())),
+        supplierPrices: Array.from(supByProduct.get(p.id) || new Set<string>()).map((name) => ({ supplier: name, unitCost: priceByProduct.get(p.id)?.get(name) ?? null })),
         stockValue: Math.round(run && run.layers.length ? run.layers.reduce((sum, layer) => sum + layer.qtyLeft * exactUnitCost(layer.unitCost, p.packPrice, p.unitsPerPack), 0) : stock * exactUnitCost(cost, p.packPrice, p.unitsPerPack)),
         retailValue: Math.round(stock * price),
         low: stock <= lowAt,

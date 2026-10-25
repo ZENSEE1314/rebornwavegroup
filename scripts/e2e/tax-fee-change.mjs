@@ -97,6 +97,17 @@ r = await admin("POST", "/api/reborn/pos/sale", { items: [{ productId: item.id, 
 check("and is charged with them", r.status === 200 && Number(r.json.order.tax) === 5000 && Number(r.json.order.serviceFee) === 0, JSON.stringify([r.status, r.json?.order?.tax, r.json?.order?.serviceFee]));
 await admin("PUT", "/api/reborn/admin/tax-fees", { taxPercent: 0, serviceFeePercent: 0, posCanChangeFees: false });
 
+// Accounting shows what customers paid as service fee and tax: the same numbers as the paid bills, refunded bills left out
+const paidSums = async () => (await db.query("SELECT coalesce(sum(service_fee),0)::float sf, coalesce(sum(tax),0)::float tx, count(*)::int n FROM pos_tickets WHERE status='paid' AND paid_at >= now() - interval '7 days'")).rows[0];
+const shown = async () => (await admin("GET", "/api/reborn/admin/accounting/period?days=7")).json.taxFees;
+let before = await paidSums();
+let totals = await shown();
+check("Accounting shows the service fee and tax collected, the same as the paid bills", totals && Math.abs(totals.serviceFee - before.sf) < 0.01 && Math.abs(totals.tax - before.tx) < 0.01 && totals.bills === before.n, JSON.stringify([totals && { s: totals.serviceFee, t: totals.tax, n: totals.bills }, before]));
+check("and lists the months", Array.isArray(totals.months) && totals.months.length >= 1 && totals.months[0].month === new Date().toISOString().slice(0, 7), JSON.stringify(totals?.months));
+await admin("POST", `/api/reborn/admin/accounting/orders/${billB.id}/refund`, { reason: "tax fee total test" });
+totals = await shown();
+check("a refunded bill is taken out of the service fee and tax collected", Math.abs(totals.serviceFee - (before.sf - 5000)) < 0.01 && totals.bills === before.n - 1, JSON.stringify([totals.serviceFee, before.sf, totals.bills]));
+
 await rates(0, 0);
 await db.end();
 console.log(failures ? `${failures} FAILED` : "ALL PASSED");

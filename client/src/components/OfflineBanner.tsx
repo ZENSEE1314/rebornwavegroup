@@ -3,7 +3,7 @@ import { useState } from "react";
 import { WifiOff, RefreshCw } from "lucide-react";
 import { useTranslation, localeTag } from "@/lib/i18n";
 import { money } from "@/lib/money";
-import { discardOfflineSale, retryOfflineSale, useOfflineSales } from "@/lib/offline-sales";
+import { checkConnectionNow, discardOfflineSale, retryOfflineSale, useOfflineSales } from "@/lib/offline-sales";
 
 export function OfflineBanner() {
   const { t, language } = useTranslation();
@@ -16,6 +16,8 @@ export function OfflineBanner() {
         <div className={`rounded-2xl border p-3 text-sm ${isOffline ? "border-amber-400/40 bg-amber-400/10 text-amber-100" : "border-sky-400/30 bg-sky-400/10 text-sky-100"}`}>
           <p className="flex items-center gap-2 font-bold">{isOffline && <WifiOff className="h-4 w-4" />}{isOffline ? t("pos.offline.title") : t("pos.offline.waitingTitle")}</p>
           <p className="mt-1 text-xs opacity-80">{isOffline ? t("pos.offline.hint") : t("pos.offline.waiting", { n: pending })}</p>
+          {isOffline && <p className="mt-1 text-xs opacity-80">{t("pos.offline.autoRetry")}</p>}
+          {isOffline && <button type="button" onClick={checkConnectionNow} className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold"><RefreshCw className="h-3.5 w-3.5" />{t("pos.offline.checkNow")}</button>}
           {isOffline && pending > 0 && <p className="mt-1 text-xs font-semibold">{t("pos.offline.saved", { n: pending })}</p>}
           {needsLogin && <p className="mt-1 text-xs font-semibold text-red-200">{t("pos.offline.loginAgain")}</p>}
           {pending > 0 && <button type="button" onClick={() => void syncNow()} disabled={isSyncing} className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />{t("pos.offline.sendNow")}</button>}

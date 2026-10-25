@@ -9,7 +9,7 @@
 REPO="$(git rev-parse --show-toplevel)"
 SP="${TOOLBOX_SCRATCH:-$(mktemp -d)}"
 cd "$REPO" || exit 1
-DEFAULT_SCRIPTS="costs-expenses receipt-staff tax-fee-change referral-discount admin-secret webhook-signature saved-keys happy-days happy-hour-bulk happy-hour-deal item-commission"
+DEFAULT_SCRIPTS="costs-expenses receipt-staff tax-fee-change referral-discount admin-secret webhook-signature saved-keys happy-days happy-hour-bulk happy-hour-deal item-commission health inventory-suppliers"
 SCRIPTS="${*:-$DEFAULT_SCRIPTS}"
 
 echo "== build"; npm run build 2>&1 | grep -E "ERROR|error TS|built in"

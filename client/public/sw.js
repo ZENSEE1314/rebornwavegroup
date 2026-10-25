@@ -15,15 +15,17 @@ const API = "rw-api-v1";
 const SHELL_KEY = "/__shell";
 // A copy of the server running on a PC at the venue (localhost) reaches the cloud database over a slow line: wait much longer there before showing the saved copy as "no internet".
 const IS_LOCAL_COPY = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
-const NAVIGATE_TIMEOUT_MS = IS_LOCAL_COPY ? 60000 : 10000; // a slow (not offline) connection still gets the newest page
-const API_TIMEOUT_MS = IS_LOCAL_COPY ? 60000 : 8000;
+// The saved copy is shown only after the wait: long when the device says it is online (a slow line, not "no internet"), short when it says it is offline.
+const ONLINE_WAIT_MS = 25000;
+const OFFLINE_WAIT_MS = 3000;
+const waitMs = () => (IS_LOCAL_COPY ? 60000 : self.navigator.onLine ? ONLINE_WAIT_MS : OFFLINE_WAIT_MS);
 const API_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const CACHED_AT = "x-sw-cached-at";
 // Every page of the app can be opened offline: the last answer of each read (GET) is kept for 3 days and shown when the network is down.
 // Never kept: sign-in / password calls, live streams, member look-ups, chats, contracts / ID / payslips, files and codes.
 const API_MAX_ENTRIES = 300;
 const API_MAX_BYTES = 1500000;
-const NEVER_KEEP = /^\/api\/(auth\/(?!user$)|logout|karaoke|tv\/|venue-bridge|meta|whatsapp|telegram|client-error|reborn\/(song-queue-info|venue\/status))|\/(stream|token|tokens|secret|password|pdf|qr|download|export|backups?|invite|contracts|my-employment|payslips|staff-hr|crm|chat|messages)(\/|$)|\/pos\/member(s|\/)?|\/id\//i;
+const NEVER_KEEP = /^\/api\/(auth\/(?!user$)|logout|karaoke|tv\/|venue-bridge|meta|whatsapp|telegram|client-error|health$|reborn\/(song-queue-info|venue\/status))|\/(stream|token|tokens|secret|password|pdf|qr|download|export|backups?|invite|contracts|my-employment|payslips|staff-hr|crm|chat|messages)(\/|$)|\/pos\/member(s|\/)?|\/id\//i;
 const STATIC_FILE = /^\/(assets\/|icon-|apple-touch-icon)/;
 const NOT_THE_APP = /^\/(api\/|\.well-known\/|reset$|overlay)/; // downloads, sign-in returns and the like are never answered with the saved page
 
@@ -48,7 +50,7 @@ async function openShell(request) {
   const saved = await cache.match(SHELL_KEY);
   try {
     // With a saved copy the page is not held up by a slow connection; without one the network is simply waited for.
-    const response = saved ? await fetchWithin(request, NAVIGATE_TIMEOUT_MS) : await fetch(request);
+    const response = saved ? await fetchWithin(request, waitMs()) : await fetch(request);
     if (response.ok) cache.put(SHELL_KEY, response.clone()).catch(() => {});
     return response;
   } catch (error) {
@@ -63,7 +65,7 @@ async function trim(cache) {
 async function freshOrSaved(request) {
   const cache = await caches.open(API);
   try {
-    const response = await fetchWithin(request, API_TIMEOUT_MS);
+    const response = await fetchWithin(request, waitMs());
     const size = Number(response.headers.get("content-length") || 0);
     if (response.ok && /json/i.test(response.headers.get("content-type") || "") && size < API_MAX_BYTES) {
       await cache.put(request, await stamped(response)).catch(() => {});

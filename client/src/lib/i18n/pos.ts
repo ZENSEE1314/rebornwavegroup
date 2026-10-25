@@ -4,6 +4,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.title': { en: 'POS', zh: '收银', id: 'Kasir' },
   'pos.offline.title': { en: "No internet — you can keep selling", zh: "没有网络——可以继续收银", id: "Tidak ada internet — tetap bisa berjualan" },
   'pos.offline.hint': { en: "Use the Quick sale tab with cash or card. Each sale is saved on this device and sent by itself when the internet is back. Tables, members and RP credits need the internet.", zh: "请使用“快速销售”，现金或刷卡均可。每笔销售会保存在本设备，网络恢复后自动发送。桌台、会员和 RP 余额需要网络。", id: "Pakai tab Jual cepat dengan tunai atau kartu. Setiap penjualan disimpan di perangkat ini dan terkirim otomatis saat internet kembali. Meja, member, dan kredit RP butuh internet." },
+  'pos.offline.autoRetry': { en: 'The POS checks the connection every few seconds and goes back to normal by itself, refreshing every bill and stock number, as soon as the server answers.', zh: 'POS 每隔几秒检查一次连接，服务器一有回应就自动恢复正常，并刷新所有账单和库存数字。', id: 'POS memeriksa koneksi setiap beberapa detik dan kembali normal sendiri, menyegarkan semua tagihan dan stok, begitu server menjawab.' },
+  'pos.offline.checkNow': { en: 'Check the connection now', zh: '立即检查连接', id: 'Periksa koneksi sekarang' },
   'pos.offline.saved': { en: "{n} sale(s) saved on this device, waiting to be sent.", zh: "已有 {n} 笔销售保存在本设备，等待发送。", id: "{n} penjualan tersimpan di perangkat ini, menunggu dikirim." },
   'pos.offline.waitingTitle': { en: "Sending saved sales", zh: "正在发送已保存的销售", id: "Mengirim penjualan tersimpan" },
   'pos.offline.waiting': { en: "{n} sale(s) made without internet are being sent.", zh: "有 {n} 笔无网络时的销售正在发送。", id: "{n} penjualan saat tanpa internet sedang dikirim." },

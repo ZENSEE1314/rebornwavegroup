@@ -55,6 +55,8 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "50mb", verify: (req, _res, buf) => { if (req.url?.startsWith("/api/whatsapp/webhook")) (req as Request & { rawBody?: Buffer }).rawBody = buf; } })); // the webhook signature is checked on the raw bytes
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
 applyRateLimits(app);
+// The POS asks this every few seconds while it thinks it is offline: it answers as long as the server is reachable (no login, no database).
+app.get("/api/health", (_req: Request, res: Response) => { res.setHeader("Cache-Control", "no-store"); res.json({ ok: true }); });
 // Route each request to its company's own data space (before sessions, so logins are per company).
 keepTenantContextAcrossMiddleware();
 app.use(tenantSpaceMiddleware);

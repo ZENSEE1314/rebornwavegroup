@@ -10,6 +10,10 @@ const SALE_URL = "/api/reborn/pos/sale";
 const SALE_TIMEOUT_MS = 15_000;
 const SYNC_EVERY_MS = 30_000;
 const RECEIPT_META_KEY = "rw.pos.receiptMeta";
+const HEALTH_URL = "/api/health";
+const PROBE_EVERY_MS = 4_000;
+const PROBE_TIMEOUT_MS = 5_000;
+export const RECONNECTED_EVENT = "rw-reconnected";
 
 let queue: OfflineSale[] = [];
 let looksOffline = typeof navigator !== "undefined" ? !navigator.onLine : false;
@@ -31,10 +35,31 @@ function save(next: OfflineSale[]) {
   try { localStorage.setItem(OFFLINE_SALES_KEY, JSON.stringify(queue)); } catch { /* storage full or blocked: the queue still lives in memory this visit */ }
   publish();
 }
+let probeTimer: number | undefined;
+/** While the page believes it is offline, ask the server every few seconds; the moment it answers the page is online again and refreshes what it shows. */
+function startProbe() {
+  if (probeTimer !== undefined || typeof window === "undefined") return;
+  const check = async () => {
+    if (!looksOffline) { window.clearInterval(probeTimer); probeTimer = undefined; return; }
+    try {
+      const response = await fetch(HEALTH_URL, { cache: "no-store", credentials: "include", signal: timeoutSignal(PROBE_TIMEOUT_MS) });
+      if (!response.ok || response.headers.get("x-sw-saved")) return;
+      looksOffline = false;
+      publish();
+      window.dispatchEvent(new Event(RECONNECTED_EVENT));
+    } catch { /* still unreachable: try again in a few seconds */ }
+  };
+  probeTimer = window.setInterval(() => void check(), PROBE_EVERY_MS);
+  void check();
+}
+/** The banner's "Check now": one immediate try. */
+export function checkConnectionNow() { startProbe(); }
+
 if (typeof window !== "undefined") {
   load();
   window.addEventListener("online", () => { looksOffline = false; publish(); });
-  window.addEventListener("offline", () => { looksOffline = true; publish(); });
+  window.addEventListener("offline", () => { looksOffline = true; publish(); startProbe(); });
+  if (looksOffline) startProbe();
 }
 
 const newId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -145,6 +170,7 @@ export function reportNetwork(reachable: boolean) {
   if (looksOffline === !reachable) return;
   looksOffline = !reachable;
   publish();
+  if (looksOffline) startProbe();
 }
 export function useIsOffline(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot).looksOffline;
@@ -166,8 +192,11 @@ export function useOfflineSales() {
     if (pending > 0) void syncNow();
     const onOnline = () => { void syncNow(); };
     window.addEventListener("online", onOnline);
+    // The server answered again: everything on the screen is read afresh, so no old bill or stock number is left showing.
+    const onReconnected = () => { void qc.invalidateQueries(); void syncNow(); };
+    window.addEventListener(RECONNECTED_EVENT, onReconnected);
     const timer = setInterval(() => { if (pendingSales(queue).length > 0) void syncNow(); }, SYNC_EVERY_MS);
-    return () => { window.removeEventListener("online", onOnline); clearInterval(timer); };
+    return () => { window.removeEventListener("online", onOnline); window.removeEventListener(RECONNECTED_EVENT, onReconnected); clearInterval(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return { isOffline: state.looksOffline, needsLogin: state.needsLogin, isSyncing: state.isSyncing, pending, failed: failedSales(state.queue), syncNow };
