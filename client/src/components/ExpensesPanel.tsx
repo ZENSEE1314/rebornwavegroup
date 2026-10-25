@@ -1,7 +1,8 @@
 // Admin › Expenses: the accounts staff upload the day's expenses (rent, electricity, salary, security ...) with the receipt photo. Every entry keeps who uploaded it and when;
 // a mistake is voided with a reason (managers and the main admin), never deleted. Food and drinks bought for the shop (kind "Food & drinks") are not an expense upload: the lines go into the inventory
 // stock and one purchase is booked, exactly like Inventory › Scan a supplier receipt (same route).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Receipt, Sparkles, X } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
@@ -43,6 +44,18 @@ const newLine = (line: Partial<Line> = {}): Line => ({ key: nextLineKey++, name:
 const emptyForm = (category = "") => ({ category, amount: "", spentOn: todayText(), spentTime: nowTimeText(), payee: "", payeeAddress: "", payeePhone: "", invoiceNo: "", note: "", photoUrl: "", fixedCostId: "" });
 
 /** startWith: the kind pre-picked in the form (the Accounting page opens it on "Other"). */
+const EDIT_FORM_ID = "expense-edit-form";
+
+// A box in front of the page (a portal, so it is never hidden below the list): void asks for a reason here, a receipt photo opens here.
+function Popup({ children, onClose, labelledBy, wide = false }: { children: ReactNode; onClose: () => void; labelledBy: string; wide?: boolean }) {
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-labelledby={labelledBy} className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/75 p-4" onClick={onClose} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
+      <div className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-white/15 bg-[#14101f] p-4 text-white shadow-2xl ${wide ? "max-w-2xl" : "max-w-sm"}`} onClick={(e) => e.stopPropagation()}>{children}</div>
+    </div>,
+    document.body,
+  );
+}
+
 export default function ExpensesPanel({ startWith = "" }: { startWith?: string }) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -102,7 +115,8 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
     setPayMethod(row.payMethod || "");
     setTermsDays(String(termsFromDue));
     setReadState("idle");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // The form opens right under the row (see renderRow); keep that spot in view instead of jumping to the top.
+    requestAnimationFrame(() => document.getElementById(EDIT_FORM_ID)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
   };
   const cancelEdit = () => { setEditingId(null); setForm(emptyForm(startWith)); setLines([]); setIsPaid(true); setPayMethod(""); };
   const showPhoto = async (id: number) => {
@@ -153,9 +167,8 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const isChecked = readState === "done";
   const ring = (value: string | number) => (isChecked && !value ? CHECK_RING : "");
   const isReady = (!isPaid || !!payMethod) && (editingId && !isStock ? !!form.category && Number(form.amount) > 0 && !!form.spentOn : isStock ? stockLines.length > 0 && !!form.spentOn : !!form.category && Number(form.amount) > 0 && !!form.spentOn && (!!form.photoUrl || !!form.note.trim()));
-  return (
-    <div className="space-y-3">
-      <div className={card + " space-y-3"}>
+  const formCard = (
+      <div id={EDIT_FORM_ID} className={card + " space-y-3" + (editingId ? " border-amber-400/50" : "")}>
         <h3 className="font-extrabold flex items-center gap-2"><Receipt className="w-5 h-5 text-amber-300" /> {t("ex.title")}</h3>
         {editingId && <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 p-2 text-xs text-amber-200"><span>{t("ex.editing", { n: String(editingId) })}</span><button type="button" onClick={cancelEdit} className="min-h-[36px] rounded-lg bg-white/10 px-3 text-xs">{t("ex.cancelEdit")}</button></div>}
         <ImageUpload value={form.photoUrl} onChange={(photoUrl) => { setForm({ ...form, photoUrl }); if (!photoUrl) { setReadState("idle"); lastRead.current = ""; } }} label={t("ex.photo")} output="jpeg" maxDim={PHOTO_MAX_DIM} quality={PHOTO_QUALITY} />
@@ -241,6 +254,10 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
         <p className="text-[11px] text-white/40">{t("ex.needProof")}</p>
         <button type="button" onClick={() => save.mutate()} disabled={!isReady || save.isPending} className="min-h-[44px] px-5 rounded-lg bg-amber-400 text-black text-sm font-bold disabled:opacity-40">{editingId ? (isStock ? t("ex.moveToStock") : t("ex.saveChanges")) : t("ex.save")}</button>
       </div>
+  );
+  return (
+    <div className="space-y-3">
+      {!editingId && formCard}
 
       {(payables?.payables || []).length > 0 && (
         <div className={card + " space-y-2 border-amber-400/30"}>
@@ -272,6 +289,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
         <div className="mt-3 space-y-2">
           {(() => {
             const renderRow = (row: Expense) => (
+              <Fragment key={row.id}>
             <div key={row.id} className={`rounded-xl border p-3 text-xs ${row.status === "voided" ? "border-white/10 opacity-50" : "border-white/10 bg-black/20"}`}>
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-semibold">{t(`ex.cat.${row.category}`)}{row.payee ? ` · ${row.payee}` : ""}</span>
@@ -287,6 +305,8 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 {data?.canVoid && row.status === "active" && <button type="button" onClick={() => { setVoiding(row); setReason(""); }} className="min-h-0 p-0 text-red-300 underline">{t("ex.void")}</button>}
               </div>
             </div>
+              {editingId === row.id && formCard}
+              </Fragment>
             );
             return (<>
               {(data?.expenses || []).map(renderRow)}
@@ -307,20 +327,21 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
       </div>
 
       {voiding && (
-        <div className={card + " space-y-2 border-red-400/30"}>
-          <p className="text-sm font-semibold">{t("ex.voidAsk", { what: `${t(`ex.cat.${voiding.category}`)} ${money(Number(voiding.amount))}` })}</p>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("ex.voidReason")} aria-label={t("ex.voidReason")} className={field} />
-          <div className="flex gap-2">
+        <Popup onClose={() => setVoiding(null)} labelledBy="void-title">
+          <p id="void-title" className="text-sm font-semibold">{t("ex.voidAsk", { what: `${t(`ex.cat.${voiding.category}`)} ${money(Number(voiding.amount))}` })}</p>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("ex.voidReason")} aria-label={t("ex.voidReason")} className={field + " mt-3"} autoFocus />
+          <div className="mt-3 flex gap-2">
             <button type="button" onClick={() => voidIt.mutate()} disabled={!reason.trim() || voidIt.isPending} className="min-h-[44px] px-4 rounded-lg bg-red-400 text-black text-sm font-bold disabled:opacity-40">{t("ex.void")}</button>
             <button type="button" onClick={() => setVoiding(null)} className="min-h-[44px] px-4 rounded-lg bg-white/10 text-sm">{t("ex.cancel")}</button>
           </div>
-        </div>
+        </Popup>
       )}
       {photo && (
-        <div className={card}>
-          {photo.url ? <img src={photo.url} alt={t("ex.photo")} className="max-h-96 w-full object-contain rounded-lg" /> : <p className="text-xs text-white/50">…</p>}
-          <button type="button" onClick={() => setPhoto(null)} className="mt-2 min-h-[40px] px-4 rounded-lg bg-white/10 text-xs">{t("ex.close")}</button>
-        </div>
+        <Popup onClose={() => setPhoto(null)} labelledBy="photo-title" wide>
+          <p id="photo-title" className="sr-only">{t("ex.photo")}</p>
+          {photo.url ? <img src={photo.url} alt={t("ex.photo")} className="max-h-[75vh] w-full object-contain rounded-lg" /> : <p className="text-xs text-white/50">…</p>}
+          <button type="button" onClick={() => setPhoto(null)} className="mt-3 min-h-[44px] px-4 rounded-lg bg-white/10 text-sm">{t("ex.close")}</button>
+        </Popup>
       )}
     </div>
   );

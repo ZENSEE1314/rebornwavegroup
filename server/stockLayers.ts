@@ -1,7 +1,7 @@
 // Stock by supplier and price (oldest first): which deliveries are still on the shelf, what a sale really cost, and merging
 // the same item entered twice. The costing itself is server/fifo.ts; this wires it to the database.
 import type { Express, Request, Response } from "express";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "./db";
 import { posProducts, posTicketItems, stockMovements } from "@shared/schema";
 import { groupLayers, runFifo, type FifoResult, type StockMove } from "./fifo";
@@ -39,6 +39,8 @@ export async function fifoSaleCosts(productIds: number[], from: Date, to: Date):
   return costs;
 }
 
+const DELIVERY_HISTORY_LIMIT = 200;
+
 export interface StockLayerDeps {
   requireAdmin(handler: (req: Request, res: Response) => Promise<unknown>): (req: Request, res: Response) => unknown;
   requireManager(handler: (req: Request, res: Response) => Promise<unknown>): (req: Request, res: Response) => unknown;
@@ -52,7 +54,12 @@ export function registerStockLayers(app: Express, deps: StockLayerDeps) {
     const [product] = await db.select().from(posProducts).where(and(eq(posProducts.id, Number(req.params.id)), eq(posProducts.companyId, cid)));
     if (!product) return res.status(404).json({ message: "Item not found" });
     const run = (await loadFifo([product])).get(product.id)!;
+    // Every delivery with a supplier and a price, oldest first: Add stock suggests the price of the supplier chosen, even when that supplier's units are all sold.
+    const deliveries = await db.select({ supplier: stockMovements.supplier, unitCost: stockMovements.unitCost, at: stockMovements.createdAt }).from(stockMovements)
+      .where(and(eq(stockMovements.productId, product.id), gt(stockMovements.delta, 0), isNotNull(stockMovements.supplier), isNotNull(stockMovements.unitCost)))
+      .orderBy(desc(stockMovements.createdAt), desc(stockMovements.id)).limit(DELIVERY_HISTORY_LIMIT);
     res.json({
+      deliveries: deliveries.reverse().map((row) => ({ supplier: row.supplier ?? "", unitCost: Number(row.unitCost), at: row.at })),
       stock: product.stock, stockValue: Math.round(run.stockValue),
       layers: groupLayers(run.layers).map((layer) => ({ supplier: layer.supplier, unitCost: layer.unitCost, qty: layer.qtyLeft, receivedAt: layer.receivedAt, isOpening: layer.isOpening })),
     });

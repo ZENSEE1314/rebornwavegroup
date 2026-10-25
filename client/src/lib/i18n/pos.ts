@@ -37,12 +37,10 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.rc.paperFromRuler': { en: "Set from the ruler", zh: "按尺子设置", id: "Atur dari penggaris" },
   'pos.rc.paperLeft': { en: "left", zh: "左", id: "kiri" },
   'pos.rc.paperRight': { en: "right", zh: "右", id: "kanan" },
-  'pos.com.title': { en: "Commission (our cost)", zh: "佣金（我们的成本）", id: "Komisi (biaya kami)" },
   'pos.com.hint': { en: "Paid to someone out of this sale, worked out on the bill before service fee and tax. It is not added to the bill and does not show on the customer's receipt.", zh: "从这笔销售中支付给某人，按未加服务费和税的账单金额计算。不会加到账单上，也不会显示在客户的小票上。", id: "Dibayarkan kepada seseorang dari penjualan ini, dihitung dari tagihan sebelum biaya layanan dan pajak. Tidak ditambahkan ke tagihan dan tidak muncul di struk pelanggan." },
   'pos.com.base': { en: "Calculated on {amount} (before service fee & tax)", zh: "按 {amount} 计算（不含服务费和税）", id: "Dihitung dari {amount} (sebelum biaya layanan & pajak)" },
   'pos.com.pick': { en: "Pick a saved commission", zh: "选择已保存的佣金", id: "Pilih komisi tersimpan" },
   'pos.com.name': { en: "Commission name", zh: "佣金名称", id: "Nama komisi" },
-  'pos.com.payee': { en: "Paid to (name)", zh: "支付给（姓名）", id: "Dibayar ke (nama)" },
   'pos.com.clear': { en: "Clear commission", zh: "清除佣金", id: "Hapus komisi" },
   'pos.com.manage': { en: "Commissions", zh: "佣金设置", id: "Komisi" },
   'pos.com.manageHint': { en: "Saved commissions the cashier can pick: a name and a % of the sale or a fixed amount.", zh: "收银员可选择的已保存佣金：名称，以及销售额的百分比或固定金额。", id: "Komisi tersimpan yang bisa dipilih kasir: nama dan % dari penjualan atau jumlah tetap." },
@@ -143,6 +141,11 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.report.saved': { en: 'Saved in Admin › Accounting', zh: '已保存至 管理 › 财务', id: 'Tersimpan di Admin › Akuntansi' },
 
   // Sales picker
+  'pos.com.to': { en: 'Commission to (optional)', zh: '提成归（可选）', id: 'Komisi untuk (opsional)' },
+  'pos.com.none': { en: 'No commission', zh: '无提成', id: 'Tanpa komisi' },
+  'pos.com.agency': { en: 'Agency / other (type the name)', zh: '中介 / 其他（手动输入名字）', id: 'Agen / lainnya (ketik nama)' },
+  'pos.com.agencyName': { en: "Agency or person's name", zh: '中介或个人姓名', id: 'Nama agen atau orang' },
+  'pos.com.staffNote': { en: "Paid through payroll at this staff member's own commission rate. Nothing else is booked.", zh: '按该员工自己的提成比例通过工资发放，不另外入账。', id: 'Dibayar lewat payroll sesuai tarif komisi staf ini. Tidak ada yang dicatat lagi.' },
   'pos.salesperson': { en: 'Salesperson (commission) — optional', zh: '销售员（提成）— 可选', id: 'Tenaga penjual (komisi) — opsional' },
   'pos.salesLabel': { en: 'sales: {name}', zh: '销售：{name}', id: 'penjual: {name}' },
 

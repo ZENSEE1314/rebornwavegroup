@@ -33,6 +33,19 @@ type Tab = "tables" | "sell" | "sales" | "stock" | "bottles" | "packages";
 const OPEN_TICKETS = ["/api/reborn/pos/orders"];
 // A line that no longer counts on the bill: rejected before it was served, or lost (spilled / broken) after.
 const OFF_BILL = ["rejected", "lost"];
+// POS work area. Phone: one column, the bill / cart on top and the ordering below it. PC (lg): two side-by-side panes, each scrolls on its own and fills the screen below the
+// header, so the bill is never far down the page; the second pane is the bill (360 px, 340 px for Quick sale).
+const PANE_HEIGHT = "lg:h-[calc(100vh-6.5rem)]";
+const TWO_PANES = `flex flex-col lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 ${PANE_HEIGHT}`;
+const TWO_PANES_QUICK = `flex flex-col lg:grid lg:grid-cols-[1fr_340px] lg:gap-6 ${PANE_HEIGHT}`;
+const PANE_SCROLL = "lg:min-h-0 lg:overflow-y-auto lg:pr-1";
+const WORK_AREA_ID = "pos-work-area";
+// On a PC the two panes fill the screen: when a bill or Quick sale opens, bring them to the top of the window (a phone keeps its normal scroll).
+function useBringWorkAreaIntoView() {
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 1024px)").matches) document.getElementById(WORK_AREA_ID)?.scrollIntoView({ block: "start" });
+  }, []);
+}
 const RECOMMENDED_GROUP = "__recommended__";
 const HAPPY_GROUP = "__happy__";
 const PACKAGES_GROUP = "__packages__";
@@ -98,33 +111,56 @@ function AtCostBox({ value, onChange }: { value: AtCostInput; onChange: (next: A
   );
 }
 
-function CommissionBox({ value, onChange, base }: { value: CommissionInput; onChange: (next: CommissionInput) => void; base: number }) {
+const AGENCY_CHOICE = "__agency__";
+
+// One "Commission to" choice on the pay panels: a staff member (credited with the sale; paid through payroll at their own commission rate, nothing else is booked)
+// or an agency / other person whose name is typed by hand (our own cost, booked as a commission expense; never on the customer's copy of the receipt).
+function CommissionPayer({ sales, onSales, value, onChange, base }: { sales: string; onSales: (id: string) => void; value: CommissionInput; onChange: (next: CommissionInput) => void; base: number }) {
   const { t } = useTranslation();
+  const { data: staff = [] } = useStaff();
   const { data: types = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/commission-types"], queryFn: () => apiRequest("GET", "/api/reborn/pos/commission-types").then((r) => r.json()) });
+  const [isAgencyPicked, setIsAgencyPicked] = useState(false);
+  const isAgency = !sales && (isAgencyPicked || value.payee !== "" || value.value > 0);
   const amount = commissionAmountOf(value, base);
   const field = "mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white";
+  const choose = (choice: string) => {
+    if (choice === AGENCY_CHOICE) { onSales(""); setIsAgencyPicked(true); return; }
+    setIsAgencyPicked(false);
+    onChange(emptyCommission());
+    onSales(choice);
+  };
   return (
-    <details className="mb-2 rounded-xl border border-white/10 bg-black/20 p-2 text-xs text-white/70">
-      <summary className="cursor-pointer font-semibold">💼 {t("pos.com.title")}{amount > 0 && <span className="ml-2 text-amber-300">{rp(amount)}</span>}</summary>
-      <p className="my-2 text-white/45">{t("pos.com.hint")}</p>
-      <p className="mb-2 font-semibold text-white/70">{t("pos.com.base", { amount: rp(base) })}</p>
-      {types.length > 0 && (
-        <select value="" onChange={(e) => { const type = types.find((x: any) => x.id === e.target.value); if (type) onChange({ ...value, label: type.name, kind: type.kind, value: Number(type.value) }); }} className={field}>
-          <option value="">{t("pos.com.pick")}</option>
-          {types.map((x: any) => <option key={x.id} value={x.id}>{x.name} · {x.kind === "percent" ? `${x.value}%` : rp(x.value)}</option>)}
+    <div className="mb-2 rounded-xl border border-white/10 bg-black/20 p-2 text-xs text-white/70">
+      <label className="block font-semibold">💼 {t("pos.com.to")}{amount > 0 && <span className="ml-2 text-amber-300">{rp(amount)}</span>}
+        <select value={sales || (isAgency ? AGENCY_CHOICE : "")} onChange={(e) => choose(e.target.value)} className={field}>
+          <option value="">{t("pos.com.none")}</option>
+          {staff.map((person) => <option key={person.id} value={person.id}>{person.name}{person.role === "admin" ? t("pos.adminSuffix") : ""}</option>)}
+          <option value={AGENCY_CHOICE}>{t("pos.com.agency")}</option>
         </select>
+      </label>
+      {sales && <p className="mt-2 text-white/45">{t("pos.com.staffNote")}</p>}
+      {isAgency && (
+        <>
+          <p className="my-2 text-white/45">{t("pos.com.hint")}</p>
+          <label className="block">{t("pos.com.agencyName")}<input value={value.payee} onChange={(e) => onChange({ ...value, payee: e.target.value })} maxLength={60} className={field} /></label>
+          {types.length > 0 && (
+            <select value="" onChange={(e) => { const type = types.find((x: any) => x.id === e.target.value); if (type) onChange({ ...value, label: type.name, kind: type.kind, value: Number(type.value) }); }} className={field}>
+              <option value="">{t("pos.com.pick")}</option>
+              {types.map((x: any) => <option key={x.id} value={x.id}>{x.name} · {x.kind === "percent" ? `${x.value}%` : rp(x.value)}</option>)}
+            </select>
+          )}
+          <p className="mt-2 font-semibold text-white/70">{t("pos.com.base", { amount: rp(base) })}</p>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <select value={value.kind} onChange={(e) => onChange({ ...value, kind: e.target.value === "percent" ? "percent" : "amount" })} className={field}>
+              <option value="percent">%</option>
+              <option value="amount">{t("pos.rpAmount")}</option>
+            </select>
+            <input type="number" min={0} value={value.value || ""} onChange={(e) => onChange({ ...value, value: Math.max(0, Number(e.target.value)) })} className={field} />
+          </div>
+          <button type="button" onClick={() => { onChange(emptyCommission()); setIsAgencyPicked(false); }} className="mt-2 text-white/50 underline">{t("pos.com.clear")}</button>
+        </>
       )}
-      <label className="mt-2 block">{t("pos.com.name")}<input value={value.label} onChange={(e) => onChange({ ...value, label: e.target.value })} maxLength={40} className={field} /></label>
-      <label className="mt-2 block">{t("pos.com.payee")}<input value={value.payee} onChange={(e) => onChange({ ...value, payee: e.target.value })} maxLength={60} className={field} /></label>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <select value={value.kind} onChange={(e) => onChange({ ...value, kind: e.target.value === "percent" ? "percent" : "amount" })} className={field}>
-          <option value="percent">%</option>
-          <option value="amount">{t("pos.rpAmount")}</option>
-        </select>
-        <input type="number" min={0} value={value.value || ""} onChange={(e) => onChange({ ...value, value: Math.max(0, Number(e.target.value)) })} className={field} />
-      </div>
-      {(value.value > 0 || value.label || value.payee) && <button type="button" onClick={() => onChange(emptyCommission())} className="mt-2 text-white/50 underline">{t("pos.com.clear")}</button>}
-    </details>
+    </div>
   );
 }
 
@@ -257,7 +293,7 @@ export default function RebornPos() {
       {tab === "stock" && <StockTab />}
       {tab === "bottles" && <BottlesTab />}
       {tab === "packages" && <PackagesTab />}
-      {showDrawer && <DrawerSetup onClose={() => setShowDrawer(false)} />}
+      {showDrawer && createPortal(<DrawerSetup onClose={() => setShowDrawer(false)} />, document.body)}
     </RebornLayout>
   );
 }
@@ -344,7 +380,7 @@ function ClosePosDay() {
   return <><div className="mb-4 max-w-2xl rounded-2xl border border-red-400/25 bg-red-500/5 p-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
     <div className="mb-3 sm:mb-0"><p className="text-sm font-bold text-red-100">{t("pos.close.title")}</p><p className="text-xs text-white/45">{t("pos.close.desc")}</p></div>
     <button onClick={confirmClose} disabled={close.isPending} className="w-full rounded-xl border border-red-400/40 bg-red-500/15 px-4 py-2.5 text-sm font-bold text-red-100 disabled:opacity-50 sm:w-auto">{close.isPending ? t("pos.close.closing") : t("pos.close.button")}</button>
-  </div>{report && <ClosingReport report={report} onClose={()=>setReport(null)} />}</>;
+  </div>{report && createPortal(<ClosingReport report={report} onClose={()=>setReport(null)} />, document.body)}</>;
 }
 
 function ClosingReport({ report, onClose }: { report: any; onClose: () => void }) {
@@ -631,6 +667,7 @@ function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [], onA
 }
 
 function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
+  useBringWorkAreaIntoView();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [pay, setPay] = useState<"cash" | "card" | "credits" | "split">("cash");
@@ -768,12 +805,12 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1 text-white/60 text-sm mb-3"><ChevronLeft className="w-4 h-4" /> {t("pos.allTables")}</button>
-      <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-6">
-        <div>
+      <div id={WORK_AREA_ID} className={TWO_PANES + " scroll-mt-20"}>
+        <div className={`order-2 lg:order-1 ${PANE_SCROLL}`}>
           <p className="text-xs text-white/40 px-1 mb-2">{t("pos.addItems")}</p>
           <ProductPicker label={t("pos.addToTicket")} busy={addItems.isPending} onCommit={(items) => addItems.mutate(items)} />
         </div>
-        <div className="lg:sticky lg:top-20 h-fit">
+        <div className={`order-1 lg:order-2 ${PANE_SCROLL}`}>
           <div className="rounded-2xl border border-amber-400/30 bg-white/5 p-4 mb-3">
             <div className="flex items-center justify-between">
               <div>
@@ -855,7 +892,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                 <button key={m} onClick={() => setOrderMode(m)} className={`py-2 rounded-xl border font-semibold text-xs ${orderMode === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.mode.${m}`)}</button>
               ))}
             </div>
-            <div className="mb-2"><SalesPicker value={sales} onChange={setSales} /></div>
+            <CommissionPayer sales={sales} onSales={setSales} value={commission} onChange={setCommission} base={due.taxable} />
             <div className="rounded-xl border border-white/10 bg-black/20 p-2 mb-2">
               <p className="text-xs text-white/50 mb-1">{t("pos.discount")} {(order as any).discountReason ? <span className="text-amber-300">· {(order as any).discountReason}</span> : ""}</p>
               <div className="flex gap-2 mb-2">
@@ -876,7 +913,6 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             {payable > 0 && pay === "credits" && <CreditsLine code={order.memberCode} total={payable} onBalance={setCreditBal} />}
             {payable > 0 && pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
             {payable > 0 && pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={payable} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(payable)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
-            <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
             <AtCostBox value={atCost} onChange={setAtCost} />
             {order.onAccount ? (
               <div className="mb-2 rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-sm">
@@ -897,7 +933,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
           </div>
         </div>
       </div>
-      {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>{setReceiptResult(null);invalidate();onBack();}} />}
+      {receiptResult && createPortal(<ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>{setReceiptResult(null);invalidate();onBack();}} />, document.body)}
       {lineEdit && <LineEditDialog item={lineEdit} onCancel={() => setLineEdit(null)} onSave={(body) => { itemEdit.mutate({ id: lineEdit.id, op: "edit", body }); setLineEdit(null); }} />}
       {ask && <ReasonDialog
         title={t(ask.kind === "lose" ? "pos.item.loseTitle" : "pos.item.removeTitle", { name: ask.item.name })}
@@ -913,6 +949,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
 
 // ── Quick sale ──────────────────────────────────────────────────────────────
 function QuickSaleTab() {
+  useBringWorkAreaIntoView();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [code, setCode] = useState("");
@@ -967,11 +1004,11 @@ function QuickSaleTab() {
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   return (
-    <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
-      <div className="order-2 lg:order-1">
+    <div id={WORK_AREA_ID} className={TWO_PANES_QUICK + " scroll-mt-20"}>
+      <div className={`order-2 lg:order-1 ${PANE_SCROLL}`}>
         <ProductPicker label={payable > 0 || !cartItems.length ? t("pos.chargeMethod", { method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(due.total) })} displayTotal={payable} busy={sell.isPending || (quote?.hasPackages && !member) || (payable > 0 && ((pay === "credits" && (!member || Number(member.credits || 0) < payable)) || (pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "split" && !isSplitReady(split, payable, quickCreditBal)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} onCartChange={setCartItems} onCommit={(items) => sell.mutate(items)} />
       </div>
-      <div className="order-1 lg:order-2 mb-3 lg:mb-0 space-y-3 h-fit">
+      <div className={`order-1 lg:order-2 mb-3 lg:mb-0 space-y-3 ${PANE_SCROLL}`}>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
           {member ? (
             <div className="flex items-center gap-2">
@@ -991,11 +1028,10 @@ function QuickSaleTab() {
             <button key={m} onClick={() => setOrderMode(m)} className={`py-2 rounded-xl border font-semibold text-xs ${orderMode === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.mode.${m}`)}</button>
           ))}
         </div>
-        <SalesPicker value={sales} onChange={setSales} />
+        <CommissionPayer sales={sales} onSales={setSales} value={commission} onChange={setCommission} base={due.taxable} />
         <label className="text-xs text-white/50 block">{t("pos.discountRp")}<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
         <MemberWallet code={member?.code} quote={cartItems.length ? quote : null} useCredit={useCredit} onUseCredit={setUseCredit} />
         {cartSubtotal>0&&<BillSummary due={due} settings={posSettings} onRates={setFeeRates} />}
-        <CommissionBox value={commission} onChange={setCommission} base={due.taxable} />
         <AtCostBox value={atCost} onChange={setAtCost} />
         <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member} drinkOptions={cartItems.filter((x)=>isDrink(x.category,x.name)).map((x)=>({name:x.name,category:x.category,productId:x.id,qty:x.qty}))}/>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${isOffline ? 2 : 4}, minmax(0, 1fr))` }}>
@@ -1009,7 +1045,7 @@ function QuickSaleTab() {
         {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={t("pos.required")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
         <p className="text-[11px] text-white/40 text-center">{t("pos.receiptNote")}</p>
       </div>
-      {receiptResult && <ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>setReceiptResult(null)} />}
+      {receiptResult && createPortal(<ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>setReceiptResult(null)} />, document.body)}
     </div>
   );
 }

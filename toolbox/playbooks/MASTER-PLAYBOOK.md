@@ -150,10 +150,12 @@ Languages: every visible text exists in **English, 中文 and Bahasa Indonesia**
 - **Offline Quick sale**, queued and sent once.
 - **Customer screen** on the second monitor; **kitchen/bar screen** with Ready and Collected alerts; **Windows POS app** (Electron, silent printing, cash drawer kick; not yet run on a real PC).
 - Recommended items, sold-out hiding, per-item staff commission, ordered-by on every line.
+- **One "Commission to" section** on the pay panels (a staff member through payroll, or an agency whose name is typed by hand) instead of a salesperson dropdown plus a separate commission box.
+- **Work area:** on a PC the bill and the ordering are two panes that scroll on their own; on a phone the bill is first and the ordering below. The receipt and other pop-ups always appear in front of the page.
 
 ### 4.7 Inventory, products, suppliers
 - Products with category, department, price, cost, stock, picture, **sold by the pack** (cost per unit from pack price), **same item from several suppliers** (oldest stock first costing, layers per supplier and price), **happy hour** (window, price, buy-X-get-Y-free, only in hours, chosen weekdays; set per item, for many items, or item by item), **per-item ticks** (app discount, referral commission; bulk setter), **bundles and packages** made on the item.
-- **Stock in and out** in Inventory (by unit or by box, delivery date and time; take-out reasons with a loss booked); stock is read-only otherwise.
+- **Stock in and out** in Inventory (by unit or by box, delivery date and time; take-out reasons with a loss booked); stock is read-only otherwise. **Add stock** fills in the price from the chosen supplier's last delivery, takes another supplier (or a new one typed in) in the same form with no duplicate product, and can upload a receipt from the same panel.
 - **Excel import** (columns found by title in three languages); **supplier reorder** drafts (off by default; nothing is sent without a tap).
 - Items with price 0 or no stock are left out of the POS and the member menu.
 
