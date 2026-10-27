@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
+import { ItemCommissionAdmin } from "@/components/ItemCommissionAdmin";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { printClosingReport, printReceipt, printBill, printOnAccountBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -283,6 +284,7 @@ export default function RebornPos() {
       <button onClick={() => window.open("/customer", "rw-customer", "popup,width=1024,height=768")} className="mb-3 mr-2 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🖥 {t("cs.open")}</button>
       <a href="/kitchen" className="mb-3 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🍳 {t("pos.kitchen.open")}</a>
       {(role === "admin" || companyRole === "manager") && <MenuImageMaker />}
+      {role === "admin" && <ItemCommissionAdmin />}
       {(role === "admin" || companyRole === "manager") && <ClosePosDay />}
       <div className="grid gap-2 mb-4 max-w-3xl" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
         {([["tables", t("pos.tab.tables"), <LayoutGrid className="w-4 h-4" />], ["sell", t("pos.tab.sell"), <Receipt className="w-4 h-4" />], ["sales", t("pos.tab.sales"), <History className="w-4 h-4" />], ["stock", t("pos.tab.stock"), <PackagePlus className="w-4 h-4" />], ["bottles", t("pos.tab.bottles"), <Wine className="w-4 h-4" />], ["packages", t("pos.tab.packages"), <Gift className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
@@ -853,7 +855,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                         {it.status !== "pending" && <button onClick={() => setAsk({ kind: "lose", item: it })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-orange-500/15 text-orange-200">{t("pos.item.lose")}</button>}
                       </div>
                     )}
-                    {!OFF_BILL.includes(it.status) && products.find((p) => p.id === it.productId)?.staffCommissionKind && (() => {
+                    {!OFF_BILL.includes(it.status) && products.find((p) => p.id === it.productId) && (() => {
                       const eligible = eligibleStaffOf(products.find((p) => p.id === it.productId)?.staffCommissionStaffIds);
                       const people = staffList.filter((person) => canEarn(eligible, person.id));
                       return (

@@ -4069,6 +4069,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
   // Staff commission on items (ladies drinks): when a bill is paid, every paid line of an item with a rule earns its commission for the person picked on the
   // line (else the one who ordered it, else the cashier). A refund cancels what is not yet in a payroll.
+  const PUSH_SALES_KEY = "pushSalesPercent";
+  const DEFAULT_PUSH_PERCENT = 5;
   const bookItemCommissions = async (ticketId: number, cashierId: string | null) => {
     try {
       const lines = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, ticketId));
@@ -4077,11 +4079,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const products = new Map((await db.select().from(posProducts).where(inArray(posProducts.id, ids))).map((p) => [p.id, p]));
       const cid = await rebornCompanyId();
       const decimals = companyMoney().decimals;
+      const [pushRow] = await db.select().from(appSettings).where(eq(appSettings.key, PUSH_SALES_KEY)).limit(1);
+      const pushPercent = pushRow ? Math.max(0, Math.min(100, Number(pushRow.value) || 0)) : DEFAULT_PUSH_PERCENT;
       await db.delete(staffItemCommissions).where(and(eq(staffItemCommissions.ticketId, ticketId), isNull(staffItemCommissions.settledAt)));
       for (const line of lines) {
         if (GONE_ITEM.includes(line.status) || line.status === "cancelled" || !line.productId) continue;
         const product = products.get(line.productId);
-        const amount = commissionFor({ kind: product?.staffCommissionKind, value: product?.staffCommissionValue }, Number(line.lineTotal), line.qty, decimals);
+        // An item with no rule still pays when a person was picked on its line (a sale they pushed): the company's "push sales" percent of the line.
+        const rule = ruleOf({ kind: product?.staffCommissionKind, value: product?.staffCommissionValue }) ?? (line.commissionStaffId && pushPercent > 0 ? { kind: "percent", value: pushPercent } : null);
+        const amount = commissionFor(rule, Number(line.lineTotal), line.qty, decimals);
         const eligible = eligibleStaffOf(product?.staffCommissionStaffIds);
         // The picked person, else whoever ordered it, else the cashier: the first of them the item's list allows (any when the item has no list).
         const userId = [line.commissionStaffId, line.source === "app" ? null : line.addedBy, cashierId].find((id) => canEarn(eligible, id)) || null;
@@ -4111,6 +4117,51 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     await db.update(posTicketItems).set({ commissionStaffId: staffId || null, commissionStaffName: name }).where(eq(posTicketItems.id, id));
     res.json({ ok: true, staffId: staffId || null, staffName: name });
+  }));
+  // Main admin: every per-item staff commission booked in a period, to correct who earns it or how much (it follows payroll and accounting), or to cancel it.
+  app.get("/api/reborn/admin/item-commissions", requireAdmin(async (req, res) => {
+    const days = Math.min(366, Math.max(1, Number(req.query.days) || 31));
+    const rows = await db.select({ id: staffItemCommissions.id, userId: staffItemCommissions.userId, ticketId: staffItemCommissions.ticketId, name: staffItemCommissions.name, qty: staffItemCommissions.qty, base: staffItemCommissions.base, amount: staffItemCommissions.amount, createdAt: staffItemCommissions.createdAt, settledAt: staffItemCommissions.settledAt, orderNo: posTickets.orderNo, firstName: users.firstName, lastName: users.lastName })
+      .from(staffItemCommissions).leftJoin(posTickets, eq(posTickets.id, staffItemCommissions.ticketId)).leftJoin(users, eq(users.id, staffItemCommissions.userId))
+      .where(and(isNull(staffItemCommissions.voidedAt), gte(staffItemCommissions.createdAt, new Date(Date.now() - days * 86400000)))).orderBy(desc(staffItemCommissions.createdAt)).limit(500);
+    const [pushRow] = await db.select().from(appSettings).where(eq(appSettings.key, PUSH_SALES_KEY)).limit(1);
+    res.json({ pushPercent: pushRow ? Number(pushRow.value) || 0 : DEFAULT_PUSH_PERCENT, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt })) });
+  }));
+  app.patch("/api/reborn/admin/item-commissions/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const [row] = await db.select().from(staffItemCommissions).where(eq(staffItemCommissions.id, id));
+    if (!row || row.voidedAt) return res.status(404).json({ message: tr(req, { en: "Commission not found", zh: "找不到佣金", id: "Komisi tidak ditemukan" }) });
+    if (row.settledAt) return res.status(400).json({ message: tr(req, { en: "Already paid out in a payroll", zh: "已在工资单中发放", id: "Sudah dibayar lewat gaji" }) });
+    const patch: { amount?: string; userId?: string } = {};
+    if (req.body?.amount !== undefined) {
+      const amount = roundMoney(Number(req.body.amount));
+      if (!Number.isFinite(amount) || amount < 0) return res.status(400).json({ message: tr(req, { en: "Enter an amount of 0 or more", zh: "请输入不小于 0 的金额", id: "Masukkan jumlah 0 atau lebih" }) });
+      patch.amount = String(amount);
+    }
+    if (req.body?.userId) {
+      const person = await storage.getUser(String(req.body.userId));
+      if (!person || (person.role !== "staff" && person.role !== "admin")) return res.status(400).json({ message: tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" }) });
+      patch.userId = person.id;
+    }
+    if (Object.keys(patch).length === 0) return res.status(400).json({ message: tr(req, { en: "Nothing to change", zh: "没有可修改的内容", id: "Tidak ada yang diubah" }) });
+    await db.update(staffItemCommissions).set(patch).where(eq(staffItemCommissions.id, id));
+    await logAdmin(req, { targetUserId: patch.userId || row.userId, targetType: "item_commission", targetId: String(id), action: "edit", entityType: "payroll", oldValues: { userId: row.userId, amount: row.amount }, newValues: patch, description: `Item commission on "${row.name}" (bill ${row.ticketId}) changed` });
+    res.json({ ok: true });
+  }));
+  app.delete("/api/reborn/admin/item-commissions/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const [row] = await db.select().from(staffItemCommissions).where(eq(staffItemCommissions.id, id));
+    if (!row || row.voidedAt) return res.status(404).json({ message: tr(req, { en: "Commission not found", zh: "找不到佣金", id: "Komisi tidak ditemukan" }) });
+    if (row.settledAt) return res.status(400).json({ message: tr(req, { en: "Already paid out in a payroll", zh: "已在工资单中发放", id: "Sudah dibayar lewat gaji" }) });
+    await db.update(staffItemCommissions).set({ voidedAt: new Date() }).where(eq(staffItemCommissions.id, id));
+    await logAdmin(req, { targetUserId: row.userId, targetType: "item_commission", targetId: String(id), action: "void", entityType: "payroll", oldValues: { amount: row.amount }, description: `Item commission on "${row.name}" (bill ${row.ticketId}) cancelled` });
+    res.json({ ok: true });
+  }));
+  app.post("/api/reborn/admin/item-commissions-percent", requireAdmin(async (req, res) => {
+    const percent = Math.max(0, Math.min(100, Number(req.body?.percent)));
+    if (!Number.isFinite(percent)) return res.status(400).json({ message: tr(req, { en: "Enter a percent from 0 to 100", zh: "请输入 0 到 100 的百分比", id: "Masukkan persen 0 sampai 100" }) });
+    await db.insert(appSettings).values({ key: PUSH_SALES_KEY, value: String(percent) }).onConflictDoUpdate({ target: appSettings.key, set: { value: String(percent) } });
+    res.json({ ok: true, percent });
   }));
   // Commission paid to someone for a sale (an agent, a driver ...): our own cost. It never raises what the customer pays and is left off the customer's copy of the receipt.
   const COMMISSION_TYPES_KEY = "commissionTypes";
