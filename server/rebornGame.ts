@@ -16,7 +16,7 @@ import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
 import { parseReceiptText } from "@shared/receiptText";
-import { canEarn, commissionFor, eligibleStaffOf, ruleOf } from "@shared/itemCommission";
+import { canEarn, commissionFor, commissionForPart, eligibleStaffOf, ruleOf, splitPartsOf } from "@shared/itemCommission";
 import { cleanDays, clockInZone, dealOf, freeUnitsFor, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
@@ -4085,14 +4085,24 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       for (const line of lines) {
         if (GONE_ITEM.includes(line.status) || line.status === "cancelled" || !line.productId) continue;
         const product = products.get(line.productId);
-        // An item with no rule still pays when a person was picked on its line (a sale they pushed): the company's "push sales" percent of the line.
-        const rule = ruleOf({ kind: product?.staffCommissionKind, value: product?.staffCommissionValue }) ?? (line.commissionStaffId && pushPercent > 0 ? { kind: "percent", value: pushPercent } : null);
-        const amount = commissionFor(rule, Number(line.lineTotal), line.qty, decimals);
+        const ruleOfItem = ruleOf({ kind: product?.staffCommissionKind, value: product?.staffCommissionValue });
+        const pushRule = pushPercent > 0 ? { kind: "percent", value: pushPercent } : null;
         const eligible = eligibleStaffOf(product?.staffCommissionStaffIds);
+        const parts = splitPartsOf(line.commissionSplit, line.qty);
+        const lineTotal = Number(line.lineTotal);
+        // Units sold by named people earn for them (an item with no rule pays the push-sales percent: somebody was picked); the rest earn for the person picked on the whole line, else whoever ordered it, else the cashier.
+        for (const part of parts) {
+          const amount = commissionForPart(ruleOfItem ?? pushRule, lineTotal, line.qty, part.qty, decimals);
+          if (amount > 0 && canEarn(eligible, part.staffId)) await db.insert(staffItemCommissions).values({ companyId: cid, userId: part.staffId, ticketId, itemId: line.id, name: line.name, qty: part.qty, base: String(roundMoney(lineTotal * part.qty / line.qty)), amount: String(amount) });
+        }
+        const restQty = line.qty - parts.reduce((sum, part) => sum + part.qty, 0);
+        if (restQty <= 0) continue;
+        const restRule = ruleOfItem ?? (line.commissionStaffId ? pushRule : null);
+        const amount = commissionForPart(restRule, lineTotal, line.qty, restQty, decimals);
         // The picked person, else whoever ordered it, else the cashier: the first of them the item's list allows (any when the item has no list).
         const userId = [line.commissionStaffId, line.source === "app" ? null : line.addedBy, cashierId].find((id) => canEarn(eligible, id)) || null;
         if (amount <= 0 || !userId) continue;
-        await db.insert(staffItemCommissions).values({ companyId: cid, userId, ticketId, itemId: line.id, name: line.name, qty: line.qty, base: String(Number(line.lineTotal)), amount: String(amount) });
+        await db.insert(staffItemCommissions).values({ companyId: cid, userId, ticketId, itemId: line.id, name: line.name, qty: restQty, base: String(roundMoney(lineTotal * restQty / line.qty)), amount: String(amount) });
       }
     } catch (error) { console.error("[item commission]", error); }
   };
@@ -4162,6 +4172,21 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!Number.isFinite(percent)) return res.status(400).json({ message: tr(req, { en: "Enter a percent from 0 to 100", zh: "请输入 0 到 100 的百分比", id: "Masukkan persen 0 sampai 100" }) });
     await db.insert(appSettings).values({ key: PUSH_SALES_KEY, value: String(percent) }).onConflictDoUpdate({ target: appSettings.key, set: { value: String(percent) } });
     res.json({ ok: true, percent });
+  }));
+  // Share one bill line between staff ("1 beer by Ana, 2 by Budi"): parts = [{ staffId, qty }]; an empty list clears it. Units not listed stay with the person picked on the line.
+  app.post("/api/reborn/pos/items/:id/commission-split", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [line] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
+    if (!line) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
+    const asked = splitPartsOf(req.body?.parts, line.qty);
+    const parts: { staffId: string; name: string; qty: number }[] = [];
+    for (const part of asked) {
+      const person = await storage.getUser(part.staffId);
+      if (!person || (person.role !== "staff" && person.role !== "admin")) return res.status(400).json({ message: tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" }) });
+      parts.push({ ...part, name: [person.firstName, person.lastName].filter(Boolean).join(" ") || person.username || person.email || part.staffId });
+    }
+    await db.update(posTicketItems).set({ commissionSplit: parts.length ? JSON.stringify(parts) : null }).where(eq(posTicketItems.id, id));
+    res.json({ ok: true, parts });
   }));
   // Commission paid to someone for a sale (an agent, a driver ...): our own cost. It never raises what the customer pays and is left off the customer's copy of the receipt.
   const COMMISSION_TYPES_KEY = "commissionTypes";

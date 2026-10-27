@@ -33,3 +33,28 @@ export function commissionFor(rule: ItemCommissionRule | null | undefined, lineT
   const factor = 10 ** decimals;
   return Math.round(raw * factor) / factor;
 }
+
+export interface CommissionPart { staffId: string; name: string; qty: number }
+
+/** One bill line shared between staff ("2 of the 3 beers were sold by Ana"): the saved JSON list cleaned up so the units never add up to more than the line has. */
+export function splitPartsOf(raw: unknown, lineQty: number): CommissionPart[] {
+  let list: unknown = raw;
+  if (typeof raw === "string") { try { list = JSON.parse(raw || "[]"); } catch { list = []; } }
+  if (!Array.isArray(list)) return [];
+  const parts: CommissionPart[] = [];
+  let left = Math.max(0, Math.floor(Number(lineQty) || 0));
+  for (const entry of list) {
+    const staffId = String(entry?.staffId ?? "").trim();
+    const qty = Math.min(left, Math.floor(Number(entry?.qty) || 0));
+    if (!staffId || qty < 1) continue;
+    parts.push({ staffId, name: String(entry?.name ?? "").slice(0, 80), qty });
+    left -= qty;
+  }
+  return parts;
+}
+
+/** What one person's share of a line earns: the line total is split by units, so a fixed amount stays per unit and a percent follows the share. */
+export function commissionForPart(rule: ItemCommissionRule | null | undefined, lineTotal: number, lineQty: number, partQty: number, decimals = 0): number {
+  const qty = Math.max(1, Number(lineQty) || 1);
+  return commissionFor(rule, (Number(lineTotal) || 0) * Math.min(partQty, qty) / qty, partQty, decimals);
+}

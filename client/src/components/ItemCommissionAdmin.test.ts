@@ -12,3 +12,9 @@ describe("per-item commission on the POS", () => {
   it("should pay an item with no rule the push-sales percent when a person was picked", () => assert.match(read("server/rebornGame.ts"), /line\.commissionStaffId && pushPercent > 0/));
   it("should keep payroll-settled commissions from being edited", () => assert.match(read("server/rebornGame.ts"), /Already paid out in a payroll/));
 });
+
+describe("one bill line shared between staff", () => {
+  it("should offer the split on a line of more than one unit", () => assert.match(read("client/src/pages/reborn-pos.tsx"), /it\.qty > 1 && <LineCommissionSplit/));
+  it("should book one commission row per person in the split", () => assert.match(read("server/rebornGame.ts"), /for \(const part of parts\)/));
+  it("should keep the split on the bill line", () => assert.match(read("shared/schema.ts"), /commission_split/));
+});

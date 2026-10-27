@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
+import { LineCommissionSplit } from "@/components/LineCommissionSplit";
 import { ItemCommissionAdmin } from "@/components/ItemCommissionAdmin";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { printClosingReport, printReceipt, printBill, printOnAccountBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
@@ -868,6 +869,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                         </label>
                       );
                     })()}
+                    {!OFF_BILL.includes(it.status) && it.qty > 1 && <LineCommissionSplit itemId={it.id} qty={it.qty} saved={it.commissionSplit} people={staffList} invalidateKey={OPEN_TICKETS} />}
                   </div>
                 ))}
               </div>

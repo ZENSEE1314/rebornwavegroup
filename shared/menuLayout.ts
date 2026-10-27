@@ -15,13 +15,16 @@ export interface MenuProduct {
   isService?: boolean | null;
   packageKind?: string | null;
   bundleItemId?: number | null;
+  bundleQty?: number | null;
   soldOut?: boolean | null;
 }
 
 export interface MenuItem { id: number; name: string; price: number; category: string; imageUrl: string | null; section: MenuSectionKind }
 export type MenuSectionKind = "food" | "dessert" | "drinks";
 export interface MenuSection { kind: MenuSectionKind; category: string; items: MenuItem[] }
-export type MenuBlock = { kind: "heading"; title: string } | { kind: "row"; items: MenuItem[] };
+export interface BundleOption { qty: number; price: number }
+export interface BundleGroup { itemId: number; name: string; imageUrl: string | null; options: BundleOption[] }
+export type MenuBlock = { kind: "heading"; title: string } | { kind: "row"; items: MenuItem[] } | { kind: "bundle"; group: BundleGroup };
 
 export interface MenuOptions { includeSoldOut?: boolean; includeSets?: boolean }
 
@@ -58,10 +61,10 @@ export function sectionsOf(items: MenuItem[]): MenuSection[] {
     .sort((a, b) => SECTION_ORDER.indexOf(a.kind) - SECTION_ORDER.indexOf(b.kind) || a.category.localeCompare(b.category));
 }
 
-export interface PageHeights { page: number; firstHeader: number; nextHeader: number; footer: number; heading: number; row: number }
+export interface PageHeights { page: number; firstHeader: number; nextHeader: number; footer: number; heading: number; row: number; bundle?: number }
 
 /** Splits the sections into pages: a heading is never left alone at the bottom of a page, and a category that continues on the next page gets its heading again. */
-export function planPages(sections: MenuSection[], heights: PageHeights): MenuBlock[][] {
+export function planPages(sections: MenuSection[], heights: PageHeights, bundles: BundleGroup[] = []): MenuBlock[][] {
   const pages: MenuBlock[][] = [[]];
   let used = heights.firstHeader;
   const room = () => heights.page - heights.footer - used;
@@ -82,5 +85,28 @@ export function planPages(sections: MenuSection[], heights: PageHeights): MenuBl
       used += heights.row;
     }
   }
+  const bundleHeight = heights.bundle ?? heights.row * 2;
+  for (const group of bundles) {
+    if (room() < bundleHeight) newPage();
+    pages[pages.length - 1].push({ kind: "bundle", group });
+    used += bundleHeight;
+  }
   return pages.filter((page) => page.length > 0);
+}
+
+/** Bundles ("6 x Bintang", "12 x Bintang") grouped under the item they are made of, cheapest count first, so the menu can show one banner per item: 6 bottles RP ..., 12 bottles RP ... */
+export function bundlesOf(products: MenuProduct[], options: MenuOptions = {}): BundleGroup[] {
+  const byId = new Map(products.map((p) => [p.id, p]));
+  const groups = new Map<number, BundleGroup>();
+  for (const p of products) {
+    if (!p.bundleItemId || p.posVisible === false || p.active === false || (!options.includeSoldOut && p.soldOut)) continue;
+    const qty = Number(p.bundleQty) || 0;
+    const price = Number(p.salePrice ?? p.price) || 0;
+    const base = byId.get(p.bundleItemId);
+    if (qty < 2 || price <= 0 || !base) continue;
+    const group = groups.get(base.id) ?? { itemId: base.id, name: base.name.trim(), imageUrl: base.imageUrl || null, options: [] };
+    group.options.push({ qty, price });
+    groups.set(base.id, group);
+  }
+  return Array.from(groups.values()).map((g) => ({ ...g, options: [...g.options].sort((a, b) => a.qty - b.qty) })).sort((a, b) => a.name.localeCompare(b.name));
 }

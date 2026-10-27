@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { menuItemsOf, planPages, sectionsOf, type MenuProduct } from "./menuLayout";
+import { bundlesOf, menuItemsOf, planPages, sectionsOf, type MenuProduct } from "./menuLayout";
 
 const product = (over: Partial<MenuProduct> & { id: number; name: string }): MenuProduct => ({ category: "Beer", price: 50000, posVisible: true, ...over });
 const HEIGHTS = { page: 1000, firstHeader: 200, nextHeader: 80, footer: 60, heading: 80, row: 160 };
@@ -48,4 +48,19 @@ describe("planPages", () => {
     assert.equal(count, 37);
   });
   it("should give no pages for an empty menu", () => assert.equal(planPages([], HEIGHTS).length, 0));
+});
+
+describe("bundlesOf", () => {
+  const beer = product({ id: 1, name: "Bintang" });
+  const six = product({ id: 2, name: "6 x Bintang", bundleItemId: 1, bundleQty: 6, price: 270000 });
+  const twelve = product({ id: 3, name: "12 x Bintang", bundleItemId: 1, bundleQty: 12, price: 515000 });
+  it("should gather the bundles of one item under it", () => assert.equal(bundlesOf([beer, twelve, six]).length, 1));
+  it("should list the smaller count first", () => assert.deepEqual(bundlesOf([beer, twelve, six])[0].options.map((o) => o.qty), [6, 12]));
+  it("should carry each bundle price", () => assert.equal(bundlesOf([beer, six])[0].options[0].price, 270000));
+  it("should leave out a bundle whose item is missing", () => assert.equal(bundlesOf([six]).length, 0));
+  it("should leave out a sold-out bundle unless asked", () => assert.equal(bundlesOf([beer, { ...six, soldOut: true }]).length, 0));
+  it("should place a bundle banner after the items", () => {
+    const pages = planPages(sectionsOf(menuItemsOf([beer])), HEIGHTS, bundlesOf([beer, six]));
+    assert.equal(pages[0][pages[0].length - 1].kind, "bundle");
+  });
 });

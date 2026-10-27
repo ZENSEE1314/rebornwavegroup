@@ -1130,6 +1130,7 @@ export const posTicketItems = pgTable("pos_ticket_items", {
   addedBy: varchar("added_by"),         // the staff member (or app member) who ordered this line
   commissionStaffId: varchar("commission_staff_id"),   // who earns the item staff commission (the person who ordered it unless someone else was picked)
   commissionStaffName: varchar("commission_staff_name"),
+  commissionSplit: text("commission_split"),   // JSON [{ staffId, name, qty }]: units of this line sold by different staff (see splitPartsOf)
   addedByName: varchar("added_by_name"), // their name at that time ("Name (app)" for an order from the member app)
   addedAt: timestamp("added_at").defaultNow(),
   readyByName: varchar("ready_by_name"),   // who tapped Ready (kitchen / bar)
