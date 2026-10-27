@@ -4131,9 +4131,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // Main admin: every per-item staff commission booked in a period, to correct who earns it or how much (it follows payroll and accounting), or to cancel it.
   app.get("/api/reborn/admin/item-commissions", requireAdmin(async (req, res) => {
     const days = Math.min(366, Math.max(1, Number(req.query.days) || 31));
+    const onlyTicket = Number(req.query.ticketId) || 0;
     const rows = await db.select({ id: staffItemCommissions.id, userId: staffItemCommissions.userId, ticketId: staffItemCommissions.ticketId, name: staffItemCommissions.name, qty: staffItemCommissions.qty, base: staffItemCommissions.base, amount: staffItemCommissions.amount, createdAt: staffItemCommissions.createdAt, settledAt: staffItemCommissions.settledAt, orderNo: posTickets.orderNo, firstName: users.firstName, lastName: users.lastName })
       .from(staffItemCommissions).leftJoin(posTickets, eq(posTickets.id, staffItemCommissions.ticketId)).leftJoin(users, eq(users.id, staffItemCommissions.userId))
-      .where(and(isNull(staffItemCommissions.voidedAt), gte(staffItemCommissions.createdAt, new Date(Date.now() - days * 86400000)))).orderBy(desc(staffItemCommissions.createdAt)).limit(500);
+      .where(and(isNull(staffItemCommissions.voidedAt), onlyTicket ? eq(staffItemCommissions.ticketId, onlyTicket) : gte(staffItemCommissions.createdAt, new Date(Date.now() - days * 86400000)))).orderBy(desc(staffItemCommissions.createdAt)).limit(500);
     const [pushRow] = await db.select().from(appSettings).where(eq(appSettings.key, PUSH_SALES_KEY)).limit(1);
     res.json({ pushPercent: pushRow ? Number(pushRow.value) || 0 : DEFAULT_PUSH_PERCENT, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt })) });
   }));

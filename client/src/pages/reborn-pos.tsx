@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
+import { businessDayOf } from "@shared/businessDay";
 import { LineCommissionSplit } from "@/components/LineCommissionSplit";
 import { ItemCommissionAdmin } from "@/components/ItemCommissionAdmin";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
@@ -294,7 +295,7 @@ export default function RebornPos() {
       </div>
       {tab === "tables" && <TablesTab />}
       {tab === "sell" && <QuickSaleTab />}
-      {tab === "sales" && <SalesTodayTab />}
+      {tab === "sales" && <SalesTodayTab isAdmin={role === "admin"} />}
       {tab === "stock" && <StockTab />}
       {tab === "bottles" && <BottlesTab />}
       {tab === "packages" && <PackagesTab />}
@@ -1059,15 +1060,14 @@ function QuickSaleTab() {
 
 // ── Stock ─────────────────────────────────────────────────────────────────
 // Today's paid bills with same-day refund (before the POS day is closed).
-function SalesTodayTab() {
+function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: orders = [], isLoading } = useQuery<Order[]>({ queryKey: ["/api/reborn/pos/orders", "paid"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=paid").then((r) => r.json()) });
   const { data: refunded = [] } = useQuery<Order[]>({ queryKey: ["/api/reborn/pos/orders", "refunded"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=refunded").then((r) => r.json()) });
   const { t, language } = useTranslation();
-  const [day, setDay] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; });
-  const shownDay = new Date(`${day}T00:00:00`).toDateString();
-  const isToday = (o: any) => new Date(o.paidAt || (o as any).createdAt || Date.now()).toDateString() === shownDay;
+  const [day, setDay] = useState(() => businessDayOf(new Date()));
+  const isToday = (o: any) => businessDayOf(o.paidAt || o.createdAt || Date.now()) === day;
   const paidToday = orders.filter(isToday);
   const refundedToday = refunded.filter(isToday);
   const all = [...paidToday, ...refundedToday].sort((a: any, b: any) => new Date(b.paidAt || b.createdAt).getTime() - new Date(a.paidAt || a.createdAt).getTime());
@@ -1117,6 +1117,7 @@ function SalesTodayTab() {
                 {!isRef && <button onClick={() => doRefund(o)} disabled={refund.isPending} className="mt-1 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-200 border border-red-400/40 disabled:opacity-50"><RotateCcw className="w-3 h-3" /> {t("pos.refund")}</button>}
               </div>
             </div>
+            {isAdmin && !isRef && <ItemCommissionAdmin ticketId={o.id} />}
             {isRef && o.refundReason && <p className="text-[11px] text-red-300/80 mt-1">{t("pos.reasonLabel", { reason: o.refundReason })}</p>}
           </div>
         );

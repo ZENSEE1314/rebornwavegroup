@@ -160,6 +160,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.split.remove': { en: 'Remove', zh: '移除', id: 'Hapus' },
   'pos.split.add': { en: 'Add another staff', zh: '再加一位员工', id: 'Tambah staf lain' },
   'pos.split.count': { en: '{used} of {qty} units given', zh: '已分配 {used} / {qty} 件', id: '{used} dari {qty} unit diberikan' },
+  'itemCom.billButton': { en: 'Item commissions', zh: '商品佣金', id: 'Komisi item' },
+  'itemCom.noneBill': { en: 'No item commission on this bill.', zh: '这张账单没有商品佣金。', id: 'Tidak ada komisi item di tagihan ini.' },
   'pos.close.title': { en: 'End of day', zh: '日终结算', id: 'Akhir hari' },
   'pos.close.desc': { en: 'Clears today’s checked-in guests and creates a new venue QR.', zh: '清除今日已签到的客人并生成新的场所二维码。', id: 'Menghapus tamu yang check-in hari ini dan membuat QR tempat yang baru.' },
   'pos.close.closing': { en: 'Closing…', zh: '结算中…', id: 'Menutup…' },

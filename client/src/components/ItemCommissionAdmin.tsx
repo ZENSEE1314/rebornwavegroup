@@ -10,15 +10,14 @@ interface Staff { id: string; name: string }
 const PERIOD_DAYS = 31;
 
 // Main admin: review the commission each staff member earned on single items of a bill, change who earns it or how much, or cancel it. Payroll and accounting follow.
-export function ItemCommissionAdmin() {
+export function ItemCommissionAdmin({ ticketId }: { ticketId?: number } = {}) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [percentDraft, setPercentDraft] = useState("");
-  const key = ["/api/reborn/admin/item-commissions", PERIOD_DAYS];
-  const { data } = useQuery<{ pushPercent: number; rows: Row[] }>({ queryKey: key, queryFn: () => apiRequest("GET", `/api/reborn/admin/item-commissions?days=${PERIOD_DAYS}`).then((r) => r.json()), enabled: isOpen });
+    const { data } = useQuery<{ pushPercent: number; rows: Row[] }>({ queryKey: ["/api/reborn/admin/item-commissions", ticketId ?? PERIOD_DAYS], queryFn: () => apiRequest("GET", `/api/reborn/admin/item-commissions?${ticketId ? `ticketId=${ticketId}` : `days=${PERIOD_DAYS}`}`).then((r) => r.json()), enabled: isOpen });
   const { data: staff = [] } = useQuery<Staff[]>({ queryKey: ["/api/reborn/pos/staff"], enabled: isOpen });
   const refresh = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/item-commissions"] });
   const onError = (e: any) => toast({ title: t("itemCom.fail"), description: e.message, variant: "destructive" });
@@ -26,6 +25,9 @@ export function ItemCommissionAdmin() {
   const cancel = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/item-commissions/${id}`).then((r) => r.json()), onSuccess: () => { refresh(); toast({ title: t("itemCom.cancelled") }); }, onError });
   const setPercent = useMutation({ mutationFn: (percent: number) => apiRequest("POST", "/api/reborn/admin/item-commissions-percent", { percent }).then((r) => r.json()), onSuccess: () => { refresh(); toast({ title: t("itemCom.saved") }); }, onError });
 
+  if (ticketId && !isOpen) {
+    return <button type="button" onClick={() => setIsOpen(true)} className="mt-1.5 rounded-lg bg-amber-500/15 px-2.5 py-1.5 text-[11px] font-bold text-amber-100">{t("itemCom.billButton")}</button>;
+  }
   if (!isOpen) {
     return (
       <div className="mb-4 max-w-2xl rounded-2xl border border-amber-400/25 bg-amber-500/5 p-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
@@ -36,17 +38,17 @@ export function ItemCommissionAdmin() {
   }
   const rows = data?.rows ?? [];
   return (
-    <div className="mb-4 max-w-2xl rounded-2xl border border-amber-400/25 bg-amber-500/5 p-3">
+    <div className={`${ticketId ? "mt-2" : "mb-4 max-w-2xl"} rounded-2xl border border-amber-400/25 bg-amber-500/5 p-3`}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-bold text-amber-100">{t("itemCom.title")}</p>
         <button onClick={() => setIsOpen(false)} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold">{t("menuImage.close")}</button>
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/70">
+      {!ticketId && <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/70">
         <label htmlFor="push-percent">{t("itemCom.pushPercent")}</label>
         <input id="push-percent" type="number" min={0} max={100} value={percentDraft || String(data?.pushPercent ?? "")} onChange={(e) => setPercentDraft(e.target.value)} className="w-20 rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white" />
         <button onClick={() => setPercent.mutate(Number(percentDraft || data?.pushPercent || 0))} className="rounded-lg bg-amber-400 px-3 py-1.5 font-bold text-black">{t("itemCom.save")}</button>
-      </div>
-      {rows.length === 0 ? <p className="mt-3 text-xs text-white/50">{t("itemCom.none")}</p> : (
+      </div>}
+      {rows.length === 0 ? <p className="mt-3 text-xs text-white/50">{t(ticketId ? "itemCom.noneBill" : "itemCom.none")}</p> : (
         <ul className="mt-3 space-y-2">
           {rows.map((row) => (
             <li key={row.id} className="rounded-xl bg-white/5 p-2.5 text-xs">
