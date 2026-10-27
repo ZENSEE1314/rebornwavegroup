@@ -5,13 +5,15 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { Copy, Share2, Users, DollarSign, Gift, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation, localeTag } from "@/lib/i18n";
-import { moneySymbol } from "@/lib/money";
+import { moneySymbol, money } from "@/lib/money";
+import { useQuery } from "@tanstack/react-query";
 
 export default function MyReferral() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t, language } = useTranslation();
   const typedUser = user as User;
+  const { data: referred } = useQuery<{ percent: number; people: { name: string; joinedAt: string; startsAt: string | null; bills: number; earned: number }[] }>({ queryKey: ["/api/reborn/my-referrals"] });
 
   const copyReferralCode = () => {
     if (typedUser?.referralCode) {
@@ -96,11 +98,26 @@ export default function MyReferral() {
                 <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold text-sm">1</div>
                 <span className="font-medium text-white">{t("ac.myref.direct")}</span>
               </div>
-              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm font-bold px-3 py-1 rounded-full">10%</span>
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm font-bold px-3 py-1 rounded-full">{referred?.percent ?? 10}%</span>
             </div>
             <p className="text-sm text-white/50 text-center">
               {t("ac.myref.commissionDesc")}
             </p>
+          </div>
+
+          <div className="rwg-card p-6">
+            <h3 className="text-white font-bold text-lg mb-4">{t("ac.myref.people")}</h3>
+            {(referred?.people.length ?? 0) === 0 ? <p className="text-sm text-white/50">{t("ac.myref.peopleNone")}</p> : (
+              <ul className="space-y-3">
+                {referred!.people.map((person, i) => (
+                  <li key={i} className="rounded-xl bg-white/5 p-3">
+                    <p className="font-semibold text-white">{person.name}</p>
+                    <p className="text-xs text-white/50">{t("ac.myref.bills", { n: person.bills })} · {t("ac.myref.earned", { amount: money(person.earned) })}</p>
+                    {person.startsAt && <p className="text-xs text-amber-300">{t("ac.myref.starts", { when: new Date(person.startsAt).toLocaleString(localeTag(language)) })}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* Account Summary */}

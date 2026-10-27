@@ -23,6 +23,7 @@ import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResiden
 import { storage } from "./storage";
 import { isBrandImage } from "./pageBrand";
 import { requireAuth, getUserId } from "./multiAuth";
+import { isReferralHeld, referralReleaseAt } from "@shared/referral";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { getMetaSettings, saveMetaSettings, testMeta, connectTelegram, telegramStatus } from "./socialChat";
@@ -72,7 +73,7 @@ import {
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, staffCharges, staffItemCommissions, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
+  posProducts, referrals, posTickets, posTicketItems, stockMovements, ledgerEntries, receiptMemory, staffCharges, staffItemCommissions, bottleKeeps, gameRanks, crmContacts, crmMessages, appointments,
   staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory, expenseUploads, expenseVendors, supplierPayables,
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
@@ -3762,6 +3763,23 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     // soldOut = nothing left to sell: the POS (tables + staff orders) leaves such an item out of its picker.
     res.json(withHappyHour(await withBundleStock(rows)).map((p) => ({ ...p, imageUrl: productImageLink(p), soldOut: p.offHours || (!p.packageKind && !p.isService && !allowNegative && (p.stock ?? 0) <= 0) })));
   }));
+  // "People I referred" on the member's referral page: who signed up with their code, what their paid bills earned, and when a new referral starts earning.
+  app.get("/api/reborn/my-referrals", requireAuth, async (req, res) => {
+    const uid = getUserId(req);
+    if (!uid) return res.status(401).json({ message: "Not signed in" });
+    const settings = await getSettings();
+    const links = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, linkedAt: referrals.createdAt, earned: referrals.totalEarnings }).from(referrals).innerJoin(users, eq(users.id, referrals.referredId)).where(eq(referrals.referrerId, uid)).orderBy(desc(referrals.createdAt));
+    const ids = links.map((l) => l.id);
+    const bills = ids.length ? await db.select({ memberId: posTickets.memberId, n: sql<number>`count(*)::int` }).from(posTickets).where(and(inArray(posTickets.memberId, ids), eq(posTickets.status, "paid"))).groupBy(posTickets.memberId) : [];
+    const billsOf = new Map(bills.map((b) => [b.memberId, b.n]));
+    res.json({ percent: settings.referralPercent, holdHours: settings.referralHoldHours, people: links.map((l) => ({
+      name: [l.firstName, (l.lastName || "").charAt(0)].filter(Boolean).join(" "),
+      joinedAt: l.linkedAt,
+      startsAt: l.linkedAt && isReferralHeld(new Date(l.linkedAt), settings.referralHoldHours) ? referralReleaseAt(new Date(l.linkedAt), settings.referralHoldHours).toISOString() : null,
+      bills: billsOf.get(l.id) ?? 0,
+      earned: Number(l.earned) || 0,
+    })) });
+  });
   // The name and address printed at the top of the food and drinks menu image.
   app.get("/api/reborn/pos/menu-info", requireStaff(async (_req, res) => {
     const settings = await getSettings();
