@@ -1,3 +1,4 @@
+import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { useState, useEffect, useRef, lazy, Suspense, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { tData, useTranslation, translations, localeTag, translate, getCurrentLanguage } from "@/lib/i18n";
@@ -2907,6 +2908,7 @@ function Inventory() {
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("admin.search.ph")} className={inp + " w-full"} />
       {canChange && <ReceiptScan />}
       {role === "admin" && <SupplierReorderPanel />}
+      {canChange && <MenuImageMaker />}
       {canChange && <HappyHourManager />}
       {canChange && <CreditPackages />}
       <div className="grid grid-cols-3 gap-2">

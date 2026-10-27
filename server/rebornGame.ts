@@ -3762,6 +3762,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     // soldOut = nothing left to sell: the POS (tables + staff orders) leaves such an item out of its picker.
     res.json(withHappyHour(await withBundleStock(rows)).map((p) => ({ ...p, imageUrl: productImageLink(p), soldOut: p.offHours || (!p.packageKind && !p.isService && !allowNegative && (p.stock ?? 0) <= 0) })));
   }));
+  // The name and address printed at the top of the food and drinks menu image.
+  app.get("/api/reborn/pos/menu-info", requireStaff(async (_req, res) => {
+    const settings = await getSettings();
+    res.json({ clubName: settings.clubName, businessAddress: settings.businessAddress || "" });
+  }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
     const cid = await rebornCompanyId(req);
