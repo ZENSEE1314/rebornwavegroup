@@ -1,3 +1,4 @@
+import { EditKeptBottle } from "@/components/EditKeptBottle";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { useState, useEffect, useRef, lazy, Suspense, Fragment } from "react";
 import { createPortal } from "react-dom";
@@ -3146,13 +3147,14 @@ function AdminBottles() {
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("admin.bot.search")} className={inp + " w-full"} />
       <p className="text-xs text-white/40 px-1">{t("admin.bot.kept", { n: kept.length })}</p>
       {kept.map((b) => (
-        <div key={b.id} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
+        <div key={b.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
           {b.photoUrl ? <img src={b.photoUrl} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" /> : <span className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0"><Wine className="w-5 h-5 text-amber-300" /></span>}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold truncate">{b.name} <span className="text-white/40 text-xs capitalize">· {tv(t, "admin.bot.type." + b.type, b.type)}{b.type === "beer" ? ` · ${t("admin.bot.left", { n: b.quantity })}` : ""}</span></p>
             <p className="text-[11px] text-white/40 truncate">{b.memberName || "—"}{b.memberCode ? ` · ${b.memberCode}` : ""}{b.expiresAt ? ` · ${t("admin.bot.exp", { d: new Date(b.expiresAt).toLocaleDateString(localeTag()) })}` : ""}</p>
           </div>
           <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate(b.id); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeem")}</button>
+          <EditKeptBottle bottle={b} />
         </div>
       ))}
       {kept.length === 0 && <Empty text={t("admin.bot.empty")} />}

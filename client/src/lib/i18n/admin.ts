@@ -1684,6 +1684,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.bk.empty': { en: "No bookings.", zh: "暂无预订。", id: "Tidak ada reservasi." },
   'admin.bot.add': { en: "Keep a bottle (after the bill)", zh: "寄存酒瓶（结账之后）", id: "Titip botol (setelah tagihan)" },
   'admin.bot.addHint': { en: "For a customer who has already paid but left some drink: choose the member, the type and what is left.", zh: "客人已结账但还剩酒时使用：选择会员、酒类和剩余数量。", id: "Untuk pelanggan yang sudah membayar tetapi masih ada sisa minuman: pilih member, jenis dan sisa." },
+  'admin.bot.drinkName': { en: "Drink name", zh: "酒名", id: "Nama minuman" },
   'admin.bot.who': { en: "Customer name (pick a member to add it to their account)", zh: "顾客姓名（选择会员则记入其账户）", id: "Nama pelanggan (pilih member agar masuk ke akunnya)" },
   'admin.bot.memberSearch': { en: "Member name / code / phone", zh: "会员姓名 / 编号 / 手机", id: "Nama / kode / telepon member" },
   'admin.bot.qty': { en: "How many left", zh: "剩余数量", id: "Sisa berapa" },

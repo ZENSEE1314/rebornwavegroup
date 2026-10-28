@@ -26,3 +26,9 @@ describe("tagging a member on the POS", () => {
     assert.ok(pos.includes('onPick={(m) => lookup.mutate(m.code || m.card || m.email || m.id)}'));
   });
 });
+
+describe("the admin editing a kept bottle", () => {
+  it("should offer Edit on every kept bottle in Admin › Bottles", () => {
+    assert.ok(admin.includes("<EditKeptBottle bottle={b} />"));
+  });
+});

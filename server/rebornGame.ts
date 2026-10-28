@@ -4883,6 +4883,29 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (q) rows = rows.filter((r) => [r.memberName, r.memberCode, r.name].some((v) => (v || "").toLowerCase().includes(q.toLowerCase())));
     res.json(rows.map(bottleView));
   }));
+  // Admin: correct a kept bottle: the drink's name and who it belongs to (a member found by code / card / username / email gets it on their account, a typed name is just a name).
+  app.patch("/api/reborn/pos/bottle-keeps/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id); const b = req.body || {};
+    const [row] = await db.select().from(bottleKeeps).where(eq(bottleKeeps.id, id));
+    if (!row || row.status !== "kept") return res.status(400).json({ message: tr(req, { en: "Not an active kept bottle", zh: "这不是有效的寄存酒瓶", id: "Bukan botol titipan yang aktif" }) });
+    const patch: Partial<typeof bottleKeeps.$inferInsert> = {};
+    if (b.name !== undefined) {
+      const name = String(b.name).trim().slice(0, 120);
+      if (!name) return res.status(400).json({ message: tr(req, { en: "Enter the drink name", zh: "请输入酒名", id: "Masukkan nama minuman" }) });
+      patch.name = name;
+    }
+    const typed = String(b.memberCode || "").trim();
+    const memberName = String(b.memberName || "").trim().slice(0, 80);
+    if (typed || memberName) {
+      const member = typed ? await findMemberByCode(typed) : null;
+      if (member) Object.assign(patch, { userId: member.id, memberName: [member.firstName, member.lastName].filter(Boolean).join(" ") || member.username || member.email, memberCode: member.referralCode });
+      else Object.assign(patch, { userId: null, memberName: memberName || typed, memberCode: null });
+    }
+    if (!Object.keys(patch).length) return res.status(400).json({ message: tr(req, { en: "Nothing to change", zh: "没有要修改的内容", id: "Tidak ada yang diubah" }) });
+    const [saved] = await db.update(bottleKeeps).set(patch).where(eq(bottleKeeps.id, id)).returning();
+    await logAdmin(req, { targetUserId: saved.userId || undefined, targetType: "bottle_keep", targetId: id, action: "edit", entityType: "bottle", oldValues: { name: row.name, memberName: row.memberName }, newValues: { name: saved.name, memberName: saved.memberName }, description: `Bottle changed: "${row.name}" for ${row.memberName} -> "${saved.name}" for ${saved.memberName}` });
+    res.json({ message: tr(req, { en: "Bottle updated", zh: "酒瓶已更新", id: "Botol diperbarui" }), bottle: bottleView(saved) });
+  }));
   app.post("/api/reborn/pos/bottle-keeps/:id/collect", requireStaff(async (req, res) => {
     const id = Number(req.params.id); const take = Math.max(1, Math.floor(Number(req.body?.quantity) || 1));
     const [b] = await db.select().from(bottleKeeps).where(eq(bottleKeeps.id, id));
