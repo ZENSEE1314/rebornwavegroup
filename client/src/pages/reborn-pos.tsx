@@ -64,6 +64,21 @@ async function post(url: string, body?: any) {
   if (!r.ok) throw new Error(d.message || translate("pos.failed"));
   return d;
 }
+const SEND_RETRIES = 2;
+const SEND_RETRY_WAIT_MS = 1500;
+
+// For a save that is safe to send again: the same key goes with every try, so a request that did reach the server is never applied twice.
+// Only a dropped connection is tried again; an answer from the server (a refusal, an error) is shown at once.
+async function postWithRetry(url: string, body: Record<string, unknown>) {
+  const clientKey = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  for (let attempt = 0; ; attempt++) {
+    try { return await post(url, { ...body, clientKey }); }
+    catch (error: any) {
+      if (error?.message !== translate("srv.err.offline") || attempt >= SEND_RETRIES) throw error;
+      await new Promise((resolve) => setTimeout(resolve, SEND_RETRY_WAIT_MS));
+    }
+  }
+}
 function useProducts() {
   return useQuery<Product[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
 }
@@ -415,7 +430,7 @@ function SalesPicker({ value, onChange }: { value: string; onChange: (id: string
 }
 
 // ── Product picker: pending cart → onCommit(items) ──────────────────────────
-function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { label: string; onCommit: (items: any[]) => void; onCartChange?: (items: any[]) => void; busy?: boolean; displayTotal?: number }) {
+function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { label: string; onCommit: (items: any[]) => void | Promise<unknown>; onCartChange?: (items: any[]) => void; busy?: boolean; displayTotal?: number }) {
   const { data: products = [] } = useProducts();
   const { t } = useTranslation();
   const [cart, setCart] = useState<Record<number, number>>({});
@@ -426,7 +441,12 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const total = lines.reduce((s, [id, q]) => s + Number(byId.get(Number(id))?.salePrice ?? byId.get(Number(id))?.price ?? 0) * q, 0);
   const add = (id: number, count = 1) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + count }));
   const sub = (id: number) => setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) - 1) }));
-  const commit = () => { onCommit(lines.map(([id, q]) => { const p = byId.get(Number(id))!; return { productId: p.id, name: p.name, price: Number(p.salePrice ?? p.price), qty: q }; })); setCart({}); };
+  // A caller that answers with a promise keeps the picked items until the server took them, so a failed send never loses the selection.
+  const commit = () => {
+    const sent = onCommit(lines.map(([id, q]) => { const p = byId.get(Number(id))!; return { productId: p.id, name: p.name, price: Number(p.salePrice ?? p.price), qty: q }; }));
+    if (sent instanceof Promise) sent.then(() => setCart({}), () => {});
+    else setCart({});
+  };
   const [industry, setIndustry] = useState("");
   const industries = useMemo(() => Array.from(new Set(products.flatMap((p) => deptList(p.department)))).sort() as string[], [products]);
   const groups = useMemo(() => {
@@ -708,7 +728,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { data: posSettings } = usePosSettings();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] });
   const addItems = useMutation({
-    mutationFn: (items: any[]) => post(`/api/reborn/pos/orders/${order.id}/items`, { items }),
+    mutationFn: (items: any[]) => postWithRetry(`/api/reborn/pos/orders/${order.id}/items`, { items }),
     onSuccess: () => { toast({ title: t("pos.addedToTicket") }); invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
@@ -823,7 +843,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
       <div id={WORK_AREA_ID} className={TWO_PANES + " scroll-mt-20"}>
         <div className={`order-2 lg:order-1 ${PANE_SCROLL}`}>
           <p className="text-xs text-white/40 px-1 mb-2">{t("pos.addItems")}</p>
-          <ProductPicker label={t("pos.addToTicket")} busy={addItems.isPending} onCommit={(items) => addItems.mutate(items)} />
+          <ProductPicker label={t("pos.addToTicket")} busy={addItems.isPending} onCommit={(items) => addItems.mutateAsync(items)} />
         </div>
         <div className={`order-1 lg:order-2 ${PANE_SCROLL}`}>
           <div className="rounded-2xl border border-amber-400/30 bg-white/5 p-4 mb-3">

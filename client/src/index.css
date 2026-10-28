@@ -2827,3 +2827,6 @@ button, .interactive {
 .gs-fx-dark { background:#02040a; }
 .gs-fx-video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .gs-fx-screen { mix-blend-mode: screen; }
+
+/* Quick repeated taps on the same button (2-3 of one item on the POS) must each count: without this a touch screen can read the second tap as a double-tap zoom and drop it. */
+button, a, [role="button"], select, label, input[type="checkbox"], input[type="radio"] { touch-action: manipulation; }

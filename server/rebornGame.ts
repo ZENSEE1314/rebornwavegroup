@@ -47,6 +47,7 @@ import { cleanRate } from "@shared/taxFees";
 import { DEFAULT_PAY_DAYS, MAX_PAY_DAYS, MIN_PAY_DAYS, cleanNoLeaveMonths, leaveSummary, unpaidDeduction } from "@shared/payrollLeave";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
 import { registerSecurityRoutes } from "./security";
+import { createRunOnce } from "./runOnce";
 import { registerStaffContractRoutes } from "./staffContracts";
 import { stationFor, STATIONS } from "@shared/station";
 import { VENUE_MODE, BACKGROUND_JOBS_OFF, CLOUD_URL } from "./venueMode";
@@ -1208,6 +1209,7 @@ async function karaokeAuth(req: Request): Promise<boolean> {
   return true;
 }
 let karaokeLastSeenWrite = 0;
+const addItemsOnce = createRunOnce();
 
 // ── Searching the karaoke box's own song list ───────────────────────────────
 // The box sits on the venue Wi-Fi and the cloud cannot reach it, so the bridge program (venue/karaoke-bridge.mjs) holds a long request open here; a member's search
@@ -4354,14 +4356,20 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // Staff adds items to an open ticket (accumulate over the night).
   app.post("/api/reborn/pos/orders/:id/items", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
-    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
-    if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
-    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req), false, await unitsOnBill(id));
-    if (error) return res.status(400).json({ message: error });
-    if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) });
-    const total = await appendItems(id, o.orderNo, clean!, getUserId(req)!);
-    await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "add_items", entityType: "order", description: `Table ${o.tableNumber || "-"} (${o.orderNo}): ordered ${clean!.map((x: any) => `${x.qty}× ${x.name}`).join(", ")}` });
-    res.json({ message: tr(req, { en: "Added to ticket", zh: "已加入账单", id: "Ditambahkan ke tagihan" }), total });
+    const addToTicket = async (): Promise<{ status: number; body: Record<string, unknown> }> => {
+      const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+      if (!o || o.status !== "open") return { status: 400, body: { message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) } };
+      const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : [], reqLang(req), false, await unitsOnBill(id));
+      if (error) return { status: 400, body: { message: error } };
+      if (!clean!.length) return { status: 400, body: { message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) } };
+      const total = await appendItems(id, o.orderNo, clean!, getUserId(req)!);
+      await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "add_items", entityType: "order", description: `Table ${o.tableNumber || "-"} (${o.orderNo}): ordered ${clean!.map((x: any) => `${x.qty}× ${x.name}`).join(", ")}` });
+      return { status: 200, body: { message: tr(req, { en: "Added to ticket", zh: "已加入账单", id: "Ditambahkan ke tagihan" }), total } };
+    };
+    // The POS sends the same key again when its connection dropped mid-request: the items are added once, the retry gets the same answer.
+    const clientKey = typeof req.body?.clientKey === "string" ? req.body.clientKey.trim().slice(0, 64) : "";
+    const out = clientKey ? await addItemsOnce(`${id}:${clientKey}`, addToTicket) : await addToTicket();
+    res.status(out.status).json(out.body);
   }));
   // Tag / change the member on an open ticket (so points go to the right person).
   app.post("/api/reborn/pos/orders/:id/member", requireStaff(async (req, res) => {
