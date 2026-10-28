@@ -47,8 +47,9 @@ export function menuItemsOf(products: MenuProduct[], options: MenuOptions = {}):
     .filter((item) => item.price > 0 && item.name !== "");
 }
 
-/** Food first, then desserts, then drinks; inside each, categories A to Z and items A to Z. */
-export function sectionsOf(items: MenuItem[]): MenuSection[] {
+/** Food first, then desserts, then drinks; inside each, categories A to Z and items A to Z. A category order the admin saved comes first, in that order. */
+export function sectionsOf(items: MenuItem[], categoryOrder: string[] = []): MenuSection[] {
+  const rank = (category: string) => { const at = categoryOrder.findIndex((name) => name.toLowerCase() === category.toLowerCase()); return at < 0 ? Number.MAX_SAFE_INTEGER : at; };
   const byKey = new Map<string, MenuSection>();
   for (const item of items) {
     const key = `${item.section}|${item.category.toLowerCase()}`;
@@ -58,7 +59,7 @@ export function sectionsOf(items: MenuItem[]): MenuSection[] {
   }
   return Array.from(byKey.values())
     .map((s) => ({ ...s, items: [...s.items].sort((a, b) => a.name.localeCompare(b.name)) }))
-    .sort((a, b) => SECTION_ORDER.indexOf(a.kind) - SECTION_ORDER.indexOf(b.kind) || a.category.localeCompare(b.category));
+    .sort((a, b) => rank(a.category) - rank(b.category) || SECTION_ORDER.indexOf(a.kind) - SECTION_ORDER.indexOf(b.kind) || a.category.localeCompare(b.category));
 }
 
 export interface PageHeights { page: number; firstHeader: number; nextHeader: number; footer: number; heading: number; row: number; bundle?: number }

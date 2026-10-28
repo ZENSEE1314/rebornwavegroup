@@ -70,6 +70,7 @@ export async function quoteBill(o: {
   appPercent?: number; // % off the lines a member ordered through the app (admin setting; not on staff-price / at-cost bills)
   staffHalf?: boolean; // staff price: half of the bill, with no service fee, no tax and no member perk
   atCost?: boolean; // staff / boss buy at the item's cost: the discount takes every line down to its cost, with no service fee, no tax and no member perk
+  staffPercent?: number; // staff past their monthly staff-price cap: this % off the normal price, service fee and tax as usual, no member perk
 }) {
   const ids = Array.from(new Set(o.lines.map((l) => Number(l.productId)).filter(Boolean)));
   const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, appDiscountOk: posProducts.appDiscountOk, cost: posProducts.cost, price: posProducts.price }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
@@ -88,11 +89,12 @@ export async function quoteBill(o: {
   }
   const costTotal = o.atCost ? money(o.lines.reduce((sum, l) => { const p = byId.get(Number(l.productId)); return sum + (p ? Number(p.cost || 0) * (Number(l.qty) || 1) : Number(l.lineTotal) || 0); }, 0)) : 0;
   const noFees = !!(o.atCost || o.staffHalf);
-  const manualDiscount = o.atCost ? Math.min(subtotal, Math.max(0, money(subtotal - costTotal))) : o.staffHalf ? money(subtotal / 2) : Math.min(subtotal, Math.max(0, Number(o.manualDiscount) || 0));
+  const staffPercent = Math.max(0, Math.min(100, Number(o.staffPercent) || 0));
+  const manualDiscount = o.atCost ? Math.min(subtotal, Math.max(0, money(subtotal - costTotal))) : o.staffHalf ? money(subtotal / 2) : staffPercent > 0 ? money(subtotal * staffPercent / 100) : Math.min(subtotal, Math.max(0, Number(o.manualDiscount) || 0));
   const wallet = o.userId ? await memberWallet(o.userId) : null;
-  const perkPercent = noFees ? 0 : wallet?.perk?.percent || 0;
+  const perkPercent = noFees || staffPercent > 0 ? 0 : wallet?.perk?.percent || 0;
   const perkAmount = money(Math.max(0, subtotal - packageBase - manualDiscount) * perkPercent / 100);
-  const appPercent = noFees ? 0 : Math.max(0, Math.min(100, Number(o.appPercent) || 0));
+  const appPercent = noFees || staffPercent > 0 ? 0 : Math.max(0, Math.min(100, Number(o.appPercent) || 0));
   const appDiscount = money(Math.max(0, appBase) * appPercent / 100);
   const discount = Math.min(subtotal, manualDiscount + perkAmount + appDiscount);
   const taxable = money(subtotal - discount);

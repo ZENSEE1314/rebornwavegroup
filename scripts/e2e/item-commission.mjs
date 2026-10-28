@@ -65,15 +65,14 @@ r = await admin("POST", `/api/reborn/admin/accounting/orders/${order.id}/refund`
 got = await rows(order.id);
 check("a refund cancels the commission", r.status === 200 && got.length === 1 && got[0].voided_at !== null, JSON.stringify([r.status, got]));
 
-// fixed amount, default person = who ordered
+// fixed amount goes to the picked person only: the one who ordered it earns nothing by default
 await admin("PATCH", `/api/reborn/admin/pos/products/${drink.id}`, { staffCommissionKind: "fixed", staffCommissionValue: 30000 });
 const table2 = `M${tag}`.slice(0, 7);
 const order2 = (await admin("POST", "/api/reborn/pos/orders", { tableNumber: table2 })).json.order;
 await ladyB.client("POST", "/api/auth/login", { email: `icb${tag}@test.local`, password: "Passw0rd!" });
 const added = await ladyB.client("POST", `/api/reborn/pos/orders/${order2.id}/items`, { items: [{ productId: drink.id, qty: 2 }] });
 await admin("POST", `/api/reborn/pos/orders/${order2.id}/pay`, { paymentMethod: "cash", cashReceived: 10_000_000 });
-got = await rows(order2.id);
-check("fixed 30,000 per drink x 2 = 60,000 goes to the person who ordered it", added.status === 200 && got.length === 1 && got[0].user_id === ladyB.id && got[0].a === 60000, JSON.stringify([added.status, got]));
+check("the person who ordered a commission item earns nothing unless picked", added.status === 200 && (await rows(order2.id)).length === 0, JSON.stringify([added.status, await rows(order2.id)]));
 
 // limited to chosen staff: only they can be picked, and a non-listed orderer earns nothing by default
 await admin("PATCH", `/api/reborn/admin/pos/products/${drink.id}`, { staffCommissionKind: "percent", staffCommissionValue: 10, staffCommissionStaffIds: [ladyA.id] });

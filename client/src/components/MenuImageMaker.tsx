@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n";
 import { money } from "@/lib/money";
 import { bundlesOf, menuItemsOf, planPages, sectionsOf, type BundleGroup, type MenuBlock, type MenuItem, type MenuProduct, type PageHeights } from "@shared/menuLayout";
@@ -32,7 +33,9 @@ const BUNDLE_THEMES = [
 const BACKDROP_LIGHTS: [number, number, number, string][] = [[100, 120, 560, "rgba(139,92,246,0.45)"], [1160, 380, 520, "rgba(56,232,255,0.28)"], [220, 1000, 600, "rgba(255,61,172,0.25)"], [1100, 1500, 620, "rgba(139,92,246,0.4)"], [620, 1740, 520, "rgba(255,61,172,0.3)"]];
 const SPARKLE_COUNT = 70;
 
-interface MenuInfo { clubName: string; businessAddress: string }
+interface MenuInfo { clubName: string; businessAddress: string; logoUrl?: string; categoryOrder?: string[] }
+const LOGO_MAX_WIDTH = 520;
+const LOGO_MAX_HEIGHT = 130;
 
 const loadPhoto = (imageUrl: string | null): Promise<HTMLImageElement | null> => new Promise((resolve) => {
   if (!imageUrl) return resolve(null);
@@ -167,16 +170,26 @@ const drawBundle = (ctx: CanvasRenderingContext2D, group: BundleGroup, photo: HT
   });
 };
 
-const drawHeader = (ctx: CanvasRenderingContext2D, info: MenuInfo, isFirstPage: boolean) => {
+const drawLogo = (ctx: CanvasRenderingContext2D, logo: HTMLImageElement, centerX: number, top: number, maxWidth: number, maxHeight: number) => {
+  const scale = Math.min(maxWidth / logo.width, maxHeight / logo.height);
+  const w = logo.width * scale, h = logo.height * scale;
+  glow(ctx, NEON_PURPLE, 26);
+  ctx.drawImage(logo, centerX - w / 2, top + (maxHeight - h) / 2, w, h);
+  noGlow(ctx);
+};
+
+const drawHeader = (ctx: CanvasRenderingContext2D, info: MenuInfo, logo: HTMLImageElement | null, isFirstPage: boolean) => {
   ctx.textBaseline = "alphabetic";
   if (!isFirstPage) {
+    if (logo) { drawLogo(ctx, logo, MARGIN + 90, 30, 180, 80); return; }
     ctx.fillStyle = GOLD; ctx.textAlign = "left"; ctx.font = `800 30px ${FONT}`; ctx.fillText(info.clubName.toUpperCase(), MARGIN, 90);
     return;
   }
   const title = ctx.createLinearGradient(0, 80, PAGE_WIDTH, 180);
   title.addColorStop(0, "#d8c2ff"); title.addColorStop(0.5, "#ffffff"); title.addColorStop(1, NEON_CYAN);
   ctx.textAlign = "center"; ctx.fillStyle = title; ctx.font = `900 84px ${FONT}`;
-  glow(ctx, NEON_PURPLE, 26); ctx.fillText(info.clubName.toUpperCase(), PAGE_WIDTH / 2, 150); noGlow(ctx);
+  if (logo) drawLogo(ctx, logo, PAGE_WIDTH / 2, 30, LOGO_MAX_WIDTH, LOGO_MAX_HEIGHT + 20);
+  else { glow(ctx, NEON_PURPLE, 26); ctx.fillText(info.clubName.toUpperCase(), PAGE_WIDTH / 2, 150); noGlow(ctx); }
   ctx.fillStyle = goldFill(ctx, 160, 110); ctx.font = `900 italic 120px ${FONT}`;
   glow(ctx, "rgba(255,170,0,0.6)", 22); ctx.fillText("MENU", PAGE_WIDTH / 2, 275); noGlow(ctx);
   ctx.fillStyle = GOLD; ctx.font = `600 28px ${FONT}`;
@@ -191,12 +204,12 @@ const drawHeading = (ctx: CanvasRenderingContext2D, title: string, y: number) =>
   ctx.fillStyle = bar; ctx.fillRect(MARGIN, y + 68, 220, 6);
 };
 
-const drawPage = (info: MenuInfo, blocks: MenuBlock[], photos: Map<number, HTMLImageElement | null>, pageNo: number, pageCount: number, dateText: string): HTMLCanvasElement => {
+const drawPage = (info: MenuInfo, logo: HTMLImageElement | null, blocks: MenuBlock[], photos: Map<number, HTMLImageElement | null>, pageNo: number, pageCount: number, dateText: string): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
   canvas.width = PAGE_WIDTH; canvas.height = PAGE_HEIGHT;
   const ctx = canvas.getContext("2d")!;
   drawBackdrop(ctx);
-  drawHeader(ctx, info, pageNo === 0);
+  drawHeader(ctx, info, logo, pageNo === 0);
   let y = pageNo === 0 ? HEIGHTS.firstHeader : HEIGHTS.nextHeader;
   const cardWidth = (PAGE_WIDTH - MARGIN * 2 - COLUMN_GAP) / 2;
   let bundleIndex = 0;
@@ -242,23 +255,40 @@ export function MenuImageMaker() {
   const { data: info } = useQuery<MenuInfo>({ queryKey: ["/api/reborn/pos/menu-info"], queryFn: () => apiRequest("GET", "/api/reborn/pos/menu-info").then((r) => r.json()), enabled: isOpen });
   const items = useMemo(() => menuItemsOf(products, { includeSoldOut }), [products, includeSoldOut]);
   const bundles = useMemo(() => (includeBundles ? bundlesOf(products, { includeSoldOut }) : []), [products, includeSoldOut, includeBundles]);
+  const [savedOrder, setSavedOrder] = useState<string[] | null>(null);
+  const categoryOrder = useMemo(() => savedOrder ?? info?.categoryOrder ?? [], [savedOrder, info]);
+  const categoryNames = useMemo(() => Array.from(new Set(sectionsOf(items, categoryOrder).map((section) => section.category))), [items, categoryOrder]);
+  const { toast } = useToast();
+  const saveOrder = useMutation({
+    mutationFn: (order: string[]) => apiRequest("PUT", "/api/reborn/admin/menu-category-order", { order }).then((r) => r.json()),
+    onSuccess: (data: { order: string[] }) => setSavedOrder(data.order),
+    onError: (e: any) => toast({ title: t("menuImage.orderFail"), description: e.message, variant: "destructive" }),
+  });
+  const moveCategory = (index: number, step: -1 | 1) => {
+    const next = [...categoryNames];
+    const target = index + step;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    saveOrder.mutate(next);
+  };
 
   useEffect(() => {
     if (!isOpen || !info) return;
     let isCurrent = true;
     setIsDrawing(true);
     (async () => {
-      const pages = planPages(sectionsOf(items), HEIGHTS, bundles);
+      const pages = planPages(sectionsOf(items, categoryOrder), HEIGHTS, bundles);
+      const logo = await loadPhoto(info.logoUrl || null);
       const photos = new Map<number, HTMLImageElement | null>();
       const withPhotos = [...items.map((item) => ({ id: item.id, imageUrl: item.imageUrl })), ...bundles.map((group) => ({ id: group.itemId, imageUrl: group.imageUrl }))];
       await Promise.all(withPhotos.map(async ({ id, imageUrl }) => { photos.set(id, await loadPhoto(imageUrl)); }));
       if (!isCurrent) return;
       const dateText = new Date().toLocaleDateString();
-      setCanvases(pages.map((blocks, i) => drawPage(info, blocks, photos, i, pages.length, dateText)));
+      setCanvases(pages.map((blocks, i) => drawPage(info, logo, blocks, photos, i, pages.length, dateText)));
       setIsDrawing(false);
     })();
     return () => { isCurrent = false; };
-  }, [isOpen, info, items, bundles]);
+  }, [isOpen, info, items, bundles, categoryOrder]);
 
   const stamp = new Date().toISOString().slice(0, 10);
   const downloadAll = () => canvases.forEach((canvas, i) => setTimeout(() => saveCanvas(canvas, `menu-${stamp}-${i + 1}.png`), i * 400));
@@ -281,6 +311,21 @@ export function MenuImageMaker() {
         <label className="flex items-center gap-1.5"><input type="checkbox" checked={includeSoldOut} onChange={(e) => setIncludeSoldOut(e.target.checked)} />{t("menuImage.soldOut")}</label>
         <label className="flex items-center gap-1.5"><input type="checkbox" checked={includeBundles} onChange={(e) => setIncludeBundles(e.target.checked)} />{t("menuImage.bundles")}</label>
       </div>
+      {categoryNames.length > 1 && (
+        <div className="mt-3 rounded-xl bg-black/25 p-2">
+          <p className="mb-1.5 text-xs font-bold text-pink-100">{t("menuImage.orderTitle")}</p>
+          <ol className="space-y-1">
+            {categoryNames.map((name, i) => (
+              <li key={name} className="flex items-center gap-2 text-xs text-white/80">
+                <span className="w-5 text-white/40">{i + 1}</span>
+                <span className="min-w-0 flex-1 truncate">{name}</span>
+                <button type="button" onClick={() => moveCategory(i, -1)} disabled={i === 0 || saveOrder.isPending} aria-label={t("menuImage.moveUp")} className="w-9 h-9 rounded-lg bg-white/10 p-0 text-sm disabled:opacity-30">↑</button>
+                <button type="button" onClick={() => moveCategory(i, 1)} disabled={i === categoryNames.length - 1 || saveOrder.isPending} aria-label={t("menuImage.moveDown")} className="w-9 h-9 rounded-lg bg-white/10 p-0 text-sm disabled:opacity-30">↓</button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
       <p className="mt-2 text-xs text-white/50">{isDrawing ? t("menuImage.drawing") : t("menuImage.ready", { items: items.length + bundles.length, pages: canvases.length })}</p>
       <button onClick={downloadAll} disabled={isDrawing || canvases.length === 0} className="mt-2 rounded-xl bg-pink-500 px-4 py-2 text-sm font-bold text-black disabled:opacity-40">{t("menuImage.downloadAll")}</button>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">

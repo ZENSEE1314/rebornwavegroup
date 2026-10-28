@@ -12,6 +12,7 @@ import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serial
 import { businessDayOf } from "@shared/businessDay";
 import { LineCommissionSplit } from "@/components/LineCommissionSplit";
 import { ItemCommissionAdmin } from "@/components/ItemCommissionAdmin";
+import { StaffPriceCaps } from "@/components/StaffPriceCaps";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { printClosingReport, printReceipt, printBill, printOnAccountBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -88,11 +89,19 @@ const commissionAmountOf = (c: CommissionInput, base: number) => (c.value > 0 ? 
 const commissionPreview = (c: CommissionInput, base: number) => { const amount = commissionAmountOf(c, base); return amount > 0 ? { commissionLabel: c.label, commissionPayee: c.payee, commissionAmount: amount } : {}; };
 
 // Staff / boss price, ticked on a bill: 50% off or every item at its cost, both with no service fee and no tax (tick again to take it off).
-type AtCostInput = { mode: "" | "half" | "cost"; who: "staff" | "boss"; name: string };
-const emptyAtCost = (): AtCostInput => ({ mode: "", who: "staff", name: "" });
-const atCostToSend = (a: AtCostInput) => (a.mode ? { mode: a.mode, who: a.who, name: a.name.trim() } : undefined);
+type AtCostInput = { mode: "" | "half" | "cost"; who: "staff" | "boss"; name: string; userId: string };
+const emptyAtCost = (): AtCostInput => ({ mode: "", who: "staff", name: "", userId: "" });
+const atCostToSend = (a: AtCostInput) => (a.mode ? { mode: a.mode, who: a.who, name: a.name.trim(), ...(a.userId ? { userId: a.userId } : {}) } : undefined);
+interface StaffPricePerson { id: string; name: string; role: string; spent: number; cap: number; isCapReached: boolean }
 function AtCostBox({ value, onChange }: { value: AtCostInput; onChange: (next: AtCostInput) => void }) {
   const { t } = useTranslation();
+  const { data: people } = useQuery<{ discountPercent: number; people: StaffPricePerson[] }>({ queryKey: ["/api/reborn/pos/staff-price-people"], enabled: !!value.mode });
+  const picked = people?.people.find((p) => p.id === value.userId);
+  const pickPerson = (id: string) => {
+    const person = people?.people.find((p) => p.id === id);
+    onChange(person ? { ...value, userId: person.id, name: person.name, who: person.role === "admin" ? "boss" : "staff" } : { ...value, userId: "", name: "" });
+  };
+  const labelOf = (p: StaffPricePerson) => `${p.name}${p.role === "admin" ? ` (${t("pos.atCost.boss")})` : ""}${p.cap > 0 ? ` · ${rp(p.spent)} / ${rp(p.cap)}` : ""}${p.isCapReached ? ` · ${t("pos.atCost.capShort", { p: people?.discountPercent ?? 0 })}` : ""}`;
   const pick = (mode: "half" | "cost") => (
     <button key={mode} type="button" onClick={() => onChange(value.mode === mode ? { ...value, mode: "" } : { ...value, mode })} aria-pressed={value.mode === mode} className={`py-2 rounded-xl border font-semibold text-xs ${value.mode === mode ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{value.mode === mode ? "☑" : "☐"} {t(`pos.atCost.${mode}`)}</button>
   );
@@ -102,12 +111,11 @@ function AtCostBox({ value, onChange }: { value: AtCostInput; onChange: (next: A
       <div className="grid grid-cols-2 gap-2">{pick("half")}{pick("cost")}</div>
       {value.mode && (
         <>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {(["staff", "boss"] as const).map((who) => (
-              <button key={who} type="button" onClick={() => onChange({ ...value, who })} className={`py-1.5 rounded-lg border text-[11px] font-semibold ${value.who === who ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.atCost.${who}`)}</button>
-            ))}
-          </div>
-          <input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} placeholder={t("pos.atCost.name")} className="mt-2 w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+          <select value={value.userId} onChange={(e) => pickPerson(e.target.value)} aria-label={t("pos.atCost.name")} className="mt-2 w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm">
+            <option value="">{t("pos.atCost.name")}</option>
+            {(people?.people ?? []).map((p) => <option key={p.id} value={p.id}>{labelOf(p)}</option>)}
+          </select>
+          {picked?.isCapReached && <p className="mt-1 text-[11px] text-sky-200">{t("pos.atCost.capNote", { p: people?.discountPercent ?? 0 })}</p>}
           <p className="mt-1 text-[11px] text-amber-200/80">{t("pos.atCost.note")}</p>
         </>
       )}
@@ -286,7 +294,7 @@ export default function RebornPos() {
       <button onClick={() => window.open("/customer", "rw-customer", "popup,width=1024,height=768")} className="mb-3 mr-2 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🖥 {t("cs.open")}</button>
       <a href="/kitchen" className="mb-3 inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">🍳 {t("pos.kitchen.open")}</a>
       {(role === "admin" || companyRole === "manager") && <MenuImageMaker />}
-      {role === "admin" && <ItemCommissionAdmin />}
+      {role === "admin" && <StaffPriceCaps />}
       {(role === "admin" || companyRole === "manager") && <ClosePosDay />}
       <div className="grid gap-2 mb-4 max-w-3xl" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
         {([["tables", t("pos.tab.tables"), <LayoutGrid className="w-4 h-4" />], ["sell", t("pos.tab.sell"), <Receipt className="w-4 h-4" />], ["sales", t("pos.tab.sales"), <History className="w-4 h-4" />], ["stock", t("pos.tab.stock"), <PackagePlus className="w-4 h-4" />], ["bottles", t("pos.tab.bottles"), <Wine className="w-4 h-4" />], ["packages", t("pos.tab.packages"), <Gift className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
@@ -857,14 +865,14 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                         {it.status !== "pending" && <button onClick={() => setAsk({ kind: "lose", item: it })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-orange-500/15 text-orange-200">{t("pos.item.lose")}</button>}
                       </div>
                     )}
-                    {!OFF_BILL.includes(it.status) && products.find((p) => p.id === it.productId) && (() => {
+                    {!OFF_BILL.includes(it.status) && products.find((p) => p.id === it.productId)?.staffCommissionKind && (() => {
                       const eligible = eligibleStaffOf(products.find((p) => p.id === it.productId)?.staffCommissionStaffIds);
                       const people = staffList.filter((person) => canEarn(eligible, person.id));
                       return (
                         <label className="flex items-center gap-1.5 pb-1 text-[11px] text-pink-200">
                           {t("pos.item.commissionTo")}
                           <select value={it.commissionStaffId || ""} onChange={(e) => commissionStaff.mutate({ id: it.id, staffId: e.target.value })} className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/40 px-1.5 py-1 text-[11px] text-white">
-                            <option value="">{eligible.length > 0 ? t("pos.item.commissionPick") : it.addedByName && !String(it.addedByName).includes("(app)") ? it.addedByName : t("pos.item.commissionCashier")}</option>
+                            <option value="">{t("pos.item.commissionNone")}</option>
                             {people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
                           </select>
                         </label>

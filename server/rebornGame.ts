@@ -24,6 +24,7 @@ import { storage } from "./storage";
 import { isBrandImage } from "./pageBrand";
 import { requireAuth, getUserId } from "./multiAuth";
 import { isReferralHeld, referralReleaseAt } from "@shared/referral";
+import { capOf, cleanStaffPriceCaps, emptyStaffPriceCaps, staffPriceModeFor, type StaffPriceCaps, type StaffPriceMode } from "@shared/staffPriceCap";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { getMetaSettings, saveMetaSettings, testMeta, connectTelegram, telegramStatus } from "./socialChat";
@@ -664,13 +665,32 @@ function requireStaff(handler: (req: Request, res: Response) => Promise<any>) {
 // Admin-panel role: "admin" (main admin), "manager" (staff account whose company
 // role is manager — staff tabs + daily sales), "staff", or "user".
 // Staff / boss buy at the item's cost (no service fee, no tax): only a manager or the main admin may ring it up.
-type AtCost = { who: "staff" | "boss"; name: string; mode: "cost" | "half" };
+type AtCost = { who: "staff" | "boss"; name: string; mode: StaffPriceMode; userId?: string; percent?: number };
+const STAFF_PRICE_CAPS_KEY = "staffPriceCaps";
+async function staffPriceCapsOf(): Promise<StaffPriceCaps> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, STAFF_PRICE_CAPS_KEY)).limit(1);
+  try { return cleanStaffPriceCaps(JSON.parse(row?.value || "{}")); } catch { return emptyStaffPriceCaps(); }
+}
+// What a person's staff-price bills this month add up to at the receipt price (before any discount); refunded bills and bills that only got the staff discount do not count.
+async function staffPriceSpentThisMonth(userId: string): Promise<number> {
+  const zone = countryOf(companyCountry()).timezone;
+  const result = await db.execute(sql`SELECT COALESCE(SUM(subtotal::numeric), 0) AS spent FROM pos_tickets WHERE staff_price_user_id = ${userId} AND staff_price_mode IN ('cost', 'half') AND status = 'paid' AND ((paid_at AT TIME ZONE 'UTC') AT TIME ZONE ${zone}) >= date_trunc('month', now() AT TIME ZONE ${zone})`);
+  return Number(((result as any).rows || result)[0]?.spent) || 0;
+}
 // A staff / boss price on a bill, ticked in the POS: "half" = 50% off, "cost" = every item at its cost, both with no service fee and no tax.
+// The person is picked from a list; once their month's receipt prices reach the cap the main admin set, the bill gets the normal price less the staff discount instead.
 // `staffPrice` is open to every POS user (the bill says who it was for, the admin log keeps who rang it up); the older `atCost` field stays manager / main admin only.
 async function atCostRequest(req: any): Promise<{ atCost: AtCost | null; error?: string }> {
   const price = req.body?.staffPrice;
   if (price && (price.mode === "half" || price.mode === "cost")) {
-    return { atCost: { mode: price.mode, who: price.who === "boss" ? "boss" : "staff", name: String(price.name || "").trim().slice(0, 60) } };
+    const userId = String(price.userId || "").trim() || undefined;
+    const person = userId ? await storage.getUser(userId) : null;
+    const base: AtCost = { mode: price.mode, who: person ? (person.role === "admin" ? "boss" : "staff") : price.who === "boss" ? "boss" : "staff", name: String(price.name || "").trim().slice(0, 60), ...(person ? { userId } : {}) };
+    if (!person) return { atCost: base };
+    const caps = await staffPriceCapsOf();
+    const cap = capOf(caps, person.id);
+    const mode = staffPriceModeFor(price.mode, cap > 0 ? await staffPriceSpentThisMonth(person.id) : 0, cap);
+    return { atCost: mode === "percent" ? { ...base, mode, percent: caps.discountPercent } : base };
   }
   const raw = req.body?.atCost;
   if (!raw || (raw.who !== "staff" && raw.who !== "boss")) return { atCost: null };
@@ -686,7 +706,8 @@ async function chargeStaff(req: any, o: { userId: unknown; productId?: number | 
   await db.insert(staffCharges).values({ companyId: await rebornCompanyId(req), userId, productId: o.productId ?? null, name: o.name, qty: o.qty, amount: String(o.amount), reason: o.reason.slice(0, 200), source: o.source, refId: o.refId, createdBy: getUserId(req) });
   return true;
 }
-const atCostLabel = (a: AtCost) => `${a.mode === "half" ? "Staff price 50% off" : "At cost"} · ${a.who === "boss" ? "Boss" : "Staff"}${a.name ? `: ${a.name}` : ""}`;
+const staffPriceColumns = (a: AtCost | null) => ({ staffPriceUserId: a?.userId ?? null, staffPriceMode: a?.userId ? a.mode : null });
+const atCostLabel = (a: AtCost) => `${a.mode === "percent" ? `Staff discount ${a.percent ?? 0}% (monthly cap reached)` : a.mode === "half" ? "Staff price 50% off" : "At cost"} · ${a.who === "boss" ? "Boss" : "Staff"}${a.name ? `: ${a.name}` : ""}`;
 const VENUE_PACK_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/venue-latest/RebornVenue-windows.zip"; // built by GitHub (.github/workflows/venue-pack.yml)
 const POS_APP_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/pos-desktop-latest/RebornPOS-Setup.exe"; // built by GitHub (.github/workflows/pos-desktop.yml)
 const OVERLAY_APK_URL = "https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-latest/reborn-tv-overlay.apk";
@@ -3781,9 +3802,21 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     })) });
   });
   // The name and address printed at the top of the food and drinks menu image.
+  // The company's logo is the menu's title picture; the admin's category order decides which category comes first.
+  const MENU_ORDER_KEY = "menuCategoryOrder";
+  const menuCategoryOrder = async (): Promise<string[]> => {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, MENU_ORDER_KEY)).limit(1);
+    try { const list = JSON.parse(row?.value || "[]"); return Array.isArray(list) ? list.map((x) => String(x)).filter(Boolean) : []; } catch { return []; }
+  };
   app.get("/api/reborn/pos/menu-info", requireStaff(async (_req, res) => {
     const settings = await getSettings();
-    res.json({ clubName: settings.clubName, businessAddress: settings.businessAddress || "" });
+    const [company] = await db.select({ logoUrl: bridgeCompanies.logoUrl }).from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1);
+    res.json({ clubName: settings.clubName, businessAddress: settings.businessAddress || "", logoUrl: company?.logoUrl || "", categoryOrder: await menuCategoryOrder() });
+  }));
+  app.put("/api/reborn/admin/menu-category-order", requireManager(async (req, res) => {
+    const order: string[] = Array.isArray(req.body?.order) ? Array.from(new Set<string>(req.body.order.map((x: unknown) => String(x).trim()).filter(Boolean))).slice(0, 200) : [];
+    await db.insert(appSettings).values({ key: MENU_ORDER_KEY, value: JSON.stringify(order) }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(order) } });
+    res.json({ ok: true, order });
   }));
   // Members browse the active menu to order in-app.
   app.get("/api/reborn/shop/products", requireAuth, async (req, res) => {
@@ -4067,10 +4100,33 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       .from(users).where(or(eq(users.role, "staff"), eq(users.role, "admin"))).orderBy(users.firstName).limit(200);
     res.json(rows.map((u) => ({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email, role: u.role })));
   }));
+  // The names in the staff-price drop-down, each with what they used this month and what is left under the cap (the cap itself is the main admin's).
+  const staffPricePeople = async () => {
+    const zone = countryOf(companyCountry()).timezone;
+    const [people, spentRows, caps] = await Promise.all([
+      db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, role: users.role }).from(users).where(or(eq(users.role, "staff"), eq(users.role, "admin"))).orderBy(users.firstName).limit(200),
+      db.execute(sql`SELECT staff_price_user_id AS id, COALESCE(SUM(subtotal::numeric), 0) AS spent FROM pos_tickets WHERE staff_price_user_id IS NOT NULL AND staff_price_mode IN ('cost', 'half') AND status = 'paid' AND ((paid_at AT TIME ZONE 'UTC') AT TIME ZONE ${zone}) >= date_trunc('month', now() AT TIME ZONE ${zone}) GROUP BY staff_price_user_id`),
+      staffPriceCapsOf(),
+    ]);
+    const spentBy = new Map<string, number>((((spentRows as any).rows || spentRows) as any[]).map((r) => [String(r.id), Number(r.spent) || 0]));
+    return { caps, people: people.map((u) => { const cap = capOf(caps, u.id), spent = spentBy.get(u.id) || 0; return { id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email, role: u.role, spent, cap, hasOwnCap: Object.prototype.hasOwnProperty.call(caps.perPerson, u.id), isCapReached: cap > 0 && spent >= cap }; }) };
+  };
+  app.get("/api/reborn/pos/staff-price-people", requireStaff(async (_req, res) => {
+    const { caps, people } = await staffPricePeople();
+    res.json({ discountPercent: caps.discountPercent, people: people.map(({ hasOwnCap, ...person }) => person) });
+  }));
+  app.get("/api/reborn/admin/staff-price-caps", requireAdmin(async (_req, res) => {
+    const { caps, people } = await staffPricePeople();
+    res.json({ ...caps, people });
+  }));
+  app.put("/api/reborn/admin/staff-price-caps", requireAdmin(async (req, res) => {
+    const caps = cleanStaffPriceCaps(req.body);
+    await db.insert(appSettings).values({ key: STAFF_PRICE_CAPS_KEY, value: JSON.stringify(caps) }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(caps) } });
+    await logAdmin(req, { targetType: "settings", targetId: STAFF_PRICE_CAPS_KEY, action: "staff_price_caps", entityType: "settings", description: `Staff price monthly cap: default ${caps.defaultCap}, discount after the cap ${caps.discountPercent}%, ${Object.keys(caps.perPerson).length} personal caps` });
+    res.json({ ok: true, ...caps });
+  }));
   // Staff commission on items (ladies drinks): when a bill is paid, every paid line of an item with a rule earns its commission for the person picked on the
   // line (else the one who ordered it, else the cashier). A refund cancels what is not yet in a payroll.
-  const PUSH_SALES_KEY = "pushSalesPercent";
-  const DEFAULT_PUSH_PERCENT = 5;
   const bookItemCommissions = async (ticketId: number, cashierId: string | null) => {
     try {
       const lines = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, ticketId));
@@ -4079,28 +4135,23 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const products = new Map((await db.select().from(posProducts).where(inArray(posProducts.id, ids))).map((p) => [p.id, p]));
       const cid = await rebornCompanyId();
       const decimals = companyMoney().decimals;
-      const [pushRow] = await db.select().from(appSettings).where(eq(appSettings.key, PUSH_SALES_KEY)).limit(1);
-      const pushPercent = pushRow ? Math.max(0, Math.min(100, Number(pushRow.value) || 0)) : DEFAULT_PUSH_PERCENT;
       await db.delete(staffItemCommissions).where(and(eq(staffItemCommissions.ticketId, ticketId), isNull(staffItemCommissions.settledAt)));
       for (const line of lines) {
         if (GONE_ITEM.includes(line.status) || line.status === "cancelled" || !line.productId) continue;
         const product = products.get(line.productId);
         const ruleOfItem = ruleOf({ kind: product?.staffCommissionKind, value: product?.staffCommissionValue });
-        const pushRule = pushPercent > 0 ? { kind: "percent", value: pushPercent } : null;
         const eligible = eligibleStaffOf(product?.staffCommissionStaffIds);
         const parts = splitPartsOf(line.commissionSplit, line.qty);
         const lineTotal = Number(line.lineTotal);
-        // Units sold by named people earn for them (an item with no rule pays the push-sales percent: somebody was picked); the rest earn for the person picked on the whole line, else whoever ordered it, else the cashier.
+        // Only items with a commission rule earn, and only for a person picked on the line (or in its split): never the one who ordered or the cashier by default. The main admin can add any other commission on the bill afterwards.
         for (const part of parts) {
-          const amount = commissionForPart(ruleOfItem ?? pushRule, lineTotal, line.qty, part.qty, decimals);
+          const amount = commissionForPart(ruleOfItem, lineTotal, line.qty, part.qty, decimals);
           if (amount > 0 && canEarn(eligible, part.staffId)) await db.insert(staffItemCommissions).values({ companyId: cid, userId: part.staffId, ticketId, itemId: line.id, name: line.name, qty: part.qty, base: String(roundMoney(lineTotal * part.qty / line.qty)), amount: String(amount) });
         }
         const restQty = line.qty - parts.reduce((sum, part) => sum + part.qty, 0);
         if (restQty <= 0) continue;
-        const restRule = ruleOfItem ?? (line.commissionStaffId ? pushRule : null);
-        const amount = commissionForPart(restRule, lineTotal, line.qty, restQty, decimals);
-        // The picked person, else whoever ordered it, else the cashier: the first of them the item's list allows (any when the item has no list).
-        const userId = [line.commissionStaffId, line.source === "app" ? null : line.addedBy, cashierId].find((id) => canEarn(eligible, id)) || null;
+        const amount = commissionForPart(ruleOfItem, lineTotal, line.qty, restQty, decimals);
+        const userId = canEarn(eligible, line.commissionStaffId) ? line.commissionStaffId : null;
         if (amount <= 0 || !userId) continue;
         await db.insert(staffItemCommissions).values({ companyId: cid, userId, ticketId, itemId: line.id, name: line.name, qty: restQty, base: String(roundMoney(lineTotal * restQty / line.qty)), amount: String(amount) });
       }
@@ -4135,8 +4186,24 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const rows = await db.select({ id: staffItemCommissions.id, userId: staffItemCommissions.userId, ticketId: staffItemCommissions.ticketId, name: staffItemCommissions.name, qty: staffItemCommissions.qty, base: staffItemCommissions.base, amount: staffItemCommissions.amount, createdAt: staffItemCommissions.createdAt, settledAt: staffItemCommissions.settledAt, orderNo: posTickets.orderNo, firstName: users.firstName, lastName: users.lastName })
       .from(staffItemCommissions).leftJoin(posTickets, eq(posTickets.id, staffItemCommissions.ticketId)).leftJoin(users, eq(users.id, staffItemCommissions.userId))
       .where(and(isNull(staffItemCommissions.voidedAt), onlyTicket ? eq(staffItemCommissions.ticketId, onlyTicket) : gte(staffItemCommissions.createdAt, new Date(Date.now() - days * 86400000)))).orderBy(desc(staffItemCommissions.createdAt)).limit(500);
-    const [pushRow] = await db.select().from(appSettings).where(eq(appSettings.key, PUSH_SALES_KEY)).limit(1);
-    res.json({ pushPercent: pushRow ? Number(pushRow.value) || 0 : DEFAULT_PUSH_PERCENT, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt })) });
+    const items = onlyTicket ? (await db.select({ id: posTicketItems.id, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, status: posTicketItems.status }).from(posTicketItems).where(eq(posTicketItems.orderId, onlyTicket))).filter((it) => !GONE_ITEM.includes(it.status) && it.status !== "cancelled") : [];
+    res.json({ items, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt })) });
+  }));
+  // Main admin: give a commission to one line of a bill that has none (or one more person on the same line), as a percent of the line or a fixed amount.
+  app.post("/api/reborn/admin/item-commissions", requireAdmin(async (req, res) => {
+    const [line] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, Number(req.body?.itemId)));
+    if (!line) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });
+    const person = await storage.getUser(String(req.body?.userId || ""));
+    if (!person || (person.role !== "staff" && person.role !== "admin")) return res.status(400).json({ message: tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" }) });
+    const qty = Math.max(1, Math.min(line.qty, Math.floor(Number(req.body?.qty) || line.qty)));
+    const base = roundMoney(Number(line.lineTotal) * qty / line.qty);
+    const hasPercent = req.body?.percent !== undefined && req.body.percent !== "";
+    const amount = hasPercent ? roundMoney(base * Number(req.body.percent) / 100) : roundMoney(Number(req.body?.amount));
+    const isPercentValid = !hasPercent || (Number(req.body.percent) >= 0 && Number(req.body.percent) <= 100);
+    if (!Number.isFinite(amount) || amount < 0 || !isPercentValid || (!hasPercent && (req.body?.amount === undefined || req.body.amount === ""))) return res.status(400).json({ message: tr(req, { en: "Enter a percent (0-100) or an amount", zh: "请输入百分比(0-100)或金额", id: "Masukkan persen (0-100) atau jumlah" }) });
+    const [row] = await db.insert(staffItemCommissions).values({ companyId: await rebornCompanyId(req), userId: person.id, ticketId: line.orderId, itemId: line.id, name: line.name, qty, base: String(base), amount: String(amount) }).returning();
+    await logAdmin(req, { targetUserId: person.id, targetType: "item_commission", targetId: String(row.id), action: "create", entityType: "payroll", newValues: { amount, itemId: line.id }, description: `Item commission added on "${line.name}" (bill ${line.orderId})` });
+    res.json({ ok: true, id: row.id });
   }));
   app.patch("/api/reborn/admin/item-commissions/:id", requireAdmin(async (req, res) => {
     const id = Number(req.params.id);
@@ -4167,12 +4234,6 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await db.update(staffItemCommissions).set({ voidedAt: new Date() }).where(eq(staffItemCommissions.id, id));
     await logAdmin(req, { targetUserId: row.userId, targetType: "item_commission", targetId: String(id), action: "void", entityType: "payroll", oldValues: { amount: row.amount }, description: `Item commission on "${row.name}" (bill ${row.ticketId}) cancelled` });
     res.json({ ok: true });
-  }));
-  app.post("/api/reborn/admin/item-commissions-percent", requireAdmin(async (req, res) => {
-    const percent = Math.max(0, Math.min(100, Number(req.body?.percent)));
-    if (!Number.isFinite(percent)) return res.status(400).json({ message: tr(req, { en: "Enter a percent from 0 to 100", zh: "请输入 0 到 100 的百分比", id: "Masukkan persen 0 sampai 100" }) });
-    await db.insert(appSettings).values({ key: PUSH_SALES_KEY, value: String(percent) }).onConflictDoUpdate({ target: appSettings.key, set: { value: String(percent) } });
-    res.json({ ok: true, percent });
   }));
   // Share one bill line between staff ("1 beer by Ana, 2 by Budi"): parts = [{ staffId, qty }]; an empty list clears it. Units not listed stay with the person picked on the line.
   app.post("/api/reborn/pos/items/:id/commission-split", requireStaff(async (req, res) => {
@@ -4330,7 +4391,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
     const saleRates = feeOverride(req.body?.rates, settings) || { tax: settings.taxPercent, service: settings.serviceFeePercent };
-    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: saleRates.service, taxPercent: saleRates.tax, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const q = await quoteBill({ lines: clean!.map((it) => ({ productId: it.productId, lineTotal: it.price * it.qty, qty: it.qty })), manualDiscount: Number(req.body?.discount) || 0, userId: u?.id, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: saleRates.service, taxPercent: saleRates.tax, atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half", staffPercent: costRequest.atCost?.mode === "percent" ? costRequest.atCost.percent : 0 });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (q.hasPackages && !u) return res.status(400).json({ message: needMemberForPackage(req) });
     const split = due > 0 ? splitPlanOf(req, due) : null;
@@ -4352,7 +4413,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       companyId: await rebornCompanyId(req),
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid", taxPercent: String(saleRates.tax), serviceFeePercent: String(saleRates.service), ...(offlineId ? { offlineId } : {}), ...(offlineAt ? { createdAt: offlineAt } : {}),
       ...memberTag(u), ...(await salesTag(req.body)), ...commissionColumns(commission), tableNumber: req.body?.tableNumber || null,
-      subtotal: String(subtotal), discount: String(discount), discountReason: [q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
+      subtotal: String(subtotal), discount: String(discount), discountReason: [q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null, ...staffPriceColumns(costRequest.atCost), serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
       paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
     }).returning();
     const spent = await spendPackageCredit(u?.id || "", q.creditUse, row.id, staffId);
@@ -4688,7 +4749,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
     const ratesUsed = { service: ticketRate(o.serviceFeePercent, settings.serviceFeePercent), tax: ticketRate(o.taxPercent, settings.taxPercent) };
-    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: ratesUsed.service, taxPercent: ratesUsed.tax, appPercent: appPercentFor(settings, req.body), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: ratesUsed.service, taxPercent: ratesUsed.tax, appPercent: appPercentFor(settings, req.body), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half", staffPercent: costRequest.atCost?.mode === "percent" ? costRequest.atCost.percent : 0 });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
     if (req.body?.removeAppDiscount === true && appDiscountPercentOf(settings) > 0 && lines.some((x) => x.source === "app")) {
       await logAdmin(req, { targetType: "pos_order", targetId: String(o.id), action: "remove_app_discount", entityType: "order", description: `App-order discount (${appDiscountPercentOf(settings)}%) left off ${o.orderNo}` });
@@ -4715,7 +4776,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       if (!paid.ok) { if (spent.spent) await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(400).json({ message: notEnoughCredits(req, creditsToPay, paid.balance) }); }
     }
     const discountReason = [o.discountReason, q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", q.appDiscount > 0 ? `App order ${q.appPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null;
-    await db.update(posTickets).set({ status: "paid", taxPercent: String(ratesUsed.tax), serviceFeePercent: String(ratesUsed.service), paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
+    await db.update(posTickets).set({ status: "paid", taxPercent: String(ratesUsed.tax), serviceFeePercent: String(ratesUsed.service), paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), subtotal: String(subtotal), discount: String(discount), discountReason, ...staffPriceColumns(costRequest.atCost), serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode, pointsEarned: points, staffId, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
@@ -4839,7 +4900,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: rates.service, taxPercent: rates.tax, appPercent: appPercentFor(settings, req.body), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half" });
+    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: rates.service, taxPercent: rates.tax, appPercent: appPercentFor(settings, req.body), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half", staffPercent: costRequest.atCost?.mode === "percent" ? costRequest.atCost.percent : 0 });
     res.json({ ...q, serviceFeePercent: rates.service, taxPercent: rates.tax, hasMember: !!userId });
   }));
   // A member's packages (by member code) — POS pay panel and Packages tab.
