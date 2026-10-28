@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const read = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 
 describe("per-item commission on the POS", () => {
-  it("should offer the commission staff picker only on items that have a commission rule", () => assert.match(read("client/src/pages/reborn-pos.tsx"), /\.staffCommissionKind && \(\(\) =>/));
+  it("should offer the commission staff picker with a % on every bill line", () => assert.match(read("client/src/pages/reborn-pos.tsx"), /<LineCommissionPick staffId=/));
   it("should not show a global item commission card on the POS page", () => assert.doesNotMatch(read("client/src/pages/reborn-pos.tsx"), /<ItemCommissionAdmin \/>/));
   it("should not pay a commission to whoever ordered the item or the cashier by default", () => assert.doesNotMatch(read("server/rebornGame.ts"), /line\.source === "app" \? null : line\.addedBy/));
   it("should keep payroll-settled commissions from being edited", () => assert.match(read("server/rebornGame.ts"), /Already paid out in a payroll/));
