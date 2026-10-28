@@ -6,6 +6,9 @@ import { db } from "./db";
 import { posProducts, posTicketItems, stockMovements } from "@shared/schema";
 import { groupLayers, runFifo, type FifoResult, type StockMove } from "./fifo";
 
+/** The product ids saved as a JSON list in a package (empty when it is missing or broken). */
+const idsOfList = (raw: string | null): number[] => { try { const list = JSON.parse(raw || "[]"); return Array.isArray(list) ? list.map(Number).filter(Number.isFinite) : []; } catch { return []; } };
+
 const toMove = (row: typeof stockMovements.$inferSelect): StockMove => ({
   id: row.id, delta: row.delta, reason: row.reason, supplier: row.supplier, unitCost: row.unitCost === null ? null : Number(row.unitCost), createdAt: row.createdAt ?? new Date(0),
 });
@@ -103,6 +106,15 @@ export function registerStockLayers(app: Express, deps: StockLayerDeps) {
         supplierName: into.supplierName || from.supplierName, supplierPhone: into.supplierPhone || from.supplierPhone, supplierAddress: into.supplierAddress || from.supplierAddress,
         imageUrl: into.imageUrl || from.imageUrl,
       }).where(eq(posProducts.id, intoId));
+      // Bundles and visits packages made on the first item now belong to the second (else they point at an item that no longer exists and drop off every list).
+      await tx.update(posProducts).set({ bundleItemId: intoId }).where(and(eq(posProducts.companyId, cid), eq(posProducts.bundleItemId, fromId)));
+      const packages = await tx.select({ id: posProducts.id, ids: posProducts.packageItemIds }).from(posProducts).where(and(eq(posProducts.companyId, cid), isNotNull(posProducts.packageItemIds)));
+      for (const pack of packages) {
+        const ids = idsOfList(pack.ids);
+        if (!ids.includes(fromId)) continue;
+        const moved = Array.from(new Set(ids.map((id) => (id === fromId ? intoId : id))));
+        await tx.update(posProducts).set({ packageItemIds: JSON.stringify(moved) }).where(eq(posProducts.id, pack.id));
+      }
       await tx.delete(posProducts).where(eq(posProducts.id, fromId));
     });
     await deps.logAdmin(req, { action: "merge_product", description: `Merged "${from.name}" into "${into.name}"` });
