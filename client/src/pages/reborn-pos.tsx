@@ -13,6 +13,7 @@ import { businessDayOf } from "@shared/businessDay";
 import { LineCommissionSplit } from "@/components/LineCommissionSplit";
 import { ItemCommissionAdmin } from "@/components/ItemCommissionAdmin";
 import { LineCommissionPick } from "@/components/LineCommissionPick";
+import { MemberSearchBox } from "@/components/MemberSearchBox";
 import { StaffPriceCaps } from "@/components/StaffPriceCaps";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { printClosingReport, printReceipt, printBill, printOnAccountBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
@@ -737,7 +738,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   const tagMember = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/member`, { memberCode: code }),
+    mutationFn: (picked?: string) => post(`/api/reborn/pos/orders/${order.id}/member`, { memberCode: picked ?? code }),
     onSuccess: (d) => { toast({ title: d.message }); setCode(""); invalidate(); },
     onError: (e: any) => toast({ title: t("pos.notFound"), description: e.message, variant: "destructive" }),
   });
@@ -902,8 +903,8 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             )}
             {!order.memberName && (
               <div className="flex gap-2 mt-3">
-                <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("pos.tagMember")} className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
-                <button onClick={() => tagMember.mutate()} disabled={!code.trim() || tagMember.isPending} className="px-4 rounded-xl bg-white/10 disabled:opacity-50"><UserCheck className="w-4 h-4" /></button>
+                <MemberSearchBox value={code} onChange={setCode} onPick={(m) => tagMember.mutate(m.code || m.card || m.email || m.id)} placeholder={t("pos.tagMember")} className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+                <button onClick={() => tagMember.mutate(undefined)} disabled={!code.trim() || tagMember.isPending} className="px-4 rounded-xl bg-white/10 disabled:opacity-50"><UserCheck className="w-4 h-4" /></button>
               </div>
             )}
           </div>
@@ -1014,7 +1015,7 @@ function QuickSaleTab() {
     subtotal: cartSubtotal, discount: Math.max(0, cartSubtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: payable,
   } : null);
   const lookup = useMutation({
-    mutationFn: () => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent(code.trim())}`).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    mutationFn: (picked?: string) => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent((picked ?? code).trim())}`).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: t("pos.memberFound"), description: d.name }); } else toast({ title: t("pos.notFound"), description: d.message, variant: "destructive" }); },
   });
   const { isOffline } = useOfflineSales();
@@ -1051,8 +1052,8 @@ function QuickSaleTab() {
             </div>
           ) : (
             <div className="flex gap-2">
-              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("pos.memberLookup")} className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
-              <button onClick={() => lookup.mutate()} aria-label={t("pos.findMember")} disabled={!code.trim() || lookup.isPending} className="px-4 rounded-xl bg-white/10 disabled:opacity-50"><Search className="w-4 h-4" /></button>
+              <MemberSearchBox value={code} onChange={setCode} onPick={(m) => lookup.mutate(m.code || m.card || m.email || m.id)} placeholder={t("pos.memberLookup")} className="px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+              <button onClick={() => lookup.mutate(undefined)} aria-label={t("pos.findMember")} disabled={!code.trim() || lookup.isPending} className="px-4 rounded-xl bg-white/10 disabled:opacity-50"><Search className="w-4 h-4" /></button>
             </div>
           )}
         </div>

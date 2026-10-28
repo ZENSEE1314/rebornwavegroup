@@ -17,3 +17,12 @@ describe("keeping a bottle for anyone", () => {
     assert.ok(admin.includes('const canSave = (!!member || search.trim() !== "")') && admin.includes("guestName: member ? undefined : search.trim()"));
   });
 });
+
+describe("tagging a member on the POS", () => {
+  it("should offer the member drop-down on a table bill's Tag member box", () => {
+    assert.ok(pos.includes('onPick={(m) => tagMember.mutate(m.code || m.card || m.email || m.id)}'));
+  });
+  it("should offer the member drop-down on Quick sale's member box", () => {
+    assert.ok(pos.includes('onPick={(m) => lookup.mutate(m.code || m.card || m.email || m.id)}'));
+  });
+});
