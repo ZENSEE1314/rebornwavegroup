@@ -2939,9 +2939,9 @@ function Inventory() {
                 {canChange && <button type="button" onClick={() => toggleEditor(it.id)} aria-label={t("admin.c.edit")} className="w-10 h-10 shrink-0 rounded-lg bg-white/5 border border-white/10 text-white/70 flex items-center justify-center"><Pencil className="w-4 h-4" /></button>}
               </div>
               <p className="rounded-xl bg-black/20 px-3 py-2 text-sm">{t("admin.prod.stock")}: <b className="tabular-nums">{it.stock}</b>{it.unitsPerPack > 1 && (() => { const split = packBreakdown(it.stock, it.unitsPerPack); return split ? <span className="ml-2 text-[11px] text-white/60">{t("admin.pack.split", { packs: String(split.packs), loose: String(split.loose) })}</span> : null; })()}</p>
+              {openId === it.id && renderEditor(it.id)}
             </div>
           ))}
-          {openId !== null && items.some((x) => x.id === openId && x.category === cat) && renderEditor(openId)}
         </Card>
       ))}
       </div>
