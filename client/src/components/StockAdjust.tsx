@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { suggestedUnitCost, suppliersOf, type SupplierLayer } from "@shared/stockPrefill";
+import { DEFAULT_TERMS_DAYS, dueDateFrom } from "@shared/payables";
 import ReceiptScan from "@/components/ReceiptScan";
 
 const inp = "rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-sm text-white outline-none focus:border-amber-300";
@@ -34,6 +35,9 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
   const [f, setF] = useState({ qty: "", supplier: p.supplierName || "", unitCost: "", at: nowLocal(), reason: REASONS[0].value, note: "", perBox: p.unitsPerPack && p.unitsPerPack > 1 ? String(p.unitsPerPack) : "", boxCost: Number(p.packPrice) > 0 ? String(Number(p.packPrice)) : "" });
   const [isBox, setIsBox] = useState(false);
   const [payer, setPayer] = useState("");
+  const [isPaid, setIsPaid] = useState(true); // false = a bill to pay later (credit terms), kept under "not paid yet" in Admin › Expenses
+  const [payMethod, setPayMethod] = useState(""); // cash | card, asked whenever it is paid
+  const [termsDays, setTermsDays] = useState(String(DEFAULT_TERMS_DAYS));
   const { data: staff = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/reborn/pos/staff"], queryFn: () => apiRequest("GET", "/api/reborn/pos/staff").then((r) => r.json()), enabled: isOpen && mode === "out" });
   // What the item already costs from each supplier it was bought from (the same layers the "Stock by supplier and price" list shows).
   const { data: layerData } = useQuery<{ layers: SupplierLayer[]; deliveries?: SupplierLayer[] }>({ queryKey: ["/api/reborn/admin/pos/products", p.id, "layers"], enabled: isOpen && mode === "in", queryFn: () => apiRequest("GET", `/api/reborn/admin/pos/products/${p.id}/layers`).then((r) => r.json()) });
@@ -54,18 +58,22 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
   const shownBoxCost = isCostTyped ? f.boxCost : suggestedBoxCost !== null ? String(suggestedBoxCost) : f.boxCost;
   const unitCostOfBox = perBox > 0 && Number(shownBoxCost) > 0 ? Number(shownBoxCost) / perBox : undefined;
   const needsNote = mode === "out" && f.reason === OTHER_REASON;
-  const canSave = qty > 0 && (!isBox || perBox >= 2) && (mode === "in" || !needsNote || f.note.trim() !== "");
+  const hasCost = mode === "in" && Number(isBox ? unitCostOfBox : shownUnitCost) > 0;
+  const needsPayMethod = hasCost && isPaid && !payMethod;
+  const dueDate = !isPaid ? dueDateFrom((f.at || nowLocal()).slice(0, 10), Number(termsDays)) : "";
+  const canSave = qty > 0 && (!isBox || perBox >= 2) && (mode === "in" || !needsNote || f.note.trim() !== "") && !needsPayMethod;
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
     mutationFn: () => apiRequest("POST", STOCK_IN, {
       productId: p.id, qty: mode === "in" ? qty : -qty, receivedAt: f.at ? new Date(f.at).toISOString() : undefined,
-      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: isBox ? unitCostOfBox : (shownUnitCost ? Number(shownUnitCost) : undefined) } : { reason: f.reason, note: f.note, chargeStaffId: payer || undefined }),
+      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: isBox ? unitCostOfBox : (shownUnitCost ? Number(shownUnitCost) : undefined), ...(hasCost ? { paid: isPaid, payMethod: isPaid ? payMethod : undefined, dueDate: dueDate || undefined } : {}) } : { reason: f.reason, note: f.note, chargeStaffId: payer || undefined }),
     }).then((r) => r.json()),
     onSuccess: () => {
       toast({ title: t("admin.sa.saved") });
       setF({ ...f, qty: "", unitCost: "", boxCost: "", note: "", at: nowLocal() });
       setIsCostTyped(false);
       setPayer("");
+      setPayMethod("");
       qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: fail,
@@ -101,6 +109,18 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
             {isBox && <label className="text-[11px] text-white/50">{t("admin.sa.perBox")}<input type="number" inputMode="numeric" min={2} value={f.perBox} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, perBox: e.target.value })} className={inp + " mt-0.5 block w-24"} /></label>}
             <label className="text-[11px] text-white/50">{mode === "in" ? t("admin.prod.receivedAt") : t("admin.sa.when")}<input type="datetime-local" value={f.at} max={nowLocal()} onChange={(e) => setF({ ...f, at: e.target.value })} className={inp + " mt-0.5 block"} /></label>
           </div>
+          {hasCost && (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="text-[11px] text-white/50">{t("ex.payment")}
+                <select value={isPaid ? "paid" : "unpaid"} onChange={(e) => setIsPaid(e.target.value === "paid")} className={inp + " mt-0.5 block"}>
+                  <option value="paid">{t("ex.paid")}</option>
+                  <option value="unpaid">{t("ex.notPaid")}</option>
+                </select>
+              </label>
+              {isPaid && <label className="text-[11px] text-white/50">{t("ex.payMethod")}<select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={inp + " mt-0.5 block"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option></select></label>}
+              {!isPaid && <label className="text-[11px] text-white/50">{t("ex.termsDays")}<input type="number" inputMode="numeric" min={0} max={365} value={termsDays} onChange={(e) => setTermsDays(e.target.value)} className={inp + " mt-0.5 block w-24"} /><span className="mt-0.5 block text-[10px] text-white/40">{dueDate ? t("ex.dueOn", { d: dueDate }) : ""}</span></label>}
+            </div>
+          )}
           {mode === "out" && (
             <div className="flex flex-wrap items-end gap-2">
               <label className="text-[11px] text-white/50">{t("admin.sa.reason")}<select value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} className={inp + " mt-0.5 block"}>{REASONS.map((r) => <option key={r.value} value={r.value}>{t(r.key)}</option>)}</select></label>

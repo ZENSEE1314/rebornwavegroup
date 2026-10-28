@@ -3937,6 +3937,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     // Taking stock out needs a reason (damaged, expired, …): it is kept on the movement and, unless it is only a count correction, booked as a loss at cost.
     const outReason = String(req.body?.reason || "").trim().slice(0, STOCK_OUT_REASON_MAX);
     const outNote = String(req.body?.note || "").trim().slice(0, STOCK_OUT_REASON_MAX);
+    // Stock bought with a price: say whether it is paid (by cash or card) or not paid yet (kept as a bill to pay, like a receipt).
+    const buyingWithCost = qty > 0 && unitCost > 0;
+    const unpaidStock = buyingWithCost ? unpaidOf(req.body?.paid, req.body?.dueDate) : null;
+    const stockPayMethod = payMethodOf(req.body?.payMethod);
+    if (buyingWithCost && req.body?.paid === true && !stockPayMethod) return res.status(400).json({ message: needPayMethod(req) });
     if (qty < 0 && !outReason) return res.status(400).json({ message: tr(req, { en: "Choose a reason for taking stock out", zh: "请选择减少库存的原因", id: "Pilih alasan pengurangan stok" }) });
     if (qty < 0 && !(await getSettings()).allowNegativeStock && (p.stock ?? 0) + qty < 0) return res.status(400).json({ message: tr(req, { en: "Only {n} in stock", zh: "库存只有 {n}", id: "Stok hanya {n}" }, { n: p.stock ?? 0 }) });
     await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}`, ...(supplier ? { supplierName: supplier } : {}) }).where(eq(posProducts.id, id));
@@ -3945,8 +3950,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (qty < 0 && outReason !== STOCK_OUT_CORRECTION && lossCost > 0)
       await db.insert(ledgerEntries).values({ kind: "expense", category: "loss", amount: String(lossCost), note: `Stock out: ${-qty} × ${p.name} (${outReason}${outNote ? `: ${outNote}` : ""})`, refType: "stock_out", refId: String(id), createdAt, userId: getUserId(req)! });
     if (qty < 0 && outReason !== STOCK_OUT_CORRECTION) await chargeStaff(req, { userId: req.body?.chargeStaffId, productId: id, name: p.name, qty: -qty, amount: lossCost, reason: `${outReason}${outNote ? `: ${outNote}` : ""}`, source: "stock_out", refId: String(id) });
-    if (qty > 0 && unitCost > 0)
-      await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}`, refType: "stock_movement", refId: String(id), createdAt, userId: getUserId(req)! });
+    if (buyingWithCost) {
+      const [purchase] = await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}${stockPayMethod && req.body?.paid === true ? ` · ${stockPayMethod}` : ""}${unpaidStock ? " · not paid yet" : ""}`, refType: "stock_movement", refId: String(id), createdAt, userId: getUserId(req)! }).returning();
+      if (unpaidStock) await recordPayable(db, cid, { ledgerEntryId: purchase.id, kind: "stock", supplier, invoiceNo: null, amount: qty * unitCost, spentOn: (createdAt ?? new Date()).toISOString().slice(0, 10), dueDate: unpaidStock.dueDate, userId: getUserId(req)!, note: `${qty} × ${p.name}` });
+    }
     await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"${supplier ? ` (${supplier})` : ""}${qty < 0 ? ` — ${outReason}${outNote ? `: ${outNote}` : ""}` : ""}` });
     res.json({ message: tr(req, { en: "Stock updated", zh: "库存已更新", id: "Stok diperbarui" }) });
   }));
