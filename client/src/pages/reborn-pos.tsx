@@ -112,9 +112,12 @@ interface StaffPricePerson { id: string; name: string; role: string; spent: numb
 function AtCostBox({ value, onChange }: { value: AtCostInput; onChange: (next: AtCostInput) => void }) {
   const { t } = useTranslation();
   const { data: people } = useQuery<{ discountPercent: number; people: StaffPricePerson[] }>({ queryKey: ["/api/reborn/pos/staff-price-people"], enabled: !!value.mode });
-  const picked = people?.people.find((p) => p.id === value.userId);
+  // The names must never be an empty list: while the cap figures load (or if they cannot), the plain staff list the POS already has is used.
+  const { data: plainStaff } = useStaff();
+  const choices: StaffPricePerson[] = people?.people?.length ? people.people : (plainStaff ?? []).map((person) => ({ id: person.id, name: person.name, role: person.role || "staff", spent: 0, cap: 0, isCapReached: false }));
+  const picked = choices.find((p) => p.id === value.userId);
   const pickPerson = (id: string) => {
-    const person = people?.people.find((p) => p.id === id);
+    const person = choices.find((p) => p.id === id);
     onChange(person ? { ...value, userId: person.id, name: person.name, who: person.role === "admin" ? "boss" : "staff" } : { ...value, userId: "", name: "" });
   };
   const labelOf = (p: StaffPricePerson) => `${p.name}${p.role === "admin" ? ` (${t("pos.atCost.boss")})` : ""}${p.cap > 0 ? ` · ${rp(p.spent)} / ${rp(p.cap)}` : ""}${p.isCapReached ? ` · ${t("pos.atCost.capShort", { p: people?.discountPercent ?? 0 })}` : ""}`;
@@ -129,7 +132,7 @@ function AtCostBox({ value, onChange }: { value: AtCostInput; onChange: (next: A
         <>
           <select value={value.userId} onChange={(e) => pickPerson(e.target.value)} aria-label={t("pos.atCost.name")} className="mt-2 w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm">
             <option value="">{t("pos.atCost.name")}</option>
-            {(people?.people ?? []).map((p) => <option key={p.id} value={p.id}>{labelOf(p)}</option>)}
+            {choices.map((p) => <option key={p.id} value={p.id}>{labelOf(p)}</option>)}
           </select>
           {picked?.isCapReached && <p className="mt-1 text-[11px] text-sky-200">{t("pos.atCost.capNote", { p: people?.discountPercent ?? 0 })}</p>}
           <p className="mt-1 text-[11px] text-amber-200/80">{t("pos.atCost.note")}</p>
