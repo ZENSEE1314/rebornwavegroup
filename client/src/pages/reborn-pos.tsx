@@ -12,6 +12,7 @@ import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serial
 import { businessDayOf } from "@shared/businessDay";
 import { LineCommissionSplit } from "@/components/LineCommissionSplit";
 import { ItemCommissionAdmin } from "@/components/ItemCommissionAdmin";
+import { LineCommissionPick } from "@/components/LineCommissionPick";
 import { StaffPriceCaps } from "@/components/StaffPriceCaps";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { printClosingReport, printReceipt, printBill, printOnAccountBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
@@ -756,7 +757,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   // tapped on is gone, so it cannot be tapped twice); the server's answer follows, and a
   // failed save puts the ticket back as it was.
   const commissionStaff = useMutation({
-    mutationFn: (v: { id: number; staffId: string }) => post(`/api/reborn/pos/items/${v.id}/commission-staff`, { staffId: v.staffId }),
+    mutationFn: (v: { id: number; staffId: string; percent?: number | null }) => post(`/api/reborn/pos/items/${v.id}/commission-staff`, { staffId: v.staffId, percent: v.percent }),
     onSuccess: () => qc.invalidateQueries({ queryKey: OPEN_TICKETS, exact: true }),
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
@@ -885,18 +886,11 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                         {it.status !== "pending" && <button onClick={() => setAsk({ kind: "lose", item: it })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-orange-500/15 text-orange-200">{t("pos.item.lose")}</button>}
                       </div>
                     )}
-                    {!OFF_BILL.includes(it.status) && products.find((p) => p.id === it.productId)?.staffCommissionKind && (() => {
-                      const eligible = eligibleStaffOf(products.find((p) => p.id === it.productId)?.staffCommissionStaffIds);
-                      const people = staffList.filter((person) => canEarn(eligible, person.id));
-                      return (
-                        <label className="flex items-center gap-1.5 pb-1 text-[11px] text-pink-200">
-                          {t("pos.item.commissionTo")}
-                          <select value={it.commissionStaffId || ""} onChange={(e) => commissionStaff.mutate({ id: it.id, staffId: e.target.value })} className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/40 px-1.5 py-1 text-[11px] text-white">
-                            <option value="">{t("pos.item.commissionNone")}</option>
-                            {people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
-                          </select>
-                        </label>
-                      );
+                    {!OFF_BILL.includes(it.status) && (() => {
+                      const product = products.find((p) => p.id === it.productId);
+                      const eligible = eligibleStaffOf(product?.staffCommissionStaffIds);
+                      const defaultPercent = product?.staffCommissionKind === "percent" ? Number(product.staffCommissionValue) || 0 : 0;
+                      return <LineCommissionPick staffId={it.commissionStaffId || ""} percent={it.commissionPercent == null ? null : Number(it.commissionPercent)} defaultPercent={defaultPercent} people={staffList.filter((person) => canEarn(eligible, person.id))} onSave={(staffId, percent) => commissionStaff.mutate({ id: it.id, staffId, percent })} />;
                     })()}
                     {!OFF_BILL.includes(it.status) && it.qty > 1 && <LineCommissionSplit itemId={it.id} qty={it.qty} saved={it.commissionSplit} people={staffList} invalidateKey={OPEN_TICKETS} />}
                   </div>

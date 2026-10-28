@@ -16,7 +16,7 @@ import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
 import { parseReceiptText } from "@shared/receiptText";
-import { canEarn, commissionFor, commissionForPart, eligibleStaffOf, ruleOf, splitPartsOf } from "@shared/itemCommission";
+import { MAX_PERCENT, canEarn, commissionFor, commissionForPart, eligibleStaffOf, ruleOf, splitPartsOf } from "@shared/itemCommission";
 import { cleanDays, clockInZone, dealOf, freeUnitsFor, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
@@ -4146,7 +4146,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       for (const line of lines) {
         if (GONE_ITEM.includes(line.status) || line.status === "cancelled" || !line.productId) continue;
         const product = products.get(line.productId);
-        const ruleOfItem = ruleOf({ kind: product?.staffCommissionKind, value: product?.staffCommissionValue });
+        const linePercent = line.commissionPercent == null ? null : Number(line.commissionPercent);
+        const ruleOfItem = linePercent !== null ? ruleOf({ kind: "percent", value: linePercent }) : ruleOf({ kind: product?.staffCommissionKind, value: product?.staffCommissionValue });
         const eligible = eligibleStaffOf(product?.staffCommissionStaffIds);
         const parts = splitPartsOf(line.commissionSplit, line.qty);
         const lineTotal = Number(line.lineTotal);
@@ -4183,8 +4184,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       if (!person || (person.role !== "staff" && person.role !== "admin")) return res.status(400).json({ message: tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" }) });
       name = [person.firstName, person.lastName].filter(Boolean).join(" ") || person.username || person.email || staffId;
     }
-    await db.update(posTicketItems).set({ commissionStaffId: staffId || null, commissionStaffName: name }).where(eq(posTicketItems.id, id));
-    res.json({ ok: true, staffId: staffId || null, staffName: name });
+    const percent = staffId && req.body?.percent !== undefined && req.body?.percent !== null && req.body?.percent !== "" ? Math.min(MAX_PERCENT, Math.max(0, Number(req.body.percent) || 0)) : null;
+    await db.update(posTicketItems).set({ commissionStaffId: staffId || null, commissionStaffName: name, commissionPercent: percent === null ? null : String(percent) }).where(eq(posTicketItems.id, id));
+    res.json({ ok: true, staffId: staffId || null, staffName: name, percent });
   }));
   // Main admin: every per-item staff commission booked in a period, to correct who earns it or how much (it follows payroll and accounting), or to cancel it.
   app.get("/api/reborn/admin/item-commissions", requireAdmin(async (req, res) => {

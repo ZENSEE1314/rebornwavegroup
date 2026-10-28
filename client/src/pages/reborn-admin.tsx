@@ -2576,6 +2576,11 @@ function SellOptions({ value, onChange }: { value: any; onChange: (v: any) => vo
       <label className={box}><input type="checkbox" checked={value.referralOk !== false} onChange={(e) => onChange({ ...value, referralOk: e.target.checked })} /> {t("admin.prod.referralOk")} <span className="text-white/40 text-xs">{t("admin.prod.referralOkHint")}</span></label>
       <label className={box}><input type="checkbox" checked={value.creditOk !== false} onChange={(e) => onChange({ ...value, creditOk: e.target.checked })} /> {t("admin.pkg.creditOk")} <span className="text-white/40 text-xs">{t("admin.pkg.creditOkHint")}</span></label>
       <div className={box + " flex-wrap"}>
+        <span className="font-semibold">🍸 {t("admin.sc.defaultPct")}</span>
+        <input type="number" inputMode="decimal" min={0} max={100} value={value.staffCommissionKind === "percent" ? value.staffCommissionValue || "" : ""} placeholder="0" onFocus={(e) => e.currentTarget.select()} onChange={(e) => { const pct = Math.min(100, Math.max(0, Number(e.target.value) || 0)); onChange({ ...value, staffCommissionKind: pct > 0 ? "percent" : "", staffCommissionValue: pct }); }} aria-label={t("admin.sc.defaultPct")} className={inp + " w-24"} />
+        <p className="w-full text-[11px] text-white/40">{t("admin.sc.defaultHint")}</p>
+      </div>
+      <div className={box + " flex-wrap"}>
         <span className="font-semibold">🍹 {t("admin.happy.title")}</span>
         <label className="text-xs text-white/50">{t("admin.happy.from")}<input type="time" value={value.happyStart || ""} onChange={(e) => onChange({ ...value, happyStart: e.target.value })} className={inp + " ml-1"} /></label>
         <label className="text-xs text-white/50">{t("admin.happy.to")}<input type="time" value={value.happyEnd || ""} onChange={(e) => onChange({ ...value, happyEnd: e.target.value })} className={inp + " ml-1"} /></label>

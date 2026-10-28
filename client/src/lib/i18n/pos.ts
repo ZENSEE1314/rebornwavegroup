@@ -288,6 +288,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'itemCom.addAnother': { en: 'Add a person…', zh: '添加员工…', id: 'Tambah orang…' },
   'itemCom.kind': { en: 'Percent or amount', zh: '百分比或金额', id: 'Persen atau jumlah' },
   'itemCom.value': { en: 'Commission value', zh: '佣金数值', id: 'Nilai komisi' },
+  'pos.item.commissionPct': { en: 'Commission %', zh: '佣金 %', id: 'Komisi %' },
   'pos.item.commissionNone': { en: 'No commission', zh: '无佣金', id: 'Tanpa komisi' },
   'itemCom.add': { en: 'Add', zh: '添加', id: 'Tambah' },
   'menuImage.orderTitle': { en: 'Order of the categories on the menu', zh: '菜单分类顺序', id: 'Urutan kategori di menu' },

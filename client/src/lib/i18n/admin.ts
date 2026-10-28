@@ -833,6 +833,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.hh.ticksApply': { en: 'Set for {n} ticked item(s)', zh: '应用到 {n} 个已勾选商品', id: 'Terapkan ke {n} item yang dicentang' },
   'admin.hh.ticksSaved': { en: 'Saved for {n} item(s)', zh: '已为 {n} 个商品保存', id: 'Disimpan untuk {n} item' },
   'admin.pr.itemCommission': { en: 'incl. drinks {amount} ({n})', zh: '含饮品佣金 {amount}（{n}）', id: 'termasuk komisi minuman {amount} ({n})' },
+  'admin.sc.defaultPct': { en: 'Staff commission % on this item', zh: '此商品的员工佣金 %', id: 'Komisi staf % untuk item ini' },
+  'admin.sc.defaultHint': { en: 'The default %. The cashier picks the staff member on the POS bill line and can change the % there. 0 = none.', zh: '默认百分比。收银员在POS账单行选择员工，并可在那里修改百分比。0 = 无。', id: 'Persen bawaan. Kasir memilih staf di baris tagihan POS dan bisa mengubah persennya di sana. 0 = tidak ada.' },
   'admin.sc.title': { en: 'Staff commission on this item (ladies drink)', zh: '此商品的员工佣金（陪酒饮品）', id: 'Komisi staf untuk item ini (minuman ladies)' },
   'admin.sc.none': { en: 'No commission', zh: '无佣金', id: 'Tanpa komisi' },
   'admin.sc.percent': { en: '% of the line', zh: '按金额的 %', id: '% dari baris' },

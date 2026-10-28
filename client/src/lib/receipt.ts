@@ -7,7 +7,7 @@ import { qrSvgNow } from "@/lib/qr-download";
 import { readSplit } from "@shared/payments";
 import { percentOf } from "@shared/taxFees";
 
-interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; status?: string; }
+interface Item { name: string; qty: number; price: string | number; lineTotal: string | number; status?: string; commissionStaffName?: string | null; commissionPercent?: string | number | null; }
 // Lines that left the bill (rejected, lost) are not on the receipt: they are not in its total either.
 const OFF_RECEIPT = ["rejected", "lost", "cancelled"];
 interface Order {
@@ -111,9 +111,16 @@ const buildCss = (fullWidth = false) => {
 `;
 };
 
+// What one bill line pays the staff member picked for it: on the sales copy only, never the customer's.
+function lineCommission(it: Item, showCommission: boolean) {
+  const percent = Number(it.commissionPercent);
+  if (!showCommission || !it.commissionStaffName || !(percent > 0)) return "";
+  return `<div class="row muted"><span>↳ ${esc(tr("pos.rc.commission"))} · ${esc(it.commissionStaffName)} ${percent}%</span><span>${rp(Math.round(Number(it.lineTotal) * percent) / 100)}</span></div>`;
+}
+
 function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false, showCommission = false, duplicate = false) {
   const when = new Date(o.paidAt || o.createdAt || Date.now()).toLocaleString(localeTag());
-  const items = (o.items || []).filter((it) => !OFF_RECEIPT.includes(String(it.status))).map((it) => `<div class="row"><span>${it.qty}× ${esc(it.name)}</span><span>${rp(it.lineTotal)}</span></div>`).join("");
+  const items = (o.items || []).filter((it) => !OFF_RECEIPT.includes(String(it.status))).map((it) => `<div class="row"><span>${it.qty}× ${esc(it.name)}</span><span>${rp(it.lineTotal)}</span></div>${lineCommission(it, showCommission)}`).join("");
   const disc = Number(o.discount) > 0 ? `<div class="row"><span>${tr("pos.rc.discount")}${o.discountReason ? ` (${esc(o.discountReason)})` : ""}</span><span>- ${rp(o.discount)}</span></div>` : "";
   // Part of the bill paid with the member's package credit, and what was left to pay.
   const pkg = Number(o.packageCreditUsed) > 0 ? `<div class="row"><span>${tr("pos.rc.packageCredit")}</span><span>- ${rp(o.packageCreditUsed)}</span></div><div class="row b"><span>${tr("pos.rc.toPay")}</span><span>${rp(Number(o.total) - Number(o.packageCreditUsed))}</span></div>` : "";
@@ -213,7 +220,7 @@ function printDoc(inner: string, fileName?: string, fullWidth = false): boolean 
 // `duplicate` = a reprint from the sales history: every copy is marked DUPLICATE with the time it was printed again.
 export function printReceipt(order: Order, meta: ReceiptMeta, opts: { duplicate?: boolean } = {}) {
   const dup = !!opts.duplicate;
-  const withSalesCopy = getReceiptCopies() === "two" || Number(order.commissionAmount) > 0 || !!order.referralPayee;
+  const withSalesCopy = getReceiptCopies() === "two" || Number(order.commissionAmount) > 0 || !!order.referralPayee || (order.items || []).some((it) => !!it.commissionStaffName && Number(it.commissionPercent) > 0);
   const salesCopy = withSalesCopy ? receiptHtml(order, meta, tr("pos.rc.merchantCopy"), false, true, dup) + `<div style="page-break-after:always;height:8mm;"></div>` : "";
   return printDoc(salesCopy + receiptHtml(order, meta, tr("pos.rc.customerCopy"), true, false, dup), dup && receiptFileName(order) ? `${receiptFileName(order)}_duplicate` : receiptFileName(order));
 }
