@@ -27,6 +27,9 @@ describe("item edit form", () => {
   it("should open the Inventory editor inside the item's own row, not at the end of its category", () => {
     assert.ok(source.includes("{openId === it.id && renderEditor(it.id)}"));
   });
+  it("should not offer a staff commission rule on the item form", () => {
+    assert.ok(!source.includes('t("admin.sc.title")'));
+  });
   it("should keep a second Save at the end of the form", () => {
     assert.ok(editForm.lastIndexOf("save.mutate()") > longSections);
   });

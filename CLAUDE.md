@@ -1152,6 +1152,7 @@ eborn-venue-pack.
 
 - No-discount item: a ticked "No discount on this item" (Admin › Inventory, `pos_products.no_discount`) always sells at its normal price: no happy-hour price or free units (`withHappyHour`, `resolveItems`), no app-order discount, member perk or typed bill discount (`quoteBill` `noDiscountBase`). Staff-price modes still apply. Test: scripts/e2e/no-discount-item.mjs.
 
+- The "Staff commission on this item (ladies drink)" box is gone from the item form (the owner wants commission chosen per bill line on the POS instead). Rules already saved on items (`pos_products.staff_commission_*`) stay and still book when a bill is paid; saving an item sends them back unchanged. No new item can get a rule from the form. Test: client/src/pages/reborn-admin.edit-form.test.ts.
 - Inventory item editor (`renderEditor` in reborn-admin.tsx) is keyed by the product id: the same `ProductRow` slot is reused when another item in the category is opened, and `useState` kept the previous item's form, so saving the second item wrote the first item's values over it (cigarettes "changed to the same" / "saved the previous setting"). On the phone layout the editor opens inside the item's own row (right under it), not after the whole category. Test: client/src/pages/reborn-admin.edit-form.test.ts.
 
 ## Venue cameras (venue/camera-bridge.mjs)

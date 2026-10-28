@@ -31,7 +31,6 @@ import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { PasswordInput } from "@/components/PasswordInput";
 import { SavedKeys } from "@/components/SavedKeys";
 import { HappyDays } from "@/components/HappyDays";
-import { StaffCommissionPeople } from "@/components/StaffCommissionPeople";
 import { eligibleStaffOf } from "@shared/itemCommission";
 import { ResetNumbers } from "@/components/ResetNumbers";
 
@@ -2576,15 +2575,6 @@ function SellOptions({ value, onChange }: { value: any; onChange: (v: any) => vo
       <label className={box}><input type="checkbox" checked={value.appDiscountOk !== false} onChange={(e) => onChange({ ...value, appDiscountOk: e.target.checked })} /> {t("admin.prod.appDiscountOk")} <span className="text-white/40 text-xs">{t("admin.prod.appDiscountOkHint")}</span></label>
       <label className={box}><input type="checkbox" checked={value.referralOk !== false} onChange={(e) => onChange({ ...value, referralOk: e.target.checked })} /> {t("admin.prod.referralOk")} <span className="text-white/40 text-xs">{t("admin.prod.referralOkHint")}</span></label>
       <label className={box}><input type="checkbox" checked={value.creditOk !== false} onChange={(e) => onChange({ ...value, creditOk: e.target.checked })} /> {t("admin.pkg.creditOk")} <span className="text-white/40 text-xs">{t("admin.pkg.creditOkHint")}</span></label>
-      <div className={box + " flex-wrap"}>
-        <span className="font-semibold">🍸 {t("admin.sc.title")}</span>
-        <select value={value.staffCommissionKind || ""} onChange={(e) => onChange({ ...value, staffCommissionKind: e.target.value })} aria-label={t("admin.sc.title")} className={inp}>
-          <option value="">{t("admin.sc.none")}</option><option value="percent">{t("admin.sc.percent")}</option><option value="fixed">{t("admin.sc.fixed")}</option>
-        </select>
-        {value.staffCommissionKind && <StaffCommissionPeople value={value.staffCommissionStaffIds} onChange={(ids) => onChange({ ...value, staffCommissionStaffIds: ids })} />}
-        {value.staffCommissionKind && <input type="number" inputMode="decimal" min={0} value={value.staffCommissionValue ?? ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => onChange({ ...value, staffCommissionValue: e.target.value })} aria-label={t("admin.sc.value")} placeholder={t("admin.sc.value")} className={inp + " w-28"} />}
-        <p className="w-full text-[11px] text-white/40">{t("admin.sc.hint")}</p>
-      </div>
       <div className={box + " flex-wrap"}>
         <span className="font-semibold">🍹 {t("admin.happy.title")}</span>
         <label className="text-xs text-white/50">{t("admin.happy.from")}<input type="time" value={value.happyStart || ""} onChange={(e) => onChange({ ...value, happyStart: e.target.value })} className={inp + " ml-1"} /></label>
