@@ -1256,8 +1256,8 @@ function BottlesTab() {
     <div className="lg:grid lg:grid-cols-[360px_1fr] lg:gap-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-3 mb-4 lg:mb-0 h-fit">
         <p className="font-bold mb-2 text-sm flex items-center gap-2"><Wine className="w-4 h-4 text-amber-300" /> {t("pos.keepBottle")}</p>
-        <div className="relative mb-2"><input value={f.memberCode} onChange={(e) => { setSelectedMember(null); setF({ ...f, memberCode: e.target.value }); }} placeholder={t("pos.memberSearch")} className={inp} />
-          {!selectedMember && memberMatches.length > 0 && <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-white/15 bg-[#160f2a] p-1 shadow-2xl">{memberMatches.map((m)=><button key={m.id} type="button" onClick={()=>{setSelectedMember(m);setF({...f,memberCode:m.code||m.card||m.email})}} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10"><b className="block text-sm">{m.name}</b><span className="text-xs text-white/50">{m.code||m.card||m.email}</span></button>)}</div>}
+        <div className="relative mb-2"><input value={f.memberCode} onChange={(e) => { setSelectedMember(null); setF({ ...f, memberCode: e.target.value }); }} placeholder={t("pos.bottleWho")} className={inp} />
+          {!selectedMember && memberMatches.length > 0 && <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-white/15 bg-[#160f2a] p-1 shadow-2xl">{memberMatches.map((m)=><button key={m.id} type="button" onClick={()=>{setSelectedMember(m);setF({...f,memberCode:m.code||m.card||m.email})}} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10"><b className="block text-sm">{m.name}</b><span className="text-xs text-white/50">{[m.username && `@${m.username}`, m.code||m.card||m.email].filter(Boolean).join(" · ")}</span></button>)}</div>}
         </div>
         {selectedMember && <div className="mb-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-2 text-sm text-emerald-200"><UserCheck className="mr-1 inline h-4 w-4"/> {selectedMember.name}</div>}
         <div className="grid grid-cols-2 gap-2 mb-2">

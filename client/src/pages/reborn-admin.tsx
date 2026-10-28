@@ -3090,9 +3090,9 @@ function AddKeptBottle() {
     enabled: isOpen && search.trim().length >= 1 && !member,
   });
   const needsPhoto = PHOTO_BOTTLE_TYPES.includes(f.type);
-  const canSave = !!member && f.name.trim() !== "" && f.quantity >= 1 && (!needsPhoto || !!f.photoUrl);
+  const canSave = (!!member || search.trim() !== "") && f.name.trim() !== "" && f.quantity >= 1 && (!needsPhoto || !!f.photoUrl);
   const save = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/pos/bottle-keep", { memberCode: member.code || member.email || member.username || member.id, ...f, note: ["After the bill", f.note].filter(Boolean).join(" · ") }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
+    mutationFn: () => apiRequest("POST", "/api/reborn/pos/bottle-keep", { memberCode: member ? member.code || member.email || member.username || member.id : "", guestName: member ? undefined : search.trim(), ...f, note: ["After the bill", f.note].filter(Boolean).join(" · ") }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
     onSuccess: (d: any) => {
       toast({ title: d.message || t("admin.c.saved") });
       setF({ type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setMember(null); setSearch("");
@@ -3107,10 +3107,10 @@ function AddKeptBottle() {
         <div className="mt-3 space-y-2">
           <p className="text-[11px] text-white/45">{t("admin.bot.addHint")}</p>
           <div className="relative">
-            <input value={member ? member.name : search} onChange={(e) => { setMember(null); setSearch(e.target.value); }} placeholder={t("admin.bot.memberSearch")} className={inp + " w-full"} />
+            <input value={member ? member.name : search} onChange={(e) => { setMember(null); setSearch(e.target.value); }} placeholder={t("admin.bot.who")} className={inp + " w-full"} />
             {!member && matches.length > 0 && (
               <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-white/15 bg-[#160f2a] p-1 shadow-2xl">
-                {matches.map((m) => <button key={m.id} type="button" onClick={() => { setMember(m); setSearch(""); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10">{m.name}<span className="ml-2 text-xs text-white/40">{m.code || m.email || ""}</span></button>)}
+                {matches.map((m) => <button key={m.id} type="button" onClick={() => { setMember(m); setSearch(""); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10">{m.name}<span className="ml-2 text-xs text-white/40">{[m.username && `@${m.username}`, m.code || m.email].filter(Boolean).join(" · ")}</span></button>)}
               </div>
             )}
           </div>

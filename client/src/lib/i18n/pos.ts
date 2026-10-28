@@ -407,6 +407,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
 
   // Bottles
   'pos.keepBottle': { en: 'Keep a bottle', zh: '存酒', id: 'Simpan botol' },
+  'pos.bottleWho': { en: 'Customer name (pick a member to add it to their account)', zh: '顾客姓名（选择会员则记入其账户）', id: 'Nama pelanggan (pilih member agar masuk ke akunnya)' },
   'pos.memberSearch': { en: 'Type name, code, card or email', zh: '输入姓名、会员码、卡号或邮箱', id: 'Ketik nama, kode, kartu, atau email' },
   'pos.selectDrink': { en: 'Select drink from products', zh: '从商品中选择酒水', id: 'Pilih minuman dari produk' },
   'pos.photoLevel': { en: 'Photo of remaining level (required)', zh: '剩余酒量照片（必填）', id: 'Foto sisa isi (wajib)' },

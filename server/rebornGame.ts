@@ -3727,16 +3727,17 @@ export function registerRebornRoutes(app: Express) {
     return Math.max(1, Number((result.rows || result as any)[0]?.value) || 1000);
   }
 
-  async function storeBottleForMember(u: any, bottle: any, staffId: string, lang: Lang = "en") {
-    if (!u || !bottle?.enabled) return null;
+  // `u` is the member account; with no account (a guest) the typed name is kept on the bottle and nothing is added to any account.
+  async function storeBottleForMember(u: any, bottle: any, staffId: string, lang: Lang = "en", guestName = "") {
+    if ((!u && !guestName) || !bottle?.enabled) return null;
     const name = String(bottle.name || "").trim();
     if (!name) throw new Error(pick(lang, { en: "Enter the bottle name before payment", zh: "付款前请输入酒名", id: "Masukkan nama botol sebelum pembayaran" }));
     if (["wine", "whisky"].includes(String(bottle.type || "")) && !bottle.photoUrl) throw new Error(pick(lang, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }));
     const now = new Date();
     const keepDays = (await getSettings()).bottleExpiryDays;
     const [row] = await db.insert(bottleKeeps).values({
-      userId: u.id, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email,
-      memberCode: u.referralCode, type: ["beer", "wine", "whisky", "other"].includes(bottle.type) ? bottle.type : "beer",
+      userId: u ? u.id : null, memberName: u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email : guestName,
+      memberCode: u ? u.referralCode : null, type: ["beer", "wine", "whisky", "other"].includes(bottle.type) ? bottle.type : "beer",
       name, quantity: Math.max(1, Math.floor(Number(bottle.quantity) || 1)), photoUrl: bottle.photoUrl || null,
       note: [bottle.isOwn ? "Own bottle" : "", bottle.note].filter(Boolean).join(" · ") || null, storedByStaffId: staffId, status: "kept", storedAt: now, expiresAt: addDays(keepDays, now),
     }).returning();
@@ -4848,8 +4849,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // Staff store an unfinished bottle for a member (beer = quantity; whisky = photo of level).
   app.post("/api/reborn/pos/bottle-keep", requireStaff(async (req, res) => {
     const b = req.body || {};
-    const u = await findMemberByCode(b.memberCode || "");
-    if (!u) return res.status(404).json({ message: tr(req, { en: "Enter a valid member (code/card/username/email) to keep a bottle.", zh: "请输入有效的会员（会员码/卡号/用户名/邮箱）以寄存酒瓶。", id: "Masukkan member yang valid (kode/kartu/nama pengguna/email) untuk menitipkan botol." }) });
+    // A member (found by code / card / username / email) gets the bottle on their account; anyone else is just a name on the bottle.
+    const typed = String(b.memberCode || "").trim();
+    const u = typed ? await findMemberByCode(typed) : null;
+    const guestName = String(b.guestName || typed).trim().slice(0, 80);
+    if (!u && !guestName) return res.status(400).json({ message: tr(req, { en: "Enter the customer's name (or pick a member) to keep a bottle.", zh: "请输入顾客姓名（或选择会员）以寄存酒瓶。", id: "Masukkan nama pelanggan (atau pilih member) untuk menitipkan botol." }) });
     // The customer's own bottle: the corkage service (a product marked as a service) is added to their table's bill, once per bottle.
     const corkageId = Number(b.corkage?.productId) || 0;
     const corkageTable = String(b.corkage?.tableNumber || "").trim();
@@ -4862,7 +4866,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       if (resolved.error) return res.status(400).json({ message: resolved.error });
       corkageLines = resolved.clean!;
     }
-    const row = await storeBottleForMember(u, { ...b, enabled: true, name: String(b.name || "").trim() || "Bottle", note: [b.isOwn ? "Own bottle" : "", b.note].filter(Boolean).join(" · ") }, getUserId(req)!, reqLang(req));
+    const row = await storeBottleForMember(u, { ...b, enabled: true, name: String(b.name || "").trim() || "Bottle", note: [b.isOwn ? "Own bottle" : "", b.note].filter(Boolean).join(" · ") }, getUserId(req)!, reqLang(req), guestName);
     if (!row) return res.status(400).json({ message: tr(req, { en: "Could not store bottle", zh: "无法寄存酒瓶", id: "Tidak dapat menyimpan botol" }) });
     if (corkageLines.length) {
       const cid = await rebornCompanyId(req);
@@ -4870,7 +4874,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       if (!ticket) [ticket] = await db.insert(posTickets).values({ companyId: cid, orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", ...(await ticketRates()), ...memberTag(u), tableNumber: corkageTable, orderMode: "dine_in", subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
       await appendItems(ticket.id, ticket.orderNo, corkageLines, getUserId(req)!);
     }
-    await logAdmin(req, { targetUserId: u.id, targetType: "bottle_keep", targetId: row.id, action: "store", entityType: "bottle", description: `Kept ${row.quantity}× ${row.name} for ${row.memberName} (30 days)` });
+    await logAdmin(req, { targetUserId: u?.id, targetType: "bottle_keep", targetId: row.id, action: "store", entityType: "bottle", description: `Kept ${row.quantity}× ${row.name} for ${row.memberName} (30 days)` });
     res.json({ message: tr(req, { en: "Stored for {name} — 30 days to collect.", zh: "已为 {name} 寄存——30 天内领取。", id: "Disimpan untuk {name} — 30 hari untuk diambil." }, { name: String(row.memberName || "") }), bottle: bottleView(row) });
   }));
   app.get("/api/reborn/pos/bottle-keeps", requireStaff(async (req, res) => {
