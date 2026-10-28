@@ -1189,13 +1189,16 @@ async function songQueueBoard(cid: number | null, viewerId?: string | null) {
 // token from Admin › Requests › Karaoke system: it reads the queue, plays the song
 // on now, and calls "next" when a song ends. It can also upload the karaoke
 // system's song list so requests carry the system's song number (karaoke_code).
-async function karaokeAuth(req: Request): Promise<boolean> {
+async function bridgeTokenOk(req: Request): Promise<boolean> {
   const given = String(req.get("x-karaoke-token") || req.query.token || "");
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "karaokeToken"));
   const want = row?.value || "";
   if (!want || given.length !== want.length) return false;
   let diff = 0; for (let i = 0; i < want.length; i++) diff |= want.charCodeAt(i) ^ given.charCodeAt(i);
-  if (diff) return false;
+  return diff === 0;
+}
+async function karaokeAuth(req: Request): Promise<boolean> {
+  if (!(await bridgeTokenOk(req))) return false;
   const now = Date.now();
   if (now - karaokeLastSeenWrite > 60_000) { // remember the bridge is online (at most once a minute)
     karaokeLastSeenWrite = now;
@@ -6882,6 +6885,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     },
     readSetting: async (key) => (await db.select().from(appSettings).where(eq(appSettings.key, key)))[0]?.value ?? null,
     writeSetting: writeSettingValue,
+    isBridge: bridgeTokenOk,
+    scope: () => currentTenant()?.slug || "",
     alert: async (phones, text, vars) => {
       if (!phones.length) return void (await notifyAdmins(pick("en", text, vars)));
       for (const phone of phones) await sendWhatsApp(phone, pick(await langForPhone(phone), text, vars));

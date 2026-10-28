@@ -19,3 +19,4 @@ tv-overlay/app/debug.keystore
 tv-overlay/.gradle/
 tv-overlay/build/
 tv-overlay/app/build/
+venue/camera.config.json

@@ -4,6 +4,7 @@
 // assignment letter and a call to the station's own number.
 import type { Express, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
+import { createVenueCameraStore } from "./venueCameraStore";
 import {
   MAX_OFFICER_LOG, cleanOfficerClose, cleanOfficerLog, cleanOfficerStart, cleanSecuritySetup,
   type OfficerCheck, type SecuritySetup,
@@ -18,6 +19,10 @@ export interface SecurityDeps {
   staffName(req: Request): Promise<string>;
   readSetting(key: string): Promise<string | null>;
   writeSetting(key: string, value: string): Promise<void>;
+  /** True when the request carries the venue PC's bridge token (the camera program uses the same token as the karaoke bridge). */
+  isBridge(req: Request): Promise<boolean>;
+  /** The company this request is for ("" on the main site), so one company never sees another's cameras. */
+  scope(): string;
   /** Sends the text to each phone in that phone's own language; with no phones, to the company's admins. */
   alert(phones: string[], text: Tri, vars: Record<string, string>): Promise<void>;
 }
@@ -68,6 +73,29 @@ const saveLog = (deps: SecurityDeps, log: OfficerCheck[]) => deps.writeSetting(L
 const shown = (value: string) => value || "—";
 
 export function registerSecurityRoutes(app: Express, deps: SecurityDeps) {
+  const venueCameras = createVenueCameraStore();
+
+  // The camera program on the venue PC sends a picture; the answer tells it whether anyone is looking (then it sends every second or two, else rarely).
+  app.post("/api/venue-camera/frame", async (req, res) => {
+    if (!(await deps.isBridge(req))) return res.status(401).json({ message: "Bad bridge token" });
+    const { id, name, jpeg } = (req.body || {}) as { id?: unknown; name?: unknown; jpeg?: unknown };
+    const isStored = typeof id === "string" && typeof jpeg === "string" && venueCameras.setFrame(deps.scope(), id, typeof name === "string" ? name : "", Buffer.from(jpeg, "base64"));
+    if (!isStored) return res.status(400).json({ message: "Not a usable camera picture" });
+    res.json({ watching: venueCameras.isWatched(deps.scope()) });
+  });
+
+  app.get("/api/reborn/security/venue-cameras", deps.requireStaff(async (_req, res) => {
+    venueCameras.markWatched(deps.scope());
+    res.json({ cameras: venueCameras.list(deps.scope()) });
+  }));
+
+  app.get("/api/reborn/security/venue-cameras/:id.jpg", deps.requireStaff(async (req, res) => {
+    venueCameras.markWatched(deps.scope());
+    const frame = venueCameras.getFrame(deps.scope(), String(req.params.id));
+    if (!frame) return res.status(404).end();
+    res.set({ "Content-Type": "image/jpeg", "Cache-Control": "no-store" }).send(frame);
+  }));
+
   app.get("/api/reborn/security/setup", deps.requireStaff(async (req, res) => {
     const setup = await loadSetup(deps);
     // Who is alerted, and editing, are for the main admin only.

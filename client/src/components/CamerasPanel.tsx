@@ -4,6 +4,7 @@ import { CAMERA_BRANDS, MAX_BRAND_NAME, OTHER_BRAND, cameraBrand } from "@shared
 import { useTranslation } from "@/lib/i18n";
 import NearbyDevices, { type NearbyDevice } from "@/components/NearbyDevices";
 import CameraQrScan from "@/components/CameraQrScan";
+import VenueCameras from "@/components/VenueCameras";
 import { errorText, panelButton, panelCard, panelField, primaryButton, type Camera, type CameraKind, type SecuritySetup } from "@/lib/security-types";
 
 const NOTICE_MS = 4000;
@@ -101,6 +102,7 @@ export default function CamerasPanel({ setup, onSave }: Props) {
 
   return (
     <div className="space-y-4">
+      <VenueCameras />
       <div className={panelCard}>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Video className="w-4 h-4 text-cyan-300" /> {t("admin.cam.title")}</h3>
         {setup.canEdit && <><p className="text-[11px] text-white/50 mb-2">{t("admin.cam.intro")}</p><p className="text-[11px] text-white/50">{t("admin.cam.help")}</p></>}
