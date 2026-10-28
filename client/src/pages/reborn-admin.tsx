@@ -2887,7 +2887,7 @@ function Inventory() {
   const nameOfProduct = new Map(products.map((x) => [x.id, x.name]));
   const pieces = products.filter((x) => x.bundleItemId || x.packageKind === "uses");
   const pieceOf = (x: any): string => x.bundleItemId ? (nameOfProduct.get(x.bundleItemId) || "?") : parseIds(x.packageItemIds).map((id) => nameOfProduct.get(id)).filter(Boolean).join(", ");
-  const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow p={product} inventory /> : null; };
+  const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow key={product.id} p={product} inventory /> : null; };
   const industries = useCompanyIndustries();
   const [query, setQuery] = useState("");
   const byIndustry = industry ? allItems.filter((i) => deptHas(i.department, industry)) : allItems;

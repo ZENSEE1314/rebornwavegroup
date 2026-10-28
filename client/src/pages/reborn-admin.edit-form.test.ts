@@ -21,6 +21,9 @@ describe("item edit form", () => {
   it("should label Save and Cancel with words, not only an icon", () => {
     assert.ok(editForm.includes('t("admin.c.save")') && editForm.includes('t("admin.c.cancel")'));
   });
+  it("should give the Inventory editor a key per item so a different item never inherits the previous item's form values", () => {
+    assert.ok(source.includes("<ProductRow key={product.id} p={product} inventory />"));
+  });
   it("should keep a second Save at the end of the form", () => {
     assert.ok(editForm.lastIndexOf("save.mutate()") > longSections);
   });

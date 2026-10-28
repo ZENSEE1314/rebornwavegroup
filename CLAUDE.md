@@ -1152,6 +1152,8 @@ eborn-venue-pack.
 
 - No-discount item: a ticked "No discount on this item" (Admin › Inventory, `pos_products.no_discount`) always sells at its normal price: no happy-hour price or free units (`withHappyHour`, `resolveItems`), no app-order discount, member perk or typed bill discount (`quoteBill` `noDiscountBase`). Staff-price modes still apply. Test: scripts/e2e/no-discount-item.mjs.
 
+- Inventory item editor (`renderEditor` in reborn-admin.tsx) is keyed by the product id: the same `ProductRow` slot is reused when another item in the category is opened, and `useState` kept the previous item's form, so saving the second item wrote the first item's values over it (cigarettes "changed to the same" / "saved the previous setting"). Test: client/src/pages/reborn-admin.edit-form.test.ts.
+
 ## Venue cameras (venue/camera-bridge.mjs)
 - Dahua / Hiview cameras (the DMSS app ones) are shown in a browser on the venue Wi-Fi. `venue/camera-bridge.mjs` (Node 18 + ffmpeg, no packages) reads each camera once over RTSP (`/cam/realmonitor?channel=1&subtype=1`) and hands it out as motion-JPEG: `/cameras?key=...` page, `/cam/<id>.mjpg` live, `/cam/<id>.jpg` one picture. Every address needs the `viewKey` (made on the first run); no key = 403.
 - Cameras and their passwords live in `venue/camera.config.json` (git-ignored, never commit, never put in the cloud database). The cloud app cannot reach the camera and an https page cannot load plain-http video, so the page is opened on the venue PC address. `venue/start-camera-bridge.bat` starts it. Tests: `npx tsx --test venue/camera-bridge.test.ts`.
