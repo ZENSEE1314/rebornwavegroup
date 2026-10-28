@@ -73,27 +73,28 @@ export async function quoteBill(o: {
   staffPercent?: number; // staff past their monthly staff-price cap: this % off the normal price, service fee and tax as usual, no member perk
 }) {
   const ids = Array.from(new Set(o.lines.map((l) => Number(l.productId)).filter(Boolean)));
-  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, appDiscountOk: posProducts.appDiscountOk, cost: posProducts.cost, price: posProducts.price }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
+  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, appDiscountOk: posProducts.appDiscountOk, noDiscount: posProducts.noDiscount, cost: posProducts.cost, price: posProducts.price }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
   const byId = new Map(products.map((p) => [p.id, p]));
-  let subtotal = 0, packageBase = 0, creditBase = 0, appBase = 0;
+  let subtotal = 0, packageBase = 0, creditBase = 0, appBase = 0, noDiscountBase = 0;
   for (const l of o.lines) {
     const amt = Number(l.lineTotal) || 0, p = byId.get(Number(l.productId));
     subtotal = money(subtotal + amt);
+    if (p?.noDiscount) noDiscountBase += amt; // never discounted: left out of the member perk, the app discount and a typed bill discount
     if (p?.packageKind) packageBase += amt;
     else {
       if (p && p.creditOk !== false) creditBase += amt;
       const qty = Number(l.qty) || 1;
       const isPromo = !!p && amt / qty < Number(p.price) - 0.005; // a happy-hour price or a free unit is not discounted again
-      if (l.fromApp && !isPromo && p?.appDiscountOk !== false) appBase += amt;
+      if (l.fromApp && !isPromo && p?.appDiscountOk !== false && !p?.noDiscount) appBase += amt;
     }
   }
   const costTotal = o.atCost ? money(o.lines.reduce((sum, l) => { const p = byId.get(Number(l.productId)); return sum + (p ? Number(p.cost || 0) * (Number(l.qty) || 1) : Number(l.lineTotal) || 0); }, 0)) : 0;
   const noFees = !!(o.atCost || o.staffHalf);
   const staffPercent = Math.max(0, Math.min(100, Number(o.staffPercent) || 0));
-  const manualDiscount = o.atCost ? Math.min(subtotal, Math.max(0, money(subtotal - costTotal))) : o.staffHalf ? money(subtotal / 2) : staffPercent > 0 ? money(subtotal * staffPercent / 100) : Math.min(subtotal, Math.max(0, Number(o.manualDiscount) || 0));
+  const manualDiscount = o.atCost ? Math.min(subtotal, Math.max(0, money(subtotal - costTotal))) : o.staffHalf ? money(subtotal / 2) : staffPercent > 0 ? money(subtotal * staffPercent / 100) : Math.min(subtotal - noDiscountBase, Math.max(0, Number(o.manualDiscount) || 0));
   const wallet = o.userId ? await memberWallet(o.userId) : null;
   const perkPercent = noFees || staffPercent > 0 ? 0 : wallet?.perk?.percent || 0;
-  const perkAmount = money(Math.max(0, subtotal - packageBase - manualDiscount) * perkPercent / 100);
+  const perkAmount = money(Math.max(0, subtotal - packageBase - noDiscountBase - manualDiscount) * perkPercent / 100);
   const appPercent = noFees || staffPercent > 0 ? 0 : Math.max(0, Math.min(100, Number(o.appPercent) || 0));
   const appDiscount = money(Math.max(0, appBase) * appPercent / 100);
   const discount = Math.min(subtotal, manualDiscount + perkAmount + appDiscount);

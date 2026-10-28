@@ -3848,7 +3848,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       cost: isService ? "0" : String(Number(b.cost) || 0), stock: isService ? 0 : Number(b.stock) || 0, imageUrl: await pictureFromAddress(b.imageUrl),
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
-      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, appDiscountOk: b.appDiscountOk !== false, ...staffCommissionFields(b), sortOrder: Number(b.sortOrder) || 0,
+      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, appDiscountOk: b.appDiscountOk !== false, noDiscount: !!b.noDiscount, ...staffCommissionFields(b), sortOrder: Number(b.sortOrder) || 0,
       ...happyFieldsOf(b),
       isService: !!b.isService,
       ...packageFields(b),
@@ -3895,6 +3895,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
     if (b.referralOk !== undefined) patch.referralOk = !!b.referralOk;
     if (b.appDiscountOk !== undefined) patch.appDiscountOk = !!b.appDiscountOk;
+    if (b.noDiscount !== undefined) patch.noDiscount = !!b.noDiscount;
     if (b.staffCommissionKind !== undefined || b.staffCommissionValue !== undefined || b.staffCommissionStaffIds !== undefined) Object.assign(patch, staffCommissionFields({ staffCommissionKind: prev.staffCommissionKind, staffCommissionValue: prev.staffCommissionValue, staffCommissionStaffIds: prev.staffCommissionStaffIds, ...b }));
     if (b.isService !== undefined) patch.isService = !!b.isService;
     if (patch.isService) patch.cost = "0"; // a service has no cost and holds no stock (its stock count is ignored from now on)
@@ -4044,9 +4045,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }
   // What a customer sees and pays right now: the happy-hour price inside the window, and items sold only in the window hidden outside it.
   const venueClockNow = () => clockInZone(new Date(), countryOf(companyCountry()).timezone);
-  const withHappyHour = <T extends { price: any; happyPrice?: any; happyStart?: any; happyEnd?: any; happyOnly?: any; happyDays?: any; happyBuyQty?: any; happyFreeQty?: any }>(rows: T[]) => {
+  const withHappyHour = <T extends { price: any; noDiscount?: boolean; happyPrice?: any; happyStart?: any; happyEnd?: any; happyOnly?: any; happyDays?: any; happyBuyQty?: any; happyFreeQty?: any }>(rows: T[]) => {
     const clock = venueClockNow();
-    return rows.map((p) => ({ ...p, salePrice: String(salePriceNow(p, clock)), happyNow: isHappyNow(p, clock), offHours: isOffHours(p, clock), deal: isHappyNow(p, clock) ? dealOf(p) : null }));
+    // A no-discount item always sells at its normal price: no happy-hour price, no free-unit deal (its "only in the window" hours still apply).
+    return rows.map((p) => ({ ...p, salePrice: String(p.noDiscount ? Number(p.price) : salePriceNow(p, clock)), happyNow: !p.noDiscount && isHappyNow(p, clock), offHours: isOffHours(p, clock), deal: !p.noDiscount && isHappyNow(p, clock) ? dealOf(p) : null }));
   };
   // Validate requested items against the live catalogue + stock.
   // `onBill` = units of each item the bill already holds, so a "buy 1 get 1 free" deal keeps counting across orders added one at a time.
@@ -4062,8 +4064,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
       if (!allowNegative && !alreadySold && !p.packageKind && !p.isService && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
       if (!alreadySold && isOffHours(p, venueClockNow())) return { error: pick(lang, { en: "{item} is only sold during its happy hour", zh: "{item} 仅在欢乐时段供应", id: "{item} hanya dijual saat happy hour" }, { item: p.name }) };
-      const free = alreadySold ? 0 : freeUnitsFor(p, venueClockNow(), qty, onBill.get(p.id) ?? 0);
-      if (free < qty) clean.push({ productId: p.id, name: p.name, price: salePriceNow(p, venueClockNow()), qty: qty - free });
+      const free = alreadySold || p.noDiscount ? 0 : freeUnitsFor(p, venueClockNow(), qty, onBill.get(p.id) ?? 0);
+      if (free < qty) clean.push({ productId: p.id, name: p.name, price: p.noDiscount ? Number(p.price) : salePriceNow(p, venueClockNow()), qty: qty - free });
       if (free > 0) clean.push({ productId: p.id, name: `${p.name} ${pick(lang, { en: "(free)", zh: "（赠送）", id: "(gratis)" })}`, price: 0, qty: free });
       onBill.set(p.id, (onBill.get(p.id) ?? 0) + qty);
     }
