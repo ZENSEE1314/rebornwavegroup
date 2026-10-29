@@ -16,6 +16,9 @@ describe("remove the app-order discount on the POS", () => {
   it("should offer Remove beside the app discount line and Give it back afterwards", () => {
     assert.ok(source.includes('t("pos.appDisc.remove")') && source.includes('t("pos.appDisc.restore")'));
   });
+  it("should save the choice on the bill so it survives leaving and reopening it", () => {
+    assert.ok(source.includes("useState(!!order.appDiscountRemoved)") && source.includes("/app-discount`, { removed }"));
+  });
   it("should offer it on the table bill only, not Quick sale", () => {
     assert.equal(source.split("onToggleApp={").length - 1, 1);
   });

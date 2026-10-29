@@ -4325,7 +4325,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const ticketRate = (stored: unknown, current: number): number => (stored === null || stored === undefined || stored === "" || !Number.isFinite(Number(stored)) ? current : Number(stored));
   const appDiscountPercentOf = (settings: { appDiscountOn: boolean; appDiscountPercent: number }) => (settings.appDiscountOn ? settings.appDiscountPercent : 0);
   // The POS can leave the app-order discount off one bill (`removeAppDiscount` on the quote and the pay request, any staff member; the customer's receipt then simply has no app line).
-  const appPercentFor = (settings: { appDiscountOn: boolean; appDiscountPercent: number }, body: any) => (body?.removeAppDiscount === true ? 0 : appDiscountPercentOf(settings));
+  // `savedOff` is the flag kept on the bill itself, so the discount stays off after the cashier leaves the bill and comes back.
+  const appPercentFor = (settings: { appDiscountOn: boolean; appDiscountPercent: number }, body: any, savedOff = false) => (savedOff || body?.removeAppDiscount === true ? 0 : appDiscountPercentOf(settings));
   // The referrer's share of a paid bill (server/referralCommission.ts); the referrer is told when RP credits arrive. A failure here never stops the payment.
   const payReferral = async (ticketId: number, totals: { subtotal: number; discount: number; total: number; due: number }, settings: { referralOn: boolean; referralPercent: number; referralHoldHours: number; houseReferralUserId: string }) => {
     try {
@@ -4738,6 +4739,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "pos_order", targetId: id, action: "discount", entityType: "order", description: `Discount RP ${amount}${reason ? ` (${reason})` : ""} on ${o.orderNo}` });
     res.json({ message: amount ? tr(req, { en: "Discount RP {n} set", zh: "已设置折扣 RP {n}", id: "Diskon RP {n} diterapkan" }, { n: fmtN(amount, reqLang(req)) }) : tr(req, { en: "Discount cleared", zh: "已清除折扣", id: "Diskon dihapus" }), amount });
   }));
+  // Keep the app-order discount off one open bill (or give it back); saved on the bill so it survives leaving and reopening it.
+  app.post("/api/reborn/pos/orders/:id/app-discount", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
+    const removed = req.body?.removed === true;
+    await db.update(posTickets).set({ appDiscountRemoved: removed }).where(eq(posTickets.id, id));
+    await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: removed ? "remove_app_discount" : "restore_app_discount", entityType: "order", description: `App-order discount ${removed ? "left off" : "given back on"} ${o.orderNo}` });
+    res.json({ removed });
+  }));
   app.get("/api/reborn/shop/my-orders", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     const cid = await rebornCompanyId(req);
@@ -4798,9 +4809,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
     const ratesUsed = { service: ticketRate(o.serviceFeePercent, settings.serviceFeePercent), tax: ticketRate(o.taxPercent, settings.taxPercent) };
-    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: ratesUsed.service, taxPercent: ratesUsed.tax, appPercent: appPercentFor(settings, req.body), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half", staffPercent: costRequest.atCost?.mode === "percent" ? costRequest.atCost.percent : 0 });
+    const q = await quoteBill({ lines: lines.map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" })), manualDiscount: reqDisc, userId: o.memberId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: ratesUsed.service, taxPercent: ratesUsed.tax, appPercent: appPercentFor(settings, req.body, o.appDiscountRemoved), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half", staffPercent: costRequest.atCost?.mode === "percent" ? costRequest.atCost.percent : 0 });
     const { subtotal, discount, serviceFee, tax, total, due } = q;
-    if (req.body?.removeAppDiscount === true && appDiscountPercentOf(settings) > 0 && lines.some((x) => x.source === "app")) {
+    if ((req.body?.removeAppDiscount === true || o.appDiscountRemoved) &&appDiscountPercentOf(settings) > 0 && lines.some((x) => x.source === "app")) {
       await logAdmin(req, { targetType: "pos_order", targetId: String(o.id), action: "remove_app_discount", entityType: "order", description: `App-order discount (${appDiscountPercentOf(settings)}%) left off ${o.orderNo}` });
     }
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
@@ -4956,11 +4967,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     let lines: { productId?: number | null; lineTotal: number; qty?: number; fromApp?: boolean }[] = [];
     let userId: string | null = null;
     let rates = { service: settings.serviceFeePercent, tax: settings.taxPercent };
+    let appDiscountSavedOff = false;
     if (req.body?.ticketId) {
       const [o] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.body.ticketId)));
       if (!o) return res.status(404).json({ message: tr(req, { en: "Order not found", zh: "找不到该订单", id: "Pesanan tidak ditemukan" }) });
       lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" }));
       userId = o.memberId;
+      appDiscountSavedOff = o.appDiscountRemoved;
       rates = { service: ticketRate(o.serviceFeePercent, settings.serviceFeePercent), tax: ticketRate(o.taxPercent, settings.taxPercent) };
     } else {
       const custom = feeOverride(req.body?.rates, settings);
@@ -4975,7 +4988,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
-    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: rates.service, taxPercent: rates.tax, appPercent: appPercentFor(settings, req.body), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half", staffPercent: costRequest.atCost?.mode === "percent" ? costRequest.atCost.percent : 0 });
+    const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: rates.service, taxPercent: rates.tax, appPercent: appPercentFor(settings, req.body, appDiscountSavedOff), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half", staffPercent: costRequest.atCost?.mode === "percent" ? costRequest.atCost.percent : 0 });
     res.json({ ...q, serviceFeePercent: rates.service, taxPercent: rates.tax, hasMember: !!userId });
   }));
   // A member's packages (by member code) — POS pay panel and Packages tab.

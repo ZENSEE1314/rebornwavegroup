@@ -1097,6 +1097,7 @@ export const posTickets = pgTable("pos_tickets", {
   commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).default("0").notNull(),
   taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }),                 // the rates this bill was opened with: changing the rates later only changes new bills
   serviceFeePercent: decimal("service_fee_percent", { precision: 5, scale: 2 }),
+  appDiscountRemoved: boolean("app_discount_removed").default(false).notNull(), // the cashier left the app-order discount off this bill; it stays off when the bill is opened again
   onAccount: boolean("on_account").default(false).notNull(), // the customer has not paid: the bill is kept open "on account" (printed, table freed) until it is paid
   onAccountAt: timestamp("on_account_at"),
   onAccountBy: varchar("on_account_by"),

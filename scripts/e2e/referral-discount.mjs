@@ -109,7 +109,17 @@ check("ticking it again brings the discount back", Number(againQuote.json.appDis
 // the cashier can leave the app-order discount off one bill (POS pay panel: "Remove")
 const removedQuote = await admin("POST", "/api/reborn/pos/quote", { ticketId: noDiscOpen.id, removeAppDiscount: true });
 check("the POS can remove the app discount from the quote", removedQuote.status === 200 && Number(removedQuote.json.appDiscount) === 0 && Number(removedQuote.json.total) === Number(againQuote.json.total) + 8000, JSON.stringify(removedQuote.json));
-await admin("POST", `/api/reborn/pos/orders/${noDiscOpen.id}/pay`, { paymentMethod: "cash", cashReceived: 10_000_000, removeAppDiscount: true });
+const kept = await admin("POST", `/api/reborn/pos/orders/${noDiscOpen.id}/app-discount`, { removed: true });
+check("the POS saves 'discount off' on the bill", kept.status === 200 && kept.json.removed === true, JSON.stringify(kept));
+const reopenedQuote = await admin("POST", "/api/reborn/pos/quote", { ticketId: noDiscOpen.id });
+check("opening the bill again (no flag sent) still has the discount off", Number(reopenedQuote.json.appDiscount) === 0, JSON.stringify(reopenedQuote.json));
+const openList = (await admin("GET", "/api/reborn/pos/orders?status=open")).json;
+check("the open bill list says the discount is off", openList.find((o) => o.id === noDiscOpen.id)?.appDiscountRemoved === true, "flag missing");
+await admin("POST", `/api/reborn/pos/orders/${noDiscOpen.id}/app-discount`, { removed: false });
+const givenBack = await admin("POST", "/api/reborn/pos/quote", { ticketId: noDiscOpen.id });
+check("giving it back brings the discount back", Number(givenBack.json.appDiscount) === 8000, JSON.stringify(givenBack.json));
+await admin("POST", `/api/reborn/pos/orders/${noDiscOpen.id}/app-discount`, { removed: true });
+await admin("POST", `/api/reborn/pos/orders/${noDiscOpen.id}/pay`, { paymentMethod: "cash", cashReceived: 10_000_000 });
 const removedRow = await ticketRow(noDiscOpen.id);
 check("the paid bill has no app discount and no app line on the receipt", Number(removedRow.discount) === 0 && !String(removedRow.discount_reason || "").includes("App order"), JSON.stringify(removedRow));
 

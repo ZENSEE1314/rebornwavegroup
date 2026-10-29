@@ -831,7 +831,12 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSuccess: () => { setRatesVersion((n) => n + 1); invalidate(); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
-  const [removeAppDiscount, setRemoveAppDiscount] = useState(false);
+  const [removeAppDiscount, setRemoveAppDiscount] = useState(!!order.appDiscountRemoved);
+  const saveAppDiscount = useMutation({
+    mutationFn: (removed: boolean) => post(`/api/reborn/pos/orders/${order.id}/app-discount`, { removed }),
+    onSuccess: (d: any) => { setRemoveAppDiscount(!!d.removed); invalidate(); },
+    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+  });
   const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost), removeAppDiscount: removeAppDiscount || undefined, v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}:${ratesVersion}` }, true);
   const due = quoteTotals(quote, billTotals(subtotal, discount, posSettings));
   const total = due.total;
@@ -943,7 +948,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             </div>
             {payable > 0 && pay === "split" && <SplitPayBox due={payable} memberCode={order.memberCode} form={split} onChange={setSplit} onBalance={setCreditBal} />}
             <MemberWallet code={order.memberCode} quote={quote} useCredit={useCredit} onUseCredit={setUseCredit} ticketId={order.id} />
-            <BillSummary due={due} settings={posSettings} onRates={(rates) => setBillRates.mutate(rates)} appRemoved={removeAppDiscount} onToggleApp={() => setRemoveAppDiscount(!removeAppDiscount)} />
+            <BillSummary due={due} settings={posSettings} onRates={(rates) => setBillRates.mutate(rates)} appRemoved={removeAppDiscount} onToggleApp={() => saveAppDiscount.mutate(!removeAppDiscount)} />
             {payable > 0 && pay === "credits" && <CreditsLine code={order.memberCode} total={payable} onBalance={setCreditBal} />}
             {payable > 0 && pay === "card" && <label className="mb-2 block text-xs text-white/60">{t("pos.cardRef")}<input value={paymentReference} onChange={(e)=>setPaymentReference(e.target.value)} placeholder={t("pos.cardRefRequired")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>}
             {payable > 0 && pay === "cash" && <div className="mb-2 grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={payable} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={String(payable)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
