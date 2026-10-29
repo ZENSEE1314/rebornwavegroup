@@ -30,13 +30,17 @@ const lineId = (await db.query("SELECT id FROM pos_ticket_items WHERE order_id=$
 const line = async () => (await db.query("SELECT price, qty, line_total FROM pos_ticket_items WHERE id=$1", [lineId])).rows[0];
 const total = async () => Number((await db.query("SELECT total FROM pos_tickets WHERE id=$1", [order.id])).rows[0].total);
 
-let r = await staff("POST", `/api/reborn/pos/items/${lineId}/edit`, { price: 90000 });
-check("a cashier cannot lower a price", r.status === 403, r.status);
-r = await staff("POST", `/api/reborn/pos/items/${lineId}/edit`, { discountPercent: 10 });
-check("a cashier cannot give a discount", r.status === 403, r.status);
-r = await staff("POST", `/api/reborn/pos/items/${lineId}/edit`, { price: 110000 });
+let r = await staff("POST", `/api/reborn/pos/items/${lineId}/edit`, { price: 100000, discountPercent: 10 });
 let l = await line();
-check("a cashier can still raise a price", r.status === 200 && Number(l.price) === 110000 && Number(l.line_total) === 220000, JSON.stringify(l));
+check("a cashier can give 10% off one item (90,000 each, line 180,000)", r.status === 200 && Number(l.price) === 90000 && Number(l.line_total) === 180000 && (await total()) === 180000, JSON.stringify([r.status, l]));
+r = await staff("POST", `/api/reborn/pos/items/${lineId}/edit`, { price: 100000, discountAmount: 50000 });
+l = await line();
+check("a cashier can take RP 50,000 off the line (150,000)", r.status === 200 && Number(l.line_total) === 150000 && (await total()) === 150000, JSON.stringify([r.status, l]));
+r = await staff("POST", `/api/reborn/pos/items/${lineId}/edit`, { atCost: true });
+check("a cashier cannot sell a line at cost", r.status === 403, r.status);
+r = await staff("POST", `/api/reborn/pos/items/${lineId}/edit`, { price: 110000 });
+l = await line();
+check("a cashier can also raise a price", r.status === 200 && Number(l.price) === 110000 && Number(l.line_total) === 220000, JSON.stringify(l));
 
 r = await admin("POST", `/api/reborn/pos/items/${lineId}/edit`, { price: 100000, discountPercent: 10 });
 l = await line();

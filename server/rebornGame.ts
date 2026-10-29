@@ -4619,6 +4619,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     // Per line: the price of one, a discount (% of the price, or an amount off the whole line) or "at cost" (the item's own cost).
     let discountNote = "";
     if (req.body?.atCost) {
+      const role = await adminRole(getUserId(req));
+      if (role !== "admin" && role !== "manager") return res.status(403).json({ message: tr(req, { en: "Only a manager or the main admin can sell a line at cost.", zh: "只有经理或主管理员可以按成本价出售。", id: "Hanya manajer atau admin utama yang bisa menjual baris dengan harga modal." }) });
       const [product] = it.productId ? await db.select().from(posProducts).where(eq(posProducts.id, it.productId)) : [];
       if (!product) return res.status(400).json({ message: tr(req, { en: "This line has no item with a cost", zh: "此行没有带成本的商品", id: "Baris ini tidak punya item dengan modal" }) });
       price = Math.max(0, Number(product.cost) || 0);
@@ -4629,11 +4631,6 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     let lineTotal = roundMoney(price * qty);
     const amountOff = Math.max(0, Number(req.body?.discountAmount) || 0);
     if (amountOff > 0) { lineTotal = Math.max(0, roundMoney(lineTotal - amountOff)); price = roundMoney(lineTotal / qty); discountNote += ` · RP ${amountOff} off`; }
-    // A manager or the main admin lowers a price; a cashier may still raise it or change the quantity.
-    if (price < Number(it.price) - 0.005) {
-      const role = await adminRole(getUserId(req));
-      if (role !== "admin" && role !== "manager") return res.status(403).json({ message: tr(req, { en: "Only a manager or the main admin can lower a price or give a discount.", zh: "只有经理或主管理员可以降价或给折扣。", id: "Hanya manajer atau admin utama yang bisa menurunkan harga atau memberi diskon." }) });
-    }
     const dQty = qty - it.qty;
     if (dQty !== 0 && it.productId) { // keep stock in sync
       await moveStock(it.productId, -dQty, "adjustment", `Edit item #${id}`, getUserId(req)!);

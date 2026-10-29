@@ -345,7 +345,7 @@ function billTotals(subtotal: number, discount: number, settings: any) {
 function LineEditDialog({ item, onSave, onCancel }: { item: any; onSave: (body: any) => void; onCancel: () => void }) {
   const { t } = useTranslation();
   const role = useAdminRole();
-  const canLower = role === "admin" || role === "manager";
+  const canSellAtCost = role === "admin" || role === "manager";
   const [price, setPrice] = useState(String(Number(item.price)));
   const [qty, setQty] = useState(String(item.qty));
   const [percent, setPercent] = useState("");
@@ -364,12 +364,10 @@ function LineEditDialog({ item, onSave, onCancel }: { item: any; onSave: (body: 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <label className="text-[11px] text-white/55">{t("pos.line.price")}<input type="number" min={0} value={price} onChange={(e) => { setPrice(e.target.value); setIsAtCost(false); }} className={input} /></label>
           <label className="text-[11px] text-white/55">{t("pos.line.qty")}<input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} className={input} /></label>
-          {canLower && <>
-            <label className="text-[11px] text-white/55">{t("pos.line.percent")}<input type="number" min={0} max={100} value={percent} onChange={(e) => setPercent(e.target.value)} placeholder="0" className={input} /></label>
-            <label className="text-[11px] text-white/55">{t("pos.line.amount")}<input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className={input} /></label>
-          </>}
+          <label className="text-[11px] text-white/55">{t("pos.line.percent")}<input type="number" min={0} max={100} value={percent} onChange={(e) => setPercent(e.target.value)} placeholder="0" className={input} /></label>
+          <label className="text-[11px] text-white/55">{t("pos.line.amount")}<input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className={input} /></label>
         </div>
-        {canLower && <button type="button" onClick={() => setIsAtCost(!isAtCost)} className={`mt-2 w-full rounded-xl border py-2 text-xs font-bold ${isAtCost ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/70"}`}>{t("pos.line.atCost")}</button>}
+        {canSellAtCost && <button type="button" onClick={() => setIsAtCost(!isAtCost)} className={`mt-2 w-full rounded-xl border py-2 text-xs font-bold ${isAtCost ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/70"}`}>{t("pos.line.atCost")}</button>}
         <p className="mt-2 text-xs text-white/60">{isAtCost ? t("pos.line.atCostNote") : t("pos.line.preview", { total: rp(preview ?? 0) })}</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button type="button" onClick={onCancel} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">{t("pos.item.dialogCancel")}</button>
