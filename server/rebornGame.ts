@@ -5844,6 +5844,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const EXPENSE_MAX_LINES = 80;
   const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
   const UPLOAD_CATEGORIES = ["rent", "electricity", "water", "internet", "salary", "security", "police", "supplies", "other"];
+  // Kinds the admin makes himself (renovation, entertainment ...): saved as the typed name behind this prefix, so the stored category carries its own label; they count under Company expenses.
+  const CUSTOM_CATEGORY_PREFIX = "x:";
+  const CUSTOM_CATEGORIES_KEY = "expenseCustomCategories";
+  const CUSTOM_CATEGORY_MAX_LENGTH = 30;
+  const CUSTOM_CATEGORY_MAX_COUNT = 40;
+  const customCategoriesOf = async (): Promise<string[]> => {
+    const saved = await readSetting<unknown>(CUSTOM_CATEGORIES_KEY, []);
+    return Array.isArray(saved) ? saved.filter((c): c is string => typeof c === "string") : [];
+  };
+  const isUploadCategory = async (category: string) => UPLOAD_CATEGORIES.includes(category) || (category.startsWith(CUSTOM_CATEGORY_PREFIX) && (await customCategoriesOf()).includes(category));
   const LEDGER_CATEGORY: Record<string, string> = { rent: "rental", electricity: "utilities", water: "utilities", internet: "utilities", salary: "salary" }; // what Accounting already groups by; the rest is "other"
   const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
   const MONTH_RE = /^\d{4}-\d{2}$/;
@@ -5982,7 +5992,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const listOf = (list: typeof rows) => list.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
     const listed = listOf(rows);
     const recent = listOf(recentRows);
-    res.json({ month, expenses: listed, recent, stockDeliveries, totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+    res.json({ month, expenses: listed, recent, stockDeliveries, totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
   const EXPENSE_EDIT_WINDOW_MS = 24 * 3_600_000;
@@ -6023,6 +6033,28 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const [row] = await db.select({ photoUrl: expenseUploads.photoUrl }).from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, await rebornCompanyId(req)), mine));
     res.json({ photoUrl: row?.photoUrl || null });
   }));
+  // The main admin adds a kind of expense of his own (renovation, entertainment ...). It is listed in the Expenses form and counted under Company expenses.
+  app.post("/api/reborn/admin/expense-categories", requireAdmin(async (req, res) => {
+    const name = String(req.body?.name || "").trim().replace(/\s+/g, " ").slice(0, CUSTOM_CATEGORY_MAX_LENGTH);
+    if (!name) return res.status(400).json({ message: tr(req, { en: "Type a name for the new kind", zh: "请输入新类别的名称", id: "Ketik nama jenis baru" }) });
+    const existing = await customCategoriesOf();
+    const key = `${CUSTOM_CATEGORY_PREFIX}${name}`;
+    if (existing.some((c) => c.toLowerCase() === key.toLowerCase())) return res.status(400).json({ message: tr(req, { en: "That kind already exists", zh: "该类别已存在", id: "Jenis itu sudah ada" }) });
+    if (existing.length >= CUSTOM_CATEGORY_MAX_COUNT) return res.status(400).json({ message: tr(req, { en: "Too many kinds; remove one first", zh: "类别太多，请先删除一个", id: "Terlalu banyak jenis; hapus satu dulu" }) });
+    await writeSetting(CUSTOM_CATEGORIES_KEY, [...existing, key]);
+    await logAdmin(req, { targetType: "expense_category", targetId: name, action: "expense_category_add", entityType: "accounting", description: `Added expense kind "${name}"` });
+    res.json({ category: key, message: tr(req, { en: "Kind added", zh: "类别已添加", id: "Jenis ditambahkan" }) });
+  }));
+  app.post("/api/reborn/admin/expense-categories/remove", requireAdmin(async (req, res) => {
+    const key = String(req.body?.category || "");
+    const existing = await customCategoriesOf();
+    if (!existing.includes(key)) return res.status(404).json({ message: tr(req, { en: "Kind not found", zh: "找不到该类别", id: "Jenis tidak ditemukan" }) });
+    const [inUse] = await db.select({ id: expenseUploads.id }).from(expenseUploads).where(and(eq(expenseUploads.companyId, await rebornCompanyId(req)), eq(expenseUploads.category, key))).limit(1);
+    if (inUse) return res.status(400).json({ message: tr(req, { en: "Expenses already use this kind, so it stays", zh: "已有支出使用该类别，无法删除", id: "Sudah dipakai pengeluaran, jadi tidak bisa dihapus" }) });
+    await writeSetting(CUSTOM_CATEGORIES_KEY, existing.filter((c) => c !== key));
+    await logAdmin(req, { targetType: "expense_category", targetId: key, action: "expense_category_remove", entityType: "accounting", description: `Removed expense kind "${key.slice(CUSTOM_CATEGORY_PREFIX.length)}"` });
+    res.json({ message: tr(req, { en: "Kind removed", zh: "类别已删除", id: "Jenis dihapus" }) });
+  }));
   app.post("/api/reborn/expenses", requireExpenses(async (req, res) => {
     const b = req.body || {};
     const category = String(b.category || "");
@@ -6030,7 +6062,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const spentOn = String(b.spentOn || "");
     const note = String(b.note || "").trim().slice(0, EXPENSE_NOTE_MAX);
     const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") && b.photoUrl.length <= MAX_EXPENSE_PHOTO_LENGTH ? b.photoUrl : "";
-    if (!UPLOAD_CATEGORIES.includes(category)) return res.status(400).json({ message: tr(req, { en: "Choose what the expense is for", zh: "请选择支出类别", id: "Pilih jenis pengeluaran" }) });
+    if (!(await isUploadCategory(category))) return res.status(400).json({ message: tr(req, { en: "Choose what the expense is for", zh: "请选择支出类别", id: "Pilih jenis pengeluaran" }) });
     if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
     if (!DAY_RE.test(spentOn) || Number.isNaN(new Date(`${spentOn}T12:00:00+07:00`).getTime()) || new Date(`${spentOn}T00:00:00+07:00`).getTime() > Date.now() + 24 * 3_600_000) return res.status(400).json({ message: tr(req, { en: "Enter the date on the receipt (not in the future)", zh: "请输入收据上的日期（不能是未来）", id: "Masukkan tanggal di struk (bukan masa depan)" }) });
     if (!photoUrl && !note) return res.status(400).json({ message: tr(req, { en: "Add a photo of the receipt or write a note", zh: "请附上收据照片或填写备注", id: "Tambahkan foto struk atau tulis catatan" }) });
@@ -6048,7 +6080,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const fixedCostId = String(b.fixedCostId || "").trim().slice(0, 24) || null;
     const cid = await rebornCompanyId(req);
     const saved = await db.transaction(async (tx) => {
-      const [entry] = await tx.insert(ledgerEntries).values({ kind: "expense", category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}${b.paid === false ? "" : ` · ${payMethod}`}`, photoUrl: photoUrl || null, refType: "expense_upload", userId, createdAt: new Date(`${spentOn}T12:00:00+07:00`) }).returning();
+      const [entry] = await tx.insert(ledgerEntries).values({ kind: "expense", category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category.replace(CUSTOM_CATEGORY_PREFIX, "")}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}${b.paid === false ? "" : ` · ${payMethod}`}`, photoUrl: photoUrl || null, refType: "expense_upload", userId, createdAt: new Date(`${spentOn}T12:00:00+07:00`) }).returning();
       const [row] = await tx.insert(expenseUploads).values({ companyId: cid, category, amount: String(amount), spentOn, payee: payee || null, payeeAddress, payeePhone, spentTime, invoiceNo, payMethod: b.paid === false ? null : payMethod, items: itemLines.length ? JSON.stringify(itemLines) : null, note: note || null, photoUrl: photoUrl || null, fixedCostId, ledgerEntryId: entry.id, uploadedBy: userId, uploadedByName: uploaderName }).returning();
       await tx.update(ledgerEntries).set({ refId: String(row.id) }).where(eq(ledgerEntries.id, entry.id));
       const unpaid = unpaidOf(b.paid, b.dueDate);
@@ -6074,7 +6106,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const spentOn = String(b.spentOn || row.spentOn);
     const note = String(b.note ?? row.note ?? "").trim().slice(0, EXPENSE_NOTE_MAX);
     const newPhoto = typeof b.photoUrl === "string" && b.photoUrl.startsWith("data:image/") && b.photoUrl.length <= MAX_EXPENSE_PHOTO_LENGTH ? b.photoUrl : "";
-    if (!UPLOAD_CATEGORIES.includes(category)) return res.status(400).json({ message: tr(req, { en: "Choose what the expense is for", zh: "请选择支出类别", id: "Pilih jenis pengeluaran" }) });
+    if (!(await isUploadCategory(category))) return res.status(400).json({ message: tr(req, { en: "Choose what the expense is for", zh: "请选择支出类别", id: "Pilih jenis pengeluaran" }) });
     if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
     if (!DAY_RE.test(spentOn) || Number.isNaN(new Date(`${spentOn}T12:00:00+07:00`).getTime()) || new Date(`${spentOn}T00:00:00+07:00`).getTime() > Date.now() + 24 * 3_600_000) return res.status(400).json({ message: tr(req, { en: "Enter the date on the receipt (not in the future)", zh: "请输入收据上的日期（不能是未来）", id: "Masukkan tanggal di struk (bukan masa depan)" }) });
     if (!newPhoto && !row.photoUrl && !note) return res.status(400).json({ message: tr(req, { en: "Add a photo of the receipt or write a note", zh: "请附上收据照片或填写备注", id: "Tambahkan foto struk atau tulis catatan" }) });
@@ -6096,7 +6128,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         editedAt: new Date(), editedByName: editorName, editCount: sql`${expenseUploads.editCount} + 1`,
       }).where(eq(expenseUploads.id, row.id)).returning();
       if (row.ledgerEntryId) {
-        await tx.update(ledgerEntries).set({ category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}${b.paid === false || !finalMethod ? "" : ` · ${finalMethod}`}`, createdAt: new Date(`${spentOn}T12:00:00+07:00`), ...(newPhoto ? { photoUrl: newPhoto } : {}) }).where(eq(ledgerEntries.id, row.ledgerEntryId));
+        await tx.update(ledgerEntries).set({ category: LEDGER_CATEGORY[category] || "other", amount: String(amount), note: `Expense · ${category.replace(CUSTOM_CATEGORY_PREFIX, "")}${payee ? ` · ${payee}` : ""}${note ? ` — ${note}` : ""}${b.paid === false || !finalMethod ? "" : ` · ${finalMethod}`}`, createdAt: new Date(`${spentOn}T12:00:00+07:00`), ...(newPhoto ? { photoUrl: newPhoto } : {}) }).where(eq(ledgerEntries.id, row.ledgerEntryId));
         const [bill] = await tx.select().from(supplierPayables).where(and(eq(supplierPayables.ledgerEntryId, row.ledgerEntryId), inArray(supplierPayables.status, ["unpaid", "paid"])));
         if (bill && bill.status === "unpaid") {
           const today = (await ensureVenueSession()).day;

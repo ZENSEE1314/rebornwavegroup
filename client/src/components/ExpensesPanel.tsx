@@ -20,6 +20,8 @@ const PHOTO_MAX_DIM = 1400;
 const PHOTO_QUALITY = 0.8;
 // What the upload is for, grouped as the reports show it. Items bought for the shop's stock are not uploaded here (Inventory › Scan a supplier receipt).
 const groupOf = (category: string): ExpenseGroup => GROUP_OF_SECTION[sectionOf(category)];
+const CUSTOM_KIND_PREFIX = "x:"; // kinds the admin made himself are saved as their typed name behind this prefix
+const isCustomKind = (category: string) => category.startsWith(CUSTOM_KIND_PREFIX);
 const todayText = () => new Date().toISOString().slice(0, 10);
 const nowTimeText = () => new Date().toTimeString().slice(0, 5);
 const CHECK_RING = " ring-1 ring-amber-400";
@@ -60,6 +62,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const kindLabel = (category: string) => (isCustomKind(category) ? category.slice(CUSTOM_KIND_PREFIX.length) : t(`ex.cat.${category}`));
   const [month, setMonth] = useState(todayText().slice(0, 7));
   const [form, setForm] = useState(() => emptyForm(startWith));
   const [lines, setLines] = useState<Line[]>([]);
@@ -73,6 +76,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const lastRead = useRef("");
   const [voiding, setVoiding] = useState<Expense | null>(null);
   const [reason, setReason] = useState("");
+  const [newKind, setNewKind] = useState(""); // the name of a kind of expense the admin is adding (renovation ...)
   const [photo, setPhoto] = useState<{ id: number; url: string | null } | null>(null);
   const isStock = form.category === STOCK_KIND; // while editing an upload this moves it to the stock: the expense is replaced by a stock delivery
   const dueDate = isPaid ? "" : dueDateFrom(form.spentOn, Number(termsDays));
@@ -103,6 +107,17 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const { data: payables } = useQuery<{ canPay: boolean; total: number; payables: Payable[] }>({ queryKey: ["/api/reborn/expenses/payables"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/payables").then((r) => r.json()) });
   const markPaid = useMutation({
     mutationFn: ({ id, method }: { id: number; method: string }) => apiRequest("POST", `/api/reborn/expenses/payables/${id}/pay`, { method }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); refresh(); },
+    onError: fail,
+  });
+  const customKinds = (data?.categories || []).filter(isCustomKind);
+  const addKind = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/expense-categories", { name: newKind }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); setNewKind(""); setForm((current) => ({ ...current, category: d.category })); refresh(); },
+    onError: fail,
+  });
+  const removeKind = useMutation({
+    mutationFn: (category: string) => apiRequest("POST", "/api/reborn/admin/expense-categories/remove", { category }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: (d: any) => { toast({ title: d.message }); refresh(); },
     onError: fail,
   });
@@ -184,10 +199,23 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               <option value="">—</option>
               <option value={STOCK_KIND}>{t("ex.cat.stock")}</option>
               {EXPENSE_GROUPS.filter((group) => (data?.categories || []).some((c) => groupOf(c) === group)).map((group) => (
-                <optgroup key={group} label={t(`ar.group.${group}`)}>{(data?.categories || []).filter((c) => groupOf(c) === group).map((c) => <option key={c} value={c}>{t(`ex.cat.${c}`)}</option>)}</optgroup>
+                <optgroup key={group} label={t(`ar.group.${group}`)}>{(data?.categories || []).filter((c) => groupOf(c) === group).map((c) => <option key={c} value={c}>{kindLabel(c)}</option>)}</optgroup>
               ))}
             </select>
           </label>
+          {data?.canVoid && (
+            <div className="space-y-1.5" style={{ gridColumn: "1 / -1" }}>
+              <div className="flex items-center gap-2">
+                <input value={newKind} maxLength={30} onChange={(e) => setNewKind(e.target.value)} placeholder={t("ex.newKindHint")} aria-label={t("ex.newKind")} className={field} />
+                <button type="button" disabled={!newKind.trim() || addKind.isPending} onClick={() => addKind.mutate()} className="min-h-[40px] shrink-0 rounded-lg bg-amber-400 px-3 text-xs font-bold text-black disabled:opacity-40">{t("ex.newKind")}</button>
+              </div>
+              {customKinds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {customKinds.map((c) => <span key={c} className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px]">{kindLabel(c)}<button type="button" onClick={() => window.confirm(t("ex.removeKindAsk", { name: kindLabel(c) })) && removeKind.mutate(c)} aria-label={t("ex.removeKind", { name: kindLabel(c) })} className="h-5 w-5 p-0 text-white/60"><X className="h-3 w-3" /></button></span>)}
+                </div>
+              )}
+            </div>
+          )}
           <label className="block text-xs text-white/60">{t("ex.amount")}<input type="number" inputMode="numeric" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field + " mt-1" + ring(form.amount)} /></label>
           <label className="block text-xs text-white/60">{t("ex.date")}<input type="date" max={todayText()} value={form.spentOn} onChange={(e) => setForm({ ...form, spentOn: e.target.value })} className={field + " mt-1"} /></label>
           <label className="block text-xs text-white/60">{t("ex.time")}<input type="time" value={form.spentTime} onChange={(e) => setForm({ ...form, spentTime: e.target.value })} className={field + " mt-1"} /></label>
@@ -284,7 +312,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <div className="mt-1 space-y-0.5 text-[11px] text-white/50">
             {EXPENSE_GROUPS.map((group) => {
               const inGroup = Object.entries(data.totals).filter(([c]) => groupOf(c) === group);
-              return inGroup.length ? <p key={group}><b className="text-amber-200">{t(`ar.group.${group}`)} {money(inGroup.reduce((sum, [, n]) => sum + n, 0))}</b> · {inGroup.map(([c, n]) => `${t(`ex.cat.${c}`)} ${money(n)}`).join(" · ")}</p> : null;
+              return inGroup.length ? <p key={group}><b className="text-amber-200">{t(`ar.group.${group}`)} {money(inGroup.reduce((sum, [, n]) => sum + n, 0))}</b> · {inGroup.map(([c, n]) => `${kindLabel(c)} ${money(n)}`).join(" · ")}</p> : null;
             })}
           </div>
         )}
@@ -294,7 +322,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               <Fragment key={row.id}>
             <div key={row.id} className={`rounded-xl border p-3 text-xs ${row.status === "voided" ? "border-white/10 opacity-50" : "border-white/10 bg-black/20"}`}>
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-semibold">{t(`ex.cat.${row.category}`)}{row.payee ? ` · ${row.payee}` : ""}</span>
+                <span className="font-semibold">{kindLabel(row.category)}{row.payee ? ` · ${row.payee}` : ""}</span>
                 <span className={`font-black ${row.status === "voided" ? "line-through" : "text-amber-200"}`}>{money(Number(row.amount))}</span>
               </div>
               <p className="mt-0.5 text-white/50">{row.spentOn}{row.spentTime ? ` ${row.spentTime}` : ""}{row.payMethod ? ` · ${t(`ex.pm.${row.payMethod}`)}` : ""}{row.uploadedByName ? ` · ${t("ex.by", { name: row.uploadedByName })}` : ""}{row.note ? ` · ${row.note}` : ""}{row.editCount ? ` · ${t("ex.editedBy", { name: row.editedByName || "" })}` : ""}</p>
@@ -330,7 +358,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
 
       {voiding && (
         <Popup onClose={() => setVoiding(null)} labelledBy="void-title">
-          <p id="void-title" className="text-sm font-semibold">{t("ex.voidAsk", { what: `${t(`ex.cat.${voiding.category}`)} ${money(Number(voiding.amount))}` })}</p>
+          <p id="void-title" className="text-sm font-semibold">{t("ex.voidAsk", { what: `${kindLabel(voiding.category)} ${money(Number(voiding.amount))}` })}</p>
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("ex.voidReason")} aria-label={t("ex.voidReason")} className={field + " mt-3"} autoFocus />
           <div className="mt-3 flex gap-2">
             <button type="button" onClick={() => voidIt.mutate()} disabled={!reason.trim() || voidIt.isPending} className="min-h-[44px] px-4 rounded-lg bg-red-400 text-black text-sm font-bold disabled:opacity-40">{t("ex.void")}</button>
