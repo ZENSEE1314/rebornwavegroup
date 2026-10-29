@@ -837,10 +837,20 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSuccess: (d: any) => { setRemoveAppDiscount(!!d.removed); invalidate(); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
+  // Card-to-cash exchange (main admin): the cash we hand over is added to what the customer pays by card; it is not a sale.
+  const isMainAdmin = useAdminRole() === "admin";
+  const extraMoney = Number(order.extraMoney) || 0;
+  const [extraInput, setExtraInput] = useState(extraMoney ? String(extraMoney) : "");
+  const saveExtraMoney = useMutation({
+    mutationFn: (amount: number) => post(`/api/reborn/pos/orders/${order.id}/extra-money`, { amount }),
+    onSuccess: (d: any) => { setExtraInput(d.amount ? String(d.amount) : ""); if (d.amount) setPay("card"); invalidate(); },
+    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+  });
+  useEffect(() => { if (extraMoney > 0) setPay("card"); }, [extraMoney]);
   const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost), removeAppDiscount: removeAppDiscount || undefined, v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}:${ratesVersion}` }, true);
   const due = quoteTotals(quote, billTotals(subtotal, discount, posSettings));
   const total = due.total;
-  const payable = due.payable;
+  const payable = due.payable + extraMoney;
   useMirrorBill({
     table: order.tableNumber || undefined,
     member: order.memberName || undefined,
@@ -943,9 +953,20 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             </div>
             <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
               {(["cash", "card", "credits", "split"] as const).map((m) => (
-                <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
+                <button key={m} onClick={() => setPay(m)} disabled={extraMoney > 0 && m !== "card"} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize disabled:opacity-30 ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{t(`pos.pay.${m}`)}</button>
               ))}
             </div>
+            {isMainAdmin && (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-2 mb-2">
+                <p className="text-xs text-white/50 mb-1">{t("pos.extra.title")}</p>
+                <div className="flex gap-2">
+                  <input type="number" min={0} value={extraInput} onChange={(e) => setExtraInput(e.target.value)} placeholder={t("pos.rpAmount")} className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+                  <button type="button" onClick={() => saveExtraMoney.mutate(Number(extraInput) || 0)} disabled={saveExtraMoney.isPending} className="px-4 rounded-xl bg-white/10 text-sm font-semibold">{t("pos.extra.save")}</button>
+                </div>
+                <p className="text-[11px] text-white/40 mt-1">{t("pos.extra.hint")}</p>
+              </div>
+            )}
+            {extraMoney > 0 && <div className="mb-2 rounded-xl border border-amber-400/30 bg-amber-400/10 p-2 text-sm"><div className="flex justify-between"><span>{t("pos.extra.line")}</span><span>+ {rp(extraMoney)}</span></div><div className="flex justify-between font-bold"><span>{t("pos.extra.cardTotal")}</span><span>{rp(payable)}</span></div></div>}
             {payable > 0 && pay === "split" && <SplitPayBox due={payable} memberCode={order.memberCode} form={split} onChange={setSplit} onBalance={setCreditBal} />}
             <MemberWallet code={order.memberCode} quote={quote} useCredit={useCredit} onUseCredit={setUseCredit} ticketId={order.id} />
             <BillSummary due={due} settings={posSettings} onRates={(rates) => setBillRates.mutate(rates)} appRemoved={removeAppDiscount} onToggleApp={() => saveAppDiscount.mutate(!removeAppDiscount)} />
@@ -965,7 +986,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
             ) : (
               <OnAccountBox order={order} onDone={onBack} printable={{ ...order, subtotal, discount: Math.max(0, subtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: due.total, items: (order.items || []).filter((item: any) => !OFF_BILL.includes(item.status)) } as any} />
             )}
-            <button onClick={() => printBill({ ...order, subtotal, discount: Math.max(0, subtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: due.total, packageCreditUsed: due.creditUse, items: (order.items || []).filter((item: any) => !OFF_BILL.includes(item.status)) } as any, savedReceiptMeta())} className="w-full py-2.5 rounded-xl mb-2 text-sm font-semibold bg-white/10 border border-white/10">🧾 {t("pos.bill.print")}</button>
+            <button onClick={() => printBill({ ...order, subtotal, discount: Math.max(0, subtotal - due.taxable), serviceFee: due.serviceFee, tax: due.tax, total: due.total, packageCreditUsed: due.creditUse, extraMoney, items: (order.items || []).filter((item: any) => !OFF_BILL.includes(item.status)) } as any, savedReceiptMeta())} className="w-full py-2.5 rounded-xl mb-2 text-sm font-semibold bg-white/10 border border-white/10">🧾 {t("pos.bill.print")}</button>
             <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName} drinkOptions={orderDrinks} onAddCorkage={(service, quantity) => addItems.mutate([{ productId: service.id, name: service.name, price: Number(service.salePrice ?? service.price), qty: quantity }])}/>
             <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0 || (quote?.hasPackages && !order.memberCode) || (payable > 0 && ((pay === "card" && !paymentReference.trim()) || (pay === "cash" && Number(cashReceived) < payable) || (pay === "credits" && (creditBal === null || creditBal < payable)) || (pay === "split" && !isSplitReady(split, payable, creditBal)))) || (keepBottle.enabled && (!keepBottle.name || ((keepBottle.type === "wine" || keepBottle.type === "whisky") && !keepBottle.photoUrl)))} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{payable > 0 ? t("pos.chargeAmount", { amount: rp(payable), method: t(`pos.pay.${pay}`) }) : t("pos.pkg.payAllCredit", { amount: rp(total) })}</button>
             <button onClick={() => { if (confirm(t("pos.cancelConfirm"))) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">{t("pos.cancelTicket")}</button>

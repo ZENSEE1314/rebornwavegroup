@@ -19,6 +19,7 @@ interface Order {
   cashReceived?: string | number; changeGiven?: string | number; status?: string;
   serviceFee?: string | number; tax?: string | number; total?: string | number; items?: Item[]; createdAt?: string; paidAt?: string;
   packageCreditUsed?: string | number; discountReason?: string | null;
+  extraMoney?: string | number | null; // cash handed to the customer against their card: on top of the total, not part of the sale
   receiptSeq?: number; receiptDay?: string; // the paid bill's number within its venue day (1, 2, 3 ...) and that day's date
   commissionLabel?: string | null; commissionPayee?: string | null; commissionAmount?: string | number | null; // commission paid out of this sale: the sales copy shows it, the customer's copy never does
   referralPayee?: string | null; referralBase?: string | number | null; referralPercent?: string | number | null; referralAmount?: string | number | null; referralNote?: string | null; // the referrer's commission on this bill (sales copy only)
@@ -156,6 +157,7 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
     ${disc}${service}${tax}
     <div class="row big"><span>${tr("pos.rc.total")}</span><span>${rp(o.total)}</span></div>
     ${pkg}
+    ${Number(o.extraMoney) > 0 ? `<div class="row"><span>${tr("pos.rc.extraMoney")}</span><span>+ ${rp(o.extraMoney)}</span></div><div class="row b"><span>${tr("pos.rc.extraToPay")}</span><span>${rp(Number(o.total) - Number(o.packageCreditUsed || 0) + Number(o.extraMoney))}</span></div>` : ""}
     ${o.paymentMethod ? `<div class="row"><span>${tr("pos.rc.paid")}</span><span class="b">${esc(payLabel(String(o.paymentMethod)).toUpperCase())}</span></div>` : ""}
     ${o.paymentReference ? `<div class="row"><span>${tr("pos.rc.cardRef")}</span><span class="b">${esc(o.paymentReference)}</span></div>` : ""}
     ${o.paymentMethod === "split" ? readSplit(o.paymentSplit).map((part) => `<div class="row"><span>${esc(payLabel(part.method))}</span><span>${rp(part.amount)}</span></div>`).join("") : ""}

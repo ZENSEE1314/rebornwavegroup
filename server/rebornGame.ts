@@ -469,11 +469,13 @@ async function buildDailyClosingReport(day: string) {
     const paid = (Number(ticket.total) || 0) - pkg;
     sum.packageCredit += pkg;
     if (ticket.paymentMethod === "cash") sum.cash += paid;
-    if (ticket.paymentMethod === "card") sum.card += paid;
+    const exchanged = Number(ticket.extraMoney) || 0; // paid out in cash against the customer's card: the card took it in, the till gave it out, it is not a sale
+    sum.extraMoney += exchanged;
+    if (ticket.paymentMethod === "card") { sum.card += paid + exchanged; sum.cash -= exchanged; }
     if (ticket.paymentMethod === "credits") sum.credits += paid;
     if (ticket.paymentMethod === "split") for (const part of readSplit(ticket.paymentSplit)) sum[part.method] += part.amount; // a bill paid with several methods counts each part where it was paid
     return sum;
-  }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, commission: 0, cash: 0, card: 0, credits: 0, packageCredit: 0 });
+  }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, commission: 0, cash: 0, card: 0, credits: 0, packageCredit: 0, extraMoney: 0 });
   const items = Array.from(grouped.values()).sort((a, b) => b.sales - a.sales);
   const cost = items.reduce((sum, item) => sum + item.cost, 0);
   // Bills the customer has not paid (kept open "on account"): carried over to the next day, listed on the closing report.
@@ -4749,6 +4751,18 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: removed ? "remove_app_discount" : "restore_app_discount", entityType: "order", description: `App-order discount ${removed ? "left off" : "given back on"} ${o.orderNo}` });
     res.json({ removed });
   }));
+  // Card-to-cash exchange: the main admin adds the cash we hand over to what the customer pays on this bill. Not our sale, so it never reaches revenue, tax, service fee or points.
+  const EXTRA_MONEY_MAX = 100_000_000;
+  app.post("/api/reborn/pos/orders/:id/extra-money", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!o || o.status !== "open") return res.status(400).json({ message: tr(req, { en: "Ticket not open", zh: "该账单未开启", id: "Tagihan tidak terbuka" }) });
+    const amount = roundMoney(Math.max(0, Number(req.body?.amount) || 0));
+    if (amount > EXTRA_MONEY_MAX) return res.status(400).json({ message: tr(req, { en: "That amount is too large", zh: "金额太大", id: "Jumlah terlalu besar" }) });
+    await db.update(posTickets).set({ extraMoney: String(amount) }).where(eq(posTickets.id, id));
+    await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "extra_money", entityType: "order", description: `Extra money (card to cash) RP ${amount} on ${o.orderNo}` });
+    res.json({ amount });
+  }));
   app.get("/api/reborn/shop/my-orders", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     const cid = await rebornCompanyId(req);
@@ -4818,6 +4832,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const split = due > 0 ? splitPlanOf(req, due) : null;
     if (split?.error) return res.status(400).json({ message: split.error });
     const paymentMethod = due <= 0 ? "package" : split ? "split" : posMethod(req.body?.paymentMethod);
+    if ((Number(o.extraMoney) || 0) > 0 && paymentMethod !== "card") return res.status(400).json({ message: tr(req, { en: "A bill with extra money (card to cash) must be paid by card", zh: "含额外现金（刷卡换现金）的账单必须刷卡支付", id: "Tagihan dengan uang tambahan (kartu ke tunai) harus dibayar dengan kartu" }) });
     if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const cashReceived = split ? split.plan.cashReceived : paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
     if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < due)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(due, reqLang(req)) }) });
@@ -4968,12 +4983,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     let userId: string | null = null;
     let rates = { service: settings.serviceFeePercent, tax: settings.taxPercent };
     let appDiscountSavedOff = false;
+    let extraMoney = 0;
     if (req.body?.ticketId) {
       const [o] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.body.ticketId)));
       if (!o) return res.status(404).json({ message: tr(req, { en: "Order not found", zh: "找不到该订单", id: "Pesanan tidak ditemukan" }) });
       lines = (await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id))).filter((x) => !GONE_ITEM.includes(x.status)).map((x) => ({ productId: x.productId, lineTotal: Number(x.lineTotal), qty: x.qty, fromApp: x.source === "app" }));
       userId = o.memberId;
       appDiscountSavedOff = o.appDiscountRemoved;
+      extraMoney = Number(o.extraMoney) || 0;
       rates = { service: ticketRate(o.serviceFeePercent, settings.serviceFeePercent), tax: ticketRate(o.taxPercent, settings.taxPercent) };
     } else {
       const custom = feeOverride(req.body?.rates, settings);
@@ -4989,7 +5006,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const costRequest = await atCostRequest(req);
     if (costRequest.error) return res.status(403).json({ message: costRequest.error });
     const q = await quoteBill({ lines, manualDiscount: Number(req.body?.discount) || 0, userId, usePackageCredit: !!req.body?.usePackageCredit, serviceFeePercent: rates.service, taxPercent: rates.tax, appPercent: appPercentFor(settings, req.body, appDiscountSavedOff), atCost: costRequest.atCost?.mode === "cost", staffHalf: costRequest.atCost?.mode === "half", staffPercent: costRequest.atCost?.mode === "percent" ? costRequest.atCost.percent : 0 });
-    res.json({ ...q, serviceFeePercent: rates.service, taxPercent: rates.tax, hasMember: !!userId });
+    res.json({ ...q, serviceFeePercent: rates.service, taxPercent: rates.tax, hasMember: !!userId, extraMoney });
   }));
   // A member's packages (by member code) — POS pay panel and Packages tab.
   app.get("/api/reborn/pos/member-packages", requireStaff(async (req, res) => {
