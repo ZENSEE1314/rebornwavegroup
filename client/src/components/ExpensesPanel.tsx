@@ -252,6 +252,8 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           {lines.length > 0 && <p className="text-[11px] text-white/50">{t("ex.itemsSum", { n: money(linesTotal) })}</p>}
         </div>
         <p className="text-[11px] text-white/40">{t("ex.needProof")}</p>
+        {!isReady && isPaid && !payMethod && <p className="text-[11px] font-semibold text-amber-200">{t("ex.needPayMethod")}</p>}
+        {!isReady && isStock && stockLines.length === 0 && <p className="text-[11px] font-semibold text-amber-200">{t("ex.needStockLine")}</p>}
         <button type="button" onClick={() => save.mutate()} disabled={!isReady || save.isPending} className="min-h-[44px] px-5 rounded-lg bg-amber-400 text-black text-sm font-bold disabled:opacity-40">{editingId ? (isStock ? t("ex.moveToStock") : t("ex.saveChanges")) : t("ex.save")}</button>
       </div>
   );

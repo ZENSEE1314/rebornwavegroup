@@ -42,6 +42,7 @@ import { useModules, moduleEnabled, ADMIN_TAB_MODULE } from "@/lib/modules";
 import ExpensesPanel from "@/components/ExpensesPanel";
 import TaxFeesCard from "@/components/TaxFeesCard";
 import AccountingReports, { PeriodBreakdown } from "@/components/AccountingReports";
+import { CommissionList } from "@/components/CommissionList";
 import { LeaveRulesCard, PoliceMoneyCard } from "@/components/PayrollExtras";
 import { DailyTargetCard, FixedCostsPanel } from "@/components/DailyTarget";
 import { APP_FEATURES } from "@/lib/features";
@@ -2748,6 +2749,7 @@ function Accounting() {
           <p className="text-[11px] text-white/40 mt-2">{t("admin.acc.commissionHint")}</p>
         </Card>
       )}
+      <CommissionList days={days} />
       <ReceiptScan />
       <DailyClosings days={days} />
       <AccountingOrders days={days} />

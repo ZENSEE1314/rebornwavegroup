@@ -1,8 +1,9 @@
 // Admin › Accounting › Reports: one month (or everything) in plain lines — money in from sales, then every cost the owner cares about
 // (stock bought, staff, electricity, water, internet, rent, security, police ...) and what is left. Built from the same ledger as the rest of Accounting.
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { translations, useTranslation, localeTag } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
@@ -17,7 +18,7 @@ interface MonthlyData { month: string; report: PeriodReport; plannedRunningCosts
 interface OverallData { total: PeriodReport; months: { month: string; report: PeriodReport }[]; prizePool: number }
 
 interface DrillLine {
-  id: number; at: string | null; amount: number; category: string; refType: string | null; note: string | null; by: string; hasPhoto: boolean;
+  id: number; at: string | null; amount: number; category: string; refType: string | null; note: string | null; canEdit?: boolean; by: string; hasPhoto: boolean;
   bill: { id: number; orderNo: string; table: string | null; member: string | null } | null;
   upload: { id: number; payee: string | null; uploadedBy: string | null; spentOn: string; status: string; voidReason: string | null; hasPhoto: boolean } | null;
 }
@@ -25,9 +26,17 @@ interface Drill { group: string; count: number; total: number; truncated: boolea
 
 function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
   const { t, language } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const [photo, setPhoto] = useState<{ id: number; url: string | null } | null>(null);
+  const [editing, setEditing] = useState<{ id: number; amount: string; note: string } | null>(null);
   const url = `/api/reborn/admin/accounting/report-lines?group=${group}${scope ? `&${scope}` : ""}`;
   const { data } = useQuery<Drill>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
+  const saveEdit = useMutation({
+    mutationFn: (v: { id: number; amount: number; note: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { amount: v.amount, note: v.note }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
+    onSuccess: () => { toast({ title: t("ar.edited") }); setEditing(null); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
   const showPhoto = async (id: number) => {
     setPhoto({ id, url: null });
     const r = await apiRequest("GET", `/api/reborn/admin/accounting/ledger/${id}/photo`);
@@ -48,7 +57,17 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
           <p className="text-white/80">{sourceLabel(line)}{line.bill ? ` · ${t("ar.bill", { no: line.bill.orderNo })}${line.bill.table ? ` · ${t("ar.table", { t: line.bill.table })}` : ""}${line.bill.member ? ` · ${line.bill.member}` : ""}` : ""}</p>
           {line.upload && <p className="text-white/60">{t("ar.uploadBy", { name: line.upload.uploadedBy || "?" })}{line.upload.payee ? ` · ${line.upload.payee}` : ""} · {t("ar.receiptDate", { d: line.upload.spentOn })}{line.upload.status === "voided" ? ` · ${t("ar.voided", { reason: line.upload.voidReason || "" })}` : ""}</p>}
           {line.note && <p className="text-white/45 break-words">{line.note}</p>}
-          <div className="flex gap-3 text-white/40">{line.by && !line.upload && <span>{t("ar.by", { name: line.by })}</span>}{line.hasPhoto && <button type="button" onClick={() => showPhoto(line.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ar.viewPhoto")}</button>}</div>
+          <div className="flex gap-3 text-white/40">{line.by && !line.upload && <span>{t("ar.by", { name: line.by })}</span>}{line.hasPhoto && <button type="button" onClick={() => showPhoto(line.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ar.viewPhoto")}</button>}{line.canEdit && editing?.id !== line.id && <button type="button" onClick={() => setEditing({ id: line.id, amount: String(Math.abs(line.amount)), note: line.note || "" })} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>}</div>
+          {editing?.id === line.id && (
+            <div className="mt-1.5 space-y-1.5 rounded-lg border border-sky-400/30 bg-black/30 p-2">
+              <label className="block text-[10px] text-white/50">{t("admin.acc.amount")}<input type="number" inputMode="decimal" min={0} value={editing.amount} onChange={(e) => setEditing({ ...editing, amount: e.target.value })} className={field + " mt-0.5 w-full"} /></label>
+              <label className="block text-[10px] text-white/50">{t("admin.acc.note")}<input value={editing.note} onChange={(e) => setEditing({ ...editing, note: e.target.value })} className={field + " mt-0.5 w-full"} /></label>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setEditing(null)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("admin.c.cancel")}</button>
+                <button type="button" disabled={saveEdit.isPending || !(Number(editing.amount) > 0)} onClick={() => saveEdit.mutate({ id: line.id, amount: Number(editing.amount), note: editing.note })} className="min-h-[40px] rounded-lg bg-amber-400 px-4 text-xs font-bold text-black disabled:opacity-40">{t("admin.c.save")}</button>
+              </div>
+            </div>
+          )}
           {photo?.id === line.id && (photo.url ? <div><img src={photo.url} alt={t("ar.viewPhoto")} className="mt-1 max-h-72 w-full object-contain rounded" /><button type="button" onClick={() => setPhoto(null)} className="min-h-0 p-0 text-white/50 underline">{t("ex.close")}</button></div> : <p className="text-white/40">…</p>)}
         </div>
       ))}

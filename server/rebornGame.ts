@@ -4252,6 +4252,32 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetUserId: row.userId, targetType: "item_commission", targetId: String(id), action: "void", entityType: "payroll", oldValues: { amount: row.amount }, description: `Item commission on "${row.name}" (bill ${row.ticketId}) cancelled` });
     res.json({ ok: true });
   }));
+  // Main admin: pay chosen commissions now in cash instead of waiting for the payroll. One accounting expense per person; the lines are marked paid and the
+  // payroll of that month no longer adds them (paid_ledger_id), so nothing is paid twice.
+  app.post("/api/reborn/admin/item-commissions/pay", requireAdmin(async (req, res) => {
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).map((x: unknown) => Number(x)).filter((x: number) => Number.isInteger(x) && x > 0);
+    if (ids.length === 0) return res.status(400).json({ message: tr(req, { en: "Tick the commissions to pay", zh: "请勾选要支付的佣金", id: "Centang komisi yang akan dibayar" }) });
+    const rows = await db.select({ id: staffItemCommissions.id, userId: staffItemCommissions.userId, amount: staffItemCommissions.amount, ticketId: staffItemCommissions.ticketId, firstName: users.firstName, lastName: users.lastName })
+      .from(staffItemCommissions).leftJoin(users, eq(users.id, staffItemCommissions.userId))
+      .where(and(inArray(staffItemCommissions.id, ids), isNull(staffItemCommissions.voidedAt), isNull(staffItemCommissions.settledAt)));
+    if (rows.length === 0) return res.status(400).json({ message: tr(req, { en: "Those commissions are already paid or cancelled", zh: "这些佣金已支付或已取消", id: "Komisi itu sudah dibayar atau dibatalkan" }) });
+    const adminId = getUserId(req)!;
+    const byPerson = new Map<string, typeof rows>();
+    for (const row of rows) byPerson.set(row.userId, [...(byPerson.get(row.userId) || []), row]);
+    let total = 0;
+    await db.transaction(async (tx) => {
+      for (const [userId, lines] of Array.from(byPerson)) {
+        const amount = roundMoney(lines.reduce((sum, line) => sum + Number(line.amount), 0));
+        if (amount <= 0) continue;
+        const name = [lines[0].firstName, lines[0].lastName].filter(Boolean).join(" ") || userId;
+        const [entry] = await tx.insert(ledgerEntries).values({ kind: "expense", category: "commission", amount: String(amount), note: `Commission paid to ${name} (RP) · ${lines.length} item${lines.length === 1 ? "" : "s"}`, refType: "item_commission_pay", refId: userId, userId: adminId }).returning();
+        await tx.update(staffItemCommissions).set({ settledAt: new Date(), paidLedgerId: entry.id }).where(inArray(staffItemCommissions.id, lines.map((line) => line.id)));
+        total += amount;
+      }
+    });
+    await logAdmin(req, { targetType: "item_commission", targetId: rows.map((row) => row.id).join(","), action: "pay", entityType: "payroll", newValues: { count: rows.length, total }, description: `Paid ${rows.length} item commission(s), RP ${total}, in cash` });
+    res.json({ ok: true, count: rows.length, total, message: tr(req, { en: "Paid RP {n} commission.", zh: "已支付佣金 RP {n}。", id: "Komisi RP {n} dibayarkan." }, { n: fmtN(total, reqLang(req)) }) });
+  }));
   // Share one bill line between staff ("1 beer by Ana, 2 by Budi"): parts = [{ staffId, qty }]; an empty list clears it. Units not listed stay with the person picked on the line.
   app.post("/api/reborn/pos/items/:id/commission-split", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
@@ -5480,7 +5506,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const otRate=(await getSettings()).overtimeHourlyRate;
     const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,(SELECT bp.name FROM bridge_positions bp WHERE bp.id=m.position_id) position_name,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(p.staff_kind,'staff') staff_kind,p.shift_start,p.shift_end,COALESCE(p.needs_attendance,true) needs_attendance,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
-    const itemCommissionRows=((await db.execute(sql`SELECT user_id,sum(amount)::numeric total,count(*)::int n FROM staff_item_commissions WHERE voided_at IS NULL AND created_at>=${new Date(from+"T00:00:00Z")} AND created_at<${new Date(to+"T00:00:00Z")} GROUP BY user_id`)) as any);
+    const itemCommissionRows=((await db.execute(sql`SELECT user_id,sum(amount)::numeric total,count(*)::int n FROM staff_item_commissions WHERE voided_at IS NULL AND paid_ledger_id IS NULL AND created_at>=${new Date(from+"T00:00:00Z")} AND created_at<${new Date(to+"T00:00:00Z")} GROUP BY user_id`)) as any);
     const itemCommissionOf=new Map(((itemCommissionRows.rows||itemCommissionRows) as any[]).map((r:any)=>[r.user_id,{total:roundMoney(Number(r.total)),count:Number(r.n)}]));
     const staff=((result.rows||result) as any[]).map((x)=>{const itemCommission=itemCommissionOf.get(x.user_id)?.total||0;const itemCommissionCount=itemCommissionOf.get(x.user_id)?.count||0;const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100+itemCommission);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,itemCommission,itemCommissionCount,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     // Leave, MC and absence of the month (shared/payrollLeave.ts): the unpaid days are taken off a salaried person's pay, and the deduction box starts filled in with it.
@@ -5943,16 +5969,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     // which are not expense uploads: the list of the chosen month alone made them look as if they had not been saved.
     const RECENT_DAYS = 7;
     const since = new Date(Date.now() - RECENT_DAYS * 24 * 3_600_000);
-    const recent = (await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), gte(expenseUploads.createdAt, since), sql`${expenseUploads.spentOn} NOT LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.id)).limit(50)).map(expenseView);
+    const recentRows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), gte(expenseUploads.createdAt, since), sql`${expenseUploads.spentOn} NOT LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.id)).limit(50);
     const stockDeliveries = (await db.select({ id: ledgerEntries.id, amount: ledgerEntries.amount, note: ledgerEntries.note, createdAt: ledgerEntries.createdAt, userId: ledgerEntries.userId }).from(ledgerEntries)
       .where(and(eq(ledgerEntries.refType, "receipt"), gte(ledgerEntries.createdAt, since), role === "admin" || role === "manager" ? undefined : eq(ledgerEntries.userId, getUserId(req)!))).orderBy(desc(ledgerEntries.id)).limit(50));
     const totals: Record<string, number> = {};
     for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
     const userId = getUserId(req)!;
-    const ledgerIds = rows.map((r) => r.ledgerEntryId).filter((id): id is number => !!id);
+    const ledgerIds = [...rows, ...recentRows].map((r) => r.ledgerEntryId).filter((id): id is number => !!id);
     const bills = ledgerIds.length ? await db.select().from(supplierPayables).where(and(eq(supplierPayables.companyId, cid), inArray(supplierPayables.ledgerEntryId, ledgerIds))) : [];
     const billOf = new Map(bills.map((b) => [b.ledgerEntryId, { status: b.status, dueDate: b.dueDate }]));
-    const listed = rows.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
+    // The recent list needs the same Edit flag and bill as the month list: without them an upload keyed in under another month showed no Edit button.
+    const listOf = (list: typeof rows) => list.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
+    const listed = listOf(rows);
+    const recent = listOf(recentRows);
     res.json({ month, expenses: listed, recent, stockDeliveries, totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: UPLOAD_CATEGORIES, runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
@@ -6203,6 +6232,26 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const [row] = await db.select({ photoUrl: ledgerEntries.photoUrl }).from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
     res.json({ photoUrl: row?.photoUrl || null });
   }));
+  // Accounting lines the main admin may correct after a typing mistake (the amount and the note); every change keeps the old values in the admin log.
+  // Bills, refunds and expense uploads are not here: they follow their own bill or upload, which has its own Edit.
+  const EDITABLE_LEDGER_REFS: (string | null)[] = [null, "stock_movement", "receipt", "receipt_expense", "item_commission_pay"];
+  const isEditableLedger = (refType: string | null) => EDITABLE_LEDGER_REFS.includes(refType);
+  app.patch("/api/reborn/admin/accounting/ledger/:id", requireAdmin(async (req, res) => {
+    const [row] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Entry not found", zh: "找不到该记录", id: "Catatan tidak ditemukan" }) });
+    if (!isEditableLedger(row.refType)) return res.status(400).json({ message: tr(req, { en: "This line follows its bill or upload: change it there", zh: "该记录跟随其账单或上传：请在那里修改", id: "Baris ini mengikuti tagihan atau unggahannya: ubah di sana" }) });
+    const patch: { amount?: string; note?: string | null } = {};
+    if (req.body?.amount !== undefined) {
+      const amount = roundMoney(Number(req.body.amount));
+      if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: tr(req, { en: "Enter an amount above 0", zh: "请输入大于 0 的金额", id: "Masukkan jumlah di atas 0" }) });
+      patch.amount = String(amount);
+    }
+    if (typeof req.body?.note === "string") patch.note = req.body.note.trim().slice(0, 500) || null;
+    if (Object.keys(patch).length === 0) return res.status(400).json({ message: tr(req, { en: "Nothing to change", zh: "没有可修改的内容", id: "Tidak ada yang diubah" }) });
+    await db.update(ledgerEntries).set(patch).where(eq(ledgerEntries.id, row.id));
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "edit_entry", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, newValues: patch, description: `Accounting line #${row.id} (${row.category}) changed: RP ${row.amount} → RP ${patch.amount ?? row.amount}` });
+    res.json({ ok: true });
+  }));
   const MAX_DRILL_LINES = 500;
   app.get("/api/reborn/admin/accounting/report-lines", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
@@ -6231,7 +6280,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         const ticket = ticketById.get(Number(row.refId));
         const upload = uploadRowById.get(Number(row.refId));
         return {
-          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, by: row.userId ? nameOf.get(row.userId) || "" : "",
+          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), by: row.userId ? nameOf.get(row.userId) || "" : "",
           hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
           bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,
           upload: upload ? { id: upload.id, payee: upload.payee, uploadedBy: upload.uploadedByName, spentOn: upload.spentOn, status: upload.status, voidReason: upload.voidReason, hasPhoto: !!upload.photoUrl } : null,

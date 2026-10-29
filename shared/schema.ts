@@ -1033,6 +1033,7 @@ export const staffItemCommissions = pgTable("staff_item_commissions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   voidedAt: timestamp("voided_at"),
   settledAt: timestamp("settled_at"),
+  paidLedgerId: integer("paid_ledger_id"), // set when paid in cash from Accounting › Commission list (not through payroll)
 });
 
 export const staffCharges = pgTable("staff_charges", {
