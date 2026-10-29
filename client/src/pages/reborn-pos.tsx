@@ -762,8 +762,18 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   // failed save puts the ticket back as it was.
   const commissionStaff = useMutation({
     mutationFn: (v: { id: number; staffId: string; percent?: number | null }) => post(`/api/reborn/pos/items/${v.id}/commission-staff`, { staffId: v.staffId, percent: v.percent }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: OPEN_TICKETS, exact: true }),
-    onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
+    // The pick shows at once (a slow line made it look unsaved, and an old answer could put the person back); a failed save restores it.
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: OPEN_TICKETS, exact: true });
+      const ticketsBefore = qc.getQueryData<any[]>(OPEN_TICKETS);
+      qc.setQueryData<any[]>(OPEN_TICKETS, (list = []) => list.map((ticket: any) => ({ ...ticket, items: (ticket.items || []).map((line: any) => line.id !== v.id ? line : { ...line, commissionStaffId: v.staffId || null, commissionPercent: v.staffId && v.percent != null ? String(v.percent) : null }) })));
+      return { ticketsBefore };
+    },
+    onError: (e: any, _v, context) => {
+      if (context?.ticketsBefore) qc.setQueryData(OPEN_TICKETS, context.ticketsBefore);
+      toast({ title: t("pos.failed"), description: e.message, variant: "destructive" });
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: OPEN_TICKETS, exact: true }),
   });
   const itemStatus = useMutation({
     mutationFn: (v: { id: number; status: string; reason?: string }) => post(`/api/reborn/pos/items/${v.id}/status`, { status: v.status, reason: v.reason }),
