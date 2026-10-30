@@ -31,6 +31,7 @@ import { localeOf, asLang, faqIn, pick } from "./i18n";
 import { parseDateInput, yesNo, weekdayInWeek, weekdayOfIso } from "./dateParse";
 import { chatKey, chatLabel, isSocialKey, socialOf, networkName, sendSocial, metaReady, socialMessagesIn, socialProfileName, makeLoginLink, registerChatLogin, SOCIAL_AUTH_PROVIDERS, metaSpaceFor, metaEntryId, forgetMetaRoutes, networkProvider, telegramMessageIn, answerTelegramButton, telegramSecretOk, telegramSpace } from "./socialChat";
 import { secret } from "./secrets";
+import { askedThisVenueDay } from "./reviewAsk";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -2202,11 +2203,18 @@ export async function sendReviewRequest(opts: { phone?: string | null; userId?: 
     if (!contact && opts.userId) { [contact] = await db.select().from(crmContacts).where(eq(crmContacts.userId, opts.userId)); if (contact) num = contact.phone; }
     if (!num && opts.userId) { const [u] = await db.select().from(users).where(eq(users.id, opts.userId)); if (u?.phoneNumber) num = u.phoneNumber.replace(/\D/g, ""); }
     if (!num) return;
+    // One feedback ask per person per venue day, however many bills they pay.
+    const previousAsk = contact?.lastFeedbackReminderAt ?? null;
+    if (contact) {
+      if (askedThisVenueDay(previousAsk, new Date())) return;
+      await patchContact(contact.id, { lastFeedbackReminderAt: new Date() });
+    }
     const lang = await langForPhone(num, opts.userId || contact?.userId);
     const feedbackUrl = memberAppUrl("/staff-feedback");
     const link = L(lang, "reviewLinkApp", { url: feedbackUrl }) + (opts.reviewUrl ? L(lang, "reviewLinkGoogle", { url: opts.reviewUrl }) : "");
     const msg = L(lang, "review", { club: opts.club, link });
     const ok = await sendWhatsApp(num, msg);
+    if (contact && !ok) await patchContact(contact.id, { lastFeedbackReminderAt: previousAsk });
     if (contact) { await logMsg(contact.id, num, "out", msg, true); await patchContact(contact.id, { waState: { flow: "review", reviewUrl: opts.reviewUrl || "" } }); }
     return ok;
   } catch (e) { waError("review request", e); }
@@ -2369,6 +2377,7 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
         const visit = c.lastVisitAt ? new Date(c.lastVisitAt).getTime() : 0;
         if (now - visit > DAY_MS) continue; // visited today
         if (c.lastFeedbackReminderAt && new Date(c.lastFeedbackReminderAt).getTime() > visit) continue;
+        if (askedThisVenueDay(c.lastFeedbackReminderAt, new Date())) continue; // the bill's own feedback ask already went out tonight
         const ok = await sendWhatsApp(c.phone, L(await langForPhone(c.phone, c.userId), "feedback", { name: c.name || "" }));
         if (ok) { await patchContact(c.id, { lastFeedbackReminderAt: new Date() }); out.feedback++; }
       }
