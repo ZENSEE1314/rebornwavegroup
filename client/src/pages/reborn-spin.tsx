@@ -26,6 +26,13 @@ export default function RebornSpin() {
     queryKey: ["/api/reborn/spin/prizes"],
     queryFn: () => apiRequest("GET", "/api/reborn/spin/prizes").then((r) => r.json()),
   });
+  // The spins the admin gave (Lucky tab) are shown here too, so a member who looks only at the pet-token wheel still sees them.
+  const { data: lucky } = useQuery<{ spins: number }>({
+    queryKey: ["/api/reborn/lucky-spin"],
+    queryFn: () => apiRequest("GET", "/api/reborn/lucky-spin").then((r) => r.json()),
+    refetchOnWindowFocus: true,
+  });
+  const luckySpins = lucky?.spins ?? 0;
   const prizes = cfg?.prizes || [];
   const cost = cfg?.cost ?? 1;
   const n = prizes.length;
@@ -57,7 +64,7 @@ export default function RebornSpin() {
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-full bg-white/5 border border-white/10 mb-5">
         {TABS.map((tb) => (
-          <button key={tb} onClick={() => setTab(tb)} className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${tab === tb ? "text-black" : "text-white/60"}`} style={tab === tb ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{t(TAB_KEY[tb])}</button>
+          <button key={tb} onClick={() => setTab(tb)} className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${tab === tb ? "text-black" : "text-white/60"}`} style={tab === tb ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{t(TAB_KEY[tb])}{tb === "Lucky" && luckySpins > 0 ? ` (${luckySpins})` : ""}</button>
         ))}
       </div>
 
@@ -68,6 +75,8 @@ export default function RebornSpin() {
             <span className="font-bold text-amber-300">{t("hm.spin.tokens", { n: tokens })}</span>
             <span className="text-white/40 text-sm">· {t("hm.spin.perSpin", { n: cost })}</span>
           </div>
+
+          {luckySpins > 0 && <button onClick={() => setTab("Lucky")} className="mb-5 px-4 py-2 rounded-full border border-pink-400/50 bg-pink-400/10 text-pink-200 text-sm font-bold">🎡 {t("hm.spin.luckySpins", { n: luckySpins })} →</button>}
 
           <Wheel prizes={prizes} rotation={rotation} spinning={spinning} />
 

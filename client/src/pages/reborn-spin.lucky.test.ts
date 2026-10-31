@@ -23,6 +23,9 @@ describe("the lucky wheel", () => {
   it("should let only an admin give spins and set prizes", () => {
     assert.ok(server.includes('app.post("/api/reborn/admin/lucky-spin/give", requireAdmin(') && server.includes('app.put("/api/reborn/admin/lucky-prizes/:id", requireAdmin('));
   });
+  it("should show the lucky spins on the pet-token wheel tab too", () => {
+    assert.ok(spinPage.includes("luckySpins > 0 && <button onClick={() => setTab(\"Lucky\")}"));
+  });
   it("should show members a Lucky tab and admins a give-spins box", () => {
     assert.ok(spinPage.includes('"Lucky"') && admin.includes("function LuckyPrizes()") && admin.includes("<LuckyPrizes />"));
   });
