@@ -351,12 +351,14 @@ function LineEditDialog({ item, onSave, onCancel }: { item: any; onSave: (body: 
   const [percent, setPercent] = useState("");
   const [amount, setAmount] = useState("");
   const [isAtCost, setIsAtCost] = useState(false);
+  const [isHappyKept, setIsHappyKept] = useState(false);
+  const canKeepHappyPrice = role === "admin";
   const unit = Number(price) || 0;
   const count = Math.max(1, Math.floor(Number(qty) || 1));
   const afterPercent = roundMoney(unit * (1 - Math.min(100, Math.max(0, Number(percent) || 0)) / 100));
   const preview = isAtCost ? null : Math.max(0, roundMoney(afterPercent * count - Math.max(0, Number(amount) || 0)));
   const input = "w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm";
-  const save = () => onSave({ price: unit, qty: count, ...(isAtCost ? { atCost: true } : {}), ...(Number(percent) > 0 ? { discountPercent: Number(percent) } : {}), ...(Number(amount) > 0 ? { discountAmount: Number(amount) } : {}) });
+  const save = () => onSave({ price: unit, qty: count, ...(isAtCost ? { atCost: true } : {}), ...(isHappyKept ? { happyPrice: true } : {}), ...(Number(percent) > 0 ? { discountPercent: Number(percent) } : {}), ...(Number(amount) > 0 ? { discountAmount: Number(amount) } : {}) });
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 text-white" onClick={onCancel} role="dialog" aria-modal="true">
       <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#160f2a] p-4" onClick={(event) => event.stopPropagation()}>
@@ -368,6 +370,7 @@ function LineEditDialog({ item, onSave, onCancel }: { item: any; onSave: (body: 
           <label className="text-[11px] text-white/55">{t("pos.line.amount")}<input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className={input} /></label>
         </div>
         {canSellAtCost && <button type="button" onClick={() => setIsAtCost(!isAtCost)} className={`mt-2 w-full rounded-xl border py-2 text-xs font-bold ${isAtCost ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/70"}`}>{t("pos.line.atCost")}</button>}
+        {canKeepHappyPrice && <button type="button" onClick={() => setIsHappyKept(!isHappyKept)} className={`mt-2 w-full rounded-xl border py-2 text-xs font-bold ${isHappyKept ? "border-pink-400 bg-pink-400/15 text-pink-200" : "border-white/10 bg-black/30 text-white/70"}`}>🍹 {t("pos.line.keepHappy")}</button>}
         <p className="mt-2 text-xs text-white/60">{isAtCost ? t("pos.line.atCostNote") : t("pos.line.preview", { total: rp(preview ?? 0) })}</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button type="button" onClick={onCancel} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">{t("pos.item.dialogCancel")}</button>

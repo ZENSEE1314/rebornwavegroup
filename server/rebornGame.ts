@@ -4626,6 +4626,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       price = Math.max(0, Number(product.cost) || 0);
       discountNote = " · at cost";
     }
+    // Keeping the happy-hour price after the window closed, for one customer: the main admin only.
+    if (req.body?.happyPrice) {
+      if ((await adminRole(getUserId(req))) !== "admin") return res.status(403).json({ message: tr(req, { en: "Only the main admin can keep the happy-hour price after happy hour.", zh: "只有主管理员可以在欢乐时段结束后保留欢乐价。", id: "Hanya admin utama yang bisa mempertahankan harga happy hour setelah happy hour selesai." }) });
+      const [product] = it.productId ? await db.select().from(posProducts).where(eq(posProducts.id, it.productId)) : [];
+      const happy = product?.happyPrice === null || product?.happyPrice === undefined || product?.happyPrice === "" ? NaN : Number(product.happyPrice);
+      if (!Number.isFinite(happy) || happy < 0) return res.status(400).json({ message: tr(req, { en: "This item has no happy-hour price", zh: "此商品没有欢乐价", id: "Item ini tidak punya harga happy hour" }) });
+      price = happy;
+      discountNote += " · happy-hour price";
+    }
     const percent = Math.min(100, Math.max(0, Number(req.body?.discountPercent) || 0));
     if (percent > 0) { price = roundMoney(price * (1 - percent / 100)); discountNote += ` · ${percent}% off`; }
     let lineTotal = roundMoney(price * qty);

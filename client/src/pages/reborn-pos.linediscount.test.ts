@@ -22,6 +22,21 @@ describe("a discount on one bill line", () => {
   });
 });
 
+describe("keeping the happy-hour price on a line after happy hour", () => {
+  it("should show the button only to the main admin", () => {
+    assert.ok(dialog.includes('const canKeepHappyPrice = role === "admin"') && dialog.includes("{canKeepHappyPrice && <button"));
+  });
+  it("should refuse anyone but the main admin on the server", () => {
+    assert.ok(server.includes('req.body?.happyPrice') && server.includes("Only the main admin can keep the happy-hour price after happy hour."));
+  });
+});
+
+describe("agency commission on a paid bill", () => {
+  it("should be booked into the accounts for any paid bill that missed it", () => {
+    assert.ok(read("../../../server/bridgeX.ts").includes("l.ref_type = 'pos_commission' AND l.ref_id = t.id::text"));
+  });
+});
+
 describe("kept bottles in Admin › Bottles", () => {
   it("should show how many are left as its own badge for every drink type", () => {
     assert.ok(admin.includes('{t("admin.bot.left", { n: b.quantity })}</span></p>') && !admin.includes('b.type === "beer" ? ` · ${t("admin.bot.left"'));

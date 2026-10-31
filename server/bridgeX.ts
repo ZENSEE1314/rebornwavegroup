@@ -579,6 +579,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS offline_id varchar;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS commission_label varchar; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS commission_payee varchar; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS commission_amount numeric(10,2) NOT NULL DEFAULT 0;
     CREATE UNIQUE INDEX IF NOT EXISTS pos_tickets_offline_id ON pos_tickets (company_id, offline_id) WHERE offline_id IS NOT NULL;
+    INSERT INTO ledger_entries (kind, category, amount, note, ref_type, ref_id, user_id, created_at) SELECT 'expense', 'commission', t.commission_amount, 'Commission' || COALESCE(' ' || t.commission_label, '') || COALESCE(' · ' || t.commission_payee, '') || ' · ' || t.order_no, 'pos_commission', t.id::text, t.staff_id, COALESCE(t.paid_at, t.created_at) FROM pos_tickets t WHERE t.status = 'paid' AND t.commission_amount > 0 AND t.refunded_at IS NULL AND NOT EXISTS (SELECT 1 FROM ledger_entries l WHERE l.ref_type = 'pos_commission' AND l.ref_id = t.id::text);
     CREATE TABLE IF NOT EXISTS payslips (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, month varchar NOT NULL, data text NOT NULL, created_at timestamp NOT NULL DEFAULT now());
     CREATE UNIQUE INDEX IF NOT EXISTS payslips_user_month ON payslips (company_id, user_id, month);
     CREATE UNIQUE INDEX IF NOT EXISTS staff_contracts_user ON staff_contracts (company_id, user_id);
