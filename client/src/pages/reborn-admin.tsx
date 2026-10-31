@@ -1512,6 +1512,43 @@ function Prizes() {
         {prizes.map((p) => <PrizeRow key={p.id} p={p} totalWeight={totalWeight} onSave={save.mutate} onDelete={del.mutate} />)}
       </div>
       <p className="text-xs text-white/40 mt-3">{t("admin.prize.hint")}</p>
+      <LuckyPrizes />
+    </div>
+  );
+}
+// The second wheel (Spin › Lucky): the admin gives members spins and sets the prizes (nothing, 5–20% off, a free beer, a free bucket ...).
+function LuckyPrizes() {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const key = ["/api/reborn/admin/lucky-prizes"];
+  const { data: prizes = [] } = useQuery<any[]>({ queryKey: key, queryFn: () => apiRequest("GET", "/api/reborn/admin/lucky-prizes").then((r) => r.json()) });
+  const inv = () => qc.invalidateQueries({ queryKey: key });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/lucky-prizes", { label: t("admin.prize.newLabel"), prizeType: "item", weight: 10 }).then((r) => r.json()), onSuccess: inv });
+  const save = useMutation({ mutationFn: (p: any) => apiRequest("PUT", `/api/reborn/admin/lucky-prizes/${p.id}`, p).then((r) => r.json()), onSuccess: () => { toast({ title: t("admin.c.saved") }); inv(); } });
+  const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/lucky-prizes/${id}`), onSuccess: inv });
+  const totalWeight = prizes.reduce((sum, p) => sum + (p.active ? Number(p.weight) || 0 : 0), 0) || 1;
+  const [give, setGive] = useState({ username: "", spins: 1 });
+  const giveSpins = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/lucky-spin/give", give).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { toast({ title: ok ? d.message : t("admin.c.failed"), description: ok ? undefined : d.message, variant: ok ? undefined : "destructive" }); if (ok) setGive({ username: "", spins: 1 }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
+  });
+  return (
+    <div className="mt-8">
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Disc3 className="w-4 h-4 text-pink-300" /> {t("admin.lucky.title")}</p>
+        <p className="text-[11px] text-white/50 mb-2">{t("admin.lucky.hint")}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+          <UserPicker value={give.username} onChange={(code) => setGive({ ...give, username: code })} placeholder={t("admin.prize.searchMember")} />
+          <label className="text-xs text-white/50">{t("admin.lucky.spins")}<input type="number" min={1} max={100} value={give.spins} onChange={(x) => setGive({ ...give, spins: Number(x.target.value) })} className={inp + " w-20 ml-2"} /></label>
+        </div>
+        <button onClick={() => giveSpins.mutate()} disabled={!give.username.trim() || give.spins < 1 || giveSpins.isPending} className={btn + " disabled:opacity-50"}><Gift className="w-4 h-4" /> {t("admin.lucky.give")}</button>
+      </Card>
+      <button onClick={() => add.mutate()} className={btn + " my-4"}><Plus className="w-4 h-4" /> {t("admin.prize.add")}</button>
+      <div className="space-y-3">
+        {prizes.map((p) => <PrizeRow key={p.id} p={p} totalWeight={totalWeight} onSave={save.mutate} onDelete={del.mutate} />)}
+      </div>
     </div>
   );
 }

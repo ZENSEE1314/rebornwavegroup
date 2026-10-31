@@ -1057,7 +1057,7 @@ const FEATURE_API: Array<[string, RegExp]> = [
   ["service", /^\/api\/reborn\/venue\/call-service/],
   ["pet", /^\/api\/reborn\/(action|feed|use-pill|pet-home\/)/],
   ["order", /^\/api\/reborn\/shop\/order/],
-  ["spin", /^\/api\/reborn\/(spin$|prizes\/)/],
+  ["spin", /^\/api\/reborn\/(spin$|lucky-spin$|prizes\/)/],
   ["games", /^\/api\/reborn\/games\/(rooms|number)/],
   ["bookings", /^\/api\/reborn\/booking$/],
   ["kos", /^\/api\/reborn\/kos\/(buy|gift|cashout)/],
@@ -2769,6 +2769,82 @@ export function registerRebornRoutes(app: Express) {
     const result = await awardPrizeToUser(u.id, prize, cid, "Awarded by admin");
     await logAdmin(req, { targetUserId: u.id, targetType: "spin_result", targetId: result.id, action: "award_prize", entityType: "prize", description: `Awarded "${prize.label}" to ${u.username || u.email}` });
     res.json({ message: tr(req, { en: "Awarded {prize} to {who}", zh: "已将 {prize} 颁发给 {who}", id: "{prize} diberikan kepada {who}" }, { prize: prize.label, who: u.username || u.email || u.id }) });
+  }));
+
+  // ── Lucky wheel: a second wheel; the admin gives the spins (no pet tokens) and sets the prizes (nothing, 5–20% off, a free beer, a free bucket ...). ──
+  // A won prize lands in Spin › My prizes like any other and staff redeem it; the pet-token wheel and its prize pool are not touched.
+  const LUCKY_DEFAULT_PRIZES = [
+    { label: "Nothing", type: "nothing", value: 0, weight: 30, color: "#6b7280" },
+    { label: "5% off", type: "voucher_percent", value: 5, weight: 20, color: "#45b7d1" },
+    { label: "10% off", type: "voucher_percent", value: 10, weight: 15, color: "#96ceb4" },
+    { label: "15% off", type: "voucher_percent", value: 15, weight: 10, color: "#f7b731" },
+    { label: "20% off", type: "voucher_percent", value: 20, weight: 5, color: "#fd9644" },
+    { label: "1 free beer", type: "item", value: 0, weight: 8, color: "#eb3b5a" },
+    { label: "1 free bucket", type: "item", value: 0, weight: 4, color: "#a55eea" },
+  ];
+  const LUCKY_PRIZE_COLUMNS = `id, label, prize_type AS "prizeType", value, weight, color_hex AS "colorHex", active, sort_order AS "sortOrder"`;
+  const MAX_LUCKY_SPINS_PER_GIVE = 100;
+  const luckyPrizesOf = async (cid: number, onlyActive: boolean) => {
+    const seeded = await db.execute(sql`SELECT 1 FROM lucky_spin_prizes WHERE company_id = ${cid} LIMIT 1`);
+    if (seeded.rows.length === 0) {
+      for (let i = 0; i < LUCKY_DEFAULT_PRIZES.length; i++) { const p = LUCKY_DEFAULT_PRIZES[i]; await db.execute(sql`INSERT INTO lucky_spin_prizes (company_id, label, prize_type, value, weight, color_hex, sort_order) VALUES (${cid}, ${p.label}, ${p.type}, ${p.value}, ${p.weight}, ${p.color}, ${i})`); }
+    }
+    return (await db.execute(sql`SELECT ${sql.raw(LUCKY_PRIZE_COLUMNS)} FROM lucky_spin_prizes WHERE company_id = ${cid} ${onlyActive ? sql`AND active = true` : sql``} ORDER BY sort_order, id`)).rows as any[];
+  };
+  const luckySpinsOf = async (userId: string) => Number((await db.execute(sql`SELECT spins FROM lucky_spin_tokens WHERE user_id = ${userId}`)).rows[0]?.spins) || 0;
+  app.get("/api/reborn/lucky-spin", requireAuth, async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    res.set("Cache-Control", "no-store").json({ spins: await luckySpinsOf(getUserId(req)!), prizes: await luckyPrizesOf(cid, true) });
+  });
+  app.post("/api/reborn/lucky-spin", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const cid = await rebornCompanyId(req);
+      const prizes = await luckyPrizesOf(cid, true);
+      if (prizes.length === 0) return res.status(400).json({ message: tr(req, { en: "The lucky wheel isn't set up yet.", zh: "幸运转盘尚未设置。", id: "Roda keberuntungan belum disiapkan." }) });
+      const taken = await db.execute(sql`UPDATE lucky_spin_tokens SET spins = spins - 1, updated_at = now() WHERE user_id = ${userId} AND spins > 0 RETURNING spins`);
+      if (taken.rows.length === 0) return res.status(400).json({ message: tr(req, { en: "You have no lucky spins. Ask our staff for one.", zh: "你没有幸运转盘次数，请向员工索取。", id: "Kamu tidak punya putaran keberuntungan. Minta ke staf." }) });
+      const total = prizes.reduce((sum, p) => sum + Math.max(0, Number(p.weight) || 0), 0) || 1;
+      let roll = Math.random() * total;
+      let picked = prizes[prizes.length - 1];
+      for (const p of prizes) { roll -= Math.max(0, Number(p.weight) || 0); if (roll <= 0) { picked = p; break; } }
+      const status = picked.prizeType === "nothing" ? "won" : "unused";
+      const [result] = await db.insert(spinResults).values({ userId, companyId: cid, prizeId: null, prizeLabel: picked.label, prizeType: picked.prizeType, tokensSpent: 0, status }).returning();
+      res.json({
+        prizeIndex: prizes.findIndex((p) => p.id === picked.id), prize: picked, status, spins: Number(taken.rows[0].spins), resultId: result.id,
+        message: picked.prizeType === "nothing"
+          ? tr(req, { en: "So close! Better luck next time.", zh: "差一点！祝你下次好运。", id: "Hampir saja! Semoga beruntung lain kali." })
+          : tr(req, { en: "You won {prize}! Show it to staff to redeem.", zh: "你赢得了 {prize}！出示给员工即可兑换。", id: "Kamu memenangkan {prize}! Tunjukkan ke staf untuk menukarkannya." }, { prize: picked.label }),
+      });
+    } catch (e) { console.error("lucky spin", e); res.status(500).json({ message: tr(req, { en: "Spin failed", zh: "转盘失败", id: "Gagal memutar roda" }) }); }
+  });
+  app.get("/api/reborn/admin/lucky-prizes", requireAdmin(async (req, res) => { res.json(await luckyPrizesOf(await rebornCompanyId(req), false)); }));
+  app.post("/api/reborn/admin/lucky-prizes", requireAdmin(async (req, res) => {
+    const b = req.body || {};
+    const cid = await rebornCompanyId(req);
+    await luckyPrizesOf(cid, false);
+    const row = (await db.execute(sql`INSERT INTO lucky_spin_prizes (company_id, label, prize_type, value, weight, color_hex, sort_order) VALUES (${cid}, ${String(b.label || "New prize").slice(0, 60)}, ${String(b.prizeType || "item")}, ${Number(b.value) || 0}, ${Math.max(0, Number(b.weight) || 10)}, ${String(b.colorHex || "#c9a84c")}, ${Number(b.sortOrder) || 99}) RETURNING ${sql.raw(LUCKY_PRIZE_COLUMNS)}`)).rows[0];
+    res.json(row);
+  }));
+  app.put("/api/reborn/admin/lucky-prizes/:id", requireAdmin(async (req, res) => {
+    const b = req.body || {};
+    const row = (await db.execute(sql`UPDATE lucky_spin_prizes SET label = ${String(b.label || "Prize").slice(0, 60)}, prize_type = ${String(b.prizeType || "item")}, value = ${Number(b.value) || 0}, weight = ${Math.max(0, Number(b.weight) || 0)}, color_hex = ${String(b.colorHex || "#c9a84c")}, active = ${b.active !== false}, sort_order = ${Number(b.sortOrder) || 0} WHERE id = ${Number(req.params.id)} AND company_id = ${await rebornCompanyId(req)} RETURNING ${sql.raw(LUCKY_PRIZE_COLUMNS)}`)).rows[0];
+    res.json(row);
+  }));
+  app.delete("/api/reborn/admin/lucky-prizes/:id", requireAdmin(async (req, res) => {
+    await db.execute(sql`DELETE FROM lucky_spin_prizes WHERE id = ${Number(req.params.id)} AND company_id = ${await rebornCompanyId(req)}`);
+    res.json({ message: tr(req, { en: "Deleted", zh: "已删除", id: "Dihapus" }) });
+  }));
+  // The admin gives a member lucky spins by username / code / email.
+  app.post("/api/reborn/admin/lucky-spin/give", requireAdmin(async (req, res) => {
+    const count = Math.floor(Number(req.body?.spins) || 0);
+    if (count < 1 || count > MAX_LUCKY_SPINS_PER_GIVE) return res.status(400).json({ message: tr(req, { en: "Give between 1 and {max} spins", zh: "请给予 1 到 {max} 次", id: "Berikan 1 sampai {max} putaran" }, { max: String(MAX_LUCKY_SPINS_PER_GIVE) }) });
+    const u = await findMemberByCode(String(req.body?.username || ""));
+    if (!u) return res.status(404).json({ message: tr(req, { en: "Member not found (username / code / email)", zh: "找不到该会员（用户名 / 会员码 / 邮箱）", id: "Member tidak ditemukan (nama pengguna / kode / email)" }) });
+    const row = (await db.execute(sql`INSERT INTO lucky_spin_tokens (user_id, spins) VALUES (${u.id}, ${count}) ON CONFLICT (user_id) DO UPDATE SET spins = lucky_spin_tokens.spins + ${count}, updated_at = now() RETURNING spins`)).rows[0];
+    await logAdmin(req, { targetUserId: u.id, targetType: "lucky_spin", action: "give_spins", entityType: "prize", description: `Gave ${count} lucky spin(s) to ${u.username || u.email}` });
+    await notifyUserI18n(u.id, "prize", (lang) => ({ title: pick(lang, { en: "🎡 You got lucky spins!", zh: "🎡 你获得了幸运转盘次数！", id: "🎡 Kamu dapat putaran keberuntungan!" }), body: pick(lang, { en: "{n} spin(s) on the Lucky wheel — go and spin!", zh: "幸运转盘 {n} 次——快去转吧！", id: "{n} putaran di Roda Keberuntungan — ayo putar!" }, { n: count }) }), { path: "/spin" });
+    res.json({ spins: Number(row.spins), message: tr(req, { en: "Gave {n} lucky spin(s) to {who}", zh: "已给 {who} {n} 次幸运转盘", id: "Memberi {n} putaran ke {who}" }, { n: String(count), who: u.username || u.email || u.id }) });
   }));
 
   app.get("/api/reborn/admin/redemptions", requireStaff(async (req, res) => {

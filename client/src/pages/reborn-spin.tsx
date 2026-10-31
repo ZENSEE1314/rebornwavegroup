@@ -6,8 +6,8 @@ import { RebornLayout } from "@/components/RebornLayout";
 import { useTranslation, localeTag, tData } from "@/lib/i18n";
 import { Coins, Gift, History as HistoryIcon, Disc3, Check, Clock, X } from "lucide-react";
 
-const TABS = ["Wheel", "My Prizes", "History"] as const;
-const TAB_KEY: Record<(typeof TABS)[number], string> = { "Wheel": "hm.spin.tabWheel", "My Prizes": "hm.spin.tabPrizes", "History": "hm.spin.tabHistory" };
+const TABS = ["Wheel", "Lucky", "My Prizes", "History"] as const;
+const TAB_KEY: Record<(typeof TABS)[number], string> = { "Wheel": "hm.spin.tabWheel", "Lucky": "hm.spin.tabLucky", "My Prizes": "hm.spin.tabPrizes", "History": "hm.spin.tabHistory" };
 
 export default function RebornSpin() {
   const qc = useQueryClient();
@@ -79,6 +79,7 @@ export default function RebornSpin() {
         </div>
       )}
 
+      {tab === "Lucky" && <LuckyWheel />}
       {tab === "My Prizes" && <MyPrizes />}
       {tab === "History" && <SpinHistory />}
 
@@ -152,6 +153,74 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
         <circle cx={C} cy={C} r="26" fill="#140d26" stroke="#c9a84c" strokeWidth="3" />
       </svg>
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"><Disc3 className="w-7 h-7 text-amber-300" /></div>
+    </div>
+  );
+}
+
+// The second wheel: the admin gives the spins (Admin › Prizes › Lucky wheel), so it costs no pet tokens.
+function LuckyWheel() {
+  const qc = useQueryClient();
+  const { t } = useTranslation();
+  const [rotation, setRotation] = useState(0);
+  const [spinning, setSpinning] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const spinningRef = useRef(false);
+  const { data } = useQuery<{ spins: number; prizes: any[] }>({
+    queryKey: ["/api/reborn/lucky-spin"],
+    queryFn: () => apiRequest("GET", "/api/reborn/lucky-spin").then((r) => r.json()),
+    refetchOnWindowFocus: true,
+  });
+  const prizes = data?.prizes || [];
+  const spins = data?.spins ?? 0;
+  const seg = prizes.length ? 360 / prizes.length : 0;
+
+  const doSpin = async () => {
+    if (spinningRef.current || prizes.length === 0) return;
+    if (spins < 1) { setResult({ error: t("hm.spin.luckyNone") }); return; }
+    spinningRef.current = true; setSpinning(true); setResult(null);
+    try {
+      const res = await apiRequest("POST", "/api/reborn/lucky-spin").then((r) => r.json());
+      const landing = (360 - (Math.max(0, res.prizeIndex ?? 0) * seg + seg / 2) + 360) % 360;
+      setRotation((prev) => Math.ceil(prev / 360) * 360 + 360 * 5 + landing);
+      setTimeout(() => {
+        setResult(res); setSpinning(false); spinningRef.current = false;
+        qc.invalidateQueries({ queryKey: ["/api/reborn/lucky-spin"] });
+        qc.invalidateQueries({ queryKey: ["/api/reborn/prizes"] });
+      }, 4200);
+    } catch (e: any) {
+      setResult({ error: e.message }); setSpinning(false); spinningRef.current = false;
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="rwg-token-chip flex items-center gap-2 mb-5 px-4 py-2 rounded-full border">
+        <Disc3 className="w-5 h-5 text-amber-400" />
+        <span className="font-bold text-amber-300">{t("hm.spin.luckySpins", { n: spins })}</span>
+      </div>
+      <Wheel prizes={prizes} rotation={rotation} spinning={spinning} />
+      <button onClick={doSpin} disabled={spinning || prizes.length === 0} className="arc-play arc-start spin-go mt-8 justify-center disabled:opacity-50">
+        {spinning ? t("hm.spin.spinning") : spins < 1 ? t("hm.spin.luckyNone") : t("hm.spin.spin")}
+      </button>
+      <p className="text-white/40 text-xs mt-3 text-center max-w-xs">{t("hm.spin.luckyHint")}</p>
+      {result && (
+        <div className="kos-sheet fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setResult(null)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="kos-sheet-box relative w-full max-w-sm rounded-3xl p-6 text-center" style={{ borderColor: "rgba(247,215,116,.55)" }} onClick={(e) => e.stopPropagation()}>
+            {result.error ? (
+              <><div className="text-4xl mb-3">🙁</div><p className="text-white/80">{result.error}</p></>
+            ) : (
+              <>
+                <div className="text-5xl mb-3">{result.prize?.prizeType === "nothing" ? "🎯" : "🎉"}</div>
+                <h3 className="arc-title mb-1" style={{ ["--c1" as any]: "#f3b52f", fontSize: 22 }}>{tData(result.prize?.label)}</h3>
+                <p className="text-white/60 text-sm">{result.message}</p>
+                {result.status === "unused" && <p className="mt-3 text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3">{t("hm.spin.savedNote")}</p>}
+              </>
+            )}
+            <button onClick={() => setResult(null)} className="mt-4 w-full py-3 rounded-xl font-bold bg-white/10">{t("hm.common.done")}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
