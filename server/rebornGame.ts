@@ -4633,7 +4633,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const [product] = it.productId ? await db.select().from(posProducts).where(eq(posProducts.id, it.productId)) : [];
       const happy = product?.happyPrice === null || product?.happyPrice === undefined || product?.happyPrice === "" ? NaN : Number(product.happyPrice);
       lateFree = product && !product.noDiscount && hasHappyWindow(product) ? freeUnitsFor(product, product.happyStart!, qty) : 0;
-      if (!(Number.isFinite(happy) && happy >= 0) && lateFree === 0) return res.status(400).json({ message: tr(req, { en: "This item has no happy-hour price or free-drink deal", zh: "此商品没有欢乐价或赠送优惠", id: "Item ini tidak punya harga atau gratisan happy hour" }) });
+      if (!(Number.isFinite(happy) && happy >= 0 && happy !== price) && lateFree === 0) return res.status(400).json({ message: tr(req, { en: "This item has no happy-hour price or free-drink deal to give (its happy price is the same as its normal price)", zh: "此商品没有欢乐价或赠送优惠", id: "Item ini tidak punya harga atau gratisan happy hour" }) });
       if (Number.isFinite(happy) && happy >= 0) price = happy;
       discountNote += ` · happy hour${lateFree > 0 ? `, ${lateFree} free` : ""}`;
     }
