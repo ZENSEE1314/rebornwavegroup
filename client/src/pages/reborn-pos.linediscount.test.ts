@@ -27,7 +27,7 @@ describe("keeping the happy-hour price on a line after happy hour", () => {
     assert.ok(dialog.includes('const canKeepHappyPrice = role === "admin"') && dialog.includes("{canKeepHappyPrice && <button"));
   });
   it("should refuse anyone but the main admin on the server", () => {
-    assert.ok(server.includes('req.body?.happyPrice') && server.includes("Only the main admin can keep the happy-hour price after happy hour."));
+    assert.ok(server.includes('req.body?.happyPrice') && server.includes("Only the main admin can give the happy-hour price or free drinks after happy hour."));
   });
 });
 

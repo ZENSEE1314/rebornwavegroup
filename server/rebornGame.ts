@@ -17,7 +17,7 @@ import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
 import { parseReceiptText } from "@shared/receiptText";
 import { MAX_PERCENT, canEarn, commissionFor, commissionForPart, eligibleStaffOf, ruleOf, splitPartsOf } from "@shared/itemCommission";
-import { cleanDays, clockInZone, dealOf, freeUnitsFor, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
+import { cleanDays, clockInZone, dealOf, freeUnitsFor, hasHappyWindow, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
@@ -4626,18 +4626,21 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       price = Math.max(0, Number(product.cost) || 0);
       discountNote = " · at cost";
     }
-    // Keeping the happy-hour price after the window closed, for one customer: the main admin only.
+    // A late key-in: after the window closed the main admin puts the item's happy-hour price and its buy-X-get-Y-free deal on one line, as if it had been keyed in on time.
+    let lateFree = 0;
     if (req.body?.happyPrice) {
-      if ((await adminRole(getUserId(req))) !== "admin") return res.status(403).json({ message: tr(req, { en: "Only the main admin can keep the happy-hour price after happy hour.", zh: "只有主管理员可以在欢乐时段结束后保留欢乐价。", id: "Hanya admin utama yang bisa mempertahankan harga happy hour setelah happy hour selesai." }) });
+      if ((await adminRole(getUserId(req))) !== "admin") return res.status(403).json({ message: tr(req, { en: "Only the main admin can give the happy-hour price or free drinks after happy hour.", zh: "只有主管理员可以在欢乐时段结束后给予欢乐价或赠品。", id: "Hanya admin utama yang bisa memberi harga atau gratisan happy hour setelah happy hour selesai." }) });
       const [product] = it.productId ? await db.select().from(posProducts).where(eq(posProducts.id, it.productId)) : [];
       const happy = product?.happyPrice === null || product?.happyPrice === undefined || product?.happyPrice === "" ? NaN : Number(product.happyPrice);
-      if (!Number.isFinite(happy) || happy < 0) return res.status(400).json({ message: tr(req, { en: "This item has no happy-hour price", zh: "此商品没有欢乐价", id: "Item ini tidak punya harga happy hour" }) });
-      price = happy;
-      discountNote += " · happy-hour price";
+      lateFree = product && !product.noDiscount && hasHappyWindow(product) ? freeUnitsFor(product, product.happyStart!, qty) : 0;
+      if (!(Number.isFinite(happy) && happy >= 0) && lateFree === 0) return res.status(400).json({ message: tr(req, { en: "This item has no happy-hour price or free-drink deal", zh: "此商品没有欢乐价或赠送优惠", id: "Item ini tidak punya harga atau gratisan happy hour" }) });
+      if (Number.isFinite(happy) && happy >= 0) price = happy;
+      discountNote += ` · happy hour${lateFree > 0 ? `, ${lateFree} free` : ""}`;
     }
     const percent = Math.min(100, Math.max(0, Number(req.body?.discountPercent) || 0));
     if (percent > 0) { price = roundMoney(price * (1 - percent / 100)); discountNote += ` · ${percent}% off`; }
-    let lineTotal = roundMoney(price * qty);
+    let lineTotal = roundMoney(price * (qty - lateFree));
+    if (lateFree > 0) price = roundMoney(lineTotal / qty);
     const amountOff = Math.max(0, Number(req.body?.discountAmount) || 0);
     if (amountOff > 0) { lineTotal = Math.max(0, roundMoney(lineTotal - amountOff)); price = roundMoney(lineTotal / qty); discountNote += ` · RP ${amountOff} off`; }
     const dQty = qty - it.qty;
