@@ -2772,22 +2772,22 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // ── Lucky wheel: a second wheel; the admin gives the spins (no pet tokens) and sets the prizes (nothing, 5–20% off, a free beer, a free bucket ...). ──
-  // A won prize lands in Spin › My prizes like any other and staff redeem it; the pet-token wheel and its prize pool are not touched.
+  // A won prize lands in Spin › My prizes like any other and staff redeem it. It pays from the same prize pool as the pet-token wheel (same minimum, cost booked as a spin_prize expense).
   const LUCKY_DEFAULT_PRIZES = [
     { label: "Nothing", type: "nothing", value: 0, weight: 30, color: "#6b7280" },
     { label: "5% off", type: "voucher_percent", value: 5, weight: 20, color: "#45b7d1" },
     { label: "10% off", type: "voucher_percent", value: 10, weight: 15, color: "#96ceb4" },
     { label: "15% off", type: "voucher_percent", value: 15, weight: 10, color: "#f7b731" },
     { label: "20% off", type: "voucher_percent", value: 20, weight: 5, color: "#fd9644" },
-    { label: "1 free beer", type: "item", value: 0, weight: 8, color: "#eb3b5a" },
-    { label: "1 free bucket", type: "item", value: 0, weight: 4, color: "#a55eea" },
+    { label: "1 free beer", type: "item", value: 0, weight: 8, color: "#eb3b5a", costRp: 55000 },
+    { label: "1 free bucket", type: "item", value: 0, weight: 4, color: "#a55eea", costRp: 300000 },
   ];
-  const LUCKY_PRIZE_COLUMNS = `id, label, prize_type AS "prizeType", value, weight, color_hex AS "colorHex", active, sort_order AS "sortOrder"`;
+  const LUCKY_PRIZE_COLUMNS = `id, label, prize_type AS "prizeType", value, cost_rp AS "costRp", weight, color_hex AS "colorHex", active, sort_order AS "sortOrder"`;
   const MAX_LUCKY_SPINS_PER_GIVE = 100;
   const luckyPrizesOf = async (cid: number, onlyActive: boolean) => {
     const seeded = await db.execute(sql`SELECT 1 FROM lucky_spin_prizes WHERE company_id = ${cid} LIMIT 1`);
     if (seeded.rows.length === 0) {
-      for (let i = 0; i < LUCKY_DEFAULT_PRIZES.length; i++) { const p = LUCKY_DEFAULT_PRIZES[i]; await db.execute(sql`INSERT INTO lucky_spin_prizes (company_id, label, prize_type, value, weight, color_hex, sort_order) VALUES (${cid}, ${p.label}, ${p.type}, ${p.value}, ${p.weight}, ${p.color}, ${i})`); }
+      for (let i = 0; i < LUCKY_DEFAULT_PRIZES.length; i++) { const p = LUCKY_DEFAULT_PRIZES[i]; await db.execute(sql`INSERT INTO lucky_spin_prizes (company_id, label, prize_type, value, cost_rp, weight, color_hex, sort_order) VALUES (${cid}, ${p.label}, ${p.type}, ${p.value}, ${"costRp" in p ? p.costRp : 0}, ${p.weight}, ${p.color}, ${i})`); }
     }
     return (await db.execute(sql`SELECT ${sql.raw(LUCKY_PRIZE_COLUMNS)} FROM lucky_spin_prizes WHERE company_id = ${cid} ${onlyActive ? sql`AND active = true` : sql``} ORDER BY sort_order, id`)).rows as any[];
   };
@@ -2802,14 +2802,27 @@ export function registerRebornRoutes(app: Express) {
       const cid = await rebornCompanyId(req);
       const prizes = await luckyPrizesOf(cid, true);
       if (prizes.length === 0) return res.status(400).json({ message: tr(req, { en: "The lucky wheel isn't set up yet.", zh: "幸运转盘尚未设置。", id: "Roda keberuntungan belum disiapkan." }) });
+      // The same prize pool as the pet wheel: a real prize can only come up while the pool is funded (at/above its minimum) and can pay it; the cost is drawn from the pool and booked.
+      const luckySettings = await getSettings();
+      const pool = await getSpinPool();
+      const isGated = pool >= luckySettings.spinPoolMin;
+      const prizeCost = (p: any) => (p.prizeType === "voucher_percent" ? Math.round((Number(p.value) || 0) / 100 * luckySettings.spinAssumedBill) : Number(p.costRp) || 0);
+      let candidates = prizes.filter((p) => p.prizeType === "nothing" || (isGated && prizeCost(p) <= pool));
+      if (candidates.length === 0) candidates = prizes.filter((p) => p.prizeType === "nothing");
+      if (candidates.length === 0) return res.status(400).json({ message: tr(req, { en: "The prize pool can't pay a prize right now. Please try later.", zh: "奖池暂时无法支付奖品，请稍后再试。", id: "Dana hadiah belum cukup untuk membayar hadiah. Coba lagi nanti." }) });
       const taken = await db.execute(sql`UPDATE lucky_spin_tokens SET spins = spins - 1, updated_at = now() WHERE user_id = ${userId} AND spins > 0 RETURNING spins`);
       if (taken.rows.length === 0) return res.status(400).json({ message: tr(req, { en: "You have no lucky spins. Ask our staff for one.", zh: "你没有幸运转盘次数，请向员工索取。", id: "Kamu tidak punya putaran keberuntungan. Minta ke staf." }) });
-      const total = prizes.reduce((sum, p) => sum + Math.max(0, Number(p.weight) || 0), 0) || 1;
+      const total = candidates.reduce((sum, p) => sum + Math.max(0, Number(p.weight) || 0), 0) || 1;
       let roll = Math.random() * total;
-      let picked = prizes[prizes.length - 1];
-      for (const p of prizes) { roll -= Math.max(0, Number(p.weight) || 0); if (roll <= 0) { picked = p; break; } }
+      let picked = candidates[candidates.length - 1];
+      for (const p of candidates) { roll -= Math.max(0, Number(p.weight) || 0); if (roll <= 0) { picked = p; break; } }
       const status = picked.prizeType === "nothing" ? "won" : "unused";
       const [result] = await db.insert(spinResults).values({ userId, companyId: cid, prizeId: null, prizeLabel: picked.label, prizeType: picked.prizeType, tokensSpent: 0, status }).returning();
+      const cost = prizeCost(picked);
+      if (cost > 0) {
+        await adjustSpinPool(-cost);
+        await db.insert(ledgerEntries).values({ kind: "expense", category: "spin_prize", amount: String(cost), note: `Lucky wheel prize: ${picked.label}`, refType: "spin_result", refId: String(result.id), userId });
+      }
       res.json({
         prizeIndex: prizes.findIndex((p) => p.id === picked.id), prize: picked, status, spins: Number(taken.rows[0].spins), resultId: result.id,
         message: picked.prizeType === "nothing"
@@ -2823,12 +2836,12 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     const cid = await rebornCompanyId(req);
     await luckyPrizesOf(cid, false);
-    const row = (await db.execute(sql`INSERT INTO lucky_spin_prizes (company_id, label, prize_type, value, weight, color_hex, sort_order) VALUES (${cid}, ${String(b.label || "New prize").slice(0, 60)}, ${String(b.prizeType || "item")}, ${Number(b.value) || 0}, ${Math.max(0, Number(b.weight) || 10)}, ${String(b.colorHex || "#c9a84c")}, ${Number(b.sortOrder) || 99}) RETURNING ${sql.raw(LUCKY_PRIZE_COLUMNS)}`)).rows[0];
+    const row = (await db.execute(sql`INSERT INTO lucky_spin_prizes (company_id, label, prize_type, value, cost_rp, weight, color_hex, sort_order) VALUES (${cid}, ${String(b.label || "New prize").slice(0, 60)}, ${String(b.prizeType || "item")}, ${Number(b.value) || 0}, ${Math.max(0, Number(b.costRp) || 0)}, ${Math.max(0, Number(b.weight) || 10)}, ${String(b.colorHex || "#c9a84c")}, ${Number(b.sortOrder) || 99}) RETURNING ${sql.raw(LUCKY_PRIZE_COLUMNS)}`)).rows[0];
     res.json(row);
   }));
   app.put("/api/reborn/admin/lucky-prizes/:id", requireAdmin(async (req, res) => {
     const b = req.body || {};
-    const row = (await db.execute(sql`UPDATE lucky_spin_prizes SET label = ${String(b.label || "Prize").slice(0, 60)}, prize_type = ${String(b.prizeType || "item")}, value = ${Number(b.value) || 0}, weight = ${Math.max(0, Number(b.weight) || 0)}, color_hex = ${String(b.colorHex || "#c9a84c")}, active = ${b.active !== false}, sort_order = ${Number(b.sortOrder) || 0} WHERE id = ${Number(req.params.id)} AND company_id = ${await rebornCompanyId(req)} RETURNING ${sql.raw(LUCKY_PRIZE_COLUMNS)}`)).rows[0];
+    const row = (await db.execute(sql`UPDATE lucky_spin_prizes SET label = ${String(b.label || "Prize").slice(0, 60)}, prize_type = ${String(b.prizeType || "item")}, value = ${Number(b.value) || 0}, cost_rp = ${Math.max(0, Number(b.costRp) || 0)}, weight = ${Math.max(0, Number(b.weight) || 0)}, color_hex = ${String(b.colorHex || "#c9a84c")}, active = ${b.active !== false}, sort_order = ${Number(b.sortOrder) || 0} WHERE id = ${Number(req.params.id)} AND company_id = ${await rebornCompanyId(req)} RETURNING ${sql.raw(LUCKY_PRIZE_COLUMNS)}`)).rows[0];
     res.json(row);
   }));
   app.delete("/api/reborn/admin/lucky-prizes/:id", requireAdmin(async (req, res) => {

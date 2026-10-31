@@ -16,6 +16,10 @@ describe("the lucky wheel", () => {
   it("should take one spin only when the member has one left", () => {
     assert.ok(server.includes("UPDATE lucky_spin_tokens SET spins = spins - 1") && server.includes("AND spins > 0 RETURNING spins"));
   });
+  it("should pay from the same prize pool as the pet wheel", () => {
+    const lucky = server.slice(server.indexOf('app.post("/api/reborn/lucky-spin"'), server.indexOf('app.get("/api/reborn/admin/lucky-prizes"'));
+    assert.ok(lucky.includes("getSpinPool()") && lucky.includes("adjustSpinPool(-cost)") && lucky.includes("luckySettings.spinPoolMin"));
+  });
   it("should let only an admin give spins and set prizes", () => {
     assert.ok(server.includes('app.post("/api/reborn/admin/lucky-spin/give", requireAdmin(') && server.includes('app.put("/api/reborn/admin/lucky-prizes/:id", requireAdmin('));
   });
