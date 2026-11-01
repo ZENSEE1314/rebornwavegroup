@@ -2022,6 +2022,16 @@ function MyTarget() {
       <TargetBar r={{ ...r, name: t("admin.target.thisMonth") }} money={money} />
       {r.target > 0 && r.sales < r.target && <p className="text-xs text-amber-200/80 mt-2">{t("admin.target.left", { left: money(r.target - r.sales) })}</p>}
       {r.target > 0 && r.sales >= r.target && <p className="text-xs text-emerald-300 mt-2">🎉 {t("admin.target.hit")}</p>}
+      <p className="mt-3 text-xs font-bold text-white/70">{t("admin.target.bills", { n: r.tickets })}</p>
+      {(r.bills || []).length === 0 && <p className="mt-1 text-xs text-white/40">{t("admin.target.noBills")}</p>}
+      <ul className="mt-1.5 max-h-72 space-y-1.5 overflow-y-auto">
+        {(r.bills || []).map((b: any) => (
+          <li key={b.id} className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-2.5 py-2 text-xs">
+            <span className="min-w-0"><b className="block truncate text-white">{b.orderNo}{b.tableNumber ? ` · ${b.tableNumber}` : ""}{b.memberName ? ` · ${b.memberName}` : ""}</b><span className="text-[11px] text-white/40">{new Date(b.paidAt).toLocaleString(localeTag())}</span></span>
+            <span className="shrink-0 font-bold text-emerald-300">{money(b.total)}</span>
+          </li>
+        ))}
+      </ul>
       <a href="/reborn-admin?tab=Bookings" onClick={(e) => { e.preventDefault(); window.location.href = "/reborn-admin?tab=Bookings"; }} className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-amber-300"><CalendarDays className="w-3.5 h-3.5" /> {t("admin.target.bookForCustomer")}</a>
     </Card>
   );

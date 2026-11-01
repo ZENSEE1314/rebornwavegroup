@@ -31,7 +31,7 @@ describe("admin adds and edits commissions, staff price names and caps", () => {
 describe("commission edited from the Accounting bill popup", () => {
   it("should show each item's commission under the bill being edited", () => assert.match(read("client/src/pages/reborn-admin.tsx"), /<ItemCommissionAdmin key=\{selected\.id\} ticketId=\{selected\.id\}\/>/));
   it("should let the admin pick the sales person while editing the bill", () => assert.match(read("client/src/pages/reborn-admin.tsx"), /admin\.ao\.salesPerson/));
-  it("should save the sales person with the edited bill", () => assert.match(read("server/rebornGame.ts"), /adjustmentReason:reason,salesStaffId\}/));
+  it("should save the sales person with the edited bill", () => assert.match(read("server/rebornGame.ts"), /adjustmentReason:reason,salesStaffId,salesStaffName\}/));
   it("should send each commission's item id so it shows under its item", () => assert.match(read("server/rebornGame.ts"), /itemId: staffItemCommissions\.itemId/));
   it("should set a cash-paid commission back to not paid with a matching accounting line", () => assert.match(read("server/rebornGame.ts"), /category: "commission_reversal", amount: row\.amount[^\n]*item_commission_unpay/));
   it("should refuse to set back a commission that went through a payroll", () => assert.match(read("server/rebornGame.ts"), /if \(!row\.settledAt \|\| !row\.paidLedgerId\)/));

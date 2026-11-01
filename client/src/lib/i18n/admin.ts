@@ -476,6 +476,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.target.mine': { en: "My sales target · {month}", zh: "我的销售目标 · {month}", id: "Target penjualanku · {month}" },
   'admin.target.thisMonth': { en: "This month", zh: "本月", id: "Bulan ini" },
   'admin.target.left': { en: "{left} to go — keep going!", zh: "还差 {left}，加油！", id: "Kurang {left} lagi — semangat!" },
+  'admin.target.bills': { en: "Sales under me this month ({n})", zh: "本月归我的销售（{n}）", id: "Penjualan atas nama saya bulan ini ({n})" },
+  'admin.target.noBills': { en: "No sales credited to you yet this month. Ask the cashier to pick you as the sales person on the bill.", zh: "本月还没有记在你名下的销售。请让收银员在账单上选你为销售员。", id: "Belum ada penjualan atas nama Anda bulan ini. Minta kasir memilih Anda sebagai sales di tagihan." },
   'admin.target.hit': { en: "Target reached this month!", zh: "本月目标已达成！", id: "Target bulan ini tercapai!" },
   'admin.target.bookForCustomer': { en: "Book a table for a customer", zh: "为客户预订桌位", id: "Pesan meja untuk pelanggan" },
   'admin.req.nowPlaying': { en: "Now playing", zh: "正在播放", id: "Sedang diputar" },

@@ -5605,14 +5605,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const cash=method==="cash"?Number(req.body?.cashReceived ?? order.cashReceived ?? total):null; if(method==="cash"&&cash!<total)return res.status(400).json({message:tr(req, { en: "Cash received cannot be below the edited total", zh: "收到的现金不能少于修改后的总额", id: "Uang tunai yang diterima tidak boleh kurang dari total yang diubah" })});
     // The sales person credited with the bill (his monthly sales and target in Payroll follow it): empty = nobody.
     let salesStaffId=order.salesStaffId;
+    let salesStaffName=order.salesStaffName; // the name written on the receipt and in POS Sales follows the person
     if(req.body?.salesStaffId!==undefined){
       const asked=String(req.body.salesStaffId||"").trim();
-      if(asked){const person=await storage.getUser(asked);if(!person||(person.role!=="staff"&&person.role!=="admin"))return res.status(400).json({message:tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" })});}
+      if(asked&&asked!==order.salesStaffId){const person=await storage.getUser(asked);if(!person||(person.role!=="staff"&&person.role!=="admin"))return res.status(400).json({message:tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" })});salesStaffName=[person.firstName,person.lastName].filter(Boolean).join(" ")||person.username||person.email||asked;}
+      if(!asked)salesStaffName=null;
       salesStaffId=asked||null;
     }
     const salesChanged=salesStaffId!==order.salesStaffId;
     const diff=total-Number(order.total); if(diff!==0)await db.insert(ledgerEntries).values({kind:diff>0?"income":"expense",category:"bill_adjustment",amount:String(Math.abs(diff)),note:`Bill edit ${order.orderNo}: ${reason}`,refType:"pos_adjustment",refId:String(id),userId:order.memberId||null});
-    const [updated]=await db.update(posTickets).set({subtotal:String(subtotal),discount:String(discount),serviceFee:String(serviceFee),tax:String(tax),total:String(total),paymentMethod:method,paymentReference:ref||null,cashReceived:cash===null?null:String(cash),changeGiven:cash===null?null:String(cash-total),adjustmentReason:reason,salesStaffId}).where(eq(posTickets.id,id)).returning();
+    const [updated]=await db.update(posTickets).set({subtotal:String(subtotal),discount:String(discount),serviceFee:String(serviceFee),tax:String(tax),total:String(total),paymentMethod:method,paymentReference:ref||null,cashReceived:cash===null?null:String(cash),changeGiven:cash===null?null:String(cash-total),adjustmentReason:reason,salesStaffId,salesStaffName}).where(eq(posTickets.id,id)).returning();
     await logAdmin(req,{targetType:"pos_order",targetId:String(id),action:"edit_paid_bill",entityType:"accounting",description:`Edited ${order.orderNo}: ${reason}; RP ${Number(order.total)} → ${total}${salesChanged?`; sales person ${order.salesStaffId||"none"} → ${salesStaffId||"none"}`:""}`});
     res.json({message:tr(req, { en: "Bill updated with an audit record", zh: "账单已更新并留有审计记录", id: "Tagihan diperbarui dengan catatan audit" }),order:{...updated,items:freshItems}});
   }));
@@ -5916,12 +5918,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const targets = await salesTargets(cid, month);
     res.json({ day, currentDay: (await ensureVenueSession()).day, closed: !!closed, report, month, monthTotal: targets.reduce((n, r) => n + r.sales, 0), targets: targets.filter((r) => r.target > 0 || r.sales > 0) });
   }));
+  const MY_TARGET_BILLS_MAX = 300;
   // Staff › My target: this month's sales credited to me vs my target.
   app.get("/api/reborn/staff/my-target", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const month = (await ensureVenueSession()).day.slice(0, 7);
     const [me] = await salesTargets(cid, month, getUserId(req)!);
-    res.json({ month, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }) });
+    // The bills that make up the number above (same venue-day month, same rule), newest first.
+    const [y, m] = month.split("-").map(Number);
+    const to = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+    const bills = await db.select({ id: posTickets.id, orderNo: posTickets.orderNo, tableNumber: posTickets.tableNumber, memberName: posTickets.memberName, total: posTickets.total, paidAt: posTickets.paidAt })
+      .from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.salesStaffId, getUserId(req)!), eq(posTickets.status, "paid"), sql`${VENUE_DAY_OF(sql`paid_at`)} >= ${`${month}-01`}::date`, sql`${VENUE_DAY_OF(sql`paid_at`)} < ${to}::date`))
+      .orderBy(desc(posTickets.paidAt)).limit(MY_TARGET_BILLS_MAX);
+    res.json({ month, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }), bills });
   }));
 
   // Admin/manager (full admin)
