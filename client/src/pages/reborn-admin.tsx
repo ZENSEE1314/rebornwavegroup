@@ -2724,10 +2724,15 @@ function Accounting() {
   const [rate, setRate] = useState(10);
   const { data: sum } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/summary", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/summary?days=${days}`).then((r) => r.json()) });
   const { data: commission } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/commission", days, rate], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/commission?days=${days}&rate=${rate}`).then((r) => r.json()) });
-  const { data: ledger = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/ledger"], queryFn: () => apiRequest("GET", "/api/reborn/admin/accounting/ledger?limit=100").then((r) => r.json()) });
+  const [lf, setLf] = useState({ kind: "", category: "", from: "", to: "", q: "" });
+  const ledgerQuery = new URLSearchParams({ limit: "1000", ...(lf.kind && { kind: lf.kind }), ...(lf.category && { category: lf.category }), ...(lf.from && { from: lf.from }), ...(lf.to && { to: lf.to }) }).toString();
+  const { data: ledger = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/ledger", ledgerQuery], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/ledger?${ledgerQuery}`).then((r) => r.json()) });
   const { data: byIndustry = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/by-industry", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/by-industry?days=${days}`).then((r) => r.json()) });
   const [e, setE] = useState<any>({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" });
-  const normalLedger = ledger.filter((entry) => entry.refType !== "pos_closing");
+  const searchText = lf.q.trim().toLowerCase();
+  const normalLedger = ledger.filter((entry) => entry.refType !== "pos_closing" && (!searchText || (entry.note || "").toLowerCase().includes(searchText)));
+  const ledgerCategories = lf.kind === "income" ? ["product_sale", "service", "other"] : lf.kind === "expense" ? ["purchase", "salary", "commission", "rental", "utilities", "loss", "spin_prize", "other"] : ["product_sale", "service", "purchase", "salary", "commission", "rental", "utilities", "loss", "spin_prize", "other"];
+  const ledgerTotal = normalLedger.reduce((sum, l) => sum + (l.kind === "income" ? 1 : -1) * Number(l.amount), 0);
   const addEntry = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/accounting/entry", e).then((r) => r.json()),
     onSuccess: () => { toast({ title: t("admin.acc.entryAdded") }); setE({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
@@ -2807,6 +2812,19 @@ function Accounting() {
         <button onClick={() => addEntry.mutate()} disabled={e.amount <= 0 || addEntry.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.acc.addEntry")}</button>
       </Card>
       <p className="text-xs text-white/40 px-1">{t("admin.acc.recent")}</p>
+      <Card>
+        <div className="grid grid-cols-2 gap-2">
+          <select value={lf.kind} onChange={(x) => setLf({ ...lf, kind: x.target.value, category: "" })} aria-label={t("admin.acc.type")} className={inp}><option value="">{t("admin.acc.filterAllTypes")}</option><option value="income">{t("admin.acc.incomeT")}</option><option value="expense">{t("admin.acc.expenseT")}</option></select>
+          <select value={lf.category} onChange={(x) => setLf({ ...lf, category: x.target.value })} aria-label={t("admin.prod.category")} className={inp}><option value="">{t("admin.acc.filterAllCats")}</option>{ledgerCategories.map((c) => <option key={c} value={c}>{catLabel((lf.kind || (c === "product_sale" || c === "service" ? "income" : "expense")) + ":" + c) || c}</option>)}</select>
+          <label className="text-[11px] text-white/50">{t("admin.acc.filterFrom")}<input type="date" value={lf.from} onChange={(x) => setLf({ ...lf, from: x.target.value })} className={inp + " mt-0.5"} /></label>
+          <label className="text-[11px] text-white/50">{t("admin.acc.filterTo")}<input type="date" value={lf.to} onChange={(x) => setLf({ ...lf, to: x.target.value })} className={inp + " mt-0.5"} /></label>
+        </div>
+        <input value={lf.q} onChange={(x) => setLf({ ...lf, q: x.target.value })} placeholder={t("admin.acc.filterSearch")} aria-label={t("admin.acc.filterSearch")} className={inp + " mt-2"} />
+        <div className="mt-2 flex items-center justify-between text-xs text-white/50">
+          <span>{t("admin.acc.filterCount", { n: normalLedger.length })} · <b className={ledgerTotal >= 0 ? "text-emerald-300" : "text-red-300"}>{ledgerTotal >= 0 ? "+" : "−"}{money(Math.abs(ledgerTotal))}</b></span>
+          {(lf.kind || lf.category || lf.from || lf.to || lf.q) && <button onClick={() => setLf({ kind: "", category: "", from: "", to: "", q: "" })} className="text-amber-300 font-semibold">{t("admin.acc.filterClear")}</button>}
+        </div>
+      </Card>
       {normalLedger.map((l) => (
         <div key={l.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm gap-2">
           <div className="min-w-0 flex items-center gap-2">

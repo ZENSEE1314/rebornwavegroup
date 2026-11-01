@@ -5171,8 +5171,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     res.json({ days, income, expense, revenue: income, cogs, grossProfit: income - cogs, otherExpense: expense - cogs, net: income - expense, byCategory: byCat, count: rows.length, spinPool: await getSpinPool() });
   }));
   app.get("/api/reborn/admin/accounting/ledger", requireAdmin(async (req, res) => {
-    const limit = Math.min(500, Number(req.query.limit) || 100);
-    res.json(await db.select().from(ledgerEntries).orderBy(desc(ledgerEntries.createdAt)).limit(limit));
+    const limit = Math.min(2000, Number(req.query.limit) || 100);
+    const dayStart = (ymd: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(ymd)) ? new Date(`${ymd}T00:00:00+07:00`) : null);
+    const from = dayStart(req.query.from);
+    const to = dayStart(req.query.to);
+    const filters = [
+      req.query.kind === "income" || req.query.kind === "expense" ? eq(ledgerEntries.kind, String(req.query.kind)) : undefined,
+      req.query.category ? eq(ledgerEntries.category, String(req.query.category)) : undefined,
+      from ? gte(ledgerEntries.createdAt, from) : undefined,
+      to ? sql`${ledgerEntries.createdAt} < ${new Date(to.getTime() + 24 * 60 * 60 * 1000)}` : undefined,
+    ].filter((f) => f !== undefined);
+    res.json(await db.select().from(ledgerEntries).where(and(...filters)).orderBy(desc(ledgerEntries.createdAt)).limit(limit));
   }));
   app.get("/api/reborn/pos/settings", requireStaff(async (_req, res) => {
     const settings = await getSettings();
