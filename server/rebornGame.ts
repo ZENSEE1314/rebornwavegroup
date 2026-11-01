@@ -67,6 +67,7 @@ import { translateTexts } from "./autoTranslate";
 import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
 import { karaokeSetupBat } from "./karaokeSetup";
+import { cameraSetupBat, cleanSetupCameras } from "./cameraSetup";
 import { BoxControlQueue, isBoxControl, isBoxSongAction, isBoxSongId } from "./boxControls";
 import { cleanReceipt, type ReadReceipt, cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
@@ -3107,13 +3108,31 @@ export function registerRebornRoutes(app: Express) {
       res.type("text/javascript").set("Cache-Control", "no-store").send(await fs.readFile(path.join(process.cwd(), "venue", "karaoke-bridge.mjs"), "utf8"));
     } catch { res.status(404).send("Not found"); }
   });
-  app.get("/api/reborn/admin/karaoke/setup-file", requireAdmin(async (req, res) => {
+  // The venue bridge token (shared by the karaoke and camera bridges): the saved one, or a new one made now.
+  const venueBridgeToken = async () => {
     const [saved] = await db.select().from(appSettings).where(eq(appSettings.key, "karaokeToken"));
-    let token = saved?.value;
-    if (!token) {
-      token = randomVenueCode() + randomVenueCode() + randomVenueCode() + randomVenueCode();
-      await db.insert(appSettings).values({ key: "karaokeToken", value: token, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: token, updatedAt: new Date() } });
-    }
+    if (saved?.value) return saved.value;
+    const token = randomVenueCode() + randomVenueCode() + randomVenueCode() + randomVenueCode();
+    await db.insert(appSettings).values({ key: "karaokeToken", value: token, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: token, updatedAt: new Date() } });
+    return token;
+  };
+  app.get("/api/camera/bridge.mjs", async (_req, res) => {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      res.type("text/javascript").set("Cache-Control", "no-store").send(await fs.readFile(path.join(process.cwd(), "venue", "camera-bridge.mjs"), "utf8"));
+    } catch { res.status(404).send("Not found"); }
+  });
+  // POST because it carries the camera passwords; they are put into the file and not kept.
+  app.post("/api/reborn/admin/security/camera-setup-file", requireAdmin(async (req, res) => {
+    const cameras = cleanSetupCameras(req.body?.cameras);
+    if (!cameras) return res.status(400).json({ message: tr(req, { en: "Add at least one camera with its address, user name and password", zh: "请至少添加一个摄像头，并填写地址、用户名和密码", id: "Tambahkan minimal satu kamera dengan alamat, nama pengguna dan kata sandi" }) });
+    const bat = cameraSetupBat({ cloudUrl: `${req.protocol}://${req.get("host")}`, token: await venueBridgeToken(), tenantSlug: currentTenant()?.slug || "", cameras });
+    await logAdmin(req, { targetType: "system", action: "camera_setup_file", entityType: "settings", description: `Downloaded the camera bridge setup file (${cameras.length} camera(s))` });
+    res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": 'attachment; filename="Start-Camera-Bridge.bat"', "Cache-Control": "no-store" }).send(bat);
+  }));
+  app.get("/api/reborn/admin/karaoke/setup-file", requireAdmin(async (req, res) => {
+    const token = await venueBridgeToken();
     const bat = karaokeSetupBat({ cloudUrl: `${req.protocol}://${req.get("host")}`, token, tenantSlug: currentTenant()?.slug || "" });
     await logAdmin(req, { targetType: "system", action: "karaoke_setup_file", entityType: "settings", description: "Downloaded the karaoke bridge setup file" });
     res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": 'attachment; filename="Start-Karaoke-Bridge.bat"', "Cache-Control": "no-store" }).send(bat);
