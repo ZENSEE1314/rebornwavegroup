@@ -144,6 +144,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'menuImage.downloadAll': { en: 'Download all pages', zh: '下载全部页面', id: 'Unduh semua halaman' },
   'menuImage.downloadPage': { en: 'Download page {n}', zh: '下载第 {n} 页', id: 'Unduh halaman {n}' },
   'menuImage.page': { en: 'Menu page', zh: '菜单页', id: 'Halaman menu' },
+  'pos.sale.unreachable': { en: 'Could not reach the server, so the sale may not have been saved. Check POS › Sales before you try again, so it is not charged twice.', zh: '无法连接服务器，这笔销售可能未保存。请先在 POS › 销售 中查看，再重试，以免重复收款。', id: 'Server tidak terjangkau, jadi penjualan mungkin belum tersimpan. Cek POS › Penjualan sebelum mencoba lagi agar tidak ditagih dua kali.' },
   'itemCom.markPaid': { en: 'Mark paid', zh: '标记为已支付', id: 'Tandai dibayar' },
   'itemCom.markUnpaid': { en: 'Mark not paid', zh: '改回未支付', id: 'Tandai belum dibayar' },
   'itemCom.save': { en: 'Save', zh: '保存', id: 'Simpan' },

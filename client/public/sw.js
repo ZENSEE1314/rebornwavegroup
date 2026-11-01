@@ -4,7 +4,8 @@ const BADGE = "/icon-192.png";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(
-  caches.keys().then((names) => Promise.all(names.filter((n) => n.startsWith("rw-") && ![SHELL, API].includes(n)).map((n) => caches.delete(n)))).then(() => self.clients.claim())
+  // Offline mode is off: every saved page, file and answer of earlier versions is dropped, so nothing old is ever shown.
+  caches.keys().then((names) => Promise.all(names.filter((n) => n.startsWith("rw-")).map((n) => caches.delete(n)))).then(() => self.clients.claim())
 ));
 
 // ── Offline POS ─────────────────────────────────────────────────────────────
@@ -87,15 +88,7 @@ async function savedFirst(request) {
   return response;
 }
 
-self.addEventListener("fetch", (event) => {
-  const request = event.request;
-  if (request.method !== "GET") return;
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-  if (request.mode === "navigate") { if (NOT_THE_APP.test(url.pathname)) return; return event.respondWith(openShell(request)); }
-  if (url.pathname.startsWith("/api/") && !NEVER_KEEP.test(url.pathname) && !(request.headers.get("accept") || "").includes("text/event-stream")) return event.respondWith(freshOrSaved(request));
-  if (STATIC_FILE.test(url.pathname)) return event.respondWith(savedFirst(request));
-});
+// No fetch handler on purpose: with offline mode off every request goes straight to the network (the saved-copy answers above are unused).
 
 self.addEventListener("message", (event) => {
   const message = event.data || {};

@@ -10,6 +10,8 @@ const SALE_URL = "/api/reborn/pos/sale";
 const SALE_TIMEOUT_MS = 15_000;
 const SYNC_EVERY_MS = 30_000;
 const RECEIPT_META_KEY = "rw.pos.receiptMeta";
+// Off: the POS runs online only. Nothing is answered from a saved copy, no "no internet" notice, and a sale the server cannot be reached for is refused, not queued (sales already queued still get sent).
+const OFFLINE_MODE = false;
 const HEALTH_URL = "/api/health";
 const PROBE_EVERY_MS = 4_000;
 const PROBE_TIMEOUT_MS = 5_000;
@@ -23,12 +25,12 @@ let snapshot = { queue, looksOffline, needsLogin, isSyncing };
 const listeners = new Set<() => void>();
 
 function publish() {
-  snapshot = { queue, looksOffline, needsLogin, isSyncing };
+  snapshot = { queue, looksOffline: OFFLINE_MODE && looksOffline, needsLogin, isSyncing };
   listeners.forEach((listener) => listener());
 }
 function load() {
   try { queue = parseQueue(localStorage.getItem(OFFLINE_SALES_KEY)); } catch { queue = []; }
-  snapshot = { queue, looksOffline, needsLogin, isSyncing };
+  snapshot = { queue, looksOffline: OFFLINE_MODE && looksOffline, needsLogin, isSyncing };
 }
 function save(next: OfflineSale[]) {
   queue = next;
@@ -38,6 +40,7 @@ function save(next: OfflineSale[]) {
 let probeTimer: number | undefined;
 /** While the page believes it is offline, ask the server every few seconds; the moment it answers the page is online again and refreshes what it shows. */
 function startProbe() {
+  if (!OFFLINE_MODE) return;
   if (probeTimer !== undefined || typeof window === "undefined") return;
   const check = async () => {
     if (!looksOffline) { window.clearInterval(probeTimer); probeTimer = undefined; return; }
@@ -102,6 +105,7 @@ export async function submitSale(payload: Record<string, unknown>, meta: { label
   }
   if (verdict === "rejected") throw new Error(await messageOf(res));
   if (verdict === "login") throw new Error(translate("pos.offline.loginAgain"));
+  if (!OFFLINE_MODE) throw new Error(translate("pos.sale.unreachable"));
   save(addSale(queue, sale));
   looksOffline = true; publish();
   return { queued: true, sale };
@@ -141,6 +145,7 @@ const primedUrls = new Set<string>();
 
 /** Open the app offline-ready: start the service worker and let it keep the files this page already loaded (do it once while online). */
 export async function prepareOfflinePos() {
+  if (!OFFLINE_MODE) return;
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
   try {
     const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
