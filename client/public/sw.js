@@ -4,8 +4,8 @@ const BADGE = "/icon-192.png";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(
-  // Offline mode is off: every saved page, file and answer of earlier versions is dropped, so nothing old is ever shown.
-  caches.keys().then((names) => Promise.all(names.filter((n) => n.startsWith("rw-")).map((n) => caches.delete(n)))).then(() => self.clients.claim())
+  // A device that may not work offline drops every saved page, file and answer of earlier versions, so nothing old is ever shown there.
+  caches.keys().then((names) => Promise.all(names.filter((n) => n.startsWith("rw-") && (!OFFLINE_ALLOWED || ![SHELL, API].includes(n))).map((n) => caches.delete(n)))).then(() => self.clients.claim())
 ));
 
 // ── Offline POS ─────────────────────────────────────────────────────────────
@@ -16,6 +16,8 @@ const API = "rw-api-v1";
 const SHELL_KEY = "/__shell";
 // A copy of the server running on a PC at the venue (localhost) reaches the cloud database over a slow line: wait much longer there before showing the saved copy as "no internet".
 const IS_LOCAL_COPY = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
+// Offline mode is for the PC only (the Windows POS app is Electron, the venue copy is localhost); a browser or phone on the website always goes to the network.
+const OFFLINE_ALLOWED = IS_LOCAL_COPY || self.navigator.userAgent.includes("Electron/");
 // The saved copy is shown only after the wait: long when the device says it is online (a slow line, not "no internet"), short when it says it is offline.
 const ONLINE_WAIT_MS = 25000;
 const OFFLINE_WAIT_MS = 3000;
@@ -88,7 +90,16 @@ async function savedFirst(request) {
   return response;
 }
 
-// No fetch handler on purpose: with offline mode off every request goes straight to the network (the saved-copy answers above are unused).
+self.addEventListener("fetch", (event) => {
+  if (!OFFLINE_ALLOWED) return; // the website in a browser or phone: straight to the network
+  const request = event.request;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (request.mode === "navigate") { if (NOT_THE_APP.test(url.pathname)) return; return event.respondWith(openShell(request)); }
+  if (url.pathname.startsWith("/api/") && !NEVER_KEEP.test(url.pathname) && !(request.headers.get("accept") || "").includes("text/event-stream")) return event.respondWith(freshOrSaved(request));
+  if (STATIC_FILE.test(url.pathname)) return event.respondWith(savedFirst(request));
+});
 
 self.addEventListener("message", (event) => {
   const message = event.data || {};

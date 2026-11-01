@@ -10,8 +10,10 @@ const SALE_URL = "/api/reborn/pos/sale";
 const SALE_TIMEOUT_MS = 15_000;
 const SYNC_EVERY_MS = 30_000;
 const RECEIPT_META_KEY = "rw.pos.receiptMeta";
-// Off: the POS runs online only. Nothing is answered from a saved copy, no "no internet" notice, and a sale the server cannot be reached for is refused, not queued (sales already queued still get sent).
-const OFFLINE_MODE = false;
+// Offline mode is for the PC only: the Windows POS app (Electron) and the server copy on the venue PC (localhost). A browser or phone on the website runs online only:
+// no saved-copy answers, no "no internet" notice, and a sale the server cannot be reached for is refused, not queued (sales already queued still get sent).
+const isPcPos = () => typeof window !== "undefined" && (navigator.userAgent.includes("Electron/") || "rebornDesktop" in window || ["localhost", "127.0.0.1"].includes(location.hostname));
+const OFFLINE_MODE = isPcPos();
 const HEALTH_URL = "/api/health";
 const PROBE_EVERY_MS = 4_000;
 const PROBE_TIMEOUT_MS = 5_000;
