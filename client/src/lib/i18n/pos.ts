@@ -144,6 +144,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'menuImage.downloadAll': { en: 'Download all pages', zh: '下载全部页面', id: 'Unduh semua halaman' },
   'menuImage.downloadPage': { en: 'Download page {n}', zh: '下载第 {n} 页', id: 'Unduh halaman {n}' },
   'menuImage.page': { en: 'Menu page', zh: '菜单页', id: 'Halaman menu' },
+  'itemCom.markPaid': { en: 'Mark paid', zh: '标记为已支付', id: 'Tandai dibayar' },
+  'itemCom.markUnpaid': { en: 'Mark not paid', zh: '改回未支付', id: 'Tandai belum dibayar' },
   'itemCom.save': { en: 'Save', zh: '保存', id: 'Simpan' },
   'itemCom.cancel': { en: 'Cancel', zh: '取消', id: 'Batalkan' },
   'itemCom.cancelConfirm': { en: 'Cancel this commission?', zh: '取消此佣金？', id: 'Batalkan komisi ini?' },

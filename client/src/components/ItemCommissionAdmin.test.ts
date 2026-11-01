@@ -28,6 +28,19 @@ describe("admin adds and edits commissions, staff price names and caps", () => {
   it("should keep the admin's category order on the menu", () => assert.match(read("shared/menuLayout.ts"), /rank\(a\.category\) - rank\(b\.category\)/));
 });
 
+describe("commission edited from the Accounting bill popup", () => {
+  it("should show each item's commission under the bill being edited", () => assert.match(read("client/src/pages/reborn-admin.tsx"), /<ItemCommissionAdmin key=\{selected\.id\} ticketId=\{selected\.id\}\/>/));
+  it("should let the admin pick the sales person while editing the bill", () => assert.match(read("client/src/pages/reborn-admin.tsx"), /admin\.ao\.salesPerson/));
+  it("should save the sales person with the edited bill", () => assert.match(read("server/rebornGame.ts"), /adjustmentReason:reason,salesStaffId\}/));
+  it("should send each commission's item id so it shows under its item", () => assert.match(read("server/rebornGame.ts"), /itemId: staffItemCommissions\.itemId/));
+  it("should set a cash-paid commission back to not paid with a matching accounting line", () => assert.match(read("server/rebornGame.ts"), /category: "commission_reversal", amount: row\.amount[^\n]*item_commission_unpay/));
+  it("should refuse to set back a commission that went through a payroll", () => assert.match(read("server/rebornGame.ts"), /if \(!row\.settledAt \|\| !row\.paidLedgerId\)/));
+  it("should offer Mark paid on a waiting commission and Mark not paid on a cash-paid one", () => {
+    const source = read("client/src/components/ItemCommissionAdmin.tsx");
+    assert.ok(source.includes('t("itemCom.markPaid")') && source.includes('t("itemCom.markUnpaid")'));
+  });
+});
+
 describe("sales day and bill commissions", () => {
   it("should let the admin open a bill's item commissions in the Sales tab", () => assert.match(read("client/src/pages/reborn-pos.tsx"), /isAdmin && !isRef && <ItemCommissionAdmin ticketId=\{o\.id\} \/>/));
   it("should group the Sales tab by sales day, not calendar date", () => assert.match(read("client/src/pages/reborn-pos.tsx"), /businessDayOf\(o\.paidAt/));

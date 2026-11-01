@@ -5,7 +5,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { money } from "@/lib/money";
 
-interface Row { id: number; userId: string; staffName: string; itemId: number; name: string; qty: number; base: string; amount: string; isSettled: boolean }
+interface Row { id: number; userId: string; staffName: string; itemId: number; name: string; qty: number; base: string; amount: string; isSettled: boolean; isCashPaid: boolean }
 interface Staff { id: string; name: string }
 interface BillItem { id: number; name: string; qty: number; lineTotal: string }
 type Kind = "percent" | "amount";
@@ -22,10 +22,12 @@ export function ItemCommissionAdmin({ ticketId }: { ticketId: number }) {
   const [adds, setAdds] = useState<Record<number, AddDraft>>({});
   const { data } = useQuery<{ items: BillItem[]; rows: Row[] }>({ queryKey: ["/api/reborn/admin/item-commissions", ticketId], queryFn: () => apiRequest("GET", `/api/reborn/admin/item-commissions?ticketId=${ticketId}`).then((r) => r.json()), enabled: isOpen });
   const { data: staff = [] } = useQuery<Staff[]>({ queryKey: ["/api/reborn/pos/staff"], enabled: isOpen });
-  const refresh = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/item-commissions"] });
+  const refresh = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/item-commissions"] }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); };
   const onError = (e: any) => toast({ title: t("itemCom.fail"), description: e.message, variant: "destructive" });
   const edit = useMutation({ mutationFn: (v: { id: number; amount?: number; userId?: string }) => apiRequest("PATCH", `/api/reborn/admin/item-commissions/${v.id}`, v).then((r) => r.json()), onSuccess: () => { refresh(); toast({ title: t("itemCom.saved") }); }, onError });
   const cancel = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/item-commissions/${id}`).then((r) => r.json()), onSuccess: () => { refresh(); toast({ title: t("itemCom.cancelled") }); }, onError });
+  const pay = useMutation({ mutationFn: (id: number) => apiRequest("POST", "/api/reborn/admin/item-commissions/pay", { ids: [id] }).then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body.message); return body; }), onSuccess: (d: any) => { refresh(); toast({ title: d.message }); }, onError });
+  const unpay = useMutation({ mutationFn: (id: number) => apiRequest("POST", `/api/reborn/admin/item-commissions/${id}/unpay`, {}).then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body.message); return body; }), onSuccess: () => { refresh(); toast({ title: t("itemCom.saved") }); }, onError });
   const add = useMutation({ mutationFn: (v: { itemId: number; userId: string; percent?: number; amount?: number }) => apiRequest("POST", "/api/reborn/admin/item-commissions", v).then((r) => r.json()), onSuccess: (_r, v) => { refresh(); setAdds((prev) => ({ ...prev, [v.itemId]: EMPTY_DRAFT })); toast({ title: t("itemCom.saved") }); }, onError });
 
   if (!isOpen) {
@@ -51,7 +53,10 @@ export function ItemCommissionAdmin({ ticketId }: { ticketId: number }) {
             <li key={item.id} className="rounded-xl bg-white/5 p-2.5 text-xs">
               <p className="flex justify-between gap-2 font-semibold text-white"><span>{item.name} × {item.qty}</span><span>{money(item.lineTotal)}</span></p>
               {lineRows.map((row) => row.isSettled ? (
-                <p key={row.id} className="mt-1 text-white/50">{row.staffName} · {money(row.amount)} · {t("itemCom.paidOut")}</p>
+                <div key={row.id} className="mt-1 flex flex-wrap items-center gap-2 text-white/50">
+                  <span>{row.staffName} · {money(row.amount)} · {row.isCashPaid ? t("cl.paid") : t("itemCom.paidOut")}</span>
+                  {row.isCashPaid && <button type="button" disabled={unpay.isPending} onClick={() => unpay.mutate(row.id)} className="rounded-lg bg-white/10 px-3 py-1 font-bold text-white disabled:opacity-40">{t("itemCom.markUnpaid")}</button>}
+                </div>
               ) : (
                 <div key={row.id} className="mt-1.5 flex flex-wrap items-center gap-2">
                   <select value={row.userId} onChange={(e) => edit.mutate({ id: row.id, userId: e.target.value })} aria-label={t("itemCom.staff")} className="min-w-0 rounded-md border border-white/15 bg-black/40 px-1.5 py-1 text-white">
@@ -60,6 +65,8 @@ export function ItemCommissionAdmin({ ticketId }: { ticketId: number }) {
                   </select>
                   <input type="number" min={0} value={drafts[row.id] ?? row.amount} onChange={(e) => setDrafts({ ...drafts, [row.id]: e.target.value })} aria-label={t("itemCom.amount")} className="w-28 rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white" />
                   <button onClick={() => edit.mutate({ id: row.id, amount: Number(drafts[row.id] ?? row.amount) })} className="rounded-lg bg-amber-400 px-3 py-1 font-bold text-black">{t("itemCom.save")}</button>
+                  <span className="rounded-md bg-amber-400/15 px-2 py-1 text-amber-200">{t("cl.unpaid")}</span>
+                  <button type="button" disabled={pay.isPending} onClick={() => pay.mutate(row.id)} className="rounded-lg bg-emerald-500 px-3 py-1 font-bold text-black disabled:opacity-40">{t("itemCom.markPaid")}</button>
                   <button onClick={() => window.confirm(t("itemCom.cancelConfirm")) && cancel.mutate(row.id)} className="rounded-lg bg-red-500/20 px-3 py-1 font-bold text-red-100">{t("itemCom.cancel")}</button>
                 </div>
               ))}

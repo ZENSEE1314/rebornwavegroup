@@ -4310,11 +4310,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   app.get("/api/reborn/admin/item-commissions", requireAdmin(async (req, res) => {
     const days = Math.min(366, Math.max(1, Number(req.query.days) || 31));
     const onlyTicket = Number(req.query.ticketId) || 0;
-    const rows = await db.select({ id: staffItemCommissions.id, userId: staffItemCommissions.userId, ticketId: staffItemCommissions.ticketId, name: staffItemCommissions.name, qty: staffItemCommissions.qty, base: staffItemCommissions.base, amount: staffItemCommissions.amount, createdAt: staffItemCommissions.createdAt, settledAt: staffItemCommissions.settledAt, orderNo: posTickets.orderNo, firstName: users.firstName, lastName: users.lastName })
+    const rows = await db.select({ id: staffItemCommissions.id, userId: staffItemCommissions.userId, ticketId: staffItemCommissions.ticketId, name: staffItemCommissions.name, qty: staffItemCommissions.qty, base: staffItemCommissions.base, amount: staffItemCommissions.amount, createdAt: staffItemCommissions.createdAt, settledAt: staffItemCommissions.settledAt, paidLedgerId: staffItemCommissions.paidLedgerId, itemId: staffItemCommissions.itemId, orderNo: posTickets.orderNo, firstName: users.firstName, lastName: users.lastName })
       .from(staffItemCommissions).leftJoin(posTickets, eq(posTickets.id, staffItemCommissions.ticketId)).leftJoin(users, eq(users.id, staffItemCommissions.userId))
       .where(and(isNull(staffItemCommissions.voidedAt), onlyTicket ? eq(staffItemCommissions.ticketId, onlyTicket) : gte(staffItemCommissions.createdAt, new Date(Date.now() - days * 86400000)))).orderBy(desc(staffItemCommissions.createdAt)).limit(500);
     const items = onlyTicket ? (await db.select({ id: posTicketItems.id, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, status: posTicketItems.status }).from(posTicketItems).where(eq(posTicketItems.orderId, onlyTicket))).filter((it) => !GONE_ITEM.includes(it.status) && it.status !== "cancelled") : [];
-    res.json({ items, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt })) });
+    res.json({ items, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt, isCashPaid: !!r.paidLedgerId })) });
   }));
   // Main admin: give a commission to one line of a bill that has none (or one more person on the same line), as a percent of the line or a fixed amount.
   app.post("/api/reborn/admin/item-commissions", requireAdmin(async (req, res) => {
@@ -4387,6 +4387,21 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     });
     await logAdmin(req, { targetType: "item_commission", targetId: rows.map((row) => row.id).join(","), action: "pay", entityType: "payroll", newValues: { count: rows.length, total }, description: `Paid ${rows.length} item commission(s), RP ${total}, in cash` });
     res.json({ ok: true, count: rows.length, total, message: tr(req, { en: "Paid RP {n} commission.", zh: "已支付佣金 RP {n}。", id: "Komisi RP {n} dibayarkan." }, { n: fmtN(total, reqLang(req)) }) });
+  }));
+  // Main admin: take back a commission that was paid in cash here by mistake. The accounts get a matching "commission returned" income line (nothing is deleted),
+  // and the commission is waiting again. One paid through a payroll is changed in that payroll, not here.
+  app.post("/api/reborn/admin/item-commissions/:id/unpay", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const [row] = await db.select().from(staffItemCommissions).where(eq(staffItemCommissions.id, id));
+    if (!row || row.voidedAt) return res.status(404).json({ message: tr(req, { en: "Commission not found", zh: "找不到佣金", id: "Komisi tidak ditemukan" }) });
+    if (!row.settledAt || !row.paidLedgerId) return res.status(400).json({ message: tr(req, { en: "Only a commission paid in cash here can be set back to not paid; a payroll one is changed in Payroll", zh: "只有在此以现金支付的佣金可以改回未支付；工资单发放的请在工资中修改", id: "Hanya komisi yang dibayar tunai di sini yang bisa dikembalikan ke belum dibayar; yang lewat gaji diubah di Gaji" }) });
+    const adminId = getUserId(req)!;
+    await db.transaction(async (tx) => {
+      await tx.insert(ledgerEntries).values({ kind: "income", category: "commission_reversal", amount: row.amount, note: `Commission set back to not paid: "${row.name}" (bill ${row.ticketId})`, refType: "item_commission_unpay", refId: String(id), userId: adminId });
+      await tx.update(staffItemCommissions).set({ settledAt: null, paidLedgerId: null }).where(eq(staffItemCommissions.id, id));
+    });
+    await logAdmin(req, { targetUserId: row.userId, targetType: "item_commission", targetId: String(id), action: "unpay", entityType: "payroll", oldValues: { amount: row.amount }, description: `Item commission on "${row.name}" (bill ${row.ticketId}) set back to not paid` });
+    res.json({ ok: true });
   }));
   // Share one bill line between staff ("1 beer by Ana, 2 by Budi"): parts = [{ staffId, qty }]; an empty list clears it. Units not listed stay with the person picked on the line.
   app.post("/api/reborn/pos/items/:id/commission-split", requireStaff(async (req, res) => {
@@ -5488,9 +5503,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const rows = await db.select().from(posTickets).where(and(eq(posTickets.companyId, cid), inArray(posTickets.status, ["paid", "refunded"]), sql`${posTickets.paidAt} >= ${since}`)).orderBy(desc(posTickets.paidAt)).limit(300);
     const prodRows = await db.select({ id: posProducts.id, department: posProducts.department }).from(posProducts).where(eq(posProducts.companyId, cid));
     const depMap = new Map(prodRows.map((p) => [p.id, p.department]));
+    const salesIds = Array.from(new Set(rows.map((order) => order.salesStaffId).filter((x): x is string => !!x)));
+    const salesPeople = salesIds.length ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email }).from(users).where(inArray(users.id, salesIds)) : [];
+    const salesNameOf = new Map(salesPeople.map((u) => [u.id, [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email || u.id]));
     const result = await Promise.all(rows.map(async (order) => {
       const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, order.id));
-      return { ...order, items: items.map((it) => ({ ...it, department: it.productId ? (depMap.get(it.productId) || null) : null })) };
+      return { ...order, salesStaffName: order.salesStaffId ? salesNameOf.get(order.salesStaffId) || null : null, items: items.map((it) => ({ ...it, department: it.productId ? (depMap.get(it.productId) || null) : null })) };
     }));
     res.json(result);
   }));
@@ -5585,9 +5603,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const method=req.body?.paymentMethod==="card"?"card":req.body?.paymentMethod==="cash"?"cash":order.paymentMethod;
     const ref=String(req.body?.paymentReference ?? order.paymentReference ?? "").trim(); if(method==="card"&&!ref)return res.status(400).json({message:tr(req, { en: "Card receipt/reference number is required", zh: "请填写刷卡小票/参考号", id: "Nomor struk/referensi kartu wajib diisi" })});
     const cash=method==="cash"?Number(req.body?.cashReceived ?? order.cashReceived ?? total):null; if(method==="cash"&&cash!<total)return res.status(400).json({message:tr(req, { en: "Cash received cannot be below the edited total", zh: "收到的现金不能少于修改后的总额", id: "Uang tunai yang diterima tidak boleh kurang dari total yang diubah" })});
+    // The sales person credited with the bill (his monthly sales and target in Payroll follow it): empty = nobody.
+    let salesStaffId=order.salesStaffId;
+    if(req.body?.salesStaffId!==undefined){
+      const asked=String(req.body.salesStaffId||"").trim();
+      if(asked){const person=await storage.getUser(asked);if(!person||(person.role!=="staff"&&person.role!=="admin"))return res.status(400).json({message:tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" })});}
+      salesStaffId=asked||null;
+    }
+    const salesChanged=salesStaffId!==order.salesStaffId;
     const diff=total-Number(order.total); if(diff!==0)await db.insert(ledgerEntries).values({kind:diff>0?"income":"expense",category:"bill_adjustment",amount:String(Math.abs(diff)),note:`Bill edit ${order.orderNo}: ${reason}`,refType:"pos_adjustment",refId:String(id),userId:order.memberId||null});
-    const [updated]=await db.update(posTickets).set({subtotal:String(subtotal),discount:String(discount),serviceFee:String(serviceFee),tax:String(tax),total:String(total),paymentMethod:method,paymentReference:ref||null,cashReceived:cash===null?null:String(cash),changeGiven:cash===null?null:String(cash-total),adjustmentReason:reason}).where(eq(posTickets.id,id)).returning();
-    await logAdmin(req,{targetType:"pos_order",targetId:String(id),action:"edit_paid_bill",entityType:"accounting",description:`Edited ${order.orderNo}: ${reason}; RP ${Number(order.total)} → ${total}`});
+    const [updated]=await db.update(posTickets).set({subtotal:String(subtotal),discount:String(discount),serviceFee:String(serviceFee),tax:String(tax),total:String(total),paymentMethod:method,paymentReference:ref||null,cashReceived:cash===null?null:String(cash),changeGiven:cash===null?null:String(cash-total),adjustmentReason:reason,salesStaffId}).where(eq(posTickets.id,id)).returning();
+    await logAdmin(req,{targetType:"pos_order",targetId:String(id),action:"edit_paid_bill",entityType:"accounting",description:`Edited ${order.orderNo}: ${reason}; RP ${Number(order.total)} → ${total}${salesChanged?`; sales person ${order.salesStaffId||"none"} → ${salesStaffId||"none"}`:""}`});
     res.json({message:tr(req, { en: "Bill updated with an audit record", zh: "账单已更新并留有审计记录", id: "Tagihan diperbarui dengan catatan audit" }),order:{...updated,items:freshItems}});
   }));
 
