@@ -14,3 +14,8 @@ test("should filter the ledger on the server by kind, category and day range in 
   assert.match(server, /req\.query\.kind === "income" \|\| req\.query\.kind === "expense"/);
   assert.match(server, /T00:00:00\+07:00/);
 });
+
+test("should show the order and closing popups on top of the page, not inside the card", () => {
+  assert.match(admin, /selected&&createPortal\(<div className="fixed inset-0 z-\[80\]/);
+  assert.match(admin, /selected&&createPortal\(<div className="fixed inset-0 z-\[90\]/);
+});
