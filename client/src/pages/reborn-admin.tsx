@@ -1993,7 +1993,7 @@ function DailySales() {
       <Card>
         <div className="flex items-center justify-between"><p className="font-bold text-sm">{t("admin.sales.targets", { month: d?.month || "" })}</p><p className="text-xs text-white/60">{t("admin.sales.monthTotal", { total: money(d?.monthTotal) })}</p></div>
         {(d?.targets || []).length === 0 ? <p className="text-xs text-white/40 mt-2">{t("admin.sales.noTargets")}</p> : (
-          <div className="space-y-2.5 mt-3">{d.targets.map((r: any) => <TargetBar key={r.userId} r={r} money={money} />)}</div>
+          <div className="space-y-2.5 mt-3">{d.targets.map((r: any) => <StaffTargetRow key={r.userId} r={r} />)}</div>
         )}
       </Card>
     </div>
@@ -2011,17 +2011,23 @@ function TargetBar({ r, money }: { r: any; money: (v: any) => string }) {
     </div>
   );
 }
-// Staff › My target: my sales this month (credited on POS bills) vs the target the admin set.
-function MyTarget() {
+// One person's month: sales vs target, what is left, the bills credited to her and her commission.
+function TargetDetail({ r }: { r: any }) {
   const { t } = useTranslation();
-  const { data: r } = useQuery<any>({ queryKey: ["/api/reborn/staff/my-target"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-target").then((x) => x.json()), refetchInterval: 60000 });
-  if (!r) return null;
+  const c = r.commission;
   return (
-    <Card>
-      <p className="font-bold text-sm mb-2 flex items-center gap-2"><Star className="w-4 h-4 text-amber-300" /> {t("admin.target.mine", { month: r.month })}</p>
+    <>
       <TargetBar r={{ ...r, name: t("admin.target.thisMonth") }} money={money} />
       {r.target > 0 && r.sales < r.target && <p className="text-xs text-amber-200/80 mt-2">{t("admin.target.left", { left: money(r.target - r.sales) })}</p>}
       {r.target > 0 && r.sales >= r.target && <p className="text-xs text-emerald-300 mt-2">🎉 {t("admin.target.hit")}</p>}
+      {c && (
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-2.5 text-xs">
+          <p className="flex justify-between gap-2 font-bold text-white"><span>{t("admin.target.commission")}</span><span className="text-emerald-300">{money(c.total)}</span></p>
+          {c.ratePercent > 0 && <p className="mt-1 flex justify-between gap-2 text-white/55"><span>{t("admin.target.commissionRate", { p: c.ratePercent })}</span><span>{money(c.salesCommission)}</span></p>}
+          <p className="mt-1 flex justify-between gap-2 text-white/55"><span>{t("admin.target.commissionItems")}</span><span>{money(c.itemCommission)}</span></p>
+          {c.itemCommissionPaid > 0 && <p className="mt-1 text-white/40">{t("admin.target.commissionPaid", { paid: money(c.itemCommissionPaid) })}</p>}
+        </div>
+      )}
       <p className="mt-3 text-xs font-bold text-white/70">{t("admin.target.bills", { n: r.tickets })}</p>
       {(r.bills || []).length === 0 && <p className="mt-1 text-xs text-white/40">{t("admin.target.noBills")}</p>}
       <ul className="mt-1.5 max-h-72 space-y-1.5 overflow-y-auto">
@@ -2032,8 +2038,32 @@ function MyTarget() {
           </li>
         ))}
       </ul>
+    </>
+  );
+}
+// Staff › My target: my sales this month (credited on POS bills) vs the target the admin set.
+function MyTarget() {
+  const { t } = useTranslation();
+  const { data: r } = useQuery<any>({ queryKey: ["/api/reborn/staff/my-target"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-target").then((x) => x.json()), refetchInterval: 60000 });
+  if (!r) return null;
+  return (
+    <Card>
+      <p className="font-bold text-sm mb-2 flex items-center gap-2"><Star className="w-4 h-4 text-amber-300" /> {t("admin.target.mine", { month: r.month })}</p>
+      <TargetDetail r={r} />
       <a href="/reborn-admin?tab=Bookings" onClick={(e) => { e.preventDefault(); window.location.href = "/reborn-admin?tab=Bookings"; }} className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-amber-300"><CalendarDays className="w-3.5 h-3.5" /> {t("admin.target.bookForCustomer")}</a>
     </Card>
+  );
+}
+// Daily sales: a salesperson's row opens her month (bills + commission) right under it.
+function StaffTargetRow({ r }: { r: any }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const url = `/api/reborn/manager/staff-target/${r.userId}`;
+  const { data } = useQuery<any>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((x) => x.json()), enabled: isOpen });
+  return (
+    <div>
+      <button type="button" onClick={() => setIsOpen(!isOpen)} aria-expanded={isOpen} className="block w-full text-left"><TargetBar r={r} money={money} /></button>
+      {isOpen && <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-2.5">{data ? <TargetDetail r={data} /> : null}</div>}
+    </div>
   );
 }
 

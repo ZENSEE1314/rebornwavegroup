@@ -5919,18 +5919,32 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     res.json({ day, currentDay: (await ensureVenueSession()).day, closed: !!closed, report, month, monthTotal: targets.reduce((n, r) => n + r.sales, 0), targets: targets.filter((r) => r.target > 0 || r.sales > 0) });
   }));
   const MY_TARGET_BILLS_MAX = 300;
-  // Staff › My target: this month's sales credited to me vs my target.
-  app.get("/api/reborn/staff/my-target", requireStaff(async (req, res) => {
-    const cid = await rebornCompanyId(req);
+  // One person's month: target, sales, the bills behind the sales and the commission earned (a % of sales from Payroll + the item commissions).
+  const targetDetailOf = async (cid: number, userId: string) => {
     const month = (await ensureVenueSession()).day.slice(0, 7);
-    const [me] = await salesTargets(cid, month, getUserId(req)!);
-    // The bills that make up the number above (same venue-day month, same rule), newest first.
+    const [me] = await salesTargets(cid, month, userId);
     const [y, m] = month.split("-").map(Number);
     const to = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
     const bills = await db.select({ id: posTickets.id, orderNo: posTickets.orderNo, tableNumber: posTickets.tableNumber, memberName: posTickets.memberName, total: posTickets.total, paidAt: posTickets.paidAt })
-      .from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.salesStaffId, getUserId(req)!), eq(posTickets.status, "paid"), sql`${VENUE_DAY_OF(sql`paid_at`)} >= ${`${month}-01`}::date`, sql`${VENUE_DAY_OF(sql`paid_at`)} < ${to}::date`))
+      .from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.salesStaffId, userId), eq(posTickets.status, "paid"), sql`${VENUE_DAY_OF(sql`paid_at`)} >= ${`${month}-01`}::date`, sql`${VENUE_DAY_OF(sql`paid_at`)} < ${to}::date`))
       .orderBy(desc(posTickets.paidAt)).limit(MY_TARGET_BILLS_MAX);
-    res.json({ month, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }), bills });
+    const [profile] = await db.select({ rate: bridgeStaffProfiles.commissionRate }).from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId, cid), eq(bridgeStaffProfiles.userId, userId)));
+    const itemRows = await db.select({ amount: staffItemCommissions.amount, settledAt: staffItemCommissions.settledAt }).from(staffItemCommissions)
+      .where(and(eq(staffItemCommissions.userId, userId), isNull(staffItemCommissions.voidedAt), gte(staffItemCommissions.createdAt, new Date(`${month}-01T00:00:00Z`)), sql`${staffItemCommissions.createdAt} < ${new Date(`${to}T00:00:00Z`)}`));
+    const sales = me?.sales || 0;
+    const ratePercent = Number(profile?.rate) || 0;
+    const salesCommission = roundMoney(sales * ratePercent / 100);
+    const itemCommission = roundMoney(itemRows.reduce((sum, row) => sum + Number(row.amount), 0));
+    const itemCommissionPaid = roundMoney(itemRows.filter((row) => row.settledAt).reduce((sum, row) => sum + Number(row.amount), 0));
+    return { month, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }), bills, commission: { ratePercent, salesCommission, itemCommission, itemCommissionPaid, total: roundMoney(salesCommission + itemCommission) } };
+  };
+  // Staff › My target: this month's sales credited to me vs my target, the bills behind them and my commission.
+  app.get("/api/reborn/staff/my-target", requireStaff(async (req, res) => {
+    res.json(await targetDetailOf(await rebornCompanyId(req), getUserId(req)!));
+  }));
+  // Manager / admin: the same page for one salesperson (Daily sales › tap a name).
+  app.get("/api/reborn/manager/staff-target/:userId", requireManager(async (req, res) => {
+    res.json(await targetDetailOf(await rebornCompanyId(req), String(req.params.userId)));
   }));
 
   // Admin/manager (full admin)
