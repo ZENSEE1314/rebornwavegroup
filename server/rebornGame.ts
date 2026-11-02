@@ -3,7 +3,7 @@ import { inEveryDataSpace } from "./tenantSpace";
 import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
-import { and, asc, desc, eq, gte, sql, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "./db";
 import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
@@ -43,6 +43,7 @@ import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } f
 import { canUseExpenses, cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyActuals } from "@shared/fixedCosts";
 import { COST_SECTIONS, classifyLine, monthlyReports, periodReport } from "@shared/accountingReport";
+import { itemProfitReport, type SoldLine } from "@shared/itemProfit";
 import { cleanRate } from "@shared/taxFees";
 import { DEFAULT_PAY_DAYS, MAX_PAY_DAYS, MIN_PAY_DAYS, cleanNoLeaveMonths, leaveSummary, unpaidDeduction } from "@shared/payrollLeave";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
@@ -6462,6 +6463,46 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const lines = await db.select().from(ledgerEntries).where(sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`);
     const uploads = await reportUploads(cid);
     res.json({ total: periodReport(lines, uploads), months: monthlyReports(lines, uploads), prizePool: await getSpinPool() });
+  }));
+
+  // Food and drinks, item by item: sales, cost, promotion given and item commission paid, for a month, the last N days or everything (Reports › Food & drinks).
+  const OFF_THE_BILL = ["rejected", "lost", "cancelled"];
+  app.get("/api/reborn/admin/accounting/item-profit", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const monthQuery = String(req.query.month || "");
+    const range = MONTH_RE.test(monthQuery) ? monthBounds(monthQuery) : null;
+    const since = req.query.days ? sinceDays(req.query.days) : null;
+    const paidIn = range ? sql`${posTickets.paidAt} >= ${range.from} AND ${posTickets.paidAt} < ${range.to}` : since ? sql`${posTickets.paidAt} >= ${since}` : sql`TRUE`;
+    const sold = await db.select({
+      itemId: posTicketItems.id, productId: posTicketItems.productId, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, station: posTicketItems.station, paidAt: posTickets.paidAt,
+      category: posProducts.category, isService: posProducts.isService, packageKind: posProducts.packageKind, regularPrice: posProducts.price, unitCost: posProducts.cost,
+      happyStart: posProducts.happyStart, happyBuyQty: posProducts.happyBuyQty,
+    }).from(posTicketItems)
+      .innerJoin(posTickets, eq(posTicketItems.orderId, posTickets.id))
+      .leftJoin(posProducts, eq(posTicketItems.productId, posProducts.id))
+      .where(and(eq(posTickets.companyId, cid), eq(posTickets.status, "paid"), paidIn, notInArray(posTicketItems.status, OFF_THE_BILL)));
+    const itemIds = sold.map((row) => row.itemId);
+    const commissionRows = itemIds.length ? await db.select({ itemId: staffItemCommissions.itemId, amount: sql<string>`sum(${staffItemCommissions.amount})` }).from(staffItemCommissions)
+      .where(and(inArray(staffItemCommissions.itemId, itemIds), isNull(staffItemCommissions.voidedAt))).groupBy(staffItemCommissions.itemId) : [];
+    const commissionOf = new Map(commissionRows.map((row) => [row.itemId, Number(row.amount) || 0]));
+    // Cost from the deliveries the units came out of (oldest first), shared between the lines of an item by quantity; an item with no delivery history uses its own cost.
+    const productIds = Array.from(new Set(sold.map((row) => row.productId).filter((id): id is number => !!id)));
+    const times = sold.map((row) => row.paidAt?.getTime() ?? 0).filter(Boolean);
+    const fifoCosts = times.length ? await fifoSaleCosts(productIds, new Date(Math.min(...times) - DAY_MS), new Date(Math.max(...times) + DAY_MS)) : new Map<number, number>();
+    const qtyOfProduct = new Map<number, number>();
+    for (const row of sold) if (row.productId) qtyOfProduct.set(row.productId, (qtyOfProduct.get(row.productId) || 0) + (Number(row.qty) || 0));
+    const lines: SoldLine[] = sold.map((row) => {
+      const qty = Number(row.qty) || 0;
+      const fifoTotal = row.productId ? fifoCosts.get(row.productId) : undefined;
+      const productQty = row.productId ? qtyOfProduct.get(row.productId) || 0 : 0;
+      const cost = fifoTotal !== undefined && productQty > 0 ? fifoTotal * qty / productQty : (Number(row.unitCost) || 0) * qty;
+      return {
+        productId: row.productId, name: row.name, category: row.category, station: row.station, isService: !!row.isService, isPackage: !!row.packageKind,
+        hasHappyHour: !!row.happyStart || (Number(row.happyBuyQty) || 0) > 0,
+        qty, lineTotal: Number(row.lineTotal) || 0, regularPrice: Number(row.regularPrice) || 0, cost, commission: commissionOf.get(row.itemId) || 0,
+      };
+    });
+    res.json(itemProfitReport(lines));
   }));
 
   // The lines behind one number of a report, each with where it came from: the POS bill, the expense upload (who, when, receipt), the stock delivery or the payroll entry.

@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { translations, useTranslation, localeTag } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
+import { SALE_TIMES, type ItemProfitReport, type MenuKind, type SaleTime, type Totals } from "@shared/itemProfit";
 import { EXPENSE_GROUPS, sectionsOfGroup, type CostSection, type ExpenseGroup, type PeriodReport, type ReportGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
@@ -160,9 +161,86 @@ function OverallReport() {
   );
 }
 
+const KIND_ORDER: MenuKind[] = ["food", "drink", "other"];
+
+function TotalsRows({ totals }: { totals: Totals }) {
+  const { t } = useTranslation();
+  const line = (label: string, value: string, tone = "text-white/80") => <div className="flex justify-between text-xs"><span className="text-white/50">{label}</span><span className={tone}>{value}</span></div>;
+  return (
+    <div className="space-y-0.5">
+      {line(t("ip.qty"), String(totals.qty))}
+      {line(t("ip.revenue"), money(totals.revenue), "text-emerald-300")}
+      {line(t("ip.cost"), money(totals.cost), "text-red-300")}
+      {line(t("ip.promotion"), money(totals.promotion), "text-sky-300")}
+      {line(t("ip.commission"), money(totals.commission), "text-red-300")}
+      <div className="flex justify-between border-t border-white/10 pt-1 text-sm font-bold"><span>{t("ip.profit")}</span><span className={totals.profit >= 0 ? "text-amber-300" : "text-red-300"}>{money(totals.profit)}</span></div>
+    </div>
+  );
+}
+
+function SaleTimeSplit({ bySale }: { bySale: Record<SaleTime, Totals> }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+      {SALE_TIMES.map((time) => (
+        <div key={time} className="rounded-lg bg-black/25 p-2">
+          <p className="mb-1 text-[11px] font-bold text-amber-200">{t(`ip.time.${time}`)}</p>
+          <TotalsRows totals={bySale[time]} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ItemProfitView() {
+  const { t } = useTranslation();
+  const [month, setMonth] = useState(todayMonth());
+  const [isAllTime, setIsAllTime] = useState(false);
+  const url = `/api/reborn/admin/accounting/item-profit${isAllTime ? "" : `?month=${month}`}`;
+  const { data } = useQuery<ItemProfitReport>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="month" value={month} disabled={isAllTime} onChange={(e) => setMonth(e.target.value)} aria-label={t("ar.month")} className={field} />
+        <button type="button" onClick={() => setIsAllTime(!isAllTime)} className={chip(isAllTime)}>{t("ip.allTime")}</button>
+      </div>
+      <p className="text-[11px] text-white/50">{t("ip.intro")}</p>
+      {data && (
+        <>
+          <div className="rounded-xl border border-amber-400/30 bg-black/20 p-3 space-y-2">
+            <p className="text-sm font-extrabold">{t("ip.all")}</p>
+            <TotalsRows totals={data.total} />
+            <SaleTimeSplit bySale={data.total.bySale} />
+          </div>
+          {KIND_ORDER.filter((kind) => data.kinds[kind].qty > 0).map((kind) => (
+            <div key={kind} className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
+              <p className="text-sm font-extrabold">{t(`ip.kind.${kind}`)}</p>
+              <TotalsRows totals={data.kinds[kind]} />
+              <SaleTimeSplit bySale={data.kinds[kind].bySale} />
+              <details>
+                <summary className="min-h-[40px] cursor-pointer py-2 text-xs font-semibold text-amber-200">{t("ip.perItem", { n: String(data.items.filter((item) => item.kind === kind).length) })}</summary>
+                <div className="space-y-2">
+                  {data.items.filter((item) => item.kind === kind).map((item) => (
+                    <div key={item.key} className="rounded-lg bg-white/5 p-2">
+                      <p className="mb-1 break-words text-xs font-bold">{item.name}</p>
+                      <TotalsRows totals={item} />
+                      {item.bySale.happy.qty > 0 && <p className="mt-1 text-[11px] text-white/50">{t("ip.happyOf", { qty: String(item.bySale.happy.qty), revenue: money(item.bySale.happy.revenue), profit: money(item.bySale.happy.profit) })}</p>}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </div>
+          ))}
+          <p className="text-[11px] text-white/40">{t("ip.note")}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AccountingReports() {
   const { t } = useTranslation();
-  const [view, setView] = useState<"monthly" | "overall">("monthly");
+  const [view, setView] = useState<"monthly" | "overall" | "items">("monthly");
   return (
     <div className={card + " space-y-3"}>
       <h3 className="font-extrabold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-amber-300" /> {t("ar.title")}</h3>
@@ -170,8 +248,9 @@ export default function AccountingReports() {
       <div className="flex gap-2">
         <button type="button" onClick={() => setView("monthly")} className={chip(view === "monthly")}>{t("ar.monthly")}</button>
         <button type="button" onClick={() => setView("overall")} className={chip(view === "overall")}>{t("ar.overall")}</button>
+        <button type="button" onClick={() => setView("items")} className={chip(view === "items")}>{t("ip.tab")}</button>
       </div>
-      {view === "monthly" ? <MonthlyReport /> : <OverallReport />}
+      {view === "monthly" ? <MonthlyReport /> : view === "overall" ? <OverallReport /> : <ItemProfitView />}
     </div>
   );
 }
