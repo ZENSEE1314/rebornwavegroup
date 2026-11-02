@@ -43,6 +43,7 @@ import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } f
 import { canUseExpenses, cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyActuals } from "@shared/fixedCosts";
 import { COST_SECTIONS, classifyLine, monthlyReports, periodReport } from "@shared/accountingReport";
+import { withDrinkCostOnly } from "@shared/closingKind";
 import { itemProfitReport, kindOf, type MenuKind, type SoldLine } from "@shared/itemProfit";
 import { cleanRate } from "@shared/taxFees";
 import { DEFAULT_PAY_DAYS, MAX_PAY_DAYS, MIN_PAY_DAYS, cleanNoLeaveMonths, leaveSummary, unpaidDeduction } from "@shared/payrollLeave";
@@ -483,7 +484,7 @@ async function buildDailyClosingReport(day: string) {
     if (ticket.paymentMethod === "split") for (const part of readSplit(ticket.paymentSplit)) sum[part.method] += part.amount; // a bill paid with several methods counts each part where it was paid
     return sum;
   }, { subtotal: 0, discount: 0, serviceFee: 0, tax: 0, revenue: 0, commission: 0, cash: 0, card: 0, credits: 0, packageCredit: 0, extraMoney: 0 });
-  const items = Array.from(grouped.values()).sort((a, b) => b.sales - a.sales);
+  const items = withDrinkCostOnly(Array.from(grouped.values())).sort((a, b) => b.sales - a.sales);
   const cost = items.reduce((sum, item) => sum + item.cost, 0);
   // Bills the customer has not paid (kept open "on account"): carried over to the next day, listed on the closing report.
   const unpaid = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.onAccount, true)));
@@ -5256,7 +5257,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     res.json(rows.map((row) => {
       try {
         const report = JSON.parse(row.note || "{}");
-        return { id: row.id, ...report, items: (report.items || []).map((item: any) => ({ ...item, kind: item.kind || kindByName.get(item.name) || "other" })) };
+        const items = withDrinkCostOnly((report.items || []).map((item: any) => ({ ...item, kind: item.kind || kindByName.get(item.name) || "other" })));
+        const t = report.totals || {};
+        const cost = roundMoney(items.reduce((sum: number, item: any) => sum + (Number(item.cost) || 0), 0)); // days closed before drinks-only cost: food cost taken out
+        return { id: row.id, ...report, items, totals: { ...t, cost, profit: roundMoney((Number(t.revenue) || 0) - (Number(t.tax) || 0) - cost - (Number(t.commission) || 0)) } };
       } catch { return null; }
     }).filter(Boolean));
   }));

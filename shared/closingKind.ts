@@ -12,3 +12,8 @@ export function kindTotals(items: ClosingItem[]): { sales: number; cost: number;
   const cost = items.reduce((sum, item) => sum + (Number(item.cost) || 0), 0);
   return { sales, cost, profit: sales - cost };
 }
+
+// Only drinks carry a cost on the daily report: food cost cannot be worked out per item, so the full food cost is entered as a monthly expense.
+export function withDrinkCostOnly<T extends ClosingItem>(items: T[]): T[] {
+  return items.map((item) => (item.kind === "drink" ? item : { ...item, cost: 0 }));
+}
