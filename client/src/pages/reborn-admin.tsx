@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { ToggleRight, Smartphone, Plus, Trash2, Copy, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
+import { Camera, ToggleRight, Smartphone, Plus, Trash2, Copy, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
@@ -2773,6 +2773,11 @@ function Accounting() {
   const searchText = lf.q.trim().toLowerCase();
   const normalLedger = ledger.filter((entry) => entry.refType !== "pos_closing" && (!searchText || (entry.note || "").toLowerCase().includes(searchText)));
   const ledgerCategories = lf.kind === "income" ? ["product_sale", "service", "other"] : lf.kind === "expense" ? ["purchase", "salary", "commission", "rental", "utilities", "loss", "spin_prize", "other"] : ["product_sale", "service", "purchase", "salary", "commission", "rental", "utilities", "loss", "spin_prize", "other"];
+  const [ledgerPhoto, setLedgerPhoto] = useState<string | null>(null);
+  const showLedgerPhoto = async (id: number) => {
+    const r = await apiRequest("GET", `/api/reborn/admin/accounting/ledger/${id}/photo`);
+    setLedgerPhoto((await r.json()).photoUrl || null);
+  };
   const ledgerTotal = normalLedger.reduce((sum, l) => sum + (l.kind === "income" ? 1 : -1) * Number(l.amount), 0);
   const addEntry = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/accounting/entry", e).then((r) => r.json()),
@@ -2869,13 +2874,14 @@ function Accounting() {
       {normalLedger.map((l) => (
         <div key={l.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm gap-2">
           <div className="min-w-0 flex items-center gap-2">
-            {l.photoUrl && <a href={l.photoUrl} target="_blank" rel="noreferrer"><img src={l.photoUrl} alt={t("admin.acc.invoice")} className="w-9 h-9 rounded object-cover border border-white/10 flex-shrink-0" /></a>}
+            {l.photoUrl ? <a href={l.photoUrl} target="_blank" rel="noreferrer"><img src={l.photoUrl} alt={t("admin.acc.invoice")} className="w-9 h-9 rounded object-cover border border-white/10 flex-shrink-0" /></a> : l.hasPhoto && <button onClick={() => showLedgerPhoto(l.id)} aria-label={t("admin.acc.invoice")} className="w-9 h-9 rounded bg-white/10 border border-white/10 flex-shrink-0 flex items-center justify-center"><Camera className="h-4 w-4 text-white/70" /></button>}
             <div className="min-w-0"><p className="truncate">{l.note || catLabel(l.kind + ":" + l.category) || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString(localeTag())}</p></div>
           </div>
           <span className={l.kind === "income" ? "text-emerald-300 font-semibold flex-shrink-0" : "text-red-300 font-semibold flex-shrink-0"}>{l.kind === "income" ? "+" : "−"}{money(Number(l.amount))}</span>
         </div>
       ))}
       {normalLedger.length === 0 && <Empty text={t("admin.acc.noTx")} />}
+      {ledgerPhoto && createPortal(<div onClick={() => setLedgerPhoto(null)} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 p-4"><img src={ledgerPhoto} alt={t("admin.acc.invoice")} className="max-h-full max-w-full rounded-xl" /></div>, document.body)}
     </div>
   );
 }

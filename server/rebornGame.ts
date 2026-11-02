@@ -5220,8 +5220,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       req.query.category ? eq(ledgerEntries.category, String(req.query.category)) : undefined,
       from ? gte(ledgerEntries.createdAt, from) : undefined,
       to ? sql`${ledgerEntries.createdAt} < ${new Date(to.getTime() + 24 * 60 * 60 * 1000)}` : undefined,
+      sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`, // the closed-day snapshots are big and have their own list
     ].filter((f) => f !== undefined);
-    res.json(await db.select().from(ledgerEntries).where(and(...filters)).orderBy(desc(ledgerEntries.createdAt)).limit(limit));
+    // A snapped invoice is stored as a data URL (megabytes each): 1000 of them made this answer take minutes and ran the server out of memory, so the list only says a photo exists and /ledger/:id/photo gives it.
+    res.json(await db.select({
+      id: ledgerEntries.id, companyId: ledgerEntries.companyId, branchId: ledgerEntries.branchId, kind: ledgerEntries.kind, category: ledgerEntries.category, amount: ledgerEntries.amount, note: ledgerEntries.note,
+      photoUrl: sql<string | null>`CASE WHEN ${ledgerEntries.photoUrl} LIKE 'data:%' THEN NULL ELSE ${ledgerEntries.photoUrl} END`,
+      hasPhoto: sql<boolean>`${ledgerEntries.photoUrl} IS NOT NULL`,
+      refType: ledgerEntries.refType, refId: ledgerEntries.refId, userId: ledgerEntries.userId, createdAt: ledgerEntries.createdAt,
+    }).from(ledgerEntries).where(and(...filters)).orderBy(desc(ledgerEntries.createdAt)).limit(limit));
   }));
   app.get("/api/reborn/pos/settings", requireStaff(async (_req, res) => {
     const settings = await getSettings();
