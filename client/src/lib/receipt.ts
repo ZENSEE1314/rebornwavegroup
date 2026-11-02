@@ -4,6 +4,7 @@ import { translate as tr, localeTag } from "@/lib/i18n";
 import { money } from "@/lib/money";
 import { apiRequest } from "@/lib/queryClient";
 import { qrSvgNow } from "@/lib/qr-download";
+import { itemsOfKind, kindTotals } from "@shared/closingKind";
 import { readSplit } from "@shared/payments";
 import { percentOf } from "@shared/taxFees";
 
@@ -257,8 +258,14 @@ export function printKitchen(order: Order, title?: string) {
   return printDoc(kitchenHtml(order, title));
 }
 
-export function printClosingReport(report: any, meta: ReceiptMeta = {}) {
-  const items = (report.items || []).map((item: any) => `<div class="row"><span>${item.quantity}× ${esc(item.name)}</span><span>${rp(item.sales)}</span></div>`).join("");
+// `only` prints just the food or just the drinks of the day: the items of that kind with their sales, cost and profit (bill-level tax, fees and payments are not split by item).
+export function printClosingReport(report: any, meta: ReceiptMeta = {}, only: "food" | "drink" | "" = "") {
+  const shown = itemsOfKind(report.items || [], only);
+  const items = shown.map((item: any) => `<div class="row"><span>${item.quantity}× ${esc(item.name)}</span><span>${rp(item.sales)}</span></div>`).join("");
+  if (only) {
+    const { sales, cost, profit } = kindTotals(shown);
+    return printDoc(`<div class="c">${meta.logoUrl ? `<img class="logo" src="${meta.logoUrl}" />` : ""}<div class="name">${esc(meta.clubName || "Reborn Wave Group")}</div><div class="mode">${tr("pos.rc.endOfDay")} · ${tr(only === "food" ? "pos.rc.foodOnly" : "pos.rc.drinksOnly")}</div><div class="muted">${esc(report.day || "")}</div></div><hr/>${items || `<div class="c muted">${tr("pos.rc.noItems")}</div>`}<hr/><div class="row big"><span>${tr("pos.rc.itemSales")}</span><span>${rp(sales)}</span></div><div class="row"><span>${tr("pos.rc.productCost")}</span><span>- ${rp(cost)}</span></div><div class="row big"><span>${tr("pos.rc.grossProfit")}</span><span>${rp(profit)}</span></div><hr/><div class="c muted">${esc(tr("pos.rc.closed", { when: new Date(report.closedAt || Date.now()).toLocaleString(localeTag()) }))}</div>`);
+  }
   const t = report.totals || {};
   return printDoc(`<div class="c">${meta.logoUrl ? `<img class="logo" src="${meta.logoUrl}" />` : ""}<div class="name">${esc(meta.clubName || "Reborn Wave Group")}</div><div class="mode">${tr("pos.rc.endOfDay")}</div><div class="muted">${esc(report.day || "")}</div></div><hr/><div class="row"><span>${tr("pos.rc.paidOrders")}</span><span>${Number(report.ticketCount || 0)}</span></div><hr/>${items || `<div class="c muted">${tr("pos.rc.noItems")}</div>`}<hr/><div class="row"><span>${tr("pos.rc.grossSales")}</span><span>${rp(t.subtotal)}</span></div>${Number(t.commission) > 0 ? `<div class="row"><span>${tr("pos.rc.commissionBase")}</span><span>${rp(t.salesNet)}</span></div><div class="row"><span>${tr("pos.rc.commission")}</span><span>- ${rp(t.commission)}</span></div>` : ""}<div class="row"><span>${tr("pos.rc.discounts")}</span><span>- ${rp(t.discount)}</span></div><div class="row"><span>${tr("pos.rc.serviceFee")}</span><span>${rp(t.serviceFee)}</span></div><div class="row"><span>${tr("pos.rc.tax")}</span><span>${rp(t.tax)}</span></div><div class="row big"><span>${tr("pos.rc.totalRevenue")}</span><span>${rp(t.revenue)}</span></div><div class="row"><span>${tr("pos.rc.cash")}</span><span>${rp(t.cash)}</span></div><div class="row"><span>${tr("pos.rc.card")}</span><span>${rp(t.card)}</span></div>${Number(t.credits) ? `<div class="row"><span>${tr("pos.pay.credits")}</span><span>${rp(t.credits)}</span></div>` : ""}${Number(t.packageCredit) ? `<div class="row"><span>${tr("pos.rc.packageCredit")}</span><span>${rp(t.packageCredit)}</span></div>` : ""}<hr/><div class="row"><span>${tr("pos.rc.productCost")}</span><span>- ${rp(t.cost)}</span></div><div class="row big"><span>${tr("pos.rc.grossProfit")}</span><span>${rp(t.profit)}</span></div>${Number(report.onAccount?.count) > 0 ? `<hr/><div class="row big"><span>${esc(tr("pos.acct.carried", { n: report.onAccount.count }))}</span><span>${rp(report.onAccount.total)}</span></div>${(report.onAccount.bills || []).map((b: any) => `<div class="row"><span>${esc(b.customer || b.orderNo)}${b.since ? ` · ${esc(b.since)}` : ""}</span><span>${rp(b.total)}</span></div>`).join("")}` : ""}<hr/><div class="c muted">${esc(tr("pos.rc.closed", { when: new Date(report.closedAt || Date.now()).toLocaleString(localeTag()) }))}</div>`);
 }

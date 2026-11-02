@@ -43,7 +43,7 @@ import { cleanPackPrice, cleanUnitsPerPack, unitPriceFromPack, exactUnitCost } f
 import { canUseExpenses, cleanTabAccess, type AdminRole } from "@shared/adminTabs";
 import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyActuals } from "@shared/fixedCosts";
 import { COST_SECTIONS, classifyLine, monthlyReports, periodReport } from "@shared/accountingReport";
-import { itemProfitReport, type SoldLine } from "@shared/itemProfit";
+import { itemProfitReport, kindOf, type MenuKind, type SoldLine } from "@shared/itemProfit";
 import { cleanRate } from "@shared/taxFees";
 import { DEFAULT_PAY_DAYS, MAX_PAY_DAYS, MIN_PAY_DAYS, cleanNoLeaveMonths, leaveSummary, unpaidDeduction } from "@shared/payrollLeave";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
@@ -439,14 +439,19 @@ async function buildDailyClosingReport(day: string) {
     qty: posTicketItems.qty,
     lineTotal: posTicketItems.lineTotal,
     unitCost: posProducts.cost,
+    station: posTicketItems.station,
+    category: posProducts.category,
+    isService: posProducts.isService,
+    packageKind: posProducts.packageKind,
   }).from(posTicketItems).leftJoin(posProducts, eq(posTicketItems.productId, posProducts.id)).where(and(
     inArray(posTicketItems.orderId, ids),
     sql`${posTicketItems.status} <> 'rejected'`,
   )) : [];
-  const grouped = new Map<string, { name: string; quantity: number; sales: number; cost: number }>();
+  const grouped = new Map<string, { name: string; kind: MenuKind; quantity: number; sales: number; cost: number }>();
   for (const item of sold) {
     const key = `${item.productId || "custom"}:${item.name}`;
-    const row = grouped.get(key) || { name: item.name, quantity: 0, sales: 0, cost: 0 };
+    const kind = kindOf({ productId: item.productId, category: item.category, station: item.station, isService: !!item.isService, isPackage: !!item.packageKind });
+    const row = grouped.get(key) || { name: item.name, kind, quantity: 0, sales: 0, cost: 0 };
     row.quantity += Number(item.qty) || 0;
     row.sales += Number(item.lineTotal) || 0;
     row.cost += (Number(item.unitCost) || 0) * (Number(item.qty) || 0);
@@ -5238,7 +5243,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY_MS);
     const rows = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType, "pos_closing"), sql`${ledgerEntries.createdAt} >= ${since}`)).orderBy(desc(ledgerEntries.createdAt));
-    res.json(rows.map((row) => { try { return { id: row.id, ...JSON.parse(row.note || "{}") }; } catch { return null; } }).filter(Boolean));
+    // Days closed before items carried food/drink get it from the item's name today, so every closed day can be printed as food only or drinks only.
+    const products = await db.select({ name: posProducts.name, category: posProducts.category, isService: posProducts.isService, packageKind: posProducts.packageKind, id: posProducts.id }).from(posProducts);
+    const kindByName = new Map(products.map((p) => [p.name, kindOf({ productId: p.id, category: p.category, station: null, isService: !!p.isService, isPackage: !!p.packageKind })]));
+    res.json(rows.map((row) => {
+      try {
+        const report = JSON.parse(row.note || "{}");
+        return { id: row.id, ...report, items: (report.items || []).map((item: any) => ({ ...item, kind: item.kind || kindByName.get(item.name) || "other" })) };
+      } catch { return null; }
+    }).filter(Boolean));
   }));
   // Commission: paid sales grouped by salesperson (staff credited on each ticket).
   app.get("/api/reborn/admin/accounting/commission", requireAdmin(async (req, res) => {
