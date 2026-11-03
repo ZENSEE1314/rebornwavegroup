@@ -17,7 +17,7 @@ import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
 import { parseReceiptText } from "@shared/receiptText";
 import { MAX_PERCENT, canEarn, commissionFor, commissionForPart, eligibleStaffOf, ruleOf, splitPartsOf } from "@shared/itemCommission";
-import { cleanDays, clockInZone, dealOf, freeUnitsFor, hasHappyWindow, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
+import { cleanDays, clockInZone, dealOf, freeUnitsFor, hasHappyWindow, inHappyHours, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
@@ -6516,12 +6516,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const times = sold.map((row) => row.paidAt?.getTime() ?? 0).filter(Boolean);
     const fifoCosts = times.length ? await fifoSaleCosts(Array.from(units.keys()), new Date(Math.min(...times) - DAY_MS), new Date(Math.max(...times) + DAY_MS)) : new Map<number, number>();
     const timeZone = countryOf(companyCountry()).timezone;
+    // The venue's happy hours are the windows set on its items: every drink ordered inside one of them is a happy hour sale, even a drink with no window of its own.
+    const windows = await db.select({ happyStart: posProducts.happyStart, happyEnd: posProducts.happyEnd, happyDays: posProducts.happyDays }).from(posProducts)
+      .where(and(eq(posProducts.companyId, cid), isNotNull(posProducts.happyStart)));
     const lines: SoldLine[] = sold.map((row, index) => {
       const qty = costLines[index].qty;
       const cost = costOfLine(costLines[index], units, fifoCosts) ?? (Number(row.unitCost) || 0) * qty;
       return {
         productId: row.productId, name: row.name, category: row.category, station: row.station, isService: !!row.isService, isPackage: !!row.packageKind,
-        inHappyHour: !!row.addedAt && isHappyNow(row, clockInZone(row.addedAt, timeZone)),
+        inHappyHour: !!row.addedAt && inHappyHours({ ...row, isDrink: kindOf({ productId: row.productId, category: row.category, station: row.station, isService: !!row.isService, isPackage: !!row.packageKind }) === "drink" }, windows, clockInZone(row.addedAt, timeZone)),
         qty, lineTotal: Number(row.lineTotal) || 0, regularPrice: Number(row.regularPrice) || 0, cost, commission: commissionOf.get(row.itemId) || 0,
       };
     });

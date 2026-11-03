@@ -85,5 +85,10 @@ export function freeUnitsFor(p: HappyHourFields, clockNow: string, qty: number, 
   return free;
 }
 
+/** A line ordered at `clockAt` is in the happy hours when its own item's window is on, or when it is a drink and any item's window is on (the venue's happy hour covers all drinks). */
+export function inHappyHours(line: HappyHourFields & { isDrink: boolean }, windows: HappyHourFields[], clockAt: string): boolean {
+  return isHappyNow(line, clockAt) || (line.isDrink && windows.some((window) => isHappyNow(window, clockAt)));
+}
+
 // An item that is only sold in its window is not offered outside it.
 export const isOffHours = (p: HappyHourFields, clockNow: string): boolean => !!p.happyOnly && hasHappyWindow(p) && !isHappyNow(p, clockNow);

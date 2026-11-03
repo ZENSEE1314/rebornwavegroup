@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { dealOf, freeUnitsFor } from "./happyHour";
+import { dealOf, freeUnitsFor, inHappyHours } from "./happyHour";
 
 const DURING = "18:30";
 const OUTSIDE = "12:00";
@@ -57,4 +57,15 @@ describe("cleanDays", () => {
   it("should mean every day when all seven are ticked", () => assert.equal(cleanDays("0,1,2,3,4,5,6"), ""));
   it("should mean every day when nothing valid is given", () => assert.equal(cleanDays("abc"), ""));
   it("should accept a list", () => assert.equal(cleanDays([3, 1]), "1,3"));
+});
+
+describe("inHappyHours", () => {
+  const windows = [{ happyStart: "17:00", happyEnd: "19:00", happyDays: "0,1,2,3,4" }];
+  const cocktail = { happyStart: null, happyEnd: null, isDrink: true };
+  const burger = { happyStart: null, happyEnd: null, isDrink: false };
+  it("should count a drink with no window of its own when any item's window is on", () => assert.equal(inHappyHours(cocktail, windows, "1 17:30"), true));
+  it("should not count food with no window of its own", () => assert.equal(inHappyHours(burger, windows, "1 17:30"), false));
+  it("should not count a drink outside the window", () => assert.equal(inHappyHours(cocktail, windows, "1 20:00"), false));
+  it("should not count a drink on a weekday the window does not run", () => assert.equal(inHappyHours(cocktail, windows, "5 17:30"), false));
+  it("should count food that has its own window on", () => assert.equal(inHappyHours({ ...burger, happyStart: "17:00", happyEnd: "19:00" }, [], "1 17:30"), true));
 });
