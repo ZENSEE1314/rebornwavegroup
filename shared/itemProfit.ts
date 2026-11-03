@@ -14,8 +14,8 @@ export interface SoldLine {
   station: string | null;
   isService: boolean;
   isPackage: boolean;
-  /** The item has happy hour set up (hours or a deal). */
-  hasHappyHour: boolean;
+  /** The line was ordered inside its item's happy hours (the window and the weekdays set on the item). */
+  inHappyHour: boolean;
   qty: number;
   lineTotal: number;
   /** The item's regular selling price for one unit (0 when the line is not a stock item). */
@@ -54,8 +54,8 @@ export function kindOf(line: Pick<SoldLine, "productId" | "category" | "station"
 export const promotionOf = (line: Pick<SoldLine, "productId" | "qty" | "lineTotal" | "regularPrice">): number =>
   line.productId && line.regularPrice > 0 ? Math.max(0, line.regularPrice * line.qty - line.lineTotal) : 0;
 
-/** A happy hour sale is a line of an item with happy hour set up that was charged less than its regular price (cheaper price or free units). */
-export const saleTimeOf = (line: SoldLine): SaleTime => (line.hasHappyHour && promotionOf(line) > 0 ? "happy" : "regular");
+/** A happy hour sale is a line ordered during its item's happy hours, at whatever price it was charged; everything else is a normal sale, so the two never share cost or revenue. */
+export const saleTimeOf = (line: Pick<SoldLine, "inHappyHour">): SaleTime => (line.inHappyHour ? "happy" : "regular");
 
 const addTo = (totals: Totals, row: Omit<Totals, "profit">) => {
   totals.qty += row.qty; totals.revenue += row.revenue; totals.cost += row.cost; totals.promotion += row.promotion; totals.commission += row.commission;

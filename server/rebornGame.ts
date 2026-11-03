@@ -44,6 +44,7 @@ import { canUseExpenses, cleanTabAccess, type AdminRole } from "@shared/adminTab
 import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyActuals } from "@shared/fixedCosts";
 import { COST_SECTIONS, classifyLine, monthlyReports, periodReport } from "@shared/accountingReport";
 import { withDrinkCostOnly } from "@shared/closingKind";
+import { baseUnits, costOfLine } from "@shared/lineCosts";
 import { itemProfitReport, kindOf, type MenuKind, type SoldLine } from "@shared/itemProfit";
 import { cleanRate } from "@shared/taxFees";
 import { DEFAULT_PAY_DAYS, MAX_PAY_DAYS, MIN_PAY_DAYS, cleanNoLeaveMonths, leaveSummary, unpaidDeduction } from "@shared/payrollLeave";
@@ -444,27 +445,27 @@ async function buildDailyClosingReport(day: string) {
     category: posProducts.category,
     isService: posProducts.isService,
     packageKind: posProducts.packageKind,
+    bundleItemId: posProducts.bundleItemId,
+    bundleQty: posProducts.bundleQty,
   }).from(posTicketItems).leftJoin(posProducts, eq(posTicketItems.productId, posProducts.id)).where(and(
     inArray(posTicketItems.orderId, ids),
     sql`${posTicketItems.status} <> 'rejected'`,
   )) : [];
+  // The cost of what was sold comes from the deliveries the units were taken from (oldest first), shared by the units each line took (a bundle takes its units from its base item).
+  const costLines = sold.map((item) => ({ productId: item.productId, qty: Number(item.qty) || 0, bundleItemId: item.bundleItemId, bundleQty: item.bundleQty }));
+  const units = baseUnits(costLines);
+  const dayFrom = venueDayStart(day);
+  const fifoCosts = await fifoSaleCosts(Array.from(units.keys()), dayFrom, new Date(dayFrom.getTime() + 24 * 3_600_000));
   const grouped = new Map<string, { name: string; kind: MenuKind; quantity: number; sales: number; cost: number }>();
-  for (const item of sold) {
+  for (let index = 0; index < sold.length; index++) {
+    const item = sold[index];
     const key = `${item.productId || "custom"}:${item.name}`;
     const kind = kindOf({ productId: item.productId, category: item.category, station: item.station, isService: !!item.isService, isPackage: !!item.packageKind });
     const row = grouped.get(key) || { name: item.name, kind, quantity: 0, sales: 0, cost: 0 };
     row.quantity += Number(item.qty) || 0;
     row.sales += Number(item.lineTotal) || 0;
-    row.cost += (Number(item.unitCost) || 0) * (Number(item.qty) || 0);
+    row.cost += costOfLine(costLines[index], units, fifoCosts) ?? (Number(item.unitCost) || 0) * costLines[index].qty;
     grouped.set(key, row);
-  }
-  // The cost of what was sold comes from the deliveries the units were taken from (oldest first), not one price per item.
-  const soldIds = Array.from(new Set(sold.map((item) => item.productId).filter((id): id is number => !!id)));
-  const dayFrom = venueDayStart(day);
-  const fifoCosts = await fifoSaleCosts(soldIds, dayFrom, new Date(dayFrom.getTime() + 24 * 3_600_000));
-  for (const [key, row] of grouped) {
-    const productId = Number(key.split(":")[0]);
-    if (productId && fifoCosts.has(productId)) row.cost = fifoCosts.get(productId)!;
   }
   const totals = tickets.reduce((sum, ticket) => {
     sum.subtotal += Number(ticket.subtotal) || 0;
@@ -6500,7 +6501,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const sold = await db.select({
       itemId: posTicketItems.id, productId: posTicketItems.productId, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, station: posTicketItems.station, paidAt: posTickets.paidAt,
       category: posProducts.category, isService: posProducts.isService, packageKind: posProducts.packageKind, regularPrice: posProducts.price, unitCost: posProducts.cost,
-      happyStart: posProducts.happyStart, happyBuyQty: posProducts.happyBuyQty,
+      happyStart: posProducts.happyStart, happyEnd: posProducts.happyEnd, happyDays: posProducts.happyDays, bundleItemId: posProducts.bundleItemId, bundleQty: posProducts.bundleQty, addedAt: posTicketItems.addedAt,
     }).from(posTicketItems)
       .innerJoin(posTickets, eq(posTicketItems.orderId, posTickets.id))
       .leftJoin(posProducts, eq(posTicketItems.productId, posProducts.id))
@@ -6509,20 +6510,18 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const commissionRows = itemIds.length ? await db.select({ itemId: staffItemCommissions.itemId, amount: sql<string>`sum(${staffItemCommissions.amount})` }).from(staffItemCommissions)
       .where(and(inArray(staffItemCommissions.itemId, itemIds), isNull(staffItemCommissions.voidedAt))).groupBy(staffItemCommissions.itemId) : [];
     const commissionOf = new Map(commissionRows.map((row) => [row.itemId, Number(row.amount) || 0]));
-    // Cost from the deliveries the units came out of (oldest first), shared between the lines of an item by quantity; an item with no delivery history uses its own cost.
-    const productIds = Array.from(new Set(sold.map((row) => row.productId).filter((id): id is number => !!id)));
+    // Cost from the deliveries the units came out of (oldest first), shared by the units each line took (a bundle takes its units from its base item); an item with no delivery history uses its own cost.
+    const costLines = sold.map((row) => ({ productId: row.productId, qty: Number(row.qty) || 0, bundleItemId: row.bundleItemId, bundleQty: row.bundleQty }));
+    const units = baseUnits(costLines);
     const times = sold.map((row) => row.paidAt?.getTime() ?? 0).filter(Boolean);
-    const fifoCosts = times.length ? await fifoSaleCosts(productIds, new Date(Math.min(...times) - DAY_MS), new Date(Math.max(...times) + DAY_MS)) : new Map<number, number>();
-    const qtyOfProduct = new Map<number, number>();
-    for (const row of sold) if (row.productId) qtyOfProduct.set(row.productId, (qtyOfProduct.get(row.productId) || 0) + (Number(row.qty) || 0));
-    const lines: SoldLine[] = sold.map((row) => {
-      const qty = Number(row.qty) || 0;
-      const fifoTotal = row.productId ? fifoCosts.get(row.productId) : undefined;
-      const productQty = row.productId ? qtyOfProduct.get(row.productId) || 0 : 0;
-      const cost = fifoTotal !== undefined && productQty > 0 ? fifoTotal * qty / productQty : (Number(row.unitCost) || 0) * qty;
+    const fifoCosts = times.length ? await fifoSaleCosts(Array.from(units.keys()), new Date(Math.min(...times) - DAY_MS), new Date(Math.max(...times) + DAY_MS)) : new Map<number, number>();
+    const timeZone = countryOf(companyCountry()).timezone;
+    const lines: SoldLine[] = sold.map((row, index) => {
+      const qty = costLines[index].qty;
+      const cost = costOfLine(costLines[index], units, fifoCosts) ?? (Number(row.unitCost) || 0) * qty;
       return {
         productId: row.productId, name: row.name, category: row.category, station: row.station, isService: !!row.isService, isPackage: !!row.packageKind,
-        hasHappyHour: !!row.happyStart || (Number(row.happyBuyQty) || 0) > 0,
+        inHappyHour: !!row.addedAt && isHappyNow(row, clockInZone(row.addedAt, timeZone)),
         qty, lineTotal: Number(row.lineTotal) || 0, regularPrice: Number(row.regularPrice) || 0, cost, commission: commissionOf.get(row.itemId) || 0,
       };
     });

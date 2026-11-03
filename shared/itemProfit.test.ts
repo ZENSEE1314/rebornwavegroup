@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { itemProfitReport, kindOf, promotionOf, saleTimeOf, type SoldLine } from "./itemProfit";
 
 const line = (over: Partial<SoldLine>): SoldLine => ({
-  productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, hasHappyHour: false,
+  productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, inHappyHour: false,
   qty: 1, lineTotal: 50_000, regularPrice: 50_000, cost: 20_000, commission: 0, ...over,
 });
 
@@ -20,15 +20,15 @@ describe("promotion and happy hour", () => {
   it("should count the price cut as promotion", () => assert.equal(promotionOf(line({ qty: 2, lineTotal: 60_000 })), 40_000));
   it("should count a free unit as promotion", () => assert.equal(promotionOf(line({ lineTotal: 0 })), 50_000));
   it("should give no promotion at the regular price", () => assert.equal(promotionOf(line({})), 0));
-  it("should call a cheaper line of a happy hour item a happy hour sale", () => assert.equal(saleTimeOf(line({ hasHappyHour: true, lineTotal: 30_000 })), "happy"));
-  it("should call a line at the regular price a normal sale even with happy hour set up", () => assert.equal(saleTimeOf(line({ hasHappyHour: true })), "regular"));
-  it("should call a discounted line of an item with no happy hour a normal sale", () => assert.equal(saleTimeOf(line({ lineTotal: 30_000 })), "regular"));
+  it("should call a line ordered in the happy hours a happy hour sale", () => assert.equal(saleTimeOf(line({ inHappyHour: true, lineTotal: 30_000 })), "happy"));
+  it("should call a discounted line ordered outside the happy hours a normal sale", () => assert.equal(saleTimeOf(line({ lineTotal: 30_000 })), "regular"));
+  it("should call a free unit ordered in the happy hours a happy hour sale", () => assert.equal(saleTimeOf(line({ inHappyHour: true, lineTotal: 0 })), "happy"));
 });
 
 describe("item profit report", () => {
   const report = itemProfitReport([
     line({ qty: 2, lineTotal: 100_000, cost: 40_000, commission: 5_000 }),
-    line({ qty: 1, lineTotal: 30_000, cost: 20_000, hasHappyHour: true }),
+    line({ qty: 1, lineTotal: 30_000, cost: 20_000, inHappyHour: true }),
     line({ productId: 2, name: "Burger", category: "Mains", qty: 1, lineTotal: 80_000, regularPrice: 80_000, cost: 30_000 }),
   ]);
   it("should add the lines of one item together", () => assert.equal(report.items.find((item) => item.name === "Beer")?.qty, 3));
