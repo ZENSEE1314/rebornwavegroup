@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { itemProfitReport, kindOf, promotionOf, saleTimeOf, type SoldLine } from "./itemProfit";
+import { itemProfitReport, kindOf, promotionOf, saleTimeOf, wastageReport, type SoldLine, type WasteLine } from "./itemProfit";
 
 const line = (over: Partial<SoldLine>): SoldLine => ({
   orderNo: "A1", at: "2026-11-01T10:00:00.000Z", customer: "Felix", table: "1", billTotal: 100_000, productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, inHappyHour: false,
@@ -63,4 +63,14 @@ describe("receipts by customer", () => {
   it("should not flag a receipt with only normal lines", () => assert.equal(report.receipts.find((receipt) => receipt.orderNo === "A2")?.hasHappy, false));
   it("should name the customer", () => assert.equal(felix?.customer, "Felix"));
   it("should list the newest receipt first", () => assert.equal(report.receipts[0].orderNo, "A2"));
+});
+
+describe("wastage", () => {
+  const waste = (over: Partial<WasteLine>): WasteLine => ({ orderNo: "A1", at: "2026-11-01T10:00:00.000Z", productId: 1, name: "Burger", category: "Mains", station: null, isService: false, isPackage: false, qty: 2, unitCost: 15_000, reason: "Dropped", by: "Ann", ...over });
+  const report = wastageReport([waste({}), waste({ name: "Beer", category: "Beer", qty: 1, unitCost: 20_000, at: "2026-11-02T10:00:00.000Z" })]);
+  it("should add the cost of wasted food", () => assert.equal(report.kinds.food.cost, 30_000));
+  it("should keep drinks apart from food", () => assert.equal(report.kinds.drink.qty, 1));
+  it("should add food and drinks into the total", () => assert.equal(report.total.cost, 50_000));
+  it("should list the newest waste first", () => assert.equal(report.rows[0].name, "Beer"));
+  it("should keep the reason", () => assert.equal(report.rows[1].reason, "Dropped"));
 });

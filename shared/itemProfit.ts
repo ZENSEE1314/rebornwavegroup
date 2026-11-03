@@ -59,6 +59,30 @@ export interface ReceiptRow {
   hasHappy: boolean;
   lines: SaleRow[];
 }
+/** An item made and then spilled, broken or dropped (the customer did not pay for it). */
+export interface WasteLine {
+  orderNo: string;
+  at: string;
+  productId: number | null;
+  name: string;
+  category: string | null;
+  station: string | null;
+  isService: boolean;
+  isPackage: boolean;
+  qty: number;
+  /** What one unit cost (the item's own cost). */
+  unitCost: number;
+  reason: string;
+  by: string;
+}
+export interface WasteRow { orderNo: string; at: string; name: string; kind: MenuKind; qty: number; cost: number; reason: string; by: string }
+export interface WastageReport {
+  kinds: Record<MenuKind, { qty: number; cost: number }>;
+  total: { qty: number; cost: number };
+  rows: WasteRow[];
+}
+/** What the report route answers: the item report plus the wastage. */
+export interface ItemProfitResponse extends ItemProfitReport { wastage: WastageReport }
 export interface ItemProfitReport {
   receipts: ReceiptRow[];
   sales: SaleRow[];
@@ -104,6 +128,21 @@ function receiptsOf(lines: SoldLine[], sales: SaleRow[]): ReceiptRow[] {
     byOrder.set(line.orderNo, receipt);
   });
   return Array.from(byOrder.values()).sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/** Wasted items by food and drinks with what they cost, newest first. */
+export function wastageReport(lines: WasteLine[]): WastageReport {
+  const kinds = { food: { qty: 0, cost: 0 }, drink: { qty: 0, cost: 0 }, other: { qty: 0, cost: 0 } };
+  const total = { qty: 0, cost: 0 };
+  const rows: WasteRow[] = lines.map((line) => {
+    const kind = kindOf(line);
+    const cost = round(line.unitCost * line.qty);
+    kinds[kind].qty += line.qty; kinds[kind].cost += cost;
+    total.qty += line.qty; total.cost += cost;
+    return { orderNo: line.orderNo, at: line.at, name: line.name, kind, qty: line.qty, cost, reason: line.reason, by: line.by };
+  }).sort((a, b) => b.at.localeCompare(a.at));
+  const rounded = (part: { qty: number; cost: number }) => ({ qty: part.qty, cost: round(part.cost) });
+  return { kinds: { food: rounded(kinds.food), drink: rounded(kinds.drink), other: rounded(kinds.other) }, total: rounded(total), rows };
 }
 
 /** One row per item (free units are added to their item), best profit first, and the totals of food, drinks and other. */

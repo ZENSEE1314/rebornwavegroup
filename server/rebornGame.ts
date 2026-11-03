@@ -45,7 +45,7 @@ import { breakEvenSales, cleanFixedCosts, dailyCosts, daysInMonth, type MonthlyA
 import { COST_SECTIONS, classifyLine, monthlyReports, periodReport } from "@shared/accountingReport";
 import { withDrinkCostOnly } from "@shared/closingKind";
 import { baseUnits, costOfLine } from "@shared/lineCosts";
-import { itemProfitReport, kindOf, type MenuKind, type SoldLine } from "@shared/itemProfit";
+import { itemProfitReport, kindOf, wastageReport, type MenuKind, type SoldLine, type WasteLine } from "@shared/itemProfit";
 import { cleanRate } from "@shared/taxFees";
 import { DEFAULT_PAY_DAYS, MAX_PAY_DAYS, MIN_PAY_DAYS, cleanNoLeaveMonths, leaveSummary, unpaidDeduction } from "@shared/payrollLeave";
 import { fifoSaleCosts, loadFifo, registerStockLayers } from "./stockLayers";
@@ -6529,7 +6529,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         qty, lineTotal: Number(row.lineTotal) || 0, regularPrice: Number(row.regularPrice) || 0, cost, commission: commissionOf.get(row.itemId) || 0,
       };
     });
-    res.json(itemProfitReport(lines));
+    const wasteIn = range ? sql`${posTicketItems.addedAt} >= ${range.from} AND ${posTicketItems.addedAt} < ${range.to}` : since ? sql`${posTicketItems.addedAt} >= ${since}` : sql`TRUE`;
+    const lost = await db.select({
+      orderNo: posTickets.orderNo, addedAt: posTicketItems.addedAt, productId: posTicketItems.productId, name: posTicketItems.name, station: posTicketItems.station, qty: posTicketItems.qty,
+      reason: posTicketItems.rejectReason, by: posTicketItems.addedByName, category: posProducts.category, isService: posProducts.isService, packageKind: posProducts.packageKind, unitCost: posProducts.cost,
+    }).from(posTicketItems)
+      .innerJoin(posTickets, eq(posTicketItems.orderId, posTickets.id))
+      .leftJoin(posProducts, eq(posTicketItems.productId, posProducts.id))
+      .where(and(eq(posTickets.companyId, cid), eq(posTicketItems.status, "lost"), wasteIn));
+    const wasteLines: WasteLine[] = lost.map((row) => ({
+      orderNo: row.orderNo, at: (row.addedAt ?? new Date(0)).toISOString(), productId: row.productId, name: row.name, category: row.category, station: row.station, isService: !!row.isService,
+      isPackage: !!row.packageKind, qty: Number(row.qty) || 0, unitCost: Number(row.unitCost) || 0, reason: row.reason || "", by: row.by || "",
+    }));
+    res.json({ ...itemProfitReport(lines), wastage: wastageReport(wasteLines) });
   }));
 
   // The lines behind one number of a report, each with where it came from: the POS bill, the expense upload (who, when, receipt), the stock delivery or the payroll entry.

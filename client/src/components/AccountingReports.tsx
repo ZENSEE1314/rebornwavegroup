@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { translations, useTranslation, localeTag } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
-import { SALE_TIMES, type ItemProfitReport, type MenuKind, type ReceiptRow, type SaleRow, type SaleTime, type Totals } from "@shared/itemProfit";
+import { SALE_TIMES, type ItemProfitReport, type ItemProfitResponse, type MenuKind, type ReceiptRow, type SaleRow, type SaleTime, type Totals, type WastageReport } from "@shared/itemProfit";
 import { EXPENSE_GROUPS, sectionsOfGroup, type CostSection, type ExpenseGroup, type PeriodReport, type ReportGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
@@ -249,12 +249,40 @@ function ReceiptsByCustomer({ receipts }: { receipts: ReceiptRow[] }) {
   );
 }
 
+function WastageView({ wastage }: { wastage: WastageReport }) {
+  const { t } = useTranslation();
+  const line = (label: string, qty: number, cost: number) => <div className="flex justify-between text-xs"><span className="text-white/50">{label}</span><span>{qty} · <span className="text-red-300">{money(cost)}</span></span></div>;
+  return (
+    <div className="rounded-xl border border-red-400/30 bg-black/20 p-3 space-y-1">
+      <p className="text-sm font-extrabold">{t("ip.waste.title")}</p>
+      {wastage.total.qty === 0 ? <p className="text-xs text-white/50">{t("ip.waste.none")}</p> : (
+        <>
+          {KIND_ORDER.filter((kind) => wastage.kinds[kind].qty > 0).map((kind) => <div key={kind}>{line(t(`ip.kind.${kind}`), wastage.kinds[kind].qty, wastage.kinds[kind].cost)}</div>)}
+          <div className="border-t border-white/10 pt-1 text-sm font-bold">{line(t("ip.waste.total"), wastage.total.qty, wastage.total.cost)}</div>
+          <details>
+            <summary className="min-h-[40px] cursor-pointer py-2 text-[11px] font-semibold text-amber-200">{t("ip.waste.list", { n: String(wastage.rows.length) })}</summary>
+            <div className="max-h-72 space-y-1 overflow-y-auto">
+              {wastage.rows.map((row, index) => (
+                <div key={index} className="rounded-md bg-white/5 p-1.5 text-[11px]">
+                  <div className="flex justify-between gap-2"><b>{row.orderNo}</b><span className="text-white/40">{new Date(row.at).toLocaleString(localeTag())}</span></div>
+                  <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{row.qty}× {row.name} · {t(`ip.kind.${row.kind}`)}</span><span className="text-red-300">{money(row.cost)}</span></div>
+                  <p className="text-white/50">{[row.reason, row.by].filter(Boolean).join(" · ")}</p>
+                </div>
+              ))}
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ItemProfitView() {
   const { t } = useTranslation();
   const [month, setMonth] = useState(todayMonth());
   const [isAllTime, setIsAllTime] = useState(false);
   const url = `/api/reborn/admin/accounting/item-profit${isAllTime ? "" : `?month=${month}`}`;
-  const { data } = useQuery<ItemProfitReport>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
+  const { data } = useQuery<ItemProfitResponse>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -269,6 +297,7 @@ function ItemProfitView() {
             <TotalsRows totals={data.total} />
             <SaleTimeSplit bySale={data.total.bySale} sales={data.sales} />
           </div>
+          <WastageView wastage={data.wastage} />
           <ReceiptsByCustomer receipts={data.receipts} />
           {KIND_ORDER.filter((kind) => data.kinds[kind].qty > 0).map((kind) => (
             <div key={kind} className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
