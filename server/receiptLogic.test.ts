@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { PACK_UNIT_RE, applyMemory, expenseKeyOf, cleanReceipt, cleanSaveLines, matchProduct, nameScore, normName, receiptNote } from "./receiptLogic";
+import { PACK_UNIT_RE, applyMemory, expenseKeyOf, cleanReceipt, cleanSaveLines, matchProduct, nameScore, normName, payableDupKey, payableItemsOf, receiptNote } from "./receiptLogic";
 
 const products = [
   { id: 1, name: "Bintang 620ml" },
@@ -124,4 +124,14 @@ describe("cleanReceipt address and time", () => {
     assert.deepEqual([r.supplierAddress, r.time], ["Jl. Sudirman 12", "14:05"]);
   });
   it("should drop a time that is not HH:MM", () => assert.equal(cleanReceipt({ time: "2pm", items: [] }).time, ""));
+});
+
+describe("unpaid supplier bills", () => {
+  const bill = { kind: "stock", supplier: "PT Bir", invoiceNo: "INV-9", spentOn: "2026-11-01", amount: "500000.00" };
+  it("should give the same key to a bill keyed in twice", () => assert.equal(payableDupKey(bill), payableDupKey({ ...bill, supplier: "pt bir " })));
+  it("should give another key when the amount differs", () => assert.notEqual(payableDupKey(bill), payableDupKey({ ...bill, amount: "400000" })));
+  it("should fall back to the day when there is no invoice number", () => assert.notEqual(payableDupKey({ ...bill, invoiceNo: null }), payableDupKey({ ...bill, invoiceNo: null, spentOn: "2026-11-02" })));
+  it("should read the lines of a stock receipt from its note", () => assert.deepEqual(payableItemsOf({ kind: "stock", note: receiptNote({ supplier: "PT Bir", invoiceNo: "INV-9", date: "2026-11-01" }, [{ name: "Bintang", qty: 24 }, { name: "Cola", qty: 6 }]) }, null).map((it) => `${it.qty} ${it.name}`), ["24 Bintang", "6 Cola"]));
+  it("should read the lines of an expense from its saved items", () => assert.equal(payableItemsOf({ kind: "expense", note: "" }, JSON.stringify([{ name: "Ice", qty: 2, unitCost: 17000 }]))[0].unitCost, 17000));
+  it("should give no lines when there is nothing to read", () => assert.deepEqual(payableItemsOf({ kind: "expense", note: "Electricity" }, null), []));
 });

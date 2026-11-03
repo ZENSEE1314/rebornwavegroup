@@ -134,3 +134,18 @@ export function receiptNote(r: { supplier: string; invoiceNo: string; date: stri
   const body = lines.map((l) => `${l.qty} × ${l.name}`).join(", ");
   return `${head}: ${body}`.slice(0, 900);
 }
+
+/** The same supplier bill keyed in twice: same kind, supplier, invoice (or, with none, the same day) and amount. */
+export function payableDupKey(row: { kind: string; supplier: string | null; invoiceNo: string | null; spentOn: string | null; amount: string }): string {
+  return [row.kind, supplierKeyOf(row.supplier || ""), (row.invoiceNo || "").trim().toLowerCase() || row.spentOn || "", Number(row.amount)].join("|");
+}
+
+/** The lines of an unpaid bill: an expense keeps them as JSON, a stock receipt in its note ("Receipt INV-1 from PT Bir (day): 24 × Bintang, 6 × Cola"). */
+export function payableItemsOf(row: { kind: string; note: string | null }, uploadedItems: string | null | undefined): { name: string; qty: number; unitCost: number | null }[] {
+  if (row.kind === "expense" && uploadedItems) {
+    try { return (JSON.parse(uploadedItems) as any[]).map((it) => ({ name: String(it.name), qty: Number(it.qty) || 1, unitCost: Number(it.unitCost) || 0 })); } catch { /* unreadable lines: fall back to the note */ }
+  }
+  const note = row.note || "";
+  const body = note.includes(": ") ? note.slice(note.indexOf(": ") + 2) : "";
+  return body.split(/, (?=\d+ × )/).map((part) => part.match(/^(\d+(?:\.\d+)?) × (.+)$/)).filter((m): m is RegExpMatchArray => !!m).map((m) => ({ name: m[2], qty: Number(m[1]), unitCost: null }));
+}

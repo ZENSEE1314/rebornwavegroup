@@ -72,7 +72,7 @@ import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi"
 import { karaokeSetupBat } from "./karaokeSetup";
 import { cameraSetupBat, cleanSetupCameras } from "./cameraSetup";
 import { BoxControlQueue, isBoxControl, isBoxSongAction, isBoxSongId } from "./boxControls";
-import { cleanReceipt, type ReadReceipt, cleanSaveLines, matchProduct, receiptNote, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
+import { cleanReceipt, type ReadReceipt, cleanSaveLines, matchProduct, receiptNote, payableDupKey, payableItemsOf, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -6238,7 +6238,52 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       .where(and(eq(supplierPayables.companyId, await rebornCompanyId(req)), eq(supplierPayables.status, "unpaid"), canPay ? undefined : eq(supplierPayables.createdBy, userId)))
       .orderBy(sql`${supplierPayables.dueDate} NULLS LAST`, asc(supplierPayables.id));
     const today = (await ensureVenueSession()).day;
-    res.json({ canPay, today, total: rows.reduce((sum, r) => sum + Number(r.amount), 0), payables: rows.map((r) => ({ ...r, isOverdue: !!r.dueDate && r.dueDate < today })) });
+    const ledgerIds = rows.map((r) => r.ledgerEntryId).filter((id): id is number => !!id);
+    const uploads = ledgerIds.length ? await db.select({ ledgerEntryId: expenseUploads.ledgerEntryId, items: expenseUploads.items }).from(expenseUploads).where(inArray(expenseUploads.ledgerEntryId, ledgerIds)) : [];
+    const uploadItems = new Map(uploads.map((u) => [u.ledgerEntryId, u.items]));
+    res.json({ canPay, today, total: rows.reduce((sum, r) => sum + Number(r.amount), 0), payables: rows.map((r) => ({ ...r, isOverdue: !!r.dueDate && r.dueDate < today, dupKey: payableDupKey(r), items: payableItemsOf(r, uploadItems.get(r.ledgerEntryId ?? -1)) })) });
+  }));
+  // Staff sometimes key the same bill in twice. The manager keeps one and removes the others: an expense is voided, a stock receipt has its extra stock and purchase taken back out.
+  app.post("/api/reborn/expenses/payables/merge", requireExpenses(async (req, res) => {
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    if (role !== "admin" && role !== "manager") return res.status(403).json({ message: tr(req, { en: "Only a manager or the main admin can merge bills", zh: "只有经理或主管理员可以合并账单", id: "Hanya manajer atau admin utama yang bisa menggabungkan tagihan" }) });
+    const cid = await rebornCompanyId(req);
+    const keepId = Number(req.body?.keepId);
+    const removeIds: number[] = Array.isArray(req.body?.removeIds) ? req.body.removeIds.map(Number).filter((id: number) => Number.isInteger(id) && id !== keepId) : [];
+    const [keep] = await db.select().from(supplierPayables).where(and(eq(supplierPayables.id, keepId), eq(supplierPayables.companyId, cid), eq(supplierPayables.status, "unpaid")));
+    const dupes = removeIds.length ? await db.select().from(supplierPayables).where(and(inArray(supplierPayables.id, removeIds), eq(supplierPayables.companyId, cid), eq(supplierPayables.status, "unpaid"))) : [];
+    const notSame = tr(req, { en: "Those bills are not exact duplicates", zh: "这些账单并非完全重复", id: "Tagihan itu bukan duplikat yang persis" });
+    if (!keep || !dupes.length || dupes.length !== removeIds.length || dupes.some((d) => payableDupKey(d) !== payableDupKey(keep))) return res.status(400).json({ message: notSame });
+    for (const dupe of dupes) {
+      if (!dupe.ledgerEntryId) { await db.update(supplierPayables).set({ status: "void" }).where(eq(supplierPayables.id, dupe.id)); continue; }
+      if (dupe.kind === "expense") {
+        const [upload] = await db.select().from(expenseUploads).where(eq(expenseUploads.ledgerEntryId, dupe.ledgerEntryId));
+        if (upload && upload.status !== "voided") await voidExpenseUpload(upload, `Duplicate of bill #${keep.id}`, userId);
+        else await db.update(supplierPayables).set({ status: "void" }).where(eq(supplierPayables.id, dupe.id));
+        continue;
+      }
+      const head = (dupe.note || "").split(": ")[0];
+      const likeHead = `${head.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const sameReceipts = await db.select({ id: ledgerEntries.id }).from(ledgerEntries).where(and(eq(ledgerEntries.refType, "receipt"), sql`${ledgerEntries.note} LIKE ${`${head.replace(/[\\%_]/g, (c) => `\\${c}`)}:%`}`));
+      const moves = await db.select().from(stockMovements).where(and(eq(stockMovements.companyId, cid), eq(stockMovements.reason, "stock_in"), sql`${stockMovements.note} LIKE ${likeHead}`)).orderBy(asc(stockMovements.id));
+      const copies = sameReceipts.length;
+      if (!head || copies < 2 || moves.length % copies !== 0) return res.status(400).json({ message: notSame });
+      const perCopy = moves.length / copies;
+      const shape = (list: typeof moves) => list.map((m) => `${m.productId}:${m.delta}`).sort().join(",");
+      const extra = moves.slice(-perCopy);
+      if (shape(extra) !== shape(moves.slice(0, perCopy))) return res.status(400).json({ message: notSame });
+      await db.transaction(async (tx) => {
+        for (const move of extra) {
+          await tx.update(posProducts).set({ stock: sql`${posProducts.stock} - ${move.delta}` }).where(eq(posProducts.id, move.productId));
+          await tx.delete(stockMovements).where(eq(stockMovements.id, move.id));
+        }
+        await tx.update(supplierPayables).set({ status: "void" }).where(eq(supplierPayables.id, dupe.id));
+        await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, dupe.ledgerEntryId!));
+      });
+    }
+    await logAdmin(req, { targetType: "payable", targetId: String(keep.id), action: "payable_merge", entityType: "accounting", description: `Merged duplicate supplier bills ${removeIds.join(", ")} into #${keep.id}: ${keep.supplier || ""} ${keep.invoiceNo || ""} RP ${keep.amount}` });
+    res.json({ message: tr(req, { en: "Duplicate bill removed", zh: "已删除重复账单", id: "Tagihan ganda dihapus" }) });
   }));
   app.post("/api/reborn/expenses/payables/:id/pay", requireExpenses(async (req, res) => {
     const userId = getUserId(req)!;

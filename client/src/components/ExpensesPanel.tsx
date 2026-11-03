@@ -39,7 +39,7 @@ interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { statu
 interface StockDelivery { id: number; amount: string; note: string | null; createdAt: string }
 interface ExpenseList { month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
-interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null }
+interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
 interface Vendor { name: string; address: string; phone: string; category: string; items: { name: string; qty: number; unitCost: number }[] }
 let nextLineKey = 1;
 const newLine = (line: Partial<Line> = {}): Line => ({ key: nextLineKey++, name: "", qty: 1, unitCost: 0, productId: null, packSize: 1, ...line });
@@ -108,6 +108,14 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const markPaid = useMutation({
     mutationFn: ({ id, method }: { id: number; method: string }) => apiRequest("POST", `/api/reborn/expenses/payables/${id}/pay`, { method }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: (d: any) => { toast({ title: d.message }); refresh(); },
+    onError: fail,
+  });
+  const [openBills, setOpenBills] = useState<number[]>([]);
+  const [mergeAsk, setMergeAsk] = useState<number | null>(null); // the bill the manager is about to keep
+  const toggleBill = (id: number) => setOpenBills((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+  const mergeBills = useMutation({
+    mutationFn: ({ keepId, removeIds }: { keepId: number; removeIds: number[] }) => apiRequest("POST", "/api/reborn/expenses/payables/merge", { keepId, removeIds }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); setMergeAsk(null); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); refresh(); },
     onError: fail,
   });
   const customKinds = (data?.categories || []).filter(isCustomKind);
@@ -292,13 +300,39 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
       {(payables?.payables || []).length > 0 && (
         <div className={card + " space-y-2 border-amber-400/30"}>
           <p className="font-bold text-sm">{t("ex.payables")} · <span className="text-amber-200">{t("ex.owed", { n: money(payables!.total) })}</span></p>
-          {payables!.payables.map((p) => (
+          {payables!.payables.map((p) => {
+            const twins = payables!.payables.filter((other) => other.dupKey === p.dupKey);
+            const others = twins.filter((other) => other.id !== p.id);
+            const isOpen = openBills.includes(p.id);
+            return (
             <div key={p.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
-              <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{p.supplier || "—"}{p.invoiceNo ? ` · ${p.invoiceNo}` : ""}</span><span className="font-black text-amber-200">{money(Number(p.amount))}</span></div>
-              <p className={`mt-0.5 ${p.isOverdue ? "text-red-300" : "text-white/50"}`}>{p.dueDate ? t("ex.dueOn", { d: p.dueDate }) : t("ex.noDue")}{p.isOverdue ? ` · ${t("ex.overdue")}` : ""}{p.createdByName ? ` · ${t("ex.by", { name: p.createdByName })}` : ""}</p>
+              <button type="button" onClick={() => toggleBill(p.id)} aria-expanded={isOpen} className="block min-h-[40px] w-full p-0 text-left">
+                <span className="flex items-baseline justify-between gap-2"><span className="font-semibold">{p.supplier || "—"}{p.invoiceNo ? ` · ${p.invoiceNo}` : ""}</span><span className="font-black text-amber-200">{money(Number(p.amount))}</span></span>
+                <span className={`mt-0.5 block ${p.isOverdue ? "text-red-300" : "text-white/50"}`}>{p.dueDate ? t("ex.dueOn", { d: p.dueDate }) : t("ex.noDue")}{p.isOverdue ? ` · ${t("ex.overdue")}` : ""}{p.createdByName ? ` · ${t("ex.by", { name: p.createdByName })}` : ""}{` · ${isOpen ? "▲" : "▼"} ${t("ex.pay.items", { n: String(p.items.length) })}`}</span>
+              </button>
+              {others.length > 0 && <p className="mt-1 inline-block rounded-full bg-red-400/20 px-2 py-0.5 text-[11px] font-bold text-red-200">{t("ex.pay.dup", { n: String(twins.length) })}</p>}
+              {isOpen && (
+                <div className="mt-1 space-y-0.5 rounded-lg bg-white/5 p-2">
+                  {p.items.length === 0 ? <p className="text-white/50">{t("ex.pay.noItems")}</p> : p.items.map((it, index) => (
+                    <div key={index} className="flex justify-between gap-2"><span className="min-w-0 break-words">{it.qty} × {it.name}</span>{it.unitCost ? <span className="text-white/60">{money(it.qty * it.unitCost)}</span> : null}</div>
+                  ))}
+                </div>
+              )}
+              {payables!.canPay && others.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {mergeAsk === p.id ? (
+                    <>
+                      <span className="text-[11px] text-red-200">{t("ex.pay.mergeAsk", { n: String(others.length) })}</span>
+                      <button type="button" disabled={mergeBills.isPending} onClick={() => mergeBills.mutate({ keepId: p.id, removeIds: others.map((other) => other.id) })} className="min-h-[40px] rounded-lg bg-red-400 px-3 text-xs font-bold text-black disabled:opacity-40">{t("ex.pay.mergeYes")}</button>
+                      <button type="button" onClick={() => setMergeAsk(null)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("ex.cancelEdit")}</button>
+                    </>
+                  ) : <button type="button" onClick={() => setMergeAsk(p.id)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs font-bold text-red-200">{t("ex.pay.merge", { n: String(others.length) })}</button>}
+                </div>
+              )}
               {payables!.canPay && <div className="mt-1 flex flex-wrap gap-2">{["cash", "card"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: p.id, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}</div>}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
