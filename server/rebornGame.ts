@@ -6499,7 +6499,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const since = req.query.days ? sinceDays(req.query.days) : null;
     const paidIn = range ? sql`${posTickets.paidAt} >= ${range.from} AND ${posTickets.paidAt} < ${range.to}` : since ? sql`${posTickets.paidAt} >= ${since}` : sql`TRUE`;
     const sold = await db.select({
-      itemId: posTicketItems.id, productId: posTicketItems.productId, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, station: posTicketItems.station, paidAt: posTickets.paidAt,
+      itemId: posTicketItems.id, orderNo: posTickets.orderNo, productId: posTicketItems.productId, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, station: posTicketItems.station, paidAt: posTickets.paidAt,
       category: posProducts.category, isService: posProducts.isService, packageKind: posProducts.packageKind, regularPrice: posProducts.price, unitCost: posProducts.cost,
       happyStart: posProducts.happyStart, happyEnd: posProducts.happyEnd, happyDays: posProducts.happyDays, bundleItemId: posProducts.bundleItemId, bundleQty: posProducts.bundleQty, addedAt: posTicketItems.addedAt,
     }).from(posTicketItems)
@@ -6523,6 +6523,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const qty = costLines[index].qty;
       const cost = costOfLine(costLines[index], units, fifoCosts) ?? (Number(row.unitCost) || 0) * qty;
       return {
+        orderNo: row.orderNo, at: (row.addedAt ?? row.paidAt ?? new Date(0)).toISOString(),
         productId: row.productId, name: row.name, category: row.category, station: row.station, isService: !!row.isService, isPackage: !!row.packageKind,
         inHappyHour: !!row.addedAt && inHappyHours({ ...row, isDrink: kindOf({ productId: row.productId, category: row.category, station: row.station, isService: !!row.isService, isPackage: !!row.packageKind }) === "drink" }, windows, clockInZone(row.addedAt, timeZone)),
         qty, lineTotal: Number(row.lineTotal) || 0, regularPrice: Number(row.regularPrice) || 0, cost, commission: commissionOf.get(row.itemId) || 0,

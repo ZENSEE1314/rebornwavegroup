@@ -8,6 +8,9 @@ export const SALE_TIMES = ["happy", "regular"] as const;
 export type SaleTime = (typeof SALE_TIMES)[number];
 
 export interface SoldLine {
+  /** The receipt (bill) number the line is on, and when it was ordered (ISO), so a report number can be traced to the sales behind it. */
+  orderNo: string;
+  at: string;
   productId: number | null;
   name: string;
   category: string | null;
@@ -33,7 +36,17 @@ export interface ItemProfit extends Totals {
   kind: MenuKind;
   bySale: Record<SaleTime, Totals>;
 }
+/** One sold line with what it gave: the rows behind every number of the report. */
+export interface SaleRow extends Omit<Totals, "profit"> {
+  orderNo: string;
+  at: string;
+  name: string;
+  kind: MenuKind;
+  time: SaleTime;
+  profit: number;
+}
 export interface ItemProfitReport {
+  sales: SaleRow[];
   items: ItemProfit[];
   kinds: Record<MenuKind, Totals & { bySale: Record<SaleTime, Totals> }>;
   total: Totals & { bySale: Record<SaleTime, Totals> };
@@ -73,6 +86,7 @@ export function itemProfitReport(lines: SoldLine[]): ItemProfitReport {
   const kindSplits = { food: emptySplit(), drink: emptySplit(), other: emptySplit() };
   const total = emptyTotals();
   const totalSplit = emptySplit();
+  const sales: SaleRow[] = [];
   for (const line of lines) {
     const key = line.productId ? `p${line.productId}` : `n${line.name}`;
     const kind = kindOf(line);
@@ -82,11 +96,13 @@ export function itemProfitReport(lines: SoldLine[]): ItemProfitReport {
     addTo(row, part); addTo(row.bySale[time], part);
     addTo(kinds[kind], part); addTo(kindSplits[kind][time], part);
     addTo(total, part); addTo(totalSplit[time], part);
+    sales.push({ orderNo: line.orderNo, at: line.at, name: line.name, kind, time, ...part, revenue: round(part.revenue), cost: round(part.cost), promotion: round(part.promotion), commission: round(part.commission), profit: round(part.revenue - part.cost - part.commission) });
     byItem.set(key, row);
   }
   const items = Array.from(byItem.values()).map((row) => ({ ...row, ...finish(row), bySale: finishSplit(row.bySale) })).sort((a, b) => b.profit - a.profit);
   const withSplit = (totals: Totals, split: Record<SaleTime, Totals>) => ({ ...finish(totals), bySale: finishSplit(split) });
   return {
+    sales: sales.sort((a, b) => b.at.localeCompare(a.at)),
     items,
     kinds: { food: withSplit(kinds.food, kindSplits.food), drink: withSplit(kinds.drink, kindSplits.drink), other: withSplit(kinds.other, kindSplits.other) },
     total: withSplit(total, totalSplit),

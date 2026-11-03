@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { itemProfitReport, kindOf, promotionOf, saleTimeOf, type SoldLine } from "./itemProfit";
 
 const line = (over: Partial<SoldLine>): SoldLine => ({
-  productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, inHappyHour: false,
+  orderNo: "A1", at: "2026-11-01T10:00:00.000Z", productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, inHappyHour: false,
   qty: 1, lineTotal: 50_000, regularPrice: 50_000, cost: 20_000, commission: 0, ...over,
 });
 
@@ -37,4 +37,15 @@ describe("item profit report", () => {
   it("should split the drinks into happy hour and normal sales", () => assert.equal(report.kinds.drink.bySale.happy.revenue, 30_000));
   it("should add the free line to its item, not list it twice", () => assert.equal(itemProfitReport([line({}), line({ name: "Beer (free)", lineTotal: 0 })]).items.length, 1));
   it("should add food and drinks into the total", () => assert.equal(report.total.revenue, 210_000));
+});
+
+describe("sales behind the report", () => {
+  const report = itemProfitReport([
+    line({ orderNo: "A1", at: "2026-11-01T10:00:00.000Z", inHappyHour: true, lineTotal: 0, cost: 20_000 }),
+    line({ orderNo: "A2", at: "2026-11-02T10:00:00.000Z" }),
+  ]);
+  it("should list every sold line with its receipt", () => assert.deepEqual(report.sales.map((sale) => sale.orderNo), ["A2", "A1"]));
+  it("should say which lines were happy hour", () => assert.deepEqual(report.sales.map((sale) => sale.time), ["regular", "happy"]));
+  it("should show the promotion of a free unit", () => assert.equal(report.sales.find((sale) => sale.orderNo === "A1")?.promotion, 50_000));
+  it("should give the profit of one line", () => assert.equal(report.sales.find((sale) => sale.orderNo === "A1")?.profit, -20_000));
 });

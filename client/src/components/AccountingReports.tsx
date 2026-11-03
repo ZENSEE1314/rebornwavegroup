@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { translations, useTranslation, localeTag } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
-import { SALE_TIMES, type ItemProfitReport, type MenuKind, type SaleTime, type Totals } from "@shared/itemProfit";
+import { SALE_TIMES, type ItemProfitReport, type MenuKind, type SaleRow, type SaleTime, type Totals } from "@shared/itemProfit";
 import { EXPENSE_GROUPS, sectionsOfGroup, type CostSection, type ExpenseGroup, type PeriodReport, type ReportGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
@@ -178,7 +178,26 @@ function TotalsRows({ totals }: { totals: Totals }) {
   );
 }
 
-function SaleTimeSplit({ bySale }: { bySale: Record<SaleTime, Totals> }) {
+function SalesList({ sales }: { sales: SaleRow[] }) {
+  const { t } = useTranslation();
+  if (sales.length === 0) return null;
+  return (
+    <details className="mt-2">
+      <summary className="min-h-[40px] cursor-pointer py-2 text-[11px] font-semibold text-amber-200">{t("ip.sales", { n: String(sales.length) })}</summary>
+      <div className="max-h-72 space-y-1 overflow-y-auto">
+        {sales.map((sale, index) => (
+          <div key={`${sale.orderNo}-${index}`} className="rounded-md bg-white/5 p-1.5 text-[11px]">
+            <div className="flex justify-between gap-2"><b>{sale.orderNo}</b><span className="text-white/40">{new Date(sale.at).toLocaleString(localeTag())}</span></div>
+            <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{sale.qty}× {sale.name}</span><span className="text-emerald-300">{money(sale.revenue)}</span></div>
+            <div className="flex justify-between gap-2 text-white/50"><span>{t("ip.promotion")} <span className="text-sky-300">{money(sale.promotion)}</span></span><span>{t("ip.cost")} <span className="text-red-300">{money(sale.cost)}</span></span></div>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function SaleTimeSplit({ bySale, sales }: { bySale: Record<SaleTime, Totals>; sales: SaleRow[] }) {
   const { t } = useTranslation();
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
@@ -186,6 +205,7 @@ function SaleTimeSplit({ bySale }: { bySale: Record<SaleTime, Totals> }) {
         <div key={time} className="rounded-lg bg-black/25 p-2">
           <p className="mb-1 text-[11px] font-bold text-amber-200">{t(`ip.time.${time}`)}</p>
           <TotalsRows totals={bySale[time]} />
+          <SalesList sales={sales.filter((sale) => sale.time === time)} />
         </div>
       ))}
     </div>
@@ -210,13 +230,13 @@ function ItemProfitView() {
           <div className="rounded-xl border border-amber-400/30 bg-black/20 p-3 space-y-2">
             <p className="text-sm font-extrabold">{t("ip.all")}</p>
             <TotalsRows totals={data.total} />
-            <SaleTimeSplit bySale={data.total.bySale} />
+            <SaleTimeSplit bySale={data.total.bySale} sales={data.sales} />
           </div>
           {KIND_ORDER.filter((kind) => data.kinds[kind].qty > 0).map((kind) => (
             <div key={kind} className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
               <p className="text-sm font-extrabold">{t(`ip.kind.${kind}`)}</p>
               <TotalsRows totals={data.kinds[kind]} />
-              <SaleTimeSplit bySale={data.kinds[kind].bySale} />
+              <SaleTimeSplit bySale={data.kinds[kind].bySale} sales={data.sales.filter((sale) => sale.kind === kind)} />
               <details>
                 <summary className="min-h-[40px] cursor-pointer py-2 text-xs font-semibold text-amber-200">{t("ip.perItem", { n: String(data.items.filter((item) => item.kind === kind).length) })}</summary>
                 <div className="space-y-2">
