@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { translations, useTranslation, localeTag } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
-import { SALE_TIMES, type ItemProfitReport, type MenuKind, type SaleRow, type SaleTime, type Totals } from "@shared/itemProfit";
+import { SALE_TIMES, type ItemProfitReport, type MenuKind, type ReceiptRow, type SaleRow, type SaleTime, type Totals } from "@shared/itemProfit";
 import { EXPENSE_GROUPS, sectionsOfGroup, type CostSection, type ExpenseGroup, type PeriodReport, type ReportGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
@@ -212,6 +212,43 @@ function SaleTimeSplit({ bySale, sales }: { bySale: Record<SaleTime, Totals>; sa
   );
 }
 
+function ReceiptsByCustomer({ receipts }: { receipts: ReceiptRow[] }) {
+  const { t } = useTranslation();
+  const [isHappyOnly, setIsHappyOnly] = useState(false);
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const shown = receipts.filter((receipt) => (!isHappyOnly || receipt.hasHappy) && (!needle || `${receipt.customer} ${receipt.table} ${receipt.orderNo}`.toLowerCase().includes(needle)));
+  return (
+    <details className="rounded-xl border border-white/10 bg-black/20 p-3">
+      <summary className="min-h-[40px] cursor-pointer py-2 text-sm font-extrabold">{t("ip.receipts", { n: String(receipts.length) })}</summary>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("ip.search")} aria-label={t("ip.search")} className={field} />
+        <button type="button" onClick={() => setIsHappyOnly(!isHappyOnly)} aria-pressed={isHappyOnly} className={chip(isHappyOnly)}>{t("ip.onlyHappy")}</button>
+      </div>
+      <div className="max-h-[70vh] space-y-1.5 overflow-y-auto">
+        {shown.map((receipt) => (
+          <details key={receipt.orderNo} className="rounded-lg bg-white/5 p-2">
+            <summary className="min-h-[40px] cursor-pointer text-xs">
+              <span className="font-bold">{receipt.customer || t("ip.walkIn")}</span>
+              {receipt.table && <span className="text-white/50"> · {t("ip.table", { n: receipt.table })}</span>}
+              {receipt.hasHappy && <span className="ml-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-black">{t("ip.time.happy")}</span>}
+              <span className="block text-[11px] text-white/50">{receipt.orderNo} · {new Date(receipt.at).toLocaleString(localeTag())} · {t("ip.billTotal")} {money(receipt.billTotal)}</span>
+            </summary>
+            <div className="mt-1 space-y-1">
+              {receipt.lines.map((sale, index) => (
+                <div key={index} className="rounded-md bg-black/25 p-1.5 text-[11px]">
+                  <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{sale.qty}× {sale.name}</span><span className="text-emerald-300">{money(sale.revenue)}</span></div>
+                  <div className="flex justify-between gap-2 text-white/50"><span className={sale.time === "happy" ? "font-bold text-amber-300" : ""}>{t(`ip.time.${sale.time}`)}</span><span>{t("ip.promotion")} <span className="text-sky-300">{money(sale.promotion)}</span></span></div>
+                </div>
+              ))}
+            </div>
+          </details>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function ItemProfitView() {
   const { t } = useTranslation();
   const [month, setMonth] = useState(todayMonth());
@@ -232,6 +269,7 @@ function ItemProfitView() {
             <TotalsRows totals={data.total} />
             <SaleTimeSplit bySale={data.total.bySale} sales={data.sales} />
           </div>
+          <ReceiptsByCustomer receipts={data.receipts} />
           {KIND_ORDER.filter((kind) => data.kinds[kind].qty > 0).map((kind) => (
             <div key={kind} className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
               <p className="text-sm font-extrabold">{t(`ip.kind.${kind}`)}</p>

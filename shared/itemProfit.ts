@@ -11,6 +11,10 @@ export interface SoldLine {
   /** The receipt (bill) number the line is on, and when it was ordered (ISO), so a report number can be traced to the sales behind it. */
   orderNo: string;
   at: string;
+  /** Who the bill is for, the table, and what the whole bill came to (for the receipt view). */
+  customer: string;
+  table: string;
+  billTotal: number;
   productId: number | null;
   name: string;
   category: string | null;
@@ -45,7 +49,18 @@ export interface SaleRow extends Omit<Totals, "profit"> {
   time: SaleTime;
   profit: number;
 }
+/** A whole bill: who bought, where, when, what the bill came to, and every line on it marked happy hour or normal. */
+export interface ReceiptRow {
+  orderNo: string;
+  customer: string;
+  table: string;
+  at: string;
+  billTotal: number;
+  hasHappy: boolean;
+  lines: SaleRow[];
+}
 export interface ItemProfitReport {
+  receipts: ReceiptRow[];
   sales: SaleRow[];
   items: ItemProfit[];
   kinds: Record<MenuKind, Totals & { bySale: Record<SaleTime, Totals> }>;
@@ -79,6 +94,18 @@ const finish = (totals: Totals): Totals => {
 };
 const finishSplit = (split: Record<SaleTime, Totals>): Record<SaleTime, Totals> => ({ happy: finish(split.happy), regular: finish(split.regular) });
 
+function receiptsOf(lines: SoldLine[], sales: SaleRow[]): ReceiptRow[] {
+  const byOrder = new Map<string, ReceiptRow>();
+  lines.forEach((line, index) => {
+    const receipt = byOrder.get(line.orderNo) ?? { orderNo: line.orderNo, customer: line.customer, table: line.table, at: line.at, billTotal: line.billTotal, hasHappy: false, lines: [] };
+    receipt.lines.push(sales[index]);
+    if (sales[index].time === "happy") receipt.hasHappy = true;
+    if (line.at > receipt.at) receipt.at = line.at;
+    byOrder.set(line.orderNo, receipt);
+  });
+  return Array.from(byOrder.values()).sort((a, b) => b.at.localeCompare(a.at));
+}
+
 /** One row per item (free units are added to their item), best profit first, and the totals of food, drinks and other. */
 export function itemProfitReport(lines: SoldLine[]): ItemProfitReport {
   const byItem = new Map<string, ItemProfit>();
@@ -102,7 +129,8 @@ export function itemProfitReport(lines: SoldLine[]): ItemProfitReport {
   const items = Array.from(byItem.values()).map((row) => ({ ...row, ...finish(row), bySale: finishSplit(row.bySale) })).sort((a, b) => b.profit - a.profit);
   const withSplit = (totals: Totals, split: Record<SaleTime, Totals>) => ({ ...finish(totals), bySale: finishSplit(split) });
   return {
-    sales: sales.sort((a, b) => b.at.localeCompare(a.at)),
+    receipts: receiptsOf(lines, sales),
+    sales: sales.slice().sort((a, b) => b.at.localeCompare(a.at)),
     items,
     kinds: { food: withSplit(kinds.food, kindSplits.food), drink: withSplit(kinds.drink, kindSplits.drink), other: withSplit(kinds.other, kindSplits.other) },
     total: withSplit(total, totalSplit),

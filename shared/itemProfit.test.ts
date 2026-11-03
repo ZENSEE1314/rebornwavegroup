@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { itemProfitReport, kindOf, promotionOf, saleTimeOf, type SoldLine } from "./itemProfit";
 
 const line = (over: Partial<SoldLine>): SoldLine => ({
-  orderNo: "A1", at: "2026-11-01T10:00:00.000Z", productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, inHappyHour: false,
+  orderNo: "A1", at: "2026-11-01T10:00:00.000Z", customer: "Felix", table: "1", billTotal: 100_000, productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, inHappyHour: false,
   qty: 1, lineTotal: 50_000, regularPrice: 50_000, cost: 20_000, commission: 0, ...over,
 });
 
@@ -48,4 +48,19 @@ describe("sales behind the report", () => {
   it("should say which lines were happy hour", () => assert.deepEqual(report.sales.map((sale) => sale.time), ["regular", "happy"]));
   it("should show the promotion of a free unit", () => assert.equal(report.sales.find((sale) => sale.orderNo === "A1")?.promotion, 50_000));
   it("should give the profit of one line", () => assert.equal(report.sales.find((sale) => sale.orderNo === "A1")?.profit, -20_000));
+});
+
+describe("receipts by customer", () => {
+  const report = itemProfitReport([
+    line({ orderNo: "A1", customer: "Felix", inHappyHour: true, lineTotal: 0 }),
+    line({ orderNo: "A1", customer: "Felix", productId: 2, name: "Burger", category: "Mains" }),
+    line({ orderNo: "A2", customer: "Ann", at: "2026-11-02T10:00:00.000Z" }),
+  ]);
+  const felix = report.receipts.find((receipt) => receipt.orderNo === "A1");
+  it("should make one receipt per bill", () => assert.equal(report.receipts.length, 2));
+  it("should keep every line of the bill on its receipt, happy hour or not", () => assert.equal(felix?.lines.length, 2));
+  it("should flag a receipt with a happy hour line", () => assert.equal(felix?.hasHappy, true));
+  it("should not flag a receipt with only normal lines", () => assert.equal(report.receipts.find((receipt) => receipt.orderNo === "A2")?.hasHappy, false));
+  it("should name the customer", () => assert.equal(felix?.customer, "Felix"));
+  it("should list the newest receipt first", () => assert.equal(report.receipts[0].orderNo, "A2"));
 });
