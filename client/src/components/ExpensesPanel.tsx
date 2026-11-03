@@ -129,10 +129,22 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
     onSuccess: (d: any) => { toast({ title: d.message }); refresh(); },
     onError: fail,
   });
-  const startEdit = (row: Expense) => {
+  // "Move to stock" opens the edit form already set to stock, each line tied to the inventory item of the same name (a name not in the inventory becomes a new item on Save).
+  const matchedFor = useRef<number | null>(null);
+  useEffect(() => {
+    if (!editingId || !isStock || !inventory.length || matchedFor.current === editingId) return;
+    matchedFor.current = editingId;
+    setLines((current) => current.map((line) => {
+      if (line.productId) return line;
+      const hit = inventory.find((product) => String(product.name).trim().toLowerCase() === line.name.trim().toLowerCase());
+      return hit ? { ...line, productId: hit.id } : line;
+    }));
+  }, [editingId, isStock, inventory]);
+  const startEdit = (row: Expense, toStock = false) => {
+    matchedFor.current = null;
     const termsFromDue = row.bill?.dueDate ? Math.max(0, Math.round((new Date(`${row.bill.dueDate}T00:00:00Z`).getTime() - new Date(`${row.spentOn}T00:00:00Z`).getTime()) / 86_400_000)) : DEFAULT_TERMS_DAYS;
     setEditingId(row.id);
-    setForm({ ...emptyForm(), category: row.category, amount: String(Number(row.amount)), spentOn: row.spentOn, spentTime: row.spentTime || "", payee: row.payee || "", payeeAddress: row.payeeAddress || "", payeePhone: row.payeePhone || "", invoiceNo: row.invoiceNo || "", note: row.note || "", photoUrl: "", fixedCostId: row.fixedCostId || "" });
+    setForm({ ...emptyForm(), category: toStock ? STOCK_KIND : row.category, amount: String(Number(row.amount)), spentOn: row.spentOn, spentTime: row.spentTime || "", payee: row.payee || "", payeeAddress: row.payeeAddress || "", payeePhone: row.payeePhone || "", invoiceNo: row.invoiceNo || "", note: row.note || "", photoUrl: "", fixedCostId: row.fixedCostId || "" });
     setLines((row.items || []).map((it) => newLine(it)));
     setIsPaid(row.bill?.status !== "unpaid");
     setPayMethod(row.payMethod || "");
@@ -366,6 +378,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               <div className="mt-1 flex gap-3">
                 {row.hasPhoto ? <button type="button" onClick={() => showPhoto(row.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ex.viewPhoto")}</button> : <span className="text-white/30">{t("ex.noPhoto")}</span>}
                 {row.canEdit && <button type="button" onClick={() => startEdit(row)} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>}
+                {row.canEdit && row.category !== STOCK_KIND && (row.items || []).length > 0 && <button type="button" onClick={() => startEdit(row, true)} className="min-h-0 p-0 text-emerald-300 underline">{t("ex.toStock")}</button>}
                 {data?.canVoid && row.status === "active" && <button type="button" onClick={() => { setVoiding(row); setReason(""); }} className="min-h-0 p-0 text-red-300 underline">{t("ex.void")}</button>}
               </div>
             </div>
