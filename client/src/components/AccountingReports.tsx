@@ -178,18 +178,26 @@ function TotalsRows({ totals }: { totals: Totals }) {
   );
 }
 
-function SalesList({ sales }: { sales: SaleRow[] }) {
+function SalesList({ receipts, time, kind }: { receipts: ReceiptRow[]; time: SaleTime; kind?: MenuKind }) {
   const { t } = useTranslation();
-  if (sales.length === 0) return null;
+  const shown = receipts.filter((receipt) => receipt.lines.some((sale) => sale.time === time && (!kind || sale.kind === kind)));
+  if (shown.length === 0) return null;
   return (
     <details className="mt-2">
-      <summary className="min-h-[40px] cursor-pointer py-2 text-[11px] font-semibold text-amber-200">{t("ip.sales", { n: String(sales.length) })}</summary>
-      <div className="max-h-72 space-y-1 overflow-y-auto">
-        {sales.map((sale, index) => (
-          <div key={`${sale.orderNo}-${index}`} className="rounded-md bg-white/5 p-1.5 text-[11px]">
-            <div className="flex justify-between gap-2"><b>{sale.orderNo}</b><span className="text-white/40">{new Date(sale.at).toLocaleString(localeTag())}</span></div>
-            <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{sale.qty}× {sale.name}</span><span className="text-emerald-300">{money(sale.revenue)}</span></div>
-            <div className="flex justify-between gap-2 text-white/50"><span>{t("ip.promotion")} <span className="text-sky-300">{money(sale.promotion)}</span></span><span>{t("ip.cost")} <span className="text-red-300">{money(sale.cost)}</span></span></div>
+      <summary className="min-h-[40px] cursor-pointer py-2 text-[11px] font-semibold text-amber-200">{t("ip.sales", { n: String(shown.length) })}</summary>
+      <div className="max-h-[70vh] space-y-1.5 overflow-y-auto">
+        {shown.map((receipt) => (
+          <div key={receipt.orderNo} className="rounded-md bg-white/5 p-1.5 text-[11px]">
+            <div className="flex justify-between gap-2"><b>{receipt.orderNo}</b><span className="text-white/40">{new Date(receipt.at).toLocaleString(localeTag())}</span></div>
+            <div className="flex justify-between gap-2 text-white/60"><span className="min-w-0 break-words">{receipt.customer || t("ip.walkIn")}{receipt.table ? ` · ${t("ip.table", { n: receipt.table })}` : ""}</span><span>{t("ip.billTotal")} {money(receipt.billTotal)}</span></div>
+            <div className="mt-1 space-y-1">
+              {receipt.lines.map((sale, index) => (
+                <div key={index} className="rounded bg-black/25 p-1">
+                  <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{sale.qty}× {sale.name}</span><span className="text-emerald-300">{money(sale.revenue)}</span></div>
+                  <div className="flex justify-between gap-2 text-white/50"><span className={sale.time === "happy" ? "font-bold text-amber-300" : ""}>{t(`ip.time.${sale.time}`)} · {t("ip.promotion")} <span className="text-sky-300">{money(sale.promotion)}</span></span><span>{t("ip.cost")} <span className="text-red-300">{money(sale.cost)}</span></span></div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -197,7 +205,7 @@ function SalesList({ sales }: { sales: SaleRow[] }) {
   );
 }
 
-function SaleTimeSplit({ bySale, sales }: { bySale: Record<SaleTime, Totals>; sales: SaleRow[] }) {
+function SaleTimeSplit({ bySale, receipts, kind }: { bySale: Record<SaleTime, Totals>; receipts: ReceiptRow[]; kind?: MenuKind }) {
   const { t } = useTranslation();
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
@@ -205,7 +213,7 @@ function SaleTimeSplit({ bySale, sales }: { bySale: Record<SaleTime, Totals>; sa
         <div key={time} className="rounded-lg bg-black/25 p-2">
           <p className="mb-1 text-[11px] font-bold text-amber-200">{t(`ip.time.${time}`)}</p>
           <TotalsRows totals={bySale[time]} />
-          <SalesList sales={sales.filter((sale) => sale.time === time)} />
+          <SalesList receipts={receipts} time={time} kind={kind} />
         </div>
       ))}
     </div>
@@ -295,7 +303,7 @@ function ItemProfitView() {
           <div className="rounded-xl border border-amber-400/30 bg-black/20 p-3 space-y-2">
             <p className="text-sm font-extrabold">{t("ip.all")}</p>
             <TotalsRows totals={data.total} />
-            <SaleTimeSplit bySale={data.total.bySale} sales={data.sales} />
+            <SaleTimeSplit bySale={data.total.bySale} receipts={data.receipts} />
           </div>
           <WastageView wastage={data.wastage} />
           <ReceiptsByCustomer receipts={data.receipts} />
@@ -303,7 +311,7 @@ function ItemProfitView() {
             <div key={kind} className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
               <p className="text-sm font-extrabold">{t(`ip.kind.${kind}`)}</p>
               <TotalsRows totals={data.kinds[kind]} />
-              <SaleTimeSplit bySale={data.kinds[kind].bySale} sales={data.sales.filter((sale) => sale.kind === kind)} />
+              <SaleTimeSplit bySale={data.kinds[kind].bySale} receipts={data.receipts} kind={kind} />
               <details>
                 <summary className="min-h-[40px] cursor-pointer py-2 text-xs font-semibold text-amber-200">{t("ip.perItem", { n: String(data.items.filter((item) => item.kind === kind).length) })}</summary>
                 <div className="space-y-2">

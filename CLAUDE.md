@@ -1208,3 +1208,5 @@ eborn-venue-pack.
 - Expenses list: "Move to stock" on an upload with item lines (water bill that was really ice / drinking water) opens the edit form set to stock with each line matched to the inventory item of the same name (else a new item); Save moves it via /to-stock. Test: client/src/components/ExpensesPanel.toStock.test.ts (source check).
 
 - Expenses list: "Spent by each staff this month" (per uploader, active uploads of the chosen month, biggest first; staff see only their own). shared/expenseByStaff.ts (tested). Stock receipts are not included.
+
+- Food & drinks report: the Receipts dropdown under Happy hour sales / Normal sales now lists WHOLE receipts (customer, table, bill total, every line tagged happy / normal with promotion and cost) instead of single lines; a receipt shows under a box when it has a line of that time (and kind). Test: client/src/components/AccountingReports.receipts.test.ts (source check).
