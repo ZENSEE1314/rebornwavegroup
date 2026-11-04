@@ -4972,7 +4972,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
     const split = due > 0 ? splitPlanOf(req, due) : null;
     if (split?.error) return res.status(400).json({ message: split.error });
-    const paymentMethod = due <= 0 ? "package" : split ? "split" : posMethod(req.body?.paymentMethod);
+    const exchangeOnly = due <= 0 && (Number(o.extraMoney) || 0) > 0; // nothing ordered, only cash handed over against the customer's card: paid by card, never a package bill
+    const paymentMethod = exchangeOnly ? "card" : due <= 0 ? "package" : split ? "split" : posMethod(req.body?.paymentMethod);
     if ((Number(o.extraMoney) || 0) > 0 && paymentMethod !== "card") return res.status(400).json({ message: tr(req, { en: "A bill with extra money (card to cash) must be paid by card", zh: "含额外现金（刷卡换现金）的账单必须刷卡支付", id: "Tagihan dengan uang tambahan (kartu ke tunai) harus dibayar dengan kartu" }) });
     if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const cashReceived = split ? split.plan.cashReceived : paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;

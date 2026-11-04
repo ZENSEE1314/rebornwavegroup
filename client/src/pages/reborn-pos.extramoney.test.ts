@@ -26,3 +26,12 @@ describe("extra money on a POS bill", () => {
     assert.ok(server.includes("sum.card += paid + exchanged; sum.cash -= exchanged;"));
   });
 });
+
+describe("card to cash exchange with nothing ordered", () => {
+  it("should let Charge be pressed when only extra money is on the bill", () => {
+    assert.ok(pos.includes("(total <= 0 && extraMoney <= 0)"));
+  });
+  it("should pay such a bill by card on the server, not as a package bill", () => {
+    assert.ok(server.includes('const paymentMethod = exchangeOnly ? "card" : due <= 0 ? "package"'));
+  });
+});
