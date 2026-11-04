@@ -114,6 +114,22 @@ describe("searching the box for members", () => {
   });
 });
 
+describe("a flaky line to the app", () => {
+  it("should send an answer again when the first try fails", async () => {
+    let tries = 0;
+    const fetchImpl = async (url: string, init?: any) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith("/api/karaoke/jobs") && (!init || init.method !== "POST")) return { ok: true, status: 200, json: async () => ({ jobs: [{ id: "a", q: "love" }] }), text: async () => "" };
+      if (u.pathname.includes("/api/karaoke/jobs/")) { tries++; if (tries < 3) throw new TypeError("fetch failed"); return { ok: true, status: 200, json: async () => ({ ok: true }), text: async () => "" }; }
+      if (u.pathname.endsWith("SearchServlet")) return { ok: true, status: 200, text: async () => `cb(${JSON.stringify({ number: "15", page: "1", songList: "[]" })})`, json: async () => ({}) };
+      throw new Error("unexpected " + url);
+    };
+    const bridge = createBridge({ cloudUrl: "https://cloud.test", token: "t", boxUrl: "http://box/demo", fetchImpl, log: () => {} });
+    await bridge.serveSearches();
+    assert.equal(tries, 3);
+  });
+});
+
 describe("several searches at once", () => {
   it("should work out one question once and answer every member who asked it", async () => {
     const posted: string[] = [];

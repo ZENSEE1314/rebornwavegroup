@@ -17,6 +17,8 @@ const DEFAULT_POLL_MS = 1500;
 const BOX_TIMEOUT_MS = 8000;
 const CONTROL_EVERY_MS = 700;   // buttons pressed in the app are read on their own loop so a slow song round never holds them up
 const CLOUD_TIMEOUT_MS = 20000;
+const CLOUD_TRIES = 3;            // a call to the app that fails on the venue line (network error, 5xx) is tried again, so an answer is not lost
+const CLOUD_RETRY_WAIT_MS = 400;
 const STATE_EVERY_MS = 10000;
 const NOT_STARTED_MS = 25000; // the box took a song but never showed it as busy: give up on it
 const PLAYER_CALLBACK = "cb";
@@ -124,13 +126,21 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     return parseJsonp(await res.text());
   };
   const cloudCall = async (method, path, body) => {
-    const res = await fetchImpl(`${cloud}${path}`, {
-      method, signal: AbortSignal.timeout(CLOUD_TIMEOUT_MS),
-      headers: { "content-type": "application/json", "x-karaoke-token": token, ...(tenantSlug ? { "x-tenant-slug": tenantSlug } : {}) },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!res.ok) throw new Error(`${path}: ${res.status}`);
-    return res.json();
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const res = await fetchImpl(`${cloud}${path}`, {
+          method, signal: AbortSignal.timeout(CLOUD_TIMEOUT_MS),
+          headers: { "content-type": "application/json", "x-karaoke-token": token, ...(tenantSlug ? { "x-tenant-slug": tenantSlug } : {}) },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        if (!res.ok) { const failure = new Error(`${path}: ${res.status}`); failure.retry = res.status >= 500; throw failure; }
+        return await res.json();
+      } catch (error) {
+        const isNetwork = error.retry === undefined; // no answer at all (fetch failed, timeout), as opposed to a refusal such as 401
+        if (attempt >= CLOUD_TRIES || !(isNetwork || error.retry)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, CLOUD_RETRY_WAIT_MS));
+      }
+    }
   };
 
   const boxCount = async () => Number((await boxCall("PlaylistServlet", { onSelectPage: "false", click: "false", type: "1" })).number) || 0;
@@ -483,9 +493,11 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
       sameQuestion.set(key, [...(sameQuestion.get(key) || []), job]);
     }
     await Promise.all(Array.from(sameQuestion.values(), async (group) => {
-      const answer = await answerOf(group[0]);
-      await Promise.all(group.map(async (job) => { await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, answer); }));
-      log(`${group[0].kind || "search"} "${group[0].q || group[0].name || ""}": answered${group.length > 1 ? ` (${group.length} members)` : ""}`);
+      try {
+        const answer = await answerOf(group[0]);
+        await Promise.all(group.map(async (job) => { await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, answer); }));
+        log(`${group[0].kind || "search"} "${group[0].q || group[0].name || ""}": answered${group.length > 1 ? ` (${group.length} members)` : ""}`);
+      } catch (error) { log(`${group[0].kind || "search"} "${group[0].q || group[0].name || ""}": not delivered (${error.message})`); } // one lost answer must not hold up the others
     }));
     const photos = jobs.filter((x) => x.kind === "photo");
     for (let i = 0; i < photos.length; i += PHOTO_PARALLEL) await Promise.all(photos.slice(i, i + PHOTO_PARALLEL).map((job) => answerJob(job).catch((e) => log(`photo: ${e.message}`))));

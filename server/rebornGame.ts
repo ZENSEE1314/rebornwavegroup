@@ -1228,7 +1228,7 @@ const addItemsOnce = createRunOnce();
 // becomes a job it picks up at once, runs on the box and answers. No bridge connected (not polling for 45 s) = no box results, the search still shows the library.
 const BOX_SEARCH_WAIT_MS = 15_000; // the venue PC's round trip to this server is ~2 s each way, so 6 s lost searches to the library fallback
 const BRIDGE_HOLD_MS = 20_000;
-const BRIDGE_ONLINE_MS = 45_000;
+const BRIDGE_ONLINE_MS = 120_000; // the venue line drops calls for a minute at times; a connector that polled within 2 minutes still counts as connected
 const BOX_RESULT_LIMIT = 40;
 // The box finds Chinese songs by the pinyin initials of the title ("天后" = th, "小幸运" = xxy), not reliably by the characters: the bridge tries the text and the initials.
 const boxQueries = (text: string): string[] => {
