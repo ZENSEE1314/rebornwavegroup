@@ -1210,3 +1210,5 @@ eborn-venue-pack.
 - Expenses list: "Spent by each staff this month" (per uploader, active uploads of the chosen month, biggest first; staff see only their own). shared/expenseByStaff.ts (tested). Stock receipts are not included.
 
 - Food & drinks report: the Receipts dropdown under Happy hour sales / Normal sales now lists WHOLE receipts (customer, table, bill total, every line tagged happy / normal with promotion and cost) instead of single lines; a receipt shows under a box when it has a line of that time (and kind). Test: client/src/components/AccountingReports.receipts.test.ts (source check).
+
+- Food & drinks report receipts say who ordered each line (SoldLine.by = pos_ticket_items.added_by_name). Expenses "Spent by each staff": each person opens to their full receipts (kind, supplier, date, items, paid by cash / card or not paid yet) with paid vs still-owed totals (shared/expenseByStaff.ts).

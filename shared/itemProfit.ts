@@ -15,6 +15,8 @@ export interface SoldLine {
   customer: string;
   table: string;
   billTotal: number;
+  /** Who ordered the line (the staff member, or the member through the app). */
+  by: string;
   productId: number | null;
   name: string;
   category: string | null;
@@ -44,6 +46,7 @@ export interface ItemProfit extends Totals {
 export interface SaleRow extends Omit<Totals, "profit"> {
   orderNo: string;
   at: string;
+  by: string;
   name: string;
   kind: MenuKind;
   time: SaleTime;
@@ -162,7 +165,7 @@ export function itemProfitReport(lines: SoldLine[]): ItemProfitReport {
     addTo(row, part); addTo(row.bySale[time], part);
     addTo(kinds[kind], part); addTo(kindSplits[kind][time], part);
     addTo(total, part); addTo(totalSplit[time], part);
-    sales.push({ orderNo: line.orderNo, at: line.at, name: line.name, kind, time, ...part, revenue: round(part.revenue), cost: round(part.cost), promotion: round(part.promotion), commission: round(part.commission), profit: round(part.revenue - part.cost - part.commission) });
+    sales.push({ orderNo: line.orderNo, at: line.at, by: line.by, name: line.name, kind, time, ...part, revenue: round(part.revenue), cost: round(part.cost), promotion: round(part.promotion), commission: round(part.commission), profit: round(part.revenue - part.cost - part.commission) });
     byItem.set(key, row);
   }
   const items = Array.from(byItem.values()).map((row) => ({ ...row, ...finish(row), bySale: finishSplit(row.bySale) })).sort((a, b) => b.profit - a.profit);

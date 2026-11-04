@@ -193,7 +193,7 @@ function SalesList({ receipts, time, kind }: { receipts: ReceiptRow[]; time: Sal
             <div className="mt-1 space-y-1">
               {receipt.lines.map((sale, index) => (
                 <div key={index} className="rounded bg-black/25 p-1">
-                  <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{sale.qty}× {sale.name}</span><span className="text-emerald-300">{money(sale.revenue)}</span></div>
+                  <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{sale.qty}× {sale.name}{sale.by ? <span className="text-white/40"> · {t("ip.orderedBy", { name: sale.by })}</span> : null}</span><span className="text-emerald-300">{money(sale.revenue)}</span></div>
                   <div className="flex justify-between gap-2 text-white/50"><span className={sale.time === "happy" ? "font-bold text-amber-300" : ""}>{t(`ip.time.${sale.time}`)} · {t("ip.promotion")} <span className="text-sky-300">{money(sale.promotion)}</span></span><span>{t("ip.cost")} <span className="text-red-300">{money(sale.cost)}</span></span></div>
                 </div>
               ))}
@@ -245,7 +245,7 @@ function ReceiptsByCustomer({ receipts }: { receipts: ReceiptRow[] }) {
             <div className="mt-1 space-y-1">
               {receipt.lines.map((sale, index) => (
                 <div key={index} className="rounded-md bg-black/25 p-1.5 text-[11px]">
-                  <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{sale.qty}× {sale.name}</span><span className="text-emerald-300">{money(sale.revenue)}</span></div>
+                  <div className="flex justify-between gap-2"><span className="min-w-0 break-words">{sale.qty}× {sale.name}{sale.by ? <span className="text-white/40"> · {t("ip.orderedBy", { name: sale.by })}</span> : null}</span><span className="text-emerald-300">{money(sale.revenue)}</span></div>
                   <div className="flex justify-between gap-2 text-white/50"><span className={sale.time === "happy" ? "font-bold text-amber-300" : ""}>{t(`ip.time.${sale.time}`)}</span><span>{t("ip.promotion")} <span className="text-sky-300">{money(sale.promotion)}</span></span></div>
                 </div>
               ))}

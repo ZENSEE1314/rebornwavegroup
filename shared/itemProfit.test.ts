@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { itemProfitReport, kindOf, promotionOf, saleTimeOf, wastageReport, type SoldLine, type WasteLine } from "./itemProfit";
 
 const line = (over: Partial<SoldLine>): SoldLine => ({
-  orderNo: "A1", at: "2026-11-01T10:00:00.000Z", customer: "Felix", table: "1", billTotal: 100_000, productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, inHappyHour: false,
+  orderNo: "A1", at: "2026-11-01T10:00:00.000Z", customer: "Felix", table: "1", billTotal: 100_000, by: "Ann", productId: 1, name: "Beer", category: "Beer", station: null, isService: false, isPackage: false, inHappyHour: false,
   qty: 1, lineTotal: 50_000, regularPrice: 50_000, cost: 20_000, commission: 0, ...over,
 });
 
@@ -62,6 +62,7 @@ describe("receipts by customer", () => {
   it("should flag a receipt with a happy hour line", () => assert.equal(felix?.hasHappy, true));
   it("should not flag a receipt with only normal lines", () => assert.equal(report.receipts.find((receipt) => receipt.orderNo === "A2")?.hasHappy, false));
   it("should name the customer", () => assert.equal(felix?.customer, "Felix"));
+  it("should say who ordered each line", () => assert.equal(itemProfitReport([line({ by: "Wati" })]).receipts[0].lines[0].by, "Wati"));
   it("should list the newest receipt first", () => assert.equal(report.receipts[0].orderNo, "A2"));
 });
 

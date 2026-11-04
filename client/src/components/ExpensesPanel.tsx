@@ -12,6 +12,7 @@ import { money } from "@/lib/money";
 import { ImageUpload } from "@/components/ImageUpload";
 import { readReceipt } from "@/lib/receipt-ocr";
 import { DEFAULT_TERMS_DAYS, dueDateFrom } from "@shared/payables";
+import type { StaffSpend } from "@shared/expenseByStaff";
 import { EXPENSE_GROUPS, GROUP_OF_SECTION, sectionOf, type ExpenseGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
@@ -37,7 +38,7 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
 
 interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
 interface StockDelivery { id: number; amount: string; note: string | null; createdAt: string }
-interface ExpenseList { byStaff?: { staffId: string; name: string; count: number; total: number }[]; month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
+interface ExpenseList { byStaff?: StaffSpend[]; month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
 interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
 interface Vendor { name: string; address: string; phone: string; category: string; items: { name: string; qty: number; unitCost: number }[] }
@@ -357,7 +358,23 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
         {(data?.byStaff || []).length > 0 && (
           <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-2 text-[11px]">
             <p className="font-bold text-sky-200">{t("ex.byStaff")}</p>
-            {data!.byStaff!.map((spend) => <div key={spend.staffId || spend.name} className="flex justify-between gap-2"><span className="min-w-0 break-words">{spend.name || "—"} <span className="text-white/40">· {t("ex.byStaffCount", { n: String(spend.count) })}</span></span><span className="font-bold text-amber-200">{money(spend.total)}</span></div>)}
+            {data!.byStaff!.map((spend) => (
+              <details key={spend.staffId || spend.name} className="mt-1 rounded-lg bg-white/5 p-1.5">
+                <summary className="min-h-[40px] cursor-pointer">
+                  <span className="flex justify-between gap-2"><span className="min-w-0 break-words font-semibold">{spend.name || "—"} <span className="font-normal text-white/40">· {t("ex.byStaffCount", { n: String(spend.count) })}</span></span><span className="font-bold text-amber-200">{money(spend.total)}</span></span>
+                  <span className="flex justify-between gap-2 text-white/50"><span>{t("ex.byStaffPaid")} <span className="text-emerald-300">{money(spend.paid)}</span></span><span>{t("ex.byStaffOwed")} <span className="text-red-300">{money(spend.unpaid)}</span></span></span>
+                </summary>
+                <div className="mt-1 space-y-1">
+                  {spend.receipts.map((receipt) => (
+                    <div key={receipt.id} className="rounded bg-black/25 p-1.5">
+                      <div className="flex justify-between gap-2"><span className="min-w-0 break-words font-semibold">{kindLabel(receipt.category)}{receipt.payee ? ` · ${receipt.payee}` : ""}</span><span className="font-bold text-amber-200">{money(receipt.amount)}</span></div>
+                      <p className="text-white/50">{receipt.spentOn} · <span className={receipt.isPaid ? "text-emerald-300" : "text-red-300"}>{receipt.isPaid ? `${t("ex.paid")}${receipt.payMethod ? ` (${t(`ex.pm.${receipt.payMethod}`)})` : ""}` : t("ex.notPaid")}</span></p>
+                      {receipt.items.map((it, index) => <div key={index} className="flex justify-between gap-2 text-white/60"><span className="min-w-0 break-words">{it.qty} × {it.name}</span><span>{money(it.qty * it.unitCost)}</span></div>)}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ))}
           </div>
         )}
         {data && Object.keys(data.totals).length > 0 && (

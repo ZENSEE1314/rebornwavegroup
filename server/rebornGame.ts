@@ -6224,7 +6224,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const listOf = (list: typeof rows) => list.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
     const listed = listOf(rows);
     const recent = listOf(recentRows);
-    res.json({ month, expenses: listed, recent, stockDeliveries, totals, byStaff: spendByStaff(rows), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+    res.json({ month, expenses: listed, recent, stockDeliveries, totals, byStaff: spendByStaff(listed as any[]), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
   const EXPENSE_EDIT_WINDOW_MS = 24 * 3_600_000;
@@ -6545,7 +6545,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const since = req.query.days ? sinceDays(req.query.days) : null;
     const paidIn = range ? sql`${posTickets.paidAt} >= ${range.from} AND ${posTickets.paidAt} < ${range.to}` : since ? sql`${posTickets.paidAt} >= ${since}` : sql`TRUE`;
     const sold = await db.select({
-      itemId: posTicketItems.id, orderNo: posTickets.orderNo, customer: posTickets.memberName, onAccountCustomer: posTickets.onAccountCustomer, tableNumber: posTickets.tableNumber, billTotal: posTickets.total, productId: posTicketItems.productId, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, station: posTicketItems.station, paidAt: posTickets.paidAt,
+      itemId: posTicketItems.id, orderNo: posTickets.orderNo, customer: posTickets.memberName, onAccountCustomer: posTickets.onAccountCustomer, tableNumber: posTickets.tableNumber, billTotal: posTickets.total, orderedBy: posTicketItems.addedByName, productId: posTicketItems.productId, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, station: posTicketItems.station, paidAt: posTickets.paidAt,
       category: posProducts.category, isService: posProducts.isService, packageKind: posProducts.packageKind, regularPrice: posProducts.price, unitCost: posProducts.cost,
       happyStart: posProducts.happyStart, happyEnd: posProducts.happyEnd, happyDays: posProducts.happyDays, bundleItemId: posProducts.bundleItemId, bundleQty: posProducts.bundleQty, addedAt: posTicketItems.addedAt,
     }).from(posTicketItems)
@@ -6569,7 +6569,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const qty = costLines[index].qty;
       const cost = costOfLine(costLines[index], units, fifoCosts) ?? (Number(row.unitCost) || 0) * qty;
       return {
-        orderNo: row.orderNo, customer: row.customer || row.onAccountCustomer || "", table: row.tableNumber || "", billTotal: Number(row.billTotal) || 0, at: (row.addedAt ?? row.paidAt ?? new Date(0)).toISOString(),
+        orderNo: row.orderNo, customer: row.customer || row.onAccountCustomer || "", table: row.tableNumber || "", billTotal: Number(row.billTotal) || 0, by: row.orderedBy || "", at: (row.addedAt ?? row.paidAt ?? new Date(0)).toISOString(),
         productId: row.productId, name: row.name, category: row.category, station: row.station, isService: !!row.isService, isPackage: !!row.packageKind,
         inHappyHour: !!row.addedAt && inHappyHours({ ...row, isDrink: kindOf({ productId: row.productId, category: row.category, station: row.station, isService: !!row.isService, isPackage: !!row.packageKind }) === "drink" }, windows, clockInZone(row.addedAt, timeZone)),
         qty, lineTotal: Number(row.lineTotal) || 0, regularPrice: Number(row.regularPrice) || 0, cost, commission: commissionOf.get(row.itemId) || 0,
