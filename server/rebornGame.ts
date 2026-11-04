@@ -3117,6 +3117,14 @@ export function registerRebornRoutes(app: Express) {
       res.type("text/javascript").set("Cache-Control", "no-store").send(await fs.readFile(path.join(process.cwd(), "venue", "karaoke-bridge.mjs"), "utf8"));
     } catch { res.status(404).send("Not found"); }
   });
+  // Setup script for an Android TV running the karaoke bridge inside Termux: curl -fsSL <site>/api/karaoke/android-setup.sh | bash (no token inside; it asks for it).
+  app.get("/api/karaoke/android-setup.sh", async (_req, res) => {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      res.type("text/plain").set("Cache-Control", "no-store").send(await fs.readFile(path.join(process.cwd(), "venue", "android-tv-setup.sh"), "utf8"));
+    } catch { res.status(404).send("Not found"); }
+  });
   // The venue bridge token (shared by the karaoke and camera bridges): the saved one, or a new one made now.
   const venueBridgeToken = async () => {
     const [saved] = await db.select().from(appSettings).where(eq(appSettings.key, "karaokeToken"));

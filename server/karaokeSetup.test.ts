@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { karaokeSetupBat } from "./karaokeSetup";
+import { readFileSync } from "node:fs";
 
 const input = { cloudUrl: "https://rebornwave.group", token: "ABC123DEF456", tenantSlug: "" };
 
@@ -23,5 +24,18 @@ describe("karaokeSetupBat", () => {
   });
   it("should refuse a value a command line could misread", () => {
     assert.throws(() => karaokeSetupBat({ ...input, token: "x & del *" }));
+  });
+});
+
+describe("Android TV setup script", () => {
+  const script = readFileSync("venue/android-tv-setup.sh", "utf8");
+  it("should fetch the bridge from the app", () => {
+    assert.ok(script.includes('"$CLOUD_URL/api/karaoke/bridge.mjs"'));
+  });
+  it("should ask for the token instead of holding one", () => {
+    assert.ok(script.includes("read -r -p") && script.includes("< /dev/tty"));
+  });
+  it("should start again after the TV restarts", () => {
+    assert.ok(script.includes(".termux/boot"));
   });
 });
