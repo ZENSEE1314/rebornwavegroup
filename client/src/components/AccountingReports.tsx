@@ -21,7 +21,7 @@ interface OverallData { total: PeriodReport; months: { month: string; report: Pe
 interface DrillLine {
   id: number; at: string | null; amount: number; category: string; refType: string | null; note: string | null; canEdit?: boolean; by: string; hasPhoto: boolean;
   bill: { id: number; orderNo: string; table: string | null; member: string | null } | null;
-  upload: { id: number; payee: string | null; uploadedBy: string | null; spentOn: string; status: string; voidReason: string | null; hasPhoto: boolean } | null;
+  upload: { id: number; hasItems?: boolean; payee: string | null; uploadedBy: string | null; spentOn: string; status: string; voidReason: string | null; hasPhoto: boolean } | null;
 }
 interface Drill { group: string; count: number; total: number; truncated: boolean; lines: DrillLine[] }
 
@@ -36,6 +36,16 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
   const saveEdit = useMutation({
     mutationFn: (v: { id: number; amount: number; note: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { amount: v.amount, note: v.note }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
     onSuccess: () => { toast({ title: t("ar.edited") }); setEditing(null); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); },
+    onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  const [movingId, setMovingId] = useState<number | null>(null); // the upload the admin is about to move to stock
+  const moveToStock = useMutation({
+    mutationFn: (uploadId: number) => apiRequest("POST", `/api/reborn/expenses/${uploadId}/to-stock-auto`, {}).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
+    onSuccess: (d: any) => {
+      toast({ title: d.message });
+      setMovingId(null);
+      qc.invalidateQueries({ predicate: (q) => { const key = String(q.queryKey[0]); return key.startsWith("/api/reborn/admin/accounting") || key.startsWith("/api/reborn/expenses") || key.startsWith("/api/reborn/pos") || key.startsWith("/api/reborn/admin/inventory"); } });
+    },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
   });
   const showPhoto = async (id: number) => {
@@ -59,6 +69,17 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
           {line.upload && <p className="text-white/60">{t("ar.uploadBy", { name: line.upload.uploadedBy || "?" })}{line.upload.payee ? ` · ${line.upload.payee}` : ""} · {t("ar.receiptDate", { d: line.upload.spentOn })}{line.upload.status === "voided" ? ` · ${t("ar.voided", { reason: line.upload.voidReason || "" })}` : ""}</p>}
           {line.note && <p className="text-white/45 break-words">{line.note}</p>}
           <div className="flex gap-3 text-white/40">{line.by && !line.upload && <span>{t("ar.by", { name: line.by })}</span>}{line.hasPhoto && <button type="button" onClick={() => showPhoto(line.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ar.viewPhoto")}</button>}{line.canEdit && editing?.id !== line.id && <button type="button" onClick={() => setEditing({ id: line.id, amount: String(Math.abs(line.amount)), note: line.note || "" })} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>}</div>
+          {line.refType === "expense_upload" && line.upload?.status === "active" && line.upload.hasItems && (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              {movingId === line.upload.id ? (
+                <>
+                  <span className="text-[11px] text-emerald-200">{t("ar.toStockAsk")}</span>
+                  <button type="button" disabled={moveToStock.isPending} onClick={() => moveToStock.mutate(line.upload!.id)} className="min-h-[40px] rounded-lg bg-emerald-400 px-3 text-xs font-bold text-black disabled:opacity-40">{t("ar.toStockYes")}</button>
+                  <button type="button" onClick={() => setMovingId(null)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("admin.c.cancel")}</button>
+                </>
+              ) : <button type="button" onClick={() => setMovingId(line.upload!.id)} className="min-h-[40px] rounded-lg bg-emerald-500/20 px-3 text-xs font-bold text-emerald-200">{t("ex.toStock")}</button>}
+            </div>
+          )}
           {editing?.id === line.id && (
             <div className="mt-1.5 space-y-1.5 rounded-lg border border-sky-400/30 bg-black/30 p-2">
               <label className="block text-[10px] text-white/50">{t("admin.acc.amount")}<input type="number" inputMode="decimal" min={0} value={editing.amount} onChange={(e) => setEditing({ ...editing, amount: e.target.value })} className={field + " mt-0.5 w-full"} /></label>

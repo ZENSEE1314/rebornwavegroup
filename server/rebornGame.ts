@@ -6445,7 +6445,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }
   // An upload that was really food or drinks for the shop: the lines go into the stock like a stock receipt (same save), then the expense upload is voided
   // (its accounting line is reversed) so the purchase is counted once. Who may: the same people as for an edit.
-  app.post("/api/reborn/expenses/:id/to-stock", requireExpenses(async (req, res) => {
+  const toStockHandler = requireExpenses(async (req, res) => {
     const userId = getUserId(req)!;
     const role = await adminRole(userId);
     const [row] = await db.select().from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, await rebornCompanyId(req))));
@@ -6459,6 +6459,24 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await voidExpenseUpload(row, "Moved to stock (Food & drinks)", userId);
     await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_to_stock", entityType: "accounting", description: `Expense #${row.id} (${row.category} RP ${row.amount}) moved to stock: ${outcome.body.lines} lines` });
     res.json({ ...outcome.body, message: tr(req, { en: "Moved to stock: {n} lines added to the inventory and the expense was replaced.", zh: "已转入库存：{n} 行已入库，原支出已替换。", id: "Dipindahkan ke stok: {n} baris masuk inventaris dan pengeluaran diganti." }, { n: String(outcome.body.lines) }) });
+  });
+  app.post("/api/reborn/expenses/:id/to-stock", toStockHandler);
+  // One tap from the accounts: the upload's own lines, supplier, date and payment go into the stock, each line tied to the inventory item of the same name (else a new item).
+  app.post("/api/reborn/expenses/:id/to-stock-auto", requireExpenses(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const [row] = await db.select().from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, cid)));
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Expense not found", zh: "找不到该支出", id: "Pengeluaran tidak ditemukan" }) });
+    const lines = expenseItemsOf((() => { try { return row.items ? JSON.parse(row.items) : []; } catch { return []; } })());
+    const [bill] = row.ledgerEntryId ? await db.select().from(supplierPayables).where(and(eq(supplierPayables.ledgerEntryId, row.ledgerEntryId), eq(supplierPayables.status, "unpaid"))) : [];
+    if (!lines.length || (!bill && !payMethodOf(row.payMethod))) return res.status(400).json({ message: tr(req, { en: "This upload has no item lines or no payment method saved. Use Edit in Expenses to move it.", zh: "该上传没有明细或付款方式，请在“支出”中用编辑转入库存。", id: "Unggahan ini tidak punya rincian item atau cara bayar. Pakai Edit di Pengeluaran untuk memindahkannya." }) });
+    const byName = new Map<string, number>();
+    for (const product of [...(await inventoryForReceipt(cid))].sort((a, b) => a.id - b.id)) if (!byName.has(product.name.trim().toLowerCase())) byName.set(product.name.trim().toLowerCase(), product.id);
+    const sub: any = Object.create(req);
+    sub.params = { id: String(row.id) };
+    sub.body = { supplier: row.payee || "", supplierPhone: row.payeePhone || "", invoiceNo: row.invoiceNo || "", date: row.spentOn, paid: !bill, dueDate: bill?.dueDate ?? undefined, payMethod: bill ? undefined : payMethodOf(row.payMethod),
+      items: lines.map((line) => ({ productId: byName.get(line.name.trim().toLowerCase()) ?? null, name: line.name, qty: line.qty, unitCost: line.unitCost, packSize: 1 })) };
+    const outcome = await runHandler(toStockHandler, sub);
+    res.status(outcome.status).json(outcome.body);
   }));
 
   // ── Tax and service fee (Admin › Accounting › Tax and service fee): a change only reaches bills opened after it, every change is kept with who made it ──
@@ -6646,7 +6664,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
           id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), by: row.userId ? nameOf.get(row.userId) || "" : "",
           hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
           bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,
-          upload: upload ? { id: upload.id, payee: upload.payee, uploadedBy: upload.uploadedByName, spentOn: upload.spentOn, status: upload.status, voidReason: upload.voidReason, hasPhoto: !!upload.photoUrl } : null,
+          upload: upload ? { id: upload.id, hasItems: !!upload.items, payee: upload.payee, uploadedBy: upload.uploadedByName, spentOn: upload.spentOn, status: upload.status, voidReason: upload.voidReason, hasPhoto: !!upload.photoUrl } : null,
         };
       }),
     });

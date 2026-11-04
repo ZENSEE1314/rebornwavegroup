@@ -1335,6 +1335,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'ex.byStaffPaid': { en: "Paid in accounts", zh: "已入账付款", id: "Dibayar di akun" },
   'ex.byStaffOwed': { en: "Not paid yet", zh: "未付", id: "Belum dibayar" },
   'ex.byStaffCount': { en: "{n} uploads", zh: "{n} 笔", id: "{n} unggahan" },
+  'ar.toStockAsk': { en: "Move this to stock with its items, supplier and payment filled in?", zh: "将此项连同明细、供应商和付款一起转入库存？", id: "Pindahkan ke stok lengkap dengan item, pemasok dan pembayaran?" },
+  'ar.toStockYes': { en: "Yes, move to stock", zh: "确认转入库存", id: "Ya, pindah ke stok" },
   'ex.toStock': { en: "Move to stock", zh: "转入库存", id: "Pindah ke stok" },
   'ex.pay.items': { en: "{n} items", zh: "{n} 项", id: "{n} item" },
   'ex.pay.noItems': { en: "No item lines were saved with this bill", zh: "该账单没有保存明细", id: "Tagihan ini tidak menyimpan rincian item" },
