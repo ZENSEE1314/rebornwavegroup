@@ -37,7 +37,7 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
 
 interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
 interface StockDelivery { id: number; amount: string; note: string | null; createdAt: string }
-interface ExpenseList { month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
+interface ExpenseList { byStaff?: { staffId: string; name: string; count: number; total: number }[]; month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
 interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
 interface Vendor { name: string; address: string; phone: string; category: string; items: { name: string; qty: number; unitCost: number }[] }
@@ -354,6 +354,12 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={field + " w-auto"} />
         </div>
         {data && <p className="mt-1 text-sm font-black text-amber-200">{t("ex.total", { n: money(data.total) })}</p>}
+        {(data?.byStaff || []).length > 0 && (
+          <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-2 text-[11px]">
+            <p className="font-bold text-sky-200">{t("ex.byStaff")}</p>
+            {data!.byStaff!.map((spend) => <div key={spend.staffId || spend.name} className="flex justify-between gap-2"><span className="min-w-0 break-words">{spend.name || "—"} <span className="text-white/40">· {t("ex.byStaffCount", { n: String(spend.count) })}</span></span><span className="font-bold text-amber-200">{money(spend.total)}</span></div>)}
+          </div>
+        )}
         {data && Object.keys(data.totals).length > 0 && (
           <div className="mt-1 space-y-0.5 text-[11px] text-white/50">
             {EXPENSE_GROUPS.map((group) => {

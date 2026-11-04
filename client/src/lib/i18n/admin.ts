@@ -1331,6 +1331,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'ex.payMethod': { en: "Paid by", zh: "付款方式", id: "Dibayar dengan" },
   'ex.pm.cash': { en: "Cash", zh: "现金", id: "Tunai" },
   'ex.pm.card': { en: "Card", zh: "刷卡", id: "Kartu" },
+  'ex.byStaff': { en: "Spent by each staff this month", zh: "本月各员工的支出", id: "Pengeluaran tiap staf bulan ini" },
+  'ex.byStaffCount': { en: "{n} uploads", zh: "{n} 笔", id: "{n} unggahan" },
   'ex.toStock': { en: "Move to stock", zh: "转入库存", id: "Pindah ke stok" },
   'ex.pay.items': { en: "{n} items", zh: "{n} 项", id: "{n} item" },
   'ex.pay.noItems': { en: "No item lines were saved with this bill", zh: "该账单没有保存明细", id: "Tagihan ini tidak menyimpan rincian item" },

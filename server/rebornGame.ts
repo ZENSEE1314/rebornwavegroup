@@ -12,6 +12,7 @@ import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinSt
 import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { payReferralCommission, reverseReferralCommission } from "./referralCommission";
 import { planSplit, readSplit, type SplitPlan } from "@shared/payments";
+import { spendByStaff } from "@shared/expenseByStaff";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
@@ -6223,7 +6224,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const listOf = (list: typeof rows) => list.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
     const listed = listOf(rows);
     const recent = listOf(recentRows);
-    res.json({ month, expenses: listed, recent, stockDeliveries, totals, total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+    res.json({ month, expenses: listed, recent, stockDeliveries, totals, byStaff: spendByStaff(rows), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
   const EXPENSE_EDIT_WINDOW_MS = 24 * 3_600_000;
