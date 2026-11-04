@@ -15,6 +15,9 @@ describe("offline recovery", () => {
   it("should ask a health check that is not answered from the saved copy", () => {
     assert.ok(sales.includes('const HEALTH_URL = "/api/health";') && sales.includes('response.headers.get("x-sw-saved")'));
   });
+  it("should not call the POS offline for one failed request when the server still answers", () => {
+    assert.ok(sales.includes("async function confirmUnreachable()") && sales.includes("if (!reachable) { if (!looksOffline) void confirmUnreachable(); return; }"));
+  });
   it("should go back online and announce it when the server answers", () => {
     assert.ok(sales.includes("looksOffline = false;") && sales.includes("window.dispatchEvent(new Event(RECONNECTED_EVENT));"));
   });
