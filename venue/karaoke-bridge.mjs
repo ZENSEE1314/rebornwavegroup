@@ -468,13 +468,25 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     if (!res.ok) throw new Error(`/api/karaoke/jobs: ${res.status}`);
     const { jobs = [] } = await res.json();
     // Pages and searches first, then the photos side by side: a page of singers asks for dozens of photos, and one after the other they kept the next page waiting until it timed out.
-    const answerJob = async (job) => {
+    const answerOf = async (job) => {
       const kind = job.kind || "search";
-      const answer = kind === "singers" ? singersPage(job.q, job.page) : kind === "singer" ? songsOfSinger(job.name, job.page) : kind === "photo" ? await fetchPhoto(job.file) : await searchAnswer(job);
-      await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, answer);
-      if (kind !== "photo") log(`${kind} "${job.q || job.name || ""}": answered`);
+      return kind === "singers" ? singersPage(job.q, job.page) : kind === "singer" ? songsOfSinger(job.name, job.page) : kind === "photo" ? await fetchPhoto(job.file) : await searchAnswer(job);
     };
-    for (const job of jobs.filter((x) => x.kind !== "photo")) await answerJob(job);
+    const answerJob = async (job) => {
+      await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, await answerOf(job));
+      if (job.kind !== "photo") log(`${job.kind || "search"} "${job.q || job.name || ""}": answered`);
+    };
+    // Each answer is a round trip to the app over a slow line, so the questions are answered side by side, and the same question asked by several members (or typed letter by letter) is worked out once.
+    const sameQuestion = new Map();
+    for (const job of jobs.filter((x) => x.kind !== "photo")) {
+      const key = JSON.stringify([job.kind || "search", job.q ?? "", job.page ?? 1, job.name ?? ""]);
+      sameQuestion.set(key, [...(sameQuestion.get(key) || []), job]);
+    }
+    await Promise.all(Array.from(sameQuestion.values(), async (group) => {
+      const answer = await answerOf(group[0]);
+      await Promise.all(group.map(async (job) => { await cloudCall("POST", `/api/karaoke/jobs/${job.id}`, answer); }));
+      log(`${group[0].kind || "search"} "${group[0].q || group[0].name || ""}": answered${group.length > 1 ? ` (${group.length} members)` : ""}`);
+    }));
     const photos = jobs.filter((x) => x.kind === "photo");
     for (let i = 0; i < photos.length; i += PHOTO_PARALLEL) await Promise.all(photos.slice(i, i + PHOTO_PARALLEL).map((job) => answerJob(job).catch((e) => log(`photo: ${e.message}`))));
     return jobs.length;

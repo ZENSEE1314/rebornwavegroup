@@ -10,7 +10,7 @@ import { Search, Music2, Check, Clock, X, Plus, ExternalLink, Mic2, Loader2 } fr
 const TABS = ["Songs", "Queue", "My Requests"] as const;
 const TAB_KEYS: Record<(typeof TABS)[number], string> = { "Songs": "vn.song.tabSongs", "Queue": "vn.song.tabQueue", "My Requests": "vn.song.tabMine" };
 
-function useDebounced(value: string, delay = 250) {
+function useDebounced(value: string, delay = 450) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => { const timer = window.setTimeout(() => setDebounced(value.trim()), delay); return () => window.clearTimeout(timer); }, [value, delay]);
   return debounced;

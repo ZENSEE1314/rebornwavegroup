@@ -114,6 +114,24 @@ describe("searching the box for members", () => {
   });
 });
 
+describe("several searches at once", () => {
+  it("should work out one question once and answer every member who asked it", async () => {
+    const posted: string[] = [];
+    let boxCalls = 0;
+    const fetchImpl = async (url: string, init?: any) => {
+      const u = new URL(url);
+      if (u.pathname.endsWith("/api/karaoke/jobs") && (!init || init.method !== "POST")) return { ok: true, status: 200, json: async () => ({ jobs: [{ id: "a", q: "love" }, { id: "b", q: "love" }, { id: "c", q: "rain" }] }), text: async () => "" };
+      if (u.pathname.includes("/api/karaoke/jobs/")) { posted.push(u.pathname.split("/").pop()!); return { ok: true, status: 200, json: async () => ({ ok: true }), text: async () => "" }; }
+      if (u.pathname.endsWith("SearchServlet")) { boxCalls++; return { ok: true, status: 200, text: async () => `cb(${JSON.stringify({ number: "15", page: "1", songList: "[]" })})`, json: async () => ({}) }; }
+      throw new Error("unexpected " + url);
+    };
+    const bridge = createBridge({ cloudUrl: "https://cloud.test", token: "t", boxUrl: "http://box/demo", fetchImpl, log: () => {} });
+    await bridge.serveSearches();
+    assert.deepEqual([...posted].sort(), ["a", "b", "c"]);
+    assert.ok(boxCalls <= 4, `the box was asked ${boxCalls} times`);
+  });
+});
+
 describe("Chinese songs (the box finds them by pinyin initials)", () => {
   const chinese = JSON.stringify([{ cLOUD: 0, sINGER: "Tian Hou  陈势安", sONGBM: "10117177", sONGNAME: "天后(T.I)" }, { cLOUD: 0, sINGER: "Other", sONGBM: "9", sONGNAME: "太好了" }]);
   const boxFor = (answers: Record<string, string>) => async (url: string, init?: any) => {
