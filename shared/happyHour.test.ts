@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { dealOf, freeUnitsFor, inHappyHours } from "./happyHour";
+import { dealOf, freeUnitsFor, freeUnitsGiven, inHappyHours } from "./happyHour";
 
 const DURING = "18:30";
 const OUTSIDE = "12:00";
@@ -68,4 +68,16 @@ describe("inHappyHours", () => {
   it("should not count a drink outside the window", () => assert.equal(inHappyHours(cocktail, windows, "1 20:00"), false));
   it("should not count a drink on a weekday the window does not run", () => assert.equal(inHappyHours(cocktail, windows, "5 17:30"), false));
   it("should count food that has its own window on", () => assert.equal(inHappyHours({ ...burger, happyStart: "17:00", happyEnd: "19:00" }, [], "1 17:30"), true));
+});
+
+describe("freeUnitsGiven", () => {
+  const none = { paid: 0, free: 0 };
+  it("should make the first beer paid on buy 1 get 1 free", () => assert.equal(freeUnitsGiven(beer(1, 1), DURING, 1, none), 0));
+  it("should make the second beer free when one was paid", () => assert.equal(freeUnitsGiven(beer(1, 1), DURING, 1, { paid: 1, free: 0 }), 1));
+  it("should make the next click paid after a paid and a free", () => assert.equal(freeUnitsGiven(beer(1, 1), DURING, 1, { paid: 1, free: 1 }), 0));
+  it("should keep pairing after a paid line was removed and its free one stayed", () => assert.equal(freeUnitsGiven(beer(1, 1), DURING, 1, { paid: 0, free: 1 }), 0));
+  it("should give the free one on the click after that", () => assert.equal(freeUnitsGiven(beer(1, 1), DURING, 1, { paid: 1, free: 1 }) + freeUnitsGiven(beer(1, 1), DURING, 1, { paid: 2, free: 1 }), 1));
+  it("should split two beers at once into one paid and one free", () => assert.equal(freeUnitsGiven(beer(1, 1), DURING, 2, none), 1));
+  it("should give nothing outside the happy hour", () => assert.equal(freeUnitsGiven(beer(1, 1), OUTSIDE, 2, { paid: 1, free: 0 }), 0));
+  it("should give one free for every two paid on buy 2 get 1", () => assert.equal(freeUnitsGiven(beer(2, 1), DURING, 3, none), 1));
 });

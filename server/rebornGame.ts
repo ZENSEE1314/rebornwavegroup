@@ -18,7 +18,7 @@ import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
 import { parseReceiptText } from "@shared/receiptText";
 import { MAX_PERCENT, canEarn, commissionFor, commissionForPart, eligibleStaffOf, ruleOf, splitPartsOf } from "@shared/itemCommission";
-import { cleanDays, clockInZone, dealOf, freeUnitsFor, hasHappyWindow, inHappyHours, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
+import { cleanDays, clockInZone, dealOf, freeUnitsFor, freeUnitsGiven, type DealState, hasHappyWindow, inHappyHours, isHappyNow, isOffHours, isValidClock, MAX_DEAL_QTY, salePriceNow } from "@shared/happyHour";
 import { CUSTOM_PALETTE, DEFAULT_APP_SKIN, DEFAULT_CUSTOM_COLOURS, cleanAppColours, isAppFont, isAppSkin, isPaletteChoice } from "@shared/appSkins";
 import { cleanPayrollRules, computeContributions, defaultPayrollRules, asResidency } from "@shared/payrollRules";
 import { storage } from "./storage";
@@ -4131,11 +4131,23 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // Ticket subtotal/total = sum of non-rejected line totals.
   // A line taken off the bill: rejected (never served) or lost (spilled / broken after it was made).
   const GONE_ITEM = ["rejected", "lost"];
-  async function unitsOnBill(orderId: number | undefined): Promise<Map<number, number>> {
-    const units = new Map<number, number>();
+  // What the bill holds of each item that was ordered INSIDE its happy hour (paid units and free units), for the "buy X get Y free" deal.
+  async function unitsOnBill(orderId: number | undefined): Promise<Map<number, DealState>> {
+    const units = new Map<number, DealState>();
     if (!orderId) return units;
-    const rows = await db.select({ productId: posTicketItems.productId, qty: posTicketItems.qty, status: posTicketItems.status }).from(posTicketItems).where(eq(posTicketItems.orderId, orderId));
-    for (const row of rows) if (row.productId && !GONE_ITEM.includes(row.status)) units.set(row.productId, (units.get(row.productId) ?? 0) + row.qty);
+    const rows = await db.select({ productId: posTicketItems.productId, qty: posTicketItems.qty, status: posTicketItems.status, lineTotal: posTicketItems.lineTotal, addedAt: posTicketItems.addedAt }).from(posTicketItems).where(eq(posTicketItems.orderId, orderId));
+    const live = rows.filter((row) => row.productId && !GONE_ITEM.includes(row.status));
+    const ids = Array.from(new Set(live.map((row) => row.productId!)));
+    const products = ids.length ? await db.select().from(posProducts).where(inArray(posProducts.id, ids)) : [];
+    const productById = new Map(products.map((product) => [product.id, product]));
+    const timeZone = countryOf(companyCountry()).timezone;
+    for (const row of live) {
+      const product = productById.get(row.productId!);
+      if (!product || !row.addedAt || !isHappyNow(product, clockInZone(row.addedAt, timeZone))) continue;
+      const state = units.get(row.productId!) ?? { paid: 0, free: 0 };
+      if (Number(row.lineTotal) === 0) state.free += row.qty; else state.paid += row.qty;
+      units.set(row.productId!, state);
+    }
     return units;
   }
   async function recalcTicket(orderId: number) {
@@ -4184,7 +4196,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   };
   // Validate requested items against the live catalogue + stock.
   // `onBill` = units of each item the bill already holds, so a "buy 1 get 1 free" deal keeps counting across orders added one at a time.
-  async function resolveItems(items: any[], lang: Lang = "en", alreadySold = false, onBill: Map<number, number> = new Map()): Promise<{ clean?: any[]; error?: string }> {
+  async function resolveItems(items: any[], lang: Lang = "en", alreadySold = false, onBill: Map<number, DealState> = new Map()): Promise<{ clean?: any[]; error?: string }> {
     const ids = items.map((it) => Number(it.productId)).filter(Boolean);
     const products = ids.length ? await db.select().from(posProducts).where(or(...ids.map((i: number) => eq(posProducts.id, i)))) : [];
     const byId = new Map((await withBundleStock(products)).map((p) => [p.id, p]));
@@ -4196,10 +4208,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
       if (!allowNegative && !alreadySold && !p.packageKind && !p.isService && (p.stock ?? 0) < qty) return { error: pick(lang, { en: "{item} is sold out", zh: "{item} 已售罄", id: "{item} habis terjual" }, { item: p.name }) };
       if (!alreadySold && isOffHours(p, venueClockNow())) return { error: pick(lang, { en: "{item} is only sold during its happy hour", zh: "{item} 仅在欢乐时段供应", id: "{item} hanya dijual saat happy hour" }, { item: p.name }) };
-      const free = alreadySold || p.noDiscount ? 0 : freeUnitsFor(p, venueClockNow(), qty, onBill.get(p.id) ?? 0);
+      const state = onBill.get(p.id) ?? { paid: 0, free: 0 };
+      const free = alreadySold || p.noDiscount ? 0 : freeUnitsGiven(p, venueClockNow(), qty, state);
       if (free < qty) clean.push({ productId: p.id, name: p.name, price: p.noDiscount ? Number(p.price) : salePriceNow(p, venueClockNow()), qty: qty - free });
       if (free > 0) clean.push({ productId: p.id, name: `${p.name} ${pick(lang, { en: "(free)", zh: "（赠送）", id: "(gratis)" })}`, price: 0, qty: free });
-      onBill.set(p.id, (onBill.get(p.id) ?? 0) + qty);
+      if (isHappyNow(p, venueClockNow())) onBill.set(p.id, { paid: state.paid + qty - free, free: state.free + free });
     }
     return { clean };
   }

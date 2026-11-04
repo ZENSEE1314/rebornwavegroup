@@ -85,6 +85,24 @@ export function freeUnitsFor(p: HappyHourFields, clockNow: string, qty: number, 
   return free;
 }
 
+/** What a bill already holds of one item that was ordered inside its happy hour: units paid for and free units given. */
+export interface DealState { paid: number; free: number }
+
+/**
+ * How many of `qty` new units are free: every `buy` paid units earn `free` free ones, and the free units already given are taken off what was earned.
+ * Counting paid units (not all units) keeps the deal right when a line was removed or rejected, and `onBill` only holds units ordered inside the window,
+ * so a drink ordered before the happy hour never makes the first one inside it free.
+ */
+export function freeUnitsGiven(p: HappyHourFields, clockNow: string, qty: number, onBill: DealState = { paid: 0, free: 0 }): number {
+  const deal = dealOf(p);
+  if (!deal || !isHappyNow(p, clockNow)) return 0;
+  for (let free = qty; free > 0; free--) {
+    const paid = onBill.paid + qty - free;
+    if (free <= Math.floor(paid / deal.buy) * deal.free - onBill.free) return free;
+  }
+  return 0;
+}
+
 /** A line ordered at `clockAt` is in the happy hours when its own item's window is on, or when it is a drink and any item's window is on (the venue's happy hour covers all drinks). */
 export function inHappyHours(line: HappyHourFields & { isDrink: boolean }, windows: HappyHourFields[], clockAt: string): boolean {
   return isHappyNow(line, clockAt) || (line.isDrink && windows.some((window) => isHappyNow(window, clockAt)));
