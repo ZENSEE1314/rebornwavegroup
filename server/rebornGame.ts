@@ -7183,7 +7183,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const cost = run?.layers[0]?.unitCost ?? (Number(p.cost) || 0); // what the next unit sold cost: the oldest delivery left
       const price = Number(p.price) || 0;
       return {
-        id: p.id, name: p.name, category: p.category, department: p.department || null, active: p.active, posVisible: p.posVisible,
+        id: p.id, name: p.name, category: p.category, station: p.station || null, department: p.department || null, active: p.active, posVisible: p.posVisible,
         stock, cost, price, imageUrl: productImageLink(p), unitsPerPack: p.unitsPerPack ?? null, packPrice: p.packPrice === null || p.packPrice === undefined ? null : Number(p.packPrice),
         suppliers: Array.from(supByProduct.get(p.id) || (p.supplierName ? new Set([p.supplierName]) : new Set())),
         supplierPrices: Array.from(supByProduct.get(p.id) || new Set<string>()).map((name) => ({ supplier: name, unitCost: priceByProduct.get(p.id)?.get(name) ?? null })),

@@ -259,6 +259,15 @@ export function printKitchen(order: Order, title?: string) {
 }
 
 // `only` prints just the food or just the drinks of the day: the items of that kind with their sales, cost and profit (bill-level tax, fees and payments are not split by item).
+/** The stock list of one kind (or all) as an A4 table with a blank "Counted" column for the month-end count. */
+export function printStockList(title: string, rows: { category: string; name: string; stock: number; cost: number; value: number }[], labels: { category: string; item: string; stock: string; cost: string; value: string; counted: string; total: string }, meta: ReceiptMeta = {}) {
+  const body = rows.map((row) => `<tr><td>${esc(row.category)}</td><td>${esc(row.name)}</td><td class="n">${row.stock}</td><td class="n">${rp(row.cost)}</td><td class="n">${rp(row.value)}</td><td class="count"></td></tr>`).join("");
+  const units = rows.reduce((sum, row) => sum + row.stock, 0);
+  const value = rows.reduce((sum, row) => sum + row.value, 0);
+  const css = "table.stock{width:100%;border-collapse:collapse;font-size:12px}table.stock th,table.stock td{border:1px solid #999;padding:4px 6px;text-align:left}table.stock .n{text-align:right;white-space:nowrap}table.stock td.count{width:90px}table.stock tr{page-break-inside:avoid}";
+  return printDoc(`<style>${css}</style><div class="name">${esc(meta.clubName || "Reborn Wave Group")}</div><div class="mode">${esc(title)} · ${esc(new Date().toLocaleDateString(localeTag()))}</div><table class="stock"><thead><tr><th>${esc(labels.category)}</th><th>${esc(labels.item)}</th><th>${esc(labels.stock)}</th><th>${esc(labels.cost)}</th><th>${esc(labels.value)}</th><th>${esc(labels.counted)}</th></tr></thead><tbody>${body}</tbody><tfoot><tr><th colspan="2">${esc(labels.total)}</th><th class="n">${units}</th><th></th><th class="n">${rp(value)}</th><th></th></tr></tfoot></table>`, `${title}_${new Date().toISOString().slice(0, 10)}`, true);
+}
+
 export function printClosingReport(report: any, meta: ReceiptMeta = {}, only: "food" | "drink" | "" = "") {
   const shown = itemsOfKind(report.items || [], only);
   const items = shown.map((item: any) => `<div class="row"><span>${item.quantity}× ${esc(item.name)}</span><span>${rp(item.sales)}</span></div>`).join("");

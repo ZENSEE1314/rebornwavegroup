@@ -47,7 +47,9 @@ import { ItemCommissionAdmin } from "@/components/ItemCommissionAdmin";
 import { LeaveRulesCard, PoliceMoneyCard } from "@/components/PayrollExtras";
 import { DailyTargetCard, FixedCostsPanel } from "@/components/DailyTarget";
 import { APP_FEATURES } from "@/lib/features";
-import { printClosingReport, printReceipt } from "@/lib/receipt";
+import { printClosingReport, printReceipt, printStockList } from "@/lib/receipt";
+import { stockListOf } from "@shared/stockList";
+import type { MenuKind } from "@shared/itemProfit";
 import { money, moneySymbol, moneyStep, roundMoney, appMoney } from "@/lib/money";
 import { AppSkinPicker } from "@/components/AppSkinPicker";
 import { StaffContractPanel } from "@/components/StaffContractPanel";
@@ -2993,12 +2995,19 @@ function Inventory() {
   const renderEditor = (id: number) => { const product = products.find((p) => p.id === id); return product ? <ProductRow key={product.id} p={product} inventory /> : null; };
   const industries = useCompanyIndustries();
   const [query, setQuery] = useState("");
+  const [stockKind, setStockKind] = useState<MenuKind | "">(""); // food, drinks or other: what the list shows and prints
   const byIndustry = industry ? allItems.filter((i) => deptHas(i.department, industry)) : allItems;
-  const items = byIndustry.filter((i) => matchesSearch(`${i.name} ${i.category} ${(i.suppliers || []).join(" ")}`, query));
+  const items = stockListOf(byIndustry.filter((i) => matchesSearch(`${i.name} ${i.category} ${(i.suppliers || []).join(" ")}`, query)), stockKind);
   const cats = Array.from(new Set(items.map((i) => i.category)));
   const totals = industry
     ? items.reduce((a, it) => ({ units: a.units + it.stock, cost: a.cost + it.stockValue, retail: a.retail + it.retailValue, low: a.low + (it.low ? 1 : 0) }), { units: 0, cost: 0, retail: 0, low: 0 })
     : (data?.totals || { units: 0, cost: 0, retail: 0, low: 0 });
+  const printList = () => {
+    const kindName = stockKind ? t(`ip.kind.${stockKind}`) : t("admin.c.all");
+    const printed = printStockList(`${t("admin.inv.printTitle")} · ${kindName}`, items.map((i) => ({ category: i.category, name: i.name, stock: i.stock, cost: i.cost, value: i.stockValue })),
+      { category: t("admin.prod.category"), item: t("admin.prod.item"), stock: t("admin.prod.stock"), cost: t("admin.inv.unitCost"), value: t("admin.inv.stockValue"), counted: t("admin.inv.counted"), total: t("admin.inv.printTotal") });
+    if (!printed) toast({ title: t("admin.inv.printFail"), variant: "destructive" });
+  };
   const exportCsv = () => {
     const rows = [[t("admin.prod.category"), t("admin.prod.item"), t("admin.prod.stock"), t("admin.inv.unitCost"), t("admin.inv.stockValue"), t("admin.inv.retailValue")], ...items.map((i) => [i.category, i.name, String(i.stock), String(i.cost), String(i.stockValue), String(i.retailValue)])];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
@@ -3019,6 +3028,11 @@ function Inventory() {
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.units")}</p><p className="text-base font-extrabold">{(totals.units || 0).toLocaleString()}</p></div>
         <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.stockValue")}</p><p className="text-base font-extrabold text-amber-300">{money(totals.cost || 0)}</p></div>
         <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.inv.retailValue")}</p><p className="text-base font-extrabold text-emerald-300">{money(totals.retail || 0)}</p></div>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-white/50">{t("admin.inv.show")}</span>
+        {(["", "food", "drink", "other"] as const).map((kind) => <button key={kind || "all"} type="button" onClick={() => setStockKind(kind)} aria-pressed={stockKind === kind} className={`rounded-full px-3 py-1 text-xs ${stockKind === kind ? "bg-amber-400 text-black font-bold" : "bg-white/5 text-white/60"}`}>{kind ? t(`ip.kind.${kind}`) : t("admin.c.all")}</button>)}
+        <button type="button" onClick={printList} disabled={items.length === 0} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-400 text-black disabled:opacity-40">{t("admin.inv.print", { n: String(items.length) })}</button>
       </div>
       <div className="flex items-center gap-2">
         {(data?.totals?.low || 0) > 0 && <span className="inline-flex items-center gap-1 text-xs text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-2.5 py-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {t("admin.inv.lowItems", { n: data.totals.low })}</span>}
