@@ -2788,7 +2788,11 @@ export function registerGameRoutes(app: Express) {
     if (room.password && String(req.body?.password || "") !== room.password) return res.status(403).json({ message: tr(req, { en: "Wrong room password.", zh: "房间密码错误。", id: "Kata sandi room salah." }) });
     const cap = roomCap(room.game);
     if (room.players.length >= cap) return res.status(400).json({ message: tr(req, { en: "Room is full ({n} players).", zh: "房间已满（{n} 人）。", id: "Room penuh ({n} pemain)." }, { n: cap }) });
-    room.players.push({ id: uid, name: await nameFor(uid), alive: true, taps: 0, connected: true });
+    const name = await nameFor(uid);
+    // A double tap sends two joins; the second one gets here after the first has already added this user.
+    if (room.players.some((p) => p.id === uid)) return res.json({ code: room.code });
+    if (room.players.length >= cap) return res.status(400).json({ message: tr(req, { en: "Room is full ({n} players).", zh: "房间已满（{n} 人）。", id: "Room penuh ({n} pemain)." }, { n: cap }) });
+    room.players.push({ id: uid, name, alive: true, taps: 0, connected: true });
     broadcast(room);
     res.json({ code: room.code });
   });

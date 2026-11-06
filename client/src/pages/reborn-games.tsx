@@ -186,17 +186,21 @@ function Lobby({ onEnter, onOpenNumber }: { onEnter: (c: string) => void; onOpen
       onEnter(d.code);
     } finally { setCreating(false); }
   };
-  const join = async () => {
-    const { ok, d } = await post(`/api/reborn/games/rooms/${joinCode.trim().toUpperCase()}/join`, { password: joinPw });
-    if (!ok) return toast({ title: t("gm.toast.cantJoin"), description: d.message, variant: "destructive" });
-    onEnter(d.code);
+  const joining = useRef(false);
+  const joinWith = async (code: string, password: string) => {
+    if (joining.current) return; // ignore double taps while the join is in flight
+    joining.current = true;
+    try {
+      const { ok, d } = await post(`/api/reborn/games/rooms/${code}/join`, { password });
+      if (!ok) return toast({ title: t("gm.toast.cantJoin"), description: d.message, variant: "destructive" });
+      onEnter(d.code);
+    } finally { joining.current = false; }
   };
-  const joinRoom = async (r: any) => {
+  const join = () => joinWith(joinCode.trim().toUpperCase(), joinPw);
+  const joinRoom = (r: any) => {
     const pw = r.hasPassword ? (prompt(t("gm.lobby.lockedPrompt", { name: r.hostName })) ?? "") : "";
     if (r.hasPassword && !pw) return;
-    const { ok, d } = await post(`/api/reborn/games/rooms/${r.code}/join`, { password: pw });
-    if (!ok) return toast({ title: t("gm.toast.cantJoin"), description: d.message, variant: "destructive" });
-    onEnter(d.code);
+    return joinWith(r.code, pw);
   };
 
   return (
