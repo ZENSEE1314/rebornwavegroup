@@ -6258,7 +6258,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const listOf = (list: typeof rows) => list.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
     const listed = listOf(rows);
     const recent = listOf(recentRows);
-    res.json({ month, expenses: listed, recent, stockDeliveries, totals, byStaff: spendByStaff(listed as any[]), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+    res.json({ month, expenses: listed, recent, stockDeliveries: stockDeliveries.map((delivery) => ({ ...delivery, canEdit: canEditExpense(role, userId, { uploadedBy: delivery.userId, createdAt: delivery.createdAt }) })), totals, byStaff: spendByStaff(listed as any[]), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
   const EXPENSE_EDIT_WINDOW_MS = 24 * 3_600_000;
@@ -6455,6 +6455,59 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (fixedCostId && (fixedCostId !== row.fixedCostId || spentOn !== row.spentOn)) await syncActualFromUploads(fixedCostId, spentOn);
     await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_edit", entityType: "accounting", oldValues: { category: row.category, amount: row.amount, spentOn: row.spentOn, payee: row.payee }, newValues: { category, amount, spentOn, payee }, description: `${editorName || userId} edited expense #${row.id}: ${row.category} RP ${row.amount} → ${category} RP ${amount} (${spentOn})` });
     res.json({ message: tr(req, { en: "Expense updated", zh: "支出已更新", id: "Pengeluaran diperbarui" }), expense: expenseView(updated) });
+  }));
+  // A stock receipt (Food & drinks) is a "receipt" accounting line plus the stock-in movements it made. The movements are found by the
+  // receipt's heading (the note up to ":"), so the note itself is never edited. Same people as an upload: managers/admin always, the uploader for 24 hours.
+  const loadReceiptLine = async (req: Request, res: Response) => {
+    const userId = getUserId(req)!;
+    const [row] = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.id, Number(req.params.id)), eq(ledgerEntries.refType, "receipt")));
+    if (!row) { res.status(404).json({ message: tr(req, { en: "Stock receipt not found", zh: "找不到该入库单", id: "Struk stok tidak ditemukan" }) }); return null; }
+    if (!canEditExpense(await adminRole(userId), userId, { uploadedBy: row.userId, createdAt: row.createdAt })) {
+      res.status(403).json({ message: tr(req, { en: "You can change your own receipts for 24 hours; ask a manager after that", zh: "你只能在 24 小时内更改自己的入库单；之后请找经理", id: "Anda bisa mengubah struk sendiri selama 24 jam; setelah itu minta manajer" }) });
+      return null;
+    }
+    return row;
+  };
+  app.post("/api/reborn/expenses/receipts/:id/edit", requireExpenses(async (req, res) => {
+    const row = await loadReceiptLine(req, res); if (!row) return;
+    const amount = roundMoney(Number(req.body?.amount));
+    if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
+    await db.transaction(async (tx) => {
+      await tx.update(ledgerEntries).set({ amount: String(amount) }).where(eq(ledgerEntries.id, row.id));
+      await tx.update(supplierPayables).set({ amount: String(amount) }).where(and(eq(supplierPayables.ledgerEntryId, row.id), eq(supplierPayables.status, "unpaid")));
+    });
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "receipt_edit", entityType: "accounting", oldValues: { amount: row.amount }, newValues: { amount }, description: `Stock receipt #${row.id} amount changed to RP ${amount}` });
+    res.json({ message: tr(req, { en: "Receipt amount updated", zh: "入库单金额已更新", id: "Jumlah struk diperbarui" }) });
+  }));
+  app.post("/api/reborn/expenses/receipts/:id/delete", requireExpenses(async (req, res) => {
+    const row = await loadReceiptLine(req, res); if (!row) return;
+    const cid = await rebornCompanyId(req);
+    const head = (row.note || "").split(": ")[0];
+    const escape = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const cannotFind = tr(req, { en: "The stock lines of this receipt could not be found, so it cannot be taken back safely", zh: "找不到该入库单的库存记录，无法安全撤回", id: "Baris stok struk ini tidak ditemukan, jadi tidak bisa ditarik kembali dengan aman" });
+    if (!head) return res.status(400).json({ message: cannotFind });
+    const copies = (await db.select({ id: ledgerEntries.id }).from(ledgerEntries).where(and(eq(ledgerEntries.refType, "receipt"), sql`${ledgerEntries.note} LIKE ${`${escape(head)}:%`}`))).length;
+    const moves = await db.select().from(stockMovements).where(and(eq(stockMovements.companyId, cid), eq(stockMovements.reason, "stock_in"), sql`${stockMovements.note} LIKE ${`${escape(head)}%`}`)).orderBy(asc(stockMovements.id));
+    if (!copies || !moves.length || moves.length % copies !== 0) return res.status(400).json({ message: cannotFind });
+    const perCopy = moves.length / copies;
+    const shape = (list: typeof moves) => list.map((m) => `${m.productId}:${m.delta}`).sort().join(",");
+    const mine = moves.slice(-perCopy); // a receipt keyed in twice has identical copies, so taking back the last one is the same as taking back this one
+    if (copies > 1 && shape(mine) !== shape(moves.slice(0, perCopy))) return res.status(400).json({ message: cannotFind });
+    const taken = new Map<number, number>();
+    for (const move of mine) taken.set(move.productId, (taken.get(move.productId) || 0) + move.delta);
+    const products = await db.select({ id: posProducts.id, name: posProducts.name, stock: posProducts.stock }).from(posProducts).where(inArray(posProducts.id, Array.from(taken.keys())));
+    const used = products.filter((p) => Number(p.stock) < (taken.get(p.id) || 0)).map((p) => p.name);
+    if (used.length) return res.status(400).json({ message: tr(req, { en: "Some of this stock is already sold or used: {items}. Take it back after fixing the stock count.", zh: "部分库存已售出或使用：{items}。请先更正库存数量再撤回。", id: "Sebagian stok ini sudah terjual atau terpakai: {items}. Tarik kembali setelah jumlah stok dibetulkan." }, { items: used.slice(0, 5).join(", ") }) });
+    await db.transaction(async (tx) => {
+      for (const move of mine) {
+        await tx.update(posProducts).set({ stock: sql`${posProducts.stock} - ${move.delta}` }).where(eq(posProducts.id, move.productId));
+        await tx.delete(stockMovements).where(eq(stockMovements.id, move.id));
+      }
+      await tx.update(supplierPayables).set({ status: "void" }).where(and(eq(supplierPayables.ledgerEntryId, row.id), eq(supplierPayables.status, "unpaid")));
+      await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
+    });
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "receipt_delete", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, description: `Stock receipt #${row.id} deleted: ${mine.length} stock lines taken back, purchase RP ${row.amount} removed` });
+    res.json({ message: tr(req, { en: "Receipt deleted: the stock and the purchase were taken back", zh: "入库单已删除：库存和采购已撤回", id: "Struk dihapus: stok dan pembelian ditarik kembali" }) });
   }));
   app.post("/api/reborn/expenses/:id/void", requireExpenses(async (req, res) => {
     const userId = getUserId(req)!;

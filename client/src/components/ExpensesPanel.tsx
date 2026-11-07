@@ -37,7 +37,7 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
 }
 
 interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
-interface StockDelivery { id: number; amount: string; note: string | null; createdAt: string }
+interface StockDelivery { canEdit?: boolean; id: number; amount: string; note: string | null; createdAt: string }
 interface ExpenseList { byStaff?: StaffSpend[]; month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
 interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
@@ -103,6 +103,18 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const voidIt = useMutation({
     mutationFn: () => apiRequest("POST", `/api/reborn/expenses/${voiding!.id}/void`, { reason }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: () => { toast({ title: t("ex.voidedToast") }); setVoiding(null); setReason(""); refresh(); },
+    onError: fail,
+  });
+  const [editingReceipt, setEditingReceipt] = useState<{ id: number; amount: string } | null>(null); // a stock receipt whose amount is being corrected
+  const afterReceiptChange = (d: any) => { toast({ title: d.message }); setEditingReceipt(null); refresh(); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); };
+  const editReceipt = useMutation({
+    mutationFn: (v: { id: number; amount: number }) => apiRequest("POST", `/api/reborn/expenses/receipts/${v.id}/edit`, { amount: v.amount }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: afterReceiptChange,
+    onError: fail,
+  });
+  const deleteReceipt = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/reborn/expenses/receipts/${id}/delete`, {}).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: afterReceiptChange,
     onError: fail,
   });
   const { data: payables } = useQuery<{ canPay: boolean; total: number; payables: Payable[] }>({ queryKey: ["/api/reborn/expenses/payables"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/payables").then((r) => r.json()) });
@@ -418,6 +430,22 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                   <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{t("ex.cat.stock")}</span><span className="font-black text-amber-200">{money(Number(delivery.amount))}</span></div>
                   <p className="mt-0.5 text-white/50">{delivery.createdAt ? new Date(delivery.createdAt).toLocaleString() : ""}</p>
                   <p className="mt-0.5 text-white/40">{delivery.note}</p>
+                  {delivery.canEdit && (
+                    <div className="mt-1.5 flex gap-4">
+                      <button type="button" onClick={() => setEditingReceipt({ id: delivery.id, amount: String(Number(delivery.amount)) })} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>
+                      <button type="button" disabled={deleteReceipt.isPending} onClick={() => { if (window.confirm(t("ex.receiptDeleteAsk", { what: money(Number(delivery.amount)) }))) deleteReceipt.mutate(delivery.id); }} className="min-h-0 p-0 text-red-300 underline">{t("admin.c.delete")}</button>
+                    </div>
+                  )}
+                  {editingReceipt?.id === delivery.id && (
+                    <div className="mt-2 space-y-2 rounded-lg border border-amber-400/40 bg-amber-400/5 p-2">
+                      <label className="block text-[10px] text-white/50">{t("ex.amount")}<input type="number" inputMode="decimal" min={0} value={editingReceipt.amount} onChange={(e) => setEditingReceipt({ ...editingReceipt, amount: e.target.value })} className={field + " mt-0.5 w-full"} /></label>
+                      <p className="text-[10px] text-white/40">{t("ex.receiptEditNote")}</p>
+                      <div className="flex gap-2">
+                        <button type="button" disabled={editReceipt.isPending || !(Number(editingReceipt.amount) > 0)} onClick={() => editReceipt.mutate({ id: delivery.id, amount: Number(editingReceipt.amount) })} className="min-h-[40px] rounded-lg bg-amber-400 px-4 text-xs font-bold text-black disabled:opacity-40">{t("admin.c.save")}</button>
+                        <button type="button" onClick={() => setEditingReceipt(null)} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs">{t("ex.cancel")}</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </>);
