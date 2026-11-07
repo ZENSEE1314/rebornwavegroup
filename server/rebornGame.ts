@@ -4669,6 +4669,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // Member orders from the app — merges into their table's open ticket (or opens one).
   app.post("/api/reborn/shop/order", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
+    // A staff member sending the order through the app for a guest (scanned the table) is the counter's own order, not the guest's: no app discount, no member perk on the staff account, no accept step.
+    const byStaff = (await adminRole(userId)) !== "user";
     const tableNumber = String(req.body?.tableNumber || "").trim() || (await activeCheckin(getUserId(req)!).catch(() => null))?.tableLabel || "";
     if (!tableNumber) return res.status(400).json({ message: tr(req, { en: "Enter your table number", zh: "请输入你的桌号", id: "Masukkan nomor mejamu" }) });
     const cid = await rebornCompanyId(req);
@@ -4680,15 +4682,18 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!order) {
       [order] = await db.insert(posTickets).values({
         companyId: cid,
-        orderNo: "A" + Date.now().toString(36).toUpperCase(), source: "app", status: "open", ...(await ticketRates()),
-        memberId: userId, memberCode: u?.referralCode || null,
-        memberName: [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || null,
+        orderNo: (byStaff ? "T" : "A") + Date.now().toString(36).toUpperCase(), source: byStaff ? "pos" : "app", status: "open", ...(await ticketRates()),
+        ...(byStaff ? { staffId: userId } : {
+          memberId: userId, memberCode: u?.referralCode || null,
+          memberName: [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || null,
+        }),
         tableNumber, orderMode: req.body?.orderMode === "take_away" ? "take_away" : "dine_in", subtotal: "0", total: "0",
       }).returning();
     }
     const autoAccept = (await getSettings()).appOrdersAutoAccept;
-    await appendItems(order.id, order.orderNo, clean!, userId, autoAccept ? "accepted" : "pending", "app"); // with auto-accept off the counter must accept
+    await appendItems(order.id, order.orderNo, clean!, userId, byStaff || autoAccept ? "accepted" : "pending", byStaff ? "pos" : "app"); // with auto-accept off the counter must accept a guest's own order
     emitLiveUpdate("/api/reborn/pos/orders", { action: "NEW_ORDER", resource: String(order.id) });
+    if (byStaff) return res.json({ message: tr(req, { en: "Order added to the table's bill.", zh: "已加入该桌的账单。", id: "Pesanan ditambahkan ke tagihan meja." }), order });
     // Phone push first and independently: a stalled WhatsApp send used to hold
     // this request open so the admin app alert never went out.
     const itemCount = clean!.length;
@@ -5674,9 +5679,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       salesStaffId=asked||null;
     }
     const salesChanged=salesStaffId!==order.salesStaffId;
+    // The commission paid out of this sale (agent, driver ...): the whole thing can be changed (name, who, % or amount); empty or 0 removes it. The accounting follows by the difference, like the bill total does.
+    const oldCommission=Number(order.commissionAmount)||0;
+    const newCommission=req.body?.commission===undefined?null:commissionOf(req.body,subtotal-discount);
+    const commissionPatch=req.body?.commission===undefined?{}:{commissionLabel:newCommission?.label||null,commissionPayee:newCommission?.payee||null,commissionAmount:String(newCommission?.amount||0)};
+    const commissionDiff=req.body?.commission===undefined?0:roundMoney((newCommission?.amount||0)-oldCommission);
+    if(commissionDiff>0)await bookCommission(id,order.orderNo,{label:newCommission!.label,payee:newCommission!.payee,amount:commissionDiff},getUserId(req));
+    if(commissionDiff<0)await db.insert(ledgerEntries).values({kind:"income",category:"commission_reversal",amount:String(Math.abs(commissionDiff)),note:`Commission lowered (bill edit ${order.orderNo}): ${reason}`,refType:"pos_commission_reversal",refId:String(id),userId:getUserId(req)});
+    if(req.body?.commission!==undefined)await db.update(posTickets).set(commissionPatch).where(eq(posTickets.id,id));
     const diff=total-Number(order.total); if(diff!==0)await db.insert(ledgerEntries).values({kind:diff>0?"income":"expense",category:"bill_adjustment",amount:String(Math.abs(diff)),note:`Bill edit ${order.orderNo}: ${reason}`,refType:"pos_adjustment",refId:String(id),userId:order.memberId||null});
     const [updated]=await db.update(posTickets).set({subtotal:String(subtotal),discount:String(discount),serviceFee:String(serviceFee),tax:String(tax),total:String(total),paymentMethod:method,paymentReference:ref||null,cashReceived:cash===null?null:String(cash),changeGiven:cash===null?null:String(cash-total),adjustmentReason:reason,salesStaffId,salesStaffName}).where(eq(posTickets.id,id)).returning();
-    await logAdmin(req,{targetType:"pos_order",targetId:String(id),action:"edit_paid_bill",entityType:"accounting",description:`Edited ${order.orderNo}: ${reason}; RP ${Number(order.total)} → ${total}${salesChanged?`; sales person ${order.salesStaffId||"none"} → ${salesStaffId||"none"}`:""}`});
+    await logAdmin(req,{targetType:"pos_order",targetId:String(id),action:"edit_paid_bill",entityType:"accounting",description:`Edited ${order.orderNo}: ${reason}; RP ${Number(order.total)} → ${total}${commissionDiff!==0?`; commission RP ${oldCommission} → ${newCommission?.amount||0}`:""}${salesChanged?`; sales person ${order.salesStaffId||"none"} → ${salesStaffId||"none"}`:""}`});
     res.json({message:tr(req, { en: "Bill updated with an audit record", zh: "账单已更新并留有审计记录", id: "Tagihan diperbarui dengan catatan audit" }),order:{...updated,items:freshItems}});
   }));
 
