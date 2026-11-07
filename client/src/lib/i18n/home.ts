@@ -57,6 +57,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'ev.page.heading': { en: 'Upcoming events', zh: '即将举行的活动', id: 'Acara mendatang' },
   'ev.page.sub': { en: 'Tap a poster to see the full event', zh: '点击海报查看完整活动', id: 'Ketuk poster untuk melihat acara lengkap' },
   'ev.page.empty': { en: 'No upcoming events right now — check back soon!', zh: '目前暂无活动——请稍后再来看看！', id: 'Belum ada acara mendatang — cek lagi nanti!' },
+  'ev.page.past': { en: 'Past events', zh: '往期活动', id: 'Acara yang sudah lewat' },
   'hm.ev.readMore': { en: 'Tap to read more', zh: '点击查看详情', id: 'Ketuk untuk selengkapnya' },
   'hm.ev.close': { en: 'Close', zh: '关闭', id: 'Tutup' },
   'hm.ev.swipe': { en: "Swipe → to see all {n} upcoming events", zh: "向右滑动查看全部 {n} 个活动 →", id: "Geser → untuk melihat {n} acara mendatang" },

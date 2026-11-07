@@ -6,11 +6,12 @@ import { useTranslation } from "@/lib/i18n";
 import { EventPoster, EventViewer } from "@/components/Events";
 import { Megaphone } from "lucide-react";
 
-// All upcoming events, nearest date first (finished ones drop off). Tap a poster for the full event.
+// Upcoming events (nearest first), then past events (latest first). Tap a poster for the full event.
 export default function RebornEvents() {
   const { t } = useTranslation();
   const [open, setOpen] = useState<any>(null);
   const { data: events = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/reborn/events"], queryFn: () => apiRequest("GET", "/api/reborn/events").then((r) => r.json()) });
+  const { data: past = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/events/past"], queryFn: () => apiRequest("GET", "/api/reborn/events/past").then((r) => r.json()) });
   return (
     <RebornLayout active="/events" title={t("ev.page.title")}>
       <div className="flex items-center gap-2 mb-4">
@@ -23,6 +24,14 @@ export default function RebornEvents() {
       <div className="grid grid-cols-2 gap-3">
         {events.map((ev) => <EventPoster key={ev.id} ev={ev} onOpen={() => setOpen(ev)} />)}
       </div>
+      {past.length > 0 && (
+        <>
+          <h2 className="text-lg font-extrabold mt-8 mb-3">{t("ev.page.past")}</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {past.map((ev) => <EventPoster key={ev.id} ev={ev} onOpen={() => setOpen(ev)} style={{ opacity: 0.75 }} />)}
+          </div>
+        </>
+      )}
       {open && <EventViewer ev={open} onClose={() => setOpen(null)} />}
     </RebornLayout>
   );

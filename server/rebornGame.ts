@@ -372,6 +372,15 @@ export async function upcomingEvents(on?: string) {
   return list.sort((a, b) => (a.startDate ? 0 : 1) - (b.startDate ? 0 : 1) || String(a.startDate || "").localeCompare(String(b.startDate || ""))).slice(0, 30);
 }
 
+// Active dated events whose last day has passed, most recent first (the Events page keeps them for members to browse).
+export async function pastEvents() {
+  const today = todayStr();
+  const rows = await db.select().from(events).where(eq(events.active, true)).orderBy(desc(events.startDate)).limit(300);
+  const last = (e: typeof rows[number]) => (e.endDate && e.startDate && e.endDate >= e.startDate ? e.endDate : e.startDate) || "";
+  return rows.filter((e) => e.startDate && last(e) < today).sort((a, b) => last(b).localeCompare(last(a))).slice(0, PAST_EVENTS_LIMIT);
+}
+const PAST_EVENTS_LIMIT = 60;
+
 // Songs on now count as sung, every waiting song is cancelled (a new night / a reset starts with an empty queue).
 async function clearSongQueue(note: string) {
   await db.update(songRequests).set({ status: "confirmed" }).where(eq(songRequests.status, "playing"));
@@ -3668,6 +3677,9 @@ export function registerRebornRoutes(app: Express) {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || "")) ? String(req.query.date) : "";
     // Posters are big (sharp A4) — send a cached link instead of the bytes in the list.
     res.json((await upcomingEvents(date || undefined)).map((e) => ({ ...e, imageUrl: eventImageLink(e) })));
+  });
+  app.get("/api/reborn/events/past", async (_req, res) => {
+    res.json((await pastEvents()).map((e) => ({ ...e, imageUrl: eventImageLink(e) })));
   });
   app.get(`${PRODUCT_IMAGE_ROUTE}:id`, async (req, res) => {
     const [row] = await db.select({ imageUrl: posProducts.imageUrl }).from(posProducts).where(eq(posProducts.id, Number(req.params.id))).limit(1);
