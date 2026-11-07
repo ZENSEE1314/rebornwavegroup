@@ -487,10 +487,11 @@ async function buildDailyClosingReport(day: string) {
     const pkg = Number(ticket.packageCreditUsed) || 0; // paid with package credit (its money came in when the package was sold)
     const paid = (Number(ticket.total) || 0) - pkg;
     sum.packageCredit += pkg;
-    if (ticket.paymentMethod === "cash") sum.cash += paid;
+    const toppedUp = Number(ticket.topupCash) || 0; // handed over on top of the bill and kept as the member's credits: in the till, not a sale
+    if (ticket.paymentMethod === "cash") sum.cash += paid + toppedUp;
     const exchanged = Number(ticket.extraMoney) || 0; // paid out in cash against the customer's card: the card took it in, the till gave it out, it is not a sale
     sum.extraMoney += exchanged;
-    if (ticket.paymentMethod === "card") { sum.card += paid + exchanged; sum.cash -= exchanged; }
+    if (ticket.paymentMethod === "card") { sum.card += paid + exchanged + toppedUp; sum.cash -= exchanged; }
     if (ticket.paymentMethod === "credits") sum.credits += paid;
     if (ticket.paymentMethod === "split") for (const part of readSplit(ticket.paymentSplit)) sum[part.method] += part.amount; // a bill paid with several methods counts each part where it was paid
     return sum;
@@ -4526,6 +4527,26 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (diff < 0) await db.insert(ledgerEntries).values({ kind: "income", category: "commission_reversal", amount: String(Math.abs(diff)), note: `Commission lowered (${why})`, refType: "pos_commission_reversal", refId: String(order.id), userId });
     return { oldAmount, newAmount: next?.amount || 0, label: next?.label || "", payee: next?.payee || "" };
   };
+  // Top-up on a bill (typed by the cashier): the customer pays more than the bill; the extra is kept as the member's RP credits and a spending credit
+  // that pays only full-price items (no bundle, no happy-hour / discounted line) is given with it. Neither is a sale; the bill itself is booked as usual.
+  const topUpOf = (req: Request) => {
+    const read = (value: unknown) => { const n = roundMoney(Number(value)); return Number.isFinite(n) && n > 0 ? Math.min(n, MAX_TOPUP_RP) : 0; };
+    return { cash: read(req.body?.topUp?.cash), credit: read(req.body?.topUp?.credit) };
+  };
+  const applyTopUp = async (req: Request, order: typeof posTickets.$inferSelect, topUp: { cash: number; credit: number }) => {
+    if (topUp.cash <= 0 && topUp.credit <= 0) return;
+    const memberId = order.memberId!;
+    await db.transaction(async (tx) => {
+      if (topUp.cash > 0) {
+        await tx.update(users).set({ credits: sql`${users.credits} + ${topUp.cash}`, updatedAt: new Date() }).where(eq(users.id, memberId));
+        await tx.insert(memberWalletTransactions).values({ userId: memberId, type: "pos_topup", rpAmount: String(topUp.cash), kgoldAmount: 0, description: `Top-up on bill ${order.orderNo}`, referenceType: "pos_order", referenceId: String(order.id) });
+      }
+      if (topUp.credit > 0) await tx.insert(memberPackages).values({ companyId: order.companyId, userId: memberId, memberName: order.memberName, memberCode: order.memberCode, ticketId: order.id, kind: "credit", name: "Top-up credit (full-price items only)", creditTotal: String(topUp.credit), creditLeft: String(topUp.credit), pricePaid: "0", fullPriceOnly: true });
+      await tx.update(posTickets).set({ topupCash: String(topUp.cash), topupCredit: String(topUp.credit) }).where(eq(posTickets.id, order.id));
+    });
+    await logAdmin(req, { targetUserId: memberId, targetType: "pos_order", targetId: String(order.id), action: "bill_topup", entityType: "credits", description: `Top-up on ${order.orderNo}: RP ${topUp.cash} kept as credits, RP ${topUp.credit} spending credit (full-price items only)` });
+    pushUserI18n(memberId, (lang) => ({ title: pick(lang, { en: "💰 Credit added", zh: "💰 余额已增加", id: "💰 Saldo ditambahkan" }), body: pick(lang, { en: "RP {cash} added to your balance and RP {credit} spending credit (full-price items only).", zh: "已为你增加 RP {cash} 余额，以及 RP {credit} 消费额度（仅限原价商品）。", id: "RP {cash} ditambahkan ke saldomu dan RP {credit} kredit belanja (hanya item harga penuh)." }, { cash: fmtN(topUp.cash, lang), credit: fmtN(topUp.credit, lang) }) })).catch(() => {});
+  };
   // The receipt roll (width + shift) and the number of copies are shared by every browser of the shop, so a second browser or PC prints the same.
   const RECEIPT_PAPER_KEY = "receiptPaper";
   app.get("/api/reborn/pos/receipt-paper", requireStaff(async (_req, res) => {
@@ -4654,7 +4675,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       subtotal: String(subtotal), discount: String(discount), discountReason: [q.perkAmount > 0 ? `Member ${q.perkPercent}%` : "", costRequest.atCost ? atCostLabel(costRequest.atCost) : ""].filter(Boolean).join(" · ") || null, ...staffPriceColumns(costRequest.atCost), serviceFee: String(serviceFee), tax: String(tax), total: String(total), packageCreditUsed: String(q.creditUse), orderMode,
       paymentMethod, paymentSplit: split ? JSON.stringify(split.plan.parts) : null, paymentReference: (split ? split.reference : paymentReference) || null, cashReceived: cashReceived === null ? null : String(cashReceived), changeGiven: changeGiven === null ? null : String(changeGiven), pointsEarned: points, staffId, paidAt: offlineAt ?? new Date(),
     }).returning();
-    const spent = await spendPackageCredit(u?.id || "", q.creditUse, row.id, staffId);
+    const spent = await spendPackageCredit(u?.id || "", q.creditUse, row.id, staffId, q.fullPriceUse);
     if (spent.spent < q.creditUse) { await restorePackageCredit(row.id, staffId, "Payment not completed"); await db.delete(posTickets).where(eq(posTickets.id, row.id)); return res.status(409).json({ message: packageCreditChanged(req) }); }
     const creditsToPay = split ? split.creditsAmount : paymentMethod === "credits" ? due : 0;
     if (creditsToPay > 0) {
@@ -5029,22 +5050,29 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       await logAdmin(req, { targetType: "pos_order", targetId: String(o.id), action: "remove_app_discount", entityType: "order", description: `App-order discount (${appDiscountPercentOf(settings)}%) left off ${o.orderNo}` });
     }
     if (q.hasPackages && !o.memberId) return res.status(400).json({ message: needMemberForPackage(req) });
+    const topUp = topUpOf(req);
+    const hasTopUp = topUp.cash > 0 || topUp.credit > 0;
+    if (hasTopUp) {
+      if (!o.memberId) return res.status(400).json({ message: tr(req, { en: "Tag a member before topping up on a bill", zh: "账单加充值前请先标记会员", id: "Tandai member sebelum menambah saldo pada tagihan" }) });
+      if (due <= 0 || (Number(o.extraMoney) || 0) > 0 || paymentsOf(req).length >= 2 || posMethod(req.body?.paymentMethod) === "credits") return res.status(400).json({ message: tr(req, { en: "A bill with a top-up is paid in one go by cash or card (not with credits, packages or a split)", zh: "含充值的账单须一次性用现金或刷卡支付（不能用余额、套餐或拆分）", id: "Tagihan dengan top-up dibayar sekaligus dengan tunai atau kartu (tidak dengan kredit, paket atau split)" }) });
+    }
     const split = due > 0 ? splitPlanOf(req, due) : null;
+    const toCollect = due + topUp.cash; // what the customer hands over: the bill plus the extra kept as credits
     if (split?.error) return res.status(400).json({ message: split.error });
     const exchangeOnly = due <= 0 && (Number(o.extraMoney) || 0) > 0; // nothing ordered, only cash handed over against the customer's card: paid by card, never a package bill
     const paymentMethod = exchangeOnly ? "card" : due <= 0 ? "package" : split ? "split" : posMethod(req.body?.paymentMethod);
     if ((Number(o.extraMoney) || 0) > 0 && paymentMethod !== "card") return res.status(400).json({ message: tr(req, { en: "A bill with extra money (card to cash) must be paid by card", zh: "含额外现金（刷卡换现金）的账单必须刷卡支付", id: "Tagihan dengan uang tambahan (kartu ke tunai) harus dibayar dengan kartu" }) });
     if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const cashReceived = split ? split.plan.cashReceived : paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
-    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < due)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(due, reqLang(req)) }) });
-    const changeGiven = split ? split.plan.change : paymentMethod === "cash" ? cashReceived! - due : null;
+    if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < toCollect)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(toCollect, reqLang(req)) }) });
+    const changeGiven = split ? split.plan.change : paymentMethod === "cash" ? cashReceived! - toCollect : null;
     const keepType = String(req.body?.keepBottle?.type || "");
     if (req.body?.keepBottle?.enabled && ["wine", "whisky"].includes(keepType) && !req.body?.keepBottle?.photoUrl) return res.status(400).json({ message: tr(req, { en: "A bottle photo is required for wine and whisky", zh: "葡萄酒和威士忌需要拍摄酒瓶照片", id: "Foto botol wajib untuk wine dan wiski" }) });
     const points = o.memberId ? Math.floor(due / await pointsSpendRp()) : 0;
     const sales = await salesTag(req.body); // optional salesperson override at checkout
     const orderMode = req.body?.orderMode === "take_away" ? "take_away" : (o.orderMode || "dine_in");
     const staffId = getUserId(req)!;
-    const spent = await spendPackageCredit(o.memberId || "", q.creditUse, id, staffId);
+    const spent = await spendPackageCredit(o.memberId || "", q.creditUse, id, staffId, q.fullPriceUse);
     if (spent.spent < q.creditUse) { await restorePackageCredit(id, staffId, "Payment not completed"); return res.status(409).json({ message: packageCreditChanged(req) }); }
     const creditsToPay = split ? split.creditsAmount : paymentMethod === "credits" ? due : 0;
     if (creditsToPay > 0) {
@@ -5056,6 +5084,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     if (due > 0) await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(due), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
+    if (hasTopUp) await applyTopUp(req, o, topUp);
     const commission = commissionOf(req.body, subtotal - discount);
     if (commission) { await db.update(posTickets).set(commissionColumns(commission)).where(eq(posTickets.id, id)); await bookCommission(id, o.orderNo, commission, staffId); }
     if (!costRequest.atCost) await payReferral(id, { subtotal, discount, total, due }, settings);
@@ -5622,6 +5651,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const doPosRefund = async (id: number, reason: string, actorId: string, req: Request) => {
     const [order] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!order || order.status !== "paid") return { status: 400 as const, body: { message: tr(req, { en: "Only a paid bill can be refunded", zh: "只有已付款的账单才能退款", id: "Hanya tagihan yang sudah dibayar yang bisa di-refund" }) }, order: null as any };
+    if (Number(order.topupCash) > 0 || Number(order.topupCredit) > 0) return { status: 400 as const, body: { message: tr(req, { en: "This bill topped up the member's balance, so it cannot be refunded here. Correct the member's credits first.", zh: "此账单为会员充值，不能在此退款。请先更正会员余额。", id: "Tagihan ini menambah saldo member, jadi tidak bisa di-refund di sini. Koreksi saldo member terlebih dahulu." }) }, order: null };
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     for (const item of items.filter((x) => !GONE_ITEM.includes(x.status) && x.productId)) {
       await moveStock(item.productId!, item.qty, "refund", `Refund ${order.orderNo}: ${reason}`, actorId);

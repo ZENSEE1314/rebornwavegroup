@@ -728,6 +728,11 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
   const [commission, setCommission] = useState(emptyCommission);
+  const [topCash, setTopCash] = useState(""); // paid on top of the bill and kept as the member's RP credits
+  const [topCredit, setTopCredit] = useState(""); // spending credit given with it (full-price items only)
+  const topCashN = Math.max(0, Number(topCash) || 0);
+  const topCreditN = Math.max(0, Number(topCredit) || 0);
+  const hasTop = topCashN > 0 || topCreditN > 0;
   const [atCost, setAtCost] = useState(emptyAtCost);
   const { data: staffList = [] } = useStaff();
   const [useCredit, setUseCredit] = useState(false);
@@ -744,7 +749,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: t("pos.notFound"), description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay === "split" ? "cash" : pay, payments: pay === "split" ? splitPayments(split, payable) : undefined, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost), removeAppDiscount: removeAppDiscount || undefined }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay === "split" ? "cash" : pay, payments: pay === "split" ? splitPayments(split, payable) : undefined, paymentReference: paymentReference.trim() || undefined, cashReceived: pay === "cash" ? Number(cashReceived) : undefined, salesStaffId: sales || undefined, discount, orderMode, keepBottle, usePackageCredit: useCredit, topUp: hasTop ? { cash: topCashN, credit: topCreditN } : undefined, commission: commissionToSend(commission), staffPrice: atCostToSend(atCost), removeAppDiscount: removeAppDiscount || undefined }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: t("pos.drawerNotOpened"), description: t("pos.checkDrawerSetup") }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
@@ -861,7 +866,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const quote = useQuote({ ticketId: order.id, discount, usePackageCredit: useCredit, staffPrice: atCostToSend(atCost), removeAppDiscount: removeAppDiscount || undefined, v: `${order.total}:${(order.items || []).length}:${order.memberCode || ""}:${ratesVersion}` }, true);
   const due = quoteTotals(quote, billTotals(subtotal, discount, posSettings));
   const total = due.total;
-  const payable = due.payable + extraMoney;
+  const payable = due.payable + extraMoney + topCashN;
   useMirrorBill({
     table: order.tableNumber || undefined,
     member: order.memberName || undefined,
@@ -953,6 +958,17 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               ))}
             </div>
             <CommissionPayer sales={sales} onSales={setSales} value={commission} onChange={setCommission} base={due.taxable} />
+            {order.memberCode && extraMoney <= 0 && pay !== "split" && pay !== "credits" && (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-2 mb-2">
+                <p className="text-xs text-white/50 mb-1">{t("pos.topup.title")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs text-white/60">{t("pos.topup.cash")}<input type="number" min={0} value={topCash} onChange={(e) => setTopCash(e.target.value)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>
+                  <label className="block text-xs text-white/60">{t("pos.topup.credit")}<input type="number" min={0} value={topCredit} onChange={(e) => setTopCredit(e.target.value)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>
+                </div>
+                {hasTop && <p className="mt-1 text-[11px] font-bold text-emerald-300">{t("pos.topup.total", { n: rp(payable) })}</p>}
+                <p className="mt-1 text-[10px] text-white/40">{t("pos.topup.hint")}</p>
+              </div>
+            )}
             <div className="rounded-xl border border-white/10 bg-black/20 p-2 mb-2">
               <p className="text-xs text-white/50 mb-1">{t("pos.discount")} {(order as any).discountReason ? <span className="text-amber-300">· {(order as any).discountReason}</span> : ""}</p>
               <div className="flex gap-2 mb-2">
@@ -1569,6 +1585,7 @@ function MemberWallet({ code, quote, useCredit, onUseCredit, ticketId }: { code?
         </label>
       )}
       {useCredit && quote && quote.creditable < quote.total && <p className="text-white/50">{t("pos.pkg.someNotCredit")}</p>}
+      {w.fullPriceCredit > 0 && <p className="text-white/60">{t("pos.pkg.fullPriceNote", { n: rp(w.fullPriceCredit) })}</p>}
       {visits.map((p: any) => (
         <div key={p.id} className="flex items-center gap-2 rounded-lg bg-black/20 px-2 py-1.5">
           <span className="flex-1 min-w-0 truncate">{p.name} · {t("pos.pkg.left", { n: p.usesLeft, total: p.usesTotal })}</span>

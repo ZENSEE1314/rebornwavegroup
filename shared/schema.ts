@@ -948,6 +948,7 @@ export const memberPackages = pgTable("member_packages", {
   perkFrom: timestamp("perk_from"),               // set when the credit is used up
   perkUntil: timestamp("perk_until"),             // null with perkFrom set = lifetime
   status: varchar("status").default("active").notNull(), // 'active' | 'used' | 'refunded'
+  fullPriceOnly: boolean("full_price_only").default(false).notNull(), // credit given with a top-up bill: pays only items at their full price (no bundle, no happy-hour / discounted line)
   expiresAt: timestamp("expires_at"),
   usedUpAt: timestamp("used_up_at"),
   lastReminderAt: timestamp("last_reminder_at"), // last "you still have … left" reminder (push + WhatsApp)
@@ -1098,6 +1099,8 @@ export const posTickets = pgTable("pos_tickets", {
   taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }),                 // the rates this bill was opened with: changing the rates later only changes new bills
   serviceFeePercent: decimal("service_fee_percent", { precision: 5, scale: 2 }),
   appDiscountRemoved: boolean("app_discount_removed").default(false).notNull(), // the cashier left the app-order discount off this bill; it stays off when the bill is opened again
+  topupCash: decimal("topup_cash", { precision: 14, scale: 2 }).default("0").notNull(),     // paid on top of this bill and kept as the member's RP credits (not a sale)
+  topupCredit: decimal("topup_credit", { precision: 14, scale: 2 }).default("0").notNull(),   // spending credit given with it (full-price items only, see member_packages.full_price_only)
   extraMoney: decimal("extra_money", { precision: 14, scale: 2 }).default("0").notNull(), // cash we hand the customer against their card (card-to-cash exchange): added to what they pay, never our revenue, tax or service fee
   onAccount: boolean("on_account").default(false).notNull(), // the customer has not paid: the bill is kept open "on account" (printed, table freed) until it is paid
   onAccountAt: timestamp("on_account_at"),

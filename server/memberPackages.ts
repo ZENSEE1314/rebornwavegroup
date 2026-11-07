@@ -52,11 +52,12 @@ export async function memberWallet(userId: string) {
   const best = perks[0];
   return {
     packages: live.map((p) => ({
-      id: p.id, kind: p.kind, name: p.name, usesTotal: p.usesTotal, usesLeft: p.usesLeft, itemIds: parseItemIds(p.itemIds),
+      id: p.id, kind: p.kind, name: p.name, usesTotal: p.usesTotal, usesLeft: p.usesLeft, itemIds: parseItemIds(p.itemIds), fullPriceOnly: p.fullPriceOnly,
       creditTotal: Number(p.creditTotal), creditLeft: Number(p.creditLeft), expiresAt: p.expiresAt,
       perkPercent: Number(p.perkPercent), perkDays: p.perkDays, createdAt: p.createdAt,
     })),
     creditBalance: live.filter((p) => p.kind === "credit").reduce((n, p) => n + Number(p.creditLeft), 0),
+    fullPriceCredit: live.filter((p) => p.kind === "credit" && p.fullPriceOnly).reduce((n, p) => n + Number(p.creditLeft), 0), // the part of it that pays only full-price items
     perk: best ? { percent: Number(best.perkPercent), until: best.perkUntil, name: best.name } : null,
   };
 }
@@ -73,9 +74,9 @@ export async function quoteBill(o: {
   staffPercent?: number; // staff past their monthly staff-price cap: this % off the normal price, service fee and tax as usual, no member perk
 }) {
   const ids = Array.from(new Set(o.lines.map((l) => Number(l.productId)).filter(Boolean)));
-  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, appDiscountOk: posProducts.appDiscountOk, noDiscount: posProducts.noDiscount, cost: posProducts.cost, price: posProducts.price }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
+  const products = ids.length ? await db.select({ id: posProducts.id, packageKind: posProducts.packageKind, creditOk: posProducts.creditOk, bundleItemId: posProducts.bundleItemId, appDiscountOk: posProducts.appDiscountOk, noDiscount: posProducts.noDiscount, cost: posProducts.cost, price: posProducts.price }).from(posProducts).where(inArray(posProducts.id, ids)) : [];
   const byId = new Map(products.map((p) => [p.id, p]));
-  let subtotal = 0, packageBase = 0, creditBase = 0, appBase = 0, noDiscountBase = 0;
+  let subtotal = 0, packageBase = 0, creditBase = 0, fullPriceBase = 0, appBase = 0, noDiscountBase = 0;
   for (const l of o.lines) {
     const amt = Number(l.lineTotal) || 0, p = byId.get(Number(l.productId));
     subtotal = money(subtotal + amt);
@@ -85,6 +86,7 @@ export async function quoteBill(o: {
       if (p && p.creditOk !== false) creditBase += amt;
       const qty = Number(l.qty) || 1;
       const isPromo = !!p && amt / qty < Number(p.price) - 0.005; // a happy-hour price or a free unit is not discounted again
+      if (p && p.creditOk !== false && !isPromo && !p.bundleItemId && !p.noDiscount) fullPriceBase += amt; // what top-up credit may pay: the item at its full price, not a bundle, not a promotion
       if (l.fromApp && !isPromo && p?.appDiscountOk !== false && !p?.noDiscount) appBase += amt;
     }
   }
@@ -104,18 +106,31 @@ export async function quoteBill(o: {
   const total = money(taxable + serviceFee + tax);
   const creditable = subtotal > 0 ? money(total * creditBase / subtotal) : 0;
   const creditBalance = wallet?.creditBalance || 0;
-  const creditUse = o.usePackageCredit ? Math.min(creditable, creditBalance) : 0;
-  return { subtotal, manualDiscount, perkPercent, perkAmount, appPercent: appDiscount > 0 ? appPercent : 0, appDiscount, discount, serviceFee, tax, total, creditBalance, creditable, creditUse, due: money(total - creditUse), hasPackages: packageBase > 0 };
+  const fullPriceCredit = Math.min(wallet?.fullPriceCredit || 0, creditBalance);
+  const creditableFull = subtotal > 0 ? money(total * fullPriceBase / subtotal) : 0;
+  // Full-price-only credit is spent first, and only on the full-price part of the bill; the other credit pays any credit item.
+  const fullPriceUse = o.usePackageCredit ? Math.min(creditableFull, fullPriceCredit, creditable) : 0;
+  const creditUse = o.usePackageCredit ? money(fullPriceUse + Math.min(creditable - fullPriceUse, creditBalance - fullPriceCredit)) : 0;
+  return { subtotal, manualDiscount, perkPercent, perkAmount, appPercent: appDiscount > 0 ? appPercent : 0, appDiscount, discount, serviceFee, tax, total, creditBalance, fullPriceCredit, fullPriceUse, creditable, creditUse, due: money(total - creditUse), hasPackages: packageBase > 0 };
 }
 
 // Spend package credit, oldest-expiring first. Each package is taken with an atomic
 // UPDATE, so two tills can never spend the same credit. A package that reaches 0 is
 // used up and its perk starts. Returns the amount spent and any perks unlocked.
-export async function spendPackageCredit(userId: string, amount: number, ticketId: number, staffId: string) {
-  let left = money(amount);
+export async function spendPackageCredit(userId: string, amount: number, ticketId: number, staffId: string, fullPriceAmount = 0) {
   const perks: { percent: number; until: Date | null; name: string }[] = [];
-  if (left <= 0) return { spent: 0, perks };
-  const rows = await db.select().from(memberPackages).where(and(eq(memberPackages.userId, userId), eq(memberPackages.kind, "credit"), eq(memberPackages.status, "active"), notExpired(), gt(memberPackages.creditLeft, "0"))).orderBy(sql`${memberPackages.expiresAt} ASC NULLS LAST`, asc(memberPackages.id));
+  if (money(amount) <= 0) return { spent: 0, perks };
+  const fullPart = Math.min(money(fullPriceAmount), money(amount));
+  const first = await takeCredit(userId, fullPart, ticketId, staffId, true, perks);
+  const second = await takeCredit(userId, money(amount) - fullPart, ticketId, staffId, false, perks);
+  return { spent: money(first + second), perks };
+}
+
+// Takes `want` from the member's credit packages of one kind (full-price-only or ordinary), oldest-expiring first; returns what it got.
+async function takeCredit(userId: string, want: number, ticketId: number, staffId: string, fullPriceOnly: boolean, perks: { percent: number; until: Date | null; name: string }[]) {
+  let left = money(want);
+  if (left <= 0) return 0;
+  const rows = await db.select().from(memberPackages).where(and(eq(memberPackages.userId, userId), eq(memberPackages.kind, "credit"), eq(memberPackages.fullPriceOnly, fullPriceOnly), eq(memberPackages.status, "active"), notExpired(), gt(memberPackages.creditLeft, "0"))).orderBy(sql`${memberPackages.expiresAt} ASC NULLS LAST`, asc(memberPackages.id));
   for (const p of rows) {
     if (left <= 0) break;
     const take = Math.min(left, Number(p.creditLeft));
@@ -132,7 +147,7 @@ export async function spendPackageCredit(userId: string, amount: number, ticketI
       if (perk) perks.push({ percent: Number(after.perkPercent), until, name: after.name });
     }
   }
-  return { spent: money(amount) - left, perks };
+  return money(want) - left;
 }
 
 // Give back the package credit a bill used (refund, or a payment that failed after it).

@@ -552,6 +552,8 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS tax_percent numeric(5,2); ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS service_fee_percent numeric(5,2);
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS app_discount_removed boolean NOT NULL DEFAULT false;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS extra_money numeric(14,2) NOT NULL DEFAULT 0;
+    ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS topup_cash numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS topup_credit numeric(14,2) NOT NULL DEFAULT 0;
+    ALTER TABLE member_packages ADD COLUMN IF NOT EXISTS full_price_only boolean NOT NULL DEFAULT false;
     -- bills still open when the per-bill rates arrived keep today's rates, so a later change does not reach them
     UPDATE pos_tickets SET tax_percent = COALESCE((SELECT CASE WHEN value ~ '^[0-9]+([.][0-9]+)?$' THEN value::numeric END FROM app_settings WHERE key='taxPercent'),0), service_fee_percent = COALESCE((SELECT CASE WHEN value ~ '^[0-9]+([.][0-9]+)?$' THEN value::numeric END FROM app_settings WHERE key='serviceFeePercent'),0) WHERE status='open' AND tax_percent IS NULL;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS referral_payee varchar; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS referral_base numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS referral_percent numeric(5,2) NOT NULL DEFAULT 0; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS referral_amount numeric(14,2) NOT NULL DEFAULT 0; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS referral_note varchar;

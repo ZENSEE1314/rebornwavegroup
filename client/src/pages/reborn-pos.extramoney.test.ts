@@ -17,13 +17,13 @@ describe("extra money on a POS bill", () => {
     assert.ok(pos.includes('useAdminRole() === "admin"') && pos.includes("{isMainAdmin && ("));
   });
   it("should add the extra money to what the customer pays", () => {
-    assert.ok(pos.includes("const payable = due.payable + extraMoney;"));
+    assert.ok(pos.includes("const payable = due.payable + extraMoney + topCashN;")); // the top-up kept as credits is added the same way
   });
   it("should print the extra money and the card total on the receipt", () => {
     assert.ok(receipt.includes('tr("pos.rc.extraMoney")') && receipt.includes('tr("pos.rc.extraToPay")'));
   });
   it("should keep the extra money out of the cash and card tallies of a sale", () => {
-    assert.ok(server.includes("sum.card += paid + exchanged; sum.cash -= exchanged;"));
+    assert.ok(server.includes("sum.card += paid + exchanged + toppedUp; sum.cash -= exchanged;"));
   });
 });
 

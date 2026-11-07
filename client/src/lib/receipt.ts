@@ -18,6 +18,7 @@ interface Order {
   orderMode?: string; paymentMethod?: string; subtotal?: string | number; discount?: string | number;
   paymentReference?: string;
   cashReceived?: string | number; changeGiven?: string | number; status?: string;
+  topupCash?: string | number; topupCredit?: string | number; // a top-up on this bill: kept as the member's credits / spending credit
   serviceFee?: string | number; tax?: string | number; total?: string | number; items?: Item[]; createdAt?: string; paidAt?: string;
   packageCreditUsed?: string | number; discountReason?: string | null;
   extraMoney?: string | number | null; // cash handed to the customer against their card: on top of the total, not part of the sale
@@ -164,6 +165,8 @@ function receiptHtml(o: Order, m: ReceiptMeta, copyLabel: string, withQr = false
     ${o.paymentMethod === "split" ? readSplit(o.paymentSplit).map((part) => `<div class="row"><span>${esc(payLabel(part.method))}</span><span>${rp(part.amount)}</span></div>`).join("") : ""}
     ${o.paymentMethod === "split" && Number(o.cashReceived) > 0 ? `<div class="row"><span>${tr("pos.rc.cashReceived")}</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>${tr("pos.rc.change")}</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
     ${o.paymentMethod === "cash" ? `<div class="row"><span>${tr("pos.rc.cashReceived")}</span><span class="b">${rp(o.cashReceived)}</span></div><div class="row"><span>${tr("pos.rc.change")}</span><span class="b">${rp(o.changeGiven)}</span></div>` : ""}
+    ${Number(o.topupCash) > 0 ? `<div class="row"><span>${tr("pos.rc.topupCash")}</span><span class="b">${rp(o.topupCash)}</span></div>` : ""}
+    ${Number(o.topupCredit) > 0 ? `<div class="row"><span>${tr("pos.rc.topupCredit")}</span><span class="b">${rp(o.topupCredit)}</span></div><div class="muted">${tr("pos.rc.topupNote")}</div>` : ""}
     ${o.status === "refunded" ? `<div class="c b" style="font-size:18px;margin-top:6px;">${tr("pos.rc.refunded")}</div>` : ""}
     ${commission}${referral}
     <hr/>
