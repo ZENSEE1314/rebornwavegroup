@@ -35,7 +35,7 @@ interface Product { staffCommissionStaffIds?: string | null; staffCommissionKind
 const deptList = (d?: string | null): string[] => (d || "").split(",").map((s) => s.trim()).filter(Boolean);
 const deptHas = (d: string | null | undefined, ind: string): boolean => deptList(d).includes(ind);
 interface Staff { id: string; name: string; role: string; }
-interface Order { onAccount?: boolean; onAccountCustomer?: string | null; onAccountPhone?: string | null; onAccountDay?: string | null; onAccountNote?: string | null; id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
+interface Order { memberId?: string | null; onAccount?: boolean; onAccountCustomer?: string | null; onAccountPhone?: string | null; onAccountDay?: string | null; onAccountNote?: string | null; id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; paymentMethod?: string; paymentReference?: string; cashReceived?: string; changeGiven?: string; subtotal?: string; discount?: string; serviceFee?: string; tax?: string; paidAt?: string; }
 type Tab = "tables" | "sell" | "sales" | "stock" | "bottles" | "packages";
 const OPEN_TICKETS = ["/api/reborn/pos/orders"];
 // A line that no longer counts on the bill: rejected before it was served, or lost (spilled / broken) after.
@@ -958,12 +958,18 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               ))}
             </div>
             <CommissionPayer sales={sales} onSales={setSales} value={commission} onChange={setCommission} base={due.taxable} />
-            {order.memberCode && extraMoney <= 0 && pay !== "split" && pay !== "credits" && (
+            {extraMoney <= 0 && pay !== "split" && pay !== "credits" && (
               <div className="rounded-xl border border-white/10 bg-black/20 p-2 mb-2">
-                <p className="text-xs text-white/50 mb-1">{t("pos.topup.title")}</p>
+                <p className="text-xs text-white/50 mb-1">{t("pos.topup.title")}{order.memberName ? <span className="text-amber-300"> · {order.memberName}</span> : ""}</p>
+                {!order.memberId && (
+                  <div className="mb-2 flex gap-2">
+                    <MemberSearchBox value={code} onChange={setCode} onPick={(m) => tagMember.mutate(m.code || m.card || m.email || m.id)} placeholder={t("pos.topup.tagFirst")} className="px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+                    <button onClick={() => tagMember.mutate(undefined)} disabled={!code.trim() || tagMember.isPending} className="px-4 rounded-xl bg-white/10 disabled:opacity-50"><UserCheck className="w-4 h-4" /></button>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="block text-xs text-white/60">{t("pos.topup.cash")}<input type="number" min={0} value={topCash} onChange={(e) => setTopCash(e.target.value)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>
-                  <label className="block text-xs text-white/60">{t("pos.topup.credit")}<input type="number" min={0} value={topCredit} onChange={(e) => setTopCredit(e.target.value)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>
+                  <label className="block text-xs text-white/60">{t("pos.topup.cash")}<input type="number" min={0} value={topCash} disabled={!order.memberId} onChange={(e) => setTopCash(e.target.value)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>
+                  <label className="block text-xs text-white/60">{t("pos.topup.credit")}<input type="number" min={0} value={topCredit} disabled={!order.memberId} onChange={(e) => setTopCredit(e.target.value)} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label>
                 </div>
                 {hasTop && <p className="mt-1 text-[11px] font-bold text-emerald-300">{t("pos.topup.total", { n: rp(payable) })}</p>}
                 <p className="mt-1 text-[10px] text-white/40">{t("pos.topup.hint")}</p>

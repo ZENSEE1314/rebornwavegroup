@@ -482,6 +482,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.rc.taxPct': { en: 'Tax ({n}%)', zh: '税（{n}%）', id: 'Pajak ({n}%)' },
   'pos.pkg.fullPriceNote': { en: 'Includes {n} spending credit that pays only full-price items (no bundle, happy hour or discounted line).', zh: '其中含 {n} 消费额度，仅可支付原价商品（不含套装、欢乐时光或折扣商品）。', id: 'Termasuk {n} kredit belanja yang hanya membayar item harga penuh (bukan bundel, happy hour atau item diskon).' },
   'pos.topup.title': { en: 'Top up the member on this bill', zh: '在此账单为会员充值', id: 'Isi saldo member pada tagihan ini' },
+  'pos.topup.tagFirst': { en: 'Find the member to top up (name, code or card)', zh: '先找到要充值的会员（姓名、会员码或卡号）', id: 'Cari member yang diisi saldonya (nama, kode atau kartu)' },
   'pos.topup.cash': { en: 'Kept as RP credits', zh: '存为 RP 余额', id: 'Disimpan sebagai kredit RP' },
   'pos.topup.credit': { en: 'Spending credit given', zh: '赠送消费额度', id: 'Kredit belanja diberikan' },
   'pos.topup.total': { en: 'Customer pays {n} in total', zh: '客人合计付款 {n}', id: 'Pelanggan membayar total {n}' },

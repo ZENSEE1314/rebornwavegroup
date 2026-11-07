@@ -45,7 +45,7 @@ describe("spending credit given with a top-up", () => {
     assert.ok(quote.includes("Math.min(creditableFull, fullPriceCredit, creditable)") && server.includes("q.creditUse, id, staffId, q.fullPriceUse"));
   });
 
-  it("should offer the top-up box only while a member is on the bill", () => {
-    assert.ok(pos.includes('{order.memberCode && extraMoney <= 0 && pay !== "split" && pay !== "credits" && ('));
+  it("should always show the top-up box, with the amounts locked until a member is on the bill", () => {
+    assert.ok(pos.includes('{extraMoney <= 0 && pay !== "split" && pay !== "credits" && (') && pos.includes("disabled={!order.memberId}"));
   });
 });
