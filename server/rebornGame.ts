@@ -4356,7 +4356,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       .from(staffItemCommissions).leftJoin(posTickets, eq(posTickets.id, staffItemCommissions.ticketId)).leftJoin(users, eq(users.id, staffItemCommissions.userId))
       .where(and(isNull(staffItemCommissions.voidedAt), onlyTicket ? eq(staffItemCommissions.ticketId, onlyTicket) : gte(staffItemCommissions.createdAt, new Date(Date.now() - days * 86400000)))).orderBy(desc(staffItemCommissions.createdAt)).limit(500);
     const items = onlyTicket ? (await db.select({ id: posTicketItems.id, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, status: posTicketItems.status }).from(posTicketItems).where(eq(posTicketItems.orderId, onlyTicket))).filter((it) => !GONE_ITEM.includes(it.status) && it.status !== "cancelled") : [];
-    res.json({ items, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt, isCashPaid: !!r.paidLedgerId })) });
+    const [ticket] = onlyTicket ? await db.select().from(posTickets).where(eq(posTickets.id, onlyTicket)) : [];
+    const bill = ticket ? { commissionLabel: ticket.commissionLabel, commissionPayee: ticket.commissionPayee, commissionAmount: ticket.commissionAmount, base: roundMoney(Number(ticket.subtotal) - Number(ticket.discount)), isPaid: ticket.status === "paid" } : null;
+    res.json({ bill, items, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt, isCashPaid: !!r.paidLedgerId })) });
+  }));
+  // The commission of the whole receipt of a paid sale: set it, change who gets it / the % or amount, or remove it (value 0).
+  app.post("/api/reborn/admin/accounting/orders/:id/commission", requireAdmin(async (req, res) => {
+    const [order] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.params.id)));
+    if (!order || order.status !== "paid") return res.status(400).json({ message: tr(req, { en: "Only a paid bill can be changed", zh: "只有已付款的账单才能修改", id: "Hanya tagihan yang sudah dibayar yang bisa diubah" }) });
+    const done = await changeBillCommission(req, order, { commission: req.body }, Number(order.subtotal) - Number(order.discount), `sale edit ${order.orderNo}`);
+    await logAdmin(req, { targetType: "pos_order", targetId: String(order.id), action: "edit_bill_commission", entityType: "accounting", description: `Commission of ${order.orderNo}: RP ${done.oldAmount} → ${done.newAmount}${done.payee ? ` to ${done.payee}` : ""}` });
+    res.json({ commissionLabel: done.label || null, commissionPayee: done.payee || null, commissionAmount: String(done.newAmount) });
   }));
   // Main admin: give a commission to one line of a bill that has none (or one more person on the same line), as a percent of the line or a fixed amount.
   app.post("/api/reborn/admin/item-commissions", requireAdmin(async (req, res) => {
@@ -4504,6 +4514,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const commissionColumns = (c: ReturnType<typeof commissionOf>) => (c ? { commissionLabel: c.label || null, commissionPayee: c.payee || null, commissionAmount: String(c.amount) } : {});
   const bookCommission = async (ticketId: number, orderNo: string, c: NonNullable<ReturnType<typeof commissionOf>>, userId: string | null) => {
     await db.insert(ledgerEntries).values({ kind: "expense", category: "commission", amount: String(c.amount), note: `Commission${c.label ? ` ${c.label}` : ""}${c.payee ? ` · ${c.payee}` : ""} · ${orderNo}`, refType: "pos_commission", refId: String(ticketId), userId });
+  };
+  // Changes or removes the commission paid out of a finished sale (name, payee, % or amount, worked out on `base` = the bill after discount, before service fee and tax). The accounting follows by the difference.
+  const changeBillCommission = async (req: Request, order: typeof posTickets.$inferSelect, body: any, base: number, why: string) => {
+    const oldAmount = Number(order.commissionAmount) || 0;
+    const next = commissionOf(body, base);
+    await db.update(posTickets).set({ commissionLabel: next?.label || null, commissionPayee: next?.payee || null, commissionAmount: String(next?.amount || 0) }).where(eq(posTickets.id, order.id));
+    const diff = roundMoney((next?.amount || 0) - oldAmount);
+    const userId = getUserId(req);
+    if (diff > 0) await bookCommission(order.id, order.orderNo, { label: next!.label, payee: next!.payee, amount: diff }, userId);
+    if (diff < 0) await db.insert(ledgerEntries).values({ kind: "income", category: "commission_reversal", amount: String(Math.abs(diff)), note: `Commission lowered (${why})`, refType: "pos_commission_reversal", refId: String(order.id), userId });
+    return { oldAmount, newAmount: next?.amount || 0, label: next?.label || "", payee: next?.payee || "" };
   };
   // The receipt roll (width + shift) and the number of copies are shared by every browser of the shop, so a second browser or PC prints the same.
   const RECEIPT_PAPER_KEY = "receiptPaper";
@@ -5679,17 +5700,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       salesStaffId=asked||null;
     }
     const salesChanged=salesStaffId!==order.salesStaffId;
-    // The commission paid out of this sale (agent, driver ...): the whole thing can be changed (name, who, % or amount); empty or 0 removes it. The accounting follows by the difference, like the bill total does.
-    const oldCommission=Number(order.commissionAmount)||0;
-    const newCommission=req.body?.commission===undefined?null:commissionOf(req.body,subtotal-discount);
-    const commissionPatch=req.body?.commission===undefined?{}:{commissionLabel:newCommission?.label||null,commissionPayee:newCommission?.payee||null,commissionAmount:String(newCommission?.amount||0)};
-    const commissionDiff=req.body?.commission===undefined?0:roundMoney((newCommission?.amount||0)-oldCommission);
-    if(commissionDiff>0)await bookCommission(id,order.orderNo,{label:newCommission!.label,payee:newCommission!.payee,amount:commissionDiff},getUserId(req));
-    if(commissionDiff<0)await db.insert(ledgerEntries).values({kind:"income",category:"commission_reversal",amount:String(Math.abs(commissionDiff)),note:`Commission lowered (bill edit ${order.orderNo}): ${reason}`,refType:"pos_commission_reversal",refId:String(id),userId:getUserId(req)});
-    if(req.body?.commission!==undefined)await db.update(posTickets).set(commissionPatch).where(eq(posTickets.id,id));
+    const commissionChange=req.body?.commission===undefined?null:await changeBillCommission(req,order,req.body,subtotal-discount,`bill edit: ${reason}`);
     const diff=total-Number(order.total); if(diff!==0)await db.insert(ledgerEntries).values({kind:diff>0?"income":"expense",category:"bill_adjustment",amount:String(Math.abs(diff)),note:`Bill edit ${order.orderNo}: ${reason}`,refType:"pos_adjustment",refId:String(id),userId:order.memberId||null});
     const [updated]=await db.update(posTickets).set({subtotal:String(subtotal),discount:String(discount),serviceFee:String(serviceFee),tax:String(tax),total:String(total),paymentMethod:method,paymentReference:ref||null,cashReceived:cash===null?null:String(cash),changeGiven:cash===null?null:String(cash-total),adjustmentReason:reason,salesStaffId,salesStaffName}).where(eq(posTickets.id,id)).returning();
-    await logAdmin(req,{targetType:"pos_order",targetId:String(id),action:"edit_paid_bill",entityType:"accounting",description:`Edited ${order.orderNo}: ${reason}; RP ${Number(order.total)} → ${total}${commissionDiff!==0?`; commission RP ${oldCommission} → ${newCommission?.amount||0}`:""}${salesChanged?`; sales person ${order.salesStaffId||"none"} → ${salesStaffId||"none"}`:""}`});
+    await logAdmin(req,{targetType:"pos_order",targetId:String(id),action:"edit_paid_bill",entityType:"accounting",description:`Edited ${order.orderNo}: ${reason}; RP ${Number(order.total)} → ${total}${commissionChange&&commissionChange.oldAmount!==commissionChange.newAmount?`; commission RP ${commissionChange.oldAmount} → ${commissionChange.newAmount}`:""}${salesChanged?`; sales person ${order.salesStaffId||"none"} → ${salesStaffId||"none"}`:""}`});
     res.json({message:tr(req, { en: "Bill updated with an audit record", zh: "账单已更新并留有审计记录", id: "Tagihan diperbarui dengan catatan audit" }),order:{...updated,items:freshItems}});
   }));
 

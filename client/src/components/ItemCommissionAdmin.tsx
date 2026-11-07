@@ -7,6 +7,8 @@ import { money } from "@/lib/money";
 
 interface Row { id: number; userId: string; staffName: string; itemId: number; name: string; qty: number; base: string; amount: string; isSettled: boolean; isCashPaid: boolean }
 interface Staff { id: string; name: string }
+interface BillCommission { commissionLabel: string | null; commissionPayee: string | null; commissionAmount: string; base: number; isPaid: boolean }
+interface BillDraft { payee: string; label: string; kind: Kind; value: string }
 interface BillItem { id: number; name: string; qty: number; lineTotal: string }
 type Kind = "percent" | "amount";
 interface AddDraft { staffId: string; kind: Kind; value: string }
@@ -20,10 +22,12 @@ export function ItemCommissionAdmin({ ticketId }: { ticketId: number }) {
   const [isOpen, setIsOpen] = useState(false);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [adds, setAdds] = useState<Record<number, AddDraft>>({});
-  const { data } = useQuery<{ items: BillItem[]; rows: Row[] }>({ queryKey: ["/api/reborn/admin/item-commissions", ticketId], queryFn: () => apiRequest("GET", `/api/reborn/admin/item-commissions?ticketId=${ticketId}`).then((r) => r.json()), enabled: isOpen });
+  const [billDraft, setBillDraft] = useState<BillDraft | null>(null);
+  const { data } = useQuery<{ bill: BillCommission | null; items: BillItem[]; rows: Row[] }>({ queryKey: ["/api/reborn/admin/item-commissions", ticketId], queryFn: () => apiRequest("GET", `/api/reborn/admin/item-commissions?ticketId=${ticketId}`).then((r) => r.json()), enabled: isOpen });
   const { data: staff = [] } = useQuery<Staff[]>({ queryKey: ["/api/reborn/pos/staff"], enabled: isOpen });
   const refresh = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/item-commissions"] }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); };
   const onError = (e: any) => toast({ title: t("itemCom.fail"), description: e.message, variant: "destructive" });
+  const saveBill = useMutation({ mutationFn: (v: { label: string; payee: string; kind: Kind; value: number }) => apiRequest("POST", `/api/reborn/admin/accounting/orders/${ticketId}/commission`, v).then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body.message); return body; }), onSuccess: () => { setBillDraft(null); refresh(); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/pos/orders") }); toast({ title: t("itemCom.saved") }); }, onError });
   const edit = useMutation({ mutationFn: (v: { id: number; amount?: number; userId?: string }) => apiRequest("PATCH", `/api/reborn/admin/item-commissions/${v.id}`, v).then((r) => r.json()), onSuccess: () => { refresh(); toast({ title: t("itemCom.saved") }); }, onError });
   const cancel = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/item-commissions/${id}`).then((r) => r.json()), onSuccess: () => { refresh(); toast({ title: t("itemCom.cancelled") }); }, onError });
   const pay = useMutation({ mutationFn: (id: number) => apiRequest("POST", "/api/reborn/admin/item-commissions/pay", { ids: [id] }).then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body.message); return body; }), onSuccess: (d: any) => { refresh(); toast({ title: d.message }); }, onError });
@@ -34,6 +38,10 @@ export function ItemCommissionAdmin({ ticketId }: { ticketId: number }) {
     return <button type="button" onClick={() => setIsOpen(true)} className="mt-1.5 rounded-lg bg-amber-500/15 px-2.5 py-1.5 text-[11px] font-bold text-amber-100">{t("itemCom.editSale")}</button>;
   }
   const rows = data?.rows ?? [];
+  const bill = data?.bill ?? null;
+  const savedBillAmount = Number(bill?.commissionAmount) || 0;
+  const billForm: BillDraft = billDraft ?? { payee: bill?.commissionPayee ?? "", label: bill?.commissionLabel ?? "", kind: "amount", value: savedBillAmount > 0 ? String(savedBillAmount) : "" };
+  const setBillForm = (patch: Partial<BillDraft>) => setBillDraft({ ...billForm, ...patch });
   const billItems = data?.items ?? [];
   const draftOf = (itemId: number) => adds[itemId] ?? EMPTY_DRAFT;
   const setDraft = (itemId: number, patch: Partial<AddDraft>) => setAdds({ ...adds, [itemId]: { ...draftOf(itemId), ...patch } });
@@ -44,6 +52,24 @@ export function ItemCommissionAdmin({ ticketId }: { ticketId: number }) {
         <button onClick={() => setIsOpen(false)} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold">{t("menuImage.close")}</button>
       </div>
       <p className="mt-1 text-xs text-white/45">{t("itemCom.editDesc")}</p>
+      {bill?.isPaid && (
+        <div className="mt-3 rounded-xl bg-white/5 p-2.5 text-xs">
+          <p className="font-semibold text-white">{t("itemCom.billTitle")}{savedBillAmount > 0 ? ` · ${bill.commissionPayee || t("itemCom.billNoName")} · ${money(savedBillAmount)}` : ` · ${t("itemCom.billNone")}`}</p>
+          <p className="mt-0.5 text-white/45">{t("itemCom.billHint", { base: money(bill.base) })}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <input list={`bill-who-${ticketId}`} value={billForm.payee} onChange={(e) => setBillForm({ payee: e.target.value })} placeholder={t("itemCom.billWho")} aria-label={t("itemCom.billWho")} className="w-36 rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white" />
+            <datalist id={`bill-who-${ticketId}`}>{staff.map((s) => <option key={s.id} value={s.name} />)}</datalist>
+            <input value={billForm.label} onChange={(e) => setBillForm({ label: e.target.value })} placeholder={t("itemCom.billLabel")} aria-label={t("itemCom.billLabel")} className="w-32 rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white" />
+            <select value={billForm.kind} onChange={(e) => setBillForm({ kind: e.target.value as Kind })} aria-label={t("itemCom.kind")} className="rounded-md border border-white/15 bg-black/40 px-1.5 py-1 text-white">
+              <option value="percent">%</option>
+              <option value="amount">{t("itemCom.amount")}</option>
+            </select>
+            <input type="number" min={0} max={billForm.kind === "percent" ? 100 : undefined} value={billForm.value} onChange={(e) => setBillForm({ value: e.target.value })} aria-label={t("itemCom.value")} className="w-24 rounded-md border border-white/15 bg-black/40 px-2 py-1 text-white" />
+            <button type="button" disabled={saveBill.isPending || billForm.value === ""} onClick={() => saveBill.mutate({ label: billForm.label, payee: billForm.payee, kind: billForm.kind, value: Number(billForm.value) })} className="rounded-lg bg-amber-400 px-3 py-1 font-bold text-black disabled:opacity-40">{t("itemCom.save")}</button>
+            {savedBillAmount > 0 && <button type="button" disabled={saveBill.isPending} onClick={() => window.confirm(t("itemCom.billRemoveAsk")) && saveBill.mutate({ label: "", payee: "", kind: "amount", value: 0 })} className="rounded-lg bg-red-500/20 px-3 py-1 font-bold text-red-100">{t("itemCom.cancel")}</button>}
+          </div>
+        </div>
+      )}
       <ul className="mt-3 space-y-2">
         {billItems.map((item) => {
           const lineRows = rows.filter((row) => row.itemId === item.id);
