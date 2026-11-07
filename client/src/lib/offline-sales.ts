@@ -173,11 +173,26 @@ export function forgetOfflineData() {
 }
 
 /** Any request reports whether the network answered, so the "offline" notice also shows on a Wi-Fi that has no internet. */
-export function reportNetwork(reachable: boolean) {
-  if (looksOffline === !reachable) return;
-  looksOffline = !reachable;
+let confirming = false;
+/** One failed call (a discount quote, a dropped connection, a slow answer) is not "no internet": the server is asked first, and the POS goes offline only if it does not answer either. */
+async function confirmUnreachable() {
+  if (confirming) return;
+  confirming = true;
+  try {
+    const response = await fetch(HEALTH_URL, { cache: "no-store", credentials: "include", signal: timeoutSignal(PROBE_TIMEOUT_MS) });
+    if (response.ok && !response.headers.get("x-sw-saved")) return; // the server answers: the one call failed, the connection is fine
+  } catch { /* no answer either: really unreachable */ }
+  finally { confirming = false; }
+  if (looksOffline) return;
+  looksOffline = true;
   publish();
-  if (looksOffline) startProbe();
+  startProbe();
+}
+export function reportNetwork(reachable: boolean) {
+  if (!reachable) { if (!looksOffline) void confirmUnreachable(); return; }
+  if (!looksOffline) return;
+  looksOffline = false;
+  publish();
 }
 export function useIsOffline(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot).looksOffline;
