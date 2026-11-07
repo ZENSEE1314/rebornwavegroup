@@ -1355,6 +1355,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'ex.moveToStock': { en: "Move to stock", zh: "转入库存", id: "Pindahkan ke stok" },
   'ex.needPayMethod': { en: "Choose Cash or Card under “How it was paid” above to continue.", zh: "请在上方“付款方式”选择现金或刷卡后继续。", id: "Pilih Tunai atau Kartu di “Cara bayar” di atas untuk melanjutkan." },
   'ex.needStockLine': { en: "Add at least one line with a quantity (Add a line).", zh: "请至少添加一行并填写数量（添加一行）。", id: "Tambahkan minimal satu baris dengan jumlah (Tambah baris)." },
+  'admin.acc.deleteAsk': { en: "Delete {what}? This cannot be undone (it stays in the admin log).", zh: "删除 {what}？此操作无法撤销（管理日志会保留记录）。", id: "Hapus {what}? Tidak bisa dibatalkan (tetap tercatat di log admin)." },
+  'admin.acc.entryDeleted': { en: "Entry deleted", zh: "记录已删除", id: "Catatan dihapus" },
   'ar.edited': { en: "Entry changed", zh: "记录已修改", id: "Catatan diubah" },
   'cl.title': { en: "All commissions (edit and pay)", zh: "全部佣金（修改并支付）", id: "Semua komisi (ubah dan bayar)" },
   'cl.intro': { en: "Every commission earned on the items sold. Change who earns it or the amount if it was keyed wrong, cancel it, or tick the ones to pay now in cash. What you do not pay here is paid with the monthly payroll.", zh: "所有品项销售产生的佣金。录错可修改受益员工或金额，也可取消；勾选要现在以现金支付的项目。未在此支付的将随每月工资发放。", id: "Semua komisi dari item yang terjual. Ubah penerima atau jumlah jika salah ketik, batalkan, atau centang yang dibayar tunai sekarang. Yang tidak dibayar di sini ikut dibayar bersama gaji bulanan." },

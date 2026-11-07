@@ -2786,6 +2786,19 @@ function Accounting() {
     onSuccess: () => { toast({ title: t("admin.acc.entryAdded") }); setE({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
+  const [editingLedger, setEditingLedger] = useState<{ id: number; amount: string; note: string } | null>(null);
+  const refreshLedger = () => qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") });
+  const ledgerFailed = (x: any) => toast({ title: t("admin.c.failed"), description: String(x.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
+  const saveLedger = useMutation({
+    mutationFn: (v: { id: number; amount: number; note: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { amount: v.amount, note: v.note }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("ar.edited") }); setEditingLedger(null); refreshLedger(); },
+    onError: ledgerFailed,
+  });
+  const deleteLedger = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/accounting/ledger/${id}`).then((r) => r.json()),
+    onSuccess: () => { toast({ title: t("admin.acc.entryDeleted") }); refreshLedger(); },
+    onError: ledgerFailed,
+  });
   const payCommission = useMutation({
     mutationFn: (v: { staffName: string; amount: number }) => apiRequest("POST", "/api/reborn/admin/accounting/commission/pay", v).then((r) => r.json()),
     onSuccess: (d: any) => { toast({ title: t("admin.acc.commissionPaid"), description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
@@ -2874,12 +2887,28 @@ function Accounting() {
         </div>
       </Card>
       {normalLedger.map((l) => (
-        <div key={l.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm gap-2">
+        <div key={l.id} className="flex flex-wrap items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm gap-2">
           <div className="min-w-0 flex items-center gap-2">
             {l.photoUrl ? <a href={l.photoUrl} target="_blank" rel="noreferrer"><img src={l.photoUrl} alt={t("admin.acc.invoice")} className="w-9 h-9 rounded object-cover border border-white/10 flex-shrink-0" /></a> : l.hasPhoto && <button onClick={() => showLedgerPhoto(l.id)} aria-label={t("admin.acc.invoice")} className="w-9 h-9 rounded bg-white/10 border border-white/10 flex-shrink-0 flex items-center justify-center"><Camera className="h-4 w-4 text-white/70" /></button>}
             <div className="min-w-0"><p className="truncate">{l.note || catLabel(l.kind + ":" + l.category) || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString(localeTag())}</p></div>
           </div>
           <span className={l.kind === "income" ? "text-emerald-300 font-semibold flex-shrink-0" : "text-red-300 font-semibold flex-shrink-0"}>{l.kind === "income" ? "+" : "−"}{money(Number(l.amount))}</span>
+          {!l.refType && (
+            <span className="flex flex-shrink-0 gap-3 text-xs">
+              <button type="button" onClick={() => setEditingLedger({ id: l.id, amount: String(Number(l.amount)), note: l.note || "" })} className="min-h-0 p-0 text-sky-300 underline">{t("admin.c.edit")}</button>
+              <button type="button" disabled={deleteLedger.isPending} onClick={() => { if (window.confirm(t("admin.acc.deleteAsk", { what: `${l.note || l.category} ${money(Number(l.amount))}` }))) deleteLedger.mutate(l.id); }} className="min-h-0 p-0 text-red-300 underline">{t("admin.c.delete")}</button>
+            </span>
+          )}
+          {editingLedger?.id === l.id && (
+            <div className="basis-full space-y-2 rounded-lg border border-amber-400/40 bg-amber-400/5 p-2">
+              <label className="block text-[10px] text-white/50">{t("admin.acc.amount")}<input type="number" inputMode="decimal" min={0} value={editingLedger.amount} onChange={(e) => setEditingLedger({ ...editingLedger, amount: e.target.value })} className="mt-0.5 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm" /></label>
+              <label className="block text-[10px] text-white/50">{t("admin.acc.note")}<input value={editingLedger.note} onChange={(e) => setEditingLedger({ ...editingLedger, note: e.target.value })} className="mt-0.5 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm" /></label>
+              <div className="flex gap-2">
+                <button type="button" disabled={saveLedger.isPending || !(Number(editingLedger.amount) > 0)} onClick={() => saveLedger.mutate({ id: l.id, amount: Number(editingLedger.amount), note: editingLedger.note })} className="min-h-[40px] rounded-lg bg-amber-400 px-4 text-xs font-bold text-black disabled:opacity-40">{t("admin.c.save")}</button>
+                <button type="button" onClick={() => setEditingLedger(null)} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs">{t("admin.c.cancel")}</button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
       {normalLedger.length === 0 && <Empty text={t("admin.acc.noTx")} />}

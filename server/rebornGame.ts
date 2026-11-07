@@ -6667,6 +6667,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "edit_entry", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, newValues: patch, description: `Accounting line #${row.id} (${row.category}) changed: RP ${row.amount} → RP ${patch.amount ?? row.amount}` });
     res.json({ ok: true });
   }));
+  // Only a line keyed in by hand can be removed here; every other line follows its bill, upload or sale and is voided there.
+  app.delete("/api/reborn/admin/accounting/ledger/:id", requireAdmin(async (req, res) => {
+    const [row] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
+    if (!row) return res.status(404).json({ message: tr(req, { en: "Entry not found", zh: "找不到该记录", id: "Catatan tidak ditemukan" }) });
+    if (row.refType !== null) return res.status(400).json({ message: tr(req, { en: "This line follows its bill or upload: void it there", zh: "该记录跟随其账单或上传：请在那里作废", id: "Baris ini mengikuti tagihan atau unggahannya: batalkan di sana" }) });
+    await db.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_entry", entityType: "accounting", oldValues: { kind: row.kind, category: row.category, amount: row.amount, note: row.note }, description: `Deleted manual ${row.kind} line #${row.id} (RP ${row.amount})` });
+    res.json({ ok: true });
+  }));
   const MAX_DRILL_LINES = 500;
   app.get("/api/reborn/admin/accounting/report-lines", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
