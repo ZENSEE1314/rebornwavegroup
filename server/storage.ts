@@ -1,3 +1,4 @@
+import { grantSignupKgold } from "./signupKgold";
 import {
   users,
   appointments,
@@ -478,6 +479,7 @@ export class DatabaseStorage implements IStorage {
       await this.handleReferral(userId, userData.referralCode);
     }
     
+    await grantSignupKgold(user.id);
     return user;
   }
 
@@ -508,6 +510,7 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     
+    await grantSignupKgold(user.id);
     return user;
   }
 
@@ -534,6 +537,7 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     
+    await grantSignupKgold(user.id);
     return user;
   }
 

@@ -8,6 +8,7 @@ import { db } from "./db";
 import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
 import { giftLevels, levelConfigs, levelCurve, MAX_LEVEL, GIFT_LEVELS_SINCE_KEY } from "./giftLevels";
+import { FREE_START_TX_TYPE, SIGNUP_KGOLD_KEY, freeStartDescription } from "./signupKgold";
 import { getCheckinConfig, saveCheckinConfig, checkinState, doCheckin, checkinStats, CYCLE_DAYS, WEEK_DAYS } from "./dailyCheckin";
 import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredit, restorePackageCredit, issuePackages, refundPackagesOfTicket, takePackageUses, listActivePackages } from "./memberPackages";
 import { payReferralCommission, reverseReferralCommission } from "./referralCommission";
@@ -2012,6 +2013,48 @@ export function registerRebornRoutes(app: Express) {
     emitLiveUpdate("kos", { type: "reset" });
     await logAdmin(req, { targetType: "system", action: "kos_reset", entityType: "system", description: `Kings of Singers reset: ${result.members} member balance(s) set to 0 (${result.totalKgold} KGOLD), levels and ranking restarted` });
     res.json({ ...result, message: tr(req, { en: "Kings of Singers was reset: KGOLD balances, levels and the ranking start again from zero.", zh: "Kings of Singers 已重置：KGOLD 余额、等级和排行榜从零重新开始。", id: "Kings of Singers direset: saldo KGOLD, level, dan peringkat mulai lagi dari nol." }) });
+  }));
+  // "Free start": every account gets FREE_START_KGOLD once (a flag makes a second press do nothing) and
+  // the five small try-out gifts are added to the gift list (a gift with the same name is left alone).
+  const FREE_START_KGOLD = 10000;
+  const FREE_START_FLAG = "kgoldFreeStartGiven";
+  const FREE_START_GIFTS = [
+    { name: "Lollipop", emoji: "🍭", animation: "pop", kgoldCost: 100, sortOrder: 20 },
+    { name: "Teddy Bear", emoji: "🧸", animation: "float", kgoldCost: 500, sortOrder: 21 },
+    { name: "Balloon", emoji: "🎈", animation: "float", kgoldCost: 1000, sortOrder: 22 },
+    { name: "Cake", emoji: "🍰", animation: "zoom", kgoldCost: 2500, sortOrder: 23 },
+    { name: "Shooting Star", emoji: "🌟", animation: "rain", kgoldCost: 5000, sortOrder: 24 },
+  ];
+  app.post("/api/reborn/admin/kos/free-start", requireAdmin(async (req, res) => {
+    const s = await getSettings();
+    if (!s.mainAdminPassword) return res.status(400).json({ message: tr(req, { en: "Set a main-admin password in Settings first.", zh: "请先在设置中设定主管理员密码。", id: "Atur kata sandi admin utama di Pengaturan dulu." }) });
+    if (!(await verifyMainAdminPassword(String(req.body?.password || ""), s.mainAdminPassword))) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
+    if (!(await claimFlag(FREE_START_FLAG))) return res.status(409).json({ message: tr(req, { en: "The free KGOLD was already given to everyone.", zh: "免费 KGOLD 已经发给所有人了。", id: "KGOLD gratis sudah diberikan ke semua orang." }) });
+    try {
+      const cid = await rebornCompanyId(req);
+      const description = freeStartDescription(FREE_START_KGOLD);
+      const accounts = await db.transaction(async (tx) => {
+        // New sign-ups from now on get it at creation; every older account that has no free-start row yet gets it here.
+        await tx.insert(appSettings).values({ key: SIGNUP_KGOLD_KEY, value: String(FREE_START_KGOLD), updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: String(FREE_START_KGOLD), updatedAt: new Date() } });
+        const granted: any = await tx.execute(sql`WITH given AS (
+            INSERT INTO member_wallet_transactions (user_id, type, rp_amount, kgold_amount, description)
+            SELECT u.id, ${FREE_START_TX_TYPE}, 0, ${FREE_START_KGOLD}, ${description} FROM users u
+            WHERE NOT EXISTS (SELECT 1 FROM member_wallet_transactions w WHERE w.user_id = u.id AND w.type = ${FREE_START_TX_TYPE})
+            RETURNING user_id)
+          UPDATE users SET kgold = kgold + ${FREE_START_KGOLD}, updated_at = now() WHERE id IN (SELECT user_id FROM given)`);
+        const have = new Set((await tx.select({ name: kosGiftTypes.name }).from(kosGiftTypes).where(eq(kosGiftTypes.companyId, cid))).map((r) => r.name));
+        const add = FREE_START_GIFTS.filter((g) => !have.has(g.name));
+        if (add.length) await tx.insert(kosGiftTypes).values(add.map((g) => ({ ...g, companyId: cid })));
+        return Number(granted.rowCount ?? 0);
+      });
+      emitLiveUpdate("kos", { type: "free_start" });
+      await logAdmin(req, { targetType: "system", action: "kgold_free_start", entityType: "system", description: `Free start: ${FREE_START_KGOLD} KGOLD to ${accounts} account(s) + ${FREE_START_GIFTS.length} small gifts` });
+      res.json({ accounts, kgold: FREE_START_KGOLD, message: tr(req, { en: "Gave {n} KGOLD to {a} accounts and added 5 small gifts.", zh: "已给 {a} 个账户各发 {n} KGOLD，并添加了 5 个小礼物。", id: "Memberi {n} KGOLD ke {a} akun dan menambah 5 hadiah kecil." }, { n: fmtN(FREE_START_KGOLD, reqLang(req)), a: fmtN(accounts, reqLang(req)) }), accountsCount: accounts });
+    } catch (e) {
+      await db.delete(appSettings).where(eq(appSettings.key, FREE_START_FLAG)); // nothing was committed, so let it be tried again
+      console.error("kos free start", e);
+      res.status(500).json({ message: tr(req, { en: "Failed", zh: "操作失败", id: "Gagal" }) });
+    }
   }));
   async function resetKingsOfSingers(now: Date) {
     const holders = await db.select({ id: users.id, kgold: users.kgold }).from(users).where(sql`${users.kgold} <> 0`);
