@@ -11,9 +11,9 @@ describe("KGOLD free start", () => {
     assert.ok(source.includes("const FREE_START_KGOLD = 10000;") && route.includes("UPDATE users SET kgold = kgold + ${FREE_START_KGOLD}"));
   });
 
-  it("should add the five small gifts at 100, 500, 1000, 2500 and 5000", () => {
+  it("should add the seven small gifts at 10, 50, 100, 500, 1000, 2500 and 5000", () => {
     const costs = Array.from(gifts.matchAll(/kgoldCost: (\d+)/g)).map((m) => Number(m[1]));
-    assert.deepEqual(costs, [100, 500, 1000, 2500, 5000]);
+    assert.deepEqual(costs, [10, 50, 100, 500, 1000, 2500, 5000]);
   });
 
   it("should work only once", () => {

@@ -2019,6 +2019,8 @@ export function registerRebornRoutes(app: Express) {
   const FREE_START_KGOLD = 10000;
   const FREE_START_FLAG = "kgoldFreeStartGiven";
   const FREE_START_GIFTS = [
+    { name: "Candy", emoji: "🍬", animation: "pop", kgoldCost: 10, sortOrder: 18 },
+    { name: "Cookie", emoji: "🍪", animation: "float", kgoldCost: 50, sortOrder: 19 },
     { name: "Lollipop", emoji: "🍭", animation: "pop", kgoldCost: 100, sortOrder: 20 },
     { name: "Teddy Bear", emoji: "🧸", animation: "float", kgoldCost: 500, sortOrder: 21 },
     { name: "Balloon", emoji: "🎈", animation: "float", kgoldCost: 1000, sortOrder: 22 },
@@ -2053,7 +2055,7 @@ export function registerRebornRoutes(app: Express) {
       });
       emitLiveUpdate("kos", { type: "free_start" });
       await logAdmin(req, { targetType: "system", action: "kgold_free_start", entityType: "system", description: `Free start: ${FREE_START_KGOLD} KGOLD to ${accounts} account(s) + ${FREE_START_GIFTS.length} small gifts` });
-      res.json({ accounts, kgold: FREE_START_KGOLD, message: tr(req, { en: "Gave {n} KGOLD to {a} accounts and added 5 small gifts.", zh: "已给 {a} 个账户各发 {n} KGOLD，并添加了 5 个小礼物。", id: "Memberi {n} KGOLD ke {a} akun dan menambah 5 hadiah kecil." }, { n: fmtN(FREE_START_KGOLD, reqLang(req)), a: fmtN(accounts, reqLang(req)) }), accountsCount: accounts });
+      res.json({ accounts, kgold: FREE_START_KGOLD, message: tr(req, { en: "Gave {n} KGOLD to {a} accounts and added 7 small gifts.", zh: "已给 {a} 个账户各发 {n} KGOLD，并添加了 7 个小礼物。", id: "Memberi {n} KGOLD ke {a} akun dan menambah 7 hadiah kecil." }, { n: fmtN(FREE_START_KGOLD, reqLang(req)), a: fmtN(accounts, reqLang(req)) }), accountsCount: accounts });
     } catch (e) {
       await db.delete(appSettings).where(eq(appSettings.key, FREE_START_FLAG)); // nothing was committed, so let it be tried again
       console.error("kos free start", e);
