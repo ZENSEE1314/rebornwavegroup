@@ -2026,9 +2026,13 @@ export function registerRebornRoutes(app: Express) {
     { name: "Shooting Star", emoji: "🌟", animation: "rain", kgoldCost: 5000, sortOrder: 24 },
   ];
   app.post("/api/reborn/admin/kos/free-start", requireAdmin(async (req, res) => {
+    const given = String(req.body?.password || "");
     const s = await getSettings();
-    if (!s.mainAdminPassword) return res.status(400).json({ message: tr(req, { en: "Set a main-admin password in Settings first.", zh: "请先在设置中设定主管理员密码。", id: "Atur kata sandi admin utama di Pengaturan dulu." }) });
-    if (!(await verifyMainAdminPassword(String(req.body?.password || ""), s.mainAdminPassword))) return res.status(403).json({ message: tr(req, { en: "Wrong main-admin password.", zh: "主管理员密码错误。", id: "Kata sandi admin utama salah." }) });
+    // The main admin (role admin) can confirm with their own login password; the separate main-admin password works too.
+    const me = await storage.getUser(getUserId(req)!);
+    const isLoginPassword = me?.role === "admin" && !!me.password && (await bcrypt.compare(given, me.password));
+    const isMainAdminPassword = !isLoginPassword && !!s.mainAdminPassword && (await verifyMainAdminPassword(given, s.mainAdminPassword));
+    if (!isLoginPassword && !isMainAdminPassword) return res.status(403).json({ message: tr(req, { en: "Wrong password. Use the main admin's login password.", zh: "密码错误。请使用主管理员的登录密码。", id: "Kata sandi salah. Gunakan kata sandi login admin utama." }) });
     if (!(await claimFlag(FREE_START_FLAG))) return res.status(409).json({ message: tr(req, { en: "The free KGOLD was already given to everyone.", zh: "免费 KGOLD 已经发给所有人了。", id: "KGOLD gratis sudah diberikan ke semua orang." }) });
     try {
       const cid = await rebornCompanyId(req);

@@ -20,8 +20,8 @@ describe("KGOLD free start", () => {
     assert.ok(route.includes("claimFlag(FREE_START_FLAG)") && route.includes("status(409)"));
   });
 
-  it("should need the main-admin password", () => {
-    assert.ok(route.includes("verifyMainAdminPassword("));
+  it("should need the main admin's login password or the main-admin password", () => {
+    assert.ok(route.includes("me?.role === \"admin\"") && route.includes("bcrypt.compare(given, me.password)") && route.includes("verifyMainAdminPassword("));
   });
 
   it("should write a wallet history row for every account it credits", () => {
