@@ -4900,18 +4900,23 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     const percent = Math.min(100, Math.max(0, Number(req.body?.discountPercent) || 0));
     if (percent > 0) { price = roundMoney(price * (1 - percent / 100)); discountNote += ` · ${percent}% off`; }
-    let lineTotal = roundMoney(price * (qty - lateFree));
-    if (lateFree > 0) price = roundMoney(lineTotal / qty);
+    // The free units go on their own "(free)" line at 0, like an order keyed in during happy hour, so the bill shows what was given.
+    const paidQty = qty - lateFree;
+    let lineTotal = roundMoney(price * paidQty);
     const amountOff = Math.max(0, Number(req.body?.discountAmount) || 0);
-    if (amountOff > 0) { lineTotal = Math.max(0, roundMoney(lineTotal - amountOff)); price = roundMoney(lineTotal / qty); discountNote += ` · RP ${amountOff} off`; }
+    if (amountOff > 0) { lineTotal = Math.max(0, roundMoney(lineTotal - amountOff)); price = roundMoney(lineTotal / paidQty); discountNote += ` · RP ${amountOff} off`; }
     const dQty = qty - it.qty;
     if (dQty !== 0 && it.productId) { // keep stock in sync
       await moveStock(it.productId, -dQty, "adjustment", `Edit item #${id}`, getUserId(req)!);
     }
-    await db.update(posTicketItems).set({ price: String(price), qty, lineTotal: String(lineTotal) }).where(eq(posTicketItems.id, id));
+    await db.update(posTicketItems).set({ price: String(price), qty: paidQty, lineTotal: String(lineTotal) }).where(eq(posTicketItems.id, id));
+    if (lateFree > 0) {
+      const { id: _id, ...rest } = it;
+      await db.insert(posTicketItems).values({ ...rest, name: `${it.name} ${pick(reqLang(req), { en: "(free)", zh: "（赠送）", id: "(gratis)" })}`, price: "0", qty: lateFree, lineTotal: "0" });
+    }
     await recalcTicket(it.orderId);
     await logAdmin(req, { targetType: "pos_item", targetId: id, action: "edit", entityType: "order", description: `Edited "${it.name}" (ordered by ${it.addedByName || "?"}): ${it.qty} × RP ${it.price} → ${qty} × RP ${price}${discountNote}${req.body?.reason ? ` (${req.body.reason})` : ""}` });
-    res.json({ message: tr(req, { en: "Item updated", zh: "品项已更新", id: "Item diperbarui" }) });
+    res.json({ message: lateFree > 0 ? tr(req, { en: "Updated: {paid} paid + {free} free", zh: "已更新：{paid} 付费 + {free} 赠送", id: "Diperbarui: {paid} bayar + {free} gratis" }, { paid: paidQty, free: lateFree }) : tr(req, { en: "Item updated", zh: "品项已更新", id: "Item diperbarui" }) });
   }));
   // Remove an item with an optional reason (restores stock). App-ordered items are
   // marked rejected (kept visible to the customer with the reason); POS items are deleted.
