@@ -384,7 +384,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.tax': { en: 'Tax', zh: '税', id: 'Pajak' },
   'pos.total': { en: 'Total', zh: '合计', id: 'Total' },
   'pos.cardRef': { en: 'Card approval / receipt number', zh: '刷卡授权号 / 小票号', id: 'Nomor persetujuan / struk kartu' },
-  'pos.cardRefRequired': { en: 'Required for card payment', zh: '刷卡付款必填', id: 'Wajib untuk pembayaran kartu' },
+  'pos.cardRefRequired': { en: 'Optional', zh: '选填', id: 'Opsional' },
   'pos.cashReceived': { en: 'Cash received', zh: '实收现金', id: 'Uang diterima' },
   'pos.change': { en: 'Change', zh: '找零', id: 'Kembalian' },
   'pos.cancelConfirm': { en: 'Cancel this ticket and restore stock?', zh: '取消此账单并恢复库存吗？', id: 'Batalkan tiket ini dan kembalikan stok?' },

@@ -4705,7 +4705,6 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const split = due > 0 ? splitPlanOf(req, due) : null;
     if (split?.error) return res.status(400).json({ message: split.error });
     const paymentMethod = due <= 0 ? "package" : split ? "split" : posMethod(req.body?.paymentMethod);
-    if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const cashReceived = split ? split.plan.cashReceived : paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
     if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < due)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(due, reqLang(req)) }) });
     const changeGiven = split ? split.plan.change : paymentMethod === "cash" ? cashReceived! - due : null;
@@ -5116,7 +5115,6 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const exchangeOnly = due <= 0 && (Number(o.extraMoney) || 0) > 0; // nothing ordered, only cash handed over against the customer's card: paid by card, never a package bill
     const paymentMethod = exchangeOnly ? "card" : due <= 0 ? "package" : split ? "split" : posMethod(req.body?.paymentMethod);
     if ((Number(o.extraMoney) || 0) > 0 && paymentMethod !== "card") return res.status(400).json({ message: tr(req, { en: "A bill with extra money (card to cash) must be paid by card", zh: "含额外现金（刷卡换现金）的账单必须刷卡支付", id: "Tagihan dengan uang tambahan (kartu ke tunai) harus dibayar dengan kartu" }) });
-    if (paymentMethod === "card" && !paymentReference) return res.status(400).json({ message: tr(req, { en: "Enter the card approval or receipt number", zh: "请输入刷卡授权码或小票号码", id: "Masukkan kode persetujuan kartu atau nomor struk" }) });
     const cashReceived = split ? split.plan.cashReceived : paymentMethod === "cash" ? Number(req.body?.cashReceived) : null;
     if (paymentMethod === "cash" && (!Number.isFinite(cashReceived) || cashReceived! < toCollect)) return res.status(400).json({ message: tr(req, { en: "Cash received must be at least RP {n}", zh: "收到的现金至少需为 RP {n}", id: "Uang tunai yang diterima minimal RP {n}" }, { n: fmtN(toCollect, reqLang(req)) }) });
     const changeGiven = split ? split.plan.change : paymentMethod === "cash" ? cashReceived! - toCollect : null;
@@ -5772,7 +5770,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const discount=Math.min(subtotal,Math.max(0,Number(req.body?.discount ?? order.discount)||0));
     const serviceFee=Math.max(0,Number(req.body?.serviceFee ?? order.serviceFee)||0); const tax=Math.max(0,Number(req.body?.tax ?? order.tax)||0); const total=subtotal-discount+serviceFee+tax;
     const method=req.body?.paymentMethod==="card"?"card":req.body?.paymentMethod==="cash"?"cash":order.paymentMethod;
-    const ref=String(req.body?.paymentReference ?? order.paymentReference ?? "").trim(); if(method==="card"&&!ref)return res.status(400).json({message:tr(req, { en: "Card receipt/reference number is required", zh: "请填写刷卡小票/参考号", id: "Nomor struk/referensi kartu wajib diisi" })});
+    const ref=String(req.body?.paymentReference ?? order.paymentReference ?? "").trim(); 
     const cash=method==="cash"?Number(req.body?.cashReceived ?? order.cashReceived ?? total):null; if(method==="cash"&&cash!<total)return res.status(400).json({message:tr(req, { en: "Cash received cannot be below the edited total", zh: "收到的现金不能少于修改后的总额", id: "Uang tunai yang diterima tidak boleh kurang dari total yang diubah" })});
     // The sales person credited with the bill (his monthly sales and target in Payroll follow it): empty = nobody.
     let salesStaffId=order.salesStaffId;
