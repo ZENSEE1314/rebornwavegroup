@@ -46,6 +46,51 @@ let nextLineKey = 1;
 const newLine = (line: Partial<Line> = {}): Line => ({ key: nextLineKey++, name: "", qty: 1, unitCost: 0, productId: null, packSize: 1, ...line });
 const emptyForm = (category = "") => ({ category, amount: "", spentOn: todayText(), spentTime: nowTimeText(), payee: "", payeeAddress: "", payeePhone: "", invoiceNo: "", note: "", photoUrl: "", fixedCostId: "" });
 
+interface PayableEdit { supplier: string; invoiceNo: string; dueDate: string; amount: string; items: { name: string; qty: string }[] }
+
+// Fixes an unpaid bill before it is paid: a typing mistake, a new due day, or an item that was left out (a stock bill changes the stock by the difference).
+function PayableEditor({ bill, isSaving, onSave, onCancel }: { bill: Payable; isSaving: boolean; onSave: (body: any) => void; onCancel: () => void }) {
+  const { t } = useTranslation();
+  const hasLines = bill.kind === "stock";
+  const [form, setForm] = useState<PayableEdit>({
+    supplier: bill.supplier || "", invoiceNo: bill.invoiceNo || "", dueDate: bill.dueDate || "", amount: String(Number(bill.amount)),
+    items: bill.items.map((item) => ({ name: item.name, qty: String(item.qty) })),
+  });
+  const setItem = (index: number, patch: Partial<{ name: string; qty: string }>) => setForm({ ...form, items: form.items.map((item, i) => (i === index ? { ...item, ...patch } : item)) });
+  const save = () => onSave({
+    supplier: form.supplier, invoiceNo: form.invoiceNo, dueDate: form.dueDate, amount: Number(form.amount),
+    ...(hasLines ? { items: form.items.filter((item) => item.name.trim()).map((item) => ({ name: item.name, qty: Number(item.qty) })) } : {}),
+  });
+  return (
+    <div className="mt-2 space-y-2 rounded-lg border border-amber-400/30 bg-white/5 p-2">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-[11px] text-white/55">{t("ex.pay.supplier")}<input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} className={field} /></label>
+        <label className="text-[11px] text-white/55">{t("ex.pay.invoice")}<input value={form.invoiceNo} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} className={field} /></label>
+        <label className="text-[11px] text-white/55">{t("ex.pay.dueDay")}<input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className={field} style={{ colorScheme: "dark" }} /></label>
+        <label className="text-[11px] text-white/55">{t("ex.pay.amount")}<input type="number" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field} /></label>
+      </div>
+      {hasLines && (
+        <div className="space-y-1">
+          <p className="text-[11px] text-white/55">{t("ex.pay.editItems")}</p>
+          {form.items.map((item, index) => (
+            <div key={index} className="flex gap-1">
+              <input value={item.name} onChange={(e) => setItem(index, { name: e.target.value })} placeholder={t("ex.pay.itemName")} className={field} />
+              <input type="number" min={1} value={item.qty} onChange={(e) => setItem(index, { qty: e.target.value })} className={field + " !w-20 flex-shrink-0"} aria-label={t("ex.pay.qty")} />
+              <button type="button" onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })} className="min-h-[40px] flex-shrink-0 rounded-lg bg-white/10 px-3 text-red-200" aria-label={t("ex.pay.removeItem")}>✕</button>
+            </div>
+          ))}
+          <button type="button" onClick={() => setForm({ ...form, items: [...form.items, { name: "", qty: "1" }] })} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs font-bold text-cyan-200">+ {t("ex.pay.addItem")}</button>
+          <p className="text-[10px] text-white/40">{t("ex.pay.stockNote")}</p>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button type="button" onClick={save} disabled={isSaving} className="min-h-[40px] rounded-lg bg-amber-400 px-4 text-xs font-bold text-black disabled:opacity-40">{t("ex.pay.save")}</button>
+        <button type="button" onClick={onCancel} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs">{t("ex.cancelEdit")}</button>
+      </div>
+    </div>
+  );
+}
+
 /** startWith: the kind pre-picked in the form (the Accounting page opens it on "Other"). */
 const EDIT_FORM_ID = "expense-edit-form";
 
@@ -121,6 +166,12 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const markPaid = useMutation({
     mutationFn: ({ id, method }: { id: number; method: string }) => apiRequest("POST", `/api/reborn/expenses/payables/${id}/pay`, { method }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: (d: any) => { toast({ title: d.message }); refresh(); },
+    onError: fail,
+  });
+  const [editingBillId, setEditingBillId] = useState<number | null>(null);
+  const saveBill = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: any }) => apiRequest("POST", `/api/reborn/expenses/payables/${id}/edit`, body).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); setEditingBillId(null); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); refresh(); },
     onError: fail,
   });
   const [openBills, setOpenBills] = useState<number[]>([]);
@@ -354,7 +405,8 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                   ) : <button type="button" onClick={() => setMergeAsk(p.id)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs font-bold text-red-200">{t("ex.pay.merge", { n: String(others.length) })}</button>}
                 </div>
               )}
-              {payables!.canPay && <div className="mt-1 flex flex-wrap gap-2">{["cash", "card"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: p.id, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}</div>}
+              {payables!.canPay && editingBillId === p.id && <PayableEditor bill={p} isSaving={saveBill.isPending} onSave={(body) => saveBill.mutate({ id: p.id, body })} onCancel={() => setEditingBillId(null)} />}
+              {payables!.canPay && <div className="mt-1 flex flex-wrap gap-2">{["cash", "card"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: p.id, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}<button type="button" onClick={() => setEditingBillId(editingBillId === p.id ? null : p.id)} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs font-bold text-amber-200">✎ {t("ex.pay.edit")}</button></div>}
             </div>
             );
           })}

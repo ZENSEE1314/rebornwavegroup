@@ -6451,6 +6451,85 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "payable", targetId: String(row.id), action: "payable_paid", entityType: "accounting", description: `Supplier bill paid (${method}): ${row.supplier || ""} ${row.invoiceNo || ""} RP ${row.amount} on ${paidOn}` });
     res.json({ message: tr(req, { en: "Marked as paid", zh: "已标记为已付", id: "Ditandai sudah dibayar" }), payable: row });
   }));
+  // A bill that is not paid yet can still be corrected: who it is from, the invoice, the due day, the amount and (for a stock receipt) the lines. A changed line
+  // moves the stock by the difference, so what is in the stock list stays right.
+  const PAYABLE_MAX_LINES = 100;
+  const PAYABLE_MAX_UNITS = 100000;
+  const DATE_TEXT_RE = /^\d{4}-\d{2}-\d{2}$/;
+  app.post("/api/reborn/expenses/payables/:id/edit", requireExpenses(async (req, res) => {
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    if (role !== "admin" && role !== "manager") return res.status(403).json({ message: tr(req, { en: "Only a manager or the main admin can edit a bill", zh: "只有经理或主管理员可以修改账单", id: "Hanya manajer atau admin utama yang bisa mengubah tagihan" }) });
+    const cid = await rebornCompanyId(req);
+    const [bill] = await db.select().from(supplierPayables).where(and(eq(supplierPayables.id, Number(req.params.id)), eq(supplierPayables.companyId, cid), eq(supplierPayables.status, "unpaid")));
+    if (!bill) return res.status(404).json({ message: tr(req, { en: "That bill is not waiting for payment", zh: "该账单不在待付款中", id: "Tagihan itu tidak sedang menunggu pembayaran" }) });
+    const supplier = String(req.body?.supplier ?? bill.supplier ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+    const invoiceNo = String(req.body?.invoiceNo ?? bill.invoiceNo ?? "").trim().slice(0, 60);
+    const dueDate = req.body?.dueDate === undefined ? bill.dueDate : DATE_TEXT_RE.test(String(req.body.dueDate)) ? String(req.body.dueDate) : null;
+    const amount = req.body?.amount === undefined ? Number(bill.amount) : roundMoney(Number(req.body.amount));
+    if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
+    const [ledger] = bill.ledgerEntryId ? await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, bill.ledgerEntryId)) : [];
+    const wantsLines = bill.kind === "stock" && Array.isArray(req.body?.items);
+    const lines = new Map<string, { name: string; qty: number }>();
+    if (wantsLines) {
+      for (const raw of req.body.items.slice(0, PAYABLE_MAX_LINES)) {
+        const name = String(raw?.name || "").replace(/\s+/g, " ").trim().slice(0, 120);
+        const qty = Math.floor(Number(raw?.qty));
+        if (!name) continue;
+        if (!(qty >= 1 && qty <= PAYABLE_MAX_UNITS)) return res.status(400).json({ message: tr(req, { en: "Every line needs a quantity of 1 or more", zh: "每一行的数量至少为 1", id: "Setiap baris perlu jumlah minimal 1" }) });
+        const key = name.toLowerCase();
+        lines.set(key, { name, qty: (lines.get(key)?.qty || 0) + qty });
+      }
+      if (!lines.size) return res.status(400).json({ message: tr(req, { en: "A stock bill needs at least one item", zh: "进货账单至少需要一个品项", id: "Tagihan stok butuh minimal satu item" }) });
+      if (!ledger) return res.status(400).json({ message: tr(req, { en: "The receipt of this bill could not be found, so its items cannot be changed", zh: "找不到该账单的入库单，无法修改品项", id: "Struk tagihan ini tidak ditemukan, jadi item tidak bisa diubah" }) });
+    }
+    await db.transaction(async (tx) => {
+      let note = bill.note;
+      if (wantsLines && ledger) {
+        const oldHead = (ledger.note || "").split(": ")[0];
+        const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
+        const before = new Map<string, number>();
+        for (const line of payableItemsOf({ kind: "stock", note: ledger.note }, null)) {
+          const key = line.name.trim().toLowerCase();
+          before.set(key, (before.get(key) || 0) + Math.round(line.qty));
+        }
+        const products = await tx.select({ id: posProducts.id, name: posProducts.name, stock: posProducts.stock }).from(posProducts).where(eq(posProducts.companyId, cid));
+        const productByName = new Map(products.map((product) => [product.name.trim().toLowerCase(), product]));
+        const newHead = `Receipt${invoiceNo ? ` ${invoiceNo}` : ""}${supplier ? ` from ${supplier}` : ""}${bill.spentOn ? ` (${bill.spentOn})` : ""}`;
+        const oldMoves = oldHead ? await tx.select().from(stockMovements).where(and(eq(stockMovements.companyId, cid), eq(stockMovements.reason, "stock_in"), sql`${stockMovements.note} LIKE ${`${escapeLike(oldHead)}%`}`)) : [];
+        const hasMoves = oldMoves.length > 0;
+        if (hasMoves) await tx.delete(stockMovements).where(inArray(stockMovements.id, oldMoves.map((move) => move.id)));
+        const saved: { name: string; qty: number }[] = [];
+        for (const [key, line] of Array.from(lines.entries())) {
+          let product = productByName.get(key);
+          if (!product) {
+            const [made] = await tx.insert(posProducts).values({ companyId: cid, name: line.name, category: "General", price: "0", cost: "0", stock: 0, supplierName: supplier || null, active: true, posVisible: false }).returning();
+            product = { id: made.id, name: made.name, stock: made.stock };
+            productByName.set(key, product);
+          }
+          const delta = line.qty - (before.get(key) || 0);
+          if (delta !== 0) await tx.update(posProducts).set({ stock: sql`${posProducts.stock} + ${delta}` }).where(eq(posProducts.id, product.id));
+          if (hasMoves) await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: line.qty, reason: "stock_in", supplier: supplier || null, note: newHead.slice(0, 200), userId });
+          else if (delta !== 0) await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta, reason: "adjustment", note: `Bill #${bill.id} edited`.slice(0, 200), userId });
+          saved.push({ name: product.name, qty: line.qty });
+        }
+        for (const [key, units] of Array.from(before.entries())) { // an item taken off the bill: its units go back out of the stock
+          if (lines.has(key)) continue;
+          const product = productByName.get(key);
+          if (!product) continue;
+          await tx.update(posProducts).set({ stock: sql`GREATEST(0, ${posProducts.stock} - ${units})` }).where(eq(posProducts.id, product.id));
+          if (!hasMoves) await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: -units, reason: "adjustment", note: `Bill #${bill.id} edited`.slice(0, 200), userId });
+        }
+        note = receiptNote({ supplier, invoiceNo, date: bill.spentOn || "" }, saved);
+        await tx.update(ledgerEntries).set({ note, amount: String(amount) }).where(eq(ledgerEntries.id, ledger.id));
+      } else if (ledger) {
+        await tx.update(ledgerEntries).set({ amount: String(amount) }).where(eq(ledgerEntries.id, ledger.id));
+      }
+      await tx.update(supplierPayables).set({ supplier: supplier || null, invoiceNo: invoiceNo || null, amount: String(amount), dueDate, note }).where(eq(supplierPayables.id, bill.id));
+    });
+    await logAdmin(req, { targetType: "payable", targetId: String(bill.id), action: "payable_edit", entityType: "accounting", oldValues: { supplier: bill.supplier, invoiceNo: bill.invoiceNo, amount: bill.amount, dueDate: bill.dueDate }, newValues: { supplier, invoiceNo, amount, dueDate }, description: `Unpaid bill #${bill.id} edited${wantsLines ? ` (${lines.size} item lines)` : ""}` });
+    res.json({ message: tr(req, { en: "Bill updated", zh: "账单已更新", id: "Tagihan diperbarui" }) });
+  }));
   app.get("/api/reborn/expenses/vendors", requireExpenses(async (req, res) => {
     const rows = await db.select().from(expenseVendors).where(eq(expenseVendors.companyId, await rebornCompanyId(req))).orderBy(desc(expenseVendors.uses), asc(expenseVendors.name));
     res.json({ vendors: rows.map(vendorView) });
