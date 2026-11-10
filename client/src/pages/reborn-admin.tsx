@@ -1172,6 +1172,20 @@ const DEFAULT_AREAS = [
   { id: "l4-pet", name: "Pet Room", level: "Level 4", image: "", tables: [] },
   { id: "restaurant", name: "Restaurant", level: "Level 4 & 5", image: "", tables: [] },
 ];
+const splitTableNames = (text: string): string[] => text.split(/[,
+]/).map((name) => name.trim()).filter(Boolean);
+
+// Keeps what is being typed, so a comma at the end (the next name is still to come) is not swallowed on a phone keyboard.
+function TableNamesInput({ tables, onChange, placeholder, className }: { tables: string[]; onChange: (tables: string[]) => void; placeholder: string; className: string }) {
+  const [text, setText] = useState(tables.join(", "));
+  useEffect(() => {
+    if (splitTableNames(text).join("
+") !== tables.join("
+")) setText(tables.join(", "));
+  }, [tables]);
+  return <input value={text} onChange={(e) => { setText(e.target.value); onChange(splitTableNames(e.target.value)); }} placeholder={placeholder} className={className} />;
+}
+
 function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (json: string) => void }) {
   const { t } = useTranslation();
   const parse = (): any[] => { try { const a = JSON.parse(value || ""); if (Array.isArray(a) && a.length) return a; } catch {} return DEFAULT_AREAS; };
@@ -1203,7 +1217,7 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
           </label>
           {a.place === "customer"
             ? <p className="text-[10px] text-white/35 mb-2">{t("admin.area.how.customerHint")}</p>
-            : <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder={t("admin.area.tables")} className={inp + " w-full mb-2"} />}
+            : <TableNamesInput tables={a.tables || []} onChange={(tables) => upd(i, { tables })} placeholder={t("admin.area.tables")} className={inp + " w-full mb-2"} />}
           <label className="text-[11px] text-white/50 block mb-2">{t("admin.area.maxPax")} {(a.tables || []).length ? t("admin.area.maxPaxTables") : t("admin.area.maxPaxWhole")}<input type="number" min={1} value={a.maxPax > 0 ? a.maxPax : ""} onChange={(e) => upd(i, { maxPax: Math.max(0, Number(e.target.value) || 0) })} placeholder={t("admin.area.noMaxPh")} className={inp + " w-full"} /></label>
           {(a.tables || []).length > 0 && (
             <div className="mb-2">
