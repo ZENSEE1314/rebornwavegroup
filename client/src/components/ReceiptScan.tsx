@@ -93,7 +93,7 @@ export default function ReceiptScan() {
                 <option value="unpaid">{t("ex.notPaid")}</option>
               </select>
             </label>
-            {isPaid && <label className="block text-[11px] text-white/50">{t("ex.payMethod")}<select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={inp + " w-full" + " mt-0.5"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option></select></label>}
+            {isPaid && <label className="block text-[11px] text-white/50">{t("ex.payMethod")}<select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={inp + " w-full" + " mt-0.5"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option><option value="transfer">{t("ex.pm.transfer")}</option></select></label>}
             {!isPaid && <label className="block text-[11px] text-white/50">{t("ex.termsDays")}<input type="number" inputMode="numeric" min={0} max={365} value={termsDays} onChange={(e) => setTermsDays(e.target.value)} className={inp + " w-full mt-0.5"} /><span className="mt-0.5 block text-[10px] text-white/40">{dueDate ? t("ex.dueOn", { d: dueDate }) : ""}</span></label>}
           </div>
           <div className="space-y-2">

@@ -1371,6 +1371,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'ex.pay.mergeAsk': { en: "Remove the other {n}? Their stock and cost are taken back out.", zh: "删除其余 {n} 张？其库存和成本将被撤销。", id: "Hapus {n} lainnya? Stok dan biayanya dikembalikan." },
   'ex.pay.mergeYes': { en: "Yes, merge", zh: "确认合并", id: "Ya, gabung" },
   'ex.markPaid.cash': { en: "Paid by cash", zh: "现金支付", id: "Dibayar tunai" },
+  'ex.markPaid.transfer': { en: "Paid by bank transfer", zh: "银行转账支付", id: "Dibayar transfer bank" },
+  'ex.pm.transfer': { en: "Bank transfer", zh: "银行转账", id: "Transfer bank" },
   'ex.markPaid.card': { en: "Paid by card", zh: "刷卡支付", id: "Dibayar kartu" },
   'ex.moveToStock': { en: "Move to stock", zh: "转入库存", id: "Pindahkan ke stok" },
   'ex.needPayMethod': { en: "Choose Cash or Card under “How it was paid” above to continue.", zh: "请在上方“付款方式”选择现金或刷卡后继续。", id: "Pilih Tunai atau Kartu di “Cara bayar” di atas untuk melanjutkan." },

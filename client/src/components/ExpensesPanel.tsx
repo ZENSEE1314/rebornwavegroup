@@ -313,7 +313,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               <option value="unpaid">{t("ex.notPaid")}</option>
             </select>
           </label>
-          {isPaid && <label className="block text-xs text-white/60">{t("ex.payMethod")}<select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={field + " mt-1"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option></select></label>}
+          {isPaid && <label className="block text-xs text-white/60">{t("ex.payMethod")}<select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={field + " mt-1"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option><option value="transfer">{t("ex.pm.transfer")}</option></select></label>}
           {!isPaid && <label className="block text-xs text-white/60">{t("ex.termsDays")}<input type="number" inputMode="numeric" min={0} max={365} value={termsDays} onChange={(e) => setTermsDays(e.target.value)} className={field + " mt-1"} /><span className="mt-0.5 block text-[10px] text-white/40">{dueDate ? t("ex.dueOn", { d: dueDate }) : ""}</span></label>}
         </div>
         {(data?.runningCosts || []).length > 0 && (
@@ -406,7 +406,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 </div>
               )}
               {payables!.canPay && editingBillId === p.id && <PayableEditor bill={p} isSaving={saveBill.isPending} onSave={(body) => saveBill.mutate({ id: p.id, body })} onCancel={() => setEditingBillId(null)} />}
-              {payables!.canPay && <div className="mt-1 flex flex-wrap gap-2">{["cash", "card"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: p.id, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}<button type="button" onClick={() => setEditingBillId(editingBillId === p.id ? null : p.id)} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs font-bold text-amber-200">✎ {t("ex.pay.edit")}</button></div>}
+              {payables!.canPay && <div className="mt-1 flex flex-wrap gap-2">{["cash", "card", "transfer"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: p.id, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}<button type="button" onClick={() => setEditingBillId(editingBillId === p.id ? null : p.id)} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs font-bold text-amber-200">✎ {t("ex.pay.edit")}</button></div>}
             </div>
             );
           })}

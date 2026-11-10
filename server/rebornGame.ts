@@ -5533,8 +5533,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   };
   // A bill that is not paid yet (credit terms): booked in the accounts now, kept in supplier_payables until someone marks it paid.
   // How a bill was paid: cash or card (required whenever it is paid, so the day's cash can be checked against it).
-  const payMethodOf = (raw: unknown): "cash" | "card" | null => (raw === "cash" || raw === "card" ? raw : null);
-  const needPayMethod = (req: Request) => tr(req, { en: "Choose how it was paid: cash or card", zh: "请选择付款方式：现金或刷卡", id: "Pilih cara bayar: tunai atau kartu" });
+  const payMethodOf = (raw: unknown): "cash" | "card" | "transfer" | null => (raw === "cash" || raw === "card" || raw === "transfer" ? raw : null);
+  const needPayMethod = (req: Request) => tr(req, { en: "Choose how it was paid: cash, card or bank transfer", zh: "请选择付款方式：现金、刷卡或银行转账", id: "Pilih cara bayar: tunai, kartu atau transfer bank" });
   const unpaidOf = (paid: unknown, dueDate: unknown): { dueDate: string | null } | null => (paid === false ? { dueDate: /^\d{4}-\d{2}-\d{2}$/.test(String(dueDate || "")) ? String(dueDate) : null } : null);
   const userNameOf = async (userId: string) => {
     const [u] = await db.select().from(users).where(eq(users.id, userId));
