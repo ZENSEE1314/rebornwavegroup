@@ -16,8 +16,8 @@ describe("stock receipt edit and delete", () => {
     assert.ok(deleteRoute.includes("Number(p.stock) < (taken.get(p.id) || 0)") && deleteRoute.includes("status(400)"));
   });
 
-  it("should change only the amount on edit so the receipt heading still finds its stock lines", () => {
-    assert.ok(editRoute.includes("set({ amount: String(amount) })") && !editRoute.includes("note:"));
+  it("should rewrite the receipt note on edit only together with its stock records, so the heading still finds its stock lines", () => {
+    assert.ok(editRoute.includes("rewriteReceiptLines(tx") && editRoute.includes(": row.note;") && !editRoute.includes("note: `"));
   });
 
   it("should apply the same who-may rule as an expense upload", () => {

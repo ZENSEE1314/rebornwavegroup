@@ -37,7 +37,7 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
 }
 
 interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
-interface StockDelivery { canEdit?: boolean; id: number; amount: string; note: string | null; createdAt: string }
+interface StockDelivery { supplier?: string; invoiceNo?: string; items?: { name: string; qty: number }[]; canEdit?: boolean; id: number; amount: string; note: string | null; createdAt: string }
 interface ExpenseList { byStaff?: StaffSpend[]; month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
 interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
@@ -49,13 +49,14 @@ const emptyForm = (category = "") => ({ category, amount: "", spentOn: todayText
 interface PayableEdit { supplier: string; invoiceNo: string; dueDate: string; amount: string; items: { name: string; qty: string }[] }
 
 // Fixes an unpaid bill before it is paid: a typing mistake, a new due day, or an item that was left out (a stock bill changes the stock by the difference).
-function PayableEditor({ bill, isSaving, onSave, onCancel }: { bill: Payable; isSaving: boolean; onSave: (body: any) => void; onCancel: () => void }) {
+function PayableEditor({ bill, hideDueDate, itemNames, supplierNames, isSaving, onSave, onCancel }: { bill: Payable; hideDueDate?: boolean; itemNames: string[]; supplierNames: string[]; isSaving: boolean; onSave: (body: any) => void; onCancel: () => void }) {
   const { t } = useTranslation();
   const hasLines = bill.kind === "stock";
   const [form, setForm] = useState<PayableEdit>({
     supplier: bill.supplier || "", invoiceNo: bill.invoiceNo || "", dueDate: bill.dueDate || "", amount: String(Number(bill.amount)),
     items: bill.items.map((item) => ({ name: item.name, qty: String(item.qty) })),
   });
+  const sameName = (typed: string, known: string[]) => known.find((name) => name.trim().toLowerCase() === typed.trim().toLowerCase()); // a name typed with other capitals is the same thing: use the saved spelling
   const setItem = (index: number, patch: Partial<{ name: string; qty: string }>) => setForm({ ...form, items: form.items.map((item, i) => (i === index ? { ...item, ...patch } : item)) });
   const save = () => onSave({
     supplier: form.supplier, invoiceNo: form.invoiceNo, dueDate: form.dueDate, amount: Number(form.amount),
@@ -64,9 +65,9 @@ function PayableEditor({ bill, isSaving, onSave, onCancel }: { bill: Payable; is
   return (
     <div className="mt-2 space-y-2 rounded-lg border border-amber-400/30 bg-white/5 p-2">
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-[11px] text-white/55">{t("ex.pay.supplier")}<input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} className={field} /></label>
+        <label className="text-[11px] text-white/55">{t("ex.pay.supplier")}<input list="payable-suppliers" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} onBlur={() => setForm({ ...form, supplier: sameName(form.supplier, supplierNames) ?? form.supplier })} className={field} /></label>
         <label className="text-[11px] text-white/55">{t("ex.pay.invoice")}<input value={form.invoiceNo} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} className={field} /></label>
-        <label className="text-[11px] text-white/55">{t("ex.pay.dueDay")}<input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className={field} style={{ colorScheme: "dark" }} /></label>
+        {!hideDueDate && <label className="text-[11px] text-white/55">{t("ex.pay.dueDay")}<input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className={field} style={{ colorScheme: "dark" }} /></label>}
         <label className="text-[11px] text-white/55">{t("ex.pay.amount")}<input type="number" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field} /></label>
       </div>
       {hasLines && (
@@ -74,7 +75,7 @@ function PayableEditor({ bill, isSaving, onSave, onCancel }: { bill: Payable; is
           <p className="text-[11px] text-white/55">{t("ex.pay.editItems")}</p>
           {form.items.map((item, index) => (
             <div key={index} className="flex gap-1">
-              <input value={item.name} onChange={(e) => setItem(index, { name: e.target.value })} placeholder={t("ex.pay.itemName")} className={field} />
+              <input list="payable-items" value={item.name} onChange={(e) => setItem(index, { name: e.target.value })} onBlur={() => setItem(index, { name: sameName(item.name, itemNames) ?? item.name })} placeholder={t("ex.pay.itemName")} className={field} />
               <input type="number" min={1} value={item.qty} onChange={(e) => setItem(index, { qty: e.target.value })} className={field + " !w-20 flex-shrink-0"} aria-label={t("ex.pay.qty")} />
               <button type="button" onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })} className="min-h-[40px] flex-shrink-0 rounded-lg bg-white/10 px-3 text-red-200" aria-label={t("ex.pay.removeItem")}>✕</button>
             </div>
@@ -83,6 +84,8 @@ function PayableEditor({ bill, isSaving, onSave, onCancel }: { bill: Payable; is
           <p className="text-[10px] text-white/40">{t("ex.pay.stockNote")}</p>
         </div>
       )}
+      <datalist id="payable-suppliers">{supplierNames.map((name) => <option key={name} value={name} />)}</datalist>
+      <datalist id="payable-items">{itemNames.map((name) => <option key={name} value={name} />)}</datalist>
       <div className="flex gap-2">
         <button type="button" onClick={save} disabled={isSaving} className="min-h-[40px] rounded-lg bg-amber-400 px-4 text-xs font-bold text-black disabled:opacity-40">{t("ex.pay.save")}</button>
         <button type="button" onClick={onCancel} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs">{t("ex.cancelEdit")}</button>
@@ -126,7 +129,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const [photo, setPhoto] = useState<{ id: number; url: string | null } | null>(null);
   const isStock = form.category === STOCK_KIND; // while editing an upload this moves it to the stock: the expense is replaced by a stock delivery
   const dueDate = isPaid ? "" : dueDateFrom(form.spentOn, Number(termsDays));
-  const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()), enabled: isStock });
+  const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()), }); // also feeds the item-name suggestions when a bill or receipt is edited
   const inventoryByName = [...inventory].sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const stockLines = lines.filter((l) => l.qty >= 1 && (l.productId || l.name.trim()));
   const url = `/api/reborn/expenses?month=${month}`;
@@ -150,10 +153,10 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
     onSuccess: () => { toast({ title: t("ex.voidedToast") }); setVoiding(null); setReason(""); refresh(); },
     onError: fail,
   });
-  const [editingReceipt, setEditingReceipt] = useState<{ id: number; amount: string } | null>(null); // a stock receipt whose amount is being corrected
+  const [editingReceipt, setEditingReceipt] = useState<number | null>(null); // the stock receipt being corrected (supplier, amount and items)
   const afterReceiptChange = (d: any) => { toast({ title: d.message }); setEditingReceipt(null); refresh(); for (const key of ["/api/reborn/pos/stock", "/api/reborn/pos/products", "/api/reborn/admin/inventory"]) qc.invalidateQueries({ queryKey: [key] }); };
   const editReceipt = useMutation({
-    mutationFn: (v: { id: number; amount: number }) => apiRequest("POST", `/api/reborn/expenses/receipts/${v.id}/edit`, { amount: v.amount }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    mutationFn: (v: { id: number; body: any }) => apiRequest("POST", `/api/reborn/expenses/receipts/${v.id}/edit`, v.body).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
     onSuccess: afterReceiptChange,
     onError: fail,
   });
@@ -225,6 +228,8 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   };
   const { data: reader } = useQuery<{ ai: boolean }>({ queryKey: ["/api/reborn/admin/inventory/receipt/ready"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory/receipt/ready").then((r) => r.json()) });
   const { data: vendorList } = useQuery<{ vendors: Vendor[] }>({ queryKey: ["/api/reborn/expenses/vendors"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/vendors").then((r) => r.json()) });
+  const knownItemNames = inventoryByName.map((product) => String(product.name));
+  const knownSupplierNames = (vendorList?.vendors || []).map((vendor) => vendor.name);
   // Typing (or picking) the name of a supplier saved before fills its address, phone, kind and usual lines into the boxes that are still empty.
   const setPayee = (value: string) => {
     const known = (vendorList?.vendors || []).find((v) => v.name.toLowerCase() === value.trim().toLowerCase());
@@ -405,7 +410,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                   ) : <button type="button" onClick={() => setMergeAsk(p.id)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs font-bold text-red-200">{t("ex.pay.merge", { n: String(others.length) })}</button>}
                 </div>
               )}
-              {payables!.canPay && editingBillId === p.id && <PayableEditor bill={p} isSaving={saveBill.isPending} onSave={(body) => saveBill.mutate({ id: p.id, body })} onCancel={() => setEditingBillId(null)} />}
+              {payables!.canPay && editingBillId === p.id && <PayableEditor bill={p} itemNames={knownItemNames} supplierNames={knownSupplierNames} isSaving={saveBill.isPending} onSave={(body) => saveBill.mutate({ id: p.id, body })} onCancel={() => setEditingBillId(null)} />}
               {payables!.canPay && <div className="mt-1 flex flex-wrap gap-2">{["cash", "card", "transfer"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: p.id, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-4 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}<button type="button" onClick={() => setEditingBillId(editingBillId === p.id ? null : p.id)} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs font-bold text-amber-200">✎ {t("ex.pay.edit")}</button></div>}
             </div>
             );
@@ -479,24 +484,18 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               {(data?.stockDeliveries || []).length > 0 && <p className="pt-2 text-[11px] font-bold text-emerald-200">{t("ex.stockTitle")}</p>}
               {(data?.stockDeliveries || []).map((delivery) => (
                 <div key={delivery.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
-                  <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{t("ex.cat.stock")}</span><span className="font-black text-amber-200">{money(Number(delivery.amount))}</span></div>
+                  <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{t("ex.cat.stock")}{delivery.supplier ? ` · ${delivery.supplier}` : ""}</span><span className="font-black text-amber-200">{money(Number(delivery.amount))}</span></div>
                   <p className="mt-0.5 text-white/50">{delivery.createdAt ? new Date(delivery.createdAt).toLocaleString() : ""}</p>
                   <p className="mt-0.5 text-white/40">{delivery.note}</p>
                   {delivery.canEdit && (
                     <div className="mt-1.5 flex gap-4">
-                      <button type="button" onClick={() => setEditingReceipt({ id: delivery.id, amount: String(Number(delivery.amount)) })} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>
+                      <button type="button" onClick={() => setEditingReceipt(delivery.id)} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>
                       <button type="button" disabled={deleteReceipt.isPending} onClick={() => { if (window.confirm(t("ex.receiptDeleteAsk", { what: money(Number(delivery.amount)) }))) deleteReceipt.mutate(delivery.id); }} className="min-h-0 p-0 text-red-300 underline">{t("admin.c.delete")}</button>
                     </div>
                   )}
-                  {editingReceipt?.id === delivery.id && (
-                    <div className="mt-2 space-y-2 rounded-lg border border-amber-400/40 bg-amber-400/5 p-2">
-                      <label className="block text-[10px] text-white/50">{t("ex.amount")}<input type="number" inputMode="decimal" min={0} value={editingReceipt.amount} onChange={(e) => setEditingReceipt({ ...editingReceipt, amount: e.target.value })} className={field + " mt-0.5 w-full"} /></label>
-                      <p className="text-[10px] text-white/40">{t("ex.receiptEditNote")}</p>
-                      <div className="flex gap-2">
-                        <button type="button" disabled={editReceipt.isPending || !(Number(editingReceipt.amount) > 0)} onClick={() => editReceipt.mutate({ id: delivery.id, amount: Number(editingReceipt.amount) })} className="min-h-[40px] rounded-lg bg-amber-400 px-4 text-xs font-bold text-black disabled:opacity-40">{t("admin.c.save")}</button>
-                        <button type="button" onClick={() => setEditingReceipt(null)} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs">{t("ex.cancel")}</button>
-                      </div>
-                    </div>
+                  {editingReceipt === delivery.id && (
+                    <PayableEditor hideDueDate itemNames={knownItemNames} supplierNames={knownSupplierNames} isSaving={editReceipt.isPending} onCancel={() => setEditingReceipt(null)} onSave={(body) => editReceipt.mutate({ id: delivery.id, body })}
+                      bill={{ id: delivery.id, kind: "stock", supplier: delivery.supplier || "", invoiceNo: delivery.invoiceNo || "", amount: delivery.amount, dueDate: null, isOverdue: false, dupKey: "", items: (delivery.items || []).map((line) => ({ name: line.name, qty: line.qty, unitCost: null })) }} />
                   )}
                 </div>
               ))}

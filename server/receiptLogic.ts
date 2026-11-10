@@ -135,6 +135,13 @@ export function receiptNote(r: { supplier: string; invoiceNo: string; date: stri
   return `${head}: ${body}`.slice(0, 900);
 }
 
+/** Reads the heading of a receipt note back into its parts: "Receipt INV-1 from PT Bir (2026-10-14): ..." */
+export function parseReceiptHead(note: string | null): { supplier: string; invoiceNo: string; date: string } {
+  const head = (note || "").split(": ")[0];
+  const m = head.match(/^Receipt(?: (?!from )(.*?))?(?: from (.*?))?(?: \((\d{4}-\d{2}-\d{2})\))?$/);
+  return { invoiceNo: m?.[1] || "", supplier: m?.[2] || "", date: m?.[3] || "" };
+}
+
 /** The same supplier bill keyed in twice: same kind, supplier, invoice (or, with none, the same day) and amount. */
 export function payableDupKey(row: { kind: string; supplier: string | null; invoiceNo: string | null; spentOn: string | null; amount: string }): string {
   return [row.kind, supplierKeyOf(row.supplier || ""), (row.invoiceNo || "").trim().toLowerCase() || row.spentOn || "", Number(row.amount)].join("|");

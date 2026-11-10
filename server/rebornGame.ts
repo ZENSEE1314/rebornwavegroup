@@ -74,7 +74,7 @@ import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi"
 import { karaokeSetupBat } from "./karaokeSetup";
 import { cameraSetupBat, cleanSetupCameras } from "./cameraSetup";
 import { BoxControlQueue, isBoxControl, isBoxSongAction, isBoxSongId } from "./boxControls";
-import { cleanReceipt, type ReadReceipt, cleanSaveLines, matchProduct, receiptNote, payableDupKey, payableItemsOf, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
+import { cleanReceipt, type ReadReceipt, cleanSaveLines, matchProduct, receiptNote, payableDupKey, payableItemsOf, parseReceiptHead, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -6375,7 +6375,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const listOf = (list: typeof rows) => list.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
     const listed = listOf(rows);
     const recent = listOf(recentRows);
-    res.json({ month, expenses: listed, recent, stockDeliveries: stockDeliveries.map((delivery) => ({ ...delivery, canEdit: canEditExpense(role, userId, { uploadedBy: delivery.userId, createdAt: delivery.createdAt }) })), totals, byStaff: spendByStaff(listed as any[]), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+    res.json({ month, expenses: listed, recent, stockDeliveries: stockDeliveries.map((delivery) => ({ ...delivery, ...parseReceiptHead(delivery.note), items: payableItemsOf({ kind: "stock", note: delivery.note }, null).map((line) => ({ name: line.name, qty: line.qty })), canEdit: canEditExpense(role, userId, { uploadedBy: delivery.userId, createdAt: delivery.createdAt }) })), totals, byStaff: spendByStaff(listed as any[]), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
   const EXPENSE_EDIT_WINDOW_MS = 24 * 3_600_000;
@@ -6456,6 +6456,59 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const PAYABLE_MAX_LINES = 100;
   const PAYABLE_MAX_UNITS = 100000;
   const DATE_TEXT_RE = /^\d{4}-\d{2}-\d{2}$/;
+  type ReceiptLines = Map<string, { name: string; qty: number }>;
+  const readReceiptLines = (req: Request, raw: unknown[]): { lines: ReceiptLines } | { error: string } => {
+    const lines: ReceiptLines = new Map();
+    for (const item of raw.slice(0, PAYABLE_MAX_LINES) as any[]) {
+      const name = String(item?.name || "").replace(/\s+/g, " ").trim().slice(0, 120);
+      const qty = Math.floor(Number(item?.qty));
+      if (!name) continue;
+      if (!(qty >= 1 && qty <= PAYABLE_MAX_UNITS)) return { error: tr(req, { en: "Every line needs a quantity of 1 or more", zh: "每一行的数量至少为 1", id: "Setiap baris perlu jumlah minimal 1" }) };
+      const key = name.toLowerCase();
+      lines.set(key, { name, qty: (lines.get(key)?.qty || 0) + qty });
+    }
+    if (!lines.size) return { error: tr(req, { en: "A stock bill needs at least one item", zh: "进货账单至少需要一个品项", id: "Tagihan stok butuh minimal satu item" }) };
+    return { lines };
+  };
+  // Puts a stock receipt's lines right: the stock moves by the difference between the old lines (read from the receipt note) and the new ones. Returns the new receipt note.
+  const rewriteReceiptLines = async (tx: any, p: { cid: number; userId: string; ledgerNote: string | null; supplier: string; invoiceNo: string; date: string; lines: ReceiptLines; label: string }): Promise<string> => {
+    const oldHead = (p.ledgerNote || "").split(": ")[0];
+    const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const before = new Map<string, number>();
+    for (const line of payableItemsOf({ kind: "stock", note: p.ledgerNote }, null)) {
+      const key = line.name.trim().toLowerCase();
+      before.set(key, (before.get(key) || 0) + Math.round(line.qty));
+    }
+    const products = await tx.select({ id: posProducts.id, name: posProducts.name, stock: posProducts.stock }).from(posProducts).where(eq(posProducts.companyId, p.cid));
+    const productByName = new Map<string, { id: number; name: string; stock: number }>(products.map((product: any) => [product.name.trim().toLowerCase(), product]));
+    const newHead = `Receipt${p.invoiceNo ? ` ${p.invoiceNo}` : ""}${p.supplier ? ` from ${p.supplier}` : ""}${p.date ? ` (${p.date})` : ""}`;
+    const copies = oldHead ? (await tx.select({ id: ledgerEntries.id }).from(ledgerEntries).where(and(eq(ledgerEntries.refType, "receipt"), sql`${ledgerEntries.note} LIKE ${`${escapeLike(oldHead)}:%`}`))).length : 0;
+    const oldMoves = oldHead && copies <= 1 ? await tx.select().from(stockMovements).where(and(eq(stockMovements.companyId, p.cid), eq(stockMovements.reason, "stock_in"), sql`${stockMovements.note} LIKE ${`${escapeLike(oldHead)}%`}`)) : [];
+    const hasMoves = oldMoves.length > 0; // two receipts with the same heading share their stock records, so those are left alone and the change is written as adjustments
+    if (hasMoves) await tx.delete(stockMovements).where(inArray(stockMovements.id, oldMoves.map((move: any) => move.id)));
+    const saved: { name: string; qty: number }[] = [];
+    for (const [key, line] of Array.from(p.lines.entries())) {
+      let product = productByName.get(key);
+      if (!product) {
+        const [made] = await tx.insert(posProducts).values({ companyId: p.cid, name: line.name, category: "General", price: "0", cost: "0", stock: 0, supplierName: p.supplier || null, active: true, posVisible: false }).returning();
+        product = { id: made.id, name: made.name, stock: made.stock };
+        productByName.set(key, product);
+      }
+      const delta = line.qty - (before.get(key) || 0);
+      if (delta !== 0) await tx.update(posProducts).set({ stock: sql`${posProducts.stock} + ${delta}` }).where(eq(posProducts.id, product.id));
+      if (hasMoves) await tx.insert(stockMovements).values({ companyId: p.cid, productId: product.id, delta: line.qty, reason: "stock_in", supplier: p.supplier || null, note: newHead.slice(0, 200), userId: p.userId });
+      else if (delta !== 0) await tx.insert(stockMovements).values({ companyId: p.cid, productId: product.id, delta, reason: "adjustment", note: p.label.slice(0, 200), userId: p.userId });
+      saved.push({ name: product.name, qty: line.qty });
+    }
+    for (const [key, units] of Array.from(before.entries())) { // an item taken off the receipt: its units go back out of the stock
+      if (p.lines.has(key)) continue;
+      const product = productByName.get(key);
+      if (!product) continue;
+      await tx.update(posProducts).set({ stock: sql`GREATEST(0, ${posProducts.stock} - ${units})` }).where(eq(posProducts.id, product.id));
+      if (!hasMoves) await tx.insert(stockMovements).values({ companyId: p.cid, productId: product.id, delta: -units, reason: "adjustment", note: p.label.slice(0, 200), userId: p.userId });
+    }
+    return receiptNote({ supplier: p.supplier, invoiceNo: p.invoiceNo, date: p.date }, saved);
+  };
   app.post("/api/reborn/expenses/payables/:id/edit", requireExpenses(async (req, res) => {
     const userId = getUserId(req)!;
     const role = await adminRole(userId);
@@ -6470,57 +6523,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
     const [ledger] = bill.ledgerEntryId ? await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, bill.ledgerEntryId)) : [];
     const wantsLines = bill.kind === "stock" && Array.isArray(req.body?.items);
-    const lines = new Map<string, { name: string; qty: number }>();
-    if (wantsLines) {
-      for (const raw of req.body.items.slice(0, PAYABLE_MAX_LINES)) {
-        const name = String(raw?.name || "").replace(/\s+/g, " ").trim().slice(0, 120);
-        const qty = Math.floor(Number(raw?.qty));
-        if (!name) continue;
-        if (!(qty >= 1 && qty <= PAYABLE_MAX_UNITS)) return res.status(400).json({ message: tr(req, { en: "Every line needs a quantity of 1 or more", zh: "每一行的数量至少为 1", id: "Setiap baris perlu jumlah minimal 1" }) });
-        const key = name.toLowerCase();
-        lines.set(key, { name, qty: (lines.get(key)?.qty || 0) + qty });
-      }
-      if (!lines.size) return res.status(400).json({ message: tr(req, { en: "A stock bill needs at least one item", zh: "进货账单至少需要一个品项", id: "Tagihan stok butuh minimal satu item" }) });
-      if (!ledger) return res.status(400).json({ message: tr(req, { en: "The receipt of this bill could not be found, so its items cannot be changed", zh: "找不到该账单的入库单，无法修改品项", id: "Struk tagihan ini tidak ditemukan, jadi item tidak bisa diubah" }) });
-    }
+    const parsed = wantsLines ? readReceiptLines(req, req.body.items) : null;
+    if (parsed && "error" in parsed) return res.status(400).json({ message: parsed.error });
+    const lines: ReceiptLines = parsed && "lines" in parsed ? parsed.lines : new Map();
+    if (wantsLines && !ledger) return res.status(400).json({ message: tr(req, { en: "The receipt of this bill could not be found, so its items cannot be changed", zh: "找不到该账单的入库单，无法修改品项", id: "Struk tagihan ini tidak ditemukan, jadi item tidak bisa diubah" }) });
     await db.transaction(async (tx) => {
       let note = bill.note;
       if (wantsLines && ledger) {
-        const oldHead = (ledger.note || "").split(": ")[0];
-        const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
-        const before = new Map<string, number>();
-        for (const line of payableItemsOf({ kind: "stock", note: ledger.note }, null)) {
-          const key = line.name.trim().toLowerCase();
-          before.set(key, (before.get(key) || 0) + Math.round(line.qty));
-        }
-        const products = await tx.select({ id: posProducts.id, name: posProducts.name, stock: posProducts.stock }).from(posProducts).where(eq(posProducts.companyId, cid));
-        const productByName = new Map(products.map((product) => [product.name.trim().toLowerCase(), product]));
-        const newHead = `Receipt${invoiceNo ? ` ${invoiceNo}` : ""}${supplier ? ` from ${supplier}` : ""}${bill.spentOn ? ` (${bill.spentOn})` : ""}`;
-        const oldMoves = oldHead ? await tx.select().from(stockMovements).where(and(eq(stockMovements.companyId, cid), eq(stockMovements.reason, "stock_in"), sql`${stockMovements.note} LIKE ${`${escapeLike(oldHead)}%`}`)) : [];
-        const hasMoves = oldMoves.length > 0;
-        if (hasMoves) await tx.delete(stockMovements).where(inArray(stockMovements.id, oldMoves.map((move) => move.id)));
-        const saved: { name: string; qty: number }[] = [];
-        for (const [key, line] of Array.from(lines.entries())) {
-          let product = productByName.get(key);
-          if (!product) {
-            const [made] = await tx.insert(posProducts).values({ companyId: cid, name: line.name, category: "General", price: "0", cost: "0", stock: 0, supplierName: supplier || null, active: true, posVisible: false }).returning();
-            product = { id: made.id, name: made.name, stock: made.stock };
-            productByName.set(key, product);
-          }
-          const delta = line.qty - (before.get(key) || 0);
-          if (delta !== 0) await tx.update(posProducts).set({ stock: sql`${posProducts.stock} + ${delta}` }).where(eq(posProducts.id, product.id));
-          if (hasMoves) await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: line.qty, reason: "stock_in", supplier: supplier || null, note: newHead.slice(0, 200), userId });
-          else if (delta !== 0) await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta, reason: "adjustment", note: `Bill #${bill.id} edited`.slice(0, 200), userId });
-          saved.push({ name: product.name, qty: line.qty });
-        }
-        for (const [key, units] of Array.from(before.entries())) { // an item taken off the bill: its units go back out of the stock
-          if (lines.has(key)) continue;
-          const product = productByName.get(key);
-          if (!product) continue;
-          await tx.update(posProducts).set({ stock: sql`GREATEST(0, ${posProducts.stock} - ${units})` }).where(eq(posProducts.id, product.id));
-          if (!hasMoves) await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: -units, reason: "adjustment", note: `Bill #${bill.id} edited`.slice(0, 200), userId });
-        }
-        note = receiptNote({ supplier, invoiceNo, date: bill.spentOn || "" }, saved);
+        note = await rewriteReceiptLines(tx, { cid, userId, ledgerNote: ledger.note, supplier, invoiceNo, date: bill.spentOn || "", lines, label: `Bill #${bill.id} edited` });
         await tx.update(ledgerEntries).set({ note, amount: String(amount) }).where(eq(ledgerEntries.id, ledger.id));
       } else if (ledger) {
         await tx.update(ledgerEntries).set({ amount: String(amount) }).where(eq(ledgerEntries.id, ledger.id));
@@ -6666,14 +6676,23 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   };
   app.post("/api/reborn/expenses/receipts/:id/edit", requireExpenses(async (req, res) => {
     const row = await loadReceiptLine(req, res); if (!row) return;
+    const cid = await rebornCompanyId(req);
     const amount = roundMoney(Number(req.body?.amount));
     if (!(Number.isFinite(amount) && amount > 0 && amount <= MAX_EXPENSE_AMOUNT)) return res.status(400).json({ message: tr(req, { en: "Enter the amount", zh: "请输入金额", id: "Masukkan jumlah" }) });
+    const head = parseReceiptHead(row.note);
+    const supplier = String(req.body?.supplier ?? head.supplier).replace(/\s+/g, " ").trim().slice(0, 120);
+    const invoiceNo = String(req.body?.invoiceNo ?? head.invoiceNo).trim().slice(0, 60);
+    const parsed = Array.isArray(req.body?.items) ? readReceiptLines(req, req.body.items) : null;
+    if (parsed && "error" in parsed) return res.status(400).json({ message: parsed.error });
+    const userId = getUserId(req)!;
     await db.transaction(async (tx) => {
-      await tx.update(ledgerEntries).set({ amount: String(amount) }).where(eq(ledgerEntries.id, row.id));
+      const note = parsed && "lines" in parsed ? await rewriteReceiptLines(tx, { cid, userId, ledgerNote: row.note, supplier, invoiceNo, date: head.date, lines: parsed.lines, label: `Receipt #${row.id} edited` }) : row.note;
+      await tx.update(ledgerEntries).set({ amount: String(amount), note }).where(eq(ledgerEntries.id, row.id));
       await tx.update(supplierPayables).set({ amount: String(amount) }).where(and(eq(supplierPayables.ledgerEntryId, row.id), eq(supplierPayables.status, "unpaid")));
+      if (parsed) await tx.update(supplierPayables).set({ supplier: supplier || null, invoiceNo: invoiceNo || null, note }).where(and(eq(supplierPayables.ledgerEntryId, row.id), inArray(supplierPayables.status, ["unpaid", "paid"])));
     });
-    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "receipt_edit", entityType: "accounting", oldValues: { amount: row.amount }, newValues: { amount }, description: `Stock receipt #${row.id} amount changed to RP ${amount}` });
-    res.json({ message: tr(req, { en: "Receipt amount updated", zh: "入库单金额已更新", id: "Jumlah struk diperbarui" }) });
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "receipt_edit", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, newValues: { amount, supplier, invoiceNo, items: parsed && "lines" in parsed ? parsed.lines.size : undefined }, description: `Stock receipt #${row.id} changed: RP ${amount}${parsed ? `, ${parsed.lines.size} item lines (stock moved by the difference)` : ""}` });
+    res.json({ message: tr(req, { en: "Receipt updated", zh: "入库单已更新", id: "Struk diperbarui" }) });
   }));
   app.post("/api/reborn/expenses/receipts/:id/delete", requireExpenses(async (req, res) => {
     const row = await loadReceiptLine(req, res); if (!row) return;

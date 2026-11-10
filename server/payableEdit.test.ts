@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("./rebornGame.ts", import.meta.url), "utf8");
 const route = source.slice(source.indexOf('"/api/reborn/expenses/payables/:id/edit"'), source.indexOf('"/api/reborn/expenses/vendors"'));
+const helper = source.slice(source.indexOf("const rewriteReceiptLines"), source.indexOf('"/api/reborn/expenses/payables/:id/edit"')); // the stock part is shared with editing a saved receipt
 const panel = readFileSync(new URL("../client/src/components/ExpensesPanel.tsx", import.meta.url), "utf8");
 
 describe("editing an unpaid supplier bill", () => {
@@ -16,15 +17,15 @@ describe("editing an unpaid supplier bill", () => {
   });
 
   it("should change the stock by the difference of each line", () => {
-    assert.ok(route.includes("const delta = line.qty - (before.get(key) || 0);") && route.includes("stock: sql`${posProducts.stock} + ${delta}`"));
+    assert.ok(helper.includes("const delta = line.qty - (before.get(key) || 0);") && helper.includes("stock: sql`${posProducts.stock} + ${delta}`"));
   });
 
   it("should add a new item to the stock list hidden from the POS", () => {
-    assert.ok(route.includes("posVisible: false"));
+    assert.ok(helper.includes("posVisible: false"));
   });
 
   it("should put units back out for an item taken off the bill without going below zero", () => {
-    assert.ok(route.includes("GREATEST(0, ${posProducts.stock} - ${units})"));
+    assert.ok(helper.includes("GREATEST(0, ${posProducts.stock} - ${units})"));
   });
 
   it("should offer an Edit button beside the paid buttons", () => {

@@ -1276,7 +1276,6 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'ex.removeKind': { en: "Remove {name}", zh: "删除 {name}", id: "Hapus {name}" },
   'ex.removeKindAsk': { en: "Remove the kind \"{name}\"? Only possible if no expense uses it.", zh: "删除类别“{name}”？只有没有支出使用它时才能删除。", id: "Hapus jenis \"{name}\"? Hanya bisa jika tidak ada pengeluaran yang memakainya." },
   'ex.receiptDeleteAsk': { en: "Delete this stock receipt ({what})? The stock it added and its purchase line are taken back. This cannot be undone.", zh: "删除这张入库单（{what}）？它增加的库存和采购记录将被撤回，且无法恢复。", id: "Hapus struk stok ini ({what})? Stok yang ditambahkan dan catatan pembeliannya ditarik kembali. Tidak bisa dibatalkan." },
-  'ex.receiptEditNote': { en: "Changes the amount only. To fix the items or quantities, delete this receipt and key it in again.", zh: "只会修改金额。要更正商品或数量，请删除此入库单后重新录入。", id: "Hanya mengubah jumlah uang. Untuk memperbaiki barang atau jumlahnya, hapus struk ini lalu masukkan lagi." },
   'ex.amount': { en: "Amount", zh: "金额", id: "Jumlah" },
   'ex.date': { en: "Date on the receipt", zh: "收据日期", id: "Tanggal di struk" },
   'ex.payee': { en: "Paid to", zh: "付给", id: "Dibayar ke" },
