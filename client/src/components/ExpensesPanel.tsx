@@ -229,7 +229,18 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const { data: reader } = useQuery<{ ai: boolean }>({ queryKey: ["/api/reborn/admin/inventory/receipt/ready"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory/receipt/ready").then((r) => r.json()) });
   const { data: vendorList } = useQuery<{ vendors: Vendor[] }>({ queryKey: ["/api/reborn/expenses/vendors"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/vendors").then((r) => r.json()) });
   const knownItemNames = inventoryByName.map((product) => String(product.name));
-  const knownSupplierNames = (vendorList?.vendors || []).map((vendor) => vendor.name);
+  // Suppliers already on file: saved vendors, the supplier of any stock item and of any bill still owed (deduplicated, any capitals).
+  const knownSupplierNames = (() => {
+    const seen = new Map<string, string>();
+    const all = [...(vendorList?.vendors || []).map((vendor) => vendor.name), ...inventory.map((product) => String(product.supplierName || "")), ...(payables?.payables || []).map((bill) => bill.supplier || "")];
+    for (const name of all) if (name.trim() && !seen.has(name.trim().toLowerCase())) seen.set(name.trim().toLowerCase(), name.trim());
+    return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+  })();
+  // Typing the name of an item already in the stock list ties the line to it (same as picking it); the saved spelling is used.
+  const setNewLineName = (key: number, typed: string) => {
+    const hit = inventory.find((product) => String(product.name).trim().toLowerCase() === typed.trim().toLowerCase());
+    setLine(key, hit ? { productId: hit.id, name: String(hit.name) } : { name: typed });
+  };
   // Typing (or picking) the name of a supplier saved before fills its address, phone, kind and usual lines into the boxes that are still empty.
   const setPayee = (value: string) => {
     const known = (vendorList?.vendors || []).find((v) => v.name.toLowerCase() === value.trim().toLowerCase());
@@ -308,7 +319,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <label className="block text-xs text-white/60">{t("ex.amount")}<input type="number" inputMode="numeric" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field + " mt-1" + ring(form.amount)} /></label>
           <label className="block text-xs text-white/60">{t("ex.date")}<input type="date" max={todayText()} value={form.spentOn} onChange={(e) => setForm({ ...form, spentOn: e.target.value })} className={field + " mt-1"} /></label>
           <label className="block text-xs text-white/60">{t("ex.time")}<input type="time" value={form.spentTime} onChange={(e) => setForm({ ...form, spentTime: e.target.value })} className={field + " mt-1"} /></label>
-          <label className="block text-xs text-white/60">{t("ex.payee")}<input list="expense-vendors" value={form.payee} onChange={(e) => setPayee(e.target.value)} className={field + " mt-1" + ring(form.payee)} /><datalist id="expense-vendors">{(vendorList?.vendors || []).map((v) => <option key={v.name} value={v.name} />)}</datalist></label>
+          <label className="block text-xs text-white/60">{t("ex.payee")}<input list="expense-vendors" value={form.payee} onChange={(e) => setPayee(e.target.value)} onBlur={() => { const same = knownSupplierNames.find((name) => name.toLowerCase() === form.payee.trim().toLowerCase()); if (same && same !== form.payee) setPayee(same); }} className={field + " mt-1" + ring(form.payee)} /><datalist id="expense-vendors">{knownSupplierNames.map((name) => <option key={name} value={name} />)}</datalist></label>
           <label className="block text-xs text-white/60">{t("ex.phone")}<input type="tel" value={form.payeePhone} onChange={(e) => setForm({ ...form, payeePhone: e.target.value })} className={field + " mt-1" + ring(form.payeePhone)} /></label>
           <label className="block text-xs text-white/60" style={{ gridColumn: "1 / -1" }}>{t("ex.address")}<input value={form.payeeAddress} onChange={(e) => setForm({ ...form, payeeAddress: e.target.value })} className={field + " mt-1" + ring(form.payeeAddress)} /></label>
           <label className="block text-xs text-white/60">{t("ex.invoice")}<input value={form.invoiceNo} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} className={field + " mt-1"} /></label>
@@ -339,6 +350,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           {isStock && editingId && <p className="text-[11px] font-semibold text-amber-200">{t("ex.moveNote")}</p>}
           {isStock && <p className="text-[11px] text-emerald-300">{t("ex.stockNote")}</p>}
           {isStock && lines.length > 0 && <p className="text-[11px] font-semibold text-white/70">{t("ex.stockSummary", { a: String(stockLines.filter((l) => l.productId).length), b: String(stockLines.filter((l) => !l.productId).length) })}</p>}
+          {isStock && <datalist id="expense-item-names">{knownItemNames.map((name) => <option key={name} value={name} />)}</datalist>}
           {isStock && lines.map((line) => (
             <div key={line.key} className="space-y-1.5 rounded-xl border border-white/10 bg-black/20 p-2">
               <div className="flex items-center gap-1.5">
@@ -349,7 +361,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 <button type="button" onClick={() => setLines(lines.filter((l) => l.key !== line.key))} aria-label={t("ex.removeLine")} className="w-9 h-9 shrink-0 rounded-lg bg-white/10 inline-flex items-center justify-center p-0"><X className="w-4 h-4" /></button>
               </div>
               <p className={`text-[11px] font-bold ${line.productId ? "text-emerald-300" : "text-amber-300"}`}>{line.productId ? `✓ ${t("ex.inInventory")}` : `＋ ${t("ex.newItemBadge")}`}</p>
-              {!line.productId && <input value={line.name} onChange={(e) => setLine(line.key, { name: e.target.value })} placeholder={t("admin.rcpt.newName")} aria-label={t("admin.rcpt.newName")} className={field} />}
+              {!line.productId && <input list="expense-item-names" value={line.name} onChange={(e) => setNewLineName(line.key, e.target.value)} placeholder={t("admin.rcpt.newName")} aria-label={t("admin.rcpt.newName")} className={field} />}
               {line.productId && line.name && <p className="truncate text-[11px] text-white/40">{t("admin.rcpt.onReceipt", { name: line.name })}</p>}
               <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
                 <label className="text-[10px] text-white/50">{t("ex.qty")}<input type="number" inputMode="decimal" min={1} value={line.qty} onChange={(e) => setLine(line.key, { qty: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} className={field + " mt-0.5"} /></label>

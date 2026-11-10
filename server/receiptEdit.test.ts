@@ -56,4 +56,12 @@ describe("editing a receipt or bill in the Expenses panel", () => {
   it("should open the item editor for a saved receipt, not only its amount", () => {
     assert.ok(panel.includes("<PayableEditor hideDueDate"));
   });
+
+  it("should suggest stock items while a new stock line's name is typed and tie it to the matching item", () => {
+    assert.ok(panel.includes('list="expense-item-names"') && panel.includes("setNewLineName(line.key, e.target.value)") && panel.includes("setLine(key, hit ? { productId: hit.id"));
+  });
+
+  it("should suggest every supplier on file, not only the saved vendors, in the Paid to box", () => {
+    assert.ok(panel.includes('<datalist id="expense-vendors">{knownSupplierNames.map'));
+  });
 });
