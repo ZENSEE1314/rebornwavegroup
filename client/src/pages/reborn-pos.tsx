@@ -1153,6 +1153,7 @@ function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
   const { data: refunded = [] } = useQuery<Order[]>({ queryKey: ["/api/reborn/pos/orders", "refunded"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=refunded").then((r) => r.json()) });
   const { t, language } = useTranslation();
   const [day, setDay] = useState(() => businessDayOf(new Date()));
+  const [openBillId, setOpenBillId] = useState<number | null>(null);
   const isToday = (o: any) => businessDayOf(o.paidAt || o.createdAt || Date.now()) === day;
   const paidToday = orders.filter(isToday);
   const refundedToday = refunded.filter(isToday);
@@ -1194,6 +1195,7 @@ function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
                 <p className="font-bold text-sm">{o.orderNo}{o.tableNumber ? ` · ${t("pos.table", { n: o.tableNumber })}` : ""}{isRef && <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-200">{t("pos.refunded")}</span>}</p>
                 <p className="text-[11px] text-white/45">{new Date(o.paidAt || o.createdAt).toLocaleTimeString(localeTag(language), { hour: "numeric", minute: "2-digit" })} · {tOr(t, `pos.pay.${o.paymentMethod || "cash"}`, o.paymentMethod || "cash")}{o.salesStaffName ? ` · ${o.salesStaffName}` : ""}{o.memberName ? ` · ${o.memberName}` : ""}</p>
                 <p className="text-[11px] text-white/40 truncate">{items.map((it: any) => `${it.qty}× ${it.name}`).join(", ")}</p>
+                <button type="button" onClick={() => setOpenBillId(openBillId === o.id ? null : o.id)} className="mt-1 min-h-0 p-0 text-left text-[11px] font-bold text-cyan-200">{openBillId === o.id ? "▲ " + t("pos.sales.hideDetails") : "▼ " + t("pos.sales.details")}</button>
                 {Number(o.commissionAmount) > 0 && <p className="text-[11px] text-amber-200/80">💼 {t("pos.rc.commission")}{o.commissionLabel ? ` ${o.commissionLabel}` : ""}{o.commissionPayee ? ` · ${o.commissionPayee}` : ""}: {rp(Number(o.commissionAmount))} · {t("pos.rc.commissionBase")} {rp(Number(o.subtotal ?? o.total) - Number(o.discount || 0))}</p>}
                 {o.referralPayee && <p className="text-[11px] text-emerald-200/80">🤝 {t("pos.rc.referral")} · {o.referralPayee}: {rp(Number(o.referralAmount))} ({t("pos.rc.referralBase", { pct: Number(o.referralPercent) || 0 })} {rp(Number(o.referralBase))}){o.referralNote ? ` · ${t("pos.rc.referralLeftOut", { items: o.referralNote })}` : ""}</p>}
               </div>
@@ -1203,6 +1205,19 @@ function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
                 {!isRef && <button onClick={() => doRefund(o)} disabled={refund.isPending} className="mt-1 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-200 border border-red-400/40 disabled:opacity-50"><RotateCcw className="w-3 h-3" /> {t("pos.refund")}</button>}
               </div>
             </div>
+            {openBillId === o.id && (
+              <div className="mt-2 space-y-1 rounded-xl border border-white/10 bg-black/20 p-2 text-[11px]">
+                {(o.items || []).map((it: any) => {
+                  const isOff = OFF_BILL.includes(it.status);
+                  return (
+                    <div key={it.id} className={`flex justify-between gap-2 ${isOff ? "text-white/35 line-through" : "text-white/80"}`}>
+                      <span className="min-w-0">{it.qty}× {it.name}<span className="block text-[10px] no-underline text-white/45">{t("pos.sales.keyedBy", { who: it.addedByName || t("pos.sales.keyedUnknown") })}{it.addedAt ? ` · ${new Date(it.addedAt).toLocaleTimeString(localeTag(language), { hour: "numeric", minute: "2-digit" })}` : ""}{isOff ? ` · ${t("pos.sales.removedLine")}` : ""}</span></span>
+                      <span className="flex-shrink-0">{rp(Number(it.lineTotal))}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {isAdmin && !isRef && <ItemCommissionAdmin ticketId={o.id} />}
             {isRef && o.refundReason && <p className="text-[11px] text-red-300/80 mt-1">{t("pos.reasonLabel", { reason: o.refundReason })}</p>}
           </div>
