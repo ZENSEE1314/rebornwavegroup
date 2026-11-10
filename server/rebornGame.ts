@@ -6602,14 +6602,36 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const head = (row.note || "").split(": ")[0];
     const escape = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
     const cannotFind = tr(req, { en: "The stock lines of this receipt could not be found, so it cannot be taken back safely", zh: "找不到该入库单的库存记录，无法安全撤回", id: "Baris stok struk ini tidak ditemukan, jadi tidak bisa ditarik kembali dengan aman" });
-    if (!head) return res.status(400).json({ message: cannotFind });
-    const copies = (await db.select({ id: ledgerEntries.id }).from(ledgerEntries).where(and(eq(ledgerEntries.refType, "receipt"), sql`${ledgerEntries.note} LIKE ${`${escape(head)}:%`}`))).length;
-    const moves = await db.select().from(stockMovements).where(and(eq(stockMovements.companyId, cid), eq(stockMovements.reason, "stock_in"), sql`${stockMovements.note} LIKE ${`${escape(head)}%`}`)).orderBy(asc(stockMovements.id));
-    if (!copies || !moves.length || moves.length % copies !== 0) return res.status(400).json({ message: cannotFind });
-    const perCopy = moves.length / copies;
+    const copies = head ? (await db.select({ id: ledgerEntries.id }).from(ledgerEntries).where(and(eq(ledgerEntries.refType, "receipt"), sql`${ledgerEntries.note} LIKE ${`${escape(head)}:%`}`))).length : 0;
+    const moves = head ? await db.select().from(stockMovements).where(and(eq(stockMovements.companyId, cid), eq(stockMovements.reason, "stock_in"), sql`${stockMovements.note} LIKE ${`${escape(head)}%`}`)).orderBy(asc(stockMovements.id)) : [];
+    const perCopy = copies && moves.length && moves.length % copies === 0 ? moves.length / copies : 0;
     const shape = (list: typeof moves) => list.map((m) => `${m.productId}:${m.delta}`).sort().join(",");
-    const mine = moves.slice(-perCopy); // a receipt keyed in twice has identical copies, so taking back the last one is the same as taking back this one
-    if (copies > 1 && shape(mine) !== shape(moves.slice(0, perCopy))) return res.status(400).json({ message: cannotFind });
+    const mine = perCopy ? moves.slice(-perCopy) : []; // a receipt keyed in twice has identical copies, so taking back the last one is the same as taking back this one
+    const copiesDiffer = perCopy > 0 && copies > 1 && shape(mine) !== shape(moves.slice(0, perCopy));
+    if (!perCopy || copiesDiffer) {
+      // The stock-in records are not there (an old or imported receipt): the receipt's own lines ("24 × Bintang") say what came in, so take those units out by item name.
+      const lines = payableItemsOf({ kind: "stock", note: row.note }, null);
+      if (!lines.length) return res.status(400).json({ message: cannotFind });
+      const stocked = await db.select({ id: posProducts.id, name: posProducts.name, stock: posProducts.stock }).from(posProducts).where(eq(posProducts.companyId, cid));
+      const byName = new Map(stocked.map((product) => [product.name.trim().toLowerCase(), product]));
+      const removed: string[] = []; const notFound: string[] = [];
+      await db.transaction(async (tx) => {
+        for (const line of lines) {
+          const product = byName.get(line.name.trim().toLowerCase());
+          if (!product) { notFound.push(line.name); continue; }
+          const units = Math.min(Math.max(0, Number(product.stock) || 0), Math.round(line.qty));
+          if (units > 0) {
+            await tx.update(posProducts).set({ stock: sql`${posProducts.stock} - ${units}` }).where(eq(posProducts.id, product.id));
+            await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: -units, reason: "adjustment", note: `Receipt #${row.id} deleted`.slice(0, 200), userId: getUserId(req)! });
+          }
+          removed.push(`${units} × ${product.name}`);
+        }
+        await tx.update(supplierPayables).set({ status: "void" }).where(and(eq(supplierPayables.ledgerEntryId, row.id), eq(supplierPayables.status, "unpaid")));
+        await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
+      });
+      await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "receipt_delete", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, description: `Stock receipt #${row.id} deleted from its lines (no stock-in records): took out ${removed.join(", ") || "nothing"}${notFound.length ? `; items not found: ${notFound.join(", ")}` : ""}; purchase RP ${row.amount} removed` });
+      return res.json({ message: tr(req, { en: "Receipt deleted. Stock taken out: {removed}.{missing}", zh: "入库单已删除。已扣除库存：{removed}。{missing}", id: "Struk dihapus. Stok dikurangi: {removed}.{missing}" }, { removed: removed.join(", ") || "-", missing: notFound.length ? tr(req, { en: " Not found in the stock list: {items}.", zh: " 库存清单中找不到：{items}。", id: " Tidak ada di daftar stok: {items}." }, { items: notFound.join(", ") }) : "" }) });
+    }
     const taken = new Map<number, number>();
     for (const move of mine) taken.set(move.productId, (taken.get(move.productId) || 0) + move.delta);
     const products = await db.select({ id: posProducts.id, name: posProducts.name, stock: posProducts.stock }).from(posProducts).where(inArray(posProducts.id, Array.from(taken.keys())));
