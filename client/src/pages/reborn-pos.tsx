@@ -371,6 +371,7 @@ function LineEditDialog({ item, onSave, onCancel }: { item: any; onSave: (body: 
         </div>
         {canSellAtCost && <button type="button" onClick={() => setIsAtCost(!isAtCost)} className={`mt-2 w-full rounded-xl border py-2 text-xs font-bold ${isAtCost ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/70"}`}>{t("pos.line.atCost")}</button>}
         {canKeepHappyPrice && <button type="button" onClick={() => setIsHappyKept(!isHappyKept)} className={`mt-2 w-full rounded-xl border py-2 text-xs font-bold ${isHappyKept ? "border-pink-400 bg-pink-400/15 text-pink-200" : "border-white/10 bg-black/30 text-white/70"}`}>🍹 {t("pos.line.keepHappy")}</button>}
+        {isHappyKept && <p className="mt-1 text-[11px] text-pink-200">{t("pos.line.happyHint")}</p>}
         <p className="mt-2 text-xs text-white/60">{isAtCost ? t("pos.line.atCostNote") : t("pos.line.preview", { total: rp(preview ?? 0) })}</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button type="button" onClick={onCancel} className="rounded-xl bg-white/10 py-2.5 text-sm font-bold">{t("pos.item.dialogCancel")}</button>

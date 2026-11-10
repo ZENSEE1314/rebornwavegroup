@@ -3,7 +3,7 @@ import { inEveryDataSpace } from "./tenantSpace";
 import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
-import { and, asc, desc, eq, gte, sql, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ne, sql, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "./db";
 import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
@@ -4888,11 +4888,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     }
     // A late key-in: after the window closed the main admin puts the item's happy-hour price and its buy-X-get-Y-free deal on one line, as if it had been keyed in on time.
     let lateFree = 0;
-    if (req.body?.happyPrice) {
-      if ((await adminRole(getUserId(req))) !== "admin") return res.status(403).json({ message: tr(req, { en: "Only the main admin can give the happy-hour price or free drinks after happy hour.", zh: "只有主管理员可以在欢乐时段结束后给予欢乐价或赠品。", id: "Hanya admin utama yang bisa memberi harga atau gratisan happy hour setelah happy hour selesai." }) });
+    // A line that was ordered inside the happy hour keeps its deal when it is edited, with no tick needed; a late key-in still needs the main admin.
+    const [lineProduct] = it.productId ? await db.select().from(posProducts).where(eq(posProducts.id, it.productId)) : [];
+    const orderedInHappyHour = !!lineProduct && !!it.addedAt && Number(it.lineTotal) > 0 && isHappyNow(lineProduct, clockInZone(it.addedAt, countryOf(companyCountry()).timezone));
+    if (req.body?.happyPrice || (orderedInHappyHour && !req.body?.atCost)) {
+      if (req.body?.happyPrice && !orderedInHappyHour && (await adminRole(getUserId(req))) !== "admin") return res.status(403).json({ message: tr(req, { en: "Only the main admin can give the happy-hour price or free drinks after happy hour.", zh: "只有主管理员可以在欢乐时段结束后给予欢乐价或赠品。", id: "Hanya admin utama yang bisa memberi harga atau gratisan happy hour setelah happy hour selesai." }) });
       const [product] = it.productId ? await db.select().from(posProducts).where(eq(posProducts.id, it.productId)) : [];
       const happy = product?.happyPrice === null || product?.happyPrice === undefined || product?.happyPrice === "" ? NaN : Number(product.happyPrice);
-      lateFree = product && !product.noDiscount && hasHappyWindow(product) ? freeUnitsFor(product, product.happyStart!, qty) : 0;
+      // The typed quantity is the drinks to pay for; buy 1 get 1 free: type 4, pay 4, get 4 free.
+      const deal = product && !product.noDiscount && hasHappyWindow(product) ? dealOf(product) : null;
+      lateFree = deal ? Math.floor(qty / deal.buy) * deal.free : 0;
       if (!(Number.isFinite(happy) && happy >= 0 && happy !== price) && lateFree === 0) return res.status(400).json({ message: tr(req, { en: "This item has no happy-hour price or free-drink deal to give (its happy price is the same as its normal price)", zh: "此商品没有欢乐价或赠送优惠", id: "Item ini tidak punya harga atau gratisan happy hour" }) });
       if (Number.isFinite(happy) && happy >= 0) price = happy;
       discountNote += ` · happy hour${lateFree > 0 ? `, ${lateFree} free` : ""}`;
@@ -4900,16 +4905,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const percent = Math.min(100, Math.max(0, Number(req.body?.discountPercent) || 0));
     if (percent > 0) { price = roundMoney(price * (1 - percent / 100)); discountNote += ` · ${percent}% off`; }
     // The free units go on their own "(free)" line at 0, like an order keyed in during happy hour, so the bill shows what was given.
-    const paidQty = qty - lateFree;
+    const paidQty = qty;
     let lineTotal = roundMoney(price * paidQty);
     const amountOff = Math.max(0, Number(req.body?.discountAmount) || 0);
     if (amountOff > 0) { lineTotal = Math.max(0, roundMoney(lineTotal - amountOff)); price = roundMoney(lineTotal / paidQty); discountNote += ` · RP ${amountOff} off`; }
-    const dQty = qty - it.qty;
+    const [freeLine] = lateFree > 0 && it.productId ? await db.select().from(posTicketItems).where(and(eq(posTicketItems.orderId, it.orderId), eq(posTicketItems.productId, it.productId), eq(posTicketItems.lineTotal, "0"), ne(posTicketItems.id, id))) : [];
+    const dQty = qty + lateFree - it.qty - (freeLine?.qty ?? 0);
     if (dQty !== 0 && it.productId) { // keep stock in sync
       await moveStock(it.productId, -dQty, "adjustment", `Edit item #${id}`, getUserId(req)!);
     }
     await db.update(posTicketItems).set({ price: String(price), qty: paidQty, lineTotal: String(lineTotal) }).where(eq(posTicketItems.id, id));
-    if (lateFree > 0) {
+    if (lateFree > 0 && freeLine) {
+      await db.update(posTicketItems).set({ qty: lateFree }).where(eq(posTicketItems.id, freeLine.id));
+    } else if (lateFree > 0) {
       const { id: _id, ...rest } = it;
       await db.insert(posTicketItems).values({ ...rest, name: `${it.name} ${pick(reqLang(req), { en: "(free)", zh: "（赠送）", id: "(gratis)" })}`, price: "0", qty: lateFree, lineTotal: "0" });
     }

@@ -321,6 +321,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.line.qty': { en: 'Quantity', zh: '数量', id: 'Jumlah' },
   'pos.line.percent': { en: 'Discount %', zh: '折扣 %', id: 'Diskon %' },
   'pos.line.amount': { en: 'Amount off the line', zh: '整行减免金额', id: 'Potongan untuk baris' },
+  'pos.line.happyHint': { en: 'Type the drinks to pay for. The free ones are added (buy 1 get 1: type 4, get 4 free).', zh: '输入要付费的数量，赠品会自动加上（买一送一：输入4，送4）。', id: 'Isi jumlah yang dibayar. Gratisan ditambah otomatis (beli 1 gratis 1: isi 4, dapat 4 gratis).' },
   'pos.line.keepHappy': { en: 'Late key-in: give the happy-hour price + free drinks (main admin)', zh: '补录：给予欢乐价和赠品（主管理员）', id: 'Input telat: beri harga + gratisan happy hour (admin utama)' },
   'pos.line.atCost': { en: 'Sell this line at cost', zh: '此行按成本价销售', id: 'Jual baris ini dengan harga modal' },
   'pos.line.atCostNote': { en: 'The price becomes the item\'s cost.', zh: '价格将变为该商品的成本。', id: 'Harga menjadi harga modal item.' },
