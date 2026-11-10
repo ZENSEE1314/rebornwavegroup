@@ -14,6 +14,6 @@ describe("booking area table names field", () => {
   });
 
   it("should split names on a comma or a new line", () => {
-    assert.ok(source.includes("text.split(/[,\n]/)"));
+    assert.ok(source.includes("text.split(/[,\\n]/)"));
   });
 });
