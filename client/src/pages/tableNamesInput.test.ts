@@ -12,4 +12,8 @@ describe("booking area table names field", () => {
   it("should not rebuild the field from the parsed list on every key", () => {
     assert.ok(!source.includes('value={(a.tables || []).join(", ")}'));
   });
+
+  it("should split names on a comma or a new line", () => {
+    assert.ok(source.includes("text.split(/[,\n]/)"));
+  });
 });

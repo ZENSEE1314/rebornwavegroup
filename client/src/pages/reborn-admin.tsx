@@ -1172,16 +1172,13 @@ const DEFAULT_AREAS = [
   { id: "l4-pet", name: "Pet Room", level: "Level 4", image: "", tables: [] },
   { id: "restaurant", name: "Restaurant", level: "Level 4 & 5", image: "", tables: [] },
 ];
-const splitTableNames = (text: string): string[] => text.split(/[,
-]/).map((name) => name.trim()).filter(Boolean);
+const splitTableNames = (text: string): string[] => text.split(/[,\n]/).map((name) => name.trim()).filter(Boolean);
 
 // Keeps what is being typed, so a comma at the end (the next name is still to come) is not swallowed on a phone keyboard.
 function TableNamesInput({ tables, onChange, placeholder, className }: { tables: string[]; onChange: (tables: string[]) => void; placeholder: string; className: string }) {
   const [text, setText] = useState(tables.join(", "));
   useEffect(() => {
-    if (splitTableNames(text).join("
-") !== tables.join("
-")) setText(tables.join(", "));
+    if (splitTableNames(text).join("\n") !== tables.join("\n")) setText(tables.join(", "));
   }, [tables]);
   return <input value={text} onChange={(e) => { setText(e.target.value); onChange(splitTableNames(e.target.value)); }} placeholder={placeholder} className={className} />;
 }
