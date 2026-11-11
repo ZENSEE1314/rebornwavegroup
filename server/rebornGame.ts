@@ -5398,7 +5398,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "ticket", targetId: String(ticket.id), action: "bill_rates", entityType: "pos", oldValues: { tax: ticket.taxPercent, service: ticket.serviceFeePercent }, newValues: { tax: custom.tax, service: custom.service }, description: `Bill ${ticket.orderNo}: tax ${ticket.taxPercent ?? settings.taxPercent}% → ${custom.tax}%, service fee ${ticket.serviceFeePercent ?? settings.serviceFeePercent}% → ${custom.service}%` });
     res.json({ taxPercent: custom.tax, serviceFeePercent: custom.service });
   }));
-  app.get("/api/reborn/admin/accounting/closings", requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/accounting/closings", requireManager(async (req, res) => {
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY_MS);
     const rows = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType, "pos_closing"), sql`${ledgerEntries.createdAt} >= ${since}`)).orderBy(desc(ledgerEntries.createdAt));

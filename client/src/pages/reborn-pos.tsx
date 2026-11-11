@@ -395,8 +395,11 @@ function UploadReceiptCard() {
   );
 }
 
+const CLOSINGS_URL = "/api/reborn/admin/accounting/closings?days=90";
 function ClosePosDay() {
   const { toast } = useToast();
+  const [showPast, setShowPast] = useState(false);
+  const { data: pastReports = [] } = useQuery<any[]>({ queryKey: [CLOSINGS_URL], queryFn: () => apiRequest("GET", CLOSINGS_URL).then((r) => r.json()), enabled: showPast });
   const qc = useQueryClient();
   const [report, setReport] = useState<any>(null);
   const { t } = useTranslation();
@@ -416,6 +419,13 @@ function ClosePosDay() {
   return <><div className="mb-4 max-w-2xl rounded-2xl border border-red-400/25 bg-red-500/5 p-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
     <div className="mb-3 sm:mb-0"><p className="text-sm font-bold text-red-100">{t("pos.close.title")}</p><p className="text-xs text-white/45">{t("pos.close.desc")}</p></div>
     <button onClick={confirmClose} disabled={close.isPending} className="w-full rounded-xl border border-red-400/40 bg-red-500/15 px-4 py-2.5 text-sm font-bold text-red-100 disabled:opacity-50 sm:w-auto">{close.isPending ? t("pos.close.closing") : t("pos.close.button")}</button>
+  </div>
+  <div className="mb-4 max-w-2xl">
+    <button onClick={() => setShowPast(!showPast)} className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-white/80">{t("pos.close.past")}</button>
+    {showPast && <div className="mt-2 space-y-1.5">
+      {pastReports.map((row) => <button key={row.id} onClick={() => setReport(row)} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-left text-sm"><span><b>{row.day}</b> <span className="text-[11px] text-white/40">{t("pos.report.paidOrders", { n: row.ticketCount })}</span></span><span className="font-bold text-emerald-300">{rp(row.totals?.revenue)}</span></button>)}
+      {pastReports.length === 0 && <p className="text-xs text-white/40">{t("pos.close.pastEmpty")}</p>}
+    </div>}
   </div>{report && createPortal(<ClosingReport report={report} onClose={()=>setReport(null)} />, document.body)}</>;
 }
 

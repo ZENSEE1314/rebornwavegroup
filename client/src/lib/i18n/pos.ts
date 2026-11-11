@@ -167,6 +167,8 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.close.title': { en: 'End of day', zh: '日终结算', id: 'Akhir hari' },
   'pos.close.desc': { en: 'Clears today’s checked-in guests and creates a new venue QR.', zh: '清除今日已签到的客人并生成新的场所二维码。', id: 'Menghapus tamu yang check-in hari ini dan membuat QR tempat yang baru.' },
   'pos.close.closing': { en: 'Closing…', zh: '结算中…', id: 'Menutup…' },
+  'pos.close.past': { en: 'Reprint a past day', zh: '补打往日日结', id: 'Cetak ulang hari lalu' },
+  'pos.close.pastEmpty': { en: 'No closed days yet.', zh: '还没有已结算的日子。', id: 'Belum ada hari yang ditutup.' },
   'pos.close.button': { en: 'Close POS day', zh: '结算今日收银', id: 'Tutup hari POS' },
 
   // Closing report
