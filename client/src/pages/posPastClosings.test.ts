@@ -18,3 +18,13 @@ describe("reprinting a past POS closing from the POS screen", () => {
     assert.ok(server.includes('"/api/reborn/admin/accounting/closings", requireManager('));
   });
 });
+
+describe("days nobody closed", () => {
+  it("should build the report of a day with paid bills but no saved closing", () => {
+    assert.ok(server.includes("notClosed: true, ...(await buildDailyClosingReport(day))"));
+  });
+
+  it("should mark such a day in the list", () => {
+    assert.ok(pos.includes('t("pos.close.notClosed")'));
+  });
+});

@@ -423,7 +423,7 @@ function ClosePosDay() {
   <div className="mb-4 max-w-2xl">
     <button onClick={() => setShowPast(!showPast)} className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-white/80">{t("pos.close.past")}</button>
     {showPast && <div className="mt-2 space-y-1.5">
-      {pastReports.map((row) => <button key={row.id} onClick={() => setReport(row)} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-left text-sm"><span><b>{row.day}</b> <span className="text-[11px] text-white/40">{t("pos.report.paidOrders", { n: row.ticketCount })}</span></span><span className="font-bold text-emerald-300">{rp(row.totals?.revenue)}</span></button>)}
+      {pastReports.map((row) => <button key={row.id} onClick={() => setReport(row)} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-left text-sm"><span><b>{row.day}</b> <span className="text-[11px] text-white/40">{t("pos.report.paidOrders", { n: row.ticketCount })}</span>{row.notClosed && <span className="ml-1.5 rounded bg-amber-400/20 px-1.5 text-[10px] font-bold text-amber-200">{t("pos.close.notClosed")}</span>}</span><span className="font-bold text-emerald-300">{rp(row.totals?.revenue)}</span></button>)}
       {pastReports.length === 0 && <p className="text-xs text-white/40">{t("pos.close.pastEmpty")}</p>}
     </div>}
   </div>{report && createPortal(<ClosingReport report={report} onClose={()=>setReport(null)} />, document.body)}</>;

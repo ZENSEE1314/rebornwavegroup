@@ -5398,6 +5398,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "ticket", targetId: String(ticket.id), action: "bill_rates", entityType: "pos", oldValues: { tax: ticket.taxPercent, service: ticket.serviceFeePercent }, newValues: { tax: custom.tax, service: custom.service }, description: `Bill ${ticket.orderNo}: tax ${ticket.taxPercent ?? settings.taxPercent}% → ${custom.tax}%, service fee ${ticket.serviceFeePercent ?? settings.serviceFeePercent}% → ${custom.service}%` });
     res.json({ taxPercent: custom.tax, serviceFeePercent: custom.service });
   }));
+  const UNCLOSED_DAYS_MAX = 45;
   app.get("/api/reborn/admin/accounting/closings", requireManager(async (req, res) => {
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY_MS);
@@ -5405,7 +5406,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     // Days closed before items carried food/drink get it from the item's name today, so every closed day can be printed as food only or drinks only.
     const products = await db.select({ name: posProducts.name, category: posProducts.category, isService: posProducts.isService, packageKind: posProducts.packageKind, id: posProducts.id }).from(posProducts);
     const kindByName = new Map(products.map((p) => [p.name, kindOf({ productId: p.id, category: p.category, station: null, isService: !!p.isService, isPackage: !!p.packageKind })]));
-    res.json(rows.map((row) => {
+    const saved = rows.map((row) => {
       try {
         const report = JSON.parse(row.note || "{}");
         const items = withDrinkCostOnly((report.items || []).map((item: any) => ({ ...item, kind: item.kind || kindByName.get(item.name) || "other" })));
@@ -5413,7 +5414,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         const cost = roundMoney(items.reduce((sum: number, item: any) => sum + (Number(item.cost) || 0), 0)); // days closed before drinks-only cost: food cost taken out
         return { id: row.id, ...report, items, totals: { ...t, cost, profit: roundMoney((Number(t.revenue) || 0) - (Number(t.tax) || 0) - cost - (Number(t.commission) || 0)) } };
       } catch { return null; }
-    }).filter(Boolean));
+    }).filter(Boolean) as any[];
+    // A day nobody pressed Close POS day on has no saved report: build it from that day's paid bills, so every day with sales can be printed.
+    const closedDays = new Set(saved.map((report) => report.day));
+    const salesDays = await db.execute(sql`SELECT DISTINCT to_char(${VENUE_DAY_OF(sql`paid_at`)}, 'YYYY-MM-DD') AS day FROM pos_tickets WHERE status = 'paid' AND paid_at >= ${since} ORDER BY day DESC`);
+    const openDays = (((salesDays as any).rows || salesDays) as any[]).map((r) => String(r.day)).filter((day) => !closedDays.has(day)).slice(0, UNCLOSED_DAYS_MAX);
+    const live = await Promise.all(openDays.map(async (day) => ({ id: `day-${day}`, notClosed: true, ...(await buildDailyClosingReport(day)) })));
+    res.json([...saved, ...live].sort((a, b) => String(b.day).localeCompare(String(a.day))));
   }));
   // Commission: paid sales grouped by salesperson (staff credited on each ticket).
   app.get("/api/reborn/admin/accounting/commission", requireAdmin(async (req, res) => {
