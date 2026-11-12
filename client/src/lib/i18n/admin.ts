@@ -34,6 +34,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.set.songQueueTable': { en: "Each table", zh: "每张桌", id: "Setiap meja" },
   'admin.set.songLookahead': { en: "Load songs ahead into the song system", zh: "提前把歌曲载入点歌系统", id: "Muat lagu lebih dulu ke sistem lagu" },
   'admin.set.songLookaheadOff': { en: "Off (one song at a time)", zh: "关闭（一次一首）", id: "Mati (satu lagu per kali)" },
+  'admin.set.songLookaheadAll': { en: "All waiting songs on the system", zh: "所有等候的歌曲都放进系统", id: "Semua lagu antrean di sistem" },
   'admin.set.songLookaheadN': { en: "{n} songs ready on the system", zh: "系统中备好 {n} 首", id: "{n} lagu siap di sistem" },
   'admin.set.songLookaheadHint': { en: "The next songs of the fair queue are already ordered on the karaoke system, so the next song starts at once. A table's extra songs wait for their turn and are loaded when it comes. Needs the karaoke bridge program updated on the venue PC.", zh: "公平队列中的后续歌曲会提前在点歌系统中点好，下一首立即开始。某桌多出的歌曲等轮到时再载入。需要在场地电脑上更新点歌桥接程序。", id: "Lagu berikutnya dari antrean adil sudah dipesan di sistem karaoke, jadi lagu berikutnya langsung mulai. Lagu tambahan satu meja menunggu gilirannya lalu dimuat. Perlu memperbarui program jembatan karaoke di PC venue." },
   'admin.set.referralHold': { en: "Hours before a new referral earns commission", zh: "新推荐开始产生佣金前的等待小时数", id: "Jam sebelum referral baru mendapat komisi" },

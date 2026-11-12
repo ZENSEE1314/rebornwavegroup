@@ -1026,6 +1026,7 @@ function Settings() {
           <select value={String(cur.songLookahead || 0)} onChange={(e) => setStr("songLookahead", Number(e.target.value))} className={inp + " w-full"}>
             <option value={0}>{t("admin.set.songLookaheadOff")}</option>
             {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{t("admin.set.songLookaheadN", { n })}</option>)}
+            <option value={30}>{t("admin.set.songLookaheadAll")}</option>
           </select></label>
         <p className="text-[11px] text-white/40 mt-1">{t("admin.set.songLookaheadHint")}</p>
         <p className="text-[11px] text-white/40 mt-2">{t("admin.set.songQueueHint")}</p>

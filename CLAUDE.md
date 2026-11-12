@@ -1261,3 +1261,4 @@ eborn-venue-pack.
 - Queue tab (members): the songs on the song system are listed in full (the one playing first, marked) right under the Now singing card, before the app's own queue. Test: client/src/pages/songOffline.test.ts.
 - Food order pages (reborn-order.tsx, order/t/:token): tapping a menu photo opens it full size (`ZoomableImage`). Test: client/src/components/zoomableImage.test.ts.
 - POS: each item tile has a small magnifier button (top-left) that opens the photo full size without adding the item; stock-list photos open on tap too (`PhotoLightbox` / `ZoomableImage`). Test: client/src/components/zoomableImage.test.ts.
+- Settings › song queue: "Load songs ahead" now has "All waiting songs on the system" (30, `MAX_SONG_LOOKAHEAD` in rebornGame.ts = MAX_LOOKAHEAD in venue/karaoke-bridge.mjs); the venue bridge must be restarted to take the new limit. Test: server/songLookaheadAll.test.ts.

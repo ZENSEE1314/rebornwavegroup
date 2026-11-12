@@ -185,7 +185,7 @@ async function getSettings() {
     songRequestModeEnabled: map.songRequestModeEnabled !== "false",
     songQueueMode: map.songQueueMode === "table" ? "table" : "user",
     songsPerTurn: Math.min(3, Math.max(1, Math.floor(Number(map.songsPerTurn) || 1))),
-    songLookahead: Math.min(10, Math.max(0, Math.floor(Number(map.songLookahead) || 0))),
+    songLookahead: Math.min(MAX_SONG_LOOKAHEAD, Math.max(0, Math.floor(Number(map.songLookahead) || 0))),
     timezone: map.timezone || "Asia/Jakarta",
     bottleExpiryDays: Math.max(1, Number(map.bottleExpiryDays) || 90),
     receiptQrKind: RECEIPT_QR_KINDS.includes(map.receiptQrKind as any) ? map.receiptQrKind : "none", receiptQrLink: map.receiptQrLink || "", receiptQrCaption: map.receiptQrCaption || "",
@@ -1151,6 +1151,7 @@ async function karaokeCodes(songIds: number[]) {
 }
 // Admin › Requests › Pause: the song on now stops (the karaoke bridge reads `paused`) and the
 // queue doesn't move on until Resume. Its own app_settings key, so saving Settings never resets it.
+const MAX_SONG_LOOKAHEAD = 30; // "all waiting songs": the most the app asks the karaoke system to hold ahead
 const SONG_PAUSE_KEY = "songQueuePaused";
 async function songQueuePaused(): Promise<boolean> {
   const [row] = await db.select().from(appSettings).where(eq(appSettings.key, SONG_PAUSE_KEY));

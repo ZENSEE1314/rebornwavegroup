@@ -23,7 +23,7 @@ const STATE_EVERY_MS = 10000;
 const NOT_STARTED_MS = 25000; // the box took a song but never showed it as busy: give up on it
 const PLAYER_CALLBACK = "cb";
 const MIN_LOOKAHEAD = 2;   // from this many songs on the box the bridge loads songs ahead (the app's setting; 0 / 1 = one song at a time)
-const MAX_LOOKAHEAD = 10;
+const MAX_LOOKAHEAD = 30; // the app's "all waiting songs" choice
 const JOB_POLL_TIMEOUT_MS = 30000; // the app holds the request up to 20 s
 const RETRY_AFTER_ERROR_MS = 3000;
 const SEARCH_PAGES = 3;          // pages (15 songs each) read per search text for a member's search
