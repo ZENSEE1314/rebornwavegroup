@@ -16,6 +16,7 @@ function useDebounced(value: string, delay = 450) {
   return debounced;
 }
 
+const LIBRARY_SHOWN = 100;
 type SearchResponse = { songs: any[]; spotifyConnected: boolean; freeCatalogConnected: boolean; boxConnected?: boolean; slow?: boolean };
 
 export default function RebornSong() {
@@ -197,8 +198,10 @@ function SongSystem() {
   const { data: found, isFetching: isSearching } = useQuery<SearchResponse>({
     queryKey: ["/api/reborn/songs/search", search],
     queryFn: () => apiRequest("GET", `/api/reborn/songs/search?q=${encodeURIComponent(search)}`).then((r) => r.json()),
-    enabled: search.length > 0 && status?.online !== false,
+    enabled: search.length > 0, // offline, the server answers from our own library
   });
+  const isOffline = !!status && !status.online;
+  const { data: library = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/songs"], queryFn: () => apiRequest("GET", "/api/reborn/songs").then((r) => r.json()), enabled: isOffline && !search });
   // Singers: pages are added under each other ("Show more"); each page is one question to the song system.
   const [singerRows, setSingerRows] = useState<any[]>([]);
   const { data: singerAnswer, isFetching: isLoadingSingers } = useQuery<any>({
@@ -224,18 +227,12 @@ function SongSystem() {
   const qi = useSongQueueInfo();
   // The server decides whether the table was scanned: a copy of "not checked in" kept on the phone must never stop a request from being sent.
   const ask = (x: any) => req.mutate(x);
-  const rowOf = (x: any) => <SongRow key={x.code || x.karaokeCode} s={{ ...x, source: "karaoke", karaokeCode: x.karaokeCode || x.code }} onRequest={ask} pending={req.isPending} />;
+  const rowOf = (x: any) => <SongRow key={x.code || x.karaokeCode || `${x.title}-${x.artist}`} s={isOffline ? x : { ...x, source: "karaoke", karaokeCode: x.karaokeCode || x.code }} onRequest={ask} pending={req.isPending} />;
 
-  if (status && !status.online) return (
-    <div className="text-center py-12 text-white/50">
-      <Music2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-      <p className="font-semibold text-white/70">{t("vn.song.offlineTitle")}</p>
-      <p className="mt-1 text-sm">{t("vn.song.offlineBody")}</p>
-    </div>
-  );
   return (
     <div>
       <TableScanNotice qi={qi} />
+      {isOffline && <p className="mb-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-100">{t("vn.song.offlineNotice")}</p>}
       <button type="button" onClick={() => setVocal(vocal === "original" ? "karaoke" : "original")} aria-pressed={vocal === "original"} className={`mb-3 w-full rounded-2xl border px-3 py-3 text-sm font-bold ${vocal === "original" ? "border-amber-300 bg-amber-400 text-black" : "border-white/10 bg-white/5 text-white/70"}`}>{vocal === "original" ? t("vn.song.voiceOn") : t("vn.song.voiceOff")}</button>
       <div className="relative mb-4">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
@@ -259,6 +256,8 @@ function SongSystem() {
           {isLoadingSongs && <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-amber-300" /></div>}
           {songsAnswer && songPage < songsAnswer.maxPage && <button onClick={() => setSongPage((n) => n + 1)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80">{t("vn.song.showMoreSongs")}</button>}
         </>
+      ) : isOffline ? (
+        <div className="space-y-2">{library.slice(0, LIBRARY_SHOWN).map((x) => <SongRow key={x.id} s={x} onRequest={ask} pending={req.isPending} />)}</div>
       ) : (
         <>
           <p className="mb-3 text-xs text-white/40">{t("vn.song.singersHint")}</p>
