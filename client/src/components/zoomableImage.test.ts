@@ -14,6 +14,10 @@ describe("menu photos on the food order pages", () => {
   });
 
   it("should close when the person taps the picture area", () => {
-    assert.ok(read("./ZoomableImage.tsx").includes("onClick={() => setIsOpen(false)} role=\"dialog\""));
+    assert.ok(read("./ZoomableImage.tsx").includes("onClick={onClose} role=\"dialog\""));
+  });
+
+  it("should let POS staff enlarge an item photo without adding the item", () => {
+    assert.ok(read("../pages/reborn-pos.tsx").includes("setZoomed({ src: p.imageUrl!, name: p.name })"));
   });
 });

@@ -20,7 +20,8 @@ import { printClosingReport, printReceipt, printBill, printOnAccountBill, printK
 import { ImageUpload } from "@/components/ImageUpload";
 import ReceiptScan from "@/components/ReceiptScan";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
-import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift } from "lucide-react";
+import { PhotoLightbox, ZoomableImage } from "@/components/ZoomableImage";
+import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer, History, RotateCcw, Gift, ZoomIn } from "lucide-react";
 import { StaffGuideButton } from "@/components/StaffGuideButton";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { ReasonDialog } from "@/components/ReasonDialog";
@@ -451,6 +452,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
   const { data: products = [] } = useProducts();
   const { t } = useTranslation();
   const [cart, setCart] = useState<Record<number, number>>({});
+  const [zoomed, setZoomed] = useState<{ src: string; name: string } | null>(null);
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const lines = Object.entries(cart).filter(([, q]) => q > 0);
   const cartItems = useMemo(() => Object.entries(cart).filter(([, q]) => q > 0).map(([id, qty]) => ({ ...byId.get(Number(id))!, price: byId.get(Number(id))!.salePrice ?? byId.get(Number(id))!.price, qty })), [cart, byId]);
@@ -500,6 +502,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
                 </div>
                 {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}
               </button>
+              {p.imageUrl && <button type="button" onClick={() => setZoomed({ src: p.imageUrl!, name: p.name })} aria-label={t("vn.order.viewPhoto", { name: p.name })} style={{ minHeight: 0, width: 28, height: 28, padding: 0 }} className="absolute left-1.5 top-1.5 flex items-center justify-center rounded-full bg-black/60 text-white"><ZoomIn className="h-4 w-4" /></button>}
               {/* A whole pack in one tap, under the tile (not over it). Bundles and packages are not sold by the pack. */}
               {p.unitsPerPack > 1 && p.stock >= p.unitsPerPack && !p.bundleItemId && !p.packageKind && <button type="button" onClick={() => add(p.id, p.unitsPerPack)} title={t("pos.packBtnTitle", { n: p.unitsPerPack, price: rp(Number(p.price) * p.unitsPerPack) })} style={{ minHeight: 0, height: 32, padding: "0 8px" }} className="mt-1 w-full rounded-xl bg-amber-400 text-[12px] font-bold text-black">{t("pos.packBtn", { n: p.unitsPerPack })}</button>}
               </div>
@@ -508,6 +511,7 @@ function ProductPicker({ label, onCommit, onCartChange, busy, displayTotal }: { 
         </div>
       ))}
       {products.length === 0 && <p className="text-center text-white/40 py-6 text-sm">{t("pos.noProductsPicker")}</p>}
+      {zoomed && <PhotoLightbox src={zoomed.src} name={zoomed.name} onClose={() => setZoomed(null)} />}
       {lines.length > 0 && (
         <div className="sticky bottom-20 z-30 mb-3 rounded-2xl border border-amber-400/30 bg-[#160f2a] p-3 shadow-2xl lg:bottom-2">
           <div className="max-h-40 overflow-y-auto">
@@ -1271,7 +1275,7 @@ function StockTab() {
               <div key={p.id} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex flex-1 items-center gap-2 min-w-0">
-                    {p.imageUrl && <img src={p.imageUrl} alt="" className="w-9 h-9 shrink-0 rounded-lg object-cover" />}
+                    {p.imageUrl && <ZoomableImage src={p.imageUrl} name={p.name} className="w-9 h-9 shrink-0 rounded-lg object-cover" />}
                     <div className="min-w-0"><p className="font-semibold text-sm truncate">{p.name}</p><p className={`text-xs ${p.stock <= 5 ? "text-red-400" : "text-white/50"}`}>{t("pos.stockCount", { n: p.stock })}{p.stock <= 5 ? t("pos.lowStock") : ""}</p></div>
                   </div>
                   <button onClick={() => { setSel(sel === p.id ? null : p.id); setDir("add"); }} title={t("pos.adjustStock")} aria-label={t("pos.adjustStock")} className="px-3 py-2 rounded-xl bg-white/10 text-sm font-semibold flex items-center gap-1 flex-shrink-0"><PackagePlus className="w-4 h-4" /></button>

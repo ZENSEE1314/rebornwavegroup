@@ -1260,3 +1260,4 @@ eborn-venue-pack.
 - Song request (members) works while the venue bridge is offline: the Songs tab shows a notice and our own library (`/api/reborn/songs`, search falls back to the catalog) instead of the "not connected" screen; requests join the queue and the bridge finds them by title once back. Test: client/src/pages/songOffline.test.ts.
 - Queue tab (members): the songs on the song system are listed in full (the one playing first, marked) right under the Now singing card, before the app's own queue. Test: client/src/pages/songOffline.test.ts.
 - Food order pages (reborn-order.tsx, order/t/:token): tapping a menu photo opens it full size (`ZoomableImage`). Test: client/src/components/zoomableImage.test.ts.
+- POS: each item tile has a small magnifier button (top-left) that opens the photo full size without adding the item; stock-list photos open on tap too (`PhotoLightbox` / `ZoomableImage`). Test: client/src/components/zoomableImage.test.ts.
