@@ -17,3 +17,13 @@ describe("song requests while the song system is offline", () => {
     assert.ok(page.includes("enabled: search.length > 0,"));
   });
 });
+
+describe("song system songs on the Queue tab", () => {
+  it("should list every song on the system, not skip the first", () => {
+    assert.ok(page.includes("onBox.map((x, i)") && !page.includes("onBoxWaiting"));
+  });
+
+  it("should show them above the app's own queue", () => {
+    assert.ok(page.indexOf("onBox.map((x, i)") < page.indexOf("list.map((r) =>"));
+  });
+});

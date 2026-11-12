@@ -116,7 +116,7 @@ function QueueBoard() {
   const list: any[] = q.queue || [];
   // With no app song on, the first song on the system itself is the one being sung; the rest wait under "ordered on the song system".
   const onBoxNow = !q.nowPlaying ? (q.boxQueue || [])[0] : null;
-  const onBoxWaiting: any[] = (q.boxQueue || []).slice(onBoxNow ? 1 : 0);
+  const onBox: any[] = q.boxQueue || []; // every song on the song system, the one playing first
   return (
     <div className="space-y-2">
       <div className="rounded-3xl p-4 border border-fuchsia-400/30" style={{ background: "linear-gradient(135deg,rgba(217,70,239,.18),rgba(201,168,76,.12))" }}>
@@ -138,6 +138,18 @@ function QueueBoard() {
           <p className="mt-2 inline-block px-2.5 py-1 rounded-full bg-black/30 text-xs font-bold text-cyan-200">{t("vn.song.orderedOnSystem")}</p>
         </>) : <p className="text-sm text-white/60 mt-1">{t("vn.song.nobodySinging")}</p>}
       </div>
+      {onBox.length > 0 && (
+        <div className="pt-1">
+          <p className="px-1 pb-1 text-xs font-bold text-white/50">{t("vn.song.onSystem")}</p>
+          {onBox.map((x, i) => (
+            <div key={`${x.title}-${i}`} className="mb-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <Music2 className="h-5 w-5 flex-shrink-0 text-cyan-300" />
+              <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{x.title}{x.artist ? <span className="font-normal text-white/45"> · {x.artist}</span> : null}</span><span className="block text-xs text-white/50">{t("vn.song.orderedOnSystem")}</span></span>
+              {i === 0 && !q.nowPlaying && <span className="flex-shrink-0 text-[10px] font-bold text-fuchsia-300">{t("vn.song.onNow")}</span>}
+            </div>
+          ))}
+        </div>
+      )}
       <p className="text-xs text-white/50 px-1">{q.mode === "table" ? t("vn.song.fairNoteTable", { n: q.perTurn ?? 1 }) : t("vn.song.fairNoteUser", { n: q.perTurn ?? 1 })}</p>
       {list.length === 0 && <div className="text-center py-8 text-white/40"><Music2 className="w-9 h-9 mx-auto mb-2 opacity-30" /><p className="text-sm">{t("vn.song.queueEmpty")}</p></div>}
       {list.map((r) => (
@@ -151,17 +163,6 @@ function QueueBoard() {
         </div>
       ))}
       <MemberControls />
-      {onBoxWaiting.length > 0 && (
-        <div className="pt-2">
-          <p className="px-1 pb-1 text-xs font-bold text-white/50">{t("vn.song.onSystem")}</p>
-          {onBoxWaiting.map((x, i) => (
-            <div key={`${x.title}-${i}`} className="mb-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-              <Music2 className="h-5 w-5 flex-shrink-0 text-cyan-300" />
-              <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{x.title}{x.artist ? <span className="font-normal text-white/45"> · {x.artist}</span> : null}</span><span className="block text-xs text-white/50">{t("vn.song.orderedOnSystem")}</span></span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
