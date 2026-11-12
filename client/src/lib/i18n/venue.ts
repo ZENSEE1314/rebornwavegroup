@@ -254,6 +254,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.order.unavailable': { en: 'Unavailable', zh: '暂无供应', id: 'Tidak tersedia' },
   'vn.order.waiting': { en: 'Waiting', zh: '等待中', id: 'Menunggu' },
   'vn.order.soldOut': { en: 'Sold out', zh: '已售罄', id: 'Habis' },
+  'vn.order.viewPhoto': { en: "See {name} photo full size", zh: "查看{name}大图", id: "Lihat foto {name} ukuran penuh" },
   'vn.order.decrease': { en: 'Remove one', zh: '减少一份', id: 'Kurangi satu' },
   'vn.order.increase': { en: 'Add one', zh: '增加一份', id: 'Tambah satu' },
   'vn.order.add': { en: 'Add', zh: '添加', id: 'Tambah' },

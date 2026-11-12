@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
+import { ZoomableImage } from "@/components/ZoomableImage";
 import { useTranslation, localeTag } from "@/lib/i18n";
 import { Plus, Minus, ShoppingCart, Utensils, Clock } from "lucide-react";
 import { money } from "@/lib/money";
@@ -113,7 +114,7 @@ export default function RebornOrder() {
             {items.map((p) => (
               <div key={p.id} className={`flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 ${p.soldOut ? "opacity-50" : ""}`}>
                 {p.imageUrl
-                  ? <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-xl object-cover" />
+                  ? <ZoomableImage src={p.imageUrl} name={p.name} className="w-12 h-12 rounded-xl object-cover" />
                   : <span className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-lg">🍸</span>}
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{p.recommended && cat !== RECOMMENDED_GROUP ? "⭐ " : ""}{p.name}</p>

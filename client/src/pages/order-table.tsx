@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { useTranslation, getCurrentLanguage, localeTag } from "@/lib/i18n";
+import { ZoomableImage } from "@/components/ZoomableImage";
 
 type MenuItem = { id: number; name: string; price: string; category: string; imageUrl?: string };
 type Info = { table: { id: number; name: string }; company: { appName: string; logoUrl?: string; theme?: any }; menu: MenuItem[] };
@@ -60,7 +61,7 @@ export default function OrderTable() {
               <h2 className="mb-2 text-sm font-black uppercase tracking-wider text-white/50">{cat}</h2>
               <div className="space-y-2">{info.menu.filter((m) => (m.category || t("vn.otable.menu")) === cat).map((m) => (
                 <div key={m.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[.03] p-3">
-                  {m.imageUrl && <img src={m.imageUrl} className="h-12 w-12 rounded-lg object-cover" alt="" />}
+                  {m.imageUrl && <ZoomableImage src={m.imageUrl} name={m.name} className="h-12 w-12 rounded-lg object-cover" />}
                   <div className="min-w-0 flex-1"><b className="block truncate">{m.name}</b><span className="text-sm text-white/60">{Number(m.price).toLocaleString(localeTag(language))}</span></div>
                   {cart[m.id] ? (
                     <div className="flex items-center gap-2"><button aria-label={t("vn.order.decrease")} className="h-8 w-8 rounded-lg bg-white/10 text-lg" onClick={() => setQty(m.id, (cart[m.id] || 0) - 1)}>−</button><span className="w-5 text-center">{cart[m.id]}</span><button aria-label={t("vn.order.increase")} className="h-8 w-8 rounded-lg text-lg text-black" style={{ background: primary }} onClick={() => setQty(m.id, (cart[m.id] || 0) + 1)}>+</button></div>

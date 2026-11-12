@@ -1259,3 +1259,4 @@ eborn-venue-pack.
 - Ready-order alert (ReadyItemsAlert, every staff phone): beep is now two high square-wave notes at full volume (was one quiet 660 Hz sine). Test: client/src/components/readyItemsAlert.test.ts.
 - Song request (members) works while the venue bridge is offline: the Songs tab shows a notice and our own library (`/api/reborn/songs`, search falls back to the catalog) instead of the "not connected" screen; requests join the queue and the bridge finds them by title once back. Test: client/src/pages/songOffline.test.ts.
 - Queue tab (members): the songs on the song system are listed in full (the one playing first, marked) right under the Now singing card, before the app's own queue. Test: client/src/pages/songOffline.test.ts.
+- Food order pages (reborn-order.tsx, order/t/:token): tapping a menu photo opens it full size (`ZoomableImage`). Test: client/src/components/zoomableImage.test.ts.
