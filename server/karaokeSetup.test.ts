@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { karaokeSetupBat } from "./karaokeSetup";
+import { karaokeSetupBat, karaokeSetupLegacyBat } from "./karaokeSetup";
 import { readFileSync } from "node:fs";
 
 const input = { cloudUrl: "https://rebornwave.group", token: "ABC123DEF456", tenantSlug: "" };
@@ -37,5 +37,26 @@ describe("Android TV setup script", () => {
   });
   it("should start again after the TV restarts", () => {
     assert.ok(script.includes(".termux/boot"));
+  });
+});
+
+describe("setup file for a Windows 7 PC", () => {
+  const input = { cloudUrl: "https://rebornwave.group", token: "abc123", tenantSlug: "" };
+  const bat = karaokeSetupLegacyBat(input);
+
+  it("should use the node.exe next to the file and say where to get Node 12 when it is missing", () => {
+    assert.ok(bat.includes("if not exist node.exe (") && bat.includes("https://nodejs.org/dist/v12.22.12/"));
+  });
+
+  it("should get the Node 12 bridge with node itself, as Windows 7's PowerShell cannot do the secure download", () => {
+    assert.ok(bat.includes("https://rebornwave.group/api/karaoke/bridge-legacy.cjs") && !bat.toLowerCase().includes("powershell"));
+  });
+
+  it("should start the Node 12 bridge with the token", () => {
+    assert.ok(bat.includes("set KARAOKE_TOKEN=abc123") && bat.includes("node.exe karaoke-bridge-legacy.cjs"));
+  });
+
+  it("should refuse a value a command line could misread", () => {
+    assert.throws(() => karaokeSetupLegacyBat({ ...input, token: "a&b" }));
   });
 });

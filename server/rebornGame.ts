@@ -71,7 +71,7 @@ import { tr, pick, asLang, localeOf, userLang, reqLang, faqIn, rememberPetName, 
 import { translateTexts } from "./autoTranslate";
 import { deliverySource, purchaseEntryFromDelivery } from "./accountingReset";
 import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi";
-import { karaokeSetupBat } from "./karaokeSetup";
+import { karaokeSetupBat, karaokeSetupLegacyBat } from "./karaokeSetup";
 import { cameraSetupBat, cleanSetupCameras } from "./cameraSetup";
 import { BoxControlQueue, isBoxControl, isBoxSongAction, isBoxSongId } from "./boxControls";
 import { cleanReceipt, type ReadReceipt, cleanSaveLines, matchProduct, receiptNote, payableDupKey, payableItemsOf, parseReceiptHead, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
@@ -3263,6 +3263,14 @@ export function registerRebornRoutes(app: Express) {
       res.type("text/javascript").set("Cache-Control", "no-store").send(await fs.readFile(path.join(process.cwd(), "venue", "karaoke-bridge.mjs"), "utf8"));
     } catch { res.status(404).send("Not found"); }
   });
+  // The bridge rewritten for Node.js 12 (Windows 7): built by venue/build-legacy.mjs.
+  app.get("/api/karaoke/bridge-legacy.cjs", async (_req, res) => {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      res.type("text/javascript").set("Cache-Control", "no-store").send(await fs.readFile(path.join(process.cwd(), "venue", "legacy", "karaoke-bridge-legacy.cjs"), "utf8"));
+    } catch { res.status(404).send("Not found"); }
+  });
   // Setup script for an Android TV running the karaoke bridge inside Termux: curl -fsSL <site>/api/karaoke/android-setup.sh | bash (no token inside; it asks for it).
   app.get("/api/karaoke/android-setup.sh", async (_req, res) => {
     try {
@@ -3296,9 +3304,10 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.get("/api/reborn/admin/karaoke/setup-file", requireAdmin(async (req, res) => {
     const token = await venueBridgeToken();
-    const bat = karaokeSetupBat({ cloudUrl: `${req.protocol}://${req.get("host")}`, token, tenantSlug: currentTenant()?.slug || "" });
-    await logAdmin(req, { targetType: "system", action: "karaoke_setup_file", entityType: "settings", description: "Downloaded the karaoke bridge setup file" });
-    res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": 'attachment; filename="Start-Karaoke-Bridge.bat"', "Cache-Control": "no-store" }).send(bat);
+    const isLegacy = req.query.legacy === "1";
+    const setup = { cloudUrl: `${req.protocol}://${req.get("host")}`, token, tenantSlug: currentTenant()?.slug || "" };
+    await logAdmin(req, { targetType: "system", action: "karaoke_setup_file", entityType: "settings", description: `Downloaded the karaoke bridge setup file${isLegacy ? " (Windows 7)" : ""}` });
+    res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": `attachment; filename="${isLegacy ? "Start-Karaoke-Bridge-Win7.bat" : "Start-Karaoke-Bridge.bat"}"`, "Cache-Control": "no-store" }).send(isLegacy ? karaokeSetupLegacyBat(setup) : karaokeSetupBat(setup));
   }));
   app.post("/api/reborn/admin/karaoke/token", requireAdmin(async (req, res) => {
     const token = randomVenueCode() + randomVenueCode() + randomVenueCode() + randomVenueCode();

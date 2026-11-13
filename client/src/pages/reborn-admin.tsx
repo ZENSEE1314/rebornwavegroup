@@ -1471,6 +1471,7 @@ function KaraokeBridge() {
       <p className="text-xs text-white/50 mt-1">{t("admin.kar.hint")}</p>
       <p className="text-xs mt-2">{k?.online ? <b className="text-emerald-300">● {t("admin.kar.online")}</b> : <span className="text-white/50">○ {k?.lastSeen ? t("admin.kar.lastSeen", { at: new Date(k.lastSeen).toLocaleString(localeTag()) }) : t("admin.kar.never")}</span>} · {t("admin.kar.linked", { n: k?.linkedSongs ?? 0 })}</p>
       <a href="/api/reborn/admin/karaoke/setup-file" download className={btn + " mt-3 mr-2 inline-flex items-center gap-1.5 no-underline"}>⬇ {t("admin.kar.setupFile")}</a>
+      <a href="/api/reborn/admin/karaoke/setup-file?legacy=1" download className={btn + " mt-3 mr-2 inline-flex items-center gap-1.5 no-underline"}>⬇ {t("admin.kar.setupFileWin7")}</a>
       <p className="text-[11px] text-white/50 mt-2">{t("admin.kar.setupHint")}</p>
       <button onClick={() => { if (!k?.hasToken || confirm(t("admin.kar.newTokenConfirm"))) mk.mutate(); }} className={btn + " mt-3"}>{k?.hasToken ? t("admin.kar.newToken") : t("admin.kar.makeToken")}</button>
       {token && <div className="mt-2 p-2 rounded-lg bg-black/40 text-[11px] font-mono break-all text-amber-200">{token}<p className="text-white/45 font-sans mt-1">{t("admin.kar.copyOnce")}</p></div>}
