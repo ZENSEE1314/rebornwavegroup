@@ -7103,22 +7103,48 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const [row] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
     if (!row) return res.status(404).json({ message: tr(req, { en: "Entry not found", zh: "找不到该记录", id: "Catatan tidak ditemukan" }) });
     if (!isEditableLedger(row.refType)) return res.status(400).json({ message: tr(req, { en: "This line follows its bill or upload: change it there", zh: "该记录跟随其账单或上传：请在那里修改", id: "Baris ini mengikuti tagihan atau unggahannya: ubah di sana" }) });
-    const patch: { amount?: string; note?: string | null } = {};
+    const patch: { amount?: string; note?: string | null; photoUrl?: string } = {};
     if (req.body?.amount !== undefined) {
       const amount = roundMoney(Number(req.body.amount));
       if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: tr(req, { en: "Enter an amount above 0", zh: "请输入大于 0 的金额", id: "Masukkan jumlah di atas 0" }) });
       patch.amount = String(amount);
     }
     if (typeof req.body?.note === "string") patch.note = req.body.note.trim().slice(0, 500) || null;
+    if (typeof req.body?.photoUrl === "string" && req.body.photoUrl.startsWith("data:image/") && req.body.photoUrl.length <= MAX_EXPENSE_PHOTO_LENGTH) patch.photoUrl = req.body.photoUrl; // the invoice / receipt of a line that has none
     if (Object.keys(patch).length === 0) return res.status(400).json({ message: tr(req, { en: "Nothing to change", zh: "没有可修改的内容", id: "Tidak ada yang diubah" }) });
     await db.update(ledgerEntries).set(patch).where(eq(ledgerEntries.id, row.id));
-    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "edit_entry", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, newValues: patch, description: `Accounting line #${row.id} (${row.category}) changed: RP ${row.amount} → RP ${patch.amount ?? row.amount}` });
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "edit_entry", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, newValues: { ...patch, ...(patch.photoUrl ? { photoUrl: "receipt photo added" } : {}) }, description: `Accounting line #${row.id} (${row.category}) changed: RP ${row.amount} → RP ${patch.amount ?? row.amount}` });
     res.json({ ok: true });
   }));
-  // Only a line keyed in by hand can be removed here; every other line follows its bill, upload or sale and is voided there.
+  // A manual line is removed as it is. A stock delivery typed in Inventory is removed with its stock: the units come off the shelf again, the delivery leaves the oldest-first costing and a bill that was not paid yet is voided.
+  // Every other line follows its bill, upload or sale and is voided there.
+  const STOCK_LINK_WINDOW_MS = 10_000; // the delivery and its ledger line are written a moment apart when no arrival time was typed
+  const STOCK_IN_NOTE_RE = /^Stock in: (\d+) ×/;
+  const deleteStockDelivery = async (req: Request, res: Response, row: typeof ledgerEntries.$inferSelect) => {
+    const refuse = (en: string, zh: string, idText: string) => res.status(400).json({ message: tr(req, { en, zh, id: idText }) });
+    const qty = Number(STOCK_IN_NOTE_RE.exec(row.note || "")?.[1]) || 0;
+    const productId = Number(row.refId);
+    const lineTime = new Date(row.createdAt ?? 0).getTime();
+    const moves = qty > 0 && productId ? await db.select().from(stockMovements).where(and(eq(stockMovements.productId, productId), eq(stockMovements.reason, "stock_in"), eq(stockMovements.delta, qty))) : [];
+    const move = moves.filter((m) => Math.abs(new Date(m.createdAt ?? 0).getTime() - lineTime) <= STOCK_LINK_WINDOW_MS).sort((a, b) => Math.abs(new Date(a.createdAt ?? 0).getTime() - lineTime) - Math.abs(new Date(b.createdAt ?? 0).getTime() - lineTime))[0];
+    if (!move) return refuse("Could not find the stock this delivery added, so it cannot be removed here.", "找不到此送货增加的库存，不能在此删除。", "Stok yang ditambahkan pengiriman ini tidak ditemukan, jadi tidak bisa dihapus di sini.");
+    const [product] = await db.select().from(posProducts).where(eq(posProducts.id, productId));
+    if (product && (product.stock ?? 0) - move.delta < 0 && !(await getSettings()).allowNegativeStock) return refuse(`Only ${product.stock ?? 0} left in stock, so ${move.delta} cannot be taken off: part of this delivery is already sold or used.`, `库存只剩 ${product.stock ?? 0}，无法减去 ${move.delta}：这批货已有部分卖出或使用。`, `Stok tinggal ${product.stock ?? 0}, jadi ${move.delta} tidak bisa dikurangi: sebagian pengiriman ini sudah terjual atau terpakai.`);
+    const [payable] = await db.select().from(supplierPayables).where(eq(supplierPayables.ledgerEntryId, row.id));
+    if (payable?.status === "paid") return refuse("This delivery's bill is already marked paid, so it cannot be removed here.", "此送货的账单已标记为已付，不能在此删除。", "Tagihan pengiriman ini sudah ditandai lunas, jadi tidak bisa dihapus di sini.");
+    await db.transaction(async (tx) => {
+      await tx.update(posProducts).set({ stock: sql`${posProducts.stock} - ${move.delta}` }).where(eq(posProducts.id, productId));
+      await tx.delete(stockMovements).where(eq(stockMovements.id, move.id));
+      if (payable) await tx.update(supplierPayables).set({ status: "void" }).where(eq(supplierPayables.id, payable.id));
+      await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
+    });
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_stock_delivery", entityType: "accounting", oldValues: { category: row.category, amount: row.amount, note: row.note }, description: `Deleted stock delivery #${row.id}: ${row.note ?? ""} (stock −${move.delta})`.slice(0, 500) });
+    res.json({ ok: true });
+  };
   app.delete("/api/reborn/admin/accounting/ledger/:id", requireAdmin(async (req, res) => {
     const [row] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
     if (!row) return res.status(404).json({ message: tr(req, { en: "Entry not found", zh: "找不到该记录", id: "Catatan tidak ditemukan" }) });
+    if (row.refType === "stock_movement") return deleteStockDelivery(req, res, row);
     if (row.refType !== null) return res.status(400).json({ message: tr(req, { en: "This line follows its bill or upload: void it there", zh: "该记录跟随其账单或上传：请在那里作废", id: "Baris ini mengikuti tagihan atau unggahannya: batalkan di sana" }) });
     await db.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
     await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_entry", entityType: "accounting", oldValues: { kind: row.kind, category: row.category, amount: row.amount, note: row.note }, description: `Deleted manual ${row.kind} line #${row.id} (RP ${row.amount})` });
@@ -7152,7 +7178,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         const ticket = ticketById.get(Number(row.refId));
         const upload = uploadRowById.get(Number(row.refId));
         return {
-          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), by: row.userId ? nameOf.get(row.userId) || "" : "",
+          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType === null || row.refType === "stock_movement", by: row.userId ? nameOf.get(row.userId) || "" : "",
           hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
           bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,
           upload: upload ? { id: upload.id, hasItems: !!upload.items, payee: upload.payee, uploadedBy: upload.uploadedByName, spentOn: upload.spentOn, status: upload.status, voidReason: upload.voidReason, hasPhoto: !!upload.photoUrl } : null,

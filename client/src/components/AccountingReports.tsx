@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { translations, useTranslation, localeTag } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
+import { ImageUpload } from "@/components/ImageUpload";
 import { SALE_TIMES, type ItemProfitReport, type ItemProfitResponse, type MenuKind, type ReceiptRow, type SaleRow, type SaleTime, type Totals, type WastageReport } from "@shared/itemProfit";
 import { EXPENSE_GROUPS, sectionsOfGroup, type CostSection, type ExpenseGroup, type PeriodReport, type ReportGroup } from "@shared/accountingReport";
 
@@ -19,7 +20,7 @@ interface MonthlyData { month: string; report: PeriodReport; plannedRunningCosts
 interface OverallData { total: PeriodReport; months: { month: string; report: PeriodReport }[]; prizePool: number }
 
 interface DrillLine {
-  id: number; at: string | null; amount: number; category: string; refType: string | null; note: string | null; canEdit?: boolean; by: string; hasPhoto: boolean;
+  id: number; at: string | null; amount: number; category: string; refType: string | null; note: string | null; canEdit?: boolean; canDelete?: boolean; by: string; hasPhoto: boolean;
   bill: { id: number; orderNo: string; table: string | null; member: string | null } | null;
   upload: { id: number; hasItems?: boolean; payee: string | null; uploadedBy: string | null; spentOn: string; status: string; voidReason: string | null; hasPhoto: boolean } | null;
 }
@@ -37,6 +38,20 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
     mutationFn: (v: { id: number; amount: number; note: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { amount: v.amount, note: v.note }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
     onSuccess: () => { toast({ title: t("ar.edited") }); setEditing(null); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
+  });
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [addingPhotoId, setAddingPhotoId] = useState<number | null>(null);
+  const refreshAccounting = () => qc.invalidateQueries({ predicate: (q) => { const key = String(q.queryKey[0]); return key.startsWith("/api/reborn/admin/accounting") || key.startsWith("/api/reborn/pos") || key.startsWith("/api/reborn/admin/inventory"); } });
+  const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
+  const removeLine = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/accounting/ledger/${id}`).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
+    onSuccess: () => { toast({ title: t("ar.deleted") }); setDeletingId(null); refreshAccounting(); },
+    onError: (e: any) => { setDeletingId(null); fail(e); },
+  });
+  const addPhoto = useMutation({
+    mutationFn: (v: { id: number; photoUrl: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { photoUrl: v.photoUrl }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
+    onSuccess: () => { toast({ title: t("ar.photoAdded") }); setAddingPhotoId(null); refreshAccounting(); },
+    onError: fail,
   });
   const [movingId, setMovingId] = useState<number | null>(null); // the upload the admin is about to move to stock
   const moveToStock = useMutation({
@@ -78,6 +93,20 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
                   <button type="button" onClick={() => setMovingId(null)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("admin.c.cancel")}</button>
                 </>
               ) : <button type="button" onClick={() => setMovingId(line.upload!.id)} className="min-h-[40px] rounded-lg bg-emerald-500/20 px-3 text-xs font-bold text-emerald-200">{t("ex.toStock")}</button>}
+            </div>
+          )}
+          {((line.canEdit && !line.hasPhoto && line.refType === "stock_movement") || line.canDelete) && (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              {line.canEdit && !line.hasPhoto && line.refType === "stock_movement" && (addingPhotoId === line.id
+                ? <div className="w-full"><ImageUpload value="" onChange={(url) => { if (url) addPhoto.mutate({ id: line.id, photoUrl: url }); }} label={t("admin.rcpt.photo")} output="jpeg" maxDim={1600} quality={0.85} /></div>
+                : <button type="button" onClick={() => setAddingPhotoId(line.id)} className="min-h-[40px] rounded-lg bg-amber-500/20 px-3 text-xs font-bold text-amber-200">{t("ar.addPhoto")}</button>)}
+              {line.canDelete && (deletingId === line.id ? (
+                <>
+                  <span className="text-[11px] text-red-200">{line.refType === "stock_movement" ? t("ar.deleteStockAsk") : t("ar.deleteAsk")}</span>
+                  <button type="button" disabled={removeLine.isPending} onClick={() => removeLine.mutate(line.id)} className="min-h-[40px] rounded-lg bg-red-500 px-3 text-xs font-bold text-white disabled:opacity-40">{t("ar.deleteYes")}</button>
+                  <button type="button" onClick={() => setDeletingId(null)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("admin.c.cancel")}</button>
+                </>
+              ) : <button type="button" onClick={() => setDeletingId(line.id)} className="min-h-[40px] rounded-lg bg-red-500/15 px-3 text-xs font-bold text-red-200">{t("ar.delete")}</button>)}
             </div>
           )}
           {editing?.id === line.id && (
