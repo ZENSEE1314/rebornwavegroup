@@ -6531,19 +6531,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const RECENT_DAYS = 7;
     const since = new Date(Date.now() - RECENT_DAYS * 24 * 3_600_000);
     const recentRows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), gte(expenseUploads.createdAt, since), sql`${expenseUploads.spentOn} NOT LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.id)).limit(50);
-    const stockDeliveries = (await db.select({ id: ledgerEntries.id, amount: ledgerEntries.amount, note: ledgerEntries.note, createdAt: ledgerEntries.createdAt, userId: ledgerEntries.userId }).from(ledgerEntries)
+    const stockDeliveries = (await db.select({ id: ledgerEntries.id, amount: ledgerEntries.amount, note: ledgerEntries.note, createdAt: ledgerEntries.createdAt, userId: ledgerEntries.userId, hasPhoto: sql<boolean>`${ledgerEntries.photoUrl} IS NOT NULL` }).from(ledgerEntries)
       .where(and(eq(ledgerEntries.refType, "receipt"), gte(ledgerEntries.createdAt, since), role === "admin" || role === "manager" ? undefined : eq(ledgerEntries.userId, getUserId(req)!))).orderBy(desc(ledgerEntries.id)).limit(50));
     const totals: Record<string, number> = {};
     for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
     const userId = getUserId(req)!;
-    const ledgerIds = [...rows, ...recentRows].map((r) => r.ledgerEntryId).filter((id): id is number => !!id);
+    const ledgerIds = [...rows.map((r) => r.ledgerEntryId), ...recentRows.map((r) => r.ledgerEntryId), ...stockDeliveries.map((d) => d.id)].filter((id): id is number => !!id);
     const bills = ledgerIds.length ? await db.select().from(supplierPayables).where(and(eq(supplierPayables.companyId, cid), inArray(supplierPayables.ledgerEntryId, ledgerIds))) : [];
-    const billOf = new Map(bills.map((b) => [b.ledgerEntryId, { status: b.status, dueDate: b.dueDate }]));
+    const billOf = new Map(bills.map((b) => [b.ledgerEntryId, { id: b.id, status: b.status, dueDate: b.dueDate, payMethod: b.payMethod, paidOn: b.paidOn }]));
     // The recent list needs the same Edit flag and bill as the month list: without them an upload keyed in under another month showed no Edit button.
     const listOf = (list: typeof rows) => list.map((row) => ({ ...expenseView(row), canEdit: row.status === "active" && canEditExpense(role, userId, row), bill: billOf.get(row.ledgerEntryId ?? -1) ?? null }));
     const listed = listOf(rows);
     const recent = listOf(recentRows);
-    res.json({ month, expenses: listed, recent, stockDeliveries: stockDeliveries.map((delivery) => ({ ...delivery, ...parseReceiptHead(delivery.note), items: payableItemsOf({ kind: "stock", note: delivery.note }, null).map((line) => ({ name: line.name, qty: line.qty })), canEdit: canEditExpense(role, userId, { uploadedBy: delivery.userId, createdAt: delivery.createdAt }) })), totals, byStaff: spendByStaff(listed as any[]), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
+    res.json({ month, expenses: listed, recent, stockDeliveries: stockDeliveries.map((delivery) => ({ ...delivery, ...parseReceiptHead(delivery.note), items: payableItemsOf({ kind: "stock", note: delivery.note }, null).map((line) => ({ name: line.name, qty: line.qty })), canEdit: canEditExpense(role, userId, { uploadedBy: delivery.userId, createdAt: delivery.createdAt }), bill: billOf.get(delivery.id) ?? null })), totals, byStaff: spendByStaff(listed as any[]), total: Object.values(totals).reduce((sum, value) => sum + value, 0), canVoid: role === "admin" || role === "manager", categories: [...UPLOAD_CATEGORIES, ...(await customCategoriesOf())], runningCosts: cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, [])).filter((cost) => cost.period === "monthly").map((cost) => ({ id: cost.id, name: cost.name })) });
   }));
   // A mistake in an upload is corrected in place (the ledger line and the unpaid bill follow): managers and the main admin for any upload, the uploader for the first 24 hours. Who edited and how often is kept on the row and in the admin log.
   const EXPENSE_EDIT_WINDOW_MS = 24 * 3_600_000;
@@ -6561,7 +6561,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const ledgerIds = rows.map((r) => r.ledgerEntryId).filter((id): id is number => !!id);
     const uploads = ledgerIds.length ? await db.select({ ledgerEntryId: expenseUploads.ledgerEntryId, items: expenseUploads.items }).from(expenseUploads).where(inArray(expenseUploads.ledgerEntryId, ledgerIds)) : [];
     const uploadItems = new Map(uploads.map((u) => [u.ledgerEntryId, u.items]));
-    res.json({ canPay, today, total: rows.reduce((sum, r) => sum + Number(r.amount), 0), payables: rows.map((r) => ({ ...r, isOverdue: !!r.dueDate && r.dueDate < today, dupKey: payableDupKey(r), items: payableItemsOf(r, uploadItems.get(r.ledgerEntryId ?? -1)) })) });
+    const withPhoto = new Set<number>();
+    if (ledgerIds.length) {
+      for (const line of await db.select({ id: ledgerEntries.id }).from(ledgerEntries).where(and(inArray(ledgerEntries.id, ledgerIds), isNotNull(ledgerEntries.photoUrl)))) withPhoto.add(line.id);
+      for (const upload of await db.select({ id: expenseUploads.ledgerEntryId }).from(expenseUploads).where(and(inArray(expenseUploads.ledgerEntryId, ledgerIds), isNotNull(expenseUploads.photoUrl)))) if (upload.id) withPhoto.add(upload.id);
+    }
+    res.json({ canPay, today, total: rows.reduce((sum, r) => sum + Number(r.amount), 0), payables: rows.map((r) => ({ ...r, hasPhoto: withPhoto.has(r.ledgerEntryId ?? -1), isOverdue: !!r.dueDate && r.dueDate < today, dupKey: payableDupKey(r), items: payableItemsOf(r, uploadItems.get(r.ledgerEntryId ?? -1)) })) });
   }));
   // Staff sometimes key the same bill in twice. The manager keeps one and removes the others: an expense is voided, a stock receipt has its extra stock and purchase taken back out.
   app.post("/api/reborn/expenses/payables/merge", requireExpenses(async (req, res) => {
@@ -6711,6 +6716,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   app.get("/api/reborn/expenses/vendors", requireExpenses(async (req, res) => {
     const rows = await db.select().from(expenseVendors).where(eq(expenseVendors.companyId, await rebornCompanyId(req))).orderBy(desc(expenseVendors.uses), asc(expenseVendors.name));
     res.json({ vendors: rows.map(vendorView) });
+  }));
+  // The receipt photo behind a stock delivery or an unpaid bill (a ledger line). An expense upload keeps its photo on the upload.
+  app.get("/api/reborn/expenses/ledger/:id/photo", requireExpenses(async (req, res) => {
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    const [row] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
+    if (!row || (role !== "admin" && role !== "manager" && row.userId !== userId)) return res.json({ photoUrl: null });
+    let photoUrl = row.photoUrl;
+    if (!photoUrl && row.refType === "expense_upload") {
+      const [upload] = await db.select({ photoUrl: expenseUploads.photoUrl }).from(expenseUploads).where(and(eq(expenseUploads.id, Number(row.refId)), eq(expenseUploads.companyId, await rebornCompanyId(req))));
+      photoUrl = upload?.photoUrl ?? null;
+    }
+    res.json({ photoUrl: photoUrl || null });
   }));
   app.get("/api/reborn/expenses/:id/photo", requireExpenses(async (req, res) => {
     const role = await adminRole(getUserId(req));
@@ -7128,7 +7146,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
   // A manual line is removed as it is. A stock delivery typed in Inventory is removed with its stock: the units come off the shelf again (even when that leaves the count below 0), the delivery leaves the oldest-first costing and a bill that was not paid yet is voided.
   // Every other line follows its bill, upload or sale and is voided there.
-  const STOCK_LINK_WINDOW_MS = 10_000; // the delivery and its ledger line are written a moment apart when no arrival time was typed
+  const STOCK_LINK_WINDOW_MS = 3 * 24 * 3_600_000; // the closest delivery of the same product and quantity within three days is the one this line booked
   const STOCK_IN_NOTE_RE = /^Stock in: (\d+) ×/;
   const deleteStockDelivery = async (req: Request, res: Response, row: typeof ledgerEntries.$inferSelect) => {
     const refuse = (en: string, zh: string, idText: string) => res.status(400).json({ message: tr(req, { en, zh, id: idText }) });
@@ -7137,16 +7155,19 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const lineTime = new Date(row.createdAt ?? 0).getTime();
     const moves = qty > 0 && productId ? await db.select().from(stockMovements).where(and(eq(stockMovements.productId, productId), eq(stockMovements.reason, "stock_in"), eq(stockMovements.delta, qty))) : [];
     const move = moves.filter((m) => Math.abs(new Date(m.createdAt ?? 0).getTime() - lineTime) <= STOCK_LINK_WINDOW_MS).sort((a, b) => Math.abs(new Date(a.createdAt ?? 0).getTime() - lineTime) - Math.abs(new Date(b.createdAt ?? 0).getTime() - lineTime))[0];
-    if (!move) return refuse("Could not find the stock this delivery added, so it cannot be removed here.", "找不到此送货增加的库存，不能在此删除。", "Stok yang ditambahkan pengiriman ini tidak ditemukan, jadi tidak bisa dihapus di sini.");
+    // No movement to remove (an old line): the quantity in its note comes off as one stock-out entry instead.
+    if (!move && !(qty > 0 && productId)) return refuse("Could not find the stock this delivery added, so it cannot be removed here.", "找不到此送货增加的库存，不能在此删除。", "Stok yang ditambahkan pengiriman ini tidak ditemukan, jadi tidak bisa dihapus di sini.");
+    const removedUnits = move?.delta ?? qty;
     const [payable] = await db.select().from(supplierPayables).where(eq(supplierPayables.ledgerEntryId, row.id));
     if (payable?.status === "paid") return refuse("This delivery's bill is already marked paid, so it cannot be removed here.", "此送货的账单已标记为已付，不能在此删除。", "Tagihan pengiriman ini sudah ditandai lunas, jadi tidak bisa dihapus di sini.");
     await db.transaction(async (tx) => {
-      await tx.update(posProducts).set({ stock: sql`${posProducts.stock} - ${move.delta}` }).where(eq(posProducts.id, productId));
-      await tx.delete(stockMovements).where(eq(stockMovements.id, move.id));
+      await tx.update(posProducts).set({ stock: sql`${posProducts.stock} - ${removedUnits}` }).where(eq(posProducts.id, productId));
+      if (move) await tx.delete(stockMovements).where(eq(stockMovements.id, move.id));
+      else await tx.insert(stockMovements).values({ productId, delta: -removedUnits, reason: "adjustment", note: `Delivery removed: ${row.note ?? ""}`.slice(0, 200), userId: getUserId(req) });
       if (payable) await tx.update(supplierPayables).set({ status: "void" }).where(eq(supplierPayables.id, payable.id));
       await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
     });
-    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_stock_delivery", entityType: "accounting", oldValues: { category: row.category, amount: row.amount, note: row.note }, description: `Deleted stock delivery #${row.id}: ${row.note ?? ""} (stock −${move.delta})`.slice(0, 500) });
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_stock_delivery", entityType: "accounting", oldValues: { category: row.category, amount: row.amount, note: row.note }, description: `Deleted stock delivery #${row.id}: ${row.note ?? ""} (stock −${removedUnits})`.slice(0, 500) });
     res.json({ ok: true });
   };
   app.delete("/api/reborn/admin/accounting/ledger/:id", requireAdmin(async (req, res) => {

@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
 import { ImageUpload } from "@/components/ImageUpload";
+import { SuggestInput } from "@/components/SuggestInput";
+import { ReceiptPhotoViewer } from "@/components/ReceiptPhotoViewer";
 import { readReceipt } from "@/lib/receipt-ocr";
 import { DEFAULT_TERMS_DAYS, dueDateFrom } from "@shared/payables";
 import type { StaffSpend } from "@shared/expenseByStaff";
@@ -36,11 +38,11 @@ function categoryFromRead(kind: string, category: string, hint: string): string 
   return kind === "goods" ? STOCK_KIND : "";
 }
 
-interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { status: string; dueDate?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
-interface StockDelivery { supplier?: string; invoiceNo?: string; items?: { name: string; qty: number }[]; canEdit?: boolean; id: number; amount: string; note: string | null; createdAt: string }
+interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { id?: number; status: string; dueDate?: string | null; payMethod?: string | null; paidOn?: string | null } | null; fixedCostId?: string | null; editedByName?: string | null; editCount?: number; id: number; category: string; amount: string; spentOn: string; spentTime?: string | null; payee?: string | null; payeeAddress?: string | null; payeePhone?: string | null; invoiceNo?: string | null; items?: { name: string; qty: number; unitCost: number }[]; note?: string | null; hasPhoto: boolean; status: string; voidReason?: string | null; uploadedByName?: string | null; createdAt?: string }
+interface StockDelivery { hasPhoto?: boolean; bill?: Expense["bill"]; supplier?: string; invoiceNo?: string; items?: { name: string; qty: number }[]; canEdit?: boolean; id: number; amount: string; note: string | null; createdAt: string }
 interface ExpenseList { byStaff?: StaffSpend[]; month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
-interface Payable { id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
+interface Payable { hasPhoto?: boolean; ledgerEntryId?: number | null; id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
 interface Vendor { name: string; address: string; phone: string; category: string; items: { name: string; qty: number; unitCost: number }[] }
 let nextLineKey = 1;
 const newLine = (line: Partial<Line> = {}): Line => ({ key: nextLineKey++, name: "", qty: 1, unitCost: 0, productId: null, packSize: 1, ...line });
@@ -65,7 +67,7 @@ function PayableEditor({ bill, hideDueDate, itemNames, supplierNames, isSaving, 
   return (
     <div className="mt-2 space-y-2 rounded-lg border border-amber-400/30 bg-white/5 p-2">
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-[11px] text-white/55">{t("ex.pay.supplier")}<input list="payable-suppliers" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} onBlur={() => setForm({ ...form, supplier: sameName(form.supplier, supplierNames) ?? form.supplier })} className={field} /></label>
+        <label className="text-[11px] text-white/55">{t("ex.pay.supplier")}<SuggestInput options={supplierNames} value={form.supplier} onChange={(value) => setForm({ ...form, supplier: value })} onBlur={() => setForm((current) => ({ ...current, supplier: sameName(current.supplier, supplierNames) ?? current.supplier }))} className={field} /></label>
         <label className="text-[11px] text-white/55">{t("ex.pay.invoice")}<input value={form.invoiceNo} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} className={field} /></label>
         {!hideDueDate && <label className="text-[11px] text-white/55">{t("ex.pay.dueDay")}<input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className={field} style={{ colorScheme: "dark" }} /></label>}
         <label className="text-[11px] text-white/55">{t("ex.pay.amount")}<input type="number" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field} /></label>
@@ -75,7 +77,7 @@ function PayableEditor({ bill, hideDueDate, itemNames, supplierNames, isSaving, 
           <p className="text-[11px] text-white/55">{t("ex.pay.editItems")}</p>
           {form.items.map((item, index) => (
             <div key={index} className="flex gap-1">
-              <input list="payable-items" value={item.name} onChange={(e) => setItem(index, { name: e.target.value })} onBlur={() => setItem(index, { name: sameName(item.name, itemNames) ?? item.name })} placeholder={t("ex.pay.itemName")} className={field} />
+              <SuggestInput options={itemNames} value={item.name} onChange={(value) => setItem(index, { name: value })} onBlur={() => setItem(index, { name: sameName(item.name, itemNames) ?? item.name })} placeholder={t("ex.pay.itemName")} className={field} />
               <input type="number" min={1} value={item.qty} onChange={(e) => setItem(index, { qty: e.target.value })} className={field + " !w-20 flex-shrink-0"} aria-label={t("ex.pay.qty")} />
               <button type="button" onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })} className="min-h-[40px] flex-shrink-0 rounded-lg bg-white/10 px-3 text-red-200" aria-label={t("ex.pay.removeItem")}>✕</button>
             </div>
@@ -84,8 +86,6 @@ function PayableEditor({ bill, hideDueDate, itemNames, supplierNames, isSaving, 
           <p className="text-[10px] text-white/40">{t("ex.pay.stockNote")}</p>
         </div>
       )}
-      <datalist id="payable-suppliers">{supplierNames.map((name) => <option key={name} value={name} />)}</datalist>
-      <datalist id="payable-items">{itemNames.map((name) => <option key={name} value={name} />)}</datalist>
       <div className="flex gap-2">
         <button type="button" onClick={save} disabled={isSaving} className="min-h-[40px] rounded-lg bg-amber-400 px-4 text-xs font-bold text-black disabled:opacity-40">{t("ex.pay.save")}</button>
         <button type="button" onClick={onCancel} className="min-h-[40px] rounded-lg bg-white/10 px-4 text-xs">{t("ex.cancelEdit")}</button>
@@ -226,6 +226,15 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
     const r = await apiRequest("GET", `/api/reborn/expenses/${id}/photo`);
     setPhoto({ id, url: (await r.json()).photoUrl });
   };
+  // A stock delivery or the bill behind an unpaid payable: its receipt photo is on the ledger line.
+  const showLedgerPhoto = async (ledgerId: number) => {
+    setPhoto({ id: ledgerId, url: null });
+    const r = await apiRequest("GET", `/api/reborn/expenses/ledger/${ledgerId}/photo`);
+    setPhoto({ id: ledgerId, url: (await r.json()).photoUrl });
+  };
+  const [payFilter, setPayFilter] = useState<"all" | "paid" | "unpaid">("all");
+  const isUnpaid = (bill?: Expense["bill"]) => bill?.status === "unpaid";
+  const matchesPayFilter = (row: { status?: string; bill?: Expense["bill"] }) => payFilter === "all" || (payFilter === "unpaid" ? isUnpaid(row.bill) : row.status !== "voided" && !isUnpaid(row.bill));
   const { data: reader } = useQuery<{ ai: boolean }>({ queryKey: ["/api/reborn/admin/inventory/receipt/ready"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory/receipt/ready").then((r) => r.json()) });
   const { data: vendorList } = useQuery<{ vendors: Vendor[] }>({ queryKey: ["/api/reborn/expenses/vendors"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/vendors").then((r) => r.json()) });
   const knownItemNames = inventoryByName.map((product) => String(product.name));
@@ -319,7 +328,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           <label className="block text-xs text-white/60">{t("ex.amount")}<input type="number" inputMode="numeric" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={field + " mt-1" + ring(form.amount)} /></label>
           <label className="block text-xs text-white/60">{t("ex.date")}<input type="date" max={todayText()} value={form.spentOn} onChange={(e) => setForm({ ...form, spentOn: e.target.value })} className={field + " mt-1"} /></label>
           <label className="block text-xs text-white/60">{t("ex.time")}<input type="time" value={form.spentTime} onChange={(e) => setForm({ ...form, spentTime: e.target.value })} className={field + " mt-1"} /></label>
-          <label className="block text-xs text-white/60">{t("ex.payee")}<input list="expense-vendors" value={form.payee} onChange={(e) => setPayee(e.target.value)} onBlur={() => { const same = knownSupplierNames.find((name) => name.toLowerCase() === form.payee.trim().toLowerCase()); if (same && same !== form.payee) setPayee(same); }} className={field + " mt-1" + ring(form.payee)} /><datalist id="expense-vendors">{knownSupplierNames.map((name) => <option key={name} value={name} />)}</datalist></label>
+          <label className="block text-xs text-white/60">{t("ex.payee")}<SuggestInput options={knownSupplierNames} value={form.payee} onChange={setPayee} onBlur={() => { const same = knownSupplierNames.find((name) => name.toLowerCase() === form.payee.trim().toLowerCase()); if (same && same !== form.payee) setPayee(same); }} className={field + " mt-1" + ring(form.payee)} /></label>
           <label className="block text-xs text-white/60">{t("ex.phone")}<input type="tel" value={form.payeePhone} onChange={(e) => setForm({ ...form, payeePhone: e.target.value })} className={field + " mt-1" + ring(form.payeePhone)} /></label>
           <label className="block text-xs text-white/60" style={{ gridColumn: "1 / -1" }}>{t("ex.address")}<input value={form.payeeAddress} onChange={(e) => setForm({ ...form, payeeAddress: e.target.value })} className={field + " mt-1" + ring(form.payeeAddress)} /></label>
           <label className="block text-xs text-white/60">{t("ex.invoice")}<input value={form.invoiceNo} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} className={field + " mt-1"} /></label>
@@ -350,7 +359,6 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           {isStock && editingId && <p className="text-[11px] font-semibold text-amber-200">{t("ex.moveNote")}</p>}
           {isStock && <p className="text-[11px] text-emerald-300">{t("ex.stockNote")}</p>}
           {isStock && lines.length > 0 && <p className="text-[11px] font-semibold text-white/70">{t("ex.stockSummary", { a: String(stockLines.filter((l) => l.productId).length), b: String(stockLines.filter((l) => !l.productId).length) })}</p>}
-          {isStock && <datalist id="expense-item-names">{knownItemNames.map((name) => <option key={name} value={name} />)}</datalist>}
           {isStock && lines.map((line) => (
             <div key={line.key} className="space-y-1.5 rounded-xl border border-white/10 bg-black/20 p-2">
               <div className="flex items-center gap-1.5">
@@ -361,7 +369,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 <button type="button" onClick={() => setLines(lines.filter((l) => l.key !== line.key))} aria-label={t("ex.removeLine")} className="w-9 h-9 shrink-0 rounded-lg bg-white/10 inline-flex items-center justify-center p-0"><X className="w-4 h-4" /></button>
               </div>
               <p className={`text-[11px] font-bold ${line.productId ? "text-emerald-300" : "text-amber-300"}`}>{line.productId ? `✓ ${t("ex.inInventory")}` : `＋ ${t("ex.newItemBadge")}`}</p>
-              {!line.productId && <input list="expense-item-names" value={line.name} onChange={(e) => setNewLineName(line.key, e.target.value)} placeholder={t("admin.rcpt.newName")} aria-label={t("admin.rcpt.newName")} className={field} />}
+              {!line.productId && <SuggestInput options={knownItemNames} value={line.name} onChange={(value) => setNewLineName(line.key, value)} placeholder={t("admin.rcpt.newName")} ariaLabel={t("admin.rcpt.newName")} className={field} />}
               {line.productId && line.name && <p className="truncate text-[11px] text-white/40">{t("admin.rcpt.onReceipt", { name: line.name })}</p>}
               <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
                 <label className="text-[10px] text-white/50">{t("ex.qty")}<input type="number" inputMode="decimal" min={1} value={line.qty} onChange={(e) => setLine(line.key, { qty: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} className={field + " mt-0.5"} /></label>
@@ -403,6 +411,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 <span className="flex items-baseline justify-between gap-2"><span className="font-semibold">{p.supplier || "—"}{p.invoiceNo ? ` · ${p.invoiceNo}` : ""}</span><span className="font-black text-amber-200">{money(Number(p.amount))}</span></span>
                 <span className={`mt-0.5 block ${p.isOverdue ? "text-red-300" : "text-white/50"}`}>{p.dueDate ? t("ex.dueOn", { d: p.dueDate }) : t("ex.noDue")}{p.isOverdue ? ` · ${t("ex.overdue")}` : ""}{p.createdByName ? ` · ${t("ex.by", { name: p.createdByName })}` : ""}{` · ${isOpen ? "▲" : "▼"} ${t("ex.pay.items", { n: String(p.items.length) })}`}</span>
               </button>
+              <div className="mt-1 text-xs">{p.hasPhoto && p.ledgerEntryId ? <button type="button" onClick={() => showLedgerPhoto(p.ledgerEntryId!)} className="min-h-0 p-0 text-amber-300 underline">{t("ex.viewPhoto")}</button> : <span className="text-white/30">{t("ex.noPhoto")}</span>}</div>
               {others.length > 0 && <p className="mt-1 inline-block rounded-full bg-red-400/20 px-2 py-0.5 text-[11px] font-bold text-red-200">{t("ex.pay.dup", { n: String(twins.length) })}</p>}
               {isOpen && (
                 <div className="mt-1 space-y-0.5 rounded-lg bg-white/5 p-2">
@@ -466,9 +475,20 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
             })}
           </div>
         )}
+        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={t("ex.filterPaid")}>
+          {(["all", "paid", "unpaid"] as const).map((value) => <button key={value} type="button" aria-pressed={payFilter === value} onClick={() => setPayFilter(value)} className={`min-h-[40px] rounded-full border px-3 text-xs font-bold ${payFilter === value ? "border-amber-400 bg-amber-400 text-black" : "border-white/20 bg-white/5 text-white/70"}`}>{t(`ex.filter.${value}`)}</button>)}
+        </div>
         <div className="mt-3 space-y-2">
           {(() => {
-            const renderRow = (row: Expense) => (
+            const payStatus = (bill: Expense["bill"], fallbackMethod?: string | null) => (
+              <p className="mt-0.5 flex flex-wrap items-center gap-2">
+                {isUnpaid(bill)
+                  ? <span className="rounded-full bg-red-400/20 px-2 py-0.5 font-bold text-red-200">{t("ex.notPaidChip")}{bill?.dueDate ? ` · ${t("ex.dueOn", { d: bill.dueDate })}` : ""}</span>
+                  : <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 font-bold text-emerald-200">{t("ex.paid")}{(bill?.payMethod || fallbackMethod) ? ` (${t(`ex.pm.${bill?.payMethod || fallbackMethod}`)})` : ""}</span>}
+                {payables?.canPay && isUnpaid(bill) && bill?.id && ["cash", "card", "transfer"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: bill.id!, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-3 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}
+              </p>
+            );
+            const renderRow = (row: Expense) => !matchesPayFilter(row) ? null : (
               <Fragment key={row.id}>
             <div key={row.id} className={`rounded-xl border p-3 text-xs ${row.status === "voided" ? "border-white/10 opacity-50" : "border-white/10 bg-black/20"}`}>
               <div className="flex items-baseline justify-between gap-2">
@@ -478,6 +498,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               <p className="mt-0.5 text-white/50">{row.spentOn}{row.spentTime ? ` ${row.spentTime}` : ""}{row.payMethod ? ` · ${t(`ex.pm.${row.payMethod}`)}` : ""}{row.uploadedByName ? ` · ${t("ex.by", { name: row.uploadedByName })}` : ""}{row.note ? ` · ${row.note}` : ""}{row.editCount ? ` · ${t("ex.editedBy", { name: row.editedByName || "" })}` : ""}</p>
               {(row.payeePhone || row.payeeAddress || row.invoiceNo) && <p className="mt-0.5 text-white/40">{[row.invoiceNo, row.payeePhone, row.payeeAddress].filter(Boolean).join(" · ")}</p>}
               {(row.items || []).length > 0 && <p className="mt-0.5 text-white/40">{(row.items || []).map((it) => `${it.qty} × ${it.name} ${money(it.unitCost)}`).join(" · ")}</p>}
+              {row.status !== "voided" && payStatus(row.bill ?? null, row.payMethod)}
               {row.status === "voided" && <p className="mt-0.5 text-red-300">{t("ex.voided", { reason: row.voidReason || "" })}</p>}
               <div className="mt-1 flex gap-3">
                 {row.hasPhoto ? <button type="button" onClick={() => showPhoto(row.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ex.viewPhoto")}</button> : <span className="text-white/30">{t("ex.noPhoto")}</span>}
@@ -494,11 +515,13 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               {(data?.recent || []).length > 0 && <p className="pt-2 text-[11px] font-bold text-sky-200">{t("ex.recentTitle")}</p>}
               {(data?.recent || []).map(renderRow)}
               {(data?.stockDeliveries || []).length > 0 && <p className="pt-2 text-[11px] font-bold text-emerald-200">{t("ex.stockTitle")}</p>}
-              {(data?.stockDeliveries || []).map((delivery) => (
+              {(data?.stockDeliveries || []).filter((delivery) => matchesPayFilter(delivery)).map((delivery) => (
                 <div key={delivery.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
                   <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{t("ex.cat.stock")}{delivery.supplier ? ` · ${delivery.supplier}` : ""}</span><span className="font-black text-amber-200">{money(Number(delivery.amount))}</span></div>
                   <p className="mt-0.5 text-white/50">{delivery.createdAt ? new Date(delivery.createdAt).toLocaleString() : ""}</p>
                   <p className="mt-0.5 text-white/40">{delivery.note}</p>
+                  {payStatus(delivery.bill ?? null)}
+                  <div className="mt-1">{delivery.hasPhoto ? <button type="button" onClick={() => showLedgerPhoto(delivery.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ex.viewPhoto")}</button> : <span className="text-white/30">{t("ex.noPhoto")}</span>}</div>
                   {delivery.canEdit && (
                     <div className="mt-1.5 flex gap-4">
                       <button type="button" onClick={() => setEditingReceipt(delivery.id)} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>
@@ -527,13 +550,9 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
           </div>
         </Popup>
       )}
-      {photo && (
-        <Popup onClose={() => setPhoto(null)} labelledBy="photo-title" wide>
-          <p id="photo-title" className="sr-only">{t("ex.photo")}</p>
-          {photo.url ? <img src={photo.url} alt={t("ex.photo")} className="max-h-[75vh] w-full object-contain rounded-lg" /> : <p className="text-xs text-white/50">…</p>}
-          <button type="button" onClick={() => setPhoto(null)} className="mt-3 min-h-[44px] px-4 rounded-lg bg-white/10 text-sm">{t("ex.close")}</button>
-        </Popup>
-      )}
+      {photo && (photo.url
+        ? <ReceiptPhotoViewer src={photo.url} name={t("ex.photo")} onClose={() => setPhoto(null)} />
+        : <Popup onClose={() => setPhoto(null)} labelledBy="photo-title" wide><p id="photo-title" className="sr-only">{t("ex.photo")}</p><p className="text-xs text-white/50">…</p></Popup>)}
     </div>
   );
 }

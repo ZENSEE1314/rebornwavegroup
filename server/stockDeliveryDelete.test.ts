@@ -8,7 +8,11 @@ const remove = server.slice(server.indexOf("const deleteStockDelivery"), server.
 
 describe("deleting a stock delivery in Accounting", () => {
   it("should take the units off the shelf and remove the delivery from the costing history", () => {
-    assert.ok(remove.includes("${posProducts.stock} - ${move.delta}") && remove.includes("tx.delete(stockMovements)"));
+    assert.ok(remove.includes("${posProducts.stock} - ${removedUnits}") && remove.includes("tx.delete(stockMovements)"));
+  });
+
+  it("should still remove a delivery whose stock movement is gone, as one stock-out entry", () => {
+    assert.ok(remove.includes("!move && !(qty > 0 && productId)") && remove.includes('reason: "adjustment", note: `Delivery removed:'));
   });
 
   it("should take the units off even when the stock is empty, so the count can go below 0", () => {
