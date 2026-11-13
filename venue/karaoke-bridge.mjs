@@ -90,7 +90,19 @@ export function exactSong(results, title, artist) {
 // A song of the kept list with its title and singer already simplified for searching.
 // "Hebe(田馥甄)" is the singer 田馥甄 in the singers list: the name inside the brackets is the key when there is one.
 const singerKey = (token) => { const m = /^(.*?)[(（]([^)）]+)[)）]\s*$/.exec(token); return m ? m[2].trim() : token; };
-function indexSong(song) { const names = singerNames(song.sINGER); return { ...song, pt: plain(song.sONGNAME), ps: plain(song.sINGER), names, keys: names.map(singerKey) }; }
+// The first letter of each word: "Xiao Xing Yun" -> "xxy", what a karaoke system's initials search types (the pinyin initials of a Chinese title).
+export function initialsOf(words) { return String(words || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map((word) => word[0]).join(""); }
+// The title's initials: the box writes the title's pinyin before the double space of the singer field; an English title uses its own words.
+function titleInitials(song) {
+  const parts = String(song.sINGER || "").split(/\s{2,}/);
+  if (parts.length > 1) return initialsOf(parts[0]);
+  return hasChinese(song.sONGNAME) ? "" : initialsOf(String(song.sONGNAME || "").replace(/\([^)]*\)/g, " "));
+}
+function indexSong(song) {
+  const names = singerNames(song.sINGER);
+  const keys = names.map(singerKey);
+  return { ...song, pt: plain(song.sONGNAME), ps: plain(song.sINGER), pi: titleInitials(song), si: keys.filter((key) => !hasChinese(key)).map(initialsOf), names, keys };
+}
 
 export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchImpl = fetch, log = console.log, now = () => Date.now(), catalog: givenCatalog = null, catalogFile = CATALOG_FILE, singers: givenSingers = null, singersFile = SINGERS_FILE, showCloud = true }) {
   const box = boxUrl.replace(/\/+$/, "");
@@ -114,6 +126,8 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     const counts = new Map();
     for (const song of catalog) for (const key of song.keys) counts.set(key, (counts.get(key) || 0) + 1);
     for (const x of singers) x.songs = counts.get(x.name) || 0;
+    const singerInitials = new Map(singers.filter((x) => x.pinyin).map((x) => [x.name, initialsOf(x.pinyin)]));
+    for (const song of catalog) song.si = song.keys.map((key) => singerInitials.get(key) || (hasChinese(key) ? "" : initialsOf(key))).filter(Boolean);
     popular = singers.filter((x) => x.songs > 0).sort((a, b) => b.songs - a.songs || a.name.localeCompare(b.name));
   };
   buildSingerIndex();
@@ -156,16 +170,21 @@ export function createBridge({ cloudUrl, token, boxUrl, tenantSlug = "", fetchIm
     return all;
   };
   // Songs of the kept list whose title or singer (the box writes the title's pinyin into the singer field) contain the text: best matches first.
+  // Letters only (two or more) also match the first letters of the title's pinyin words ("wbng" = 我不难过) or of the singer's name ("zjl" = 周杰伦), like a karaoke system.
   const searchLocal = (text) => {
     const want = plain(text);
     if (!want || !catalog) return [];
+    const isInitials = /^[a-z]{2,}$/.test(want);
     const scored = [];
     for (const song of catalog) {
       if (!showCloud && song.cLOUD) continue;
       const inTitle = song.pt.indexOf(want);
       const inSinger = song.ps.indexOf(want);
-      if (inTitle < 0 && inSinger < 0) continue;
-      scored.push({ song, score: song.pt === want ? 0 : inTitle === 0 ? 1 : inTitle > 0 ? 2 : 3 });
+      const isTitleInitials = isInitials && song.pi.startsWith(want);
+      const isSingerInitials = isInitials && (song.si || []).some((letters) => letters.startsWith(want));
+      if (inTitle < 0 && inSinger < 0 && !isTitleInitials && !isSingerInitials) continue;
+      const wordScore = inTitle < 0 && inSinger < 0 ? Infinity : song.pt === want ? 0 : inTitle === 0 ? 1 : inTitle > 0 ? 2 : 3;
+      scored.push({ song, score: Math.min(wordScore, isTitleInitials ? (song.pi === want ? 1.5 : 2.5) : Infinity, isSingerInitials ? 3.5 : Infinity) });
     }
     return scored.sort((a, b) => a.score - b.score || Number(a.song.cLOUD) - Number(b.song.cLOUD)).slice(0, LOCAL_RESULT_LIMIT).map((x) => x.song);
   };

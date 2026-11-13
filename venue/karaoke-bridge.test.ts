@@ -183,6 +183,23 @@ describe("the box's song list kept by the bridge", () => {
   it("should find a song by the pinyin the box writes beside the singer", () => {
     assert.deepEqual(bridge().searchLocal("xing yun").map((x: any) => x.sONGBM), ["1", "2"]);
   });
+  it("should find a Chinese song by the first letters of its pinyin words", () => {
+    assert.deepEqual(bridge().searchLocal("xxy").map((x: any) => x.sONGBM), ["1"]);
+  });
+  it("should find several songs that start with the same letters, the shorter title first", () => {
+    assert.deepEqual(bridge().searchLocal("xy").map((x: any) => x.sONGBM), ["2"]);
+  });
+  it("should find an English song by the first letters of its words", () => {
+    assert.deepEqual(bridge().searchLocal("lm").map((x: any) => x.sONGBM), ["3"]);
+  });
+  it("should find a singer's songs by the first letters of the singer's pinyin", () => {
+    const singers = [{ name: "田馥甄", pinyin: "Tian Fu Zhen", picture: "", qt_name: "Hebe" }];
+    const b = createBridge({ cloudUrl: "https://c.test", token: "t", boxUrl: "http://box/demo", catalog: list, singers, log: () => {} });
+    assert.deepEqual(b.searchLocal("tfz").map((x: any) => x.sONGBM), ["1"]);
+  });
+  it("should not treat a single letter as initials", () => {
+    assert.deepEqual(bridge().searchLocal("x").map((x: any) => x.sONGBM).sort(), ["1", "2"]);
+  });
   it("should answer a member's search from its own list without asking the box", async () => {
     const posted: any[] = [];
     const fetchImpl = async (url: string, init?: any) => {

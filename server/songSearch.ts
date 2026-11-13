@@ -1,4 +1,4 @@
-import { desc, ilike, or } from "drizzle-orm";
+import { desc, ilike, or, sql } from "drizzle-orm";
 import { pinyin } from "pinyin-pro";
 import { db } from "./db";
 import { songs } from "@shared/schema";
@@ -169,11 +169,14 @@ export async function searchSongCatalog(rawQuery: unknown, limit = 10, localLimi
   const query = String(rawQuery || "").trim().slice(0, 120);
   if (!query) return { songs: [], spotifyConnected: spotifySearchConfigured(), freeCatalogConnected: true };
   const pattern = `%${query.replace(/[\\%_]/g, "\\$&")}%`;
+  // Letters only: also the first letters of each pinyin word ("wbng" = 我不难过, "zjl" = 周杰伦), like a karaoke system.
+  const initialsPattern = /^[a-z]{2,}$/i.test(query) ? `${query.toLowerCase()}%` : "";
   const local = await db.select().from(songs).where(or(
     ilike(songs.title, pattern),
     ilike(songs.titlePinyin, pattern),
     ilike(songs.artist, pattern),
     ilike(songs.artistPinyin, pattern),
+    ...(initialsPattern ? [sql`regexp_replace(${songs.titlePinyin}, '(\\w)\\w*\\s*', '\\1', 'g') ilike ${initialsPattern}`, sql`regexp_replace(${songs.artistPinyin}, '(\\w)\\w*\\s*', '\\1', 'g') ilike ${initialsPattern}`] : []),
   )).orderBy(desc(songs.isHit), desc(songs.requestCount), songs.title).limit(localLimit);
 
   let remote: SongSuggestion[] = [];
