@@ -1070,7 +1070,14 @@ export async function remindServiceCalls() {
 const ORDER_REMIND_MS = 45_000;
 const ORDER_MAX_ALERTS = 20;
 const orderAlerts = new Map<string, { at: number; count: number }>();
+const ORDER_ALERT_RESET_FLAG = "appOrdersAutoAcceptOffForAlert";
+// The saved "go straight to the kitchen" choice is switched off once per company, so the new alert works for venues that had saved it ON; the admin can tick it again in Settings.
+async function switchOffAutoAcceptOnce() {
+  if (!(await claimFlag(ORDER_ALERT_RESET_FLAG))) return;
+  await db.insert(appSettings).values({ key: "appOrdersAutoAccept", value: "false", updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: "false", updatedAt: new Date() } });
+}
 export async function remindPendingOrders() {
+  await switchOffAutoAcceptOnce();
   const space = homeCompanySlug();
   const rows = ((await db.execute(sql`SELECT t.id, t.order_no, t.table_number, t.member_name, MIN(COALESCE(i.added_at, t.created_at)) AS since FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
     WHERE t.status = 'open' AND i.status = 'pending' AND t.source = 'app' GROUP BY t.id, t.order_no, t.table_number, t.member_name`)) as any).rows ?? [];

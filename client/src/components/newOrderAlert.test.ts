@@ -30,4 +30,8 @@ describe("new order alert for staff and admins", () => {
   it("should not send orders to the kitchen on their own by default", () => {
     assert.ok(server.includes('appOrdersAutoAccept: "false"'));
   });
+
+  it("should switch a saved straight-to-kitchen choice off once so the alert works", () => {
+    assert.ok(server.includes("claimFlag(ORDER_ALERT_RESET_FLAG)") && server.includes('key: "appOrdersAutoAccept", value: "false"'));
+  });
 });
