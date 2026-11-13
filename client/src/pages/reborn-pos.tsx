@@ -1332,7 +1332,7 @@ function BottlesTab() {
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   const collect = useMutation({
-    mutationFn: (id: number) => post(`/api/reborn/pos/bottle-keeps/${id}/collect`, {}),
+    mutationFn: (v: { id: number; quantity: number }) => post(`/api/reborn/pos/bottle-keeps/${v.id}/collect`, { quantity: v.quantity }),
     onSuccess: (d) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
@@ -1395,7 +1395,10 @@ function BottlesTab() {
                 <p className="text-xs text-white/50 truncate">{b.memberName} · {tOr(t, `pos.bottleType.${b.type}`, b.type)}</p>
                 <p className={`text-[11px] ${b.daysLeft <= 5 ? "text-amber-300" : "text-white/40"}`}>{t("pos.daysLeft", { n: b.daysLeft })}</p>
               </div>
-              <button onClick={() => collect.mutate(b.id)} disabled={collect.isPending} className="px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-sm font-semibold flex-shrink-0">{t("pos.collect")}</button>
+              <div className="flex flex-shrink-0 flex-col gap-1">
+                <button onClick={() => collect.mutate({ id: b.id, quantity: 1 })} disabled={collect.isPending} className="px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-sm font-semibold">{t("pos.collect")}</button>
+                {b.quantity > 1 && <button onClick={() => collect.mutate({ id: b.id, quantity: b.quantity })} disabled={collect.isPending} className="px-3 py-2 rounded-xl bg-emerald-500 text-black text-sm font-bold">{t("pos.collectAll", { n: b.quantity })}</button>}
+              </div>
             </div>
           ))}
         </div>

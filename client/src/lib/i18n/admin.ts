@@ -1832,6 +1832,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.bot.exp': { en: "exp {d}", zh: "到期 {d}", id: "kedaluwarsa {d}" },
   'admin.bot.confirm': { en: "Redeem {name} for {member}?", zh: "为 {member} 兑换 {name}？", id: "Tukarkan {name} untuk {member}?" },
   'admin.bot.customer': { en: "customer", zh: "顾客", id: "pelanggan" },
+  'admin.bot.redeemAll': { en: "Redeem all {n}", zh: "全部兑换（{n}）", id: "Tukar semua {n}" },
   'admin.bot.redeem': { en: "Redeem", zh: "兑换", id: "Tukar" },
   'admin.bot.empty': { en: "No bottles kept right now.", zh: "目前没有寄存的酒。", id: "Tidak ada botol yang disimpan saat ini." },
   'admin.bk.bookFor': { en: "Book for a member", zh: "为会员预订", id: "Pesan untuk anggota" },

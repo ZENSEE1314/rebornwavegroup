@@ -3300,7 +3300,7 @@ function AdminBottles() {
   const [q, setQ] = useState("");
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/bottle-keeps", q], queryFn: () => apiRequest("GET", `/api/reborn/pos/bottle-keeps${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()) });
   const collect = useMutation({
-    mutationFn: (id: number) => apiRequest("POST", `/api/reborn/pos/bottle-keeps/${id}/collect`, {}).then((r) => r.json()),
+    mutationFn: (v: { id: number; quantity: number }) => apiRequest("POST", `/api/reborn/pos/bottle-keeps/${v.id}/collect`, { quantity: v.quantity }).then((r) => r.json()),
     onSuccess: (d: any) => { toast({ title: d.message || t("admin.bot.redeemed") }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
@@ -3318,7 +3318,8 @@ function AdminBottles() {
             <p className="mt-0.5"><span className="inline-block rounded-md bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-200">{t("admin.bot.left", { n: b.quantity })}</span></p>
             <p className="text-[11px] text-white/40 break-words">{b.memberName || "—"}{b.memberCode ? ` · ${b.memberCode}` : ""}{b.expiresAt ? ` · ${t("admin.bot.exp", { d: new Date(b.expiresAt).toLocaleDateString(localeTag()) })}` : ""}</p>
           </div>
-          <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate(b.id); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeem")}</button>
+          <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate({ id: b.id, quantity: 1 }); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeem")}</button>
+          {b.quantity > 1 && <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate({ id: b.id, quantity: b.quantity }); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeemAll", { n: b.quantity })}</button>}
           <EditKeptBottle bottle={b} />
         </div>
       ))}

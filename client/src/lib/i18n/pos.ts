@@ -442,6 +442,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.keepBottleBtn': { en: 'Keep bottle (30 days)', zh: '存酒（30 天）', id: 'Simpan botol (30 hari)' },
   'pos.searchKept': { en: 'Search kept bottles by member or name', zh: '按会员或酒名搜索存酒', id: 'Cari botol simpanan berdasarkan member atau nama' },
   'pos.daysLeft': { en: '{n} day(s) left', zh: '剩余 {n} 天', id: 'Sisa {n} hari' },
+  'pos.collectAll': { en: 'Collect all {n}', zh: '全部取走（{n}）', id: 'Ambil semua {n}' },
   'pos.collect': { en: 'Collect', zh: '取酒', id: 'Ambil' },
   'pos.noBottles': { en: 'No bottles in keep.', zh: '暂无存酒。', id: 'Tidak ada botol yang disimpan.' },
 
