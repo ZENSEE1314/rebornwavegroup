@@ -12,7 +12,7 @@ describe("new order alert for staff and admins", () => {
   });
 
   it("should keep ringing while an order is waiting", () => {
-    assert.ok(alert.includes("const isRinging = isStaff && orders.length > 0;") && alert.includes("setInterval(ring, RING_EVERY_MS)"));
+    assert.ok(alert.includes("const isRinging = isStaff && (orders.length > 0 || staffOrders.length > 0);") && alert.includes("setInterval(ring, RING_EVERY_MS)"));
   });
 
   it("should accept every item of the order with one tap", () => {
@@ -33,5 +33,17 @@ describe("new order alert for staff and admins", () => {
 
   it("should switch a saved straight-to-kitchen choice off once so the alert works", () => {
     assert.ok(server.includes("claimFlag(ORDER_ALERT_RESET_FLAG)") && server.includes('key: "appOrdersAutoAccept", value: "false"'));
+  });
+
+  it("should also ring for an order a colleague entered, but not for the person who entered it", () => {
+    assert.ok(alert.includes("staffOrders.length > 0") && server.includes("alert.byId !== me") && server.includes("}), alert.byId);"));
+  });
+
+  it("should announce a table order entered in the POS and one sent through the app by staff", () => {
+    assert.ok(server.includes("void announceStaffOrder(o, getUserId(req)!, clean!)") && server.includes("void announceStaffOrder(order, userId, clean!)"));
+  });
+
+  it("should push the colleague order again every 45 seconds until someone accepts", () => {
+    assert.ok(server.includes("async function remindStaffOrders()") && server.includes("await remindStaffOrders()"));
   });
 });

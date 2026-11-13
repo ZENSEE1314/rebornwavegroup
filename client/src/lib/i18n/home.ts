@@ -13,6 +13,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.svc.table': { en: '🔔 Table {t} is calling for service', zh: '🔔 {t} 桌呼叫服务', id: '🔔 Meja {t} memanggil layanan' },
   'hm.order.title': { en: '🛎️ New order · Table {t}', zh: '🛎️ 新订单 · {t} 桌', id: '🛎️ Pesanan baru · Meja {t}' },
   'hm.order.member': { en: 'Member', zh: '会员', id: 'Member' },
+  'hm.order.by': { en: 'entered by {n}', zh: '{n} 下的单', id: 'dipesan oleh {n}' },
   'hm.order.accept': { en: 'Accept', zh: '接单', id: 'Terima' },
   'hm.ready.title': { en: '🍽️ Ready to collect', zh: '🍽️ 可以取餐', id: '🍽️ Siap diambil' },
   'hm.ready.table': { en: 'Table {t}', zh: '{t} 桌', id: 'Meja {t}' },

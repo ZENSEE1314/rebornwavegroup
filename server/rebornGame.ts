@@ -272,8 +272,8 @@ async function notifyAllI18n(type: string, text: LangText, data?: Record<string,
   emitCompanyChange(company.id, String(data?.path || "notifications"));
 }
 // Same recipients as sendPushToAdmins (staff + admins), each in their own language.
-export async function pushAdminsI18n(make: (lang: Lang) => PushPayload) {
-  const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ["staff", "admin"]));
+export async function pushAdminsI18n(make: (lang: Lang) => PushPayload, exceptUserId?: string) {
+  const admins = (await db.select({ id: users.id }).from(users).where(inArray(users.role, ["staff", "admin"]))).filter((person) => person.id !== exceptUserId);
   let sent = 0;
   for (const [lang, ids] of Array.from(await idsByLang(admins.map((a) => a.id)))) sent += await sendPushToUsers(ids, make(lang));
   return sent;
@@ -1066,6 +1066,50 @@ export async function remindServiceCalls() {
     await alertServiceCall(call).catch((error) => console.error("[service call] reminder", error));
   }
 }
+// An order a staff member or admin entered (a table's bill in the POS, or the app for a guest) is announced to everyone else on the team until one of them taps Accept.
+const ORDER_ALERTS_KEY = "orderAlerts";
+const ORDER_ALERT_SHOWN_MS = 30 * 60_000;
+interface StaffOrderAlert { id: string; ticketId: number; orderNo: string; table: string; byId: string; byName: string; lines: string[]; at: number; alertedAt: number; alerts: number; acceptedBy?: { id: string; name: string } }
+async function openOrderAlerts(): Promise<StaffOrderAlert[]> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, ORDER_ALERTS_KEY));
+  try {
+    const list = JSON.parse(row?.value || "[]");
+    return Array.isArray(list) ? list.filter((alert: StaffOrderAlert) => Date.now() - Number(alert.at) < ORDER_ALERT_SHOWN_MS) : [];
+  } catch { return []; }
+}
+const orderAlertLocks = new Map<string, Promise<unknown>>();
+// One change at a time per company, so two staff tapping together cannot overwrite each other.
+async function changeOrderAlerts<T>(change: (alerts: StaffOrderAlert[]) => { alerts: StaffOrderAlert[]; result: T }): Promise<T> {
+  const space = homeCompanySlug();
+  const run = (orderAlertLocks.get(space) ?? Promise.resolve()).catch(() => {}).then(async () => {
+    const { alerts, result } = change(await openOrderAlerts());
+    const value = JSON.stringify(alerts);
+    await db.insert(appSettings).values({ key: ORDER_ALERTS_KEY, value, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+    emitLiveUpdate("/api/reborn/pos/order-alerts", { action: "ORDER_ALERTS" });
+    return result;
+  });
+  orderAlertLocks.set(space, run);
+  return run;
+}
+async function pushStaffOrderAlert(alert: StaffOrderAlert) {
+  await pushAdminsI18n((lang) => ({
+    title: pick(lang, { en: "🛎️ New order · Table {t}", zh: "🛎️ 新订单 · {t} 桌", id: "🛎️ Pesanan baru · Meja {t}" }, { t: alert.table || "-" }),
+    body: pick(lang, { en: "{n} entered: {items}. Tap Accept.", zh: "{n} 已下单：{items}。请点接单。", id: "{n} memesan: {items}. Ketuk Terima." }, { n: alert.byName, items: alert.lines.join(", ") }),
+    url: "/pos", tag: `staff-order-${alert.id}`, urgent: true,
+  }), alert.byId);
+}
+async function announceStaffOrder(ticket: { id: number; orderNo: string; tableNumber: string | null }, byId: string, lines: { qty: number; name: string }[]) {
+  const alert: StaffOrderAlert = { id: `${ticket.id}-${Date.now().toString(36)}`, ticketId: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber || "", byId, byName: await personName(byId), lines: lines.map((line) => `${line.qty}× ${line.name}`), at: Date.now(), alertedAt: Date.now(), alerts: 1 };
+  await changeOrderAlerts((alerts) => ({ alerts: [...alerts, alert], result: null }));
+  await pushStaffOrderAlert(alert);
+}
+async function remindStaffOrders() {
+  const due = (await openOrderAlerts()).filter((alert) => !alert.acceptedBy && alert.alerts < ORDER_MAX_ALERTS && Date.now() - alert.alertedAt >= ORDER_REMIND_MS);
+  for (const alert of due) {
+    await changeOrderAlerts((alerts) => ({ alerts: alerts.map((a) => a.id === alert.id && !a.acceptedBy ? { ...a, alertedAt: Date.now(), alerts: a.alerts + 1 } : a), result: null }));
+    await pushStaffOrderAlert(alert).catch((error) => console.error("[order alert] reminder", error));
+  }
+}
 // A member's order nobody has accepted yet is announced again, like a service call: every staff member and admin, until someone accepts (or rejects) every item.
 const ORDER_REMIND_MS = 45_000;
 const ORDER_MAX_ALERTS = 20;
@@ -1078,6 +1122,7 @@ async function switchOffAutoAcceptOnce() {
 }
 export async function remindPendingOrders() {
   await switchOffAutoAcceptOnce();
+  await remindStaffOrders().catch((error) => console.error("[order alert] reminder", error));
   const space = homeCompanySlug();
   const rows = ((await db.execute(sql`SELECT t.id, t.order_no, t.table_number, t.member_name, MIN(COALESCE(i.added_at, t.created_at)) AS since FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
     WHERE t.status = 'open' AND i.status = 'pending' AND t.source = 'app' GROUP BY t.id, t.order_no, t.table_number, t.member_name`)) as any).rows ?? [];
@@ -4691,6 +4736,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       if (!clean!.length) return { status: 400, body: { message: tr(req, { en: "No items", zh: "没有商品", id: "Tidak ada item" }) } };
       const total = await appendItems(id, o.orderNo, clean!, getUserId(req)!);
       await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "add_items", entityType: "order", description: `Table ${o.tableNumber || "-"} (${o.orderNo}): ordered ${clean!.map((x: any) => `${x.qty}× ${x.name}`).join(", ")}` });
+      void announceStaffOrder(o, getUserId(req)!, clean!).catch((error) => console.warn("order alert failed", error));
       return { status: 200, body: { message: tr(req, { en: "Added to ticket", zh: "已加入账单", id: "Ditambahkan ke tagihan" }), total } };
     };
     // The POS sends the same key again when its connection dropped mid-request: the items are added once, the retry gets the same answer.
@@ -4815,7 +4861,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const autoAccept = (await getSettings()).appOrdersAutoAccept;
     await appendItems(order.id, order.orderNo, clean!, userId, byStaff || autoAccept ? "accepted" : "pending", byStaff ? "pos" : "app"); // with auto-accept off the counter must accept a guest's own order
     emitLiveUpdate("/api/reborn/pos/orders", { action: "NEW_ORDER", resource: String(order.id) });
-    if (byStaff) return res.json({ message: tr(req, { en: "Order added to the table's bill.", zh: "已加入该桌的账单。", id: "Pesanan ditambahkan ke tagihan meja." }), order });
+    if (byStaff) {
+      void announceStaffOrder(order, userId, clean!).catch((error) => console.warn("order alert failed", error));
+      return res.json({ message: tr(req, { en: "Order added to the table's bill.", zh: "已加入该桌的账单。", id: "Pesanan ditambahkan ke tagihan meja." }), order });
+    }
     // Phone push first and independently: a stalled WhatsApp send used to hold
     // this request open so the admin app alert never went out.
     const itemCount = clean!.length;
@@ -4867,6 +4916,21 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       order.items.push({ id: r.id, name: r.name, qty: r.qty });
     }
     res.set("Cache-Control", "no-store").json(Array.from(orders.values()));
+  }));
+  // Orders entered by a colleague that nobody has accepted yet (the person who entered it is not asked).
+  app.get("/api/reborn/pos/order-alerts", requireStaff(async (req, res) => {
+    const me = getUserId(req)!;
+    const alerts = (await openOrderAlerts()).filter((alert) => !alert.acceptedBy && alert.byId !== me);
+    res.set("Cache-Control", "no-store").json(alerts.map((alert) => ({ id: alert.id, orderNo: alert.orderNo, table: alert.table, byName: alert.byName, lines: alert.lines, at: alert.at })));
+  }));
+  app.post("/api/reborn/pos/order-alerts/:id/accept", requireStaff(async (req, res) => {
+    const me = getUserId(req)!;
+    const name = await personName(me);
+    const accepted = await changeOrderAlerts((alerts) => {
+      const target = alerts.find((alert) => alert.id === req.params.id && !alert.acceptedBy);
+      return { alerts: alerts.map((alert) => alert === target ? { ...alert, acceptedBy: { id: me, name } } : alert), result: !!target };
+    });
+    res.json({ ok: true, accepted });
   }));
   // Food / drinks the kitchen marked ready: every staff phone rings until someone collects it (then it is "served").
   app.get("/api/reborn/pos/ready-items", requireStaff(async (req, res) => {

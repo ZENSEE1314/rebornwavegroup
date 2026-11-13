@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/i18n";
 
 const PENDING_ORDERS = "/api/reborn/pos/pending-orders";
+const STAFF_ORDERS = "/api/reborn/pos/order-alerts";
 const POLL_MS = 5000;
 const RING_EVERY_MS = 3000;
 const VIBRATION = [500, 200, 500, 200, 500];
@@ -15,6 +16,8 @@ const BEEP_SECONDS = 0.35;
 const BEEP_LOUDNESS = 1;
 
 interface PendingOrder { orderId: number; orderNo: string; tableNumber: string | null; memberName: string; at: string; items: { id: number; name: string; qty: number }[] }
+
+interface StaffOrder { id: string; orderNo: string; table: string; byName: string; lines: string[]; at: number }
 
 let audio: AudioContext | null = null;
 function beep() {
@@ -36,8 +39,9 @@ function beep() {
   } catch { /* no sound available */ }
 }
 
-// A member's order waits for the counter: every staff phone and admin screen vibrates and beeps until someone taps Accept
-// (like a service call). Orders the counter or the app accepts by itself never show here.
+// An order waits for the team: every staff phone and admin screen vibrates and beeps until someone taps Accept
+// (like a service call). Two kinds: a member's order from the app (the counter accepts its items) and an order a colleague
+// entered for a table (the person who entered it is not asked).
 export function NewOrderAlert() {
   const { user } = useAuth();
   const role = (user as any)?.role;
@@ -48,7 +52,11 @@ export function NewOrderAlert() {
     queryKey: [PENDING_ORDERS], queryFn: () => apiRequest("GET", PENDING_ORDERS).then((r) => r.json()), enabled: isStaff, retry: false, refetchInterval: (query) => (query.state.error ? false : POLL_MS),
   });
 
-  const isRinging = isStaff && orders.length > 0;
+  const { data: staffOrders = [] } = useQuery<StaffOrder[]>({
+    queryKey: [STAFF_ORDERS], queryFn: () => apiRequest("GET", STAFF_ORDERS).then((r) => r.json()), enabled: isStaff, retry: false, refetchInterval: (query) => (query.state.error ? false : POLL_MS),
+  });
+
+  const isRinging = isStaff && (orders.length > 0 || staffOrders.length > 0);
   useEffect(() => {
     if (!isRinging) return;
     const ring = () => { navigator.vibrate?.(VIBRATION); beep(); };
@@ -64,9 +72,30 @@ export function NewOrderAlert() {
     onSettled: () => { qc.invalidateQueries({ queryKey: [PENDING_ORDERS] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] }); },
   });
 
-  if (!isStaff || orders.length === 0) return null;
+  const acceptStaffOrder = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `${STAFF_ORDERS}/${id}/accept`).then((r) => r.json()),
+    onMutate: (id) => { qc.setQueryData<StaffOrder[]>([STAFF_ORDERS], (old) => (old ?? []).filter((o) => o.id !== id)); },
+    onSettled: () => { qc.invalidateQueries({ queryKey: [STAFF_ORDERS] }); },
+  });
+
+  if (!isStaff || (orders.length === 0 && staffOrders.length === 0)) return null;
   return (
     <div className="fixed inset-x-2 top-20 z-[70] max-h-[50vh] space-y-2 overflow-y-auto" aria-live="assertive">
+      {staffOrders.map((order) => (
+        <div key={order.id} className="rounded-2xl border border-orange-400/70 bg-orange-950/95 p-3 shadow-2xl backdrop-blur">
+          <div className="flex items-center gap-3">
+            <BellRing className="h-6 w-6 shrink-0 animate-pulse text-orange-300" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold leading-tight text-white">{t("hm.order.title", { t: order.table || "-" })}</p>
+              <p className="truncate text-[11px] text-white/70">{t("hm.order.by", { n: order.byName })} · {order.orderNo} · {new Date(order.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+            </div>
+            <button onClick={() => acceptStaffOrder.mutate(order.id)} className="shrink-0 rounded-xl bg-orange-400 px-4 py-2.5 text-sm font-black text-black">{t("hm.order.accept")}</button>
+          </div>
+          <ul className="mt-2 space-y-0.5 text-xs text-white/90">
+            {order.lines.map((line, index) => <li key={index}>{line}</li>)}
+          </ul>
+        </div>
+      ))}
       {orders.map((order) => (
         <div key={order.orderId} className="rounded-2xl border border-orange-400/70 bg-orange-950/95 p-3 shadow-2xl backdrop-blur">
           <div className="flex items-center gap-3">
