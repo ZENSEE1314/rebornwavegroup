@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, ToggleRight, Smartphone, Plus, Trash2, Copy, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
+import { Camera, RotateCcw, ToggleRight, Smartphone, Plus, Trash2, Copy, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
@@ -518,16 +518,40 @@ function EventRow({ ev, onSave, onDelete, isNew = false }: any) {
 
 function Logs() {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [asking, setAsking] = useState<number | null>(null);
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/logs"], queryFn: () => apiRequest("GET", "/api/reborn/admin/logs").then((r) => r.json()), refetchInterval: 20000 });
+  const undo = useMutation({
+    mutationFn: (billId: string) => apiRequest("POST", `/api/reborn/admin/accounting/orders/${billId}/undo-refund`).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); setAsking(null); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/logs"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] }); },
+    onError: (e: any) => { toast({ title: t("admin.log.undoFailed"), description: e.message, variant: "destructive" }); setAsking(null); },
+  });
   if (rows.length === 0) return <Empty text={t("admin.log.empty")} />;
+  // The newest entry of a bill decides: a refund that was already undone (or refunded again later) shows the button only on the latest refund.
+  const latestOfBill = new Map<string, number>();
+  for (const l of rows) if (l.targetType === "pos_order" && (l.action === "refund" || l.action === "undo_refund") && !latestOfBill.has(l.targetId)) latestOfBill.set(l.targetId, l.id);
   return (
     <div className="space-y-1.5">
-      {rows.map((l) => (
-        <div key={l.id} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">
-          <div className="flex justify-between"><span className="font-semibold">{l.description}</span><span className="text-white/30">{new Date(l.createdAt).toLocaleString(localeTag())}</span></div>
-          <span className="text-white/40">{l.action} · {l.entityType} · {t("admin.log.by")} <span className="text-amber-300/80">{l.adminName || l.adminUserId?.slice(0, 8)}</span></span>
-        </div>
-      ))}
+      {rows.map((l) => {
+        const canUndo = l.action === "refund" && l.targetType === "pos_order" && latestOfBill.get(l.targetId) === l.id;
+        return (
+          <div key={l.id} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">
+            <div className="flex justify-between"><span className="font-semibold">{l.description}</span><span className="text-white/30">{new Date(l.createdAt).toLocaleString(localeTag())}</span></div>
+            <span className="text-white/40">{l.action} · {l.entityType} · {t("admin.log.by")} <span className="text-amber-300/80">{l.adminName || l.adminUserId?.slice(0, 8)}</span></span>
+            {canUndo && asking !== l.id && <button onClick={() => setAsking(l.id)} className="mt-2 flex items-center gap-1 rounded-lg border border-amber-400/40 bg-amber-500/15 px-3 py-1.5 text-[11px] font-bold text-amber-200"><RotateCcw className="h-3 w-3" /> {t("admin.log.undoRefund")}</button>}
+            {canUndo && asking === l.id && (
+              <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-950/60 p-2">
+                <p className="text-[11px] text-amber-100">{t("admin.log.undoSure")}</p>
+                <div className="mt-2 flex gap-2">
+                  <button disabled={undo.isPending} onClick={() => undo.mutate(l.targetId)} className="rounded-lg bg-amber-400 px-3 py-1.5 text-[11px] font-black text-black disabled:opacity-50">{t("admin.log.undoYes")}</button>
+                  <button onClick={() => setAsking(null)} className="rounded-lg border border-white/20 px-3 py-1.5 text-[11px] font-bold text-white/80">{t("admin.log.undoNo")}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -3313,14 +3337,16 @@ function AdminBottles() {
       {kept.map((b) => (
         <div key={b.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
           {b.photoUrl ? <img src={b.photoUrl} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" /> : <span className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0"><Wine className="w-5 h-5 text-amber-300" /></span>}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[10rem] flex-1">
             <p className="text-sm font-semibold break-words">{b.name} <span className="text-white/40 text-xs capitalize">· {tv(t, "admin.bot.type." + b.type, b.type)}</span></p>
             <p className="mt-0.5"><span className="inline-block rounded-md bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-200">{t("admin.bot.left", { n: b.quantity })}</span></p>
             <p className="text-[11px] text-white/40 break-words">{b.memberName || "—"}{b.memberCode ? ` · ${b.memberCode}` : ""}{b.expiresAt ? ` · ${t("admin.bot.exp", { d: new Date(b.expiresAt).toLocaleDateString(localeTag()) })}` : ""}</p>
           </div>
+          <div className="flex w-full flex-wrap items-center gap-2">
           <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate({ id: b.id, quantity: 1 }); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeem")}</button>
           {b.quantity > 1 && <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate({ id: b.id, quantity: b.quantity }); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeemAll", { n: b.quantity })}</button>}
           <EditKeptBottle bottle={b} />
+          </div>
         </div>
       ))}
       {kept.length === 0 && <Empty text={t("admin.bot.empty")} />}
