@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ServiceCallAlert } from "@/components/ServiceCallAlert";
 import { ReadyItemsAlert } from "@/components/ReadyItemsAlert";
 import { NewOrderAlert } from "@/components/NewOrderAlert";
+import { AlarmEnableBar } from "@/components/AlarmEnableBar";
 import { LevelUpWatcher } from "@/components/LevelRing";
 import { LoginRewardWatcher } from "@/components/DailyCheckin";
 import { useTenantBrand } from "@/hooks/useTenantBrand";
@@ -153,6 +154,7 @@ export function RebornLayout({ children, title, active, wide, hideNav }: { child
     <div className="rwg-app min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
       <PullToRefresh />
       <ServiceCallAlert />
+      <AlarmEnableBar />
       <NewOrderAlert />
       <ReadyItemsAlert />
       <LevelUpWatcher userId={(user as any)?.id} />

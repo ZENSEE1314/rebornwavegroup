@@ -5,37 +5,15 @@ import { BellRing } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/i18n";
+import { ringAlarm, stopAlarm } from "@/lib/staff-alarm";
 
 const READY_ITEMS = "/api/reborn/pos/ready-items";
 const POLL_MS = 5000;
 const RING_EVERY_MS = 3000;
 const VIBRATION = [300, 150, 300];
-const BEEP_HZ = [988, 1319]; // two high notes in a row: cuts through a noisy venue better than one low beep
-const BEEP_SECONDS = 0.35;
-const BEEP_LOUDNESS = 1; // the loudest the speaker allows (was 0.2)
 const KITCHEN_PATH = "/kitchen";
 
 interface ReadyItem { id: number; name: string; qty: number; orderNo: string; tableNumber: string | null; readyByName?: string }
-
-let audio: AudioContext | null = null;
-function beep() {
-  try {
-    audio = audio ?? new (window.AudioContext || (window as any).webkitAudioContext)();
-    void audio.resume();
-    BEEP_HZ.forEach((hz, index) => {
-      const start = audio!.currentTime + index * BEEP_SECONDS;
-      const tone = audio!.createOscillator();
-      const volume = audio!.createGain();
-      tone.type = "square";
-      tone.frequency.value = hz;
-      volume.gain.setValueAtTime(BEEP_LOUDNESS, start);
-      volume.gain.exponentialRampToValueAtTime(0.001, start + BEEP_SECONDS);
-      tone.connect(volume).connect(audio!.destination);
-      tone.start(start);
-      tone.stop(start + BEEP_SECONDS);
-    });
-  } catch { /* no sound available */ }
-}
 
 // Every staff phone vibrates (and beeps) while the kitchen has something ready; the first person to collect it taps "Collected" and it stops for everyone.
 // The kitchen screen itself stays quiet: the cook just marked it.
@@ -54,10 +32,10 @@ export function ReadyItemsAlert() {
   const isRinging = isActive && items.length > 0;
   useEffect(() => {
     if (!isRinging) return;
-    const ring = () => { navigator.vibrate?.(VIBRATION); beep(); };
+    const ring = () => { ringAlarm(VIBRATION); };
     ring();
     const timer = setInterval(ring, RING_EVERY_MS);
-    return () => { clearInterval(timer); navigator.vibrate?.(0); };
+    return () => { clearInterval(timer); stopAlarm(); };
   }, [isRinging]);
 
   // The line leaves the screen at once so it cannot be tapped twice; the server's list follows.

@@ -2830,3 +2830,9 @@ button, .interactive {
 
 /* Quick repeated taps on the same button (2-3 of one item on the POS) must each count: without this a touch screen can read the second tap as a double-tap zoom and drop it. */
 button, a, [role="button"], select, label, input[type="checkbox"], input[type="radio"] { touch-action: manipulation; }
+
+/* Staff alarm (lib/staff-alarm.ts): the whole screen edge flashes once with every ring, so a phone that cannot vibrate (iPhone) or is on silent still shows it. */
+@keyframes rw-alarm-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  html.rw-alarm-flash::after { content: ""; position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; border: 10px solid rgba(255, 90, 60, 0.9); animation: rw-alarm-flash 0.7s ease-out forwards; }
+}

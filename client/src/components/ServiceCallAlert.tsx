@@ -5,35 +5,17 @@ import { BellRing } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/i18n";
+import { ringAlarm, stopAlarm } from "@/lib/staff-alarm";
 
 const CALLS = "/api/reborn/venue/service-calls";
 const STAFF = `${CALLS}/staff`;
 const POLL_MS = 5000;
 const RING_EVERY_MS = 3000;
 const VIBRATION = [500, 200, 500, 200, 500];
-const BEEP_HZ = 880;
-const BEEP_SECONDS = 0.35;
 
 interface Person { id: string; name: string }
 interface Call { id: string; table: string; name: string; at: number; assignedTo?: Person; acceptedBy?: Person }
 interface CallsReply { calls: Call[]; me: { id: string; canManage: boolean } }
-
-let audio: AudioContext | null = null;
-// A short beep next to the vibration. Browsers only allow sound after the person has touched the page.
-function beep() {
-  try {
-    audio = audio ?? new (window.AudioContext || (window as any).webkitAudioContext)();
-    void audio.resume();
-    const tone = audio.createOscillator();
-    const volume = audio.createGain();
-    tone.frequency.value = BEEP_HZ;
-    volume.gain.setValueAtTime(0.2, audio.currentTime);
-    volume.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + BEEP_SECONDS);
-    tone.connect(volume).connect(audio.destination);
-    tone.start();
-    tone.stop(audio.currentTime + BEEP_SECONDS);
-  } catch { /* no sound available */ }
-}
 
 // Shown to staff and admins on every page: a table is calling. The phone keeps vibrating (and
 // beeping) until someone accepts; a manager or the main admin can send a particular person.
@@ -56,10 +38,10 @@ export function ServiceCallAlert() {
   const isRinging = calls.some((c) => !c.acceptedBy && (!c.assignedTo || c.assignedTo.id === me?.id));
   useEffect(() => {
     if (!isRinging) return;
-    const ring = () => { navigator.vibrate?.(VIBRATION); beep(); };
+    const ring = () => { ringAlarm(VIBRATION); };
     ring();
     const timer = setInterval(ring, RING_EVERY_MS);
-    return () => { clearInterval(timer); navigator.vibrate?.(0); };
+    return () => { clearInterval(timer); stopAlarm(); };
   }, [isRinging]);
 
   // The screen changes at once (so a button cannot be tapped twice); the server's list follows.

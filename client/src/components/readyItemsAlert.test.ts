@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 
-const alert = readFileSync(new URL("./ReadyItemsAlert.tsx", import.meta.url), "utf8");
+const alert = readFileSync(new URL("../lib/staff-alarm.ts", import.meta.url), "utf8");
 
 describe("ready-order beep for staff", () => {
   it("should play at full volume", () => {
