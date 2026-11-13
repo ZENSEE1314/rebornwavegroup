@@ -16,6 +16,7 @@ export const homeT: Record<string, { en: string; zh: string; id: string }> = {
   'hm.order.by': { en: 'entered by {n}', zh: '{n} 下的单', id: 'dipesan oleh {n}' },
   'hm.alarm.enable': { en: '🔔 Tap here once to turn on the alert sound and vibration', zh: '🔔 点一下这里，开启提醒声音和震动', id: '🔔 Ketuk di sini sekali untuk menyalakan suara dan getar peringatan' },
   'hm.alarm.noVibrate': { en: "This phone's browser cannot vibrate: it uses sound and a flashing screen. Turn on notifications for the buzz.", zh: '此手机的浏览器无法震动：将使用声音和闪屏。请开启通知以获得震动。', id: 'Browser ponsel ini tidak bisa bergetar: memakai suara dan layar berkedip. Aktifkan notifikasi untuk getaran.' },
+  'hm.order.ignore': { en: 'Ignore', zh: '忽略', id: 'Abaikan' },
   'hm.order.accept': { en: 'Accept', zh: '接单', id: 'Terima' },
   'hm.ready.title': { en: '🍽️ Ready to collect', zh: '🍽️ 可以取餐', id: '🍽️ Siap diambil' },
   'hm.ready.table': { en: 'Table {t}', zh: '{t} 桌', id: 'Meja {t}' },

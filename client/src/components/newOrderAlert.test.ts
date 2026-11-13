@@ -46,4 +46,16 @@ describe("new order alert for staff and admins", () => {
   it("should push the colleague order again every 45 seconds until someone accepts", () => {
     assert.ok(server.includes("async function remindStaffOrders()") && server.includes("await remindStaffOrders()"));
   });
+
+  it("should let a device ignore an alert without accepting it, and remember that in the browser", () => {
+    assert.ok(alert.includes('onClick={() => ignore(staffKey(order))}') && alert.includes("onClick={() => ignore(pendingKey(order))}") && alert.includes('localStorage.setItem(IGNORED_KEY'));
+  });
+
+  it("should stop ringing on this device once every alert is ignored", () => {
+    assert.ok(alert.includes("!ignored.includes(pendingKey(order))") && alert.includes("!ignored.includes(staffKey(order))"));
+  });
+
+  it("should ring again for a new item added to an order that was ignored", () => {
+    assert.ok(alert.includes('order.items.map((item) => item.id).sort((a, b) => a - b).join(",")'));
+  });
 });
