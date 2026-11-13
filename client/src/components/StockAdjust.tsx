@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { suggestedUnitCost, suppliersOf, type SupplierLayer } from "@shared/stockPrefill";
 import { DEFAULT_TERMS_DAYS, dueDateFrom } from "@shared/payables";
 import ReceiptScan from "@/components/ReceiptScan";
+import { ImageUpload } from "@/components/ImageUpload";
 
 const inp = "rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-sm text-white outline-none focus:border-amber-300";
 const STOCK_IN = "/api/reborn/pos/stock-in";
@@ -37,6 +38,7 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
   const [payer, setPayer] = useState("");
   const [isPaid, setIsPaid] = useState(true); // false = a bill to pay later (credit terms), kept under "not paid yet" in Admin › Expenses
   const [payMethod, setPayMethod] = useState(""); // cash | card, asked whenever it is paid
+  const [receiptPhoto, setReceiptPhoto] = useState(""); // the supplier's receipt, paid or not: Accounting shows "View receipt photo"
   const [termsDays, setTermsDays] = useState(String(DEFAULT_TERMS_DAYS));
   const { data: staff = [] } = useQuery<{ id: string; name: string }[]>({ queryKey: ["/api/reborn/pos/staff"], queryFn: () => apiRequest("GET", "/api/reborn/pos/staff").then((r) => r.json()), enabled: isOpen && mode === "out" });
   // What the item already costs from each supplier it was bought from (the same layers the "Stock by supplier and price" list shows).
@@ -66,7 +68,7 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
   const save = useMutation({
     mutationFn: () => apiRequest("POST", STOCK_IN, {
       productId: p.id, qty: mode === "in" ? qty : -qty, receivedAt: f.at ? new Date(f.at).toISOString() : undefined,
-      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: isBox ? unitCostOfBox : (shownUnitCost ? Number(shownUnitCost) : undefined), ...(hasCost ? { paid: isPaid, payMethod: isPaid ? payMethod : undefined, dueDate: dueDate || undefined } : {}) } : { reason: f.reason, note: f.note, chargeStaffId: payer || undefined }),
+      ...(mode === "in" ? { supplier: f.supplier || undefined, unitCost: isBox ? unitCostOfBox : (shownUnitCost ? Number(shownUnitCost) : undefined), ...(hasCost ? { paid: isPaid, payMethod: isPaid ? payMethod : undefined, dueDate: dueDate || undefined, photoUrl: receiptPhoto || undefined } : {}) } : { reason: f.reason, note: f.note, chargeStaffId: payer || undefined }),
     }).then((r) => r.json()),
     onSuccess: () => {
       toast({ title: t("admin.sa.saved") });
@@ -74,6 +76,7 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
       setIsCostTyped(false);
       setPayer("");
       setPayMethod("");
+      setReceiptPhoto("");
       qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: fail,
@@ -118,6 +121,7 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
                 </select>
               </label>
               {isPaid && <label className="text-[11px] text-white/50">{t("ex.payMethod")}<select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className={inp + " mt-0.5 block"}><option value="">—</option><option value="cash">{t("ex.pm.cash")}</option><option value="card">{t("ex.pm.card")}</option></select></label>}
+              <div className="w-full"><ImageUpload value={receiptPhoto} onChange={setReceiptPhoto} label={t("admin.rcpt.photo")} output="jpeg" maxDim={1600} quality={0.85} /></div>
               {!isPaid && <label className="text-[11px] text-white/50">{t("ex.termsDays")}<input type="number" inputMode="numeric" min={0} max={365} value={termsDays} onChange={(e) => setTermsDays(e.target.value)} className={inp + " mt-0.5 block w-24"} /><span className="mt-0.5 block text-[10px] text-white/40">{dueDate ? t("ex.dueOn", { d: dueDate }) : ""}</span></label>}
             </div>
           )}
