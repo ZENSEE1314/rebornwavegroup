@@ -414,6 +414,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.todaysSales': { en: "Today's sales", zh: '今日销售额', id: 'Penjualan hari ini' },
   'pos.bills': { en: 'Bills', zh: '账单数', id: 'Tagihan' },
   'pos.refunded': { en: 'Refunded', zh: '已退款', id: 'Direfund' },
+  'pos.refundAdminOnly': { en: 'Only the main admin can refund a bill.', zh: '只有主管理员可以退款。', id: 'Hanya admin utama yang bisa me-refund tagihan.' },
   'pos.refundInfo': { en: 'Refund a bill here while today is still open. Once an admin closes the POS day, refunds move to Accounting.', zh: '在今日尚未结算前可在此退款。管理员结算后，退款需在财务中处理。', id: 'Refund tagihan di sini selama hari ini masih buka. Setelah admin menutup hari POS, refund dipindahkan ke Akuntansi.' },
   'pos.noSalesToday': { en: 'No sales yet today.', zh: '今天还没有销售。', id: 'Belum ada penjualan hari ini.' },
   'pos.refund': { en: 'Refund', zh: '退款', id: 'Refund' },

@@ -1196,7 +1196,7 @@ function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
           <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.rc.commission")}</p><p className="text-lg font-extrabold text-amber-300">{rp(totalCommission)}</p></div>
         </div>
       )}
-      <p className="text-[11px] text-white/40">{t("pos.refundInfo")}</p>
+      <p className="text-[11px] text-white/40">{t(isAdmin ? "pos.refundInfo" : "pos.refundAdminOnly")}</p>
       {isLoading && <p className="text-sm text-white/40">{t("pos.loading")}</p>}
       {!isLoading && all.length === 0 && <p className="text-sm text-white/40 py-8 text-center">{t("pos.noSalesToday")}</p>}
       {all.map((o: any) => {
@@ -1216,7 +1216,7 @@ function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
               <div className="text-right flex-shrink-0">
                 <p className={`font-extrabold ${isRef ? "text-white/40 line-through" : ""}`}>{rp(Number(o.total))}</p>
                 <button onClick={() => printReceipt(o, savedReceiptMeta(), { duplicate: true })} className="mt-1 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white/10 border border-white/15">🧾 {t("pos.sales.printDuplicate")}</button>
-                {!isRef && <button onClick={() => doRefund(o)} disabled={refund.isPending} className="mt-1 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-200 border border-red-400/40 disabled:opacity-50"><RotateCcw className="w-3 h-3" /> {t("pos.refund")}</button>}
+                {isAdmin && !isRef && <button onClick={() => doRefund(o)} disabled={refund.isPending} className="mt-1 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-red-500/15 text-red-200 border border-red-400/40 disabled:opacity-50"><RotateCcw className="w-3 h-3" /> {t("pos.refund")}</button>}
               </div>
             </div>
             {openBillId === o.id && (

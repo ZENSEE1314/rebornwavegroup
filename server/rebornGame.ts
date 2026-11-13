@@ -5793,8 +5793,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "refund", entityType: "accounting", description: `Refunded ${r.order.orderNo} RP ${Number(r.order.total)}: ${reason}` });
     res.json(r.body);
   }));
-  // POS-floor refund: staff can refund a paid bill from POS while its business day is still open.
-  app.post("/api/reborn/pos/orders/:id/refund", requireStaff(async (req, res) => {
+  // POS-floor refund: only the main admin presses Refund (staff and managers cannot), while the bill's business day is still open.
+  app.post("/api/reborn/pos/orders/:id/refund", requireAdmin(async (req, res) => {
     const id = Number(req.params.id); const reason = String(req.body?.reason || "").trim();
     if (!reason) return res.status(400).json({ message: tr(req, { en: "A refund reason is required", zh: "请填写退款原因", id: "Alasan refund wajib diisi" }) });
     const cid = await rebornCompanyId(req);
@@ -5808,6 +5808,47 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "refund", entityType: "accounting", description: `POS refund ${r.order.orderNo} RP ${Number(r.order.total)}: ${reason}` });
     emitLiveUpdate("/api/reborn/pos/orders", { action: "REFUND", resource: String(id) });
     res.json(r.body);
+  }));
+
+  // Admin › Logs › "Undo refund" (main admin): the bill is paid again, as if the Refund button had not been pressed.
+  // Bills whose refund also moved package credit, packages or a referral commission are refused: those cannot be put back safely.
+  const COMMISSION_VOID_WINDOW_MS = 60_000;
+  app.post("/api/reborn/admin/accounting/orders/:id/undo-refund", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const actorId = getUserId(req)!;
+    const refuse = (en: string, zh: string, idText: string) => res.status(400).json({ message: tr(req, { en, zh, id: idText }) });
+    const [order] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!order || order.status !== "refunded") return refuse("Only a refunded bill can be put back", "只有已退款的账单才能恢复", "Hanya tagihan yang sudah di-refund yang bisa dikembalikan");
+    const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
+    const productIds = Array.from(new Set(items.map((item) => item.productId).filter((x): x is number => !!x)));
+    const products = productIds.length ? await db.select().from(posProducts).where(inArray(posProducts.id, productIds)) : [];
+    if (Number(order.packageCreditUsed || 0) > 0 || products.some((p) => p.packageKind)) return refuse("This bill used or sold a package, so its refund cannot be undone here.", "此账单使用或出售了套餐，退款不能在此撤销。", "Tagihan ini memakai atau menjual paket, jadi refund-nya tidak bisa dibatalkan di sini.");
+    if (Number(order.referralAmount) > 0) return refuse("A referral commission was paid on this bill, so its refund cannot be undone here.", "此账单已发放推荐佣金，退款不能在此撤销。", "Komisi referral sudah dibayar untuk tagihan ini, jadi refund-nya tidak bisa dibatalkan di sini.");
+    const day = wibDay(new Date(new Date(order.paidAt || order.createdAt || Date.now()).getTime() - VENUE_DAY_START_HOUR * 3600_000));
+    const [closed] = await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.refType, "pos_closing"), eq(ledgerEntries.refId, day))).limit(1);
+    if (closed) return refuse("That day is already closed, so the refund cannot be undone.", "该营业日已结账，退款不能撤销。", "Hari itu sudah ditutup, jadi refund tidak bisa dibatalkan.");
+    const paidAmount = Number(order.total);
+    const creditsPaid = order.paymentMethod === "credits" ? paidAmount : order.paymentMethod === "split" ? readSplit(order.paymentSplit).filter((part) => part.method === "credits").reduce((sum, part) => sum + part.amount, 0) : 0;
+    if (creditsPaid > 0 && order.memberId) {
+      const [member] = await db.select({ credits: users.credits }).from(users).where(eq(users.id, order.memberId));
+      if (Number(member?.credits || 0) < creditsPaid) return refuse("The member no longer has enough RP credits to take back.", "会员的 RP 余额已不足，无法收回。", "Saldo RP member sudah tidak cukup untuk diambil kembali.");
+    }
+    const note = `Undo refund ${order.orderNo}`;
+    for (const item of items.filter((x) => !GONE_ITEM.includes(x.status) && x.productId)) await moveStock(item.productId!, -item.qty, "refund_undo", note, actorId);
+    if (order.memberId && order.pointsEarned > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${order.pointsEarned}`, lifetimePoints: sql`${users.lifetimePoints} + ${order.pointsEarned}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
+    if (creditsPaid > 0 && order.memberId) {
+      await db.update(users).set({ credits: sql`${users.credits} - ${creditsPaid}`, updatedAt: new Date() }).where(eq(users.id, order.memberId));
+      await db.insert(memberWalletTransactions).values({ userId: order.memberId, type: "pos_refund_undo", rpAmount: String(-creditsPaid), kgoldAmount: 0, description: note, referenceType: "pos_order", referenceId: String(id) });
+    }
+    await db.delete(ledgerEntries).where(and(inArray(ledgerEntries.refType, ["pos_refund", "pos_commission_reversal"]), eq(ledgerEntries.refId, String(id))));
+    if (order.refundedAt) {
+      const refundedAt = new Date(order.refundedAt).getTime();
+      await db.update(staffItemCommissions).set({ voidedAt: null }).where(and(eq(staffItemCommissions.ticketId, id), isNotNull(staffItemCommissions.voidedAt), sql`${staffItemCommissions.voidedAt} BETWEEN ${new Date(refundedAt - COMMISSION_VOID_WINDOW_MS)} AND ${new Date(refundedAt + COMMISSION_VOID_WINDOW_MS)}`));
+    }
+    const [updated] = await db.update(posTickets).set({ status: "paid", refundReason: null, refundedBy: null, refundedAt: null }).where(eq(posTickets.id, id)).returning();
+    await logAdmin(req, { targetType: "pos_order", targetId: String(id), action: "undo_refund", entityType: "accounting", description: `Undid the refund of ${order.orderNo} RP ${Number(order.total)}` });
+    emitLiveUpdate("/api/reborn/pos/orders", { action: "REFUND_UNDONE", resource: String(id) });
+    res.json({ message: tr(req, { en: "{no} is paid again", zh: "{no} 已恢复为已付款", id: "{no} kembali berstatus dibayar" }, { no: order.orderNo }), order: updated });
   }));
 
   app.post("/api/reborn/admin/accounting/orders/:id/edit", requireAdmin(async (req, res) => {
