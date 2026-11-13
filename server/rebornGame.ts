@@ -126,7 +126,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   wifiName: "", wifiPassword: "", wifiSecurity: "WPA", // the venue Wi-Fi, for the Wi-Fi QR in Admin > QR codes (WPA | WEP | nopass)
   payrollDay: "15",         // day of month payroll is recorded/paid (the admin reminder comes then)
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
-  appOrdersAutoAccept: "true", // an order from the member app goes straight to the kitchen (no Accept tap at the counter)
+  appOrdersAutoAccept: "false", // off: an order from the member app rings every staff phone until someone accepts it; on: it goes straight to the kitchen
   referralHoldHours: "18",   // a new referral earns nothing for this many hours (anti-cheat: no signing a friend up and ordering on their account at once)
   referralOn: "false", referralPercent: "10", // the referrer earns RP credits on a referred member's paid bills (not on promo items); off until the admin turns it on
   appDiscountOn: "false", appDiscountPercent: "5", // items a member orders through the app get this % off
@@ -1066,6 +1066,29 @@ export async function remindServiceCalls() {
     await alertServiceCall(call).catch((error) => console.error("[service call] reminder", error));
   }
 }
+// A member's order nobody has accepted yet is announced again, like a service call: every staff member and admin, until someone accepts (or rejects) every item.
+const ORDER_REMIND_MS = 45_000;
+const ORDER_MAX_ALERTS = 20;
+const orderAlerts = new Map<string, { at: number; count: number }>();
+export async function remindPendingOrders() {
+  const space = homeCompanySlug();
+  const rows = ((await db.execute(sql`SELECT t.id, t.order_no, t.table_number, t.member_name, MIN(COALESCE(i.added_at, t.created_at)) AS since FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
+    WHERE t.status = 'open' AND i.status = 'pending' AND t.source = 'app' GROUP BY t.id, t.order_no, t.table_number, t.member_name`)) as any).rows ?? [];
+  const waiting = new Set<string>(rows.map((r: any) => `${space}:${r.id}`));
+  for (const key of Array.from(orderAlerts.keys())) if (key.startsWith(`${space}:`) && !waiting.has(key)) orderAlerts.delete(key);
+  for (const r of rows) {
+    const key = `${space}:${r.id}`;
+    const seen = orderAlerts.get(key) ?? { at: new Date(r.since).getTime(), count: 0 };
+    orderAlerts.set(key, seen);
+    if (seen.count >= ORDER_MAX_ALERTS || Date.now() - seen.at < ORDER_REMIND_MS) continue;
+    orderAlerts.set(key, { at: Date.now(), count: seen.count + 1 });
+    await pushAdminsI18n((lang) => ({
+      title: pick(lang, { en: "🛎️ Order {no} is waiting", zh: "🛎️ 订单 {no} 等待接单", id: "🛎️ Pesanan {no} menunggu" }, { no: r.order_no }),
+      body: pick(lang, { en: "Table {t} · {name} — tap Accept.", zh: "{t} 号桌 · {name} —— 请点接单。", id: "Meja {t} · {name} — ketuk Terima." }, { t: r.table_number, name: r.member_name || pick(lang, { en: "member", zh: "会员", id: "member" }) }),
+      url: "/pos", tag: `order-${r.id}`, urgent: true,
+    })).catch((error) => console.error("[order] reminder", error));
+  }
+}
 async function saveServiceCalls(calls: ServiceCall[]) {
   const value = JSON.stringify(calls);
   await db.insert(appSettings).values({ key: SERVICE_CALLS_KEY, value, updatedAt: new Date() })
@@ -1504,6 +1527,7 @@ export function registerRebornRoutes(app: Express) {
   }
   // A table's call keeps alerting staff until someone accepts it.
   if (!BACKGROUND_JOBS_OFF) setInterval(() => { void inEveryDataSpace(remindServiceCalls); }, SERVICE_CALL_CHECK_MS);
+  if (!BACKGROUND_JOBS_OFF) setInterval(() => { void inEveryDataSpace(remindPendingOrders); }, SERVICE_CALL_CHECK_MS);
   // Low stock → a drafted message to the supplier, waiting for the admin's approval (when switched on).
   if (!BACKGROUND_JOBS_OFF) setInterval(() => { void inEveryDataSpace(async () => { await runSupplierReorderCheck(); }).catch((error) => console.error("[supplier reorder]", error)); }, SUPPLIER_REORDER_CHECK_MS);
 
@@ -4794,7 +4818,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         ? { en: "{name} · Table {t} · {n} item", zh: "{name} · {t} 号桌 · {n} 件商品", id: "{name} · Meja {t} · {n} item" }
         : { en: "{name} · Table {t} · {n} items", zh: "{name} · {t} 号桌 · {n} 件商品", id: "{name} · Meja {t} · {n} item" }, { name: order.memberName || pick(lang, { en: "Member", zh: "会员", id: "Member" }), t: tableNumber, n: itemCount }),
     }), { path: "/reborn-pos", ticketId: order.id }).catch((e) => console.warn("new_order app push failed", e));
-    pushAdminsI18n((lang) => ({ title: pick(lang, { en: "🛎️ New order", zh: "🛎️ 新订单", id: "🛎️ Pesanan baru" }), body: pick(lang, { en: "Table {t} · {name} — needs Accept/Reject", zh: "{t} 号桌 · {name} — 需要接单/拒单", id: "Meja {t} · {name} — perlu Terima/Tolak" }, { t: tableNumber, name: order.memberName || pick(lang, { en: "member", zh: "会员", id: "member" }) }), url: "/reborn-pos", tag: "new-order" })).catch(() => {});
+    pushAdminsI18n((lang) => ({ title: pick(lang, { en: "🛎️ New order", zh: "🛎️ 新订单", id: "🛎️ Pesanan baru" }), body: pick(lang, { en: "Table {t} · {name} — needs Accept/Reject", zh: "{t} 号桌 · {name} — 需要接单/拒单", id: "Meja {t} · {name} — perlu Terima/Tolak" }, { t: tableNumber, name: order.memberName || pick(lang, { en: "member", zh: "会员", id: "member" }) }), url: "/reborn-pos", tag: "new-order", urgent: !autoAccept })).catch(() => {});
     res.json({ message: tr(req, { en: "Order sent — waiting for the counter to accept.", zh: "订单已发送——等待柜台接单。", id: "Pesanan terkirim — menunggu kasir menerima." }), order });
   });
   // Counter accepts / rejects / serves an app order item.
@@ -4825,6 +4849,18 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     res.json({ orders: groupByOrder(((result.rows || result) as any[]).sort((a, b) => a.id - b.id)) });
   }));
 
+  // A member's order items nobody has accepted yet: every staff phone rings until each is accepted or rejected (components/NewOrderAlert.tsx).
+  app.get("/api/reborn/pos/pending-orders", requireStaff(async (req, res) => {
+    const cid = await rebornCompanyId(req);
+    const result = await db.execute(sql`SELECT i.id, i.order_id, i.name, i.qty, t.order_no, t.table_number, t.order_mode, t.member_name, COALESCE(i.added_at, t.created_at) AS at FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
+      WHERE t.company_id = ${cid} AND t.status = 'open' AND i.status = 'pending' ORDER BY i.id`);
+    const orders = new Map<number, any>();
+    for (const r of (result.rows || result) as any[]) {
+      const order = orders.get(r.order_id) || orders.set(r.order_id, { orderId: r.order_id, orderNo: r.order_no, tableNumber: r.table_number, orderMode: r.order_mode, memberName: r.member_name || "", at: r.at, items: [] }).get(r.order_id);
+      order.items.push({ id: r.id, name: r.name, qty: r.qty });
+    }
+    res.set("Cache-Control", "no-store").json(Array.from(orders.values()));
+  }));
   // Food / drinks the kitchen marked ready: every staff phone rings until someone collects it (then it is "served").
   app.get("/api/reborn/pos/ready-items", requireStaff(async (req, res) => {
     const cid = await rebornCompanyId(req);
