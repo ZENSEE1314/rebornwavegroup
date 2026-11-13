@@ -8,6 +8,7 @@ import { translations, useTranslation, localeTag } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { money } from "@/lib/money";
 import { ImageUpload } from "@/components/ImageUpload";
+import { ReceiptPhotoViewer } from "@/components/ReceiptPhotoViewer";
 import { SALE_TIMES, type ItemProfitReport, type ItemProfitResponse, type MenuKind, type ReceiptRow, type SaleRow, type SaleTime, type Totals, type WastageReport } from "@shared/itemProfit";
 import { EXPENSE_GROUPS, sectionsOfGroup, type CostSection, type ExpenseGroup, type PeriodReport, type ReportGroup } from "@shared/accountingReport";
 
@@ -47,6 +48,11 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
     mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/accounting/ledger/${id}`).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
     onSuccess: () => { toast({ title: t("ar.deleted") }); setDeletingId(null); refreshAccounting(); },
     onError: (e: any) => { setDeletingId(null); fail(e); },
+  });
+  const replacePhoto = useMutation({
+    mutationFn: (v: { id: number; photoUrl: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { photoUrl: v.photoUrl }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return v; }),
+    onSuccess: (v) => { toast({ title: t("ar.photoReplaced") }); setPhoto({ id: v.id, url: v.photoUrl }); refreshAccounting(); },
+    onError: fail,
   });
   const addPhoto = useMutation({
     mutationFn: (v: { id: number; photoUrl: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { photoUrl: v.photoUrl }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
@@ -119,7 +125,9 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
               </div>
             </div>
           )}
-          {photo?.id === line.id && (photo.url ? <div><img src={photo.url} alt={t("ar.viewPhoto")} className="mt-1 max-h-72 w-full object-contain rounded" /><button type="button" onClick={() => setPhoto(null)} className="min-h-0 p-0 text-white/50 underline">{t("ex.close")}</button></div> : <p className="text-white/40">…</p>)}
+          {photo?.id === line.id && (photo.url
+            ? <ReceiptPhotoViewer src={photo.url} name={t("ar.viewPhoto")} onClose={() => setPhoto(null)} onReplace={line.canEdit ? (url) => replacePhoto.mutate({ id: line.id, photoUrl: url }) : undefined} />
+            : <p className="text-white/40">…</p>)}
         </div>
       ))}
       {data.truncated && <p className="text-[11px] text-amber-200">{t("ar.truncated")}</p>}

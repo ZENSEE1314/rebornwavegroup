@@ -21,6 +21,7 @@ import { VenueSyncCard } from "@/components/VenueSyncCard";
 import ProductPicture from "@/components/ProductPicture";
 import { MultiDateCalendar } from "@/components/MultiDateCalendar";
 import { useAdminRole, useProductRights } from "@/hooks/useAdminRole";
+import { ReceiptPhotoViewer } from "@/components/ReceiptPhotoViewer";
 import SortableTh from "@/components/SortableTh";
 import { matchesSearch, sortRows, type SortState } from "@/lib/table-sort";
 import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
@@ -515,6 +516,10 @@ function EventRow({ ev, onSave, onDelete, isNew = false }: any) {
     </Card>
   );
 }
+
+// Accounting lines whose photo may be replaced (the server allows the same ones to be edited).
+const PHOTO_REPLACEABLE_REFS = ["stock_movement", "receipt", "receipt_expense"];
+const isPhotoReplaceable = (refType: string | null) => !refType || PHOTO_REPLACEABLE_REFS.includes(refType);
 
 function Logs() {
   const { t } = useTranslation();
@@ -2813,10 +2818,11 @@ function Accounting() {
   const searchText = lf.q.trim().toLowerCase();
   const normalLedger = ledger.filter((entry) => entry.refType !== "pos_closing" && (!searchText || (entry.note || "").toLowerCase().includes(searchText)));
   const ledgerCategories = lf.kind === "income" ? ["product_sale", "service", "other"] : lf.kind === "expense" ? ["purchase", "salary", "commission", "rental", "utilities", "loss", "spin_prize", "other"] : ["product_sale", "service", "purchase", "salary", "commission", "rental", "utilities", "loss", "spin_prize", "other"];
-  const [ledgerPhoto, setLedgerPhoto] = useState<string | null>(null);
-  const showLedgerPhoto = async (id: number) => {
+  const [ledgerPhoto, setLedgerPhoto] = useState<{ id: number; url: string; canReplace: boolean } | null>(null);
+  const showLedgerPhoto = async (id: number, canReplace: boolean) => {
     const r = await apiRequest("GET", `/api/reborn/admin/accounting/ledger/${id}/photo`);
-    setLedgerPhoto((await r.json()).photoUrl || null);
+    const url = (await r.json()).photoUrl;
+    if (url) setLedgerPhoto({ id, url, canReplace });
   };
   const ledgerTotal = normalLedger.reduce((sum, l) => sum + (l.kind === "income" ? 1 : -1) * Number(l.amount), 0);
   const addEntry = useMutation({
@@ -2830,6 +2836,11 @@ function Accounting() {
   const saveLedger = useMutation({
     mutationFn: (v: { id: number; amount: number; note: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { amount: v.amount, note: v.note }).then((r) => r.json()),
     onSuccess: () => { toast({ title: t("ar.edited") }); setEditingLedger(null); refreshLedger(); },
+    onError: ledgerFailed,
+  });
+  const replaceLedgerPhoto = useMutation({
+    mutationFn: (v: { id: number; photoUrl: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { photoUrl: v.photoUrl }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return v; }),
+    onSuccess: (v) => { toast({ title: t("ar.photoReplaced") }); setLedgerPhoto((old) => (old ? { ...old, url: v.photoUrl } : old)); refreshLedger(); },
     onError: ledgerFailed,
   });
   const deleteLedger = useMutation({
@@ -2927,7 +2938,7 @@ function Accounting() {
       {normalLedger.map((l) => (
         <div key={l.id} className="flex flex-wrap items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm gap-2">
           <div className="min-w-0 flex items-center gap-2">
-            {l.photoUrl ? <a href={l.photoUrl} target="_blank" rel="noreferrer"><img src={l.photoUrl} alt={t("admin.acc.invoice")} className="w-9 h-9 rounded object-cover border border-white/10 flex-shrink-0" /></a> : l.hasPhoto && <button onClick={() => showLedgerPhoto(l.id)} aria-label={t("admin.acc.invoice")} className="w-9 h-9 rounded bg-white/10 border border-white/10 flex-shrink-0 flex items-center justify-center"><Camera className="h-4 w-4 text-white/70" /></button>}
+            {l.photoUrl ? <button type="button" onClick={() => setLedgerPhoto({ id: l.id, url: l.photoUrl, canReplace: isPhotoReplaceable(l.refType) })} className="min-h-0 flex-shrink-0 p-0"><img src={l.photoUrl} alt={t("admin.acc.invoice")} className="w-9 h-9 rounded object-cover border border-white/10" /></button> : l.hasPhoto && <button onClick={() => showLedgerPhoto(l.id, isPhotoReplaceable(l.refType))} aria-label={t("admin.acc.invoice")} className="w-9 h-9 rounded bg-white/10 border border-white/10 flex-shrink-0 flex items-center justify-center"><Camera className="h-4 w-4 text-white/70" /></button>}
             <div className="min-w-0"><p className="truncate">{l.note || catLabel(l.kind + ":" + l.category) || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString(localeTag())}</p></div>
           </div>
           <span className={l.kind === "income" ? "text-emerald-300 font-semibold flex-shrink-0" : "text-red-300 font-semibold flex-shrink-0"}>{l.kind === "income" ? "+" : "−"}{money(Number(l.amount))}</span>
@@ -2950,7 +2961,7 @@ function Accounting() {
         </div>
       ))}
       {normalLedger.length === 0 && <Empty text={t("admin.acc.noTx")} />}
-      {ledgerPhoto && createPortal(<div onClick={() => setLedgerPhoto(null)} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 p-4"><img src={ledgerPhoto} alt={t("admin.acc.invoice")} className="max-h-full max-w-full rounded-xl" /></div>, document.body)}
+      {ledgerPhoto && <ReceiptPhotoViewer src={ledgerPhoto.url} name={t("admin.acc.invoice")} onClose={() => setLedgerPhoto(null)} onReplace={ledgerPhoto.canReplace ? (url) => replaceLedgerPhoto.mutate({ id: ledgerPhoto.id, photoUrl: url }) : undefined} />}
     </div>
   );
 }

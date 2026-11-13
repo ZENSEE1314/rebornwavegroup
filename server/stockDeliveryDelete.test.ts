@@ -11,8 +11,8 @@ describe("deleting a stock delivery in Accounting", () => {
     assert.ok(remove.includes("${posProducts.stock} - ${move.delta}") && remove.includes("tx.delete(stockMovements)"));
   });
 
-  it("should refuse when part of the delivery is already sold or used", () => {
-    assert.ok(remove.includes("(product.stock ?? 0) - move.delta < 0") && remove.includes("allowNegativeStock"));
+  it("should take the units off even when the stock is empty, so the count can go below 0", () => {
+    assert.ok(!remove.includes("allowNegativeStock") && !remove.includes("cannot be taken off"));
   });
 
   it("should void a bill that was not paid yet and refuse one already paid", () => {

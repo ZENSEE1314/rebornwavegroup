@@ -7126,7 +7126,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "edit_entry", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, newValues: { ...patch, ...(patch.photoUrl ? { photoUrl: "receipt photo added" } : {}) }, description: `Accounting line #${row.id} (${row.category}) changed: RP ${row.amount} → RP ${patch.amount ?? row.amount}` });
     res.json({ ok: true });
   }));
-  // A manual line is removed as it is. A stock delivery typed in Inventory is removed with its stock: the units come off the shelf again, the delivery leaves the oldest-first costing and a bill that was not paid yet is voided.
+  // A manual line is removed as it is. A stock delivery typed in Inventory is removed with its stock: the units come off the shelf again (even when that leaves the count below 0), the delivery leaves the oldest-first costing and a bill that was not paid yet is voided.
   // Every other line follows its bill, upload or sale and is voided there.
   const STOCK_LINK_WINDOW_MS = 10_000; // the delivery and its ledger line are written a moment apart when no arrival time was typed
   const STOCK_IN_NOTE_RE = /^Stock in: (\d+) ×/;
@@ -7138,8 +7138,6 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const moves = qty > 0 && productId ? await db.select().from(stockMovements).where(and(eq(stockMovements.productId, productId), eq(stockMovements.reason, "stock_in"), eq(stockMovements.delta, qty))) : [];
     const move = moves.filter((m) => Math.abs(new Date(m.createdAt ?? 0).getTime() - lineTime) <= STOCK_LINK_WINDOW_MS).sort((a, b) => Math.abs(new Date(a.createdAt ?? 0).getTime() - lineTime) - Math.abs(new Date(b.createdAt ?? 0).getTime() - lineTime))[0];
     if (!move) return refuse("Could not find the stock this delivery added, so it cannot be removed here.", "找不到此送货增加的库存，不能在此删除。", "Stok yang ditambahkan pengiriman ini tidak ditemukan, jadi tidak bisa dihapus di sini.");
-    const [product] = await db.select().from(posProducts).where(eq(posProducts.id, productId));
-    if (product && (product.stock ?? 0) - move.delta < 0 && !(await getSettings()).allowNegativeStock) return refuse(`Only ${product.stock ?? 0} left in stock, so ${move.delta} cannot be taken off: part of this delivery is already sold or used.`, `库存只剩 ${product.stock ?? 0}，无法减去 ${move.delta}：这批货已有部分卖出或使用。`, `Stok tinggal ${product.stock ?? 0}, jadi ${move.delta} tidak bisa dikurangi: sebagian pengiriman ini sudah terjual atau terpakai.`);
     const [payable] = await db.select().from(supplierPayables).where(eq(supplierPayables.ledgerEntryId, row.id));
     if (payable?.status === "paid") return refuse("This delivery's bill is already marked paid, so it cannot be removed here.", "此送货的账单已标记为已付，不能在此删除。", "Tagihan pengiriman ini sudah ditandai lunas, jadi tidak bisa dihapus di sini.");
     await db.transaction(async (tx) => {
