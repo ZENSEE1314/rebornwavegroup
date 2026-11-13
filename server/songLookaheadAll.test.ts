@@ -17,3 +17,15 @@ describe("loading every waiting song onto the song system", () => {
     assert.ok(read("../client/src/pages/reborn-admin.tsx").includes('<option value={30}>{t("admin.set.songLookaheadAll")}</option>'));
   });
 });
+
+describe("the next song is already on the karaoke system", () => {
+  const server = readFileSync(new URL("./rebornGame.ts", import.meta.url), "utf8");
+
+  it("should keep the playing song and the next one loaded by default", () => {
+    assert.ok(server.includes('songLookahead: "2",'));
+  });
+
+  it("should raise a saved one-song-at-a-time choice to two once", () => {
+    assert.ok(server.includes("claimFlag(SONG_LOOKAHEAD_FLAG)") && server.includes("Number(row?.value) >= Number(DEFAULT_SONG_LOOKAHEAD)"));
+  });
+});

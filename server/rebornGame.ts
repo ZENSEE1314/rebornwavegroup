@@ -119,7 +119,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   songRequestModeEnabled: "true",
   songQueueMode: "user",    // song turns go per member ("user") or per checked-in table ("table")
   songsPerTurn: "1",        // songs each member/table sings per turn (1–3)
-  songLookahead: "0",       // songs kept loaded on the karaoke system ahead of the one playing (0 = off: one song at a time)
+  songLookahead: "2",       // songs kept loaded on the karaoke system: the one playing and the next, so the next starts the moment one ends (0 / 1 = off: one song at a time)
   timezone: "Asia/Jakarta", // club country timezone — booking slots, "today" and WhatsApp reminders use this
   bottleExpiryDays: "90",   // days a kept bottle stays valid before it expires
   receiptQrKind: "none", receiptQrLink: "", receiptQrCaption: "", // a QR at the bottom of the customer receipt: none | wifi | review | link
@@ -1120,8 +1120,18 @@ async function switchOffAutoAcceptOnce() {
   if (!(await claimFlag(ORDER_ALERT_RESET_FLAG))) return;
   await db.insert(appSettings).values({ key: "appOrdersAutoAccept", value: "false", updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: "false", updatedAt: new Date() } });
 }
+const SONG_LOOKAHEAD_FLAG = "songLookaheadTwoByDefault";
+const DEFAULT_SONG_LOOKAHEAD = "2";
+// The saved "one song at a time" choice (0 / 1, or none) is raised to 2 once per company, so the next song is already on the karaoke system when one ends; a higher saved number stays.
+async function raiseSongLookaheadOnce() {
+  if (!(await claimFlag(SONG_LOOKAHEAD_FLAG))) return;
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "songLookahead"));
+  if (Number(row?.value) >= Number(DEFAULT_SONG_LOOKAHEAD)) return;
+  await db.insert(appSettings).values({ key: "songLookahead", value: DEFAULT_SONG_LOOKAHEAD, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: DEFAULT_SONG_LOOKAHEAD, updatedAt: new Date() } });
+}
 export async function remindPendingOrders() {
   await switchOffAutoAcceptOnce();
+  await raiseSongLookaheadOnce().catch((error) => console.error("[song lookahead]", error));
   await remindStaffOrders().catch((error) => console.error("[order alert] reminder", error));
   const space = homeCompanySlug();
   const rows = ((await db.execute(sql`SELECT t.id, t.order_no, t.table_number, t.member_name, MIN(COALESCE(i.added_at, t.created_at)) AS since FROM pos_ticket_items i JOIN pos_tickets t ON t.id = i.order_id
