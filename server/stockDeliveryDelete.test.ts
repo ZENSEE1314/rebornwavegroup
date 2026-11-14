@@ -45,3 +45,10 @@ describe("adding the missing receipt photo to a stock delivery", () => {
     assert.ok(reports.includes('line.canEdit && !line.hasPhoto && line.refType === "stock_movement"'));
   });
 });
+
+describe("a bill whose accounting line is already gone", () => {
+  it("should be closed and left out of the unpaid list", () => {
+    const list = server.slice(server.indexOf('app.get("/api/reborn/expenses/payables"'), server.indexOf('"/api/reborn/expenses/payables/merge"'));
+    assert.ok(list.includes("orphanIds") && list.includes('set({ status: "void" }).where(inArray(supplierPayables.id, orphanIds))'));
+  });
+});

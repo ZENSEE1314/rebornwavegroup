@@ -6563,9 +6563,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const userId = getUserId(req)!;
     const role = await adminRole(userId);
     const canPay = role === "admin" || role === "manager";
-    const rows = await db.select().from(supplierPayables)
+    const listed = await db.select().from(supplierPayables)
       .where(and(eq(supplierPayables.companyId, await rebornCompanyId(req)), eq(supplierPayables.status, "unpaid"), canPay ? undefined : eq(supplierPayables.createdBy, userId)))
       .orderBy(sql`${supplierPayables.dueDate} NULLS LAST`, asc(supplierPayables.id));
+    // A bill whose accounting line was deleted (before the delete also voided its bill) has nothing behind it any more: close it for good instead of listing it.
+    const listedLedgerIds = listed.map((r) => r.ledgerEntryId).filter((id): id is number => !!id);
+    const stillBooked = new Set(listedLedgerIds.length ? (await db.select({ id: ledgerEntries.id }).from(ledgerEntries).where(inArray(ledgerEntries.id, listedLedgerIds))).map((line) => line.id) : []);
+    const orphanIds = listed.filter((r) => r.ledgerEntryId && !stillBooked.has(r.ledgerEntryId)).map((r) => r.id);
+    if (orphanIds.length) await db.update(supplierPayables).set({ status: "void" }).where(inArray(supplierPayables.id, orphanIds));
+    const rows = listed.filter((r) => !orphanIds.includes(r.id));
     const today = (await ensureVenueSession()).day;
     const ledgerIds = rows.map((r) => r.ledgerEntryId).filter((id): id is number => !!id);
     const uploads = ledgerIds.length ? await db.select({ ledgerEntryId: expenseUploads.ledgerEntryId, items: expenseUploads.items }).from(expenseUploads).where(inArray(expenseUploads.ledgerEntryId, ledgerIds)) : [];
