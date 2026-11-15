@@ -333,7 +333,7 @@ function DeleteUserButton({ name, onConfirm }: { name: string; onConfirm: () => 
 function TabAccessBox({ u, tabs, onSaved }: { u: any; tabs: string[] | null; onSaved: () => void }) {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const role: AdminRole = u.role === "staff" && u.member_role === "manager" ? "manager" : (u.role as AdminRole);
+  const role: AdminRole = u.role === "staff" && u.member_role === "manager" ? "manager" : u.role === "staff" && u.staff_kind === "guard" ? "security" : (u.role as AdminRole);
   const all = [...tabsForRole(role), ...(role === "staff" ? OPT_IN_TABS : [])]; // Expenses is switched on per person for staff
   const [isOpen, setIsOpen] = useState(false);
   const [ticked, setTicked] = useState<string[]>(() => visibleTabs(role, tabs));
@@ -405,7 +405,7 @@ function RatingVisibility({ userId }: { userId: string }) {
 
 function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSave, onDelete }: any) {
   const { user: me } = useAuth();
-  const [e, setE] = useState(() => (u.role === "staff" && u.member_role === "manager" ? { ...u, role: "manager" } : u)); // manager shows as its own role
+  const [e, setE] = useState(() => (u.role === "staff" && u.member_role === "manager" ? { ...u, role: "manager" } : u.role === "staff" && u.staff_kind === "guard" ? { ...u, role: "security" } : u)); // manager shows as its own role
   const { t } = useTranslation();
   return (
     <Card>
@@ -430,10 +430,10 @@ function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSa
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <label className="text-xs text-white/50">{t("admin.m.role")}
               <select value={e.role === "staff" && e.member_role === "manager" ? "manager" : e.role || "user"} onChange={(x) => setE({ ...e, role: x.target.value, member_role: x.target.value })} className={inp + " ml-1"}>
-                <option value="user">{t("admin.role.user")}</option><option value="staff">{t("admin.role.staffSub")}</option><option value="manager">{t("admin.role.managerSub")}</option><option value="admin">{t("admin.role.admin")}</option>
+                <option value="user">{t("admin.role.user")}</option><option value="staff">{t("admin.role.staffSub")}</option><option value="manager">{t("admin.role.managerSub")}</option><option value="security">{t("admin.role.securitySub")}</option><option value="admin">{t("admin.role.admin")}</option>
               </select>
             </label>
-            {(e.role === "staff" || e.role === "manager" || e.role === "admin") && <label className="text-xs text-white/50">{t("admin.m.position")}
+            {(e.role === "staff" || e.role === "manager" || e.role === "security" || e.role === "admin") && <label className="text-xs text-white/50">{t("admin.m.position")}
               <select value={e.position_id || ""} onChange={(x) => setE({ ...e, positionId: x.target.value, position_id: x.target.value })} className={inp + " ml-1"}>
                 <option value="">{t("admin.m.selectPosition")}</option>{positions.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -448,7 +448,7 @@ function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSa
           {["admin", "staff"].includes(u.role) && u.id !== (me as any)?.id && <TabAccessBox key={`${u.id}-${u.role}-${u.member_role}`} u={u} tabs={tabs} onSaved={onTabsSaved} />}
         </>
       ) : (
-        <p className="text-xs text-white/60">{t("admin.m.summaryLine", { credits: u.credits, points: u.loyaltyPoints, tokens: u.tokens, kgold: u.kgold })} · <b>{u.role === "staff" && u.member_role === "manager" ? t("admin.role.manager") : tv(t, "admin.role." + u.role, u.role)}</b></p>
+        <p className="text-xs text-white/60">{t("admin.m.summaryLine", { credits: u.credits, points: u.loyaltyPoints, tokens: u.tokens, kgold: u.kgold })} · <b>{u.role === "staff" && u.member_role === "manager" ? t("admin.role.manager") : u.role === "staff" && u.staff_kind === "guard" ? t("admin.role.security") : tv(t, "admin.role." + u.role, u.role)}</b></p>
       )}
     </Card>
   );

@@ -458,6 +458,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.tab.Sales': { en: "Daily sales", zh: "每日销售", id: "Penjualan harian" },
   'admin.tab.POS': { en: "POS", zh: "收银", id: "POS" },
   'admin.role.manager': { en: "manager", zh: "经理", id: "manajer" },
+  'admin.role.security': { en: "Security", zh: "保安", id: "Keamanan" },
+  'admin.role.securitySub': { en: "security (sees staff + members only)", zh: "保安（只能看员工和会员）", id: "keamanan (hanya melihat staf + member)" },
   'admin.role.managerSub': { en: "manager (staff + daily sales)", zh: "经理（员工 + 每日销售）", id: "manajer (staf + penjualan harian)" },
   'admin.sales.title': { en: "Daily sales", zh: "每日销售", id: "Penjualan harian" },
   'admin.sales.hint': { en: "Paid POS bills for the venue day (8am to 8am). Close the day from the POS (Close POS day): the report is saved, guests are checked out and a new KOS QR is made.", zh: "营业日（早上 8 点到次日 8 点）的已付款收银账单。请在收银页面结束营业日（结算今日收银）：日报会被保存，顾客全部签出，并生成新的歌王二维码。", id: "Tagihan POS yang sudah dibayar untuk hari venue (jam 8 pagi sampai jam 8 pagi). Tutup hari dari POS (Tutup hari POS): laporan disimpan, tamu di-check-out dan QR KOS baru dibuat." },

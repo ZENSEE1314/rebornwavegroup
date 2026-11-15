@@ -7,10 +7,13 @@ export const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemption
 /** Tabs staff only get once the main admin switches them on for that person (none now: every staff account can upload expenses). */
 export const OPT_IN_TABS: readonly string[] = [];
 
-export type AdminRole = "admin" | "manager" | "staff" | "user";
+// A Security account (a staff account whose Payroll "Kind of staff" is Security guard) sees only these: who is staff and who is a normal member, and the Security tab.
+export const SECURITY_TABS = ["Overview", "Users", "Security"] as const;
+
+export type AdminRole = "admin" | "manager" | "staff" | "security" | "user";
 export const ALWAYS_VISIBLE_TAB = "Overview";
 
-export const tabsForRole = (role: AdminRole): readonly string[] => (role === "admin" ? ADMIN_TABS : role === "manager" ? MANAGER_TABS : STAFF_TABS);
+export const tabsForRole = (role: AdminRole): readonly string[] => (role === "admin" ? ADMIN_TABS : role === "manager" ? MANAGER_TABS : role === "security" ? SECURITY_TABS : STAFF_TABS);
 
 const optedInTabs = (role: AdminRole, list: readonly string[] | null | undefined): string[] =>
   role === "staff" && list ? OPT_IN_TABS.filter((tab) => list.includes(tab)) : [];

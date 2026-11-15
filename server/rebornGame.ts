@@ -748,6 +748,12 @@ async function adminRole(userId: string | null): Promise<"admin" | "manager" | "
   const role = ((r as any).rows || r)[0]?.role;
   return role === "manager" || role === "owner" || role === "admin" ? "manager" : "staff";
 }
+// A Security account: a plain staff account whose payroll profile says "Security guard". It gets only the Users (staff + members) and Security tabs.
+async function isSecurityAccount(userId: string | null): Promise<boolean> {
+  if (!userId || (await adminRole(userId)) !== "staff") return false;
+  const r = await db.execute(sql`SELECT p.staff_kind FROM bridge_staff_profiles p JOIN bridge_companies c ON c.id=p.company_id WHERE c.slug=${homeCompanySlug()} AND p.user_id=${userId} LIMIT 1`);
+  return ((r as any).rows || r)[0]?.staff_kind === "guard";
+}
 function requireManager(handler: (req: Request, res: Response) => Promise<any>) {
   return async (req: Request, res: Response) => {
     const role = await adminRole(getUserId(req));
@@ -3634,9 +3640,16 @@ export function registerRebornRoutes(app: Express) {
     if (sort === "tokens") rows = [...rows].sort((a: any, b: any) => (b.tokens || 0) - (a.tokens || 0));
     // Whole-base summary (independent of the current page/filter) — scoped to this company.
     const [agg] = await db.select({ count: sql<number>`count(*)`, tokens: sql<number>`coalesce(sum(${users.tokens}),0)`, points: sql<number>`coalesce(sum(${users.loyaltyPoints}),0)` }).from(users).where(memberOf);
-    const result = await db.execute(sql`SELECT m.user_id, m.position_id, m.branch_id, m.role AS member_role, p.name position_name FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${cid}`);
+    const result = await db.execute(sql`SELECT m.user_id, m.position_id, m.branch_id, m.role AS member_role, p.name position_name, (SELECT sp.staff_kind FROM bridge_staff_profiles sp WHERE sp.company_id=m.company_id AND sp.user_id=m.user_id LIMIT 1) AS staff_kind FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${cid}`);
     const positionRows = (result.rows || result) as any[];
-    res.json({ users: rows.map((u:any) => ({ ...u, ...(positionRows.find(p => p.user_id === u.id) || {}) })), summary: { totalUsers: Number(agg?.count) || 0, totalTokens: Number(agg?.tokens) || 0, totalPoints: Number(agg?.points) || 0 } });
+    const listed = rows.map((u: any) => ({ ...u, ...(positionRows.find((p) => p.user_id === u.id) || {}) }));
+    if (await isSecurityAccount(getUserId(req))) {
+      // Security sees who is staff and who is a normal member: no admins or managers, no balances, no contact details.
+      const plain = listed.filter((u: any) => u.role !== "admin" && !["manager", "owner", "admin"].includes(u.member_role))
+        .map((u: any) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName, username: u.username, role: u.role, profileImageUrl: u.profileImageUrl, membershipCardNumber: u.membershipCardNumber, createdAt: u.createdAt, position_name: u.position_name, member_role: u.member_role, staff_kind: u.staff_kind }));
+      return res.json({ users: plain, summary: { totalUsers: plain.length, totalTokens: 0, totalPoints: 0 } });
+    }
+    res.json({ users: listed, summary: { totalUsers: Number(agg?.count) || 0, totalTokens: Number(agg?.tokens) || 0, totalPoints: Number(agg?.points) || 0 } });
   }));
   // Delete a user (admin only; not yourself).
   // Remove a person from this business. They leave this business's list and lose their staff role; if they belong to no other business the
@@ -3723,7 +3736,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.loyaltyPoints !== undefined) patch.loyaltyPoints = Number(b.loyaltyPoints);
     if (b.tokens !== undefined) patch.tokens = Number(b.tokens);
     if (b.kgold !== undefined) patch.kgold = Number(b.kgold);
-    if (b.role !== undefined && ["admin", "staff", "user", "manager"].includes(b.role)) patch.role = b.role === "manager" ? "staff" : b.role; // manager = staff account + company role manager
+    if (b.role !== undefined && ["admin", "staff", "user", "manager", "security"].includes(b.role)) patch.role = b.role === "manager" || b.role === "security" ? "staff" : b.role; // manager = staff account + company role manager; security = staff account + payroll kind Security guard
     if (b.email !== undefined) patch.email = String(b.email).trim().toLowerCase() || null;
     if (b.firstName !== undefined) patch.firstName = b.firstName;
     if (b.lastName !== undefined) patch.lastName = b.lastName;
@@ -3738,11 +3751,13 @@ export function registerRebornRoutes(app: Express) {
     if (b.membershipCardNumber !== undefined) patch.membershipCardNumber = String(b.membershipCardNumber).trim() || null;
     if (b.password) patch.password = await bcrypt.hash(String(b.password), 12);
     const [row] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
-    if (b.role === "staff" || b.role === "admin" || b.role === "manager") {
+    if (b.role === "staff" || b.role === "admin" || b.role === "manager" || b.role === "security") {
+      const memberRole = b.role === "security" ? "staff" : b.role;
+      const kind = b.role === "security" ? { staffKind: "guard", needsAttendance: false } : { staffKind: "staff" };
       const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
       if (reborn) {
-        await db.insert(bridgeCompanyMembers).values({ companyId: reborn.id, userId: id, positionId: b.positionId ? Number(b.positionId) : null, role: b.role }).onConflictDoUpdate({ target: [bridgeCompanyMembers.companyId, bridgeCompanyMembers.userId], set: { positionId: b.positionId ? Number(b.positionId) : null, role: b.role, status: "active", updatedAt: new Date() } });
-        await db.insert(bridgeStaffProfiles).values({ companyId: reborn.id, userId: id, positionId: b.positionId ? Number(b.positionId) : null }).onConflictDoUpdate({ target: [bridgeStaffProfiles.companyId, bridgeStaffProfiles.userId], set: { positionId: b.positionId ? Number(b.positionId) : null, updatedAt: new Date() } });
+        await db.insert(bridgeCompanyMembers).values({ companyId: reborn.id, userId: id, positionId: b.positionId ? Number(b.positionId) : null, role: memberRole }).onConflictDoUpdate({ target: [bridgeCompanyMembers.companyId, bridgeCompanyMembers.userId], set: { positionId: b.positionId ? Number(b.positionId) : null, role: memberRole, status: "active", updatedAt: new Date() } });
+        await db.insert(bridgeStaffProfiles).values({ companyId: reborn.id, userId: id, positionId: b.positionId ? Number(b.positionId) : null, ...kind }).onConflictDoUpdate({ target: [bridgeStaffProfiles.companyId, bridgeStaffProfiles.userId], set: { positionId: b.positionId ? Number(b.positionId) : null, ...kind, updatedAt: new Date() } });
       }
     }
     const changed = Object.keys(patch).filter((k) => k !== "updatedAt");
@@ -6374,7 +6389,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
 
   // Which admin-panel view this account gets (admin / manager / staff).
   app.get("/api/reborn/my-role", requireAuth, async (req, res) => {
-    res.json({ role: await adminRole(getUserId(req)) });
+    const userId = getUserId(req);
+    res.json({ role: (await isSecurityAccount(userId)) ? "security" : await adminRole(userId) });
   });
   // Month-to-date paid sales per salesperson vs their target (WIB month).
   async function salesTargets(cid: number, month: string, onlyUser?: string) {
@@ -6515,7 +6531,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const [target] = await db.select({ role: users.role, memberRole: bridgeCompanyMembers.role }).from(users)
       .innerJoin(bridgeCompanyMembers, and(eq(bridgeCompanyMembers.userId, users.id), eq(bridgeCompanyMembers.companyId, cid))).where(eq(users.id, id));
     if (!target) return res.status(404).json({ message: tr(req, { en: "User not found", zh: "找不到该用户", id: "Pengguna tidak ditemukan" }) });
-    const role: AdminRole = target.role === "staff" && target.memberRole === "manager" ? "manager" : (target.role as AdminRole);
+    const role: AdminRole = target.role === "staff" && target.memberRole === "manager" ? "manager" : (await isSecurityAccount(id)) ? "security" : (target.role as AdminRole);
     if (role === "user") return res.status(400).json({ message: tr(req, { en: "Only staff, managers and admins have an admin page", zh: "只有员工、经理和管理员有管理页面", id: "Hanya staf, manajer, dan admin yang punya halaman admin" }) });
     const access = await readTabAccess();
     const tabs = cleanTabAccess(req.body?.tabs, role);
