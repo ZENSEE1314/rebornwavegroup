@@ -4282,8 +4282,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const name = real || [u?.first, u?.last].filter(Boolean).join(" ") || u?.username || u?.email || "";
     return source === "app" && name ? `${name} (app)` : name;
   }
-  async function appendItems(orderId: number, orderNo: string, items: any[], userId: string, status: string = "accepted", source: string = "pos") {
-    const addedByName = await orderedByName(orderId, userId, source);
+  async function appendItems(orderId: number, orderNo: string, items: any[], userId: string, status: string = "accepted", source: string = "pos", viaPhone = false) {
+    const ordererName = await orderedByName(orderId, userId, source);
+    const addedByName = viaPhone && ordererName ? `${ordererName} (phone)` : ordererName; // a staff login used in the phone app is not the same as the staff member at the POS
     for (const it of items) {
       const [made] = it.productId ? await db.select({ category: posProducts.category, station: posProducts.station }).from(posProducts).where(eq(posProducts.id, it.productId)) : [];
       await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source, station: stationFor(made?.category, made?.station), addedBy: userId, addedByName });
@@ -4868,6 +4869,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (error) return res.status(400).json({ message: error });
     if (!clean!.length) return res.status(400).json({ message: tr(req, { en: "Your order is empty", zh: "你的订单是空的", id: "Pesananmu kosong" }) });
     const [u] = await db.select().from(users).where(eq(users.id, userId));
+    const openedNow = !order;
     if (!order) {
       [order] = await db.insert(posTickets).values({
         companyId: cid,
@@ -4880,9 +4882,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       }).returning();
     }
     const autoAccept = (await getSettings()).appOrdersAutoAccept;
-    await appendItems(order.id, order.orderNo, clean!, userId, byStaff || autoAccept ? "accepted" : "pending", byStaff ? "pos" : "app"); // with auto-accept off the counter must accept a guest's own order
+    await appendItems(order.id, order.orderNo, clean!, userId, byStaff || autoAccept ? "accepted" : "pending", byStaff ? "pos" : "app", byStaff); // with auto-accept off the counter must accept a guest's own order
     emitLiveUpdate("/api/reborn/pos/orders", { action: "NEW_ORDER", resource: String(order.id) });
     if (byStaff) {
+      // Same trace as an order typed at the POS, so Admin › Logs shows who sent it from which table (a staff login used in the phone app used to leave none).
+      if (openedNow) await logAdmin(req, { targetType: "pos_order", targetId: order.id, action: "open_ticket", entityType: "order", description: `Opened ticket ${order.orderNo} for table ${tableNumber} from the phone app` });
+      await logAdmin(req, { targetType: "pos_order", targetId: String(order.id), action: "add_items", entityType: "order", description: `Table ${tableNumber} (${order.orderNo}): ordered ${clean!.map((x: any) => `${x.qty}× ${x.name}`).join(", ")} from the phone app` });
       void announceStaffOrder(order, userId, clean!).catch((error) => console.warn("order alert failed", error));
       return res.json({ message: tr(req, { en: "Order added to the table's bill.", zh: "已加入该桌的账单。", id: "Pesanan ditambahkan ke tagihan meja." }), order });
     }

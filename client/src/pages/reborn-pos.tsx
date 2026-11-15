@@ -102,6 +102,32 @@ function beep() {
 // Commission for a sale (an agent, a driver ...): our own cost, kept out of the bill and off the customer's receipt.
 interface CommissionInput { label: string; payee: string; kind: "percent" | "amount"; value: number }
 const emptyCommission = (): CommissionInput => ({ label: "", payee: "", kind: "percent", value: 0 });
+// The commission picked on an open table bill is kept on this device until the bill is paid, so leaving the bill and coming back (or a refresh) does not lose the name.
+const SAVED_COMMISSION_KEY = "rw.pos.commission.";
+interface SavedCommission { sales: string; commission: CommissionInput }
+function readSavedCommission(billId: number): SavedCommission {
+  try {
+    const raw = localStorage.getItem(SAVED_COMMISSION_KEY + billId);
+    if (raw) { const saved = JSON.parse(raw); return { sales: typeof saved.sales === "string" ? saved.sales : "", commission: { ...emptyCommission(), ...saved.commission } }; }
+  } catch { /* storage blocked or unreadable: start with no commission */ }
+  return { sales: "", commission: emptyCommission() };
+}
+function writeSavedCommission(billId: number, saved: SavedCommission | null) {
+  try {
+    if (saved) localStorage.setItem(SAVED_COMMISSION_KEY + billId, JSON.stringify(saved));
+    else localStorage.removeItem(SAVED_COMMISSION_KEY + billId);
+  } catch { /* storage blocked: the commission just is not remembered */ }
+}
+function useSavedCommission(billId: number) {
+  const [initial] = useState(() => readSavedCommission(billId));
+  const [sales, setSales] = useState(initial.sales);
+  const [commission, setCommission] = useState(initial.commission);
+  useEffect(() => {
+    const isEmpty = !sales && !commission.payee && commission.value <= 0;
+    writeSavedCommission(billId, isEmpty ? null : { sales, commission });
+  }, [billId, sales, commission]);
+  return { sales, setSales, commission, setCommission };
+}
 const commissionToSend = (c: CommissionInput) => (c.value > 0 ? c : undefined);
 const commissionAmountOf = (c: CommissionInput, base: number) => (c.value > 0 ? Math.min(Math.max(0, base), roundMoney(c.kind === "percent" ? (base * c.value) / 100 : c.value)) : 0);
 const commissionPreview = (c: CommissionInput, base: number) => { const amount = commissionAmountOf(c, base); return amount > 0 ? { commissionLabel: c.label, commissionPayee: c.payee, commissionAmount: amount } : {}; };
@@ -736,13 +762,12 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const productById = useMemo(() => new Map(products.map((p)=>[p.id,p])), [products]);
   const orderDrinks = (order.items || []).filter((item:any)=>!OFF_BILL.includes(item.status)).map((item:any)=>({ name:item.name, category:productById.get(item.productId)?.category || "", productId:item.productId, qty:item.qty })).filter((item:any)=>isDrink(item.category,item.name));
   const [code, setCode] = useState("");
-  const [sales, setSales] = useState("");
+  const { sales, setSales, commission, setCommission } = useSavedCommission(order.id);
   const [discount, setDiscount] = useState(Number((order as any).discount) || 0);
   const [discPct, setDiscPct] = useState("");
   const [discReason, setDiscReason] = useState((order as any).discountReason || "");
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
   const [keepBottle, setKeepBottle] = useState(emptyBottle);
-  const [commission, setCommission] = useState(emptyCommission);
   const [topCash, setTopCash] = useState(""); // paid on top of the bill and kept as the member's RP credits
   const [topCredit, setTopCredit] = useState(""); // spending credit given with it (full-price items only)
   const topCashN = Math.max(0, Number(topCash) || 0);
@@ -769,7 +794,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: t("pos.drawerNotOpened"), description: t("pos.checkDrawerSetup") }); }
       if (d.receipt?.autoPrint && d.order) printReceipt(d.order, d.receipt || {});
       publishScreen({ type: "thanks", total: payable });
-      toast({ title: t("pos.paid"), description: d.message }); setReceiptResult(d);
+      writeSavedCommission(order.id, null); toast({ title: t("pos.paid"), description: d.message }); setReceiptResult(d);
     },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
