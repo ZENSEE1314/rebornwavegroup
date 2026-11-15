@@ -7,7 +7,7 @@ import { money } from "@/lib/money";
 
 interface Row { id: number; userId: string; staffName: string; itemId: number; name: string; qty: number; base: string; amount: string; isSettled: boolean; isCashPaid: boolean }
 interface Staff { id: string; name: string }
-interface BillCommission { commissionLabel: string | null; commissionPayee: string | null; commissionAmount: string; base: number; isPaid: boolean }
+interface BillCommission { salesStaffId: string | null; salesStaffName: string | null; commissionLabel: string | null; commissionPayee: string | null; commissionAmount: string; base: number; isPaid: boolean }
 interface BillDraft { payee: string; label: string; kind: Kind; value: string }
 interface BillItem { id: number; name: string; qty: number; lineTotal: string }
 type Kind = "percent" | "amount";
@@ -28,6 +28,7 @@ export function ItemCommissionAdmin({ ticketId }: { ticketId: number }) {
   const refresh = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/item-commissions"] }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); };
   const onError = (e: any) => toast({ title: t("itemCom.fail"), description: e.message, variant: "destructive" });
   const saveBill = useMutation({ mutationFn: (v: { label: string; payee: string; kind: Kind; value: number }) => apiRequest("POST", `/api/reborn/admin/accounting/orders/${ticketId}/commission`, v).then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body.message); return body; }), onSuccess: () => { setBillDraft(null); refresh(); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/pos/orders") }); toast({ title: t("itemCom.saved") }); }, onError });
+  const setSalesStaff = useMutation({ mutationFn: (staffId: string) => apiRequest("POST", `/api/reborn/admin/accounting/orders/${ticketId}/sales-staff`, { staffId }).then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body.message); return body; }), onSuccess: () => { refresh(); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/pos/orders") }); toast({ title: t("itemCom.saved") }); }, onError });
   const edit = useMutation({ mutationFn: (v: { id: number; amount?: number; userId?: string }) => apiRequest("PATCH", `/api/reborn/admin/item-commissions/${v.id}`, v).then((r) => r.json()), onSuccess: () => { refresh(); toast({ title: t("itemCom.saved") }); }, onError });
   const cancel = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/item-commissions/${id}`).then((r) => r.json()), onSuccess: () => { refresh(); toast({ title: t("itemCom.cancelled") }); }, onError });
   const pay = useMutation({ mutationFn: (id: number) => apiRequest("POST", "/api/reborn/admin/item-commissions/pay", { ids: [id] }).then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body.message); return body; }), onSuccess: (d: any) => { refresh(); toast({ title: d.message }); }, onError });
@@ -54,6 +55,14 @@ export function ItemCommissionAdmin({ ticketId }: { ticketId: number }) {
       <p className="mt-1 text-xs text-white/45">{t("itemCom.editDesc")}</p>
       {bill?.isPaid && (
         <div className="mt-3 rounded-xl bg-white/5 p-2.5 text-xs">
+          <label className="block font-semibold text-white">{t("itemCom.salesTo")}
+            <select value={bill.salesStaffId ?? ""} disabled={setSalesStaff.isPending} onChange={(e) => setSalesStaff.mutate(e.target.value)} className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-1.5 text-white">
+              <option value="">{t("itemCom.salesNone")}</option>
+              {bill.salesStaffId && !staff.some((s) => s.id === bill.salesStaffId) && <option value={bill.salesStaffId}>{bill.salesStaffName}</option>}
+              {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </label>
+          <p className="mb-2 mt-0.5 text-white/45">{t("itemCom.salesToHint")}</p>
           <p className="font-semibold text-white">{t("itemCom.billTitle")}{savedBillAmount > 0 ? ` · ${bill.commissionPayee || t("itemCom.billNoName")} · ${money(savedBillAmount)}` : ` · ${t("itemCom.billNone")}`}</p>
           <p className="mt-0.5 text-white/45">{t("itemCom.billHint", { base: money(bill.base) })}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">

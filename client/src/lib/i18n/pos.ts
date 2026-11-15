@@ -190,7 +190,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.com.none': { en: 'No commission', zh: '无提成', id: 'Tanpa komisi' },
   'pos.com.agency': { en: 'Agency / other (type the name)', zh: '中介 / 其他（手动输入名字）', id: 'Agen / lainnya (ketik nama)' },
   'pos.com.agencyName': { en: "Agency or person's name", zh: '中介或个人姓名', id: 'Nama agen atau orang' },
-  'pos.com.staffNote': { en: "Paid through payroll at this staff member's own commission rate. Nothing else is booked.", zh: '按该员工自己的提成比例通过工资发放，不另外入账。', id: 'Dibayar lewat payroll sesuai tarif komisi staf ini. Tidak ada yang dicatat lagi.' },
+  'pos.com.staffNote': { en: "This sale counts toward this staff member's daily sales. Their commission % follows the daily tier (Admin › Staff) by itself: nothing to type here. The bill counts without service fee, tax and items marked no commission.", zh: '此单计入该员工的当日销售额。佣金比例自动按每日级别计算（管理 › 员工），无需在此输入。计算时不含服务费、税和标为不计佣金的商品。', id: 'Penjualan ini dihitung ke penjualan harian staf ini. Persen komisinya otomatis mengikuti tingkat harian (Admin › Staf): tidak perlu mengisi apa pun di sini. Tagihan dihitung tanpa biaya layanan, pajak, dan item yang ditandai tanpa komisi.' },
   'pos.salesperson': { en: 'Salesperson (commission) — optional', zh: '销售员（提成）— 可选', id: 'Tenaga penjual (komisi) — opsional' },
   'pos.salesLabel': { en: 'sales: {name}', zh: '销售：{name}', id: 'penjual: {name}' },
 
@@ -297,6 +297,9 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'itemCom.pickStaff': { en: 'Staff', zh: '员工', id: 'Staf' },
   'itemCom.editSale': { en: 'Edit', zh: '编辑', id: 'Edit' },
   'itemCom.editTitle': { en: 'Edit this sale', zh: '编辑此销售', id: 'Edit penjualan ini' },
+  'itemCom.salesTo': { en: "Commission to (sales staff)", zh: "佣金归属（销售员工）", id: "Komisi untuk (staf penjualan)" },
+  'itemCom.salesNone': { en: "No one", zh: "无人", id: "Tidak ada" },
+  'itemCom.salesToHint': { en: "The sale counts toward this person's daily sales, and their commission % follows their daily tier. Change the name here if it is wrong. The box below is a separate commission paid to an agent.", zh: "此单计入该员工的当日销售额，佣金比例按其每日级别计算。名字有误可在此更改。下面的方框是另外付给中介的佣金。", id: "Penjualan ini dihitung ke penjualan harian orang ini, dan persen komisinya mengikuti tingkat hariannya. Ubah nama di sini jika salah. Kotak di bawah adalah komisi terpisah untuk agen." },
   'itemCom.billTitle': { en: "Commission of the whole bill", zh: "整张账单的佣金", id: "Komisi seluruh tagihan" },
   'itemCom.billNone': { en: "not set", zh: "未设置", id: "belum diatur" },
   'itemCom.billNoName': { en: "no name", zh: "未填姓名", id: "tanpa nama" },

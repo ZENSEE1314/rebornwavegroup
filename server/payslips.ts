@@ -9,6 +9,7 @@ import { appSettings, bridgeCompanyMembers, users } from "@shared/schema";
 import { registerCjk } from "./contractPdf";
 import { tr, asLang, type Lang } from "./i18n";
 import { sendEmailDetailed } from "./emailService";
+import { periodToPay } from "@shared/payPeriod";
 import { PAYSLIP_TEXT, formatAmount, isReminderDue, monthLabel, previousMonth, type PayrollClock, type PayslipData, type PayslipLang } from "@shared/payslip";
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -23,6 +24,7 @@ export interface PayslipDeps {
   notifyUser(userId: string, text: Record<PayslipLang, string>, data?: Record<string, unknown>): Promise<unknown>;
   notifyAdmins(text: Record<PayslipLang, string>): Promise<unknown>;
   payrollDay(): Promise<number>;
+  payrollStartDay(): Promise<number>;
 }
 
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -130,7 +132,7 @@ const wibClock = (now = new Date()): PayrollClock => {
 /** Run hourly in every company's data space: on payday (set in Admin › Settings), tell the admins who is still unpaid for last month. Once per month. */
 export async function runPayrollReminder(deps: PayslipDeps, now = new Date()): Promise<boolean> {
   const clock = wibClock(now);
-  const monthToPay = previousMonth(clock.year, clock.month);
+  const monthToPay = periodToPay(clock, await deps.payrollStartDay());
   const [marker] = await db.select().from(appSettings).where(eq(appSettings.key, REMINDED_KEY));
   if (!isReminderDue(clock, await deps.payrollDay(), marker?.value ?? null)) return false;
   const cid = await deps.companyId();

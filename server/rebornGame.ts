@@ -15,6 +15,7 @@ import { payReferralCommission, reverseReferralCommission } from "./referralComm
 import { planSplit, readSplit, type SplitPlan } from "@shared/payments";
 import { spendByStaff } from "@shared/expenseByStaff";
 import { cleanSetup, dayCommission, nextTierAfter, readSetup, type TiersProblem } from "@shared/dailyCommission";
+import { clampStartDay, labelOfDay, periodOf } from "@shared/payPeriod";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
@@ -126,6 +127,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   receiptQrKind: "none", receiptQrLink: "", receiptQrCaption: "", // a QR at the bottom of the customer receipt: none | wifi | review | link
   wifiName: "", wifiPassword: "", wifiSecurity: "WPA", // the venue Wi-Fi, for the Wi-Fi QR in Admin > QR codes (WPA | WEP | nopass)
   payrollDay: "15",         // day of month payroll is recorded/paid (the admin reminder comes then)
+  payrollStartDay: "1",     // the day a pay period starts: 1 = the calendar month, 16 = from the 16th to the 15th (paid on the 15th)
   overtimeHourlyRate: "0",  // RP paid per hour worked past the scheduled shift end
   appOrdersAutoAccept: "false", // off: an order from the member app rings every staff phone until someone accepts it; on: it goes straight to the kitchen
   referralHoldHours: "18",   // a new referral earns nothing for this many hours (anti-cheat: no signing a friend up and ordering on their account at once)
@@ -192,6 +194,7 @@ async function getSettings() {
     receiptQrKind: RECEIPT_QR_KINDS.includes(map.receiptQrKind as any) ? map.receiptQrKind : "none", receiptQrLink: map.receiptQrLink || "", receiptQrCaption: map.receiptQrCaption || "",
     wifiName: map.wifiName || "", wifiPassword: map.wifiPassword || "", wifiSecurity: ["WPA", "WEP", "nopass"].includes(map.wifiSecurity) ? map.wifiSecurity : "WPA",
     payrollDay: Math.min(28, Math.max(1, Number(map.payrollDay) || 1)),
+    payrollStartDay: clampStartDay(map.payrollStartDay),
     overtimeHourlyRate: Math.max(0, Number(map.overtimeHourlyRate) || 0),
     allowNegativeStock: map.allowNegativeStock === "true",
     appOrdersAutoAccept: map.appOrdersAutoAccept !== "false",
@@ -1604,6 +1607,7 @@ export function registerRebornRoutes(app: Express) {
     notifyUser: (userId, text, data) => notifyUserI18n(userId, "payslip", (lang) => ({ title: pick(lang, { en: "Payslip", zh: "工资单", id: "Slip gaji" }), body: text[lang] }), data),
     notifyAdmins: (text) => notifyStaffI18n("payday", (lang) => ({ title: pick(lang, { en: "Payday", zh: "发薪日", id: "Hari gajian" }), body: text[lang] }), undefined, { adminsOnly: true }),
     payrollDay: async () => (await getSettings()).payrollDay,
+    payrollStartDay: async () => (await getSettings()).payrollStartDay,
   };
   if (!BACKGROUND_JOBS_OFF) setInterval(() => { void inEveryDataSpace(async () => { await runPayrollReminder(payslipDeps); }).catch((error) => console.error("[payroll reminder]", error)); }, PAYROLL_REMINDER_CHECK_MS);
 
@@ -3567,7 +3571,7 @@ export function registerRebornRoutes(app: Express) {
     res.json({ ...settings, mainAdminPassword: "", mainAdminPasswordSet: !!mainAdminPassword });
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["referralOn", "referralPercent", "referralHoldHours", "appDiscountOn", "appDiscountPercent", "receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "songLookahead", "timezone", "bottleExpiryDays", "payrollDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
+    const allowed = ["referralOn", "referralPercent", "referralHoldHours", "appDiscountOn", "appDiscountPercent", "receiptQrKind", "receiptQrLink", "receiptQrCaption", "wifiName", "wifiPassword", "wifiSecurity", "appOrdersAutoAccept", "petName", "petImageUrl", "petEggImageUrl", "giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "serviceFeePercent", "clubName", "receiptLogoUrl", "receiptFooter", "posAutoPrint", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled", "songQueueMode", "songsPerTurn", "songLookahead", "timezone", "bottleExpiryDays", "payrollDay", "payrollStartDay", "overtimeHourlyRate", "allowNegativeStock", "bookingTableDayLock", "bookingAskHours", "bookingAskSpecial", "bookingLastTime", "appAndroidUrl", "appIosUrl", "giftLevelSenderBase", "giftLevelSenderGrowth", "giftLevelSenderList", "giftLevelReceiverBase", "giftLevelReceiverGrowth", "giftLevelReceiverList"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -4147,7 +4151,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       cost: isService ? "0" : String(Number(b.cost) || 0), stock: isService ? 0 : Number(b.stock) || 0, imageUrl: await pictureFromAddress(b.imageUrl),
       ...packPricingFields(b),
       supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
-      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, appDiscountOk: b.appDiscountOk !== false, noDiscount: !!b.noDiscount, ...staffCommissionFields(b), sortOrder: Number(b.sortOrder) || 0,
+      active: b.active !== false, posVisible: b.posVisible !== false, recommended: !!b.recommended, referralOk: b.referralOk !== false, salesCommissionOk: b.salesCommissionOk !== false, appDiscountOk: b.appDiscountOk !== false, noDiscount: !!b.noDiscount, ...staffCommissionFields(b), sortOrder: Number(b.sortOrder) || 0,
       ...happyFieldsOf(b),
       isService: !!b.isService,
       ...packageFields(b),
@@ -4193,6 +4197,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.posVisible !== undefined) patch.posVisible = !!b.posVisible;
     if (b.recommended !== undefined) patch.recommended = !!b.recommended;
     if (b.referralOk !== undefined) patch.referralOk = !!b.referralOk;
+    if (b.salesCommissionOk !== undefined) patch.salesCommissionOk = !!b.salesCommissionOk;
     if (b.appDiscountOk !== undefined) patch.appDiscountOk = !!b.appDiscountOk;
     if (b.noDiscount !== undefined) patch.noDiscount = !!b.noDiscount;
     if (b.staffCommissionKind !== undefined || b.staffCommissionValue !== undefined || b.staffCommissionStaffIds !== undefined) Object.assign(patch, staffCommissionFields({ staffCommissionKind: prev.staffCommissionKind, staffCommissionValue: prev.staffCommissionValue, staffCommissionStaffIds: prev.staffCommissionStaffIds, ...b }));
@@ -4514,8 +4519,23 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       .where(and(isNull(staffItemCommissions.voidedAt), onlyTicket ? eq(staffItemCommissions.ticketId, onlyTicket) : gte(staffItemCommissions.createdAt, new Date(Date.now() - days * 86400000)))).orderBy(desc(staffItemCommissions.createdAt)).limit(500);
     const items = onlyTicket ? (await db.select({ id: posTicketItems.id, name: posTicketItems.name, qty: posTicketItems.qty, lineTotal: posTicketItems.lineTotal, status: posTicketItems.status }).from(posTicketItems).where(eq(posTicketItems.orderId, onlyTicket))).filter((it) => !GONE_ITEM.includes(it.status) && it.status !== "cancelled") : [];
     const [ticket] = onlyTicket ? await db.select().from(posTickets).where(eq(posTickets.id, onlyTicket)) : [];
-    const bill = ticket ? { commissionLabel: ticket.commissionLabel, commissionPayee: ticket.commissionPayee, commissionAmount: ticket.commissionAmount, base: roundMoney(Number(ticket.subtotal) - Number(ticket.discount)), isPaid: ticket.status === "paid" } : null;
+    const bill = ticket ? { salesStaffId: ticket.salesStaffId, salesStaffName: ticket.salesStaffName, commissionLabel: ticket.commissionLabel, commissionPayee: ticket.commissionPayee, commissionAmount: ticket.commissionAmount, base: roundMoney(Number(ticket.subtotal) - Number(ticket.discount)), isPaid: ticket.status === "paid" } : null;
     res.json({ bill, items, rows: rows.map((r) => ({ ...r, staffName: [r.firstName, r.lastName].filter(Boolean).join(" ") || r.userId, isSettled: !!r.settledAt, isCashPaid: !!r.paidLedgerId })) });
+  }));
+  // Change who is credited with a bill ("Commission to" the staff member on the pay panel): their daily sales and tier commission follow the bill. Empty = no one.
+  app.post("/api/reborn/admin/accounting/orders/:id/sales-staff", requireAdmin(async (req, res) => {
+    const [order] = await db.select().from(posTickets).where(eq(posTickets.id, Number(req.params.id)));
+    if (!order) return res.status(404).json({ message: tr(req, { en: "Bill not found", zh: "找不到该账单", id: "Tagihan tidak ditemukan" }) });
+    const asked = String(req.body?.staffId || "").trim();
+    let name: string | null = null;
+    if (asked) {
+      const person = await storage.getUser(asked);
+      if (!person || (person.role !== "staff" && person.role !== "admin")) return res.status(400).json({ message: tr(req, { en: "Pick a staff member", zh: "请选择员工", id: "Pilih staf" }) });
+      name = [person.firstName, person.lastName].filter(Boolean).join(" ") || person.username || person.email || asked;
+    }
+    await db.update(posTickets).set({ salesStaffId: asked || null, salesStaffName: name }).where(eq(posTickets.id, order.id));
+    await logAdmin(req, { targetType: "pos_order", targetId: String(order.id), action: "edit_sales_staff", entityType: "accounting", description: `Commission to of ${order.orderNo}: ${order.salesStaffName || "no one"} → ${name || "no one"}` });
+    res.json({ salesStaffId: asked || null, salesStaffName: name });
   }));
   // The commission of the whole receipt of a paid sale: set it, change who gets it / the % or amount, or remove it (value 0).
   app.post("/api/reborn/admin/accounting/orders/:id/commission", requireAdmin(async (req, res) => {
@@ -4744,6 +4764,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     return role === "admin" || role === "manager" || (await commissionEditorIds()).includes(userId);
   };
   const dailyCommissionSetup = async () => readSetup(await readSettingValue(DAILY_COMMISSION_KEY));
+  // The pay period of staff sales and payroll (shared/payPeriod.ts): a calendar month unless the admin set another start day (16 = from the 16th to the 15th, paid on the 15th).
+  const payPeriodOf = async (label?: string) => {
+    const startDay = (await getSettings()).payrollStartDay;
+    const month = label && /^\d{4}-(0[1-9]|1[0-2])$/.test(label) ? label : labelOfDay((await ensureVenueSession()).day, startDay);
+    return { month, startDay, ...periodOf(month, startDay) };
+  };
   const tiersProblemText = (req: Request, problem: TiersProblem) => tr(req, problem === "percent"
     ? { en: "Each % must be between 0 and 100", zh: "每个百分比必须在 0 到 100 之间", id: "Setiap persen harus antara 0 dan 100" }
     : problem === "order"
@@ -4758,8 +4784,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!setup.enabled || !setup.startDay) return result;
     const first = setup.startDay > from ? setup.startDay : from;
     if (first >= to) return result;
-    const rows = await db.execute(sql`SELECT sales_staff_id AS user_id, to_char(${VENUE_DAY_OF(sql`paid_at`)}, 'YYYY-MM-DD') AS day, sum(COALESCE(subtotal::numeric, 0) - COALESCE(discount::numeric, 0)) AS sales
-      FROM pos_tickets WHERE status = 'paid' AND sales_staff_id IS NOT NULL AND ${VENUE_DAY_OF(sql`paid_at`)} >= ${first}::date AND ${VENUE_DAY_OF(sql`paid_at`)} < ${to}::date ${onlyUserId ? sql`AND sales_staff_id = ${onlyUserId}` : sql``}
+    // What a bill counts: its items after the discount, so no service fee and no tax, and without the items the admin ticked "no commission" in Inventory (their share of the bill is left out).
+    const rows = await db.execute(sql`SELECT t.sales_staff_id AS user_id, to_char(${VENUE_DAY_OF(sql`t.paid_at`)}, 'YYYY-MM-DD') AS day,
+        sum(CASE WHEN COALESCE(l.valid, 0) > 0 THEN (COALESCE(t.subtotal::numeric, 0) - COALESCE(t.discount::numeric, 0)) * COALESCE(l.eligible, 0) / l.valid ELSE 0 END) AS sales
+      FROM pos_tickets t
+      LEFT JOIN LATERAL (SELECT sum(i.line_total::numeric) AS valid, sum(i.line_total::numeric) FILTER (WHERE COALESCE(p.sales_commission_ok, true)) AS eligible
+        FROM pos_ticket_items i LEFT JOIN pos_products p ON p.id = i.product_id WHERE i.order_id = t.id AND i.status NOT IN ('rejected', 'lost', 'cancelled')) l ON true
+      WHERE t.status = 'paid' AND t.sales_staff_id IS NOT NULL AND ${VENUE_DAY_OF(sql`t.paid_at`)} >= ${first}::date AND ${VENUE_DAY_OF(sql`t.paid_at`)} < ${to}::date ${onlyUserId ? sql`AND t.sales_staff_id = ${onlyUserId}` : sql``}
       GROUP BY 1, 2 ORDER BY 2`);
     for (const row of ((rows as any).rows || rows) as any[]) {
       const sales = roundMoney(Number(row.sales) || 0);
@@ -6131,7 +6162,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     res.json({message:tr(req,{en:"Contribution rates saved",zh:"缴费比例已保存",id:"Tarif iuran disimpan"}),rules});
   }));
   app.get("/api/reborn/admin/payroll", requireAdmin(async (req,res)=>{
-    const month=String(req.query.month||new Date().toISOString().slice(0,7)); const from=`${month}-01`; const to=new Date(new Date(`${from}T00:00:00Z`).setUTCMonth(new Date(`${from}T00:00:00Z`).getUTCMonth()+1)).toISOString().slice(0,10);
+    const {month,from,to,startDay:periodStartDay}=await payPeriodOf(String(req.query.month||""));
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
     const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,(SELECT bp.name FROM bridge_positions bp WHERE bp.id=m.position_id) position_name,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(p.staff_kind,'staff') staff_kind,p.shift_start,p.shift_end,COALESCE(p.needs_attendance,true) needs_attendance,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ORDER BY name`);
@@ -6148,7 +6179,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const todayText=new Date(Date.now()+7*3_600_000).toISOString().slice(0,10);
     for(const row of staff as any[]){
       const mine=(rows:any)=>(rows.rows||rows).filter((x:any)=>x.user_id===row.user_id);
-      const summary=leaveSummary({month,leaves:mine(leaveRows).map((x:any)=>({type:x.type,startDate:x.start_date,endDate:x.end_date,paid:x.paid})),noLeaveMonths:leaveRules.noLeaveMonths,scheduledDates:mine(shiftRows).map((x:any)=>x.shift_date),attendedDates:mine(attendRows).map((x:any)=>x.work_date),needsAttendance:row.needs_attendance!==false,today:todayText});
+      const summary=leaveSummary({month,range:{from,to},leaves:mine(leaveRows).map((x:any)=>({type:x.type,startDate:x.start_date,endDate:x.end_date,paid:x.paid})),noLeaveMonths:leaveRules.noLeaveMonths,scheduledDates:mine(shiftRows).map((x:any)=>x.shift_date),attendedDates:mine(attendRows).map((x:any)=>x.work_date),needsAttendance:row.needs_attendance!==false,today:todayText});
       const isSalaried=row.pay_type!=="hourly";
       const off=isSalaried?unpaidDeduction(Number(row.base_salary),leaveRules.payDays,summary.unpaidDays):0;
       row.leave={...summary,payDays:leaveRules.payDays,deduction:off};
@@ -6157,7 +6188,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const openCharges=await db.select().from(staffCharges).where(isNull(staffCharges.settledAt));
     for(const row of staff as any[]){const mine=openCharges.filter((x)=>x.userId===row.user_id);row.charges=mine.map((x)=>({id:x.id,name:x.name,qty:x.qty,amount:Number(x.amount),reason:x.reason,at:x.createdAt}));}
     const refs=await db.execute(sql`SELECT c.introducer_id,COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,count(*) referrals,sum(c.transaction_amount::numeric) referred_sales,sum(c.commission_amount::numeric) commission FROM commission_history c JOIN users u ON u.id=c.introducer_id WHERE c.status='completed' AND c.created_at>=${new Date(from+"T00:00:00Z")} AND c.created_at<${new Date(to+"T00:00:00Z")} GROUP BY c.introducer_id,u.first_name,u.last_name,u.email ORDER BY commission DESC`);
-    res.json({month,from,to,staff,referrals:refs.rows||refs,rules,money,country:companyCountry(),leaveRules});
+    res.json({month,from,to,startDay:periodStartDay,staff,referrals:refs.rows||refs,rules,money,country:companyCountry(),leaveRules});
   }));
   // Which months leave and MC are not paid, and how many days of pay a month has (one day of pay = the monthly salary over that).
   const readLeaveRules=async()=>{
@@ -6189,8 +6220,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const deduction=Math.min(roundMoney(Math.max(0,Number(b.deduction)||0)),Math.max(0,c.net));const deductionNote=String(b.deductionNote||"").trim().slice(0,300);const netPay=roundMoney(c.net-deduction);
     const [row]=await db.insert(ledgerEntries).values({kind:"expense",category:"salary",amount:String(roundMoney(amount-deduction)),note:`Payroll ${b.name||userId} · ${month} · gross ${amount}, staff contributions ${c.employee}${deduction>0?`, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}`:""}, net pay ${netPay}${parts?` (${parts})`:""}`,refType:"payroll",refId:`${userId}:${month}`,userId}).returning();
     if(c.employer>0)await db.insert(ledgerEntries).values({kind:"expense",category:"statutory_contribution",amount:String(c.employer),note:`Employer contributions ${b.name||userId} · ${month}${parts?` (${parts})`:""}`,refType:"payroll_employer",refId:`${userId}:${month}`,userId});
+    const {from:settleFrom,to:settleTo}=await payPeriodOf(month);
     const chargeIds=(Array.isArray(b.chargeIds)?b.chargeIds:[]).map((x:unknown)=>Number(x)).filter((x:number)=>Number.isInteger(x)&&x>0);
-    await db.execute(sql`UPDATE staff_item_commissions SET settled_at=now() WHERE user_id=${userId} AND voided_at IS NULL AND settled_at IS NULL AND created_at>=${new Date(month+"-01T00:00:00Z")} AND created_at<${new Date(new Date(month+"-01T00:00:00Z").setUTCMonth(new Date(month+"-01T00:00:00Z").getUTCMonth()+1))}`);
+    await db.execute(sql`UPDATE staff_item_commissions SET settled_at=now() WHERE user_id=${userId} AND voided_at IS NULL AND settled_at IS NULL AND created_at>=${new Date(settleFrom+"T00:00:00Z")} AND created_at<${new Date(settleTo+"T00:00:00Z")}`);
     if(chargeIds.length)await db.update(staffCharges).set({settledAt:new Date(),settledNote:`Taken from the pay of ${month}`}).where(and(inArray(staffCharges.id,chargeIds),eq(staffCharges.userId,userId),isNull(staffCharges.settledAt)));
     await logAdmin(req,{targetType:"payroll",targetId:`${userId}:${month}`,action:"record_payroll",entityType:"accounting",description:`Payroll ${b.name||userId} ${month}: gross ${amount}, deduction ${deduction}${deductionNote?` (${deductionNote})`:""}, net ${netPay}, employer ${c.employer}`});
     // The payslip: what was earned (the parts must add up to the gross, else it is all "basic"), what the staff member paid, and the net pay.
@@ -6239,7 +6271,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   });
 
   // ── Attendance QR — main admin posts this at the workplace; staff scan to clock in ──
-  app.get("/api/reborn/admin/attendance/code", requireManager(async (req, res) => {
+  // The clock-in QR is shown by managers, the main admin and security guards (Payroll › Kind of staff = Security guard), so a guard can put it up for staff to scan. Only the main admin can change the code.
+  const requireAttendanceQr = (handler: (req: Request, res: Response) => Promise<any>) => requireStaff(async (req, res) => {
+    const userId = getUserId(req)!;
+    const role = await adminRole(userId);
+    const [profile] = await db.select({ kind: bridgeStaffProfiles.staffKind }).from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId, await rebornCompanyId(req)), eq(bridgeStaffProfiles.userId, userId))).limit(1);
+    if (role !== "admin" && role !== "manager" && profile?.kind !== "guard") return res.status(403).json({ message: tr(req, { en: "Only security, managers and the main admin can show the clock-in QR", zh: "只有保安、经理和主管理员可以显示打卡二维码", id: "Hanya keamanan, manajer, dan admin utama yang dapat menampilkan QR absen" }) });
+    return handler(req, res);
+  });
+  app.get("/api/reborn/admin/attendance/code", requireAttendanceQr(async (req, res) => {
     const code = await currentAttendCode();
     res.json({ code, url: `${req.protocol}://${req.get("host")}/attend?c=${code}` });
   }));
@@ -6247,7 +6287,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const code = await rotateAttendCode();
     res.json({ code });
   }));
-  app.get("/api/reborn/admin/attendance/qr", requireManager(async (req, res) => {
+  app.get("/api/reborn/admin/attendance/qr", requireAttendanceQr(async (req, res) => {
     const code = await currentAttendCode();
     const svg = await QRCode.toString(`${req.protocol}://${req.get("host")}/attend?c=${code}`, { type: "svg", width: 720, margin: 2, color: { dark: "#120b20", light: "#ffffff" } });
     res.type("image/svg+xml").send(svg);
@@ -6338,9 +6378,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   });
   // Month-to-date paid sales per salesperson vs their target (WIB month).
   async function salesTargets(cid: number, month: string, onlyUser?: string) {
-    const from = `${month}-01`;
-    const [y, m] = month.split("-").map(Number);
-    const to = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+    const { from, to } = await payPeriodOf(month);
     const today = (await ensureVenueSession()).day;
     const result = await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,u.email) name, m.role,
         COALESCE(p.sales_target,0)::numeric target, COALESCE(s.sales,0) sales, COALESCE(s.tickets,0) tickets, COALESCE(s.today,0) today
@@ -6361,35 +6399,33 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.day || "")) ? String(req.query.day) : (await ensureVenueSession()).day;
     const report = await buildDailyClosingReport(day);
     const [closed] = await db.select({ id: ledgerEntries.id, at: ledgerEntries.createdAt }).from(ledgerEntries).where(and(eq(ledgerEntries.refType, "pos_closing"), eq(ledgerEntries.refId, day))).limit(1);
-    const month = day.slice(0, 7);
+    const month = labelOfDay(day, (await getSettings()).payrollStartDay);
     const targets = await salesTargets(cid, month);
     res.json({ day, currentDay: (await ensureVenueSession()).day, closed: !!closed, report, month, monthTotal: targets.reduce((n, r) => n + r.sales, 0), targets: targets.filter((r) => r.target > 0 || r.sales > 0) });
   }));
   const MY_TARGET_BILLS_MAX = 300;
   // One person's month: target, sales, the bills behind the sales and the commission earned (a % of sales from Payroll + the item commissions).
   const targetDetailOf = async (cid: number, userId: string) => {
-    const month = (await ensureVenueSession()).day.slice(0, 7);
+    const { month, from, to, startDay } = await payPeriodOf();
     const [me] = await salesTargets(cid, month, userId);
-    const [y, m] = month.split("-").map(Number);
-    const to = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
     const bills = await db.select({ id: posTickets.id, orderNo: posTickets.orderNo, tableNumber: posTickets.tableNumber, memberName: posTickets.memberName, total: posTickets.total, paidAt: posTickets.paidAt })
-      .from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.salesStaffId, userId), eq(posTickets.status, "paid"), sql`${VENUE_DAY_OF(sql`paid_at`)} >= ${`${month}-01`}::date`, sql`${VENUE_DAY_OF(sql`paid_at`)} < ${to}::date`))
+      .from(posTickets).where(and(eq(posTickets.companyId, cid), eq(posTickets.salesStaffId, userId), eq(posTickets.status, "paid"), sql`${VENUE_DAY_OF(sql`paid_at`)} >= ${from}::date`, sql`${VENUE_DAY_OF(sql`paid_at`)} < ${to}::date`))
       .orderBy(desc(posTickets.paidAt)).limit(MY_TARGET_BILLS_MAX);
     const [profile] = await db.select({ rate: bridgeStaffProfiles.commissionRate }).from(bridgeStaffProfiles).where(and(eq(bridgeStaffProfiles.companyId, cid), eq(bridgeStaffProfiles.userId, userId)));
     const itemRows = await db.select({ amount: staffItemCommissions.amount, settledAt: staffItemCommissions.settledAt }).from(staffItemCommissions)
-      .where(and(eq(staffItemCommissions.userId, userId), isNull(staffItemCommissions.voidedAt), gte(staffItemCommissions.createdAt, new Date(`${month}-01T00:00:00Z`)), sql`${staffItemCommissions.createdAt} < ${new Date(`${to}T00:00:00Z`)}`));
+      .where(and(eq(staffItemCommissions.userId, userId), isNull(staffItemCommissions.voidedAt), gte(staffItemCommissions.createdAt, new Date(`${from}T00:00:00Z`)), sql`${staffItemCommissions.createdAt} < ${new Date(`${to}T00:00:00Z`)}`));
     const sales = me?.sales || 0;
     const ratePercent = Number(profile?.rate) || 0;
     const salesCommission = roundMoney(sales * ratePercent / 100);
     const itemCommission = roundMoney(itemRows.reduce((sum, row) => sum + Number(row.amount), 0));
     const itemCommissionPaid = roundMoney(itemRows.filter((row) => row.settledAt).reduce((sum, row) => sum + Number(row.amount), 0));
-    const tier = (await dailyTierCommissions(`${month}-01`, to, userId)).get(userId);
+    const tier = (await dailyTierCommissions(from, to, userId)).get(userId);
     const tierCommission = roundMoney(tier?.total || 0);
     const tierSetup = await dailyCommissionSetup();
     const today = (await ensureVenueSession()).day;
     const todaySales = tier?.days.find((entry) => entry.day === today)?.sales ?? 0;
     const daily = tierSetup.enabled && today >= tierSetup.startDay ? { day: today, sales: todaySales, ...dayCommission(todaySales, tierSetup.tiers), next: nextTierAfter(todaySales, tierSetup.tiers) } : null;
-    return { month, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }), bills, daily, commission: { ratePercent, salesCommission, tierCommission, tierDays: tier?.days.length ?? 0, itemCommission, itemCommissionPaid, total: roundMoney(salesCommission + tierCommission + itemCommission) } };
+    return { month, period: { from, to, startDay }, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }), bills, daily, commission: { ratePercent, salesCommission, tierCommission, tierDays: tier?.days.length ?? 0, itemCommission, itemCommissionPaid, total: roundMoney(salesCommission + tierCommission + itemCommission) } };
   };
   // Staff › My target: this month's sales credited to me vs my target, the bills behind them and my commission.
   app.get("/api/reborn/staff/my-target", requireStaff(async (req, res) => {

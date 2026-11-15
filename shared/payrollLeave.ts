@@ -19,30 +19,35 @@ export interface LeaveSummary {
   isNoLeaveMonth: boolean;
 }
 
-/** Every date ("YYYY-MM-DD") of `month` ("YYYY-MM") between two dates, both included. */
-export function datesInMonth(startDate: string, endDate: string, month: string): string[] {
-  const monthStart = Date.parse(`${month}-01T00:00:00Z`);
-  const next = new Date(monthStart);
-  next.setUTCMonth(next.getUTCMonth() + 1);
-  const from = Math.max(Date.parse(`${startDate}T00:00:00Z`), monthStart);
-  const to = Math.min(Date.parse(`${endDate}T00:00:00Z`), next.getTime() - DAY_MS);
+/** Every date ("YYYY-MM-DD") between two dates, both included, that falls in the period `from` (first day) .. `toExclusive` (first day after it). */
+export function datesInRange(startDate: string, endDate: string, from: string, toExclusive: string): string[] {
+  const periodStart = Date.parse(`${from}T00:00:00Z`);
+  const first = Math.max(Date.parse(`${startDate}T00:00:00Z`), periodStart);
+  const last = Math.min(Date.parse(`${endDate}T00:00:00Z`), Date.parse(`${toExclusive}T00:00:00Z`) - DAY_MS);
   const dates: string[] = [];
-  for (let at = from; at <= to; at += DAY_MS) dates.push(new Date(at).toISOString().slice(0, 10));
+  for (let at = first; at <= last; at += DAY_MS) dates.push(new Date(at).toISOString().slice(0, 10));
   return dates;
 }
 
-export function leaveSummary(input: { month: string; leaves: LeaveEntry[]; noLeaveMonths: string[]; scheduledDates: string[]; attendedDates: string[]; needsAttendance: boolean; today: string }): LeaveSummary {
+/** Every date of `month` ("YYYY-MM") between two dates, both included. */
+export function datesInMonth(startDate: string, endDate: string, month: string): string[] {
+  const next = new Date(Date.parse(`${month}-01T00:00:00Z`));
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  return datesInRange(startDate, endDate, `${month}-01`, next.toISOString().slice(0, 10));
+}
+
+export function leaveSummary(input: { month: string; range?: { from: string; to: string }; leaves: LeaveEntry[]; noLeaveMonths: string[]; scheduledDates: string[]; attendedDates: string[]; needsAttendance: boolean; today: string }): LeaveSummary {
   const isNoLeaveMonth = input.noLeaveMonths.includes(input.month);
   const leaveDates = new Map<string, { type: string; isUnpaid: boolean }>();
   for (const entry of input.leaves) {
-    for (const date of datesInMonth(entry.startDate, entry.endDate, input.month)) {
+    for (const date of input.range ? datesInRange(entry.startDate, entry.endDate, input.range.from, input.range.to) : datesInMonth(entry.startDate, entry.endDate, input.month)) {
       if (!leaveDates.has(date)) leaveDates.set(date, { type: entry.type, isUnpaid: entry.paid === false || isNoLeaveMonth });
     }
   }
   const days = Array.from(leaveDates.values());
   const attended = new Set(input.attendedDates);
   const absentDays = input.needsAttendance
-    ? new Set(input.scheduledDates.filter((date) => date.startsWith(input.month) && date <= input.today && !attended.has(date) && !leaveDates.has(date))).size
+    ? new Set(input.scheduledDates.filter((date) => (input.range ? date >= input.range.from && date < input.range.to : date.startsWith(input.month)) && date <= input.today && !attended.has(date) && !leaveDates.has(date))).size
     : 0;
   const unpaidLeaveDays = days.filter((day) => day.isUnpaid).length;
   return {

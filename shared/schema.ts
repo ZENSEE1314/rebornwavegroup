@@ -916,6 +916,7 @@ export const posProducts = pgTable("pos_products", {
   appDiscountOk: boolean("app_discount_ok").default(true).notNull(), // false = the app-order discount never applies to this item
   noDiscount: boolean("no_discount").default(false).notNull(),   // true = never discounted: no happy-hour price or free units, no app-order discount, no member perk, no bill discount
   referralOk: boolean("referral_ok").default(true).notNull(),   // false = a referrer never earns commission on this item
+  salesCommissionOk: boolean("sales_commission_ok").default(true).notNull(),   // false = the daily tier commission of the salesperson is not paid on this item
   happyBuyQty: integer("happy_buy_qty").default(0).notNull(),   // "buy X get Y free" inside the window; 0 = no deal
   happyFreeQty: integer("happy_free_qty").default(0).notNull(),
   isService: boolean("is_service").default(false).notNull(),     // a service (corkage, room fee): no stock, no cost, never sold out, not in Inventory    // only sold (shown to order) inside the window

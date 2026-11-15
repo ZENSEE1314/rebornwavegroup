@@ -3,6 +3,7 @@ import { ShieldCheck, Video } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import { errorText, type SecuritySetup } from "@/lib/security-types";
+import { AttendanceQrCard } from "@/components/AttendanceQrCard";
 
 const OfficerCheckPanel = lazy(() => import("@/components/OfficerCheckPanel"));
 const CamerasPanel = lazy(() => import("@/components/CamerasPanel"));
@@ -34,6 +35,7 @@ export default function SecurityPanel() {
 
   return (
     <div className="space-y-4">
+      <AttendanceQrCard />
       <div role="tablist" className="flex gap-2">
         <button type="button" role="tab" aria-selected={subTab === "officer"} onClick={() => setSubTab("officer")} className={tabClass(subTab === "officer")}><ShieldCheck className="w-4 h-4" />{t("admin.sc.subOfficer")}</button>
         <button type="button" role="tab" aria-selected={subTab === "cameras"} onClick={() => setSubTab("cameras")} className={tabClass(subTab === "cameras")}><Video className="w-4 h-4" />{t("admin.sc.subCameras")}</button>

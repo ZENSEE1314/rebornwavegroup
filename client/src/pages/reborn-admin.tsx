@@ -1002,6 +1002,7 @@ function Settings() {
         <p className="-mt-2 mb-3 text-[11px] text-white/40">{t("admin.set.negStockHint")}</p>
         <Field label={t("admin.set.bottleDays")} value={cur.bottleExpiryDays} onChange={(v: any) => set("bottleExpiryDays", v)} />
         <Field label={t("admin.set.payrollDay")} value={cur.payrollDay} onChange={(v: any) => set("payrollDay", v)} />
+        <Field label={t("admin.set.payrollStartDay")} value={cur.payrollStartDay} onChange={(v: any) => set("payrollStartDay", v)} />
         <Field label={t("admin.set.otRate")} value={cur.overtimeHourlyRate} onChange={(v: any) => set("overtimeHourlyRate", v)} />
       </Card>
       <Card>
@@ -2047,6 +2048,8 @@ function DailySales() {
     </div>
   );
 }
+// The last day of a period whose `to` is the first day after it.
+const periodEndOf = (to: string) => new Date(Date.parse(`${to}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
 function TargetBar({ r, money }: { r: any; money: (v: any) => string }) {
   const { t } = useTranslation();
   const pct = r.percent ?? 0;
@@ -2066,6 +2069,7 @@ function TargetDetail({ r }: { r: any }) {
   return (
     <>
       <TargetBar r={{ ...r, name: t("admin.target.thisMonth") }} money={money} />
+      {r.period && r.period.startDay > 1 && <p className="mt-1 text-[11px] text-white/45">{t("admin.target.period", { from: r.period.from, to: periodEndOf(r.period.to) })}</p>}
       {r.daily && (
         <div className="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-2.5 text-xs">
           <p className="flex justify-between gap-2 font-bold text-emerald-200"><span>{t("dcm.today", { sales: money(r.daily.sales), pct: r.daily.percent })}</span><span>{money(r.daily.amount)}</span></p>
@@ -2538,6 +2542,7 @@ function Products() {
         <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!n.isService} onChange={(e) => setN({ ...n, isService: e.target.checked })} /> 🛎️ {t("admin.svc.label")} <span className="text-white/40 text-xs">{t("admin.svc.hint")}</span></label>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.posVisible !== false} onChange={(e) => setN({ ...n, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHint")}</span></label>
+        <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={n.salesCommissionOk !== false} onChange={(e) => setN({ ...n, salesCommissionOk: e.target.checked })} /> {t("admin.prod.salesCommissionOk")} <span className="text-white/40 text-xs">{t("admin.prod.salesCommissionOkHint")}</span></label>
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.c.add")}</button>
         </> : <>
@@ -2594,6 +2599,7 @@ function ProductsTable({ products, industryOptions }: { products: any[]; industr
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="supplier" sort={sort} onSort={setSort}>{t("admin.prod.supplier")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold" sortKey="phone" sort={sort} onSort={setSort}>{t("admin.prod.supplierPhone")}</SortableTh>
               <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" title={t("admin.svc.hint")}>{t("admin.svc.col")}</th>
+              <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" title={t("admin.prod.salesCommissionOkHint")}>{t("admin.prod.salesCommissionCol")}</th>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" sortKey="pos" sort={sort} onSort={setSort}>{t("admin.prod.pos")}</SortableTh>
               <SortableTh className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-center" sortKey="active" sort={sort} onSort={setSort}>{t("admin.prod.activeCol")}</SortableTh>
               <th className="sticky top-0 z-10 bg-[#16102b] shadow-[0_1px_0_rgba(255,255,255,0.12)] py-2 px-2 font-semibold text-right"></th>
@@ -2673,7 +2679,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const base = { name: p.name || "", isService: !!p.isService, category: p.category || "", department: p.department || "", price: Number(p.price) || 0, unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, recommended: !!p.recommended, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
+  const base = { name: p.name || "", isService: !!p.isService, category: p.category || "", department: p.department || "", price: Number(p.price) || 0, unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost) || 0, active: p.active !== false, posVisible: p.posVisible !== false, salesCommissionOk: p.salesCommissionOk !== false, recommended: !!p.recommended, supplierName: p.supplierName || "", supplierPhone: p.supplierPhone || "" };
   const [f, setF] = useState(base);
   const dirty = JSON.stringify(f) !== JSON.stringify(base);
   const save = useMutation({
@@ -2693,6 +2699,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
       <td className="px-2 py-1"><input value={f.supplierName} onChange={(e) => setF({ ...f, supplierName: e.target.value })} placeholder="—" className={cell + " min-w-[110px]"} /></td>
       <td className="px-2 py-1"><input value={f.supplierPhone} inputMode="tel" onChange={(e) => setF({ ...f, supplierPhone: e.target.value })} placeholder={t("admin.ro.noPhone")} className={cell + " min-w-[120px] " + (f.supplierName && !f.supplierPhone ? "border-red-400/40" : "")} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.isService} onChange={(e) => setF({ ...f, isService: e.target.checked })} /></td>
+      <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.salesCommissionOk} onChange={(e) => setF({ ...f, salesCommissionOk: e.target.checked })} aria-label={t("admin.prod.salesCommissionOk")} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /></td>
       <td className="px-2 py-1 text-center"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /></td>
       <td className="px-2 py-1 text-right whitespace-nowrap"><span className="inline-flex items-center gap-1"><DuplicateProductButton p={p} /><DeleteProductButton p={p} /><button onClick={() => save.mutate()} disabled={!dirty || save.isPending} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${dirty ? "bg-amber-400 text-black" : "bg-white/5 text-white/30"} disabled:opacity-50`}><Check className="w-3.5 h-3.5" /> {t("admin.c.save")}</button></span></td>
@@ -2741,7 +2748,7 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
   const qc = useQueryClient();
   const modules = useModules();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState<any>({ name: p.name, isService: !!p.isService, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyDays: p.happyDays || "", staffCommissionKind: p.staffCommissionKind || "", staffCommissionStaffIds: eligibleStaffOf(p.staffCommissionStaffIds), staffCommissionValue: Number(p.staffCommissionValue) || 0, happyOnly: !!p.happyOnly, happyBuyQty: p.happyBuyQty || 0, happyFreeQty: p.happyFreeQty || 0, referralOk: p.referralOk !== false, appDiscountOk: p.appDiscountOk !== false, noDiscount: !!p.noDiscount, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
+  const [f, setF] = useState<any>({ name: p.name, isService: !!p.isService, happyPrice: p.happyPrice ?? "", happyStart: p.happyStart || "", happyEnd: p.happyEnd || "", happyDays: p.happyDays || "", staffCommissionKind: p.staffCommissionKind || "", staffCommissionStaffIds: eligibleStaffOf(p.staffCommissionStaffIds), staffCommissionValue: Number(p.staffCommissionValue) || 0, happyOnly: !!p.happyOnly, happyBuyQty: p.happyBuyQty || 0, happyFreeQty: p.happyFreeQty || 0, referralOk: p.referralOk !== false, salesCommissionOk: p.salesCommissionOk !== false, appDiscountOk: p.appDiscountOk !== false, noDiscount: !!p.noDiscount, category: p.category, department: p.department || "", price: Number(p.price), unitsPerPack: p.unitsPerPack || 0, packPrice: Number(p.packPrice) || 0, cost: Number(p.cost), active: p.active, posVisible: p.posVisible !== false, recommended: !!p.recommended, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "", ...pkgOf(p) });
   const industryOptions = useCompanyIndustries();
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
@@ -2786,6 +2793,7 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
           </div>
           <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={!!f.isService} onChange={(e) => setF({ ...f, isService: e.target.checked })} /> 🛎️ {t("admin.svc.label")} <span className="text-white/40 text-xs">{t("admin.svc.hint")}</span></label>
           <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.posVisible} onChange={(e) => setF({ ...f, posVisible: e.target.checked })} /> {t("admin.prod.sellable")} <span className="text-white/40 text-xs">{t("admin.prod.sellableHintLong")}</span></label>
+          <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={f.salesCommissionOk !== false} onChange={(e) => setF({ ...f, salesCommissionOk: e.target.checked })} /> {t("admin.prod.salesCommissionOk")} <span className="text-white/40 text-xs">{t("admin.prod.salesCommissionOkHint")}</span></label>
           {inventory && !p.packageKind && !p.bundleItemId && <SellOptions value={f} onChange={setF} />}
           <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder={t("admin.prod.supName")} className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder={t("admin.prod.supPhone")} className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder={t("admin.prod.supAddr")} className={inp+" sm:col-span-2"}/></div>
           <div className="mb-2"><p className="text-xs text-white/50 mb-1">{t("admin.prod.photo")}</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label={t("admin.c.uploadPhoto")} /></div>
@@ -3011,13 +3019,13 @@ function AccountingOrders({ days }: { days: number }) {
 
 function Payroll() {
   const { t } = useTranslation();
-  const {toast}=useToast();const qc=useQueryClient();const [month,setMonth]=useState(new Date().toISOString().slice(0,7));
-  const {data}=useQuery<any>({queryKey:["/api/reborn/admin/payroll",month],queryFn:()=>apiRequest("GET",`/api/reborn/admin/payroll?month=${month}`).then(r=>r.json())});
+  const {toast}=useToast();const qc=useQueryClient();const [picked,setPicked]=useState("");
+  const {data}=useQuery<any>({queryKey:["/api/reborn/admin/payroll",picked],queryFn:()=>apiRequest("GET",`/api/reborn/admin/payroll?month=${picked}`).then(r=>r.json())});const month=picked||data?.month||"";
   const save=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/profile",{userId:s.user_id,payType:s.pay_type,employmentType:s.employment_type,baseSalary:Number(s.base_salary),hourlyRate:Number(s.hourly_rate),commissionRate:Number(s.commission_rate),salesTarget:Number(s.sales_target),birthDate:s.birth_date||null,residency:s.residency||"citizen",statutoryOn:s.statutory_on!==false,deposit:Number(s.deposit)||0,depositNote:s.deposit_note||"",staffKind:s.staff_kind||"staff",shiftStart:s.shift_start||null,shiftEnd:s.shift_end||null,needsAttendance:s.needs_attendance!==false}).then(r=>r.json()),onSuccess:()=>{toast({title:t("admin.pr.saved")});qc.invalidateQueries({queryKey:["/api/reborn/admin/payroll"]})}});
   const waiveCharge=useMutation({mutationFn:(id:number)=>apiRequest("POST",`/api/reborn/admin/staff-charges/${id}/waive`,{}).then(r=>r.json()),onSuccess:()=>qc.invalidateQueries({queryKey:["/api/reborn/admin/payroll"]})});
   const pay=useMutation({mutationFn:(s:any)=>apiRequest("POST","/api/reborn/admin/payroll/pay",{userId:s.user_id,name:s.name,month,amount:s.total,basic:s.basic,commission:s.salesCommission,overtime:s.overtimePay,deduction:Number(s.deduction)||0,deductionNote:s.deduction_note||"",chargeIds:s.chargeIds||[]}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d}),onSuccess:(d:any)=>{toast({title:d.message});qc.invalidateQueries({queryKey:["/api/reborn/admin/accounting"]});qc.invalidateQueries({queryKey:["/api/reborn/admin/payroll"]})},onError:(e:any)=>toast({title:t("admin.pr.cannot"),description:e.message,variant:"destructive"})});
   const rules:PayrollRules|undefined=data?.rules;
-  return <div className="space-y-3"><Card><div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold">{t("admin.pr.title")}</h3><p className="text-xs text-white/50">{t("admin.pr.hint")}</p></div><input type="month" value={month} onChange={e=>setMonth(e.target.value)} className={inp} style={{colorScheme:"dark"}}/></div></Card><LeaveRulesCard rules={data?.leaveRules}/><PoliceMoneyCard month={month}/>{rules&&<StatutoryRules key={JSON.stringify(rules)} initial={rules} country={data?.country}/>}{(data?.staff||[]).map((initial:any)=><PayrollRow key={initial.user_id+month} initial={initial} rules={rules} month={month} onSave={(s:any)=>save.mutate(s)} onPay={(s:any)=>pay.mutate(s)} onWaiveCharge={(id:number)=>waiveCharge.mutate(id)}/>)}<Card><p className="mb-2 font-bold text-sm">{t("admin.pr.refTitle")}</p>{(data?.referrals||[]).map((r:any)=><div key={r.introducer_id} className="flex justify-between border-b border-white/5 py-2 text-sm"><span>{r.name}<span className="block text-[11px] text-white/40">{t("admin.pr.refLine", { n: r.referrals, v: money(r.referred_sales) })}</span></span><b className="text-amber-300">{money(r.commission)}</b></div>)}{!(data?.referrals||[]).length&&<p className="text-xs text-white/40">{t("admin.pr.noRef")}</p>}<p className="mt-2 text-[11px] text-white/40">{t("admin.pr.recordedHint")}</p></Card></div>;
+  return <div className="space-y-3"><Card><div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold">{t("admin.pr.title")}</h3><p className="text-xs text-white/50">{t("admin.pr.hint")}</p>{data?.from&&<p className="text-[11px] text-amber-200/80">{t("admin.pr.period",{from:data.from,to:periodEndOf(data.to)})}</p>}</div><input type="month" value={month} onChange={e=>setPicked(e.target.value)} className={inp} style={{colorScheme:"dark"}}/></div></Card><LeaveRulesCard rules={data?.leaveRules}/><PoliceMoneyCard month={month}/>{rules&&<StatutoryRules key={JSON.stringify(rules)} initial={rules} country={data?.country}/>}{(data?.staff||[]).map((initial:any)=><PayrollRow key={initial.user_id+month} initial={initial} rules={rules} month={month} onSave={(s:any)=>save.mutate(s)} onPay={(s:any)=>pay.mutate(s)} onWaiveCharge={(id:number)=>waiveCharge.mutate(id)}/>)}<Card><p className="mb-2 font-bold text-sm">{t("admin.pr.refTitle")}</p>{(data?.referrals||[]).map((r:any)=><div key={r.introducer_id} className="flex justify-between border-b border-white/5 py-2 text-sm"><span>{r.name}<span className="block text-[11px] text-white/40">{t("admin.pr.refLine", { n: r.referrals, v: money(r.referred_sales) })}</span></span><b className="text-amber-300">{money(r.commission)}</b></div>)}{!(data?.referrals||[]).length&&<p className="text-xs text-white/40">{t("admin.pr.noRef")}</p>}<p className="mt-2 text-[11px] text-white/40">{t("admin.pr.recordedHint")}</p></Card></div>;
 }
 // Name of a contribution line: built-in codes are translated, custom ones keep the admin's name.
 function lineName(t:any,l:{code:string;label?:string}){return l.label||(translations[`admin.pr.line.${l.code}`]?t(`admin.pr.line.${l.code}`):l.code);}
