@@ -14,6 +14,7 @@ import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredi
 import { payReferralCommission, reverseReferralCommission } from "./referralCommission";
 import { planSplit, readSplit, type SplitPlan } from "@shared/payments";
 import { spendByStaff } from "@shared/expenseByStaff";
+import { cleanSetup, dayCommission, nextTierAfter, readSetup, type TiersProblem } from "@shared/dailyCommission";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
@@ -4729,6 +4730,66 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "settings", action: "commission_types", entityType: "settings", description: `Saved commission list: ${list.map((x: any) => `${x.name} ${x.kind === "percent" ? `${x.value}%` : x.value}`).join(", ") || "none"}` });
     res.json(list);
   }));
+  // Extra commission by tiers of ONE venue day's sales per salesperson (Staff tab › Daily commission; rules in shared/dailyCommission.ts).
+  const DAILY_COMMISSION_KEY = "dailyCommission";
+  const COMMISSION_EDITORS_KEY = "commissionEditors";
+  const readSettingValue = async (key: string) => (await db.select().from(appSettings).where(eq(appSettings.key, key)).limit(1))[0]?.value ?? null;
+  const saveSettingValue = (key: string, value: string) => db.insert(appSettings).values({ key, value, updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+  const commissionEditorIds = async (): Promise<string[]> => {
+    try { const list = JSON.parse((await readSettingValue(COMMISSION_EDITORS_KEY)) || "[]"); return Array.isArray(list) ? list.map(String) : []; } catch { return []; }
+  };
+  // Who may change the tiers: the main admin, managers and the head staff the main admin picked.
+  const canSetCommission = async (userId: string) => {
+    const role = await adminRole(userId);
+    return role === "admin" || role === "manager" || (await commissionEditorIds()).includes(userId);
+  };
+  const dailyCommissionSetup = async () => readSetup(await readSettingValue(DAILY_COMMISSION_KEY));
+  const tiersProblemText = (req: Request, problem: TiersProblem) => tr(req, problem === "percent"
+    ? { en: "Each % must be between 0 and 100", zh: "每个百分比必须在 0 到 100 之间", id: "Setiap persen harus antara 0 dan 100" }
+    : problem === "order"
+      ? { en: "Each tier must end at a higher amount than the one before", zh: "每一级的上限必须高于前一级", id: "Setiap tingkat harus berakhir di jumlah yang lebih tinggi dari sebelumnya" }
+      : problem === "open"
+        ? { en: "Keep one last tier with no top (\"and above\")", zh: "请保留一个没有上限的最后一级（“以上”）", id: "Sisakan satu tingkat terakhir tanpa batas atas (\"ke atas\")" }
+        : { en: "Add at least one tier", zh: "请至少添加一级", id: "Tambahkan setidaknya satu tingkat" });
+  // Per salesperson and venue day (from <= day < to): the day's sales before service fee and tax, the % of the tier reached and the commission. Only days from the start day on count.
+  const dailyTierCommissions = async (from: string, to: string, onlyUserId?: string) => {
+    const setup = await dailyCommissionSetup();
+    const result = new Map<string, { total: number; days: { day: string; sales: number; percent: number; amount: number }[] }>();
+    if (!setup.enabled || !setup.startDay) return result;
+    const first = setup.startDay > from ? setup.startDay : from;
+    if (first >= to) return result;
+    const rows = await db.execute(sql`SELECT sales_staff_id AS user_id, to_char(${VENUE_DAY_OF(sql`paid_at`)}, 'YYYY-MM-DD') AS day, sum(COALESCE(subtotal::numeric, 0) - COALESCE(discount::numeric, 0)) AS sales
+      FROM pos_tickets WHERE status = 'paid' AND sales_staff_id IS NOT NULL AND ${VENUE_DAY_OF(sql`paid_at`)} >= ${first}::date AND ${VENUE_DAY_OF(sql`paid_at`)} < ${to}::date ${onlyUserId ? sql`AND sales_staff_id = ${onlyUserId}` : sql``}
+      GROUP BY 1, 2 ORDER BY 2`);
+    for (const row of ((rows as any).rows || rows) as any[]) {
+      const sales = roundMoney(Number(row.sales) || 0);
+      const { percent, amount } = dayCommission(sales, setup.tiers);
+      const entry = result.get(row.user_id) || { total: 0, days: [] };
+      entry.total = roundMoney(entry.total + roundMoney(amount));
+      entry.days.push({ day: String(row.day), sales, percent, amount: roundMoney(amount) });
+      result.set(row.user_id, entry);
+    }
+    return result;
+  };
+  app.get("/api/reborn/staff/daily-commission", requireStaff(async (req, res) => {
+    const userId = getUserId(req)!;
+    const setup = await dailyCommissionSetup();
+    res.set("Cache-Control", "no-store").json({ setup, canEdit: await canSetCommission(userId), canPickEditors: (await adminRole(userId)) === "admin", editors: await commissionEditorIds() });
+  }));
+  app.put("/api/reborn/staff/daily-commission", requireStaff(async (req, res) => {
+    if (!(await canSetCommission(getUserId(req)!))) return res.status(403).json({ message: tr(req, { en: "Only the main admin, managers and head staff can change the commission tiers", zh: "只有主管理员、经理和主管员工可以更改佣金级别", id: "Hanya admin utama, manajer, dan kepala staf yang dapat mengubah tingkat komisi" }) });
+    const { setup, problem } = cleanSetup(req.body, (await ensureVenueSession()).day);
+    if (problem) return res.status(400).json({ message: tiersProblemText(req, problem) });
+    await saveSettingValue(DAILY_COMMISSION_KEY, JSON.stringify(setup));
+    await logAdmin(req, { targetType: "settings", action: "daily_commission", entityType: "settings", description: `Daily commission tiers ${setup.enabled ? `on from ${setup.startDay}` : "off"}: ${setup.tiers.map((tier) => `${tier.upTo === null ? "above" : `up to ${tier.upTo}`} ${tier.percent}%`).join(", ")}` });
+    res.json({ setup });
+  }));
+  app.put("/api/reborn/admin/daily-commission/editors", requireAdmin(async (req, res) => {
+    const ids = Array.from(new Set((Array.isArray(req.body?.userIds) ? req.body.userIds : []).map((id: unknown) => String(id)).filter(Boolean))).slice(0, 50);
+    await saveSettingValue(COMMISSION_EDITORS_KEY, JSON.stringify(ids));
+    await logAdmin(req, { targetType: "settings", action: "commission_editors", entityType: "settings", description: `Head staff who can change the commission tiers: ${ids.length}` });
+    res.json({ editors: ids });
+  }));
   async function salesTag(body: any) {
     if (!body?.salesStaffId) return {};
     const [s] = await db.select().from(users).where(eq(users.id, String(body.salesStaffId))).limit(1);
@@ -6077,7 +6138,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const rules=await payrollRules(); const money=companyMoney();
     const itemCommissionRows=((await db.execute(sql`SELECT user_id,sum(amount)::numeric total,count(*)::int n FROM staff_item_commissions WHERE voided_at IS NULL AND paid_ledger_id IS NULL AND created_at>=${new Date(from+"T00:00:00Z")} AND created_at<${new Date(to+"T00:00:00Z")} GROUP BY user_id`)) as any);
     const itemCommissionOf=new Map(((itemCommissionRows.rows||itemCommissionRows) as any[]).map((r:any)=>[r.user_id,{total:roundMoney(Number(r.total)),count:Number(r.n)}]));
-    const staff=((result.rows||result) as any[]).map((x)=>{const itemCommission=itemCommissionOf.get(x.user_id)?.total||0;const itemCommissionCount=itemCommissionOf.get(x.user_id)?.count||0;const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100+itemCommission);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,itemCommission,itemCommissionCount,basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
+    const tierOf=await dailyTierCommissions(from,to);
+    const staff=((result.rows||result) as any[]).map((x)=>{const tierCommission=tierOf.get(x.user_id)?.total||0;const itemCommission=itemCommissionOf.get(x.user_id)?.total||0;const itemCommissionCount=itemCommissionOf.get(x.user_id)?.count||0;const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100+itemCommission+tierCommission);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,itemCommission,itemCommissionCount,tierCommission,tierDays:tierOf.get(x.user_id)?.days||[],basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     // Leave, MC and absence of the month (shared/payrollLeave.ts): the unpaid days are taken off a salaried person's pay, and the deduction box starts filled in with it.
     const leaveRules=await readLeaveRules();
     const leaveRows=((await db.execute(sql`SELECT user_id,type,start_date,end_date,paid FROM leave_requests WHERE status='approved' AND start_date<${to} AND end_date>=${from} AND (company_id=${reborn.id} OR company_id IS NULL)`)) as any);
@@ -6321,7 +6383,13 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const salesCommission = roundMoney(sales * ratePercent / 100);
     const itemCommission = roundMoney(itemRows.reduce((sum, row) => sum + Number(row.amount), 0));
     const itemCommissionPaid = roundMoney(itemRows.filter((row) => row.settledAt).reduce((sum, row) => sum + Number(row.amount), 0));
-    return { month, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }), bills, commission: { ratePercent, salesCommission, itemCommission, itemCommissionPaid, total: roundMoney(salesCommission + itemCommission) } };
+    const tier = (await dailyTierCommissions(`${month}-01`, to, userId)).get(userId);
+    const tierCommission = roundMoney(tier?.total || 0);
+    const tierSetup = await dailyCommissionSetup();
+    const today = (await ensureVenueSession()).day;
+    const todaySales = tier?.days.find((entry) => entry.day === today)?.sales ?? 0;
+    const daily = tierSetup.enabled && today >= tierSetup.startDay ? { day: today, sales: todaySales, ...dayCommission(todaySales, tierSetup.tiers), next: nextTierAfter(todaySales, tierSetup.tiers) } : null;
+    return { month, ...(me || { target: 0, sales: 0, tickets: 0, today: 0, percent: null }), bills, daily, commission: { ratePercent, salesCommission, tierCommission, tierDays: tier?.days.length ?? 0, itemCommission, itemCommissionPaid, total: roundMoney(salesCommission + tierCommission + itemCommission) } };
   };
   // Staff › My target: this month's sales credited to me vs my target, the bills behind them and my commission.
   app.get("/api/reborn/staff/my-target", requireStaff(async (req, res) => {
