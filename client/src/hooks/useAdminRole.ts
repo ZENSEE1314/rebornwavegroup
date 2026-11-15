@@ -10,6 +10,13 @@ export function useAdminRole(): AdminRole {
   return data?.role || ((user as { role?: string } | null | undefined)?.role === "admin" ? "admin" : "staff");
 }
 
+/** A view-only partner admin: sees everything, and the server refuses every change from this account. */
+export function useViewOnly(): boolean {
+  const { user } = useAuth();
+  const { data } = useQuery<{ viewOnly?: boolean }>({ queryKey: ["/api/reborn/my-role"], queryFn: () => apiRequest("GET", "/api/reborn/my-role").then((r) => r.json()), enabled: !!user });
+  return !!data?.viewOnly;
+}
+
 /** The main admin and managers may change products and stock; only the main admin deletes or merges them. */
 export function useProductRights() {
   const role = useAdminRole();

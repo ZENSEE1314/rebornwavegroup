@@ -20,7 +20,7 @@ import { StockAdjust } from "@/components/StockAdjust";
 import { VenueSyncCard } from "@/components/VenueSyncCard";
 import ProductPicture from "@/components/ProductPicture";
 import { MultiDateCalendar } from "@/components/MultiDateCalendar";
-import { useAdminRole, useProductRights } from "@/hooks/useAdminRole";
+import { useAdminRole, useProductRights, useViewOnly } from "@/hooks/useAdminRole";
 import { ReceiptPhotoViewer } from "@/components/ReceiptPhotoViewer";
 import { DailyCommissionCard } from "@/components/DailyCommissionCard";
 import SortableTh from "@/components/SortableTh";
@@ -83,6 +83,7 @@ export default function RebornAdmin() {
   const role = useAdminRole();
   const modules = useModules();
   const ALL_TABS = useMyTabs(role);
+  const isViewOnly = useViewOnly();
   const TABS = ALL_TABS.filter((t) => moduleEnabled(modules, ADMIN_TAB_MODULE[t]));
   // ?tab=Errors (from an error alert) opens that tab.
   const [tab, setTab] = useState<string>(() => { try { return new URLSearchParams(window.location.search).get("tab") || "Overview"; } catch { return "Overview"; } });
@@ -91,6 +92,7 @@ export default function RebornAdmin() {
   return (
     <RebornLayout active="/reborn-admin" title={t("admin.title")} wide>
       {isFullAdmin && !isWhiteLabel && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">{t("admin.companySetup")}</b><span className="text-xs text-cyan-100/60">{t("admin.companySetupHint")}</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">{t("admin.c.open")}</span></a>}
+      {isViewOnly && <p role="status" className="mb-3 rounded-xl border border-sky-400/30 bg-sky-400/10 p-3 text-xs text-sky-100">{t("admin.viewOnly")}</p>}
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
         {TABS.map((tb) => (
           <button key={tb} onClick={() => go(tb)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === tb ? "text-black" : "text-white/60"}`} style={tab === tb ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[tb]}{t(tabKey(tb))}</button>
@@ -405,7 +407,7 @@ function RatingVisibility({ userId }: { userId: string }) {
 
 function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSave, onDelete }: any) {
   const { user: me } = useAuth();
-  const [e, setE] = useState(() => (u.role === "staff" && u.member_role === "manager" ? { ...u, role: "manager" } : u.role === "staff" && u.staff_kind === "guard" ? { ...u, role: "security" } : u)); // manager shows as its own role
+  const [e, setE] = useState(() => (u.partner ? { ...u, role: "partner" } : u.role === "staff" && u.member_role === "manager" ? { ...u, role: "manager" } : u.role === "staff" && u.staff_kind === "guard" ? { ...u, role: "security" } : u)); // manager shows as its own role
   const { t } = useTranslation();
   return (
     <Card>
@@ -430,10 +432,10 @@ function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSa
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <label className="text-xs text-white/50">{t("admin.m.role")}
               <select value={e.role === "staff" && e.member_role === "manager" ? "manager" : e.role || "user"} onChange={(x) => setE({ ...e, role: x.target.value, member_role: x.target.value })} className={inp + " ml-1"}>
-                <option value="user">{t("admin.role.user")}</option><option value="staff">{t("admin.role.staffSub")}</option><option value="manager">{t("admin.role.managerSub")}</option><option value="security">{t("admin.role.securitySub")}</option><option value="admin">{t("admin.role.admin")}</option>
+                <option value="user">{t("admin.role.user")}</option><option value="staff">{t("admin.role.staffSub")}</option><option value="manager">{t("admin.role.managerSub")}</option><option value="security">{t("admin.role.securitySub")}</option><option value="partner">{t("admin.role.partnerSub")}</option><option value="admin">{t("admin.role.admin")}</option>
               </select>
             </label>
-            {(e.role === "staff" || e.role === "manager" || e.role === "security" || e.role === "admin") && <label className="text-xs text-white/50">{t("admin.m.position")}
+            {(e.role === "staff" || e.role === "manager" || e.role === "security" || e.role === "partner" || e.role === "admin") && <label className="text-xs text-white/50">{t("admin.m.position")}
               <select value={e.position_id || ""} onChange={(x) => setE({ ...e, positionId: x.target.value, position_id: x.target.value })} className={inp + " ml-1"}>
                 <option value="">{t("admin.m.selectPosition")}</option>{positions.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -448,7 +450,7 @@ function MemberRow({ u, positions = [], editable, tabs = null, onTabsSaved, onSa
           {["admin", "staff"].includes(u.role) && u.id !== (me as any)?.id && <TabAccessBox key={`${u.id}-${u.role}-${u.member_role}`} u={u} tabs={tabs} onSaved={onTabsSaved} />}
         </>
       ) : (
-        <p className="text-xs text-white/60">{t("admin.m.summaryLine", { credits: u.credits, points: u.loyaltyPoints, tokens: u.tokens, kgold: u.kgold })} · <b>{u.role === "staff" && u.member_role === "manager" ? t("admin.role.manager") : u.role === "staff" && u.staff_kind === "guard" ? t("admin.role.security") : tv(t, "admin.role." + u.role, u.role)}</b></p>
+        <p className="text-xs text-white/60">{t("admin.m.summaryLine", { credits: u.credits, points: u.loyaltyPoints, tokens: u.tokens, kgold: u.kgold })} · <b>{u.partner ? t("admin.role.partner") : u.role === "staff" && u.member_role === "manager" ? t("admin.role.manager") : u.role === "staff" && u.staff_kind === "guard" ? t("admin.role.security") : tv(t, "admin.role." + u.role, u.role)}</b></p>
       )}
     </Card>
   );

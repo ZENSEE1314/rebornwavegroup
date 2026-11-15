@@ -9,6 +9,7 @@ import { currentTenant } from './tenantContext';
 import { sql } from 'drizzle-orm';
 import type { Express, Request, Response } from 'express';
 import { tr, pick, reqLang } from './i18n';
+import { viewOnlyGuard } from './viewOnlyGuard';
 
 // Helper function to extract user ID from different auth formats
 export function getUserId(req: any): string | null {
@@ -607,6 +608,7 @@ export function setupMultiAuth(app: Express) {
   app.use(onlyThisSpacesLogin);
   app.use(passport.initialize());
   app.use(passport.session());
+  app.use("/api", viewOnlyGuard); // a view-only partner admin can read everything and change nothing
   setupLocalAuth();
   setupAuthRoutes(app);
 }

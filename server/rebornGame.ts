@@ -16,6 +16,7 @@ import { planSplit, readSplit, type SplitPlan } from "@shared/payments";
 import { spendByStaff } from "@shared/expenseByStaff";
 import { cleanSetup, dayCommission, nextTierAfter, readSetup, type TiersProblem } from "@shared/dailyCommission";
 import { clampStartDay, labelOfDay, periodOf } from "@shared/payPeriod";
+import { isPartnerAdmin, partnerAdminIds, setPartnerAdmin } from "./viewOnlyGuard";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
 import { formatMoneyIn, countryOf } from "@shared/countries";
 import { RECEIPT_QR_KINDS, receiptQrText } from "@shared/receiptQr";
@@ -3642,7 +3643,8 @@ export function registerRebornRoutes(app: Express) {
     const [agg] = await db.select({ count: sql<number>`count(*)`, tokens: sql<number>`coalesce(sum(${users.tokens}),0)`, points: sql<number>`coalesce(sum(${users.loyaltyPoints}),0)` }).from(users).where(memberOf);
     const result = await db.execute(sql`SELECT m.user_id, m.position_id, m.branch_id, m.role AS member_role, p.name position_name, (SELECT sp.staff_kind FROM bridge_staff_profiles sp WHERE sp.company_id=m.company_id AND sp.user_id=m.user_id LIMIT 1) AS staff_kind FROM bridge_company_members m LEFT JOIN bridge_positions p ON p.id=m.position_id WHERE m.company_id=${cid}`);
     const positionRows = (result.rows || result) as any[];
-    const listed = rows.map((u: any) => ({ ...u, ...(positionRows.find((p) => p.user_id === u.id) || {}) }));
+    const partners = await partnerAdminIds();
+    const listed = rows.map((u: any) => ({ ...u, partner: partners.includes(u.id), ...(positionRows.find((p) => p.user_id === u.id) || {}) }));
     if (await isSecurityAccount(getUserId(req))) {
       // Security sees who is staff and who is a normal member: no admins or managers, no balances, no contact details.
       const plain = listed.filter((u: any) => u.role !== "admin" && !["manager", "owner", "admin"].includes(u.member_role))
@@ -3736,7 +3738,7 @@ export function registerRebornRoutes(app: Express) {
     if (b.loyaltyPoints !== undefined) patch.loyaltyPoints = Number(b.loyaltyPoints);
     if (b.tokens !== undefined) patch.tokens = Number(b.tokens);
     if (b.kgold !== undefined) patch.kgold = Number(b.kgold);
-    if (b.role !== undefined && ["admin", "staff", "user", "manager", "security"].includes(b.role)) patch.role = b.role === "manager" || b.role === "security" ? "staff" : b.role; // manager = staff account + company role manager; security = staff account + payroll kind Security guard
+    if (b.role !== undefined && ["admin", "staff", "user", "manager", "security", "partner"].includes(b.role)) patch.role = b.role === "manager" || b.role === "security" ? "staff" : b.role === "partner" ? "admin" : b.role; // manager = staff account + company role manager; security = staff account + payroll kind Security guard
     if (b.email !== undefined) patch.email = String(b.email).trim().toLowerCase() || null;
     if (b.firstName !== undefined) patch.firstName = b.firstName;
     if (b.lastName !== undefined) patch.lastName = b.lastName;
@@ -3751,8 +3753,9 @@ export function registerRebornRoutes(app: Express) {
     if (b.membershipCardNumber !== undefined) patch.membershipCardNumber = String(b.membershipCardNumber).trim() || null;
     if (b.password) patch.password = await bcrypt.hash(String(b.password), 12);
     const [row] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
-    if (b.role === "staff" || b.role === "admin" || b.role === "manager" || b.role === "security") {
-      const memberRole = b.role === "security" ? "staff" : b.role;
+    if (b.role !== undefined) await setPartnerAdmin(id, b.role === "partner"); // partner = an admin who can see everything and change nothing (server/viewOnlyGuard.ts)
+    if (b.role === "staff" || b.role === "admin" || b.role === "manager" || b.role === "security" || b.role === "partner") {
+      const memberRole = b.role === "security" ? "staff" : b.role === "partner" ? "admin" : b.role;
       const kind = b.role === "security" ? { staffKind: "guard", needsAttendance: false } : { staffKind: "staff" };
       const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
       if (reborn) {
@@ -6390,7 +6393,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // Which admin-panel view this account gets (admin / manager / staff).
   app.get("/api/reborn/my-role", requireAuth, async (req, res) => {
     const userId = getUserId(req);
-    res.json({ role: (await isSecurityAccount(userId)) ? "security" : await adminRole(userId) });
+    res.json({ role: (await isSecurityAccount(userId)) ? "security" : await adminRole(userId), viewOnly: !!userId && (await isPartnerAdmin(userId)) });
   });
   // Month-to-date paid sales per salesperson vs their target (WIB month).
   async function salesTargets(cid: number, month: string, onlyUser?: string) {
