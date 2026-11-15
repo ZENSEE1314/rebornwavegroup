@@ -2712,8 +2712,15 @@ export function registerRebornRoutes(app: Express) {
 
   app.get("/api/reborn/songs/search", requireAuth, async (req, res) => {
     try {
-      await seedSongsIfEmpty();
       const query = String(req.query.q || "").trim();
+      const companyKey = String(await rebornCompanyId(req));
+      // With the song system connected only its own songs are shown, so the library, Spotify, MusicBrainz and iTunes are not asked at all: they could take up to 28 s one after another and the answer was thrown away.
+      if (query && isBoxOnline(companyKey)) {
+        const found = await searchKaraokeBox(companyKey, query);
+        const fromSystem = (found || []).map((x) => ({ source: "karaoke", title: x.title, titlePinyin: "", artist: x.artist, artistPinyin: "", karaokeCode: x.code, photo: x.photo }));
+        return res.json({ songs: fromSystem, spotifyConnected: false, freeCatalogConnected: false, boxConnected: true, ...(found ? {} : { slow: true }) });
+      }
+      await seedSongsIfEmpty();
       const [catalog, box] = await Promise.all([searchSongCatalog(req.query.q, 10, 100), query ? searchKaraokeBox(String(await rebornCompanyId(req)), query) : Promise.resolve(null)]);
       // The song system is connected but did not answer in time: show nothing from the library (those songs cannot be played) and let the member try again.
       if (!box && isBoxOnline(String(await rebornCompanyId(req)))) return res.json({ ...catalog, songs: [], boxConnected: true, slow: true });
