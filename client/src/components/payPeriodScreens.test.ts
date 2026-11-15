@@ -55,3 +55,13 @@ describe("commission to the sales staff of a bill", () => {
     assert.ok(server.includes('app.post("/api/reborn/admin/accounting/orders/:id/sales-staff", requireAdmin(') && server.includes('action: "edit_sales_staff"'));
   });
 });
+
+describe("two commission ticks on a product", () => {
+  it("should have one tick for staff commission and one for customer (referrer) commission in the PC table", () => {
+    assert.ok(admin.includes("checked={f.salesCommissionOk}") && admin.includes("checked={f.referralOk}") && admin.includes('t("admin.prod.referralCol")'));
+  });
+
+  it("should offer both ticks in the add form and the phone card", () => {
+    assert.ok(admin.includes("checked={n.referralOk !== false}") && admin.includes("checked={f.referralOk !== false}"));
+  });
+});
