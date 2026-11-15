@@ -24,6 +24,8 @@ import { useAdminRole, useProductRights, useViewOnly } from "@/hooks/useAdminRol
 import { ReceiptPhotoViewer } from "@/components/ReceiptPhotoViewer";
 import { DailyCommissionCard } from "@/components/DailyCommissionCard";
 import { TeamSales } from "@/components/TeamSales";
+import { DuplicateLines } from "@/components/DuplicateLines";
+import { SALE_REF, findDuplicates, groupByDay } from "@shared/accountingEntries";
 import SortableTh from "@/components/SortableTh";
 import { matchesSearch, sortRows, type SortState } from "@/lib/table-sort";
 import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
@@ -2828,10 +2830,15 @@ function supplierLine(it: { suppliers?: string[]; supplierPrices?: { supplier: s
   return priced.map((s) => (s.unitCost ? `${s.supplier} ${money(s.unitCost)}` : s.supplier)).join(" · ");
 }
 
+// The sections of Admin › Accounting: one thing at a time instead of one very long page.
+const ACCOUNTING_VIEWS = ["overview", "entries", "add", "bills", "setup"] as const;
+type AccountingView = (typeof ACCOUNTING_VIEWS)[number];
+
 function Accounting() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const [view, setView] = useState<AccountingView>("overview");
   const [days, setDays] = useState(30);
   const [rate, setRate] = useState(10);
   const { data: sum } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/summary", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/summary?days=${days}`).then((r) => r.json()) });
@@ -2851,6 +2858,12 @@ function Accounting() {
     if (url) setLedgerPhoto({ id, url, canReplace });
   };
   const ledgerTotal = normalLedger.reduce((sum, l) => sum + (l.kind === "income" ? 1 : -1) * Number(l.amount), 0);
+  // Entries are laid out by the date of the item (the day typed on the bill or the delivery), one block per day; the POS bills of a day fold into one line.
+  const dayGroups = groupByDay(normalLedger);
+  const duplicateGroups = findDuplicates(normalLedger);
+  const [openSales, setOpenSales] = useState<Record<string, boolean>>({});
+  const isSaleLine = (l: { refType: string | null }) => l.refType === SALE_REF;
+  const dayLabel = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString(localeTag(), { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   const addEntry = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/accounting/entry", e).then((r) => r.json()),
     onSuccess: () => { toast({ title: t("admin.acc.entryAdded") }); setE({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
@@ -2893,20 +2906,23 @@ function Accounting() {
         {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.acc.days", { n: d })}</button>)}
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
-      <TaxFeesCard />
-      <AccountingReports />
-      <ExpensesPanel startWith="other" />
-      <AccountingFresh />
-      <FixedCostsPanel />
-      {byIndustry.length > 0 && <Card>
+      <div role="tablist" aria-label={t("acx.sections")} className="flex gap-1.5 overflow-x-auto pb-1">
+        {ACCOUNTING_VIEWS.map((name) => <button key={name} type="button" role="tab" aria-selected={view === name} onClick={() => setView(name)} className={`min-h-[44px] shrink-0 rounded-xl px-4 text-xs font-bold ${view === name ? "bg-amber-400 text-black" : "bg-white/5 text-white/70"}`}>{t(`acx.view.${name}`)}</button>)}
+      </div>
+      {view === "overview" && <PeriodBreakdown days={days} />}
+      {view === "overview" && <AccountingReports />}
+      {view === "add" && <ExpensesPanel startWith="other" />}
+      {view === "setup" && <TaxFeesCard />}
+      {view === "setup" && <FixedCostsPanel />}
+      {view === "setup" && <AccountingFresh />}
+      {view === "overview" && byIndustry.length > 0 && <Card>
         <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.acc.byIndustry", { n: days })}</p>
         <div className="space-y-1.5">{byIndustry.map((r) => (
           <div key={r.industry} className="flex items-center justify-between text-sm"><span className="text-white/80">{indLabel(r.industry)}</span><span className="text-white/50">{t("admin.acc.orders", { n: r.orders })} · <b className="text-amber-200">{money(r.revenue)}</b></span></div>
         ))}</div>
         <p className="mt-2 text-[11px] text-white/40">{t("admin.acc.industryHint")}</p>
       </Card>}
-      <PeriodBreakdown days={days} />
-      {commission?.staff && (
+      {view === "bills" && commission?.staff && (
         <Card>
           <div className="flex items-center justify-between mb-2">
             <p className="font-bold text-sm">{t("admin.acc.byStaff")}</p>
@@ -2927,11 +2943,11 @@ function Accounting() {
           <p className="text-[11px] text-white/40 mt-2">{t("admin.acc.commissionHint")}</p>
         </Card>
       )}
-      <CommissionList days={days} />
-      <ReceiptScan />
-      <DailyClosings days={days} />
-      <AccountingOrders days={days} />
-      <Card>
+      {view === "bills" && <CommissionList days={days} />}
+      {view === "add" && <ReceiptScan />}
+      {view === "bills" && <DailyClosings days={days} />}
+      {view === "bills" && <AccountingOrders days={days} />}
+      {view === "add" && <Card>
         <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.acc.manual")}</p>
         <div className="grid grid-cols-2 gap-2 mb-2">
           <select value={e.kind} onChange={(x) => setE({ ...e, kind: x.target.value })} className={inp}><option value="expense">{t("admin.acc.expenseT")}</option><option value="income">{t("admin.acc.incomeT")}</option></select>
@@ -2946,7 +2962,9 @@ function Accounting() {
         <p className="text-[11px] text-white/50 mb-1">{t("admin.acc.snapHint")}</p>
         <div className="mb-3"><ImageUpload value={e.photoUrl} onChange={(v: any) => setE({ ...e, photoUrl: v })} label={t("admin.acc.snap")} output="jpeg" maxDim={1200} /></div>
         <button onClick={() => addEntry.mutate()} disabled={e.amount <= 0 || addEntry.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> {t("admin.acc.addEntry")}</button>
-      </Card>
+      </Card>}
+      {view === "entries" && <>
+      <DuplicateLines groups={duplicateGroups} isRemoving={deleteLedger.isPending} onRemove={(l) => window.confirm(t("admin.acc.deleteAsk", { what: `${l.note || l.category} ${money(Number(l.amount))}` })) && deleteLedger.mutate(l.id)} />
       <p className="text-xs text-white/40 px-1">{t("admin.acc.recent")}</p>
       <Card>
         <div className="grid grid-cols-2 gap-2">
@@ -2961,11 +2979,20 @@ function Accounting() {
           {(lf.kind || lf.category || lf.from || lf.to || lf.q) && <button onClick={() => setLf({ kind: "", category: "", from: "", to: "", q: "" })} className="text-amber-300 font-semibold">{t("admin.acc.filterClear")}</button>}
         </div>
       </Card>
-      {normalLedger.map((l) => (
+      {dayGroups.map((g) => (
+        <section key={g.day} className="space-y-1.5">
+          <header className="flex items-center justify-between gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs">
+            <b className="text-white">{dayLabel(g.day)}</b>
+            <span className="text-white/60">{t("acx.in")} <b className="text-emerald-300">{money(g.income)}</b> · {t("acx.out")} <b className="text-red-300">{money(g.expense)}</b></span>
+          </header>
+          {g.lines.some(isSaleLine) && (
+            <button type="button" onClick={() => setOpenSales({ ...openSales, [g.day]: !openSales[g.day] })} aria-expanded={!!openSales[g.day]} className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-3 py-2 text-left text-sm"><span>{openSales[g.day] ? "▾" : "▸"} {t("acx.sales", { n: g.lines.filter(isSaleLine).length })}</span><b className="text-emerald-300">+{money(g.lines.filter(isSaleLine).reduce((sum, l) => sum + Number(l.amount), 0))}</b></button>
+          )}
+          {g.lines.filter((l) => openSales[g.day] || !isSaleLine(l)).map((l) => (
         <div key={l.id} className="flex flex-wrap items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm gap-2">
           <div className="min-w-0 flex items-center gap-2">
             {l.photoUrl ? <button type="button" onClick={() => setLedgerPhoto({ id: l.id, url: l.photoUrl, canReplace: isPhotoReplaceable(l.refType) })} className="min-h-0 flex-shrink-0 p-0"><img src={l.photoUrl} alt={t("admin.acc.invoice")} className="w-9 h-9 rounded object-cover border border-white/10" /></button> : l.hasPhoto && <button onClick={() => showLedgerPhoto(l.id, isPhotoReplaceable(l.refType))} aria-label={t("admin.acc.invoice")} className="w-9 h-9 rounded bg-white/10 border border-white/10 flex-shrink-0 flex items-center justify-center"><Camera className="h-4 w-4 text-white/70" /></button>}
-            <div className="min-w-0"><p className="truncate">{l.note || catLabel(l.kind + ":" + l.category) || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString(localeTag())}</p></div>
+            <div className="min-w-0"><p className="truncate">{l.note || catLabel(l.kind + ":" + l.category) || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleTimeString(localeTag(), { hour: "2-digit", minute: "2-digit" })}</p></div>
           </div>
           <span className={l.kind === "income" ? "text-emerald-300 font-semibold flex-shrink-0" : "text-red-300 font-semibold flex-shrink-0"}>{l.kind === "income" ? "+" : "−"}{money(Number(l.amount))}</span>
           {!l.refType && (
@@ -2986,7 +3013,10 @@ function Accounting() {
           )}
         </div>
       ))}
+        </section>
+      ))}
       {normalLedger.length === 0 && <Empty text={t("admin.acc.noTx")} />}
+      </>}
       {ledgerPhoto && <ReceiptPhotoViewer src={ledgerPhoto.url} name={t("admin.acc.invoice")} onClose={() => setLedgerPhoto(null)} onReplace={ledgerPhoto.canReplace ? (url) => replaceLedgerPhoto.mutate({ id: ledgerPhoto.id, photoUrl: url }) : undefined} />}
     </div>
   );
