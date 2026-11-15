@@ -5528,6 +5528,24 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     res.json({ taxPercent: custom.tax, serviceFeePercent: custom.service });
   }));
   const UNCLOSED_DAYS_MAX = 45;
+  // One venue day bill by bill: what each customer paid and how much of it was food and drinks (end-of-day receipt screen).
+  app.get("/api/reborn/admin/accounting/closing-bills", requireManager(async (req, res) => {
+    const day = String(req.query.day || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return res.status(400).json({ message: tr(req, { en: "Choose a day", zh: "请选择日期", id: "Pilih hari" }) });
+    const tickets = await db.select().from(posTickets).where(and(eq(posTickets.status, "paid"), sql`${VENUE_DAY_OF(sql`${posTickets.paidAt}`)} = ${day}::date`)).orderBy(asc(posTickets.paidAt), asc(posTickets.id));
+    const ids = tickets.map((ticket) => ticket.id);
+    const lines = ids.length ? await db.select({ orderId: posTicketItems.orderId, productId: posTicketItems.productId, lineTotal: posTicketItems.lineTotal, station: posTicketItems.station, category: posProducts.category, isService: posProducts.isService, packageKind: posProducts.packageKind })
+      .from(posTicketItems).leftJoin(posProducts, eq(posTicketItems.productId, posProducts.id)).where(and(inArray(posTicketItems.orderId, ids), sql`${posTicketItems.status} <> 'rejected'`)) : [];
+    const kindSales = new Map<number, { food: number; drink: number }>();
+    for (const line of lines) {
+      const kind = kindOf({ productId: line.productId, category: line.category, station: line.station, isService: !!line.isService, isPackage: !!line.packageKind });
+      const sums = kindSales.get(line.orderId) || { food: 0, drink: 0 };
+      if (kind === "food" || kind === "drink") sums[kind] += Number(line.lineTotal) || 0;
+      kindSales.set(line.orderId, sums);
+    }
+    const numbers = await receiptNumbers(await rebornCompanyId(req), ids);
+    res.json(tickets.map((ticket) => ({ id: ticket.id, receiptSeq: numbers.get(ticket.id)?.seq ?? null, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName, paidAt: ticket.paidAt, method: ticket.paymentMethod, total: Number(ticket.total) || 0, food: kindSales.get(ticket.id)?.food ?? 0, drink: kindSales.get(ticket.id)?.drink ?? 0 })));
+  }));
   app.get("/api/reborn/admin/accounting/closings", requireManager(async (req, res) => {
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY_MS);
