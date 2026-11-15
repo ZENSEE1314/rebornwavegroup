@@ -14,7 +14,7 @@ import { packageFields, parseItemIds, memberWallet, quoteBill, spendPackageCredi
 import { payReferralCommission, reverseReferralCommission } from "./referralCommission";
 import { planSplit, readSplit, type SplitPlan } from "@shared/payments";
 import { spendByStaff } from "@shared/expenseByStaff";
-import { cleanSetup, dayCommission, nextTierAfter, readSetup, type TiersProblem } from "@shared/dailyCommission";
+import { cleanSetup, dayCommission, nextTierAfter, readSetup, tierRanges, type TiersProblem } from "@shared/dailyCommission";
 import { clampStartDay, labelOfDay, periodOf } from "@shared/payPeriod";
 import { isPartnerAdmin, partnerAdminIds, setPartnerAdmin } from "./viewOnlyGuard";
 import { companyCountry, companyMoney, roundMoney } from "./companyMoney";
@@ -4796,30 +4796,68 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         ? { en: "Keep one last tier with no top (\"and above\")", zh: "请保留一个没有上限的最后一级（“以上”）", id: "Sisakan satu tingkat terakhir tanpa batas atas (\"ke atas\")" }
         : { en: "Add at least one tier", zh: "请至少添加一级", id: "Tambahkan setidaknya satu tingkat" });
   // Per salesperson and venue day (from <= day < to): the day's sales before service fee and tax, the % of the tier reached and the commission. Only days from the start day on count.
+  // What a bill counts: its items after the discount, so no service fee and no tax, and without the items the admin ticked "no commission" in Inventory (their share of the bill is left out).
+  // One row per salesperson and venue day (from <= day < to).
+  const staffDaySales = async (from: string, to: string, onlyUserId?: string) => {
+    const rows = await db.execute(sql`SELECT t.sales_staff_id AS user_id, to_char(${VENUE_DAY_OF(sql`t.paid_at`)}, 'YYYY-MM-DD') AS day,
+        sum(CASE WHEN COALESCE(l.valid, 0) > 0 THEN (COALESCE(t.subtotal::numeric, 0) - COALESCE(t.discount::numeric, 0)) * COALESCE(l.eligible, 0) / l.valid ELSE 0 END) AS sales
+      FROM pos_tickets t
+      LEFT JOIN LATERAL (SELECT sum(i.line_total::numeric) AS valid, sum(i.line_total::numeric) FILTER (WHERE COALESCE(p.sales_commission_ok, true)) AS eligible
+        FROM pos_ticket_items i LEFT JOIN pos_products p ON p.id = i.product_id WHERE i.order_id = t.id AND i.status NOT IN ('rejected', 'lost', 'cancelled')) l ON true
+      WHERE t.status = 'paid' AND t.sales_staff_id IS NOT NULL AND ${VENUE_DAY_OF(sql`t.paid_at`)} >= ${from}::date AND ${VENUE_DAY_OF(sql`t.paid_at`)} < ${to}::date ${onlyUserId ? sql`AND t.sales_staff_id = ${onlyUserId}` : sql``}
+      GROUP BY 1, 2 ORDER BY 2`);
+    return (((rows as any).rows || rows) as any[]).map((row) => ({ userId: String(row.user_id), day: String(row.day), sales: roundMoney(Number(row.sales) || 0) }));
+  };
+  // Per salesperson and venue day: the day's sales, the % of the tier reached and the commission. Only days from the start day on count.
   const dailyTierCommissions = async (from: string, to: string, onlyUserId?: string) => {
     const setup = await dailyCommissionSetup();
     const result = new Map<string, { total: number; days: { day: string; sales: number; percent: number; amount: number }[] }>();
     if (!setup.enabled || !setup.startDay) return result;
     const first = setup.startDay > from ? setup.startDay : from;
     if (first >= to) return result;
-    // What a bill counts: its items after the discount, so no service fee and no tax, and without the items the admin ticked "no commission" in Inventory (their share of the bill is left out).
-    const rows = await db.execute(sql`SELECT t.sales_staff_id AS user_id, to_char(${VENUE_DAY_OF(sql`t.paid_at`)}, 'YYYY-MM-DD') AS day,
-        sum(CASE WHEN COALESCE(l.valid, 0) > 0 THEN (COALESCE(t.subtotal::numeric, 0) - COALESCE(t.discount::numeric, 0)) * COALESCE(l.eligible, 0) / l.valid ELSE 0 END) AS sales
-      FROM pos_tickets t
-      LEFT JOIN LATERAL (SELECT sum(i.line_total::numeric) AS valid, sum(i.line_total::numeric) FILTER (WHERE COALESCE(p.sales_commission_ok, true)) AS eligible
-        FROM pos_ticket_items i LEFT JOIN pos_products p ON p.id = i.product_id WHERE i.order_id = t.id AND i.status NOT IN ('rejected', 'lost', 'cancelled')) l ON true
-      WHERE t.status = 'paid' AND t.sales_staff_id IS NOT NULL AND ${VENUE_DAY_OF(sql`t.paid_at`)} >= ${first}::date AND ${VENUE_DAY_OF(sql`t.paid_at`)} < ${to}::date ${onlyUserId ? sql`AND t.sales_staff_id = ${onlyUserId}` : sql``}
-      GROUP BY 1, 2 ORDER BY 2`);
-    for (const row of ((rows as any).rows || rows) as any[]) {
-      const sales = roundMoney(Number(row.sales) || 0);
-      const { percent, amount } = dayCommission(sales, setup.tiers);
-      const entry = result.get(row.user_id) || { total: 0, days: [] };
+    for (const row of await staffDaySales(first, to, onlyUserId)) {
+      const { percent, amount } = dayCommission(row.sales, setup.tiers);
+      const entry = result.get(row.userId) || { total: 0, days: [] };
       entry.total = roundMoney(entry.total + roundMoney(amount));
-      entry.days.push({ day: String(row.day), sales, percent, amount: roundMoney(amount) });
-      result.set(row.user_id, entry);
+      entry.days.push({ day: row.day, sales: row.sales, percent, amount: roundMoney(amount) });
+      result.set(row.userId, entry);
     }
     return result;
   };
+  const nextDayOf = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  // Staff › Daily sales: every salesperson's chosen day side by side with the tier each reached, so staff can compare; the caller's own days of the pay period; the caller's own commission only.
+  app.get("/api/reborn/staff/team-sales", requireStaff(async (req, res) => {
+    const userId = getUserId(req)!;
+    const cid = await rebornCompanyId(req);
+    const currentDay = (await ensureVenueSession()).day;
+    const asked = String(req.query.day || "");
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked <= currentDay ? asked : currentDay;
+    const setup = await dailyCommissionSetup();
+    const period = await payPeriodOf();
+    const tiersOn = setup.enabled && !!setup.startDay;
+    const ranges = tierRanges(setup.tiers);
+    const standing = (sales: number, forDay: string) => {
+      if (!tiersOn || forDay < setup.startDay) return { percent: null, amount: 0, from: 0, to: null, next: null };
+      const { percent, amount, tierIndex } = dayCommission(sales, setup.tiers);
+      return { percent, amount: roundMoney(amount), from: ranges[tierIndex].from, to: ranges[tierIndex].to, next: nextTierAfter(sales, setup.tiers) };
+    };
+    const members = ((await db.execute(sql`SELECT m.user_id, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.username,u.email) name FROM bridge_company_members m JOIN users u ON u.id=m.user_id WHERE m.company_id=${cid} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff')`)) as any);
+    const memberRows = (members.rows || members) as any[];
+    const real = await realNamesOf(cid, memberRows.map((member) => String(member.user_id)));
+    const nameOf = new Map<string, string>(memberRows.map((member) => [String(member.user_id), real.get(String(member.user_id)) || member.name || ""]));
+    const dayRows = await staffDaySales(day, nextDayOf(day));
+    const salesOf = new Map(dayRows.map((row) => [row.userId, row.sales]));
+    const ids = Array.from(new Set([...dayRows.map((row) => row.userId), userId])).filter((id) => nameOf.has(id));
+    const people = ids.map((id) => {
+      const sales = salesOf.get(id) ?? 0;
+      const state = standing(sales, day);
+      return { userId: id, name: nameOf.get(id) || "", isMe: id === userId, sales, percent: state.percent, from: state.from, to: state.to, next: state.next, ...(id === userId ? { amount: state.amount } : {}) };
+    }).sort((a, b) => b.sales - a.sales);
+    const periodEnd = nextDayOf(currentDay) < period.to ? nextDayOf(currentDay) : period.to;
+    const mine = await staffDaySales(period.from, periodEnd, userId);
+    const myDays = mine.map((row) => ({ day: row.day, sales: row.sales, percent: standing(row.sales, row.day).percent, amount: standing(row.sales, row.day).amount })).sort((a, b) => b.day.localeCompare(a.day));
+    res.set("Cache-Control", "no-store").json({ day, currentDay, enabled: tiersOn, startDay: setup.startDay, tiers: ranges, period: { from: period.from, to: period.to, startDay: period.startDay }, people, myDays, myPeriodSales: roundMoney(mine.reduce((sum, row) => sum + row.sales, 0)) });
+  }));
   app.get("/api/reborn/staff/daily-commission", requireStaff(async (req, res) => {
     const userId = getUserId(req)!;
     const setup = await dailyCommissionSetup();

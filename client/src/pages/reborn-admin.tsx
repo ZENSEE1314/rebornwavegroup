@@ -23,6 +23,7 @@ import { MultiDateCalendar } from "@/components/MultiDateCalendar";
 import { useAdminRole, useProductRights, useViewOnly } from "@/hooks/useAdminRole";
 import { ReceiptPhotoViewer } from "@/components/ReceiptPhotoViewer";
 import { DailyCommissionCard } from "@/components/DailyCommissionCard";
+import { TeamSales } from "@/components/TeamSales";
 import SortableTh from "@/components/SortableTh";
 import { matchesSearch, sortRows, type SortState } from "@/lib/table-sort";
 import { packBreakdown, unitPriceFromPack } from "@shared/packPricing";
@@ -103,6 +104,7 @@ export default function RebornAdmin() {
       {tab === "Bottles" && <AdminBottles />}
       {tab === "Pet" && <div className="space-y-6"><PetLook /><Codes /><Pills /></div>}
       {tab === "Sales" && (role === "admin" || role === "manager") && <DailySales />}
+      {tab === "Sales" && <TeamSales />}
       {tab === "Prizes" && <Prizes />}
       {tab === "Redemptions" && <Redemptions />}
       {tab === "FAQ" && <Faq />}

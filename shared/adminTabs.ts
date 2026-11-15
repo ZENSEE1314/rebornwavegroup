@@ -1,7 +1,7 @@
 // The buttons (tabs) of the Reborn admin page, per kind of account. The main admin can narrow what one person sees (below).
-export const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "Security", "Expenses", "POS"] as const;
+export const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Staff", "Leaderboard", "Feedback", "Security", "Expenses", "Sales", "POS"] as const;
 // Managers: the staff tabs + users, products, inventory, Expenses and Daily sales. The QR codes tab comes second, as for the main admin.
-export const MANAGER_TABS = ["Overview", "QR", ...STAFF_TABS.slice(1, -1), "Users", "Products", "Inventory", "Sales", "POS"] as const;
+export const MANAGER_TABS = ["Overview", "QR", ...STAFF_TABS.slice(1, -1), "Users", "Products", "Inventory", "POS"] as const;
 export const ADMIN_TABS = ["Overview", "QR", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Pet", "Songs", "Games", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Expenses", "Prizes", "Gifts", "FAQ", "Features", "Lights", "Security", "Settings", "Logs", "Errors", "Sales", "POS"] as const;
 
 /** Tabs staff only get once the main admin switches them on for that person (none now: every staff account can upload expenses). */
