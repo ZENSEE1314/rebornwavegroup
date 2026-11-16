@@ -15,6 +15,7 @@ import { ReceiptPhotoViewer } from "@/components/ReceiptPhotoViewer";
 import { readReceipt } from "@/lib/receipt-ocr";
 import { DEFAULT_TERMS_DAYS, dueDateFrom } from "@shared/payables";
 import type { StaffSpend } from "@shared/expenseByStaff";
+import { dayKeyOf } from "@shared/accountingEntries";
 import { EXPENSE_GROUPS, GROUP_OF_SECTION, sectionOf, type ExpenseGroup } from "@shared/accountingReport";
 
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
@@ -42,7 +43,7 @@ interface Expense { payMethod?: string | null; canEdit?: boolean; bill?: { id?: 
 interface StockDelivery { hasPhoto?: boolean; bill?: Expense["bill"]; supplier?: string; invoiceNo?: string; items?: { name: string; qty: number }[]; canEdit?: boolean; id: number; amount: string; note: string | null; createdAt: string }
 interface ExpenseList { byStaff?: StaffSpend[]; month: string; expenses: Expense[]; recent?: Expense[]; stockDeliveries?: StockDelivery[]; totals: Record<string, number>; total: number; canVoid: boolean; categories: string[]; runningCosts: { id: string; name: string }[] }
 interface Line { key: number; name: string; qty: number; unitCost: number; productId?: number | null; packSize?: number }
-interface Payable { hasPhoto?: boolean; ledgerEntryId?: number | null; id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
+interface Payable { spentOn?: string | null; hasPhoto?: boolean; ledgerEntryId?: number | null; id: number; supplier?: string | null; invoiceNo?: string | null; amount: string; dueDate?: string | null; isOverdue: boolean; kind: string; createdByName?: string | null; dupKey: string; items: { name: string; qty: number; unitCost: number | null }[] }
 interface Vendor { name: string; address: string; phone: string; category: string; items: { name: string; qty: number; unitCost: number }[] }
 let nextLineKey = 1;
 const newLine = (line: Partial<Line> = {}): Line => ({ key: nextLineKey++, name: "", qty: 1, unitCost: 0, productId: null, packSize: 1, ...line });
@@ -234,6 +235,17 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   };
   const [payFilter, setPayFilter] = useState<"all" | "paid" | "unpaid">("all");
   const isUnpaid = (bill?: Expense["bill"]) => bill?.status === "unpaid";
+  // Search the supplier, the items, the invoice, the amount ... and pick the dates: they work on the not paid bills, the uploads and the stock deliveries of the list.
+  const [search, setSearch] = useState("");
+  const [fromDay, setFromDay] = useState("");
+  const [toDay, setToDay] = useState("");
+  const needle = search.trim().toLowerCase();
+  const isFiltering = !!needle || !!fromDay || !!toDay;
+  const textOk = (parts: (string | number | null | undefined)[]) => !needle || parts.filter((part) => part !== null && part !== undefined && part !== "").join(" ").toLowerCase().includes(needle);
+  const dayOk = (day: string | null | undefined) => (!fromDay || (!!day && day >= fromDay)) && (!toDay || (!!day && day <= toDay));
+  const expenseMatches = (row: Expense) => textOk([kindLabel(row.category), row.payee, row.invoiceNo, row.note, row.payeePhone, row.uploadedByName, row.spentOn, Number(row.amount), ...(row.items || []).map((item) => item.name)]) && dayOk(row.spentOn);
+  const deliveryMatches = (delivery: StockDelivery) => textOk([delivery.note, delivery.supplier, delivery.invoiceNo, Number(delivery.amount), ...(delivery.items || []).map((item) => item.name)]) && dayOk(dayKeyOf(delivery.createdAt));
+  const payableMatches = (bill: Payable) => textOk([bill.supplier, bill.invoiceNo, Number(bill.amount), bill.createdByName, bill.spentOn, ...bill.items.map((item) => item.name)]) && dayOk(bill.spentOn);
   const matchesPayFilter = (row: { status?: string; bill?: Expense["bill"] }) => payFilter === "all" || (payFilter === "unpaid" ? isUnpaid(row.bill) : row.status !== "voided" && !isUnpaid(row.bill));
   const { data: reader } = useQuery<{ ai: boolean }>({ queryKey: ["/api/reborn/admin/inventory/receipt/ready"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory/receipt/ready").then((r) => r.json()) });
   const { data: vendorList } = useQuery<{ vendors: Vendor[] }>({ queryKey: ["/api/reborn/expenses/vendors"], queryFn: () => apiRequest("GET", "/api/reborn/expenses/vendors").then((r) => r.json()) });
@@ -401,7 +413,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
       {(payables?.payables || []).length > 0 && (
         <div className={card + " space-y-2 border-amber-400/30"}>
           <p className="font-bold text-sm">{t("ex.payables")} · <span className="text-amber-200">{t("ex.owed", { n: money(payables!.total) })}</span></p>
-          {payables!.payables.map((p) => {
+          {payables!.payables.filter(payableMatches).map((p) => {
             const twins = payables!.payables.filter((other) => other.dupKey === p.dupKey);
             const others = twins.filter((other) => other.id !== p.id);
             const isOpen = openBills.includes(p.id);
@@ -475,9 +487,16 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
             })}
           </div>
         )}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("ex.searchPh")} aria-label={t("ex.searchPh")} className={field + " col-span-2"} />
+          <label className="text-[11px] text-white/50">{t("ex.dateFrom")}<input type="date" value={fromDay} max={toDay || undefined} onChange={(e) => { setFromDay(e.target.value); if (e.target.value) setMonth(e.target.value.slice(0, 7)); }} className={field + " mt-0.5 w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-[11px] text-white/50">{t("ex.dateTo")}<input type="date" value={toDay} min={fromDay || undefined} onChange={(e) => setToDay(e.target.value)} className={field + " mt-0.5 w-full"} style={{ colorScheme: "dark" }} /></label>
+          {isFiltering && <button type="button" onClick={() => { setSearch(""); setFromDay(""); setToDay(""); }} className="col-span-2 min-h-[40px] rounded-lg bg-white/10 text-xs font-bold text-amber-200">{t("ex.clearFilters")}</button>}
+        </div>
         <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={t("ex.filterPaid")}>
           {(["all", "paid", "unpaid"] as const).map((value) => <button key={value} type="button" aria-pressed={payFilter === value} onClick={() => setPayFilter(value)} className={`min-h-[40px] rounded-full border px-3 text-xs font-bold ${payFilter === value ? "border-amber-400 bg-amber-400 text-black" : "border-white/20 bg-white/5 text-white/70"}`}>{t(`ex.filter.${value}`)}</button>)}
         </div>
+        {isFiltering && data && [...(data.expenses || []), ...(data.recent || [])].filter((row) => matchesPayFilter(row) && expenseMatches(row)).length + (data.stockDeliveries || []).filter((delivery) => matchesPayFilter(delivery) && deliveryMatches(delivery)).length === 0 && <p className="mt-2 text-xs text-white/50">{t("ex.noMatch")}</p>}
         <div className="mt-3 space-y-2">
           {(() => {
             const payStatus = (bill: Expense["bill"], fallbackMethod?: string | null) => (
@@ -488,7 +507,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
                 {payables?.canPay && isUnpaid(bill) && bill?.id && ["cash", "card", "transfer"].map((method) => <button key={method} type="button" onClick={() => markPaid.mutate({ id: bill.id!, method })} disabled={markPaid.isPending} className="min-h-[40px] rounded-lg bg-emerald-500 px-3 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}
               </p>
             );
-            const renderRow = (row: Expense) => !matchesPayFilter(row) ? null : (
+            const renderRow = (row: Expense) => !matchesPayFilter(row) || !expenseMatches(row) ? null : (
               <Fragment key={row.id}>
             <div key={row.id} className={`rounded-xl border p-3 text-xs ${row.status === "voided" ? "border-white/10 opacity-50" : "border-white/10 bg-black/20"}`}>
               <div className="flex items-baseline justify-between gap-2">
@@ -515,7 +534,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
               {(data?.recent || []).length > 0 && <p className="pt-2 text-[11px] font-bold text-sky-200">{t("ex.recentTitle")}</p>}
               {(data?.recent || []).map(renderRow)}
               {(data?.stockDeliveries || []).length > 0 && <p className="pt-2 text-[11px] font-bold text-emerald-200">{t("ex.stockTitle")}</p>}
-              {(data?.stockDeliveries || []).filter((delivery) => matchesPayFilter(delivery)).map((delivery) => (
+              {(data?.stockDeliveries || []).filter((delivery) => matchesPayFilter(delivery) && deliveryMatches(delivery)).map((delivery) => (
                 <div key={delivery.id} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
                   <div className="flex items-baseline justify-between gap-2"><span className="font-semibold">{t("ex.cat.stock")}{delivery.supplier ? ` · ${delivery.supplier}` : ""}</span><span className="font-black text-amber-200">{money(Number(delivery.amount))}</span></div>
                   <p className="mt-0.5 text-white/50">{delivery.createdAt ? new Date(delivery.createdAt).toLocaleString() : ""}</p>
