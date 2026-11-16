@@ -1770,6 +1770,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'acx.dupKeep': { en: "keep", zh: "保留", id: "simpan" },
   'acx.dupRemove': { en: "Remove this copy", zh: "删除此重复", id: "Hapus salinan ini" },
   'acx.dupOpenExpenses': { en: "Void or edit it in the Expenses tab", zh: "请在“费用”页作废或修改", id: "Batalkan atau ubah di tab Biaya" },
+  'ar.search': { en: "Search this list (name, invoice, amount ...)", zh: "搜索此列表（名称、发票号、金额…）", id: "Cari di daftar ini (nama, faktur, jumlah ...)" },
+  'ar.unpaidTotal': { en: "Not paid: {n} · {total}", zh: "未付款：{n} 笔 · {total}", id: "Belum dibayar: {n} · {total}" },
   'admin.dc.printAll': { en: "All", zh: "全部", id: "Semua" },
   'admin.dc.printFood': { en: "Food only", zh: "仅食物", id: "Makanan saja" },
   'admin.dc.printDrinks': { en: "Drinks only", zh: "仅饮品", id: "Minuman saja" },

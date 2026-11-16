@@ -1,6 +1,6 @@
 // Admin › Accounting › Reports: one month (or everything) in plain lines — money in from sales, then every cost the owner cares about
 // (stock bought, staff, electricity, water, internet, rent, security, police ...) and what is left. Built from the same ledger as the rest of Accounting.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -22,10 +22,15 @@ interface OverallData { total: PeriodReport; months: { month: string; report: Pe
 
 interface DrillLine {
   id: number; at: string | null; amount: number; category: string; refType: string | null; note: string | null; canEdit?: boolean; canDelete?: boolean; by: string; hasPhoto: boolean;
+  payable?: { id: number; status: string; dueDate: string | null; payMethod: string | null; paidOn: string | null; supplier: string | null; invoiceNo: string | null } | null;
   bill: { id: number; orderNo: string; table: string | null; member: string | null } | null;
   upload: { id: number; hasItems?: boolean; payee: string | null; uploadedBy: string | null; spentOn: string; status: string; voidReason: string | null; hasPhoto: boolean } | null;
 }
-interface Drill { group: string; count: number; total: number; truncated: boolean; lines: DrillLine[] }
+interface Drill { group: string; count: number; total: number; truncated: boolean; unpaidCount?: number; unpaidTotal?: number; lines: DrillLine[] }
+// Lines a person types in or uploads as a purchase: they are paid at once or kept as a bill to pay, so they show Paid / Not paid.
+const BILL_REFS = ["stock_movement", "receipt", "receipt_expense", "expense_upload"];
+const PAY_METHODS = ["cash", "card", "transfer"] as const;
+const SEARCH_DELAY_MS = 350;
 
 function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
   const { t, language } = useTranslation();
@@ -33,7 +38,11 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
   const qc = useQueryClient();
   const [photo, setPhoto] = useState<{ id: number; url: string | null } | null>(null);
   const [editing, setEditing] = useState<{ id: number; amount: string; note: string } | null>(null);
-  const url = `/api/reborn/admin/accounting/report-lines?group=${group}${scope ? `&${scope}` : ""}`;
+  const [search, setSearch] = useState("");
+  const [searched, setSearched] = useState("");
+  const [payFilter, setPayFilter] = useState<"all" | "paid" | "unpaid">("all");
+  useEffect(() => { const timer = setTimeout(() => setSearched(search.trim()), SEARCH_DELAY_MS); return () => clearTimeout(timer); }, [search]);
+  const url = `/api/reborn/admin/accounting/report-lines?group=${group}${scope ? `&${scope}` : ""}${searched ? `&q=${encodeURIComponent(searched)}` : ""}${payFilter !== "all" ? `&pay=${payFilter}` : ""}`;
   const { data } = useQuery<Drill>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
   const saveEdit = useMutation({
     mutationFn: (v: { id: number; amount: number; note: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { amount: v.amount, note: v.note }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
@@ -69,6 +78,12 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
     },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
   });
+  // Pay a bill right on its line (the same call as the Not paid list in Expenses).
+  const markPaid = useMutation({
+    mutationFn: (v: { id: number; method: string }) => apiRequest("POST", `/api/reborn/expenses/payables/${v.id}/pay`, { method: v.method }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ predicate: (q) => { const key = String(q.queryKey[0]); return key.startsWith("/api/reborn/admin/accounting") || key.startsWith("/api/reborn/expenses"); } }); },
+    onError: fail,
+  });
   const showPhoto = async (id: number) => {
     setPhoto({ id, url: null });
     const r = await apiRequest("GET", `/api/reborn/admin/accounting/ledger/${id}/photo`);
@@ -78,17 +93,32 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
     const key = `ar.src.${line.refType}`;
     return line.refType && translations[key] ? t(key) : line.refType || line.category;
   };
-  if (!data) return <p className="py-2 text-[11px] text-white/40">…</p>;
-  if (data.lines.length === 0) return <p className="py-2 text-[11px] text-white/40">{t("ar.noLines")}</p>;
+  const payChip = (active: boolean) => `min-h-[40px] rounded-full border px-3 text-xs font-bold ${active ? "border-amber-400 bg-amber-400 text-black" : "border-white/20 bg-white/5 text-white/70"}`;
   return (
     <div className="mb-2 rounded-xl border border-white/10 bg-black/30 p-2 space-y-1.5">
-      <p className="text-[11px] text-white/50">{t("ar.lineCount", { n: data.count, total: money(data.total) })}</p>
-      {data.lines.map((line) => (
+      <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("ar.search")} aria-label={t("ar.search")} className={field + " w-full"} />
+      {group !== "income" && (
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("ex.filterPaid")}>
+          {(["all", "paid", "unpaid"] as const).map((value) => <button key={value} type="button" aria-pressed={payFilter === value} onClick={() => setPayFilter(value)} className={payChip(payFilter === value)}>{t(`ex.filter.${value}`)}</button>)}
+        </div>
+      )}
+      {!data && <p className="py-2 text-[11px] text-white/40">…</p>}
+      {data && data.lines.length === 0 && <p className="py-2 text-[11px] text-white/40">{t("ar.noLines")}</p>}
+      {data && data.lines.length > 0 && <p className="text-[11px] text-white/50">{t("ar.lineCount", { n: data.count, total: money(data.total) })}{(data.unpaidCount ?? 0) > 0 ? ` · ${t("ar.unpaidTotal", { n: data.unpaidCount ?? 0, total: money(data.unpaidTotal ?? 0) })}` : ""}</p>}
+      {(data?.lines ?? []).map((line) => (
         <div key={line.id} className="rounded-lg bg-white/5 p-2 text-[11px]">
           <div className="flex items-baseline justify-between gap-2"><span className="text-white/60">{line.at ? new Date(line.at).toLocaleString(localeTag(language)) : ""}</span><span className={`font-bold ${line.amount < 0 ? "text-red-300" : "text-white"}`}>{money(line.amount)}</span></div>
           <p className="text-white/80">{sourceLabel(line)}{line.bill ? ` · ${t("ar.bill", { no: line.bill.orderNo })}${line.bill.table ? ` · ${t("ar.table", { t: line.bill.table })}` : ""}${line.bill.member ? ` · ${line.bill.member}` : ""}` : ""}</p>
           {line.upload && <p className="text-white/60">{t("ar.uploadBy", { name: line.upload.uploadedBy || "?" })}{line.upload.payee ? ` · ${line.upload.payee}` : ""} · {t("ar.receiptDate", { d: line.upload.spentOn })}{line.upload.status === "voided" ? ` · ${t("ar.voided", { reason: line.upload.voidReason || "" })}` : ""}</p>}
           {line.note && <p className="text-white/45 break-words">{line.note}</p>}
+          {(line.payable || BILL_REFS.includes(line.refType || "")) && (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              {line.payable?.status === "unpaid"
+                ? <span className="rounded-full bg-red-400/20 px-2 py-0.5 font-bold text-red-200">{t("ex.notPaidChip")}{line.payable.dueDate ? ` · ${t("ex.dueOn", { d: line.payable.dueDate })}` : ""}</span>
+                : <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 font-bold text-emerald-200">{t("ex.paid")}{line.payable?.payMethod ? ` (${t(`ex.pm.${line.payable.payMethod}`)})` : ""}</span>}
+              {line.payable?.status === "unpaid" && PAY_METHODS.map((method) => <button key={method} type="button" disabled={markPaid.isPending} onClick={() => markPaid.mutate({ id: line.payable!.id, method })} className="min-h-[40px] rounded-lg bg-emerald-500 px-3 text-xs font-bold text-black disabled:opacity-40">{t(`ex.markPaid.${method}`)}</button>)}
+            </div>
+          )}
           <div className="flex gap-3 text-white/40">{line.by && !line.upload && <span>{t("ar.by", { name: line.by })}</span>}{line.hasPhoto && <button type="button" onClick={() => showPhoto(line.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ar.viewPhoto")}</button>}{line.canEdit && editing?.id !== line.id && <button type="button" onClick={() => setEditing({ id: line.id, amount: String(Math.abs(line.amount)), note: line.note || "" })} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>}</div>
           {line.refType === "expense_upload" && line.upload?.status === "active" && line.upload.hasItems && (
             <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -130,7 +160,7 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
             : <p className="text-white/40">…</p>)}
         </div>
       ))}
-      {data.truncated && <p className="text-[11px] text-amber-200">{t("ar.truncated")}</p>}
+      {data?.truncated && <p className="text-[11px] text-amber-200">{t("ar.truncated")}</p>}
     </div>
   );
 }

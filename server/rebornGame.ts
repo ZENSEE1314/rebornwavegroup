@@ -7414,7 +7414,18 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const since = req.query.days ? sinceDays(req.query.days) : null;
     const rows = await db.select().from(ledgerEntries).where(and(range ? sql`${ledgerEntries.createdAt} >= ${range.from} AND ${ledgerEntries.createdAt} < ${range.to}` : since ? sql`${ledgerEntries.createdAt} >= ${since}` : sql`TRUE`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`)).orderBy(desc(ledgerEntries.createdAt));
     const uploads = await reportUploads(cid);
-    const matched = rows.map((row) => ({ row, counted: classifyLine(row, uploads) })).filter((entry) => entry.counted.group === group);
+    // Search (name, invoice, amount ...) and Paid / Not paid work on every line of the group, not only the newest ones that are shown. A line keeps its supplier bill (paid or not) so it can be paid right here.
+    const q = String(req.query.q || "").trim().toLowerCase().slice(0, 80);
+    const payFilter = req.query.pay === "paid" || req.query.pay === "unpaid" ? String(req.query.pay) : "";
+    const billRows = group === "income" ? [] : await db.select().from(supplierPayables).where(and(eq(supplierPayables.companyId, cid), inArray(supplierPayables.status, ["unpaid", "paid"])));
+    const billOfLedger = new Map(billRows.filter((bill) => bill.ledgerEntryId).map((bill) => [bill.ledgerEntryId as number, bill]));
+    const textOf = (entry: { row: typeof ledgerEntries.$inferSelect; counted: { amount: number } }) => {
+      const bill = billOfLedger.get(entry.row.id);
+      return [entry.row.note, entry.row.category, entry.row.refType, String(Math.abs(entry.counted.amount)), bill?.supplier, bill?.invoiceNo].filter(Boolean).join(" ").toLowerCase();
+    };
+    const matched = rows.map((row) => ({ row, counted: classifyLine(row, uploads) })).filter((entry) => entry.counted.group === group)
+      .filter((entry) => (!q || textOf(entry).includes(q)) && (!payFilter || (billOfLedger.get(entry.row.id)?.status === "unpaid") === (payFilter === "unpaid")));
+    const unpaidBills = matched.map((entry) => billOfLedger.get(entry.row.id)).filter((bill) => bill?.status === "unpaid");
     const shown = matched.slice(0, MAX_DRILL_LINES);
     const userIds = Array.from(new Set(shown.map((entry) => entry.row.userId).filter((id): id is string => !!id)));
     const people = userIds.length ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email }).from(users).where(inArray(users.id, userIds)) : [];
@@ -7426,7 +7437,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const uploadRows = uploadIds.length ? await db.select().from(expenseUploads).where(inArray(expenseUploads.id, uploadIds)) : [];
     const uploadRowById = new Map(uploadRows.map((upload) => [upload.id, upload]));
     res.json({
-      group, count: matched.length, truncated: matched.length > shown.length,
+      group, count: matched.length, truncated: matched.length > shown.length, unpaidCount: unpaidBills.length, unpaidTotal: roundMoney(unpaidBills.reduce((sum, bill) => sum + Number(bill!.amount), 0)),
       total: Math.round(matched.reduce((sum, entry) => sum + entry.counted.amount, 0) * 100) / 100,
       lines: shown.map(({ row, counted }) => {
         const ticket = ticketById.get(Number(row.refId));
@@ -7434,6 +7445,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         return {
           id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType === null || row.refType === "stock_movement", by: row.userId ? nameOf.get(row.userId) || "" : "",
           hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
+          payable: billOfLedger.get(row.id) ? { id: billOfLedger.get(row.id)!.id, status: billOfLedger.get(row.id)!.status, dueDate: billOfLedger.get(row.id)!.dueDate, payMethod: billOfLedger.get(row.id)!.payMethod, paidOn: billOfLedger.get(row.id)!.paidOn, supplier: billOfLedger.get(row.id)!.supplier, invoiceNo: billOfLedger.get(row.id)!.invoiceNo } : null,
           bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,
           upload: upload ? { id: upload.id, hasItems: !!upload.items, payee: upload.payee, uploadedBy: upload.uploadedByName, spentOn: upload.spentOn, status: upload.status, voidReason: upload.voidReason, hasPhoto: !!upload.photoUrl } : null,
         };
