@@ -66,6 +66,8 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.lv.tier.rainbow': { en: 'Rainbow', zh: '彩虹', id: 'Pelangi' },
   'vn.lv.tier.legend': { en: 'Legend', zh: '传奇', id: 'Legenda' },
   'vn.kos.ranking': { en: 'Ranking (KGOLD received)', zh: '排行榜（收到的 KGOLD）', id: 'Peringkat (KGOLD diterima)' },
+  'vn.kos.boardLoading': { en: 'Loading the ranking…', zh: '正在加载排行榜…', id: 'Memuat peringkat…' },
+  'vn.kos.boardFailed': { en: 'The ranking could not load. Check your connection and try again.', zh: '排行榜无法加载。请检查网络后重试。', id: 'Peringkat tidak bisa dimuat. Periksa koneksi lalu coba lagi.' },
   'vn.kos.noGifts': { en: 'No gifts yet. Be the first!', zh: '还没有礼物，快来当第一个！', id: 'Belum ada hadiah. Jadilah yang pertama!' },
   'vn.kos.you': { en: 'You', zh: '你', id: 'Anda' },
   'vn.kos.addFriend': { en: 'Add friend', zh: '加好友', id: 'Tambah teman' },

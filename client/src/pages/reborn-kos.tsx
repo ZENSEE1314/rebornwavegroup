@@ -88,7 +88,8 @@ export default function RebornKos() {
 
   const { data: wallet } = useQuery<any>({ queryKey: ["/api/reborn/kos/wallet"], queryFn: () => apiRequest("GET", "/api/reborn/kos/wallet").then((r) => r.json()), refetchInterval: 20000 });
   const [period, setPeriod] = useState<"tonight" | "month">("tonight");
-  const { data: board = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/leaderboard", period], queryFn: () => apiRequest("GET", `/api/reborn/kos/leaderboard?period=${period}`).then((r) => r.json()), refetchInterval: 15000 });
+  const { data: boardData, isLoading: boardLoading, isError: boardFailed, refetch: refetchBoard } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/leaderboard", period], queryFn: () => apiRequest("GET", `/api/reborn/kos/leaderboard?period=${period}`).then((r) => r.json()), refetchInterval: 15000 });
+  const board = boardData ?? [];
   const { data: gifts = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/gifttypes"], queryFn: () => apiRequest("GET", "/api/reborn/kos/gifttypes").then((r) => r.json()) });
   const { data: notifs = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/notifications"], queryFn: () => apiRequest("GET", "/api/reborn/kos/notifications").then((r) => r.json()), refetchInterval: 12000 });
   const { data: results = [] } = useQuery<any[]>({
@@ -184,7 +185,14 @@ export default function RebornKos() {
           <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-1.5 rounded-full text-xs font-black ${period === p ? "text-black" : "text-white/60"}`} style={period === p ? { background: "linear-gradient(90deg,#f472b6,#fbbf24)" } : undefined}>{p === "tonight" ? t("vn.kos.tabTonight") : t("vn.kos.tabMonth")}</button>
         ))}
       </div>
-      {board.length === 0 && <div className="text-center py-10 text-white/40"><Mic2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.kos.noGifts")}</p></div>}
+      {board.length === 0 && boardLoading && <p className="text-center py-10 text-white/40">{t("vn.kos.boardLoading")}</p>}
+      {board.length === 0 && !boardLoading && boardFailed && (
+        <div className="text-center py-10 text-white/60">
+          <p>{t("vn.kos.boardFailed")}</p>
+          <button type="button" onClick={() => refetchBoard()} className="mt-3 rounded-lg bg-white/10 px-4 text-sm font-bold text-amber-200">{t("vn.common.tryAgain")}</button>
+        </div>
+      )}
+      {board.length === 0 && !boardLoading && !boardFailed && <div className="text-center py-10 text-white/40"><Mic2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>{t("vn.kos.noGifts")}</p></div>}
       <div>
         {board.map((u, i) => {
           const top = ["#f3c14b", "#cbd5e1", "#d08a4f"][i];

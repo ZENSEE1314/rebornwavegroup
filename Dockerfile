@@ -15,4 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends fonts-wqy-zenhe
 
 ENV NODE_ENV=production
 # Railway provides PORT at runtime; the server reads process.env.PORT
-CMD ["node", "dist/index.js"]
+# Node only collects garbage when it nears its heap limit, and on this host that limit is huge, so memory climbed to 4 GB before anything was freed.
+# A 2.5 GB cap makes it free memory early; the server's real data is far smaller.
+CMD ["node", "--max-old-space-size=2560", "dist/index.js"]
