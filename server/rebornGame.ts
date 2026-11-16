@@ -5653,7 +5653,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
   app.get("/api/reborn/admin/accounting/ledger", requireAdmin(async (req, res) => {
     const limit = Math.min(2000, Number(req.query.limit) || 100);
-    const dayStart = (ymd: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(ymd)) ? new Date(`${ymd}T00:00:00+07:00`) : null);
+    const dayStart = (ymd: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(ymd)) ? new Date(`${ymd}T08:00:00+07:00`) : null); // a venue day runs 08:00 to 08:00, so the From / To days follow the opening hours
     const from = dayStart(req.query.from);
     const to = dayStart(req.query.to);
     const filters = [

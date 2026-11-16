@@ -24,6 +24,13 @@ describe("Accounting sections", () => {
   });
 });
 
+describe("Accounting entries follow the opening hours", () => {
+  it("should filter the From / To days from 08:00, not midnight", () => {
+    const server = readFileSync(new URL("../../../server/rebornGame.ts", import.meta.url), "utf8");
+    assert.ok(server.includes("new Date(`${ymd}T08:00:00+07:00`)") && !server.includes("new Date(`${ymd}T00:00:00+07:00`)"));
+  });
+});
+
 describe("Accounting entries", () => {
   it("should be laid out in one block per day", () => {
     assert.ok(accounting.includes("const dayGroups = groupByDay(normalLedger);") && accounting.includes("dayGroups.map((g) => ("));

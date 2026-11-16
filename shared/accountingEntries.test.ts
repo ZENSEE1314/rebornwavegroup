@@ -2,7 +2,8 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { dayKeyOf, findDuplicates, groupByDay, type LedgerLine } from "./accountingEntries";
 
-const at = (day: number, hour: number) => new Date(2026, 10, day, hour, 0).toISOString();
+// UTC times, so the tests do not depend on the computer's time zone. Venue day D = D 01:00 UTC (08:00 Jakarta) up to the next day 01:00 UTC.
+const at = (day: number, hour: number, minute = 0) => new Date(Date.UTC(2026, 10, day, hour, minute)).toISOString();
 const line = (id: number, patch: Partial<LedgerLine> = {}): LedgerLine => ({ id, kind: "expense", category: "purchase", amount: 100_000, note: "Stock in: 2 × Bintang", createdAt: at(11, 12), refType: "stock_movement", ...patch });
 
 describe("grouping the entries by day", () => {
@@ -21,6 +22,28 @@ describe("grouping the entries by day", () => {
   it("should add up what came in and what went out", () => {
     const [group] = groupByDay([line(1, { kind: "income", amount: 500_000 }), line(2, { amount: 120_000 }), line(3, { amount: "30000" })]);
     assert.deepEqual([group.income, group.expense], [500_000, 150_000]);
+  });
+});
+
+describe("the venue day (08:00 to 08:00)", () => {
+  it("should keep a 03:00 Jakarta sale with the night before", () => {
+    assert.equal(dayKeyOf(at(11, 20)), "2026-11-11");
+  });
+
+  it("should still be the same venue day at 07:59 Jakarta", () => {
+    assert.equal(dayKeyOf(at(12, 0, 59)), "2026-11-11");
+  });
+
+  it("should start the next venue day at 08:00 Jakarta", () => {
+    assert.equal(dayKeyOf(at(12, 1)), "2026-11-12");
+  });
+
+  it("should put a 00:30 Jakarta line and a 22:00 Jakarta line in one block", () => {
+    assert.equal(groupByDay([line(1, { createdAt: at(11, 15) }), line(2, { createdAt: at(11, 17, 30) })]).length, 1);
+  });
+
+  it("should split lines before and after 08:00 Jakarta", () => {
+    assert.equal(groupByDay([line(1, { createdAt: at(12, 0, 30) }), line(2, { createdAt: at(12, 1, 30) })]).length, 2);
   });
 });
 

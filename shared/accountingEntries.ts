@@ -1,4 +1,4 @@
-// Admin › Accounting › Entries: the ledger lines laid out by the date of the item (the day typed on the bill, the delivery day), one block per day with what came in and went out,
+// Admin › Accounting › Entries: the ledger lines laid out by the date of the item (the day typed on the bill, the delivery day) in venue days (08:00 to 08:00), one block per day with what came in and went out,
 // and the lines that look keyed in twice. Pure functions, so the screen only draws what they return.
 
 export interface LedgerLine { id: number; kind: string; category: string; amount: number | string; note: string | null; createdAt: string; refType: string | null }
@@ -7,12 +7,11 @@ export interface DayGroup<T extends LedgerLine> { day: string; lines: T[]; incom
 export const SALE_REF = "pos_order";
 // Lines a person types in or uploads: these are the ones that can be keyed twice. Sales, refunds, payroll and the like come from the system.
 const KEYED_REFS: (string | null)[] = [null, "stock_movement", "receipt", "receipt_expense", "expense_upload", "stock_out"];
-const pad = (n: number) => String(n).padStart(2, "0");
+// The venue day runs 08:00 to 08:00 (Jakarta time), the same rule as the server's VENUE_DAY_OF (the time minus one hour, read as a UTC date):
+// a line made at 03:00 belongs to the night before, not to the next calendar day.
+const VENUE_DAY_SHIFT_MS = 3_600_000;
 
-export const dayKeyOf = (value: string | Date): string => {
-  const date = new Date(value);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
+export const dayKeyOf = (value: string | Date): string => new Date(new Date(value).getTime() - VENUE_DAY_SHIFT_MS).toISOString().slice(0, 10);
 
 const newestFirst = <T extends LedgerLine>(a: T, b: T) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || b.id - a.id;
 
