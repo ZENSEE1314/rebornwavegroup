@@ -3,7 +3,7 @@ import { inEveryDataSpace } from "./tenantSpace";
 import { randomUUID } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
-import { and, asc, desc, eq, gte, ne, sql, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gte, ne, sql, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { db } from "./db";
 import { currentTenant, homeCompanySlug, DEFAULT_COMPANY_SLUG, IS_REBORN_DEPLOYMENT } from "./tenantContext";
 import { registerClientErrorRoute } from "./errorWatch";
@@ -89,6 +89,14 @@ import {
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
+
+// A snapped receipt is stored as a data URL (megabytes each). Reports and lists that read whole rows pulled every photo of the period into memory
+// on each call (the admin screens ask every few seconds), which slowed the whole server down; they read these columns instead, where a photo
+// only shows as "there is one" and /ledger/:id/photo or /expenses/:id/photo gives the picture itself.
+const { photoUrl: _ledgerPhoto, ...LEDGER_COLUMNS } = getTableColumns(ledgerEntries);
+const LEDGER_LIGHT = { ...LEDGER_COLUMNS, photoUrl: sql<string | null>`CASE WHEN ${ledgerEntries.photoUrl} IS NULL THEN NULL ELSE 'photo' END` };
+const { photoUrl: _uploadPhoto, ...UPLOAD_COLUMNS } = getTableColumns(expenseUploads);
+const UPLOAD_LIGHT = { ...UPLOAD_COLUMNS, photoUrl: sql<string | null>`CASE WHEN ${expenseUploads.photoUrl} IS NULL THEN NULL ELSE 'photo' END` };
 
 // KGOLD economy defaults (admin-editable via app_settings)
 const SETTINGS_DEFAULTS: Record<string, string> = {
@@ -5640,7 +5648,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   app.get("/api/reborn/admin/accounting/summary", requireAdmin(async (req, res) => {
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY_MS);
-    const rows = await db.select().from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${since}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
+    const rows = await db.select(LEDGER_LIGHT).from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${since}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
     const byCat: Record<string, number> = {};
     let income = 0, expense = 0, cogs = 0;
     for (const r of rows) {
@@ -6753,12 +6761,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const searching = hasText || !!fromDay || !!toDay;
     const SEARCH_LINES_MAX = 300;
     const uploadText = hasText ? or(ilike(expenseUploads.payee, pattern), ilike(expenseUploads.invoiceNo, pattern), ilike(expenseUploads.note, pattern), ilike(expenseUploads.category, pattern), ilike(expenseUploads.items, pattern), ilike(expenseUploads.payeePhone, pattern), ilike(expenseUploads.uploadedByName, pattern), sql`${expenseUploads.amount}::text ILIKE ${pattern}`) : undefined;
-    const rows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), searching ? undefined : sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`, uploadText, fromDay ? sql`${expenseUploads.spentOn} >= ${fromDay}` : undefined, toDay ? sql`${expenseUploads.spentOn} <= ${toDay}` : undefined, mine)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id)).limit(searching ? SEARCH_LINES_MAX : 100_000);
+    const rows = await db.select(UPLOAD_LIGHT).from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), searching ? undefined : sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`, uploadText, fromDay ? sql`${expenseUploads.spentOn} >= ${fromDay}` : undefined, toDay ? sql`${expenseUploads.spentOn} <= ${toDay}` : undefined, mine)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id)).limit(searching ? SEARCH_LINES_MAX : 100_000);
     // What was uploaded in the last week with a receipt date in another month (an older bill keyed in today) and the stock deliveries ("Food & drinks"),
     // which are not expense uploads: the list of the chosen month alone made them look as if they had not been saved.
     const RECENT_DAYS = 7;
     const since = new Date(Date.now() - RECENT_DAYS * 24 * 3_600_000);
-    const recentRows = searching ? [] : await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), gte(expenseUploads.createdAt, since), sql`${expenseUploads.spentOn} NOT LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.id)).limit(50);
+    const recentRows = searching ? [] : await db.select(UPLOAD_LIGHT).from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), gte(expenseUploads.createdAt, since), sql`${expenseUploads.spentOn} NOT LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.id)).limit(50);
     const stockDeliveries = (await db.select({ id: ledgerEntries.id, amount: ledgerEntries.amount, note: ledgerEntries.note, createdAt: ledgerEntries.createdAt, userId: ledgerEntries.userId, hasPhoto: sql<boolean>`${ledgerEntries.photoUrl} IS NOT NULL` }).from(ledgerEntries)
       .where(and(searching ? inArray(ledgerEntries.refType, ["receipt", "stock_movement"]) : eq(ledgerEntries.refType, "receipt"), searching ? undefined : gte(ledgerEntries.createdAt, since),
         hasText ? or(ilike(ledgerEntries.note, pattern), sql`${ledgerEntries.amount}::text ILIKE ${pattern}`) : undefined,
@@ -7270,7 +7278,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const cid = await rebornCompanyId(req);
     const month = MONTH_RE.test(String(req.query.month || "")) ? String(req.query.month) : (await ensureVenueSession()).day.slice(0, 7);
     const { from, to } = monthBounds(month);
-    const lines = await db.select().from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${from}`, sql`${ledgerEntries.createdAt} < ${to}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
+    const lines = await db.select(LEDGER_LIGHT).from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${from}`, sql`${ledgerEntries.createdAt} < ${to}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
     const costs = cleanFixedCosts(await readSetting<unknown>(FIXED_COSTS_KEY, []));
     const actuals = await readSetting<MonthlyActuals>(FIXED_ACTUALS_KEY, {});
     const payrollMonthly = (await readSetting<boolean>(SALARY_FROM_PAYROLL_KEY, false)) ? await monthlyPayrollSalary(cid) : 0;
@@ -7283,7 +7291,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   app.get("/api/reborn/admin/accounting/period", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
-    const lines = await db.select().from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${sinceDays(days)}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
+    const lines = await db.select(LEDGER_LIGHT).from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${sinceDays(days)}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
     res.json({ days, report: periodReport(lines, await reportUploads(cid)), prizePool: await getSpinPool(), taxFees: await taxFeesCollected(cid, days) });
   }));
   // What customers paid as service fee and tax on paid bills (refunded bills are left out): the chosen number of days, and each of the last 12 months by the day the bill was paid.
@@ -7297,7 +7305,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   };
   app.get("/api/reborn/admin/accounting/overall", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
-    const lines = await db.select().from(ledgerEntries).where(sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`);
+    const lines = await db.select(LEDGER_LIGHT).from(ledgerEntries).where(sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`);
     const uploads = await reportUploads(cid);
     res.json({ total: periodReport(lines, uploads), months: monthlyReports(lines, uploads), prizePool: await getSpinPool() });
   }));
@@ -7425,7 +7433,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const monthQuery = String(req.query.month || "");
     const range = MONTH_RE.test(monthQuery) ? monthBounds(monthQuery) : null;
     const since = req.query.days ? sinceDays(req.query.days) : null;
-    const rows = await db.select().from(ledgerEntries).where(and(range ? sql`${ledgerEntries.createdAt} >= ${range.from} AND ${ledgerEntries.createdAt} < ${range.to}` : since ? sql`${ledgerEntries.createdAt} >= ${since}` : sql`TRUE`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`)).orderBy(desc(ledgerEntries.createdAt));
+    const rows = await db.select(LEDGER_LIGHT).from(ledgerEntries).where(and(range ? sql`${ledgerEntries.createdAt} >= ${range.from} AND ${ledgerEntries.createdAt} < ${range.to}` : since ? sql`${ledgerEntries.createdAt} >= ${since}` : sql`TRUE`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`)).orderBy(desc(ledgerEntries.createdAt));
     const uploads = await reportUploads(cid);
     // Search (name, invoice, amount ...) and Paid / Not paid work on every line of the group, not only the newest ones that are shown. A line keeps its supplier bill (paid or not) so it can be paid right here.
     const q = String(req.query.q || "").trim().toLowerCase().slice(0, 80);
@@ -7447,7 +7455,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const tickets = ticketIds.length ? await db.select({ id: posTickets.id, orderNo: posTickets.orderNo, tableNumber: posTickets.tableNumber, memberName: posTickets.memberName }).from(posTickets).where(inArray(posTickets.id, ticketIds)) : [];
     const ticketById = new Map(tickets.map((ticket) => [ticket.id, ticket]));
     const uploadIds = Array.from(new Set(shown.map((entry) => entry.row.refType === "expense_upload" || entry.row.refType === "expense_void" ? Number(entry.row.refId) : 0).filter((id) => id > 0)));
-    const uploadRows = uploadIds.length ? await db.select().from(expenseUploads).where(inArray(expenseUploads.id, uploadIds)) : [];
+    const uploadRows = uploadIds.length ? await db.select(UPLOAD_LIGHT).from(expenseUploads).where(inArray(expenseUploads.id, uploadIds)) : [];
     const uploadRowById = new Map(uploadRows.map((upload) => [upload.id, upload]));
     res.json({
       group, count: matched.length, truncated: matched.length > shown.length, unpaidCount: unpaidBills.length, unpaidTotal: roundMoney(unpaidBills.reduce((sum, bill) => sum + Number(bill!.amount), 0)),
