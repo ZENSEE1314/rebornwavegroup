@@ -4,6 +4,31 @@ import { readFileSync } from "node:fs";
 
 const panel = readFileSync(new URL("./ExpensesPanel.tsx", import.meta.url), "utf8");
 
+const server = readFileSync(new URL("../../../server/rebornGame.ts", import.meta.url), "utf8");
+const listRoute = server.slice(server.indexOf('app.get("/api/reborn/expenses", requireExpenses('), server.indexOf("// A mistake in an upload is corrected in place"));
+
+describe("expenses search across every month", () => {
+  it("should ask the server for the text and the dates", () => {
+    assert.ok(panel.includes("&q=${encodeURIComponent(searched)}") && panel.includes("&from=${fromDay}") && panel.includes("&to=${toDay}"));
+  });
+
+  it("should leave the month filter off while searching", () => {
+    assert.ok(listRoute.includes("searching ? undefined : sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`"));
+  });
+
+  it("should search the items, supplier, invoice and amount of the uploads", () => {
+    assert.ok(listRoute.includes("ilike(expenseUploads.items, pattern)") && listRoute.includes("ilike(expenseUploads.payee, pattern)") && listRoute.includes("ilike(expenseUploads.invoiceNo, pattern)"));
+  });
+
+  it("should also search the stock deliveries typed in Inventory, of any date", () => {
+    assert.ok(listRoute.includes('inArray(ledgerEntries.refType, ["receipt", "stock_movement"])') && listRoute.includes("searching ? undefined : gte(ledgerEntries.createdAt, since)"));
+  });
+
+  it("should count a day from 08:00 to 08:00 for the date range of deliveries", () => {
+    assert.ok(listRoute.includes("T08:00:00+07:00"));
+  });
+});
+
 describe("expenses search and dates", () => {
   it("should search the supplier, the items, the invoice and the amount of an upload", () => {
     assert.ok(panel.includes("const expenseMatches = (row: Expense) => textOk([kindLabel(row.category), row.payee, row.invoiceNo, row.note") && panel.includes("...(row.items || []).map((item) => item.name)"));

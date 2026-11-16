@@ -21,6 +21,7 @@ import { EXPENSE_GROUPS, GROUP_OF_SECTION, sectionOf, type ExpenseGroup } from "
 const card = "rounded-2xl bg-white/5 border border-white/10 p-4";
 const field = "min-w-0 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60";
 const PHOTO_MAX_DIM = 1400;
+const SEARCH_DELAY_MS = 350;
 const PHOTO_QUALITY = 0.8;
 // What the upload is for, grouped as the reports show it. Items bought for the shop's stock are not uploaded here (Inventory › Scan a supplier receipt).
 const groupOf = (category: string): ExpenseGroup => GROUP_OF_SECTION[sectionOf(category)];
@@ -114,6 +115,12 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const qc = useQueryClient();
   const kindLabel = (category: string) => (isCustomKind(category) ? category.slice(CUSTOM_KIND_PREFIX.length) : t(`ex.cat.${category}`));
   const [month, setMonth] = useState(todayText().slice(0, 7));
+  // The search and the dates are asked from the server, which looks through every month (older bills are not in the month on screen).
+  const [search, setSearch] = useState("");
+  const [searched, setSearched] = useState("");
+  const [fromDay, setFromDay] = useState("");
+  const [toDay, setToDay] = useState("");
+  useEffect(() => { const timer = setTimeout(() => setSearched(search.trim()), SEARCH_DELAY_MS); return () => clearTimeout(timer); }, [search]);
   const [form, setForm] = useState(() => emptyForm(startWith));
   const [lines, setLines] = useState<Line[]>([]);
   const [readState, setReadState] = useState<"idle" | "reading" | "done" | "failed">("idle");
@@ -133,7 +140,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()), }); // also feeds the item-name suggestions when a bill or receipt is edited
   const inventoryByName = [...inventory].sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const stockLines = lines.filter((l) => l.qty >= 1 && (l.productId || l.name.trim()));
-  const url = `/api/reborn/expenses?month=${month}`;
+  const url = `/api/reborn/expenses?month=${month}${searched.length >= 2 ? `&q=${encodeURIComponent(searched)}` : ""}${fromDay ? `&from=${fromDay}` : ""}${toDay ? `&to=${toDay}` : ""}`;
   const { data } = useQuery<ExpenseList>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
   const refresh = () => { qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/expenses") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/fixed-costs"] }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); };
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
@@ -236,9 +243,6 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
   const [payFilter, setPayFilter] = useState<"all" | "paid" | "unpaid">("all");
   const isUnpaid = (bill?: Expense["bill"]) => bill?.status === "unpaid";
   // Search the supplier, the items, the invoice, the amount ... and pick the dates: they work on the not paid bills, the uploads and the stock deliveries of the list.
-  const [search, setSearch] = useState("");
-  const [fromDay, setFromDay] = useState("");
-  const [toDay, setToDay] = useState("");
   const needle = search.trim().toLowerCase();
   const isFiltering = !!needle || !!fromDay || !!toDay;
   const textOk = (parts: (string | number | null | undefined)[]) => !needle || parts.filter((part) => part !== null && part !== undefined && part !== "").join(" ").toLowerCase().includes(needle);
@@ -496,6 +500,7 @@ export default function ExpensesPanel({ startWith = "" }: { startWith?: string }
         <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={t("ex.filterPaid")}>
           {(["all", "paid", "unpaid"] as const).map((value) => <button key={value} type="button" aria-pressed={payFilter === value} onClick={() => setPayFilter(value)} className={`min-h-[40px] rounded-full border px-3 text-xs font-bold ${payFilter === value ? "border-amber-400 bg-amber-400 text-black" : "border-white/20 bg-white/5 text-white/70"}`}>{t(`ex.filter.${value}`)}</button>)}
         </div>
+        {isFiltering && <p className="mt-2 text-[11px] text-sky-200">{t("ex.searchAll")}</p>}
         {isFiltering && data && [...(data.expenses || []), ...(data.recent || [])].filter((row) => matchesPayFilter(row) && expenseMatches(row)).length + (data.stockDeliveries || []).filter((delivery) => matchesPayFilter(delivery) && deliveryMatches(delivery)).length === 0 && <p className="mt-2 text-xs text-white/50">{t("ex.noMatch")}</p>}
         <div className="mt-3 space-y-2">
           {(() => {

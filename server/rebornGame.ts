@@ -6744,14 +6744,27 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const month = MONTH_RE.test(String(req.query.month || "")) ? String(req.query.month) : (await ensureVenueSession()).day.slice(0, 7);
     const role = await adminRole(getUserId(req));
     const mine = role === "admin" || role === "manager" ? undefined : eq(expenseUploads.uploadedBy, getUserId(req)!); // staff see only what they uploaded
-    const rows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id));
+    // Search and dates look through every month (an item or a supplier is usually looked for in the past), not only the month on screen.
+    const needle = String(req.query.q || "").trim().slice(0, 80);
+    const pattern = `%${needle.replace(/[\\%_]/g, "\\$&")}%`;
+    const hasText = needle.length >= 2;
+    const fromDay = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.from || "")) ? String(req.query.from) : "";
+    const toDay = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.to || "")) ? String(req.query.to) : "";
+    const searching = hasText || !!fromDay || !!toDay;
+    const SEARCH_LINES_MAX = 300;
+    const uploadText = hasText ? or(ilike(expenseUploads.payee, pattern), ilike(expenseUploads.invoiceNo, pattern), ilike(expenseUploads.note, pattern), ilike(expenseUploads.category, pattern), ilike(expenseUploads.items, pattern), ilike(expenseUploads.payeePhone, pattern), ilike(expenseUploads.uploadedByName, pattern), sql`${expenseUploads.amount}::text ILIKE ${pattern}`) : undefined;
+    const rows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), searching ? undefined : sql`${expenseUploads.spentOn} LIKE ${`${month}%`}`, uploadText, fromDay ? sql`${expenseUploads.spentOn} >= ${fromDay}` : undefined, toDay ? sql`${expenseUploads.spentOn} <= ${toDay}` : undefined, mine)).orderBy(desc(expenseUploads.spentOn), desc(expenseUploads.id)).limit(searching ? SEARCH_LINES_MAX : 100_000);
     // What was uploaded in the last week with a receipt date in another month (an older bill keyed in today) and the stock deliveries ("Food & drinks"),
     // which are not expense uploads: the list of the chosen month alone made them look as if they had not been saved.
     const RECENT_DAYS = 7;
     const since = new Date(Date.now() - RECENT_DAYS * 24 * 3_600_000);
-    const recentRows = await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), gte(expenseUploads.createdAt, since), sql`${expenseUploads.spentOn} NOT LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.id)).limit(50);
+    const recentRows = searching ? [] : await db.select().from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), gte(expenseUploads.createdAt, since), sql`${expenseUploads.spentOn} NOT LIKE ${`${month}%`}`, mine)).orderBy(desc(expenseUploads.id)).limit(50);
     const stockDeliveries = (await db.select({ id: ledgerEntries.id, amount: ledgerEntries.amount, note: ledgerEntries.note, createdAt: ledgerEntries.createdAt, userId: ledgerEntries.userId, hasPhoto: sql<boolean>`${ledgerEntries.photoUrl} IS NOT NULL` }).from(ledgerEntries)
-      .where(and(eq(ledgerEntries.refType, "receipt"), gte(ledgerEntries.createdAt, since), role === "admin" || role === "manager" ? undefined : eq(ledgerEntries.userId, getUserId(req)!))).orderBy(desc(ledgerEntries.id)).limit(50));
+      .where(and(searching ? inArray(ledgerEntries.refType, ["receipt", "stock_movement"]) : eq(ledgerEntries.refType, "receipt"), searching ? undefined : gte(ledgerEntries.createdAt, since),
+        hasText ? or(ilike(ledgerEntries.note, pattern), sql`${ledgerEntries.amount}::text ILIKE ${pattern}`) : undefined,
+        fromDay ? gte(ledgerEntries.createdAt, new Date(`${fromDay}T08:00:00+07:00`)) : undefined, // a venue day runs 08:00 to 08:00
+        toDay ? sql`${ledgerEntries.createdAt} < ${new Date(new Date(`${toDay}T08:00:00+07:00`).getTime() + 24 * 3_600_000)}` : undefined,
+        role === "admin" || role === "manager" ? undefined : eq(ledgerEntries.userId, getUserId(req)!))).orderBy(desc(ledgerEntries.createdAt), desc(ledgerEntries.id)).limit(searching ? SEARCH_LINES_MAX : 50));
     const totals: Record<string, number> = {};
     for (const row of rows) if (row.status === "active") totals[row.category] = (totals[row.category] || 0) + Number(row.amount);
     const userId = getUserId(req)!;
