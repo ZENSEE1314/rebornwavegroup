@@ -6351,26 +6351,67 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
 
   // ── HR: attendance, schedule, leave ──────────────────────────────────
   // Worker self-service (any staff/admin account)
-  app.post("/api/reborn/staff/check-in", requireStaff(async (req, res) => {
-    const uid = getUserId(req)!;
-    const wd = todayStr();
-    const photo = String(req.body?.photo || "");
-    const code = String(req.body?.code || "").trim();
-    const validCode = code && code === (await currentAttendCode());
-    if (!validCode && !photo) return res.status(400).json({ message: tr(req, { en: "Scan the workplace attendance QR, or take a check-in photo.", zh: "请扫描工作场所的考勤二维码，或拍一张签到照片。", id: "Pindai QR absensi tempat kerja, atau ambil foto absen masuk." }) });
-    const open = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, wd))).limit(1);
-    if (open[0] && !open[0].checkOutAt) return res.status(400).json({ message: tr(req, { en: "You are already checked in today.", zh: "你今天已经签到了。", id: "Kamu sudah absen masuk hari ini." }) });
-    const [row] = await db.insert(staffAttendance).values({ userId: uid, companyId: await rebornCompanyId(req), workDate: wd, checkInPhoto: photo || null, status: "present", decisionNote: validCode ? "QR check-in" : null }).returning();
+  // Scan to check in, scan to check out, for every staff account: both need the workplace QR (the code in Admin › QR codes). A shift can run past midnight, so the open
+  // check-in is the latest one still open (not today's row) and a check-in left open for 20 hours is a forgotten one, not a shift in progress.
+  const OPEN_SHIFT_MAX_MS = 20 * 3_600_000;
+  type AttendOutcome = { status: number; body: any };
+  const attendanceCodeOk = async (code: unknown) => { const given = String(code || "").trim(); return !!given && given === (await currentAttendCode()); };
+  const openAttendanceOf = async (uid: string) => {
+    const [row] = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), isNull(staffAttendance.checkOutAt))).orderBy(desc(staffAttendance.id)).limit(1);
+    return row && Date.now() - new Date(row.checkInAt ?? 0).getTime() < OPEN_SHIFT_MAX_MS ? row : null;
+  };
+  const checkInStaff = async (req: Request, uid: string, code: unknown): Promise<AttendOutcome> => {
+    if (!(await attendanceCodeOk(code))) return { status: 400, body: { message: tr(req, { en: "Scan the workplace QR code to check in.", zh: "请扫描工作场所的二维码签到。", id: "Pindai QR tempat kerja untuk absen masuk." }) } };
+    if (await openAttendanceOf(uid)) return { status: 400, body: { message: tr(req, { en: "You are already checked in.", zh: "你已经签到了。", id: "Kamu sudah absen masuk." }) } };
+    const [row] = await db.insert(staffAttendance).values({ userId: uid, companyId: await rebornCompanyId(req), workDate: todayStr(), status: "present", decisionNote: "QR check-in" }).returning();
     const staff = await storage.getUser(uid);
     await notifyStaffI18n("attendance", (lang) => ({ title: pick(lang, { en: "Staff checked in", zh: "员工已签到", id: "Staf absen masuk" }), body: pick(lang, { en: "{name} checked in", zh: "{name} 已签到", id: "{name} sudah absen masuk" }, { name: staff?.firstName || staff?.username || pick(lang, { en: "Staff", zh: "员工", id: "Staf" }) }) }), { path: "/reborn-admin", attendanceId: row.id });
-    res.json(row);
+    return { status: 200, body: row };
+  };
+  const checkOutStaff = async (req: Request, uid: string, code: unknown): Promise<AttendOutcome> => {
+    if (!(await attendanceCodeOk(code))) return { status: 400, body: { message: tr(req, { en: "Scan the workplace QR code to check out.", zh: "请扫描工作场所的二维码签退。", id: "Pindai QR tempat kerja untuk absen pulang." }) } };
+    const row = await openAttendanceOf(uid);
+    if (!row) return { status: 400, body: { message: tr(req, { en: "No open check-in to close.", zh: "没有可结束的签到记录。", id: "Tidak ada absen masuk yang bisa ditutup." }) } };
+    const now = new Date();
+    // Close an in-progress break into the accumulator.
+    let breakSeconds = row.breakSeconds || 0;
+    if (row.onBreak && row.breakStartedAt) breakSeconds += Math.floor((now.getTime() - new Date(row.breakStartedAt).getTime()) / 1000);
+    // Overtime = time worked past the scheduled shift end (if any); a shift that ends before it starts (18:00 to 02:00) ends on the next day.
+    let overtimeSeconds = 0;
+    const shift = (await db.select().from(workerShifts).where(and(eq(workerShifts.userId, uid), eq(workerShifts.shiftDate, row.workDate))).limit(1))[0];
+    if (shift?.endTime) {
+      const [eh, em] = shift.endTime.split(":").map(Number);
+      const end = new Date(row.workDate + "T00:00:00"); end.setHours(eh || 0, em || 0, 0, 0);
+      if (shift.startTime && shift.endTime <= shift.startTime) end.setDate(end.getDate() + 1);
+      if (now.getTime() > end.getTime()) overtimeSeconds = Math.floor((now.getTime() - end.getTime()) / 1000);
+    }
+    const [upd] = await db.update(staffAttendance).set({ checkOutAt: now, onBreak: false, breakStartedAt: null, breakSeconds, overtimeSeconds }).where(eq(staffAttendance.id, row.id)).returning();
+    const staff = await storage.getUser(uid);
+    await notifyStaffI18n("attendance", (lang) => ({ title: pick(lang, { en: "Staff checked out", zh: "员工已签退", id: "Staf absen pulang" }), body: pick(lang, { en: "{name} checked out", zh: "{name} 已签退", id: "{name} sudah absen pulang" }, { name: staff?.firstName || staff?.username || pick(lang, { en: "Staff", zh: "员工", id: "Staf" }) }) }), { path: "/reborn-admin", attendanceId: row.id });
+    return { status: 200, body: upd };
+  };
+  app.post("/api/reborn/staff/check-in", requireStaff(async (req, res) => {
+    const outcome = await checkInStaff(req, getUserId(req)!, req.body?.code);
+    res.status(outcome.status).json(outcome.body);
+  }));
+  app.post("/api/reborn/staff/check-out", requireStaff(async (req, res) => {
+    const outcome = await checkOutStaff(req, getUserId(req)!, req.body?.code);
+    res.status(outcome.status).json(outcome.body);
+  }));
+  // The one workplace QR serves both: scanned with a phone camera (/attend?c=CODE) it checks out when a check-in is open and checks in otherwise; the scanner in the app sends
+  // `intent` ("in" | "out") so a wrong tap is refused instead of doing the opposite.
+  app.post("/api/reborn/staff/attend-scan", requireStaff(async (req, res) => {
+    const uid = getUserId(req)!;
+    const intent = req.body?.intent === "in" || req.body?.intent === "out" ? String(req.body.intent) : "";
+    const action = intent || ((await openAttendanceOf(uid)) ? "out" : "in");
+    const outcome = action === "out" ? await checkOutStaff(req, uid, req.body?.code) : await checkInStaff(req, uid, req.body?.code);
+    res.status(outcome.status).json(outcome.status === 200 ? { action, record: outcome.body } : outcome.body);
   }));
   // Break in / out — accumulates break time; a member can't check out while on break.
   app.post("/api/reborn/staff/break", requireStaff(async (req, res) => {
     const uid = getUserId(req)!;
-    const rows = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, todayStr()))).orderBy(desc(staffAttendance.id)).limit(1);
-    const row = rows[0];
-    if (!row || row.checkOutAt) return res.status(400).json({ message: tr(req, { en: "Check in first.", zh: "请先签到。", id: "Absen masuk dulu." }) });
+    const row = await openAttendanceOf(uid);
+    if (!row) return res.status(400).json({ message: tr(req, { en: "Check in first.", zh: "请先签到。", id: "Absen masuk dulu." }) });
     const start = req.body?.start !== false;
     if (start) {
       if (row.onBreak) return res.status(400).json({ message: tr(req, { en: "Already on break.", zh: "你已在休息中。", id: "Sudah sedang istirahat." }) });
@@ -6380,28 +6421,6 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!row.onBreak) return res.status(400).json({ message: tr(req, { en: "You're not on a break.", zh: "你目前没有在休息。", id: "Kamu sedang tidak istirahat." }) });
     const add = row.breakStartedAt ? Math.floor((Date.now() - new Date(row.breakStartedAt).getTime()) / 1000) : 0;
     const [upd] = await db.update(staffAttendance).set({ onBreak: false, breakStartedAt: null, breakSeconds: sql`${staffAttendance.breakSeconds} + ${add}` }).where(eq(staffAttendance.id, row.id)).returning();
-    res.json(upd);
-  }));
-  app.post("/api/reborn/staff/check-out", requireStaff(async (req, res) => {
-    const uid = getUserId(req)!;
-    const rows = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, todayStr()))).orderBy(desc(staffAttendance.id)).limit(1);
-    const row = rows[0];
-    if (!row || row.checkOutAt) return res.status(400).json({ message: tr(req, { en: "No open check-in to close.", zh: "没有可结束的签到记录。", id: "Tidak ada absen masuk yang bisa ditutup." }) });
-    const now = new Date();
-    // Close an in-progress break into the accumulator.
-    let breakSeconds = row.breakSeconds || 0;
-    if (row.onBreak && row.breakStartedAt) breakSeconds += Math.floor((now.getTime() - new Date(row.breakStartedAt).getTime()) / 1000);
-    // Overtime = time worked past today's scheduled shift end (if any).
-    let overtimeSeconds = 0;
-    const shift = (await db.select().from(workerShifts).where(and(eq(workerShifts.userId, uid), eq(workerShifts.shiftDate, row.workDate))).limit(1))[0];
-    if (shift?.endTime) {
-      const [eh, em] = shift.endTime.split(":").map(Number);
-      const end = new Date(row.workDate + "T00:00:00"); end.setHours(eh || 0, em || 0, 0, 0);
-      if (now.getTime() > end.getTime()) overtimeSeconds = Math.floor((now.getTime() - end.getTime()) / 1000);
-    }
-    const [upd] = await db.update(staffAttendance).set({ checkOutAt: now, onBreak: false, breakStartedAt: null, breakSeconds, overtimeSeconds }).where(eq(staffAttendance.id, row.id)).returning();
-    const staff = await storage.getUser(uid);
-    await notifyStaffI18n("attendance", (lang) => ({ title: pick(lang, { en: "Staff checked out", zh: "员工已签退", id: "Staf absen pulang" }), body: pick(lang, { en: "{name} checked out", zh: "{name} 已签退", id: "{name} sudah absen pulang" }, { name: staff?.firstName || staff?.username || pick(lang, { en: "Staff", zh: "员工", id: "Staf" }) }) }), { path: "/reborn-admin", attendanceId: row.id });
     res.json(upd);
   }));
   app.get("/api/reborn/staff/my-attendance", requireStaff(async (req, res) => {

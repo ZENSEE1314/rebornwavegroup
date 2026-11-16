@@ -393,6 +393,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   // Attendance
   'vn.attend.failed': { en: 'Check-in failed.', zh: '签到失败。', id: 'Check-in gagal.' },
   'vn.attend.checking': { en: 'Checking you in…', zh: '正在为你签到…', id: 'Sedang check-in…' },
+  'vn.attend.checkedOut': { en: 'Checked out!', zh: '签退成功！', id: 'Berhasil check-out!' },
   'vn.attend.checkedIn': { en: 'Checked in!', zh: '签到成功！', id: 'Berhasil check-in!' },
   'vn.attend.openApp': { en: 'Open app', zh: '打开应用', id: 'Buka aplikasi' },
   'vn.attend.couldnt': { en: "Couldn't check in", zh: '无法签到', id: 'Tidak bisa check-in' },

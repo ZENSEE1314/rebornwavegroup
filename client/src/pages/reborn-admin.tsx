@@ -2151,6 +2151,8 @@ function StaffHr({ isAdmin }: { isAdmin: boolean }) {
 }
 
 // Live camera QR scanner overlay — reads the workplace attendance QR and returns its code.
+// A check-in left open longer than this is a forgotten one (the server uses the same 20 hours).
+const OPEN_SHIFT_MAX_MS = 20 * 3_600_000;
 function QrScanOverlay({ onDetect, onClose }: { onDetect: (code: string) => void; onClose: () => void }) {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -2188,16 +2190,16 @@ function MyHr() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const [scan, setScan] = useState(false);
+  const [scan, setScan] = useState<"" | "in" | "out">(""); // which scan the camera is open for
   const { data: att = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-attendance"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-attendance").then((r) => r.json()) });
   const { data: shifts = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-shifts"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-shifts").then((r) => r.json()) });
   const { data: leave = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-leave"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-leave").then((r) => r.json()) });
   const today = new Date().toISOString().slice(0, 10);
-  const openToday = att.find((a) => a.workDate === today && !a.checkOutAt);
-  const [photo, setPhoto] = useState("");
+  // A shift can run past midnight: the open check-in is the latest one still open, not today's row.
+  const openToday = att.find((a) => !a.checkOutAt && Date.now() - new Date(a.checkInAt).getTime() < OPEN_SHIFT_MAX_MS);
   const doAct = useMutation({
     mutationFn: (v: { path: string; body?: any }) => apiRequest("POST", v.path, v.body || {}).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: t("admin.c.done") }); setPhoto(""); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-attendance"] }); },
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("admin.c.failed"), description: d.message, variant: "destructive" }); return; } toast({ title: d?.action === "out" ? t("admin.hr.checkedOutDone") : d?.action === "in" ? t("admin.hr.checkedInDone") : t("admin.c.done") }); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-attendance"] }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: e.message, variant: "destructive" }),
   });
   const [lv, setLv] = useState<any>({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" });
@@ -2217,21 +2219,18 @@ function MyHr() {
               {openToday.onBreak
                 ? <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/break", body: { start: false } })} disabled={doAct.isPending} className="py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black">{t("admin.hr.backFromBreak")}</button>
                 : <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/break", body: { start: true } })} disabled={doAct.isPending} className="py-2.5 rounded-xl text-sm font-bold bg-white/5 border border-white/10 text-white/80">{t("admin.hr.break")}</button>}
-              <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-out" })} disabled={doAct.isPending || openToday.onBreak} className="py-2.5 rounded-xl text-sm font-bold bg-red-400 text-black disabled:opacity-50 inline-flex items-center justify-center gap-1"><LogOut className="w-4 h-4" /> {t("admin.hr.checkOut")}</button>
+              <button onClick={() => setScan("out")} disabled={doAct.isPending || openToday.onBreak} className="py-2.5 rounded-xl text-sm font-bold bg-red-400 text-black disabled:opacity-50 inline-flex items-center justify-center gap-1"><QrCode className="w-4 h-4" /> {t("admin.hr.scanQrOut")}</button>
             </div>
             {openToday.onBreak && <p className="text-[11px] text-amber-300/80">{t("admin.hr.endBreakFirst")}</p>}
           </div>
         ) : (
           <div className="space-y-2">
-            <button onClick={() => setScan(true)} className="w-full justify-center inline-flex items-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black"><QrCode className="w-4 h-4" /> {t("admin.hr.scanQr")}</button>
-            <p className="text-[11px] text-white/40 text-center">{t("admin.hr.orPhoto")}</p>
-            <p className="text-[11px] text-white/50">{t("admin.hr.photoHint")}</p>
-            <ImageUpload value={photo} onChange={(v: any) => setPhoto(v)} label={t("admin.hr.takePhoto")} output="webp" maxDim={1000} />
-            <button onClick={() => doAct.mutate({ path: "/api/reborn/staff/check-in", body: { photo } })} disabled={!photo || doAct.isPending} className={btn + " w-full justify-center disabled:opacity-50"}><LogIn className="w-4 h-4" /> {t("admin.hr.checkIn")}</button>
+            <button onClick={() => setScan("in")} disabled={doAct.isPending} className="w-full justify-center inline-flex items-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-amber-400 text-black disabled:opacity-50"><QrCode className="w-4 h-4" /> {t("admin.hr.scanQr")}</button>
+            <p className="text-[11px] text-white/50 text-center">{t("admin.hr.scanOnly")}</p>
           </div>
         )}
       </Card>
-      {scan && <QrScanOverlay onClose={() => setScan(false)} onDetect={(code) => { setScan(false); doAct.mutate({ path: "/api/reborn/staff/check-in", body: { code } }); }} />}
+      {scan && <QrScanOverlay onClose={() => setScan("")} onDetect={(code) => { const intent = scan; setScan(""); doAct.mutate({ path: "/api/reborn/staff/attend-scan", body: { code, intent } }); }} />}
       <Card>
         <p className="font-bold mb-2 text-sm">{t("admin.hr.recent")}</p>
         {att.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noRecords")}</p>}

@@ -5,6 +5,7 @@ import { useTranslation, translate, localeTag } from "@/lib/i18n";
 // Landing page when a worker scans the workplace attendance QR (/attend?c=CODE).
 export default function RebornAttend() {
   const [state, setState] = useState<"checking" | "ok" | "err">("checking");
+  const [action, setAction] = useState<"in" | "out">("in");
   const [msg, setMsg] = useState("");
   const { t, language } = useTranslation();
 
@@ -17,7 +18,7 @@ export default function RebornAttend() {
       if (fromUrl) localStorage.setItem("rw_attend_code", fromUrl);
       else c = localStorage.getItem("rw_attend_code") || "";
     } catch {}
-    apiRequest("POST", "/api/reborn/staff/check-in", { code: c })
+    apiRequest("POST", "/api/reborn/staff/attend-scan", { code: c })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (r.status === 401 || r.status === 403) {
@@ -27,6 +28,7 @@ export default function RebornAttend() {
         }
         try { localStorage.removeItem("rw_attend_code"); } catch {}
         if (!r.ok) { setMsg(d?.message || translate("vn.attend.failed")); setState("err"); return; }
+        setAction(d?.action === "out" ? "out" : "in");
         setState("ok");
       })
       .catch(() => { setMsg(translate("vn.otable.networkRetry")); setState("err"); });
@@ -39,7 +41,7 @@ export default function RebornAttend() {
         {state === "checking" && <p className="text-white/60">{t("vn.attend.checking")}</p>}
         {state === "ok" && (<>
           <div className="text-7xl mb-3">✅</div>
-          <h1 className="text-2xl font-extrabold text-emerald-300">{t("vn.attend.checkedIn")}</h1>
+          <h1 className="text-2xl font-extrabold text-emerald-300">{t(action === "out" ? "vn.attend.checkedOut" : "vn.attend.checkedIn")}</h1>
           <p className="text-white/60 mt-2">{now}</p>
           <a href="/reborn-admin" className="inline-block mt-6 px-5 py-3 rounded-xl font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{t("vn.attend.openApp")}</a>
         </>)}
