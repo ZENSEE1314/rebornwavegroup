@@ -21,16 +21,23 @@ import android.widget.TextView;
 import java.util.Locale;
 
 /**
- * Set-up screen of the overlay on the karaoke box: allow drawing over other apps, link to a TV screen of the app with a code
+ * Set-up screen of the app on the karaoke box. First the song-system connector (link the box to the app with a code, then it runs by itself
+ * whenever the box is on). Then the gift overlay: allow drawing over other apps, link to a TV screen of the app with a code
  * (the same way a TV is linked in a streaming app), and start / stop the overlay. After that the overlay starts by itself with the box.
  */
 public class MainActivity extends Activity {
     private static final int TEXT_SP = 20;
     private static final int CODE_SP = 64;
     private static final long POLL_MS = 2000;
+    private static final long CONNECTOR_REFRESH_MS = 3000;
+    private static final int CONNECTOR_LINES_SHOWN = 6;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private volatile boolean pairing = false;
+    private volatile boolean connectorPairing = false;
+    private TextView connectorStatus;
+    private TextView connectorCode;
+    private EditText tokenField;
     private TextView status;
     private TextView codeView;
     private EditText serverField;
@@ -50,6 +57,34 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(48, 48, 48, 48);
         root.setBackgroundColor(Color.parseColor("#12091f"));
+
+        root.addView(label(t("Song system connector (no PC needed)", "点歌系统连接器（无需电脑）", "Konektor sistem lagu (tanpa PC)"), 28, true));
+        connectorStatus = label("", 16, false);
+        root.addView(connectorStatus);
+        root.addView(button(t("Link this box to the app (shows a code)", "将本机链接到应用（显示代码）", "Hubungkan perangkat ini ke aplikasi (menampilkan kode)"), new View.OnClickListener() {
+            @Override public void onClick(View v) { startConnectorPairing(); }
+        }));
+        connectorCode = label("", CODE_SP, true);
+        connectorCode.setGravity(Gravity.CENTER);
+        connectorCode.setTextColor(Color.parseColor("#fcd34d"));
+        root.addView(connectorCode);
+        root.addView(label(t("Then in the app: Admin > Requests > Karaoke system > type this code > Link the box. After that it starts by itself whenever the box is on.",
+                "然后在应用中：管理 > 点歌 > 点歌系统 > 输入此代码 > 点“链接机器”。之后机器开机就会自动运行。",
+                "Lalu di aplikasi: Admin > Permintaan > Sistem karaoke > ketik kode ini > Hubungkan mesin. Setelah itu berjalan sendiri setiap mesin menyala."), 16, false));
+        root.addView(button(t("Start the connector now", "立即启动连接器", "Mulai konektor sekarang"), new View.OnClickListener() {
+            @Override public void onClick(View v) { startConnector(); }
+        }));
+        root.addView(button(t("Stop the connector", "停止连接器", "Hentikan konektor"), new View.OnClickListener() {
+            @Override public void onClick(View v) { BridgeService.stop(MainActivity.this); refreshConnector(); }
+        }));
+        root.addView(label(t("Or paste the token by hand (Admin > Requests > Karaoke system > Make token):", "或手动粘贴令牌（管理 > 点歌 > 点歌系统 > 生成令牌）：", "Atau tempel token manual (Admin > Permintaan > Sistem karaoke > Buat token):"), 16, false));
+        tokenField = new EditText(this);
+        tokenField.setSingleLine(true);
+        tokenField.setTextColor(Color.WHITE);
+        root.addView(tokenField);
+        root.addView(button(t("Save the token and start", "保存令牌并启动", "Simpan token dan mulai"), new View.OnClickListener() {
+            @Override public void onClick(View v) { saveTokenAndStart(); }
+        }));
 
         root.addView(label(t("Gift overlay for the karaoke box", "点歌机礼物特效叠加", "Overlay hadiah untuk mesin karaoke"), 28, true));
         status = label("", TEXT_SP, false);
@@ -180,6 +215,71 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    private void startConnector() {
+        if (!BridgeSettings.isReady(this)) { startConnectorPairing(); return; }
+        BridgeService.start(this);
+        ui.postDelayed(new Runnable() { @Override public void run() { refreshConnector(); } }, 800);
+    }
+
+    private void saveTokenAndStart() {
+        String token = tokenField.getText().toString().trim();
+        if (token.isEmpty()) return;
+        BridgeSettings.save(this, Link.server(this), token, "");
+        tokenField.setText("");
+        startConnector();
+    }
+
+    /** Shows a code and waits until the admin types it in Admin > Requests > Karaoke system; the box then receives the app address and key. */
+    private void startConnectorPairing() {
+        Link.saveServer(this, serverField.getText().toString());
+        connectorPairing = false;
+        connectorPairing = true;
+        final android.content.Context context = getApplicationContext();
+        new Thread(new Runnable() {
+            @Override public void run() {
+                String code = "";
+                while (connectorPairing) {
+                    try {
+                        if (code.isEmpty()) {
+                            code = Link.newCode(context);
+                            final String shown = code.substring(0, 3) + " " + code.substring(3);
+                            ui.post(new Runnable() { @Override public void run() { connectorCode.setText(shown); } });
+                        }
+                        String answer = Link.pollConnector(context, code);
+                        if ("linked".equals(answer)) {
+                            connectorPairing = false;
+                            ui.post(new Runnable() { @Override public void run() { connectorCode.setText(""); startConnector(); } });
+                        } else if ("expired".equals(answer) || "wrong".equals(answer)) {
+                            code = "";
+                        }
+                    } catch (Exception e) {
+                        final String problem = e.getClass().getSimpleName();
+                        ui.post(new Runnable() { @Override public void run() {
+                            connectorStatus.setText(t("Cannot reach the app (" + problem + "). Check this box's internet.", "无法连接应用（" + problem + "）。请检查本机网络。", "Tidak bisa terhubung ke aplikasi (" + problem + "). Periksa internet perangkat ini."));
+                        } });
+                    }
+                    try { Thread.sleep(POLL_MS); } catch (InterruptedException ignored) { return; }
+                }
+            }
+        }).start();
+    }
+
+    private void refreshConnector() {
+        String linked = BridgeSettings.isReady(this) ? t("linked", "已链接", "terhubung") : t("not linked", "未链接", "belum terhubung");
+        String running = BridgeService.running ? t("RUNNING", "运行中", "BERJALAN") : t("stopped", "已停止", "berhenti");
+        connectorStatus.setText(t("App: ", "应用：", "Aplikasi: ") + linked
+                + "\n" + t("Connector: ", "连接器：", "Konektor: ") + running
+                + (BridgeService.status.isEmpty() ? "" : "\n" + BridgeService.status)
+                + "\n" + BridgeService.recentLines(CONNECTOR_LINES_SHOWN));
+    }
+
+    private final Runnable connectorTick = new Runnable() {
+        @Override public void run() {
+            refreshConnector();
+            ui.postDelayed(this, CONNECTOR_REFRESH_MS);
+        }
+    };
+
     private void refresh() {
         String allowed = OverlayService.canDraw(this) ? t("allowed", "已允许", "diizinkan") : t("NOT allowed yet", "尚未允许", "belum diizinkan");
         String linked = Link.isLinked(this) ? t("linked", "已链接", "terhubung") : t("not linked", "未链接", "belum terhubung");
@@ -196,12 +296,22 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refresh();
+        if (BridgeSettings.isReady(this) && !BridgeService.running) BridgeService.start(this);
+        ui.removeCallbacks(connectorTick);
+        ui.post(connectorTick);
         if (Link.isLinked(this) && OverlayService.canDraw(this) && !OverlayService.running && !OverlayAccessibilityService.isEnabled(this)) startOverlay();
+    }
+
+    @Override
+    protected void onPause() {
+        ui.removeCallbacks(connectorTick);
+        super.onPause();
     }
 
     @Override
     protected void onDestroy() {
         pairing = false;
+        connectorPairing = false;
         super.onDestroy();
     }
 }

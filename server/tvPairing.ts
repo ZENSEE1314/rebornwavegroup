@@ -5,7 +5,9 @@ const CODE_LENGTH = 6;
 const CODE_TTL_MS = 15 * 60_000;
 const MAX_OPEN_CODES = 500;
 
-export interface TvLink { path: string }
+/** What a song-system box receives instead of a TV page: the program's address and its key. */
+export interface KaraokeLink { token: string; cloudUrl: string; tenantSlug: string }
+export interface TvLink { path: string; karaoke?: KaraokeLink }
 interface Entry { createdAt: number; link: TvLink | null }
 
 export class TvPairings {

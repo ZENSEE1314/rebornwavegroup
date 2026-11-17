@@ -1470,9 +1470,11 @@ function KaraokeBridge() {
   const qc = useQueryClient();
   const [token, setToken] = useState("");
   const [text, setText] = useState("");
+  const [boxCode, setBoxCode] = useState("");
   const { data: k } = useQuery<any>({ queryKey: ["/api/reborn/admin/karaoke"], queryFn: () => apiRequest("GET", "/api/reborn/admin/karaoke").then((r) => r.json()), refetchInterval: 30000 });
   const mk = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/karaoke/token", {}).then((r) => r.json()), onSuccess: (d: any) => { setToken(d.token); toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/karaoke"] }); } });
   const imp = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/karaoke/import", { text }).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message }); setText(""); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/karaoke"] }); } });
+  const pairBox = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/karaoke/pair", { code: boxCode }).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message }); setBoxCode(""); }, onError: (e: any) => toast({ title: String(e?.message || e).replace(/^\d+:\s*/, ""), variant: "destructive" }) });
   const base = typeof window !== "undefined" ? window.location.origin : "";
   return (
     <Card>
@@ -1482,6 +1484,14 @@ function KaraokeBridge() {
       <a href="/api/reborn/admin/karaoke/setup-file" download className={btn + " mt-3 mr-2 inline-flex items-center gap-1.5 no-underline"}>⬇ {t("admin.kar.setupFile")}</a>
       <a href="/api/reborn/admin/karaoke/setup-file?legacy=1" download className={btn + " mt-3 mr-2 inline-flex items-center gap-1.5 no-underline"}>⬇ {t("admin.kar.setupFileWin7")}</a>
       <p className="text-[11px] text-white/50 mt-2">{t("admin.kar.setupHint")}</p>
+      <div className="mt-4 p-3 rounded-lg bg-black/30">
+        <p className="text-xs font-bold">{t("admin.kar.boxTitle")}</p>
+        <p className="text-[11px] text-white/50 mt-1">{t("admin.kar.boxHint")}</p>
+        <div className="flex gap-2 mt-2">
+          <input value={boxCode} onChange={(e) => setBoxCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder={t("admin.kar.boxCode")} className={inp + " w-40 font-mono tracking-widest"} />
+          <button onClick={() => pairBox.mutate()} disabled={boxCode.length !== 6 || pairBox.isPending} className={btn}>{t("admin.kar.boxLink")}</button>
+        </div>
+      </div>
       <button onClick={() => { if (!k?.hasToken || confirm(t("admin.kar.newTokenConfirm"))) mk.mutate(); }} className={btn + " mt-3"}>{k?.hasToken ? t("admin.kar.newToken") : t("admin.kar.makeToken")}</button>
       {token && <div className="mt-2 p-2 rounded-lg bg-black/40 text-[11px] font-mono break-all text-amber-200">{token}<p className="text-white/45 font-sans mt-1">{t("admin.kar.copyOnce")}</p></div>}
       <pre className="mt-3 p-2 rounded-lg bg-black/40 text-[10px] text-white/60 whitespace-pre-wrap break-all">{`GET  ${base}/api/karaoke/queue

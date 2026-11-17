@@ -4,7 +4,7 @@
 import type { Express, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import { MAX_TV_SCREENS, cleanSetup, screenCovers, songLinesFor, type GiftEvent, type TvScreen, type TvSetup } from "./tvLogic";
-import { TV_CODE_TTL_MS, TvPairings, isTvCode } from "./tvPairing";
+import { TV_CODE_TTL_MS, TvPairings, isTvCode, type KaraokeLink } from "./tvPairing";
 
 export interface TvDeps {
   requireAdmin(handler: (req: Request, res: Response) => Promise<unknown>): (req: Request, res: Response) => unknown;
@@ -34,6 +34,11 @@ let testCounter = 0;
 const pairings = new TvPairings(); // codes shown on TVs that are waiting to be linked
 const pages = new Map<string, Set<Response>>(); // TV token → the pages open on that TV right now
 const recentGifts = new Map<number, GiftEvent[]>(); // company → latest gifts (in memory: starts empty after a restart)
+
+/** The admin typed the code a song-system box shows: the box receives the bridge's key and address (the code is used up once the box has read it). */
+export function linkKaraokeBox(code: string, link: KaraokeLink): boolean {
+  return isTvCode(code) && pairings.assign(code, { path: "", karaoke: link });
+}
 
 const makeId = () => randomBytes(4).toString("hex");
 const makeToken = () => randomBytes(12).toString("hex");
@@ -142,7 +147,7 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
 
   app.get("/api/tv/pair/:code", (req, res) => {
     const answer = isTvCode(req.params.code) ? pairings.poll(req.params.code) : { status: "expired" as const };
-    res.set("Cache-Control", "no-store").json(answer.status === "linked" ? { status: "linked", path: answer.link.path } : answer);
+    res.set("Cache-Control", "no-store").json(answer.status === "linked" ? { status: "linked", path: answer.link.path, ...(answer.link.karaoke ? { karaoke: answer.link.karaoke } : {}) } : answer);
   });
 
   // ---- the TV pages (no login: the secret address is the key) ----

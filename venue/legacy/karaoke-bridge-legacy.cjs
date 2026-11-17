@@ -90,6 +90,7 @@ __export(karaoke_bridge_exports, {
   isBox: () => isBox,
   parseJsonp: () => parseJsonp,
   pickSong: () => pickSong,
+  runBridge: () => runBridge,
   singerNames: () => singerNames
 });
 module.exports = __toCommonJS(karaoke_bridge_exports);
@@ -728,19 +729,9 @@ async function boxAddress(given) {
   }
   return found;
 }
-async function main() {
-  const { CLOUD_URL, KARAOKE_TOKEN, BOX_URL, TENANT_SLUG, POLL_MS } = process.env;
-  if (!CLOUD_URL || !KARAOKE_TOKEN) {
-    console.error("Set CLOUD_URL and KARAOKE_TOKEN (the setup file from Admin > Requests > Karaoke system does it for you).");
-    process.exit(1);
-  }
-  const boxUrl = await boxAddress(BOX_URL);
-  if (!boxUrl) {
-    console.error("Could not find the karaoke box on this network. Check that this PC is on the same Wi-Fi / cable as the box, or set BOX_URL (for example http://192.168.1.20:8084/demo).");
-    process.exit(1);
-  }
-  const bridge = createBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl, tenantSlug: TENANT_SLUG || "", showCloud: process.env.SHOW_CLOUD_SONGS === "1" });
-  console.log(`Karaoke bridge: ${boxUrl} <-> ${CLOUD_URL}`);
+async function runBridge({ cloudUrl, token, boxUrl, tenantSlug = "", pollMs = DEFAULT_POLL_MS, showCloud = false, log = console.log }) {
+  const bridge = createBridge({ cloudUrl, token, boxUrl, tenantSlug, showCloud, log });
+  log(`Karaoke bridge: ${boxUrl} <-> ${cloudUrl}`);
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const LINK_EVERY_MS = 6 * 3600 * 1e3;
   void bridge.loadAll().then(async () => {
@@ -748,7 +739,7 @@ async function main() {
       try {
         await bridge.linkLibrary();
       } catch (error) {
-        console.log(`library link waiting: ${error.message}`);
+        log(`library link waiting: ${error.message}`);
       }
       await wait(LINK_EVERY_MS);
     }
@@ -758,9 +749,9 @@ async function main() {
       try {
         await bridge.tick({ controls: false });
       } catch (error) {
-        console.log(`waiting: ${error.message}`);
+        log(`waiting: ${error.message}`);
       }
-      await wait(Number(POLL_MS) || DEFAULT_POLL_MS);
+      await wait(pollMs);
     }
   };
   const controlLoop = async () => {
@@ -774,12 +765,25 @@ async function main() {
       try {
         await bridge.serveSearches();
       } catch (error) {
-        console.log(`search helper waiting: ${error.message}`);
+        log(`search helper waiting: ${error.message}`);
         await wait(RETRY_AFTER_ERROR_MS);
       }
     }
   };
   await Promise.all([playLoop(), controlLoop(), searchLoop()]);
+}
+async function main() {
+  const { CLOUD_URL, KARAOKE_TOKEN, BOX_URL, TENANT_SLUG, POLL_MS } = process.env;
+  if (!CLOUD_URL || !KARAOKE_TOKEN) {
+    console.error("Set CLOUD_URL and KARAOKE_TOKEN (the setup file from Admin > Requests > Karaoke system does it for you).");
+    process.exit(1);
+  }
+  const boxUrl = await boxAddress(BOX_URL);
+  if (!boxUrl) {
+    console.error("Could not find the karaoke box on this network. Check that this PC is on the same Wi-Fi / cable as the box, or set BOX_URL (for example http://192.168.1.20:8084/demo).");
+    process.exit(1);
+  }
+  await runBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl, tenantSlug: TENANT_SLUG || "", pollMs: Number(POLL_MS) || DEFAULT_POLL_MS, showCloud: process.env.SHOW_CLOUD_SONGS === "1" });
 }
 if (process.argv[1] === (0, import_node_url.fileURLToPath)(__importMetaUrl)) main();
 // Annotate the CommonJS export names for ESM import in node:
@@ -791,5 +795,6 @@ if (process.argv[1] === (0, import_node_url.fileURLToPath)(__importMetaUrl)) mai
   isBox,
   parseJsonp,
   pickSong,
+  runBridge,
   singerNames
 });

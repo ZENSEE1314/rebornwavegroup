@@ -588,20 +588,25 @@ async function boxAddress(given) {
   return found;
 }
 
+/** Runs the bridge for good: the song loop, the buttons loop and the searches loop (also used by the Android app on the box itself). */
+export async function runBridge({ cloudUrl, token, boxUrl, tenantSlug = "", pollMs = DEFAULT_POLL_MS, showCloud = false, log = console.log }) {
+  const bridge = createBridge({ cloudUrl, token, boxUrl, tenantSlug, showCloud, log });
+  log(`Karaoke bridge: ${boxUrl} <-> ${cloudUrl}`);
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const LINK_EVERY_MS = 6 * 3600 * 1000;
+  void bridge.loadAll().then(async () => { for (;;) { try { await bridge.linkLibrary(); } catch (error) { log(`library link waiting: ${error.message}`); } await wait(LINK_EVERY_MS); } });
+  const playLoop = async () => { for (;;) { try { await bridge.tick({ controls: false }); } catch (error) { log(`waiting: ${error.message}`); } await wait(pollMs); } };
+  const controlLoop = async () => { for (;;) { await bridge.pressControls(); await wait(CONTROL_EVERY_MS); } };
+  const searchLoop = async () => { for (;;) { try { await bridge.serveSearches(); } catch (error) { log(`search helper waiting: ${error.message}`); await wait(RETRY_AFTER_ERROR_MS); } } };
+  await Promise.all([playLoop(), controlLoop(), searchLoop()]);
+}
+
 async function main() {
   const { CLOUD_URL, KARAOKE_TOKEN, BOX_URL, TENANT_SLUG, POLL_MS } = process.env;
   if (!CLOUD_URL || !KARAOKE_TOKEN) { console.error("Set CLOUD_URL and KARAOKE_TOKEN (the setup file from Admin > Requests > Karaoke system does it for you)."); process.exit(1); }
   const boxUrl = await boxAddress(BOX_URL);
   if (!boxUrl) { console.error("Could not find the karaoke box on this network. Check that this PC is on the same Wi-Fi / cable as the box, or set BOX_URL (for example http://192.168.1.20:8084/demo)."); process.exit(1); }
-  const bridge = createBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl, tenantSlug: TENANT_SLUG || "", showCloud: process.env.SHOW_CLOUD_SONGS === "1" });
-  console.log(`Karaoke bridge: ${boxUrl} <-> ${CLOUD_URL}`);
-  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const LINK_EVERY_MS = 6 * 3600 * 1000;
-  void bridge.loadAll().then(async () => { for (;;) { try { await bridge.linkLibrary(); } catch (error) { console.log(`library link waiting: ${error.message}`); } await wait(LINK_EVERY_MS); } });
-  const playLoop = async () => { for (;;) { try { await bridge.tick({ controls: false }); } catch (error) { console.log(`waiting: ${error.message}`); } await wait(Number(POLL_MS) || DEFAULT_POLL_MS); } };
-  const controlLoop = async () => { for (;;) { await bridge.pressControls(); await wait(CONTROL_EVERY_MS); } };
-  const searchLoop = async () => { for (;;) { try { await bridge.serveSearches(); } catch (error) { console.log(`search helper waiting: ${error.message}`); await wait(RETRY_AFTER_ERROR_MS); } } };
-  await Promise.all([playLoop(), controlLoop(), searchLoop()]);
+  await runBridge({ cloudUrl: CLOUD_URL, token: KARAOKE_TOKEN, boxUrl, tenantSlug: TENANT_SLUG || "", pollMs: Number(POLL_MS) || DEFAULT_POLL_MS, showCloud: process.env.SHOW_CLOUD_SONGS === "1" });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();

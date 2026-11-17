@@ -40,7 +40,8 @@ import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendTo
 import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornAllNotification, sendRebornUserNotification, sendBridgeXNotifications, emitCompanyChange, BRIDGEX_INDUSTRIES } from "./bridgeX";
 import { emitLiveUpdate, onLiveUpdate } from "./liveUpdates";
-import { publishTvGift, registerTvRoutes } from "./tvDisplay";
+import { linkKaraokeBox, publishTvGift, registerTvRoutes } from "./tvDisplay";
+import { isTvCode } from "./tvPairing";
 import { tvPhoto } from "./tvLogic";
 import { cleanImportRows, matchKey } from "./inventoryImport";
 import { cleanIndustries, REBORN_INDUSTRIES } from "@shared/industries";
@@ -3339,6 +3340,15 @@ export function registerRebornRoutes(app: Express) {
     const setup = { cloudUrl: `${req.protocol}://${req.get("host")}`, token, tenantSlug: currentTenant()?.slug || "" };
     await logAdmin(req, { targetType: "system", action: "karaoke_setup_file", entityType: "settings", description: `Downloaded the karaoke bridge setup file${isLegacy ? " (Windows 7)" : ""}` });
     res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": `attachment; filename="${isLegacy ? "Start-Karaoke-Bridge-Win7.bat" : "Start-Karaoke-Bridge.bat"}"`, "Cache-Control": "no-store" }).send(isLegacy ? karaokeSetupLegacyBat(setup) : karaokeSetupBat(setup));
+  }));
+  // The song-system box (the Android app on it) shows a 6-digit code; the admin types it here and the box receives this company's address and key by itself.
+  app.post("/api/reborn/admin/karaoke/pair", requireAdmin(async (req, res) => {
+    const code = String(req.body?.code ?? "").replace(/\s/g, "");
+    if (!isTvCode(code)) return res.status(400).json({ message: tr(req, { en: "Enter the 6-digit code shown on the box", zh: "请输入点歌机上显示的6位代码", id: "Masukkan kode 6 digit yang tampil di mesin" }) });
+    const linked = linkKaraokeBox(code, { token: await venueBridgeToken(), cloudUrl: `${req.protocol}://${req.get("host")}`, tenantSlug: currentTenant()?.slug || "" });
+    if (!linked) return res.status(404).json({ message: tr(req, { en: "That code is not on any box (it may have expired: open the app on the box again for a new one)", zh: "没有机器显示这个代码（可能已过期：请重新打开机器上的应用获取新代码）", id: "Kode itu tidak ada di mesin mana pun (mungkin kedaluwarsa: buka lagi aplikasi di mesin untuk kode baru)" }) });
+    await logAdmin(req, { targetType: "system", action: "karaoke_pair", entityType: "settings", description: "Linked a song-system box by code" });
+    res.json({ ok: true, message: tr(req, { en: "Box linked", zh: "已链接机器", id: "Mesin terhubung" }) });
   }));
   app.post("/api/reborn/admin/karaoke/token", requireAdmin(async (req, res) => {
     const token = randomVenueCode() + randomVenueCode() + randomVenueCode() + randomVenueCode();

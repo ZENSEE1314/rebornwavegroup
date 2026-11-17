@@ -53,3 +53,20 @@ describe("TvPairings", () => {
     assert.equal(isTvCode(123456), false);
   });
 });
+
+describe("linking a song-system box by code", () => {
+  const link = { token: "key", cloudUrl: "https://club.test", tenantSlug: "club" };
+  it("should hand the app address and key to the waiting box", () => {
+    const pairings = new TvPairings();
+    const code = pairings.create()!;
+    pairings.assign(code, { path: "", karaoke: link });
+    assert.deepEqual(pairings.poll(code), { status: "linked", link: { path: "", karaoke: link } });
+  });
+  it("should hand the key over only once", () => {
+    const pairings = new TvPairings();
+    const code = pairings.create()!;
+    pairings.assign(code, { path: "", karaoke: link });
+    pairings.poll(code);
+    assert.deepEqual(pairings.poll(code), { status: "expired" });
+  });
+});

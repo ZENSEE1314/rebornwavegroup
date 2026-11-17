@@ -69,6 +69,20 @@ final class Link {
         return status;
     }
 
+    /**
+     * GET /api/tv/pair/CODE for the song-system connector: "waiting", "expired", "wrong" (the admin linked the code to a TV screen instead),
+     * or "linked" (then the app's address and key are saved).
+     */
+    static String pollConnector(Context context, String code) throws Exception {
+        JSONObject answer = call(server(context) + "/api/tv/pair/" + code, "GET");
+        String status = answer.optString("status", "waiting");
+        if (!"linked".equals(status)) return status;
+        JSONObject connector = answer.optJSONObject("karaoke");
+        if (connector == null) return "wrong";
+        BridgeSettings.save(context, connector.getString("cloudUrl"), connector.getString("token"), connector.optString("tenantSlug", ""));
+        return status;
+    }
+
     private static JSONObject call(String address, String method) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
         try {
