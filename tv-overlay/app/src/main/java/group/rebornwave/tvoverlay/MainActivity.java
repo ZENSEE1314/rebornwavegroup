@@ -106,6 +106,16 @@ public class MainActivity extends Activity {
         root.addView(label(t("Then in the app: Admin > Lights & TV > TV > choose the screen (view: overlay) > type this code and press Link.",
                 "然后在应用中：管理 > 灯光和电视 > 电视 > 选择屏幕（视图：叠加）> 输入此代码并点“链接”。",
                 "Lalu di aplikasi: Admin > Lampu & TV > TV > pilih layar (tampilan: overlay) > ketik kode ini lalu tekan Hubungkan."), 16, false));
+        root.addView(label(t("Show the gifts on:", "礼物显示在：", "Tampilkan hadiah di:"), 18, true));
+        root.addView(button(t("The HDMI / TV screen (the guests' TV)", "HDMI / 电视屏幕（客人看的电视）", "Layar HDMI / TV (TV untuk tamu)"), new View.OnClickListener() {
+            @Override public void onClick(View v) { chooseScreens(Screens.EXTERNAL); }
+        }));
+        root.addView(button(t("This box's own screen", "本机自己的屏幕", "Layar mesin ini"), new View.OnClickListener() {
+            @Override public void onClick(View v) { chooseScreens(Screens.MAIN); }
+        }));
+        root.addView(button(t("Both screens", "两个屏幕", "Kedua layar"), new View.OnClickListener() {
+            @Override public void onClick(View v) { chooseScreens(Screens.BOTH); }
+        }));
         root.addView(button(t("Start the overlay now", "立即启动叠加", "Mulai overlay sekarang"), new View.OnClickListener() {
             @Override public void onClick(View v) { startOverlay(); }
         }));
@@ -129,6 +139,13 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(root);
         setContentView(scroll);
+    }
+
+    private String screenChoiceName() {
+        String choice = Link.screens(this);
+        if (Screens.MAIN.equals(choice)) return t("this box's own screen", "本机自己的屏幕", "layar mesin ini");
+        if (Screens.BOTH.equals(choice)) return t("both screens", "两个屏幕", "kedua layar");
+        return t("the HDMI / TV screen", "HDMI / 电视屏幕", "layar HDMI / TV");
     }
 
     private TextView label(String text, int sp, boolean bold) {
@@ -280,6 +297,15 @@ public class MainActivity extends Activity {
         }
     };
 
+    private void chooseScreens(String choice) {
+        Link.saveScreens(this, choice);
+        if (OverlayService.running) {
+            OverlayService.stop(this);
+            ui.postDelayed(new Runnable() { @Override public void run() { startOverlay(); refresh(); } }, 500);
+        }
+        refresh();
+    }
+
     private void refresh() {
         String allowed = OverlayService.canDraw(this) ? t("allowed", "已允许", "diizinkan") : t("NOT allowed yet", "尚未允许", "belum diizinkan");
         String linked = Link.isLinked(this) ? t("linked", "已链接", "terhubung") : t("not linked", "未链接", "belum terhubung");
@@ -289,6 +315,8 @@ public class MainActivity extends Activity {
         status.setText(t("Drawing over other apps: ", "显示在其他应用上方：", "Tampil di atas aplikasi lain: ") + allowed
                 + "\n" + t("TV screen: ", "电视屏幕：", "Layar TV: ") + linked
                 + "\n" + t("Overlay: ", "叠加：", "Overlay: ") + running
+                + "\n" + t("Gifts on: ", "礼物显示在：", "Hadiah di: ") + screenChoiceName()
+                + "\n" + t("Screens of this box:\n", "本机的屏幕：\n", "Layar mesin ini:\n") + Screens.describe(this)
                 + "\n" + Link.server(this));
     }
 

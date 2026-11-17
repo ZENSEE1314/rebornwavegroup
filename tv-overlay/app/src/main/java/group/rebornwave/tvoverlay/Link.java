@@ -16,6 +16,7 @@ final class Link {
     private static final String PREFS = "tv";
     private static final String KEY_SERVER = "server";
     private static final String KEY_PATH = "path";
+    private static final String KEY_SCREENS = "screens";
     private static final int TIMEOUT_MS = 8000;
 
     private Link() {}
@@ -42,6 +43,15 @@ final class Link {
 
     static void savePath(Context context, String path) {
         prefs(context).edit().putString(KEY_PATH, path).apply();
+    }
+
+    /** Which screens show the gifts: Screens.EXTERNAL (the HDMI / TV screen, the default), Screens.MAIN or Screens.BOTH. */
+    static String screens(Context context) {
+        return prefs(context).getString(KEY_SCREENS, Screens.EXTERNAL);
+    }
+
+    static void saveScreens(Context context, String choice) {
+        prefs(context).edit().putString(KEY_SCREENS, choice).apply();
     }
 
     static boolean isLinked(Context context) {
