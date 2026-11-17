@@ -9,6 +9,6 @@ public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (BridgeSettings.isReady(context)) BridgeService.start(context);
-        if (Link.isLinked(context) && OverlayService.canDraw(context)) OverlayService.start(context);
+        if (Link.isLinked(context) && !OverlayAccessibilityService.isEnabled(context) && OverlayService.canShow(context)) OverlayService.start(context);
     }
 }

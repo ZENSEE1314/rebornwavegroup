@@ -40,10 +40,15 @@ public class OverlayService extends Service {
         return Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(context);
     }
 
+    /** True when the wanted screens can be drawn on now: the HDMI / TV screen needs no permission, the main screen needs "Display over other apps". */
+    static boolean canShow(Context context) {
+        return canDraw(context) || !Screens.needsDrawPermission(context);
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         showNotification();
-        if (!canDraw(this) || !Link.isLinked(this)) {
+        if (!canShow(this) || !Link.isLinked(this)) {
             stopSelf();
             return START_NOT_STICKY;
         }

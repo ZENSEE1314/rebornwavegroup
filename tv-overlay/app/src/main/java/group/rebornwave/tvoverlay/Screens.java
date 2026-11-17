@@ -44,6 +44,12 @@ final class Screens {
         return picked;
     }
 
+    /** The main screen's overlay needs the "Display over other apps" permission (or the Accessibility service); the HDMI / TV screen's does not. */
+    static boolean needsDrawPermission(Context context) {
+        for (Display display : wanted(context)) if (display.getDisplayId() == Display.DEFAULT_DISPLAY) return true;
+        return false;
+    }
+
     /** What Android knows about the screens of this box, one line each, to show on the set-up page. */
     static String describe(Context context) {
         StringBuilder text = new StringBuilder();

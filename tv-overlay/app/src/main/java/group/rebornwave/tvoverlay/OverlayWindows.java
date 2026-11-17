@@ -107,11 +107,27 @@ final class OverlayWindows {
         if (!url.isEmpty()) show(url);
     }
 
+    /**
+     * The window type for a screen. The main screen uses the type of the service (an accessibility overlay needs the service's own token, which only
+     * the main screen's window manager carries); another screen (the HDMI / TV) uses a presentation window, which Android allows to any app with
+     * no permission and no token, and which sits above the windows of the karaoke program.
+     */
+    private int typeFor(Display display) {
+        return display.getDisplayId() == Display.DEFAULT_DISPLAY ? windowType : WindowManager.LayoutParams.TYPE_PRESENTATION;
+    }
+
     /** The context a window of this screen needs: another screen's windows come from a context made for that screen. */
     private Context contextFor(Display display) {
         if (display.getDisplayId() == Display.DEFAULT_DISPLAY) return service;
         Context ofScreen = service.createDisplayContext(display);
-        return Build.VERSION.SDK_INT >= 30 ? ofScreen.createWindowContext(windowType, null) : ofScreen;
+        if (Build.VERSION.SDK_INT >= 30) {
+            try {
+                return ofScreen.createWindowContext(WindowManager.LayoutParams.TYPE_PRESENTATION, null);
+            } catch (RuntimeException unsupported) {
+                OverlayLog.add("screen " + display.getDisplayId() + ": no window context for it, using the plain one");
+            }
+        }
+        return ofScreen;
     }
 
     /** Shows a plain red banner with this text on every wanted screen for a few seconds: tells whether windows can be drawn over the karaoke picture at all, whatever the page does. */
@@ -130,7 +146,7 @@ final class OverlayWindows {
                 int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
                 WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                        WindowManager.LayoutParams.MATCH_PARENT, BANNER_HEIGHT_PX, windowType, flags, PixelFormat.TRANSLUCENT);
+                        WindowManager.LayoutParams.MATCH_PARENT, BANNER_HEIGHT_PX, typeFor(display), flags, PixelFormat.TRANSLUCENT);
                 params.gravity = Gravity.TOP;
                 if (alpha < OPAQUE) params.alpha = alpha;
                 manager.addView(view, params);
@@ -196,7 +212,7 @@ final class OverlayWindows {
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, windowType, flags, PixelFormat.TRANSLUCENT);
+                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, typeFor(display), flags, PixelFormat.TRANSLUCENT);
         if (alpha < OPAQUE) params.alpha = alpha;
         WindowManager windows = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         try {

@@ -30,6 +30,14 @@ describe("the gift overlay on the box's screens", () => {
     assert.ok(read("OverlayWindows.java").includes("void banner(String text, long millis)") && read("MainActivity.java").includes("windows.banner("));
   });
 
+  it("should give the HDMI screen a presentation window, which needs neither a token nor a permission", () => {
+    assert.ok(read("OverlayWindows.java").includes("WindowManager.LayoutParams.TYPE_PRESENTATION"));
+  });
+
+  it("should not ask for the draw-over permission when only the HDMI screen is wanted", () => {
+    assert.ok(read("OverlayService.java").includes("canDraw(context) || !Screens.needsDrawPermission(context)"));
+  });
+
   it("should follow the HDMI cable being plugged in or out", () => {
     assert.ok(read("OverlayWindows.java").includes("registerDisplayListener(screensChanged, handler)"));
   });

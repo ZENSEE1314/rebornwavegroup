@@ -192,8 +192,8 @@ public class MainActivity extends Activity {
     }
 
     private void startOverlay() {
-        if (!OverlayService.canDraw(this)) {
-            if (OverlayAccessibilityService.isEnabled(this)) { refresh(); return; } // the accessibility service shows the page by itself once the box is linked
+        if (OverlayAccessibilityService.isEnabled(this)) { refresh(); return; } // the accessibility service shows the page by itself once the box is linked
+        if (!OverlayService.canShow(this)) {
             askOverlayPermission();
             return;
         }
@@ -347,7 +347,7 @@ public class MainActivity extends Activity {
         if (BridgeSettings.isReady(this) && !BridgeService.running) BridgeService.start(this);
         ui.removeCallbacks(connectorTick);
         ui.post(connectorTick);
-        if (Link.isLinked(this) && OverlayService.canDraw(this) && !OverlayService.running && !OverlayAccessibilityService.isEnabled(this)) startOverlay();
+        if (Link.isLinked(this) && OverlayService.canShow(this) && !OverlayService.running && !OverlayAccessibilityService.isEnabled(this)) startOverlay();
     }
 
     @Override
