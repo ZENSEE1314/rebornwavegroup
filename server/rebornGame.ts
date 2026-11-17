@@ -89,6 +89,7 @@ import {
   venueCheckins, memberWalletTransactions, memberPackages,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
+import { registerFaqFiles, removeFilesOf, withFileViews, filesOf as faqFilesOf } from "./faqFiles";
 
 // A snapped receipt is stored as a data URL (megabytes each). Reports and lists that read whole rows pulled every photo of the period into memory
 // on each call (the admin screens ask every few seconds), which slowed the whole server down; they read these columns instead, where a photo
@@ -1964,7 +1965,7 @@ export function registerRebornRoutes(app: Express) {
       await seedFaqIfEmpty();
       const rows = await db.select().from(faqItems).where(eq(faqItems.active, true)).orderBy(faqItems.sortOrder);
       const lang = reqLang(req);
-      res.json(rows.map((r) => faqIn(r as any, lang)));
+      res.json((await withFileViews(rows)).map((r) => faqIn(r as any, lang)));
     } catch (e) { console.error("faq", e); res.status(500).json({ message: tr(req, { en: "Failed to load FAQ", zh: "常见问题加载失败", id: "Gagal memuat FAQ" }) }); }
   });
 
@@ -3064,7 +3065,7 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/faq", requireAdmin(async (_req, res) => {
     await seedFaqIfEmpty();
     const rows = await db.select().from(faqItems).orderBy(faqItems.sortOrder);
-    res.json(rows);
+    res.json(await withFileViews(rows));
   }));
   app.post("/api/reborn/admin/faq", requireAdmin(async (req, res) => {
     const b = req.body || {};
@@ -3083,7 +3084,8 @@ export function registerRebornRoutes(app: Express) {
     // A question members asked that had no answer yet: typing the answer and saving turns it on,
     // so the bot starts replying with it when anyone asks the same question.
     const [before] = await db.select().from(faqItems).where(eq(faqItems.id, id));
-    if (before && !String(before.answer || "").trim() && String(b.answer || "").trim() && b.active === undefined) patch.active = true;
+    const hasFiles = ((await faqFilesOf([id])).get(id) || []).length > 0;
+    if (before && !String(before.answer || "").trim() && (String(b.answer || "").trim() || hasFiles) && b.active === undefined) patch.active = true;
     if (b.i18n !== undefined) patch.i18n = b.i18n && typeof b.i18n === "object" ? b.i18n : null;
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
@@ -3091,9 +3093,11 @@ export function registerRebornRoutes(app: Express) {
     res.json(row);
   }));
   app.delete("/api/reborn/admin/faq/:id", requireAdmin(async (req, res) => {
+    await removeFilesOf(Number(req.params.id));
     await db.delete(faqItems).where(eq(faqItems.id, Number(req.params.id)));
     res.json({ message: tr(req, { en: "Deleted", zh: "已删除", id: "Dihapus" }) });
   }));
+  registerFaqFiles(app, requireAdmin as any);
 
   // Admin: song requests + song library
   app.get("/api/reborn/admin/song-requests", requireStaff(async (req, res) => {

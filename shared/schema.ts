@@ -1374,6 +1374,20 @@ export const faqItems = pgTable("faq_items", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// A picture or file attached to an FAQ answer (a menu, a price list, the app's apk ...): the bot sends it with the answer.
+// `data` is the uploaded file (base64) and must never be read by a list; `url` is a link used instead of an upload.
+export const faqFiles = pgTable("faq_files", {
+  id: serial("id").primaryKey(),
+  faqId: integer("faq_id").notNull(),
+  token: varchar("token").notNull(),
+  name: varchar("name").notNull(),
+  mime: varchar("mime").notNull(),
+  size: integer("size").default(0).notNull(),
+  url: text("url"),
+  data: text("data"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [uniqueIndex("faq_files_token").on(table.token)]);
+
 // Admin action logs table
 export const adminActionLogs = pgTable("admin_action_logs", {
   id: serial("id").primaryKey(),

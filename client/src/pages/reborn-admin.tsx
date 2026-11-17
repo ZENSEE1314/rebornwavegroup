@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, RotateCcw, ToggleRight, Smartphone, Plus, Trash2, Copy, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
+import { Paperclip, Link2, Camera, RotateCcw, ToggleRight, Smartphone, Plus, Trash2, Copy, Check, X, Ticket, Receipt, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, Printer, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode, Gamepad2, RefreshCw, Languages, PawPrint, CalendarCheck, Lightbulb, ShieldCheck } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import InventoryImport from "@/components/InventoryImport";
 import SupplierReorderPanel from "@/components/SupplierReorderPanel";
@@ -1889,7 +1889,7 @@ function Faq() {
   const save = useMutation({ mutationFn: (f: any) => apiRequest("PUT", `/api/reborn/admin/faq/${f.id}`, f).then((r) => r.json()), onSuccess: inv });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/faq/${id}`), onSuccess: inv });
   // Questions members asked that nobody answered yet come first.
-  const unanswered = (f: any) => !String(f.answer || "").trim();
+  const unanswered = (f: any) => !String(f.answer || "").trim() && !(f.files || []).length;
   const sorted = [...items].sort((a, b) => Number(unanswered(b)) - Number(unanswered(a)));
   const waiting = items.filter(unanswered).length;
   return (
@@ -1915,7 +1915,7 @@ function FaqRow({ f, onSave, onDelete }: any) {
     onError: (err: any) => toast({ title: t("admin.c.failed"), description: String(err.message || "").replace(/^\d+:\s*/, ""), variant: "destructive" }),
   });
   const hasOther = ["zh", "id"].some((l) => e.i18n?.[l]?.question || e.i18n?.[l]?.answer);
-  const waiting = !String(f.answer || "").trim();
+  const waiting = !String(f.answer || "").trim() && !(f.files || []).length;
   return (
     <Card>
       {waiting && <p className="mb-2 rounded-md bg-red-500/15 px-2 py-1 text-xs font-bold text-red-200">{t("admin.faq.needsAnswer")}</p>}
@@ -1934,11 +1934,67 @@ function FaqRow({ f, onSave, onDelete }: any) {
         </div>
       ))}
       <input value={e.keywords || ""} onChange={(x) => setE({ ...e, keywords: x.target.value })} placeholder={t("admin.faq.keywords")} className={inp + " w-full mb-2"} />
+      <FaqFiles faqId={f.id} files={f.files || []} />
       <div className="flex gap-2">
         <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> {t("admin.c.save")}</button>
         <button onClick={() => onDelete(f.id)} className={btnDel + " justify-center"}><Trash2 className="w-4 h-4" /> {t("admin.c.delete")}</button>
       </div>
     </Card>
+  );
+}
+
+// Pictures and files sent with an FAQ answer (a menu, a price list, the app's apk ...): saved as soon as they are picked, not with the Save button.
+const FAQ_FILE_MAX_MB = 20;
+const readAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result));
+  reader.onerror = () => reject(new Error("read"));
+  reader.readAsDataURL(file);
+});
+const sizeText = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+function FaqFiles({ faqId, files }: { faqId: number; files: Array<{ id: number; name: string; size: number; isImage: boolean; isLink: boolean; href: string }> }) {
+  const qc = useQueryClient();
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const picker = useRef<HTMLInputElement>(null);
+  const [linkName, setLinkName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const refresh = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/faq"] });
+  const fail = (err: any) => toast({ title: t("admin.c.failed"), description: String(err.message || "").replace(/^\d+:\s*/, ""), variant: "destructive" });
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      if (file.size > FAQ_FILE_MAX_MB * 1024 * 1024) throw new Error(t("admin.faq.tooBig", { mb: FAQ_FILE_MAX_MB }));
+      return apiRequest("POST", `/api/reborn/admin/faq/${faqId}/files`, { name: file.name, mime: file.type, data: await readAsDataUrl(file) }).then((r) => r.json());
+    },
+    onSuccess: refresh, onError: fail,
+  });
+  const addLink = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/reborn/admin/faq/${faqId}/files`, { name: linkName, url: linkUrl }).then((r) => r.json()),
+    onSuccess: () => { setLinkName(""); setLinkUrl(""); refresh(); }, onError: fail,
+  });
+  const remove = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/faq/files/${id}`), onSuccess: refresh, onError: fail });
+  return (
+    <div className="mb-2 rounded-lg border border-white/10 p-2">
+      <p className="mb-1 text-[11px] font-semibold text-white/50">{t("admin.faq.files")}</p>
+      {files.map((file) => (
+        <div key={file.id} className="mb-1 flex items-center gap-2 rounded-md bg-black/20 px-2 py-1 text-xs">
+          {file.isImage ? <img src={file.href} alt={file.name} className="h-9 w-9 shrink-0 rounded object-cover" /> : <Paperclip className="h-4 w-4 shrink-0 text-white/50" />}
+          <a href={file.href} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sky-200">{file.name}</a>
+          <span className="shrink-0 text-white/40">{file.isLink ? t("admin.faq.link") : sizeText(file.size)}</span>
+          <button type="button" aria-label={t("admin.c.delete")} disabled={remove.isPending} onClick={() => remove.mutate(file.id)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-500/15 p-0 text-red-200"><Trash2 className="h-4 w-4" /></button>
+        </div>
+      ))}
+      <input ref={picker} type="file" className="hidden" onChange={(x) => { const file = x.target.files?.[0]; if (file) upload.mutate(file); x.target.value = ""; }} />
+      <button type="button" disabled={upload.isPending} onClick={() => picker.current?.click()} className="mb-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-100 disabled:opacity-50">
+        <Paperclip className="h-4 w-4" /> {upload.isPending ? t("admin.faq.uploading") : t("admin.faq.attach")}
+      </button>
+      <div className="flex flex-wrap gap-2">
+        <input value={linkName} onChange={(x) => setLinkName(x.target.value)} placeholder={t("admin.faq.linkName")} className={inp + " min-w-[8rem] flex-1"} />
+        <input value={linkUrl} onChange={(x) => setLinkUrl(x.target.value)} placeholder="https://" className={inp + " min-w-[10rem] flex-[2]"} />
+        <button type="button" disabled={addLink.isPending || !linkUrl.trim()} onClick={() => addLink.mutate()} className="inline-flex items-center justify-center gap-1 rounded-lg bg-white/10 px-3 py-2 text-sm font-bold text-white disabled:opacity-40"><Link2 className="h-4 w-4" /> {t("admin.faq.addLink")}</button>
+      </div>
+      <p className="mt-1 text-[11px] text-white/40">{t("admin.faq.filesHint", { mb: FAQ_FILE_MAX_MB })}</p>
+    </div>
   );
 }
 

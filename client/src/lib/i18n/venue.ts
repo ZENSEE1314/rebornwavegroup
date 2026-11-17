@@ -380,6 +380,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.sup.rateSend': { en: 'Send rating', zh: '提交评分', id: 'Kirim penilaian' },
   'vn.sup.rateFailed': { en: 'Could not send the rating', zh: '无法提交评分', id: 'Gagal mengirim penilaian' },
   'vn.sup.common': { en: 'Common questions', zh: '常见问题', id: 'Pertanyaan umum' },
+  'vn.sup.download': { en: 'Download', zh: '下载', id: 'Unduh' },
   'vn.sup.noFaq': { en: 'No FAQs yet.', zh: '暂无常见问题。', id: 'Belum ada FAQ.' },
   'vn.sup.askAnything': { en: 'Ask us anything. Common questions get an instant answer; the rest reach our admin.', zh: '有问题尽管问。常见问题会立即得到回复，其他问题将转给管理员。', id: 'Tanyakan apa saja. Pertanyaan umum dijawab langsung; sisanya diteruskan ke admin kami.' },
   'vn.sup.aiAssistant': { en: 'AI assistant', zh: 'AI 助手', id: 'Asisten AI' },

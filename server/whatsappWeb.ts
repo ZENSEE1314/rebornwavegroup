@@ -262,6 +262,21 @@ export async function sendWhatsAppWebImage(to: string, image: Buffer, caption: s
   }
 }
 
+// A menu, a price list, an apk ...: a picture goes as a picture, everything else as a document.
+export async function sendWhatsAppWebFile(to: string, file: Buffer, name: string, mime: string, isImage: boolean): Promise<boolean> {
+  if (!isWebConnected() || !sock) return false;
+  const digits = String(to).replace(/\D/g, "");
+  let jid = await knownJid(digits);
+  try {
+    if (!jid) { const res = await timed(sock.onWhatsApp(digits), "lookup").catch(() => null); jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`; }
+    await timed(sock.sendMessage(jid, isImage ? { image: file } : { document: file, fileName: name, mimetype: mime }), "file send", 90_000);
+    return true;
+  } catch (e) {
+    if (/timed out/.test(String((e as any)?.message))) { console.warn("[wa-web] file send", (e as any).message); return true; } // a slow upload usually still arrives
+    console.error("[wa-web] file send error", e); return false;
+  }
+}
+
 export async function logoutWhatsAppWeb(): Promise<void> {
   if (inAnotherCompany()) return;
   try { await sock?.logout(); } catch {}

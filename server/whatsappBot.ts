@@ -15,6 +15,7 @@ import { metaAppSecret } from "./metaConnect";
 import type { Express, Request, Response } from "express";
 import { and, desc, eq, gte, inArray, isNotNull, lte, gt, ilike, ne, sql } from "drizzle-orm";
 import { db } from "./db";
+import { downloadPath as faqFileDownloadPath, fileBytes as faqFileBytes, filesOf as faqFilesOf, isImageMime, type FaqFileRow } from "./faqFiles";
 import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems, memberPackages, memberPackageUses } from "@shared/schema";
 import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
@@ -97,7 +98,7 @@ export function whatsappConfigured(): boolean {
 
 // Link into the member app for the current company. Without its own domain, a company's
 // members use the shared host and the link says which business it is.
-function memberAppUrl(path = ""): string {
+export function memberAppUrl(path = ""): string {
   const tenant = currentTenant();
   const base = cfg().appUrl;
   if (!tenant || base !== TENANT_APP_BASE_URL) return `${base}${path}`;
@@ -1546,7 +1547,11 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   if (c.stage === "member" || c.stage === "active") {
     // Answer general enquiries from the FAQ knowledge base.
     const ans = await faqAnswer(body, lang);
-    if (ans) { await say(ans); return; }
+    if (ans) {
+      if (ans.text.trim()) await say(ans.text);
+      await sendFaqFiles(from, c, ans.files, lang);
+      return;
+    }
     // Greeting with no FAQ hit → show the menu.
     if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu|halo|hai|selamat|tanya|bantuan)\b|你好|您好|咨询|请问|帮助|菜单/i.test(body)) {
       await sendMemberMenu(from, c, lang, true);
@@ -1669,12 +1674,13 @@ export function faqSimilar(a: string, b: string): boolean {
 
 // Match the message against active FAQ items with an answer. Items without an answer
 // (questions still waiting for the admin) never match — those go to "we'll get back to you".
-async function faqAnswer(body: string, lang: Lang = "en"): Promise<string | null> {
+async function faqAnswer(body: string, lang: Lang = "en"): Promise<{ text: string; files: FaqFileRow[] } | null> {
   const lc = body.toLowerCase();
   const faqs = await db.select().from(faqItems).where(eq(faqItems.active, true));
+  const filesByFaq = await faqFilesOf(faqs.map((f) => f.id));
   let best: any = null, bestScore = 0;
   for (const f of faqs) {
-    if (!f.answer || !f.answer.trim()) continue;
+    if (!(f.answer || "").trim() && !filesByFaq.get(f.id)?.length) continue; // a question with neither an answer nor a file is still waiting
     const kws = (f.keywords || "").toLowerCase().split(",").map((k) => k.trim()).filter((k) => k && !FAQ_STOP.has(k));
     let score = 0;
     for (const k of kws) if (lc.includes(k)) score += 2;
@@ -1685,7 +1691,45 @@ async function faqAnswer(body: string, lang: Lang = "en"): Promise<string | null
     }
     if (score > bestScore) { bestScore = score; best = f; }
   }
-  return bestScore > 0 ? faqIn(best, lang).answer : null;
+  return bestScore > 0 ? { text: faqIn(best, lang).answer || "", files: filesByFaq.get(best.id) || [] } : null;
+}
+
+// The files of an FAQ answer (a menu, a price list, the app's apk ...), sent after its text on whatever chat the member is in.
+// WhatsApp linked by QR sends the file itself; the Cloud API and the other chats take its link; anything that fails goes as a text link.
+async function sendFaqFiles(to: string, c: Contact, files: FaqFileRow[], lang: Lang) {
+  for (const file of files) {
+    const link = file.url || memberAppUrl(faqFileDownloadPath(file));
+    const isImage = isImageMime(file.mime);
+    let sent = false;
+    try {
+      if (file.url) sent = false; // a link is only a link
+      else if (isSocialKey(to)) sent = await sendSocial(to, "", { file: { url: link, name: file.name, isImage } });
+      else {
+        const web = await import("./whatsappWeb");
+        if (web.isWebConnected()) {
+          const bytes = await faqFileBytes(file.id);
+          if (bytes) sent = await web.sendWhatsAppWebFile(String(to).replace(/\D/g, ""), bytes, file.name, file.mime, isImage);
+        } else sent = await sendWhatsAppCloudFile(to, link, file.name, isImage);
+      }
+    } catch (e) { waError("faq file", e); }
+    if (!sent) await sendWhatsApp(to, `📎 ${file.name}\n${link}`);
+    await logMsg(c.id, c.phone, "out", `📎 ${file.name}`, true);
+  }
+}
+
+// Cloud API: a picture or a document by its link.
+async function sendWhatsAppCloudFile(to: string, link: string, name: string, isImage: boolean): Promise<boolean> {
+  const c = await loadWaConfig();
+  if (!whatsappConfigured()) return false;
+  try {
+    const r = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${c.phoneId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${c.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", to: String(to).replace(/\D/g, ""), ...(isImage ? { type: "image", image: { link } } : { type: "document", document: { link, filename: name } }) }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    return r.ok;
+  } catch { return false; }
 }
 
 // Log a question nobody answered yet as an inactive FAQ item: it shows at the top of Admin › FAQ,

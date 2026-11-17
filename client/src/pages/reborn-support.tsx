@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useTranslation } from "@/lib/i18n";
-import { ChevronDown, Send, HelpCircle, MessageCircle, Star } from "lucide-react";
+import { ChevronDown, Send, HelpCircle, MessageCircle, Star, Paperclip } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const TABS = ["FAQ", "Chat with admin", "Rate staff"] as const;
@@ -40,7 +40,14 @@ function Faq() {
             <span className="font-semibold text-sm">{f.question}</span>
             <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${open === f.id ? "rotate-180" : ""}`} />
           </button>
-          {open === f.id && <div className="px-4 pb-4 text-sm text-white/65 leading-relaxed">{f.answer}</div>}
+          {open === f.id && (
+            <div className="px-4 pb-4 text-sm text-white/65 leading-relaxed">
+              {f.answer}
+              {(f.files || []).map((file: { id: number; name: string; isImage: boolean; href: string }) => file.isImage
+                ? <a key={file.id} href={file.href} target="_blank" rel="noreferrer" className="mt-3 block"><img src={file.href} alt={file.name} loading="lazy" className="max-h-80 w-full rounded-xl object-contain" /></a>
+                : <a key={file.id} href={file.href} target="_blank" rel="noreferrer" className="mt-3 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-amber-200"><Paperclip className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">{file.name}</span><span className="shrink-0 text-xs text-white/50">{t("vn.sup.download")}</span></a>)}
+            </div>
+          )}
         </div>
       ))}
       {items.length === 0 && <p className="text-white/40 text-center py-8">{t("vn.sup.noFaq")}</p>}

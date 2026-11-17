@@ -171,6 +171,7 @@ async function post(key: string, c: MetaConfig, payload: Record<string, unknown>
 export interface SocialSendOptions {
   quickReplies?: Array<{ id: string; title: string }>;
   image?: string;  // http(s) URL; data: URLs can't be sent to Meta, so only the caption goes
+  file?: { url: string; name: string; isImage: boolean }; // a menu, price list, apk ... by its link (Instagram takes pictures only: the link goes as text)
   human?: boolean; // a staff reply from Admin › CRM
 }
 export async function sendSocial(key: string, rawText: string, opts: SocialSendOptions = {}): Promise<boolean> {
@@ -181,10 +182,13 @@ export async function sendSocial(key: string, rawText: string, opts: SocialSendO
   if (!c.token) { console.log(`[meta] (not configured) would send to ${key}: ${rawText.slice(0, 80)}`); return false; }
   const base = { recipient: { id: who.id }, ...(await messagingType(key, who.net, !!opts.human)) };
   let ok = true;
+  if (opts.file && (opts.file.isImage || who.net === "fb")) {
+    ok = await post(key, c, { ...base, message: { attachment: { type: opts.file.isImage ? "image" : "file", payload: { url: opts.file.url, is_reusable: true } } } });
+  } else if (opts.file) rawText = `${opts.file.name}: ${opts.file.url}`;
   if (opts.image && /^https?:\/\//.test(opts.image)) {
     ok = await post(key, c, { ...base, message: { attachment: { type: "image", payload: { url: opts.image, is_reusable: true } } } });
   }
-  const parts = chunks(plain(rawText), MAX_TEXT[who.net]);
+  const parts = chunks(plain(rawText), MAX_TEXT[who.net]).filter((part) => part.trim());
   const quick = (opts.quickReplies || []).slice(0, MAX_QUICK_REPLIES).map((q) => ({ content_type: "text", title: q.title.slice(0, MAX_QUICK_TITLE), payload: q.id.slice(0, 1000) }));
   for (let i = 0; i < parts.length; i++) {
     const last = i === parts.length - 1;
@@ -349,7 +353,8 @@ async function sendTelegram(key: string, chatId: string, rawText: string, opts: 
         await tgCall(c.token, "sendPhoto", form);
       } else if (/^https?:\/\//.test(opts.image)) await tgCall(c.token, "sendPhoto", { chat_id: chatId, photo: opts.image });
     }
-    const parts = chunks(plain(rawText), MAX_TEXT.tg);
+    if (opts.file) await tgCall(c.token, opts.file.isImage ? "sendPhoto" : "sendDocument", { chat_id: chatId, [opts.file.isImage ? "photo" : "document"]: opts.file.url });
+    const parts = chunks(plain(rawText), MAX_TEXT.tg).filter((part) => part.trim());
     const buttons = (opts.quickReplies || []).slice(0, MAX_QUICK_REPLIES).map((q) => [{ text: q.title, callback_data: q.id.slice(0, 64) }]);
     for (let i = 0; i < parts.length; i++) {
       const last = i === parts.length - 1;

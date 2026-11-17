@@ -14,6 +14,7 @@ const isPlatformTable = (table: string) => isBridgeTable(table) || table === "se
 
 const REGISTRY_TTL_MS = 30_000;
 const TENANT_COOKIE = "bx_tenant";
+const FILE_LINK_PREFIX = "/api/faq-files/";
 // Hosts that always serve Reborn's own data, whatever a browser remembers.
 const FLAGSHIP_HOSTS = new Set(["rebornwave.group", "www.rebornwave.group", "rebornwavegroup.com"]);
 // BridgeX platform API and console always work on platform data.
@@ -202,7 +203,8 @@ export async function tenantForRequest(req: Request): Promise<TenantSpace | null
   if (!all.length) return null;
   const byDomain = all.find((tenant) => tenant.domain === host);
   if (byDomain) return byDomain;
-  const slug = String(req.header("x-tenant-slug") || cookieValue(req, TENANT_COOKIE) || "").toLowerCase().trim();
+  const linkSlug = req.path.startsWith(FILE_LINK_PREFIX) ? String(req.query.tenant || "") : ""; // WhatsApp / Telegram fetch a file link with no cookie
+  const slug = String(req.header("x-tenant-slug") || cookieValue(req, TENANT_COOKIE) || linkSlug || "").toLowerCase().trim();
   return (slug && all.find((tenant) => tenant.slug === slug)) || null;
 }
 
