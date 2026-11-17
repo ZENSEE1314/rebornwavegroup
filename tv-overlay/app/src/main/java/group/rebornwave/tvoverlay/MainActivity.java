@@ -31,7 +31,7 @@ public class MainActivity extends Activity {
     private static final long POLL_MS = 2000;
     private static final long CONNECTOR_REFRESH_MS = 3000;
     private static final long TEST_BANNER_MS = 6000;
-    private static final int OVERLAY_LINES_SHOWN = 8;
+    private static final int OVERLAY_LINES_SHOWN = 12;
     private static final int CONNECTOR_LINES_SHOWN = 6;
 
     private final Handler ui = new Handler(Looper.getMainLooper());

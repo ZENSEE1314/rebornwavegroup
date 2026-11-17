@@ -13,11 +13,13 @@ import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import android.webkit.WebChromeClient;
 import android.webkit.WebViewClient;
 import android.widget.TextView;
 
@@ -38,6 +40,7 @@ final class OverlayWindows {
     private static final long RELOAD_AFTER_MS = 10_000;
     private static final float OPAQUE = 1f;
     private static final int BANNER_HEIGHT_PX = 220;
+    private static final long PAGE_START_WITHIN_MS = 15_000;
     // WindowManager.LayoutParams.TYPE_PRESENTATION: hidden from the public SDK, but a fixed value (FIRST_SYSTEM_WINDOW + 37) that Android has used since 4.2.
     private static final int TYPE_PRESENTATION = 2037;
 
@@ -45,6 +48,7 @@ final class OverlayWindows {
         final WindowManager windows;
         final WebView web;
         String shownUrl = "";
+        boolean ready = false;
 
         Layer(WindowManager windows, WebView web) {
             this.windows = windows;
@@ -185,6 +189,8 @@ final class OverlayWindows {
             @JavascriptInterface
             public void ready() {
                 OverlayLog.add("screen " + id + ": the page is running");
+                Layer running = layers.get(id);
+                if (running != null) running.ready = true;
                 handler.post(new Runnable() { @Override public void run() { web.setVisibility(View.VISIBLE); } });
             }
         }, "RebornOverlay");
@@ -211,6 +217,17 @@ final class OverlayWindows {
                 reloadLater(id);
             }
         });
+        // What the box's browser is and what the page complains about: an old browser cannot run the page, and this says so.
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage message) {
+                if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) OverlayLog.add("screen " + id + " page error: " + message.message() + " (line " + message.lineNumber() + ")");
+                return true;
+            }
+        });
+        String agent = web.getSettings().getUserAgentString();
+        int chrome = agent.indexOf("Chrome/");
+        OverlayLog.add("screen " + id + ": browser " + (chrome >= 0 ? agent.substring(chrome, Math.min(agent.length(), chrome + 20)) : agent) + ", Android " + Build.VERSION.RELEASE);
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
@@ -230,6 +247,12 @@ final class OverlayWindows {
         layer.shownUrl = url;
         layers.put(id, layer);
         web.loadUrl(url);
+        handler.postDelayed(new Runnable() {
+            @Override public void run() {
+                Layer waiting = layers.get(id);
+                if (waiting != null && !waiting.ready) OverlayLog.add("screen " + id + ": the page did not start in " + (PAGE_START_WITHIN_MS / 1000) + " s (the box's browser may be too old)");
+            }
+        }, PAGE_START_WITHIN_MS);
     }
 
     private void remove(int id) {
