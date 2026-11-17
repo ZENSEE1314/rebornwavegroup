@@ -18,6 +18,7 @@ import android.view.WindowManager;
  */
 public class OverlayService extends Service {
     static volatile boolean running = false;
+    static volatile OverlayWindows windowsNow;
 
     private static final String CHANNEL = "overlay";
     private static final int NOTIFICATION_ID = 1;
@@ -50,6 +51,7 @@ public class OverlayService extends Service {
             // Android 12+ drops taps that pass through another app's window more opaque than 0.8: stay just under it.
             int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
             windows = new OverlayWindows(this, type, TOUCH_PASS_THROUGH_ALPHA);
+            windowsNow = windows;
         }
         windows.show(Link.pageUrl(this));
         running = true;
@@ -72,6 +74,7 @@ public class OverlayService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        windowsNow = null;
         if (windows != null) {
             windows.hide();
             windows = null;

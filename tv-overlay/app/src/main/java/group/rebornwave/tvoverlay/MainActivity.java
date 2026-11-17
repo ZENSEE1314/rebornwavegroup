@@ -30,6 +30,8 @@ public class MainActivity extends Activity {
     private static final int CODE_SP = 64;
     private static final long POLL_MS = 2000;
     private static final long CONNECTOR_REFRESH_MS = 3000;
+    private static final long TEST_BANNER_MS = 6000;
+    private static final int OVERLAY_LINES_SHOWN = 8;
     private static final int CONNECTOR_LINES_SHOWN = 6;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -115,6 +117,9 @@ public class MainActivity extends Activity {
         }));
         root.addView(button(t("Both screens", "两个屏幕", "Kedua layar"), new View.OnClickListener() {
             @Override public void onClick(View v) { chooseScreens(Screens.BOTH); }
+        }));
+        root.addView(button(t("Test: show a red banner on the screens for 6 seconds", "测试：在屏幕上显示红色横幅6秒", "Tes: tampilkan spanduk merah di layar selama 6 detik"), new View.OnClickListener() {
+            @Override public void onClick(View v) { testBanner(); }
         }));
         root.addView(button(t("Start the overlay now", "立即启动叠加", "Mulai overlay sekarang"), new View.OnClickListener() {
             @Override public void onClick(View v) { startOverlay(); }
@@ -293,9 +298,22 @@ public class MainActivity extends Activity {
     private final Runnable connectorTick = new Runnable() {
         @Override public void run() {
             refreshConnector();
+            refresh();
             ui.postDelayed(this, CONNECTOR_REFRESH_MS);
         }
     };
+
+    /** Draws a plain banner through whichever overlay is on (Accessibility first): shows whether this box lets a window cover the karaoke picture, whatever the gift page does. */
+    private void testBanner() {
+        OverlayWindows windows = OverlayAccessibilityService.windowsNow != null ? OverlayAccessibilityService.windowsNow : OverlayService.windowsNow;
+        if (windows == null) {
+            OverlayLog.add("test: no overlay is on yet (switch Reborn TV Overlay on in Accessibility, or start the overlay)");
+        } else {
+            OverlayLog.add("test: banner asked");
+            windows.banner(t("TEST BANNER - gifts will show here", "测试横幅 - 礼物将显示在这里", "SPANDUK TES - hadiah tampil di sini"), TEST_BANNER_MS);
+        }
+        refresh();
+    }
 
     private void chooseScreens(String choice) {
         Link.saveScreens(this, choice);
@@ -316,7 +334,9 @@ public class MainActivity extends Activity {
                 + "\n" + t("TV screen: ", "电视屏幕：", "Layar TV: ") + linked
                 + "\n" + t("Overlay: ", "叠加：", "Overlay: ") + running
                 + "\n" + t("Gifts on: ", "礼物显示在：", "Hadiah di: ") + screenChoiceName()
+                + "\n" + t("Accessibility service: ", "无障碍服务：", "Layanan Aksesibilitas: ") + (OverlayAccessibilityService.running ? t("running", "运行中", "berjalan") : t("not running", "未运行", "tidak berjalan"))
                 + "\n" + t("Screens of this box:\n", "本机的屏幕：\n", "Layar mesin ini:\n") + Screens.describe(this)
+                + t("What the overlay did:\n", "叠加的动作：\n", "Yang dilakukan overlay:\n") + OverlayLog.recent(OVERLAY_LINES_SHOWN)
                 + "\n" + Link.server(this));
     }
 

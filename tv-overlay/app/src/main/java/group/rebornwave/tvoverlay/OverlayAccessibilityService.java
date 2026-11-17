@@ -16,6 +16,7 @@ import android.view.accessibility.AccessibilityEvent;
  */
 public class OverlayAccessibilityService extends AccessibilityService {
     static volatile boolean running = false;
+    static volatile OverlayWindows windowsNow;
 
     private static final long CHECK_MS = 2000;
 
@@ -41,6 +42,7 @@ public class OverlayAccessibilityService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         windows = new OverlayWindows(this, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, 1f);
+        windowsNow = windows;
         running = true;
         handler.post(check);
     }
@@ -64,6 +66,7 @@ public class OverlayAccessibilityService extends AccessibilityService {
     @Override
     public void onDestroy() {
         running = false;
+        windowsNow = null;
         handler.removeCallbacksAndMessages(null);
         if (windows != null) {
             windows.hide();

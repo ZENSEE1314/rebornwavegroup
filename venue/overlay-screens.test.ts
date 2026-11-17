@@ -26,6 +26,10 @@ describe("the gift overlay on the box's screens", () => {
     assert.ok(read("OverlayWindows.java").includes("service.createDisplayContext(display)"));
   });
 
+  it("should have a test banner that shows whether a window can cover the karaoke picture", () => {
+    assert.ok(read("OverlayWindows.java").includes("void banner(String text, long millis)") && read("MainActivity.java").includes("windows.banner("));
+  });
+
   it("should follow the HDMI cable being plugged in or out", () => {
     assert.ok(read("OverlayWindows.java").includes("registerDisplayListener(screensChanged, handler)"));
   });

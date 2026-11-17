@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.Display;
+import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -18,6 +19,7 @@ import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +37,7 @@ final class OverlayWindows {
     private static final String TAG = "RebornOverlay";
     private static final long RELOAD_AFTER_MS = 10_000;
     private static final float OPAQUE = 1f;
+    private static final int BANNER_HEIGHT_PX = 220;
 
     private static final class Layer {
         final WindowManager windows;
@@ -111,10 +114,49 @@ final class OverlayWindows {
         return Build.VERSION.SDK_INT >= 30 ? ofScreen.createWindowContext(windowType, null) : ofScreen;
     }
 
+    /** Shows a plain red banner with this text on every wanted screen for a few seconds: tells whether windows can be drawn over the karaoke picture at all, whatever the page does. */
+    void banner(String text, long millis) {
+        for (Display display : Screens.wanted(service)) {
+            final int id = display.getDisplayId();
+            try {
+                Context context = contextFor(display);
+                final TextView view = new TextView(context);
+                view.setText(text);
+                view.setTextSize(40);
+                view.setTextColor(Color.WHITE);
+                view.setBackgroundColor(Color.argb(200, 200, 0, 0));
+                view.setGravity(Gravity.CENTER);
+                final WindowManager manager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+                int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+                WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.MATCH_PARENT, BANNER_HEIGHT_PX, windowType, flags, PixelFormat.TRANSLUCENT);
+                params.gravity = Gravity.TOP;
+                if (alpha < OPAQUE) params.alpha = alpha;
+                manager.addView(view, params);
+                OverlayLog.add("screen " + id + ": test banner shown");
+                handler.postDelayed(new Runnable() {
+                    @Override public void run() {
+                        try { manager.removeView(view); } catch (RuntimeException gone) { /* already removed */ }
+                    }
+                }, millis);
+            } catch (RuntimeException refused) {
+                OverlayLog.add("screen " + id + ": test banner refused: " + refused.getClass().getSimpleName() + " " + refused.getMessage());
+            }
+        }
+    }
+
     private void add(Display display) {
         final int id = display.getDisplayId();
-        final Context context = contextFor(display);
-        final WebView web = new WebView(context);
+        final Context context;
+        final WebView web;
+        try {
+            context = contextFor(display);
+            web = new WebView(context);
+        } catch (RuntimeException refused) {
+            OverlayLog.add("screen " + id + ": could not start a page: " + refused.getClass().getSimpleName() + " " + refused.getMessage());
+            return;
+        }
         web.setBackgroundColor(Color.TRANSPARENT);
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
@@ -124,17 +166,28 @@ final class OverlayWindows {
         web.addJavascriptInterface(new Object() {
             @JavascriptInterface
             public void ready() {
+                OverlayLog.add("screen " + id + ": the page is running");
                 handler.post(new Runnable() { @Override public void run() { web.setVisibility(View.VISIBLE); } });
             }
         }, "RebornOverlay");
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) { view.setVisibility(View.INVISIBLE); reloadLater(id); }
+                if (request.isForMainFrame()) {
+                    OverlayLog.add("screen " + id + ": page error " + error.getErrorCode() + " " + error.getDescription());
+                    view.setVisibility(View.INVISIBLE);
+                    reloadLater(id);
+                }
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String finishedUrl) {
+                OverlayLog.add("screen " + id + ": page loaded");
             }
 
             @Override
             public void onReceivedSslError(WebView view, SslErrorHandler sslHandler, SslError error) {
+                OverlayLog.add("screen " + id + ": certificate problem, page not shown");
                 sslHandler.cancel(); // never carry on past a certificate problem
                 view.setVisibility(View.INVISIBLE);
                 reloadLater(id);
@@ -150,9 +203,11 @@ final class OverlayWindows {
             windows.addView(web, params);
         } catch (RuntimeException refused) {
             Log.w(TAG, "screen " + id + " would not take the overlay: " + refused);
+            OverlayLog.add("screen " + id + ": window refused: " + refused.getClass().getSimpleName() + " " + refused.getMessage());
             web.destroy();
             return;
         }
+        OverlayLog.add("screen " + id + ": window added");
         Layer layer = new Layer(windows, web);
         layer.shownUrl = url;
         layers.put(id, layer);
