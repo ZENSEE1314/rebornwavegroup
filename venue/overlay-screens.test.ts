@@ -47,6 +47,11 @@ describe("the gift overlay on the box's screens", () => {
     assert.ok(read("TvFeed.java").includes('"/api/tv/" + token + "/stream"'));
   });
 
+  it("should put the overlay back on top of the karaoke picture before every gift", () => {
+    const windows = read("OverlayWindows.java");
+    assert.ok(windows.includes("void raise()") && windows.includes("raise();\n                for (Layer layer : layers.values()) layer.view.play(gift);"));
+  });
+
   it("should follow the HDMI cable being plugged in or out", () => {
     assert.ok(read("OverlayWindows.java").includes("registerDisplayListener(screensChanged, handler)"));
   });

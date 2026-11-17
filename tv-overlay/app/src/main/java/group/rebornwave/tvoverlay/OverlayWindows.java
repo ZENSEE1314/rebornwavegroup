@@ -33,13 +33,17 @@ final class OverlayWindows {
     // WindowManager.LayoutParams.TYPE_PRESENTATION: hidden from the public SDK, but a fixed value (FIRST_SYSTEM_WINDOW + 37) that Android has used since 4.2.
     private static final int TYPE_PRESENTATION = 2037;
 
+    private static final long RAISE_EVERY_MS = 20_000;
+
     private static final class Layer {
         final WindowManager windows;
         final GiftView view;
+        final WindowManager.LayoutParams params;
 
-        Layer(WindowManager windows, GiftView view) {
+        Layer(WindowManager windows, GiftView view, WindowManager.LayoutParams params) {
             this.windows = windows;
             this.view = view;
+            this.params = params;
         }
     }
 
@@ -67,6 +71,7 @@ final class OverlayWindows {
         this.alpha = alpha;
         this.feed = new TvFeed(service, handler, new TvFeed.Listener() {
             @Override public void onGift(TvFeed.Gift gift) {
+                raise();
                 for (Layer layer : layers.values()) layer.view.play(gift);
             }
 
@@ -96,6 +101,32 @@ final class OverlayWindows {
         for (Display display : wanted) wantedIds.add(display.getDisplayId());
         for (Integer id : new ArrayList<Integer>(layers.keySet())) if (!wantedIds.contains(id)) remove(id);
         for (Display display : wanted) if (!layers.containsKey(display.getDisplayId())) add(display);
+        if (!layers.isEmpty()) {
+            handler.removeCallbacks(raiser);
+            handler.postDelayed(raiser, RAISE_EVERY_MS);
+        }
+    }
+
+    private final Runnable raiser = new Runnable() {
+        @Override public void run() {
+            raise();
+            handler.postDelayed(this, RAISE_EVERY_MS);
+        }
+    };
+
+    /**
+     * Android stacks windows of one kind newest on top, and the karaoke program draws its picture on the TV after ours: taking our window off and
+     * putting it on again puts it back above the picture. Done before every gift and now and then for the song bar.
+     */
+    void raise() {
+        for (Layer layer : layers.values()) {
+            try {
+                layer.windows.removeView(layer.view);
+                layer.windows.addView(layer.view, layer.params);
+            } catch (RuntimeException failed) {
+                OverlayLog.add("raise failed: " + failed.getClass().getSimpleName() + " " + failed.getMessage());
+            }
+        }
     }
 
     void hide() {
@@ -104,6 +135,7 @@ final class OverlayWindows {
             listening = false;
         }
         feed.stop();
+        handler.removeCallbacks(raiser);
         handler.removeCallbacksAndMessages(null);
         for (Integer id : new ArrayList<Integer>(layers.keySet())) remove(id);
         path = "";
@@ -184,6 +216,7 @@ final class OverlayWindows {
         gift.toName = "Sam";
         gift.toTable = "9";
         gift.kgold = 1000;
+        raise();
         for (Layer layer : layers.values()) layer.view.play(gift);
         OverlayLog.add("test: gift played on " + layers.size() + " screen(s)");
     }
@@ -200,8 +233,9 @@ final class OverlayWindows {
             return;
         }
         WindowManager windows = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        WindowManager.LayoutParams params = paramsFor(display, WindowManager.LayoutParams.MATCH_PARENT);
         try {
-            windows.addView(view, paramsFor(display, WindowManager.LayoutParams.MATCH_PARENT));
+            windows.addView(view, params);
         } catch (RuntimeException refused) {
             Log.w(TAG, "screen " + id + " would not take the overlay: " + refused);
             OverlayLog.add("screen " + id + ": window refused: " + refused.getClass().getSimpleName() + " " + refused.getMessage());
@@ -210,7 +244,7 @@ final class OverlayWindows {
         }
         OverlayLog.add("screen " + id + ": window added");
         view.setBar(bar);
-        layers.put(id, new Layer(windows, view));
+        layers.put(id, new Layer(windows, view, params));
     }
 
     private void remove(int id) {
