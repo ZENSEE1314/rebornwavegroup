@@ -38,6 +38,8 @@ final class OverlayWindows {
     private static final long RELOAD_AFTER_MS = 10_000;
     private static final float OPAQUE = 1f;
     private static final int BANNER_HEIGHT_PX = 220;
+    // WindowManager.LayoutParams.TYPE_PRESENTATION: hidden from the public SDK, but a fixed value (FIRST_SYSTEM_WINDOW + 37) that Android has used since 4.2.
+    private static final int TYPE_PRESENTATION = 2037;
 
     private static final class Layer {
         final WindowManager windows;
@@ -113,7 +115,7 @@ final class OverlayWindows {
      * no permission and no token, and which sits above the windows of the karaoke program.
      */
     private int typeFor(Display display) {
-        return display.getDisplayId() == Display.DEFAULT_DISPLAY ? windowType : WindowManager.LayoutParams.TYPE_PRESENTATION;
+        return display.getDisplayId() == Display.DEFAULT_DISPLAY ? windowType : TYPE_PRESENTATION;
     }
 
     /** The context a window of this screen needs: another screen's windows come from a context made for that screen. */
@@ -122,7 +124,7 @@ final class OverlayWindows {
         Context ofScreen = service.createDisplayContext(display);
         if (Build.VERSION.SDK_INT >= 30) {
             try {
-                return ofScreen.createWindowContext(WindowManager.LayoutParams.TYPE_PRESENTATION, null);
+                return ofScreen.createWindowContext(TYPE_PRESENTATION, null);
             } catch (RuntimeException unsupported) {
                 OverlayLog.add("screen " + display.getDisplayId() + ": no window context for it, using the plain one");
             }

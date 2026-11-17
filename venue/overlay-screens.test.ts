@@ -31,7 +31,7 @@ describe("the gift overlay on the box's screens", () => {
   });
 
   it("should give the HDMI screen a presentation window, which needs neither a token nor a permission", () => {
-    assert.ok(read("OverlayWindows.java").includes("WindowManager.LayoutParams.TYPE_PRESENTATION"));
+    assert.ok(read("OverlayWindows.java").includes("TYPE_PRESENTATION = 2037"));
   });
 
   it("should not ask for the draw-over permission when only the HDMI screen is wanted", () => {
