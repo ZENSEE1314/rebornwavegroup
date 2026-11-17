@@ -121,6 +121,9 @@ public class MainActivity extends Activity {
         root.addView(button(t("Test: show a red banner on the screens for 6 seconds", "测试：在屏幕上显示红色横幅6秒", "Tes: tampilkan spanduk merah di layar selama 6 detik"), new View.OnClickListener() {
             @Override public void onClick(View v) { testBanner(); }
         }));
+        root.addView(button(t("Test: play a gift on the screens (no server needed)", "测试：在屏幕上播放礼物（无需服务器）", "Tes: putar hadiah di layar (tanpa server)"), new View.OnClickListener() {
+            @Override public void onClick(View v) { testGift(); }
+        }));
         root.addView(button(t("Start the overlay now", "立即启动叠加", "Mulai overlay sekarang"), new View.OnClickListener() {
             @Override public void onClick(View v) { startOverlay(); }
         }));
@@ -312,6 +315,13 @@ public class MainActivity extends Activity {
             OverlayLog.add("test: banner asked");
             windows.banner(t("TEST BANNER - gifts will show here", "测试横幅 - 礼物将显示在这里", "SPANDUK TES - hadiah tampil di sini"), TEST_BANNER_MS);
         }
+        refresh();
+    }
+
+    private void testGift() {
+        OverlayWindows windows = OverlayAccessibilityService.windowsNow != null ? OverlayAccessibilityService.windowsNow : OverlayService.windowsNow;
+        if (windows == null) OverlayLog.add("test: no overlay is on yet");
+        else windows.testGift();
         refresh();
     }
 

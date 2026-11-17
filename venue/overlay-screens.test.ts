@@ -38,6 +38,15 @@ describe("the gift overlay on the box's screens", () => {
     assert.ok(read("OverlayService.java").includes("canDraw(context) || !Screens.needsDrawPermission(context)"));
   });
 
+  it("should draw the gifts from plain views, not a web page, so an old browser on the box cannot stop them", () => {
+    assert.equal(/WebView/.test(read("OverlayWindows.java")), false);
+    assert.ok(read("GiftView.java").includes("class GiftView extends FrameLayout"));
+  });
+
+  it("should follow the TV screen's own stream for gifts", () => {
+    assert.ok(read("TvFeed.java").includes('"/api/tv/" + token + "/stream"'));
+  });
+
   it("should follow the HDMI cable being plugged in or out", () => {
     assert.ok(read("OverlayWindows.java").includes("registerDisplayListener(screensChanged, handler)"));
   });

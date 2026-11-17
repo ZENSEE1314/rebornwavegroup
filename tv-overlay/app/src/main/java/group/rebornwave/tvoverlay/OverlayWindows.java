@@ -4,23 +4,13 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.hardware.display.DisplayManager;
-import android.net.http.SslError;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
-import android.view.View;
 import android.view.WindowManager;
-import android.webkit.ConsoleMessage;
-import android.webkit.JavascriptInterface;
-import android.webkit.SslErrorHandler;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebView;
-import android.webkit.WebChromeClient;
-import android.webkit.WebViewClient;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -31,28 +21,25 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The see-through page of the linked TV screen, drawn over everything on each wanted screen of this box (see Screens): the main screen, the
- * HDMI / TV screen, or both. A window belongs to one screen, so each screen gets its own page. The windows cannot be touched or focused, so the
- * karaoke program keeps working underneath. Plugging in or taking out the HDMI cable is noticed and the page follows.
+ * What is drawn over everything on each wanted screen of this box (see Screens): the main screen, the HDMI / TV screen, or both. A window belongs
+ * to one screen, so each screen gets its own. The gifts and the song bar are plain Android views (GiftView) fed straight from the app (TvFeed),
+ * not a web page, so an old browser on the box cannot get in the way. The windows cannot be touched or focused, so the karaoke program keeps
+ * working underneath. Plugging in or taking out the HDMI cable is noticed and the windows follow.
  */
 final class OverlayWindows {
     private static final String TAG = "RebornOverlay";
-    private static final long RELOAD_AFTER_MS = 10_000;
     private static final float OPAQUE = 1f;
     private static final int BANNER_HEIGHT_PX = 220;
-    private static final long PAGE_START_WITHIN_MS = 15_000;
     // WindowManager.LayoutParams.TYPE_PRESENTATION: hidden from the public SDK, but a fixed value (FIRST_SYSTEM_WINDOW + 37) that Android has used since 4.2.
     private static final int TYPE_PRESENTATION = 2037;
 
     private static final class Layer {
         final WindowManager windows;
-        final WebView web;
-        String shownUrl = "";
-        boolean ready = false;
+        final GiftView view;
 
-        Layer(WindowManager windows, WebView web) {
+        Layer(WindowManager windows, GiftView view) {
             this.windows = windows;
-            this.web = web;
+            this.view = view;
         }
     }
 
@@ -61,7 +48,8 @@ final class OverlayWindows {
     private final float alpha;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<Integer, Layer> layers = new HashMap<Integer, Layer>();
-    private String url = "";
+    private String path = "";
+    private String bar = "";
     private boolean listening = false;
 
     private final DisplayManager.DisplayListener screensChanged = new DisplayManager.DisplayListener() {
@@ -70,33 +58,44 @@ final class OverlayWindows {
         @Override public void onDisplayChanged(int displayId) { }
     };
 
+    private final TvFeed feed;
+
     /** `alpha` below 1 only where Android 12+ would otherwise drop taps that pass through the window (see OverlayService). */
     OverlayWindows(Context service, int windowType, float alpha) {
         this.service = service;
         this.windowType = windowType;
         this.alpha = alpha;
+        this.feed = new TvFeed(service, handler, new TvFeed.Listener() {
+            @Override public void onGift(TvFeed.Gift gift) {
+                for (Layer layer : layers.values()) layer.view.play(gift);
+            }
+
+            @Override public void onBar(String text) {
+                bar = text;
+                for (Layer layer : layers.values()) layer.view.setBar(text);
+            }
+        });
     }
 
     boolean isShowing() {
         return !layers.isEmpty();
     }
 
-    /** Puts the page on every wanted screen and takes it off the others; call again after the link, the choice or the cable changed. */
-    void show(String pageUrl) {
-        url = pageUrl;
+    /** Draws on every wanted screen and stops drawing on the others; call again after the link, the choice or the cable changed. `tvPath` is the linked TV screen, like /tv/TOKEN. */
+    void show(String tvPath) {
         if (!listening) {
             ((DisplayManager) service.getSystemService(Context.DISPLAY_SERVICE)).registerDisplayListener(screensChanged, handler);
             listening = true;
+        }
+        if (!tvPath.equals(path)) {
+            path = tvPath;
+            feed.start(tvPath);
         }
         List<Display> wanted = Screens.wanted(service);
         Set<Integer> wantedIds = new HashSet<Integer>();
         for (Display display : wanted) wantedIds.add(display.getDisplayId());
         for (Integer id : new ArrayList<Integer>(layers.keySet())) if (!wantedIds.contains(id)) remove(id);
-        for (Display display : wanted) {
-            Layer layer = layers.get(display.getDisplayId());
-            if (layer == null) add(display);
-            else if (!pageUrl.equals(layer.shownUrl)) { layer.shownUrl = pageUrl; layer.web.loadUrl(pageUrl); }
-        }
+        for (Display display : wanted) if (!layers.containsKey(display.getDisplayId())) add(display);
     }
 
     void hide() {
@@ -104,13 +103,15 @@ final class OverlayWindows {
             ((DisplayManager) service.getSystemService(Context.DISPLAY_SERVICE)).unregisterDisplayListener(screensChanged);
             listening = false;
         }
+        feed.stop();
         handler.removeCallbacksAndMessages(null);
         for (Integer id : new ArrayList<Integer>(layers.keySet())) remove(id);
-        url = "";
+        path = "";
+        bar = "";
     }
 
     private void followScreens() {
-        if (!url.isEmpty()) show(url);
+        if (!path.isEmpty()) show(path);
     }
 
     /**
@@ -136,7 +137,15 @@ final class OverlayWindows {
         return ofScreen;
     }
 
-    /** Shows a plain red banner with this text on every wanted screen for a few seconds: tells whether windows can be drawn over the karaoke picture at all, whatever the page does. */
+    private WindowManager.LayoutParams paramsFor(Display display, int height) {
+        int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, height, typeFor(display), flags, PixelFormat.TRANSLUCENT);
+        if (alpha < OPAQUE) params.alpha = alpha;
+        return params;
+    }
+
+    /** Shows a plain red banner with this text on every wanted screen for a few seconds: tells whether windows can be drawn over the karaoke picture at all. */
     void banner(String text, long millis) {
         for (Display display : Screens.wanted(service)) {
             final int id = display.getDisplayId();
@@ -149,12 +158,8 @@ final class OverlayWindows {
                 view.setBackgroundColor(Color.argb(200, 200, 0, 0));
                 view.setGravity(Gravity.CENTER);
                 final WindowManager manager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-                int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
-                WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                        WindowManager.LayoutParams.MATCH_PARENT, BANNER_HEIGHT_PX, typeFor(display), flags, PixelFormat.TRANSLUCENT);
+                WindowManager.LayoutParams params = paramsFor(display, BANNER_HEIGHT_PX);
                 params.gravity = Gravity.TOP;
-                if (alpha < OPAQUE) params.alpha = alpha;
                 manager.addView(view, params);
                 OverlayLog.add("screen " + id + ": test banner shown");
                 handler.postDelayed(new Runnable() {
@@ -168,107 +173,50 @@ final class OverlayWindows {
         }
     }
 
+    /** Plays a made-up gift on every screen, with no server: shows that the drawing itself works on this box. */
+    void testGift() {
+        TvFeed.Gift gift = new TvFeed.Gift();
+        gift.id = "test";
+        gift.name = Words.t("Test rose", "测试玫瑰", "Mawar tes");
+        gift.emoji = "🌹";
+        gift.fromName = "Alex";
+        gift.fromTable = "5";
+        gift.toName = "Sam";
+        gift.toTable = "9";
+        gift.kgold = 1000;
+        for (Layer layer : layers.values()) layer.view.play(gift);
+        OverlayLog.add("test: gift played on " + layers.size() + " screen(s)");
+    }
+
     private void add(Display display) {
         final int id = display.getDisplayId();
-        final Context context;
-        final WebView web;
+        Context context;
+        GiftView view;
         try {
             context = contextFor(display);
-            web = new WebView(context);
+            view = new GiftView(context);
         } catch (RuntimeException refused) {
-            OverlayLog.add("screen " + id + ": could not start a page: " + refused.getClass().getSimpleName() + " " + refused.getMessage());
+            OverlayLog.add("screen " + id + ": could not start: " + refused.getClass().getSimpleName() + " " + refused.getMessage());
             return;
         }
-        web.setBackgroundColor(Color.TRANSPARENT);
-        web.getSettings().setJavaScriptEnabled(true);
-        web.getSettings().setDomStorageEnabled(true);
-        web.getSettings().setMediaPlaybackRequiresUserGesture(false);
-        // Hidden until the page itself says it runs (RebornOverlay.ready()): a page that cannot load or run on this box never covers the picture.
-        web.setVisibility(View.INVISIBLE);
-        web.addJavascriptInterface(new Object() {
-            @JavascriptInterface
-            public void ready() {
-                OverlayLog.add("screen " + id + ": the page is running");
-                Layer running = layers.get(id);
-                if (running != null) running.ready = true;
-                handler.post(new Runnable() { @Override public void run() { web.setVisibility(View.VISIBLE); } });
-            }
-        }, "RebornOverlay");
-        web.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) {
-                    OverlayLog.add("screen " + id + ": page error " + error.getErrorCode() + " " + error.getDescription());
-                    view.setVisibility(View.INVISIBLE);
-                    reloadLater(id);
-                }
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String finishedUrl) {
-                OverlayLog.add("screen " + id + ": page loaded");
-            }
-
-            @Override
-            public void onReceivedSslError(WebView view, SslErrorHandler sslHandler, SslError error) {
-                OverlayLog.add("screen " + id + ": certificate problem, page not shown");
-                sslHandler.cancel(); // never carry on past a certificate problem
-                view.setVisibility(View.INVISIBLE);
-                reloadLater(id);
-            }
-        });
-        // What the box's browser is and what the page complains about: an old browser cannot run the page, and this says so.
-        web.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public boolean onConsoleMessage(ConsoleMessage message) {
-                if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) OverlayLog.add("screen " + id + " page error: " + message.message() + " (line " + message.lineNumber() + ")");
-                return true;
-            }
-        });
-        String agent = web.getSettings().getUserAgentString();
-        int chrome = agent.indexOf("Chrome/");
-        OverlayLog.add("screen " + id + ": browser " + (chrome >= 0 ? agent.substring(chrome, Math.min(agent.length(), chrome + 20)) : agent) + ", Android " + Build.VERSION.RELEASE);
-        int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, typeFor(display), flags, PixelFormat.TRANSLUCENT);
-        if (alpha < OPAQUE) params.alpha = alpha;
         WindowManager windows = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         try {
-            windows.addView(web, params);
+            windows.addView(view, paramsFor(display, WindowManager.LayoutParams.MATCH_PARENT));
         } catch (RuntimeException refused) {
             Log.w(TAG, "screen " + id + " would not take the overlay: " + refused);
             OverlayLog.add("screen " + id + ": window refused: " + refused.getClass().getSimpleName() + " " + refused.getMessage());
-            web.destroy();
+            view.close();
             return;
         }
         OverlayLog.add("screen " + id + ": window added");
-        Layer layer = new Layer(windows, web);
-        layer.shownUrl = url;
-        layers.put(id, layer);
-        web.loadUrl(url);
-        handler.postDelayed(new Runnable() {
-            @Override public void run() {
-                Layer waiting = layers.get(id);
-                if (waiting != null && !waiting.ready) OverlayLog.add("screen " + id + ": the page did not start in " + (PAGE_START_WITHIN_MS / 1000) + " s (the box's browser may be too old)");
-            }
-        }, PAGE_START_WITHIN_MS);
+        view.setBar(bar);
+        layers.put(id, new Layer(windows, view));
     }
 
     private void remove(int id) {
         Layer layer = layers.remove(id);
         if (layer == null) return;
-        try { layer.windows.removeView(layer.web); } catch (RuntimeException gone) { /* the screen went away with its window */ }
-        layer.web.destroy();
-    }
-
-    private void reloadLater(final int id) {
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                Layer layer = layers.get(id);
-                if (layer != null) layer.web.loadUrl(layer.shownUrl);
-            }
-        }, RELOAD_AFTER_MS);
+        layer.view.close();
+        try { layer.windows.removeView(layer.view); } catch (RuntimeException gone) { /* the screen went away with its window */ }
     }
 }
