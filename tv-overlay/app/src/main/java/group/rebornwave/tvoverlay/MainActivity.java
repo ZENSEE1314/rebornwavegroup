@@ -99,6 +99,19 @@ public class MainActivity extends Activity {
         });
         showPlaybackSetting(playback);
         root.addView(playback);
+        final TextView boxTestResult = label("", 14, false);
+        root.addView(button(t("Test the box's own song system", "测试点歌机自带的点歌系统", "Tes sistem lagu bawaan mesin"), new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                boxTestResult.setText(t("Testing…", "测试中…", "Menguji…"));
+                new Thread(new Runnable() {
+                    @Override public void run() {
+                        final String report = BoxServlets.diagnose(MainActivity.this);
+                        ui.post(new Runnable() { @Override public void run() { boxTestResult.setText(report); } });
+                    }
+                }, "box-test").start();
+            }
+        }));
+        root.addView(boxTestResult);
         final Button voiceSide = button("", null);
         voiceSide.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { BridgeSettings.saveVoiceFirst(MainActivity.this, !BridgeSettings.isVoiceFirst(MainActivity.this)); showVoiceSettings(voiceSide, null); }

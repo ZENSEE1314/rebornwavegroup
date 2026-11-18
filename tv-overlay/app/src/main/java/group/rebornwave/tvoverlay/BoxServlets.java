@@ -58,6 +58,46 @@ final class BoxServlets {
         return scanned.isEmpty() ? "" : remember(context, scanned);
     }
 
+    /** What the touch screen can say about the box's song system, for the "Test" button: where it was found, and what its search and singers pages really answer. */
+    static String diagnose(Context context) {
+        StringBuilder report = new StringBuilder();
+        String base = find(context);
+        if (base.isEmpty()) {
+            return Words.t("NOT FOUND. Tried: the saved address, 127.0.0.1:8084, this device's own addresses " + ownAddresses() + " and every address of those networks on port 8084.",
+                    "未找到。已尝试：已保存的地址、127.0.0.1:8084、本机地址 " + ownAddresses() + " 以及这些网络的所有地址（端口 8084）。",
+                    "TIDAK DITEMUKAN. Dicoba: alamat tersimpan, 127.0.0.1:8084, alamat perangkat ini " + ownAddresses() + " dan semua alamat jaringan itu di port 8084.");
+        }
+        report.append(Words.t("Found at ", "已找到：", "Ditemukan di ")).append(base);
+        try {
+            Page page = search(base, "a", "", 1);
+            report.append("\n").append(Words.t("Search \"a\": ", "搜索“a”：", "Cari \"a\": ")).append(page.rawCount).append(" / ").append(page.songs.size()).append(" on the box");
+            if (!page.songs.isEmpty()) report.append(" — ").append(page.songs.get(0).title);
+        } catch (Exception failure) {
+            report.append("\nSearch failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
+        }
+        try {
+            report.append("\nSingers page 1: ").append(singers(base, 1).size());
+            report.append("\nSingerServlet says: ").append(shortAnswer(base + "/SingerServlet?singer=&singerType=&sortType=&page=1&jsonpCallback=" + CALLBACK));
+        } catch (Exception failure) {
+            report.append("\nSingers failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
+        }
+        return report.toString();
+    }
+
+    private static String shortAnswer(String address) {
+        try {
+            String body = text(address, CALL_MS);
+            return body.length() > 160 ? body.substring(0, 160) + "..." : body;
+        } catch (Exception failure) {
+            return failure.getClass().getSimpleName() + " " + failure.getMessage();
+        }
+    }
+
+    /** The address of the box's song system found so far ("" before it is found). */
+    static String address() {
+        return known;
+    }
+
     private static String remember(Context context, String address) {
         known = address;
         BridgeSettings.saveBox(context, address);

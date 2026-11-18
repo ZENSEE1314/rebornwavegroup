@@ -28,6 +28,12 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
         this.photos = photos;
     }
 
+    @Override
+    public String source() {
+        String address = BoxServlets.address();
+        return Words.t("the box's own song system", "点歌机自带的点歌系统", "sistem lagu bawaan mesin") + (address.isEmpty() ? Words.t(" (not found yet)", "（尚未找到）", " (belum ditemukan)") : " (" + address + ")");
+    }
+
     private String box() throws Exception {
         String base = BoxServlets.find(context);
         if (base.isEmpty()) throw new java.io.IOException("the box's song system was not found on this network");

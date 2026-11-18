@@ -42,6 +42,9 @@ final class ControlPanel extends LinearLayout {
         List<SongPick> top() throws Exception;
 
         List<SongPick> fresh() throws Exception;
+
+        /** Where the songs come from, in words, for the messages of an empty list. */
+        String source();
     }
 
     /** What the buttons do. `onRequest` puts the song in the queue for the table and returns the sentence to show the person. */
@@ -512,13 +515,13 @@ final class ControlPanel extends LinearLayout {
 
     private void empty(String text) {
         listArea.removeAllViews();
-        listArea.addView(text(getContext(), text, 22, false, SOFT));
+        listArea.addView(text(getContext(), text + "\n" + Words.t("Songs come from: ", "歌曲来源：", "Lagu berasal dari: ") + catalog.source(), 22, false, SOFT));
     }
 
     private void fillSingers(List<String> names) {
         listArea.removeAllViews();
         if (names.isEmpty()) {
-            empty(Words.t("No singers yet: name the videos \"Singer - Title\"", "还没有歌手：请把视频命名为“歌手 - 歌名”", "Belum ada penyanyi: beri nama video \"Penyanyi - Judul\""));
+            empty(Words.t("No singers came back.", "没有返回任何歌手。", "Tidak ada penyanyi yang dikembalikan."));
             return;
         }
         for (final String name : names) {

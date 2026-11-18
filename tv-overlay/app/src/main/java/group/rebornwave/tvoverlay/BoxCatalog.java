@@ -24,6 +24,13 @@ final class BoxCatalog implements ControlPanel.Catalog {
     }
 
     @Override
+    public String source() {
+        return Words.t("videos in the Karaoke folder of this box (" + files.count() + " found; put them in " + files.foldersText().split("\n")[0] + ")",
+                "本机 Karaoke 文件夹里的视频（找到 " + files.count() + " 个）",
+                "video di folder Karaoke perangkat ini (" + files.count() + " ditemukan)");
+    }
+
+    @Override
     public List<SongPick> search(String text) throws Exception {
         files.refreshIfOld();
         List<SongPick> found = new ArrayList<SongPick>();

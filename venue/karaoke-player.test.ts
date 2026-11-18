@@ -201,6 +201,14 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(java("MainActivity.java").includes("saveBoxPlayback(MainActivity.this") && java("PlayerActivity.java").includes("boxMode != BridgeSettings.isBoxPlayback(this)"));
   });
 
+  it("should have a test button that says where the box's song system was found and what its pages really answer", () => {
+    assert.ok(java("BoxServlets.java").includes("static String diagnose(Context context)") && java("MainActivity.java").includes("BoxServlets.diagnose(MainActivity.this)"));
+  });
+
+  it("should say where the songs come from when a list is empty, so the wrong mode or a missing box is obvious", () => {
+    assert.ok(java("ControlPanel.java").includes("catalog.source()") && java("BoxServletCatalog.java").includes("public String source()") && java("BoxCatalog.java").includes("public String source()"));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });
