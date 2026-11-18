@@ -94,8 +94,13 @@ public class MainActivity extends Activity {
             @Override public void onClick(View v) { BridgeSettings.savePlayerMode(MainActivity.this, false); startConnector(); }
         }));
         final Button playback = button("", null);
-        playback.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { BridgeSettings.saveBoxPlayback(MainActivity.this, !BridgeSettings.isBoxPlayback(MainActivity.this)); showPlaybackSetting(playback); }
+        // Press and hold, so a touch on the big button at the top of this page cannot switch who plays the songs by accident.
+        playback.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override public boolean onLongClick(View v) {
+                BridgeSettings.saveBoxPlayback(MainActivity.this, !BridgeSettings.isBoxPlayback(MainActivity.this));
+                showPlaybackSetting(playback);
+                return true;
+            }
         });
         showPlaybackSetting(playback);
         root.addView(playback);
@@ -312,8 +317,8 @@ public class MainActivity extends Activity {
     /** Who plays the songs: the box's own program (this app is its touch screen) or this app's own player (videos in the Karaoke folder / YouTube). */
     private void showPlaybackSetting(Button button) {
         button.setText(BridgeSettings.isBoxPlayback(this)
-                ? t("Songs are played by: THE BOX'S OWN PROGRAM (tap to use this app's player instead)", "歌曲由：点歌机自带程序播放（点击改用本应用播放器）", "Lagu diputar oleh: PROGRAM BAWAAN MESIN (ketuk untuk memakai pemutar aplikasi ini)")
-                : t("Songs are played by: THIS APP'S PLAYER (tap to use the box's own program instead)", "歌曲由：本应用播放器播放（点击改用点歌机自带程序）", "Lagu diputar oleh: PEMUTAR APLIKASI INI (ketuk untuk memakai program bawaan mesin)"));
+                ? t("Songs are played by: THE BOX'S OWN PROGRAM (press and hold to use this app's player instead)", "歌曲由：点歌机自带程序播放（长按改用本应用播放器）", "Lagu diputar oleh: PROGRAM BAWAAN MESIN (tahan lama untuk memakai pemutar aplikasi ini)")
+                : t("Songs are played by: THIS APP'S PLAYER, which only plays video files in the Karaoke folder (press and hold to use the box's own program instead)", "歌曲由：本应用播放器播放，它只播放 Karaoke 文件夹里的视频（长按改用点歌机自带程序）", "Lagu diputar oleh: PEMUTAR APLIKASI INI, hanya memutar video di folder Karaoke (tahan lama untuk memakai program bawaan mesin)"));
     }
 
     /** Writes what the two voice buttons currently mean; `channels` may be null before it exists. */

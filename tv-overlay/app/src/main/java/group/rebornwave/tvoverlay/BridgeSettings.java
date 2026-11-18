@@ -14,7 +14,8 @@ final class BridgeSettings {
     private static final String KEY_TENANT = "tenant";
     private static final String KEY_BOX = "box";
     private static final String KEY_PLAYER = "player";
-    private static final String KEY_BOX_PLAYBACK = "boxPlayback";
+    // A new key name (it was "boxPlayback") so a choice flipped by accident in an earlier version starts again from the box's own program.
+    private static final String KEY_BOX_PLAYBACK = "boxPlayback2";
     private static final String KEY_SHOW_CLOUD = "showCloud";
     private static final String KEY_VOICE_FIRST = "voiceFirst";
     private static final String KEY_CHANNEL_VOICE = "channelVoice";

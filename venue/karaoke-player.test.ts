@@ -292,6 +292,10 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(java("ControlPanel.java").includes("void setInfo(String text)") && java("PlayerActivity.java").includes("panel.setInfo(") && java("BoxBridge.java").includes('lastEvent = "ordered "'));
   });
 
+  it("should need a press and hold to change who plays the songs, and start again from the box's own program", () => {
+    assert.ok(java("MainActivity.java").includes("playback.setOnLongClickListener") && java("BridgeSettings.java").includes('KEY_BOX_PLAYBACK = "boxPlayback2"') && java("BridgeSettings.java").includes("getBoolean(KEY_BOX_PLAYBACK, true)"));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });
