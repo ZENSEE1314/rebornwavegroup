@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const read = (name: string) => readFileSync(new URL(`../tv-overlay/app/src/main/java/group/rebornwave/tvoverlay/${name}`, import.meta.url), "utf8");
 
@@ -55,6 +55,22 @@ describe("the gift overlay on the box's screens", () => {
   it("should put the gift words on a see-through grey box so they can be read over any picture", () => {
     const gifts = read("GiftView.java");
     assert.ok(gifts.includes("words.setBackground(greyBox())") && gifts.includes("bar.setBackgroundColor(GREY_BOX)"));
+  });
+
+  it("should play an animation for every kind of gift, from clips the box downloads once", () => {
+    const art = read("GiftArt.java");
+    for (const scene of ["rose", "heart", "kiss", "lion", "whale", "rocket", "car", "fireworks", "crown", "diamonds", "cake", "drink", "teddy", "money", "thumbsup", "gift"]) assert.ok(art.includes(`"${scene}"`), scene);
+    assert.ok(art.includes('"/gift-fx/anim/"') && read("GiftView.java").includes("AnimatedImageDrawable"));
+  });
+
+  it("should keep a gift's own picture only when its scene is the plain gift box", () => {
+    assert.ok(read("GiftView.java").includes("!gift.imageUrl.isEmpty() && GiftArt.isFallback(scene)"));
+  });
+
+  it("should have a clip on the server for every scene the box asks for", () => {
+    const art = read("GiftArt.java");
+    const scenes = (/SCENES = \{([^}]*)\}/.exec(art)?.[1] ?? "").split(",").map((x) => x.trim().replace(/"/g, "")).filter(Boolean);
+    for (const scene of scenes) assert.ok(existsSync(new URL(`../client/public/gift-fx/anim/${scene}.webp`, import.meta.url)), scene);
   });
 
   it("should follow the HDMI cable being plugged in or out", () => {
