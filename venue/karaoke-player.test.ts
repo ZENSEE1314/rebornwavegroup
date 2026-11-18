@@ -146,6 +146,21 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(player.includes("private void startLinking()") && player.includes("Link.pollEverything(") && player.includes("Cannot reach the app (") && java("ControlPanel.java").includes("void setStatus(String text)"));
   });
 
+  it("should let a box with the club's key link itself with no code, and refuse a wrong or missing key", () => {
+    const tvRoutes = readFileSync(new URL("../server/tvDisplay.ts", import.meta.url), "utf8");
+    assert.ok(tvRoutes.includes('app.post("/api/tv/enroll"') && tvRoutes.includes("timingSafeEqual(wanted, given)") && tvRoutes.includes("wanted.length > 0"));
+    assert.ok(java("Enroll.java").includes('"x-box-key", BuildConfig.BOX_KEY'));
+  });
+
+  it("should link itself at boot, when the app opens and when the song-system key was changed", () => {
+    assert.ok(java("BootReceiver.java").includes("Enroll.start(context") && java("MainActivity.java").includes("private void linkByItself()") && java("PlayerActivity.java").includes("Enroll.relink(PlayerActivity.this, afterEnroll)"));
+  });
+
+  it("should keep the box key out of the public app: only the private build step sets it", () => {
+    const flow = readFileSync(new URL("../.github/workflows/tv-overlay-apk.yml", import.meta.url), "utf8");
+    assert.ok(flow.includes("BOX_KEY: ${{ secrets.BOX_SETUP_KEY }}") && flow.includes("reborn-box-private.apk") && !/^\s{6}BOX_KEY:/m.test(flow.split("jobs:")[0] + flow.split("steps:")[0].split("jobs:")[1]));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });

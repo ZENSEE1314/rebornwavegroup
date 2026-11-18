@@ -46,10 +46,30 @@ jobs:
       - name: Build
         run: gradle -p tv-overlay assembleRelease --no-daemon
 
+      - name: Keep the public app (it has no key inside)
+        run: cp tv-overlay/app/build/outputs/apk/release/app-release.apk reborn-tv-overlay.apk
+
+      # The private app has the club's box key built in, so the box links itself with no code. It is only a workflow download (login needed),
+      # never a public release. Skipped when the BOX_SETUP_KEY secret is not set.
+      - name: Build the private app with the club's box key
+        env:
+          BOX_KEY: ${{ secrets.BOX_SETUP_KEY }}
+        run: |
+          if [ -z "$BOX_KEY" ]; then echo "No BOX_SETUP_KEY secret: skipping the private app"; exit 0; fi
+          gradle -p tv-overlay assembleRelease --no-daemon
+          cp tv-overlay/app/build/outputs/apk/release/app-release.apk reborn-box-private.apk
+
+      - name: Keep the private app (login needed to download it)
+        if: ${{ hashFiles('reborn-box-private.apk') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: reborn-box-private-apk
+          path: reborn-box-private.apk
+          retention-days: 7
+
       - name: Publish the app
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp tv-overlay/app/build/outputs/apk/release/app-release.apk reborn-tv-overlay.apk
           gh release delete tv-overlay-latest --yes --cleanup-tag || true
           gh release create tv-overlay-latest reborn-tv-overlay.apk --title "Reborn TV overlay (karaoke box)" --notes "Install this on the karaoke box. See Admin > Lights & TV > TV for the steps."

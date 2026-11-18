@@ -2,7 +2,7 @@
 // their tables), gift effects as they happen, and "something changed" nudges. The admin decides, per TV, what it shows
 // and which tables it follows. Everything the public pages receive is first names, song titles and table labels only.
 import type { Express, Request, Response } from "express";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { MAX_TV_SCREENS, cleanSetup, screenCovers, songLinesFor, type GiftEvent, type TvScreen, type TvSetup } from "./tvLogic";
 import { TV_CODE_TTL_MS, TvPairings, isTvCode, type KaraokeLink } from "./tvPairing";
 
@@ -40,6 +40,20 @@ const recentGifts = new Map<number, GiftEvent[]>(); // company → latest gifts 
 /** The admin typed the code a song-system box shows: the box receives the bridge's key and address (the code is used up once the box has read it). */
 export function linkKaraokeBox(code: string, link: KaraokeLink): boolean {
   return isTvCode(code) && pairings.assign(code, { path: "", karaoke: link });
+}
+
+const WRONG_KEY_DELAY_MS = 1_000;
+const BOX_SCREEN_NAME = "Karaoke box";
+
+/** The TV screen a self-linking box follows: the first overlay screen that shows every table, or a new one made now. */
+async function overlayScreen(): Promise<TvScreen> {
+  const setup = await loadSetup();
+  const existing = setup.screens.find((screen) => screen.view === "overlay" && screen.tables.length === 0);
+  if (existing) return existing;
+  const made: TvScreen = { id: makeId(), name: BOX_SCREEN_NAME, token: makeToken(), view: "overlay", tables: [] };
+  const saved = cleanSetup({ screens: [...setup.screens, made] }, makeId, makeToken);
+  await deps!.writeSetting(JSON.stringify(saved));
+  return saved.screens.find((screen) => screen.token === made.token) ?? made;
 }
 
 const makeId = () => randomBytes(4).toString("hex");
@@ -145,6 +159,26 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
     const code = pairings.create();
     if (!code) return res.status(429).json({ message: "Too many TVs are waiting, try again in a few minutes" });
     res.set("Cache-Control", "no-store").json({ code, expiresInSeconds: TV_CODE_TTL_MS / 1000 });
+  });
+
+  // A box whose app was built with the club's box key (BOX_SETUP_KEY on the server) links itself: no code to type. It gets the TV page (an overlay
+  // screen is made if there is none) and the song system's address and key. Wrong or missing key = refused; the server has no key = switched off.
+  app.post("/api/tv/enroll", async (req, res) => {
+    const wanted = Buffer.from(process.env.BOX_SETUP_KEY || "");
+    const given = Buffer.from(String(req.get("x-box-key") || ""));
+    const isKnown = wanted.length > 0 && given.length === wanted.length && timingSafeEqual(wanted, given);
+    if (!isKnown) {
+      await new Promise((later) => setTimeout(later, WRONG_KEY_DELAY_MS)); // slows guessing
+      return res.status(401).json({ message: "Bad box key" });
+    }
+    try {
+      const screen = await overlayScreen();
+      const slug = injected.tenantSlug(req);
+      res.set("Cache-Control", "no-store").json({ path: `/tv/${screen.token}${slug ? `?tenant=${encodeURIComponent(slug)}` : ""}`, karaoke: await injected.karaokeLink(req) });
+    } catch (error) {
+      console.error("box enroll", error);
+      res.status(500).json({ message: "Could not set the box up" });
+    }
   });
 
   app.get("/api/tv/pair/:code", (req, res) => {

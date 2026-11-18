@@ -166,10 +166,27 @@ public class PlayerActivity extends Activity {
         if (BridgeSettings.isReady(this)) {
             startPolling();
             startJobs();
+        } else if (Enroll.isAvailable()) {
+            panel.setStatus(Words.t("Connecting this box to the app…", "正在把本机连接到应用…", "Menghubungkan perangkat ini ke aplikasi…"));
         } else {
             startLinking();
         }
+        Enroll.start(this, afterEnroll);
     }
+
+    /** The box linked itself (first start, or the song-system key was changed): carry on as if it had been linked with a code. */
+    private final Enroll.Done afterEnroll = new Enroll.Done() {
+        @Override public void onLinked() {
+            ui.post(new Runnable() {
+                @Override public void run() {
+                    panel.setStatus("");
+                    startGifts();
+                    startPolling();
+                    startJobs();
+                }
+            });
+        }
+    };
 
     /** Not linked yet: the touch screen shows a code; the admin types it in Admin > Lights & TV > TV (or Requests > Karaoke system) and the box links itself. */
     private void startLinking() {
@@ -294,6 +311,7 @@ public class PlayerActivity extends Activity {
     /** Gifts come from the linked TV screen; when the overlay already draws them over everything, drawing them here too would show every gift twice. */
     private void startGifts() {
         boolean overlayDraws = OverlayService.running || OverlayAccessibilityService.windowsNow != null;
+        if (feed != null) feed.stop();
         if (overlayDraws || !Link.isLinked(this)) return;
         feed = new TvFeed(this, ui, new TvFeed.Listener() {
             @Override public void onGift(TvFeed.Gift gift) { gifts.play(gift); }
@@ -322,6 +340,7 @@ public class PlayerActivity extends Activity {
                         showStatus("");
                     } catch (Exception failure) {
                         OverlayLog.add("player: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
+                        if (String.valueOf(failure.getMessage()).contains("401")) Enroll.relink(PlayerActivity.this, afterEnroll); // the song-system key was changed
                         showStatus(Words.t("Cannot reach the app (" + failure.getMessage() + "). Check this box's internet and its link.",
                                 "无法连接应用（" + failure.getMessage() + "）。请检查本机网络和链接。",
                                 "Tidak bisa terhubung ke aplikasi (" + failure.getMessage() + "). Periksa internet dan tautan."));

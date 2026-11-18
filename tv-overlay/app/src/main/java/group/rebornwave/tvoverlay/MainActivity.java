@@ -367,6 +367,22 @@ public class MainActivity extends Activity {
         refresh();
     }
 
+    /** An app built with the club's box key links itself when it opens: no code to type. */
+    private void linkByItself() {
+        if (!Enroll.isAvailable() || (Link.isLinked(this) && BridgeSettings.isReady(this))) return;
+        Enroll.start(this, new Enroll.Done() {
+            @Override public void onLinked() {
+                ui.post(new Runnable() {
+                    @Override public void run() {
+                        startOverlay();
+                        startConnectorIfLinked();
+                        refresh();
+                    }
+                });
+            }
+        });
+    }
+
     private void refresh() {
         String allowed = OverlayService.canDraw(this) ? t("allowed", "已允许", "diizinkan") : t("NOT allowed yet", "尚未允许", "belum diizinkan");
         String linked = Link.isLinked(this) ? t("linked", "已链接", "terhubung") : t("not linked", "未链接", "belum terhubung");
@@ -386,6 +402,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        linkByItself();
         refresh();
         if (BridgeSettings.isReady(this) && !BridgeSettings.isPlayerMode(this) && !BridgeService.running) BridgeService.start(this);
         ui.removeCallbacks(connectorTick);

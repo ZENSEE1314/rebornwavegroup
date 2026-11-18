@@ -10,8 +10,14 @@ android {
         applicationId "group.rebornwave.tvoverlay"
         minSdk 21
         targetSdk 33
-        versionCode 24
-        versionName "2.11"
+        versionCode 25
+        versionName "2.12"
+        // The club's box key, given only to the private build (the workflow sets BOX_KEY from a secret): the box then links itself, with no code to type.
+        buildConfigField 'String', 'BOX_KEY', "\"${System.getenv('BOX_KEY') ?: ''}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     // The same key every build (the workflow keeps it), so a newer build installs over the older one on the box.
