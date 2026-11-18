@@ -209,6 +209,19 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(java("ControlPanel.java").includes("catalog.source()") && java("BoxServletCatalog.java").includes("public String source()") && java("BoxCatalog.java").includes("public String source()"));
   });
 
+  it("should read the box's singer list as the JSON text it arrives as, like its song list", () => {
+    assert.ok(java("BoxServlets.java").includes('answer.opt("singerList")') && java("BoxServlets.java").includes("new JSONArray(String.valueOf(raw))"));
+  });
+
+  it("should leave out cloud songs by default but say so when that is why a list is empty, and let staff show them", () => {
+    assert.ok(java("BridgeSettings.java").includes("getBoolean(KEY_SHOW_CLOUD, false)") && java("BoxServletCatalog.java").includes("cloud songs (kept in the cloud") && java("MainActivity.java").includes("saveShowCloud(MainActivity.this"));
+  });
+
+  it("should show on the touch screen when the connector that plays the requests is not running", () => {
+    const player = java("PlayerActivity.java");
+    assert.ok(player.includes("private String boxModeProblem()") && player.includes("!BridgeService.running") && java("MainActivity.java").includes("BridgeService.recentLines(8)"));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });

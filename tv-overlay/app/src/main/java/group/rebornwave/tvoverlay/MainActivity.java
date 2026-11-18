@@ -99,13 +99,21 @@ public class MainActivity extends Activity {
         });
         showPlaybackSetting(playback);
         root.addView(playback);
+        final Button cloud = button("", null);
+        cloud.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { BridgeSettings.saveShowCloud(MainActivity.this, !BridgeSettings.isShowCloud(MainActivity.this)); showCloudSetting(cloud); }
+        });
+        showCloudSetting(cloud);
+        root.addView(cloud);
         final TextView boxTestResult = label("", 14, false);
         root.addView(button(t("Test the box's own song system", "测试点歌机自带的点歌系统", "Tes sistem lagu bawaan mesin"), new View.OnClickListener() {
             @Override public void onClick(View v) {
                 boxTestResult.setText(t("Testing…", "测试中…", "Menguji…"));
                 new Thread(new Runnable() {
                     @Override public void run() {
-                        final String report = BoxServlets.diagnose(MainActivity.this);
+                        final String report = BoxServlets.diagnose(MainActivity.this)
+                                + "\n" + t("Connector: ", "连接器：", "Konektor: ") + (BridgeService.running ? "running" : "NOT running") + " — " + BridgeService.status
+                                + "\n" + BridgeService.recentLines(8);
                         ui.post(new Runnable() { @Override public void run() { boxTestResult.setText(report); } });
                     }
                 }, "box-test").start();
@@ -282,6 +290,12 @@ public class MainActivity extends Activity {
                 }
             }
         }).start();
+    }
+
+    private void showCloudSetting(Button button) {
+        button.setText(BridgeSettings.isShowCloud(this)
+                ? t("Cloud songs: SHOWN (tap to hide them)", "云端歌曲：显示（点击隐藏）", "Lagu cloud: DITAMPILKAN (ketuk untuk menyembunyikan)")
+                : t("Cloud songs: HIDDEN, only songs stored on the box (tap to show cloud songs too)", "云端歌曲：隐藏，仅显示本机存储的歌曲（点击同时显示云端歌曲）", "Lagu cloud: DISEMBUNYIKAN, hanya lagu di mesin (ketuk untuk menampilkan lagu cloud)"));
     }
 
     /** Who plays the songs: the box's own program (this app is its touch screen) or this app's own player (videos in the Karaoke folder / YouTube). */

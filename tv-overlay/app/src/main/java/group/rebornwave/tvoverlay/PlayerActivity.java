@@ -267,6 +267,22 @@ public class PlayerActivity extends Activity {
         }, "box-find").start();
     }
 
+    /** What is wrong in box mode, for the red line: the box's song system was not found, or the connector that plays the requests is not running or stopped. */
+    private String boxModeProblem() {
+        if (BoxServlets.address().isEmpty()) {
+            return Words.t("Cannot find the box's own song system on this network. Is its program running?",
+                    "在网络上找不到点歌机自带的点歌系统。它的程序在运行吗？",
+                    "Sistem lagu bawaan mesin tidak ditemukan di jaringan. Apakah programnya berjalan?");
+        }
+        if (!BridgeService.running) {
+            return Words.t("The connector that plays the requests on the box is not running. Open ⚙ and press Start the connector now.",
+                    "在点歌机上播放点歌的连接器没有运行。请打开 ⚙ 并点“立即启动连接器”。",
+                    "Konektor yang memutar permintaan di mesin tidak berjalan. Buka ⚙ lalu tekan Mulai konektor sekarang.");
+        }
+        String status = BridgeService.status;
+        return status.isEmpty() || status.startsWith("Connected") ? "" : status;
+    }
+
     /** A button of the box's own player (mute, volume, tone, pause, replay, the singer's voice). */
     private void boxButton(final String button) {
         new Thread(new Runnable() {
@@ -454,7 +470,7 @@ public class PlayerActivity extends Activity {
                         songFiles.refreshIfOld();
                         refreshTables();
                         pollOnce();
-                        showStatus("");
+                        showStatus(boxMode ? boxModeProblem() : "");
                     } catch (Exception failure) {
                         OverlayLog.add("player: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
                         if (String.valueOf(failure.getMessage()).contains("401")) Enroll.relink(PlayerActivity.this, afterEnroll); // the song-system key was changed

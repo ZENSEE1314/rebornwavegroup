@@ -69,7 +69,7 @@ final class BoxServlets {
         }
         report.append(Words.t("Found at ", "已找到：", "Ditemukan di ")).append(base);
         try {
-            Page page = search(base, "a", "", 1);
+            Page page = search(base, "a", "", 1, BridgeSettings.isShowCloud(context));
             report.append("\n").append(Words.t("Search \"a\": ", "搜索“a”：", "Cari \"a\": ")).append(page.rawCount).append(" / ").append(page.songs.size()).append(" on the box");
             if (!page.songs.isEmpty()) report.append(" — ").append(page.songs.get(0).title);
         } catch (Exception failure) {
@@ -165,10 +165,12 @@ final class BoxServlets {
     static final class Page {
         final List<SongPick> songs;
         final int rawCount;
+        final int cloudHidden;
 
-        Page(List<SongPick> songs, int rawCount) {
+        Page(List<SongPick> songs, int rawCount, int cloudHidden) {
             this.songs = songs;
             this.rawCount = rawCount;
+            this.cloudHidden = cloudHidden;
         }
 
         boolean isLast() {
@@ -177,10 +179,13 @@ final class BoxServlets {
     }
 
     /** One page (15 songs) of the box's song search: by title / pinyin letters, or by singer. Songs kept in the cloud (not on the box) are left out. */
-    static Page search(String base, String songName, String singer, int page) throws Exception {
+    static Page search(String base, String songName, String singer, int page, boolean includeCloud) throws Exception {
         JSONObject answer = call(base, "SearchServlet", "songName=" + enc(songName) + "&songType=&singer=" + enc(singer) + "&lang=&sortType=&page=" + page);
         JSONArray raw = new JSONArray(answer.optString("songList", "[]"));
-        return new Page(picks(raw), raw.length());
+        List<SongPick> songs = picks(raw, includeCloud);
+        int cloudSongs = 0;
+        for (int i = 0; i < raw.length(); i++) if (raw.optJSONObject(i) != null && raw.optJSONObject(i).optInt("cLOUD") == 1) cloudSongs++;
+        return new Page(songs, raw.length(), includeCloud ? 0 : cloudSongs);
     }
 
     /** How many pages the box's whole song list has (for "new songs": the last pages). */
@@ -191,7 +196,9 @@ final class BoxServlets {
     /** One page of the box's singers: { name, photo address or "" }. */
     static List<String[]> singers(String base, int page) throws Exception {
         JSONObject answer = call(base, "SingerServlet", "singer=&singerType=&sortType=&page=" + page);
-        JSONArray list = answer.optJSONArray("singerList");
+        // Like the song list, the singer list comes as a JSON text inside the answer.
+        Object raw = answer.opt("singerList");
+        JSONArray list = raw instanceof JSONArray ? (JSONArray) raw : (raw == null ? null : new JSONArray(String.valueOf(raw)));
         List<String[]> singers = new ArrayList<String[]>();
         if (list == null) return singers;
         for (int i = 0; i < list.length(); i++) {
@@ -208,11 +215,11 @@ final class BoxServlets {
         call(base, "CommandServlet", "cmd=" + enc(button) + "&cmdValue=");
     }
 
-    private static List<SongPick> picks(JSONArray songs) {
+    private static List<SongPick> picks(JSONArray songs, boolean includeCloud) {
         List<SongPick> list = new ArrayList<SongPick>();
         for (int i = 0; i < songs.length(); i++) {
             JSONObject song = songs.optJSONObject(i);
-            if (song == null || song.optInt("cLOUD") == 1) continue;
+            if (song == null || (!includeCloud && song.optInt("cLOUD") == 1)) continue;
             String code = song.optString("sONGBM");
             if (code.isEmpty() || song.optString("sONGNAME").isEmpty()) continue;
             list.add(new SongPick(code, song.optString("sONGNAME"), singerOf(song.optString("sINGER"))));

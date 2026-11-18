@@ -24,6 +24,11 @@ final class BoxCatalog implements ControlPanel.Catalog {
     }
 
     @Override
+    public String whyEmpty() {
+        return "";
+    }
+
+    @Override
     public String source() {
         return Words.t("videos in the Karaoke folder of this box (" + files.count() + " found; put them in " + files.foldersText().split("\n")[0] + ")",
                 "本机 Karaoke 文件夹里的视频（找到 " + files.count() + " 个）",

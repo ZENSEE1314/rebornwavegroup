@@ -15,6 +15,7 @@ final class BridgeSettings {
     private static final String KEY_BOX = "box";
     private static final String KEY_PLAYER = "player";
     private static final String KEY_BOX_PLAYBACK = "boxPlayback";
+    private static final String KEY_SHOW_CLOUD = "showCloud";
     private static final String KEY_VOICE_FIRST = "voiceFirst";
     private static final String KEY_CHANNEL_VOICE = "channelVoice";
 
@@ -49,6 +50,15 @@ final class BridgeSettings {
 
     static void saveChannelVoice(Context context, boolean on) {
         prefs(context).edit().putBoolean(KEY_CHANNEL_VOICE, on).apply();
+    }
+
+    /** False (the default) leaves out the box's cloud songs (kept in the cloud, not stored on the box); true lists them too. */
+    static boolean isShowCloud(Context context) {
+        return prefs(context).getBoolean(KEY_SHOW_CLOUD, false);
+    }
+
+    static void saveShowCloud(Context context, boolean show) {
+        prefs(context).edit().putBoolean(KEY_SHOW_CLOUD, show).apply();
     }
 
     static boolean isReady(Context context) {

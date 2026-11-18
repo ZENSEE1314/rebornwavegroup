@@ -21,6 +21,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     private final Context context;
     private final QueueClient client;
     private final SingerPhotos photos;
+    private volatile int hiddenCloud = 0; // cloud songs left out of the last list
 
     BoxServletCatalog(Context context, QueueClient client, SingerPhotos photos) {
         this.context = context.getApplicationContext();
@@ -38,6 +39,15 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
         String base = BoxServlets.find(context);
         if (base.isEmpty()) throw new java.io.IOException("the box's song system was not found on this network");
         return base;
+    }
+
+    @Override
+    public String whyEmpty() {
+        return hiddenCloud > 0
+                ? Words.t(hiddenCloud + " matching songs are cloud songs (kept in the cloud, not stored on this box). To list them too: ⚙ › Show cloud songs.",
+                        "有 " + hiddenCloud + " 首匹配歌曲是云端歌曲（不在本机）。要显示：⚙ › 显示云端歌曲。",
+                        hiddenCloud + " lagu cocok adalah lagu cloud (tidak tersimpan di mesin). Untuk menampilkannya: ⚙ › Tampilkan lagu cloud.")
+                : "";
     }
 
     @Override
@@ -77,19 +87,23 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
         int last = BoxServlets.songPages(base);
         List<SongPick> newest = new ArrayList<SongPick>();
         for (int page = last; page > Math.max(0, last - NEW_PAGES) && newest.size() < MAX_SONGS; page--) {
-            newest.addAll(BoxServlets.reversed(BoxServlets.search(base, "", "", page).songs));
+            newest.addAll(BoxServlets.reversed(BoxServlets.search(base, "", "", page, BridgeSettings.isShowCloud(context)).songs));
         }
         return newest;
     }
 
     /** Reads pages one after the other until enough songs are found or the list ends. */
-    private static List<SongPick> pagesOf(String base, String text, String singer, int firstPage, int pages) throws Exception {
+    private List<SongPick> pagesOf(String base, String text, String singer, int firstPage, int pages) throws Exception {
         List<SongPick> found = new ArrayList<SongPick>();
+        boolean includeCloud = BridgeSettings.isShowCloud(context);
+        int hidden = 0;
         for (int page = firstPage; page < firstPage + pages && found.size() < MAX_SONGS; page++) {
-            BoxServlets.Page onPage = BoxServlets.search(base, text, singer, page);
+            BoxServlets.Page onPage = BoxServlets.search(base, text, singer, page, includeCloud);
             found.addAll(onPage.songs);
+            hidden += onPage.cloudHidden;
             if (onPage.isLast()) break;
         }
+        hiddenCloud = hidden;
         return found;
     }
 }

@@ -45,6 +45,9 @@ final class ControlPanel extends LinearLayout {
 
         /** Where the songs come from, in words, for the messages of an empty list. */
         String source();
+
+        /** Why the last list may be empty although something matched (songs left out), or "". */
+        String whyEmpty();
     }
 
     /** What the buttons do. `onRequest` puts the song in the queue for the table and returns the sentence to show the person. */
@@ -515,7 +518,8 @@ final class ControlPanel extends LinearLayout {
 
     private void empty(String text) {
         listArea.removeAllViews();
-        listArea.addView(text(getContext(), text + "\n" + Words.t("Songs come from: ", "歌曲来源：", "Lagu berasal dari: ") + catalog.source(), 22, false, SOFT));
+        String reason = catalog.whyEmpty();
+        listArea.addView(text(getContext(), text + (reason.isEmpty() ? "" : "\n" + reason) + "\n" + Words.t("Songs come from: ", "歌曲来源：", "Lagu berasal dari: ") + catalog.source(), 22, false, SOFT));
     }
 
     private void fillSingers(List<String> names) {
