@@ -99,8 +99,8 @@ describe("the built-in karaoke player of the box app", () => {
     for (const action of ["onMute", "onVolume(-1)", "onVolume(1)", "onTone(-1)", "onTone(1)", "onPlay", "onSkip", "onReplay", "onAnalog"]) assert.ok(panel.includes(action), action);
   });
 
-  it("should type the song name on a keyboard drawn by the app, right under the search bar at the top of the page", () => {
-    assert.ok(java("OnScreenKeyboard.java").includes('"QWERTYUIOP"') && java("ControlPanel.java").includes("head.addView(search, new LinearLayout.LayoutParams(dp(SEARCH_WIDTH_DP)") && java("ControlPanel.java").includes("middle.addView(keyboard"));
+  it("should split the song-title page in two halves under the search bar: the list left, a small keyboard right", () => {
+    assert.ok(java("OnScreenKeyboard.java").includes('"QWERTYUIOP"') && java("ControlPanel.java").includes("head.addView(search, new LinearLayout.LayoutParams(dp(SEARCH_WIDTH_DP)") && java("ControlPanel.java").includes("halves.addView(keyboard, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))") && java("ControlPanel.java").includes("halves.addView(scroll, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))"));
   });
 
   it("should show a singer's picture from the club's Singers folder, a saved one, or Deezer when the name is the same", () => {
