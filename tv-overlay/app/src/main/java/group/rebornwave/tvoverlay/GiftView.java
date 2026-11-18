@@ -46,7 +46,7 @@ final class GiftView extends FrameLayout {
     private static final long RAIN_SPREAD_MS = 2_500;
     private static final int RAIN_COUNT = 18;
     private static final int RAIN_SP = 32;
-    private static final int EMOJI_SP = 60;
+    private static final float EMOJI_HEIGHT_FRACTION = 0.3f; // a gift with no picture or animation shows its emoji this big (of the screen height)
     private static final int BAR_SP = 26;
     private static final float PICTURE_HEIGHT_FRACTION = 0.3f; // a gift picture of its own
     private static final int FALLBACK_WIDTH_PX = 1280;
@@ -161,8 +161,10 @@ final class GiftView extends FrameLayout {
         final LinearLayout card = new LinearLayout(getContext());
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER);
-        final TextView picture = text(emoji, EMOJI_SP, false);
+        final TextView picture = text(emoji, 1, false);
+        picture.setTextSize(TypedValue.COMPLEX_UNIT_PX, screenHeight() * EMOJI_HEIGHT_FRACTION);
         card.addView(picture);
+        startFloat(picture);
         FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER);
         cardParams.topMargin = CARD_TOP_PX;
         stage.addView(card, cardParams);

@@ -84,6 +84,11 @@ describe("the gift overlay on the box's screens", () => {
     assert.ok(art.includes("static File emojiClip(") && art.includes("fonts.gstatic.com/s/e/notoemoji/latest/") && read("GiftView.java").includes("GiftArt.emojiClip(getContext(), gift.emoji)"));
   });
 
+  it("should show a gift that has no picture or animation as a big floating emoji, not a small one", () => {
+    const gifts = read("GiftView.java");
+    assert.ok(gifts.includes("EMOJI_HEIGHT_FRACTION = 0.3f") && gifts.includes("TypedValue.COMPLEX_UNIT_PX, screenHeight() * EMOJI_HEIGHT_FRACTION") && gifts.includes("startFloat(picture)"));
+  });
+
   it("should have the club's two posters on the server and float them with sparkles", () => {
     for (const poster of ["heart", "gift"]) assert.ok(existsSync(new URL(`../client/public/gift-fx/poster/${poster}.webp`, import.meta.url)), poster);
     const gifts = read("GiftView.java");
