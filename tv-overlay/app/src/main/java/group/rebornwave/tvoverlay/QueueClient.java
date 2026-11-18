@@ -22,6 +22,8 @@ final class QueueClient {
         String name = "";
         String table = "";
         String vocal = "karaoke";
+        String karaokeCode = "";
+        int position = 0; // place in the whole queue (1 = next); 0 for the song on now
 
         /** "Alex (Table 5)" or just the name / table, whichever there is. */
         String who() {
@@ -39,7 +41,8 @@ final class QueueClient {
 
     private static final int CONNECT_MS = 8_000;
     private static final int READ_MS = 12_000;
-    private static final int MAX_QUEUE_READ = 12;
+    private static final int JOBS_READ_MS = 35_000;
+    private static final int MAX_QUEUE_READ = 100; // the lobby shows 12 tables, each with every song it has waiting
 
     private final Context context;
 
@@ -82,16 +85,57 @@ final class QueueClient {
         song.name = json.optString("name");
         song.table = json.optString("table");
         song.vocal = json.optString("vocal", "karaoke");
+        song.karaokeCode = json.isNull("karaokeCode") ? "" : json.optString("karaokeCode");
+        song.position = json.optInt("position");
         return song;
     }
 
+    /** What a member asked the box through the app: a search, the singers, one singer's songs or a photo. */
+    static final class Job {
+        String id = "";
+        String kind = "search";
+        String q = "";
+        String name = "";
+        int page = 1;
+        List<String> queries = new ArrayList<String>();
+    }
+
+    /** The questions waiting for the box; the app holds the call open up to 20 s so a new search is picked up at once. */
+    List<Job> jobs() throws Exception {
+        JSONArray waiting = call("GET", "/api/karaoke/jobs", null, JOBS_READ_MS).optJSONArray("jobs");
+        List<Job> list = new ArrayList<Job>();
+        if (waiting == null) return list;
+        for (int i = 0; i < waiting.length(); i++) {
+            JSONObject json = waiting.optJSONObject(i);
+            if (json == null) continue;
+            Job job = new Job();
+            job.id = json.optString("id");
+            job.kind = json.optString("kind", "search");
+            job.q = json.optString("q");
+            job.name = json.optString("name");
+            job.page = Math.max(1, json.optInt("page", 1));
+            JSONArray variants = json.optJSONArray("queries");
+            if (variants != null) for (int v = 0; v < variants.length(); v++) job.queries.add(variants.optString(v));
+            list.add(job);
+        }
+        return list;
+    }
+
+    void answer(String jobId, JSONObject answer) throws Exception {
+        call("POST", "/api/karaoke/jobs/" + jobId, answer.toString());
+    }
+
     private JSONObject call(String method, String route, String body) throws Exception {
+        return call(method, route, body, READ_MS);
+    }
+
+    private JSONObject call(String method, String route, String body, int readMs) throws Exception {
         String tenant = BridgeSettings.tenant(context);
         HttpURLConnection connection = (HttpURLConnection) new URL(BridgeSettings.cloud(context) + route).openConnection();
         try {
             connection.setRequestMethod(method);
             connection.setConnectTimeout(CONNECT_MS);
-            connection.setReadTimeout(READ_MS);
+            connection.setReadTimeout(readMs);
             connection.setUseCaches(false);
             connection.setRequestProperty("x-karaoke-token", BridgeSettings.token(context));
             if (!tenant.isEmpty()) connection.setRequestProperty("x-tenant-slug", tenant);

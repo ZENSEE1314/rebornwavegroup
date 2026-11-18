@@ -24,22 +24,30 @@ final class StageView extends FrameLayout {
     private static final String BACKGROUND_BOTTOM = "#05010f";
     private static final String GOLD = "#fcd34d";
     private static final String CARD = "#33ffffff";
+    private static final String EMPTY_BOX = "#14ffffff";
     private static final String LOWER_THIRD = "#cc12091f";
     private static final long LOWER_THIRD_MS = 8_000;
     private static final long MESSAGE_MS = 5_000;
     private static final long FADE_MS = 500;
-    private static final int TITLE_SP = 60;
-    private static final int HINT_SP = 26;
-    private static final int CARD_TITLE_SP = 28;
+    private static final int TITLE_SP = 40;
+    private static final int HINT_SP = 22;
     private static final int CARD_SMALL_SP = 20;
     private static final int LOWER_SP = 34;
-    private static final int MAX_CARDS = 5;
-    private static final int PADDING_DP = 48;
+    private static final int OPAQUE_ALPHA = 255;
+    private static final int BOARD_ALPHA = 225;
+    private static final long BOARD_SHOW_MS = 12_000;
+    private static final int COLUMNS = 4;
+    private static final int ROWS = 3; // COLUMNS x ROWS = the 12 table boxes
+    private static final int MAX_SONGS_PER_BOX = 5;
+    private static final int BOX_TITLE_SP = 22;
+    private static final int BOX_SONG_SP = 17;
+    private static final int BOX_GAP_DP = 10;
+    private static final int PADDING_DP = 28;
     private static final int RADIUS_DP = 20;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final LinearLayout lobby;
-    private final LinearLayout cards;
+    private final LinearLayout grid;
     private final TextView hint;
     private final LinearLayout lowerThird;
     private final TextView lowerTitle;
@@ -62,8 +70,8 @@ final class StageView extends FrameLayout {
         hint.setGravity(Gravity.CENTER);
         hint.setPadding(0, dp(8), 0, dp(24));
         lobby.addView(hint);
-        cards = column(context);
-        lobby.addView(cards, new LinearLayout.LayoutParams(dp(900), LayoutParams.WRAP_CONTENT));
+        grid = column(context);
+        lobby.addView(grid, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
         addView(lobby, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
         lowerThird = column(context);
@@ -95,19 +103,53 @@ final class StageView extends FrameLayout {
         addView(message, messageParams);
     }
 
-    /** The lobby, with the songs waiting as cards; `hintText` says how to pick a song (or what is wrong). */
-    void showLobby(String hintText, List<QueueClient.Song> waiting) {
+    /**
+     * The lobby: 12 boxes, one per table, each listing every song of that table (the number in front is the song's place in the whole queue, which
+     * gives each table its turns one round at a time). Tables are ordered by who sings first; `hintText` says how to pick a song (or what is wrong).
+     */
+    void showLobby(String hintText, QueueClient.Song now, List<QueueClient.Song> waiting) {
         handler.removeCallbacks(hideLowerThird);
         lowerThird.setVisibility(View.GONE);
         nextLine.setVisibility(View.GONE);
+        handler.removeCallbacks(hideBoard);
+        lobby.getBackground().setAlpha(OPAQUE_ALPHA);
         lobby.setVisibility(View.VISIBLE);
         hint.setText(hintText);
-        cards.removeAllViews();
-        for (int i = 0; i < Math.min(waiting.size(), MAX_CARDS); i++) cards.addView(card(getContext(), i + 1, waiting.get(i)));
+        fillGrid(now, waiting);
+    }
+
+    /** While a song plays: the same 12 boxes over the picture for a few seconds, so every table can see where its songs are in the queue. */
+    void showBoard(QueueClient.Song now, List<QueueClient.Song> waiting) {
+        if (waiting.isEmpty()) return;
+        lobby.getBackground().setAlpha(BOARD_ALPHA);
+        hint.setText("");
+        fillGrid(now, waiting);
+        lobby.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(hideBoard);
+        handler.postDelayed(hideBoard, BOARD_SHOW_MS);
+    }
+
+    private final Runnable hideBoard = new Runnable() {
+        @Override public void run() { lobby.setVisibility(View.GONE); }
+    };
+
+    private void fillGrid(QueueClient.Song now, List<QueueClient.Song> waiting) {
+        grid.removeAllViews();
+        List<List<QueueClient.Song>> tables = TableBoxes.group(now, waiting, COLUMNS * ROWS);
+        for (int row = 0; row < ROWS; row++) {
+            LinearLayout line = new LinearLayout(getContext());
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            for (int column = 0; column < COLUMNS; column++) {
+                int index = row * COLUMNS + column;
+                line.addView(tableBox(getContext(), index < tables.size() ? tables.get(index) : null, now));
+            }
+            grid.addView(line, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
+        }
     }
 
     /** A song is playing: the lobby goes away and the "Now singing" card shows for a few seconds. */
     void showPlaying(QueueClient.Song now, QueueClient.Song next) {
+        handler.removeCallbacks(hideBoard);
         lobby.setVisibility(View.GONE);
         lowerTitle.setText(now.title + (now.artist.isEmpty() ? "" : " — " + now.artist));
         lowerWho.setText("🎤 " + Words.t("Now singing: ", "正在演唱：", "Sedang bernyanyi: ") + now.who());
@@ -151,28 +193,29 @@ final class StageView extends FrameLayout {
         @Override public void run() { message.setVisibility(View.GONE); }
     };
 
-    private View card(Context context, int number, QueueClient.Song song) {
-        LinearLayout row = new LinearLayout(context);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(20), dp(14), dp(20), dp(14));
-        row.setBackground(rounded(Color.parseColor(CARD), RADIUS_DP));
-        LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        spacing.setMargins(0, 0, 0, dp(12));
-        row.setLayoutParams(spacing);
+    /** One table's box: its name and song count, then every song of the table (the one on now marked 🎤). A null table is an empty, dimmed box. */
+    private View tableBox(Context context, List<QueueClient.Song> songs, QueueClient.Song now) {
+        LinearLayout box = column(context);
+        box.setPadding(dp(14), dp(10), dp(14), dp(10));
+        box.setBackground(rounded(songs == null ? Color.parseColor(EMPTY_BOX) : Color.parseColor(CARD), RADIUS_DP));
+        LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f);
+        size.setMargins(dp(BOX_GAP_DP / 2), dp(BOX_GAP_DP / 2), dp(BOX_GAP_DP / 2), dp(BOX_GAP_DP / 2));
+        box.setLayoutParams(size);
+        if (songs == null) return box;
 
-        TextView badge = text(context, String.valueOf(number), CARD_TITLE_SP, true, "#12091f");
-        badge.setGravity(Gravity.CENTER);
-        badge.setBackground(rounded(Color.parseColor(GOLD), RADIUS_DP * 2));
-        row.addView(badge, new LinearLayout.LayoutParams(dp(52), dp(52)));
-
-        LinearLayout words = column(context);
-        words.setPadding(dp(20), 0, 0, 0);
-        words.addView(text(context, song.title, CARD_TITLE_SP, true, "#ffffff"));
-        String sub = (song.artist.isEmpty() ? "" : song.artist + "   ") + song.who();
-        if (!sub.trim().isEmpty()) words.addView(text(context, sub, CARD_SMALL_SP, false, "#d9ccff"));
-        row.addView(words);
-        return row;
+        TextView head = text(context, TableBoxes.label(songs.get(0)) + "  ·  " + songs.size() + " " + Words.t(songs.size() == 1 ? "song" : "songs", "首", "lagu"), BOX_TITLE_SP, true, GOLD);
+        head.setSingleLine(true);
+        box.addView(head);
+        for (int i = 0; i < Math.min(songs.size(), MAX_SONGS_PER_BOX); i++) {
+            QueueClient.Song song = songs.get(i);
+            boolean singing = now != null && song.id == now.id;
+            TextView line = text(context, (singing ? "🎤 " : song.position + ". ") + song.title, BOX_SONG_SP, singing, singing ? GOLD : "#ffffff");
+            line.setSingleLine(true);
+            line.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            box.addView(line);
+        }
+        if (songs.size() > MAX_SONGS_PER_BOX) box.addView(text(context, "+" + (songs.size() - MAX_SONGS_PER_BOX), BOX_SONG_SP, false, "#d9ccff"));
+        return box;
     }
 
     private static LinearLayout column(Context context) {

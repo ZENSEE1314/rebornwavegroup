@@ -14,6 +14,8 @@ final class BridgeSettings {
     private static final String KEY_TENANT = "tenant";
     private static final String KEY_BOX = "box";
     private static final String KEY_PLAYER = "player";
+    private static final String KEY_VOICE_FIRST = "voiceFirst";
+    private static final String KEY_CHANNEL_VOICE = "channelVoice";
 
     private BridgeSettings() {}
 
@@ -28,6 +30,24 @@ final class BridgeSettings {
 
     static void savePlayerMode(Context context, boolean on) {
         prefs(context).edit().putBoolean(KEY_PLAYER, on).apply();
+    }
+
+    /** True (the default) when the box's karaoke videos keep the singer's own voice on the first sound track / the left channel and the music on the other. */
+    static boolean isVoiceFirst(Context context) {
+        return prefs(context).getBoolean(KEY_VOICE_FIRST, true);
+    }
+
+    static void saveVoiceFirst(Context context, boolean first) {
+        prefs(context).edit().putBoolean(KEY_VOICE_FIRST, first).apply();
+    }
+
+    /** True when a video with one stereo sound track keeps voice and music on separate channels (off by default: an ordinary stereo video must stay stereo). */
+    static boolean isChannelVoice(Context context) {
+        return prefs(context).getBoolean(KEY_CHANNEL_VOICE, false);
+    }
+
+    static void saveChannelVoice(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_CHANNEL_VOICE, on).apply();
     }
 
     static boolean isReady(Context context) {

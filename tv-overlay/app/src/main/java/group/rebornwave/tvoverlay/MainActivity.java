@@ -85,6 +85,17 @@ public class MainActivity extends Activity {
         root.addView(button(t("Go back to the box's own song program", "改回使用点歌机自带程序", "Kembali ke program lagu bawaan mesin"), new View.OnClickListener() {
             @Override public void onClick(View v) { BridgeSettings.savePlayerMode(MainActivity.this, false); startConnector(); }
         }));
+        final Button voiceSide = button("", null);
+        voiceSide.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { BridgeSettings.saveVoiceFirst(MainActivity.this, !BridgeSettings.isVoiceFirst(MainActivity.this)); showVoiceSettings(voiceSide, null); }
+        });
+        final Button voiceChannels = button("", null);
+        voiceChannels.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { BridgeSettings.saveChannelVoice(MainActivity.this, !BridgeSettings.isChannelVoice(MainActivity.this)); showVoiceSettings(voiceSide, voiceChannels); }
+        });
+        showVoiceSettings(voiceSide, voiceChannels);
+        root.addView(voiceSide);
+        root.addView(voiceChannels);
         root.addView(label(t("Or paste the token by hand (Admin > Requests > Karaoke system > Make token):", "或手动粘贴令牌（管理 > 点歌 > 点歌系统 > 生成令牌）：", "Atau tempel token manual (Admin > Permintaan > Sistem karaoke > Buat token):"), 16, false));
         tokenField = new EditText(this);
         tokenField.setSingleLine(true);
@@ -244,6 +255,17 @@ public class MainActivity extends Activity {
                 }
             }
         }).start();
+    }
+
+    /** Writes what the two voice buttons currently mean; `channels` may be null before it exists. */
+    private void showVoiceSettings(Button side, Button channels) {
+        side.setText(t("The singer's own voice is on the: ", "原唱在：", "Suara asli penyanyi ada di: ")
+                + (BridgeSettings.isVoiceFirst(this) ? t("first track / left channel (tap to change)", "第一音轨 / 左声道（点击更改）", "trek pertama / kanal kiri (ketuk untuk ganti)")
+                : t("second track / right channel (tap to change)", "第二音轨 / 右声道（点击更改）", "trek kedua / kanal kanan (ketuk untuk ganti)")));
+        if (channels == null) return;
+        channels.setText(BridgeSettings.isChannelVoice(this)
+                ? t("Videos with one stereo track: voice and music on separate channels (ON, tap to turn off)", "单音轨立体声视频：人声与伴奏分左右声道（已开，点击关闭）", "Video satu trek stereo: suara dan musik di kanal terpisah (AKTIF, ketuk untuk mematikan)")
+                : t("Videos with one stereo track: voice and music on separate channels (OFF, tap to turn on)", "单音轨立体声视频：人声与伴奏分左右声道（已关，点击开启）", "Video satu trek stereo: suara dan musik di kanal terpisah (MATI, ketuk untuk mengaktifkan)"));
     }
 
     private void startConnector() {

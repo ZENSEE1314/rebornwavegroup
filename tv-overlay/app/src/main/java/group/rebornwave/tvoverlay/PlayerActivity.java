@@ -16,35 +16,48 @@ import android.widget.FrameLayout;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 
-import java.io.File;
+import org.json.JSONObject;
+
 import java.util.List;
 
 /**
- * The karaoke player of this box, used instead of the box's own song program: it plays the song that is on now in the app's queue from a video on
- * this box (see SongFiles), tells the app when it ended so the next singer starts, follows the pause / mute / volume / skip / repeat buttons, and draws
- * a lobby with the waiting songs between songs and the gifts over the picture (the same GiftView the overlay uses).
+ * The karaoke player of this box, used instead of the box's own song program: it plays the song that is on now in the app's queue (a video on this
+ * box, or a YouTube karaoke video shown with YouTube's own embedded player), tells the app when it ended so the next singer starts, answers the song
+ * searches members make in the app, follows the pause / mute / volume / skip / repeat buttons and the singer's voice choice, and draws the table
+ * boxes, "Now singing" card and gifts around the picture.
  */
 public class PlayerActivity extends Activity {
     private static final long POLL_MS = 2_000;
+    private static final long JOB_RETRY_MS = 3_000;
     private static final long SKIP_DELAY_MS = 2_500;
     private static final float VOLUME_STEP = 0.1f;
     private static final int STORAGE_REQUEST = 7;
+    private static final long BOARD_EVERY_MS = 90_000;
+    private static final String YOUTUBE_PREFIX = "yt:";
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private QueueClient client;
     private SongFiles songFiles;
+    private SongSearch songSearch;
+    private VoiceControl voice;
     private StageView stage;
     private GiftView gifts;
+    private YouTubeView youtube;
     private TvFeed feed;
     private ExoPlayer player;
     private volatile boolean alive = false;
     private Thread poller;
+    private Thread jobber;
     private int currentId = 0;
     private volatile boolean finishing = false;
+    private boolean onYoutube = false;
+    private boolean wantOriginal = false;
     private boolean queuePaused = false;
     private boolean userPaused = false;
+    private long lastBoardAt = 0;
     private boolean muted = false;
     private float volume = 1f;
 
@@ -54,25 +67,34 @@ public class PlayerActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         client = new QueueClient(this);
         songFiles = new SongFiles(this);
+        songSearch = new SongSearch(songFiles);
+        voice = new VoiceControl(this);
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(0xFF000000);
         SurfaceView video = new SurfaceView(this);
         root.addView(video, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        youtube = new YouTubeView(this);
+        root.addView(youtube, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         stage = new StageView(this);
         root.addView(stage, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         gifts = new GiftView(this);
         root.addView(gifts, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
 
-        player = new ExoPlayer.Builder(this).build();
+        player = new ExoPlayer.Builder(this, voice.renderers()).build();
         player.setVideoSurfaceView(video);
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int playbackState) {
-                if (playbackState == Player.STATE_ENDED) finishSong(false);
+                if (playbackState == Player.STATE_ENDED && !onYoutube) finishSong(false);
+            }
+
+            @Override public void onTracksChanged(Tracks tracks) {
+                voice.apply(player, wantOriginal);
             }
 
             @Override public void onPlayerError(PlaybackException error) {
+                if (onYoutube) return;
                 stage.flash(Words.t("This video cannot be played — skipping", "无法播放此视频，已跳过", "Video tidak bisa diputar — dilewati"));
                 finishSong(true);
             }
@@ -89,21 +111,27 @@ public class PlayerActivity extends Activity {
         startGifts();
         alive = true;
         showSetupHintIfNeeded();
-        if (BridgeSettings.isReady(this)) startPolling();
+        if (BridgeSettings.isReady(this)) {
+            startPolling();
+            startJobs();
+        }
     }
 
     @Override
     protected void onStop() {
         alive = false;
         if (poller != null) poller.interrupt();
+        if (jobber != null) jobber.interrupt();
         if (feed != null) feed.stop();
         player.setPlayWhenReady(false);
+        if (onYoutube) youtube.setPaused(true);
         super.onStop();
     }
 
     @Override
     protected void onDestroy() {
         stage.close();
+        youtube.stop();
         player.release();
         super.onDestroy();
     }
@@ -134,7 +162,7 @@ public class PlayerActivity extends Activity {
         if (BridgeSettings.isReady(this)) return;
         stage.showLobby(Words.t("Link this box to the app first: open the app's settings screen and link the song system with a code.",
                 "请先把本机链接到应用：打开应用设置界面，用代码链接点歌系统。",
-                "Hubungkan perangkat ini ke aplikasi dulu: buka layar pengaturan dan hubungkan sistem lagu dengan kode."), new java.util.ArrayList<QueueClient.Song>());
+                "Hubungkan perangkat ini ke aplikasi dulu: buka layar pengaturan dan hubungkan sistem lagu dengan kode."), null, new java.util.ArrayList<QueueClient.Song>());
     }
 
     private void startPolling() {
@@ -143,6 +171,7 @@ public class PlayerActivity extends Activity {
             @Override public void run() {
                 while (alive) {
                     try {
+                        songFiles.refreshIfOld();
                         pollOnce();
                     } catch (Exception failure) {
                         OverlayLog.add("player: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
@@ -152,6 +181,27 @@ public class PlayerActivity extends Activity {
             }
         }, "player-poll");
         poller.start();
+    }
+
+    /** Answers the searches members make in the app: the app holds each call open until a question arrives. */
+    private void startJobs() {
+        if (jobber != null && jobber.isAlive()) return;
+        jobber = new Thread(new Runnable() {
+            @Override public void run() {
+                while (alive) {
+                    try {
+                        for (QueueClient.Job job : client.jobs()) {
+                            JSONObject answer = songSearch.answer(job);
+                            client.answer(job.id, answer);
+                        }
+                    } catch (Exception failure) {
+                        OverlayLog.add("player search: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
+                        try { Thread.sleep(JOB_RETRY_MS); } catch (InterruptedException stopped) { return; }
+                    }
+                }
+            }
+        }, "player-jobs");
+        jobber.start();
     }
 
     private void pollOnce() throws Exception {
@@ -174,20 +224,45 @@ public class PlayerActivity extends Activity {
     private void onBoard(QueueClient.Board board) {
         QueueClient.Song next = board.queue.isEmpty() ? null : board.queue.get(0);
         if (board.now == null) {
-            if (currentId != 0) {
-                player.stop();
-                currentId = 0;
-            }
+            if (currentId != 0) stopPlaying();
             finishing = false;
-            stage.showLobby(lobbyHint(board), board.queue);
+            stage.showLobby(lobbyHint(board), null, board.queue);
             return;
         }
-        if (board.now.id != currentId) startSong(board.now, next);
-        else stage.setNext(next);
+        if (board.now.id != currentId) {
+            startSong(board.now, next);
+        } else {
+            stage.setNext(next);
+            followVoice(board.now);
+        }
+        showBoardNowAndThen(board);
         if (board.paused != queuePaused) {
             queuePaused = board.paused;
             applyPlayState();
         }
+    }
+
+    private void stopPlaying() {
+        player.stop();
+        youtube.stop();
+        onYoutube = false;
+        currentId = 0;
+    }
+
+    /** The singer (or staff) switched the singer's voice in the app: the song on now follows. */
+    private void followVoice(QueueClient.Song now) {
+        boolean original = "original".equals(now.vocal);
+        if (original == wantOriginal) return;
+        wantOriginal = original;
+        if (!onYoutube) voice.apply(player, wantOriginal);
+    }
+
+    /** The 12 table boxes over the playing song, once in a while. */
+    private void showBoardNowAndThen(QueueClient.Board board) {
+        long now = System.currentTimeMillis();
+        if (now - lastBoardAt < BOARD_EVERY_MS) return;
+        lastBoardAt = now;
+        stage.showBoard(board.now, board.queue);
     }
 
     private String lobbyHint(QueueClient.Board board) {
@@ -201,18 +276,45 @@ public class PlayerActivity extends Activity {
         currentId = song.id;
         finishing = false;
         userPaused = false;
-        File file = songFiles.find(song.title, song.artist);
-        if (file == null) {
-            stage.flash(Words.t("No video for \"" + song.title + "\" on this box — skipping", "本机没有“" + song.title + "”的视频，已跳过", "Tidak ada video \"" + song.title + "\" di perangkat ini — dilewati"));
-            ui.postDelayed(new Runnable() {
-                @Override public void run() { finishSong(true); }
-            }, SKIP_DELAY_MS);
+        wantOriginal = "original".equals(song.vocal);
+        player.stop();
+        youtube.stop();
+        onYoutube = false;
+        if (song.karaokeCode.startsWith(YOUTUBE_PREFIX) && YouTubeView.isVideoId(song.karaokeCode.substring(YOUTUBE_PREFIX.length()))) {
+            startYoutube(song, next, song.karaokeCode.substring(YOUTUBE_PREFIX.length()));
+            return;
+        }
+        SongFiles.LocalSong local = song.karaokeCode.isEmpty() ? null : songFiles.byCode(song.karaokeCode);
+        if (local == null) local = songFiles.find(song.title, song.artist);
+        if (local == null) {
+            skipSoon(Words.t("No video for \"" + song.title + "\" on this box — skipping", "本机没有“" + song.title + "”的视频，已跳过", "Tidak ada video \"" + song.title + "\" di perangkat ini — dilewati"));
             return;
         }
         stage.showPlaying(song, next);
-        player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)));
+        player.setMediaItem(MediaItem.fromUri(Uri.fromFile(local.file)));
         player.prepare();
         applyPlayState();
+    }
+
+    private void startYoutube(QueueClient.Song song, QueueClient.Song next, String videoId) {
+        onYoutube = true;
+        stage.showPlaying(song, next);
+        youtube.play(videoId, new YouTubeView.Listener() {
+            @Override public void onEnded() { finishSong(false); }
+
+            @Override public void onFailed() {
+                stage.flash(Words.t("This YouTube video cannot be shown here — skipping", "此 YouTube 视频无法在本机播放，已跳过", "Video YouTube ini tidak bisa diputar di sini — dilewati"));
+                finishSong(true);
+            }
+        });
+        youtube.setVolume(muted ? 0 : Math.round(volume * 100));
+    }
+
+    private void skipSoon(String message) {
+        stage.flash(message);
+        ui.postDelayed(new Runnable() {
+            @Override public void run() { finishSong(true); }
+        }, SKIP_DELAY_MS);
     }
 
     /** Tells the app the song on now ended (or was skipped); it starts the next singer, which the next poll picks up. */
@@ -233,7 +335,15 @@ public class PlayerActivity extends Activity {
     }
 
     private void applyPlayState() {
-        player.setPlayWhenReady(!queuePaused && !userPaused);
+        boolean play = !queuePaused && !userPaused;
+        if (onYoutube) youtube.setPaused(!play);
+        else player.setPlayWhenReady(play);
+    }
+
+    private void applyVolume() {
+        float level = muted ? 0f : volume;
+        player.setVolume(level);
+        if (onYoutube) youtube.setVolume(Math.round(level * 100));
     }
 
     /** The buttons staff and singers press in the app: the same names the box's own phone page uses. */
@@ -243,16 +353,15 @@ public class PlayerActivity extends Activity {
             applyPlayState();
         } else if ("Mute".equals(command)) {
             muted = !muted;
-            player.setVolume(muted ? 0f : volume);
+            applyVolume();
         } else if ("Music_up".equals(command) || "Music_down".equals(command)) {
             volume = Math.max(0f, Math.min(1f, volume + ("Music_up".equals(command) ? VOLUME_STEP : -VOLUME_STEP)));
-            if (!muted) player.setVolume(volume);
+            applyVolume();
         } else if ("Reset".equals(command)) {
-            player.seekTo(0);
+            if (onYoutube) youtube.restart();
+            else player.seekTo(0);
         } else if ("Skip".equals(command)) {
             finishSong(true);
-        } else if ("MuOr".equals(command)) {
-            stage.flash(Words.t("The singer's voice switch is not in the built-in player yet", "内置播放器暂不支持切换原唱", "Tombol suara penyanyi belum ada di pemutar bawaan"));
         }
     }
 }

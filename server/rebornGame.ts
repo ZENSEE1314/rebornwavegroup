@@ -78,6 +78,7 @@ import { readReceiptPhoto, receiptAiReady, ReceiptReadError } from "./receiptAi"
 import { karaokeSetupBat, karaokeSetupLegacyBat } from "./karaokeSetup";
 import { cameraSetupBat, cleanSetupCameras } from "./cameraSetup";
 import { BoxControlQueue, isBoxControl, isBoxSongAction, isBoxSongId } from "./boxControls";
+import { searchYoutubeKaraoke } from "./youtubeSearch";
 import { cleanReceipt, type ReadReceipt, cleanSaveLines, matchProduct, receiptNote, payableDupKey, payableItemsOf, parseReceiptHead, PACK_UNIT_RE, expenseCategoryOf, applyMemory, supplierKeyOf, lineKeyOf, expenseKeyOf } from "./receiptLogic";
 const RECEIPT_TIME_SUFFIX = "T05:00:00Z"; // noon in Jakarta / Singapore: a receipt has a day, not a time
 import {
@@ -2738,9 +2739,10 @@ export function registerRebornRoutes(app: Express) {
       const companyKey = String(await rebornCompanyId(req));
       // With the song system connected only its own songs are shown, so the library, Spotify, MusicBrainz and iTunes are not asked at all: they could take up to 28 s one after another and the answer was thrown away.
       if (query && isBoxOnline(companyKey)) {
-        const found = await searchKaraokeBox(companyKey, query);
-        const fromSystem = (found || []).map((x) => ({ source: "karaoke", title: x.title, titlePinyin: "", artist: x.artist, artistPinyin: "", karaokeCode: x.code, photo: x.photo }));
-        return res.json({ songs: fromSystem, spotifyConnected: false, freeCatalogConnected: false, boxConnected: true, ...(found ? {} : { slow: true }) });
+        const [found, fromYoutube] = await Promise.all([searchKaraokeBox(companyKey, query), searchYoutubeKaraoke(query)]);
+        const onBox = (found || []).map((x) => ({ source: "karaoke", title: x.title, titlePinyin: "", artist: x.artist, artistPinyin: "", karaokeCode: x.code, photo: x.photo }));
+        const fromSystem = [...onBox, ...fromYoutube]; // the box's own videos first, then YouTube karaoke videos (needs YOUTUBE_API_KEY)
+        return res.json({ songs: fromSystem, spotifyConnected: false, freeCatalogConnected: false, boxConnected: true, ...(found || fromYoutube.length ? {} : { slow: true }) });
       }
       await seedSongsIfEmpty();
       const [catalog, box] = await Promise.all([searchSongCatalog(req.query.q, 10, 100), query ? searchKaraokeBox(String(await rebornCompanyId(req)), query) : Promise.resolve(null)]);
