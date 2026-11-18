@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Outline;
 import android.graphics.Typeface;
 import android.animation.ObjectAnimator;
 import android.animation.PropertyValuesHolder;
@@ -18,6 +19,7 @@ import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewOutlineProvider;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
@@ -46,7 +48,7 @@ final class GiftView extends FrameLayout {
     private static final int RAIN_SP = 32;
     private static final int EMOJI_SP = 60;
     private static final int BAR_SP = 26;
-    private static final float PICTURE_HEIGHT_FRACTION = 0.2f; // a gift picture of its own: a fifth of the screen height
+    private static final float PICTURE_HEIGHT_FRACTION = 0.3f; // a gift picture of its own
     private static final int FALLBACK_WIDTH_PX = 1280;
     private static final int FALLBACK_HEIGHT_PX = 720;
     private static final int MAX_WAITING_GIFTS = 12;
@@ -54,9 +56,18 @@ final class GiftView extends FrameLayout {
     private static final String DEFAULT_EMOJI = "🎁";
     private static final int GREY_BOX = Color.argb(185, 55, 55, 55); // see-through grey behind the words
     private static final int WORDS_PAD_PX = 36;
-    // The animation is sized as a share of the screen, so it stays small on any TV: at most 18% of the width and 22% of the height.
-    private static final float ART_WIDTH_FRACTION = 0.18f;
-    private static final float ART_HEIGHT_FRACTION = 0.22f;
+    // Pictures are sized as a share of the screen, so they look the same on any TV.
+    private static final float ART_WIDTH_FRACTION = 0.26f;
+    private static final float ART_HEIGHT_FRACTION = 0.32f;
+    private static final float POSTER_WIDTH_FRACTION = 0.3f;
+    private static final float POSTER_HEIGHT_FRACTION = 0.5f;
+    private static final float POSTER_CORNER_FRACTION = 0.05f; // of the poster width
+    private static final float FLOAT_FRACTION = 0.018f; // how far a picture floats up and down, of the screen height
+    private static final float BREATHE_SCALE = 1.04f;
+    private static final long FLOAT_MS = 1_500;
+    private static final int SPARKLES = 8;
+    private static final int SPARKLE_SP = 26;
+    private static final long SPARKLE_MS = 900;
     private static final float HALO_EXTRA_FRACTION = 0.25f; // the glow is this much bigger than the animation
     private static final int TICKER_SP = 32;
     private static final int TICKER_TOP_PX = 80; // below the line the karaoke program keeps at the top of its picture
@@ -160,10 +171,13 @@ final class GiftView extends FrameLayout {
         card.setScaleY(0f);
         card.animate().scaleX(1f).scaleY(1f).setDuration(POP_MS).setInterpolator(new OvershootInterpolator()).start();
 
+        // What is shown is what was sent: the club's own clip (lion, whale, car, teddy), one of the club's two posters (hearts, gift boxes), the gift's own
+        // picture, else the animation of the very emoji it was sent with.
         String scene = GiftArt.sceneOf(gift);
-        // A gift with a picture of its own and no special scene shows that picture; every other gift plays the animation of its scene.
-        if (!gift.imageUrl.isEmpty() && GiftArt.isFallback(scene)) loadPicture(gift.imageUrl, card, picture);
-        else loadArt(scene, card, picture);
+        if (GiftArt.isClubClip(scene)) loadAnimated(gift, scene, card, picture);
+        else if (GiftArt.isPoster(scene)) loadPoster(scene, card, picture);
+        else if (!gift.imageUrl.isEmpty()) loadPicture(gift.imageUrl, card, picture);
+        else loadAnimated(gift, scene, card, picture);
         rain(emoji);
     }
 
@@ -188,12 +202,18 @@ final class GiftView extends FrameLayout {
         });
     }
 
-    /** Replaces the emoji with the animated picture of the gift's scene when this box has it (Android 9 and newer); until then, or without it, the emoji stays. */
-    private void loadArt(final String scene, final LinearLayout card, final TextView emoji) {
-        final File file = GiftArt.cached(getContext(), scene);
-        if (file == null || Build.VERSION.SDK_INT < 28) return;
+    /**
+     * Replaces the emoji with an animated picture (Android 9 and newer): the club's clip for its own scenes, else the animation of the gift's own emoji,
+     * else the one of its kind of scene. Until it is there, or when there is none, the emoji stays.
+     */
+    private void loadAnimated(final TvFeed.Gift gift, final String scene, final LinearLayout card, final TextView emoji) {
+        if (Build.VERSION.SDK_INT < 28) return;
         new Thread(new Runnable() {
             @Override public void run() {
+                File found = GiftArt.isClubClip(scene) ? GiftArt.cached(getContext(), scene) : GiftArt.emojiClip(getContext(), gift.emoji);
+                if (found == null && !scene.isEmpty()) found = GiftArt.cached(getContext(), scene);
+                if (found == null) return;
+                final File file = found;
                 final Drawable art;
                 try {
                     art = ImageDecoder.decodeDrawable(ImageDecoder.createSource(file));
@@ -234,11 +254,7 @@ final class GiftView extends FrameLayout {
         ImageView image = new ImageView(getContext());
         image.setImageDrawable(art);
         box.addView(image, new FrameLayout.LayoutParams(artWidth, artHeight, Gravity.CENTER));
-        ObjectAnimator pulse = ObjectAnimator.ofPropertyValuesHolder(halo, PropertyValuesHolder.ofFloat("scaleX", 0.85f, 1.15f), PropertyValuesHolder.ofFloat("scaleY", 0.85f, 1.15f));
-        pulse.setDuration(HALO_PULSE_MS);
-        pulse.setRepeatCount(ObjectAnimator.INFINITE);
-        pulse.setRepeatMode(ObjectAnimator.REVERSE);
-        pulse.start();
+        pulseGlow(halo);
         int index = card.indexOfChild(emoji);
         card.removeView(emoji);
         card.addView(box, index, new LinearLayout.LayoutParams(artWidth + haloExtra, artHeight + haloExtra));
@@ -246,6 +262,97 @@ final class GiftView extends FrameLayout {
             ((AnimatedImageDrawable) art).setRepeatCount(AnimatedImageDrawable.REPEAT_INFINITE);
             ((AnimatedImageDrawable) art).start();
         }
+    }
+
+    /** Floats a view gently up and down and "breathes" it a little bigger and smaller, so a still picture feels alive. */
+    private void startFloat(View view) {
+        float rise = screenHeight() * FLOAT_FRACTION;
+        ObjectAnimator bob = ObjectAnimator.ofPropertyValuesHolder(view,
+                PropertyValuesHolder.ofFloat("translationY", rise, -rise),
+                PropertyValuesHolder.ofFloat("scaleX", 1f, BREATHE_SCALE),
+                PropertyValuesHolder.ofFloat("scaleY", 1f, BREATHE_SCALE));
+        bob.setDuration(FLOAT_MS);
+        bob.setRepeatCount(ObjectAnimator.INFINITE);
+        bob.setRepeatMode(ObjectAnimator.REVERSE);
+        bob.start();
+    }
+
+    /** A still picture (a poster, or a gift's own picture) in a glowing, floating frame; a poster gets rounded corners and twinkling sparkles. */
+    private void showBitmap(Bitmap bitmap, LinearLayout card, TextView emoji, boolean isPoster) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        if (width <= 0 || height <= 0) return;
+        float maxWidth = screenWidth() * (isPoster ? POSTER_WIDTH_FRACTION : PICTURE_HEIGHT_FRACTION);
+        float maxHeight = screenHeight() * (isPoster ? POSTER_HEIGHT_FRACTION : PICTURE_HEIGHT_FRACTION);
+        float scale = Math.min(maxWidth / width, maxHeight / height);
+        int pictureWidth = Math.round(width * scale);
+        int pictureHeight = Math.round(height * scale);
+        int haloExtra = Math.round(Math.max(pictureWidth, pictureHeight) * HALO_EXTRA_FRACTION);
+
+        FrameLayout box = new FrameLayout(getContext());
+        View halo = new View(getContext());
+        halo.setBackground(glow(Math.max(pictureWidth, pictureHeight) / 2f + haloExtra));
+        box.addView(halo, new FrameLayout.LayoutParams(pictureWidth + haloExtra, pictureHeight + haloExtra, Gravity.CENTER));
+        ImageView image = new ImageView(getContext());
+        image.setImageBitmap(bitmap);
+        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        if (isPoster) {
+            final float corner = pictureWidth * POSTER_CORNER_FRACTION;
+            image.setOutlineProvider(new ViewOutlineProvider() {
+                @Override public void getOutline(View view, Outline outline) { outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), corner); }
+            });
+            image.setClipToOutline(true);
+        }
+        box.addView(image, new FrameLayout.LayoutParams(pictureWidth, pictureHeight, Gravity.CENTER));
+        pulseGlow(halo);
+        if (isPoster) addSparkles(box, pictureWidth + haloExtra, pictureHeight + haloExtra);
+        int index = card.indexOfChild(emoji);
+        card.removeView(emoji);
+        card.addView(box, index, new LinearLayout.LayoutParams(pictureWidth + haloExtra, pictureHeight + haloExtra));
+        startFloat(box);
+    }
+
+    private void pulseGlow(View halo) {
+        ObjectAnimator pulse = ObjectAnimator.ofPropertyValuesHolder(halo, PropertyValuesHolder.ofFloat("scaleX", 0.85f, 1.15f), PropertyValuesHolder.ofFloat("scaleY", 0.85f, 1.15f));
+        pulse.setDuration(HALO_PULSE_MS);
+        pulse.setRepeatCount(ObjectAnimator.INFINITE);
+        pulse.setRepeatMode(ObjectAnimator.REVERSE);
+        pulse.start();
+    }
+
+    /** A few sparkles that fade in and out at random places around a poster. */
+    private void addSparkles(FrameLayout box, int width, int height) {
+        for (int i = 0; i < SPARKLES; i++) {
+            TextView sparkle = text("✨", SPARKLE_SP, false);
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
+            params.leftMargin = random.nextInt(Math.max(1, width));
+            params.topMargin = random.nextInt(Math.max(1, height));
+            box.addView(sparkle, params);
+            sparkle.setAlpha(0f);
+            ObjectAnimator twinkle = ObjectAnimator.ofFloat(sparkle, "alpha", 0f, 1f);
+            twinkle.setDuration(SPARKLE_MS);
+            twinkle.setStartDelay(random.nextInt((int) SPARKLE_MS * 2));
+            twinkle.setRepeatCount(ObjectAnimator.INFINITE);
+            twinkle.setRepeatMode(ObjectAnimator.REVERSE);
+            twinkle.start();
+        }
+    }
+
+    /** A club poster (hearts, gift boxes) replaces the emoji once the box has it. */
+    private void loadPoster(final String scene, final LinearLayout card, final TextView emoji) {
+        new Thread(new Runnable() {
+            @Override public void run() {
+                File file = GiftArt.poster(getContext(), scene);
+                final Bitmap bitmap = file == null ? null : BitmapFactory.decodeFile(file.getPath());
+                if (bitmap == null) return;
+                handler.post(new Runnable() {
+                    @Override public void run() {
+                        if (closed || card.getParent() == null) return;
+                        showBitmap(bitmap, card, emoji, true);
+                    }
+                });
+            }
+        }, "gift-poster").start();
     }
 
     /** A soft golden glow that pulses behind the animation. */
@@ -288,12 +395,7 @@ final class GiftView extends FrameLayout {
                 handler.post(new Runnable() {
                     @Override public void run() {
                         if (closed || card.getParent() == null) return;
-                        ImageView image = new ImageView(getContext());
-                        image.setImageBitmap(bitmap);
-                        image.setAdjustViewBounds(true);
-                        card.removeView(emoji);
-                        int picture = Math.round(screenHeight() * PICTURE_HEIGHT_FRACTION);
-                        card.addView(image, 0, new LinearLayout.LayoutParams(picture, picture));
+                        showBitmap(bitmap, card, emoji, false);
                     }
                 });
             }
