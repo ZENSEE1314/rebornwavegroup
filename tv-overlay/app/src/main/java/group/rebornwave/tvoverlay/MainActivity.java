@@ -79,6 +79,12 @@ public class MainActivity extends Activity {
         root.addView(button(t("Stop the connector", "停止连接器", "Hentikan konektor"), new View.OnClickListener() {
             @Override public void onClick(View v) { BridgeService.stop(MainActivity.this); refreshConnector(); }
         }));
+        root.addView(button(t("Open the built-in karaoke player", "打开内置卡拉OK播放器", "Buka pemutar karaoke bawaan"), new View.OnClickListener() {
+            @Override public void onClick(View v) { startActivity(new android.content.Intent(MainActivity.this, PlayerActivity.class)); }
+        }));
+        root.addView(button(t("Go back to the box's own song program", "改回使用点歌机自带程序", "Kembali ke program lagu bawaan mesin"), new View.OnClickListener() {
+            @Override public void onClick(View v) { BridgeSettings.savePlayerMode(MainActivity.this, false); startConnector(); }
+        }));
         root.addView(label(t("Or paste the token by hand (Admin > Requests > Karaoke system > Make token):", "或手动粘贴令牌（管理 > 点歌 > 点歌系统 > 生成令牌）：", "Atau tempel token manual (Admin > Permintaan > Sistem karaoke > Buat token):"), 16, false));
         tokenField = new EditText(this);
         tokenField.setSingleLine(true);
@@ -354,7 +360,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refresh();
-        if (BridgeSettings.isReady(this) && !BridgeService.running) BridgeService.start(this);
+        if (BridgeSettings.isReady(this) && !BridgeSettings.isPlayerMode(this) && !BridgeService.running) BridgeService.start(this);
         ui.removeCallbacks(connectorTick);
         ui.post(connectorTick);
         if (Link.isLinked(this) && OverlayService.canShow(this) && !OverlayService.running && !OverlayAccessibilityService.isEnabled(this)) startOverlay();

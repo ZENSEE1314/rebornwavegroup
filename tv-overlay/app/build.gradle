@@ -10,8 +10,8 @@ android {
         applicationId "group.rebornwave.tvoverlay"
         minSdk 21
         targetSdk 33
-        versionCode 9
-        versionName "1.8"
+        versionCode 10
+        versionName "2.0"
     }
 
     // The same key every build (the workflow keeps it), so a newer build installs over the older one on the box.
@@ -35,4 +35,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    // The built-in karaoke player (PlayerActivity) plays the song videos with Media3 ExoPlayer.
+    implementation 'androidx.media3:media3-exoplayer:1.3.1'
 }

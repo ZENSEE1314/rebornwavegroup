@@ -8,7 +8,7 @@ import android.content.Intent;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (BridgeSettings.isReady(context)) BridgeService.start(context);
+        if (BridgeSettings.isReady(context) && !BridgeSettings.isPlayerMode(context)) BridgeService.start(context);
         if (Link.isLinked(context) && !OverlayAccessibilityService.isEnabled(context) && OverlayService.canShow(context)) OverlayService.start(context);
     }
 }

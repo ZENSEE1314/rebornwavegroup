@@ -13,11 +13,21 @@ final class BridgeSettings {
     private static final String KEY_TOKEN = "token";
     private static final String KEY_TENANT = "tenant";
     private static final String KEY_BOX = "box";
+    private static final String KEY_PLAYER = "player";
 
     private BridgeSettings() {}
 
     private static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    /** True while this box runs the built-in karaoke player instead of the box's own song program: the connector then stays off, also after a restart. */
+    static boolean isPlayerMode(Context context) {
+        return prefs(context).getBoolean(KEY_PLAYER, false);
+    }
+
+    static void savePlayerMode(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_PLAYER, on).apply();
     }
 
     static boolean isReady(Context context) {
@@ -29,6 +39,18 @@ final class BridgeSettings {
         while (clean.endsWith("/")) clean = clean.substring(0, clean.length() - 1);
         if (!clean.startsWith("http")) clean = "https://" + clean;
         prefs(context).edit().putString(KEY_CLOUD, clean).putString(KEY_TOKEN, token.trim()).putString(KEY_TENANT, tenant.trim()).apply();
+    }
+
+    static String cloud(Context context) {
+        return prefs(context).getString(KEY_CLOUD, Link.server(context));
+    }
+
+    static String token(Context context) {
+        return prefs(context).getString(KEY_TOKEN, "");
+    }
+
+    static String tenant(Context context) {
+        return prefs(context).getString(KEY_TENANT, "");
     }
 
     static void forget(Context context) {
