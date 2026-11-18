@@ -90,6 +90,41 @@ final class QueueClient {
         return song;
     }
 
+    /** The tables the admin set up (booking areas + extra tables of Admin › QR codes), in the admin's order. */
+    List<String> tables() throws Exception {
+        JSONArray labels = call("GET", "/api/karaoke/tables", null).optJSONArray("tables");
+        List<String> list = new ArrayList<String>();
+        if (labels != null) for (int i = 0; i < labels.length(); i++) list.add(labels.optString(i));
+        return list;
+    }
+
+    /** The most requested songs of the club (those with a video on this box or on YouTube; the box filters the rest out). */
+    List<SongPick> topSongs() throws Exception {
+        return picksOf(call("GET", "/api/karaoke/top-songs", null));
+    }
+
+    /** Karaoke videos on YouTube for what was typed (empty when the app has no YouTube key). */
+    List<SongPick> youtube(String typed) throws Exception {
+        return picksOf(call("GET", "/api/karaoke/youtube?q=" + java.net.URLEncoder.encode(typed, "UTF-8"), null));
+    }
+
+    /** Puts a song into the queue for a table; returns its place in the queue (0 when unknown). */
+    int request(String table, SongPick pick) throws Exception {
+        JSONObject body = new JSONObject().put("table", table).put("code", pick.code).put("title", pick.title).put("artist", pick.artist);
+        return call("POST", "/api/karaoke/request", body.toString()).optInt("position");
+    }
+
+    private static List<SongPick> picksOf(JSONObject answer) {
+        JSONArray songs = answer.optJSONArray("songs");
+        List<SongPick> list = new ArrayList<SongPick>();
+        if (songs == null) return list;
+        for (int i = 0; i < songs.length(); i++) {
+            JSONObject json = songs.optJSONObject(i);
+            if (json != null && !json.optString("code").isEmpty()) list.add(new SongPick(json.optString("code"), json.optString("title"), json.optString("artist")));
+        }
+        return list;
+    }
+
     /** What a member asked the box through the app: a search, the singers, one singer's songs or a photo. */
     static final class Job {
         String id = "";

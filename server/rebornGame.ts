@@ -1427,6 +1427,8 @@ async function tableSig(label: string): Promise<string> {
   return createHmac("sha256", await tableQrSecret()).update(label).digest("base64url").slice(0, 10);
 }
 // Extra tables the admin added just for QR codes (Admin > QR codes), beyond the booking areas.
+const BOX_REQUESTER = "box"; // the "member" of a song asked for at the karaoke box's own touch screen: it has no account, the request counts for its table
+const BOX_TOP_SONGS = 60;
 const EXTRA_TABLES_KEY = "extraTables";
 const MAX_EXTRA_TABLES = 300;
 const MAX_TABLE_LABEL_LENGTH = 20;
@@ -3249,6 +3251,37 @@ export function registerRebornRoutes(app: Express) {
     emitLiveUpdate("/api/reborn/song-queue", { action: "CONTROL" });
     res.json({ ok: true });
   }));
+  // The box's own touch screen (built-in player): the tables to show (the ones the admin set up: booking-area tables + the extra tables of Admin › QR codes),
+  // the most requested songs, and a request made at the box for a table.
+  app.get("/api/karaoke/tables", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    res.set("Cache-Control", "no-store").json({ tables: (await venueTables()).map((t) => t.label) });
+  });
+  app.get("/api/karaoke/top-songs", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    const rows = await db.select({ code: songs.karaokeCode, title: songs.title, artist: songs.artist }).from(songs).where(isNotNull(songs.karaokeCode)).orderBy(desc(songs.requestCount), desc(songs.id)).limit(BOX_TOP_SONGS);
+    res.set("Cache-Control", "no-store").json({ songs: rows.filter((r) => r.code).map((r) => ({ code: r.code, title: r.title, artist: r.artist || "" })) });
+  });
+  app.get("/api/karaoke/youtube", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    res.set("Cache-Control", "no-store").json({ songs: (await searchYoutubeKaraoke(clean(req.query.q, 80))).map((x) => ({ code: x.karaokeCode, title: x.title, artist: x.artist })) });
+  });
+  app.post("/api/karaoke/request", async (req, res) => {
+    if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
+    const cid = await rebornCompanyId(req);
+    const table = clean(req.body?.table, MAX_TABLE_LABEL_LENGTH);
+    const code = clean(req.body?.code, 40);
+    const title = clean(req.body?.title);
+    const artist = clean(req.body?.artist);
+    if (!table || !code || !title) return res.status(400).json({ message: "Table, song number and title are needed" });
+    let [song] = await db.select().from(songs).where(eq(songs.karaokeCode, code)).limit(1);
+    if (song) await db.update(songs).set({ requestCount: (song.requestCount || 0) + 1 }).where(eq(songs.id, song.id));
+    else [song] = await db.insert(songs).values({ title, titlePinyin: textPinyin(title), artist, artistPinyin: textPinyin(artist), karaokeCode: code, isHit: false, requestCount: 1, createdBy: BOX_REQUESTER }).returning();
+    const [request] = await db.insert(songRequests).values({ companyId: cid, userId: BOX_REQUESTER, songId: song.id, title: song.title, artist: song.artist || "", performanceMode: "self", tableLabel: table, vocal: "karaoke", status: "pending" }).returning();
+    emitLiveUpdate("/api/reborn/song-queue", { action: "QUEUED" });
+    emitLiveUpdate("/api/reborn/admin/song-requests", { action: "QUEUED" });
+    res.json({ id: request.id, position: await songQueuePosition(cid, request.id) });
+  });
   app.get("/api/karaoke/controls", async (req, res) => {
     if (!(await karaokeAuth(req))) return res.status(401).json({ message: "Bad karaoke token" });
     res.set("Cache-Control", "no-store").json({ commands: boxControls.take(String(await rebornCompanyId(req))) });

@@ -104,6 +104,11 @@ final class SongFiles {
         return song;
     }
 
+    /** The "Karaoke" folders of this box (its own storage, the app's folder, USB drives): where videos and the "Singers" photo folder may be. */
+    List<File> roots() {
+        return folders();
+    }
+
     private List<File> folders() {
         List<File> folders = new ArrayList<File>();
         File own = context.getExternalFilesDir(null);

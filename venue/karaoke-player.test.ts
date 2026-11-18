@@ -77,6 +77,51 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(voice.includes("audio.size() >= 2") && voice.includes("BridgeSettings.isChannelVoice(context)"));
   });
 
+  it("should show the TV picture on the HDMI screen and the song pages on the box's own touch screen", () => {
+    assert.ok(java("PlayerActivity.java").includes("new TvPresentation(this, external)") && java("TvPresentation.java").includes("extends Presentation"));
+  });
+
+  it("should fall back to one screen with a Songs button when the box has no second screen", () => {
+    assert.ok(java("PlayerActivity.java").includes("menuButton") && java("PlayerActivity.java").includes("panel.setVisibility(View.GONE)"));
+  });
+
+  it("should list the tables the admin set, scrolling down for more, each box scrolling its own songs", () => {
+    const panel = java("ControlPanel.java");
+    assert.ok(panel.includes("ScrollView tablesScroll") && panel.includes("adminTables") && panel.includes("requestDisallowInterceptTouchEvent") && java("QueueClient.java").includes('"/api/karaoke/tables"'));
+  });
+
+  it("should offer the four ways to choose a song: singers, song title, top songs, new songs", () => {
+    assert.ok(java("ControlPanel.java").includes("enum Way { SINGERS, TITLE, TOP, FRESH }"));
+  });
+
+  it("should put the control bar buttons under every page: mute, volume, tone, play, skip, replay, analog", () => {
+    const panel = java("ControlPanel.java");
+    for (const action of ["onMute", "onVolume(-1)", "onVolume(1)", "onTone(-1)", "onTone(1)", "onPlay", "onSkip", "onReplay", "onAnalog"]) assert.ok(panel.includes(action), action);
+  });
+
+  it("should type the song name on a keyboard drawn by the app, at the bottom right", () => {
+    assert.ok(java("OnScreenKeyboard.java").includes('"QWERTYUIOP"') && java("ControlPanel.java").includes("body.addView(keyboard") && java("ControlPanel.java").includes("KEYBOARD_WIDTH_DP"));
+  });
+
+  it("should show a singer's picture from the club's Singers folder, a saved one, or Deezer when the name is the same", () => {
+    const photos = java("SingerPhotos.java");
+    assert.ok(photos.includes('SINGERS_FOLDER = "Singers"') && photos.includes("api.deezer.com/search/artist") && photos.includes('SongFiles.squash(artist.optString("name")).equals(key)'));
+  });
+
+  it("should change the key of a video with a pitch change and say it cannot on YouTube", () => {
+    const player = java("PlayerActivity.java");
+    assert.ok(player.includes("new PlaybackParameters(1f,") && player.includes("The key cannot be changed on a YouTube song"));
+  });
+
+  it("should let the box's own voice choice stand over the app's until the next song", () => {
+    assert.ok(java("PlayerActivity.java").includes("voiceChosenAtBoxFor == now.id"));
+  });
+
+  it("should take a request made at the box into the queue for its table through the app", () => {
+    const server = readFileSync(new URL("../server/rebornGame.ts", import.meta.url), "utf8");
+    assert.ok(server.includes('app.post("/api/karaoke/request"') && server.includes('app.get("/api/karaoke/tables"') && server.includes('app.get("/api/karaoke/top-songs"') && java("QueueClient.java").includes('"/api/karaoke/request"'));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });
