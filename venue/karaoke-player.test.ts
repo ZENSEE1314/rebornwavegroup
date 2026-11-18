@@ -100,7 +100,28 @@ describe("the built-in karaoke player of the box app", () => {
   });
 
   it("should split the song-title page in two halves under the search bar: the list left, a small keyboard right", () => {
-    assert.ok(java("OnScreenKeyboard.java").includes('"QWERTYUIOP"') && java("ControlPanel.java").includes("head.addView(search, new LinearLayout.LayoutParams(dp(SEARCH_WIDTH_DP)") && java("ControlPanel.java").includes("halves.addView(keyboard, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))") && java("ControlPanel.java").includes("halves.addView(scroll, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))"));
+    assert.ok(java("OnScreenKeyboard.java").includes('"QWERTYUIOP"') && java("ControlPanel.java").includes("head.addView(searchBox, new LinearLayout.LayoutParams(dp(SEARCH_WIDTH_DP)") && java("ControlPanel.java").includes("halves.addView(keyboardView, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))") && java("ControlPanel.java").includes("halves.addView(scroll, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))"));
+  });
+
+  it("should answer a tap on a table at once by changing only the two boxes whose look changes", () => {
+    const panel = java("ControlPanel.java");
+    assert.ok(panel.includes("highlight(previous);") && panel.includes("boxViews.put(table, box);") && !panel.includes("rebuildTablesNow") && panel.includes('String fresh = names + "|" + signatureOf(byTable);'));
+  });
+
+  it("should open a singer's songs from a tap on the face of one of their songs", () => {
+    const panel = java("ControlPanel.java");
+    assert.ok(panel.includes("face.setOnClickListener") && panel.includes("loadSingerSongs(faceOf,") && panel.includes("private static String firstSinger(String artist)"));
+  });
+
+  it("should filter every list by a typed word, and the song-title page search the box instead", () => {
+    const panel = java("ControlPanel.java");
+    assert.ok(panel.includes("serverSearch ? \"\" : SongFiles.squash(typed.toString())".replace("serverSearch", "serverSearchPage")) && panel.includes("SongFiles.squash(pick.title + \" \" + pick.artist).contains(wanted)") && panel.includes("setKeyboardShown(serverSearch)"));
+  });
+
+  it("should filter by song language: Chinese, English, Japanese and Korean, told by the letters of the title", () => {
+    const panel = java("ControlPanel.java");
+    for (const code of ["LANGUAGE_CHINESE", "LANGUAGE_ENGLISH", "LANGUAGE_JAPANESE", "LANGUAGE_KOREAN"]) assert.ok(panel.includes(`${code} = `), code);
+    assert.ok(panel.includes("static String languageOf(String text)") && panel.includes("0x3040") && panel.includes("0xAC00") && panel.includes("0x4E00"));
   });
 
   it("should show a singer's picture from the club's Singers folder, a saved one, or Deezer when the name is the same", () => {

@@ -21,6 +21,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +88,11 @@ final class ControlPanel extends LinearLayout {
     private static final long MESSAGE_MS = 4_000;
     private static final int MAX_TONE = 6;
     private static final int DEFAULT_TABLES = 12;
+    private static final String LANGUAGE_ALL = "all";
+    private static final String LANGUAGE_CHINESE = "zh";
+    private static final String LANGUAGE_ENGLISH = "en";
+    private static final String LANGUAGE_JAPANESE = "ja";
+    private static final String LANGUAGE_KOREAN = "ko";
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Catalog catalog;
@@ -105,6 +111,8 @@ final class ControlPanel extends LinearLayout {
     private List<String> tableNames = new ArrayList<String>();
     private Map<String, List<QueueClient.Song>> songsByTable = new LinkedHashMap<String, List<QueueClient.Song>>();
     private int loadId = 0;
+    private final Map<String, LinearLayout> boxViews = new HashMap<String, LinearLayout>();
+    private int tablesDp = TABLES_HEIGHT_DP;
     private final SingerPhotos photos;
     private final StringBuilder typed = new StringBuilder();
     private TextView searchBox;
@@ -172,7 +180,7 @@ final class ControlPanel extends LinearLayout {
             if (!byTable.containsKey(key)) byTable.put(key, new ArrayList<QueueClient.Song>());
             byTable.get(key).add(song);
         }
-        String fresh = names + "|" + selected + "|" + signatureOf(byTable);
+        String fresh = names + "|" + signatureOf(byTable);
         if (fresh.equals(signature)) return;
         signature = fresh;
         tableNames = names;
@@ -221,6 +229,7 @@ final class ControlPanel extends LinearLayout {
 
     private void buildTables(QueueClient.Song now) {
         tablesColumn.removeAllViews();
+        boxViews.clear();
         for (int start = 0; start < tableNames.size(); start += COLUMNS) {
             LinearLayout row = new LinearLayout(getContext());
             row.setOrientation(HORIZONTAL);
@@ -252,6 +261,7 @@ final class ControlPanel extends LinearLayout {
         box.setPadding(dp(12), dp(8), dp(12), dp(8));
         box.setBackground(rounded(Color.parseColor(table.equals(selected) ? CARD_ON : CARD), RADIUS_DP));
         box.setLayoutParams(boxParams());
+        boxViews.put(table, box);
 
         TextView head = text(getContext(), Words.t("Table ", "桌 ", "Meja ") + table + "  ·  " + count, 19, true, GOLD);
         head.setSingleLine(true);
@@ -285,10 +295,18 @@ final class ControlPanel extends LinearLayout {
         return box;
     }
 
+    /** Only the two boxes whose look changes are touched, so the tap answers at once. */
     private void chooseTable(String table) {
+        String previous = selected;
         selected = table;
-        signature = "";
+        highlight(previous);
+        highlight(table);
         showChoose();
+    }
+
+    private void highlight(String table) {
+        LinearLayout box = table == null ? null : boxViews.get(table);
+        if (box != null) box.setBackground(rounded(Color.parseColor(table.equals(selected) ? CARD_ON : CARD), RADIUS_DP));
     }
 
     private static String tableKey(QueueClient.Song song) {
@@ -326,16 +344,6 @@ final class ControlPanel extends LinearLayout {
         ways.addView(wayButton("🔥", Words.t("Top songs", "热门歌曲", "Lagu terpopuler"), Way.TOP));
         ways.addView(wayButton("✨", Words.t("New songs", "新歌", "Lagu baru"), Way.FRESH));
         middle.addView(ways, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        rebuildTablesNow();
-    }
-
-    private void rebuildTablesNow() {
-        signature = "";
-        final int keep = tablesScroll.getScrollY();
-        buildTables(null);
-        tablesScroll.post(new Runnable() {
-            @Override public void run() { tablesScroll.scrollTo(0, keep); }
-        });
     }
 
     private View wayButton(String emoji, String label, final Way way) {
@@ -352,11 +360,27 @@ final class ControlPanel extends LinearLayout {
     }
 
     private LinearLayout listArea;
+    private boolean serverSearchPage = false; // the song-title page asks the box for what is typed; the other pages only filter the list that is shown
+    private boolean showingSingers = false;
+    private List<SongPick> loadedPicks = new ArrayList<SongPick>();
+    private List<String> loadedSingers = new ArrayList<String>();
+    private String language = LANGUAGE_ALL;
+    private View keyboardView;
+    private final Map<String, TextView> chips = new HashMap<String, TextView>();
 
-    /** The page with a back button, a title and (for a title search) a search box; `rows` is filled by the caller. */
-    private void showListPage(String title, final Runnable back, View search, View keyboard) {
+    /**
+     * A list page: back button and title, a bar for the typed words (a search on the song-title page, a filter everywhere else), the language chips, and the
+     * list on the left with a keyboard on the right (shown at once on the song-title page, after a tap on the bar on the others).
+     */
+    private void showListPage(String title, final Runnable back, boolean serverSearch) {
+        serverSearchPage = serverSearch;
+        typed.setLength(0);
+        language = LANGUAGE_ALL;
+        loadedPicks = new ArrayList<SongPick>();
+        loadedSingers = new ArrayList<String>();
+        showingSingers = false;
         middle.removeAllViews();
-        setTablesHeight(keyboard == null ? TABLES_HEIGHT_DP : TABLES_WITH_KEYBOARD_DP);
+
         LinearLayout head = new LinearLayout(getContext());
         head.setOrientation(HORIZONTAL);
         head.setGravity(Gravity.CENTER_VERTICAL);
@@ -370,33 +394,126 @@ final class ControlPanel extends LinearLayout {
         TextView heading = text(getContext(), Words.t("Table ", "桌 ", "Meja ") + selected + " · " + title, 22, true, GOLD);
         heading.setPadding(dp(14), 0, dp(14), 0);
         head.addView(heading, new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        if (search != null) head.addView(search, new LinearLayout.LayoutParams(dp(SEARCH_WIDTH_DP), LayoutParams.WRAP_CONTENT));
+        searchBox = text(getContext(), "", 22, true, "#ffffff");
+        searchBox.setSingleLine(true);
+        searchBox.setPadding(dp(16), dp(8), dp(16), dp(8));
+        searchBox.setBackground(rounded(Color.parseColor(CARD), RADIUS_DP));
+        showTypedText();
+        head.addView(searchBox, new LinearLayout.LayoutParams(dp(SEARCH_WIDTH_DP), LayoutParams.WRAP_CONTENT));
         middle.addView(head, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        middle.addView(languageRow(), new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
         ScrollView scroll = new ScrollView(getContext());
         listArea = new LinearLayout(getContext());
         listArea.setOrientation(VERTICAL);
         scroll.addView(listArea);
-        if (keyboard == null) {
-            middle.addView(scroll, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
-            return;
-        }
-        // Under the search bar the page is split in two halves: the song list on the left, a small keyboard on the right (tap the search bar to hide or show the keyboard).
-        final View keys = keyboard;
-        search.setOnClickListener(new OnClickListener() {
-            @Override public void onClick(View view) { keys.setVisibility(keys.getVisibility() == VISIBLE ? GONE : VISIBLE); }
+        keyboardView = new OnScreenKeyboard(getContext(), new OnScreenKeyboard.Listener() {
+            @Override public void onKey(String letter) { typed.append(letter); typedChanged(); }
+
+            @Override public void onBackspace() { if (typed.length() > 0) typed.setLength(typed.length() - 1); typedChanged(); }
+
+            @Override public void onClear() { typed.setLength(0); typedChanged(); }
+        });
+        setKeyboardShown(serverSearch);
+        searchBox.setOnClickListener(new OnClickListener() {
+            @Override public void onClick(View view) { setKeyboardShown(keyboardView.getVisibility() != VISIBLE); }
         });
         LinearLayout halves = new LinearLayout(getContext());
         halves.setOrientation(HORIZONTAL);
         halves.addView(scroll, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f));
-        halves.addView(keyboard, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f));
+        halves.addView(keyboardView, new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f));
         middle.addView(halves, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
     }
 
+    /** Shows or hides the keyboard; with it up the table boxes shrink so the list and the keyboard have room. */
+    private void setKeyboardShown(boolean shown) {
+        keyboardView.setVisibility(shown ? VISIBLE : GONE);
+        setTablesHeight(shown ? TABLES_WITH_KEYBOARD_DP : TABLES_HEIGHT_DP);
+    }
+
     private void setTablesHeight(int heightDp) {
+        if (heightDp == tablesDp) return;
+        tablesDp = heightDp;
         ViewGroup.LayoutParams params = tablesScroll.getLayoutParams();
         params.height = dp(heightDp);
         tablesScroll.setLayoutParams(params);
+    }
+
+    // ---- the language chips and the filters ----
+
+    private LinearLayout languageRow() {
+        chips.clear();
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(4), 0, dp(4));
+        row.addView(text(getContext(), "🌐  ", 18, false, "#ffffff"));
+        row.addView(chip(Words.t("All", "全部", "Semua"), LANGUAGE_ALL));
+        row.addView(chip("中文", LANGUAGE_CHINESE));
+        row.addView(chip("English", LANGUAGE_ENGLISH));
+        row.addView(chip("日本語", LANGUAGE_JAPANESE));
+        row.addView(chip("한국어", LANGUAGE_KOREAN));
+        highlightChips();
+        return row;
+    }
+
+    private TextView chip(String label, final String code) {
+        TextView chip = text(getContext(), label, 18, true, "#ffffff");
+        chip.setPadding(dp(18), dp(6), dp(18), dp(6));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, dp(8), 0);
+        chip.setLayoutParams(params);
+        chip.setOnClickListener(new OnClickListener() {
+            @Override public void onClick(View view) {
+                language = code;
+                highlightChips();
+                applyFilters();
+            }
+        });
+        chips.put(code, chip);
+        return chip;
+    }
+
+    private void highlightChips() {
+        for (Map.Entry<String, TextView> entry : chips.entrySet()) {
+            boolean on = entry.getKey().equals(language);
+            entry.getValue().setBackground(rounded(Color.parseColor(on ? GOLD : CARD), RADIUS_DP + 8));
+            entry.getValue().setTextColor(Color.parseColor(on ? "#1b1130" : "#ffffff"));
+        }
+    }
+
+    /** The language of a title by its letters: Japanese (kana), Korean (hangul), Chinese (Han characters), English / Latin letters; "" when it has none of them. */
+    static String languageOf(String text) {
+        boolean han = false, kana = false, hangul = false, latin = false;
+        for (int i = 0; i < text.length(); ) {
+            int point = text.codePointAt(i);
+            i += Character.charCount(point);
+            if ((point >= 0x4E00 && point <= 0x9FFF) || (point >= 0x3400 && point <= 0x4DBF)) han = true;
+            else if (point >= 0x3040 && point <= 0x30FF) kana = true;
+            else if ((point >= 0xAC00 && point <= 0xD7AF) || (point >= 0x1100 && point <= 0x11FF)) hangul = true;
+            else if ((point >= 'a' && point <= 'z') || (point >= 'A' && point <= 'Z')) latin = true;
+        }
+        if (kana) return LANGUAGE_JAPANESE;
+        if (hangul) return LANGUAGE_KOREAN;
+        if (han) return LANGUAGE_CHINESE;
+        return latin ? LANGUAGE_ENGLISH : "";
+    }
+
+    private boolean matchesLanguage(String title, String artist) {
+        if (LANGUAGE_ALL.equals(language)) return true;
+        String found = languageOf(title);
+        if (found.isEmpty()) found = languageOf(artist);
+        return language.equals(found);
+    }
+
+    /** Shows again what was loaded, through the language chip and (on the pages that filter) the typed words. */
+    private void applyFilters() {
+        if (showingSingers) renderSingers();
+        else renderPicks();
+    }
+
+    private String wantedWords() {
+        return serverSearchPage ? "" : SongFiles.squash(typed.toString());
     }
 
     private void showWay(final Way way) {
@@ -404,47 +521,35 @@ final class ControlPanel extends LinearLayout {
             @Override public void run() { showChoose(); }
         };
         if (way == Way.TITLE) {
-            showTitleSearch(backToWays);
+            showListPage(Words.t("Song title", "歌名", "Judul lagu"), backToWays, true);
         } else if (way == Way.SINGERS) {
-            showListPage(Words.t("Singers", "歌手", "Penyanyi"), backToWays, null, null);
+            showListPage(Words.t("Singers", "歌手", "Penyanyi"), backToWays, false);
             loadSingers();
         } else {
-            showListPage(way == Way.TOP ? Words.t("Top songs", "热门歌曲", "Lagu terpopuler") : Words.t("New songs", "新歌", "Lagu baru"), backToWays, null, null);
+            showListPage(way == Way.TOP ? Words.t("Top songs", "热门歌曲", "Lagu terpopuler") : Words.t("New songs", "新歌", "Lagu baru"), backToWays, false);
             loadPicks(way);
         }
-    }
-
-    /** The song-title page: the typed name in a search bar, the results beside it and the keyboard drawn by the app at the bottom right. */
-    private void showTitleSearch(Runnable back) {
-        typed.setLength(0);
-        searchBox = text(getContext(), "", 22, true, "#ffffff");
-        searchBox.setSingleLine(true);
-        searchBox.setPadding(dp(16), dp(8), dp(16), dp(8));
-        searchBox.setBackground(rounded(Color.parseColor(CARD), RADIUS_DP));
-        showTypedText();
-        OnScreenKeyboard keyboard = new OnScreenKeyboard(getContext(), new OnScreenKeyboard.Listener() {
-            @Override public void onKey(String letter) { typed.append(letter); changedTyping(); }
-
-            @Override public void onBackspace() { if (typed.length() > 0) typed.setLength(typed.length() - 1); changedTyping(); }
-
-            @Override public void onClear() { typed.setLength(0); changedTyping(); }
-        });
-        showListPage(Words.t("Song title", "歌名", "Judul lagu"), back, searchBox, keyboard);
     }
 
     private final Runnable searchNow = new Runnable() {
         @Override public void run() { loadSearch(typed.toString().trim()); }
     };
 
-    private void changedTyping() {
+    /** Typing: the song-title page asks the box a moment after the last key; the other pages filter the list at once. */
+    private void typedChanged() {
         showTypedText();
-        ui.removeCallbacks(searchNow);
-        ui.postDelayed(searchNow, SEARCH_DELAY_MS);
+        if (serverSearchPage) {
+            ui.removeCallbacks(searchNow);
+            ui.postDelayed(searchNow, SEARCH_DELAY_MS);
+        } else {
+            applyFilters();
+        }
     }
 
     private void showTypedText() {
         boolean isEmpty = typed.length() == 0;
-        searchBox.setText("🔍  " + (isEmpty ? Words.t("Type the song name", "输入歌名", "Ketik judul lagu") : typed.toString() + "▏"));
+        String placeholder = serverSearchPage ? Words.t("Type the song name", "输入歌名", "Ketik judul lagu") : Words.t("Tap to filter by a word", "点击输入关键词筛选", "Ketuk untuk memfilter kata");
+        searchBox.setText("🔍  " + (isEmpty ? placeholder : typed.toString() + "▏"));
         searchBox.setTextColor(Color.parseColor(isEmpty ? "#99ffffff" : "#ffffff"));
     }
 
@@ -480,11 +585,11 @@ final class ControlPanel extends LinearLayout {
         }, mine);
     }
 
-    private void loadSingerSongs(final String singer) {
-        showListPage(singer, new Runnable() {
-            @Override public void run() { showWay(Way.SINGERS); }
-        }, null, null);
+    /** One singer's songs; `back` says where Back goes (the singers list when opened from it, the way chooser when opened from a song's face). */
+    private void loadSingerSongs(final String singer, Runnable back) {
+        showListPage(singer, back, false);
         final int mine = ++loadId;
+        listArea.addView(text(getContext(), Words.t("Loading…", "加载中…", "Memuat…"), 20, false, SOFT));
         runOffScreen(new Task() {
             @Override public void run() throws Exception {
                 final List<SongPick> found = catalog.songsOf(singer);
@@ -523,30 +628,59 @@ final class ControlPanel extends LinearLayout {
     }
 
     private void fillSingers(List<String> names) {
+        loadedSingers = names;
+        showingSingers = true;
+        renderSingers();
+    }
+
+    private void renderSingers() {
         listArea.removeAllViews();
-        if (names.isEmpty()) {
+        if (loadedSingers.isEmpty()) {
             empty(Words.t("No singers came back.", "没有返回任何歌手。", "Tidak ada penyanyi yang dikembalikan."));
             return;
         }
-        for (final String name : names) {
-            View row = row("🎤", name, null, name, "", Words.t("Open", "打开", "Buka"), new Runnable() {
-                @Override public void run() { loadSingerSongs(name); }
-            });
-            listArea.addView(row);
+        String wanted = wantedWords();
+        int shown = 0;
+        for (final String name : loadedSingers) {
+            if (!wanted.isEmpty() && !SongFiles.squash(name).contains(wanted)) continue;
+            if (!matchesLanguage(name, "")) continue;
+            shown++;
+            listArea.addView(row("🎤", name, null, name, "", Words.t("Open", "打开", "Buka"), new Runnable() {
+                @Override public void run() { loadSingerSongs(name, backToSingers()); }
+            }));
         }
+        if (shown == 0) listArea.addView(text(getContext(), Words.t("No singer matches your filter", "没有符合筛选的歌手", "Tidak ada penyanyi yang cocok dengan filter"), 22, false, SOFT));
+    }
+
+    private Runnable backToSingers() {
+        return new Runnable() {
+            @Override public void run() { showWay(Way.SINGERS); }
+        };
     }
 
     private void fillPicks(List<SongPick> picks) {
+        loadedPicks = picks;
+        showingSingers = false;
+        renderPicks();
+    }
+
+    private void renderPicks() {
         listArea.removeAllViews();
-        if (picks.isEmpty()) {
+        if (loadedPicks.isEmpty()) {
             empty(Words.t("No songs found", "没有找到歌曲", "Lagu tidak ditemukan"));
             return;
         }
-        for (final SongPick pick : picks) {
+        String wanted = wantedWords();
+        int shown = 0;
+        for (final SongPick pick : loadedPicks) {
+            if (!wanted.isEmpty() && !SongFiles.squash(pick.title + " " + pick.artist).contains(wanted)) continue;
+            if (!matchesLanguage(pick.title, pick.artist)) continue;
+            shown++;
             listArea.addView(row(pick.isYoutube() ? "▶" : "🎵", "", pick, pick.title, pick.artist, Words.t("Sing", "点唱", "Nyanyi"), new Runnable() {
                 @Override public void run() { request(pick); }
             }));
         }
+        if (shown == 0) listArea.addView(text(getContext(), Words.t("No song matches your filter", "没有符合筛选的歌曲", "Tidak ada lagu yang cocok dengan filter"), 22, false, SOFT));
     }
 
     private void request(final SongPick pick) {
@@ -588,6 +722,12 @@ final class ControlPanel extends LinearLayout {
         return holder;
     }
 
+    /** "A, B" -> "A": the singer whose songs a tap on the face opens. */
+    private static String firstSinger(String artist) {
+        String[] names = artist.split("[,，、]");
+        return names.length == 0 ? "" : names[0].trim();
+    }
+
     private View row(String icon, String singer, SongPick pick, String title, String artist, String action, final Runnable onTap) {
         LinearLayout row = new LinearLayout(getContext());
         row.setOrientation(HORIZONTAL);
@@ -597,7 +737,14 @@ final class ControlPanel extends LinearLayout {
         LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         spacing.setMargins(0, dp(3), 0, dp(3));
         row.setLayoutParams(spacing);
-        row.addView(badge(icon, singer, pick));
+        View face = badge(icon, singer, pick);
+        final String faceOf = pick == null || pick.isYoutube() ? "" : firstSinger(pick.artist);
+        if (!faceOf.isEmpty()) {
+            face.setOnClickListener(new OnClickListener() {
+                @Override public void onClick(View view) { loadSingerSongs(faceOf, new Runnable() { @Override public void run() { showChoose(); } }); }
+            });
+        }
+        row.addView(face);
         LinearLayout words = new LinearLayout(getContext());
         words.setOrientation(VERTICAL);
         words.setPadding(dp(14), 0, dp(14), 0);
