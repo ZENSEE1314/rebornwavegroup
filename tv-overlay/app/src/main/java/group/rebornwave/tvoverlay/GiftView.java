@@ -5,7 +5,13 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.graphics.ImageDecoder;
+import android.graphics.drawable.AnimatedImageDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -18,6 +24,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.io.File;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -48,6 +55,12 @@ final class GiftView extends FrameLayout {
     private static final int GREY_BOX = Color.argb(185, 55, 55, 55); // see-through grey behind the words
     private static final float GREY_BOX_RADIUS_PX = 28f;
     private static final int WORDS_PAD_PX = 36;
+    private static final int ART_MAX_W_PX = 880;
+    private static final int ART_MAX_H_PX = 520;
+    private static final int HALO_EXTRA_PX = 140;
+    private static final float HALO_RADIUS_PX = 430f;
+    private static final long HALO_PULSE_MS = 900;
+    private static final int HALO_COLOUR = Color.argb(150, 252, 211, 77);
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Random random = new Random();
@@ -70,6 +83,7 @@ final class GiftView extends FrameLayout {
         bar.setBackgroundColor(GREY_BOX);
         bar.setPadding(24, 12, 24, 12);
         bar.setVisibility(View.GONE);
+        GiftArt.prefetch(context);
         stage = new FrameLayout(context);
         addView(stage, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         addView(bar, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP));
@@ -150,7 +164,10 @@ final class GiftView extends FrameLayout {
         card.setScaleY(0f);
         card.animate().scaleX(1f).scaleY(1f).setDuration(POP_MS).setInterpolator(new OvershootInterpolator()).start();
 
-        if (!gift.imageUrl.isEmpty()) loadPicture(gift.imageUrl, card, picture);
+        String scene = GiftArt.sceneOf(gift);
+        // A gift with a picture of its own and no special scene shows that picture; every other gift plays the animation of its scene.
+        if (!gift.imageUrl.isEmpty() && GiftArt.isFallback(scene)) loadPicture(gift.imageUrl, card, picture);
+        else loadArt(scene, card, picture);
         rain(emoji);
     }
 
@@ -159,6 +176,67 @@ final class GiftView extends FrameLayout {
         box.setColor(GREY_BOX);
         box.setCornerRadius(GREY_BOX_RADIUS_PX);
         return box;
+    }
+
+    /** Replaces the emoji with the animated picture of the gift's scene when this box has it (Android 9 and newer); until then, or without it, the emoji stays. */
+    private void loadArt(final String scene, final LinearLayout card, final TextView emoji) {
+        final File file = GiftArt.cached(getContext(), scene);
+        if (file == null || Build.VERSION.SDK_INT < 28) return;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                final Drawable art;
+                try {
+                    art = ImageDecoder.decodeDrawable(ImageDecoder.createSource(file));
+                } catch (Exception unreadable) {
+                    OverlayLog.add("gift art " + scene + " cannot be shown: " + unreadable.getMessage());
+                    return;
+                }
+                handler.post(new Runnable() {
+                    @Override public void run() {
+                        if (closed || card.getParent() == null) return;
+                        showArt(art, card, emoji);
+                    }
+                });
+            }
+        }, "gift-art-decode").start();
+    }
+
+    private void showArt(Drawable art, LinearLayout card, TextView emoji) {
+        int width = art.getIntrinsicWidth();
+        int height = art.getIntrinsicHeight();
+        if (width <= 0 || height <= 0) return;
+        float scale = Math.min(ART_MAX_W_PX / (float) width, ART_MAX_H_PX / (float) height);
+        int artWidth = Math.round(width * scale);
+        int artHeight = Math.round(height * scale);
+        FrameLayout box = new FrameLayout(getContext());
+        View halo = new View(getContext());
+        halo.setBackground(glow());
+        box.addView(halo, new FrameLayout.LayoutParams(artWidth + HALO_EXTRA_PX, artHeight + HALO_EXTRA_PX, Gravity.CENTER));
+        ImageView image = new ImageView(getContext());
+        image.setImageDrawable(art);
+        box.addView(image, new FrameLayout.LayoutParams(artWidth, artHeight, Gravity.CENTER));
+        ObjectAnimator pulse = ObjectAnimator.ofPropertyValuesHolder(halo, PropertyValuesHolder.ofFloat("scaleX", 0.85f, 1.15f), PropertyValuesHolder.ofFloat("scaleY", 0.85f, 1.15f));
+        pulse.setDuration(HALO_PULSE_MS);
+        pulse.setRepeatCount(ObjectAnimator.INFINITE);
+        pulse.setRepeatMode(ObjectAnimator.REVERSE);
+        pulse.start();
+        int index = card.indexOfChild(emoji);
+        card.removeView(emoji);
+        card.addView(box, index, new LinearLayout.LayoutParams(artWidth + HALO_EXTRA_PX, artHeight + HALO_EXTRA_PX));
+        if (art instanceof AnimatedImageDrawable) {
+            ((AnimatedImageDrawable) art).setRepeatCount(AnimatedImageDrawable.REPEAT_INFINITE);
+            ((AnimatedImageDrawable) art).start();
+        }
+    }
+
+    /** A soft golden glow that pulses behind the animation. */
+    private static GradientDrawable glow() {
+        GradientDrawable glow = new GradientDrawable();
+        glow.setShape(GradientDrawable.OVAL);
+        glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        glow.setGradientRadius(HALO_RADIUS_PX);
+        glow.setColors(new int[]{HALO_COLOUR, Color.argb(0, 252, 211, 77)});
+        return glow;
     }
 
     /** "Alex (Table 5) sent Sam (Table 9)" */

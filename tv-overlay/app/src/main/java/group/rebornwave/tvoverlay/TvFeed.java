@@ -31,6 +31,7 @@ final class TvFeed {
         String name = "";
         String emoji = "";
         String imageUrl = "";
+        String animation = ""; // the scene the admin chose for this gift ("lion", "rose" ...), or empty
         String fromName = "";
         String fromTable = "";
         String toName = "";
@@ -118,6 +119,7 @@ final class TvFeed {
                 gift.name = json.optString("giftName");
                 gift.emoji = json.optString("emoji");
                 gift.imageUrl = json.optString("imageUrl");
+                gift.animation = json.optString("animation");
                 gift.fromName = json.optString("fromName");
                 gift.fromTable = json.optString("fromTable");
                 gift.toName = json.optString("toName");
