@@ -1,0 +1,229 @@
+package group.rebornwave.tvoverlay;
+
+import android.content.Context;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * The karaoke box's own song system (the program that came with the box), spoken to through the web pages of its phone-ordering page (port 8084): its
+ * song list, its singers and its buttons. The new touch screen uses it to search the box's ~200,000 songs, and the box's own program plays them.
+ */
+final class BoxServlets {
+    private static final String CALLBACK = "cb";
+    private static final int PORT = 8084;
+    private static final String PATH = "demo";
+    private static final String LOCAL_ADDRESS = "http://127.0.0.1:" + PORT + "/" + PATH;
+    private static final int PROBE_MS = 900;
+    private static final int CALL_MS = 8_000;
+    private static final int SCAN_WORKERS = 48;
+    private static final int LAST_HOST = 254;
+    private static final int SONGS_PER_PAGE = 15;
+    private static final String NO_PHOTO = "singer_photo.png";
+
+    private static volatile String known = "";
+
+    private BoxServlets() {}
+
+    /** The address of the box's song system: the one found before, this device itself, or any device of the venue network answering on port 8084; "" when none. */
+    static synchronized String find(Context context) {
+        if (!known.isEmpty() && isBox(known)) return known;
+        String saved = BridgeSettings.box(context);
+        List<String> first = new ArrayList<String>();
+        if (!saved.isEmpty()) first.add(saved);
+        first.add(LOCAL_ADDRESS);
+        List<String> ownAddresses = ownAddresses();
+        for (String ip : ownAddresses) first.add("http://" + ip + ":" + PORT + "/" + PATH);
+        for (String address : first) {
+            if (isBox(address)) return remember(context, address);
+        }
+        String scanned = scan(ownAddresses);
+        return scanned.isEmpty() ? "" : remember(context, scanned);
+    }
+
+    private static String remember(Context context, String address) {
+        known = address;
+        BridgeSettings.saveBox(context, address);
+        return address;
+    }
+
+    /** Does a box answer here? Its song search replies with a song list. */
+    static boolean isBox(String base) {
+        try {
+            return text(base + "/SearchServlet?songName=a&page=1&jsonpCallback=" + CALLBACK, PROBE_MS).contains("songList");
+        } catch (Exception unreachable) {
+            return false;
+        }
+    }
+
+    private static List<String> ownAddresses() {
+        List<String> addresses = new ArrayList<String>();
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces != null && interfaces.hasMoreElements()) {
+                Enumeration<InetAddress> found = interfaces.nextElement().getInetAddresses();
+                while (found.hasMoreElements()) {
+                    InetAddress address = found.nextElement();
+                    if (address instanceof Inet4Address && !address.isLoopbackAddress()) addresses.add(address.getHostAddress());
+                }
+            }
+        } catch (Exception unreadable) {
+            OverlayLog.add("box: own addresses not read: " + unreadable.getMessage());
+        }
+        return addresses;
+    }
+
+    /** Every address of the networks this device is on, port 8084, side by side; the first that is a box wins. */
+    private static String scan(List<String> ownAddresses) {
+        List<String> candidates = new ArrayList<String>();
+        for (String own : ownAddresses) {
+            String prefix = own.substring(0, own.lastIndexOf('.') + 1);
+            for (int host = 1; host <= LAST_HOST; host++) {
+                String ip = prefix + host;
+                if (!ip.equals(own)) candidates.add("http://" + ip + ":" + PORT + "/" + PATH);
+            }
+        }
+        if (candidates.isEmpty()) return "";
+        ExecutorService pool = Executors.newFixedThreadPool(SCAN_WORKERS);
+        ExecutorCompletionService<String> done = new ExecutorCompletionService<String>(pool);
+        try {
+            for (final String candidate : candidates) {
+                done.submit(new Callable<String>() {
+                    @Override public String call() { return isBox(candidate) ? candidate : ""; }
+                });
+            }
+            for (int i = 0; i < candidates.size(); i++) {
+                String hit = done.take().get();
+                if (!hit.isEmpty()) return hit;
+            }
+        } catch (Exception interrupted) {
+            return "";
+        } finally {
+            pool.shutdownNow();
+        }
+        return "";
+    }
+
+    /** One page of the box's song search: the songs on the box itself, and how many songs the page had in all (15 until the end of the list). */
+    static final class Page {
+        final List<SongPick> songs;
+        final int rawCount;
+
+        Page(List<SongPick> songs, int rawCount) {
+            this.songs = songs;
+            this.rawCount = rawCount;
+        }
+
+        boolean isLast() {
+            return rawCount < SONGS_PER_PAGE;
+        }
+    }
+
+    /** One page (15 songs) of the box's song search: by title / pinyin letters, or by singer. Songs kept in the cloud (not on the box) are left out. */
+    static Page search(String base, String songName, String singer, int page) throws Exception {
+        JSONObject answer = call(base, "SearchServlet", "songName=" + enc(songName) + "&songType=&singer=" + enc(singer) + "&lang=&sortType=&page=" + page);
+        JSONArray raw = new JSONArray(answer.optString("songList", "[]"));
+        return new Page(picks(raw), raw.length());
+    }
+
+    /** How many pages the box's whole song list has (for "new songs": the last pages). */
+    static int songPages(String base) throws Exception {
+        return Math.max(1, call(base, "SearchServlet", "songName=&songType=&singer=&lang=&sortType=&page=1").optInt("maxPage", 1));
+    }
+
+    /** One page of the box's singers: { name, photo address or "" }. */
+    static List<String[]> singers(String base, int page) throws Exception {
+        JSONObject answer = call(base, "SingerServlet", "singer=&singerType=&sortType=&page=" + page);
+        JSONArray list = answer.optJSONArray("singerList");
+        List<String[]> singers = new ArrayList<String[]>();
+        if (list == null) return singers;
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject item = list.optJSONObject(i);
+            if (item == null || item.optString("name").isEmpty()) continue;
+            String picture = item.optString("picture");
+            singers.add(new String[]{item.optString("name"), picture.isEmpty() || NO_PHOTO.equals(picture) ? "" : base + "/singer/" + picture});
+        }
+        return singers;
+    }
+
+    /** Presses a button of the box's own player: "Mute", "Music_up", "Music_down", "Tone_up", "Tone_down", "Play", "Reset", "MuOr", "Skip" ... */
+    static void command(String base, String button) throws Exception {
+        call(base, "CommandServlet", "cmd=" + enc(button) + "&cmdValue=");
+    }
+
+    private static List<SongPick> picks(JSONArray songs) {
+        List<SongPick> list = new ArrayList<SongPick>();
+        for (int i = 0; i < songs.length(); i++) {
+            JSONObject song = songs.optJSONObject(i);
+            if (song == null || song.optInt("cLOUD") == 1) continue;
+            String code = song.optString("sONGBM");
+            if (code.isEmpty() || song.optString("sONGNAME").isEmpty()) continue;
+            list.add(new SongPick(code, song.optString("sONGNAME"), singerOf(song.optString("sINGER"))));
+        }
+        return list;
+    }
+
+    /** The box writes "<the title in pinyin>  <singer>, <singer>" in the singer field: the singers are what follows the double space. */
+    static String singerOf(String field) {
+        String[] parts = field.split("\\s{2,}");
+        return (parts.length > 1 ? join(parts) : parts[0]).trim();
+    }
+
+    private static String join(String[] parts) {
+        StringBuilder rest = new StringBuilder();
+        for (int i = 1; i < parts.length; i++) rest.append(i > 1 ? " " : "").append(parts[i]);
+        return rest.toString();
+    }
+
+    private static JSONObject call(String base, String servlet, String query) throws Exception {
+        String body = text(base + "/" + servlet + "?" + query + "&jsonpCallback=" + CALLBACK, CALL_MS);
+        int start = body.indexOf('(');
+        int end = body.lastIndexOf(')');
+        if (start < 0 || end < start) throw new java.io.IOException("not an answer of the box's song system");
+        return new JSONObject(body.substring(start + 1, end));
+    }
+
+    private static String text(String address, int timeoutMs) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
+        try {
+            connection.setConnectTimeout(timeoutMs);
+            connection.setReadTimeout(timeoutMs);
+            connection.setUseCaches(false);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
+            StringBuilder all = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) all.append(line);
+            reader.close();
+            return all.toString();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private static String enc(String value) throws Exception {
+        return URLEncoder.encode(value == null ? "" : value, "UTF-8");
+    }
+
+    static List<SongPick> reversed(List<SongPick> list) {
+        List<SongPick> copy = new ArrayList<SongPick>(list);
+        Collections.reverse(copy);
+        return copy;
+    }
+}

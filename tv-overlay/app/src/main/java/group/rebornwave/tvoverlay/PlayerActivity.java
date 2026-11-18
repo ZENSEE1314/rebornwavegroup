@@ -65,6 +65,8 @@ public class PlayerActivity extends Activity {
     private YouTubeView youtube;
     private TvFeed feed;
     private ExoPlayer player;
+    private boolean boxMode = true; // true: the box's own program plays the songs and this app is its touch screen; false: this app plays the videos itself
+    private int boxNowId = 0; // the song on now in the app's queue (box mode), for the Skip button
     private volatile boolean alive = false;
     private Thread poller;
     private Thread jobber;
@@ -84,24 +86,60 @@ public class PlayerActivity extends Activity {
     private float volume = 1f;
 
     private final ControlPanel.Actions buttons = new ControlPanel.Actions() {
-        @Override public void onMute() { muted = !muted; applyVolume(); showButtonState(); }
+        @Override public void onMute() {
+            muted = !muted;
+            if (boxMode) boxButton("Mute");
+            else applyVolume();
+            showButtonState();
+        }
 
         @Override public void onVolume(int direction) {
+            if (boxMode) {
+                boxButton(direction > 0 ? "Music_up" : "Music_down");
+                return;
+            }
             volume = Math.max(0f, Math.min(1f, volume + direction * VOLUME_STEP));
             muted = false;
             applyVolume();
             showButtonState();
         }
 
-        @Override public void onTone(int direction) { changeTone(direction); }
+        @Override public void onTone(int direction) {
+            if (boxMode) {
+                tone = Math.max(-ControlPanel.maxTone(), Math.min(ControlPanel.maxTone(), tone + direction));
+                boxButton(direction > 0 ? "Tone_up" : "Tone_down");
+                showButtonState();
+            } else {
+                changeTone(direction);
+            }
+        }
 
-        @Override public void onPlay() { userPaused = !userPaused; applyPlayState(); showButtonState(); }
+        @Override public void onPlay() {
+            userPaused = !userPaused;
+            if (boxMode) boxButton("Play");
+            else applyPlayState();
+            showButtonState();
+        }
 
-        @Override public void onSkip() { finishSong(true); }
+        @Override public void onSkip() {
+            if (boxMode) skipAtBox();
+            else finishSong(true);
+        }
 
-        @Override public void onReplay() { replay(); }
+        @Override public void onReplay() {
+            if (boxMode) boxButton("Reset");
+            else replay();
+        }
 
-        @Override public void onAnalog() { switchVoiceAtBox(); }
+        @Override public void onAnalog() {
+            if (boxMode) {
+                wantOriginal = !wantOriginal;
+                boxButton("MuOr");
+                showButtonState();
+            } else {
+                switchVoiceAtBox();
+            }
+        }
 
         @Override public String onRequest(String table, SongPick pick) throws Exception {
             int place = client.request(table, pick);
@@ -124,7 +162,8 @@ public class PlayerActivity extends Activity {
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
         setContentView(root);
-        panel = new ControlPanel(this, new BoxCatalog(songFiles, client), buttons, photos);
+        boxMode = BridgeSettings.isBoxPlayback(this);
+        panel = new ControlPanel(this, boxMode ? new BoxServletCatalog(this, client, photos) : new BoxCatalog(songFiles, client), buttons, photos);
         settingsButton = new TextView(this);
         settingsButton.setText("⚙");
         settingsButton.setTextSize(22);
@@ -166,17 +205,22 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
-        BridgeSettings.savePlayerMode(this, true);
-        BridgeService.stop(this);
+        if (boxMode != BridgeSettings.isBoxPlayback(this)) { // changed on the set-up page: start again with the other way of playing
+            recreate();
+            return;
+        }
+        BridgeSettings.savePlayerMode(this, !boxMode);
+        if (boxMode) startBoxServices();
+        else BridgeService.stop(this);
         hideSystemBars();
         attachScreens();
-        startGifts();
+        if (!boxMode) startGifts();
         alive = true;
-        showSetupHintIfNeeded();
+        if (!boxMode) showSetupHintIfNeeded();
         showButtonState();
         if (BridgeSettings.isReady(this)) {
             startPolling();
-            startJobs();
+            if (!boxMode) startJobs();
         } else if (Enroll.isAvailable()) {
             panel.setStatus(Words.t("Connecting this box to the app…", "正在把本机连接到应用…", "Menghubungkan perangkat ini ke aplikasi…"));
         } else {
@@ -191,13 +235,70 @@ public class PlayerActivity extends Activity {
             ui.post(new Runnable() {
                 @Override public void run() {
                     panel.setStatus("");
-                    startGifts();
-                    startPolling();
-                    startJobs();
+                    carryOn();
                 }
             });
         }
     };
+
+    /** Linked (by a code or by itself): start what this way of playing needs. */
+    private void carryOn() {
+        if (boxMode) startBoxServices();
+        else startGifts();
+        startPolling();
+        if (!boxMode) startJobs();
+    }
+
+    /**
+     * Box mode: the box's own program plays, so the connector must run (it orders the app's queue on the box and answers members' searches), the gift overlay
+     * draws over the box's picture, and the touch screen says when the box's song system cannot be found.
+     */
+    private void startBoxServices() {
+        if (BridgeSettings.isReady(this)) BridgeService.start(this);
+        if (Link.isLinked(this) && !OverlayAccessibilityService.isEnabled(this) && OverlayService.canShow(this)) OverlayService.start(this);
+        new Thread(new Runnable() {
+            @Override public void run() {
+                if (BoxServlets.find(PlayerActivity.this).isEmpty()) {
+                    showStatus(Words.t("Cannot find the box's own song system on this network. Is its program running?",
+                            "在网络上找不到点歌机自带的点歌系统。它的程序在运行吗？",
+                            "Sistem lagu bawaan mesin tidak ditemukan di jaringan. Apakah programnya berjalan?"));
+                }
+            }
+        }, "box-find").start();
+    }
+
+    /** A button of the box's own player (mute, volume, tone, pause, replay, the singer's voice). */
+    private void boxButton(final String button) {
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    String base = BoxServlets.find(PlayerActivity.this);
+                    if (base.isEmpty()) throw new java.io.IOException("box not found");
+                    BoxServlets.command(base, button);
+                } catch (Exception failure) {
+                    OverlayLog.add("box button " + button + ": " + failure.getMessage());
+                    ui.post(new Runnable() {
+                        @Override public void run() { panel.flash(Words.t("The box did not answer", "点歌机没有响应", "Mesin tidak menjawab")); }
+                    });
+                }
+            }
+        }, "box-button").start();
+    }
+
+    /** Skip in box mode: the app's queue moves on and the connector cuts the song on the box. */
+    private void skipAtBox() {
+        final int id = boxNowId;
+        if (id == 0) return;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    client.next(id, true);
+                } catch (Exception failure) {
+                    OverlayLog.add("box skip: " + failure.getMessage());
+                }
+            }
+        }, "box-skip").start();
+    }
 
     /** Not linked yet: the touch screen shows a code; the admin types it in Admin > Lights & TV > TV (or Requests > Karaoke system) and the box links itself. */
     private void startLinking() {
@@ -233,9 +334,7 @@ public class PlayerActivity extends Activity {
                 ui.post(new Runnable() {
                     @Override public void run() {
                         panel.setStatus("");
-                        startGifts();
-                        startPolling();
-                        startJobs();
+                        carryOn();
                     }
                 });
             }
@@ -290,7 +389,11 @@ public class PlayerActivity extends Activity {
         if (presentation != null) presentation.dismiss();
         presentation = null;
         root.removeAllViews();
-        if (external != null) {
+        if (boxMode) {
+            tv = new TvLayer(this); // never shown: the box's own program draws the picture, this app is only its touch screen
+            root.addView(panel, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+            panel.setVisibility(View.VISIBLE);
+        } else if (external != null) {
             presentation = new TvPresentation(this, external);
             tv = presentation.layer;
             presentation.show();
@@ -400,6 +503,17 @@ public class PlayerActivity extends Activity {
     }
 
     private void pollOnce() throws Exception {
+        if (boxMode) {
+            final QueueClient.Board shownOnBox = client.board();
+            ui.post(new Runnable() {
+                @Override public void run() {
+                    panel.update(tableLabels, shownOnBox);
+                    boxNowId = shownOnBox.now == null ? 0 : shownOnBox.now.id;
+                    showButtonState();
+                }
+            });
+            return;
+        }
         QueueClient.Board board = client.board();
         boolean idleWithWaiting = board.now == null && !board.queue.isEmpty() && !board.paused;
         if (idleWithWaiting) {

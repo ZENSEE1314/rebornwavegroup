@@ -14,6 +14,7 @@ final class BridgeSettings {
     private static final String KEY_TENANT = "tenant";
     private static final String KEY_BOX = "box";
     private static final String KEY_PLAYER = "player";
+    private static final String KEY_BOX_PLAYBACK = "boxPlayback";
     private static final String KEY_VOICE_FIRST = "voiceFirst";
     private static final String KEY_CHANNEL_VOICE = "channelVoice";
 
@@ -75,6 +76,20 @@ final class BridgeSettings {
 
     static void forget(Context context) {
         prefs(context).edit().remove(KEY_TOKEN).apply();
+    }
+
+    /** The address of the box's own song system saved when it was found ("" until then). */
+    static String box(Context context) {
+        return prefs(context).getString(KEY_BOX, "");
+    }
+
+    /** True (the default) when the box's own program plays the songs and this app is its touch screen; false when this app plays video files itself. */
+    static boolean isBoxPlayback(Context context) {
+        return prefs(context).getBoolean(KEY_BOX_PLAYBACK, true);
+    }
+
+    static void saveBoxPlayback(Context context, boolean boxPlays) {
+        prefs(context).edit().putBoolean(KEY_BOX_PLAYBACK, boxPlays).apply();
     }
 
     static void saveBox(Context context, String box) {

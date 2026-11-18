@@ -50,6 +50,7 @@ final class SingerPhotos {
     private final ExecutorService workers = Executors.newFixedThreadPool(WORKERS);
     private final LruCache<String, Bitmap> memory = new LruCache<String, Bitmap>(MEMORY_PICTURES);
     private final Set<String> notFound = new HashSet<String>();
+    private final java.util.Map<String, String> boxPhotos = new java.util.concurrent.ConcurrentHashMap<String, String>();
 
     SingerPhotos(Context context, SongFiles files) {
         this.context = context.getApplicationContext();
@@ -143,7 +144,22 @@ final class SingerPhotos {
         view.setVisibility(ImageView.VISIBLE);
     }
 
+    /** The box's own program has a photo for many singers: its address, remembered by the singer's name, is tried before anything else. */
+    void addBoxPhoto(String singer, String address) {
+        boxPhotos.put(SongFiles.squash(singer), address);
+    }
+
     private Bitmap find(String singer, String key) {
+        String boxAddress = boxPhotos.get(key);
+        if (boxAddress != null) {
+            try {
+                byte[] bytes = readBytes(boxAddress);
+                Bitmap fromBox = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                if (fromBox != null) return fromBox;
+            } catch (Exception unreachable) {
+                OverlayLog.add("box photo " + singer + ": " + unreachable.getClass().getSimpleName() + " " + unreachable.getMessage());
+            }
+        }
         Bitmap own = fromClubFolder(key);
         if (own != null) return own;
         File saved = new File(cacheFolder(), key + ".jpg");

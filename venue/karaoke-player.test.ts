@@ -169,6 +169,38 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(app("AndroidManifest.xml").includes('android:label="${appLabel}"') && readFileSync(new URL("../tv-overlay/app/build.gradle", import.meta.url), "utf8").includes("'Reborn Karaoke'"));
   });
 
+  it("should use the box's own song list and let the box's own program play, by default", () => {
+    assert.ok(java("BridgeSettings.java").includes("getBoolean(KEY_BOX_PLAYBACK, true)") && java("PlayerActivity.java").includes("new BoxServletCatalog(this, client, photos)"));
+  });
+
+  it("should search the box's song system with its own web pages and leave out the songs kept in the cloud", () => {
+    const servlets = java("BoxServlets.java");
+    assert.ok(servlets.includes('"SearchServlet"') && servlets.includes('"SingerServlet"') && servlets.includes('"CommandServlet"') && servlets.includes('song.optInt("cLOUD") == 1'));
+  });
+
+  it("should read as many pages as needed because most of each page is cloud songs, stopping at the end of the list", () => {
+    assert.ok(java("BoxServlets.java").includes("rawCount < SONGS_PER_PAGE") && java("BoxServletCatalog.java").includes("if (onPage.isLast()) break;"));
+  });
+
+  it("should find the box's song system on this device, the saved address or the network, and remember it", () => {
+    const servlets = java("BoxServlets.java");
+    assert.ok(servlets.includes('"http://127.0.0.1:" + PORT + "/" + PATH') && servlets.includes("private static String scan(") && servlets.includes("BridgeSettings.saveBox(context, address)"));
+  });
+
+  it("should keep the connector and the gift overlay running while the box's own program plays, and not take over the TV screen", () => {
+    const player = java("PlayerActivity.java");
+    assert.ok(player.includes("private void startBoxServices()") && player.includes("BridgeService.start(this)") && player.includes("tv = new TvLayer(this); // never shown"));
+  });
+
+  it("should send the control buttons to the box's own player while it plays", () => {
+    const player = java("PlayerActivity.java");
+    for (const button of ["Mute", "Music_up", "Music_down", "Tone_up", "Tone_down", "Play", "Reset", "MuOr"]) assert.ok(player.includes(`"${button}"`), button);
+  });
+
+  it("should let the set-up page choose who plays the songs and restart the player when it changes", () => {
+    assert.ok(java("MainActivity.java").includes("saveBoxPlayback(MainActivity.this") && java("PlayerActivity.java").includes("boxMode != BridgeSettings.isBoxPlayback(this)"));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });

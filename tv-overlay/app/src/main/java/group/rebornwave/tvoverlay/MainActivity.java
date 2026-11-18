@@ -93,6 +93,12 @@ public class MainActivity extends Activity {
         root.addView(button(t("Go back to the box's own song program", "改回使用点歌机自带程序", "Kembali ke program lagu bawaan mesin"), new View.OnClickListener() {
             @Override public void onClick(View v) { BridgeSettings.savePlayerMode(MainActivity.this, false); startConnector(); }
         }));
+        final Button playback = button("", null);
+        playback.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { BridgeSettings.saveBoxPlayback(MainActivity.this, !BridgeSettings.isBoxPlayback(MainActivity.this)); showPlaybackSetting(playback); }
+        });
+        showPlaybackSetting(playback);
+        root.addView(playback);
         final Button voiceSide = button("", null);
         voiceSide.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { BridgeSettings.saveVoiceFirst(MainActivity.this, !BridgeSettings.isVoiceFirst(MainActivity.this)); showVoiceSettings(voiceSide, null); }
@@ -263,6 +269,13 @@ public class MainActivity extends Activity {
                 }
             }
         }).start();
+    }
+
+    /** Who plays the songs: the box's own program (this app is its touch screen) or this app's own player (videos in the Karaoke folder / YouTube). */
+    private void showPlaybackSetting(Button button) {
+        button.setText(BridgeSettings.isBoxPlayback(this)
+                ? t("Songs are played by: THE BOX'S OWN PROGRAM (tap to use this app's player instead)", "歌曲由：点歌机自带程序播放（点击改用本应用播放器）", "Lagu diputar oleh: PROGRAM BAWAAN MESIN (ketuk untuk memakai pemutar aplikasi ini)")
+                : t("Songs are played by: THIS APP'S PLAYER (tap to use the box's own program instead)", "歌曲由：本应用播放器播放（点击改用点歌机自带程序）", "Lagu diputar oleh: PEMUTAR APLIKASI INI (ketuk untuk memakai program bawaan mesin)"));
     }
 
     /** Writes what the two voice buttons currently mean; `channels` may be null before it exists. */
