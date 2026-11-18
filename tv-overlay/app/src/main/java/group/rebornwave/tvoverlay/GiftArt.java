@@ -10,15 +10,21 @@ import java.net.URL;
 import java.util.regex.Pattern;
 
 /**
- * The animated picture of each kind of gift (a rose that blooms, a roaring lion, a whale, fireworks ...): which one a gift gets (the same words and
- * emoji the app's own gift scenes go by) and the files, which the box downloads once from the app and keeps. The clips are transparent animated WebP
- * files in /gift-fx/anim/ (the lion, whale, car and teddy are the club's own clips; the rest are Google's Noto animated emoji, CC BY 4.0).
+ * What a gift looks like on the box. In this order: the club's own clip when the gift is a lion, whale, car or teddy; one of the club's two posters
+ * for heart gifts and gift-box gifts; the gift's own picture; the animation of the very emoji the gift was sent with (Google's Noto animated emoji,
+ * CC BY 4.0, fetched once and kept); the animation of the gift's kind of scene; the plain emoji. The files are transparent animated WebP clips in
+ * /gift-fx/anim/ and posters in /gift-fx/poster/ on the app's server, downloaded by the box once.
  */
 final class GiftArt {
     private static final String[] SCENES = {"car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket", "rose", "heart", "drink", "cake", "teddy", "money", "gift"};
-    private static final String FALLBACK = "gift";
+    private static final String[] CLUB_CLIPS = {"lion", "whale", "car", "teddy"};
+    private static final String[] POSTERS = {"heart", "gift"};
+    private static final String NO_SCENE = "";
     private static final String VERSION = "1"; // raise it when a clip is replaced on the server, so boxes fetch the new one
+    private static final String NOTO = "https://fonts.gstatic.com/s/e/notoemoji/latest/";
+    private static final String VARIATION_SELECTOR = "_fe0f";
     private static final int TIMEOUT_MS = 30_000;
+    private static final int NOT_FOUND = 404;
 
     private static final String[][] RULES = {
         {"kiss", "💋|\\bkiss\\b|cium|亲"},
@@ -36,6 +42,7 @@ final class GiftArt {
         {"cake", "🎂|🍰|🧁|cake|kue|蛋糕"},
         {"teddy", "🧸|🐶|🐱|🐼|🐰|🦖|🐉|teddy|bear|boneka|doluruu|熊"},
         {"money", "💰|💵|💸|💴|🪙|money|cash|coin|uang|钱"},
+        {"gift", "🎁|\\bgift\\b|hadiah|礼物|present"},
     };
 
     private static final Pattern[] PATTERNS = compile();
@@ -49,16 +56,25 @@ final class GiftArt {
         return patterns;
     }
 
-    /** The scene of a gift: the one the admin chose for it, else the one its emoji or name points to, else the gift box. */
+    /** The scene of a gift: the one the admin chose for it, else the one its emoji or name points to, else none (the gift then shows its own picture or emoji). */
     static String sceneOf(TvFeed.Gift gift) {
         for (String scene : SCENES) if (scene.equals(gift.animation)) return scene;
         String text = gift.emoji + " " + gift.name;
         for (int i = 0; i < RULES.length; i++) if (PATTERNS[i].matcher(text).find()) return RULES[i][0];
-        return FALLBACK;
+        return NO_SCENE;
     }
 
-    static boolean isFallback(String scene) {
-        return FALLBACK.equals(scene);
+    static boolean isClubClip(String scene) {
+        return contains(CLUB_CLIPS, scene);
+    }
+
+    static boolean isPoster(String scene) {
+        return contains(POSTERS, scene);
+    }
+
+    private static boolean contains(String[] list, String scene) {
+        for (String item : list) if (item.equals(scene)) return true;
+        return false;
     }
 
     /** The saved clip of a scene, or null while this box does not have it yet. */
@@ -67,7 +83,57 @@ final class GiftArt {
         return file.exists() ? file : null;
     }
 
-    /** Downloads, once and in the background, every clip this box does not have yet, so the first gift already plays its animation. */
+    /** The saved poster of a scene, or null while this box does not have it yet. */
+    static File poster(Context context, String scene) {
+        File file = fileOf(context, "poster-" + scene);
+        return file.exists() ? file : null;
+    }
+
+    /**
+     * The animation of this very emoji from Google's Noto animated emoji, downloaded the first time it is needed and kept; null when Google has none
+     * for it (or the box is offline). Reads the network: call it off the screen's own thread.
+     */
+    static File emojiClip(Context context, String emoji) {
+        String code = codeOf(emoji);
+        if (code.isEmpty()) return null;
+        File saved = fileOf(context, "emoji-" + code);
+        if (saved.exists()) return saved;
+        File none = new File(saved.getPath() + ".none");
+        if (none.exists()) return null;
+        boolean sawOnlyNotFound = true;
+        for (String variant : variantsOf(code)) {
+            try {
+                if (fetchTo(saved, NOTO + variant + "/512.webp")) return saved;
+            } catch (Exception failure) {
+                sawOnlyNotFound = false;
+                OverlayLog.add("emoji clip " + variant + ": " + failure.getClass().getSimpleName() + " " + failure.getMessage());
+            }
+        }
+        if (sawOnlyNotFound) {
+            try { none.createNewFile(); } catch (java.io.IOException ignored) { /* it will just ask again next time */ }
+        }
+        return null;
+    }
+
+    /** Hex code points of an emoji joined by "_" ("1f37a", "2764_fe0f"), the way Google names its files. */
+    static String codeOf(String emoji) {
+        String text = emoji == null ? "" : emoji.trim();
+        StringBuilder code = new StringBuilder();
+        for (int i = 0; i < text.length(); ) {
+            int point = text.codePointAt(i);
+            i += Character.charCount(point);
+            if (code.length() > 0) code.append('_');
+            code.append(Integer.toHexString(point));
+        }
+        return code.toString();
+    }
+
+    private static String[] variantsOf(String code) {
+        // Google names some emoji with the variation selector (2764_fe0f) and some without: try the name as it is, then the other way.
+        return code.endsWith(VARIATION_SELECTOR) ? new String[]{code, code.substring(0, code.length() - VARIATION_SELECTOR.length())} : new String[]{code, code + VARIATION_SELECTOR};
+    }
+
+    /** Downloads, once and in the background, every clip and poster this box does not have yet, so the first gift already plays its animation. */
     static synchronized void prefetch(final Context context) {
         if (fetching) return;
         fetching = true;
@@ -75,31 +141,40 @@ final class GiftArt {
         new Thread(new Runnable() {
             @Override public void run() {
                 for (String scene : SCENES) {
-                    if (cached(app, scene) != null) continue;
-                    try {
-                        download(app, scene);
-                    } catch (Exception failure) {
-                        OverlayLog.add("gift art " + scene + ": " + failure.getClass().getSimpleName() + " " + failure.getMessage());
-                    }
+                    if (cached(app, scene) == null) tryFetch(app, fileOf(app, scene), "/gift-fx/anim/" + scene + ".webp");
+                }
+                for (String scene : POSTERS) {
+                    if (poster(app, scene) == null) tryFetch(app, fileOf(app, "poster-" + scene), "/gift-fx/poster/" + scene + ".webp");
                 }
                 synchronized (GiftArt.class) { fetching = false; }
             }
         }, "gift-art").start();
     }
 
-    private static File fileOf(Context context, String scene) {
-        File folder = new File(context.getFilesDir(), "gift-art");
-        if (!folder.exists()) folder.mkdirs();
-        return new File(folder, scene + "-v" + VERSION + ".webp");
+    private static void tryFetch(Context context, File target, String route) {
+        try {
+            fetchTo(target, Link.server(context) + route);
+        } catch (Exception failure) {
+            OverlayLog.add("gift art " + route + ": " + failure.getClass().getSimpleName() + " " + failure.getMessage());
+        }
     }
 
-    private static void download(Context context, String scene) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(Link.server(context) + "/gift-fx/anim/" + scene + ".webp").openConnection();
-        File part = new File(fileOf(context, scene).getPath() + ".part");
+    private static File fileOf(Context context, String name) {
+        File folder = new File(context.getFilesDir(), "gift-art");
+        if (!folder.exists()) folder.mkdirs();
+        return new File(folder, name + "-v" + VERSION + ".webp");
+    }
+
+    /** Saves the file at this address; false when it does not exist (404), an exception for any other failure. */
+    private static boolean fetchTo(File target, String address) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
+        File part = new File(target.getPath() + ".part");
         try {
             connection.setConnectTimeout(TIMEOUT_MS);
             connection.setReadTimeout(TIMEOUT_MS);
-            if (connection.getResponseCode() != 200) throw new java.io.IOException("the app answered " + connection.getResponseCode());
+            int status = connection.getResponseCode();
+            if (status == NOT_FOUND) return false;
+            if (status != 200) throw new java.io.IOException("answered " + status);
             InputStream in = connection.getInputStream();
             FileOutputStream out = new FileOutputStream(part);
             byte[] chunk = new byte[16 * 1024];
@@ -107,7 +182,8 @@ final class GiftArt {
             while ((read = in.read(chunk)) > 0) out.write(chunk, 0, read);
             out.close();
             in.close();
-            if (!part.renameTo(fileOf(context, scene))) throw new java.io.IOException("could not save the clip");
+            if (!part.renameTo(target)) throw new java.io.IOException("could not save the file");
+            return true;
         } finally {
             connection.disconnect();
             if (part.exists()) part.delete();

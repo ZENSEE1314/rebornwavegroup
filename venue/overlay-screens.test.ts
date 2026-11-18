@@ -68,13 +68,26 @@ describe("the gift overlay on the box's screens", () => {
     assert.ok(gifts.includes("line.setTranslationX(-line.getMeasuredWidth())") && gifts.includes("translationX(screenWidth)") && gifts.includes("cardParams.topMargin = CARD_TOP_PX"));
   });
 
-  it("should size the gift picture as a share of the screen, so it stays small on any TV", () => {
+  it("should size the gift picture as a share of the screen, so it looks the same on any TV", () => {
     const gifts = read("GiftView.java");
-    assert.ok(gifts.includes("ART_WIDTH_FRACTION = 0.18f") && gifts.includes("ART_HEIGHT_FRACTION = 0.22f") && gifts.includes("screenHeight() * ART_HEIGHT_FRACTION"));
+    assert.ok(gifts.includes("ART_WIDTH_FRACTION = 0.26f") && gifts.includes("ART_HEIGHT_FRACTION = 0.32f") && gifts.includes("screenHeight() * ART_HEIGHT_FRACTION"));
   });
 
-  it("should keep a gift's own picture only when its scene is the plain gift box", () => {
-    assert.ok(read("GiftView.java").includes("!gift.imageUrl.isEmpty() && GiftArt.isFallback(scene)"));
+  it("should show what was sent: club clip, then club poster, then the gift's own picture, then the animation of its own emoji", () => {
+    const gifts = read("GiftView.java");
+    const order = [gifts.indexOf("GiftArt.isClubClip(scene)"), gifts.indexOf("GiftArt.isPoster(scene)"), gifts.indexOf("!gift.imageUrl.isEmpty()"), gifts.lastIndexOf("else loadAnimated(gift, scene, card, picture)")];
+    assert.ok(order.every((at) => at > 0) && order.every((at, i) => i === 0 || at > order[i - 1]));
+  });
+
+  it("should fetch the animation of the very emoji a gift was sent with from Google's Noto emoji", () => {
+    const art = read("GiftArt.java");
+    assert.ok(art.includes("static File emojiClip(") && art.includes("fonts.gstatic.com/s/e/notoemoji/latest/") && read("GiftView.java").includes("GiftArt.emojiClip(getContext(), gift.emoji)"));
+  });
+
+  it("should have the club's two posters on the server and float them with sparkles", () => {
+    for (const poster of ["heart", "gift"]) assert.ok(existsSync(new URL(`../client/public/gift-fx/poster/${poster}.webp`, import.meta.url)), poster);
+    const gifts = read("GiftView.java");
+    assert.ok(read("GiftArt.java").includes('POSTERS = {"heart", "gift"}') && gifts.includes("addSparkles(") && gifts.includes("startFloat(box)"));
   });
 
   it("should have a clip on the server for every scene the box asks for", () => {
