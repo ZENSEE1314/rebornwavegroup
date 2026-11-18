@@ -36,6 +36,8 @@ public class MainActivity extends Activity {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private volatile boolean pairing = false;
+    static final String EXTRA_SETTINGS = "settings";
+
     private volatile boolean connectorPairing = false;
     private TextView connectorStatus;
     private TextView connectorCode;
@@ -55,6 +57,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        // The private app is the whole karaoke app: its icon opens the song system straight away (the set-up page is behind the gear button).
+        if (Enroll.isAvailable() && !getIntent().getBooleanExtra(EXTRA_SETTINGS, false)) {
+            startActivity(new android.content.Intent(this, PlayerActivity.class));
+            finish();
+            return;
+        }
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(48, 48, 48, 48);

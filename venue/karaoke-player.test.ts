@@ -161,6 +161,14 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(flow.includes("BOX_KEY: ${{ secrets.BOX_SETUP_KEY }}") && flow.includes("reborn-box-private.apk") && !/^\s{6}BOX_KEY:/m.test(flow.split("jobs:")[0] + flow.split("steps:")[0].split("jobs:")[1]));
   });
 
+  it("should open the song system straight from the private app's icon, with the set-up page behind a gear button", () => {
+    assert.ok(java("MainActivity.java").includes("Enroll.isAvailable() && !getIntent().getBooleanExtra(EXTRA_SETTINGS, false)") && java("PlayerActivity.java").includes("MainActivity.EXTRA_SETTINGS"));
+  });
+
+  it("should call the private app Reborn Karaoke so it is easy to tell from the overlay-only app", () => {
+    assert.ok(app("AndroidManifest.xml").includes('android:label="${appLabel}"') && readFileSync(new URL("../tv-overlay/app/build.gradle", import.meta.url), "utf8").includes("'Reborn Karaoke'"));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });

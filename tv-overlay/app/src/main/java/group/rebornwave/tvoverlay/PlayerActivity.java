@@ -46,6 +46,7 @@ public class PlayerActivity extends Activity {
     private static final long BOARD_EVERY_MS = 90_000;
     private static final String YOUTUBE_PREFIX = "yt:";
     private static final int MENU_MARGIN_DP = 12;
+    private static final int GEAR_LIFT_DP = 84; // above the control bar, at the left
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private QueueClient client;
@@ -56,6 +57,7 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private ControlPanel panel;
     private TextView menuButton;
+    private TextView settingsButton;
     private TvLayer tv;
     private TvPresentation presentation;
     private StageView stage;
@@ -123,6 +125,15 @@ public class PlayerActivity extends Activity {
         root.setBackgroundColor(Color.BLACK);
         setContentView(root);
         panel = new ControlPanel(this, new BoxCatalog(songFiles, client), buttons, photos);
+        settingsButton = new TextView(this);
+        settingsButton.setText("⚙");
+        settingsButton.setTextSize(22);
+        settingsButton.setTextColor(Color.WHITE);
+        settingsButton.setBackgroundColor(Color.parseColor("#66000000"));
+        settingsButton.setPadding(24, 8, 24, 8);
+        settingsButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) { startActivity(new android.content.Intent(PlayerActivity.this, MainActivity.class).putExtra(MainActivity.EXTRA_SETTINGS, true)); }
+        });
         menuButton = new TextView(this);
         menuButton.setText("🎤 " + Words.t("Songs", "点歌", "Lagu"));
         menuButton.setTextSize(20);
@@ -295,6 +306,9 @@ public class PlayerActivity extends Activity {
             menuParams.setMargins(margin, margin, margin, margin);
             root.addView(menuButton, menuParams);
         }
+        FrameLayout.LayoutParams gearParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.START);
+        gearParams.setMargins(0, 0, 0, Math.round(GEAR_LIFT_DP * getResources().getDisplayMetrics().density));
+        root.addView(settingsButton, gearParams);
         stage = tv.stage;
         gifts = tv.gifts;
         youtube = tv.youtube;
