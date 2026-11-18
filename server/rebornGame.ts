@@ -1427,6 +1427,13 @@ async function tableSig(label: string): Promise<string> {
   return createHmac("sha256", await tableQrSecret()).update(label).digest("base64url").slice(0, 10);
 }
 // Extra tables the admin added just for QR codes (Admin > QR codes), beyond the booking areas.
+// The address a box on the venue network should call: https on the public host (the host's proxy ends TLS, so req.protocol can say http); a local address keeps its own scheme.
+function publicBase(req: Request): string {
+  const host = req.get("host") || "";
+  const forwarded = String(req.get("x-forwarded-proto") || "").split(",")[0].trim();
+  const isLocal = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
+  return `${forwarded || (isLocal ? req.protocol : "https")}://${host}`;
+}
 const BOX_REQUESTER = "box"; // the "member" of a song asked for at the karaoke box's own touch screen: it has no account, the request counts for its table
 const BOX_TOP_SONGS = 60;
 const EXTRA_TABLES_KEY = "extraTables";
@@ -3365,14 +3372,14 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/security/camera-setup-file", requireAdmin(async (req, res) => {
     const cameras = cleanSetupCameras(req.body?.cameras);
     if (!cameras) return res.status(400).json({ message: tr(req, { en: "Add at least one camera with its address, user name and password", zh: "请至少添加一个摄像头，并填写地址、用户名和密码", id: "Tambahkan minimal satu kamera dengan alamat, nama pengguna dan kata sandi" }) });
-    const bat = cameraSetupBat({ cloudUrl: `${req.protocol}://${req.get("host")}`, token: await venueBridgeToken(), tenantSlug: currentTenant()?.slug || "", cameras });
+    const bat = cameraSetupBat({ cloudUrl: publicBase(req), token: await venueBridgeToken(), tenantSlug: currentTenant()?.slug || "", cameras });
     await logAdmin(req, { targetType: "system", action: "camera_setup_file", entityType: "settings", description: `Downloaded the camera bridge setup file (${cameras.length} camera(s))` });
     res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": 'attachment; filename="Start-Camera-Bridge.bat"', "Cache-Control": "no-store" }).send(bat);
   }));
   app.get("/api/reborn/admin/karaoke/setup-file", requireAdmin(async (req, res) => {
     const token = await venueBridgeToken();
     const isLegacy = req.query.legacy === "1";
-    const setup = { cloudUrl: `${req.protocol}://${req.get("host")}`, token, tenantSlug: currentTenant()?.slug || "" };
+    const setup = { cloudUrl: publicBase(req), token, tenantSlug: currentTenant()?.slug || "" };
     await logAdmin(req, { targetType: "system", action: "karaoke_setup_file", entityType: "settings", description: `Downloaded the karaoke bridge setup file${isLegacy ? " (Windows 7)" : ""}` });
     res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": `attachment; filename="${isLegacy ? "Start-Karaoke-Bridge-Win7.bat" : "Start-Karaoke-Bridge.bat"}"`, "Cache-Control": "no-store" }).send(isLegacy ? karaokeSetupLegacyBat(setup) : karaokeSetupBat(setup));
   }));
@@ -3380,7 +3387,7 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/karaoke/pair", requireAdmin(async (req, res) => {
     const code = String(req.body?.code ?? "").replace(/\s/g, "");
     if (!isTvCode(code)) return res.status(400).json({ message: tr(req, { en: "Enter the 6-digit code shown on the box", zh: "请输入点歌机上显示的6位代码", id: "Masukkan kode 6 digit yang tampil di mesin" }) });
-    const linked = linkKaraokeBox(code, { token: await venueBridgeToken(), cloudUrl: `${req.protocol}://${req.get("host")}`, tenantSlug: currentTenant()?.slug || "" });
+    const linked = linkKaraokeBox(code, { token: await venueBridgeToken(), cloudUrl: publicBase(req), tenantSlug: currentTenant()?.slug || "" });
     if (!linked) return res.status(404).json({ message: tr(req, { en: "That code is not on any box (it may have expired: open the app on the box again for a new one)", zh: "没有机器显示这个代码（可能已过期：请重新打开机器上的应用获取新代码）", id: "Kode itu tidak ada di mesin mana pun (mungkin kedaluwarsa: buka lagi aplikasi di mesin untuk kode baru)" }) });
     await logAdmin(req, { targetType: "system", action: "karaoke_pair", entityType: "settings", description: "Linked a song-system box by code" });
     res.json({ ok: true, message: tr(req, { en: "Box linked", zh: "已链接机器", id: "Mesin terhubung" }) });
@@ -8195,7 +8202,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     giftTypes: async (companyId) => (await db.select().from(kosGiftTypes).where(and(eq(kosGiftTypes.companyId, companyId), eq(kosGiftTypes.active, true))).orderBy(kosGiftTypes.kgoldCost, kosGiftTypes.sortOrder, kosGiftTypes.id))
       .map((row) => ({ name: row.name, emoji: row.emoji || "", imageUrl: row.imageUrl || "", animation: row.animation || "", kgoldCost: row.kgoldCost || 0 })),
     onAppChange: onLiveUpdate,
-    karaokeLink: async (req) => ({ token: await venueBridgeToken(), cloudUrl: `${req.protocol}://${req.get("host")}`, tenantSlug: currentTenant()?.slug || "" }),
+    karaokeLink: async (req) => ({ token: await venueBridgeToken(), cloudUrl: publicBase(req), tenantSlug: currentTenant()?.slug || "" }),
   });
 
   // Security tab (cameras + "Officer at the door" checks), for every company.
