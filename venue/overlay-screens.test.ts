@@ -54,13 +54,23 @@ describe("the gift overlay on the box's screens", () => {
 
   it("should put the gift words on a see-through grey box so they can be read over any picture", () => {
     const gifts = read("GiftView.java");
-    assert.ok(gifts.includes("words.setBackground(greyBox())") && gifts.includes("bar.setBackgroundColor(GREY_BOX)"));
+    assert.ok(gifts.includes("strip.setBackgroundColor(GREY_BOX)") && gifts.includes("bar.setBackgroundColor(GREY_BOX)"));
   });
 
   it("should play an animation for every kind of gift, from clips the box downloads once", () => {
     const art = read("GiftArt.java");
     for (const scene of ["rose", "heart", "kiss", "lion", "whale", "rocket", "car", "fireworks", "crown", "diamonds", "cake", "drink", "teddy", "money", "thumbsup", "gift"]) assert.ok(art.includes(`"${scene}"`), scene);
     assert.ok(art.includes('"/gift-fx/anim/"') && read("GiftView.java").includes("AnimatedImageDrawable"));
+  });
+
+  it("should slide the gift's words across the screen from left to right on a grey strip, clear of the picture", () => {
+    const gifts = read("GiftView.java");
+    assert.ok(gifts.includes("line.setTranslationX(-line.getMeasuredWidth())") && gifts.includes("translationX(screenWidth)") && gifts.includes("cardParams.topMargin = CARD_TOP_PX"));
+  });
+
+  it("should keep the gift picture small enough that the words and the picture both fit the screen", () => {
+    const gifts = read("GiftView.java");
+    assert.ok(gifts.includes("ART_MAX_W_PX = 520") && gifts.includes("ART_MAX_H_PX = 300"));
   });
 
   it("should keep a gift's own picture only when its scene is the plain gift box", () => {
