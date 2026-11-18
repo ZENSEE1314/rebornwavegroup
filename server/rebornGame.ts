@@ -599,7 +599,18 @@ const DEFAULT_GIFT_TYPES = [
   { name: "Crown", emoji: "👑", animation: "crown", kgoldCost: 100000, sortOrder: 4 },
   { name: "Sports Car", emoji: "🏎️", animation: "car", kgoldCost: 500000, sortOrder: 5 },
   ...NEW_GIFT_TYPES_V2(),
+  ...NEW_GIFT_TYPES_V3(),
 ];
+// Top-tier gifts (5,201,314 = "520 1314", "I love you forever"). Added once per venue like V2 (`giftsV3Added_<company>`).
+function NEW_GIFT_TYPES_V3() {
+  return [
+    { name: "Golden Castle", emoji: "🏰", animation: "crown", kgoldCost: 5000000, sortOrder: 11 },
+    { name: "520 Love", emoji: "💕", animation: "heart", kgoldCost: 5200000, sortOrder: 12 },
+    { name: "520 1314 Forever", emoji: "💍", animation: "diamonds", kgoldCost: 5201314, sortOrder: 13 },
+    { name: "Private Jet", emoji: "✈️", animation: "rocket", kgoldCost: 10000000, sortOrder: 14 },
+    { name: "Love You Forever 1314", emoji: "💖", animation: "fireworks", kgoldCost: 13140000, sortOrder: 15 },
+  ];
+}
 // Big gifts added later (each with its own full-screen scene + sound). Added once
 // to every venue that already has gifts (`giftsV2Added_<company>` flag), so an
 // admin who deletes one doesn't get it back.
@@ -634,12 +645,15 @@ async function seedGiftTypesOnce(companyId?: number) {
   if (existing.length === 0) {
     if (await claimFlag(`giftsSeeded_${companyId ?? "all"}`)) await db.insert(kosGiftTypes).values(DEFAULT_GIFT_TYPES.map((g) => ({ ...g, companyId: companyId ?? null })));
     await claimFlag(`giftsV2Added_${companyId ?? "all"}`); // defaults already include the new gifts
+    await claimFlag(`giftsV3Added_${companyId ?? "all"}`);
     return;
   }
-  if (!(await claimFlag(`giftsV2Added_${companyId ?? "all"}`))) return; // added before (or right now by another request)
   const names = new Set((await db.select({ name: kosGiftTypes.name }).from(kosGiftTypes).where(cond as any)).map((r) => r.name));
-  const add = NEW_GIFT_TYPES_V2().filter((g) => !names.has(g.name));
-  if (add.length) await db.insert(kosGiftTypes).values(add.map((g) => ({ ...g, companyId: companyId ?? null })));
+  for (const [flag, list] of [["giftsV2Added", NEW_GIFT_TYPES_V2()], ["giftsV3Added", NEW_GIFT_TYPES_V3()]] as const) {
+    if (!(await claimFlag(`${flag}_${companyId ?? "all"}`))) continue; // added before (or right now by another request)
+    const add = list.filter((g) => !names.has(g.name));
+    if (add.length) await db.insert(kosGiftTypes).values(add.map((g) => ({ ...g, companyId: companyId ?? null })));
+  }
 }
 // One-off cleanup of the duplicate gifts that race created: keep the oldest of each
 // (venue, name, price); gifts already sent are moved onto the one we keep.
