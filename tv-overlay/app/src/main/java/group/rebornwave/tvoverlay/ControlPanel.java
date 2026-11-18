@@ -105,6 +105,7 @@ final class ControlPanel extends LinearLayout {
     private final LinearLayout middle;
     private final TextView message;
     private final TextView status;
+    private final TextView info;
     private final TextView muteButton;
     private final TextView playButton;
     private final TextView analogButton;
@@ -145,6 +146,11 @@ final class ControlPanel extends LinearLayout {
         message.setGravity(Gravity.CENTER);
         message.setVisibility(GONE);
         addView(message);
+
+        info = text(context, "", 14, false, SOFT);
+        info.setGravity(Gravity.CENTER);
+        info.setVisibility(GONE);
+        addView(info);
 
         status = text(context, "", 18, true, "#ffb4b4");
         status.setGravity(Gravity.CENTER);
@@ -208,6 +214,12 @@ final class ControlPanel extends LinearLayout {
 
     static int maxTone() {
         return MAX_TONE;
+    }
+
+    /** A small steady line above the buttons that says what the box was last told to do (ordered a song, finished, never started); an empty text hides it. */
+    void setInfo(String text) {
+        info.setText(text);
+        info.setVisibility(text.isEmpty() ? GONE : VISIBLE);
     }
 
     /** A steady line above the buttons that says what is wrong (not linked, no internet); an empty text hides it. */

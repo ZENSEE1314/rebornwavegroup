@@ -34,6 +34,7 @@ final class BoxServlets {
     private static final int PROBE_MS = 900;
     private static final int CALL_MS = 8_000;
     private static final int SCAN_WORKERS = 48;
+    private static final long TRIAL_WAIT_MS = 3_000;
     private static final int LAST_HOST = 254;
     private static final int SONGS_PER_PAGE = 15;
     private static final String NO_PHOTO = "singer_photo.png";
@@ -80,6 +81,35 @@ final class BoxServlets {
             report.append("\nSingerServlet says: ").append(shortAnswer(base + "/SingerServlet?singer=&singerType=&sortType=&page=1&jsonpCallback=" + CALLBACK));
         } catch (Exception failure) {
             report.append("\nSingers failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
+        }
+        return report.toString();
+    }
+
+    /**
+     * A live trial for the "Order a test song" button: orders one real song stored on the box, waits 3 seconds, and reports exactly what the box answered
+     * and what its play list says before and after, then cuts the song. It shows whether the box takes an order from this app at all.
+     */
+    static String trial(Context context) {
+        StringBuilder report = new StringBuilder();
+        String base = find(context);
+        if (base.isEmpty()) return "The box's song system was not found (see the other test).";
+        try {
+            SongPick song = null;
+            for (int page = 1; page <= 6 && song == null; page++) {
+                Page found = search(base, "a", "", page, false);
+                if (!found.songs.isEmpty()) song = found.songs.get(0);
+            }
+            if (song == null) return "No song stored on the box was found for the letter a (try showing cloud songs).";
+            report.append("Test song: ").append(song.code).append("  ").append(song.title);
+            report.append("\nPlay list before: ").append(playlistCount(base));
+            report.append("\nAdd1 answer: ").append(shortAnswer(base + "/CommandServlet?cmd=Add1&cmdValue=" + enc(song.code) + "&jsonpCallback=" + CALLBACK));
+            Thread.sleep(TRIAL_WAIT_MS);
+            report.append("\nPlay list after 3 s: ").append(playlistCount(base));
+            report.append("\nPlaylistServlet says: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=true&click=true&type=1&jsonpCallback=" + CALLBACK));
+            command(base, "Skip");
+            report.append("\n(the test song was cut with Skip)");
+        } catch (Exception failure) {
+            report.append("\nFailed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
         }
         return report.toString();
     }

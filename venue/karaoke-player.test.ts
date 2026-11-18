@@ -283,6 +283,15 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(player.includes("boxMode ? boxJobs.answer(job) : songSearch.answer(job)") && player.includes("BridgeService.stop(this)") && java("BoxJobs.java").includes('"photo".equals(job.kind)') && java("QueueClient.java").includes('job.file = json.optString("file")'));
   });
 
+  it("should have a live trial that orders a real song on the box and reports what the box answered and its play list before and after", () => {
+    const servlets = java("BoxServlets.java");
+    assert.ok(servlets.includes("static String trial(Context context)") && servlets.includes("Add1 answer: ") && servlets.includes("Play list after 3 s: ") && java("MainActivity.java").includes("BoxServlets.trial(MainActivity.this)"));
+  });
+
+  it("should show on the touch screen what the box was last told to do", () => {
+    assert.ok(java("ControlPanel.java").includes("void setInfo(String text)") && java("PlayerActivity.java").includes("panel.setInfo(") && java("BoxBridge.java").includes('lastEvent = "ordered "'));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });

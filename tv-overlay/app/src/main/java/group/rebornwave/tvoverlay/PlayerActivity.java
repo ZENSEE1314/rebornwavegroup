@@ -526,6 +526,7 @@ public class PlayerActivity extends Activity {
             ui.post(new Runnable() {
                 @Override public void run() {
                     panel.update(tableLabels, shownOnBox);
+                    panel.setInfo(boxBridge.lastEvent().isEmpty() ? "" : "Box: " + boxBridge.lastEvent());
                     boxNowId = shownOnBox.now == null ? 0 : shownOnBox.now.id;
                     showButtonState();
                 }

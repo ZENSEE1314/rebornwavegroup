@@ -119,6 +119,17 @@ public class MainActivity extends Activity {
                 }, "box-test").start();
             }
         }));
+        root.addView(button(t("Order a test song on the box (plays 3 seconds)", "在点歌机上点一首测试歌（播放3秒）", "Pesan lagu uji di mesin (diputar 3 detik)"), new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                boxTestResult.setText(t("Ordering a test song…", "正在点测试歌…", "Memesan lagu uji…"));
+                new Thread(new Runnable() {
+                    @Override public void run() {
+                        final String report = BoxServlets.trial(MainActivity.this) + "\n" + OverlayLog.recent(6);
+                        ui.post(new Runnable() { @Override public void run() { boxTestResult.setText(report); } });
+                    }
+                }, "box-trial").start();
+            }
+        }));
         root.addView(boxTestResult);
         final Button voiceSide = button("", null);
         voiceSide.setOnClickListener(new View.OnClickListener() {
