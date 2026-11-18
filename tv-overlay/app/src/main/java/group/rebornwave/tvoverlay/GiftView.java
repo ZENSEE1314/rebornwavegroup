@@ -18,6 +18,7 @@ import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.animation.LinearInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -43,22 +44,23 @@ final class GiftView extends FrameLayout {
     private static final long RAIN_SPREAD_MS = 2_500;
     private static final int RAIN_COUNT = 18;
     private static final int RAIN_SP = 48;
-    private static final int EMOJI_SP = 140;
-    private static final int WHO_SP = 34;
+    private static final int EMOJI_SP = 100;
     private static final int BAR_SP = 26;
-    private static final int PICTURE_PX = 420;
+    private static final int PICTURE_PX = 280;
     private static final int FALLBACK_WIDTH_PX = 1280;
     private static final int FALLBACK_HEIGHT_PX = 720;
     private static final int MAX_WAITING_GIFTS = 12;
     private static final int PICTURE_TIMEOUT_MS = 6_000;
     private static final String DEFAULT_EMOJI = "🎁";
     private static final int GREY_BOX = Color.argb(185, 55, 55, 55); // see-through grey behind the words
-    private static final float GREY_BOX_RADIUS_PX = 28f;
     private static final int WORDS_PAD_PX = 36;
-    private static final int ART_MAX_W_PX = 880;
-    private static final int ART_MAX_H_PX = 520;
-    private static final int HALO_EXTRA_PX = 140;
-    private static final float HALO_RADIUS_PX = 430f;
+    private static final int ART_MAX_W_PX = 520;
+    private static final int ART_MAX_H_PX = 300;
+    private static final int HALO_EXTRA_PX = 60;
+    private static final float HALO_RADIUS_PX = 250f;
+    private static final int TICKER_SP = 32;
+    private static final int TICKER_TOP_PX = 80; // below the line the karaoke program keeps at the top of its picture
+    private static final int CARD_TOP_PX = 140; // the picture sits a little below the middle, clear of the moving words
     private static final long HALO_PULSE_MS = 900;
     private static final int HALO_COLOUR = Color.argb(150, 252, 211, 77);
 
@@ -150,16 +152,10 @@ final class GiftView extends FrameLayout {
         card.setGravity(Gravity.CENTER);
         final TextView picture = text(emoji, EMOJI_SP, false);
         card.addView(picture);
-        // The words sit on a see-through grey box so they can be read over any karaoke picture.
-        LinearLayout words = new LinearLayout(getContext());
-        words.setOrientation(LinearLayout.VERTICAL);
-        words.setGravity(Gravity.CENTER);
-        words.setPadding(WORDS_PAD_PX, WORDS_PAD_PX / 2, WORDS_PAD_PX, WORDS_PAD_PX / 2);
-        words.setBackground(greyBox());
-        words.addView(text(who(gift), WHO_SP, true));
-        words.addView(text(gift.name + (gift.kgold > 0 ? "   ·   " + gift.kgold + " KGOLD" : ""), WHO_SP, true));
-        card.addView(words);
-        stage.addView(card, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        cardParams.topMargin = CARD_TOP_PX;
+        stage.addView(card, cardParams);
+        addTicker(gift);
         card.setScaleX(0f);
         card.setScaleY(0f);
         card.animate().scaleX(1f).scaleY(1f).setDuration(POP_MS).setInterpolator(new OvershootInterpolator()).start();
@@ -171,11 +167,25 @@ final class GiftView extends FrameLayout {
         rain(emoji);
     }
 
-    private static GradientDrawable greyBox() {
-        GradientDrawable box = new GradientDrawable();
-        box.setColor(GREY_BOX);
-        box.setCornerRadius(GREY_BOX_RADIUS_PX);
-        return box;
+    /** The sender, the receiver, the gift and its KGOLD as one line on a see-through grey strip that slides across the screen from left to right. */
+    private void addTicker(TvFeed.Gift gift) {
+        final FrameLayout strip = new FrameLayout(getContext());
+        strip.setBackgroundColor(GREY_BOX);
+        final TextView line = text(who(gift) + "   ·   " + gift.name + (gift.kgold > 0 ? "   ·   " + gift.kgold + " KGOLD" : ""), TICKER_SP, true);
+        line.setSingleLine(true);
+        line.setPadding(WORDS_PAD_PX, WORDS_PAD_PX / 3, WORDS_PAD_PX, WORDS_PAD_PX / 3);
+        strip.addView(line, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
+        FrameLayout.LayoutParams stripParams = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP);
+        stripParams.topMargin = TICKER_TOP_PX;
+        stage.addView(strip, stripParams);
+        strip.post(new Runnable() {
+            @Override public void run() {
+                int screenWidth = strip.getWidth() > 0 ? strip.getWidth() : FALLBACK_WIDTH_PX;
+                line.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+                line.setTranslationX(-line.getMeasuredWidth());
+                line.animate().translationX(screenWidth).setDuration(SHOW_MS - POP_MS).setInterpolator(new LinearInterpolator()).start();
+            }
+        });
     }
 
     /** Replaces the emoji with the animated picture of the gift's scene when this box has it (Android 9 and newer); until then, or without it, the emoji stays. */
