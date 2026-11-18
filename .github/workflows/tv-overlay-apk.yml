@@ -1,5 +1,5 @@
-# Builds the Android overlay app for the karaoke box (tv-overlay/) and publishes it as the release "tv-overlay-latest":
-# https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-latest/reborn-tv-overlay.apk
+# Builds the Android overlay app for the karaoke box (tv-overlay/) and publishes it as the release "tv-overlay-v1":
+# https://github.com/ZENSEE1314/rebornwavegroup/releases/download/tv-overlay-v1/reborn-tv-overlay-v1.apk
 name: TV overlay app
 
 on:
@@ -50,6 +50,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp tv-overlay/app/build/outputs/apk/release/app-release.apk reborn-tv-overlay.apk
-          gh release delete tv-overlay-latest --yes --cleanup-tag || true
-          gh release create tv-overlay-latest reborn-tv-overlay.apk --title "Reborn TV overlay (karaoke box)" --notes "Install this on the karaoke box. See Admin > Lights & TV > TV for the steps."
+          cp tv-overlay/app/build/outputs/apk/release/app-release.apk reborn-tv-overlay-v1.apk
+          gh release delete tv-overlay-v1 --yes --cleanup-tag || true
+          gh release create tv-overlay-v1 reborn-tv-overlay-v1.apk --title "Reborn TV overlay 1.8 (overlay only, no built-in player)" --notes "Install this on the karaoke box. See Admin > Lights & TV > TV for the steps."
