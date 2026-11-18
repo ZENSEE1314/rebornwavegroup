@@ -72,7 +72,8 @@ final class ControlPanel extends LinearLayout {
     private static final int COLUMNS = 4;
     private static final int TABLES_HEIGHT_DP = 300;
     private static final int TABLES_WITH_KEYBOARD_DP = 110; // the tables shrink on the song-title page, so the results, search bar and keyboard fit
-    private static final int KEYBOARD_HEIGHT_DP = 220;
+    private static final int KEYBOARD_HEIGHT_DP = 200;
+    private static final int SEARCH_WIDTH_DP = 380;
     private static final int PHOTO_DP = 56;
     private static final int BOX_HEIGHT_DP = 132;
     private static final int BAR_HEIGHT_DP = 72;
@@ -349,26 +350,22 @@ final class ControlPanel extends LinearLayout {
         TextView heading = text(getContext(), Words.t("Table ", "桌 ", "Meja ") + selected + " · " + title, 22, true, GOLD);
         heading.setPadding(dp(14), 0, dp(14), 0);
         head.addView(heading, new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        if (search != null) head.addView(search, new LinearLayout.LayoutParams(dp(SEARCH_WIDTH_DP), LayoutParams.WRAP_CONTENT));
         middle.addView(head, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
+        // The search bar is at the top of the page and the keyboard opens right under it, above the results (tap the search bar to hide or show the keyboard).
+        if (keyboard != null) {
+            final View keys = keyboard;
+            search.setOnClickListener(new OnClickListener() {
+                @Override public void onClick(View view) { keys.setVisibility(keys.getVisibility() == VISIBLE ? GONE : VISIBLE); }
+            });
+            middle.addView(keyboard, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(KEYBOARD_HEIGHT_DP)));
+        }
         ScrollView scroll = new ScrollView(getContext());
         listArea = new LinearLayout(getContext());
         listArea.setOrientation(VERTICAL);
         scroll.addView(listArea);
-        if (keyboard == null) {
-            middle.addView(scroll, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
-            return;
-        }
-        // The results on top, then the search bar, with the keyboard right under it (tap the search bar to hide or show the keyboard).
         middle.addView(scroll, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
-        final View keys = keyboard;
-        search.setOnClickListener(new OnClickListener() {
-            @Override public void onClick(View view) { keys.setVisibility(keys.getVisibility() == VISIBLE ? GONE : VISIBLE); }
-        });
-        LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        searchParams.setMargins(0, dp(6), 0, dp(4));
-        middle.addView(search, searchParams);
-        middle.addView(keyboard, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(KEYBOARD_HEIGHT_DP)));
     }
 
     private void setTablesHeight(int heightDp) {
