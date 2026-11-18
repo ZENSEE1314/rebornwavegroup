@@ -10,8 +10,8 @@ android {
         applicationId "group.rebornwave.tvoverlay"
         minSdk 21
         targetSdk 33
-        versionCode 20
-        versionName "2.8"
+        versionCode 21
+        versionName "2.9"
     }
 
     // The same key every build (the workflow keeps it), so a newer build installs over the older one on the box.
