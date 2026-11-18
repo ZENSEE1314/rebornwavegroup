@@ -108,6 +108,11 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(photos.includes('SINGERS_FOLDER = "Singers"') && photos.includes("api.deezer.com/search/artist") && photos.includes('SongFiles.squash(artist.optString("name")).equals(key)'));
   });
 
+  it("should give every song row a picture: the singer's photo, else the YouTube thumbnail, else a frame of the video", () => {
+    const photos = java("SingerPhotos.java");
+    assert.ok(photos.includes("void loadForSong(") && photos.includes("i.ytimg.com/vi/") && photos.includes("getFrameAtTime") && java("ControlPanel.java").includes("photos.loadForSong(pick, picture)"));
+  });
+
   it("should change the key of a video with a pitch change and say it cannot on YouTube", () => {
     const player = java("PlayerActivity.java");
     assert.ok(player.includes("new PlaybackParameters(1f,") && player.includes("The key cannot be changed on a YouTube song"));

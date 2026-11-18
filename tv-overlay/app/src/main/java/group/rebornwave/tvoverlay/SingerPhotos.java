@@ -3,6 +3,7 @@ package group.rebornwave.tvoverlay;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.MediaMetadataRetriever;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
@@ -34,6 +35,10 @@ final class SingerPhotos {
     private static final String SINGERS_FOLDER = "Singers";
     private static final String[] ENDINGS = {".jpg", ".jpeg", ".png", ".webp"};
     private static final String SEARCH = "https://api.deezer.com/search/artist?limit=3&q=";
+    private static final String THUMBNAIL = "https://i.ytimg.com/vi/";
+    private static final int YOUTUBE_PREFIX_LENGTH = 3; // "yt:"
+    private static final long FRAME_AT_US = 8_000_000; // eight seconds in: past the title card
+    private static final int FRAME_WIDTH_PX = 160;
     private static final int TIMEOUT_MS = 8_000;
     private static final int MAX_PICTURE_BYTES = 600_000;
     private static final int MEMORY_PICTURES = 60;
@@ -70,6 +75,62 @@ final class SingerPhotos {
                 ui.post(new Runnable() { @Override public void run() { show(view, key, found); } });
             }
         });
+    }
+
+    /**
+     * A picture for a song row: the singer's photo; else, for a YouTube song, the video's own thumbnail; else a frame of the video on this box.
+     * The view stays hidden (the caller's icon shows) when none can be made.
+     */
+    void loadForSong(final SongPick pick, final ImageView view) {
+        final String key = "song:" + pick.code;
+        view.setTag(key);
+        view.setVisibility(ImageView.GONE);
+        Bitmap kept = memory.get(key);
+        if (kept != null) {
+            show(view, key, kept);
+            return;
+        }
+        workers.execute(new Runnable() {
+            @Override public void run() {
+                final Bitmap found = songPicture(pick);
+                if (found == null) return;
+                memory.put(key, found);
+                ui.post(new Runnable() { @Override public void run() { show(view, key, found); } });
+            }
+        });
+    }
+
+    private Bitmap songPicture(SongPick pick) {
+        if (pick.isYoutube()) return thumbnail(pick.code.substring(YOUTUBE_PREFIX_LENGTH));
+        if (!pick.artist.isEmpty()) {
+            Bitmap singer = find(pick.artist, SongFiles.squash(pick.artist));
+            if (singer != null) return singer;
+        }
+        SongFiles.LocalSong local = files.byCode(pick.code);
+        return local == null ? null : frameOf(local.file);
+    }
+
+    private static Bitmap thumbnail(String videoId) {
+        try {
+            byte[] bytes = readBytes(THUMBNAIL + videoId + "/mqdefault.jpg");
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+        } catch (Exception unavailable) {
+            return null;
+        }
+    }
+
+    private static Bitmap frameOf(File video) {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(video.getPath());
+            Bitmap frame = retriever.getFrameAtTime(FRAME_AT_US);
+            if (frame == null) return null;
+            return Bitmap.createScaledBitmap(frame, FRAME_WIDTH_PX, Math.max(1, FRAME_WIDTH_PX * frame.getHeight() / frame.getWidth()), true);
+        } catch (Exception unreadable) {
+            return null;
+        } finally {
+            try { retriever.release(); } catch (Exception ignored) { /* nothing to free */ }
+        }
     }
 
     void close() {

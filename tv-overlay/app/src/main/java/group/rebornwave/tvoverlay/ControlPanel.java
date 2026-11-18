@@ -503,7 +503,7 @@ final class ControlPanel extends LinearLayout {
             return;
         }
         for (final String name : names) {
-            View row = row("🎤", name, name, "", Words.t("Open", "打开", "Buka"), new Runnable() {
+            View row = row("🎤", name, null, name, "", Words.t("Open", "打开", "Buka"), new Runnable() {
                 @Override public void run() { loadSingerSongs(name); }
             });
             listArea.addView(row);
@@ -517,7 +517,7 @@ final class ControlPanel extends LinearLayout {
             return;
         }
         for (final SongPick pick : picks) {
-            listArea.addView(row(pick.isYoutube() ? "▶" : "🎵", pick.isYoutube() ? "" : pick.artist, pick.title, pick.artist, Words.t("Sing", "点唱", "Nyanyi"), new Runnable() {
+            listArea.addView(row(pick.isYoutube() ? "▶" : "🎵", "", pick, pick.title, pick.artist, Words.t("Sing", "点唱", "Nyanyi"), new Runnable() {
                 @Override public void run() { request(pick); }
             }));
         }
@@ -542,7 +542,7 @@ final class ControlPanel extends LinearLayout {
     }
 
     /** A round picture of the singer (the icon stays until, and unless, a picture is found). */
-    private View badge(String icon, String singer) {
+    private View badge(String icon, String singer, SongPick pick) {
         FrameLayout holder = new FrameLayout(getContext());
         holder.setBackground(rounded(Color.parseColor("#44ffffff"), PHOTO_DP / 2));
         TextView fallback = text(getContext(), icon, 26, false, "#ffffff");
@@ -555,13 +555,14 @@ final class ControlPanel extends LinearLayout {
         });
         picture.setClipToOutline(true);
         holder.addView(picture, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        if (singer.isEmpty()) picture.setVisibility(GONE);
+        if (pick != null) photos.loadForSong(pick, picture);
+        else if (singer.isEmpty()) picture.setVisibility(GONE);
         else photos.load(singer, picture);
         holder.setLayoutParams(new LinearLayout.LayoutParams(dp(PHOTO_DP), dp(PHOTO_DP)));
         return holder;
     }
 
-    private View row(String icon, String singer, String title, String artist, String action, final Runnable onTap) {
+    private View row(String icon, String singer, SongPick pick, String title, String artist, String action, final Runnable onTap) {
         LinearLayout row = new LinearLayout(getContext());
         row.setOrientation(HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -570,7 +571,7 @@ final class ControlPanel extends LinearLayout {
         LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         spacing.setMargins(0, dp(3), 0, dp(3));
         row.setLayoutParams(spacing);
-        row.addView(badge(icon, singer));
+        row.addView(badge(icon, singer, pick));
         LinearLayout words = new LinearLayout(getContext());
         words.setOrientation(VERTICAL);
         words.setPadding(dp(14), 0, dp(14), 0);
