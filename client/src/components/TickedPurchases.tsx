@@ -42,26 +42,29 @@ export default function TickedPurchases() {
           {p ? (
             <>
               <div className="rounded-xl bg-red-500/10 border border-red-400/30 p-3">
-                <p className="text-lg font-extrabold text-red-200">{p.count}</p>
-                <p className="text-[11px] text-white/50">{money(p.total)}</p>
+                <p className="text-lg font-extrabold text-red-200">{money(p.total)}</p>
+                <p className="text-[11px] text-white/50">{t("admin.ticked.counts", { n: String(p.count), m: String(p.receiptCount) })}</p>
               </div>
               <ul className="space-y-1 text-[11px] text-white/60">
                 {p.lines.slice(0, SHOWN_LINES).map((l: any) => (
                   <li key={l.id}>{new Date(l.createdAt).toLocaleDateString(localeTag())} · {l.note || l.productName} · {money(Number(l.amount))}</li>
                 ))}
                 {p.count > SHOWN_LINES && <li>… +{p.count - SHOWN_LINES}</li>}
+                {p.receipts.slice(0, SHOWN_LINES).map((r: any) => (
+                  <li key={`r${r.id}`}>{new Date(r.createdAt).toLocaleDateString(localeTag())} · {(r.note || "").split(":")[0]} · −{money(Number(r.cut))}</li>
+                ))}
               </ul>
             </>
           ) : <p className="text-xs text-white/40">…</p>}
           <p className="text-[11px] text-white/50">{t("admin.ticked.kept")}</p>
-          <button onClick={() => setAsking(true)} disabled={!p || p.count === 0 || run.isPending} className="w-full min-h-[44px] rounded-lg text-sm font-bold text-red-100 bg-red-500/25 border border-red-400/50 disabled:opacity-50">{t("admin.ticked.button")}</button>
+          <button onClick={() => setAsking(true)} disabled={!p || (p.count === 0 && p.receiptCount === 0) || run.isPending} className="w-full min-h-[44px] rounded-lg text-sm font-bold text-red-100 bg-red-500/25 border border-red-400/50 disabled:opacity-50">{t("admin.ticked.button")}</button>
         </div>
       )}
       {asking && p && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 text-white" onClick={() => !run.isPending && setAsking(false)}>
           <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-2xl border border-red-400/40 bg-[#160f2a] p-4" onClick={(e) => e.stopPropagation()}>
             <p className="font-bold mb-2">{t("admin.ticked.confirmTitle")}</p>
-            <p className="text-sm text-white/70 mb-4">{t("admin.ticked.confirmText", { n: String(p.count), total: money(p.total) })}</p>
+            <p className="text-sm text-white/70 mb-4">{t("admin.ticked.confirmText", { n: String(p.count + p.receiptCount), total: money(p.total) })}</p>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setAsking(false)} disabled={run.isPending} className="min-h-[44px] px-4 rounded-lg text-sm font-semibold bg-white/10 border border-white/15">{t("admin.cnt.back")}</button>
               <button onClick={() => run.mutate()} disabled={run.isPending} className="min-h-[44px] px-5 rounded-lg text-sm font-bold bg-red-500 text-white disabled:opacity-50">{t("admin.ticked.confirmBtn")}</button>
