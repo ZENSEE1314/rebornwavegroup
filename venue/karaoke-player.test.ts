@@ -136,6 +136,16 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(java("MainActivity.java").includes("BridgeSettings.isReady(this) && !BridgeSettings.isPlayerMode(this)) startConnector()"));
   });
 
+  it("should show the table boxes at once, Table 1 to 12 when the admin set none, so there is always something to tap", () => {
+    const panel = java("ControlPanel.java");
+    assert.ok(panel.includes("update(new ArrayList<String>(), new QueueClient.Board())") && panel.includes("DEFAULT_TABLES = 12"));
+  });
+
+  it("should say on the touch screen what is wrong: not linked (with its own code) or the app cannot be reached", () => {
+    const player = java("PlayerActivity.java");
+    assert.ok(player.includes("private void startLinking()") && player.includes("Link.pollEverything(") && player.includes("Cannot reach the app (") && java("ControlPanel.java").includes("void setStatus(String text)"));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });

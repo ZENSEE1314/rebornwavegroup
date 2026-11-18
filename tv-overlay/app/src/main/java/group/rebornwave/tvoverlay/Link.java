@@ -88,6 +88,20 @@ final class Link {
     }
 
     /**
+     * GET /api/tv/pair/CODE for a box that wants whatever the admin linked the code to: a TV screen (its page is saved), the song system (its
+     * address and key are saved), or both with one code. Returns "waiting", "expired" or "linked".
+     */
+    static String pollEverything(Context context, String code) throws Exception {
+        JSONObject answer = call(server(context) + "/api/tv/pair/" + code, "GET");
+        String status = answer.optString("status", "waiting");
+        if (!"linked".equals(status)) return status;
+        String path = answer.optString("path", "");
+        if (!path.isEmpty()) savePath(context, path);
+        saveSongSystem(context, answer.optJSONObject("karaoke"));
+        return status;
+    }
+
+    /**
      * GET /api/tv/pair/CODE for the song-system connector: "waiting", "expired", "wrong" (the admin linked the code to a TV screen instead),
      * or "linked" (then the app's address and key are saved).
      */

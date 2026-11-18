@@ -80,6 +80,7 @@ final class ControlPanel extends LinearLayout {
     private static final long SEARCH_DELAY_MS = 450;
     private static final long MESSAGE_MS = 4_000;
     private static final int MAX_TONE = 6;
+    private static final int DEFAULT_TABLES = 12;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Catalog catalog;
@@ -88,6 +89,7 @@ final class ControlPanel extends LinearLayout {
     private final LinearLayout tablesColumn;
     private final LinearLayout middle;
     private final TextView message;
+    private final TextView status;
     private final TextView muteButton;
     private final TextView playButton;
     private final TextView analogButton;
@@ -127,6 +129,11 @@ final class ControlPanel extends LinearLayout {
         message.setVisibility(GONE);
         addView(message);
 
+        status = text(context, "", 18, true, "#ffb4b4");
+        status.setGravity(Gravity.CENTER);
+        status.setVisibility(GONE);
+        addView(status);
+
         LinearLayout bar = new LinearLayout(context);
         bar.setOrientation(HORIZONTAL);
         muteButton = barButton(bar, "🔇", Words.t("Mute", "静音", "Bisu"), new Runnable() { @Override public void run() { ControlPanel.this.actions.onMute(); } });
@@ -142,12 +149,14 @@ final class ControlPanel extends LinearLayout {
         addView(bar, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(BAR_HEIGHT_DP)));
 
         showHome();
+        update(new ArrayList<String>(), new QueueClient.Board()); // the table boxes show at once, before the app has answered
     }
 
     /** The tables (as the admin set them, in order) with the songs of each in the queue. Rebuilds only when something changed, keeping the scroll place. */
     void update(List<String> adminTables, QueueClient.Board board) {
         Map<String, List<QueueClient.Song>> byTable = new LinkedHashMap<String, List<QueueClient.Song>>();
         List<String> names = new ArrayList<String>(adminTables);
+        if (names.isEmpty()) for (int number = 1; number <= DEFAULT_TABLES; number++) names.add(String.valueOf(number)); // no tables set up yet: Table 1 to 12
         List<QueueClient.Song> all = new ArrayList<QueueClient.Song>();
         if (board.now != null) all.add(board.now);
         all.addAll(board.queue);
@@ -182,6 +191,12 @@ final class ControlPanel extends LinearLayout {
 
     static int maxTone() {
         return MAX_TONE;
+    }
+
+    /** A steady line above the buttons that says what is wrong (not linked, no internet); an empty text hides it. */
+    void setStatus(String text) {
+        status.setText(text);
+        status.setVisibility(text.isEmpty() ? GONE : VISIBLE);
     }
 
     /** A short sentence above the buttons (a song was added, or something failed). */

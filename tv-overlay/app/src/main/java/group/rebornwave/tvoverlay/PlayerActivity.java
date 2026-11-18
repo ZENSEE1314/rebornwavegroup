@@ -66,6 +66,7 @@ public class PlayerActivity extends Activity {
     private volatile boolean alive = false;
     private Thread poller;
     private Thread jobber;
+    private Thread linker;
     private volatile List<String> tableLabels = new ArrayList<String>();
     private long tablesAt = 0;
     private int currentId = 0;
@@ -165,7 +166,59 @@ public class PlayerActivity extends Activity {
         if (BridgeSettings.isReady(this)) {
             startPolling();
             startJobs();
+        } else {
+            startLinking();
         }
+    }
+
+    /** Not linked yet: the touch screen shows a code; the admin types it in Admin > Lights & TV > TV (or Requests > Karaoke system) and the box links itself. */
+    private void startLinking() {
+        if (linker != null && linker.isAlive()) return;
+        linker = new Thread(new Runnable() {
+            @Override public void run() {
+                String code = "";
+                while (alive && !BridgeSettings.isReady(PlayerActivity.this)) {
+                    try {
+                        if (code.isEmpty()) {
+                            code = Link.newCode(PlayerActivity.this);
+                            final String shown = code.substring(0, 3) + " " + code.substring(3);
+                            showStatus(Words.t("Not linked to the app yet. Staff: type this code in Admin > Lights & TV > TV > Link a TV by code: ",
+                                    "尚未链接到应用。请员工在 管理 > 灯光与电视 > 电视 > 用代码链接电视 输入此代码：",
+                                    "Belum terhubung ke aplikasi. Staf: ketik kode ini di Admin > Lampu & TV > TV > Hubungkan TV dengan kode: ") + shown);
+                        }
+                        String answer = Link.pollEverything(PlayerActivity.this, code);
+                        if ("expired".equals(answer)) code = "";
+                        if ("linked".equals(answer) && BridgeSettings.isReady(PlayerActivity.this)) break;
+                        if ("linked".equals(answer)) {
+                            showStatus(Words.t("The code linked the TV only, not the song system. Use the song-system link in Admin > Requests > Karaoke system.",
+                                    "该代码只链接了电视，未链接点歌系统。请在 管理 > 点歌 > 点歌系统 中链接。",
+                                    "Kode hanya menghubungkan TV, bukan sistem lagu. Hubungkan di Admin > Permintaan > Sistem karaoke."));
+                            code = "";
+                        }
+                    } catch (Exception failure) {
+                        showStatus(Words.t("Cannot reach the app: check this box's internet", "无法连接应用：请检查本机网络", "Tidak bisa terhubung ke aplikasi: periksa internet"));
+                        OverlayLog.add("player link: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
+                    }
+                    try { Thread.sleep(POLL_MS); } catch (InterruptedException stopped) { return; }
+                }
+                if (!alive) return;
+                ui.post(new Runnable() {
+                    @Override public void run() {
+                        panel.setStatus("");
+                        startGifts();
+                        startPolling();
+                        startJobs();
+                    }
+                });
+            }
+        }, "player-link");
+        linker.start();
+    }
+
+    private void showStatus(final String text) {
+        ui.post(new Runnable() {
+            @Override public void run() { panel.setStatus(text); }
+        });
     }
 
     @Override
@@ -173,6 +226,7 @@ public class PlayerActivity extends Activity {
         alive = false;
         if (poller != null) poller.interrupt();
         if (jobber != null) jobber.interrupt();
+        if (linker != null) linker.interrupt();
         if (feed != null) feed.stop();
         player.setPlayWhenReady(false);
         if (onYoutube) youtube.setPaused(true);
@@ -265,8 +319,12 @@ public class PlayerActivity extends Activity {
                         songFiles.refreshIfOld();
                         refreshTables();
                         pollOnce();
+                        showStatus("");
                     } catch (Exception failure) {
                         OverlayLog.add("player: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
+                        showStatus(Words.t("Cannot reach the app (" + failure.getMessage() + "). Check this box's internet and its link.",
+                                "无法连接应用（" + failure.getMessage() + "）。请检查本机网络和链接。",
+                                "Tidak bisa terhubung ke aplikasi (" + failure.getMessage() + "). Periksa internet dan tautan."));
                     }
                     try { Thread.sleep(POLL_MS); } catch (InterruptedException stopped) { return; }
                 }
