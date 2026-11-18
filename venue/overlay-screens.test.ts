@@ -68,9 +68,9 @@ describe("the gift overlay on the box's screens", () => {
     assert.ok(gifts.includes("line.setTranslationX(-line.getMeasuredWidth())") && gifts.includes("translationX(screenWidth)") && gifts.includes("cardParams.topMargin = CARD_TOP_PX"));
   });
 
-  it("should keep the gift picture small enough that the words and the picture both fit the screen", () => {
+  it("should size the gift picture as a share of the screen, so it stays small on any TV", () => {
     const gifts = read("GiftView.java");
-    assert.ok(gifts.includes("ART_MAX_W_PX = 520") && gifts.includes("ART_MAX_H_PX = 300"));
+    assert.ok(gifts.includes("ART_WIDTH_FRACTION = 0.18f") && gifts.includes("ART_HEIGHT_FRACTION = 0.22f") && gifts.includes("screenHeight() * ART_HEIGHT_FRACTION"));
   });
 
   it("should keep a gift's own picture only when its scene is the plain gift box", () => {

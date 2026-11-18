@@ -43,10 +43,10 @@ final class GiftView extends FrameLayout {
     private static final long FALL_MS = 3_500;
     private static final long RAIN_SPREAD_MS = 2_500;
     private static final int RAIN_COUNT = 18;
-    private static final int RAIN_SP = 48;
-    private static final int EMOJI_SP = 100;
+    private static final int RAIN_SP = 32;
+    private static final int EMOJI_SP = 60;
     private static final int BAR_SP = 26;
-    private static final int PICTURE_PX = 280;
+    private static final float PICTURE_HEIGHT_FRACTION = 0.2f; // a gift picture of its own: a fifth of the screen height
     private static final int FALLBACK_WIDTH_PX = 1280;
     private static final int FALLBACK_HEIGHT_PX = 720;
     private static final int MAX_WAITING_GIFTS = 12;
@@ -54,13 +54,13 @@ final class GiftView extends FrameLayout {
     private static final String DEFAULT_EMOJI = "🎁";
     private static final int GREY_BOX = Color.argb(185, 55, 55, 55); // see-through grey behind the words
     private static final int WORDS_PAD_PX = 36;
-    private static final int ART_MAX_W_PX = 520;
-    private static final int ART_MAX_H_PX = 300;
-    private static final int HALO_EXTRA_PX = 60;
-    private static final float HALO_RADIUS_PX = 250f;
+    // The animation is sized as a share of the screen, so it stays small on any TV: at most 18% of the width and 22% of the height.
+    private static final float ART_WIDTH_FRACTION = 0.18f;
+    private static final float ART_HEIGHT_FRACTION = 0.22f;
+    private static final float HALO_EXTRA_FRACTION = 0.25f; // the glow is this much bigger than the animation
     private static final int TICKER_SP = 32;
     private static final int TICKER_TOP_PX = 80; // below the line the karaoke program keeps at the top of its picture
-    private static final int CARD_TOP_PX = 140; // the picture sits a little below the middle, clear of the moving words
+    private static final int CARD_TOP_PX = 110; // the picture sits a little below the middle, clear of the moving words
     private static final long HALO_PULSE_MS = 900;
     private static final int HALO_COLOUR = Color.argb(150, 252, 211, 77);
 
@@ -211,17 +211,26 @@ final class GiftView extends FrameLayout {
         }, "gift-art-decode").start();
     }
 
+    private int screenWidth() {
+        return getWidth() > 0 ? getWidth() : FALLBACK_WIDTH_PX;
+    }
+
+    private int screenHeight() {
+        return getHeight() > 0 ? getHeight() : FALLBACK_HEIGHT_PX;
+    }
+
     private void showArt(Drawable art, LinearLayout card, TextView emoji) {
         int width = art.getIntrinsicWidth();
         int height = art.getIntrinsicHeight();
         if (width <= 0 || height <= 0) return;
-        float scale = Math.min(ART_MAX_W_PX / (float) width, ART_MAX_H_PX / (float) height);
+        float scale = Math.min(screenWidth() * ART_WIDTH_FRACTION / width, screenHeight() * ART_HEIGHT_FRACTION / height);
         int artWidth = Math.round(width * scale);
         int artHeight = Math.round(height * scale);
         FrameLayout box = new FrameLayout(getContext());
         View halo = new View(getContext());
-        halo.setBackground(glow());
-        box.addView(halo, new FrameLayout.LayoutParams(artWidth + HALO_EXTRA_PX, artHeight + HALO_EXTRA_PX, Gravity.CENTER));
+        int haloExtra = Math.round(Math.max(artWidth, artHeight) * HALO_EXTRA_FRACTION);
+        halo.setBackground(glow(Math.max(artWidth, artHeight) / 2f + haloExtra));
+        box.addView(halo, new FrameLayout.LayoutParams(artWidth + haloExtra, artHeight + haloExtra, Gravity.CENTER));
         ImageView image = new ImageView(getContext());
         image.setImageDrawable(art);
         box.addView(image, new FrameLayout.LayoutParams(artWidth, artHeight, Gravity.CENTER));
@@ -232,7 +241,7 @@ final class GiftView extends FrameLayout {
         pulse.start();
         int index = card.indexOfChild(emoji);
         card.removeView(emoji);
-        card.addView(box, index, new LinearLayout.LayoutParams(artWidth + HALO_EXTRA_PX, artHeight + HALO_EXTRA_PX));
+        card.addView(box, index, new LinearLayout.LayoutParams(artWidth + haloExtra, artHeight + haloExtra));
         if (art instanceof AnimatedImageDrawable) {
             ((AnimatedImageDrawable) art).setRepeatCount(AnimatedImageDrawable.REPEAT_INFINITE);
             ((AnimatedImageDrawable) art).start();
@@ -240,11 +249,11 @@ final class GiftView extends FrameLayout {
     }
 
     /** A soft golden glow that pulses behind the animation. */
-    private static GradientDrawable glow() {
+    private static GradientDrawable glow(float radius) {
         GradientDrawable glow = new GradientDrawable();
         glow.setShape(GradientDrawable.OVAL);
         glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        glow.setGradientRadius(HALO_RADIUS_PX);
+        glow.setGradientRadius(radius);
         glow.setColors(new int[]{HALO_COLOUR, Color.argb(0, 252, 211, 77)});
         return glow;
     }
@@ -283,7 +292,8 @@ final class GiftView extends FrameLayout {
                         image.setImageBitmap(bitmap);
                         image.setAdjustViewBounds(true);
                         card.removeView(emoji);
-                        card.addView(image, 0, new LinearLayout.LayoutParams(PICTURE_PX, PICTURE_PX));
+                        int picture = Math.round(screenHeight() * PICTURE_HEIGHT_FRACTION);
+                        card.addView(image, 0, new LinearLayout.LayoutParams(picture, picture));
                     }
                 });
             }
