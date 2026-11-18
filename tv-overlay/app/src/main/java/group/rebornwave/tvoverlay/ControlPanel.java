@@ -9,6 +9,7 @@ import android.os.Looper;
 import android.graphics.Outline;
 import android.text.TextUtils;
 import android.util.TypedValue;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -88,6 +89,8 @@ final class ControlPanel extends LinearLayout {
     private static final long MESSAGE_MS = 4_000;
     private static final int MAX_TONE = 6;
     private static final int DEFAULT_TABLES = 12;
+    private static final int LENGTH_ANY = 0;
+    private static final int MAX_LENGTH = 6; // the last chip means 6 and more
     private static final String LANGUAGE_ALL = "all";
     private static final String LANGUAGE_CHINESE = "zh";
     private static final String LANGUAGE_ENGLISH = "en";
@@ -279,18 +282,24 @@ final class ControlPanel extends LinearLayout {
             list.addView(line);
         }
         inner.addView(list);
-        // A box that has more songs than fit scrolls itself; one that does not lets the whole table area scroll.
+        // A box that has more songs than fit scrolls itself; one that does not lets the whole table area scroll. A scrolling area never reports a click,
+        // so a tap on the songs of a box is recognised here and chooses the table like a tap on the rest of the box.
+        final GestureDetector taps = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
+            @Override public boolean onSingleTapUp(MotionEvent event) {
+                chooseTable(table);
+                return true;
+            }
+        });
         inner.setOnTouchListener(new OnTouchListener() {
             @Override public boolean onTouch(View view, MotionEvent event) {
                 view.getParent().requestDisallowInterceptTouchEvent(view.canScrollVertically(1) || view.canScrollVertically(-1));
+                taps.onTouchEvent(event);
                 return false;
             }
         });
-        OnClickListener choose = new OnClickListener() {
+        box.setOnClickListener(new OnClickListener() {
             @Override public void onClick(View view) { chooseTable(table); }
-        };
-        inner.setOnClickListener(choose);
-        box.setOnClickListener(choose);
+        });
         box.addView(inner, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
         return box;
     }
@@ -365,8 +374,10 @@ final class ControlPanel extends LinearLayout {
     private List<SongPick> loadedPicks = new ArrayList<SongPick>();
     private List<String> loadedSingers = new ArrayList<String>();
     private String language = LANGUAGE_ALL;
+    private int length = LENGTH_ANY; // the number of characters (words) the title must have: 1 to 5, or 6 and more
     private View keyboardView;
     private final Map<String, TextView> chips = new HashMap<String, TextView>();
+    private final Map<Integer, TextView> lengthChips = new HashMap<Integer, TextView>();
 
     /**
      * A list page: back button and title, a bar for the typed words (a search on the song-title page, a filter everywhere else), the language chips, and the
@@ -376,6 +387,7 @@ final class ControlPanel extends LinearLayout {
         serverSearchPage = serverSearch;
         typed.setLength(0);
         language = LANGUAGE_ALL;
+        length = LENGTH_ANY;
         loadedPicks = new ArrayList<SongPick>();
         loadedSingers = new ArrayList<String>();
         showingSingers = false;
@@ -443,6 +455,7 @@ final class ControlPanel extends LinearLayout {
 
     private LinearLayout languageRow() {
         chips.clear();
+        lengthChips.clear();
         LinearLayout row = new LinearLayout(getContext());
         row.setOrientation(HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -453,6 +466,8 @@ final class ControlPanel extends LinearLayout {
         row.addView(chip("English", LANGUAGE_ENGLISH));
         row.addView(chip("日本語", LANGUAGE_JAPANESE));
         row.addView(chip("한국어", LANGUAGE_KOREAN));
+        row.addView(text(getContext(), "   " + Words.t("Words", "字数", "Kata") + "  ", 18, false, "#ffffff"));
+        for (int count = 1; count <= MAX_LENGTH; count++) row.addView(lengthChip(count));
         highlightChips();
         return row;
     }
@@ -474,7 +489,56 @@ final class ControlPanel extends LinearLayout {
         return chip;
     }
 
+    /** 1 to 5 and "6+": a tap picks that number of words in the title, a second tap on it clears the filter. */
+    private TextView lengthChip(final int count) {
+        TextView chip = text(getContext(), count == MAX_LENGTH ? count + "+" : String.valueOf(count), 18, true, "#ffffff");
+        chip.setGravity(Gravity.CENTER);
+        chip.setPadding(dp(14), dp(6), dp(14), dp(6));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, dp(6), 0);
+        chip.setLayoutParams(params);
+        chip.setOnClickListener(new OnClickListener() {
+            @Override public void onClick(View view) {
+                length = length == count ? LENGTH_ANY : count;
+                highlightChips();
+                applyFilters();
+            }
+        });
+        lengthChips.put(count, chip);
+        return chip;
+    }
+
+    /**
+     * How many words a title has, the way a karaoke system counts for "by number of words": the characters of a Chinese, Japanese or Korean title,
+     * the words of any other, a bracket like (T.I) left out.
+     */
+    static int lengthOf(String title) {
+        String bare = title.replaceAll("[(（\\[【][^)）\\]】]*[)）\\]】]", " ").trim();
+        if (bare.isEmpty()) return 0;
+        if (!languageOf(bare).equals(LANGUAGE_ENGLISH) && !languageOf(bare).isEmpty()) {
+            int characters = 0;
+            for (int i = 0; i < bare.length(); ) {
+                int point = bare.codePointAt(i);
+                i += Character.charCount(point);
+                if (Character.isLetterOrDigit(point)) characters++;
+            }
+            return characters;
+        }
+        return bare.split("\\s+").length;
+    }
+
+    private boolean matchesLength(String title) {
+        if (length == LENGTH_ANY) return true;
+        int found = lengthOf(title);
+        return length >= MAX_LENGTH ? found >= MAX_LENGTH : found == length;
+    }
+
     private void highlightChips() {
+        for (Map.Entry<Integer, TextView> entry : lengthChips.entrySet()) {
+            boolean on = entry.getKey() == length;
+            entry.getValue().setBackground(rounded(Color.parseColor(on ? GOLD : CARD), RADIUS_DP + 8));
+            entry.getValue().setTextColor(Color.parseColor(on ? "#1b1130" : "#ffffff"));
+        }
         for (Map.Entry<String, TextView> entry : chips.entrySet()) {
             boolean on = entry.getKey().equals(language);
             entry.getValue().setBackground(rounded(Color.parseColor(on ? GOLD : CARD), RADIUS_DP + 8));
@@ -643,7 +707,7 @@ final class ControlPanel extends LinearLayout {
         int shown = 0;
         for (final String name : loadedSingers) {
             if (!wanted.isEmpty() && !SongFiles.squash(name).contains(wanted)) continue;
-            if (!matchesLanguage(name, "")) continue;
+            if (!matchesLanguage(name, "") || !matchesLength(name)) continue;
             shown++;
             listArea.addView(row("🎤", name, null, name, "", Words.t("Open", "打开", "Buka"), new Runnable() {
                 @Override public void run() { loadSingerSongs(name, backToSingers()); }
@@ -674,7 +738,7 @@ final class ControlPanel extends LinearLayout {
         int shown = 0;
         for (final SongPick pick : loadedPicks) {
             if (!wanted.isEmpty() && !SongFiles.squash(pick.title + " " + pick.artist).contains(wanted)) continue;
-            if (!matchesLanguage(pick.title, pick.artist)) continue;
+            if (!matchesLanguage(pick.title, pick.artist) || !matchesLength(pick.title)) continue;
             shown++;
             listArea.addView(row(pick.isYoutube() ? "▶" : "🎵", "", pick, pick.title, pick.artist, Words.t("Sing", "点唱", "Nyanyi"), new Runnable() {
                 @Override public void run() { request(pick); }

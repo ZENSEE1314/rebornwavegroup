@@ -108,6 +108,16 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(panel.includes("highlight(previous);") && panel.includes("boxViews.put(table, box);") && !panel.includes("rebuildTablesNow") && panel.includes('String fresh = names + "|" + signatureOf(byTable);'));
   });
 
+  it("should choose a table from a tap on its songs too, because a scrolling area never reports a click", () => {
+    const panel = java("ControlPanel.java");
+    assert.ok(panel.includes("new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener()") && panel.includes("onSingleTapUp(MotionEvent event)") && panel.includes("taps.onTouchEvent(event)"));
+  });
+
+  it("should filter by the number of words in the title, 1 to 5 and 6 or more, like a karaoke system", () => {
+    const panel = java("ControlPanel.java");
+    assert.ok(panel.includes("MAX_LENGTH = 6") && panel.includes("static int lengthOf(String title)") && panel.includes("matchesLength(pick.title)") && panel.includes("length == count ? LENGTH_ANY : count"));
+  });
+
   it("should open a singer's songs from a tap on the face of one of their songs", () => {
     const panel = java("ControlPanel.java");
     assert.ok(panel.includes("face.setOnClickListener") && panel.includes("loadSingerSongs(faceOf,") && panel.includes("private static String firstSinger(String artist)"));
