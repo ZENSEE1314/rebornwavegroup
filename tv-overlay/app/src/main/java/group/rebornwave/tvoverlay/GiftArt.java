@@ -16,8 +16,8 @@ import java.util.regex.Pattern;
  * /gift-fx/anim/ and posters in /gift-fx/poster/ on the app's server, downloaded by the box once.
  */
 final class GiftArt {
-    private static final String[] SCENES = {"car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket", "rose", "heart", "drink", "cake", "teddy", "money", "gift"};
-    private static final String[] CLUB_CLIPS = {"lion", "whale", "car", "teddy"};
+    private static final String[] SCENES = {"car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket", "rose", "heart", "drink", "cake", "teddy", "money", "gift", "castle", "love520", "ring", "jet", "forever"};
+    private static final String[] CLUB_CLIPS = {"lion", "whale", "car", "teddy", "castle", "love520", "ring", "jet", "forever"};
     private static final String[] POSTERS = {"heart", "gift"};
     private static final String NO_SCENE = "";
     private static final String VERSION = "1"; // raise it when a clip is replaced on the server, so boxes fetch the new one
@@ -27,6 +27,10 @@ final class GiftArt {
     private static final int NOT_FOUND = 404;
 
     private static final String[][] RULES = {
+        {"castle", "🏰|castle|istana|城堡"},
+        {"ring", "1314|💍|\\bring\\b|cincin|戒指"},
+        {"jet", "✈|🛩|\\bjet\\b|pesawat|飞机"},
+        {"love520", "\\b520\\b"},
         {"kiss", "💋|\\bkiss\\b|cium|亲"},
         {"thumbsup", "👍|thumbs? ?up|jempol|点赞"},
         {"lion", "🦁|\\blion\\b|singa|狮"},

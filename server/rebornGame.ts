@@ -604,11 +604,11 @@ const DEFAULT_GIFT_TYPES = [
 // Top-tier gifts (5,201,314 = "520 1314", "I love you forever"). Added once per venue like V2 (`giftsV3Added_<company>`).
 function NEW_GIFT_TYPES_V3() {
   return [
-    { name: "Golden Castle", emoji: "🏰", animation: "crown", kgoldCost: 5000000, sortOrder: 11 },
-    { name: "520 Love", emoji: "💕", animation: "heart", kgoldCost: 5200000, sortOrder: 12 },
-    { name: "520 1314 Forever", emoji: "💍", animation: "diamonds", kgoldCost: 5201314, sortOrder: 13 },
-    { name: "Private Jet", emoji: "✈️", animation: "rocket", kgoldCost: 10000000, sortOrder: 14 },
-    { name: "Love You Forever 1314", emoji: "💖", animation: "fireworks", kgoldCost: 13140000, sortOrder: 15 },
+    { name: "Golden Castle", emoji: "🏰", animation: "castle", kgoldCost: 5000000, sortOrder: 11 },
+    { name: "520 Love", emoji: "💕", animation: "love520", kgoldCost: 5200000, sortOrder: 12 },
+    { name: "520 1314 Forever", emoji: "💍", animation: "ring", kgoldCost: 5201314, sortOrder: 13 },
+    { name: "Private Jet", emoji: "✈️", animation: "jet", kgoldCost: 10000000, sortOrder: 14 },
+    { name: "Love You Forever 1314", emoji: "💖", animation: "forever", kgoldCost: 13140000, sortOrder: 15 },
   ];
 }
 // Big gifts added later (each with its own full-screen scene + sound). Added once
@@ -653,6 +653,10 @@ async function seedGiftTypesOnce(companyId?: number) {
     if (!(await claimFlag(`${flag}_${companyId ?? "all"}`))) continue; // added before (or right now by another request)
     const add = list.filter((g) => !names.has(g.name));
     if (add.length) await db.insert(kosGiftTypes).values(add.map((g) => ({ ...g, companyId: companyId ?? null })));
+  }
+  // The first version of the top gifts borrowed older scenes; move them onto their own clips once.
+  if (await claimFlag(`giftsV3Art_${companyId ?? "all"}`)) {
+    for (const g of NEW_GIFT_TYPES_V3()) await db.update(kosGiftTypes).set({ animation: g.animation }).where(sql`${kosGiftTypes.name} = ${g.name} AND ${kosGiftTypes.kgoldCost} = ${g.kgoldCost}${companyId ? sql` AND ${kosGiftTypes.companyId} = ${companyId}` : sql``}`);
   }
 }
 // One-off cleanup of the duplicate gifts that race created: keep the oldest of each

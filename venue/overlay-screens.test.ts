@@ -59,7 +59,7 @@ describe("the gift overlay on the box's screens", () => {
 
   it("should play an animation for every kind of gift, from clips the box downloads once", () => {
     const art = read("GiftArt.java");
-    for (const scene of ["rose", "heart", "kiss", "lion", "whale", "rocket", "car", "fireworks", "crown", "diamonds", "cake", "drink", "teddy", "money", "thumbsup", "gift"]) assert.ok(art.includes(`"${scene}"`), scene);
+    for (const scene of ["rose", "heart", "kiss", "lion", "whale", "rocket", "car", "fireworks", "crown", "diamonds", "cake", "drink", "teddy", "money", "thumbsup", "gift", "castle", "love520", "ring", "jet", "forever"]) assert.ok(art.includes(`"${scene}"`), scene);
     assert.ok(art.includes('"/gift-fx/anim/"') && read("GiftView.java").includes("AnimatedImageDrawable"));
   });
 

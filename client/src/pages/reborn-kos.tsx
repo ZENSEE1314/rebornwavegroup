@@ -338,8 +338,8 @@ function useCountUp(target: number, ms = 1200, key?: any) {
 // Every gift has a full-screen scene: picked by the gift's animation, else from its emoji /
 // name, else the gift-box scene with the gift's own picture ("gift").
 type Scene = "car" | "fireworks" | "crown" | "diamonds" | "kiss" | "thumbsup" | "lion" | "whale" | "rocket"
-  | "rose" | "heart" | "drink" | "cake" | "teddy" | "money" | "gift";
-const SCENES: Scene[] = ["car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket", "rose", "heart", "drink", "cake", "teddy", "money", "gift"];
+  | "rose" | "heart" | "drink" | "cake" | "teddy" | "money" | "gift" | "castle" | "love520" | "ring" | "jet" | "forever";
+const SCENES: Scene[] = ["car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket", "rose", "heart", "drink", "cake", "teddy", "money", "gift", "castle", "love520", "ring", "jet", "forever"];
 export function sceneOf(g: any): Scene {
   const a = String(g?.animation || "") as Scene;
   if (SCENES.includes(a)) return a;
@@ -349,6 +349,10 @@ export function sceneOf(g: any): Scene {
   if (/🦁|\blion\b|singa|狮/i.test(e)) return "lion";
   if (/🐋|🐳|whale|paus|鲸/i.test(e)) return "whale";
   if (/🚀|rocket|roket|火箭/i.test(e)) return "rocket";
+  if (/🏰|castle|istana|城堡/i.test(e)) return "castle";
+  if (/1314|💍|\bring\b|cincin|戒指/i.test(e)) return "ring";
+  if (/✈|🛩|\bjet\b|pesawat|飞机/i.test(e)) return "jet";
+  if (/\b520\b/.test(e)) return "love520";
   if (/🏎|🚗|🚙|🚘|sports ?car|\bcar\b/i.test(e)) return "car";
   if (/🎆|🎇|🧨|firework/i.test(e)) return "fireworks";
   if (/👑|crown/i.test(e)) return "crown";
@@ -362,9 +366,11 @@ export function sceneOf(g: any): Scene {
   return "gift";
 }
 // Each gift plays its own sound: the sound of its scene (the gift-box scene → magic sparkle).
+// The five newest scenes borrow the sound of the older scene that feels the same.
+const SOUND_OF_SCENE: Partial<Record<Scene, string>> = { castle: "crown", love520: "heart", ring: "diamonds", jet: "rocket", forever: "fireworks" };
 export function giftSoundOf(g: any): string {
   const scene = sceneOf(g);
-  if (scene !== "gift") return scene;
+  if (scene !== "gift") return SOUND_OF_SCENE[scene] || scene;
   return /✈|🛩|plane|jet/i.test(`${g?.emoji || ""} ${g?.giftName || g?.name || ""}`) ? "rocket" : "sparkle";
 }
 const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
@@ -373,6 +379,7 @@ const SCENE_TEXT: Record<Scene, CSSProperties> = {
   car: { top: "9%" }, fireworks: { bottom: "7%" }, crown: { bottom: "7%" }, diamonds: { top: "47%" },
   kiss: { bottom: "8%" }, thumbsup: { top: "5%" }, lion: { bottom: "7%" }, whale: { top: "8%" }, rocket: { bottom: "5%" },
   rose: { bottom: "6%" }, heart: { bottom: "7%" }, drink: { top: "6%" }, cake: { top: "5%" }, teddy: { top: "6%" }, money: { bottom: "6%" }, gift: { bottom: "6%" },
+  castle: { bottom: "5%" }, love520: { bottom: "5%" }, ring: { top: "6%" }, jet: { top: "7%" }, forever: { bottom: "5%" },
 };
 // Text appears after the scene's big moment.
 const SCENE_TEXT_DELAY: Partial<Record<Scene, string>> = { lion: "2.2s", whale: "3.1s", rocket: "5s", thumbsup: "2.2s", kiss: "1.8s",
@@ -670,6 +677,8 @@ const DOLURUU_CLIP: FxClip = { src: "/gift-fx/doluruu", fit: "contain" }; // por
 const FX_CLIPS: Partial<Record<Scene, FxClip>> = {
   whale: { src: "/gift-fx/whale", ...WIDE }, lion: { src: "/gift-fx/lion", ...WIDE }, car: { src: "/gift-fx/car", ...WIDE },
   teddy: DOLURUU_CLIP, thumbsup: DOLURUU_CLIP,
+  castle: { src: "/gift-fx/castle", ...WIDE }, love520: { src: "/gift-fx/love520", ...WIDE }, ring: { src: "/gift-fx/ring", ...WIDE },
+  jet: { src: "/gift-fx/jet", ...WIDE }, forever: { src: "/gift-fx/forever", ...WIDE },
 };
 
 function FxScene({ clip, overlay }: { clip: FxClip; overlay: boolean }) {
