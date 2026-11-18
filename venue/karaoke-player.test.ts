@@ -256,7 +256,7 @@ describe("the built-in karaoke player of the box app", () => {
 
   it("should order the app's song that is on now on the box when the box is idle, with the song's own number", () => {
     const bridge = java("BoxBridge.java");
-    assert.ok(bridge.includes('BoxServlets.command(box, "Add1", now.karaokeCode)') && bridge.includes("if (count > 0) return; // someone is playing songs on the box by hand") && bridge.includes("BoxServlets.playlistCount(box)"));
+    assert.ok(bridge.includes('BoxServlets.command(box, "Add1", code)') && bridge.includes("findCodeOnBox(box, now)") && bridge.includes("if (count > 0) return; // someone is playing songs on the box by hand") && bridge.includes("BoxServlets.playlistCount(box)"));
   });
 
   it("should move the app's queue on when the box has finished the song, and when the box never started it", () => {

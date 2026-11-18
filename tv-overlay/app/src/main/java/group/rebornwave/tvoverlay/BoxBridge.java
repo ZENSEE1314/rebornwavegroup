@@ -12,6 +12,7 @@ import java.util.List;
 final class BoxBridge {
     private static final long NOT_STARTED_MS = 25_000; // the box took the order but never showed the song: give up on it
     private static final String ORIGINAL = "original";
+    private static final int FIND_PAGES = 3;
 
     private final Context context;
     private final QueueClient client;
@@ -80,8 +81,9 @@ final class BoxBridge {
     }
 
     private void order(String box, QueueClient.Song now) throws Exception {
-        if (now.karaokeCode.isEmpty()) { // a song with no number on the box cannot be played there
-            lastEvent = "no box number: " + now.title;
+        String code = now.karaokeCode.isEmpty() ? findCodeOnBox(box, now) : now.karaokeCode;
+        if (code.isEmpty()) { // the box does not have this song: it cannot be played there
+            lastEvent = "not on the box: " + now.title;
             client.next(now.id, true);
             return;
         }
@@ -90,12 +92,27 @@ final class BoxBridge {
             BoxServlets.command(box, "MuOr");
             boxVocalOriginal = wantOriginal;
         }
-        BoxServlets.command(box, "Add1", now.karaokeCode);
+        BoxServlets.command(box, "Add1", code);
         orderedId = now.id;
         orderedAt = System.currentTimeMillis();
         seenBusy = false;
-        lastEvent = "ordered " + now.karaokeCode + ": " + now.title;
+        lastEvent = "ordered " + code + ": " + now.title;
         OverlayLog.add("box: " + lastEvent);
+    }
+
+    /** A song that came with no box number (a library song): look for the same title on the box, first on the whole title, a few pages deep. */
+    private String findCodeOnBox(String box, QueueClient.Song now) throws Exception {
+        String wanted = squash(now.title);
+        for (int page = 1; page <= FIND_PAGES; page++) {
+            BoxServlets.Page found = BoxServlets.search(box, now.title, "", page, false);
+            for (SongPick song : found.songs) if (squash(song.title).equals(wanted)) return song.code;
+            if (found.isLast()) break;
+        }
+        return "";
+    }
+
+    private static String squash(String text) {
+        return text.toLowerCase(java.util.Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
     }
 
     private void cutOnBox(String box) throws Exception {

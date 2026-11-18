@@ -77,7 +77,7 @@ export function registerStockLayers(app: Express, deps: StockLayerDeps) {
     const [copy] = await db.insert(posProducts).values({
       companyId: cid, branchId: source.branchId, name: source.name, category: source.category, price: source.price, cost: source.cost, stock: 0,
       imageUrl: source.imageUrl, department: source.department, posVisible: source.posVisible, station: source.station, stallId: source.stallId,
-      unitsPerPack: source.unitsPerPack, packPrice: source.packPrice, creditOk: source.creditOk, sortOrder: source.sortOrder, active: true,
+      unitsPerPack: source.unitsPerPack, packPrice: source.packPrice, creditOk: source.creditOk, noExpenseCost: source.noExpenseCost, sortOrder: source.sortOrder, active: true,
       supplierName: null, supplierPhone: null, supplierAddress: null,
     }).returning();
     await deps.logAdmin(req, { action: "duplicate_product", description: `Duplicated "${source.name}" for another supplier` });

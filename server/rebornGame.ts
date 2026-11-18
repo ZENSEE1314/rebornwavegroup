@@ -4300,6 +4300,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.salesCommissionOk !== undefined) patch.salesCommissionOk = !!b.salesCommissionOk;
     if (b.appDiscountOk !== undefined) patch.appDiscountOk = !!b.appDiscountOk;
     if (b.noDiscount !== undefined) patch.noDiscount = !!b.noDiscount;
+    if (b.noExpenseCost !== undefined) patch.noExpenseCost = !!b.noExpenseCost;
     if (b.staffCommissionKind !== undefined || b.staffCommissionValue !== undefined || b.staffCommissionStaffIds !== undefined) Object.assign(patch, staffCommissionFields({ staffCommissionKind: prev.staffCommissionKind, staffCommissionValue: prev.staffCommissionValue, staffCommissionStaffIds: prev.staffCommissionStaffIds, ...b }));
     if (b.isService !== undefined) patch.isService = !!b.isService;
     if (patch.isService) patch.cost = "0"; // a service has no cost and holds no stock (its stock count is ignored from now on)
@@ -4351,7 +4352,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (qty < 0 && outReason !== STOCK_OUT_CORRECTION && lossCost > 0)
       await db.insert(ledgerEntries).values({ kind: "expense", category: "loss", amount: String(lossCost), note: `Stock out: ${-qty} × ${p.name} (${outReason}${outNote ? `: ${outNote}` : ""})`, refType: "stock_out", refId: String(id), createdAt, userId: getUserId(req)! });
     if (qty < 0 && outReason !== STOCK_OUT_CORRECTION) await chargeStaff(req, { userId: req.body?.chargeStaffId, productId: id, name: p.name, qty: -qty, amount: lossCost, reason: `${outReason}${outNote ? `: ${outNote}` : ""}`, source: "stock_out", refId: String(id) });
-    if (buyingWithCost) {
+    if (buyingWithCost && !p.noExpenseCost) { // an item whose raw cost is already in the expenses is not booked again (the cost stays on the stock movement as a note)
       const [purchase] = await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}${stockPayMethod && req.body?.paid === true ? ` · ${stockPayMethod}` : ""}${unpaidStock ? " · not paid yet" : ""}`, photoUrl: stockPhoto, refType: "stock_movement", refId: String(id), createdAt, userId: getUserId(req)! }).returning();
       if (unpaidStock) await recordPayable(db, cid, { ledgerEntryId: purchase.id, kind: "stock", supplier, invoiceNo: null, amount: qty * unitCost, spentOn: (createdAt ?? new Date()).toISOString().slice(0, 10), dueDate: unpaidStock.dueDate, userId: getUserId(req)!, note: `${qty} × ${p.name}` });
     }
@@ -5860,7 +5861,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const r: any = await db.execute(sql`SELECT m.id, p.name AS "productName", m.delta, COALESCE(NULLIF(m.unit_cost, 0), NULLIF(p.cost, 0)) AS "unitCost",
         m.supplier, m.note, m.created_at AS "createdAt"
       FROM stock_movements m JOIN pos_products p ON p.id = m.product_id
-      WHERE m.reason = 'stock_in' AND m.delta > 0 AND p.company_id = ${cid} ORDER BY m.id`);
+      WHERE m.reason = 'stock_in' AND m.delta > 0 AND p.company_id = ${cid} AND p.no_expense_cost = false ORDER BY m.id`);
     const decimals = companyMoney().decimals;
     const rows: any[] = r.rows || r;
     const entries = rows.map((d) => purchaseEntryFromDelivery({ ...d, source: deliverySource(d.note) }, decimals)).filter((e): e is NonNullable<typeof e> => e !== null);
@@ -6042,7 +6043,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
           const units = line.qty * line.packSize;
           await tx.update(posProducts).set({ stock: sql`${posProducts.stock} + ${units}`, ...(line.unitCost > 0 ? { cost: String(eachCost(line)) } : {}), ...(supplier ? { supplierName: supplier } : {}), ...(supplierPhone ? { supplierPhone } : {}) }).where(eq(posProducts.id, product.id));
           await tx.insert(stockMovements).values({ companyId: cid, productId: product.id, delta: units, reason: "stock_in", supplier, unitCost: line.unitCost > 0 ? String(eachCost(line)) : null, note: `${tag}${date ? ` (${date})` : ""}${line.packSize > 1 ? ` · ${line.qty} × ${line.packSize}` : ""}`.slice(0, 200), userId, ...(receivedAt ? { createdAt: receivedAt } : {}) });
-          total += line.qty * line.unitCost;
+          if (!product.noExpenseCost) total += line.qty * line.unitCost; // cost already keyed in the expenses: stock goes in, no second expense
           saved.push({ name: product.name, qty: units });
           if (line.name) await remember(tx, lineKeyOf(line.name), { productId: product.id, packSize: line.packSize });
         }

@@ -914,6 +914,7 @@ export const posProducts = pgTable("pos_products", {
   staffCommissionStaffIds: text("staff_commission_staff_ids"),  // JSON list of the staff who may earn it; empty = any staff member
   staffCommissionValue: decimal("staff_commission_value", { precision: 14, scale: 2 }).default("0").notNull(),
   appDiscountOk: boolean("app_discount_ok").default(true).notNull(), // false = the app-order discount never applies to this item
+  noExpenseCost: boolean("no_expense_cost").default(false).notNull(), // true = this item's raw cost is already keyed in the expenses: stock-in books no purchase expense for it (the cost stays as a note)
   noDiscount: boolean("no_discount").default(false).notNull(),   // true = never discounted: no happy-hour price or free units, no app-order discount, no member perk, no bill discount
   referralOk: boolean("referral_ok").default(true).notNull(),   // false = a referrer never earns commission on this item
   salesCommissionOk: boolean("sales_commission_ok").default(true).notNull(),   // false = the daily tier commission of the salesperson is not paid on this item
