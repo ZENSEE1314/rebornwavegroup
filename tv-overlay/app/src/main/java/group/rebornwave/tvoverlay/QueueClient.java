@@ -131,6 +131,7 @@ final class QueueClient {
         String kind = "search";
         String q = "";
         String name = "";
+        String file = ""; // a photo job: the singer photo file wanted
         int page = 1;
         List<String> queries = new ArrayList<String>();
     }
@@ -148,6 +149,7 @@ final class QueueClient {
             job.kind = json.optString("kind", "search");
             job.q = json.optString("q");
             job.name = json.optString("name");
+            job.file = json.optString("file");
             job.page = Math.max(1, json.optInt("page", 1));
             JSONArray variants = json.optJSONArray("queries");
             if (variants != null) for (int v = 0; v < variants.length(); v++) job.queries.add(variants.optString(v));

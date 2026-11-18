@@ -206,7 +206,7 @@ describe("the built-in karaoke player of the box app", () => {
 
   it("should search the box's song system with its own web pages and leave out the songs kept in the cloud", () => {
     const servlets = java("BoxServlets.java");
-    assert.ok(servlets.includes('"SearchServlet"') && servlets.includes('"SingerServlet"') && servlets.includes('"CommandServlet"') && servlets.includes('song.optInt("cLOUD") == 1'));
+    assert.ok(servlets.includes('"SearchServlet"') && servlets.includes('"SingerServlet"') && servlets.includes('/CommandServlet?cmd=') && servlets.includes('optInt("cLOUD") == 1'));
   });
 
   it("should read as many pages as needed because most of each page is cloud songs, stopping at the end of the list", () => {
@@ -220,12 +220,13 @@ describe("the built-in karaoke player of the box app", () => {
 
   it("should keep the connector and the gift overlay running while the box's own program plays, and not take over the TV screen", () => {
     const player = java("PlayerActivity.java");
-    assert.ok(player.includes("private void startBoxServices()") && player.includes("BridgeService.start(this)") && player.includes("tv = new TvLayer(this); // never shown"));
+    assert.ok(player.includes("private void startBoxServices()") && player.includes("OverlayService.start(this)") && player.includes("tv = new TvLayer(this); // never shown"));
   });
 
   it("should send the control buttons to the box's own player while it plays", () => {
     const player = java("PlayerActivity.java");
-    for (const button of ["Mute", "Music_up", "Music_down", "Tone_up", "Tone_down", "Play", "Reset", "MuOr"]) assert.ok(player.includes(`"${button}"`), button);
+    for (const button of ["Mute", "Music_up", "Music_down", "Tone_up", "Tone_down", "Play", "Reset"]) assert.ok(player.includes(`"${button}"`), button);
+    assert.ok(player.includes("boxBridge.toggleVoice(id)"));
   });
 
   it("should let the set-up page choose who plays the songs and restart the player when it changes", () => {
@@ -250,7 +251,36 @@ describe("the built-in karaoke player of the box app", () => {
 
   it("should show on the touch screen when the connector that plays the requests is not running", () => {
     const player = java("PlayerActivity.java");
-    assert.ok(player.includes("private String boxModeProblem()") && player.includes("!BridgeService.running") && java("MainActivity.java").includes("BridgeService.recentLines(8)"));
+    assert.ok(player.includes("showStatus(boxMode ? boxBridge.problem() : \"\")") && java("BoxBridge.java").includes("String problem()"));
+  });
+
+  it("should order the app's song that is on now on the box when the box is idle, with the song's own number", () => {
+    const bridge = java("BoxBridge.java");
+    assert.ok(bridge.includes('BoxServlets.command(box, "Add1", now.karaokeCode)') && bridge.includes("if (count > 0) return; // someone is playing songs on the box by hand") && bridge.includes("BoxServlets.playlistCount(box)"));
+  });
+
+  it("should move the app's queue on when the box has finished the song, and when the box never started it", () => {
+    const bridge = java("BoxBridge.java");
+    assert.ok(bridge.includes("client.next(now.id, false); // the box finished it") && bridge.includes("NOT_STARTED_MS = 25_000") && bridge.includes("client.next(now.id, true);"));
+  });
+
+  it("should cut a song on the box when the app skipped it or no song is on any more", () => {
+    const bridge = java("BoxBridge.java");
+    assert.ok(bridge.includes("orderedId != now.id") && bridge.includes('BoxServlets.command(box, "Skip")'));
+  });
+
+  it("should start the next singer when nobody is singing, the queue is not paused and the box is idle", () => {
+    assert.ok(java("BoxBridge.java").includes("!board.queue.isEmpty() && !board.paused && count == 0) client.next(0, false)"));
+  });
+
+  it("should press what staff and singers pressed in the app on the box, with a value for the box's own song numbers", () => {
+    const bridge = java("BoxBridge.java");
+    assert.ok(bridge.includes("void pressButtons(") && bridge.includes('command.split(":", 2)') && java("PlayerActivity.java").includes("boxBridge.pressButtons(client.controls(), shownOnBox)"));
+  });
+
+  it("should answer members' searches, singers, singer songs and photos from the box in box mode, and keep the old connector page off", () => {
+    const player = java("PlayerActivity.java");
+    assert.ok(player.includes("boxMode ? boxJobs.answer(job) : songSearch.answer(job)") && player.includes("BridgeService.stop(this)") && java("BoxJobs.java").includes('"photo".equals(job.kind)') && java("QueueClient.java").includes('job.file = json.optString("file")'));
   });
 
   it("should not scan the storage on the screen's own thread", () => {

@@ -193,8 +193,23 @@ final class BoxServlets {
         return Math.max(1, call(base, "SearchServlet", "songName=&songType=&singer=&lang=&sortType=&page=1").optInt("maxPage", 1));
     }
 
+    /** One page of the box's singers and how many pages the list has. */
+    static final class SingerPage {
+        final List<String[]> singers;
+        final int maxPage;
+
+        SingerPage(List<String[]> singers, int maxPage) {
+            this.singers = singers;
+            this.maxPage = maxPage;
+        }
+    }
+
     /** One page of the box's singers: { name, photo address or "" }. */
     static List<String[]> singers(String base, int page) throws Exception {
+        return singersPage(base, page).singers;
+    }
+
+    static SingerPage singersPage(String base, int page) throws Exception {
         JSONObject answer = call(base, "SingerServlet", "singer=&singerType=&sortType=&page=" + page);
         // Like the song list, the singer list comes as a JSON text inside the answer.
         Object raw = answer.opt("singerList");
@@ -207,12 +222,36 @@ final class BoxServlets {
             String picture = item.optString("picture");
             singers.add(new String[]{item.optString("name"), picture.isEmpty() || NO_PHOTO.equals(picture) ? "" : base + "/singer/" + picture});
         }
-        return singers;
+        return new SingerPage(singers, Math.max(1, answer.optInt("maxPage", 1)));
+    }
+
+    /** A singer's photo file of the box (its bytes), or null. */
+    static byte[] photo(String base, String file) {
+        try {
+            return bytes(base + "/singer/" + file, CALL_MS);
+        } catch (Exception unreachable) {
+            return null;
+        }
+    }
+
+    /** How many songs the box has in its play list right now (the one playing and the ones waiting): 0 means the box is idle. */
+    static int playlistCount(String base) throws Exception {
+        Object number = call(base, "PlaylistServlet", "onSelectPage=false&click=false&type=1").opt("number");
+        try {
+            return number == null ? 0 : Integer.parseInt(String.valueOf(number).trim());
+        } catch (NumberFormatException notANumber) {
+            return 0;
+        }
     }
 
     /** Presses a button of the box's own player: "Mute", "Music_up", "Music_down", "Tone_up", "Tone_down", "Play", "Reset", "MuOr", "Skip" ... */
     static void command(String base, String button) throws Exception {
-        call(base, "CommandServlet", "cmd=" + enc(button) + "&cmdValue=");
+        command(base, button, "");
+    }
+
+    /** The same with a value: "Add1" with a song number orders that song on the box, "Del1" with the box's number of a waiting song removes it. */
+    static void command(String base, String button, String value) throws Exception {
+        text(base + "/CommandServlet?cmd=" + enc(button) + "&cmdValue=" + enc(value) + "&jsonpCallback=" + CALLBACK, CALL_MS);
     }
 
     private static List<SongPick> picks(JSONArray songs, boolean includeCloud) {
@@ -245,6 +284,23 @@ final class BoxServlets {
         int end = body.lastIndexOf(')');
         if (start < 0 || end < start) throw new java.io.IOException("not an answer of the box's song system");
         return new JSONObject(body.substring(start + 1, end));
+    }
+
+    private static byte[] bytes(String address, int timeoutMs) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
+        try {
+            connection.setConnectTimeout(timeoutMs);
+            connection.setReadTimeout(timeoutMs);
+            java.io.InputStream in = connection.getInputStream();
+            java.io.ByteArrayOutputStream all = new java.io.ByteArrayOutputStream();
+            byte[] chunk = new byte[8192];
+            int read;
+            while ((read = in.read(chunk)) > 0) all.write(chunk, 0, read);
+            in.close();
+            return all.toByteArray();
+        } finally {
+            connection.disconnect();
+        }
     }
 
     private static String text(String address, int timeoutMs) throws Exception {

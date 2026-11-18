@@ -52,6 +52,8 @@ public class PlayerActivity extends Activity {
     private QueueClient client;
     private SongFiles songFiles;
     private SongSearch songSearch;
+    private BoxBridge boxBridge;
+    private BoxJobs boxJobs;
     private SingerPhotos photos;
     private VoiceControl voice;
     private FrameLayout root;
@@ -134,7 +136,7 @@ public class PlayerActivity extends Activity {
         @Override public void onAnalog() {
             if (boxMode) {
                 wantOriginal = !wantOriginal;
-                boxButton("MuOr");
+                toggleVoiceAtBox();
                 showButtonState();
             } else {
                 switchVoiceAtBox();
@@ -156,6 +158,8 @@ public class PlayerActivity extends Activity {
         client = new QueueClient(this);
         songFiles = new SongFiles(this);
         songSearch = new SongSearch(songFiles);
+        boxBridge = new BoxBridge(this, client);
+        boxJobs = new BoxJobs(this);
         photos = new SingerPhotos(this, songFiles);
         voice = new VoiceControl(this);
 
@@ -209,9 +213,9 @@ public class PlayerActivity extends Activity {
             recreate();
             return;
         }
-        BridgeSettings.savePlayerMode(this, !boxMode);
+        BridgeSettings.savePlayerMode(this, true); // the old connector page stays off: in box mode BoxBridge does its work from inside this app
+        BridgeService.stop(this);
         if (boxMode) startBoxServices();
-        else BridgeService.stop(this);
         hideSystemBars();
         attachScreens();
         if (!boxMode) startGifts();
@@ -220,7 +224,7 @@ public class PlayerActivity extends Activity {
         showButtonState();
         if (BridgeSettings.isReady(this)) {
             startPolling();
-            if (!boxMode) startJobs();
+            startJobs();
         } else if (Enroll.isAvailable()) {
             panel.setStatus(Words.t("Connecting this box to the app…", "正在把本机连接到应用…", "Menghubungkan perangkat ini ke aplikasi…"));
         } else {
@@ -246,15 +250,14 @@ public class PlayerActivity extends Activity {
         if (boxMode) startBoxServices();
         else startGifts();
         startPolling();
-        if (!boxMode) startJobs();
+        startJobs();
     }
 
     /**
-     * Box mode: the box's own program plays, so the connector must run (it orders the app's queue on the box and answers members' searches), the gift overlay
-     * draws over the box's picture, and the touch screen says when the box's song system cannot be found.
+     * Box mode: the box's own program plays (BoxBridge orders the app's queue on it), the gift overlay draws over the box's picture, and the touch
+     * screen says when the box's song system cannot be found.
      */
     private void startBoxServices() {
-        if (BridgeSettings.isReady(this)) BridgeService.start(this);
         if (Link.isLinked(this) && !OverlayAccessibilityService.isEnabled(this) && OverlayService.canShow(this)) OverlayService.start(this);
         new Thread(new Runnable() {
             @Override public void run() {
@@ -265,22 +268,6 @@ public class PlayerActivity extends Activity {
                 }
             }
         }, "box-find").start();
-    }
-
-    /** What is wrong in box mode, for the red line: the box's song system was not found, or the connector that plays the requests is not running or stopped. */
-    private String boxModeProblem() {
-        if (BoxServlets.address().isEmpty()) {
-            return Words.t("Cannot find the box's own song system on this network. Is its program running?",
-                    "在网络上找不到点歌机自带的点歌系统。它的程序在运行吗？",
-                    "Sistem lagu bawaan mesin tidak ditemukan di jaringan. Apakah programnya berjalan?");
-        }
-        if (!BridgeService.running) {
-            return Words.t("The connector that plays the requests on the box is not running. Open ⚙ and press Start the connector now.",
-                    "在点歌机上播放点歌的连接器没有运行。请打开 ⚙ 并点“立即启动连接器”。",
-                    "Konektor yang memutar permintaan di mesin tidak berjalan. Buka ⚙ lalu tekan Mulai konektor sekarang.");
-        }
-        String status = BridgeService.status;
-        return status.isEmpty() || status.startsWith("Connected") ? "" : status;
     }
 
     /** A button of the box's own player (mute, volume, tone, pause, replay, the singer's voice). */
@@ -299,6 +286,19 @@ public class PlayerActivity extends Activity {
                 }
             }
         }, "box-button").start();
+    }
+
+    private void toggleVoiceAtBox() {
+        final int id = boxNowId;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    boxBridge.toggleVoice(id);
+                } catch (Exception failure) {
+                    OverlayLog.add("box voice: " + failure.getMessage());
+                }
+            }
+        }, "box-voice").start();
     }
 
     /** Skip in box mode: the app's queue moves on and the connector cuts the song on the box. */
@@ -470,7 +470,7 @@ public class PlayerActivity extends Activity {
                         songFiles.refreshIfOld();
                         refreshTables();
                         pollOnce();
-                        showStatus(boxMode ? boxModeProblem() : "");
+                        showStatus(boxMode ? boxBridge.problem() : "");
                     } catch (Exception failure) {
                         OverlayLog.add("player: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
                         if (String.valueOf(failure.getMessage()).contains("401")) Enroll.relink(PlayerActivity.this, afterEnroll); // the song-system key was changed
@@ -505,7 +505,7 @@ public class PlayerActivity extends Activity {
                 while (alive) {
                     try {
                         for (QueueClient.Job job : client.jobs()) {
-                            JSONObject answer = songSearch.answer(job);
+                            JSONObject answer = boxMode ? boxJobs.answer(job) : songSearch.answer(job);
                             client.answer(job.id, answer);
                         }
                     } catch (Exception failure) {
@@ -521,6 +521,8 @@ public class PlayerActivity extends Activity {
     private void pollOnce() throws Exception {
         if (boxMode) {
             final QueueClient.Board shownOnBox = client.board();
+            boxBridge.tick(shownOnBox);
+            boxBridge.pressButtons(client.controls(), shownOnBox);
             ui.post(new Runnable() {
                 @Override public void run() {
                     panel.update(tableLabels, shownOnBox);
