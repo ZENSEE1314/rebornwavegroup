@@ -5893,6 +5893,34 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "ledger", action: "reset_accounting", entityType: "accounting", description: `Accounting started again from the inventory: ${result.removed} old lines removed (backup #${result.backupId}), ${result.added} stock purchases added` });
     res.json({ ...result, message: tr(req, { en: "Done: {removed} old lines removed, {added} stock purchases added.", zh: "完成：已删除 {removed} 条旧记录，新增 {added} 笔进货支出。", id: "Selesai: {removed} catatan lama dihapus, {added} pembelian stok ditambahkan." }, { removed: String(result.removed), added: String(result.added) }) });
   }));
+  // Stock deliveries booked as a purchase expense BEFORE the item was ticked "Cost is already in the expenses": the expense line goes, the stock stays.
+  const tickedPurchases = async (cid: number) => {
+    const r: any = await db.execute(sql`SELECT l.id, l.amount, l.note, l.created_at AS "createdAt", p.name AS "productName"
+      FROM ledger_entries l JOIN pos_products p ON p.id = CASE WHEN l.ref_id ~ '^[0-9]+$' THEN l.ref_id::int END
+      WHERE l.category = 'purchase' AND l.ref_type = 'stock_movement' AND p.company_id = ${cid} AND p.no_expense_cost = true ORDER BY l.id`);
+    return (r.rows || r) as Array<{ id: number; amount: string; note: string | null; createdAt: Date | null; productName: string }>;
+  };
+  app.get("/api/reborn/admin/accounting/ticked-purchases", requireAdmin(async (req, res) => {
+    const rows = await tickedPurchases(await rebornCompanyId(req));
+    res.json({ count: rows.length, total: rows.reduce((t, e) => t + Number(e.amount), 0), lines: rows.slice(0, 200) });
+  }));
+  app.post("/api/reborn/admin/accounting/ticked-purchases/remove", requireAdmin(async (req, res) => {
+    if (req.body?.confirm !== true) return res.status(400).json({ message: tr(req, { en: "Please confirm first", zh: "请先确认", id: "Mohon konfirmasi dulu" }) });
+    const rows = await tickedPurchases(await rebornCompanyId(req));
+    if (!rows.length) return res.json({ removed: 0, total: 0, message: tr(req, { en: "Nothing to remove", zh: "没有可删除的记录", id: "Tidak ada yang dihapus" }) });
+    await ensureBackups();
+    const ids = rows.map((r) => r.id);
+    const result = await db.transaction(async (tx) => {
+      const old: any[] = ((await tx.execute(sql`SELECT * FROM ledger_entries WHERE id IN (${sql.join(ids.map((i) => sql`${i}`), sql`, `)}) ORDER BY id`)) as any).rows;
+      const [backup] = ((await tx.execute(sql`INSERT INTO accounting_backups (user_id, row_count, rows) VALUES (${getUserId(req)!}, ${old.length}, ${JSON.stringify(old)}::jsonb) RETURNING id`)) as any).rows;
+      await tx.update(supplierPayables).set({ status: "void" }).where(and(inArray(supplierPayables.ledgerEntryId, ids), eq(supplierPayables.status, "unpaid")));
+      await tx.delete(ledgerEntries).where(inArray(ledgerEntries.id, ids));
+      return { removed: old.length, backupId: backup.id };
+    });
+    const total = rows.reduce((t, e) => t + Number(e.amount), 0);
+    await logAdmin(req, { targetType: "ledger", action: "remove_ticked_purchases", entityType: "accounting", description: `Removed ${result.removed} stock purchase lines of items whose cost is already in the expenses (RP ${total}, backup #${result.backupId}); stock untouched` });
+    res.json({ ...result, total, message: tr(req, { en: "Done: {n} expense lines removed. Stock was not changed.", zh: "完成：已删除 {n} 条支出记录，库存未变。", id: "Selesai: {n} baris pengeluaran dihapus. Stok tidak berubah." }, { n: String(result.removed) }) });
+  }));
   app.get("/api/reborn/admin/accounting/backups/:id", requireAdmin(async (req, res) => {
     await ensureBackups();
     const [row] = ((await db.execute(sql`SELECT id, rows, created_at FROM accounting_backups WHERE id = ${Number(req.params.id) || 0}`)) as any).rows;
