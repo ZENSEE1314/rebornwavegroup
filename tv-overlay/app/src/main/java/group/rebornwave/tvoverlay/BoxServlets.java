@@ -215,7 +215,7 @@ final class BoxServlets {
         Object raw = answer.opt("singerList");
         JSONArray list = raw instanceof JSONArray ? (JSONArray) raw : (raw == null ? null : new JSONArray(String.valueOf(raw)));
         List<String[]> singers = new ArrayList<String[]>();
-        if (list == null) return singers;
+        if (list == null) return new SingerPage(singers, 1);
         for (int i = 0; i < list.length(); i++) {
             JSONObject item = list.optJSONObject(i);
             if (item == null || item.optString("name").isEmpty()) continue;
