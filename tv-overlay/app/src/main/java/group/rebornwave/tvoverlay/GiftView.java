@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -44,6 +45,9 @@ final class GiftView extends FrameLayout {
     private static final int MAX_WAITING_GIFTS = 12;
     private static final int PICTURE_TIMEOUT_MS = 6_000;
     private static final String DEFAULT_EMOJI = "🎁";
+    private static final int GREY_BOX = Color.argb(185, 55, 55, 55); // see-through grey behind the words
+    private static final float GREY_BOX_RADIUS_PX = 28f;
+    private static final int WORDS_PAD_PX = 36;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Random random = new Random();
@@ -63,7 +67,7 @@ final class GiftView extends FrameLayout {
         bar.setEllipsize(TextUtils.TruncateAt.MARQUEE);
         bar.setMarqueeRepeatLimit(-1);
         bar.setSelected(true); // a marquee only scrolls in a selected view
-        bar.setBackgroundColor(Color.argb(170, 0, 0, 0));
+        bar.setBackgroundColor(GREY_BOX);
         bar.setPadding(24, 12, 24, 12);
         bar.setVisibility(View.GONE);
         stage = new FrameLayout(context);
@@ -132,8 +136,15 @@ final class GiftView extends FrameLayout {
         card.setGravity(Gravity.CENTER);
         final TextView picture = text(emoji, EMOJI_SP, false);
         card.addView(picture);
-        card.addView(text(who(gift), WHO_SP, true));
-        card.addView(text(gift.name + (gift.kgold > 0 ? "   ·   " + gift.kgold + " KGOLD" : ""), WHO_SP, true));
+        // The words sit on a see-through grey box so they can be read over any karaoke picture.
+        LinearLayout words = new LinearLayout(getContext());
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.setGravity(Gravity.CENTER);
+        words.setPadding(WORDS_PAD_PX, WORDS_PAD_PX / 2, WORDS_PAD_PX, WORDS_PAD_PX / 2);
+        words.setBackground(greyBox());
+        words.addView(text(who(gift), WHO_SP, true));
+        words.addView(text(gift.name + (gift.kgold > 0 ? "   ·   " + gift.kgold + " KGOLD" : ""), WHO_SP, true));
+        card.addView(words);
         stage.addView(card, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER));
         card.setScaleX(0f);
         card.setScaleY(0f);
@@ -141,6 +152,13 @@ final class GiftView extends FrameLayout {
 
         if (!gift.imageUrl.isEmpty()) loadPicture(gift.imageUrl, card, picture);
         rain(emoji);
+    }
+
+    private static GradientDrawable greyBox() {
+        GradientDrawable box = new GradientDrawable();
+        box.setColor(GREY_BOX);
+        box.setCornerRadius(GREY_BOX_RADIUS_PX);
+        return box;
     }
 
     /** "Alex (Table 5) sent Sam (Table 9)" */
