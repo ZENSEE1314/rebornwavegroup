@@ -241,7 +241,7 @@ public class MainActivity extends Activity {
                         String answer = Link.poll(context, code);
                         if ("linked".equals(answer)) {
                             pairing = false;
-                            ui.post(new Runnable() { @Override public void run() { codeView.setText(""); startOverlay(); refresh(); } });
+                            ui.post(new Runnable() { @Override public void run() { codeView.setText(""); startOverlay(); startConnectorIfLinked(); refresh(); } });
                         } else if ("expired".equals(answer)) {
                             code = "";
                         }
@@ -266,6 +266,11 @@ public class MainActivity extends Activity {
         channels.setText(BridgeSettings.isChannelVoice(this)
                 ? t("Videos with one stereo track: voice and music on separate channels (ON, tap to turn off)", "单音轨立体声视频：人声与伴奏分左右声道（已开，点击关闭）", "Video satu trek stereo: suara dan musik di kanal terpisah (AKTIF, ketuk untuk mematikan)")
                 : t("Videos with one stereo track: voice and music on separate channels (OFF, tap to turn on)", "单音轨立体声视频：人声与伴奏分左右声道（已关，点击开启）", "Video satu trek stereo: suara dan musik di kanal terpisah (MATI, ketuk untuk mengaktifkan)"));
+    }
+
+    /** One code links the TV screen and the song system: when the code brought the song system's key, the connector starts too (not while the built-in player is used). */
+    private void startConnectorIfLinked() {
+        if (BridgeSettings.isReady(this) && !BridgeSettings.isPlayerMode(this)) startConnector();
     }
 
     private void startConnector() {

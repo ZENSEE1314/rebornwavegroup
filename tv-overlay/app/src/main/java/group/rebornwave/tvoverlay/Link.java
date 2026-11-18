@@ -75,8 +75,16 @@ final class Link {
     static String poll(Context context, String code) throws Exception {
         JSONObject answer = call(server(context) + "/api/tv/pair/" + code, "GET");
         String status = answer.optString("status", "waiting");
-        if ("linked".equals(status)) savePath(context, answer.getString("path"));
+        if (!"linked".equals(status)) return status;
+        savePath(context, answer.getString("path"));
+        saveSongSystem(context, answer.optJSONObject("karaoke"));
         return status;
+    }
+
+    /** The code that links the TV screen also carries the song system's address and key, so one code links both. */
+    private static void saveSongSystem(Context context, JSONObject karaoke) throws Exception {
+        if (karaoke == null) return;
+        BridgeSettings.save(context, karaoke.getString("cloudUrl"), karaoke.getString("token"), karaoke.optString("tenantSlug", ""));
     }
 
     /**

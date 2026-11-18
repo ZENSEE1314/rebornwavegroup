@@ -127,6 +127,15 @@ describe("the built-in karaoke player of the box app", () => {
     assert.ok(server.includes('app.post("/api/karaoke/request"') && server.includes('app.get("/api/karaoke/tables"') && server.includes('app.get("/api/karaoke/top-songs"') && java("QueueClient.java").includes('"/api/karaoke/request"'));
   });
 
+  it("should link the TV screen and the song system with the one code typed for the TV", () => {
+    const tvRoutes = readFileSync(new URL("../server/tvDisplay.ts", import.meta.url), "utf8");
+    assert.ok(tvRoutes.includes("karaoke: await injected.karaokeLink(req)") && java("Link.java").includes('saveSongSystem(context, answer.optJSONObject("karaoke"))'));
+  });
+
+  it("should start the song-system connector after a TV code brought its key, unless the built-in player is used", () => {
+    assert.ok(java("MainActivity.java").includes("BridgeSettings.isReady(this) && !BridgeSettings.isPlayerMode(this)) startConnector()"));
+  });
+
   it("should not scan the storage on the screen's own thread", () => {
     assert.ok(java("SongFiles.java").includes("synchronized void refreshIfOld()") && !/all\(\)\s*\{\s*refreshIfOld/.test(java("SongFiles.java")));
   });

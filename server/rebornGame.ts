@@ -8195,6 +8195,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     giftTypes: async (companyId) => (await db.select().from(kosGiftTypes).where(and(eq(kosGiftTypes.companyId, companyId), eq(kosGiftTypes.active, true))).orderBy(kosGiftTypes.kgoldCost, kosGiftTypes.sortOrder, kosGiftTypes.id))
       .map((row) => ({ name: row.name, emoji: row.emoji || "", imageUrl: row.imageUrl || "", animation: row.animation || "", kgoldCost: row.kgoldCost || 0 })),
     onAppChange: onLiveUpdate,
+    karaokeLink: async (req) => ({ token: await venueBridgeToken(), cloudUrl: `${req.protocol}://${req.get("host")}`, tenantSlug: currentTenant()?.slug || "" }),
   });
 
   // Security tab (cameras + "Officer at the door" checks), for every company.

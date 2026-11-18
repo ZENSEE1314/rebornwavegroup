@@ -18,6 +18,8 @@ export interface TvDeps {
   giftTypes(companyId: number): Promise<Array<{ name: string; emoji: string; imageUrl: string; animation: string; kgoldCost: number }>>;
   /** Told whenever anything changes in the app (a song queued, a song finished …). */
   onAppChange(listener: (resource: string) => void): void;
+  /** The song system's address and key, handed to the box with the TV link so one code links both. */
+  karaokeLink(req: Request): Promise<KaraokeLink>;
 }
 
 const MAX_PAGES_PER_TV = 20;
@@ -132,7 +134,7 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
     const screen = (await loadSetup()).screens.find((item) => item.id === String(req.body?.screenId ?? ""));
     if (!screen || !screen.token) return res.status(404).json({ message: "Save the TV screen first" });
     const slug = injected.tenantSlug(req);
-    const linked = pairings.assign(code, { path: `/tv/${screen.token}${slug ? `?tenant=${encodeURIComponent(slug)}` : ""}` });
+    const linked = pairings.assign(code, { path: `/tv/${screen.token}${slug ? `?tenant=${encodeURIComponent(slug)}` : ""}`, karaoke: await injected.karaokeLink(req) });
     if (!linked) return res.status(404).json({ message: "That code is not on any TV (it may have expired: open the TV page again for a new one)" });
     res.json({ ok: true });
   }));

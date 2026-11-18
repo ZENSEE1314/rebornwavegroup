@@ -186,7 +186,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.tv.codeHint': { en: "On the TV's browser open {addr} — it shows a 6-digit code. Type it here and press Link: the TV opens this screen by itself.", zh: "在电视的浏览器中打开 {addr}，会显示 6 位代码。在这里输入并点“链接”：电视会自动打开此屏幕。", id: "Di browser TV buka {addr} — muncul kode 6 digit. Ketik di sini lalu tekan Hubungkan: TV membuka layar ini sendiri." },
   'admin.tv.codePh': { en: "6-digit code", zh: "6 位代码", id: "Kode 6 digit" },
   'admin.tv.codeLink': { en: "Link", zh: "链接", id: "Hubungkan" },
-  'admin.tv.codeDone': { en: "The TV is linked and opens this screen now.", zh: "电视已链接，正在打开此屏幕。", id: "TV terhubung dan membuka layar ini sekarang." },
+  'admin.tv.codeDone': { en: "The TV is linked and opens this screen now. If the code came from the karaoke box app, its song system is linked too.", zh: "电视已链接，正在打开此屏幕。如果代码来自点歌机应用，其点歌系统也已一并链接。", id: "TV terhubung dan membuka layar ini sekarang. Jika kode berasal dari aplikasi mesin karaoke, sistem lagunya ikut terhubung." },
   'admin.tv.copy': { en: "Copy address", zh: "复制地址", id: "Salin alamat" },
   'admin.tv.copied': { en: "Copied", zh: "已复制", id: "Disalin" },
   'admin.tv.saveFirst': { en: "Save to get this TV's address.", zh: "保存后即可获得这台电视的地址。", id: "Simpan untuk mendapatkan alamat TV ini." },

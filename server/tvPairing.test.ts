@@ -62,6 +62,12 @@ describe("linking a song-system box by code", () => {
     pairings.assign(code, { path: "", karaoke: link });
     assert.deepEqual(pairings.poll(code), { status: "linked", link: { path: "", karaoke: link } });
   });
+  it("should hand over the TV page and the song-system key together when one code links both", () => {
+    const pairings = new TvPairings();
+    const code = pairings.create()!;
+    pairings.assign(code, { path: "/tv/abc?tenant=club", karaoke: link });
+    assert.deepEqual(pairings.poll(code), { status: "linked", link: { path: "/tv/abc?tenant=club", karaoke: link } });
+  });
   it("should hand the key over only once", () => {
     const pairings = new TvPairings();
     const code = pairings.create()!;
