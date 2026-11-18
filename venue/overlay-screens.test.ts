@@ -52,6 +52,11 @@ describe("the gift overlay on the box's screens", () => {
     assert.ok(windows.includes("void raise()") && windows.includes("raise();\n                for (Layer layer : layers.values()) layer.view.play(gift);"));
   });
 
+  it("should put the gift words on a see-through grey box so they can be read over any picture", () => {
+    const gifts = read("GiftView.java");
+    assert.ok(gifts.includes("words.setBackground(greyBox())") && gifts.includes("bar.setBackgroundColor(GREY_BOX)"));
+  });
+
   it("should follow the HDMI cable being plugged in or out", () => {
     assert.ok(read("OverlayWindows.java").includes("registerDisplayListener(screensChanged, handler)"));
   });
