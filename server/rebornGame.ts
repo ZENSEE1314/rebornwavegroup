@@ -1629,6 +1629,8 @@ export async function migrateMainAdminPassword(): Promise<void> {
   console.log("[security] the main-admin password was saved as readable text: it is now a hash");
 }
 
+const TICKED_CLEANUP_FIRST_MS = 30_000;
+const TICKED_CLEANUP_EVERY_MS = 30 * 60_000;
 export function registerRebornRoutes(app: Express) {
   // The main-admin password check (reset buttons): a hash is compared; the old readable form is accepted once and replaced by a hash.
   async function verifyMainAdminPassword(given: string, stored: string): Promise<boolean> {
@@ -4315,7 +4317,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     else if (b.creditOk !== undefined && !prev.packageKind) patch.creditOk = !!b.creditOk;
     const [row] = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning();
     if (b.noExpenseCost !== undefined && row.noExpenseCost) { // ticking (or saving a ticked item) takes its old purchase lines off the accounts; the stock stays
-      const done = await removeTickedPurchases(cid, getUserId(req)!, id).catch(() => null);
+      const done = await removeTickedPurchases(cid, getUserId(req)!, id).catch((error) => { console.error("[ticked purchases] could not clean up after saving", error); return null; });
       if (done) await logAdmin(req, { targetType: "ledger", targetId: id, action: "remove_ticked_purchases", entityType: "accounting", description: `"${row.name}" ticked as cost already in the expenses: took ${done.total} of its purchases off the accounts (${done.removed} lines removed, ${done.reduced} receipts reduced, backup #${done.backupId}); stock untouched` });
     }
     if (b.cost !== undefined && String(prev.cost) !== String(row.cost))
@@ -5965,6 +5967,18 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "ledger", action: "remove_ticked_purchases", entityType: "accounting", description: `Took ${done.total} of stock purchases off the accounts for items whose cost is already in the expenses (${done.removed} lines removed, ${done.reduced} receipts reduced, backup #${done.backupId}); stock untouched` });
     res.json({ ...done, message: tr(req, { en: "Done: {n} expense lines removed, {m} receipts reduced. Stock was not changed.", zh: "完成：已删除 {n} 条支出记录，{m} 张收据已扣减，库存未变。", id: "Selesai: {n} baris pengeluaran dihapus, {m} struk dikurangi. Stok tidak berubah." }, { n: String(done.removed), m: String(done.reduced) }) });
   }));
+  // Safety net: the lines of ticked items are also taken off the accounts by the server itself, shortly after it starts and then every 30 minutes,
+  // so nobody has to press anything. Stock is never touched; a backup is saved whenever something is removed.
+  const cleanTickedEverywhere = () => inEveryDataSpace(async () => {
+    const cid = await rebornCompanyId();
+    if (!cid) return;
+    const done = await removeTickedPurchases(cid, "system");
+    if (done) console.log(`[ticked purchases] took ${done.total} off the accounts (${done.removed} lines removed, ${done.reduced} receipts reduced, backup #${done.backupId})`);
+  }).catch((error) => console.error("[ticked purchases]", error));
+  if (!BACKGROUND_JOBS_OFF) {
+    setTimeout(() => { void cleanTickedEverywhere(); }, TICKED_CLEANUP_FIRST_MS);
+    setInterval(() => { void cleanTickedEverywhere(); }, TICKED_CLEANUP_EVERY_MS);
+  }
   app.get("/api/reborn/admin/accounting/backups/:id", requireAdmin(async (req, res) => {
     await ensureBackups();
     const [row] = ((await db.execute(sql`SELECT id, rows, created_at FROM accounting_backups WHERE id = ${Number(req.params.id) || 0}`)) as any).rows;
