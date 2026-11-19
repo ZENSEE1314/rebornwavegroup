@@ -14,6 +14,7 @@ import SupplierReorderPanel from "@/components/SupplierReorderPanel";
 import ReceiptScan from "@/components/ReceiptScan";
 import AccountingFresh from "@/components/AccountingFresh";
 import TickedPurchases from "@/components/TickedPurchases";
+import DuplicatePurchases from "@/components/DuplicatePurchases";
 import StockSuppliers from "@/components/StockSuppliers";
 import { ItemBundles, CreditPackages, PieceRow } from "@/components/ItemBundles";
 import { HappyHourManager } from "@/components/HappyHourManager";
@@ -2981,7 +2982,7 @@ function Accounting() {
       {view === "add" && <ExpensesPanel startWith="other" />}
       {view === "setup" && <TaxFeesCard />}
       {view === "setup" && <FixedCostsPanel />}
-      {view === "setup" && <><TickedPurchases /><AccountingFresh /></>}
+      {view === "setup" && <><TickedPurchases /><DuplicatePurchases /><AccountingFresh /></>}
       {view === "overview" && byIndustry.length > 0 && <Card>
         <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.acc.byIndustry", { n: days })}</p>
         <div className="space-y-1.5">{byIndustry.map((r) => (

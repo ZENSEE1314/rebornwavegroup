@@ -5960,6 +5960,55 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const total = lines.reduce((t, e) => t + Number(e.amount), 0) + receipts.reduce((t, e) => t + e.cut, 0);
     return { ...result, total };
   };
+  // Stock purchases booked twice for the same goods: the same item, quantity and unit cost more than once (e.g. the Excel import's
+  // opening line and a Restock typed again), or an item that has an import line AND restock lines (listed, never ticked by itself).
+  const STOCK_LINE_RE = /^Stock in:\s*([\d.]+)\s*×\s*(.+?)\s*@\s*(?:RP\s*)?([\d.]+)/i;
+  const IMPORT_TAG_RE = /\(Excel import\)/i;
+  const nameKey = (name: string) => name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const duplicatePurchases = async () => {
+    const r: any = await db.execute(sql`SELECT id, amount, note, created_at AS "createdAt" FROM ledger_entries WHERE category = 'purchase' AND kind = 'expense' AND note LIKE 'Stock in:%' ORDER BY id`);
+    const rows = (r.rows || r) as Array<{ id: number; amount: string; note: string; createdAt: Date | null }>;
+    const parsed = rows.flatMap((row) => {
+      const m = STOCK_LINE_RE.exec(row.note || "");
+      return m ? [{ ...row, qty: Number(m[1]), name: m[2], key: nameKey(m[2]), unit: Number(m[3]), fromImport: IMPORT_TAG_RE.test(row.note) }] : [];
+    });
+    const exact = new Map<string, typeof parsed>();
+    const byItem = new Map<string, typeof parsed>();
+    for (const line of parsed) {
+      const k = `${line.key}|${line.qty}|${line.unit}`;
+      exact.set(k, [...(exact.get(k) || []), line]);
+      byItem.set(line.key, [...(byItem.get(line.key) || []), line]);
+    }
+    const slim = (l: (typeof parsed)[number]) => ({ id: l.id, amount: Number(l.amount), note: l.note, createdAt: l.createdAt, fromImport: l.fromImport });
+    const repeated = Array.from(exact.values()).filter((g) => g.length > 1).map((g) => ({ name: g[0].name, qty: g[0].qty, unit: g[0].unit, keep: slim(g[0]), extra: g.slice(1).map(slim) }));
+    const extraIds = new Set(repeated.flatMap((g) => g.extra.map((l) => l.id)));
+    const importAndRestock = Array.from(byItem.values())
+      .filter((g) => g.some((l) => l.fromImport) && g.some((l) => !l.fromImport))
+      .map((g) => ({ name: g[0].name, lines: g.map(slim) }))
+      .filter((g) => g.lines.some((l) => !extraIds.has(l.id)));
+    return { repeated, importAndRestock, repeatedTotal: repeated.reduce((t, g) => t + g.extra.reduce((s, l) => s + l.amount, 0), 0) };
+  };
+  app.get("/api/reborn/admin/accounting/duplicate-purchases", requireAdmin(async (_req, res) => {
+    const d = await duplicatePurchases();
+    res.json({ ...d, repeated: d.repeated.slice(0, 200), importAndRestock: d.importAndRestock.slice(0, 100) });
+  }));
+  app.post("/api/reborn/admin/accounting/duplicate-purchases/remove", requireAdmin(async (req, res) => {
+    const ids: number[] = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(0, 500) : [];
+    if (req.body?.confirm !== true || !ids.length) return res.status(400).json({ message: tr(req, { en: "Tick the lines to remove and confirm", zh: "请勾选要删除的记录并确认", id: "Centang baris yang dihapus lalu konfirmasi" }) });
+    const userId = getUserId(req)!;
+    await ensureBackups();
+    const result = await db.transaction(async (tx) => {
+      const old: any[] = ((await tx.execute(sql`SELECT * FROM ledger_entries WHERE category = 'purchase' AND note LIKE 'Stock in:%' AND id IN (${sql.join(ids.map((i) => sql`${i}`), sql`, `)}) ORDER BY id`)) as any).rows;
+      if (!old.length) return { removed: 0, total: 0, backupId: null };
+      const found = old.map((o) => o.id as number);
+      const [backup] = ((await tx.execute(sql`INSERT INTO accounting_backups (user_id, row_count, rows) VALUES (${userId}, ${old.length}, ${JSON.stringify(old)}::jsonb) RETURNING id`)) as any).rows;
+      await tx.update(supplierPayables).set({ status: "void" }).where(and(inArray(supplierPayables.ledgerEntryId, found), eq(supplierPayables.status, "unpaid")));
+      await tx.delete(ledgerEntries).where(inArray(ledgerEntries.id, found));
+      return { removed: found.length, total: old.reduce((t, o) => t + Number(o.amount), 0), backupId: backup.id as number };
+    });
+    if (result.removed) await logAdmin(req, { targetType: "ledger", action: "remove_duplicate_purchases", entityType: "accounting", description: `Took ${result.total} of duplicate stock purchases off the accounts (${result.removed} lines, backup #${result.backupId}); stock untouched` });
+    res.json({ ...result, message: tr(req, { en: "Done: {n} duplicate lines removed. Stock was not changed.", zh: "完成：已删除 {n} 条重复记录，库存未变。", id: "Selesai: {n} baris ganda dihapus. Stok tidak berubah." }, { n: String(result.removed) }) });
+  }));
   app.post("/api/reborn/admin/accounting/ticked-purchases/remove", requireAdmin(async (req, res) => {
     if (req.body?.confirm !== true) return res.status(400).json({ message: tr(req, { en: "Please confirm first", zh: "请先确认", id: "Mohon konfirmasi dulu" }) });
     const done = await removeTickedPurchases(await rebornCompanyId(req), getUserId(req)!);
