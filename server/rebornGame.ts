@@ -4314,6 +4314,10 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (b.packageKind !== undefined) Object.assign(patch, packageFields(b));
     else if (b.creditOk !== undefined && !prev.packageKind) patch.creditOk = !!b.creditOk;
     const [row] = await db.update(posProducts).set(patch).where(and(eq(posProducts.id, id), eq(posProducts.companyId, cid))).returning();
+    if (b.noExpenseCost !== undefined && row.noExpenseCost) { // ticking (or saving a ticked item) takes its old purchase lines off the accounts; the stock stays
+      const done = await removeTickedPurchases(cid, getUserId(req)!, id).catch(() => null);
+      if (done) await logAdmin(req, { targetType: "ledger", targetId: id, action: "remove_ticked_purchases", entityType: "accounting", description: `"${row.name}" ticked as cost already in the expenses: took ${done.total} of its purchases off the accounts (${done.removed} lines removed, ${done.reduced} receipts reduced, backup #${done.backupId}); stock untouched` });
+    }
     if (b.cost !== undefined && String(prev.cost) !== String(row.cost))
       await logAdmin(req, { targetType: "pos_product", targetId: id, action: "edit_cost", entityType: "product", oldValues: { cost: prev.cost }, newValues: { cost: row.cost }, description: `Cost of "${row.name}" ${prev.cost} → ${row.cost}` });
     if (b.price !== undefined && String(prev.price) !== String(row.price))
@@ -5897,16 +5901,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // (1) a stock delivery line "Stock in: N × <item> @ cost" (made by Restock, Take-out screen or the accounting rebuild) is removed whole;
   // (2) a scanned receipt is ONE line for all its items: it is cut down by the ticked items' share (found through the stock movements
   //     made in the same save, same timestamp) and removed when nothing is left.
-  const tickedPurchases = async (cid: number) => {
+  const tickedPurchases = async (cid: number, onlyProductId?: number) => {
+    const oneItem = onlyProductId ? sql`AND p.id = ${onlyProductId}` : sql``;
     const direct: any = await db.execute(sql`SELECT DISTINCT ON (l.id) l.id, l.amount, l.note, l.created_at AS "createdAt", p.name AS "productName"
-      FROM ledger_entries l JOIN pos_products p ON p.company_id = ${cid} AND p.no_expense_cost = true
+      FROM ledger_entries l JOIN pos_products p ON p.company_id = ${cid} AND p.no_expense_cost = true ${oneItem}
         AND position(lower('× ' || trim(p.name) || ' @') in lower(COALESCE(l.note, ''))) > 0
       WHERE l.category = 'purchase' AND l.note LIKE 'Stock in:%'
       ORDER BY l.id`);
     const cuts: any = await db.execute(sql`SELECT l.id, l.amount, l.note, l.created_at AS "createdAt", sum(m.delta * m.unit_cost) AS cut
       FROM ledger_entries l
       JOIN stock_movements m ON m.reason = 'stock_in' AND m.delta > 0 AND m.unit_cost > 0 AND m.note LIKE 'Receipt%' AND abs(extract(epoch FROM (l.created_at - m.created_at))) < 2
-      JOIN pos_products p ON p.id = m.product_id AND p.company_id = ${cid} AND p.no_expense_cost = true
+      JOIN pos_products p ON p.id = m.product_id AND p.company_id = ${cid} AND p.no_expense_cost = true ${oneItem}
       WHERE l.category = 'purchase' AND l.ref_type = 'receipt'
       GROUP BY l.id, l.amount, l.note, l.created_at ORDER BY l.id`);
     return {
@@ -5919,15 +5924,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const total = lines.reduce((t, e) => t + Number(e.amount), 0) + receipts.reduce((t, e) => t + e.cut, 0);
     res.json({ count: lines.length, receiptCount: receipts.length, total, lines: lines.slice(0, 200), receipts: receipts.slice(0, 50) });
   }));
-  app.post("/api/reborn/admin/accounting/ticked-purchases/remove", requireAdmin(async (req, res) => {
-    if (req.body?.confirm !== true) return res.status(400).json({ message: tr(req, { en: "Please confirm first", zh: "请先确认", id: "Mohon konfirmasi dulu" }) });
-    const { lines, receipts } = await tickedPurchases(await rebornCompanyId(req));
-    if (!lines.length && !receipts.length) return res.json({ removed: 0, reduced: 0, total: 0, message: tr(req, { en: "Nothing to remove", zh: "没有可删除的记录", id: "Tidak ada yang dihapus" }) });
+  // Takes the purchase lines of ticked items off the accounts (all ticked items, or just one); stock is never touched.
+  const removeTickedPurchases = async (cid: number, userId: string, onlyProductId?: number) => {
+    const { lines, receipts } = await tickedPurchases(cid, onlyProductId);
+    if (!lines.length && !receipts.length) return null;
     await ensureBackups();
     const ids = [...lines.map((r) => r.id), ...receipts.map((r) => r.id)];
     const result = await db.transaction(async (tx) => {
       const old: any[] = ((await tx.execute(sql`SELECT * FROM ledger_entries WHERE id IN (${sql.join(ids.map((i) => sql`${i}`), sql`, `)}) ORDER BY id`)) as any).rows;
-      const [backup] = ((await tx.execute(sql`INSERT INTO accounting_backups (user_id, row_count, rows) VALUES (${getUserId(req)!}, ${old.length}, ${JSON.stringify(old)}::jsonb) RETURNING id`)) as any).rows;
+      const [backup] = ((await tx.execute(sql`INSERT INTO accounting_backups (user_id, row_count, rows) VALUES (${userId}, ${old.length}, ${JSON.stringify(old)}::jsonb) RETURNING id`)) as any).rows;
       const decimals = companyMoney().decimals;
       let removed = 0, reduced = 0;
       const wholeIds = lines.map((r) => r.id);
@@ -5951,8 +5956,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       return { removed, reduced, backupId: backup.id };
     });
     const total = lines.reduce((t, e) => t + Number(e.amount), 0) + receipts.reduce((t, e) => t + e.cut, 0);
-    await logAdmin(req, { targetType: "ledger", action: "remove_ticked_purchases", entityType: "accounting", description: `Took ${total} of stock purchases off the accounts for items whose cost is already in the expenses (${result.removed} lines removed, ${result.reduced} receipts reduced, backup #${result.backupId}); stock untouched` });
-    res.json({ ...result, total, message: tr(req, { en: "Done: {n} expense lines removed, {m} receipts reduced. Stock was not changed.", zh: "完成：已删除 {n} 条支出记录，{m} 张收据已扣减，库存未变。", id: "Selesai: {n} baris pengeluaran dihapus, {m} struk dikurangi. Stok tidak berubah." }, { n: String(result.removed), m: String(result.reduced) }) });
+    return { ...result, total };
+  };
+  app.post("/api/reborn/admin/accounting/ticked-purchases/remove", requireAdmin(async (req, res) => {
+    if (req.body?.confirm !== true) return res.status(400).json({ message: tr(req, { en: "Please confirm first", zh: "请先确认", id: "Mohon konfirmasi dulu" }) });
+    const done = await removeTickedPurchases(await rebornCompanyId(req), getUserId(req)!);
+    if (!done) return res.json({ removed: 0, reduced: 0, total: 0, message: tr(req, { en: "Nothing to remove", zh: "没有可删除的记录", id: "Tidak ada yang dihapus" }) });
+    await logAdmin(req, { targetType: "ledger", action: "remove_ticked_purchases", entityType: "accounting", description: `Took ${done.total} of stock purchases off the accounts for items whose cost is already in the expenses (${done.removed} lines removed, ${done.reduced} receipts reduced, backup #${done.backupId}); stock untouched` });
+    res.json({ ...done, message: tr(req, { en: "Done: {n} expense lines removed, {m} receipts reduced. Stock was not changed.", zh: "完成：已删除 {n} 条支出记录，{m} 张收据已扣减，库存未变。", id: "Selesai: {n} baris pengeluaran dihapus, {m} struk dikurangi. Stok tidak berubah." }, { n: String(done.removed), m: String(done.reduced) }) });
   }));
   app.get("/api/reborn/admin/accounting/backups/:id", requireAdmin(async (req, res) => {
     await ensureBackups();
