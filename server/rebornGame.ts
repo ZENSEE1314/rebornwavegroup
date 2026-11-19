@@ -5899,9 +5899,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   //     made in the same save, same timestamp) and removed when nothing is left.
   const tickedPurchases = async (cid: number) => {
     const direct: any = await db.execute(sql`SELECT DISTINCT ON (l.id) l.id, l.amount, l.note, l.created_at AS "createdAt", p.name AS "productName"
-      FROM ledger_entries l JOIN pos_products p ON p.company_id = ${cid} AND p.no_expense_cost = true AND position('× ' || p.name || ' @' in COALESCE(l.note, '')) > 0
-      WHERE l.category = 'purchase' AND l.ref_type = 'stock_movement'
-        AND (l.ref_id = p.id::text OR EXISTS (SELECT 1 FROM stock_movements m WHERE m.id::text = l.ref_id AND m.product_id = p.id))
+      FROM ledger_entries l JOIN pos_products p ON p.company_id = ${cid} AND p.no_expense_cost = true
+        AND position(lower('× ' || trim(p.name) || ' @') in lower(COALESCE(l.note, ''))) > 0
+      WHERE l.category = 'purchase' AND l.note LIKE 'Stock in:%'
       ORDER BY l.id`);
     const cuts: any = await db.execute(sql`SELECT l.id, l.amount, l.note, l.created_at AS "createdAt", sum(m.delta * m.unit_cost) AS cut
       FROM ledger_entries l
