@@ -377,14 +377,25 @@ function ItemProfitView() {
   const { t } = useTranslation();
   const [month, setMonth] = useState(todayMonth());
   const [isAllTime, setIsAllTime] = useState(false);
-  const url = `/api/reborn/admin/accounting/item-profit${isAllTime ? "" : `?month=${month}`}`;
-  const { data } = useQuery<ItemProfitResponse>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
+  const [isDates, setIsDates] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const hasDates = isDates && !!dateFrom && !!dateTo;
+  const url = `/api/reborn/admin/accounting/item-profit${hasDates ? `?from=${dateFrom}&to=${dateTo}` : isAllTime || isDates ? "" : `?month=${month}`}`;
+  const { data } = useQuery<ItemProfitResponse>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()), enabled: !isDates || hasDates });
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <input type="month" value={month} disabled={isAllTime} onChange={(e) => setMonth(e.target.value)} aria-label={t("ar.month")} className={field} />
-        <button type="button" onClick={() => setIsAllTime(!isAllTime)} className={chip(isAllTime)}>{t("ip.allTime")}</button>
+        <input type="month" value={month} disabled={isAllTime || isDates} onChange={(e) => setMonth(e.target.value)} aria-label={t("ar.month")} className={field} />
+        <button type="button" onClick={() => { setIsAllTime(!isAllTime); setIsDates(false); }} className={chip(isAllTime)}>{t("ip.allTime")}</button>
+        <button type="button" onClick={() => { setIsDates(!isDates); setIsAllTime(false); }} className={chip(isDates)}>📅 {t("admin.acc.pickDates")}</button>
       </div>
+      {isDates && (
+        <div className="flex flex-wrap items-center gap-2">
+          <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} aria-label={t("admin.acc.dateFrom")} className={field} />
+          <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} aria-label={t("admin.acc.dateTo")} className={field} />
+        </div>
+      )}
       <p className="text-[11px] text-white/50">{t("ip.intro")}</p>
       {data && (
         <>
@@ -442,15 +453,17 @@ interface TaxFeeMonth { month: string; serviceFee: number; tax: number; bills: n
 interface PeriodData { days: number; report: PeriodReport; prizePool: number; taxFees?: { serviceFee: number; tax: number; bills: number; months: TaxFeeMonth[] } }
 
 /** The top of Accounting for the last 7 / 30 / 90 days: money in, all costs and what is left, then every cost in its group — each line opens to the entries behind it. */
-export function PeriodBreakdown({ days }: { days: number }) {
+export function PeriodBreakdown({ days, range, waiting }: { days: number; range: { from: string; to: string } | null; waiting: boolean }) {
   const { t } = useTranslation();
-  const url = `/api/reborn/admin/accounting/period?days=${days}`;
-  const { data } = useQuery<PeriodData>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
-  if (!data) return null;
+  const scope = range ? `from=${range.from}&to=${range.to}` : `days=${days}`;
+  const url = `/api/reborn/admin/accounting/period?${scope}`;
+  const { data } = useQuery<PeriodData>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()), enabled: !waiting });
+  if (waiting || !data) return null;
   const { report } = data;
   const tile = (label: string, value: string, tone: string) => <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center"><p className="text-[11px] text-white/50">{label}</p><p className={`text-base font-extrabold ${tone}`}>{value}</p></div>;
   return (
     <div className="space-y-2">
+      {range && <p className="text-sm font-bold text-amber-200">📅 {t("ar.rangeTitle", { from: range.from, to: range.to })}</p>}
       <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         {tile(t("ar.moneyIn"), money(report.income), "text-emerald-300")}
         {tile(t("ar.costTotal"), money(report.costTotal), "text-red-300")}
@@ -481,7 +494,7 @@ export function PeriodBreakdown({ days }: { days: number }) {
           )}
         </div>
       )}
-      <div className={card}><Lines report={report} scope={`days=${days}`} /><p className="mt-2 text-[11px] text-white/40">{t("ar.pool", { n: money(data.prizePool) })}</p></div>
+      <div className={card}><Lines report={report} scope={scope} /><p className="mt-2 text-[11px] text-white/40">{t("ar.pool", { n: money(data.prizePool) })}</p></div>
     </div>
   );
 }

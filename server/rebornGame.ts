@@ -6225,13 +6225,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const cid = await rebornCompanyId(req);
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY_MS).toISOString();
+    const range = chosenRange(req.query);
+    const paidWhen = range ? sql`tk.paid_at >= ${range.from} AND tk.paid_at < ${range.to}` : sql`tk.paid_at >= ${since}`;
     // A product can belong to several industries (comma-separated department), so unnest it —
     // a shared item's revenue is credited to each industry it serves.
     const rows = await db.execute(sql`
       SELECT COALESCE(NULLIF(TRIM(ind),''),'Unassigned') industry,
              COALESCE(SUM(pi.line_total),0) revenue, COUNT(DISTINCT tk.id) orders, COALESCE(SUM(pi.qty),0) items
       FROM pos_ticket_items pi
-      JOIN pos_tickets tk ON tk.id=pi.order_id AND tk.status='paid' AND tk.company_id=${cid} AND tk.paid_at >= ${since}
+      JOIN pos_tickets tk ON tk.id=pi.order_id AND tk.status='paid' AND tk.company_id=${cid} AND ${paidWhen}
       LEFT JOIN pos_products p ON p.id=pi.product_id
       LEFT JOIN LATERAL unnest(CASE WHEN COALESCE(p.department,'')='' THEN ARRAY['Unassigned'] ELSE string_to_array(p.department, ',') END) AS ind ON true
       GROUP BY 1 ORDER BY revenue DESC`);
@@ -7498,18 +7500,32 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
   // The last N days (the 7 / 30 / 90 day buttons at the top of Accounting), read the same way as a month.
   const sinceDays = (value: unknown) => new Date(Date.now() - Math.min(365, Math.max(1, Number(value) || 30)) * DAY_MS);
+  // A chosen "from – to" (both days included, venue clock, YYYY-MM-DD) instead of the last N days; null when no valid pair is given.
+  const MAX_RANGE_DAYS = 1830;
+  const chosenRange = (query: Record<string, unknown>) => {
+    const a = String(query.from || ""), b = String(query.to || "");
+    if (!DAY_RE.test(a) || !DAY_RE.test(b)) return null;
+    const [first, last] = a <= b ? [a, b] : [b, a];
+    const from = new Date(`${first}T00:00:00${MONTH_START_OFFSET}`);
+    const to = new Date(new Date(`${last}T00:00:00${MONTH_START_OFFSET}`).getTime() + DAY_MS);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to.getTime() - from.getTime() > MAX_RANGE_DAYS * DAY_MS) return null;
+    return { from, to };
+  };
   app.get("/api/reborn/admin/accounting/period", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
-    const lines = await db.select(LEDGER_LIGHT).from(ledgerEntries).where(and(sql`${ledgerEntries.createdAt} >= ${sinceDays(days)}`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
-    res.json({ days, report: periodReport(lines, await reportUploads(cid)), prizePool: await getSpinPool(), taxFees: await taxFeesCollected(cid, days) });
+    const range = chosenRange(req.query);
+    const when = range ? sql`${ledgerEntries.createdAt} >= ${range.from} AND ${ledgerEntries.createdAt} < ${range.to}` : sql`${ledgerEntries.createdAt} >= ${sinceDays(days)}`;
+    const lines = await db.select(LEDGER_LIGHT).from(ledgerEntries).where(and(when, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`));
+    res.json({ days, report: periodReport(lines, await reportUploads(cid)), prizePool: await getSpinPool(), taxFees: await taxFeesCollected(cid, days, range) });
   }));
   // What customers paid as service fee and tax on paid bills (refunded bills are left out): the chosen number of days, and each of the last 12 months by the day the bill was paid.
   const TAX_FEE_MONTHS = 12;
-  const taxFeesCollected = async (cid: number, days: number) => {
+  const taxFeesCollected = async (cid: number, days: number, range: { from: Date; to: Date } | null = null) => {
     const zone = countryOf(companyCountry()).timezone;
     const sum = (rows: any) => ((rows.rows || rows) as any[]);
-    const period = sum(await db.execute(sql`SELECT coalesce(sum(service_fee), 0)::float AS service_fee, coalesce(sum(tax), 0)::float AS tax, count(*)::int AS bills FROM pos_tickets WHERE company_id = ${cid} AND status = 'paid' AND paid_at >= ${sinceDays(days)}`))[0];
+    const paidWhen = range ? sql`paid_at >= ${range.from} AND paid_at < ${range.to}` : sql`paid_at >= ${sinceDays(days)}`;
+    const period = sum(await db.execute(sql`SELECT coalesce(sum(service_fee), 0)::float AS service_fee, coalesce(sum(tax), 0)::float AS tax, count(*)::int AS bills FROM pos_tickets WHERE company_id = ${cid} AND status = 'paid' AND ${paidWhen}`))[0];
     const months = sum(await db.execute(sql`SELECT to_char(paid_at AT TIME ZONE ${zone}, 'YYYY-MM') AS month, coalesce(sum(service_fee), 0)::float AS service_fee, coalesce(sum(tax), 0)::float AS tax, count(*)::int AS bills FROM pos_tickets WHERE company_id = ${cid} AND status = 'paid' AND paid_at >= ${sinceDays(TAX_FEE_MONTHS * 31)} GROUP BY 1 ORDER BY 1 DESC LIMIT ${TAX_FEE_MONTHS}`));
     return { serviceFee: roundMoney(Number(period?.service_fee) || 0), tax: roundMoney(Number(period?.tax) || 0), bills: Number(period?.bills) || 0, months: months.map((m: any) => ({ month: m.month, serviceFee: roundMoney(Number(m.service_fee) || 0), tax: roundMoney(Number(m.tax) || 0), bills: Number(m.bills) || 0 })) };
   };
@@ -7525,7 +7541,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   app.get("/api/reborn/admin/accounting/item-profit", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const monthQuery = String(req.query.month || "");
-    const range = MONTH_RE.test(monthQuery) ? monthBounds(monthQuery) : null;
+    const range = chosenRange(req.query) ?? (MONTH_RE.test(monthQuery) ? monthBounds(monthQuery) : null);
     const since = req.query.days ? sinceDays(req.query.days) : null;
     const paidIn = range ? sql`${posTickets.paidAt} >= ${range.from} AND ${posTickets.paidAt} < ${range.to}` : since ? sql`${posTickets.paidAt} >= ${since}` : sql`TRUE`;
     const sold = await db.select({
@@ -7641,7 +7657,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const group = String(req.query.group || "");
     if (group !== "income" && !(COST_SECTIONS as readonly string[]).includes(group)) return res.status(400).json({ message: tr(req, { en: "Choose a line of the report", zh: "请选择报表中的一项", id: "Pilih satu baris laporan" }) });
     const monthQuery = String(req.query.month || "");
-    const range = MONTH_RE.test(monthQuery) ? monthBounds(monthQuery) : null;
+    const range = chosenRange(req.query) ?? (MONTH_RE.test(monthQuery) ? monthBounds(monthQuery) : null);
     const since = req.query.days ? sinceDays(req.query.days) : null;
     const rows = await db.select(LEDGER_LIGHT).from(ledgerEntries).where(and(range ? sql`${ledgerEntries.createdAt} >= ${range.from} AND ${ledgerEntries.createdAt} < ${range.to}` : since ? sql`${ledgerEntries.createdAt} >= ${since}` : sql`TRUE`, sql`${ledgerEntries.refType} IS DISTINCT FROM 'pos_closing'`)).orderBy(desc(ledgerEntries.createdAt));
     const uploads = await reportUploads(cid);

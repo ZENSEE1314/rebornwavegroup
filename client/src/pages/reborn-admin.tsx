@@ -2908,13 +2908,19 @@ function Accounting() {
   const qc = useQueryClient();
   const [view, setView] = useState<AccountingView>("overview");
   const [days, setDays] = useState(30);
+  // "Pick dates": a chosen first and last day (both included) instead of the last 7 / 30 / 90 days.
+  const [pickDates, setPickDates] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const dateRange = pickDates && dateFrom && dateTo ? { from: dateFrom <= dateTo ? dateFrom : dateTo, to: dateFrom <= dateTo ? dateTo : dateFrom } : null;
   const [rate, setRate] = useState(10);
   const { data: sum } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/summary", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/summary?days=${days}`).then((r) => r.json()) });
   const { data: commission } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/commission", days, rate], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/commission?days=${days}&rate=${rate}`).then((r) => r.json()) });
   const [lf, setLf] = useState({ kind: "", category: "", from: "", to: "", q: "" });
   const ledgerQuery = new URLSearchParams({ limit: "1000", ...(lf.kind && { kind: lf.kind }), ...(lf.category && { category: lf.category }), ...(lf.from && { from: lf.from }), ...(lf.to && { to: lf.to }) }).toString();
   const { data: ledger = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/ledger", ledgerQuery], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/ledger?${ledgerQuery}`).then((r) => r.json()) });
-  const { data: byIndustry = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/by-industry", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/by-industry?days=${days}`).then((r) => r.json()) });
+  const industryQuery = dateRange ? `from=${dateRange.from}&to=${dateRange.to}` : `days=${days}`;
+  const { data: byIndustry = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/by-industry", industryQuery], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/by-industry?${industryQuery}`).then((r) => r.json()) });
   const [e, setE] = useState<any>({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" });
   const searchText = lf.q.trim().toLowerCase();
   const normalLedger = ledger.filter((entry) => entry.refType !== "pos_closing" && (!searchText || (entry.note || "").toLowerCase().includes(searchText)));
@@ -2971,20 +2977,30 @@ function Accounting() {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.acc.days", { n: d })}</button>)}
+        {[7, 30, 90].map((d) => <button key={d} onClick={() => { setDays(d); setPickDates(false); }} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${!pickDates && days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{t("admin.acc.days", { n: d })}</button>)}
+        <button onClick={() => setPickDates(true)} aria-pressed={pickDates} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${pickDates ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>📅 {t("admin.acc.pickDates")}</button>
         <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> {t("admin.c.exportCsv")}</button>
       </div>
+      {pickDates && (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-[11px] text-white/60">{t("admin.acc.dateFrom")}<input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className="mt-1 block min-h-[44px] rounded-lg bg-white/10 border border-white/15 px-3 text-sm text-white" /></label>
+          <label className="text-[11px] text-white/60">{t("admin.acc.dateTo")}<input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="mt-1 block min-h-[44px] rounded-lg bg-white/10 border border-white/15 px-3 text-sm text-white" /></label>
+          {!dateRange && <p className="text-[11px] text-amber-200/80 pb-3">{t("admin.acc.pickBoth")}</p>}
+        </div>
+      )}
       <div role="tablist" aria-label={t("acx.sections")} className="flex gap-1.5 overflow-x-auto pb-1">
         {ACCOUNTING_VIEWS.map((name) => <button key={name} type="button" role="tab" aria-selected={view === name} onClick={() => setView(name)} className={`min-h-[44px] shrink-0 rounded-xl px-4 text-xs font-bold ${view === name ? "bg-amber-400 text-black" : "bg-white/5 text-white/70"}`}>{t(`acx.view.${name}`)}</button>)}
       </div>
-      {view === "overview" && <PeriodBreakdown days={days} />}
+      {view === "overview" && <PeriodBreakdown days={days} range={dateRange} waiting={pickDates && !dateRange} />}
       {view === "overview" && <AccountingReports />}
       {view === "add" && <ExpensesPanel startWith="other" />}
       {view === "setup" && <TaxFeesCard />}
       {view === "setup" && <FixedCostsPanel />}
-      {view === "setup" && <><TickedPurchases /><DuplicatePurchases /><AccountingFresh /></>}
+      {view === "setup" && <TickedPurchases />}
+      {view === "setup" && <DuplicatePurchases />}
+      {view === "setup" && <AccountingFresh />}
       {view === "overview" && byIndustry.length > 0 && <Card>
-        <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> {t("admin.acc.byIndustry", { n: days })}</p>
+        <p className="font-bold mb-2 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> {dateRange ? t("admin.acc.byIndustryDates", { from: dateRange.from, to: dateRange.to }) : t("admin.acc.byIndustry", { n: days })}</p>
         <div className="space-y-1.5">{byIndustry.map((r) => (
           <div key={r.industry} className="flex items-center justify-between text-sm"><span className="text-white/80">{indLabel(r.industry)}</span><span className="text-white/50">{t("admin.acc.orders", { n: r.orders })} · <b className="text-amber-200">{money(r.revenue)}</b></span></div>
         ))}</div>

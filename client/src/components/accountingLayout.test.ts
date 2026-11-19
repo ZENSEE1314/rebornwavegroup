@@ -6,7 +6,7 @@ const admin = readFileSync(new URL("../pages/reborn-admin.tsx", import.meta.url)
 const accounting = admin.slice(admin.indexOf("function Accounting() {"), admin.indexOf("function DailyClosings"));
 
 const CARDS: [string, string][] = [
-  ["<PeriodBreakdown days={days} />", "overview"], ["<AccountingReports />", "overview"], ["<ExpensesPanel startWith=\"other\" />", "add"],
+  ["<PeriodBreakdown days={days} range={dateRange} waiting={pickDates && !dateRange} />", "overview"], ["<AccountingReports />", "overview"], ["<ExpensesPanel startWith=\"other\" />", "add"],
   ["<TaxFeesCard />", "setup"], ["<FixedCostsPanel />", "setup"], ["<AccountingFresh />", "setup"], ["<CommissionList days={days} />", "bills"],
   ["<ReceiptScan />", "add"], ["<DailyClosings days={days} />", "bills"], ["<AccountingOrders days={days} />", "bills"],
 ];
