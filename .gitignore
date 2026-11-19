@@ -20,3 +20,4 @@ tv-overlay/.gradle/
 tv-overlay/build/
 tv-overlay/app/build/
 venue/camera.config.json
+venue/new-songs-check.csv
