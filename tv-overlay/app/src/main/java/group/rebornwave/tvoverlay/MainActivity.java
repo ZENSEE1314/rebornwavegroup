@@ -135,6 +135,17 @@ public class MainActivity extends Activity {
                 }, "box-trial").start();
             }
         }));
+        root.addView(button(t("Find the box's song files (which folder, which format)", "查找点歌机的歌曲文件（哪个文件夹、什么格式）", "Cari file lagu mesin (folder dan format)"), new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                boxTestResult.setText(t("Looking through the storage…", "正在查找存储…", "Mencari di penyimpanan…"));
+                new Thread(new Runnable() {
+                    @Override public void run() {
+                        final String report = new SongFiles(MainActivity.this).survey();
+                        ui.post(new Runnable() { @Override public void run() { boxTestResult.setText(report); } });
+                    }
+                }, "box-survey").start();
+            }
+        }));
         root.addView(boxTestResult);
         final Button voiceSide = button("", null);
         voiceSide.setOnClickListener(new View.OnClickListener() {

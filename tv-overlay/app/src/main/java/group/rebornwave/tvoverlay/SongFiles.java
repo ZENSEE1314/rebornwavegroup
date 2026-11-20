@@ -32,6 +32,9 @@ final class SongFiles {
     private static final int SINGER_BONUS = 2;
     private static final int TITLE_SCORE = 10;
     private static final int MAX_DEPTH = 3;
+    private static final int SURVEY_DEPTH = 6;
+    private static final int SURVEY_FOLDERS = 6;
+    private static final long SURVEY_MIN_BYTES = 5L * 1024 * 1024;
 
     private final Context context;
     private volatile List<LocalSong> songs = new ArrayList<LocalSong>();
@@ -138,6 +141,55 @@ final class SongFiles {
         String name = file.getName();
         int dot = name.lastIndexOf('.');
         return dot > 0 ? name.substring(0, dot) : name;
+    }
+
+    /**
+     * For the "Find the box's song files" button: walks the box's storage and USB drives and says which folders hold the most big files, what endings
+     * those files have and a few names, so we can tell whether this app's own player can read what the box's program stores. Slow: background thread only.
+     */
+    String survey() {
+        java.util.Map<String, Integer> endings = new java.util.TreeMap<String, Integer>();
+        java.util.Map<String, Integer> folderCounts = new java.util.HashMap<String, Integer>();
+        java.util.Map<String, String> samples = new java.util.HashMap<String, String>();
+        int[] total = {0};
+        List<File> starts = new ArrayList<File>();
+        starts.add(Environment.getExternalStorageDirectory());
+        File[] drives = new File("/storage").listFiles();
+        if (drives != null) for (File drive : drives) starts.add(drive);
+        for (File start : starts) surveyFolder(start, 0, endings, folderCounts, samples, total);
+        StringBuilder report = new StringBuilder("Big files (over 5 MB): ").append(total[0]);
+        report.append("\nEndings: ").append(endings);
+        List<java.util.Map.Entry<String, Integer>> top = new ArrayList<java.util.Map.Entry<String, Integer>>(folderCounts.entrySet());
+        java.util.Collections.sort(top, new java.util.Comparator<java.util.Map.Entry<String, Integer>>() {
+            @Override public int compare(java.util.Map.Entry<String, Integer> a, java.util.Map.Entry<String, Integer> b) { return b.getValue() - a.getValue(); }
+        });
+        for (int i = 0; i < Math.min(SURVEY_FOLDERS, top.size()); i++) {
+            String folder = top.get(i).getKey();
+            report.append("\n").append(top.get(i).getValue()).append(" in ").append(folder).append("  e.g. ").append(samples.get(folder));
+        }
+        return report.toString();
+    }
+
+    private static void surveyFolder(File folder, int depth, java.util.Map<String, Integer> endings, java.util.Map<String, Integer> folderCounts,
+                                     java.util.Map<String, String> samples, int[] total) {
+        File[] entries = folder.listFiles();
+        if (entries == null || depth > SURVEY_DEPTH) return;
+        for (File entry : entries) {
+            if (entry.isDirectory()) {
+                surveyFolder(entry, depth + 1, endings, folderCounts, samples, total);
+            } else if (entry.length() > SURVEY_MIN_BYTES) {
+                String name = entry.getName();
+                int dot = name.lastIndexOf('.');
+                String ending = dot >= 0 ? name.substring(dot).toLowerCase(Locale.ROOT) : "(none)";
+                Integer seen = endings.get(ending);
+                endings.put(ending, seen == null ? 1 : seen + 1);
+                String path = folder.getAbsolutePath();
+                Integer inFolder = folderCounts.get(path);
+                folderCounts.put(path, inFolder == null ? 1 : inFolder + 1);
+                if (!samples.containsKey(path)) samples.put(path, name);
+                total[0]++;
+            }
+        }
     }
 
     /** Lower case with only letters and digits (any language) left, so spaces, dashes and brackets never stop a match. */
