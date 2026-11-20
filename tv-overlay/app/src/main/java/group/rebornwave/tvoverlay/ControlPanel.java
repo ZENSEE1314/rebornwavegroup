@@ -102,6 +102,7 @@ final class ControlPanel extends LinearLayout {
     private final ScrollView tablesScroll;
     private final LinearLayout tablesColumn;
     private final LinearLayout middle;
+    private final TextView nowLine; // the song on now and the next one: shown here, on our own screen, and not over the karaoke picture
     private final TextView message;
     private final TextView status;
     private final TextView info;
@@ -127,6 +128,18 @@ final class ControlPanel extends LinearLayout {
         setOrientation(VERTICAL);
         setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{Color.parseColor("#1b0b3a"), Color.parseColor("#080312")}));
         setPadding(dp(16), dp(10), dp(16), 0);
+
+        nowLine = text(context, "", 20, true, GOLD);
+        nowLine.setSingleLine(true);
+        nowLine.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        nowLine.setMarqueeRepeatLimit(-1);
+        nowLine.setSelected(true); // a marquee only scrolls in a selected view
+        nowLine.setPadding(dp(14), dp(6), dp(14), dp(8));
+        nowLine.setBackground(rounded(Color.parseColor(CARD), RADIUS_DP));
+        nowLine.setVisibility(GONE);
+        LinearLayout.LayoutParams nowParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+        nowParams.setMargins(0, 0, 0, dp(6));
+        addView(nowLine, nowParams);
 
         tablesColumn = new LinearLayout(context);
         tablesColumn.setOrientation(VERTICAL);
@@ -175,6 +188,7 @@ final class ControlPanel extends LinearLayout {
 
     /** The tables (as the admin set them, in order) with the songs of each in the queue. Rebuilds only when something changed, keeping the scroll place. */
     void update(List<String> adminTables, QueueClient.Board board) {
+        showNowAndNext(board);
         Map<String, List<QueueClient.Song>> byTable = new LinkedHashMap<String, List<QueueClient.Song>>();
         List<String> names = new ArrayList<String>(adminTables);
         if (names.isEmpty()) for (int number = 1; number <= DEFAULT_TABLES; number++) names.add(String.valueOf(number)); // no tables set up yet: Table 1 to 12
@@ -197,6 +211,22 @@ final class ControlPanel extends LinearLayout {
         tablesScroll.post(new Runnable() {
             @Override public void run() { tablesScroll.scrollTo(0, keep); }
         });
+    }
+
+    private void showNowAndNext(QueueClient.Board board) {
+        StringBuilder line = new StringBuilder();
+        if (board.now != null) line.append("🎤 ").append(Words.t("Now singing: ", "正在演唱：", "Sedang bernyanyi: ")).append(songText(board.now));
+        if (!board.queue.isEmpty()) {
+            if (line.length() > 0) line.append("        ");
+            line.append(Words.t("Next: ", "下一首：", "Berikutnya: ")).append(songText(board.queue.get(0)));
+        }
+        nowLine.setText(line.toString());
+        nowLine.setVisibility(line.length() == 0 ? GONE : VISIBLE);
+    }
+
+    private static String songText(QueueClient.Song song) {
+        String who = song.who();
+        return song.title + (song.artist.isEmpty() ? "" : " — " + song.artist) + (who.isEmpty() ? "" : " (" + who + ")");
     }
 
     /** Shows what the buttons are doing now: muted, paused, the singer's own voice on, and the key change in semitones. */
