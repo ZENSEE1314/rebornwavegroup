@@ -1614,6 +1614,8 @@ async function retryOnDeadlock<T>(job: () => Promise<T>): Promise<T> {
 const STOCK_OUT_REASON_MAX = 200;
 const STOCK_OUT_CORRECTION = "Count correction"; // the one reason that is not a loss of money
 const STOCK_IN_MAX_AGE_MS = 366 * 24 * 60 * 60 * 1000;
+const BOTTLE_SLIP_DIGITS = 5;
+const bottleSlipNo = (id: number) => `BK${String(id).padStart(BOTTLE_SLIP_DIGITS, "0")}`;
 const BOTTLE_HISTORY_ACTIONS = ["store", "collect", "edit"];
 const BOTTLE_HISTORY_LIMIT = 300;
 const STOCK_IN_FUTURE_SLACK_MS = 5 * 60 * 1000;
@@ -5566,7 +5568,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const exp = b.expiresAt ? new Date(b.expiresAt).getTime() : 0;
     const daysLeft = exp ? Math.ceil((exp - now) / DAY_MS) : 0;
     const expired = b.status === "kept" && exp && exp < now;
-    return { ...b, daysLeft, expired, expiringSoon: b.status === "kept" && daysLeft <= 5 && daysLeft > 0 };
+    return { ...b, slipNo: bottleSlipNo(b.id), daysLeft, expired, expiringSoon: b.status === "kept" && daysLeft <= 5 && daysLeft > 0 };
   };
   // Staff store an unfinished bottle for a member (beer = quantity; whisky = photo of level).
   app.post("/api/reborn/pos/bottle-keep", requireStaff(async (req, res) => {
@@ -5602,7 +5604,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   app.get("/api/reborn/pos/bottle-keeps", requireStaff(async (req, res) => {
     const q = String(req.query.q || "").trim();
     let rows = await db.select().from(bottleKeeps).where(eq(bottleKeeps.status, "kept")).orderBy(bottleKeeps.expiresAt).limit(200);
-    if (q) rows = rows.filter((r) => [r.memberName, r.memberCode, r.name].some((v) => (v || "").toLowerCase().includes(q.toLowerCase())));
+    // The number on the customer's slip (BK00012, or just 12 from a scanner or the keyboard) finds the bottle too.
+    if (q) rows = rows.filter((r) => [r.memberName, r.memberCode, r.name, bottleSlipNo(r.id)].some((v) => (v || "").toLowerCase().includes(q.toLowerCase())));
     res.json(rows.map(bottleView));
   }));
   // Admin: correct a kept bottle: the drink's name and who it belongs to (a member found by code / card / username / email gets it on their account, a typed name is just a name).

@@ -244,6 +244,27 @@ export function printQrSlip(title: string, subtitle: string, parts: Array<{ svg:
   const body = parts.map((part) => `<div class="c qr">${part.svg}<div class="b" style="font-size:13px;margin:2px 0 10px;">${esc(part.label)}</div></div>`).join("");
   return printDoc(`<div class="c"><div class="name">${esc(title)}</div>${subtitle ? `<div class="muted">${esc(subtitle)}</div>` : ""}</div><hr/>${body}`, `qr-${title}`);
 }
+export interface BottleSlip { slipNo: string; name: string; quantity: number; memberName?: string | null; type?: string | null; note?: string | null; storedAt?: string | null; expiresAt?: string | null }
+// The slip the customer keeps for a bottle left with us: what, whose, until when, and the number (also as a QR) that staff type or scan to find the bottle and redeem it.
+export function printBottleSlip(b: BottleSlip, meta: ReceiptMeta = {}) {
+  const day = (value?: string | null) => (value ? new Date(value).toLocaleDateString(localeTag()) : "");
+  const row = (label: string, value: string) => (value ? `<div class="row"><span>${esc(label)}</span><span class="b">${esc(value)}</span></div>` : "");
+  const body = `
+    <div class="c"><div class="name">${esc(meta.clubName || "Reborn Wave Group")}</div><div class="mode">${esc(tr("pos.bk.title"))}</div></div>
+    <hr/>
+    ${row(tr("pos.bk.no"), b.slipNo)}
+    ${row(tr("pos.bk.customer"), b.memberName || "")}
+    ${row(tr("pos.bk.drink"), b.name)}
+    ${row(tr("pos.bk.qty"), String(b.quantity))}
+    ${row(tr("pos.bk.stored"), day(b.storedAt))}
+    ${row(tr("pos.bk.until"), day(b.expiresAt))}
+    ${b.note ? `<div class="muted">${esc(b.note)}</div>` : ""}
+    <hr/>
+    <div class="c qr">${qrSvgNow(b.slipNo)}<div class="b" style="font-size:15px;margin-top:2px;">${esc(b.slipNo)}</div></div>
+    <div class="c muted">${esc(tr("pos.bk.howTo"))}</div>
+  `;
+  return printDoc(body, `Bottle_${b.slipNo}`);
+}
 // A short slip with a ruler, to set the roll width and shift on this PC.
 // The ruler is printed across the whole head (0–80 mm): the first and last number the cashier can read are where the roll starts and ends.
 const RULER_MM = 80;

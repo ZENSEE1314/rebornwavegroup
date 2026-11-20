@@ -16,7 +16,7 @@ import { LineCommissionPick } from "@/components/LineCommissionPick";
 import { MemberSearchBox } from "@/components/MemberSearchBox";
 import { StaffPriceCaps } from "@/components/StaffPriceCaps";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
-import { printClosingReport, printReceipt, printBill, printOnAccountBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
+import { printBottleSlip, printClosingReport, printReceipt, printBill, printOnAccountBill, printKitchen, printPaperTest, getReceiptPaper, saveReceiptPaper, getReceiptCopies, saveReceiptCopies, syncReceiptSettings } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
 import ReceiptScan from "@/components/ReceiptScan";
 import { useTranslation, translate, localeTag } from "@/lib/i18n";
@@ -1353,7 +1353,7 @@ function BottlesTab() {
   });
   const store = useMutation({
     mutationFn: () => post("/api/reborn/pos/bottle-keep", { ...f, isOwn, ...(corkage.productId ? { corkage: { productId: Number(corkage.productId), tableNumber: corkage.tableNumber } } : {}) }),
-    onSuccess: (d) => { toast({ title: d.message }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setCorkage({ productId: "", tableNumber: "" }); setSelectedMember(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
+    onSuccess: (d) => { toast({ title: d.message }); if (d.bottle && !printBottleSlip(d.bottle, savedReceiptMeta())) toast({ title: t("pos.bk.noPrinter") }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setCorkage({ productId: "", tableNumber: "" }); setSelectedMember(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   const collect = useMutation({
@@ -1417,10 +1417,11 @@ function BottlesTab() {
                 : <span className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0"><Wine className="w-6 h-6 text-amber-300" /></span>}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm truncate">{b.name} <span className="text-white/40">×{b.quantity}</span></p>
-                <p className="text-xs text-white/50 truncate">{b.memberName} · {tOr(t, `pos.bottleType.${b.type}`, b.type)}</p>
+                <p className="text-xs text-white/50 truncate">{b.memberName} · {tOr(t, `pos.bottleType.${b.type}`, b.type)} · {b.slipNo}</p>
                 <p className={`text-[11px] ${b.daysLeft <= 5 ? "text-amber-300" : "text-white/40"}`}>{t("pos.daysLeft", { n: b.daysLeft })}</p>
               </div>
               <div className="flex flex-shrink-0 flex-col gap-1">
+                <button onClick={() => printBottleSlip(b, savedReceiptMeta())} className="px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-sm font-semibold">🧾 {t("pos.bk.print")}</button>
                 <button onClick={() => collect.mutate({ id: b.id, quantity: 1 })} disabled={collect.isPending} className="px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-sm font-semibold">{t("pos.collect")}</button>
                 {b.quantity > 1 && <button onClick={() => collect.mutate({ id: b.id, quantity: b.quantity })} disabled={collect.isPending} className="px-3 py-2 rounded-xl bg-emerald-500 text-black text-sm font-bold">{t("pos.collectAll", { n: b.quantity })}</button>}
               </div>

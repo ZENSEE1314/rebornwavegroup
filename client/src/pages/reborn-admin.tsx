@@ -1,4 +1,6 @@
 import { EditKeptBottle } from "@/components/EditKeptBottle";
+import { printBottleSlip } from "@/lib/receipt";
+import { savedReceiptMeta } from "@/lib/offline-sales";
 import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { useState, useEffect, useRef, lazy, Suspense, Fragment } from "react";
 import { createPortal } from "react-dom";
@@ -3442,6 +3444,7 @@ function AddKeptBottle() {
     mutationFn: () => apiRequest("POST", "/api/reborn/pos/bottle-keep", { memberCode: member ? member.code || member.email || member.username || member.id : "", guestName: member ? undefined : search.trim(), ...f, note: ["After the bill", f.note].filter(Boolean).join(" · ") }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
     onSuccess: (d: any) => {
       toast({ title: d.message || t("admin.c.saved") });
+      if (d.bottle && !printBottleSlip(d.bottle, savedReceiptMeta())) toast({ title: t("pos.bk.noPrinter") });
       setF({ type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setMember(null); setSearch("");
       qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] });
     },
@@ -3497,12 +3500,13 @@ function AdminBottles() {
           {b.photoUrl ? <img src={b.photoUrl} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" /> : <span className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0"><Wine className="w-5 h-5 text-amber-300" /></span>}
           <div className="min-w-[10rem] flex-1">
             <p className="text-sm font-semibold break-words">{b.name} <span className="text-white/40 text-xs capitalize">· {tv(t, "admin.bot.type." + b.type, b.type)}</span></p>
-            <p className="mt-0.5"><span className="inline-block rounded-md bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-200">{t("admin.bot.left", { n: b.quantity })}</span></p>
+            <p className="mt-0.5"><span className="inline-block rounded-md bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-200">{t("admin.bot.left", { n: b.quantity })}</span> <span className="text-[11px] text-white/40">{b.slipNo}</span></p>
             <p className="text-[11px] text-white/40 break-words">{b.memberName || "—"}{b.memberCode ? ` · ${b.memberCode}` : ""}{b.expiresAt ? ` · ${t("admin.bot.exp", { d: new Date(b.expiresAt).toLocaleDateString(localeTag()) })}` : ""}</p>
           </div>
           <div className="flex w-full flex-wrap items-center gap-2">
           <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate({ id: b.id, quantity: 1 }); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeem")}</button>
           {b.quantity > 1 && <button onClick={() => { if (confirm(t("admin.bot.confirm", { name: b.name, member: b.memberName || t("admin.bot.customer") }))) collect.mutate({ id: b.id, quantity: b.quantity }); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> {t("admin.bot.redeemAll", { n: b.quantity })}</button>}
+          <button onClick={() => printBottleSlip(b, savedReceiptMeta())} className={btnSave + " flex-shrink-0"}>🧾 {t("pos.bk.print")}</button>
           <EditKeptBottle bottle={b} />
           </div>
         </div>
