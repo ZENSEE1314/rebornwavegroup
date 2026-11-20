@@ -275,13 +275,13 @@ final class BoxServlets {
     }
 
     /** Presses a button of the box's own player: "Mute", "Music_up", "Music_down", "Tone_up", "Tone_down", "Play", "Reset", "MuOr", "Skip" ... */
-    static void command(String base, String button) throws Exception {
-        command(base, button, "");
+    static String command(String base, String button) throws Exception {
+        return command(base, button, "");
     }
 
     /** The same with a value: "Add1" with a song number orders that song on the box, "Del1" with the box's number of a waiting song removes it. */
-    static void command(String base, String button, String value) throws Exception {
-        text(base + "/CommandServlet?cmd=" + enc(button) + "&cmdValue=" + enc(value) + "&jsonpCallback=" + CALLBACK, CALL_MS);
+    static String command(String base, String button, String value) throws Exception {
+        return text(base + "/CommandServlet?cmd=" + enc(button) + "&cmdValue=" + enc(value) + "&jsonpCallback=" + CALLBACK, CALL_MS);
     }
 
     private static List<SongPick> picks(JSONArray songs, boolean includeCloud) {

@@ -78,6 +78,11 @@ final class GiftView extends FrameLayout {
     private static final int TOP_PANEL_MARGIN_PX = 32;
     private static final float TOP_PANEL_MAX_WIDTH_FRACTION = 0.26f;
     private static final String[] MEDALS = {"🥇", "🥈", "🥉"};
+    private static final int[] MEDAL_COLOURS = {Color.parseColor("#f7d774"), Color.parseColor("#d1d5db"), Color.parseColor("#d97706")};
+    private static final int FACE_PX = 72;
+    private static final int FACE_RING_PX = 5;
+    private static final int TOP_ROW_GAP_PX = 8;
+    private static final int FACE_LETTER_SP = 30;
     private static final long HALO_PULSE_MS = 900;
     private static final int HALO_COLOUR = Color.argb(150, 252, 211, 77);
 
@@ -203,17 +208,74 @@ final class GiftView extends FrameLayout {
         title.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
         panel.addView(title);
         for (int i = 0; i < gift.topGifters.size() && i < MEDALS.length; i++) {
-            TextView row = text(MEDALS[i] + " " + gift.topGifters.get(i), TOP_NAME_SP, true);
-            row.setGravity(Gravity.START);
-            row.setSingleLine(true);
-            row.setEllipsize(TextUtils.TruncateAt.END);
-            row.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
+            String[] giver = gift.topGifters.get(i);
+            LinearLayout row = new LinearLayout(getContext());
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, TOP_ROW_GAP_PX, 0, 0);
+            row.addView(face(giver[0], giver[1], MEDAL_COLOURS[i]));
+            TextView name = text(MEDALS[i] + " " + giver[0], TOP_NAME_SP, true);
+            name.setGravity(Gravity.START);
+            name.setSingleLine(true);
+            name.setEllipsize(TextUtils.TruncateAt.END);
+            name.setPadding(TOP_ROW_GAP_PX * 2, 0, 0, 0);
+            name.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
+            row.addView(name);
             panel.addView(row);
         }
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | side);
         params.topMargin = TOP_PANEL_TOP_PX;
         if (side == Gravity.START) params.leftMargin = TOP_PANEL_MARGIN_PX; else params.rightMargin = TOP_PANEL_MARGIN_PX;
         stage.addView(panel, params);
+    }
+
+    /** A round picture of a giver inside a gold / silver / bronze ring: their first letter until the picture has loaded (or when they have none). */
+    private View face(String name, final String photo, int ring) {
+        final FrameLayout frame = new FrameLayout(getContext());
+        GradientDrawable disc = new GradientDrawable();
+        disc.setShape(GradientDrawable.OVAL);
+        disc.setColor(Color.argb(200, 90, 90, 110));
+        disc.setStroke(FACE_RING_PX, ring);
+        frame.setBackground(disc);
+        frame.setClipToOutline(true);
+        frame.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
+        frame.addView(text(name.isEmpty() ? "?" : name.substring(0, name.offsetByCodePoints(0, 1)).toUpperCase(), FACE_LETTER_SP, true),
+                new FrameLayout.LayoutParams(FACE_PX, FACE_PX, Gravity.CENTER));
+        frame.setLayoutParams(new LinearLayout.LayoutParams(FACE_PX, FACE_PX));
+        if (photo != null && !photo.isEmpty()) {
+            new Thread(new Runnable() {
+                @Override public void run() {
+                    final Bitmap bitmap = faceBitmap(photo);
+                    if (bitmap == null) return;
+                    handler.post(new Runnable() {
+                        @Override public void run() {
+                            if (closed || frame.getParent() == null) return;
+                            ImageView picture = new ImageView(getContext());
+                            picture.setImageBitmap(bitmap);
+                            picture.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                            frame.addView(picture, new FrameLayout.LayoutParams(FACE_PX, FACE_PX));
+                        }
+                    });
+                }
+            }, "gift-face").start();
+        }
+        return frame;
+    }
+
+    /** A member's picture: a full web address, a path on the app's own server, or the picture itself inside the address (data:image/…;base64,…). */
+    private Bitmap faceBitmap(String photo) {
+        try {
+            if (photo.startsWith("data:")) {
+                int comma = photo.indexOf(',');
+                if (comma < 0) return null;
+                byte[] bytes = android.util.Base64.decode(photo.substring(comma + 1), android.util.Base64.DEFAULT);
+                return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+            }
+            if (photo.startsWith("/")) return fetch(Link.server(getContext()) + photo);
+            return fetch(photo);
+        } catch (Exception unreadable) {
+            return null;
+        }
     }
 
     /** The sender, the receiver, the gift and its KGOLD as one line on a see-through grey strip that slides across the screen from left to right. */

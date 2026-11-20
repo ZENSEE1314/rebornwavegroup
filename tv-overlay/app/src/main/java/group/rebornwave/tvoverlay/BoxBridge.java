@@ -92,7 +92,8 @@ final class BoxBridge {
             BoxServlets.command(box, "MuOr");
             boxVocalOriginal = wantOriginal;
         }
-        BoxServlets.command(box, "Add1", code);
+        String answer = BoxServlets.command(box, "Add1", code);
+        OverlayLog.add("box: Add1 " + code + " answered: " + (answer.length() > 160 ? answer.substring(0, 160) : answer));
         orderedId = now.id;
         orderedAt = System.currentTimeMillis();
         seenBusy = false;
