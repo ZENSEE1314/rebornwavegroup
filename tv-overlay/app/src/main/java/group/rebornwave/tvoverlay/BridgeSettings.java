@@ -55,10 +55,10 @@ final class BridgeSettings {
 
     /**
      * False (the default) leaves out the box's cloud songs (kept in the cloud, not stored on the box); true lists them too. When this app plays the
-     * videos itself a cloud song has no file to play, so they stay out whatever was chosen.
+     * videos itself they are always listed: most common songs are marked cloud, and a request is refused with the song's number only when no video file exists.
      */
     static boolean isShowCloud(Context context) {
-        return isBoxPlayback(context) && prefs(context).getBoolean(KEY_SHOW_CLOUD, false);
+        return !isBoxPlayback(context) || prefs(context).getBoolean(KEY_SHOW_CLOUD, false);
     }
 
     static void saveShowCloud(Context context, boolean show) {

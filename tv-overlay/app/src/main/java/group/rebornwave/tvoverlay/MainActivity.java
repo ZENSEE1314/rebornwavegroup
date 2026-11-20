@@ -321,7 +321,7 @@ public class MainActivity extends Activity {
 
     private void showCloudSetting(Button button) {
         if (!BridgeSettings.isBoxPlayback(this)) {
-            button.setText(t("Cloud songs: not used while this app plays the videos (a cloud song has no file on the box)", "云端歌曲：本应用播放时不使用（云端歌曲在本机没有文件）", "Lagu cloud: tidak dipakai saat aplikasi ini memutar video (lagu cloud tidak punya file di mesin)"));
+            button.setText(t("Cloud songs: always listed while this app plays the videos (a song with no file on the box says so when chosen)", "云端歌曲：本应用播放时一律列出（本机没有文件的歌曲点选时会提示）", "Lagu cloud: selalu ditampilkan saat aplikasi ini memutar video (lagu tanpa file di mesin akan diberi tahu saat dipilih)"));
             return;
         }
         button.setText(BridgeSettings.isShowCloud(this)

@@ -68,6 +68,7 @@ public class PlayerActivity extends Activity {
     private TvFeed feed;
     private ExoPlayer player;
     private boolean boxMode = true; // true: the box's own program plays the songs and this app is its touch screen; false: this app plays the videos itself
+    private String playerNote = ""; // what this app's own player last did, for the status line of the touch screen
     private boolean boxCatalog = true; // songs are searched in the box's own song list (its numbers match the video files' names)
     private int boxNowId = 0; // the song on now in the app's queue (box mode), for the Skip button
     private volatile boolean alive = false;
@@ -147,9 +148,9 @@ public class PlayerActivity extends Activity {
         @Override public String onRequest(String table, SongPick pick) throws Exception {
             boolean hasNoVideo = !boxMode && !pick.isYoutube() && songFiles.count() > 0 && songFiles.byCode(pick.code) == null && songFiles.find(pick.title, pick.artist) == null;
             if (hasNoVideo) { // a song kept in the cloud has no file on this box: say so now instead of skipping it later
-                return Words.t("\"" + pick.title + "\" is not stored on this box — please pick another",
-                        "“" + pick.title + "”不在本机，请选别的歌",
-                        "\"" + pick.title + "\" tidak tersimpan di perangkat ini — pilih lagu lain");
+                return Words.t("\"" + pick.title + "\" (song " + pick.code + ") has no video on this box among " + songFiles.count() + " — please pick another",
+                        "“" + pick.title + "”（编号 " + pick.code + "）在本机 " + songFiles.count() + " 个视频中没有文件，请选别的歌",
+                        "\"" + pick.title + "\" (lagu " + pick.code + ") tidak ada videonya di perangkat ini dari " + songFiles.count() + " — pilih lagu lain");
             }
             int place = client.request(table, pick);
             return Words.t("Added \"" + pick.title + "\" for Table " + table + (place > 0 ? " — place " + place : ""),
@@ -199,6 +200,7 @@ public class PlayerActivity extends Activity {
         player = new ExoPlayer.Builder(this, voice.renderers()).build();
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int playbackState) {
+                if (playbackState == Player.STATE_READY && !onYoutube) playerNote = "playing " + playerNote.replace("opening ", "");
                 if (playbackState == Player.STATE_ENDED && !onYoutube) finishSong(false);
             }
 
@@ -208,6 +210,8 @@ public class PlayerActivity extends Activity {
 
             @Override public void onPlayerError(PlaybackException error) {
                 if (onYoutube) return;
+                playerNote = "ERROR " + error.getErrorCodeName() + " on " + playerNote.replace("opening ", "").replace("playing ", "");
+                OverlayLog.add("player: " + playerNote + " — " + error.getMessage());
                 stage.flash(Words.t("This video cannot be played — skipping", "无法播放此视频，已跳过", "Video tidak bisa diputar — dilewati"));
                 finishSong(true);
             }
@@ -558,6 +562,7 @@ public class PlayerActivity extends Activity {
             @Override public void run() {
                 for (String command : pressed) handleButton(command);
                 onBoard(shown);
+                panel.setInfo("Player: " + songFiles.count() + " videos found · " + (playerNote.isEmpty() ? "idle" : playerNote));
             }
         });
     }
@@ -634,10 +639,12 @@ public class PlayerActivity extends Activity {
         SongFiles.LocalSong local = song.karaokeCode.isEmpty() ? null : songFiles.byCode(song.karaokeCode);
         if (local == null) local = songFiles.find(song.title, song.artist);
         if (local == null) {
+            playerNote = "no file for song " + song.karaokeCode + " (" + song.title + ")";
             skipSoon(Words.t("No video for \"" + song.title + "\" on this box — skipping", "本机没有“" + song.title + "”的视频，已跳过", "Tidak ada video \"" + song.title + "\" di perangkat ini — dilewati"));
             return;
         }
         stage.showPlaying(song, next);
+        playerNote = "opening " + local.file.getName() + " (" + (local.file.length() / (1024 * 1024)) + " MB)";
         player.setMediaItem(MediaItem.fromUri(Uri.fromFile(local.file)));
         player.prepare();
         applyPlayState();
