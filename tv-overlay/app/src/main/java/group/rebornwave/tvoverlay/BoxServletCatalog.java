@@ -12,11 +12,11 @@ import java.util.List;
  */
 final class BoxServletCatalog implements ControlPanel.Catalog {
     // Most of the box's list is kept in the cloud and left out, so only a few songs of each 15-song page are on the box: read several pages.
-    private static final int SEARCH_PAGES = 6;
+    private static final int SEARCH_PAGES = 12;
     private static final int SINGER_PAGES = 8;
-    private static final int SINGER_SONG_PAGES = 8;
+    private static final int SINGER_SONG_PAGES = 12;
     private static final int NEW_PAGES = 8;
-    private static final int MAX_SONGS = 60;
+    private static final int MAX_SONGS = 180;
 
     private final Context context;
     private final QueueClient client;
@@ -56,11 +56,11 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     }
 
     @Override
-    public List<String> singers() throws Exception {
+    public List<String> singers(String text) throws Exception {
         String base = box();
         List<String> names = new ArrayList<String>();
         for (int page = 1; page <= SINGER_PAGES; page++) {
-            List<String[]> onPage = BoxServlets.singers(base, page);
+            List<String[]> onPage = BoxServlets.singers(base, page, text);
             if (onPage.isEmpty()) break;
             for (String[] singer : onPage) {
                 names.add(singer[0]);

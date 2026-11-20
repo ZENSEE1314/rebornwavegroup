@@ -14,8 +14,8 @@ final class BridgeSettings {
     private static final String KEY_TENANT = "tenant";
     private static final String KEY_BOX = "box";
     private static final String KEY_PLAYER = "player";
-    // A new key name so every box starts again from the default: this app plays the box's own song files (the box's program showed words but never played).
-    private static final String KEY_BOX_PLAYBACK = "boxPlayback3";
+    // A new key name so every box starts again from the default: the box's own program plays (it downloads cloud songs when they are ordered).
+    private static final String KEY_BOX_PLAYBACK = "boxPlayback4";
     private static final String KEY_SHOW_CLOUD = "showCloud";
     private static final String KEY_VOICE_FIRST = "voiceFirst";
     private static final String KEY_CHANNEL_VOICE = "channelVoice";
@@ -54,11 +54,11 @@ final class BridgeSettings {
     }
 
     /**
-     * False (the default) leaves out the box's cloud songs (kept in the cloud, not stored on the box); true lists them too. When this app plays the
-     * videos itself they are always listed: most common songs are marked cloud, and a request is refused with the song's number only when no video file exists.
+     * True (the default) lists the box's cloud songs too: the box downloads one when it is ordered, and most common songs are cloud songs. When this app
+     * plays the videos itself they are always listed, and a request is refused with the song's number only when no video file exists.
      */
     static boolean isShowCloud(Context context) {
-        return !isBoxPlayback(context) || prefs(context).getBoolean(KEY_SHOW_CLOUD, false);
+        return !isBoxPlayback(context) || prefs(context).getBoolean(KEY_SHOW_CLOUD, true);
     }
 
     static void saveShowCloud(Context context, boolean show) {
@@ -97,9 +97,9 @@ final class BridgeSettings {
         return prefs(context).getString(KEY_BOX, "");
     }
 
-    /** True when the box's own program plays the songs and this app is its touch screen; false (the default) when this app plays the video files itself. */
+    /** True (the default) when the box's own program plays the songs and this app is its touch screen; false when this app plays the video files itself. */
     static boolean isBoxPlayback(Context context) {
-        return prefs(context).getBoolean(KEY_BOX_PLAYBACK, false);
+        return prefs(context).getBoolean(KEY_BOX_PLAYBACK, true);
     }
 
     static void saveBoxPlayback(Context context, boolean boxPlays) {

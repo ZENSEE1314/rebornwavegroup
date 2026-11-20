@@ -37,7 +37,8 @@ final class ControlPanel extends LinearLayout {
     interface Catalog {
         List<SongPick> search(String text) throws Exception;
 
-        List<String> singers() throws Exception;
+        /** The singers whose name (or pinyin letters) holds the text; with no text, the first ones of the list. */
+        List<String> singers(String text) throws Exception;
 
         List<SongPick> songsOf(String singer) throws Exception;
 
@@ -404,6 +405,7 @@ final class ControlPanel extends LinearLayout {
 
     private LinearLayout listArea;
     private boolean serverSearchPage = false; // the song-title page asks the box for what is typed; the other pages only filter the list that is shown
+    private boolean singerSearchPage = false; // on the singers page what is typed is asked of the box (it has ~28,000 singers, far more than a page shows)
     private boolean showingSingers = false;
     private List<SongPick> loadedPicks = new ArrayList<SongPick>();
     private List<String> loadedSingers = new ArrayList<String>();
@@ -420,6 +422,7 @@ final class ControlPanel extends LinearLayout {
     private void showListPage(String title, final Runnable back, boolean serverSearch) {
         showTables(false);
         serverSearchPage = serverSearch;
+        singerSearchPage = false;
         typed.setLength(0);
         language = LANGUAGE_ALL;
         length = LENGTH_ANY;
@@ -616,8 +619,10 @@ final class ControlPanel extends LinearLayout {
         if (way == Way.TITLE) {
             showListPage(Words.t("Song title", "歌名", "Judul lagu"), backToWays, true);
         } else if (way == Way.SINGERS) {
-            showListPage(Words.t("Singers", "歌手", "Penyanyi"), backToWays, false);
-            loadSingers();
+            showListPage(Words.t("Singers", "歌手", "Penyanyi"), backToWays, true);
+            singerSearchPage = true;
+            showTypedText();
+            loadSingers("");
         } else {
             showListPage(way == Way.TOP ? Words.t("Top songs", "热门歌曲", "Lagu terpopuler") : Words.t("New songs", "新歌", "Lagu baru"), backToWays, false);
             loadPicks(way);
@@ -625,10 +630,13 @@ final class ControlPanel extends LinearLayout {
     }
 
     private final Runnable searchNow = new Runnable() {
-        @Override public void run() { loadSearch(typed.toString().trim()); }
+        @Override public void run() {
+            if (singerSearchPage) loadSingers(typed.toString().trim());
+            else loadSearch(typed.toString().trim());
+        }
     };
 
-    /** Typing: the song-title page asks the box a moment after the last key; the other pages filter the list at once. */
+    /** Typing: the song-title and singer pages ask the box a moment after the last key; the other pages filter the list at once. */
     private void typedChanged() {
         showTypedText();
         if (serverSearchPage) {
@@ -641,7 +649,8 @@ final class ControlPanel extends LinearLayout {
 
     private void showTypedText() {
         boolean isEmpty = typed.length() == 0;
-        String placeholder = serverSearchPage ? Words.t("Type the song name", "输入歌名", "Ketik judul lagu") : Words.t("Tap to filter by a word", "点击输入关键词筛选", "Ketuk untuk memfilter kata");
+        String placeholder = singerSearchPage ? Words.t("Type the singer's name or letters", "输入歌手名或拼音字母", "Ketik nama penyanyi atau huruf")
+                : serverSearchPage ? Words.t("Type the song name", "输入歌名", "Ketik judul lagu") :Words.t("Tap to filter by a word", "点击输入关键词筛选", "Ketuk untuk memfilter kata");
         searchBox.setText("🔍  " + (isEmpty ? placeholder : typed.toString() + "▏"));
         searchBox.setTextColor(Color.parseColor(isEmpty ? "#99ffffff" : "#ffffff"));
     }
@@ -667,12 +676,13 @@ final class ControlPanel extends LinearLayout {
         }, mine);
     }
 
-    private void loadSingers() {
+    private void loadSingers(final String text) {
         final int mine = ++loadId;
+        listArea.removeAllViews();
         listArea.addView(text(getContext(), Words.t("Loading…", "加载中…", "Memuat…"), 20, false, SOFT));
         runOffScreen(new Task() {
             @Override public void run() throws Exception {
-                final List<String> names = catalog.singers();
+                final List<String> names = catalog.singers(text);
                 postIfCurrent(mine, new Runnable() { @Override public void run() { fillSingers(names); } });
             }
         }, mine);
@@ -769,7 +779,7 @@ final class ControlPanel extends LinearLayout {
             if (!wanted.isEmpty() && !SongFiles.squash(pick.title + " " + pick.artist).contains(wanted)) continue;
             if (!matchesLanguage(pick.title, pick.artist) || !matchesLength(pick.title)) continue;
             shown++;
-            listArea.addView(row(pick.isYoutube() ? "▶" : "🎵", "", pick, pick.title, pick.artist, Words.t("Sing", "点唱", "Nyanyi"), new Runnable() {
+            listArea.addView(row(pick.isYoutube() ? "▶" : "🎵", "", pick, (pick.cloud ? "☁ " : "") + pick.title, pick.artist, Words.t("Sing", "点唱", "Nyanyi"), new Runnable() {
                 @Override public void run() { request(pick); }
             }));
         }

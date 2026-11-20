@@ -54,11 +54,12 @@ final class BoxCatalog implements ControlPanel.Catalog {
     }
 
     @Override
-    public List<String> singers() {
+    public List<String> singers(String text) {
         files.refreshIfOld();
+        String wanted = SongFiles.squash(text);
         final Map<String, Integer> counts = new HashMap<String, Integer>();
         for (SongFiles.LocalSong song : files.all()) {
-            if (song.artist.isEmpty()) continue;
+            if (song.artist.isEmpty() || (!wanted.isEmpty() && !SongFiles.squash(song.artist).contains(wanted))) continue;
             Integer have = counts.get(song.artist);
             counts.put(song.artist, have == null ? 1 : have + 1);
         }

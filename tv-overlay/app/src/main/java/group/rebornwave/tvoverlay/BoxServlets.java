@@ -236,11 +236,20 @@ final class BoxServlets {
 
     /** One page of the box's singers: { name, photo address or "" }. */
     static List<String[]> singers(String base, int page) throws Exception {
-        return singersPage(base, page).singers;
+        return singersPage(base, page, "").singers;
+    }
+
+    static List<String[]> singers(String base, int page, String text) throws Exception {
+        return singersPage(base, page, text).singers;
     }
 
     static SingerPage singersPage(String base, int page) throws Exception {
-        JSONObject answer = call(base, "SingerServlet", "singer=&singerType=&sortType=&page=" + page);
+        return singersPage(base, page, "");
+    }
+
+    /** One page of the singers whose name (or pinyin letters) holds `text`; the box's own singer list is ~28,000 long, so a typed name is asked of the box. */
+    static SingerPage singersPage(String base, int page, String text) throws Exception {
+        JSONObject answer = call(base, "SingerServlet", "singer=" + enc(text) + "&singerType=&sortType=&page=" + page);
         // Like the song list, the singer list comes as a JSON text inside the answer.
         Object raw = answer.opt("singerList");
         JSONArray list = raw instanceof JSONArray ? (JSONArray) raw : (raw == null ? null : new JSONArray(String.valueOf(raw)));
@@ -291,7 +300,7 @@ final class BoxServlets {
             if (song == null || (!includeCloud && song.optInt("cLOUD") == 1)) continue;
             String code = song.optString("sONGBM");
             if (code.isEmpty() || song.optString("sONGNAME").isEmpty()) continue;
-            list.add(new SongPick(code, song.optString("sONGNAME"), singerOf(song.optString("sINGER"))));
+            list.add(new SongPick(code, song.optString("sONGNAME"), singerOf(song.optString("sINGER")), song.optInt("cLOUD") == 1));
         }
         return list;
     }
