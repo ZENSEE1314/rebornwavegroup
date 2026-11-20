@@ -110,7 +110,6 @@ final class GiftView extends FrameLayout {
         bar.setBackgroundColor(Color.BLACK);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(24, 12, 24, 12);
-        bar.setVisibility(View.GONE);
         GiftArt.prefetch(context);
         stage = new FrameLayout(context);
         addView(stage, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
@@ -118,8 +117,7 @@ final class GiftView extends FrameLayout {
     }
 
     void setBar(String text) {
-        bar.setText(text);
-        bar.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
+        bar.setText(text); // the strip stays even with no words, so the karaoke program's own Playing / Next line never shows through
     }
 
     void play(TvFeed.Gift gift) {
