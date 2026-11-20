@@ -278,6 +278,9 @@ public class PlayerActivity extends Activity {
                     String base = BoxServlets.find(PlayerActivity.this);
                     if (base.isEmpty()) throw new java.io.IOException("box not found");
                     BoxServlets.command(base, button);
+                    ui.post(new Runnable() {
+                        @Override public void run() { panel.flash(Words.t("Sent to the box: " + button, "已发送到点歌机：" + button, "Dikirim ke mesin: " + button)); }
+                    });
                 } catch (Exception failure) {
                     OverlayLog.add("box button " + button + ": " + failure.getMessage());
                     ui.post(new Runnable() {
@@ -304,7 +307,10 @@ public class PlayerActivity extends Activity {
     /** Skip in box mode: the app's queue moves on and the connector cuts the song on the box. */
     private void skipAtBox() {
         final int id = boxNowId;
-        if (id == 0) return;
+        if (id == 0) { // no song of the app is on (a song ordered on the box itself, or none yet): cut what the box is playing
+            boxButton("Skip");
+            return;
+        }
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
