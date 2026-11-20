@@ -78,8 +78,6 @@ final class ControlPanel extends LinearLayout {
     private static final String CARD_ON = "#55fcd34d";
     private static final String SOFT = "#d9ccff";
     private static final int COLUMNS = 4;
-    private static final int TABLES_HEIGHT_DP = 300;
-    private static final int TABLES_WITH_KEYBOARD_DP = 110; // the tables shrink on the song-title page, so the results, search bar and keyboard fit
     private static final int SEARCH_WIDTH_DP = 380;
     private static final int PHOTO_DP = 56;
     private static final int BOX_HEIGHT_DP = 132;
@@ -116,7 +114,6 @@ final class ControlPanel extends LinearLayout {
     private Map<String, List<QueueClient.Song>> songsByTable = new LinkedHashMap<String, List<QueueClient.Song>>();
     private int loadId = 0;
     private final Map<String, LinearLayout> boxViews = new HashMap<String, LinearLayout>();
-    private int tablesDp = TABLES_HEIGHT_DP;
     private final SingerPhotos photos;
     private final StringBuilder typed = new StringBuilder();
     private TextView searchBox;
@@ -136,7 +133,7 @@ final class ControlPanel extends LinearLayout {
         tablesScroll.setVerticalScrollBarEnabled(true);
         tablesScroll.setScrollbarFadingEnabled(false);
         tablesScroll.addView(tablesColumn);
-        addView(tablesScroll, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(TABLES_HEIGHT_DP)));
+        addView(tablesScroll, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
 
         middle = new LinearLayout(context);
         middle.setOrientation(VERTICAL);
@@ -346,25 +343,50 @@ final class ControlPanel extends LinearLayout {
 
     // ---- the middle: home, the four ways, the song list ----
 
+    /** The front page: every table fills the screen, nothing else. Choosing a table hides them and opens the song pages; their Tables button comes back here. */
     private void showHome() {
+        String previous = selected;
+        selected = null;
+        highlight(previous);
+        loadId++;
         middle.removeAllViews();
-        setTablesHeight(TABLES_HEIGHT_DP);
-        TextView hint = text(getContext(), "👆  " + Words.t("Tap a table to choose songs for it", "点一下桌子，为它点歌", "Ketuk meja untuk memilih lagu"), 30, true, GOLD);
-        hint.setGravity(Gravity.CENTER);
-        middle.addView(hint, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        showTables(true);
+    }
+
+    private void showTables(boolean shown) {
+        tablesScroll.setVisibility(shown ? VISIBLE : GONE);
+        middle.setVisibility(shown ? GONE : VISIBLE);
+    }
+
+    private TextView tablesButton() {
+        TextView home = text(getContext(), "🏠 " + Words.t("Tables", "桌子", "Meja"), 18, false, "#ffffff");
+        home.setPadding(dp(18), dp(8), dp(18), dp(8));
+        home.setBackground(rounded(Color.parseColor(CARD), RADIUS_DP + 8));
+        home.setOnClickListener(new OnClickListener() {
+            @Override public void onClick(View view) { showHome(); }
+        });
+        return home;
     }
 
     private void showChoose() {
         loadId++;
         middle.removeAllViews();
-        setTablesHeight(TABLES_HEIGHT_DP);
+        showTables(false);
+        LinearLayout top = new LinearLayout(getContext());
+        top.setOrientation(HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.addView(tablesButton());
+        TextView which = text(getContext(), Words.t("Table ", "桌 ", "Meja ") + selected, 22, true, GOLD);
+        which.setPadding(dp(14), 0, dp(14), 0);
+        top.addView(which);
+        middle.addView(top, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         LinearLayout ways = new LinearLayout(getContext());
         ways.setOrientation(HORIZONTAL);
         ways.addView(wayButton("🎤", Words.t("Singers", "歌手", "Penyanyi"), Way.SINGERS));
         ways.addView(wayButton("🔤", Words.t("Song title", "歌名", "Judul lagu"), Way.TITLE));
         ways.addView(wayButton("🔥", Words.t("Top songs", "热门歌曲", "Lagu terpopuler"), Way.TOP));
         ways.addView(wayButton("✨", Words.t("New songs", "新歌", "Lagu baru"), Way.FRESH));
-        middle.addView(ways, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        middle.addView(ways, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
     }
 
     private View wayButton(String emoji, String label, final Way way) {
@@ -396,6 +418,7 @@ final class ControlPanel extends LinearLayout {
      * list on the left with a keyboard on the right (shown at once on the song-title page, after a tap on the bar on the others).
      */
     private void showListPage(String title, final Runnable back, boolean serverSearch) {
+        showTables(false);
         serverSearchPage = serverSearch;
         typed.setLength(0);
         language = LANGUAGE_ALL;
@@ -415,6 +438,10 @@ final class ControlPanel extends LinearLayout {
             @Override public void onClick(View view) { back.run(); }
         });
         head.addView(backButton);
+        TextView homeButton = tablesButton();
+        LinearLayout.LayoutParams homeParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        homeParams.setMargins(dp(8), 0, 0, 0);
+        head.addView(homeButton, homeParams);
         TextView heading = text(getContext(), Words.t("Table ", "桌 ", "Meja ") + selected + " · " + title, 22, true, GOLD);
         heading.setPadding(dp(14), 0, dp(14), 0);
         head.addView(heading, new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
@@ -449,18 +476,8 @@ final class ControlPanel extends LinearLayout {
         middle.addView(halves, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
     }
 
-    /** Shows or hides the keyboard; with it up the table boxes shrink so the list and the keyboard have room. */
     private void setKeyboardShown(boolean shown) {
         keyboardView.setVisibility(shown ? VISIBLE : GONE);
-        setTablesHeight(shown ? TABLES_WITH_KEYBOARD_DP : TABLES_HEIGHT_DP);
-    }
-
-    private void setTablesHeight(int heightDp) {
-        if (heightDp == tablesDp) return;
-        tablesDp = heightDp;
-        ViewGroup.LayoutParams params = tablesScroll.getLayoutParams();
-        params.height = dp(heightDp);
-        tablesScroll.setLayoutParams(params);
     }
 
     // ---- the language chips and the filters ----

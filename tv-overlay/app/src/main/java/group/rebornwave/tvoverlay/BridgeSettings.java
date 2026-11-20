@@ -14,8 +14,8 @@ final class BridgeSettings {
     private static final String KEY_TENANT = "tenant";
     private static final String KEY_BOX = "box";
     private static final String KEY_PLAYER = "player";
-    // A new key name (it was "boxPlayback") so a choice flipped by accident in an earlier version starts again from the box's own program.
-    private static final String KEY_BOX_PLAYBACK = "boxPlayback2";
+    // A new key name so every box starts again from the default: this app plays the box's own song files (the box's program showed words but never played).
+    private static final String KEY_BOX_PLAYBACK = "boxPlayback3";
     private static final String KEY_SHOW_CLOUD = "showCloud";
     private static final String KEY_VOICE_FIRST = "voiceFirst";
     private static final String KEY_CHANNEL_VOICE = "channelVoice";
@@ -53,9 +53,12 @@ final class BridgeSettings {
         prefs(context).edit().putBoolean(KEY_CHANNEL_VOICE, on).apply();
     }
 
-    /** False (the default) leaves out the box's cloud songs (kept in the cloud, not stored on the box); true lists them too. */
+    /**
+     * False (the default) leaves out the box's cloud songs (kept in the cloud, not stored on the box); true lists them too. When this app plays the
+     * videos itself a cloud song has no file to play, so they stay out whatever was chosen.
+     */
     static boolean isShowCloud(Context context) {
-        return prefs(context).getBoolean(KEY_SHOW_CLOUD, false);
+        return isBoxPlayback(context) && prefs(context).getBoolean(KEY_SHOW_CLOUD, false);
     }
 
     static void saveShowCloud(Context context, boolean show) {
@@ -94,9 +97,9 @@ final class BridgeSettings {
         return prefs(context).getString(KEY_BOX, "");
     }
 
-    /** True (the default) when the box's own program plays the songs and this app is its touch screen; false when this app plays video files itself. */
+    /** True when the box's own program plays the songs and this app is its touch screen; false (the default) when this app plays the video files itself. */
     static boolean isBoxPlayback(Context context) {
-        return prefs(context).getBoolean(KEY_BOX_PLAYBACK, true);
+        return prefs(context).getBoolean(KEY_BOX_PLAYBACK, false);
     }
 
     static void saveBoxPlayback(Context context, boolean boxPlays) {

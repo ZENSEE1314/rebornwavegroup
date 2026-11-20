@@ -68,6 +68,7 @@ public class PlayerActivity extends Activity {
     private TvFeed feed;
     private ExoPlayer player;
     private boolean boxMode = true; // true: the box's own program plays the songs and this app is its touch screen; false: this app plays the videos itself
+    private boolean boxCatalog = true; // songs are searched in the box's own song list (its numbers match the video files' names)
     private int boxNowId = 0; // the song on now in the app's queue (box mode), for the Skip button
     private volatile boolean alive = false;
     private Thread poller;
@@ -144,6 +145,12 @@ public class PlayerActivity extends Activity {
         }
 
         @Override public String onRequest(String table, SongPick pick) throws Exception {
+            boolean hasNoVideo = !boxMode && !pick.isYoutube() && songFiles.count() > 0 && songFiles.byCode(pick.code) == null && songFiles.find(pick.title, pick.artist) == null;
+            if (hasNoVideo) { // a song kept in the cloud has no file on this box: say so now instead of skipping it later
+                return Words.t("\"" + pick.title + "\" is not stored on this box — please pick another",
+                        "“" + pick.title + "”不在本机，请选别的歌",
+                        "\"" + pick.title + "\" tidak tersimpan di perangkat ini — pilih lagu lain");
+            }
             int place = client.request(table, pick);
             return Words.t("Added \"" + pick.title + "\" for Table " + table + (place > 0 ? " — place " + place : ""),
                     "已为 " + table + " 桌点歌：" + pick.title + (place > 0 ? "（第 " + place + " 位）" : ""),
@@ -167,7 +174,9 @@ public class PlayerActivity extends Activity {
         root.setBackgroundColor(Color.BLACK);
         setContentView(root);
         boxMode = BridgeSettings.isBoxPlayback(this);
-        panel = new ControlPanel(this, boxMode ? new BoxServletCatalog(this, client, photos) : new BoxCatalog(songFiles, client), buttons, photos);
+        // The box's own song list (titles, singers, numbers) is the catalogue whenever the box's program has been found, even when this app plays the files.
+        boxCatalog = boxMode || !BridgeSettings.box(this).isEmpty();
+        panel = new ControlPanel(this, boxCatalog ? new BoxServletCatalog(this, client, photos) : new BoxCatalog(songFiles, client), buttons, photos);
         settingsButton = new TextView(this);
         settingsButton.setText("⚙");
         settingsButton.setTextSize(22);
@@ -511,7 +520,7 @@ public class PlayerActivity extends Activity {
                 while (alive) {
                     try {
                         for (QueueClient.Job job : client.jobs()) {
-                            JSONObject answer = boxMode ? boxJobs.answer(job) : songSearch.answer(job);
+                            JSONObject answer = boxCatalog ? boxJobs.answer(job) : songSearch.answer(job);
                             client.answer(job.id, answer);
                         }
                     } catch (Exception failure) {

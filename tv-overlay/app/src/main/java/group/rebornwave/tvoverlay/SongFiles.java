@@ -24,6 +24,7 @@ final class SongFiles {
     }
 
     private static final String FOLDER = "Karaoke";
+    private static final String BOX_SONGS_FOLDER = "songs"; // where the karaoke box's own program keeps its videos: songs/<first digits>/<song number>.mkv
     private static final String[] VIDEO_ENDINGS = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".mpg", ".mpeg", ".ts", ".flv", ".m4v"};
     private static final String SINGER_SEPARATOR = "\\s*[-–—]\\s*";
     private static final String CODE_PREFIX = "L";
@@ -33,7 +34,9 @@ final class SongFiles {
     private static final int TITLE_SCORE = 10;
     private static final int MAX_DEPTH = 3;
     private static final int SURVEY_DEPTH = 6;
-    private static final int SURVEY_FOLDERS = 6;
+    private static final int SURVEY_FOLDERS = 3;
+    private static final int SURVEY_NOTES = 12;
+    private static final int SURVEY_TAIL_BYTES = 400;
     private static final long SURVEY_MIN_BYTES = 5L * 1024 * 1024;
 
     private final Context context;
@@ -98,8 +101,9 @@ final class SongFiles {
     private static LocalSong describe(File file) {
         LocalSong song = new LocalSong();
         song.file = file;
-        song.code = CODE_PREFIX + Integer.toHexString(file.getAbsolutePath().hashCode());
         String name = baseName(file);
+        // The box's own videos are named by their song number (10156426.mkv): that number is the code its song list and the members' requests carry.
+        song.code = name.matches("\\d+") ? name : CODE_PREFIX + Integer.toHexString(file.getAbsolutePath().hashCode());
         String[] parts = name.split(SINGER_SEPARATOR, 2);
         song.artist = parts.length == 2 ? parts[0].trim() : "";
         song.title = parts.length == 2 ? parts[1].trim() : name.trim();
@@ -117,8 +121,14 @@ final class SongFiles {
         File own = context.getExternalFilesDir(null);
         if (own != null) folders.add(new File(own, FOLDER));
         folders.add(new File(Environment.getExternalStorageDirectory(), FOLDER));
+        folders.add(new File(Environment.getExternalStorageDirectory(), BOX_SONGS_FOLDER));
         File[] drives = new File("/storage").listFiles();
-        if (drives != null) for (File drive : drives) folders.add(new File(drive, FOLDER));
+        if (drives != null) {
+            for (File drive : drives) {
+                folders.add(new File(drive, FOLDER));
+                folders.add(new File(drive, BOX_SONGS_FOLDER));
+            }
+        }
         return folders;
     }
 
@@ -167,7 +177,40 @@ final class SongFiles {
             String folder = top.get(i).getKey();
             report.append("\n").append(top.get(i).getValue()).append(" in ").append(folder).append("  e.g. ").append(samples.get(folder));
         }
+        List<File> notes = new ArrayList<File>();
+        for (File start : starts) collectNotes(start, 0, notes);
+        for (File note : notes) {
+            report.append("\n").append(note.getAbsolutePath()).append(" (").append(note.length() / 1024).append(" KB)");
+            if (note.getName().endsWith(".log")) report.append(" ends: ").append(tail(note));
+        }
         return report.toString();
+    }
+
+    /** The box program's own notes (.log, .txt): they may say where it fetches the songs it keeps in the cloud. */
+    private static void collectNotes(File folder, int depth, List<File> notes) {
+        File[] entries = folder.listFiles();
+        if (entries == null || depth > SURVEY_DEPTH || notes.size() >= SURVEY_NOTES) return;
+        for (File entry : entries) {
+            String name = entry.getName().toLowerCase(Locale.ROOT);
+            if (entry.isDirectory()) collectNotes(entry, depth + 1, notes);
+            else if (entry.length() > SURVEY_MIN_BYTES && (name.endsWith(".log") || name.endsWith(".txt") || name.endsWith(".war") || name.endsWith(".exe"))) notes.add(entry);
+        }
+    }
+
+    private static String tail(File file) {
+        try {
+            java.io.RandomAccessFile reader = new java.io.RandomAccessFile(file, "r");
+            try {
+                byte[] bytes = new byte[SURVEY_TAIL_BYTES];
+                reader.seek(Math.max(0, reader.length() - bytes.length));
+                int read = reader.read(bytes);
+                return read <= 0 ? "" : new String(bytes, 0, read, "UTF-8").replace('\n', ' ').replace('\r', ' ');
+            } finally {
+                reader.close();
+            }
+        } catch (Exception unreadable) {
+            return "(not readable)";
+        }
     }
 
     private static void surveyFolder(File folder, int depth, java.util.Map<String, Integer> endings, java.util.Map<String, Integer> folderCounts,

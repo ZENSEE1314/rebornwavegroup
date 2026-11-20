@@ -320,6 +320,10 @@ public class MainActivity extends Activity {
     }
 
     private void showCloudSetting(Button button) {
+        if (!BridgeSettings.isBoxPlayback(this)) {
+            button.setText(t("Cloud songs: not used while this app plays the videos (a cloud song has no file on the box)", "云端歌曲：本应用播放时不使用（云端歌曲在本机没有文件）", "Lagu cloud: tidak dipakai saat aplikasi ini memutar video (lagu cloud tidak punya file di mesin)"));
+            return;
+        }
         button.setText(BridgeSettings.isShowCloud(this)
                 ? t("Cloud songs: SHOWN (tap to hide them)", "云端歌曲：显示（点击隐藏）", "Lagu cloud: DITAMPILKAN (ketuk untuk menyembunyikan)")
                 : t("Cloud songs: HIDDEN, only songs stored on the box (tap to show cloud songs too)", "云端歌曲：隐藏，仅显示本机存储的歌曲（点击同时显示云端歌曲）", "Lagu cloud: DISEMBUNYIKAN, hanya lagu di mesin (ketuk untuk menampilkan lagu cloud)"));
@@ -329,7 +333,7 @@ public class MainActivity extends Activity {
     private void showPlaybackSetting(Button button) {
         button.setText(BridgeSettings.isBoxPlayback(this)
                 ? t("Songs are played by: THE BOX'S OWN PROGRAM (press and hold to use this app's player instead)", "歌曲由：点歌机自带程序播放（长按改用本应用播放器）", "Lagu diputar oleh: PROGRAM BAWAAN MESIN (tahan lama untuk memakai pemutar aplikasi ini)")
-                : t("Songs are played by: THIS APP'S PLAYER, which only plays video files in the Karaoke folder (press and hold to use the box's own program instead)", "歌曲由：本应用播放器播放，它只播放 Karaoke 文件夹里的视频（长按改用点歌机自带程序）", "Lagu diputar oleh: PEMUTAR APLIKASI INI, hanya memutar video di folder Karaoke (tahan lama untuk memakai program bawaan mesin)"));
+                : t("Songs are played by: THIS APP'S PLAYER, playing the box's own song files (press and hold to use the box's own program instead)", "歌曲由：本应用播放器播放点歌机里的歌曲文件（长按改用点歌机自带程序）", "Lagu diputar oleh: PEMUTAR APLIKASI INI, memutar file lagu milik mesin (tahan lama untuk memakai program bawaan mesin)"));
     }
 
     /** Writes what the two voice buttons currently mean; `channels` may be null before it exists. */
