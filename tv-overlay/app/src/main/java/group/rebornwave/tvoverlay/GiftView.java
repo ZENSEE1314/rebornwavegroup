@@ -35,8 +35,8 @@ import java.util.ArrayDeque;
 import java.util.Random;
 
 /**
- * What the box draws over the karaoke picture, made of plain Android views (no web page): a bar along the top with the song now on and the next
- * ones, and each gift as a big picture that pops in with the sender, the receiver and the gift's name, with its emoji raining down behind.
+ * What the box draws over the karaoke picture, made of plain Android views (no web page): each gift as a big picture that pops in with the sender,
+ * the receiver and the gift's name, with its emoji raining down behind. No song bar is drawn here: the song now on and the next stay on our own screen.
  * Gifts that arrive together play one after the other.
  */
 final class GiftView extends FrameLayout {
@@ -47,7 +47,6 @@ final class GiftView extends FrameLayout {
     private static final int RAIN_COUNT = 18;
     private static final int RAIN_SP = 32;
     private static final float EMOJI_HEIGHT_FRACTION = 0.3f; // a gift with no picture or animation shows its emoji this big (of the screen height)
-    private static final int BAR_SP = 26;
     private static final float PICTURE_HEIGHT_FRACTION = 0.3f; // a gift picture of its own
     private static final int FALLBACK_WIDTH_PX = 1280;
     private static final int FALLBACK_HEIGHT_PX = 720;
@@ -89,33 +88,15 @@ final class GiftView extends FrameLayout {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Random random = new Random();
     private final ArrayDeque<TvFeed.Gift> waiting = new ArrayDeque<TvFeed.Gift>();
-    private final TextView bar;
     private final FrameLayout stage;
     private boolean playing = false;
     private boolean closed = false;
 
     GiftView(Context context) {
         super(context);
-        bar = new TextView(context);
-        bar.setTextColor(Color.WHITE);
-        bar.setTextSize(TypedValue.COMPLEX_UNIT_SP, BAR_SP);
-        bar.setTypeface(Typeface.DEFAULT_BOLD);
-        bar.setSingleLine(true);
-        bar.setEllipsize(TextUtils.TruncateAt.MARQUEE);
-        bar.setMarqueeRepeatLimit(-1);
-        bar.setSelected(true); // a marquee only scrolls in a selected view
-        bar.setBackgroundColor(GREY_BOX);
-        bar.setPadding(24, 12, 24, 12);
-        bar.setVisibility(View.GONE);
         GiftArt.prefetch(context);
         stage = new FrameLayout(context);
         addView(stage, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        addView(bar, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP));
-    }
-
-    void setBar(String text) {
-        bar.setText(text);
-        bar.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     void play(TvFeed.Gift gift) {

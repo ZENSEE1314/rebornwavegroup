@@ -463,8 +463,6 @@ public class PlayerActivity extends Activity {
         if (overlayDraws || !Link.isLinked(this)) return;
         feed = new TvFeed(this, ui, new TvFeed.Listener() {
             @Override public void onGift(TvFeed.Gift gift) { gifts.play(gift); }
-
-            @Override public void onBar(String text) { }
         });
         feed.start(Link.path(this));
     }
