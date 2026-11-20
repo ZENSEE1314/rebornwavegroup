@@ -1185,6 +1185,7 @@ async function handleInboundOnce(from: string, text: string, profileName?: strin
   }
 }
 
+const UNCLEAR_BEFORE_HANDOFF = 2; // messages in a row the bot does not understand before an admin takes over
 const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
 
 // "AI" (any case, with or without "assistant") turns a paused chat's auto-reply back on.
@@ -1532,6 +1533,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // --- MENU INTENTS (work for members & returning contacts) ---
   const intent = parseMenuIntent(body);
+  if (intent && c.unclearCount) await patchContact(c.id, { unclearCount: 0 });
   const offKey = intent === "book" ? "bookings" : intent === "song" ? "songs" : intent === "bottle" ? "bottles" : "";
   if (offKey && await featureOff(offKey)) { await say(L(lang, "featureOff")); return; }
   if (intent === "book") return handleBookIntent(c, lang, from, body, say);
@@ -1548,6 +1550,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     // Answer general enquiries from the FAQ knowledge base.
     const ans = await faqAnswer(body, lang);
     if (ans) {
+      if (c.unclearCount) await patchContact(c.id, { unclearCount: 0 });
       if (ans.text.trim()) await say(ans.text);
       await sendFaqFiles(from, c, ans.files, lang);
       return;
@@ -1558,8 +1561,14 @@ async function handleInbound(from: string, text: string, profileName?: string) {
       return;
     }
     // Never guess a song: songs are only searched after the member chose menu option 2 (Request a song).
-    // Unknown → log a pending FAQ and hand the chat to staff (bot goes quiet).
+    // Not understood: the first time show the menu again; the second time in a row log a pending FAQ and hand the chat to staff (bot goes quiet).
+    if ((c.unclearCount || 0) + 1 < UNCLEAR_BEFORE_HANDOFF) {
+      await patchContact(c.id, { unclearCount: (c.unclearCount || 0) + 1 });
+      await sendMemberMenu(from, c, lang, true);
+      return;
+    }
     await createPendingFaq(body);
+    await patchContact(c.id, { unclearCount: 0 });
     return handOffToStaff(c, from, lang, body);
   }
   // Still onboarding-ish → nudge with the menu (capped).
@@ -2431,30 +2440,28 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
   return out;
 }
 
-// Booking reminders — sent at ~3h, ~1h and ~10min before the appointment start.
-const REMINDER_ORDER = ["3h", "1h", "10m"];
+// Booking reminders — one reminder, about an hour before the appointment start.
+const REMINDER_TAG = "1h";
+const REMINDER_WINDOW_MIN = 60;
 export async function runBookingReminders(): Promise<number> {
   const now = Date.now();
   let sent = 0;
   const waAvail = await whatsappAvailable();
   try {
-    const soon = new Date(now + 3 * 60 * 60_000 + 15 * 60_000); // up to ~3h15m ahead
+    const soon = new Date(now + REMINDER_WINDOW_MIN * 60_000);
     const rows = await db.select().from(appointments).where(and(gt(appointments.appointmentDate, new Date(now)), lte(appointments.appointmentDate, soon)));
     const club = (await settingVal("clubName")) || (await loadWaConfig()).club || "Reborn Wave";
     for (const a of rows) {
       if (!["pending", "scheduled", "confirmed"].includes(a.status)) continue;
       const mins = (new Date(a.appointmentDate).getTime() - now) / 60000;
-      let tag = "";
-      if (mins <= 10) tag = "10m";
-      else if (mins <= 60) tag = "1h";
-      else if (mins <= 180) tag = "3h";
-      if (!tag) continue;
+      if (mins > REMINDER_WINDOW_MIN) continue;
+      const tag = REMINDER_TAG;
       const already = (a.remindersSent || "").split(",").filter(Boolean);
       if (already.includes(tag)) continue;
       const phone = await memberWaPhone(a.userId);
-      const markSet = Array.from(new Set([...already, ...REMINDER_ORDER.slice(0, REMINDER_ORDER.indexOf(tag) + 1)]));
+      const markSet = Array.from(new Set([...already, tag]));
       const lang = await langForPhone(phone, a.userId);
-      const left = L(lang, tag === "10m" ? "left10m" : tag === "1h" ? "left1h" : "left3h");
+      const left = L(lang, "left1h");
       const when = fmtBookingWhen(a.appointmentDate, lang);
       const where = a.notes ? ` (${localizeBookingText(lang, a.notes.replace(/ \/ /g, " · "))})` : "";
       // Real phone push — fires even when WhatsApp is offline or the member has no phone on file.

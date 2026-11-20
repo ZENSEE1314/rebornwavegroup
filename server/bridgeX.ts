@@ -531,6 +531,7 @@ export async function ensureBridgeXSchema() {
     ALTER TABLE events ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE events ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS start_date varchar; ALTER TABLE events ADD COLUMN IF NOT EXISTS end_date varchar;
     ALTER TABLE crm_contacts ADD COLUMN IF NOT EXISTS bot_paused boolean NOT NULL DEFAULT false;
+    ALTER TABLE crm_contacts ADD COLUMN IF NOT EXISTS unclear_count integer NOT NULL DEFAULT 0;
     ALTER TABLE songs ADD COLUMN IF NOT EXISTS karaoke_code varchar;
     UPDATE app_settings SET value = CASE WHEN key LIKE '%Base' THEN '1000000' WHEN key LIKE '%Growth' THEN '2' ELSE '' END WHERE key IN ('giftLevelSenderBase','giftLevelSenderGrowth','giftLevelSenderList','giftLevelReceiverBase','giftLevelReceiverGrowth','giftLevelReceiverList') AND NOT EXISTS (SELECT 1 FROM app_settings WHERE key = 'giftLevelsDoubleV2');
     INSERT INTO app_settings (key, value) VALUES ('giftLevelsDoubleV2', '1') ON CONFLICT (key) DO NOTHING;
