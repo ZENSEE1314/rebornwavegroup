@@ -168,24 +168,27 @@ function Crown({ color1, color2, w }: { color1: string; color2: string; w: numbe
     </svg>
   );
 }
-export function GifterPodium({ gifters, nameOf }: { gifters: any[]; nameOf: (u: any) => string }) {
+export function GifterPodium({ gifters, nameOf, title }: { gifters: any[]; nameOf: (u: any) => string; title?: string }) {
   if (!gifters?.length) return null;
   const order = [1, 0, 2].filter((i) => gifters[i]); // 2nd · 1st · 3rd
   return (
-    <div className="mt-1.5 flex items-end gap-2.5">
+    <div className="basis-full rounded-xl bg-black/25 px-2 pt-1.5 pb-2">
+      {title && <p className="text-center text-[11px] font-black text-amber-200/90">🏆 {title}</p>}
+      <div className="mt-1 flex items-end justify-evenly gap-2">
       {order.map((i) => {
-        const g = gifters[i]; const m = MEDAL[i]; const size = i === 0 ? 38 : 30;
+        const g = gifters[i]; const m = MEDAL[i]; const size = i === 0 ? 46 : 38;
         return (
-          <div key={g.id} className="flex flex-col items-center min-w-0" style={{ width: size + 18 }}>
+          <div key={g.id} className="flex flex-col items-center min-w-0 flex-1 max-w-[30%]">
             <Crown color1={m.c1} color2={m.c2} w={i === 0 ? 22 : 18} />
             <span className="relative rounded-full -mt-1" style={{ padding: 2, background: `linear-gradient(135deg,${m.c1},${m.c2})`, boxShadow: `0 0 10px ${m.glow}` }}>
               <LevelAvatar u={g} level={g.senderLevel || 1} size={size} noCrown />
               <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `linear-gradient(180deg,${m.c1},${m.c2})`, color: m.text, border: "1px solid rgba(0,0,0,.25)" }}>{i + 1}</span>
             </span>
-            <span className="mt-1.5 text-[9px] leading-tight text-white/75 truncate max-w-full">{nameOf(g)}</span>
+            <span className="mt-2 text-[11px] font-bold leading-tight text-white/90 truncate max-w-full">{nameOf(g)}</span>
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

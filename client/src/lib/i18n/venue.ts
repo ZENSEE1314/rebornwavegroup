@@ -40,6 +40,7 @@ export const venueT: Record<string, { en: string; zh: string; id: string }> = {
   'vn.kos.searchPh': { en: 'Search a member by username…', zh: '按用户名搜索会员…', id: 'Cari anggota berdasarkan nama pengguna…' },
   'vn.kos.tabTonight': { en: 'Tonight', zh: '今晚', id: 'Malam ini' },
   'vn.kos.tabMonth': { en: 'This month', zh: '本月', id: 'Bulan ini' },
+  'vn.kos.topGifters': { en: 'Top 3 gifters', zh: '送礼前三名', id: '3 pemberi hadiah teratas' },
   'vn.kos.topGifter': { en: 'Top gifter #{n}: {name}', zh: '第 {n} 名送礼者：{name}', id: 'Pemberi hadiah #{n}: {name}' },
   'vn.lv.gifter': { en: 'Gifter level', zh: '送礼等级', id: 'Level Pemberi' },
   'vn.lv.star': { en: 'Star level', zh: '明星等级', id: 'Level Bintang' },

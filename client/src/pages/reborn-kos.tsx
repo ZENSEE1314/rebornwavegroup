@@ -197,16 +197,16 @@ export default function RebornKos() {
         {board.map((u, i) => {
           const top = ["#f3c14b", "#cbd5e1", "#d08a4f"][i];
           return (
-          <div key={u.id} className={`arc-row ${top ? "arc-row-top" : ""}`} style={top ? { ["--rc" as any]: top } : undefined}>
+          <div key={u.id} className={`arc-row flex-wrap ${top ? "arc-row-top" : ""}`} style={top ? { ["--rc" as any]: top } : undefined}>
             <span className="arc-medal">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span>
             <LevelAvatar u={u} level={Math.max(u.senderLevel || 1, u.receiverLevel || 1)} size={44} />
             <div className="flex-1 min-w-0">
               <p className="font-bold truncate">{nameOf(u)}</p>
               <p className="flex items-center gap-1.5"><LevelChips sender={u.senderLevel} receiver={u.receiverLevel} small /></p>
               <p className="text-xs font-black text-amber-300 mt-0.5" style={{ textShadow: "0 0 8px rgba(247,215,116,.5)" }}>🪙 {fmt(u.stars)}</p>
-              <GifterPodium gifters={u.topGifters || []} nameOf={nameOf} />
             </div>
             {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">{t("vn.kos.you")}</span> : <>{!friendIds.has(u.id) && !pendingIds.has(u.id) && <button onClick={() => addFriend.mutate(u.id)} title={t("vn.kos.addFriend")} aria-label={t("vn.kos.addAsFriend", { name: nameOf(u) })} className="kos-add"><UserPlus className="w-5 h-5" /></button>}{pendingIds.has(u.id) && <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/60">{t("vn.kos.pending")}</span>}{u.checkedIn !== false && <button onClick={() => setTarget(u)} className="kos-gift">🎁 {t("vn.kos.gift")}</button>}</>}
+            <GifterPodium gifters={u.topGifters || []} nameOf={nameOf} title={t("vn.kos.topGifters")} />
           </div>
           );
         })}
