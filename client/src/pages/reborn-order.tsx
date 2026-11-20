@@ -123,9 +123,9 @@ export default function RebornOrder() {
                 </div>
                 {p.soldOut ? null : (cart[p.id] || 0) > 0 ? (
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => sub(p.id)} aria-label={t("vn.order.decrease")} style={{ width: 36, height: 36 }} className="rounded-full bg-white/15 text-white flex items-center justify-center text-2xl leading-none font-bold flex-shrink-0">−</button>
+                    <button onClick={() => sub(p.id)} aria-label={t("vn.order.decrease")} className="w-11 h-11 rounded-full bg-white/15 text-white flex items-center justify-center flex-shrink-0"><Minus className="w-5 h-5" /></button>
                     <span style={{ minWidth: 20 }} className="text-center font-bold">{cart[p.id]}</span>
-                    <button onClick={() => add(p.id)} aria-label={t("vn.order.increase")} style={{ width: 36, height: 36 }} className="rounded-full bg-amber-400 text-black flex items-center justify-center text-2xl leading-none font-bold flex-shrink-0">+</button>
+                    <button onClick={() => add(p.id)} aria-label={t("vn.order.increase")} className="w-11 h-11 rounded-full bg-amber-400 text-black flex items-center justify-center flex-shrink-0"><Plus className="w-5 h-5" /></button>
                   </div>
                 ) : (
                   <button onClick={() => add(p.id)} className="px-4 py-2 rounded-xl bg-amber-400 text-black font-semibold text-sm flex-shrink-0">{t("vn.order.add")}</button>
@@ -136,6 +136,9 @@ export default function RebornOrder() {
         </div>
       ))}
       {products.length === 0 && <p className="text-center text-white/40 py-10">{t("vn.order.menuSoon")}</p>}
+
+      {/* The cart bar is fixed above the bottom menu: this room lets the last items scroll up clear of it, so their − and + can be tapped. */}
+      {lines.length > 0 && <div aria-hidden className="h-72" />}
 
       {/* Cart bar */}
       {lines.length > 0 && (
