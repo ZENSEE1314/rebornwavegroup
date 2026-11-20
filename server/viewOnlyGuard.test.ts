@@ -32,6 +32,26 @@ describe("what a view-only partner may send", () => {
     assert.equal(isWriteForbiddenToPartner("POST", "/api/auth/logout"), false);
   });
 
+  it("should still request a song like any member", () => {
+    assert.equal(isWriteForbiddenToPartner("POST", "/api/reborn/songs/request"), false);
+  });
+
+  it("should still send a KOS gift like any member", () => {
+    assert.equal(isWriteForbiddenToPartner("POST", "/api/reborn/kos/gift"), false);
+  });
+
+  it("should still care for the pet like any member", () => {
+    assert.equal(isWriteForbiddenToPartner("POST", "/api/pets/1/feed"), false);
+  });
+
+  it("should be refused the staff service-call buttons", () => {
+    assert.equal(isWriteForbiddenToPartner("POST", "/api/reborn/venue/service-calls/4/done"), true);
+  });
+
+  it("should be refused an unlisted call outside the member app", () => {
+    assert.equal(isWriteForbiddenToPartner("PUT", "/api/v1/platform/companies/3/industries"), true);
+  });
+
   it("should treat the method in any letter case", () => {
     assert.equal(isWriteForbiddenToPartner("post", "/api/reborn/pos/sale"), true);
   });
