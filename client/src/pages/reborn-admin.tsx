@@ -3508,6 +3508,35 @@ function AdminBottles() {
         </div>
       ))}
       {kept.length === 0 && <Empty text={t("admin.bot.empty")} />}
+      <BottleHistory q={q} />
+    </div>
+  );
+}
+
+const BOTTLE_ACTION_ICON: Record<string, string> = { store: "📥", collect: "✅", edit: "✏️" };
+
+/** Every bottle kept, redeemed or corrected, newest first, with who did it and when. */
+function BottleHistory({ q }: { q: string }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/bottle-history", q], enabled: open, queryFn: () => apiRequest("GET", `/api/reborn/pos/bottle-history${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()) });
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+      <button type="button" onClick={() => setOpen(!open)} className="min-h-0 p-0 text-left text-cyan-200" style={{ fontSize: 13, fontWeight: 600 }}>🕘 {t("admin.bot.history")} {open ? "▲" : "▼"}</button>
+      {open && (
+        <div className="mt-2 space-y-1.5">
+          {rows.map((r) => (
+            <div key={r.id} className="flex gap-2 border-b border-white/5 pb-1.5 text-xs">
+              <span>{BOTTLE_ACTION_ICON[r.action] || "•"}</span>
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-white/80">{r.description}</p>
+                <p className="text-[11px] text-white/40">{new Date(r.at).toLocaleString(localeTag())} · {t("admin.bot.by", { name: r.by })}</p>
+              </div>
+            </div>
+          ))}
+          {rows.length === 0 && <p className="text-xs text-white/40">{t("admin.bot.historyEmpty")}</p>}
+        </div>
+      )}
     </div>
   );
 }

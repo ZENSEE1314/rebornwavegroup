@@ -1614,6 +1614,8 @@ async function retryOnDeadlock<T>(job: () => Promise<T>): Promise<T> {
 const STOCK_OUT_REASON_MAX = 200;
 const STOCK_OUT_CORRECTION = "Count correction"; // the one reason that is not a loss of money
 const STOCK_IN_MAX_AGE_MS = 366 * 24 * 60 * 60 * 1000;
+const BOTTLE_HISTORY_ACTIONS = ["store", "collect", "edit"];
+const BOTTLE_HISTORY_LIMIT = 300;
 const STOCK_IN_FUTURE_SLACK_MS = 5 * 60 * 1000;
 const MAX_SHIFTS_AT_ONCE = 300;
 const SHIFT_DATES_IN_NOTICE = 6;
@@ -5635,6 +5637,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     else { await db.update(bottleKeeps).set({ status: "collected", quantity: 0, collectedAt: new Date() }).where(eq(bottleKeeps.id, id)); }
     await logAdmin(req, { targetUserId: b.userId || undefined, targetType: "bottle_keep", targetId: id, action: "collect", entityType: "bottle", description: `Collected ${take}× ${b.name} (${b.memberName})` });
     res.json({ message: remaining > 0 ? tr(req, { en: "Collected {n}. {r} left in keep.", zh: "已取走 {n}，寄存中还剩 {r}。", id: "Sudah diambil {n}. Sisa {r} di titipan." }, { n: take, r: remaining }) : tr(req, { en: "Collected — bottle keep closed.", zh: "已取走——寄存已结束。", id: "Sudah diambil — titipan botol ditutup." }) });
+  }));
+  // History of kept bottles: stored, redeemed (collected) and corrected, newest first, with who did it. Read from the audit log, so a part-redeem of a multi-bottle keep shows too.
+  app.get("/api/reborn/pos/bottle-history", requireStaff(async (req, res) => {
+    const q = String(req.query.q || "").trim().toLowerCase();
+    const rows = await db.select().from(adminLogs).where(and(eq(adminLogs.targetType, "bottle_keep"), inArray(adminLogs.action, BOTTLE_HISTORY_ACTIONS))).orderBy(desc(adminLogs.createdAt)).limit(BOTTLE_HISTORY_LIMIT);
+    const staffIds = Array.from(new Set(rows.map((r) => r.adminUserId).filter(Boolean))) as string[];
+    const staff = staffIds.length ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email }).from(users).where(inArray(users.id, staffIds)) : [];
+    const nameOf = new Map(staff.map((s) => [s.id, [s.firstName, s.lastName].filter(Boolean).join(" ") || s.username || s.email || s.id]));
+    const list = rows.map((r) => ({ id: r.id, action: r.action, description: r.description, at: r.createdAt, by: nameOf.get(r.adminUserId) || r.adminUserId }));
+    res.json(q ? list.filter((r) => r.description.toLowerCase().includes(q)) : list);
   }));
   // Member: my kept bottles + reminders.
   app.get("/api/reborn/bottles", requireAuth, async (req, res) => {
