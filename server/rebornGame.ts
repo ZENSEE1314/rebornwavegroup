@@ -34,7 +34,7 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { getMetaSettings, saveMetaSettings, testMeta, connectTelegram, telegramStatus } from "./socialChat";
 import { metaAppStatus, saveMetaApp, metaConnectStatus, metaConnectUrl, metaOAuthAvailable, metaPick, registerMetaConnect } from "./metaConnect";
-import { crmRecordVisit, whatsappConfigured, whatsappAvailable, chatAvailable, waDigits, runReminders, runPackageReminders, getWhatsAppCloudSettings, saveWhatsAppCloudSettings, testWhatsAppCloud } from "./whatsappBot";
+import { crmRecordVisit, whatsappConfigured, whatsappAvailable, chatAvailable, waDigits, runReminders, runPackageReminders, getWhatsAppCloudSettings, saveWhatsAppCloudSettings, testWhatsAppCloud, AUTO_REPLY_OFF_KEY } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp, sendToMember, notifyBookingCancelledByMember, locationReply, langForPhone, waText, fmtDMY, timeText, fmtBookingWhen, localizeBookingText, memberWaPhone } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
@@ -8244,6 +8244,16 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const stages: Record<string, number> = {};
     for (const c of rows) stages[c.stage] = (stages[c.stage] || 0) + 1;
     res.json({ contacts: rows, stages, count: rows.length });
+  }));
+  // One switch for the whole company: auto-reply on / off in every chat (the per-chat switch stays as it was).
+  app.get("/api/reborn/admin/crm/auto-reply", requireAdmin(async (_req, res) => {
+    res.json({ on: (await readSettingValue(AUTO_REPLY_OFF_KEY)) !== "1" });
+  }));
+  app.put("/api/reborn/admin/crm/auto-reply", requireAdmin(async (req, res) => {
+    const on = req.body?.on !== false;
+    await saveSettingValue(AUTO_REPLY_OFF_KEY, on ? "0" : "1");
+    await logAdmin(req, { targetType: "settings", action: "crm_auto_reply", entityType: "settings", description: on ? "Chat auto-reply turned ON for every chat" : "Chat auto-reply turned OFF for every chat" });
+    res.json({ on });
   }));
   // Conversation history for one contact.
   app.get("/api/reborn/admin/crm/:id/messages", requireAdmin(async (req, res) => {

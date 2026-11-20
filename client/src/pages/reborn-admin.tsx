@@ -3863,6 +3863,13 @@ function Crm() {
     onSuccess: (d: any) => toast({ title: d.configured ? t("admin.crm.remSent") : t("admin.crm.remRun"), description: t("admin.crm.remDesc", { b: d.bottles, c: d.comeback, f: d.feedback, p: d.packages ?? 0 }) }),
     onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
   });
+  const { data: autoReply } = useQuery<{ on: boolean }>({ queryKey: ["/api/reborn/admin/crm/auto-reply"], queryFn: () => apiRequest("GET", "/api/reborn/admin/crm/auto-reply").then((r) => r.json()) });
+  const setAutoReply = useMutation({
+    mutationFn: (on: boolean) => apiRequest("PUT", "/api/reborn/admin/crm/auto-reply", { on }).then((r) => r.json()),
+    onSuccess: (d: { on: boolean }) => { toast({ title: d.on ? t("admin.crm.autoOnToast") : t("admin.crm.autoOffToast") }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm/auto-reply"] }); },
+    onError: (x: any) => toast({ title: t("admin.c.failed"), description: x.message, variant: "destructive" }),
+  });
+  const autoReplyOn = autoReply?.on !== false;
   const contacts: any[] = data?.contacts || [];
   const [openId, setOpenId] = useState<number | null>(null);
   const openContact = contacts.find((c) => c.id === openId) || null;
@@ -3912,6 +3919,11 @@ function Crm() {
         <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4" /> {t("admin.crm.botStatus", { s: live ? t("admin.crm.active") : t("admin.crm.inactive") })}</p>
         <p className="text-[11px] text-white/50 mt-1">{live ? t("admin.crm.liveHint") : t("admin.crm.offHint")}</p>
         <button onClick={() => runReminders.mutate()} disabled={runReminders.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 inline-flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> {t("admin.crm.runNow")}</button>
+      </div>
+      <div className={`rounded-2xl border p-3 ${autoReplyOn ? "bg-emerald-500/10 border-emerald-400/30" : "bg-red-500/10 border-red-400/30"}`}>
+        <p className="text-sm font-bold">🤖 {t("admin.crm.autoTitle", { s: autoReplyOn ? t("admin.crm.active") : t("admin.crm.autoStopped") })}</p>
+        <p className="text-[11px] text-white/50 mt-1">{autoReplyOn ? t("admin.crm.autoOnHint") : t("admin.crm.autoOffHint")}</p>
+        <button onClick={() => setAutoReply.mutate(!autoReplyOn)} disabled={setAutoReply.isPending} className={`mt-2 px-3 py-1.5 rounded-lg text-xs font-bold ${autoReplyOn ? "bg-red-500 text-white" : "bg-emerald-500 text-black"}`}>{autoReplyOn ? t("admin.crm.autoTurnOff") : t("admin.crm.autoTurnOn")}</button>
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">{t("admin.crm.contacts")}</p><p className="text-base font-extrabold">{data?.count || 0}</p></div>

@@ -1185,6 +1185,7 @@ async function handleInboundOnce(from: string, text: string, profileName?: strin
   }
 }
 
+export const AUTO_REPLY_OFF_KEY = "waAutoReplyOff"; // app_settings: "1" = no chat gets an auto-reply
 const UNCLEAR_BEFORE_HANDOFF = 2; // messages in a row the bot does not understand before an admin takes over
 const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
 
@@ -1322,6 +1323,9 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   let c = await getOrCreateContact(from, profileName);
   await patchContact(c.id, { lastInboundAt: new Date() });
   await logMsg(c.id, c.phone, "in", body, false); // store every incoming message for the admin inbox
+
+  // The admin switched the auto-reply off for the whole company (Admin › CRM): staff get every message, the bot answers nobody.
+  if (await settingVal(AUTO_REPLY_OFF_KEY) === "1") { await alertStaffMessage(c, from, body); return; }
 
   // Handed to staff: the bot stays silent for this number (admin replies from the
   // CRM inbox, and can turn the bot back on there). Staff just get a heads-up.
