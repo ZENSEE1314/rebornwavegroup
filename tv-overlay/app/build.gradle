@@ -10,8 +10,8 @@ android {
         applicationId "group.rebornwave.tvoverlay"
         minSdk 21
         targetSdk 33
-        versionCode 40
-        versionName "2.26"
+        versionCode 41
+        versionName "2.27"
         // The club's box key, given only to the private build (the workflow sets BOX_KEY from a secret): the box then links itself, with no code to type.
         // The private app (built with the club's key) is the whole karaoke app and is called that, so it is easy to tell from the overlay-only app.
         manifestPlaceholders = [appLabel: (System.getenv('BOX_KEY') ? 'Reborn Karaoke' : 'Reborn TV Overlay')]
@@ -54,4 +54,6 @@ android {
 dependencies {
     // The built-in karaoke player (PlayerActivity) plays the song videos with Media3 ExoPlayer.
     implementation 'androidx.media3:media3-exoplayer:1.3.1'
+    // FileProvider hands the downloaded update to Android's installer.
+    implementation 'androidx.core:core:1.12.0'
 }

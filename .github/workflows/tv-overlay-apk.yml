@@ -72,4 +72,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete tv-overlay-latest --yes --cleanup-tag || true
-          gh release create tv-overlay-latest reborn-tv-overlay.apk --title "Reborn TV overlay (karaoke box)" --notes "Install this on the karaoke box. See Admin > Lights & TV > TV for the steps."
+          # The app reads this number to know a newer build is waiting (Updater.java).
+          grep -oP 'versionCode \K[0-9]+' tv-overlay/app/build.gradle > version.txt
+          gh release create tv-overlay-latest reborn-tv-overlay.apk version.txt --title "Reborn TV overlay (karaoke box)" --notes "Install this on the karaoke box. See Admin > Lights & TV > TV for the steps."

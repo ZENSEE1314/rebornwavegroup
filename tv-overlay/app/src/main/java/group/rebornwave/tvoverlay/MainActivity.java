@@ -466,6 +466,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        Updater.checkIfDue(this);
         linkByItself();
         refresh();
         if (BridgeSettings.isReady(this) && !BridgeSettings.isPlayerMode(this) && !BridgeService.running) BridgeService.start(this);
