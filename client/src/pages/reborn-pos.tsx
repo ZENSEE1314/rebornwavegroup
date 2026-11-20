@@ -1066,7 +1066,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
           </div>
         </div>
       </div>
-      {receiptResult && createPortal(<ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>{setReceiptResult(null);invalidate();onBack();}} />, document.body)}
+      {receiptResult && createPortal(<ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} bottle={receiptResult.bottle} onDone={()=>{setReceiptResult(null);invalidate();onBack();}} />, document.body)}
       {lineEdit && <LineEditDialog item={lineEdit} onCancel={() => setLineEdit(null)} onSave={(body) => { itemEdit.mutate({ id: lineEdit.id, op: "edit", body }); setLineEdit(null); }} />}
       {ask && <ReasonDialog
         title={t(ask.kind === "lose" ? "pos.item.loseTitle" : "pos.item.removeTitle", { name: ask.item.name })}
@@ -1178,7 +1178,7 @@ function QuickSaleTab() {
         {pay === "cash" && <div className="grid grid-cols-2 gap-2"><label className="block text-xs text-white/60">{t("pos.cashReceived")}<input type="number" min={0} value={cashReceived} onChange={(e)=>setCashReceived(e.target.value)} placeholder={t("pos.required")} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white" /></label><div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3"><p className="text-[11px] text-white/50">{t("pos.change")}</p><p className="font-extrabold text-emerald-300">{rp(Math.max(0,Number(cashReceived||0)-payable))}</p></div></div>}
         <p className="text-[11px] text-white/40 text-center">{t("pos.receiptNote")}</p>
       </div>
-      {receiptResult && createPortal(<ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} onDone={()=>setReceiptResult(null)} />, document.body)}
+      {receiptResult && createPortal(<ReceiptPreview order={receiptResult.order} meta={receiptResult.receipt} bottle={receiptResult.bottle} onDone={()=>setReceiptResult(null)} />, document.body)}
     </div>
   );
 }
@@ -1364,7 +1364,7 @@ function BottlesTab() {
   const inp = "w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm";
   const services = products.filter((p: any) => p.isService && Number(p.price) > 0);
   const drinks = products.filter((p)=>isDrink(p.category,p.name));
-  const drinkTypes = isOwn ? ["beer", "wine", "whisky", "other"] : Array.from(new Set(drinks.map((p)=>bottleType(p.category,p.name))));
+  const drinkTypes = ["beer", "wine", "whisky", "other"]; // keyed in by hand: any kind of drink, with or without a product
   const drinksForType = drinks.filter((p)=>bottleType(p.category,p.name)===f.type);
   useEffect(()=>{ if(drinkTypes.length && !drinkTypes.includes(f.type)) setF((current)=>({...current,type:drinkTypes[0],name:"",photoUrl:""})); },[drinkTypes.join("|"),f.type]);
   return (
@@ -1382,12 +1382,8 @@ function BottlesTab() {
           <input type="number" min={1} value={f.quantity} onChange={(e) => setF({ ...f, quantity: Number(e.target.value) })} placeholder={t("pos.qtyShort")} className={inp} />
         </div>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={isOwn} onChange={(e) => { setIsOwn(e.target.checked); setF({ ...f, name: "", photoUrl: "" }); }} /> {t("pos.ownBottle")}</label>
-        {isOwn
-          ? <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={t("pos.ownBottleName")} className={inp + " mb-2"} />
-          :         <select value={f.name} onChange={(e) => { const p=products.find((x)=>x.name===e.target.value); setF({ ...f, name:e.target.value, type:bottleType(p?.category,e.target.value) }); }} className={inp + " mb-2"}>
-          <option value="">{t("pos.selectDrink")}</option>
-          {drinksForType.map((p)=><option key={p.id} value={p.name}>{p.name} · {p.category}</option>)}
-        </select>}
+        <input value={f.name} list="bottle-drink-names" onChange={(e) => { const p = products.find((x) => x.name === e.target.value); setF({ ...f, name: e.target.value, ...(p ? { type: bottleType(p.category, p.name) } : {}) }); }} placeholder={isOwn ? t("pos.ownBottleName") : t("pos.selectDrink")} className={inp + " mb-2"} />
+        <datalist id="bottle-drink-names">{(isOwn ? [] : drinksForType).map((p) => <option key={p.id} value={p.name} />)}</datalist>
         {(
           <div className="mb-2 rounded-xl border border-white/10 p-2.5">
             <p className="text-xs text-white/50 mb-1.5">🛎️ {t("pos.corkage.title")}</p>
@@ -1434,7 +1430,7 @@ function BottlesTab() {
   );
 }
 
-function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone: () => void }) {
+function ReceiptPreview({ order, meta, bottle, onDone }: { order: any; meta: any; bottle?: any; onDone: () => void }) {
   const { toast } = useToast();
   const { t, language } = useTranslation();
   const paidAt = new Date(order.paidAt || order.createdAt || Date.now()).toLocaleString(localeTag(language));
@@ -1476,6 +1472,7 @@ function ReceiptPreview({ order, meta, onDone }: { order: any; meta: any; onDone
       <p className="mt-4 border-t border-dashed border-black/50 pt-4 text-center text-xs">{meta?.footer || t("pos.rc.thanks")}</p>
       <div className="mt-5 grid grid-cols-2 gap-2">
         <button onClick={print} className="flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 font-bold text-white"><Printer className="h-4 w-4"/> {t("pos.print")}</button>
+        {bottle?.slipNo && <button onClick={() => { if (!printBottleSlip(bottle, meta || {})) toast({ title: t("pos.bk.noPrinter") }); }} className="flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 font-bold text-black">🍾 {t("pos.bk.print")}</button>}
         <button onClick={onDone} className="rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white">{t("pos.done")}</button>
       </div>
     </div>
