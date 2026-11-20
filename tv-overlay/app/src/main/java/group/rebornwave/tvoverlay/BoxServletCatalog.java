@@ -15,9 +15,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     private static final int SEARCH_PAGES = 12;
     private static final int SINGER_PAGES = 8;
     private static final int SINGER_SONG_PAGES = 12;
-    private static final int NEW_PAGES = 8;
-    private static final int DOWNLOADED_PAGES = 60;
-    private static final int MAX_SONGS = 180;
+    private static final int NEW_PAGES = 8;    private static final int MAX_SONGS = 180;
 
     private final Context context;
     private final QueueClient client;
@@ -91,19 +89,6 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
             newest.addAll(BoxServlets.reversed(BoxServlets.search(base, "", "", page, BridgeSettings.isShowCloud(context)).songs));
         }
         return newest;
-    }
-
-    /** The songs stored on the box itself: the list is read page after page and only the songs that are not cloud songs are kept (about one in five). */
-    @Override
-    public List<SongPick> downloaded() throws Exception {
-        String base = box();
-        List<SongPick> stored = new ArrayList<SongPick>();
-        for (int page = 1; page <= DOWNLOADED_PAGES && stored.size() < MAX_SONGS; page++) {
-            BoxServlets.Page onPage = BoxServlets.search(base, "", "", page, false);
-            stored.addAll(onPage.songs);
-            if (onPage.isLast()) break;
-        }
-        return stored;
     }
 
     /** Reads pages one after the other until enough songs are found or the list ends. */

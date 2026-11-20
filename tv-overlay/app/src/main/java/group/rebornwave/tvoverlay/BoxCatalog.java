@@ -101,11 +101,6 @@ final class BoxCatalog implements ControlPanel.Catalog {
         return picks;
     }
 
-    @Override
-    public List<SongPick> downloaded() {
-        return fresh();
-    }
-
     private static SongPick pickOf(SongFiles.LocalSong song) {
         return new SongPick(song.code, song.title, song.artist);
     }

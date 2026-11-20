@@ -46,9 +46,6 @@ final class ControlPanel extends LinearLayout {
 
         List<SongPick> fresh() throws Exception;
 
-        /** The songs already stored on the box (not cloud songs): they start at once. */
-        List<SongPick> downloaded() throws Exception;
-
         /** Where the songs come from, in words, for the messages of an empty list. */
         String source();
 
@@ -75,7 +72,7 @@ final class ControlPanel extends LinearLayout {
         String onRequest(String table, SongPick pick) throws Exception;
     }
 
-    private enum Way { SINGERS, TITLE, TOP, FRESH, DOWNLOADED }
+    private enum Way { SINGERS, TITLE, TOP, FRESH }
 
     private static final String GOLD = "#fcd34d";
     private static final String CARD = "#2effffff";
@@ -419,9 +416,7 @@ final class ControlPanel extends LinearLayout {
         ways.addView(wayButton("🎤", Words.t("Singers", "歌手", "Penyanyi"), Way.SINGERS));
         ways.addView(wayButton("🔤", Words.t("Song title", "歌名", "Judul lagu"), Way.TITLE));
         ways.addView(wayButton("🔥", Words.t("Top songs", "热门歌曲", "Lagu terpopuler"), Way.TOP));
-        ways.addView(wayButton("✨", Words.t("New songs", "新歌", "Lagu baru"), Way.FRESH));
-        ways.addView(wayButton("✅", Words.t("Downloaded", "已下载", "Sudah diunduh"), Way.DOWNLOADED));
-        middle.addView(ways, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
+        ways.addView(wayButton("✨", Words.t("New songs", "新歌", "Lagu baru"), Way.FRESH));        middle.addView(ways, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
     }
 
     private View wayButton(String emoji, String label, final Way way) {
@@ -658,10 +653,7 @@ final class ControlPanel extends LinearLayout {
             showTypedText();
             loadSingers("");
         } else {
-            String title = way == Way.TOP ? Words.t("Top songs", "热门歌曲", "Lagu terpopuler")
-                    : way == Way.DOWNLOADED ? Words.t("Downloaded songs (play at once)", "已下载的歌曲（立即播放）", "Lagu yang sudah diunduh (langsung diputar)")
-                    : Words.t("New songs", "新歌", "Lagu baru");
-            showListPage(title, backToWays, false);
+            showListPage(way == Way.TOP ? Words.t("Top songs", "热门歌曲", "Lagu terpopuler") : Words.t("New songs", "新歌", "Lagu baru"), backToWays, false);
             loadPicks(way);
         }
     }
@@ -707,7 +699,7 @@ final class ControlPanel extends LinearLayout {
         listArea.addView(text(getContext(), Words.t("Loading…", "加载中…", "Memuat…"), 20, false, SOFT));
         runOffScreen(new Task() {
             @Override public void run() throws Exception {
-                final List<SongPick> found = way == Way.TOP ? catalog.top() : way == Way.DOWNLOADED ? catalog.downloaded() : catalog.fresh();
+                final List<SongPick> found = way == Way.TOP ? catalog.top() : catalog.fresh();
                 postIfCurrent(mine, new Runnable() { @Override public void run() { fillPicks(found); } });
             }
         }, mine);
