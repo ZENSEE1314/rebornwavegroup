@@ -685,6 +685,18 @@ function TablesTab() {
 
 const emptyBottle = () => ({ enabled: false, isOwn: false, type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
 const isDrink = (category = "", name = "") => /drink|beverage|beer|lager|ale|wine|whisky|whiskey|spirit|vodka|gin|rum|tequila|cocktail|bottle/i.test(`${category} ${name}`);
+const BUNDLE_PREFIX = /^\s*\d+\s*x\s*/i; // "12 x Bintang ..." is a bundle of the plain drink
+const OTHER_DRINK = "__other__";
+/** The drinks sold in the POS by plain name (bundle sizes dropped, each name once), sorted. */
+const drinkNamesOf = (items: Array<{ name: string; packageKind?: string | null; isService?: boolean | null }>) => {
+  const byKey = new Map<string, string>();
+  for (const item of items) {
+    if (item.packageKind || item.isService) continue;
+    const name = item.name.replace(BUNDLE_PREFIX, "").trim();
+    if (name && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
+  }
+  return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
+};
 const bottleType = (category = "", name = "") => /whisky|whiskey|spirit|vodka|gin|rum/i.test(`${category} ${name}`) ? "whisky" : /wine/i.test(`${category} ${name}`) ? "wine" : /beer|lager|ale/i.test(`${category} ${name}`) ? "beer" : "other";
 // onAddCorkage: puts a corkage service (a product marked as a service) on the bill being paid, once per bottle kept; the bill total changes before it is charged.
 function KeepBottleCheckout({ value, onChange, hasMember, drinkOptions = [], onAddCorkage }: { value: any; onChange: (value: any) => void; hasMember: boolean; drinkOptions?: Array<{ name: string; category?: string; productId?: number | null; qty?: number }>; onAddCorkage?: (service: Product, quantity: number) => void }) {
@@ -1335,6 +1347,7 @@ function BottlesTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [f, setF] = useState({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
+  const [isOtherDrink, setIsOtherDrink] = useState(false); // a drink that is not in the list: its name is typed
   const [isOwn, setIsOwn] = useState(false); // the customer brought the bottle: any name, and a corkage service can go on the bill
   const [corkage, setCorkage] = useState({ productId: "", tableNumber: "" });
   const [selectedMember, setSelectedMember] = useState<any>(null);
@@ -1353,7 +1366,7 @@ function BottlesTab() {
   });
   const store = useMutation({
     mutationFn: () => post("/api/reborn/pos/bottle-keep", { ...f, isOwn, ...(corkage.productId ? { corkage: { productId: Number(corkage.productId), tableNumber: corkage.tableNumber } } : {}) }),
-    onSuccess: (d) => { toast({ title: d.message }); if (d.bottle && !printBottleSlip(d.bottle, savedReceiptMeta())) toast({ title: t("pos.bk.noPrinter") }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setCorkage({ productId: "", tableNumber: "" }); setSelectedMember(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
+    onSuccess: (d) => { toast({ title: d.message }); if (d.bottle && !printBottleSlip(d.bottle, savedReceiptMeta())) toast({ title: t("pos.bk.noPrinter") }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setIsOtherDrink(false); setCorkage({ productId: "", tableNumber: "" }); setSelectedMember(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
     onError: (e: any) => toast({ title: t("pos.failed"), description: e.message, variant: "destructive" }),
   });
   const collect = useMutation({
@@ -1376,14 +1389,24 @@ function BottlesTab() {
         </div>
         {selectedMember && <div className="mb-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-2 text-sm text-emerald-200"><UserCheck className="mr-1 inline h-4 w-4"/> {selectedMember.name}</div>}
         <div className="grid grid-cols-2 gap-2 mb-2">
-          <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value, name: "", photoUrl: "" })} className={inp}>
+          <select value={f.type} onChange={(e) => { setIsOtherDrink(false); setF({ ...f, type: e.target.value, name: "", photoUrl: "" }); }} className={inp}>
             {drinkTypes.map((type)=><option key={type} value={type}>{t(`pos.bottleType.${type}`)}</option>)}
           </select>
           <input type="number" min={1} value={f.quantity} onChange={(e) => setF({ ...f, quantity: Number(e.target.value) })} placeholder={t("pos.qtyShort")} className={inp} />
         </div>
         <label className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 p-2.5 text-sm"><input type="checkbox" checked={isOwn} onChange={(e) => { setIsOwn(e.target.checked); setF({ ...f, name: "", photoUrl: "" }); }} /> {t("pos.ownBottle")}</label>
-        <input value={f.name} list="bottle-drink-names" onChange={(e) => { const p = products.find((x) => x.name === e.target.value); setF({ ...f, name: e.target.value, ...(p ? { type: bottleType(p.category, p.name) } : {}) }); }} placeholder={isOwn ? t("pos.ownBottleName") : t("pos.selectDrink")} className={inp + " mb-2"} />
-        <datalist id="bottle-drink-names">{(isOwn ? [] : drinksForType).map((p) => <option key={p.id} value={p.name} />)}</datalist>
+        {(() => {
+          const names = drinkNamesOf(drinksForType);
+          const isTyped = isOwn || isOtherDrink || names.length === 0;
+          return <>
+            {!isOwn && names.length > 0 && <select value={isOtherDrink ? OTHER_DRINK : f.name} onChange={(e) => { if (e.target.value === OTHER_DRINK) { setIsOtherDrink(true); setF({ ...f, name: "" }); } else { setIsOtherDrink(false); setF({ ...f, name: e.target.value }); } }} className={inp + " mb-2"}>
+              <option value="">{t("pos.bk.pickDrink")}</option>
+              {names.map((name) => <option key={name} value={name}>{name}</option>)}
+              <option value={OTHER_DRINK}>✏️ {t("pos.bk.otherDrink")}</option>
+            </select>}
+            {isTyped && <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={isOwn ? t("pos.ownBottleName") : t("pos.bk.typeDrink")} className={inp + " mb-2"} />}
+          </>;
+        })()}
         {(
           <div className="mb-2 rounded-xl border border-white/10 p-2.5">
             <p className="text-xs text-white/50 mb-1.5">🛎️ {t("pos.corkage.title")}</p>
