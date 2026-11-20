@@ -779,7 +779,7 @@ final class ControlPanel extends LinearLayout {
             if (!wanted.isEmpty() && !SongFiles.squash(pick.title + " " + pick.artist).contains(wanted)) continue;
             if (!matchesLanguage(pick.title, pick.artist) || !matchesLength(pick.title)) continue;
             shown++;
-            listArea.addView(row(pick.isYoutube() ? "▶" : "🎵", "", pick, (pick.cloud ? "☁ " : "") + pick.title, pick.artist, Words.t("Sing", "点唱", "Nyanyi"), new Runnable() {
+            listArea.addView(row(pick.isYoutube() ? "▶" : "🎵", "", pick, (pick.isYoutube() ? "" : pick.cloud ? "☁ " : "✓ ") + pick.title, pick.artist, Words.t("Sing", "点唱", "Nyanyi"), new Runnable() {
                 @Override public void run() { request(pick); }
             }));
         }
