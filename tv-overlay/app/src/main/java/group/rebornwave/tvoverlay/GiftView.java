@@ -35,9 +35,9 @@ import java.util.ArrayDeque;
 import java.util.Random;
 
 /**
- * What the box draws over the karaoke picture, made of plain Android views (no web page): each gift as a big picture that pops in with the sender,
- * the receiver and the gift's name, with its emoji raining down behind. Gifts that arrive together play one after the other. No song words are drawn
- * here: the song now on and the next show only on our own touch screen.
+ * What the box draws over the karaoke picture, made of plain Android views (no web page): a bar along the top with the song now on and the next
+ * ones, and each gift as a big picture that pops in with the sender, the receiver and the gift's name, with its emoji raining down behind.
+ * Gifts that arrive together play one after the other.
  */
 final class GiftView extends FrameLayout {
     private static final long SHOW_MS = 14_000; // long enough for the words to cross the screen slowly
@@ -47,6 +47,7 @@ final class GiftView extends FrameLayout {
     private static final int RAIN_COUNT = 18;
     private static final int RAIN_SP = 32;
     private static final float EMOJI_HEIGHT_FRACTION = 0.3f; // a gift with no picture or animation shows its emoji this big (of the screen height)
+    private static final int BAR_SP = 26;
     private static final float PICTURE_HEIGHT_FRACTION = 0.3f; // a gift picture of its own
     private static final int FALLBACK_WIDTH_PX = 1280;
     private static final int FALLBACK_HEIGHT_PX = 720;
@@ -69,8 +70,9 @@ final class GiftView extends FrameLayout {
     private static final long SPARKLE_MS = 900;
     private static final float HALO_EXTRA_FRACTION = 0.25f; // the glow is this much bigger than the animation
     private static final int TICKER_SP = 32;
-    // The karaoke program keeps its own line at the top of its picture ("Playing: ... NEXT: ..."): nothing of ours is drawn there, everything starts below it.
-    private static final float TOP_LINE_FRACTION = 0.11f; // of the screen height
+    // The song bar is a solid black strip as tall as the line the karaoke program keeps at the top of its picture ("Playing: ... NEXT: ..."), so that line
+    // is covered; everything else starts below the strip.
+    private static final float BAR_HEIGHT_FRACTION = 0.11f; // of the screen height
     private static final int TICKER_GAP_PX = 8;
     private static final int CARD_GAP_PX = 40; // the picture sits a little below the middle, clear of the moving words
     private static final int TOP_TITLE_SP = 22;
@@ -90,15 +92,32 @@ final class GiftView extends FrameLayout {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Random random = new Random();
     private final ArrayDeque<TvFeed.Gift> waiting = new ArrayDeque<TvFeed.Gift>();
+    private final TextView bar;
     private final FrameLayout stage;
     private boolean playing = false;
     private boolean closed = false;
 
     GiftView(Context context) {
         super(context);
+        bar = new TextView(context);
+        bar.setTextColor(Color.WHITE);
+        bar.setTextSize(TypedValue.COMPLEX_UNIT_SP, BAR_SP);
+        bar.setTypeface(Typeface.DEFAULT_BOLD);
+        bar.setSingleLine(true);
+        bar.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        bar.setMarqueeRepeatLimit(-1);
+        bar.setSelected(true); // a marquee only scrolls in a selected view
+        bar.setBackgroundColor(Color.BLACK);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(24, 12, 24, 12);
         GiftArt.prefetch(context);
         stage = new FrameLayout(context);
         addView(stage, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        addView(bar, new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP));
+    }
+
+    void setBar(String text) {
+        bar.setText(text); // the strip stays even with no words, so the karaoke program's own Playing / Next line never shows through
     }
 
     void play(TvFeed.Gift gift) {
@@ -160,7 +179,7 @@ final class GiftView extends FrameLayout {
         card.addView(picture);
         startFloat(picture);
         FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-        cardParams.topMargin = topLineBottom() + CARD_GAP_PX;
+        cardParams.topMargin = barBottom() + CARD_GAP_PX;
         stage.addView(card, cardParams);
         addTicker(gift);
         addTopGifters(gift, Gravity.START);
@@ -207,7 +226,7 @@ final class GiftView extends FrameLayout {
             panel.addView(row);
         }
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | side);
-        params.topMargin = topLineBottom() + TOP_PANEL_GAP_PX;
+        params.topMargin = barBottom() + TOP_PANEL_GAP_PX;
         if (side == Gravity.START) params.leftMargin = TOP_PANEL_MARGIN_PX; else params.rightMargin = TOP_PANEL_MARGIN_PX;
         stage.addView(panel, params);
     }
@@ -270,7 +289,7 @@ final class GiftView extends FrameLayout {
         line.setPadding(WORDS_PAD_PX, WORDS_PAD_PX / 3, WORDS_PAD_PX, WORDS_PAD_PX / 3);
         strip.addView(line, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
         FrameLayout.LayoutParams stripParams = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP);
-        stripParams.topMargin = topLineBottom() + TICKER_GAP_PX;
+        stripParams.topMargin = barBottom() + TICKER_GAP_PX;
         stage.addView(strip, stripParams);
         strip.post(new Runnable() {
             @Override public void run() {
@@ -319,8 +338,14 @@ final class GiftView extends FrameLayout {
         return getHeight() > 0 ? getHeight() : FALLBACK_HEIGHT_PX;
     }
 
-    private int topLineBottom() {
-        return Math.round(screenHeight() * TOP_LINE_FRACTION);
+    private int barBottom() {
+        return Math.round(screenHeight() * BAR_HEIGHT_FRACTION);
+    }
+
+    @Override
+    protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+        super.onSizeChanged(width, height, oldWidth, oldHeight);
+        bar.setMinHeight(Math.round(height * BAR_HEIGHT_FRACTION));
     }
 
     private void showArt(Drawable art, LinearLayout card, TextView emoji) {
