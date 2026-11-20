@@ -95,7 +95,8 @@ final class BoxBridge {
             orderedId = 0;
             client.next(now.id, true);
         } else {
-            lastEvent = "waiting for the box to start (a cloud song downloads first) " + (System.currentTimeMillis() - orderedAt) / 1000 + " s: " + now.title;
+            String reason = CloudMarks.has(now.karaokeCode) ? "⬇ downloading on the box (cloud song, not downloaded yet) " : "waiting for the box to start ";
+            lastEvent = reason + (System.currentTimeMillis() - orderedAt) / 1000 + " s: " + now.title;
         }
     }
 

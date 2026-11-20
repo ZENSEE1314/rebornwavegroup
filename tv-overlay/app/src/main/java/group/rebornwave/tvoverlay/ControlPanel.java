@@ -145,7 +145,7 @@ final class ControlPanel extends LinearLayout {
         message.setVisibility(GONE);
         addView(message);
 
-        info = text(context, "", 14, false, SOFT);
+        info = text(context, "", 16, true, SOFT);
         info.setGravity(Gravity.CENTER);
         info.setVisibility(GONE);
         addView(info);
@@ -286,7 +286,7 @@ final class ControlPanel extends LinearLayout {
         for (int i = 0; songs != null && i < songs.size(); i++) {
             QueueClient.Song song = songs.get(i);
             boolean singing = now != null && song.id == now.id;
-            TextView line = text(getContext(), (singing ? "🎤 " : song.position + ". ") + song.title, 15, singing, singing ? GOLD : "#ffffff");
+            TextView line = text(getContext(), (singing ? "🎤 " : song.position + ". ") + (CloudMarks.has(song.karaokeCode) ? "☁ " : "") + song.title, 15, singing, singing ? GOLD : "#ffffff");
             line.setSingleLine(true);
             line.setEllipsize(TextUtils.TruncateAt.END);
             list.addView(line);

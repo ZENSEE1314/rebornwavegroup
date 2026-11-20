@@ -153,6 +153,7 @@ public class PlayerActivity extends Activity {
                         "\"" + pick.title + "\" (lagu " + pick.code + ") tidak ada videonya di perangkat ini dari " + songFiles.count() + " — pilih lagu lain");
             }
             int place = client.request(table, pick);
+            if (pick.cloud) CloudMarks.add(pick.code);
             return Words.t("Added \"" + pick.title + "\" for Table " + table + (place > 0 ? " — place " + place : ""),
                     "已为 " + table + " 桌点歌：" + pick.title + (place > 0 ? "（第 " + place + " 位）" : ""),
                     "Ditambahkan \"" + pick.title + "\" untuk Meja " + table + (place > 0 ? " — urutan " + place : ""));
