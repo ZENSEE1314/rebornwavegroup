@@ -53,6 +53,7 @@ final class OverlayWindows {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<Integer, Layer> layers = new HashMap<Integer, Layer>();
     private String path = "";
+    private String bar = "";
     private boolean listening = false;
 
     private final DisplayManager.DisplayListener screensChanged = new DisplayManager.DisplayListener() {
@@ -72,6 +73,11 @@ final class OverlayWindows {
             @Override public void onGift(TvFeed.Gift gift) {
                 raise();
                 for (Layer layer : layers.values()) layer.view.play(gift);
+            }
+
+            @Override public void onBar(String text) {
+                bar = text;
+                for (Layer layer : layers.values()) layer.view.setBar(text);
             }
         });
     }
@@ -133,6 +139,7 @@ final class OverlayWindows {
         handler.removeCallbacksAndMessages(null);
         for (Integer id : new ArrayList<Integer>(layers.keySet())) remove(id);
         path = "";
+        bar = "";
     }
 
     private void followScreens() {
@@ -236,6 +243,7 @@ final class OverlayWindows {
             return;
         }
         OverlayLog.add("screen " + id + ": window added");
+        view.setBar(bar);
         layers.put(id, new Layer(windows, view, params));
     }
 

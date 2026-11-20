@@ -25,6 +25,7 @@ final class BoxBridge {
     private int voiceChosenAtBoxFor = 0;
     private volatile String problem = "";
     private volatile String lastEvent = "";
+    private volatile String lastList = ""; // the titles the box's play list holds now
     private volatile int lastCount = -1; // songs the box's own play list held at the last look (-1 = not looked yet)
 
     BoxBridge(Context context, QueueClient client) {
@@ -40,7 +41,7 @@ final class BoxBridge {
     /** One line for the touch screen: what was last done and how many songs the box holds, so a photo of the screen says why nothing plays. */
     String screenLine() {
         String event = lastEvent.isEmpty() ? "" : lastEvent + " · ";
-        return "Box: " + event + "playlist " + (lastCount < 0 ? "?" : String.valueOf(lastCount));
+        return "Box: " + event + "playlist " + (lastCount < 0 ? "?" : String.valueOf(lastCount)) + (lastList.isEmpty() ? "" : " [" + lastList + "]");
     }
 
     /** The last thing done on the box, for the test button. */
@@ -60,6 +61,7 @@ final class BoxBridge {
         problem = "";
         int count = BoxServlets.playlistCount(box);
         lastCount = count;
+        lastList = count > 0 ? BoxServlets.playlistNames(box) : "";
         QueueClient.Song now = board.now;
 
         if (now == null) {

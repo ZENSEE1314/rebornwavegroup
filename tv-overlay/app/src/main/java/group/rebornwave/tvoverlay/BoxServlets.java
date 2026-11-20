@@ -37,6 +37,8 @@ final class BoxServlets {
     private static final long TRIAL_WAIT_MS = 3_000;
     private static final int LAST_HOST = 254;
     private static final int SONGS_PER_PAGE = 15;
+    private static final int PLAYLIST_NAMES_SHOWN = 3;
+    private static final int PLAYLIST_RAW_CHARS = 100;
     private static final String NO_PHOTO = "singer_photo.png";
 
     private static volatile String known = "";
@@ -280,6 +282,21 @@ final class BoxServlets {
             return number == null ? 0 : Integer.parseInt(String.valueOf(number).trim());
         } catch (NumberFormatException notANumber) {
             return 0;
+        }
+    }
+
+    /** The titles of the first songs in the box's play list (what it holds now), for the touch screen's status line; the raw start of its answer if no title is found. */
+    static String playlistNames(String base) {
+        try {
+            String body = text(base + "/PlaylistServlet?onSelectPage=true&click=true&type=1&jsonpCallback=" + CALLBACK, CALL_MS);
+            java.util.regex.Matcher found = java.util.regex.Pattern.compile("\"sONGNAME\"\\s*:\\s*\"([^\"]*)\"").matcher(body);
+            StringBuilder names = new StringBuilder();
+            int shown = 0;
+            while (found.find() && shown < PLAYLIST_NAMES_SHOWN) names.append(shown++ > 0 ? " | " : "").append(found.group(1));
+            if (shown > 0) return names.toString();
+            return body.length() > PLAYLIST_RAW_CHARS ? body.substring(0, PLAYLIST_RAW_CHARS) : body;
+        } catch (Exception unreadable) {
+            return "?";
         }
     }
 
