@@ -37,6 +37,7 @@ final class TvFeed {
         String toName = "";
         String toTable = "";
         long kgold = 0;
+        java.util.List<String> topGifters = new java.util.ArrayList<String>(); // the receiver's top givers, best first (names only)
     }
 
     private static final int CONNECT_MS = 10_000;
@@ -125,6 +126,12 @@ final class TvFeed {
                 gift.toName = json.optString("toName");
                 gift.toTable = json.optString("toTable");
                 gift.kgold = json.optLong("kgold");
+                org.json.JSONArray tops = json.optJSONArray("topGifters");
+                for (int i = 0; tops != null && i < tops.length(); i++) {
+                    JSONObject top = tops.optJSONObject(i);
+                    String topName = top == null ? "" : top.optString("name");
+                    gift.topGifters.add(topName.isEmpty() ? "—" : topName);
+                }
                 OverlayLog.add("feed: gift " + gift.name + " from " + gift.fromName);
                 ui.post(new Runnable() { @Override public void run() { listener.onGift(gift); } });
             } catch (Exception unreadable) {

@@ -40,7 +40,7 @@ import java.util.Random;
  * Gifts that arrive together play one after the other.
  */
 final class GiftView extends FrameLayout {
-    private static final long SHOW_MS = 8_000;
+    private static final long SHOW_MS = 14_000; // long enough for the words to cross the screen slowly
     private static final long POP_MS = 500;
     private static final long FALL_MS = 3_500;
     private static final long RAIN_SPREAD_MS = 2_500;
@@ -72,6 +72,12 @@ final class GiftView extends FrameLayout {
     private static final int TICKER_SP = 32;
     private static final int TICKER_TOP_PX = 80; // below the line the karaoke program keeps at the top of its picture
     private static final int CARD_TOP_PX = 110; // the picture sits a little below the middle, clear of the moving words
+    private static final int TOP_TITLE_SP = 22;
+    private static final int TOP_NAME_SP = 28;
+    private static final int TOP_PANEL_TOP_PX = 260; // below the moving words
+    private static final int TOP_PANEL_MARGIN_PX = 32;
+    private static final float TOP_PANEL_MAX_WIDTH_FRACTION = 0.26f;
+    private static final String[] MEDALS = {"🥇", "🥈", "🥉"};
     private static final long HALO_PULSE_MS = 900;
     private static final int HALO_COLOUR = Color.argb(150, 252, 211, 77);
 
@@ -169,6 +175,8 @@ final class GiftView extends FrameLayout {
         cardParams.topMargin = CARD_TOP_PX;
         stage.addView(card, cardParams);
         addTicker(gift);
+        addTopGifters(gift, Gravity.START);
+        addTopGifters(gift, Gravity.END);
         card.setScaleX(0f);
         card.setScaleY(0f);
         card.animate().scaleX(1f).scaleY(1f).setDuration(POP_MS).setInterpolator(new OvershootInterpolator()).start();
@@ -181,6 +189,31 @@ final class GiftView extends FrameLayout {
         else if (!gift.imageUrl.isEmpty()) loadPicture(gift.imageUrl, card, picture);
         else loadAnimated(gift, scene, card, picture);
         rain(emoji);
+    }
+
+    /** The receiver's top 3 givers as a small board on one side of the picture (called for the left and the right side). */
+    private void addTopGifters(TvFeed.Gift gift, int side) {
+        if (gift.topGifters.isEmpty()) return;
+        LinearLayout panel = new LinearLayout(getContext());
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundColor(GREY_BOX);
+        panel.setPadding(WORDS_PAD_PX / 2, WORDS_PAD_PX / 3, WORDS_PAD_PX / 2, WORDS_PAD_PX / 3);
+        TextView title = text("🏆 " + Words.t("Top 3 gifters of ", "送礼前三名：", "3 pemberi teratas untuk ") + (gift.toName.isEmpty() ? "—" : gift.toName), TOP_TITLE_SP, true);
+        title.setGravity(Gravity.START);
+        title.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
+        panel.addView(title);
+        for (int i = 0; i < gift.topGifters.size() && i < MEDALS.length; i++) {
+            TextView row = text(MEDALS[i] + " " + gift.topGifters.get(i), TOP_NAME_SP, true);
+            row.setGravity(Gravity.START);
+            row.setSingleLine(true);
+            row.setEllipsize(TextUtils.TruncateAt.END);
+            row.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
+            panel.addView(row);
+        }
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | side);
+        params.topMargin = TOP_PANEL_TOP_PX;
+        if (side == Gravity.START) params.leftMargin = TOP_PANEL_MARGIN_PX; else params.rightMargin = TOP_PANEL_MARGIN_PX;
+        stage.addView(panel, params);
     }
 
     /** The sender, the receiver, the gift and its KGOLD as one line on a see-through grey strip that slides across the screen from left to right. */
