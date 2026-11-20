@@ -41,6 +41,7 @@ import { SavedKeys } from "@/components/SavedKeys";
 import { HappyDays } from "@/components/HappyDays";
 import { eligibleStaffOf } from "@shared/itemCommission";
 import { ResetNumbers } from "@/components/ResetNumbers";
+import { CategoryInput } from "@/components/CategoryInput";
 import { FreeStartKgold } from "@/components/FreeStartKgold";
 
 const SecurityPanel = lazy(() => import("@/components/SecurityPanel"));
@@ -2605,7 +2606,7 @@ function Products() {
         {mode === "new" ? <>
         <label className="text-xs text-white/50 block mb-2">{t("admin.prod.name")}<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder={t("admin.c.eg", { v: "Heineken" })} className={inp + " w-full"} /></label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-          <label className="text-xs text-white/50">{t("admin.prod.category")}<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder={t("admin.prod.categoryPh")} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">{t("admin.prod.category")}<CategoryInput value={n.category} onChange={(category) => setN({ ...n, category })} placeholder={t("admin.prod.categoryPh")} className={inp + " w-full"} /></label>
           <div className="text-xs text-white/50 sm:col-span-2">{t("admin.prod.industries")} <span className="text-white/30">{t("admin.prod.industriesHint")}</span><IndustryPicker value={n.department} options={industryOptions} onChange={(v) => setN({ ...n, department: v })} /></div>
           <label className="text-xs text-white/50">{t("admin.prod.stockQty")}<input type="number" inputMode="numeric" value={n.stock || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={n.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
@@ -2765,7 +2766,7 @@ function ProductTableRow({ p, industryOptions }: { p: any; industryOptions: stri
   return (
     <tr id={`product-${p.id}`} className={`border-b border-white/5 align-middle hover:bg-white/[0.03] ${dirty ? "bg-amber-400/5" : ""}`}>
       <td className="px-2 py-1"><div className="flex items-center gap-2"><ProductPicture id={p.id} name={p.name} imageUrl={p.imageUrl} sizeClass="w-9 h-9" roundedClass="rounded-lg" /><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={cell + " min-w-[120px] font-medium"} /></div></td>
-      <td className="px-2 py-1"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={cell + " min-w-[90px]"} /></td>
+      <td className="px-2 py-1"><CategoryInput value={f.category} onChange={(category) => setF({ ...f, category })} className={cell + " min-w-[90px]"} /></td>
       <td className="px-2 py-1"><IndustryPicker isCompact value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></td>
       <td className="px-2 py-1"><PackFields isCompact value={f} onChange={(next) => setF({ ...f, ...next })} /></td>
       <td className="px-2 py-1"><input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={numCell} /></td>
@@ -2861,7 +2862,7 @@ function ProductRow({ p, inventory = false }: { p: any; inventory?: boolean }) {
           <label className="text-xs text-white/50">{t("admin.c.name")}<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} /></label>
           <div className="text-xs text-white/50 mb-2">{t("admin.prod.industries")} <span className="text-white/30">{t("admin.prod.tickAll")}</span><IndustryPicker value={f.department} options={industryOptions} onChange={(v) => setF({ ...f, department: v })} /></div>
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <label className="text-xs text-white/50">{t("admin.prod.category")}<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">{t("admin.prod.category")}<CategoryInput value={f.category} onChange={(category) => setF({ ...f, category })} className={inp + " w-full"} /></label>
             <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> {t("admin.prod.activeCol")}</label>
             <label className="text-xs text-white/50">{t("admin.prod.sellPrice")}<input type="number" inputMode="numeric" value={f.price || ""} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">{t("admin.prod.unitCost")}<input type="number" inputMode="numeric" value={f.cost || ""} disabled={unitPriceFromPack(f.packPrice, f.unitsPerPack) !== null} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>

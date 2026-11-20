@@ -1152,6 +1152,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.prod.name': { en: "Product name", zh: "商品名称", id: "Nama produk" },
   'admin.prod.category': { en: "Category", zh: "类别", id: "Kategori" },
   'admin.prod.categoryPh': { en: "Drinks", zh: "饮品", id: "Minuman" },
+  'admin.prod.newCategory': { en: "New category: {name}", zh: "新分类：{name}", id: "Kategori baru: {name}" },
   'admin.prod.industries': { en: "Industries", zh: "行业", id: "Industri" },
   'admin.prod.industriesHint': { en: "(tick all that apply — an item like beer can be in KTV, Bar & Restaurant)", zh: "（勾选所有适用项——例如啤酒可同时属于 KTV、酒吧和餐厅）", id: "(centang semua yang berlaku — item seperti bir bisa di KTV, Bar & Restoran)" },
   'admin.prod.stockQty': { en: "Stock quantity", zh: "库存数量", id: "Jumlah stok" },
