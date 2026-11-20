@@ -73,7 +73,10 @@ final class BoxBridge {
             return;
         }
         if (orderedId == 0) {
-            if (count > 0) return waitForOtherSong(box);
+            if (count > 0) {
+                waitForOtherSong(box);
+                return;
+            }
             busyWithOtherSince = 0;
             order(box, now);
             return;
