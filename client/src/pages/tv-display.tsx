@@ -9,7 +9,7 @@ interface Song { title: string; artist: string; table: string; name: string }
 interface Gift { id: string; giftName: string; emoji: string; imageUrl: string; animation: string; fromName: string; fromTable: string; toName: string; toTable: string; kgold: number; fromPhoto?: string; toPhoto?: string; topGifters?: Array<{ name: string; photo: string; sent: number }> }
 interface TvState { name: string; view: "overlay" | "queue" | "gifts" | "off"; tables: string[]; now: Song | null; next: Song[]; gifts: Gift[] }
 
-const GIFT_SHOWN_MS = 9000;
+const GIFT_SHOWN_MS = 14000;
 const SAFETY_REFRESH_MS = 30_000;
 const MARQUEE_SECONDS_PER_CHAR = 0.22;
 const MARQUEE_MIN_SECONDS = 24;
@@ -136,11 +136,11 @@ function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
           <Face name={to} photo={gift.toPhoto} size="4.2vw" />
         </p>
       </div>
-      {gift.topGifters && gift.topGifters.length > 0 && (
-        <div className="absolute left-[2vw] top-[26%] rounded-[1.4vw] px-[1.4vw] py-[1vw] text-white" style={{ background: "rgba(0,0,0,.45)", maxWidth: "34vw" }}>
+      {gift.topGifters && gift.topGifters.length > 0 && (["left-[2vw]", "right-[2vw]"] as const).map((side) => (
+        <div key={side} className={`absolute ${side} top-[26%] rounded-[1.4vw] px-[1.4vw] py-[1vw] text-white`} style={{ background: "rgba(0,0,0,.45)", maxWidth: "34vw" }}>
           <p style={{ fontSize: "1.7vw", fontWeight: 900, textShadow: "0 2px 6px rgba(0,0,0,.9)" }}>🏆 {t("hm.tv.topGifters", { name: to })}</p>
           <ul className="mt-[0.6vw] space-y-[0.6vw]">
-            {gift.topGifters.map((top, i) => (
+            {gift.topGifters!.map((top, i) => (
               <li key={`${top.name}${i}`} className="flex items-center gap-[1vw]" style={{ fontSize: "1.8vw", fontWeight: 800, textShadow: "0 2px 6px rgba(0,0,0,.9)" }}>
                 <Face name={top.name} photo={top.photo} size="4vw" ring={RANK_RING[i]} />
                 <span className="truncate">{i + 1}. {top.name || t("hm.tv.someone")}</span>
@@ -148,7 +148,7 @@ function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
             ))}
           </ul>
         </div>
-      )}
+      ))}
     </div>
   );
 }
