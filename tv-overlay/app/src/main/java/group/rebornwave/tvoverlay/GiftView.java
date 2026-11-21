@@ -81,8 +81,7 @@ final class GiftView extends FrameLayout {
     private static final int TOP_NAME_SP = 28;
     private static final int TOP_PANEL_GAP_PX = 100; // below the moving words
     private static final int TOP_PANEL_MARGIN_PX = 32;
-    private static final float TOP_PANEL_MAX_WIDTH_FRACTION = 0.4f;
-    private static final float TOP_NAME_MAX_WIDTH_FRACTION = 0.07f;
+    private static final float TOP_PANEL_MAX_WIDTH_FRACTION = 0.26f;
     private static final String[] MEDALS = {"🥇", "🥈", "🥉"};
     private static final int[] MEDAL_COLOURS = {Color.parseColor("#f7d774"), Color.parseColor("#d1d5db"), Color.parseColor("#d97706")};
     private static final int FACE_PX = 72;
@@ -212,23 +211,23 @@ final class GiftView extends FrameLayout {
         title.setGravity(Gravity.START);
         title.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
         panel.addView(title);
-        // The three givers sit side by side, so the board is short and stays above the karaoke words.
-        LinearLayout row = new LinearLayout(getContext());
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, TOP_ROW_GAP_PX, 0, 0);
+        // 1, 2, 3 from top to bottom; the board starts right under the moving words and ends well above the karaoke words.
         for (int i = 0; i < gift.topGifters.size() && i < MEDALS.length; i++) {
             String[] giver = gift.topGifters.get(i);
+            LinearLayout row = new LinearLayout(getContext());
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, TOP_ROW_GAP_PX, 0, 0);
             row.addView(face(giver[0], giver[1], MEDAL_COLOURS[i]));
             TextView name = text(MEDALS[i] + " " + giver[0], TOP_NAME_SP, true);
             name.setGravity(Gravity.START);
             name.setSingleLine(true);
             name.setEllipsize(TextUtils.TruncateAt.END);
-            name.setPadding(TOP_ROW_GAP_PX, 0, TOP_ROW_GAP_PX * 2, 0);
-            name.setMaxWidth((int) (screenWidth() * TOP_NAME_MAX_WIDTH_FRACTION));
+            name.setPadding(TOP_ROW_GAP_PX * 2, 0, 0, 0);
+            name.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
             row.addView(name);
+            panel.addView(row);
         }
-        panel.addView(row);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | side);
         params.topMargin = barBottom() + TOP_PANEL_GAP_PX;
         if (side == Gravity.START) params.leftMargin = TOP_PANEL_MARGIN_PX; else params.rightMargin = TOP_PANEL_MARGIN_PX;
