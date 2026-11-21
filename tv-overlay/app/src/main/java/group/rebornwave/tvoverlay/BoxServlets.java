@@ -37,6 +37,9 @@ final class BoxServlets {
     private static final long TRIAL_WAIT_MS = 3_000;
     private static final int LAST_HOST = 254;
     private static final int SONGS_PER_PAGE = 15;
+    private static final String DIAGNOSE_SINGER = "关哲"; // the song the club could not find: the Test button looks for it
+    private static final String DIAGNOSE_SONG = "想你的夜";
+    private static final int DIAGNOSE_MAX_PAGES = 10;
     private static final int PLAYLIST_NAMES_SHOWN = 3;
     private static final int PLAYLIST_RAW_CHARS = 100;
     private static final String NO_PHOTO = "singer_photo.png";
@@ -90,6 +93,7 @@ final class BoxServlets {
         } catch (Exception failure) {
             report.append("\nSinger search failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
         }
+        report.append(findSongReport(base, DIAGNOSE_SINGER, DIAGNOSE_SONG));
         report.append("\nPlay list count says: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=false&click=false&type=1&jsonpCallback=" + CALLBACK));
         report.append("\nPlay list names say: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=true&click=true&type=1&jsonpCallback=" + CALLBACK));
         return report.toString();
@@ -120,6 +124,36 @@ final class BoxServlets {
             report.append("\n(the test song was cut with Skip)");
         } catch (Exception failure) {
             report.append("\nFailed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
+        }
+        return report.toString();
+    }
+
+    /** Looks for one song the way the touch screen would (through the singer's pages, and by its title) and says what the box answered, for the "Test" button. */
+    private static String findSongReport(String base, String singer, String title) {
+        StringBuilder report = new StringBuilder();
+        try {
+            int maxPage = Math.max(1, call(base, "SearchServlet", "songName=&songType=&singer=" + enc(singer) + "&lang=&sortType=&page=1").optInt("maxPage", 1));
+            int total = 0;
+            String foundOn = "";
+            for (int page = 1; page <= Math.min(maxPage, DIAGNOSE_MAX_PAGES); page++) {
+                JSONArray raw = new JSONArray(call(base, "SearchServlet", "songName=&songType=&singer=" + enc(singer) + "&lang=&sortType=&page=" + page).optString("songList", "[]"));
+                total += raw.length();
+                for (int i = 0; i < raw.length(); i++) {
+                    JSONObject song = raw.optJSONObject(i);
+                    if (song != null && song.optString("sONGNAME").contains(title)) foundOn += " page " + page + (song.optInt("cLOUD") == 1 ? " (cloud)" : " (on the box)");
+                }
+            }
+            report.append("\nBy singer ").append(singer).append(": ").append(total).append(" songs in ").append(Math.min(maxPage, DIAGNOSE_MAX_PAGES)).append(" pages; ")
+                    .append(title).append(foundOn.isEmpty() ? " NOT in them" : " found on" + foundOn);
+        } catch (Exception failure) {
+            report.append("\nBy singer failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
+        }
+        try {
+            JSONArray byTitle = new JSONArray(call(base, "SearchServlet", "songName=" + enc(title) + "&songType=&singer=&lang=&sortType=&page=1").optString("songList", "[]"));
+            report.append("\nBy title ").append(title).append(": ").append(byTitle.length()).append(" songs");
+            if (byTitle.length() > 0) report.append(" — ").append(byTitle.getJSONObject(0).optString("sONGNAME")).append(byTitle.getJSONObject(0).optInt("cLOUD") == 1 ? " (cloud)" : " (on the box)");
+        } catch (Exception failure) {
+            report.append("\nBy title failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
         }
         return report.toString();
     }

@@ -10,8 +10,8 @@ android {
         applicationId "group.rebornwave.tvoverlay"
         minSdk 21
         targetSdk 33
-        versionCode 66
-        versionName "2.52"
+        versionCode 67
+        versionName "2.53"
         // The club's box key, given only to the private build (the workflow sets BOX_KEY from a secret): the box then links itself, with no code to type.
         // The private app (built with the club's key) is the whole karaoke app and is called that, so it is easy to tell from the overlay-only app.
         manifestPlaceholders = [appLabel: (System.getenv('BOX_KEY') ? 'Reborn Karaoke' : 'Reborn TV Overlay')]
