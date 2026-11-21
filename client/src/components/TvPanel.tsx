@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { rememberedTenantSlug } from "@/hooks/useTenantBrand";
 
 type TvView = "overlay" | "queue" | "gifts" | "off";
+interface TestGift { name: string; emoji: string; kgold: number }
 interface Screen { id: string; token: string; name: string; view: TvView; tables: string[]; online?: number }
 
 const VIEWS: TvView[] = ["overlay", "queue", "gifts", "off"];
@@ -46,6 +47,8 @@ export default function TvPanel() {
   };
   useEffect(() => { void refreshOverlay(); }, []);
   const [tableDrafts, setTableDrafts] = useState<Record<string, string>>({});
+  const [gifts, setGifts] = useState<TestGift[]>([]); // every gift the club has, for the "choose a gift" list
+  const [giftsFor, setGiftsFor] = useState<string | null>(null); // the TV whose gift list is open
   const [qrFor, setQrFor] = useState<string | null>(null); // the TV whose address QR is open
   const [codes, setCodes] = useState<Record<string, string>>({}); // the code typed for each TV screen
   const [isDirty, setIsDirty] = useState(false);
@@ -62,6 +65,7 @@ export default function TvPanel() {
       const data = await (await apiRequest("GET", "/api/reborn/admin/tv")).json();
       setScreens(data.screens);
       setMax(data.max);
+      setGifts(data.gifts ?? []);
       setTableDrafts(Object.fromEntries(data.screens.map((screen: Screen) => [screen.id, tablesText(screen.tables)])));
     } catch (error) {
       say(t("admin.tv.failed", { error: errorText(error) }), true);
@@ -110,9 +114,9 @@ export default function TvPanel() {
     }
   };
 
-  const testGift = async (screen: Screen, all = false) => {
+  const testGift = async (screen: Screen, all = false, giftIndex?: number) => {
     try {
-      const data = await (await apiRequest("POST", "/api/reborn/admin/tv/test-gift", { token: screen.token, all })).json();
+      const data = await (await apiRequest("POST", "/api/reborn/admin/tv/test-gift", { token: screen.token, all, giftIndex })).json();
       if (!data.shown) say(t("admin.tv.testNoGifts"), true);
       else if (!data.delivered) say(t("admin.tv.testNobody"), true);
       else say(all ? t("admin.tv.testAllSent", { n: data.count }) : t("admin.tv.testSent"));
@@ -227,9 +231,21 @@ export default function TvPanel() {
             {screen.token && <button type="button" onClick={() => setQrFor((current) => (current === screen.id ? null : screen.id))} className={button}><QrCode className="w-4 h-4" /> {qrFor === screen.id ? t("admin.tv.hideQr") : t("admin.tv.showQr")}</button>}
             {screen.token && <button type="button" onClick={() => testGift(screen)} disabled={isDirty} className={button}><Sparkles className="w-4 h-4" /> {t("admin.tv.testGift")}</button>}
             {screen.token && <button type="button" onClick={() => testGift(screen, true)} disabled={isDirty} className={button}><Sparkles className="w-4 h-4" /> {t("admin.tv.testAllGifts")}</button>}
+            {screen.token && gifts.length > 0 && <button type="button" onClick={() => setGiftsFor((current) => (current === screen.id ? null : screen.id))} disabled={isDirty} className={button}><Sparkles className="w-4 h-4" /> {t("admin.tv.testPick")}</button>}
             {screens.length > 1 && <button type="button" onClick={() => makeAllLike(screen)} className={button}>{t("admin.tv.copyToAll")}</button>}
             <button type="button" onClick={() => removeScreen(screen.id)} className={button + " text-red-200"}><Trash2 className="w-4 h-4" /> {t("admin.tv.remove")}</button>
           </div>
+          {giftsFor === screen.id && (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {gifts.map((gift, index) => (
+                <li key={`${gift.name}${index}`}>
+                  <button type="button" onClick={() => testGift(screen, false, index)} className={button}>
+                    <span className="text-lg leading-none">{gift.emoji || "🎁"}</span> {gift.name}{gift.kgold > 0 ? ` · ${gift.kgold.toLocaleString()}` : ""}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ))}
 

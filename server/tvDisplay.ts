@@ -117,7 +117,8 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
   // ---- admin ----
 
   app.get("/api/reborn/admin/tv", injected.requireAdmin(async (_req, res) => {
-    res.json({ screens: (await loadSetup()).screens.map(withOnline), max: MAX_TV_SCREENS });
+    const gifts = (await injected.giftTypes(await injected.companyId(req))).map((gift) => ({ name: gift.name, emoji: gift.emoji, kgold: gift.kgoldCost }));
+    res.json({ screens: (await loadSetup()).screens.map(withOnline), max: MAX_TV_SCREENS, gifts });
   }));
 
   app.put("/api/reborn/admin/tv", injected.requireAdmin(async (req, res) => {
@@ -148,8 +149,9 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
       list.forEach((pick, index) => setTimeout(() => sendToTv(screen.token, "gift", makeTestGift(pick, index)), index * TEST_GAP_MS));
       return res.json({ shown: true, delivered: list.length ? 1 : 0, count: list.length });
     }
-    const index = testCounter++;
-    res.json({ shown: true, delivered: sendToTv(screen.token, "gift", makeTestGift(own.length ? own[index % own.length] : null, index)), count: 1 });
+    const tapped = Number.isInteger(req.body?.giftIndex) ? own[req.body.giftIndex] : undefined; // the gift the admin tapped in the list
+    const index = tapped ? req.body.giftIndex : testCounter++;
+    res.json({ shown: true, delivered: sendToTv(screen.token, "gift", makeTestGift(tapped ?? (own.length ? own[index % own.length] : null), index)), count: 1 });
   }));
 
   // The admin types the code a TV shows next to one of the TV screens: the TV then opens that screen's page by itself.

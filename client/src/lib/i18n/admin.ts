@@ -193,6 +193,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.tv.online': { en: "Open on {n} screen(s)", zh: "已在 {n} 个屏幕上打开", id: "Terbuka di {n} layar" },
   'admin.tv.offline': { en: "Not open on any screen yet", zh: "尚未在任何屏幕上打开", id: "Belum dibuka di layar mana pun" },
   'admin.tv.testGift': { en: "Show a test gift", zh: "显示测试礼物", id: "Tampilkan hadiah uji" },
+  'admin.tv.testPick': { en: "Choose a gift to show", zh: "选择要显示的礼物", id: "Pilih hadiah untuk ditampilkan" },
   'admin.tv.testAllGifts': { en: "Show every gift in turn", zh: "依次显示所有礼物", id: "Tampilkan semua hadiah bergiliran" },
   'admin.tv.testAllSent': { en: "{n} gifts will play on this TV one after another (about 15 seconds each).", zh: "将在这台电视上依次播放 {n} 个礼物（每个约 15 秒）。", id: "{n} hadiah akan diputar di TV ini satu per satu (sekitar 15 detik masing-masing)." },
   'admin.tv.testSent':{ en: "Test gift sent to this TV.", zh: "测试礼物已发送到这台电视。", id: "Hadiah uji dikirim ke TV ini." },
