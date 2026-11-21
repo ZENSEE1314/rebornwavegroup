@@ -40,6 +40,7 @@ final class TvFeed {
         java.util.List<String[]> topGifters = new java.util.ArrayList<String[]>(); // the receiver's top givers, best first: {name, picture address}
     }
 
+    private static final int NOT_FOUND = 404;
     private static final int CONNECT_MS = 10_000;
     private static final int STREAM_READ_MS = 70_000; // the server sends a keep-alive every 20 s
     private static final int STATE_READ_MS = 10_000;
@@ -89,7 +90,8 @@ final class TvFeed {
         connection.setRequestProperty("Accept", "text/event-stream");
         try {
             if (connection.getResponseCode() != 200) {
-                OverlayLog.add("feed: the app answered " + connection.getResponseCode());
+                int answer = connection.getResponseCode();
+                OverlayLog.add("feed: the app answered " + answer + (answer == NOT_FOUND ? " — the server does not know this TV screen (it was removed or its address changed): press \"2. Link this box to a TV screen\" and type the new code in admin" : ""));
                 return;
             }
             OverlayLog.add("feed: connected");
