@@ -84,6 +84,8 @@ final class BoxServlets {
         } catch (Exception failure) {
             report.append("\nSingers failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
         }
+        report.append("\nPlay list count says: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=false&click=false&type=1&jsonpCallback=" + CALLBACK));
+        report.append("\nPlay list names say: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=true&click=true&type=1&jsonpCallback=" + CALLBACK));
         return report.toString();
     }
 
