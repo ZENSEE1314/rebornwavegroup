@@ -118,7 +118,7 @@ export default function TvPanel() {
     try {
       const data = await (await apiRequest("POST", "/api/reborn/admin/tv/test-gift", { token: screen.token, all, giftIndex })).json();
       if (!data.shown) say(t("admin.tv.testNoGifts"), true);
-      else if (!data.delivered) say(t("admin.tv.testNobody"), true);
+      else if (!data.delivered) return; // the TV's own card already says when no screen has it open
       else say(all ? t("admin.tv.testAllSent", { n: data.count }) : t("admin.tv.testSent"));
     } catch (error) {
       say(t("admin.tv.failed", { error: errorText(error) }), true);
