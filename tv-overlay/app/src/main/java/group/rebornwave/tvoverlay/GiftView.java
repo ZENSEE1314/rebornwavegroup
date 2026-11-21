@@ -301,6 +301,10 @@ final class GiftView extends FrameLayout {
             @Override public void run() {
                 int screenWidth = strip.getWidth() > 0 ? strip.getWidth() : FALLBACK_WIDTH_PX;
                 line.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+                // A line wider than the screen would be cut at the screen's width: give it its own full width, so every word crosses the screen.
+                FrameLayout.LayoutParams lineParams = (FrameLayout.LayoutParams) line.getLayoutParams();
+                lineParams.width = line.getMeasuredWidth();
+                line.setLayoutParams(lineParams);
                 line.setTranslationX(-line.getMeasuredWidth());
                 line.animate().translationX(screenWidth).setDuration(SHOW_MS - POP_MS).setInterpolator(new LinearInterpolator()).start();
             }
