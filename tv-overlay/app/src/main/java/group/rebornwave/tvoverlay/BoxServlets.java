@@ -41,6 +41,7 @@ final class BoxServlets {
     private static final String DIAGNOSE_SONG = "想你的夜";
     private static final int DIAGNOSE_MAX_PAGES = 10;
     private static final int DIAGNOSE_TITLES_SHOWN = 5;
+    private static final String[][] DIAGNOSE_VARIANTS = {{"国语", ""}, {"Mandarin", ""}, {"", "Popular"}, {"国语", "Popular"}, {"1", ""}, {"2", ""}};
     private static final int PLAYLIST_NAMES_SHOWN = 3;
     private static final int PLAYLIST_RAW_CHARS = 100;
     private static final String NO_PHOTO = "singer_photo.png";
@@ -94,7 +95,7 @@ final class BoxServlets {
         } catch (Exception failure) {
             report.append("\nSinger search failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
         }
-        report.append(findSongReport(base, DIAGNOSE_SINGER, DIAGNOSE_SONG));
+        report.append(findSongReport(base, DIAGNOSE_SINGER, DIAGNOSE_SONG)).append(variantsReport(base, DIAGNOSE_SINGER, DIAGNOSE_SONG));
         report.append("\nPlay list count says: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=false&click=false&type=1&jsonpCallback=" + CALLBACK));
         report.append("\nPlay list names say: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=true&click=true&type=1&jsonpCallback=" + CALLBACK));
         return report.toString();
@@ -125,6 +126,32 @@ final class BoxServlets {
             report.append("\n(the test song was cut with Skip)");
         } catch (Exception failure) {
             report.append("\nFailed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
+        }
+        return report.toString();
+    }
+
+    /**
+     * The box's own program lists a singer's songs in more pages than this search returns, so the same search is tried with the language and kind the box's own
+     * program shows ("国语", "Popular" ...) and says how many songs each gives and whether the song is among them.
+     */
+    private static String variantsReport(String base, String singer, String title) {
+        StringBuilder report = new StringBuilder();
+        for (String[] variant : DIAGNOSE_VARIANTS) {
+            try {
+                int total = 0;
+                int maxPage = 1;
+                String foundOn = "";
+                for (int page = 1; page <= Math.min(maxPage, DIAGNOSE_MAX_PAGES); page++) {
+                    JSONObject answer = call(base, "SearchServlet", "songName=&songType=" + enc(variant[1]) + "&singer=" + enc(singer) + "&lang=" + enc(variant[0]) + "&sortType=&page=" + page);
+                    maxPage = Math.max(maxPage, answer.optInt("maxPage", 1));
+                    JSONArray raw = new JSONArray(answer.optString("songList", "[]"));
+                    total += raw.length();
+                    for (int i = 0; i < raw.length(); i++) if (raw.optJSONObject(i) != null && raw.optJSONObject(i).optString("sONGNAME").contains(title)) foundOn += " p" + page;
+                }
+                report.append("\nlang=").append(variant[0]).append(" type=").append(variant[1]).append(": ").append(total).append(" songs").append(foundOn.isEmpty() ? "" : ", " + title + " FOUND" + foundOn);
+            } catch (Exception failure) {
+                report.append("\nlang=").append(variant[0]).append(" type=").append(variant[1]).append(" failed: ").append(failure.getClass().getSimpleName());
+            }
         }
         return report.toString();
     }
