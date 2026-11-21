@@ -110,12 +110,12 @@ export default function TvPanel() {
     }
   };
 
-  const testGift = async (screen: Screen) => {
+  const testGift = async (screen: Screen, all = false) => {
     try {
-      const data = await (await apiRequest("POST", "/api/reborn/admin/tv/test-gift", { token: screen.token })).json();
+      const data = await (await apiRequest("POST", "/api/reborn/admin/tv/test-gift", { token: screen.token, all })).json();
       if (!data.shown) say(t("admin.tv.testNoGifts"), true);
       else if (!data.delivered) say(t("admin.tv.testNobody"), true);
-      else say(t("admin.tv.testSent"));
+      else say(all ? t("admin.tv.testAllSent", { n: data.count }) : t("admin.tv.testSent"));
     } catch (error) {
       say(t("admin.tv.failed", { error: errorText(error) }), true);
     }
@@ -226,6 +226,7 @@ export default function TvPanel() {
             {screen.token && <button type="button" onClick={() => copyAddress(screen)} className={button}><Copy className="w-4 h-4" /> {t("admin.tv.copy")}</button>}
             {screen.token && <button type="button" onClick={() => setQrFor((current) => (current === screen.id ? null : screen.id))} className={button}><QrCode className="w-4 h-4" /> {qrFor === screen.id ? t("admin.tv.hideQr") : t("admin.tv.showQr")}</button>}
             {screen.token && <button type="button" onClick={() => testGift(screen)} disabled={isDirty} className={button}><Sparkles className="w-4 h-4" /> {t("admin.tv.testGift")}</button>}
+            {screen.token && <button type="button" onClick={() => testGift(screen, true)} disabled={isDirty} className={button}><Sparkles className="w-4 h-4" /> {t("admin.tv.testAllGifts")}</button>}
             {screens.length > 1 && <button type="button" onClick={() => makeAllLike(screen)} className={button}>{t("admin.tv.copyToAll")}</button>}
             <button type="button" onClick={() => removeScreen(screen.id)} className={button + " text-red-200"}><Trash2 className="w-4 h-4" /> {t("admin.tv.remove")}</button>
           </div>

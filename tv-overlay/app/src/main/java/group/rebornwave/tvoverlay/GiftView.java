@@ -46,9 +46,12 @@ final class GiftView extends FrameLayout {
     private static final long RAIN_SPREAD_MS = 2_500;
     private static final int RAIN_COUNT = 18;
     private static final int RAIN_SP = 32;
-    private static final float EMOJI_HEIGHT_FRACTION = 0.3f; // a gift with no picture or animation shows its emoji this big (of the screen height)
+    // The karaoke words start about 57% of the way down the picture: every gift stays above that line so the words can always be read.
+    private static final float LYRICS_START_FRACTION = 0.57f;
+    private static final float PICTURE_TOP_FRACTION = 0.36f; // where the gift's picture starts (of the screen height), under the ticker and the top-gifters boards
+    private static final float EMOJI_HEIGHT_FRACTION = 0.13f; // a gift with no picture or animation shows its emoji this big (of the screen height)
     private static final int BAR_SP = 26;
-    private static final float PICTURE_HEIGHT_FRACTION = 0.3f; // a gift picture of its own
+    private static final float PICTURE_HEIGHT_FRACTION = 0.17f; // a gift picture of its own
     private static final int FALLBACK_WIDTH_PX = 1280;
     private static final int FALLBACK_HEIGHT_PX = 720;
     private static final int MAX_WAITING_GIFTS = 12;
@@ -57,10 +60,10 @@ final class GiftView extends FrameLayout {
     private static final int GREY_BOX = Color.argb(185, 55, 55, 55); // see-through grey behind the words
     private static final int WORDS_PAD_PX = 36;
     // Pictures are sized as a share of the screen, so they look the same on any TV.
-    private static final float ART_WIDTH_FRACTION = 0.26f;
-    private static final float ART_HEIGHT_FRACTION = 0.32f;
-    private static final float POSTER_WIDTH_FRACTION = 0.3f;
-    private static final float POSTER_HEIGHT_FRACTION = 0.5f;
+    private static final float ART_WIDTH_FRACTION = 0.2f;
+    private static final float ART_HEIGHT_FRACTION = 0.17f;
+    private static final float POSTER_WIDTH_FRACTION = 0.2f;
+    private static final float POSTER_HEIGHT_FRACTION = 0.17f;
     private static final float POSTER_CORNER_FRACTION = 0.05f; // of the poster width
     private static final float FLOAT_FRACTION = 0.018f; // how far a picture floats up and down, of the screen height
     private static final float BREATHE_SCALE = 1.04f;
@@ -74,12 +77,12 @@ final class GiftView extends FrameLayout {
     // is covered; everything else starts below the strip.
     private static final float BAR_HEIGHT_FRACTION = 0.11f; // of the screen height
     private static final int TICKER_GAP_PX = 8;
-    private static final int CARD_GAP_PX = 40; // the picture sits a little below the middle, clear of the moving words
     private static final int TOP_TITLE_SP = 22;
     private static final int TOP_NAME_SP = 28;
-    private static final int TOP_PANEL_GAP_PX = 170; // below the moving words
+    private static final int TOP_PANEL_GAP_PX = 100; // below the moving words
     private static final int TOP_PANEL_MARGIN_PX = 32;
-    private static final float TOP_PANEL_MAX_WIDTH_FRACTION = 0.26f;
+    private static final float TOP_PANEL_MAX_WIDTH_FRACTION = 0.4f;
+    private static final float TOP_NAME_MAX_WIDTH_FRACTION = 0.07f;
     private static final String[] MEDALS = {"🥇", "🥈", "🥉"};
     private static final int[] MEDAL_COLOURS = {Color.parseColor("#f7d774"), Color.parseColor("#d1d5db"), Color.parseColor("#d97706")};
     private static final int FACE_PX = 72;
@@ -178,8 +181,8 @@ final class GiftView extends FrameLayout {
         picture.setTextSize(TypedValue.COMPLEX_UNIT_PX, screenHeight() * EMOJI_HEIGHT_FRACTION);
         card.addView(picture);
         startFloat(picture);
-        FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-        cardParams.topMargin = barBottom() + CARD_GAP_PX;
+        FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        cardParams.topMargin = Math.round(screenHeight() * PICTURE_TOP_FRACTION);
         stage.addView(card, cardParams);
         addTicker(gift);
         addTopGifters(gift, Gravity.START);
@@ -209,22 +212,23 @@ final class GiftView extends FrameLayout {
         title.setGravity(Gravity.START);
         title.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
         panel.addView(title);
+        // The three givers sit side by side, so the board is short and stays above the karaoke words.
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, TOP_ROW_GAP_PX, 0, 0);
         for (int i = 0; i < gift.topGifters.size() && i < MEDALS.length; i++) {
             String[] giver = gift.topGifters.get(i);
-            LinearLayout row = new LinearLayout(getContext());
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, TOP_ROW_GAP_PX, 0, 0);
             row.addView(face(giver[0], giver[1], MEDAL_COLOURS[i]));
             TextView name = text(MEDALS[i] + " " + giver[0], TOP_NAME_SP, true);
             name.setGravity(Gravity.START);
             name.setSingleLine(true);
             name.setEllipsize(TextUtils.TruncateAt.END);
-            name.setPadding(TOP_ROW_GAP_PX * 2, 0, 0, 0);
-            name.setMaxWidth((int) (screenWidth() * TOP_PANEL_MAX_WIDTH_FRACTION));
+            name.setPadding(TOP_ROW_GAP_PX, 0, TOP_ROW_GAP_PX * 2, 0);
+            name.setMaxWidth((int) (screenWidth() * TOP_NAME_MAX_WIDTH_FRACTION));
             row.addView(name);
-            panel.addView(row);
         }
+        panel.addView(row);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | side);
         params.topMargin = barBottom() + TOP_PANEL_GAP_PX;
         if (side == Gravity.START) params.leftMargin = TOP_PANEL_MARGIN_PX; else params.rightMargin = TOP_PANEL_MARGIN_PX;
@@ -491,7 +495,7 @@ final class GiftView extends FrameLayout {
             stage.addView(drop, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START));
             drop.setTranslationX(random.nextInt(Math.max(1, width - 100)));
             drop.setTranslationY(-200f);
-            drop.animate().translationY(height).setStartDelay(random.nextInt((int) RAIN_SPREAD_MS)).setDuration(FALL_MS).start();
+            drop.animate().translationY(height * LYRICS_START_FRACTION).alpha(0f).setStartDelay(random.nextInt((int) RAIN_SPREAD_MS)).setDuration(FALL_MS).start();
         }
     }
 

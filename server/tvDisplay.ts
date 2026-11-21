@@ -28,7 +28,9 @@ const REFRESH_DELAY_MS = 250;
 const RECENT_GIFTS_KEPT = 20;
 const RECENT_GIFTS_SHOWN = 8;
 const CHANGE_WORDS = /song|queue|karaoke|tv/i;
-const TEST_SCENES = ["rose", "fireworks", "rocket", "cake", "crown", "heart", "whale"];
+const MAX_TEST_GIFTS = 60;
+const TEST_GAP_MS = 15_000; // a little longer than one gift stays on a TV
+const TEST_SCENES =["rose", "fireworks", "rocket", "cake", "crown", "heart", "whale"];
 const TEST_EMOJI: Record<string, string> = { rose: "🌹", fireworks: "🎆", rocket: "🚀", cake: "🎂", crown: "👑", heart: "❤️", whale: "🐋" };
 
 let deps: TvDeps | null = null;
@@ -129,16 +131,25 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
   app.post("/api/reborn/admin/tv/test-gift", injected.requireAdmin(async (req, res) => {
     const screen = await screenFor(String(req.body?.token || ""));
     if (!screen) return res.status(404).json({ message: "Unknown TV" });
-    // Each press plays the next of the company's real gifts, so every gift (and its price) can be checked on the TV.
+    // One press plays the next of the company's real gifts; with `all` every gift is played one after another (cheapest first), so each gift and its price can be checked on the TV.
     const own = await injected.giftTypes(await injected.companyId(req));
-    const pick = own.length ? own[testCounter++ % own.length] : null;
-    const scene = pick?.animation || TEST_SCENES[testCounter++ % TEST_SCENES.length];
-    const gift: GiftEvent = {
-      id: `test-${Date.now()}`, giftName: pick?.name || scene, emoji: pick?.emoji || TEST_EMOJI[scene] || "🎁", imageUrl: pick?.imageUrl || "", animation: scene,
-      fromName: "Alex", fromTable: "5", toName: "Sam", toTable: "9", kgold: pick?.kgoldCost ?? 0,
-      topGifters: [{ name: "Alex", photo: "", sent: 900000 }, { name: "Mia", photo: "", sent: 450000 }, { name: "Ben", photo: "", sent: 120000 }],
+    const makeTestGift = (pick: (typeof own)[number] | null, index: number): GiftEvent => {
+      const scene = pick?.animation || TEST_SCENES[index % TEST_SCENES.length];
+      return {
+        id: `test-${Date.now()}-${index}`, giftName: pick?.name || scene, emoji: pick?.emoji || TEST_EMOJI[scene] || "🎁", imageUrl: pick?.imageUrl || "", animation: scene,
+        fromName: "Alex", fromTable: "5", toName: "Sam", toTable: "9", kgold: pick?.kgoldCost ?? 0,
+        topGifters: [{ name: "Alex", photo: "", sent: 900000 }, { name: "Mia", photo: "", sent: 450000 }, { name: "Ben", photo: "", sent: 120000 }],
+      };
     };
-    res.json({ shown: showsGifts(screen), delivered: showsGifts(screen) ? sendToTv(screen.token, "gift", gift) : 0 });
+    if (!showsGifts(screen)) return res.json({ shown: false, delivered: 0 });
+    if (req.body?.all) {
+      const list = own.slice(0, MAX_TEST_GIFTS);
+      // A TV keeps only a few gifts waiting, so they are sent one at a time, as each one finishes.
+      list.forEach((pick, index) => setTimeout(() => sendToTv(screen.token, "gift", makeTestGift(pick, index)), index * TEST_GAP_MS));
+      return res.json({ shown: true, delivered: list.length ? 1 : 0, count: list.length });
+    }
+    const index = testCounter++;
+    res.json({ shown: true, delivered: sendToTv(screen.token, "gift", makeTestGift(own.length ? own[index % own.length] : null, index)), count: 1 });
   }));
 
   // The admin types the code a TV shows next to one of the TV screens: the TV then opens that screen's page by itself.

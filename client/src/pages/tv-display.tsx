@@ -96,6 +96,8 @@ function GiftWall({ gifts }: { gifts: Gift[] }) {
 // Over the karaoke picture ("overlay") a gift must not hide the song: no dark veil, the
 // effect plays big with no background, and one line slides across from right to left. On a gift wall it keeps the full-screen scene.
 const RANK_RING = ["#f7d774", "#d1d5db", "#d97706"];
+// The karaoke words start about here (share of the screen's height); nothing of a gift is drawn below it.
+const LYRICS_FREE_TOP_PERCENT = 42;
 
 // A member's face: their picture, or their first letter when they have none.
 function Face({ name, photo, size, ring }: { name: string; photo?: string; size: string; ring?: string }) {
@@ -126,10 +128,11 @@ function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <style>{`@keyframes tvGiftSlide { from { transform: translateX(100vw); } to { transform: translateX(-100%); } }`}</style>
-      <div className="absolute inset-0 gs-bare">
+      {/* The song's words sit in the middle of the picture: the effect, the line and the top gifters stay in the top band. */}
+      <div className="absolute inset-x-0 top-0 overflow-hidden gs-bare gs-band" style={{ height: `${LYRICS_FREE_TOP_PERCENT}%` }}>
         <GiftScene kind={sceneOf(gift)} art={art} overlay />
       </div>
-      <div className="absolute inset-x-0 top-[16%] overflow-hidden" style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,.45) 12%, rgba(0,0,0,.45) 88%, transparent)", padding: "0.6vw 0" }}>
+      <div className="absolute inset-x-0 top-[9%] overflow-hidden" style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,.45) 12%, rgba(0,0,0,.45) 88%, transparent)", padding: "0.6vw 0" }}>
         <p className="whitespace-nowrap text-white inline-flex items-center gap-[1vw]" style={{ fontSize: "2.6vw", fontWeight: 900, textShadow: "0 2px 8px rgba(0,0,0,.9)", animation: `tvGiftSlide ${GIFT_SHOWN_MS}ms linear forwards` }}>
           <Face name={from} photo={gift.fromPhoto} size="4.2vw" />
           <span>{gift.emoji || "🎁"} {gift.kgold > 0 ? t("hm.tv.giftTicker", { from, gift: gift.giftName, to, kgold: gift.kgold.toLocaleString() }) : t("hm.tv.giftBanner", { from, gift: gift.giftName, to })}</span>
@@ -137,12 +140,12 @@ function GiftPlayer({ gift, dim }: { gift: Gift; dim: boolean }) {
         </p>
       </div>
       {gift.topGifters && gift.topGifters.length > 0 && (["left-[2vw]", "right-[2vw]"] as const).map((side) => (
-        <div key={side} className={`absolute ${side} top-[26%] rounded-[1.4vw] px-[1.4vw] py-[1vw] text-white`} style={{ background: "rgba(0,0,0,.45)", maxWidth: "34vw" }}>
-          <p style={{ fontSize: "1.7vw", fontWeight: 900, textShadow: "0 2px 6px rgba(0,0,0,.9)" }}>🏆 {t("hm.tv.topGifters", { name: to })}</p>
-          <ul className="mt-[0.6vw] space-y-[0.6vw]">
+        <div key={side} className={`absolute ${side} top-[17%] rounded-[1.4vw] px-[1.2vw] py-[0.7vw] text-white`} style={{ background: "rgba(0,0,0,.45)", maxWidth: "46vw" }}>
+          <p style={{ fontSize: "1.5vw", fontWeight: 900, textShadow: "0 2px 6px rgba(0,0,0,.9)" }}>🏆 {t("hm.tv.topGifters", { name: to })}</p>
+          <ul className="mt-[0.4vw] flex items-center gap-[1.4vw]">
             {gift.topGifters!.map((top, i) => (
-              <li key={`${top.name}${i}`} className="flex items-center gap-[1vw]" style={{ fontSize: "1.8vw", fontWeight: 800, textShadow: "0 2px 6px rgba(0,0,0,.9)" }}>
-                <Face name={top.name} photo={top.photo} size="4vw" ring={RANK_RING[i]} />
+              <li key={`${top.name}${i}`} className="flex items-center gap-[0.6vw] min-w-0" style={{ fontSize: "1.5vw", fontWeight: 800, textShadow: "0 2px 6px rgba(0,0,0,.9)" }}>
+                <Face name={top.name} photo={top.photo} size="3vw" ring={RANK_RING[i]} />
                 <span className="truncate">{i + 1}. {top.name || t("hm.tv.someone")}</span>
               </li>
             ))}

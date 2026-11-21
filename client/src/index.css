@@ -2836,3 +2836,6 @@ button, a, [role="button"], select, label, input[type="checkbox"], input[type="r
 @media (prefers-reduced-motion: no-preference) {
   html.rw-alarm-flash::after { content: ""; position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; border: 10px solid rgba(255, 90, 60, 0.9); animation: rw-alarm-flash 0.7s ease-out forwards; }
 }
+
+/* The gift effect on a TV overlay lives in a short band at the top: show the whole clip in it instead of cropping it to fill. */
+.gs-band .gs-fx-video { object-fit: contain; }
