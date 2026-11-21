@@ -24,6 +24,9 @@ final class TvFeed {
 
         /** The line for the top bar (the song now on and the next ones); "" hides it. */
         void onBar(String text);
+
+        /** The server no longer knows the linked TV screen (removed, or its address changed): the box should ask for a new link by itself. */
+        void onScreenUnknown();
     }
 
     static final class Gift {
@@ -41,6 +44,7 @@ final class TvFeed {
     }
 
     private static final int NOT_FOUND = 404;
+    private static final int UNKNOWN_BEFORE_RELINK = 3; // answers in a row, so one hiccup of the server never unlinks a box
     private static final int CONNECT_MS = 10_000;
     private static final int STREAM_READ_MS = 70_000; // the server sends a keep-alive every 20 s
     private static final int STATE_READ_MS = 10_000;
@@ -52,6 +56,7 @@ final class TvFeed {
     private final Handler ui;
     private final Listener listener;
     private volatile int generation = 0;
+    private int unknownInRow = 0;
 
     TvFeed(Context context, Handler ui, Listener listener) {
         this.context = context.getApplicationContext();
@@ -62,6 +67,7 @@ final class TvFeed {
     /** Follows the TV screen at this path (like /tv/TOKEN?tenant=club); a new call replaces the old one. */
     void start(final String path) {
         final int mine = ++generation;
+        unknownInRow = 0;
         final String token = tokenOf(path);
         final String tenant = tenantOf(path);
         if (token.isEmpty()) return;
@@ -91,9 +97,13 @@ final class TvFeed {
         try {
             if (connection.getResponseCode() != 200) {
                 int answer = connection.getResponseCode();
-                OverlayLog.add("feed: the app answered " + answer + (answer == NOT_FOUND ? " — the server does not know this TV screen (it was removed or its address changed): press \"2. Link this box to a TV screen\" and type the new code in admin" : ""));
+                OverlayLog.add("feed: the app answered " + answer + (answer == NOT_FOUND ? " — the server does not know this TV screen (it was removed or its address changed): the box shows a new code on the TV, type it in admin" : ""));
+                if (answer == NOT_FOUND && ++unknownInRow == UNKNOWN_BEFORE_RELINK) {
+                    ui.post(new Runnable() { @Override public void run() { if (mine == generation) listener.onScreenUnknown(); } });
+                }
                 return;
             }
+            unknownInRow = 0;
             OverlayLog.add("feed: connected");
             BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
             String event = "";

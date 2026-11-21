@@ -470,6 +470,8 @@ public class PlayerActivity extends Activity {
             @Override public void onGift(TvFeed.Gift gift) { gifts.play(gift); }
 
             @Override public void onBar(String text) { }
+
+            @Override public void onScreenUnknown() { }
         });
         feed.start(Link.path(this));
     }

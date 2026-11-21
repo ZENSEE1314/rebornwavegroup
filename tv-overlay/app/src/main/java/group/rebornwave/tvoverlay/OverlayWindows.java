@@ -55,6 +55,10 @@ final class OverlayWindows {
     private String path = "";
     private String bar = "";
     private boolean listening = false;
+    private volatile int relinkId = 0;
+    private static final long RELINK_CODE_MS = 14 * 60_000L; // a code lasts 15 minutes on the server
+    private static final long RELINK_POLL_MS = 2_000;
+    private static final long RELINK_RETRY_MS = 10_000;
 
     private final DisplayManager.DisplayListener screensChanged = new DisplayManager.DisplayListener() {
         @Override public void onDisplayAdded(int displayId) { followScreens(); }
@@ -78,6 +82,51 @@ final class OverlayWindows {
             @Override public void onBar(String text) {
                 bar = text;
                 for (Layer layer : layers.values()) layer.view.setBar(text);
+            }
+
+            @Override public void onScreenUnknown() { relink(); }
+        });
+    }
+
+    /**
+     * The server no longer knows the linked TV screen: the box asks for a new code by itself and shows it in the bar on the TV, so nobody has to type
+     * anything on the box. The admin types the code next to the TV screen; when it is taken the new address is saved and the feed follows it.
+     */
+    private void relink() {
+        final int mine = ++relinkId;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                while (mine == relinkId) {
+                    try {
+                        String code = Link.newCode(service);
+                        showCode(mine, code);
+                        long until = System.currentTimeMillis() + RELINK_CODE_MS;
+                        while (mine == relinkId && System.currentTimeMillis() < until) {
+                            Thread.sleep(RELINK_POLL_MS);
+                            String answer = Link.poll(service, code);
+                            if ("linked".equals(answer)) {
+                                OverlayLog.add("link: linked again by the code " + code);
+                                showCode(mine, "");
+                                handler.post(new Runnable() { @Override public void run() { show(Link.pageUrl(service)); } }); // follow the new address at once
+                                return;
+                            }
+                            if ("expired".equals(answer)) break;
+                        }
+                    } catch (Exception failure) {
+                        OverlayLog.add("link: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
+                        try { Thread.sleep(RELINK_RETRY_MS); } catch (InterruptedException stopped) { return; }
+                    }
+                }
+            }
+        }, "tv-relink").start();
+    }
+
+    private void showCode(final int mine, final String code) {
+        handler.post(new Runnable() {
+            @Override public void run() {
+                if (mine != relinkId) return;
+                bar = code.isEmpty() ? "" : Words.t("LINK CODE ", "链接代码 ", "KODE TAUTAN ") + code + Words.t("  — type it in admin > Lights & TV > TV > Link a TV by code", "  — 在管理 > 灯光和电视 > 电视 > 用代码链接电视 中输入", "  — ketik di admin > Lampu & TV > TV > Hubungkan TV dengan kode");
+                for (Layer layer : layers.values()) layer.view.setBar(bar);
             }
         });
     }
@@ -135,6 +184,7 @@ final class OverlayWindows {
             listening = false;
         }
         feed.stop();
+        relinkId++;
         handler.removeCallbacks(raiser);
         handler.removeCallbacksAndMessages(null);
         for (Integer id : new ArrayList<Integer>(layers.keySet())) remove(id);
