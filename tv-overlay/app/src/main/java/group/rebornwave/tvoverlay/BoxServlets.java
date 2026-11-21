@@ -84,6 +84,12 @@ final class BoxServlets {
         } catch (Exception failure) {
             report.append("\nSingers failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
         }
+        try {
+            JSONObject singerSearch = call(base, "SearchServlet", "songName=&songType=&singer=" + enc("关哲") + "&lang=&sortType=&page=1");
+            report.append("\nSinger 关哲 page 1: number ").append(singerSearch.optString("number")).append(", maxPage ").append(singerSearch.optString("maxPage")).append(", songs ").append(new JSONArray(singerSearch.optString("songList", "[]")).length());
+        } catch (Exception failure) {
+            report.append("\nSinger search failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
+        }
         report.append("\nPlay list count says: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=false&click=false&type=1&jsonpCallback=" + CALLBACK));
         report.append("\nPlay list names say: ").append(shortAnswer(base + "/PlaylistServlet?onSelectPage=true&click=true&type=1&jsonpCallback=" + CALLBACK));
         return report.toString();
@@ -201,14 +207,21 @@ final class BoxServlets {
         final int rawCount;
         final int cloudHidden;
 
-        Page(List<SongPick> songs, int rawCount, int cloudHidden) {
+        final int page;
+        final int maxPage; // the box's own count of pages for this search, 0 when it did not say
+
+        Page(List<SongPick> songs, int rawCount, int cloudHidden, int page, int maxPage) {
             this.songs = songs;
             this.rawCount = rawCount;
             this.cloudHidden = cloudHidden;
+            this.page = page;
+            this.maxPage = maxPage;
         }
 
+        /** A short page is not the end: the box can leave songs out of a page (a singer's first page held 7 songs and the rest were never read), so its own page count decides. */
         boolean isLast() {
-            return rawCount < SONGS_PER_PAGE;
+            if (rawCount == 0) return true;
+            return maxPage > 0 ? page >= maxPage : rawCount < SONGS_PER_PAGE;
         }
     }
 
@@ -219,7 +232,7 @@ final class BoxServlets {
         List<SongPick> songs = picks(raw, includeCloud);
         int cloudSongs = 0;
         for (int i = 0; i < raw.length(); i++) if (raw.optJSONObject(i) != null && raw.optJSONObject(i).optInt("cLOUD") == 1) cloudSongs++;
-        return new Page(songs, raw.length(), includeCloud ? 0 : cloudSongs);
+        return new Page(songs, raw.length(), includeCloud ? 0 : cloudSongs, page, answer.optInt("maxPage", 0));
     }
 
     /** How many pages the box's whole song list has (for "new songs": the last pages). */
