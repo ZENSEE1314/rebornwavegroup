@@ -40,6 +40,7 @@ final class BoxServlets {
     private static final String DIAGNOSE_SINGER = "关哲"; // the song the club could not find: the Test button looks for it
     private static final String DIAGNOSE_SONG = "想你的夜";
     private static final int DIAGNOSE_MAX_PAGES = 10;
+    private static final int DIAGNOSE_TITLES_SHOWN = 5;
     private static final int PLAYLIST_NAMES_SHOWN = 3;
     private static final int PLAYLIST_RAW_CHARS = 100;
     private static final String NO_PHOTO = "singer_photo.png";
@@ -151,7 +152,10 @@ final class BoxServlets {
         try {
             JSONArray byTitle = new JSONArray(call(base, "SearchServlet", "songName=" + enc(title) + "&songType=&singer=&lang=&sortType=&page=1").optString("songList", "[]"));
             report.append("\nBy title ").append(title).append(": ").append(byTitle.length()).append(" songs");
-            if (byTitle.length() > 0) report.append(" — ").append(byTitle.getJSONObject(0).optString("sONGNAME")).append(byTitle.getJSONObject(0).optInt("cLOUD") == 1 ? " (cloud)" : " (on the box)");
+            for (int i = 0; i < byTitle.length() && i < DIAGNOSE_TITLES_SHOWN; i++) {
+                JSONObject song = byTitle.getJSONObject(i);
+                report.append(i == 0 ? " — " : " | ").append(song.optString("sONGNAME")).append(" / ").append(singerOf(song.optString("sINGER"))).append(song.optInt("cLOUD") == 1 ? " (cloud)" : " (on the box)");
+            }
         } catch (Exception failure) {
             report.append("\nBy title failed: ").append(failure.getClass().getSimpleName()).append(' ').append(failure.getMessage());
         }
@@ -338,7 +342,7 @@ final class BoxServlets {
     static String playlistNames(String base) {
         try {
             String body = text(base + "/PlaylistServlet?onSelectPage=true&click=true&type=1&jsonpCallback=" + CALLBACK, CALL_MS);
-            java.util.regex.Matcher found = java.util.regex.Pattern.compile("\"sONGNAME\"\\s*:\\s*\"([^\"]*)\"").matcher(body);
+            java.util.regex.Matcher found = java.util.regex.Pattern.compile("\\\\?\"sONGNAME\\\\?\"\\s*:\\s*\\\\?\"([^\"\\\\]*)") /* the song list is JSON text inside the answer, so its quotes come escaped with a backslash */.matcher(body);
             StringBuilder names = new StringBuilder();
             int shown = 0;
             while (found.find() && shown < PLAYLIST_NAMES_SHOWN) names.append(shown++ > 0 ? " | " : "").append(found.group(1));
