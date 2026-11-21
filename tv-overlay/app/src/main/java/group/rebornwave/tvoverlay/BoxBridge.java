@@ -11,6 +11,7 @@ import java.util.List;
  */
 final class BoxBridge {
     private static final long NOT_STARTED_MS = 180_000; // the box took the order but never showed the song (a cloud song is downloaded first): give up on it
+    private static final long QUEUE_WAITING_MAX_MS = 240_000; // nobody is singing in the app, singers wait, and the box still holds a song: a whole song takes about this long, so a longer one is stuck and is cut
     private static final long OTHER_SONG_MAX_MS = 90_000; // the box holds a song that is not ours while ours waits: after this long it is cut
     private static final String ORIGINAL = "original";
     private static final int FIND_PAGES = 3;
@@ -65,9 +66,18 @@ final class BoxBridge {
         QueueClient.Song now = board.now;
 
         if (now == null) {
-            busyWithOtherSince = 0;
-            if (orderedId != 0) cutOnBox(box); // the app has no song on now any more (cancelled): stop what the box plays
-            if (!board.queue.isEmpty() && !board.paused && count == 0) client.next(0, false); // nobody is singing: the next singer starts
+            if (orderedId != 0) { // the app has no song on now any more (cancelled): stop what the box plays
+                cutOnBox(box);
+                return;
+            }
+            if (board.queue.isEmpty() || board.paused) {
+                busyWithOtherSince = 0;
+            } else if (count == 0) { // nobody is singing: the next singer starts
+                busyWithOtherSince = 0;
+                client.next(0, false);
+            } else {
+                waitForOtherSong(box, QUEUE_WAITING_MAX_MS); // singers wait but the box holds a song (a stuck cloud download): without this the queue never starts
+            }
             return;
         }
         if (orderedId != 0 && orderedId != now.id) { // the app moved on (skipped): cut the old song on the box
@@ -76,7 +86,7 @@ final class BoxBridge {
         }
         if (orderedId == 0) {
             if (count > 0) {
-                waitForOtherSong(box);
+                waitForOtherSong(box, OTHER_SONG_MAX_MS);
                 return;
             }
             busyWithOtherSince = 0;
@@ -104,11 +114,11 @@ final class BoxBridge {
      * The box's play list holds a song this app did not order (one ordered on the box itself, or one left stuck). Wait for it; if it is still there after
      * OTHER_SONG_MAX_MS the app's song would never start, so the box's Skip cuts it.
      */
-    private void waitForOtherSong(String box) throws Exception {
+    private void waitForOtherSong(String box, long maxMs) throws Exception {
         long nowMs = System.currentTimeMillis();
         if (busyWithOtherSince == 0) busyWithOtherSince = nowMs;
         long waited = nowMs - busyWithOtherSince;
-        if (waited > OTHER_SONG_MAX_MS) {
+        if (waited > maxMs) {
             BoxServlets.command(box, "Skip");
             busyWithOtherSince = 0;
             lastEvent = "cut a song that held the box";
