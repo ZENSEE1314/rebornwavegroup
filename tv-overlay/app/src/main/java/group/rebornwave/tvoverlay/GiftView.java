@@ -327,7 +327,7 @@ final class GiftView extends FrameLayout {
                 handler.post(new Runnable() {
                     @Override public void run() {
                         if (closed || card.getParent() == null) return;
-                        showArt(art, card, emoji);
+                        showArt(art, card, emoji, GiftArt.isClubClip(scene));
                     }
                 });
             }
@@ -352,16 +352,25 @@ final class GiftView extends FrameLayout {
         bar.setMinHeight(Math.round(height * BAR_HEIGHT_FRACTION));
     }
 
-    private void showArt(Drawable art, LinearLayout card, TextView emoji) {
+    /** The club's big scenes (lion, whale, car ...) fill the whole screen, under the ticker and the boards; every other picture stays small, above the words. */
+    private void showArt(Drawable art, LinearLayout card, TextView emoji, boolean isFullScreen) {
         int width = art.getIntrinsicWidth();
         int height = art.getIntrinsicHeight();
         if (width <= 0 || height <= 0) return;
-        float scale = Math.min(screenWidth() * ART_WIDTH_FRACTION / width, screenHeight() * ART_HEIGHT_FRACTION / height);
+        float scale = isFullScreen
+                ? Math.min((float) screenWidth() / width, (float) screenHeight() / height)
+                : Math.min(screenWidth() * ART_WIDTH_FRACTION / width, screenHeight() * ART_HEIGHT_FRACTION / height);
         int artWidth = Math.round(width * scale);
         int artHeight = Math.round(height * scale);
+        if (isFullScreen && card.getLayoutParams() instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) card.getLayoutParams();
+            params.gravity = Gravity.CENTER;
+            params.topMargin = 0;
+            card.setLayoutParams(params);
+        }
         FrameLayout box = new FrameLayout(getContext());
         View halo = new View(getContext());
-        int haloExtra = Math.round(Math.max(artWidth, artHeight) * HALO_EXTRA_FRACTION);
+        int haloExtra = isFullScreen ? 0 : Math.round(Math.max(artWidth, artHeight) * HALO_EXTRA_FRACTION);
         halo.setBackground(glow(Math.max(artWidth, artHeight) / 2f + haloExtra));
         box.addView(halo, new FrameLayout.LayoutParams(artWidth + haloExtra, artHeight + haloExtra, Gravity.CENTER));
         ImageView image = new ImageView(getContext());
