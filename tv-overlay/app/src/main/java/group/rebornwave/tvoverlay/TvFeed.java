@@ -97,9 +97,10 @@ final class TvFeed {
         try {
             if (connection.getResponseCode() != 200) {
                 int answer = connection.getResponseCode();
-                OverlayLog.add("feed: the app answered " + answer + (answer == NOT_FOUND ? " — the server does not know this TV screen (it was removed or its address changed): the box shows a new code on the TV, type it in admin" : ""));
+                OverlayLog.add("feed: the app answered " + answer + (answer == NOT_FOUND ? " - this TV screen is unknown to the server" : ""));
                 if (answer == NOT_FOUND && ++unknownInRow == UNKNOWN_BEFORE_RELINK) {
-                    ui.post(new Runnable() { @Override public void run() { if (mine == generation) listener.onScreenUnknown(); } });
+                    generation++; // stop asking for the dead address; the new code replaces it
+                    ui.post(new Runnable() { @Override public void run() { listener.onScreenUnknown(); } });
                 }
                 return;
             }

@@ -100,6 +100,7 @@ final class OverlayWindows {
                     try {
                         String code = Link.newCode(service);
                         showCode(mine, code);
+                        OverlayLog.add("LINK CODE " + code + " - type it in admin > Lights & TV > TV > Link by code");
                         long until = System.currentTimeMillis() + RELINK_CODE_MS;
                         while (mine == relinkId && System.currentTimeMillis() < until) {
                             Thread.sleep(RELINK_POLL_MS);
