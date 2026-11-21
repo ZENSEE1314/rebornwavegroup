@@ -51,7 +51,7 @@ final class GiftView extends FrameLayout {
     private static final float PICTURE_TOP_FRACTION = 0.36f; // where the gift's picture starts (of the screen height), under the ticker and the top-gifters boards
     private static final float EMOJI_HEIGHT_FRACTION = 0.13f; // a gift with no picture or animation shows its emoji this big (of the screen height)
     private static final int BAR_SP = 26;
-    private static final float PICTURE_HEIGHT_FRACTION = 0.17f; // a gift picture of its own
+    private static final float PICTURE_HEIGHT_FRACTION = 0.8f; // a gift picture of its own
     private static final int FALLBACK_WIDTH_PX = 1280;
     private static final int FALLBACK_HEIGHT_PX = 720;
     private static final int MAX_WAITING_GIFTS = 12;
@@ -62,8 +62,8 @@ final class GiftView extends FrameLayout {
     // Pictures are sized as a share of the screen, so they look the same on any TV.
     private static final float ART_WIDTH_FRACTION = 0.2f;
     private static final float ART_HEIGHT_FRACTION = 0.17f;
-    private static final float POSTER_WIDTH_FRACTION = 0.2f;
-    private static final float POSTER_HEIGHT_FRACTION = 0.17f;
+    private static final float POSTER_WIDTH_FRACTION = 0.8f;
+    private static final float POSTER_HEIGHT_FRACTION = 0.8f;
     private static final float POSTER_CORNER_FRACTION = 0.05f; // of the poster width
     private static final float FLOAT_FRACTION = 0.018f; // how far a picture floats up and down, of the screen height
     private static final float BREATHE_SCALE = 1.04f;
@@ -326,7 +326,7 @@ final class GiftView extends FrameLayout {
                 handler.post(new Runnable() {
                     @Override public void run() {
                         if (closed || card.getParent() == null) return;
-                        showArt(art, card, emoji, GiftArt.isClubClip(scene));
+                        showArt(art, card, emoji);
                     }
                 });
             }
@@ -351,25 +351,27 @@ final class GiftView extends FrameLayout {
         bar.setMinHeight(Math.round(height * BAR_HEIGHT_FRACTION));
     }
 
-    /** The club's big scenes (lion, whale, car ...) fill the whole screen, under the ticker and the boards; every other picture stays small, above the words. */
-    private void showArt(Drawable art, LinearLayout card, TextView emoji, boolean isFullScreen) {
+    /** Moves the gift's picture from its small starting place at the top to the middle of the screen. */
+    private void centreCard(LinearLayout card) {
+        if (!(card.getLayoutParams() instanceof FrameLayout.LayoutParams)) return;
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) card.getLayoutParams();
+        params.gravity = Gravity.CENTER;
+        params.topMargin = 0;
+        card.setLayoutParams(params);
+    }
+
+    /** Every gift animation (the lion, the whale, a rose ...) is drawn as big as the screen, under the ticker and the boards. */
+    private void showArt(Drawable art, LinearLayout card, TextView emoji) {
         int width = art.getIntrinsicWidth();
         int height = art.getIntrinsicHeight();
         if (width <= 0 || height <= 0) return;
-        float scale = isFullScreen
-                ? Math.min((float) screenWidth() / width, (float) screenHeight() / height)
-                : Math.min(screenWidth() * ART_WIDTH_FRACTION / width, screenHeight() * ART_HEIGHT_FRACTION / height);
+        float scale = Math.min((float) screenWidth() / width, (float) screenHeight() / height);
         int artWidth = Math.round(width * scale);
         int artHeight = Math.round(height * scale);
-        if (isFullScreen && card.getLayoutParams() instanceof FrameLayout.LayoutParams) {
-            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) card.getLayoutParams();
-            params.gravity = Gravity.CENTER;
-            params.topMargin = 0;
-            card.setLayoutParams(params);
-        }
+        centreCard(card);
         FrameLayout box = new FrameLayout(getContext());
         View halo = new View(getContext());
-        int haloExtra = isFullScreen ? 0 : Math.round(Math.max(artWidth, artHeight) * HALO_EXTRA_FRACTION);
+        int haloExtra = 0; // a full-screen picture needs no glow around it
         halo.setBackground(glow(Math.max(artWidth, artHeight) / 2f + haloExtra));
         box.addView(halo, new FrameLayout.LayoutParams(artWidth + haloExtra, artHeight + haloExtra, Gravity.CENTER));
         ImageView image = new ImageView(getContext());
@@ -408,6 +410,7 @@ final class GiftView extends FrameLayout {
         float scale = Math.min(maxWidth / width, maxHeight / height);
         int pictureWidth = Math.round(width * scale);
         int pictureHeight = Math.round(height * scale);
+        centreCard(card);
         int haloExtra = Math.round(Math.max(pictureWidth, pictureHeight) * HALO_EXTRA_FRACTION);
 
         FrameLayout box = new FrameLayout(getContext());
