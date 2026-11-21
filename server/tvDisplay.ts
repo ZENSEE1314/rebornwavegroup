@@ -116,7 +116,7 @@ export function registerTvRoutes(app: Express, injected: TvDeps) {
 
   // ---- admin ----
 
-  app.get("/api/reborn/admin/tv", injected.requireAdmin(async (_req, res) => {
+  app.get("/api/reborn/admin/tv", injected.requireAdmin(async (req, res) => {
     const gifts = (await injected.giftTypes(await injected.companyId(req))).map((gift) => ({ name: gift.name, emoji: gift.emoji, kgold: gift.kgoldCost }));
     res.json({ screens: (await loadSetup()).screens.map(withOnline), max: MAX_TV_SCREENS, gifts });
   }));
