@@ -45,6 +45,8 @@ public class MainActivity extends Activity {
     private TextView status;
     private TextView codeView;
     private EditText serverField;
+    private EditText tvAddressField;
+    private static final java.util.regex.Pattern TV_ADDRESS = java.util.regex.Pattern.compile("(/tv/[0-9a-f]{24}(\\?tenant=[A-Za-z0-9_-]+)?)");
 
     // Texts: English, 中文, Bahasa Indonesia.
     private static String t(String en, String zh, String id) {
@@ -187,6 +189,17 @@ public class MainActivity extends Activity {
         root.addView(label(t("Then in the app: Admin > Lights & TV > TV > choose the screen (view: overlay) > type this code and press Link.",
                 "然后在应用中：管理 > 灯光和电视 > 电视 > 选择屏幕（视图：叠加）> 输入此代码并点“链接”。",
                 "Lalu di aplikasi: Admin > Lampu & TV > TV > pilih layar (tampilan: overlay) > ketik kode ini lalu tekan Hubungkan."), 16, false));
+        root.addView(label(t("Or, with no code: type the TV address copied from admin (Lights & TV > TV > Copy address):",
+                "或不用代码：输入从管理后台复制的电视地址（灯光和电视 > 电视 > 复制地址）：",
+                "Atau tanpa kode: ketik alamat TV yang disalin dari admin (Lampu & TV > TV > Salin alamat):"), 16, false));
+        tvAddressField = new EditText(this);
+        tvAddressField.setSingleLine(true);
+        tvAddressField.setTextColor(Color.WHITE);
+        tvAddressField.setHint("https://rebornwave.group/tv/...");
+        root.addView(tvAddressField);
+        root.addView(button(t("Link with this TV address", "用此电视地址链接", "Hubungkan dengan alamat TV ini"), new View.OnClickListener() {
+            @Override public void onClick(View v) { linkWithAddress(); }
+        }));
         root.addView(label(t("Show the gifts on:", "礼物显示在：", "Tampilkan hadiah di:"), 18, true));
         root.addView(button(t("The HDMI / TV screen (the guests' TV)", "HDMI / 电视屏幕（客人看的电视）", "Layar HDMI / TV (TV untuk tamu)"), new View.OnClickListener() {
             @Override public void onClick(View v) { chooseScreens(Screens.EXTERNAL); }
@@ -426,6 +439,18 @@ public class MainActivity extends Activity {
         } else {
             OverlayLog.add("test: banner asked");
             windows.banner(t("TEST BANNER - gifts will show here", "测试横幅 - 礼物将显示在这里", "SPANDUK TES - hadiah tampil di sini"), TEST_BANNER_MS);
+        }
+        refresh();
+    }
+
+    /** Links this box to the TV screen whose address was typed (copied from admin), with no code: the same thing the code does, saved straight away. */
+    private void linkWithAddress() {
+        java.util.regex.Matcher found = TV_ADDRESS.matcher(tvAddressField.getText().toString());
+        if (!found.find()) {
+            OverlayLog.add("link: that is not a TV address (it looks like https://rebornwave.group/tv/ followed by 24 letters and digits)");
+        } else {
+            Link.savePath(this, found.group(1));
+            OverlayLog.add("link: this box now follows " + found.group(1));
         }
         refresh();
     }
