@@ -36,6 +36,9 @@ final class SongFiles {
     private static final int SURVEY_DEPTH = 6;
     private static final int SURVEY_FOLDERS = 3;
     private static final int SURVEY_NOTES = 12;
+    private static final String PROBE_TITLE = "新不了情";
+    private static final int PEEK_HEAD_LINES = 4;
+    private static final int PEEK_LINE_LENGTH = 200;
     private static final int SURVEY_TAIL_BYTES = 400;
     private static final long SURVEY_MIN_BYTES = 5L * 1024 * 1024;
 
@@ -183,7 +186,42 @@ final class SongFiles {
             report.append("\n").append(note.getAbsolutePath()).append(" (").append(note.length() / 1024).append(" KB)");
             if (note.getName().endsWith(".log")) report.append(" ends: ").append(tail(note));
         }
+        for (File note : notes) {
+            String name = note.getName().toLowerCase(Locale.ROOT);
+            if (name.equals("songs.txt") || name.equals("song.txt")) report.append("\nLIST ").append(note.getAbsolutePath()).append(": ").append(peekList(note));
+        }
         return report.toString();
+    }
+
+    /** What a song list file looks like: its first lines and the first line holding the probe title, whether the file is UTF-8 or GBK. */
+    private static String peekList(File file) {
+        try {
+            java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(file), "ISO-8859-1"));
+            try {
+                String utf8 = new String(PROBE_TITLE.getBytes("UTF-8"), "ISO-8859-1");
+                String gbk = new String(PROBE_TITLE.getBytes("GBK"), "ISO-8859-1");
+                StringBuilder head = new StringBuilder();
+                String hit = "";
+                String line;
+                int index = 0;
+                while ((line = reader.readLine()) != null && hit.isEmpty()) {
+                    if (index++ < PEEK_HEAD_LINES) head.append("\n  [").append(index).append("] ").append(decodeLine(line));
+                    if (line.contains(utf8) || line.contains(gbk)) hit = decodeLine(line);
+                }
+                return head + "\n  HIT: " + (hit.isEmpty() ? "none for " + PROBE_TITLE : hit) + "\n  lines read: " + index;
+            } finally {
+                reader.close();
+            }
+        } catch (Exception unreadable) {
+            return "(not readable: " + unreadable.getClass().getSimpleName() + ")";
+        }
+    }
+
+    private static String decodeLine(String latin1Line) throws java.io.UnsupportedEncodingException {
+        byte[] bytes = latin1Line.getBytes("ISO-8859-1");
+        String utf8 = new String(bytes, "UTF-8");
+        String shown = utf8.indexOf('�') < 0 ? utf8 : new String(bytes, "GBK");
+        return shown.length() > PEEK_LINE_LENGTH ? shown.substring(0, PEEK_LINE_LENGTH) : shown;
     }
 
     /** The box program's own notes (.log, .txt): they may say where it fetches the songs it keeps in the cloud. */
