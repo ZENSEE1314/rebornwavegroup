@@ -122,7 +122,8 @@ final class GiftView extends FrameLayout {
     }
 
     void setBar(String text) {
-        bar.setText(text); // the strip stays even with no words, so the karaoke program's own Playing / Next line never shows through
+        bar.setText(text);
+        bar.setVisibility(text.isEmpty() ? INVISIBLE : VISIBLE); // nothing to say = the karaoke program's own moving words show through
     }
 
     void play(TvFeed.Gift gift) {
