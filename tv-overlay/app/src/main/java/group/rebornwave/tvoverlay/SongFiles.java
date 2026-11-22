@@ -126,7 +126,7 @@ final class SongFiles {
      */
     private void nameFromBoxList(List<LocalSong> indexed) {
         java.util.Set<String> wanted = new java.util.HashSet<String>();
-        for (LocalSong song : indexed) if (song.code.matches("\\d+")) wanted.add(song.code);
+        for (LocalSong song : indexed) if (isDigits(song.code)) wanted.add(song.code);
         ensureListIndex();
         String[] rows = indexRows;
         if (wanted.size() != listedFor || rows != listedFrom) { // the names of this box's videos come from the one in-memory copy of the list
@@ -193,8 +193,8 @@ final class SongFiles {
             while ((line = reader.readLine()) != null) {
                 int cut = line.indexOf(LIST_SEPARATOR);
                 if (cut <= 0) continue;
-                String[] fields = line.split("\\|\\|", -1);
-                if (fields.length <= LIST_SINGER_FIELD || !fields[0].matches("\\d+")) continue;
+                String[] fields = splitFields(line);
+                if (fields.length <= LIST_SINGER_FIELD || !isDigits(fields[0])) continue;
                 String title = fields[LIST_TITLE_FIELD].trim();
                 String singer = fields[LIST_SINGER_FIELD].trim();
                 keys.add(squashedLower(title + singer + pinyinOf(fields)));
@@ -237,15 +237,52 @@ final class SongFiles {
         return indexedListSize >= 0;
     }
 
+    /** The list file exists but is not in memory yet. */
+    boolean isListComing() {
+        return !isListReady() && biggestBoxList() != null;
+    }
+
     /** The pinyin initials and the full pinyin that follow the "number.mkv" field; the empty fields between them vary from line to line. */
     private static String pinyinOf(String[] fields) {
         StringBuilder pinyin = new StringBuilder();
         boolean afterVideo = false;
         for (String field : fields) {
-            if (afterVideo && field.matches("[A-Za-z' ]+")) pinyin.append(field).append(' ');
-            if (field.toLowerCase(Locale.ROOT).endsWith(".mkv")) afterVideo = true;
+            if (afterVideo && isLatinWords(field)) pinyin.append(field).append(' ');
+            if (field.length() > 4 && field.regionMatches(true, field.length() - 4, ".mkv", 0, 4)) afterVideo = true;
         }
         return pinyin.toString();
+    }
+
+    // The list has ~200,000 lines: these are plain loops, not regular expressions, which are far too slow on the box when built per line.
+    private static boolean isDigits(String text) {
+        if (text.isEmpty()) return false;
+        for (int i = 0; i < text.length(); i++) if (text.charAt(i) < '0' || text.charAt(i) > '9') return false;
+        return true;
+    }
+
+    private static boolean isLatinWords(String text) {
+        if (text.isEmpty()) return false;
+        for (int i = 0; i < text.length(); i++) {
+            char letter = text.charAt(i);
+            boolean latin = (letter >= 'a' && letter <= 'z') || (letter >= 'A' && letter <= 'Z') || letter == '\'' || letter == ' ';
+            if (!latin) return false;
+        }
+        return true;
+    }
+
+    private static String[] splitFields(String line) {
+        List<String> fields = new ArrayList<String>();
+        int from = 0;
+        while (true) {
+            int at = line.indexOf(LIST_SEPARATOR, from);
+            if (at < 0) {
+                fields.add(line.substring(from));
+                break;
+            }
+            fields.add(line.substring(from, at));
+            from = at + LIST_SEPARATOR.length();
+        }
+        return fields.toArray(new String[0]);
     }
 
     private static LocalSong describe(File file) {
@@ -253,7 +290,7 @@ final class SongFiles {
         song.file = file;
         String name = baseName(file);
         // The box's own videos are named by their song number (10156426.mkv): that number is the code its song list and the members' requests carry.
-        song.code = name.matches("\\d+") ? name : CODE_PREFIX + Integer.toHexString(file.getAbsolutePath().hashCode());
+        song.code = isDigits(name) ? name : CODE_PREFIX + Integer.toHexString(file.getAbsolutePath().hashCode());
         String[] parts = name.split(SINGER_SEPARATOR, 2);
         song.artist = parts.length == 2 ? parts[0].trim() : "";
         song.title = parts.length == 2 ? parts[1].trim() : name.trim();

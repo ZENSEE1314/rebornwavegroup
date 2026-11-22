@@ -44,7 +44,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
 
     @Override
     public String whyEmpty() {
-        if (!files.isListReady()) {
+        if (files.isListComing()) {
             return Words.t("The song list is still being read — please search again in a minute.", "歌曲列表还在读取中，请一分钟后再搜索。", "Daftar lagu masih dibaca — coba cari lagi satu menit lagi.");
         }
         return hiddenCloud > 0
@@ -60,6 +60,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
      */
     @Override
     public List<SongPick> search(String text) throws Exception {
+        if (files.isListComing()) return new ArrayList<SongPick>(); // still being read: the screen says so (whyEmpty) instead of spinning
         List<SongPick> listed = fromList(text, false); // in memory after the first read: songs on this box first, then cloud songs
         if (!listed.isEmpty()) return listed; // the box's own list already holds its cloud songs: no slow web search needed
         return withoutRepeats(listed, text, "", SEARCH_PAGES);
