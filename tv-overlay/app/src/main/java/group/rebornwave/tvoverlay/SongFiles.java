@@ -29,6 +29,7 @@ final class SongFiles {
     private static final String SINGER_SEPARATOR = "\\s*[-–—]\\s*";
     private static final String CODE_PREFIX = "L";
     private static final long INDEX_MAX_AGE_MS = 60_000;
+    private static final long LIST_POLL_MS = 200;
     private static final int MIN_TITLE_LENGTH = 2;
     private static final int SINGER_BONUS = 2;
     private static final int TITLE_SCORE = 10;
@@ -261,6 +262,20 @@ final class SongFiles {
     /** False until the box's list has been read into memory once (a few seconds to a minute on the box, started when the touch screen opens). */
     boolean isListReady() {
         return indexedListSize >= 0;
+    }
+
+    /** Waits (up to maxMs) for the list to be read, so a search made right after the screen opens answers by itself instead of asking to try again. */
+    boolean waitForList(long maxMs) {
+        long until = System.currentTimeMillis() + maxMs;
+        while (isListComing() && System.currentTimeMillis() < until) {
+            try {
+                Thread.sleep(LIST_POLL_MS);
+            } catch (InterruptedException stopped) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return isListReady();
     }
 
     /** The list file exists but is not in memory yet. */

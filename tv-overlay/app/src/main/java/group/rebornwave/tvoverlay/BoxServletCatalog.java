@@ -15,6 +15,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     private static final int SEARCH_PAGES = 12;
     private static final int SINGER_PAGES = 8;
     private static final int SINGER_SONG_PAGES = 12;
+    private static final long LIST_WAIT_MS = 45_000;
     private static final int NEW_PAGES = 8;    private static final int MAX_SONGS = 180;
 
     private final Context context;
@@ -61,7 +62,9 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
      */
     @Override
     public List<SongPick> search(String text) throws Exception {
-        if (files.isListComing()) return new ArrayList<SongPick>(); // still being read: the screen says so (whyEmpty) instead of spinning
+        files.refreshSoon();
+        if (files.isListComing()) files.waitForList(LIST_WAIT_MS); // read at every start of the screen (about 15 s on the box): a search right after it opens waits
+        if (files.isListComing()) return new ArrayList<SongPick>(); // still not ready: the screen says so (whyEmpty)
         List<SongPick> listed = fromList(text, false); // in memory after the first read: songs on this box first, then cloud songs
         if (!listed.isEmpty()) return listed; // the box's own list already holds its cloud songs: no slow web search needed
         return withoutRepeats(listed, text, "", SEARCH_PAGES);
