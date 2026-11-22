@@ -59,7 +59,9 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     public List<SongPick> search(String text) throws Exception {
         List<SongPick> onBox = fromMemory(text);
         if (!onBox.isEmpty()) return onBox; // the songs stored on this box answer at once; the slow reads below are only for cloud songs
-        return withoutRepeats(fromList(text, false), text, "", SEARCH_PAGES);
+        List<SongPick> listed = fromList(text, false);
+        if (!listed.isEmpty()) return listed; // the box's own list already holds its cloud songs: no slow web search needed
+        return withoutRepeats(listed, text, "", SEARCH_PAGES);
     }
 
     @Override
@@ -109,7 +111,13 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
 
     @Override
     public List<SongPick> songsOf(String singer) throws Exception {
-        return withoutRepeats(fromList(singer, true), "", singer, SINGER_SONG_PAGES);
+        List<SongPick> own = new ArrayList<SongPick>();
+        files.refreshIfOld();
+        for (SongFiles.LocalSong song : files.all()) if (song.artist.equals(singer)) own.add(new SongPick(song.code, song.title, song.artist));
+        if (!own.isEmpty()) return own;
+        List<SongPick> listed = fromList(singer, true);
+        if (!listed.isEmpty()) return listed;
+        return withoutRepeats(listed, "", singer, SINGER_SONG_PAGES);
     }
 
     private List<SongPick> fromMemory(String text) {

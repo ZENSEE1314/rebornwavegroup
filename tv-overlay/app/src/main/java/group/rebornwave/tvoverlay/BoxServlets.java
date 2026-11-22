@@ -366,10 +366,17 @@ final class BoxServlets {
     }
 
     private static volatile String heldNames = "";
+    private static volatile java.util.List<String> heldIds = new java.util.ArrayList<String>(); // the box's own numbers (xH) of the songs in its play list
 
     /** The box's play list is empty: the titles remembered from before are no longer what it holds. */
     static void forgetPlaylistNames() {
         heldNames = "";
+        heldIds = new java.util.ArrayList<String>();
+    }
+
+    /** The box's own numbers of the songs its play list held when it last told us; "Del1" with one of them removes that song. */
+    static java.util.List<String> heldIds() {
+        return heldIds;
     }
 
     /** The titles of the first songs in the box's play list (what it holds now), for the touch screen's status line; the raw start of its answer if no title is found. */
@@ -382,6 +389,10 @@ final class BoxServlets {
             while (found.find() && shown < PLAYLIST_NAMES_SHOWN) names.append(shown++ > 0 ? " | " : "").append(found.group(1));
             if (shown > 0) {
                 heldNames = names.toString();
+                java.util.List<String> ids = new java.util.ArrayList<String>();
+                java.util.regex.Matcher number = java.util.regex.Pattern.compile("\\\\?\"xH\\\\?\"\\s*:\\s*\\\\?\"?(\\d+)").matcher(body);
+                while (number.find()) ids.add(number.group(1));
+                heldIds = ids;
                 return heldNames;
             }
             // The box sends the titles only when its list changed ("hasChange":"true"): until it changes again, the last titles are what it holds.

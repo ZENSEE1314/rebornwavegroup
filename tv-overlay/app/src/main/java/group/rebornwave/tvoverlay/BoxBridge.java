@@ -42,7 +42,7 @@ final class BoxBridge {
     /** One line for the touch screen: what was last done and how many songs the box holds, so a photo of the screen says why nothing plays. */
     String screenLine() {
         String event = lastEvent.isEmpty() ? "" : lastEvent + " · ";
-        return "Box: " + event + "playlist " + (lastCount < 0 ? "?" : String.valueOf(lastCount)) + (lastList.isEmpty() ? "" : " [" + lastList + "]");
+        return "v" + BuildConfig.VERSION_NAME + " Box: " + event + "playlist " + (lastCount < 0 ? "?" : String.valueOf(lastCount)) + (lastList.isEmpty() ? "" : " [" + lastList + "]");
     }
 
     /** The last thing done on the box, for the test button. */
@@ -120,7 +120,13 @@ final class BoxBridge {
         if (busyWithOtherSince == 0) busyWithOtherSince = nowMs;
         long waited = nowMs - busyWithOtherSince;
         if (waited > maxMs) {
-            BoxServlets.command(box, "Skip");
+            String skipAnswer = BoxServlets.command(box, "Skip");
+            StringBuilder removed = new StringBuilder();
+            for (String id : BoxServlets.heldIds()) { // Skip alone often leaves the entry in the box's play list: remove each by its own number
+                removed.append(' ').append(id).append('=').append(BoxServlets.command(box, "Del1", id).length() > 0 ? "sent" : "no answer");
+            }
+            OverlayLog.add("box: cut [" + lastList + "] Skip answered " + (skipAnswer.length() > 80 ? skipAnswer.substring(0, 80) : skipAnswer) + ", Del1" + (removed.length() == 0 ? " none (no ids known)" : removed));
+            BoxServlets.forgetPlaylistNames();
             busyWithOtherSince = 0;
             lastEvent = "cut a song that held the box";
         } else {
