@@ -55,6 +55,7 @@ final class SongFiles {
     private final Context context;
     private final java.util.Map<String, String[]> listed = new java.util.HashMap<String, String[]>(); // song number -> {title, singer, pinyin}
     private int listedFor = -1; // how many numbered videos the list was last read for
+    private String[] listedFrom = null; // the in-memory list those names were taken from
     private volatile List<LocalSong> songs = new ArrayList<LocalSong>();
     private long indexedAt = 0;
 
@@ -126,17 +127,27 @@ final class SongFiles {
     private void nameFromBoxList(List<LocalSong> indexed) {
         java.util.Set<String> wanted = new java.util.HashSet<String>();
         for (LocalSong song : indexed) if (song.code.matches("\\d+")) wanted.add(song.code);
-        if (wanted.size() != listedFor) {
+        ensureListIndex();
+        String[] rows = indexRows;
+        if (wanted.size() != listedFor || rows != listedFrom) { // the names of this box's videos come from the one in-memory copy of the list
             listedFor = wanted.size();
+            listedFrom = rows;
             listed.clear();
-            for (File list : boxLists()) readBoxList(list, wanted);
+            String[] keys = indexKeys;
+            for (int i = 0; i < rows.length; i++) {
+                int tab = rows[i].indexOf('\t');
+                String code = rows[i].substring(0, tab);
+                if (!wanted.contains(code) || listed.containsKey(code)) continue;
+                String[] parts = rows[i].split("\t", 3);
+                listed.put(code, new String[] {parts[1], parts[2], keys[i]});
+            }
         }
         for (LocalSong song : indexed) {
             String[] info = listed.get(song.code);
             if (info == null) continue;
             song.title = info[0];
             song.artist = info[1];
-            song.key = squash(info[0] + info[1] + info[2]);
+            song.key = info[2];
         }
     }
 
@@ -151,7 +162,7 @@ final class SongFiles {
      * Each answer is {number, title, singer}.
      */
     List<String[]> searchList(String query, boolean bySinger, int limit) {
-        ensureListIndex();
+        if (!isListReady()) return new ArrayList<String[]>(); // still being read: the screen says so instead of waiting
         String wanted = squashedLower(query);
         List<String[]> onBox = new ArrayList<String[]>();
         List<String[]> cloud = new ArrayList<String[]>();
@@ -221,22 +232,9 @@ final class SongFiles {
         return lists;
     }
 
-    private void readBoxList(File list, java.util.Set<String> wanted) {
-        if (!list.isFile()) return;
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(list), "UTF-8"))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                int cut = line.indexOf(LIST_SEPARATOR);
-                if (cut <= 0) continue;
-                String code = line.substring(0, cut);
-                if (!wanted.contains(code) || listed.containsKey(code)) continue;
-                String[] fields = line.split("\\|\\|", -1);
-                if (fields.length <= LIST_SINGER_FIELD) continue;
-                listed.put(code, new String[] {fields[LIST_TITLE_FIELD].trim(), fields[LIST_SINGER_FIELD].trim(), pinyinOf(fields)});
-            }
-        } catch (java.io.IOException unreadable) {
-            OverlayLog.add("song list " + list.getName() + ": " + unreadable.getMessage());
-        }
+    /** False until the box's list has been read into memory once (a few seconds to a minute on the box, started when the touch screen opens). */
+    boolean isListReady() {
+        return indexedListSize >= 0;
     }
 
     /** The pinyin initials and the full pinyin that follow the "number.mkv" field; the empty fields between them vary from line to line. */

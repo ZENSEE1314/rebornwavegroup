@@ -44,6 +44,9 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
 
     @Override
     public String whyEmpty() {
+        if (!files.isListReady()) {
+            return Words.t("The song list is still being read — please search again in a minute.", "歌曲列表还在读取中，请一分钟后再搜索。", "Daftar lagu masih dibaca — coba cari lagi satu menit lagi.");
+        }
         return hiddenCloud > 0
                 ? Words.t(hiddenCloud + " matching songs are cloud songs (kept in the cloud, not stored on this box). To list them too: ⚙ › Show cloud songs.",
                         "有 " + hiddenCloud + " 首匹配歌曲是云端歌曲（不在本机）。要显示：⚙ › 显示云端歌曲。",
