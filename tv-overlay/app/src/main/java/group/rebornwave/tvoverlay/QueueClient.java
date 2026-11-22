@@ -68,6 +68,14 @@ final class QueueClient {
         call("POST", "/api/karaoke/next", body.toString());
     }
 
+    /** Puts the song on now back at the end of the queue (it is not stored on the box) and starts the next one. */
+    void defer(int songId) throws Exception {
+        JSONObject body = new JSONObject();
+        body.put("finishedId", songId);
+        body.put("defer", true);
+        call("POST", "/api/karaoke/next", body.toString());
+    }
+
     /** The buttons staff or singers pressed since the last call ("Play", "Mute", "Music_up", "Skip", "Reset" ...). */
     List<String> controls() throws Exception {
         JSONArray commands = call("GET", "/api/karaoke/controls", null).optJSONArray("commands");

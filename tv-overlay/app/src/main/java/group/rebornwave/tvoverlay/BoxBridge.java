@@ -89,6 +89,13 @@ final class BoxBridge {
             return;
         }
         if (orderedId == 0) {
+            if (shouldPutBack(now, board)) { // a song that must be downloaded waits its turn; one that can play starts first
+                client.defer(now.id);
+                busyWithOtherSince = 0;
+                lastEvent = "put back (cloud song, not on this box): " + now.title;
+                OverlayLog.add("box: " + lastEvent);
+                return;
+            }
             if (count > 0) {
                 waitForOtherSong(box, OTHER_SONG_MAX_MS);
                 return;
@@ -112,6 +119,15 @@ final class BoxBridge {
             String reason = CloudMarks.has(now.karaokeCode) ? "⬇ downloading on the box (cloud song, not downloaded yet) " : "waiting for the box to start ";
             lastEvent = reason + (System.currentTimeMillis() - orderedAt) / 1000 + " s: " + now.title;
         }
+    }
+
+    /** The song on now has no video on this box while another waiting song has: the cloud song goes to the back of the queue. */
+    private boolean shouldPutBack(QueueClient.Song now, QueueClient.Board board) {
+        if (!files.videosKnown() || now.karaokeCode.isEmpty() || files.hasVideo(now.karaokeCode)) return false;
+        for (QueueClient.Song waiting : board.queue) {
+            if (!waiting.karaokeCode.isEmpty() && files.hasVideo(waiting.karaokeCode)) return true;
+        }
+        return false;
     }
 
     /**

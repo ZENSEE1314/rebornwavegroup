@@ -3166,6 +3166,8 @@ export function registerRebornRoutes(app: Express) {
     // Optional guard: only finish the song the bridge thinks is playing.
     const cur = await songNowPlaying(cid);
     if (req.body?.finishedId && cur && Number(req.body.finishedId) !== cur.id) return res.json({ nowPlaying: (await songQueueBoard(cid)).nowPlaying, stale: true });
+    // { defer: true }: the song on now is not stored on the box (it would have to be downloaded), so it goes to the back of tonight's queue and a song that can play starts first.
+    if (req.body?.defer === true && cur) await db.update(songRequests).set({ status: "pending", createdAt: new Date(), confirmedAt: null }).where(eq(songRequests.id, cur.id));
     await advanceSongQueue(cid, req.body?.skip === true ? "skip" : "done", null);
     res.json({ nowPlaying: (await songQueueBoard(cid)).nowPlaying });
   });

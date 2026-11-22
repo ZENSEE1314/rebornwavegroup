@@ -175,6 +175,10 @@ final class SongFiles {
     }
 
     /** True when a video of this song number is stored on this box (as found by the last scan). */
+    boolean videosKnown() {
+        return !videoCodes.isEmpty();
+    }
+
     boolean hasVideo(String code) {
         return videoCodes.contains(code);
     }
