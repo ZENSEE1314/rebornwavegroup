@@ -79,11 +79,6 @@ final class OverlayWindows {
                 for (Layer layer : layers.values()) layer.view.play(gift);
             }
 
-            @Override public void onBar(String text) {
-                bar = text;
-                for (Layer layer : layers.values()) layer.view.setBar(text);
-            }
-
             @Override public void onScreenUnknown() { relink(); }
         });
     }

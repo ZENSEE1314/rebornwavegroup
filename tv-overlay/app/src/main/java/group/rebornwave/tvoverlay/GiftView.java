@@ -49,12 +49,12 @@ final class GiftView extends FrameLayout {
     // The karaoke words start about 57% of the way down the picture: every gift stays above that line so the words can always be read.
     private static final float LYRICS_START_FRACTION = 0.57f;
     // A gift picture covers most of the screen but lets the karaoke picture and its words show through.
-    private static final float ART_SCREEN_FRACTION = 0.85f;
+    private static final float ART_SCREEN_FRACTION = 0.425f;
     private static final float ART_ALPHA = 0.6f;
     private static final float PICTURE_TOP_FRACTION = 0.36f; // where the gift's picture starts (of the screen height), under the ticker and the top-gifters boards
-    private static final float EMOJI_HEIGHT_FRACTION = 0.13f; // a gift with no picture or animation shows its emoji this big (of the screen height)
+    private static final float EMOJI_HEIGHT_FRACTION = 0.065f; // a gift with no picture or animation shows its emoji this big (of the screen height)
     private static final int BAR_SP = 26;
-    private static final float PICTURE_HEIGHT_FRACTION = 0.7f; // a gift picture of its own
+    private static final float PICTURE_HEIGHT_FRACTION = 0.35f; // a gift picture of its own
     private static final int FALLBACK_WIDTH_PX = 1280;
     private static final int FALLBACK_HEIGHT_PX = 720;
     private static final int MAX_WAITING_GIFTS = 12;
@@ -65,8 +65,8 @@ final class GiftView extends FrameLayout {
     // Pictures are sized as a share of the screen, so they look the same on any TV.
     private static final float ART_WIDTH_FRACTION = 0.2f;
     private static final float ART_HEIGHT_FRACTION = 0.17f;
-    private static final float POSTER_WIDTH_FRACTION = 0.7f;
-    private static final float POSTER_HEIGHT_FRACTION = 0.7f;
+    private static final float POSTER_WIDTH_FRACTION = 0.35f;
+    private static final float POSTER_HEIGHT_FRACTION = 0.35f;
     private static final float POSTER_CORNER_FRACTION = 0.05f; // of the poster width
     private static final float FLOAT_FRACTION = 0.018f; // how far a picture floats up and down, of the screen height
     private static final float BREATHE_SCALE = 1.04f;

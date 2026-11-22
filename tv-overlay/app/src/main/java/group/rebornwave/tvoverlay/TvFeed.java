@@ -3,11 +3,9 @@ package group.rebornwave.tvoverlay;
 import android.content.Context;
 import android.os.Handler;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -21,9 +19,6 @@ import java.net.URLEncoder;
 final class TvFeed {
     interface Listener {
         void onGift(Gift gift);
-
-        /** The line for the top bar (the song now on and the next ones); "" hides it. */
-        void onBar(String text);
 
         /** The server no longer knows the linked TV screen (removed, or its address changed): the box should ask for a new link by itself. */
         void onScreenUnknown();
@@ -47,10 +42,7 @@ final class TvFeed {
     private static final int UNKNOWN_BEFORE_RELINK = 3; // answers in a row, so one hiccup of the server never unlinks a box
     private static final int CONNECT_MS = 10_000;
     private static final int STREAM_READ_MS = 70_000; // the server sends a keep-alive every 20 s
-    private static final int STATE_READ_MS = 10_000;
     private static final long RETRY_AFTER_MS = 5_000;
-    private static final int NEXT_SONGS_SHOWN = 3;
-    private static final String OVERLAY_VIEW = "overlay";
 
     private final Context context;
     private final Handler ui;
@@ -150,51 +142,7 @@ final class TvFeed {
             } catch (Exception unreadable) {
                 OverlayLog.add("feed: could not read a gift: " + unreadable.getMessage());
             }
-        } else if ("ready".equals(event) || "refresh".equals(event)) {
-            new Thread(new Runnable() {
-                @Override public void run() { if (mine == generation) readState(token, tenant); }
-            }, "tv-state").start();
         }
-    }
-
-    private void readState(String token, String tenant) {
-        HttpURLConnection connection = null;
-        try {
-            connection = open("/api/tv/" + token + "/state", tenant, STATE_READ_MS);
-            if (connection.getResponseCode() != 200) return;
-            final String bar = barOf(new JSONObject(readAll(connection.getInputStream())));
-            ui.post(new Runnable() { @Override public void run() { listener.onBar(bar); } });
-        } catch (Exception failure) {
-            OverlayLog.add("feed state: " + failure.getClass().getSimpleName() + " " + failure.getMessage());
-        } finally {
-            if (connection != null) connection.disconnect();
-        }
-    }
-
-    private static String barOf(JSONObject state) {
-        if (!OVERLAY_VIEW.equals(state.optString("view"))) return "";
-        StringBuilder bar = new StringBuilder();
-        JSONObject now = state.optJSONObject("now");
-        if (now != null) bar.append("🎤 ").append(Words.t("Now singing: ", "正在演唱：", "Sedang bernyanyi: ")).append(songLine(now));
-        JSONArray next = state.optJSONArray("next");
-        if (next != null && next.length() > 0) {
-            if (bar.length() > 0) bar.append("          ");
-            bar.append(Words.t("Next: ", "下一首：", "Berikutnya: "));
-            for (int i = 0; i < Math.min(next.length(), NEXT_SONGS_SHOWN); i++) {
-                if (i > 0) bar.append("  •  ");
-                bar.append(songLine(next.optJSONObject(i)));
-            }
-        }
-        return bar.toString();
-    }
-
-    private static String songLine(JSONObject song) {
-        if (song == null) return "";
-        String name = song.optString("name");
-        String artist = song.optString("artist");
-        String table = song.optString("table");
-        return (name.isEmpty() ? "" : name + " · ") + song.optString("title") + (artist.isEmpty() ? "" : " — " + artist)
-                + (table.isEmpty() ? "" : " (" + Words.t("Table ", "桌 ", "Meja ") + table + ")");
     }
 
     private HttpURLConnection open(String route, String tenant, int readTimeoutMs) throws Exception {
@@ -205,18 +153,6 @@ final class TvFeed {
         connection.setUseCaches(false);
         if (!tenant.isEmpty()) connection.setRequestProperty("x-tenant-slug", tenant);
         return connection;
-    }
-
-    private static String readAll(InputStream in) throws java.io.IOException {
-        try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-            StringBuilder all = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) all.append(line);
-            return all.toString();
-        } finally {
-            in.close();
-        }
     }
 
     /** /tv/TOKEN or /tv/TOKEN?tenant=club -> TOKEN */

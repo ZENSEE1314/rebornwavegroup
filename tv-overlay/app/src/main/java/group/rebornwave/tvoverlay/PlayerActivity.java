@@ -472,7 +472,6 @@ public class PlayerActivity extends Activity {
         feed = new TvFeed(this, ui, new TvFeed.Listener() {
             @Override public void onGift(TvFeed.Gift gift) { gifts.play(gift); }
 
-            @Override public void onBar(String text) { }
 
             @Override public void onScreenUnknown() { }
         });
