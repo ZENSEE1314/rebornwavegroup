@@ -62,6 +62,7 @@ final class BoxBridge {
         problem = "";
         int count = BoxServlets.playlistCount(box);
         lastCount = count;
+        if (count == 0) BoxServlets.forgetPlaylistNames();
         lastList = count > 0 ? BoxServlets.playlistNames(box) : "";
         QueueClient.Song now = board.now;
 

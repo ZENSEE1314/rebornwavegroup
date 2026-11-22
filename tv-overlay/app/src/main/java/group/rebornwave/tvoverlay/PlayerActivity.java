@@ -167,6 +167,9 @@ public class PlayerActivity extends Activity {
         client = new QueueClient(this);
         songFiles = new SongFiles(this);
         songSearch = new SongSearch(songFiles);
+        new Thread(new Runnable() { // read the box's song list now, so the first search on the touch screen does not wait for it
+            @Override public void run() { songFiles.refreshIfOld(); }
+        }, "song-index").start();
         boxBridge = new BoxBridge(this, client);
         boxJobs = new BoxJobs(this);
         photos = new SingerPhotos(this, songFiles);

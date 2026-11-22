@@ -365,6 +365,13 @@ final class BoxServlets {
         }
     }
 
+    private static volatile String heldNames = "";
+
+    /** The box's play list is empty: the titles remembered from before are no longer what it holds. */
+    static void forgetPlaylistNames() {
+        heldNames = "";
+    }
+
     /** The titles of the first songs in the box's play list (what it holds now), for the touch screen's status line; the raw start of its answer if no title is found. */
     static String playlistNames(String base) {
         try {
@@ -373,7 +380,12 @@ final class BoxServlets {
             StringBuilder names = new StringBuilder();
             int shown = 0;
             while (found.find() && shown < PLAYLIST_NAMES_SHOWN) names.append(shown++ > 0 ? " | " : "").append(found.group(1));
-            if (shown > 0) return names.toString();
+            if (shown > 0) {
+                heldNames = names.toString();
+                return heldNames;
+            }
+            // The box sends the titles only when its list changed ("hasChange":"true"): until it changes again, the last titles are what it holds.
+            if (!heldNames.isEmpty() && body.contains("\"false\"")) return heldNames;
             return body.length() > PLAYLIST_RAW_CHARS ? body.substring(0, PLAYLIST_RAW_CHARS) : body;
         } catch (Exception unreadable) {
             return "?";

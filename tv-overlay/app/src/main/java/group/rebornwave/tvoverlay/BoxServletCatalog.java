@@ -57,6 +57,8 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
      */
     @Override
     public List<SongPick> search(String text) throws Exception {
+        List<SongPick> onBox = fromMemory(text);
+        if (!onBox.isEmpty()) return onBox; // the songs stored on this box answer at once; the slow reads below are only for cloud songs
         return withoutRepeats(fromList(text, false), text, "", SEARCH_PAGES);
     }
 
@@ -108,6 +110,18 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     @Override
     public List<SongPick> songsOf(String singer) throws Exception {
         return withoutRepeats(fromList(singer, true), "", singer, SINGER_SONG_PAGES);
+    }
+
+    private List<SongPick> fromMemory(String text) {
+        files.refreshIfOld();
+        List<SongPick> found = new ArrayList<SongPick>();
+        String wanted = SongFiles.squash(text);
+        if (wanted.isEmpty()) return found;
+        for (SongFiles.LocalSong song : files.all()) {
+            if (found.size() >= MAX_SONGS) break;
+            if (song.key.contains(wanted) && !song.code.startsWith("L")) found.add(new SongPick(song.code, song.title, song.artist));
+        }
+        return found;
     }
 
     /** The songs of the box's own list file; one without a video on this box is a cloud song (shown only when cloud songs are on). */
