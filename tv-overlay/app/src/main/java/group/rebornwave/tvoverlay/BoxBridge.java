@@ -10,9 +10,9 @@ import java.util.List;
  * skipped is cut on the box. Staff and singer buttons of the app (pause, mute, volume, replay ...) are pressed on the box. One round every poll.
  */
 final class BoxBridge {
-    private static final long NOT_STARTED_MS = 180_000; // the box took the order but never showed the song (a cloud song is downloaded first): give up on it
-    private static final long QUEUE_WAITING_MAX_MS = 240_000; // nobody is singing in the app, singers wait, and the box still holds a song: a whole song takes about this long, so a longer one is stuck and is cut
-    private static final long OTHER_SONG_MAX_MS = 90_000; // the box holds a song that is not ours while ours waits: after this long it is cut
+    private static final long NOT_STARTED_MS = 90_000; // the box took the order but never showed the song (a cloud song is downloaded first): give up on it
+    private static final long QUEUE_WAITING_MAX_MS = 30_000; // nobody is singing in the app, singers wait, and the box still holds a song the app did not order: it is cut after this long
+    private static final long OTHER_SONG_MAX_MS = 20_000; // the box holds a song that is not ours while ours is on now: after this long it is cut, the box's play list often keeps a finished song
     private static final String ORIGINAL = "original";
     private static final int FIND_PAGES = 3;
 
