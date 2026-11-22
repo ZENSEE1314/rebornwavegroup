@@ -57,16 +57,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
      */
     @Override
     public List<SongPick> search(String text) throws Exception {
-        files.refreshIfOld();
-        List<SongPick> found = new ArrayList<SongPick>();
-        String wanted = SongFiles.squash(text);
-        if (!wanted.isEmpty()) {
-            for (SongFiles.LocalSong song : files.all()) {
-                if (found.size() >= MAX_SONGS) break;
-                if (song.key.contains(wanted)) found.add(new SongPick(song.code, song.title, song.artist));
-            }
-        }
-        return withoutRepeats(found, text, "", SEARCH_PAGES);
+        return withoutRepeats(fromList(text, false), text, "", SEARCH_PAGES);
     }
 
     @Override
@@ -116,10 +107,22 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
 
     @Override
     public List<SongPick> songsOf(String singer) throws Exception {
+        return withoutRepeats(fromList(singer, true), "", singer, SINGER_SONG_PAGES);
+    }
+
+    /** The songs of the box's own list file; one without a video on this box is a cloud song (shown only when cloud songs are on). */
+    private List<SongPick> fromList(String text, boolean bySinger) {
         files.refreshIfOld();
-        List<SongPick> own = new ArrayList<SongPick>();
-        for (SongFiles.LocalSong song : files.all()) if (song.artist.equals(singer)) own.add(new SongPick(song.code, song.title, song.artist));
-        return withoutRepeats(own, "", singer, SINGER_SONG_PAGES);
+        boolean showCloud = BridgeSettings.isShowCloud(context);
+        List<SongPick> found = new ArrayList<SongPick>();
+        int hidden = 0;
+        for (String[] row : files.searchList(text, bySinger, MAX_SONGS)) {
+            boolean onBox = files.byCode(row[0]) != null;
+            if (onBox || showCloud) found.add(new SongPick(row[0], row[1], row[2], !onBox));
+            else hidden++;
+        }
+        hiddenCloud = hidden;
+        return found;
     }
 
     @Override

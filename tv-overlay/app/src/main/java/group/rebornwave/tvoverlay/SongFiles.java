@@ -131,6 +131,48 @@ final class SongFiles {
         }
     }
 
+    /**
+     * Searches the box's own list file directly (title, singer or pinyin; or, with bySinger, the exact singer), so a song is found whether or not its video
+     * was found by the scan. Each answer is {number, title, singer}. Reads the whole file (several seconds on the box): background thread only.
+     */
+    List<String[]> searchList(String query, boolean bySinger, int limit) {
+        List<String[]> found = new ArrayList<String[]>();
+        String wanted = squash(query);
+        File list = biggestBoxList();
+        if (wanted.isEmpty() || list == null) return found;
+        String raw = query.trim().toLowerCase(Locale.ROOT);
+        boolean quickCheck = !bySinger && raw.indexOf(' ') < 0; // pinyin is written with spaces in the list, so a spaced query is checked field by field
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(list), "UTF-8"))) {
+            String line;
+            while (found.size() < limit && (line = reader.readLine()) != null) {
+                if (quickCheck && !squashedLower(line).contains(wanted)) continue;
+                String[] fields = line.split("\\|\\|", -1);
+                if (fields.length <= LIST_SINGER_FIELD || !fields[0].matches("\\d+")) continue;
+                String singer = fields[LIST_SINGER_FIELD].trim();
+                boolean hit = bySinger ? singer.equals(query) : squash(fields[LIST_TITLE_FIELD] + singer + pinyinOf(fields)).contains(wanted);
+                if (hit) found.add(new String[] {fields[0], fields[LIST_TITLE_FIELD].trim(), singer});
+            }
+        } catch (java.io.IOException unreadable) {
+            OverlayLog.add("song list " + list.getName() + ": " + unreadable.getMessage());
+        }
+        return found;
+    }
+
+    private static String squashedLower(String line) {
+        StringBuilder kept = new StringBuilder(line.length());
+        for (int i = 0; i < line.length(); i++) {
+            char letter = line.charAt(i);
+            if (Character.isLetterOrDigit(letter)) kept.append(Character.toLowerCase(letter));
+        }
+        return kept.toString();
+    }
+
+    private File biggestBoxList() {
+        File best = null;
+        for (File list : boxLists()) if (list.isFile() && (best == null || list.length() > best.length())) best = list;
+        return best;
+    }
+
     private List<File> boxLists() {
         List<File> lists = new ArrayList<File>();
         lists.add(new File(Environment.getExternalStorageDirectory(), BOX_LIST_PATH));
