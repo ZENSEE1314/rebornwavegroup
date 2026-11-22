@@ -170,7 +170,7 @@ public class PlayerActivity extends Activity {
         new Thread(new Runnable() { // read the box's song list now, so the first search on the touch screen does not wait for it
             @Override public void run() { songFiles.refreshIfOld(); }
         }, "song-index").start();
-        boxBridge = new BoxBridge(this, client);
+        boxBridge = new BoxBridge(this, client, songFiles);
         boxJobs = new BoxJobs(this);
         photos = new SingerPhotos(this, songFiles);
         voice = new VoiceControl(this);

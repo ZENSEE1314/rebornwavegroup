@@ -57,9 +57,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
      */
     @Override
     public List<SongPick> search(String text) throws Exception {
-        List<SongPick> onBox = fromMemory(text);
-        if (!onBox.isEmpty()) return onBox; // the songs stored on this box answer at once; the slow reads below are only for cloud songs
-        List<SongPick> listed = fromList(text, false);
+        List<SongPick> listed = fromList(text, false); // in memory after the first read: songs on this box first, then cloud songs
         if (!listed.isEmpty()) return listed; // the box's own list already holds its cloud songs: no slow web search needed
         return withoutRepeats(listed, text, "", SEARCH_PAGES);
     }
@@ -120,18 +118,6 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
         return withoutRepeats(listed, "", singer, SINGER_SONG_PAGES);
     }
 
-    private List<SongPick> fromMemory(String text) {
-        files.refreshIfOld();
-        List<SongPick> found = new ArrayList<SongPick>();
-        String wanted = SongFiles.squash(text);
-        if (wanted.isEmpty()) return found;
-        for (SongFiles.LocalSong song : files.all()) {
-            if (found.size() >= MAX_SONGS) break;
-            if (song.key.contains(wanted) && !song.code.startsWith("L")) found.add(new SongPick(song.code, song.title, song.artist));
-        }
-        return found;
-    }
-
     /** The songs of the box's own list file; one without a video on this box is a cloud song (shown only when cloud songs are on). */
     private List<SongPick> fromList(String text, boolean bySinger) {
         files.refreshIfOld();
@@ -139,7 +125,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
         List<SongPick> found = new ArrayList<SongPick>();
         int hidden = 0;
         for (String[] row : files.searchList(text, bySinger, MAX_SONGS)) {
-            boolean onBox = files.byCode(row[0]) != null;
+            boolean onBox = files.hasVideo(row[0]);
             if (onBox || showCloud) found.add(new SongPick(row[0], row[1], row[2], !onBox));
             else hidden++;
         }

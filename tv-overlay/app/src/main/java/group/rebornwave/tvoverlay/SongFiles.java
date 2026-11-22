@@ -47,6 +47,11 @@ final class SongFiles {
     private static final int LIST_TITLE_FIELD = 1;
     private static final int LIST_SINGER_FIELD = 3;
 
+    private volatile String[] indexKeys = new String[0]; // the whole box list: one short search key per song ...
+    private volatile String[] indexRows = new String[0]; // ... and its "number<TAB>title<TAB>singer"
+    private volatile java.util.Set<String> videoCodes = new java.util.HashSet<String>();
+    private long indexedListSize = -1; // size of the list file the index was built from
+
     private final Context context;
     private final java.util.Map<String, String[]> listed = new java.util.HashMap<String, String[]>(); // song number -> {title, singer, pinyin}
     private int listedFor = -1; // how many numbered videos the list was last read for
@@ -105,7 +110,11 @@ final class SongFiles {
         List<LocalSong> indexed = new ArrayList<LocalSong>();
         for (File file : found) indexed.add(describe(file));
         nameFromBoxList(indexed);
+        java.util.Set<String> codes = new java.util.HashSet<String>();
+        for (LocalSong song : indexed) codes.add(song.code);
+        videoCodes = codes;
         songs = indexed;
+        ensureListIndex();
         indexedAt = System.currentTimeMillis();
     }
 
@@ -131,31 +140,62 @@ final class SongFiles {
         }
     }
 
+    /** True when a video of this song number is stored on this box (as found by the last scan). */
+    boolean hasVideo(String code) {
+        return videoCodes.contains(code);
+    }
+
     /**
-     * Searches the box's own list file directly (title, singer or pinyin; or, with bySinger, the exact singer), so a song is found whether or not its video
-     * was found by the scan. Each answer is {number, title, singer}. Reads the whole file (several seconds on the box): background thread only.
+     * Searches the whole box list (title, singer or pinyin; or, with bySinger, the exact singer) from the in-memory index, which is built once from the
+     * list file and kept, so every search after the first is instant and even one letter answers. Songs with a video on this box come first.
+     * Each answer is {number, title, singer}.
      */
     List<String[]> searchList(String query, boolean bySinger, int limit) {
-        List<String[]> found = new ArrayList<String[]>();
-        String wanted = squash(query);
+        ensureListIndex();
+        String wanted = squashedLower(query);
+        List<String[]> onBox = new ArrayList<String[]>();
+        List<String[]> cloud = new ArrayList<String[]>();
+        if (wanted.isEmpty()) return onBox;
+        String[] keys = indexKeys;
+        String[] rows = indexRows;
+        java.util.Set<String> videos = videoCodes;
+        String singerEnding = '\t' + query;
+        for (int i = 0; i < keys.length && onBox.size() < limit; i++) {
+            boolean hit = bySinger ? rows[i].endsWith(singerEnding) : keys[i].contains(wanted);
+            if (!hit) continue;
+            String[] row = rows[i].split("\t", 3);
+            if (videos.contains(row[0])) onBox.add(row);
+            else if (cloud.size() < limit) cloud.add(row);
+        }
+        for (int i = 0; i < cloud.size() && onBox.size() < limit; i++) onBox.add(cloud.get(i));
+        return onBox;
+    }
+
+    /** Reads the box's list file once into memory (a short search key and a "number, title, singer" row per song); read again only if the file changes. */
+    private synchronized void ensureListIndex() {
         File list = biggestBoxList();
-        if (wanted.isEmpty() || list == null) return found;
-        String raw = query.trim().toLowerCase(Locale.ROOT);
-        boolean quickCheck = !bySinger && raw.indexOf(' ') < 0; // pinyin is written with spaces in the list, so a spaced query is checked field by field
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(list), "UTF-8"))) {
+        if (list == null || list.length() == indexedListSize) return;
+        List<String> keys = new ArrayList<String>();
+        List<String> rows = new ArrayList<String>();
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(list), "UTF-8"), 1 << 16)) {
             String line;
-            while (found.size() < limit && (line = reader.readLine()) != null) {
-                if (quickCheck && !squashedLower(line).contains(wanted)) continue;
+            while ((line = reader.readLine()) != null) {
+                int cut = line.indexOf(LIST_SEPARATOR);
+                if (cut <= 0) continue;
                 String[] fields = line.split("\\|\\|", -1);
                 if (fields.length <= LIST_SINGER_FIELD || !fields[0].matches("\\d+")) continue;
+                String title = fields[LIST_TITLE_FIELD].trim();
                 String singer = fields[LIST_SINGER_FIELD].trim();
-                boolean hit = bySinger ? singer.equals(query) : squash(fields[LIST_TITLE_FIELD] + singer + pinyinOf(fields)).contains(wanted);
-                if (hit) found.add(new String[] {fields[0], fields[LIST_TITLE_FIELD].trim(), singer});
+                keys.add(squashedLower(title + singer + pinyinOf(fields)));
+                rows.add(fields[0] + '\t' + title + '\t' + singer);
             }
+            indexKeys = keys.toArray(new String[0]);
+            indexRows = rows.toArray(new String[0]);
+            indexedListSize = list.length();
+            OverlayLog.add("song list: " + rows.size() + " songs read from " + list.getName());
         } catch (java.io.IOException unreadable) {
             OverlayLog.add("song list " + list.getName() + ": " + unreadable.getMessage());
         }
-        return found;
     }
 
     private static String squashedLower(String line) {

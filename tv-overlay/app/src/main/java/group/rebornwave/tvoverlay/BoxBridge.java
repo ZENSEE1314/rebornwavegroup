@@ -18,6 +18,7 @@ final class BoxBridge {
 
     private final Context context;
     private final QueueClient client;
+    private final SongFiles files;
     private long busyWithOtherSince = 0; // since when the box has held a song that is not ours, while ours waits (0 = not waiting)
     private int orderedId = 0;       // the app's song that was ordered on the box and is not finished yet
     private long orderedAt = 0;
@@ -29,9 +30,10 @@ final class BoxBridge {
     private volatile String lastList = ""; // the titles the box's play list holds now
     private volatile int lastCount = -1; // songs the box's own play list held at the last look (-1 = not looked yet)
 
-    BoxBridge(Context context, QueueClient client) {
+    BoxBridge(Context context, QueueClient client, SongFiles files) {
         this.context = context.getApplicationContext();
         this.client = client;
+        this.files = files;
     }
 
     /** What is wrong, in words, for the red line ("" when all is well). */
@@ -151,7 +153,9 @@ final class BoxBridge {
         orderedId = now.id;
         orderedAt = System.currentTimeMillis();
         seenBusy = false;
-        lastEvent = "ordered " + code + ": " + now.title;
+        // A song with no video file on this box is a cloud song: the box has to download it first, which is why it can sit in its play list without playing.
+        String where = files.hasVideo(code) ? "video IS on this box" : "NO video on this box (cloud song)";
+        lastEvent = "ordered " + code + " [" + where + "]: " + now.title;
         OverlayLog.add("box: " + lastEvent);
     }
 
