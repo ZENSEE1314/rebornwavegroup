@@ -76,6 +76,10 @@ final class GiftView extends FrameLayout {
     private static final long SPARKLE_MS = 900;
     private static final float HALO_EXTRA_FRACTION = 0.25f; // the glow is this much bigger than the animation
     private static final int TICKER_SP = 32;
+    private static final long FOREVER_KGOLD = 5_201_314L;
+    private static final String FOREVER_WORDS = "I love you forever";
+    private static final int FOREVER_SP = 40;
+    private static final float FOREVER_BOTTOM_FRACTION = 0.12f;
     // The song bar is a solid black strip as tall as the line the karaoke program keeps at the top of its picture ("Playing: ... NEXT: ..."), so that line
     // is covered; everything else starts below the strip.
     private static final float BAR_HEIGHT_FRACTION = 0.11f; // of the screen height
@@ -188,6 +192,7 @@ final class GiftView extends FrameLayout {
         cardParams.topMargin = Math.round(screenHeight() * PICTURE_TOP_FRACTION);
         stage.addView(card, cardParams);
         addTicker(gift);
+        addForeverCaption(gift);
         addTopGifters(gift, Gravity.START);
         addTopGifters(gift, Gravity.END);
         card.setScaleX(0f);
@@ -202,6 +207,15 @@ final class GiftView extends FrameLayout {
         else if (!gift.imageUrl.isEmpty()) loadPicture(gift.imageUrl, card, picture);
         else loadAnimated(gift, scene, card, picture);
         rain(emoji);
+    }
+
+    /** 5201314 sounds like "I love you forever" in Chinese: the English words sit under the picture. */
+    private void addForeverCaption(TvFeed.Gift gift) {
+        if (gift.kgold != FOREVER_KGOLD) return;
+        TextView words = text(FOREVER_WORDS, FOREVER_SP, true);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        params.bottomMargin = Math.round(screenHeight() * FOREVER_BOTTOM_FRACTION);
+        stage.addView(words, params);
     }
 
     /** The receiver's top 3 givers as a small board on one side of the picture (called for the left and the right side). */
