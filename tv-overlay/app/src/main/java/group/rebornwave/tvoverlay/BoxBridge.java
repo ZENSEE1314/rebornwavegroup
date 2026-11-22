@@ -12,7 +12,7 @@ import java.util.List;
 final class BoxBridge {
     private static final long NOT_STARTED_MS = 90_000; // the box took the order but never showed the song (a cloud song is downloaded first): give up on it
     private static final long QUEUE_WAITING_MAX_MS = 30_000; // nobody is singing in the app, singers wait, and the box still holds a song the app did not order: it is cut after this long
-    private static final long OTHER_SONG_MAX_MS = 20_000; // the box holds a song that is not ours while ours is on now: after this long it is cut, the box's play list often keeps a finished song
+    private static final long OTHER_SONG_MAX_MS = 10_000; // the box holds a song that is not ours while ours is on now: after this long it is cut, the box's play list often keeps a finished song
     private static final long AFTER_ORDER_WAIT_MS = 1_500;
     private static final String ORIGINAL = "original";
     private static final int FIND_PAGES = 3;
@@ -80,7 +80,7 @@ final class BoxBridge {
                 busyWithOtherSince = 0;
                 client.next(0, false);
             } else {
-                waitForOtherSong(box, QUEUE_WAITING_MAX_MS); // singers wait but the box holds a song (a stuck cloud download): without this the queue never starts
+                waitForOtherSong(box, QUEUE_WAITING_MAX_MS, null); // singers wait but the box holds a song (a stuck cloud download): without this the queue never starts
             }
             return;
         }
@@ -97,7 +97,7 @@ final class BoxBridge {
                 return;
             }
             if (count > 0) {
-                waitForOtherSong(box, OTHER_SONG_MAX_MS);
+                waitForOtherSong(box, OTHER_SONG_MAX_MS, now);
                 return;
             }
             busyWithOtherSince = 0;
@@ -132,25 +132,50 @@ final class BoxBridge {
 
     /**
      * The box's play list holds a song this app did not order (one ordered on the box itself, or one left stuck). Wait for it; if it is still there after
-     * OTHER_SONG_MAX_MS the app's song would never start, so the box's Skip cuts it.
+     * maxMs the app's song would never start, so it is taken over: with a song of ours on now, ours is ordered anyway and everything ahead of it is removed;
+     * with none, the held song is cut.
      */
-    private void waitForOtherSong(String box, long maxMs) throws Exception {
+    private void waitForOtherSong(String box, long maxMs, QueueClient.Song ours) throws Exception {
         long nowMs = System.currentTimeMillis();
         if (busyWithOtherSince == 0) busyWithOtherSince = nowMs;
         long waited = nowMs - busyWithOtherSince;
         if (waited > maxMs) {
-            String skipAnswer = BoxServlets.command(box, "Skip");
-            StringBuilder removed = new StringBuilder();
-            for (String id : BoxServlets.heldIds()) { // Skip alone often leaves the entry in the box's play list: remove each by its own number
-                removed.append(' ').append(id).append('=').append(BoxServlets.command(box, "Del1", id).length() > 0 ? "sent" : "no answer");
-            }
-            OverlayLog.add("box: cut [" + lastList + "] Skip answered " + (skipAnswer.length() > 80 ? skipAnswer.substring(0, 80) : skipAnswer) + ", Del1" + (removed.length() == 0 ? " none (no ids known)" : removed));
-            BoxServlets.forgetPlaylistNames();
             busyWithOtherSince = 0;
-            lastEvent = "cut a song that held the box";
+            if (ours != null) takeOver(box, ours);
+            else cutHeldSongs(box);
         } else {
             lastEvent = "box busy with another song, waiting " + waited / 1000 + " s";
         }
+    }
+
+    /**
+     * Orders our song although the box still holds another one. Only then does the box tell its whole play list with each song's own number, so the songs
+     * ahead of ours (added last, so it is the last of the list) can be removed by number; Skip alone leaves them in the box's list.
+     */
+    private void takeOver(String box, QueueClient.Song ours) throws Exception {
+        order(box, ours);
+        if (orderedId != ours.id) return; // the box does not have the song: order() already moved the queue on
+        List<String[]> entries = BoxServlets.heldEntries();
+        StringBuilder removed = new StringBuilder();
+        for (int i = 0; i < entries.size() - 1; i++) {
+            String[] held = entries.get(i);
+            removed.append(' ').append(held[0]).append('/').append(held[1]).append(BoxServlets.command(box, "Del1", held[1]).isEmpty() ? "=no answer" : "=sent");
+        }
+        if (entries.isEmpty()) BoxServlets.command(box, "Skip"); // the list could not be read: cut what is playing, ours is next
+        OverlayLog.add("box: took over for " + ours.title + ", removed ahead of it:" + (removed.length() > 0 ? removed : entries.isEmpty() ? " (list unreadable, pressed Skip)" : " nothing"));
+        lastEvent = "took over the box for: " + ours.title;
+    }
+
+    /** No song of ours is on, but singers wait and the box holds a song: cut it (Skip) and remove what it still lists. */
+    private void cutHeldSongs(String box) throws Exception {
+        String skipAnswer = BoxServlets.command(box, "Skip");
+        StringBuilder removed = new StringBuilder();
+        for (String[] held : BoxServlets.heldEntries()) {
+            removed.append(' ').append(held[0]).append('/').append(held[1]).append(BoxServlets.command(box, "Del1", held[1]).isEmpty() ? "=no answer" : "=sent");
+        }
+        OverlayLog.add("box: cut [" + lastList + "] Skip answered " + (skipAnswer.length() > 80 ? skipAnswer.substring(0, 80) : skipAnswer) + ", Del1" + (removed.length() == 0 ? " none (list not known)" : removed));
+        BoxServlets.forgetPlaylistNames();
+        lastEvent = "cut a song that held the box";
     }
 
     private void order(String box, QueueClient.Song now) throws Exception {
@@ -173,7 +198,7 @@ final class BoxBridge {
         // The box only tells its play list's titles right after the list changed, so read it now: the status line and the log then show what the box holds.
         Thread.sleep(AFTER_ORDER_WAIT_MS);
         lastList = BoxServlets.playlistNames(box);
-        OverlayLog.add("box: play list after ordering " + code + ": " + lastList + " (box numbers " + BoxServlets.heldIds() + ")");
+        OverlayLog.add("box: play list after ordering " + code + ": " + lastList + " (" + BoxServlets.heldEntries().size() + " songs listed)");
         // A song with no video file on this box is a cloud song: the box has to download it first, which is why it can sit in its play list without playing.
         String where = files.hasVideo(code) ? "video IS on this box" : "NO video on this box (cloud song)";
         lastEvent = "ordered " + code + " [" + where + "]: " + now.title;
