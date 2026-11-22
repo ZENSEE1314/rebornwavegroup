@@ -18,9 +18,11 @@ import java.util.regex.Pattern;
 final class GiftArt {
     private static final String[] SCENES = {"car", "fireworks", "crown", "diamonds", "kiss", "thumbsup", "lion", "whale", "rocket", "rose", "heart", "drink", "cake", "teddy", "money", "gift", "castle", "love520", "ring", "jet", "forever"};
     private static final String[] CLUB_CLIPS = {"lion", "whale", "car", "teddy", "castle", "love520", "ring", "jet", "forever"};
+    // Scenes whose clip on the club's server is cleaned (no background box) and must be shown instead of Google's emoji animation, which has the box.
+    private static final String[] CLEANED_CLIPS = {"fireworks"};
     private static final String[] POSTERS = {"heart", "gift"};
     private static final String NO_SCENE = "";
-    private static final String VERSION = "2"; // raise it when a clip is replaced on the server, so boxes fetch the new one
+    private static final String VERSION = "3"; // raise it when a clip is replaced on the server, so boxes fetch the new one
     private static final String NOTO = "https://fonts.gstatic.com/s/e/notoemoji/latest/";
     private static final String VARIATION_SELECTOR = "_fe0f";
     private static final int TIMEOUT_MS = 30_000;
@@ -69,7 +71,7 @@ final class GiftArt {
     }
 
     static boolean isClubClip(String scene) {
-        return contains(CLUB_CLIPS, scene);
+        return contains(CLUB_CLIPS, scene) || contains(CLEANED_CLIPS, scene);
     }
 
     static boolean isPoster(String scene) {
