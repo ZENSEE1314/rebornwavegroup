@@ -42,7 +42,14 @@ final class SongFiles {
     private static final int SURVEY_TAIL_BYTES = 400;
     private static final long SURVEY_MIN_BYTES = 5L * 1024 * 1024;
 
+    private static final String BOX_LIST_PATH = "KTV_VOD/weixin/SongSingerTxt/Songs.txt";
+    private static final String LIST_SEPARATOR = "||";
+    private static final int LIST_TITLE_FIELD = 1;
+    private static final int LIST_SINGER_FIELD = 3;
+
     private final Context context;
+    private final java.util.Map<String, String[]> listed = new java.util.HashMap<String, String[]>(); // song number -> {title, singer, pinyin}
+    private int listedFor = -1; // how many numbered videos the list was last read for
     private volatile List<LocalSong> songs = new ArrayList<LocalSong>();
     private long indexedAt = 0;
 
@@ -97,8 +104,68 @@ final class SongFiles {
         for (File folder : folders()) collect(folder, found, 0);
         List<LocalSong> indexed = new ArrayList<LocalSong>();
         for (File file : found) indexed.add(describe(file));
+        nameFromBoxList(indexed);
         songs = indexed;
         indexedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * The box's videos are named by number only; their titles, singers and pinyin are in the box's own list (Songs.txt, one song a line:
+     * number||title||..||singer||..||number.mkv||pinyin initials||..||full pinyin). The list holds ~200,000 songs of which only the ones with a
+     * video here are kept, and it is read again only when the number of videos changes.
+     */
+    private void nameFromBoxList(List<LocalSong> indexed) {
+        java.util.Set<String> wanted = new java.util.HashSet<String>();
+        for (LocalSong song : indexed) if (song.code.matches("\\d+")) wanted.add(song.code);
+        if (wanted.size() != listedFor) {
+            listedFor = wanted.size();
+            listed.clear();
+            for (File list : boxLists()) readBoxList(list, wanted);
+        }
+        for (LocalSong song : indexed) {
+            String[] info = listed.get(song.code);
+            if (info == null) continue;
+            song.title = info[0];
+            song.artist = info[1];
+            song.key = squash(info[0] + info[1] + info[2]);
+        }
+    }
+
+    private List<File> boxLists() {
+        List<File> lists = new ArrayList<File>();
+        lists.add(new File(Environment.getExternalStorageDirectory(), BOX_LIST_PATH));
+        File[] drives = new File("/storage").listFiles();
+        if (drives != null) for (File drive : drives) lists.add(new File(drive, BOX_LIST_PATH));
+        return lists;
+    }
+
+    private void readBoxList(File list, java.util.Set<String> wanted) {
+        if (!list.isFile()) return;
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(list), "UTF-8"))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                int cut = line.indexOf(LIST_SEPARATOR);
+                if (cut <= 0) continue;
+                String code = line.substring(0, cut);
+                if (!wanted.contains(code) || listed.containsKey(code)) continue;
+                String[] fields = line.split("\\|\\|", -1);
+                if (fields.length <= LIST_SINGER_FIELD) continue;
+                listed.put(code, new String[] {fields[LIST_TITLE_FIELD].trim(), fields[LIST_SINGER_FIELD].trim(), pinyinOf(fields)});
+            }
+        } catch (java.io.IOException unreadable) {
+            OverlayLog.add("song list " + list.getName() + ": " + unreadable.getMessage());
+        }
+    }
+
+    /** The pinyin initials and the full pinyin that follow the "number.mkv" field; the empty fields between them vary from line to line. */
+    private static String pinyinOf(String[] fields) {
+        StringBuilder pinyin = new StringBuilder();
+        boolean afterVideo = false;
+        for (String field : fields) {
+            if (afterVideo && field.matches("[A-Za-z' ]+")) pinyin.append(field).append(' ');
+            if (field.toLowerCase(Locale.ROOT).endsWith(".mkv")) afterVideo = true;
+        }
+        return pinyin.toString();
     }
 
     private static LocalSong describe(File file) {
