@@ -30,6 +30,7 @@ final class SongFiles {
     private static final String CODE_PREFIX = "L";
     private static final long INDEX_MAX_AGE_MS = 60_000;
     private static final long LIST_POLL_MS = 200;
+    private static final int BOX_FOLDER_DIGITS = 5; // the first digits of a song number name its folder: 10015216 -> songs/010015
     private static final int MIN_TITLE_LENGTH = 2;
     private static final int SINGER_BONUS = 2;
     private static final int TITLE_SCORE = 10;
@@ -51,6 +52,7 @@ final class SongFiles {
     private volatile String[] indexKeys = new String[0]; // the whole box list: one short search key per song ...
     private volatile String[] indexRows = new String[0]; // ... and its "number<TAB>title<TAB>singer"
     private volatile java.util.Set<String> videoCodes = new java.util.HashSet<String>();
+    private final java.util.Map<String, Boolean> directChecks = new java.util.concurrent.ConcurrentHashMap<String, Boolean>();
     private volatile boolean refreshing = false;
     private volatile int listRowsRead = 0;   // progress of reading the list, for the screen
     private volatile long listReadStartedAt = 0;
@@ -179,8 +181,26 @@ final class SongFiles {
         return !videoCodes.isEmpty();
     }
 
+    /**
+     * True when this song's video is stored on this box. The box keeps song 10015216 in songs/010015/10015216.mkv, so the file is looked for there
+     * on every drive (a few quick checks, remembered) and the answer does not wait for the slow scan of all the video folders.
+     */
     boolean hasVideo(String code) {
-        return videoCodes.contains(code);
+        if (videoCodes.contains(code)) return true;
+        Boolean known = directChecks.get(code);
+        if (known != null) return known;
+        boolean found = existsOnBoxDrive(code);
+        directChecks.put(code, found);
+        return found;
+    }
+
+    private boolean existsOnBoxDrive(String code) {
+        if (code.length() < BOX_FOLDER_DIGITS || !isDigits(code)) return false;
+        String relative = BOX_SONGS_FOLDER + "/0" + code.substring(0, BOX_FOLDER_DIGITS) + "/" + code + ".mkv";
+        if (new File(Environment.getExternalStorageDirectory(), relative).isFile()) return true;
+        File[] drives = new File("/storage").listFiles();
+        if (drives != null) for (File drive : drives) if (new File(drive, relative).isFile()) return true;
+        return false;
     }
 
     /**
