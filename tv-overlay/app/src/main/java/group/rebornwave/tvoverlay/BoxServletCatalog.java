@@ -46,7 +46,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     public String whyEmpty() {
         if (!files.listProblem().isEmpty()) return Words.t("The song list could not be read: ", "无法读取歌曲列表：", "Daftar lagu tidak bisa dibaca: ") + files.listProblem();
         if (files.isListComing()) {
-            return Words.t("The song list is still being read — please search again in a minute.", "歌曲列表还在读取中，请一分钟后再搜索。", "Daftar lagu masih dibaca — coba cari lagi satu menit lagi.");
+            return Words.t("The song list is still being read (" + files.listProgress() + ") — please search again in a minute.", "歌曲列表还在读取中（" + files.listProgress() + "），请一分钟后再搜索。", "Daftar lagu masih dibaca (" + files.listProgress() + ") — coba cari lagi satu menit lagi.");
         }
         return hiddenCloud > 0
                 ? Words.t(hiddenCloud + " matching songs are cloud songs (kept in the cloud, not stored on this box). To list them too: ⚙ › Show cloud songs.",

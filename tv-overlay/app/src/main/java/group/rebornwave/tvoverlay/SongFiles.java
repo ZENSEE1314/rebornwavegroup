@@ -51,6 +51,8 @@ final class SongFiles {
     private volatile String[] indexRows = new String[0]; // ... and its "number<TAB>title<TAB>singer"
     private volatile java.util.Set<String> videoCodes = new java.util.HashSet<String>();
     private volatile boolean refreshing = false;
+    private volatile int listRowsRead = 0;   // progress of reading the list, for the screen
+    private volatile long listReadStartedAt = 0;
     private volatile String listProblem = ""; // why the list could not be read, for the screen
     private volatile long indexedListSize = -1; // size of the list file the index was built from
 
@@ -208,6 +210,8 @@ final class SongFiles {
         if (list == null || list.length() == indexedListSize) return;
         List<String> keys = new ArrayList<String>();
         List<String> rows = new ArrayList<String>();
+        listRowsRead = 0;
+        listReadStartedAt = System.currentTimeMillis();
         try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(list), "UTF-8"), 1 << 16)) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -219,6 +223,7 @@ final class SongFiles {
                 String singer = fields[LIST_SINGER_FIELD].trim();
                 keys.add(squashedLower(title + singer + pinyinOf(fields)));
                 rows.add(fields[0] + '\t' + title + '\t' + singer);
+                listRowsRead = rows.size();
             }
             indexKeys = keys.toArray(new String[0]);
             indexRows = rows.toArray(new String[0]);
@@ -261,6 +266,12 @@ final class SongFiles {
     /** The list file exists but is not in memory yet. */
     boolean isListComing() {
         return !isListReady() && listProblem.isEmpty() && biggestBoxList() != null;
+    }
+
+    /** "12000 songs read in 9 s" while the list is being read; "not started" when nothing has begun reading it. */
+    String listProgress() {
+        if (listReadStartedAt == 0) return "not started";
+        return listRowsRead + " songs read in " + (System.currentTimeMillis() - listReadStartedAt) / 1000 + " s";
     }
 
     /** What went wrong reading the list ("" = nothing). */
