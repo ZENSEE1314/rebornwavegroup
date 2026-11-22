@@ -13,6 +13,7 @@ final class BoxBridge {
     private static final long NOT_STARTED_MS = 90_000; // the box took the order but never showed the song (a cloud song is downloaded first): give up on it
     private static final long QUEUE_WAITING_MAX_MS = 30_000; // nobody is singing in the app, singers wait, and the box still holds a song the app did not order: it is cut after this long
     private static final long OTHER_SONG_MAX_MS = 20_000; // the box holds a song that is not ours while ours is on now: after this long it is cut, the box's play list often keeps a finished song
+    private static final long AFTER_ORDER_WAIT_MS = 1_500;
     private static final String ORIGINAL = "original";
     private static final int FIND_PAGES = 3;
 
@@ -153,6 +154,10 @@ final class BoxBridge {
         orderedId = now.id;
         orderedAt = System.currentTimeMillis();
         seenBusy = false;
+        // The box only tells its play list's titles right after the list changed, so read it now: the status line and the log then show what the box holds.
+        Thread.sleep(AFTER_ORDER_WAIT_MS);
+        lastList = BoxServlets.playlistNames(box);
+        OverlayLog.add("box: play list after ordering " + code + ": " + lastList + " (box numbers " + BoxServlets.heldIds() + ")");
         // A song with no video file on this box is a cloud song: the box has to download it first, which is why it can sit in its play list without playing.
         String where = files.hasVideo(code) ? "video IS on this box" : "NO video on this box (cloud song)";
         lastEvent = "ordered " + code + " [" + where + "]: " + now.title;
