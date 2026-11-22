@@ -44,6 +44,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
 
     @Override
     public String whyEmpty() {
+        if (!files.listProblem().isEmpty()) return Words.t("The song list could not be read: ", "无法读取歌曲列表：", "Daftar lagu tidak bisa dibaca: ") + files.listProblem();
         if (files.isListComing()) {
             return Words.t("The song list is still being read — please search again in a minute.", "歌曲列表还在读取中，请一分钟后再搜索。", "Daftar lagu masih dibaca — coba cari lagi satu menit lagi.");
         }
@@ -68,7 +69,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
 
     @Override
     public List<String> singers(String text) throws Exception {
-        files.refreshIfOld();
+        files.refreshSoon();
         List<String> names = new ArrayList<String>();
         String wanted = SongFiles.squash(text);
         if (!wanted.isEmpty()) {
@@ -114,7 +115,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     @Override
     public List<SongPick> songsOf(String singer) throws Exception {
         List<SongPick> own = new ArrayList<SongPick>();
-        files.refreshIfOld();
+        files.refreshSoon();
         for (SongFiles.LocalSong song : files.all()) if (song.artist.equals(singer)) own.add(new SongPick(song.code, song.title, song.artist));
         if (!own.isEmpty()) return own;
         List<SongPick> listed = fromList(singer, true);
@@ -124,7 +125,7 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
 
     /** The songs of the box's own list file; one without a video on this box is a cloud song (shown only when cloud songs are on). */
     private List<SongPick> fromList(String text, boolean bySinger) {
-        files.refreshIfOld();
+        files.refreshSoon();
         boolean showCloud = BridgeSettings.isShowCloud(context);
         List<SongPick> found = new ArrayList<SongPick>();
         int hidden = 0;

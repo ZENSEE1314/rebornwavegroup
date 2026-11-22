@@ -50,7 +50,9 @@ final class SongFiles {
     private volatile String[] indexKeys = new String[0]; // the whole box list: one short search key per song ...
     private volatile String[] indexRows = new String[0]; // ... and its "number<TAB>title<TAB>singer"
     private volatile java.util.Set<String> videoCodes = new java.util.HashSet<String>();
-    private long indexedListSize = -1; // size of the list file the index was built from
+    private volatile boolean refreshing = false;
+    private volatile String listProblem = ""; // why the list could not be read, for the screen
+    private volatile long indexedListSize = -1; // size of the list file the index was built from
 
     private final Context context;
     private final java.util.Map<String, String[]> listed = new java.util.HashMap<String, String[]>(); // song number -> {title, singer, pinyin}
@@ -105,6 +107,7 @@ final class SongFiles {
 
     /** Scans the folders again when the last scan is a minute old. Reads the storage: call it from a background thread only. */
     synchronized void refreshIfOld() {
+        ensureListIndex(); // the box's list first: it makes search work while the (slow) scan of the video folders is still going
         if (System.currentTimeMillis() - indexedAt < INDEX_MAX_AGE_MS) return;
         List<File> found = new ArrayList<File>();
         for (File folder : folders()) collect(folder, found, 0);
@@ -115,7 +118,6 @@ final class SongFiles {
         for (LocalSong song : indexed) codes.add(song.code);
         videoCodes = codes;
         songs = indexed;
-        ensureListIndex();
         indexedAt = System.currentTimeMillis();
     }
 
@@ -149,6 +151,24 @@ final class SongFiles {
             song.artist = info[1];
             song.key = info[2];
         }
+    }
+
+    /**
+     * Scans again in the background when the last scan is old, and returns at once: the touch screen's searches use what is known now and never wait
+     * for the scan of the box's 40,000 video files, which takes a long time.
+     */
+    void refreshSoon() {
+        if (refreshing || System.currentTimeMillis() - indexedAt < INDEX_MAX_AGE_MS) return;
+        refreshing = true;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    refreshIfOld();
+                } finally {
+                    refreshing = false;
+                }
+            }
+        }, "song-scan").start();
     }
 
     /** True when a video of this song number is stored on this box (as found by the last scan). */
@@ -204,8 +224,9 @@ final class SongFiles {
             indexRows = rows.toArray(new String[0]);
             indexedListSize = list.length();
             OverlayLog.add("song list: " + rows.size() + " songs read from " + list.getName());
-        } catch (java.io.IOException unreadable) {
-            OverlayLog.add("song list " + list.getName() + ": " + unreadable.getMessage());
+        } catch (java.io.IOException | RuntimeException | OutOfMemoryError failed) {
+            listProblem = failed.getClass().getSimpleName() + " " + failed.getMessage();
+            OverlayLog.add("song list " + list.getName() + ": " + listProblem);
         }
     }
 
@@ -239,7 +260,12 @@ final class SongFiles {
 
     /** The list file exists but is not in memory yet. */
     boolean isListComing() {
-        return !isListReady() && biggestBoxList() != null;
+        return !isListReady() && listProblem.isEmpty() && biggestBoxList() != null;
+    }
+
+    /** What went wrong reading the list ("" = nothing). */
+    String listProblem() {
+        return listProblem;
     }
 
     /** The pinyin initials and the full pinyin that follow the "number.mkv" field; the empty fields between them vary from line to line. */
