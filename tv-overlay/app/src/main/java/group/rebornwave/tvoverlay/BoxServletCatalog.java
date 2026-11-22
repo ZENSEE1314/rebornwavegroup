@@ -20,9 +20,11 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
     private final Context context;
     private final QueueClient client;
     private final SingerPhotos photos;
+    private final SongFiles files;
     private volatile int hiddenCloud = 0; // cloud songs left out of the last list
 
-    BoxServletCatalog(Context context, QueueClient client, SingerPhotos photos) {
+    BoxServletCatalog(Context context, QueueClient client, SingerPhotos photos, SongFiles files) {
+        this.files = files;
         this.context = context.getApplicationContext();
         this.client = client;
         this.photos = photos;
@@ -49,13 +51,56 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
                 : "";
     }
 
+    /**
+     * The box's web search misses songs its own program has (新不了情), so the videos on this box, named from the box's own Songs.txt, are searched
+     * first; the web search adds what they do not hold (cloud songs, when shown). A web search that fails does not hide the local answer.
+     */
     @Override
     public List<SongPick> search(String text) throws Exception {
-        return pagesOf(box(), text, "", 1, SEARCH_PAGES);
+        files.refreshIfOld();
+        List<SongPick> found = new ArrayList<SongPick>();
+        String wanted = SongFiles.squash(text);
+        if (!wanted.isEmpty()) {
+            for (SongFiles.LocalSong song : files.all()) {
+                if (found.size() >= MAX_SONGS) break;
+                if (song.key.contains(wanted)) found.add(new SongPick(song.code, song.title, song.artist));
+            }
+        }
+        return withoutRepeats(found, text, "", SEARCH_PAGES);
     }
 
     @Override
     public List<String> singers(String text) throws Exception {
+        files.refreshIfOld();
+        List<String> names = new ArrayList<String>();
+        String wanted = SongFiles.squash(text);
+        if (!wanted.isEmpty()) {
+            for (SongFiles.LocalSong song : files.all()) {
+                if (!song.artist.isEmpty() && SongFiles.squash(song.artist).contains(wanted) && !names.contains(song.artist)) names.add(song.artist);
+            }
+        }
+        try {
+            for (String name : boxSingers(text)) if (!names.contains(name)) names.add(name);
+        } catch (Exception noBox) {
+            if (names.isEmpty()) throw noBox;
+        }
+        return names;
+    }
+
+    private List<SongPick> withoutRepeats(List<SongPick> local, String text, String singer, int pages) throws Exception {
+        List<SongPick> found = new ArrayList<SongPick>(local);
+        java.util.Set<String> codes = new java.util.HashSet<String>();
+        for (SongPick pick : local) codes.add(pick.code);
+        try {
+            for (SongPick pick : pagesOf(box(), text, singer, 1, pages)) if (codes.add(pick.code)) found.add(pick);
+        } catch (Exception noBox) {
+            if (found.isEmpty()) throw noBox;
+            OverlayLog.add("touch: the box's web search failed: " + noBox.getMessage());
+        }
+        return found;
+    }
+
+    private List<String> boxSingers(String text) throws Exception {
         String base = box();
         List<String> names = new ArrayList<String>();
         for (int page = 1; page <= SINGER_PAGES; page++) {
@@ -71,7 +116,10 @@ final class BoxServletCatalog implements ControlPanel.Catalog {
 
     @Override
     public List<SongPick> songsOf(String singer) throws Exception {
-        return pagesOf(box(), "", singer, 1, SINGER_SONG_PAGES);
+        files.refreshIfOld();
+        List<SongPick> own = new ArrayList<SongPick>();
+        for (SongFiles.LocalSong song : files.all()) if (song.artist.equals(singer)) own.add(new SongPick(song.code, song.title, song.artist));
+        return withoutRepeats(own, "", singer, SINGER_SONG_PAGES);
     }
 
     @Override

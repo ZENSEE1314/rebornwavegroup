@@ -178,7 +178,7 @@ public class PlayerActivity extends Activity {
         boxMode = BridgeSettings.isBoxPlayback(this);
         // The box's own song list (titles, singers, numbers) is the catalogue whenever the box's program has been found, even when this app plays the files.
         boxCatalog = boxMode || !BridgeSettings.box(this).isEmpty();
-        panel = new ControlPanel(this, boxCatalog ? new BoxServletCatalog(this, client, photos) : new BoxCatalog(songFiles, client), buttons, photos);
+        panel = new ControlPanel(this, boxCatalog ? new BoxServletCatalog(this, client, photos, songFiles) : new BoxCatalog(songFiles, client), buttons, photos);
         settingsButton = new TextView(this);
         settingsButton.setText("⚙");
         settingsButton.setTextSize(22);
