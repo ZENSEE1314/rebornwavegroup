@@ -348,6 +348,7 @@ export const posT: Record<string, { en: string; zh: string; id: string }> = {
   'pos.applyDiscount': { en: 'Apply discount', zh: '应用折扣', id: 'Terapkan diskon' },
   'pos.pay.cash': { en: 'Cash', zh: '现金', id: 'Tunai' },
   'pos.pay.card': { en: 'Card', zh: '刷卡', id: 'Kartu' },
+  'pos.item.pinPh': { en: 'PIN to remove', zh: '移除所需 PIN', id: 'PIN untuk menghapus' },
   'pos.sales.collectedBy': { en: 'Collected by payment type', zh: '按付款方式收款', id: 'Diterima menurut cara bayar' },
   'pos.pay.split': { en: 'Split', zh: '分开付', id: 'Campur' },
   'pos.split.hint': { en: 'Pay one bill with cash, card and RP credits together. Type the cash first, then the card amount or tap "Fill the rest". The receipt shows every part.', zh: '一张账单可同时用现金、刷卡和 RP 余额付款。先填现金，再填刷卡金额或点“填入余额”。收据会显示每一笔。', id: 'Bayar satu tagihan dengan tunai, kartu dan kredit RP sekaligus. Isi tunai dulu, lalu jumlah kartu atau tekan "Isi sisanya". Struk menampilkan setiap bagian.' },

@@ -1,6 +1,6 @@
 // Reborn Wave gamified economy: pet lifecycle, spin-the-wheel, support/FAQ, admin config.
 import { inEveryDataSpace } from "./tenantSpace";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { Express, Request, Response } from "express";
 import { accrueEnergy } from "./petEnergy";
 import { and, asc, desc, eq, getTableColumns, gte, ne, sql, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
@@ -159,6 +159,14 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   petImageUrl: "",          // the company's own pet picture (empty → Doluruu)
   petEggImageUrl: "",       // the company's own egg / blind-box picture
 };
+const DEFAULT_REMOVE_ITEM_PIN = "131313";
+// Taking an item off a bill needs this PIN (app_settings `removeItemPin`, default above) so a cashier cannot quietly delete what was ordered.
+async function removeItemPinOk(given: unknown): Promise<boolean> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "removeItemPin"));
+  const wanted = Buffer.from(row?.value?.trim() || DEFAULT_REMOVE_ITEM_PIN);
+  const entered = Buffer.from(String(given ?? "").trim());
+  return entered.length === wanted.length && timingSafeEqual(entered, wanted);
+}
 async function getSettings() {
   const rows = await db.select().from(appSettings);
   // Another company starts from its own name, not Reborn's name, address and app download.
@@ -5313,6 +5321,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   // marked rejected (kept visible to the customer with the reason); POS items are deleted.
   app.post("/api/reborn/pos/items/:id/remove", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
+    if (!(await removeItemPinOk(req.body?.pin))) return res.status(403).json({ message: tr(req, { en: "Wrong PIN. Removing an item needs the PIN.", zh: "PIN 错误。移除品项需要 PIN。", id: "PIN salah. Menghapus item butuh PIN." }) });
     const reason = String(req.body?.reason || "").trim();
     const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
     if (!it) return res.status(404).json({ message: tr(req, { en: "Item not found", zh: "找不到该品项", id: "Item tidak ditemukan" }) });

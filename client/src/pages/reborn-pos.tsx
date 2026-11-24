@@ -1087,7 +1087,8 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
         isDanger
         onCancel={() => setAsk(null)}
         staffOptions={ask.kind === "lose" ? staffList.map((person) => ({ id: person.id, name: person.name })) : undefined}
-        onConfirm={(reason, chargeStaffId) => { itemEdit.mutate({ id: ask.item.id, op: ask.kind, body: { reason, chargeStaffId } }); setAsk(null); }} />}
+        needsPin={ask.kind === "remove"}
+        onConfirm={(reason, chargeStaffId, pin) => { itemEdit.mutate({ id: ask.item.id, op: ask.kind, body: { reason, chargeStaffId, pin } }); setAsk(null); }} />}
     </div>
   );
 }

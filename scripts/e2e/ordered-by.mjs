@@ -45,7 +45,7 @@ check("each log row belongs to the person who ordered (two different people)", l
 await staff("POST", `/api/reborn/pos/items/${rows[0].id}/edit`, { qty: 1, reason: "customer changed mind" });
 const edit = (await db.query("SELECT description FROM admin_logs WHERE action='edit' AND target_id=$1", [String(rows[0].id)])).rows[0];
 check("an edit says who ordered the line and what changed", edit && new RegExp(`ordered by ${rows[0].added_by_name}`).test(edit.description) && /2 × RP 10000\.00 → 1 × RP 10000/.test(edit.description), JSON.stringify(edit));
-await staff("POST", `/api/reborn/pos/items/${rows[1].id}/remove`, { reason: "wrong table" });
+await staff("POST", `/api/reborn/pos/items/${rows[1].id}/remove`, { reason: "wrong table", pin: "131313" });
 const removed = (await db.query("SELECT description FROM admin_logs WHERE action='remove' AND target_id=$1", [String(rows[1].id)])).rows[0];
 check("a removal keeps who ordered the line even though the line is gone", removed && /ordered by Waiter Wati/.test(removed.description) && /By Burger/.test(removed.description), JSON.stringify(removed));
 console.log(failures ? `${failures} FAILED` : "ALL PASSED"); await db.end(); process.exit(failures ? 1 : 0);
