@@ -61,9 +61,8 @@ export function StockAdjust({ p }: { p: { id: number; name: string; stock?: numb
   const unitCostOfBox = perBox > 0 && Number(shownBoxCost) > 0 ? Number(shownBoxCost) / perBox : undefined;
   const needsNote = mode === "out" && f.reason === OTHER_REASON;
   const hasCost = mode === "in" && Number(isBox ? unitCostOfBox : shownUnitCost) > 0;
-  const needsPayMethod = hasCost && isPaid && !payMethod;
   const dueDate = !isPaid ? dueDateFrom((f.at || nowLocal()).slice(0, 10), Number(termsDays)) : "";
-  const canSave = qty > 0 && (!isBox || perBox >= 2) && (mode === "in" || !needsNote || f.note.trim() !== "") && !needsPayMethod;
+  const canSave = qty > 0 && (!isBox || perBox >= 2) && (mode === "in" || !needsNote || f.note.trim() !== "");
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const save = useMutation({
     mutationFn: () => apiRequest("POST", STOCK_IN, {

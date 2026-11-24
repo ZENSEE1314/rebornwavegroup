@@ -4363,7 +4363,6 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const stockPayMethod = payMethodOf(req.body?.payMethod);
     // The supplier's receipt photo, kept on the purchase line (paid or not) so Accounting shows "View receipt photo".
     const stockPhoto = buyingWithCost && typeof req.body?.photoUrl === "string" && req.body.photoUrl.startsWith("data:image/") && req.body.photoUrl.length <= MAX_EXPENSE_PHOTO_LENGTH ? req.body.photoUrl : null;
-    if (buyingWithCost && req.body?.paid === true && !stockPayMethod) return res.status(400).json({ message: needPayMethod(req) });
     if (qty < 0 && !outReason) return res.status(400).json({ message: tr(req, { en: "Choose a reason for taking stock out", zh: "请选择减少库存的原因", id: "Pilih alasan pengurangan stok" }) });
     if (qty < 0 && !(await getSettings()).allowNegativeStock && (p.stock ?? 0) + qty < 0) return res.status(400).json({ message: tr(req, { en: "Only {n} in stock", zh: "库存只有 {n}", id: "Stok hanya {n}" }, { n: p.stock ?? 0 }) });
     await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}`, ...(supplier ? { supplierName: supplier } : {}) }).where(eq(posProducts.id, id));
