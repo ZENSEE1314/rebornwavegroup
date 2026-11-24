@@ -1195,6 +1195,20 @@ function QuickSaleTab() {
   );
 }
 
+const COLLECTED_METHODS = ["cash", "card", "credits", "package"] as const;
+type CollectedMethod = (typeof COLLECTED_METHODS)[number];
+
+// What each way of paying brought in; a split bill counts each part where it was paid.
+function collectedByMethod(paid: any[]): Record<CollectedMethod, number> {
+  const sum: Record<CollectedMethod, number> = { cash: 0, card: 0, credits: 0, package: 0 };
+  for (const o of paid) {
+    if (o.paymentMethod === "split") { for (const part of readSplit(o.paymentSplit)) sum[part.method] += part.amount; continue; }
+    const method: CollectedMethod = o.paymentMethod in sum ? o.paymentMethod : "cash";
+    sum[method] += Number(o.total);
+  }
+  return sum;
+}
+
 // ── Stock ─────────────────────────────────────────────────────────────────
 // Today's paid bills with same-day refund (before the POS day is closed).
 function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
@@ -1213,6 +1227,7 @@ function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
   const totalRefunded = refundedToday.reduce((s, o) => s + Number(o.total), 0);
   const totalCommission = paidToday.reduce((s, o: any) => s + Number(o.commissionAmount || 0), 0);
   const salesNoFeeTax = paidToday.reduce((s, o: any) => s + Number(o.subtotal ?? o.total) - Number(o.discount || 0), 0);
+  const collected = collectedByMethod(paidToday);
   const refund = useMutation({
     mutationFn: (v: { id: number; reason: string }) => apiRequest("POST", `/api/reborn/pos/orders/${v.id}/refund`, { reason: v.reason }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: t("pos.cannotRefund"), description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -1225,6 +1240,14 @@ function SalesTodayTab({ isAdmin }: { isAdmin: boolean }) {
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.todaysSales")}</p><p className="text-lg font-extrabold text-emerald-300">{rp(totalSales)}</p></div>
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.bills")}</p><p className="text-lg font-extrabold">{paidToday.length}</p></div>
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3"><p className="text-[11px] text-white/45">{t("pos.refunded")}</p><p className="text-lg font-extrabold text-red-300">{rp(totalRefunded)}</p></div>
+      </div>
+      <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
+        <p className="text-[11px] text-white/45 mb-1.5">{t("pos.sales.collectedBy")}</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          {COLLECTED_METHODS.filter((m) => m === "cash" || m === "card" || collected[m] > 0).map((m) => (
+            <div key={m} className="flex justify-between gap-2 text-sm"><span className="text-white/70">{t(`pos.pay.${m}`)}</span><b>{rp(collected[m])}</b></div>
+          ))}
+        </div>
       </div>
       <label className="flex items-center gap-2 text-xs text-white/60">{t("pos.sales.day")}<input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm text-white" /></label>
       {totalCommission > 0 && (
