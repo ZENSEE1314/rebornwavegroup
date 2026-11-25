@@ -7815,11 +7815,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0]; if (!reborn) return res.json([]);
     const result=await db.execute(sql`SELECT f.*, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) user_name, COALESCE(NULLIF(trim(concat(s.first_name,' ',s.last_name)),''),s.email) staff_name FROM bridge_feedback f LEFT JOIN users u ON u.id=f.user_id LEFT JOIN users s ON s.id=f.staff_user_id WHERE f.company_id=${reborn.id} ORDER BY f.id DESC LIMIT 300`); res.json(result.rows||result);
   }));
+  const ROSTER_MAX_ROWS = 2000;
   app.get("/api/reborn/admin/attendance", requireAdmin(async (req, res) => {
     const status = String(req.query.status || "");
     const cid = await rebornCompanyId(req);
-    const cond = status ? and(eq(staffAttendance.companyId, cid), eq(staffAttendance.status, status)) : eq(staffAttendance.companyId, cid);
-    const rows = await db.select().from(staffAttendance).where(cond).orderBy(desc(staffAttendance.id)).limit(200);
+    const first = String(req.query.from || ""), last = String(req.query.to || "");
+    const ranged = DAY_RE.test(first) && DAY_RE.test(last); // the roster asks for whole months
+    const cond = and(eq(staffAttendance.companyId, cid), status ? eq(staffAttendance.status, status) : undefined, ranged ? sql`${staffAttendance.workDate} >= ${first} AND ${staffAttendance.workDate} <= ${last}` : undefined);
+    const rows = await db.select().from(staffAttendance).where(cond).orderBy(desc(staffAttendance.id)).limit(ranged ? ROSTER_MAX_ROWS : 200);
     const ids = Array.from(new Set(rows.map((r) => r.userId)));
     const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
     const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));

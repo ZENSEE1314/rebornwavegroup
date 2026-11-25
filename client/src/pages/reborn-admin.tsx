@@ -5,6 +5,7 @@ import { MenuImageMaker } from "@/components/MenuImageMaker";
 import { useState, useEffect, useRef, lazy, Suspense, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { tData, useTranslation, translations, localeTag, translate, getCurrentLanguage } from "@/lib/i18n";
+import { AttendanceRoster } from "@/components/AttendanceRoster";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -2495,7 +2496,9 @@ function ManageHr() {
       </Card>
       <Card>
         <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> {t("admin.hr.attendance")}</p>
+        <AttendanceRoster />
         <p className="text-[11px] text-white/40 mb-2">{t("admin.hr.attHint")}</p>
+        <p className="text-xs font-bold text-white/60 mb-1">{t("admin.roster.photos")}</p>
         {attendance.length === 0 && <p className="text-xs text-white/40">{t("admin.hr.noCheckins")}</p>}
         {attendance.slice(0, 60).map((a) => (
           <div key={a.id} className="flex items-center gap-2 text-sm py-2 border-b border-white/5 last:border-0">
