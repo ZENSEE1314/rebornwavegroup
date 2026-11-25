@@ -1453,6 +1453,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'ar.deleteAsk': { en: "Delete this line?", zh: "删除这一行？", id: "Hapus baris ini?" },
   'ar.deleteStockAsk': { en: "Delete this? Choose: take its stock off the shelf too, or remove only the money from the accounts and keep the stock.", zh: "删除此送货？它增加的库存会被扣回。", id: "Hapus pengiriman ini? Stok yang ditambahkannya dikurangi lagi." },
   'ar.deleteLossAsk': { en: "Delete this loss? The units go back on the shelf and the money leaves the accounts.", zh: "删除此损耗？库存会加回，金额也会从账目中移除。", id: "Hapus kerugian ini? Stok dikembalikan ke rak dan uangnya dihapus dari pembukuan." },
+  'ar.deleteAnyAsk': { en: "Delete this line from the accounts? Only the accounting line is removed; the bill, stock and pay records stay. An expense upload is removed with it.", zh: "从账目中删除此记录？只删除账目行；账单、库存和工资记录保留。支出上传会一并删除。", id: "Hapus baris ini dari pembukuan? Hanya baris pembukuan yang dihapus; tagihan, stok, dan catatan gaji tetap. Unggahan pengeluaran ikut dihapus." },
   'ar.filter.noPhoto': { en: "No receipt photo", zh: "没有收据照片", id: "Tanpa foto struk" },
   'ar.deleteWithStock': { en: "Delete + take stock off", zh: "删除并扣除库存", id: "Hapus + kurangi stok" },
   'ar.deleteMoneyOnly': { en: "Delete money only (keep stock)", zh: "只删除金额（保留库存）", id: "Hapus uang saja (stok tetap)" },

@@ -162,7 +162,7 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
                 : <button type="button" onClick={() => setAddingPhotoId(line.id)} className="min-h-[40px] rounded-lg bg-amber-500/20 px-3 text-xs font-bold text-amber-200">{t("ar.addPhoto")}</button>)}
               {line.canDelete && (deletingId === line.id ? (
                 <>
-                  <span className="text-[11px] text-red-200">{line.refType === "stock_movement" || line.refType === "receipt" ? t("ar.deleteStockAsk") : line.refType === "stock_out" ? t("ar.deleteLossAsk") : t("ar.deleteAsk")}</span>
+                  <span className="text-[11px] text-red-200">{line.refType === "stock_movement" || line.refType === "receipt" ? t("ar.deleteStockAsk") : line.refType === "stock_out" ? t("ar.deleteLossAsk") : line.refType ? t("ar.deleteAnyAsk") : t("ar.deleteAsk")}</span>
                   <button type="button" disabled={removeLine.isPending} onClick={() => removeLine.mutate({ id: line.id, keepStock: false })} className="min-h-[40px] rounded-lg bg-red-500 px-3 text-xs font-bold text-white disabled:opacity-40">{line.refType === "stock_movement" || line.refType === "receipt" ? t("ar.deleteWithStock") : t("ar.deleteYes")}</button>
                   {(line.refType === "stock_movement" || line.refType === "receipt") && <button type="button" disabled={removeLine.isPending} onClick={() => removeLine.mutate({ id: line.id, keepStock: true })} className="min-h-[40px] rounded-lg bg-amber-400 px-3 text-xs font-bold text-black disabled:opacity-40">{t("ar.deleteMoneyOnly")}</button>}
                   <button type="button" onClick={() => setDeletingId(null)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("admin.c.cancel")}</button>

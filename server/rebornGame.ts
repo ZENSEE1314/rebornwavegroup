@@ -7717,7 +7717,25 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!row) return res.status(404).json({ message: tr(req, { en: "Entry not found", zh: "找不到该记录", id: "Catatan tidak ditemukan" }) });
     if (row.refType === "stock_movement") return deleteStockDelivery(req, res, row);
     if (row.refType === "stock_out") return deleteStockOutLoss(req, res, row);
-    if (row.refType !== null) return res.status(400).json({ message: tr(req, { en: "This line follows its bill or upload: void it there", zh: "该记录跟随其账单或上传：请在那里作废", id: "Baris ini mengikuti tagihan atau unggahannya: batalkan di sana" }) });
+    if (row.refType === "receipt" || row.refType === "pos_closing") {
+      // A receipt keeps its own delete route (it can also take the stock off); a day-close summary is not an accounting line.
+      return res.status(400).json({ message: tr(req, { en: "Delete this line from its own screen", zh: "请在其所在页面删除此记录", id: "Hapus baris ini dari layarnya sendiri" }) });
+    }
+    if (row.refType !== null) {
+      // Any other line (a bill, payroll, an expense upload ...): only the accounting line goes; its bill / stock / payroll record stays. An expense upload goes with its line, so it is not left behind as an active upload.
+      const uploadId = row.refType === "expense_upload" || row.refType === "expense_void" ? Number(row.refId) : 0;
+      const cid = await rebornCompanyId(req);
+      await db.transaction(async (tx) => {
+        await tx.update(supplierPayables).set({ status: "void" }).where(and(eq(supplierPayables.ledgerEntryId, row.id), inArray(supplierPayables.status, ["unpaid", "paid"])));
+        if (uploadId > 0) {
+          await tx.delete(ledgerEntries).where(and(inArray(ledgerEntries.refType, ["expense_upload", "expense_void"]), eq(ledgerEntries.refId, String(uploadId))));
+          await tx.delete(expenseUploads).where(and(eq(expenseUploads.id, uploadId), eq(expenseUploads.companyId, cid)));
+        }
+        await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
+      });
+      await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_entry_any", entityType: "accounting", oldValues: { kind: row.kind, category: row.category, refType: row.refType, amount: row.amount, note: row.note }, description: `Deleted accounting line #${row.id} (${row.refType}, RP ${row.amount}): ${row.note ?? ""}`.slice(0, 500) });
+      return res.json({ ok: true });
+    }
     await db.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
     await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_entry", entityType: "accounting", oldValues: { kind: row.kind, category: row.category, amount: row.amount, note: row.note }, description: `Deleted manual ${row.kind} line #${row.id} (RP ${row.amount})` });
     res.json({ ok: true });
@@ -7765,7 +7783,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         const ticket = ticketById.get(Number(row.refId));
         const upload = uploadRowById.get(Number(row.refId));
         return {
-          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType === null || row.refType === "stock_movement" || row.refType === "stock_out" || row.refType === "receipt", by: row.userId ? nameOf.get(row.userId) || "" : "",
+          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType !== "pos_closing", by: row.userId ? nameOf.get(row.userId) || "" : "",
           hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
           payable: billOfLedger.get(row.id) ? { id: billOfLedger.get(row.id)!.id, status: billOfLedger.get(row.id)!.status, dueDate: billOfLedger.get(row.id)!.dueDate, payMethod: billOfLedger.get(row.id)!.payMethod, paidOn: billOfLedger.get(row.id)!.paidOn, supplier: billOfLedger.get(row.id)!.supplier, invoiceNo: billOfLedger.get(row.id)!.invoiceNo } : null,
           bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,
