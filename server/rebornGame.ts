@@ -59,6 +59,7 @@ import { registerSecurityRoutes } from "./security";
 import { createRunOnce } from "./runOnce";
 import { registerStaffContractRoutes } from "./staffContracts";
 import { stationFor, STATIONS } from "@shared/station";
+import { isFoodItem } from "@shared/foodItems";
 import { VENUE_MODE, BACKGROUND_JOBS_OFF, CLOUD_URL } from "./venueMode";
 import { cloudSyncStatus, enableVenueSync } from "./venueSync/cloudRoutes";
 import { syncNow, venueSyncStatus } from "./venueSync/engine";
@@ -4371,7 +4372,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (qty < 0 && outReason !== STOCK_OUT_CORRECTION && lossCost > 0)
       await db.insert(ledgerEntries).values({ kind: "expense", category: "loss", amount: String(lossCost), note: `Stock out: ${-qty} × ${p.name} (${outReason}${outNote ? `: ${outNote}` : ""})`, refType: "stock_out", refId: String(id), createdAt, userId: getUserId(req)! });
     if (qty < 0 && outReason !== STOCK_OUT_CORRECTION) await chargeStaff(req, { userId: req.body?.chargeStaffId, productId: id, name: p.name, qty: -qty, amount: lossCost, reason: `${outReason}${outNote ? `: ${outNote}` : ""}`, source: "stock_out", refId: String(id) });
-    if (buyingWithCost && !p.noExpenseCost) { // an item whose raw cost is already in the expenses is not booked again (the cost stays on the stock movement as a note)
+    if (buyingWithCost && !isFoodItem(p)) { // food (or an item whose raw cost is already in the expenses) is not booked again (the cost stays on the stock movement as a note)
       const [purchase] = await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}${supplier ? ` from ${supplier}` : ""}${stockPayMethod && req.body?.paid === true ? ` · ${stockPayMethod}` : ""}${unpaidStock ? " · not paid yet" : ""}`, photoUrl: stockPhoto, refType: "stock_movement", refId: String(id), createdAt, userId: getUserId(req)! }).returning();
       if (unpaidStock) await recordPayable(db, cid, { ledgerEntryId: purchase.id, kind: "stock", supplier, invoiceNo: null, amount: qty * unitCost, spentOn: (createdAt ?? new Date()).toISOString().slice(0, 10), dueDate: unpaidStock.dueDate, userId: getUserId(req)!, note: `${qty} × ${p.name}` });
     }
