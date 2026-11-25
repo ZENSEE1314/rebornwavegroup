@@ -7446,6 +7446,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     });
     if (row.fixedCostId) await syncActualFromUploads(row.fixedCostId, row.spentOn);
   }
+  // Moved to stock: the stock purchase now carries the money, so the upload's own accounting line leaves the accounts without a "voided" reversal line (the row stays, marked voided, as the record).
+  async function retireMovedUpload(row: typeof expenseUploads.$inferSelect, userId: string) {
+    await db.transaction(async (tx) => {
+      await tx.update(expenseUploads).set({ status: "voided", voidReason: "Moved to stock (Food & drinks)", voidedBy: userId, voidedAt: new Date() }).where(eq(expenseUploads.id, row.id));
+      if (row.ledgerEntryId) await tx.update(supplierPayables).set({ status: "void" }).where(and(eq(supplierPayables.ledgerEntryId, row.ledgerEntryId), eq(supplierPayables.status, "unpaid")));
+      await tx.delete(ledgerEntries).where(and(inArray(ledgerEntries.refType, ["expense_upload", "expense_void"]), eq(ledgerEntries.refId, String(row.id))));
+    });
+    if (row.fixedCostId) await syncActualFromUploads(row.fixedCostId, row.spentOn);
+  }
   // An upload that was really food or drinks for the shop: the lines go into the stock like a stock receipt (same save), then the expense upload is voided
   // (its accounting line is reversed) so the purchase is counted once. Who may: the same people as for an edit.
   const toStockHandler = requireExpenses(async (req, res) => {
@@ -7459,7 +7468,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     sub.body = { ...req.body, kind: "goods", photoUrl: typeof req.body?.photoUrl === "string" && req.body.photoUrl.startsWith("data:image/") ? req.body.photoUrl : row.photoUrl };
     const outcome = await runHandler(saveReceipt, sub);
     if (outcome.status !== 200) return res.status(outcome.status).json(outcome.body);
-    await voidExpenseUpload(row, "Moved to stock (Food & drinks)", userId);
+    await retireMovedUpload(row, userId);
     await logAdmin(req, { targetType: "expense", targetId: String(row.id), action: "expense_to_stock", entityType: "accounting", description: `Expense #${row.id} (${row.category} RP ${row.amount}) moved to stock: ${outcome.body.lines} lines` });
     res.json({ ...outcome.body, message: tr(req, { en: "Moved to stock: {n} lines added to the inventory and the expense was replaced.", zh: "已转入库存：{n} 行已入库，原支出已替换。", id: "Dipindahkan ke stok: {n} baris masuk inventaris dan pengeluaran diganti." }, { n: String(outcome.body.lines) }) });
   });
