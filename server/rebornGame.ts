@@ -7366,6 +7366,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
   app.post("/api/reborn/expenses/receipts/:id/delete", requireExpenses(async (req, res) => {
     const row = await loadReceiptLine(req, res); if (!row) return;
+    // "Money only": the receipt's purchase leaves the accounts (and its bill is voided) but the stock stays as it is.
+    if (req.body?.keepStock === true) {
+      await db.transaction(async (tx) => {
+        await tx.update(supplierPayables).set({ status: "void" }).where(and(eq(supplierPayables.ledgerEntryId, row.id), inArray(supplierPayables.status, ["unpaid", "paid"])));
+        await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
+      });
+      await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "receipt_delete_money_only", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, description: `Stock receipt #${row.id} removed from the accounts only (stock kept): RP ${row.amount} - ${row.note ?? ""}`.slice(0, 500) });
+      return res.json({ message: tr(req, { en: "Removed from the accounts. The stock was not changed.", zh: "已从账目中移除，库存未变。", id: "Dihapus dari pembukuan. Stok tidak diubah." }) });
+    }
     const cid = await rebornCompanyId(req);
     const head = (row.note || "").split(": ")[0];
     const escape = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -7651,6 +7660,14 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   const STOCK_IN_NOTE_RE = /^Stock in: (\d+) ×/;
   const deleteStockDelivery = async (req: Request, res: Response, row: typeof ledgerEntries.$inferSelect) => {
     const refuse = (en: string, zh: string, idText: string) => res.status(400).json({ message: tr(req, { en, zh, id: idText }) });
+    if (req.query.keepStock === "1") { // money only: the line and its bill leave the accounts, the stock count and the delivery history stay
+      await db.transaction(async (tx) => {
+        await tx.update(supplierPayables).set({ status: "void" }).where(and(eq(supplierPayables.ledgerEntryId, row.id), inArray(supplierPayables.status, ["unpaid", "paid"])));
+        await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
+      });
+      await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_stock_delivery_money_only", entityType: "accounting", oldValues: { category: row.category, amount: row.amount, note: row.note }, description: `Removed stock delivery #${row.id} from the accounts only (stock kept): ${row.note ?? ""}`.slice(0, 500) });
+      return res.json({ ok: true });
+    }
     const qty = Number(STOCK_IN_NOTE_RE.exec(row.note || "")?.[1]) || 0;
     const productId = Number(row.refId);
     const lineTime = new Date(row.createdAt ?? 0).getTime();
@@ -7724,8 +7741,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const bill = billOfLedger.get(entry.row.id);
       return [entry.row.note, entry.row.category, entry.row.refType, String(Math.abs(entry.counted.amount)), bill?.supplier, bill?.invoiceNo].filter(Boolean).join(" ").toLowerCase();
     };
+    // "No receipt photo": lines that carry no photo of their own (an expense upload's photo lives on the upload).
+    const noPhotoOnly = req.query.photo === "none";
+    const uploadsWithPhoto = noPhotoOnly ? new Set((await db.select({ id: expenseUploads.id }).from(expenseUploads).where(and(eq(expenseUploads.companyId, cid), isNotNull(expenseUploads.photoUrl)))).map((upload) => String(upload.id))) : new Set<string>();
+    const lacksPhoto = (row: typeof ledgerEntries.$inferSelect) => !row.photoUrl && !((row.refType === "expense_upload" || row.refType === "expense_void") && uploadsWithPhoto.has(String(row.refId)));
     const matched = rows.map((row) => ({ row, counted: classifyLine(row, uploads) })).filter((entry) => entry.counted.group === group)
-      .filter((entry) => (!q || textOf(entry).includes(q)) && (!payFilter || (billOfLedger.get(entry.row.id)?.status === "unpaid") === (payFilter === "unpaid")));
+      .filter((entry) => (!q || textOf(entry).includes(q)) && (!payFilter || (billOfLedger.get(entry.row.id)?.status === "unpaid") === (payFilter === "unpaid")) && (!noPhotoOnly || lacksPhoto(entry.row)));
     const unpaidBills = matched.map((entry) => billOfLedger.get(entry.row.id)).filter((bill) => bill?.status === "unpaid");
     const shown = matched.slice(0, MAX_DRILL_LINES);
     const userIds = Array.from(new Set(shown.map((entry) => entry.row.userId).filter((id): id is string => !!id)));
@@ -7744,7 +7765,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         const ticket = ticketById.get(Number(row.refId));
         const upload = uploadRowById.get(Number(row.refId));
         return {
-          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType === null || row.refType === "stock_movement" || row.refType === "stock_out", by: row.userId ? nameOf.get(row.userId) || "" : "",
+          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType === null || row.refType === "stock_movement" || row.refType === "stock_out" || row.refType === "receipt", by: row.userId ? nameOf.get(row.userId) || "" : "",
           hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
           payable: billOfLedger.get(row.id) ? { id: billOfLedger.get(row.id)!.id, status: billOfLedger.get(row.id)!.status, dueDate: billOfLedger.get(row.id)!.dueDate, payMethod: billOfLedger.get(row.id)!.payMethod, paidOn: billOfLedger.get(row.id)!.paidOn, supplier: billOfLedger.get(row.id)!.supplier, invoiceNo: billOfLedger.get(row.id)!.invoiceNo } : null,
           bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,

@@ -41,20 +41,24 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
   const [search, setSearch] = useState("");
   const [searched, setSearched] = useState("");
   const [payFilter, setPayFilter] = useState<"all" | "paid" | "unpaid">("all");
+  const [noPhotoOnly, setNoPhotoOnly] = useState(false);
   useEffect(() => { const timer = setTimeout(() => setSearched(search.trim()), SEARCH_DELAY_MS); return () => clearTimeout(timer); }, [search]);
-  const url = `/api/reborn/admin/accounting/report-lines?group=${group}${scope ? `&${scope}` : ""}${searched ? `&q=${encodeURIComponent(searched)}` : ""}${payFilter !== "all" ? `&pay=${payFilter}` : ""}`;
+  const url = `/api/reborn/admin/accounting/report-lines?group=${group}${scope ? `&${scope}` : ""}${searched ? `&q=${encodeURIComponent(searched)}` : ""}${payFilter !== "all" ? `&pay=${payFilter}` : ""}${noPhotoOnly ? "&photo=none" : ""}`;
   const { data } = useQuery<Drill>({ queryKey: [url], queryFn: () => apiRequest("GET", url).then((r) => r.json()) });
   const saveEdit = useMutation({
     mutationFn: (v: { id: number; amount: number; note: string }) => apiRequest("PATCH", `/api/reborn/admin/accounting/ledger/${v.id}`, { amount: v.amount, note: v.note }).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
     onSuccess: () => { toast({ title: t("ar.edited") }); setEditing(null); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/accounting") }); },
     onError: (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" }),
   });
+  const receiptIds = new Set((data?.lines ?? []).filter((line) => line.refType === "receipt").map((line) => line.id));
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [addingPhotoId, setAddingPhotoId] = useState<number | null>(null);
   const refreshAccounting = () => qc.invalidateQueries({ predicate: (q) => { const key = String(q.queryKey[0]); return key.startsWith("/api/reborn/admin/accounting") || key.startsWith("/api/reborn/pos") || key.startsWith("/api/reborn/admin/inventory"); } });
   const fail = (e: any) => toast({ title: t("admin.c.failed"), description: String(e.message || "").replace(/^\d{3}:\s*/, ""), variant: "destructive" });
   const removeLine = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/accounting/ledger/${id}`).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
+    mutationFn: (v: { id: number; keepStock: boolean }) => (receiptIds.has(v.id)
+      ? apiRequest("POST", `/api/reborn/expenses/receipts/${v.id}/delete`, v.keepStock ? { keepStock: true } : {})
+      : apiRequest("DELETE", `/api/reborn/admin/accounting/ledger/${v.id}${v.keepStock ? "?keepStock=1" : ""}`)).then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.message || "Failed"); return body; }),
     onSuccess: () => { toast({ title: t("ar.deleted") }); setDeletingId(null); refreshAccounting(); },
     onError: (e: any) => { setDeletingId(null); fail(e); },
   });
@@ -114,6 +118,7 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
       {group !== "income" && (
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("ex.filterPaid")}>
           {(["all", "paid", "unpaid"] as const).map((value) => <button key={value} type="button" aria-pressed={payFilter === value} onClick={() => setPayFilter(value)} className={payChip(payFilter === value)}>{t(`ex.filter.${value}`)}</button>)}
+          <button type="button" aria-pressed={noPhotoOnly} onClick={() => setNoPhotoOnly(!noPhotoOnly)} className={payChip(noPhotoOnly)}>{t("ar.filter.noPhoto")}</button>
         </div>
       )}
       {!data && <p className="py-2 text-[11px] text-white/40">…</p>}
@@ -157,8 +162,9 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
                 : <button type="button" onClick={() => setAddingPhotoId(line.id)} className="min-h-[40px] rounded-lg bg-amber-500/20 px-3 text-xs font-bold text-amber-200">{t("ar.addPhoto")}</button>)}
               {line.canDelete && (deletingId === line.id ? (
                 <>
-                  <span className="text-[11px] text-red-200">{line.refType === "stock_movement" ? t("ar.deleteStockAsk") : line.refType === "stock_out" ? t("ar.deleteLossAsk") : t("ar.deleteAsk")}</span>
-                  <button type="button" disabled={removeLine.isPending} onClick={() => removeLine.mutate(line.id)} className="min-h-[40px] rounded-lg bg-red-500 px-3 text-xs font-bold text-white disabled:opacity-40">{t("ar.deleteYes")}</button>
+                  <span className="text-[11px] text-red-200">{line.refType === "stock_movement" || line.refType === "receipt" ? t("ar.deleteStockAsk") : line.refType === "stock_out" ? t("ar.deleteLossAsk") : t("ar.deleteAsk")}</span>
+                  <button type="button" disabled={removeLine.isPending} onClick={() => removeLine.mutate({ id: line.id, keepStock: false })} className="min-h-[40px] rounded-lg bg-red-500 px-3 text-xs font-bold text-white disabled:opacity-40">{line.refType === "stock_movement" || line.refType === "receipt" ? t("ar.deleteWithStock") : t("ar.deleteYes")}</button>
+                  {(line.refType === "stock_movement" || line.refType === "receipt") && <button type="button" disabled={removeLine.isPending} onClick={() => removeLine.mutate({ id: line.id, keepStock: true })} className="min-h-[40px] rounded-lg bg-amber-400 px-3 text-xs font-bold text-black disabled:opacity-40">{t("ar.deleteMoneyOnly")}</button>}
                   <button type="button" onClick={() => setDeletingId(null)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("admin.c.cancel")}</button>
                 </>
               ) : <button type="button" onClick={() => setDeletingId(line.id)} className="min-h-[40px] rounded-lg bg-red-500/15 px-3 text-xs font-bold text-red-200">{t("ar.delete")}</button>)}
