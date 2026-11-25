@@ -84,6 +84,20 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
     onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ predicate: (q) => { const key = String(q.queryKey[0]); return key.startsWith("/api/reborn/admin/accounting") || key.startsWith("/api/reborn/expenses"); } }); },
     onError: fail,
   });
+  // Every active upload on this list in one go (e.g. all "water" that was really stock): each one is moved like its own Move to stock button, one after the other.
+  const movable = (data?.lines ?? []).filter((line) => line.refType === "expense_upload" && line.upload?.status === "active").map((line) => line.upload!.id);
+  const [movingAll, setMovingAll] = useState(false);
+  const [moveAllBusy, setMoveAllBusy] = useState(false);
+  const moveAll = async () => {
+    setMoveAllBusy(true);
+    let moved = 0; let failed = 0;
+    for (const id of movable) {
+      try { const r = await apiRequest("POST", `/api/reborn/expenses/${id}/to-stock-auto`, {}); if (r.ok) moved++; else failed++; } catch { failed++; }
+    }
+    setMoveAllBusy(false); setMovingAll(false);
+    toast({ title: t("ar.toStockAllDone", { n: moved, f: failed }) });
+    qc.invalidateQueries({ predicate: (q) => { const key = String(q.queryKey[0]); return key.startsWith("/api/reborn/admin/accounting") || key.startsWith("/api/reborn/expenses") || key.startsWith("/api/reborn/pos") || key.startsWith("/api/reborn/admin/inventory"); } });
+  };
   const showPhoto = async (id: number) => {
     setPhoto({ id, url: null });
     const r = await apiRequest("GET", `/api/reborn/admin/accounting/ledger/${id}/photo`);
@@ -104,6 +118,11 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
       )}
       {!data && <p className="py-2 text-[11px] text-white/40">…</p>}
       {data && data.lines.length === 0 && <p className="py-2 text-[11px] text-white/40">{t("ar.noLines")}</p>}
+      {movable.length > 1 && (movingAll
+        ? <div className="flex flex-wrap items-center gap-2"><span className="text-[11px] text-emerald-200">{t("ar.toStockAllAsk", { n: movable.length })}</span>
+            <button type="button" disabled={moveAllBusy} onClick={moveAll} className="min-h-[40px] rounded-lg bg-emerald-400 px-3 text-xs font-bold text-black disabled:opacity-40">{moveAllBusy ? "…" : t("ar.toStockYes")}</button>
+            <button type="button" disabled={moveAllBusy} onClick={() => setMovingAll(false)} className="min-h-[40px] rounded-lg bg-white/10 px-3 text-xs">{t("admin.c.cancel")}</button></div>
+        : <button type="button" onClick={() => setMovingAll(true)} className="min-h-[40px] rounded-lg bg-emerald-500/20 px-3 text-xs font-bold text-emerald-200">{t("ar.toStockAll", { n: movable.length })}</button>)}
       {data && data.lines.length > 0 && <p className="text-[11px] text-white/50">{t("ar.lineCount", { n: data.count, total: money(data.total) })}{(data.unpaidCount ?? 0) > 0 ? ` · ${t("ar.unpaidTotal", { n: data.unpaidCount ?? 0, total: money(data.unpaidTotal ?? 0) })}` : ""}</p>}
       {(data?.lines ?? []).map((line) => (
         <div key={line.id} className="rounded-lg bg-white/5 p-2 text-[11px]">
@@ -120,7 +139,7 @@ function Detail({ group, scope }: { group: ReportGroup; scope: string }) {
             </div>
           )}
           <div className="flex gap-3 text-white/40">{line.by && !line.upload && <span>{t("ar.by", { name: line.by })}</span>}{line.hasPhoto && <button type="button" onClick={() => showPhoto(line.id)} className="min-h-0 p-0 text-amber-300 underline">{t("ar.viewPhoto")}</button>}{line.canEdit && editing?.id !== line.id && <button type="button" onClick={() => setEditing({ id: line.id, amount: String(Math.abs(line.amount)), note: line.note || "" })} className="min-h-0 p-0 text-sky-300 underline">{t("ex.edit")}</button>}</div>
-          {line.refType === "expense_upload" && line.upload?.status === "active" && line.upload.hasItems && (
+          {line.refType === "expense_upload" && line.upload?.status === "active" && (
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {movingId === line.upload.id ? (
                 <>

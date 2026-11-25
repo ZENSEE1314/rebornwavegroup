@@ -7459,14 +7459,17 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const cid = await rebornCompanyId(req);
     const [row] = await db.select().from(expenseUploads).where(and(eq(expenseUploads.id, Number(req.params.id)), eq(expenseUploads.companyId, cid)));
     if (!row) return res.status(404).json({ message: tr(req, { en: "Expense not found", zh: "找不到该支出", id: "Pengeluaran tidak ditemukan" }) });
-    const lines = expenseItemsOf((() => { try { return row.items ? JSON.parse(row.items) : []; } catch { return []; } })());
+    const readLines = expenseItemsOf((() => { try { return row.items ? JSON.parse(row.items) : []; } catch { return []; } })());
+    // An upload with no item lines (just an amount) becomes one stock line named after what it was for, at its whole amount.
+    const lines = readLines.length ? readLines : Number(row.amount) > 0 ? [{ name: (row.note || "").trim().slice(0, 80) || row.category.charAt(0).toUpperCase() + row.category.slice(1), qty: 1, unitCost: Number(row.amount) }] : [];
     const [bill] = row.ledgerEntryId ? await db.select().from(supplierPayables).where(and(eq(supplierPayables.ledgerEntryId, row.ledgerEntryId), eq(supplierPayables.status, "unpaid"))) : [];
-    if (!lines.length || (!bill && !payMethodOf(row.payMethod))) return res.status(400).json({ message: tr(req, { en: "This upload has no item lines or no payment method saved. Use Edit in Expenses to move it.", zh: "该上传没有明细或付款方式，请在“支出”中用编辑转入库存。", id: "Unggahan ini tidak punya rincian item atau cara bayar. Pakai Edit di Pengeluaran untuk memindahkannya." }) });
+    if (!lines.length) return res.status(400).json({ message: tr(req, { en: "This upload has no amount to move to stock.", zh: "该上传没有可转入库存的金额。", id: "Unggahan ini tidak punya jumlah untuk dipindahkan ke stok." }) });
+    // No payment method saved on a paid upload: it was paid in cash.
     const byName = new Map<string, number>();
     for (const product of [...(await inventoryForReceipt(cid))].sort((a, b) => a.id - b.id)) if (!byName.has(product.name.trim().toLowerCase())) byName.set(product.name.trim().toLowerCase(), product.id);
     const sub: any = Object.create(req);
     sub.params = { id: String(row.id) };
-    sub.body = { supplier: row.payee || "", supplierPhone: row.payeePhone || "", invoiceNo: row.invoiceNo || "", date: row.spentOn, paid: !bill, dueDate: bill?.dueDate ?? undefined, payMethod: bill ? undefined : payMethodOf(row.payMethod),
+    sub.body = { supplier: row.payee || "", supplierPhone: row.payeePhone || "", invoiceNo: row.invoiceNo || "", date: row.spentOn, paid: !bill, dueDate: bill?.dueDate ?? undefined, payMethod: bill ? undefined : payMethodOf(row.payMethod) ?? "cash",
       items: lines.map((line) => ({ productId: byName.get(line.name.trim().toLowerCase()) ?? null, name: line.name, qty: line.qty, unitCost: line.unitCost, packSize: 1 })) };
     const outcome = await runHandler(toStockHandler, sub);
     res.status(outcome.status).json(outcome.body);
