@@ -11,7 +11,7 @@ self.addEventListener("activate", (e) => e.waitUntil(
 // ── Offline POS ─────────────────────────────────────────────────────────────
 // The app shell, the built files (/assets, named by their content) and the few GET answers the POS needs are kept, so the POS opens and
 // sells with no internet. Selling itself is queued by the page (client/src/lib/offline-sales.ts); nothing that writes is ever answered from here.
-const SHELL = "rw-shell-v3"; // a new name drops the pages and files saved by an older version
+const SHELL = "rw-shell-v4"; // a new name drops the pages and files saved by an older version
 const API = "rw-api-v1";
 const SHELL_KEY = "/__shell";
 // A copy of the server running on a PC at the venue (localhost) reaches the cloud database over a slow line: wait much longer there before showing the saved copy as "no internet".
