@@ -7667,10 +7667,35 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_stock_delivery", entityType: "accounting", oldValues: { category: row.category, amount: row.amount, note: row.note }, description: `Deleted stock delivery #${row.id}: ${row.note ?? ""} (stock −${removedUnits})`.slice(0, 500) });
     res.json({ ok: true });
   };
+  // A loss booked by taking stock out (damaged, expired ...) that was keyed by mistake: the units go back on the shelf, the loss leaves the accounts, and a charge to a staff member that is not settled yet is dropped.
+  const STOCK_OUT_NOTE_RE = /^Stock out: (\d+) ×/;
+  const deleteStockOutLoss = async (req: Request, res: Response, row: typeof ledgerEntries.$inferSelect) => {
+    const refuse = (en: string, zh: string, idText: string) => res.status(400).json({ message: tr(req, { en, zh, id: idText }) });
+    const qty = Number(STOCK_OUT_NOTE_RE.exec(row.note || "")?.[1]) || 0;
+    const productId = Number(row.refId);
+    if (!(qty > 0 && productId)) return refuse("Could not find the stock this loss took out, so it cannot be removed here.", "找不到此损耗扣除的库存，不能在此删除。", "Stok yang dikurangi kerugian ini tidak ditemukan, jadi tidak bisa dihapus di sini.");
+    const lineTime = new Date(row.createdAt ?? 0).getTime();
+    const gap = (when: Date | null) => Math.abs(new Date(when ?? 0).getTime() - lineTime);
+    const moves = await db.select().from(stockMovements).where(and(eq(stockMovements.productId, productId), eq(stockMovements.reason, "adjustment"), eq(stockMovements.delta, -qty)));
+    const move = moves.filter((m) => gap(m.createdAt) <= STOCK_LINK_WINDOW_MS).sort((a, b) => gap(a.createdAt) - gap(b.createdAt))[0];
+    const charges = await db.select().from(staffCharges).where(and(eq(staffCharges.source, "stock_out"), eq(staffCharges.refId, String(productId)), eq(staffCharges.qty, qty)));
+    const charge = charges.filter((c) => gap(c.createdAt) <= STOCK_LINK_WINDOW_MS).sort((a, b) => gap(a.createdAt) - gap(b.createdAt))[0];
+    if (charge?.settledAt && charge.settledNote !== "Waived") return refuse("This loss was already charged to a staff member's pay, so it cannot be removed here.", "此损耗已从员工工资中扣除，不能在此删除。", "Kerugian ini sudah dibebankan ke gaji staf, jadi tidak bisa dihapus di sini.");
+    await db.transaction(async (tx) => {
+      await tx.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}` }).where(eq(posProducts.id, productId));
+      if (move) await tx.delete(stockMovements).where(eq(stockMovements.id, move.id));
+      else await tx.insert(stockMovements).values({ productId, delta: qty, reason: "adjustment", note: `Loss removed: ${row.note ?? ""}`.slice(0, 200), userId: getUserId(req) });
+      if (charge) await tx.delete(staffCharges).where(eq(staffCharges.id, charge.id));
+      await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
+    });
+    await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_stock_loss", entityType: "accounting", oldValues: { category: row.category, amount: row.amount, note: row.note }, description: `Deleted stock loss #${row.id}: ${row.note ?? ""} (stock +${qty})`.slice(0, 500) });
+    res.json({ ok: true });
+  };
   app.delete("/api/reborn/admin/accounting/ledger/:id", requireAdmin(async (req, res) => {
     const [row] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
     if (!row) return res.status(404).json({ message: tr(req, { en: "Entry not found", zh: "找不到该记录", id: "Catatan tidak ditemukan" }) });
     if (row.refType === "stock_movement") return deleteStockDelivery(req, res, row);
+    if (row.refType === "stock_out") return deleteStockOutLoss(req, res, row);
     if (row.refType !== null) return res.status(400).json({ message: tr(req, { en: "This line follows its bill or upload: void it there", zh: "该记录跟随其账单或上传：请在那里作废", id: "Baris ini mengikuti tagihan atau unggahannya: batalkan di sana" }) });
     await db.delete(ledgerEntries).where(eq(ledgerEntries.id, row.id));
     await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "delete_entry", entityType: "accounting", oldValues: { kind: row.kind, category: row.category, amount: row.amount, note: row.note }, description: `Deleted manual ${row.kind} line #${row.id} (RP ${row.amount})` });
@@ -7715,7 +7740,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         const ticket = ticketById.get(Number(row.refId));
         const upload = uploadRowById.get(Number(row.refId));
         return {
-          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType === null || row.refType === "stock_movement", by: row.userId ? nameOf.get(row.userId) || "" : "",
+          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType === null || row.refType === "stock_movement" || row.refType === "stock_out", by: row.userId ? nameOf.get(row.userId) || "" : "",
           hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
           payable: billOfLedger.get(row.id) ? { id: billOfLedger.get(row.id)!.id, status: billOfLedger.get(row.id)!.status, dueDate: billOfLedger.get(row.id)!.dueDate, payMethod: billOfLedger.get(row.id)!.payMethod, paidOn: billOfLedger.get(row.id)!.paidOn, supplier: billOfLedger.get(row.id)!.supplier, invoiceNo: billOfLedger.get(row.id)!.invoiceNo } : null,
           bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,

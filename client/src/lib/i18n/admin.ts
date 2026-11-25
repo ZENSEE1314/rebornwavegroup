@@ -1449,6 +1449,7 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'ar.delete': { en: "Delete", zh: "删除", id: "Hapus" },
   'ar.deleteAsk': { en: "Delete this line?", zh: "删除这一行？", id: "Hapus baris ini?" },
   'ar.deleteStockAsk': { en: "Delete this delivery? The stock it added comes off the shelf again.", zh: "删除此送货？它增加的库存会被扣回。", id: "Hapus pengiriman ini? Stok yang ditambahkannya dikurangi lagi." },
+  'ar.deleteLossAsk': { en: "Delete this loss? The units go back on the shelf and the money leaves the accounts.", zh: "删除此损耗？库存会加回，金额也会从账目中移除。", id: "Hapus kerugian ini? Stok dikembalikan ke rak dan uangnya dihapus dari pembukuan." },
   'ar.deleteYes': { en: "Yes, delete", zh: "是，删除", id: "Ya, hapus" },
   'ar.deleted': { en: "Deleted", zh: "已删除", id: "Dihapus" },
   'ar.addPhoto': { en: "Add receipt photo", zh: "添加收据照片", id: "Tambah foto struk" },
