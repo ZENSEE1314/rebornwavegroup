@@ -7633,8 +7633,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const [row] = await db.select({ photoUrl: ledgerEntries.photoUrl }).from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
     res.json({ photoUrl: row?.photoUrl || null });
   }));
-  // Accounting lines the main admin may correct after a typing mistake (the amount and the note); every change keeps the old values in the admin log.
-  // Bills, refunds and expense uploads are not here: they follow their own bill or upload, which has its own Edit.
+  // Any accounting line can be corrected by the main admin (amount and note); only the day-close summary cannot.
   app.patch("/api/reborn/admin/accounting/ledger/:id", requireAdmin(async (req, res) => {
     const cid = await rebornCompanyId(req);
     const [row] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
