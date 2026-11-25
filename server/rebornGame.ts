@@ -7635,12 +7635,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
   }));
   // Accounting lines the main admin may correct after a typing mistake (the amount and the note); every change keeps the old values in the admin log.
   // Bills, refunds and expense uploads are not here: they follow their own bill or upload, which has its own Edit.
-  const EDITABLE_LEDGER_REFS: (string | null)[] = [null, "stock_movement", "receipt", "receipt_expense", "item_commission_pay"];
-  const isEditableLedger = (refType: string | null) => EDITABLE_LEDGER_REFS.includes(refType);
   app.patch("/api/reborn/admin/accounting/ledger/:id", requireAdmin(async (req, res) => {
+    const cid = await rebornCompanyId(req);
     const [row] = await db.select().from(ledgerEntries).where(eq(ledgerEntries.id, Number(req.params.id)));
     if (!row) return res.status(404).json({ message: tr(req, { en: "Entry not found", zh: "找不到该记录", id: "Catatan tidak ditemukan" }) });
-    if (!isEditableLedger(row.refType)) return res.status(400).json({ message: tr(req, { en: "This line follows its bill or upload: change it there", zh: "该记录跟随其账单或上传：请在那里修改", id: "Baris ini mengikuti tagihan atau unggahannya: ubah di sana" }) });
+    if (row.refType === "pos_closing") return res.status(400).json({ message: tr(req, { en: "The day-close summary cannot be edited", zh: "日结汇总不能修改", id: "Ringkasan tutup hari tidak bisa diubah" }) });
     const patch: { amount?: string; note?: string | null; photoUrl?: string } = {};
     if (req.body?.amount !== undefined) {
       const amount = roundMoney(Number(req.body.amount));
@@ -7650,7 +7649,11 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (typeof req.body?.note === "string") patch.note = req.body.note.trim().slice(0, 500) || null;
     if (typeof req.body?.photoUrl === "string" && req.body.photoUrl.startsWith("data:image/") && req.body.photoUrl.length <= MAX_EXPENSE_PHOTO_LENGTH) patch.photoUrl = req.body.photoUrl; // the invoice / receipt of a line that has none
     if (Object.keys(patch).length === 0) return res.status(400).json({ message: tr(req, { en: "Nothing to change", zh: "没有可修改的内容", id: "Tidak ada yang diubah" }) });
-    await db.update(ledgerEntries).set(patch).where(eq(ledgerEntries.id, row.id));
+    await db.transaction(async (tx) => {
+      await tx.update(ledgerEntries).set(patch).where(eq(ledgerEntries.id, row.id));
+      // An expense upload keeps the same amount as its line, so Expenses and the reports agree.
+      if (row.refType === "expense_upload" && patch.amount !== undefined && Number(row.refId) > 0) await tx.update(expenseUploads).set({ amount: patch.amount }).where(and(eq(expenseUploads.id, Number(row.refId)), eq(expenseUploads.companyId, cid)));
+    });
     await logAdmin(req, { targetType: "ledger", targetId: String(row.id), action: "edit_entry", entityType: "accounting", oldValues: { amount: row.amount, note: row.note }, newValues: { ...patch, ...(patch.photoUrl ? { photoUrl: "receipt photo added" } : {}) }, description: `Accounting line #${row.id} (${row.category}) changed: RP ${row.amount} → RP ${patch.amount ?? row.amount}` });
     res.json({ ok: true });
   }));
@@ -7783,7 +7786,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         const ticket = ticketById.get(Number(row.refId));
         const upload = uploadRowById.get(Number(row.refId));
         return {
-          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: isEditableLedger(row.refType), canDelete: row.refType !== "pos_closing", by: row.userId ? nameOf.get(row.userId) || "" : "",
+          id: row.id, at: row.createdAt, amount: counted.amount, category: row.category, refType: row.refType, note: row.note, canEdit: row.refType !== "pos_closing", canDelete: row.refType !== "pos_closing", by: row.userId ? nameOf.get(row.userId) || "" : "",
           hasPhoto: !!row.photoUrl || !!upload?.photoUrl,
           payable: billOfLedger.get(row.id) ? { id: billOfLedger.get(row.id)!.id, status: billOfLedger.get(row.id)!.status, dueDate: billOfLedger.get(row.id)!.dueDate, payMethod: billOfLedger.get(row.id)!.payMethod, paidOn: billOfLedger.get(row.id)!.paidOn, supplier: billOfLedger.get(row.id)!.supplier, invoiceNo: billOfLedger.get(row.id)!.invoiceNo } : null,
           bill: ticket ? { id: ticket.id, orderNo: ticket.orderNo, table: ticket.tableNumber, member: ticket.memberName } : null,
