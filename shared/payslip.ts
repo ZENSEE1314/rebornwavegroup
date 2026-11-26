@@ -13,6 +13,8 @@ export interface PayslipData {
   /** Where the commission came from; only set when the three parts add up to it. */
   commissionParts?: { sales: number; items: number; tiers: number };
   position?: string;
+  /** The name the staff member uses in the app. */
+  nickname?: string;
   overtime: number;
   gross: number;
   /** What the staff member pays towards the funds (CPF, BPJS…), one line each. */

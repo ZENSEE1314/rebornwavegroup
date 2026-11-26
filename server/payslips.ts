@@ -62,7 +62,7 @@ export function renderPayslipPdf(data: PayslipData, wanted: PayslipLang): Promis
     };
     doc.font(bold).fontSize(18).text(data.company, { align: "center" });
     doc.font(bold).fontSize(14).text(text.title, { align: "center" }).moveDown(1);
-    doc.font(regular).fontSize(11).text(`${text.staff}: ${data.staffName}`);
+    doc.font(regular).fontSize(11).text(`${text.staff}: ${data.staffName}${data.nickname && data.nickname !== data.staffName ? ` (${data.nickname})` : ""}`);
     if (data.position) doc.text(`${text.position}: ${data.position}`);
     doc.text(`${text.month}: ${monthLabel(data.month, lang)}`).moveDown(1);
     doc.font(bold).fontSize(11).text(text.earnings).moveDown(0.3);
