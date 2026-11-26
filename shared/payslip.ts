@@ -10,6 +10,9 @@ export interface PayslipData {
   currency: { symbol: string; decimals: number };
   basic: number;
   commission: number;
+  /** Where the commission came from; only set when the three parts add up to it. */
+  commissionParts?: { sales: number; items: number; tiers: number };
+  position?: string;
   overtime: number;
   gross: number;
   /** What the staff member pays towards the funds (CPF, BPJS…), one line each. */
@@ -20,9 +23,9 @@ export interface PayslipData {
 }
 
 export const PAYSLIP_TEXT: Record<PayslipLang, Record<string, string>> = {
-  en: { title: "PAYSLIP", month: "Pay for", staff: "Staff", earnings: "Earnings", basic: "Basic pay", commission: "Sales commission", overtime: "Overtime", gross: "Gross pay", taken: "Deductions", contributions: "Staff contributions", deduction: "Deduction", net: "NET PAY", paidOn: "Paid on", note: "Keep this payslip for your records." },
-  zh: { title: "工资单", month: "工资月份", staff: "员工", earnings: "收入", basic: "基本工资", commission: "销售提成", overtime: "加班费", gross: "应发工资", taken: "扣除", contributions: "员工缴费", deduction: "扣款", net: "实发工资", paidOn: "发放日期", note: "请保留此工资单作记录。" },
-  id: { title: "SLIP GAJI", month: "Gaji bulan", staff: "Karyawan", earnings: "Pendapatan", basic: "Gaji pokok", commission: "Komisi penjualan", overtime: "Lembur", gross: "Gaji kotor", taken: "Potongan", contributions: "Iuran karyawan", deduction: "Potongan", net: "GAJI BERSIH", paidOn: "Dibayar pada", note: "Simpan slip gaji ini sebagai arsip." },
+  en: { position: "Position", comSales: "From own sales", comItems: "From item commission", comTiers: "From daily sales tiers", title: "PAYSLIP", month: "Pay for", staff: "Staff", earnings: "Earnings", basic: "Basic pay", commission: "Sales commission", overtime: "Overtime", gross: "Gross pay", taken: "Deductions", contributions: "Staff contributions", deduction: "Deduction", net: "NET PAY", paidOn: "Paid on", note: "Keep this payslip for your records." },
+  zh: { position: "职位", comSales: "个人销售提成", comItems: "商品提成", comTiers: "每日阶梯提成", title: "工资单", month: "工资月份", staff: "员工", earnings: "收入", basic: "基本工资", commission: "销售提成", overtime: "加班费", gross: "应发工资", taken: "扣除", contributions: "员工缴费", deduction: "扣款", net: "实发工资", paidOn: "发放日期", note: "请保留此工资单作记录。" },
+  id: { position: "Jabatan", comSales: "Dari penjualan sendiri", comItems: "Dari komisi item", comTiers: "Dari tingkat penjualan harian", title: "SLIP GAJI", month: "Gaji bulan", staff: "Karyawan", earnings: "Pendapatan", basic: "Gaji pokok", commission: "Komisi penjualan", overtime: "Lembur", gross: "Gaji kotor", taken: "Potongan", contributions: "Iuran karyawan", deduction: "Potongan", net: "GAJI BERSIH", paidOn: "Dibayar pada", note: "Simpan slip gaji ini sebagai arsip." },
 };
 
 const MONTH_LOCALE: Record<PayslipLang, string> = { en: "en-US", zh: "zh-CN", id: "id-ID" };

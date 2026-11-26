@@ -54,13 +54,22 @@ export function renderPayslipPdf(data: PayslipData, wanted: PayslipLang): Promis
       doc.text(money(amount), left + 300, y, { width: right - left - 300, align: "right" });
       doc.moveDown(0.5);
     };
+    const detail = (label: string, amount: number) => {
+      const y = doc.y;
+      doc.font(regular).fontSize(9).fillColor("#666666").text(label, left + 16, y, { width: 284 });
+      doc.text(money(amount), left + 300, y, { width: right - left - 300, align: "right" });
+      doc.fillColor("black").moveDown(0.3);
+    };
     doc.font(bold).fontSize(18).text(data.company, { align: "center" });
     doc.font(bold).fontSize(14).text(text.title, { align: "center" }).moveDown(1);
     doc.font(regular).fontSize(11).text(`${text.staff}: ${data.staffName}`);
+    if (data.position) doc.text(`${text.position}: ${data.position}`);
     doc.text(`${text.month}: ${monthLabel(data.month, lang)}`).moveDown(1);
     doc.font(bold).fontSize(11).text(text.earnings).moveDown(0.3);
     line(text.basic, data.basic);
     if (data.commission > 0) line(text.commission, data.commission);
+    const parts = data.commissionParts;
+    if (data.commission > 0 && parts) for (const [label, amount] of [[text.comSales, parts.sales], [text.comItems, parts.items], [text.comTiers, parts.tiers]] as const) if (amount > 0) detail(label, amount);
     if (data.overtime > 0) line(text.overtime, data.overtime);
     line(text.gross, data.gross, true);
     doc.moveDown(0.6).font(bold).fontSize(11).text(text.taken, left).moveDown(0.3);
