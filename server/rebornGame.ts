@@ -4078,6 +4078,20 @@ export function registerRebornRoutes(app: Express) {
     const { listErrors } = await import("./errorWatch");
     res.json(await listErrors({ area: String(req.query.area || ""), days: Number(req.query.days) || 7 }));
   }));
+  // "Fix with Claude": the click only leaves a request; the error-watch task on the owner's PC sees it within minutes, finds the cause of the errors and ships the fix.
+  const ERROR_FIX_KEY = "errorFixRequest";
+  app.post("/api/reborn/admin/errors/request-fix", requireAdmin(async (req, res) => {
+    const request = { requestedAt: new Date().toISOString(), requestedBy: getUserId(req), area: String(req.body?.area || "").slice(0, 40) };
+    await db.insert(appSettings).values({ key: ERROR_FIX_KEY, value: JSON.stringify(request), updatedAt: new Date() }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(request), updatedAt: new Date() } });
+    await logAdmin(req, { targetType: "errors", targetId: "fix", action: "request_error_fix", entityType: "settings", description: `Asked Claude to fix the errors${request.area ? ` (${request.area})` : ""}` });
+    res.json({ requestedAt: request.requestedAt, message: tr(req, { en: "Sent. Claude will look at the errors and fix them within a few minutes.", zh: "已发送。Claude 会在几分钟内查看错误并修复。", id: "Terkirim. Claude akan memeriksa error dan memperbaikinya dalam beberapa menit." }) });
+  }));
+  app.get("/api/reborn/admin/errors/fix-request", requireAdmin(async (_req, res) => {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, ERROR_FIX_KEY));
+    let requestedAt: string | null = null;
+    try { requestedAt = row?.value ? JSON.parse(row.value).requestedAt ?? null : null; } catch { requestedAt = null; }
+    res.json({ requestedAt });
+  }));
   app.delete("/api/reborn/admin/errors", requireAdmin(async (req, res) => {
     const { clearErrors } = await import("./errorWatch");
     await clearErrors(String(req.query.area || ""));

@@ -442,6 +442,8 @@ export const adminT: Record<string, { en: string; zh: string; id: string }> = {
   'admin.err.title': { en: "Error watch", zh: "错误监控", id: "Pantau error" },
   'admin.err.hint': { en: "Every failed song request, booking, POS sale, order, KOS check-in and WhatsApp reply is logged here. Main admins get a notification when something breaks (server error or 5+ errors in 10 minutes).", zh: "所有失败的点歌、预订、收银、订单、歌王签到和 WhatsApp 回复都会记录在这里。出现故障（服务器错误或 10 分钟内 5 次以上错误）时会通知主管理员。", id: "Setiap request lagu, booking, penjualan POS, pesanan, check-in KOS dan balasan WhatsApp yang gagal dicatat di sini. Admin utama mendapat notifikasi saat ada masalah (error server atau 5+ error dalam 10 menit)." },
   'admin.err.all': { en: "All", zh: "全部", id: "Semua" },
+  'admin.err.fix': { en: "Fix with Claude", zh: "让 Claude 修复", id: "Perbaiki dengan Claude" },
+  'admin.err.fixAt': { en: "Last asked: {time}", zh: "上次请求：{time}", id: "Terakhir diminta: {time}" },
   'admin.err.area.song': { en: "Songs", zh: "点歌", id: "Lagu" },
   'admin.err.area.booking': { en: "Booking", zh: "预订", id: "Booking" },
   'admin.err.area.pos': { en: "POS", zh: "收银", id: "POS" },

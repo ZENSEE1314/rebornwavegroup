@@ -593,10 +593,23 @@ function ErrorWatch({ canClear }: { canClear: boolean }) {
     mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/errors${area ? `?area=${area}` : ""}`).then((r) => r.json()),
     onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/reborn/admin/errors") }); },
   });
+  const fixUrl = "/api/reborn/admin/errors/fix-request";
+  const { data: fixRequest } = useQuery<{ requestedAt: string | null }>({ queryKey: [fixUrl], queryFn: () => apiRequest("GET", fixUrl).then((r) => r.json()), enabled: canClear });
+  const askFix = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/errors/request-fix", { area }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; }),
+    onSuccess: (d: any) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: [fixUrl] }); },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
   const chip = (on: boolean) => `px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap ${on ? "bg-red-500/20 border-red-400/60 text-red-100" : "bg-white/5 border-white/10 text-white/60"}`;
   return (
     <div>
       <h3 className="font-bold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-red-400" /> {t("admin.err.title")}</h3>
+      {canClear && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button type="button" disabled={askFix.isPending} onClick={() => askFix.mutate()} className="rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black disabled:opacity-50">🛠 {t("admin.err.fix")}</button>
+          {fixRequest?.requestedAt && <span className="text-[11px] text-white/50">{t("admin.err.fixAt", { time: new Date(fixRequest.requestedAt).toLocaleString(localeTag(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}</span>}
+        </div>
+      )}
       <p className="text-xs text-white/50 mt-1 mb-3">{t("admin.err.hint")}</p>
       <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2">
         <button onClick={() => setArea("")} className={chip(!area)}>{t("admin.err.all")} · {total}</button>
