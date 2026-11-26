@@ -4575,6 +4575,8 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     await logAdmin(req, { targetType: "settings", targetId: STAFF_PRICE_CAPS_KEY, action: "staff_price_caps", entityType: "settings", description: `Staff price monthly cap: default ${caps.defaultCap}, discount after the cap ${caps.discountPercent}%, ${Object.keys(caps.perPerson).length} personal caps` });
     res.json({ ok: true, ...caps });
   }));
+  // People set to "no commission" in Payroll earn none of it: no item commission, no daily tiers, no sales %.
+  const noCommissionUsers = async (): Promise<Set<string>> => new Set((await db.select({ userId: bridgeStaffProfiles.userId }).from(bridgeStaffProfiles).where(eq(bridgeStaffProfiles.noCommission, true))).map((row) => row.userId));
   // Staff commission on items (ladies drinks): when a bill is paid, every paid line of an item with a rule earns its commission for the person picked on the
   // line (else the one who ordered it, else the cashier). A refund cancels what is not yet in a payroll.
   const bookItemCommissions = async (ticketId: number, cashierId: string | null) => {
@@ -4585,6 +4587,7 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
       const products = new Map((await db.select().from(posProducts).where(inArray(posProducts.id, ids))).map((p) => [p.id, p]));
       const cid = await rebornCompanyId();
       const decimals = companyMoney().decimals;
+      const barred = await noCommissionUsers();
       await db.delete(staffItemCommissions).where(and(eq(staffItemCommissions.ticketId, ticketId), isNull(staffItemCommissions.settledAt)));
       for (const line of lines) {
         if (GONE_ITEM.includes(line.status) || line.status === "cancelled" || !line.productId) continue;
@@ -4597,12 +4600,12 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
         // Only items with a commission rule earn, and only for a person picked on the line (or in its split): never the one who ordered or the cashier by default. The main admin can add any other commission on the bill afterwards.
         for (const part of parts) {
           const amount = commissionForPart(ruleOfItem, lineTotal, line.qty, part.qty, decimals);
-          if (amount > 0 && canEarn(eligible, part.staffId)) await db.insert(staffItemCommissions).values({ companyId: cid, userId: part.staffId, ticketId, itemId: line.id, name: line.name, qty: part.qty, base: String(roundMoney(lineTotal * part.qty / line.qty)), amount: String(amount) });
+          if (amount > 0 && canEarn(eligible, part.staffId) && !barred.has(part.staffId)) await db.insert(staffItemCommissions).values({ companyId: cid, userId: part.staffId, ticketId, itemId: line.id, name: line.name, qty: part.qty, base: String(roundMoney(lineTotal * part.qty / line.qty)), amount: String(amount) });
         }
         const restQty = line.qty - parts.reduce((sum, part) => sum + part.qty, 0);
         if (restQty <= 0) continue;
         const amount = commissionForPart(ruleOfItem, lineTotal, line.qty, restQty, decimals);
-        const userId = canEarn(eligible, line.commissionStaffId) ? line.commissionStaffId : null;
+        const userId = canEarn(eligible, line.commissionStaffId) && !barred.has(line.commissionStaffId ?? "") ? line.commissionStaffId : null;
         if (amount <= 0 || !userId) continue;
         await db.insert(staffItemCommissions).values({ companyId: cid, userId, ticketId, itemId: line.id, name: line.name, qty: restQty, base: String(roundMoney(lineTotal * restQty / line.qty)), amount: String(amount) });
       }
@@ -4918,7 +4921,9 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     if (!setup.enabled || !setup.startDay) return result;
     const first = setup.startDay > from ? setup.startDay : from;
     if (first >= to) return result;
+    const barred = await noCommissionUsers();
     for (const row of await staffDaySales(first, to, onlyUserId)) {
+      if (barred.has(row.userId)) continue;
       const { percent, amount } = dayCommission(row.sales, setup.tiers);
       const entry = result.get(row.userId) || { total: 0, days: [] };
       entry.total = roundMoney(entry.total + roundMoney(amount));
@@ -6467,12 +6472,15 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     const {month,from,to,startDay:periodStartDay}=await payPeriodOf(String(req.query.month||""));
     const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0]; if(!reborn)return res.json({month,staff:[],referrals:[]});
     const otRate=(await getSettings()).overtimeHourlyRate;
-    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,m.position_id,u.username nickname,COALESCE(p.status,'active') status,(SELECT bp.name FROM bridge_positions bp WHERE bp.id=m.position_id) position_name,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(p.staff_kind,'staff') staff_kind,p.shift_start,p.shift_end,COALESCE(p.needs_attendance,true) needs_attendance,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ${req.query.resigned==="1"?sql``:sql`AND COALESCE(p.status,'active')<>'resigned'`} ORDER BY name`);
+    const result=await db.execute(sql`SELECT m.user_id,COALESCE(NULLIF(trim(p.real_name),''),NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) name,m.role,m.position_id,u.username nickname,COALESCE(p.no_commission,false) no_commission,COALESCE(p.status,'active') status,(SELECT bp.name FROM bridge_positions bp WHERE bp.id=m.position_id) position_name,p.employment_type,p.pay_type,COALESCE(p.base_salary,0) base_salary,COALESCE(p.hourly_rate,0) hourly_rate,COALESCE(p.commission_rate,0) commission_rate,COALESCE(p.sales_target,0) sales_target,EXISTS(SELECT 1 FROM payslips ps WHERE ps.company_id=m.company_id AND ps.user_id=m.user_id AND ps.month=${month}) has_payslip,p.birth_date,COALESCE(p.residency,'citizen') residency,COALESCE(p.statutory_on,true) statutory_on,COALESCE(p.deposit,0) deposit,p.deposit_note,COALESCE(p.staff_kind,'staff') staff_kind,p.shift_start,p.shift_end,COALESCE(p.needs_attendance,true) needs_attendance,COALESCE(a.hours,0) hours,COALESCE(a.ot_hours,0) ot_hours,COALESCE(s.sales,0) sales,COALESCE(s.tickets,0) tickets FROM bridge_company_members m JOIN users u ON u.id=m.user_id LEFT JOIN bridge_staff_profiles p ON p.company_id=m.company_id AND p.user_id=m.user_id LEFT JOIN (SELECT user_id,sum(greatest(extract(epoch from(check_out_at-check_in_at))-coalesce(break_seconds,0),0)/3600) hours,sum(coalesce(overtime_seconds,0)/3600.0) ot_hours FROM staff_attendance WHERE status IN ('approved','present') AND work_date>=${from} AND work_date<${to} AND check_out_at IS NOT NULL GROUP BY user_id)a ON a.user_id=m.user_id LEFT JOIN (SELECT sales_staff_id,sum(total::numeric) sales,count(*) tickets FROM pos_tickets WHERE status='paid' AND paid_at>=${new Date(from+"T00:00:00Z")} AND paid_at<${new Date(to+"T00:00:00Z")} GROUP BY sales_staff_id)s ON s.sales_staff_id=m.user_id WHERE m.company_id=${reborn.id} AND m.role IN ('owner','admin','manager','staff') AND u.role IN ('admin','staff') ${req.query.resigned==="1"?sql``:sql`AND COALESCE(p.status,'active')<>'resigned'`} ORDER BY name`);
     const rules=await payrollRules(); const money=companyMoney();
     const itemCommissionRows=((await db.execute(sql`SELECT user_id,sum(amount)::numeric total,count(*)::int n FROM staff_item_commissions WHERE voided_at IS NULL AND paid_ledger_id IS NULL AND created_at>=${new Date(from+"T00:00:00Z")} AND created_at<${new Date(to+"T00:00:00Z")} GROUP BY user_id`)) as any);
     const itemCommissionOf=new Map(((itemCommissionRows.rows||itemCommissionRows) as any[]).map((r:any)=>[r.user_id,{total:roundMoney(Number(r.total)),count:Number(r.n)}]));
     const tierOf=await dailyTierCommissions(from,to);
-    const staff=((result.rows||result) as any[]).map((x)=>{const tierCommission=tierOf.get(x.user_id)?.total||0;const itemCommission=itemCommissionOf.get(x.user_id)?.total||0;const itemCommissionCount=itemCommissionOf.get(x.user_id)?.count||0;const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.commission_rate)/100+itemCommission+tierCommission);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,itemCommission,itemCommissionCount,tierCommission,tierDays:tierOf.get(x.user_id)?.days||[],basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
+    // Item commission lines still open for this period (they can be removed here): waiting ones, and ones already paid in cash.
+    const lineRows=((await db.execute(sql`SELECT id,user_id,name,qty,amount::numeric amount,ticket_id,paid_ledger_id FROM staff_item_commissions WHERE voided_at IS NULL AND (settled_at IS NULL OR paid_ledger_id IS NOT NULL) AND created_at>=${new Date(from+"T00:00:00Z")} AND created_at<${new Date(to+"T00:00:00Z")} ORDER BY created_at`)) as any);
+    const linesOf=new Map<string,any[]>();for(const r of ((lineRows.rows||lineRows) as any[]))linesOf.set(r.user_id,[...(linesOf.get(r.user_id)||[]),{id:r.id,name:r.name,qty:r.qty,amount:roundMoney(Number(r.amount)),ticketId:r.ticket_id,paid:r.paid_ledger_id!=null}]);
+    const staff=((result.rows||result) as any[]).map((x)=>{const tierCommission=tierOf.get(x.user_id)?.total||0;const itemCommission=itemCommissionOf.get(x.user_id)?.total||0;const itemCommissionCount=itemCommissionOf.get(x.user_id)?.count||0;const basic=roundMoney(x.pay_type==="hourly"?Number(x.hourly_rate)*Number(x.hours):Number(x.base_salary));const salesCommission=roundMoney(Number(x.sales)*Number(x.no_commission?0:x.commission_rate)/100+itemCommission+tierCommission);const overtimePay=roundMoney(Number(x.ot_hours)*otRate);const total=roundMoney(basic+salesCommission+overtimePay);return{...x,commission_rate:x.no_commission?0:x.commission_rate,commissionLines:linesOf.get(x.user_id)||[],itemCommission,itemCommissionCount,tierCommission,tierDays:tierOf.get(x.user_id)?.days||[],basic,salesCommission,overtimePay,otRate,total,contributions:computeContributions(rules,total,{birthDate:x.birth_date,residency:x.residency,statutoryOn:x.statutory_on},month,money.decimals),targetHit:Number(x.sales)>=Number(x.sales_target)&&Number(x.sales_target)>0};});
     // Leave, MC and absence of the month (shared/payrollLeave.ts): the unpaid days are taken off a salaried person's pay, and the deduction box starts filled in with it.
     const leaveRules=await readLeaveRules();
     const leaveRows=((await db.execute(sql`SELECT user_id,type,start_date,end_date,paid FROM leave_requests WHERE status='approved' AND start_date<${to} AND end_date>=${from} AND (company_id=${reborn.id} OR company_id IS NULL)`)) as any);
@@ -6506,6 +6514,52 @@ function receiptQrOf(settings: any): { text: string; caption: string } | null {
     res.json({noLeaveMonths,payDays});
   }));
   app.post("/api/reborn/admin/payroll/profile", requireAdmin(async(req,res)=>{const b=req.body||{};const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];if(!reborn)return res.status(404).json({message:tr(req, { en: "Company not found", zh: "找不到该公司", id: "Perusahaan tidak ditemukan" })});const values={companyId:reborn.id,userId:String(b.userId),payType:b.payType==="hourly"?"hourly":"salary",employmentType:b.employmentType||"full_time",baseSalary:String(Math.max(0,Number(b.baseSalary)||0)),hourlyRate:String(Math.max(0,Number(b.hourlyRate)||0)),commissionRate:String(Math.max(0,Number(b.commissionRate)||0)),salesTarget:String(Math.max(0,Number(b.salesTarget)||0)),birthDate:/^\d{4}-\d{2}-\d{2}$/.test(String(b.birthDate||""))?String(b.birthDate):null,residency:asResidency(b.residency),statutoryOn:b.statutoryOn!==false,deposit:String(Math.max(0,Number(b.deposit)||0)),depositNote:String(b.depositNote||"").trim().slice(0,300)||null,staffKind:b.staffKind==="guard"?"guard":"staff",shiftStart:isValidClock(b.shiftStart)?b.shiftStart:null,shiftEnd:isValidClock(b.shiftEnd)?b.shiftEnd:null,needsAttendance:b.staffKind==="guard"?b.needsAttendance===true:b.needsAttendance!==false,updatedAt:new Date()};const[row]=await db.insert(bridgeStaffProfiles).values(values).onConflictDoUpdate({target:[bridgeStaffProfiles.companyId,bridgeStaffProfiles.userId],set:values}).returning();const wantedPosition=Number(b.positionId);if(Number.isInteger(wantedPosition)&&wantedPosition>0){const[position]=await db.select().from(bridgePositions).where(and(eq(bridgePositions.companyId,reborn.id),eq(bridgePositions.id,wantedPosition))).limit(1);if(position){await db.update(bridgeCompanyMembers).set({positionId:position.id}).where(and(eq(bridgeCompanyMembers.companyId,reborn.id),eq(bridgeCompanyMembers.userId,String(b.userId))));await db.update(bridgeStaffProfiles).set({positionId:position.id}).where(and(eq(bridgeStaffProfiles.companyId,reborn.id),eq(bridgeStaffProfiles.userId,String(b.userId))));}}res.json(row);}));
+  // Take commission lines away (entered by mistake, or a person who gets none): a waiting one is cancelled; one already paid in cash is also taken out of its accounting line.
+  // A line that went through a payroll is changed in that payroll, not here.
+  const removeCommissionLines = async (ids: number[]) => {
+    const rows = ids.length ? await db.select().from(staffItemCommissions).where(and(inArray(staffItemCommissions.id, ids), isNull(staffItemCommissions.voidedAt))) : [];
+    let removed = 0, refused = 0;
+    await db.transaction(async (tx) => {
+      for (const row of rows) {
+        if (row.settledAt && !row.paidLedgerId) { refused += 1; continue; }
+        if (row.paidLedgerId) {
+          const [entry] = await tx.select().from(ledgerEntries).where(eq(ledgerEntries.id, row.paidLedgerId));
+          if (entry) {
+            const left = roundMoney(Number(entry.amount) - Number(row.amount));
+            if (left > 0) await tx.update(ledgerEntries).set({ amount: String(left) }).where(eq(ledgerEntries.id, entry.id));
+            else await tx.delete(ledgerEntries).where(eq(ledgerEntries.id, entry.id));
+          }
+        }
+        await tx.update(staffItemCommissions).set({ voidedAt: new Date() }).where(eq(staffItemCommissions.id, row.id));
+        removed += 1;
+      }
+    });
+    return { removed, refused };
+  };
+  app.post("/api/reborn/admin/payroll/commission/remove", requireAdmin(async (req, res) => {
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).map((x: unknown) => Number(x)).filter((x: number) => Number.isInteger(x) && x > 0);
+    if (ids.length === 0) return res.status(400).json({ message: tr(req, { en: "Pick a commission line", zh: "请选择佣金记录", id: "Pilih baris komisi" }) });
+    const result = await removeCommissionLines(ids);
+    if (result.removed === 0) return res.status(400).json({ message: tr(req, { en: "Nothing removed: it is already cancelled or went through a payroll", zh: "未移除：已取消或已计入工资", id: "Tidak ada yang dihapus: sudah dibatalkan atau sudah masuk gaji" }) });
+    await logAdmin(req, { targetType: "item_commission", targetId: ids.join(","), action: "remove_from_payroll", entityType: "payroll", description: `Removed ${result.removed} commission line(s) from payroll (and from the accounts when they were paid in cash)` });
+    res.json({ ...result, message: tr(req, { en: "Commission removed", zh: "佣金已移除", id: "Komisi dihapus" }) });
+  }));
+  // "No commission" for one person: sales %, item commission and daily tiers all stop, and the lines still open are removed (from the accounts too when paid in cash).
+  app.post("/api/reborn/admin/payroll/no-commission", requireAdmin(async (req, res) => {
+    const userId = String(req.body?.userId || "");
+    const off = req.body?.off !== false;
+    const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, homeCompanySlug())).limit(1))[0];
+    if (!reborn || !userId) return res.status(400).json({ message: tr(req, { en: "Staff not found", zh: "找不到员工", id: "Staf tidak ditemukan" }) });
+    const change = off ? { noCommission: true, commissionRate: "0" } : { noCommission: false };
+    await db.insert(bridgeStaffProfiles).values({ companyId: reborn.id, userId, ...change }).onConflictDoUpdate({ target: [bridgeStaffProfiles.companyId, bridgeStaffProfiles.userId], set: { ...change, updatedAt: new Date() } });
+    let removed = 0;
+    if (off) {
+      const open = await db.select({ id: staffItemCommissions.id }).from(staffItemCommissions).where(and(eq(staffItemCommissions.userId, userId), isNull(staffItemCommissions.voidedAt), sql`(${staffItemCommissions.settledAt} IS NULL OR ${staffItemCommissions.paidLedgerId} IS NOT NULL)`));
+      removed = (await removeCommissionLines(open.map((row) => row.id))).removed;
+    }
+    await logAdmin(req, { targetUserId: userId, targetType: "staff", targetId: userId, action: off ? "no_commission_on" : "no_commission_off", entityType: "profile", description: off ? `Staff ${userId} set to no commission; ${removed} open commission line(s) removed` : `Staff ${userId} earns commission again` });
+    res.json({ removed, message: tr(req, off ? { en: "Set to no commission", zh: "已设为无佣金", id: "Diatur tanpa komisi" } : { en: "Commission is on again", zh: "已恢复佣金", id: "Komisi aktif lagi" }) });
+  }));
   // A staff member who resigned leaves the payroll, schedule and attendance lists; their pay history, payslips and accounts stay, and they can be brought back.
   app.post("/api/reborn/admin/payroll/resign", requireAdmin(async(req,res)=>{const b=req.body||{};const userId=String(b.userId||"");const resigned=b.resigned!==false;const reborn=(await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug,homeCompanySlug())).limit(1))[0];
     if(!reborn||!userId)return res.status(400).json({message:tr(req, { en: "Staff not found", zh: "找不到员工", id: "Staf tidak ditemukan" })});

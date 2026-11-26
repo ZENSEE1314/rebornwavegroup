@@ -187,6 +187,7 @@ export const bridgeStaffProfiles = pgTable("bridge_staff_profiles", {
   shiftStart: varchar("shift_start"), // "HH:MM" — a guard's fixed shift, e.g. 18:00 to 06:00 (past midnight is fine)
   shiftEnd: varchar("shift_end"),
   needsAttendance: boolean("needs_attendance").notNull().default(true), // false = no check-in; never counted absent
+  noCommission: boolean("no_commission").notNull().default(false), // true = earns no commission of any kind (sales %, item commission, daily tiers)
   status: varchar("status").notNull().default("active"),
   rankingScore: decimal("ranking_score", { precision: 10, scale: 2 }).default("0").notNull(),
   starGrade: decimal("star_grade", { precision: 3, scale: 2 }).default("0").notNull(),
